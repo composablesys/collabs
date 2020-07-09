@@ -1,0 +1,45 @@
+{
+  "name": "compoventuals",
+  "version": "0.1.0",
+  "main": "build/main.js",
+  "unpkg": "build/main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "copy-webpack-plugin": "^5.1.1",
+    "http-server": "^0.12.3",
+    "terser-webpack-plugin": "^3.0.1",
+    "ts-loader": "^7.0.5",
+    "ts-node": "^8.10.1",
+    "tslib": "^2.0.0",
+    "typescript": "^3.9.3",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  },
+  "scripts": {
+    "tsc": "tsc",
+    "tscw": "tsc --watch",
+    "wp": "webpack",
+    "wpw": "webpack --watch",
+    "serve": "http-server build"
+  },
+  "files": [
+    "build/main.js"
+  ],
+  "description": "",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "author": "Heather Miller",
+  "license": "ISC"
+}
