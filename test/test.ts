@@ -1,4 +1,8 @@
-// const assert = require('assert');
+const assert = require('assert');
+
+console.log("Running tests");
+
+
 // const howLongTillLunch = require('..');
 //
 // class MockDate {
