@@ -60,4 +60,10 @@ export interface CrdtRuntime {
      * listener wants to receive messages for.
      */
     register(crdtMessageListener: CrdtMessageListener, crdtId: any): void;
+    /**
+     * @return This replica's id, used by some CRDTs internally
+     * (e.g., to generate unique identifiers of the form
+     * (replica id, counter)).
+     */
+    getReplicaId(): any;
 }
