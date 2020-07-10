@@ -1,6 +1,7 @@
 const assert = require('assert');
 
 console.log("Running tests");
+require('./crdts/basic_crdts_tests');
 
 
 // const howLongTillLunch = require('..');
