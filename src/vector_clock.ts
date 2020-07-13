@@ -39,17 +39,26 @@ export class VectorClock {
     }
 
     /**
+     * @returns the number of replicas invovled in this crdts
+     */
+    getSize() : number {
+        return this.vectorMap.size;
+    }
+
+    /**
      * update the vector of the uid entry
      */
     increment() : void { 
         const oldValue = this.vectorMap.get(this.uid);
 
-        if(oldValue != null){
+        if(oldValue !== undefined){
             this.vectorMap.set(this.uid, oldValue + 1);
         }
     }
 
     /**
+     * check a message with a certain timestamp is ready for delivery
+     * ensure correct casuality
      * 
      * @param vc the VectorClock from other replica
      * @returns the message is ready or not
@@ -60,21 +69,25 @@ export class VectorClock {
         let otherUid = vc.getUid();
         let otherVectorMap = vc.getVectorMap();
 
-        if (this.vectorMap.get(otherUid) != null) { 
+        if (this.vectorMap.get(otherUid) !== null) { 
             if (this.vectorMap.get(otherUid) === otherVectorMap.get(otherUid)! - 1) {
-                for (let id of this.vectorMap.keys()) {
-                    if (id != otherUid && otherVectorMap.has(id) && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
+                for (let id of otherVectorMap.keys()) {
+                    if (id !== otherUid && !this.vectorMap.has(id)) {
                         ready = false;
-                    }    
+                    } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
+                        ready = false;
+                    }
                 }
             } else {
                 ready = false;
             }
         } else {
-            for (let id of this.vectorMap.keys()) {
-                if (id != otherUid && otherVectorMap.has(id) && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
+            for (let id of otherVectorMap.keys()) {
+                if (id !== otherUid && !this.vectorMap.has(id)) {
                     ready = false;
-                }    
+                } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
+                    ready = false;
+                }
             }
         }
 
@@ -82,6 +95,8 @@ export class VectorClock {
     }
 
     /**
+     * merge current VectorClock with the vector clock recevied from 
+     * other replica
      * 
      * @param vc the VectorClock from other replica
      */
@@ -96,6 +111,15 @@ export class VectorClock {
                 this.vectorMap.set(id, Math.max(this.vectorMap.get(id)!, otherVectorMap.get(id)!));
             }
         }
+    }
+
+    /**
+     * 
+     * @param someUid the replica's uid 
+     * @param clockValue the clock number of the replica
+     */
+    setEntry(someUid : any, clockValue : number) : void {
+        this.vectorMap.set(someUid, clockValue);
     }
     
 }
