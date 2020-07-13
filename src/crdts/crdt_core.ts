@@ -30,10 +30,11 @@ export interface CrdtInternal<S> {
      * @param replicaId The id of the replica issuing this operation,
      * which may be read to determine the message.
      * @return An implementation-specific description of the resulting
-     * message.  Note this will be sent on the wire using TODO.
-     * A null message should be used only to indicate that nothing
-     * happens, in which case the runtime will not actually send
-     * the message to other replicas.
+     * message.  Note this will be sent on the wire using TODO
+     * (serialization).
+     * The message msut be null only if this operation does not
+     * change the internal state, since if the message is null,
+     * Crdt will skip sending the message to other replicas.
      */
     prepare(operation: any, state: S, replicaId: any): any;
     /**
@@ -45,7 +46,9 @@ export interface CrdtInternal<S> {
      * it in-place and return it.
      * @param  message   The message to be applied, coming from
      * some replica's prepare function.
-     * @param  state     The input state
+     * @param  state     The input state.
+     * @param replicaId The id of the replica applying this operation
+     * (not the id of the replica that issued this message).
      * @param  timestamp The message's causal timestamp.  If
      * timestamp is undefined, it means that the message was
      * just issued locally, hence is causally greater than all
@@ -60,8 +63,13 @@ export interface CrdtInternal<S> {
      * Ideally, it should be described in terms of ordinary data
      * type operations, so that applications can understand the change
      * without needing to understand the CRDT's semantics.
+     * The description must be null only if the externally visible
+     * state is unchanged,
+     * since Crdt will skip calling onchange if description is null.
+     * (The converse---if the state was unchanged, then description
+     * is null---need not hold, although it is nice if it does.)
      */
-    effect(message: any, state: S, timestamp?: CausalTimestamp): [S, any];
+    effect(message: any, state: S, replicaId: any, timestamp?: CausalTimestamp): [S, any];
 }
 
 /**
@@ -115,7 +123,7 @@ export class Crdt<C extends CrdtInternal<S>, S> implements CrdtMessageListener {
      * same CrdtRuntime must have distinct ids, and the ids must
      * be the same for all replicas of a given CRDT, in order
      * for the CrdtRuntime to route messages to them properly.
-     * @param crdt    The CrdtInternal to use.  Note that since
+     * @param crdtInternal    The CrdtInternal to use.  Note that since
      * CrdtInternal's don't store states, multiple objects may
      * share the same CrdtInternal instance.
      * @param runtime The CrdtRuntime to use for sending and
@@ -133,20 +141,38 @@ export class Crdt<C extends CrdtInternal<S>, S> implements CrdtMessageListener {
      * Apply the given operation to the state, using prepare and effect.
      * @param  operation The operation.
      * @return           The description of the change returned by
-     * effect.  If prepare returns null, indicating that no change
+     * effect, after being passed through translateDescription
+     * (with the exception that null descriptions are not translated).
+     * If prepare returns null, indicating that no change
      * occurs (hence effect and sending the message to other replicas
-     * are skipped), the description is null.
+     * are skipped), the returned description is null.
      */
     protected applyOp(operation: any) : any {
         let message = this.crdtInternal.prepare(operation, this.state,
             this.runtime.getReplicaId());
         if (message === null) return null;
         else {
-            let result = this.crdtInternal.effect(message, this.state);
+            let result = this.crdtInternal.effect(message, this.state,
+                this.runtime.getReplicaId());
             this.state = result[0];
             this.runtime.send(result[1], this.id);
-            return result[1];
+            if (result[1] === null) return null;
+            else return this.translateDescription(result[1]);
         }
+    }
+
+    /**
+     * Override this to translate the description returned by the
+     * CrdtInternal before passing it to onchange.  This is
+     * useful for semidirect products because the default semidirect
+     * product descriptions are not user-friendly.  Note that
+     * null descriptions skip onchange without being passed to this
+     * method.  If this method returns null, onchange is not called.
+     * @param  description The description returned by this.crdtInternal.effect.
+     * @return The description to pass to this.onchange.
+     */
+    protected translateDescription(description: any): any {
+        return description;
     }
 
     /**
@@ -156,8 +182,11 @@ export class Crdt<C extends CrdtInternal<S>, S> implements CrdtMessageListener {
     receive(message: any, timestamp: CausalTimestamp) {
         let result = this.crdtInternal.effect(message, this.state, timestamp);
         this.state = result[0];
-        if (this.onchange) {
-            this.onchange(new CrdtChangeEvent(this, result[1], timestamp));
+        if (this.onchange && result[1] !== null) {
+            let translated = this.translateDescription(result[1]);
+            if (translated !== null) {
+                this.onchange(new CrdtChangeEvent(this, translated, timestamp));
+            }
         }
     }
 }

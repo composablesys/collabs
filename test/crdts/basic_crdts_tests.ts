@@ -10,7 +10,11 @@ function testCounter() {
     console.log("testCounter()...");
 
     let aliceCounter = new CounterCrdt("counterId", alice);
+    aliceCounter.onchange = (event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + event.description));
     let bobCounter = new CounterCrdt("counterId", bob);
+    bobCounter.onchange = (event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + event.description));
     assert.equal(aliceCounter.value, 0);
     assert.equal(bobCounter.value, 0);
 
@@ -32,7 +36,11 @@ function testMultRegister() {
     console.log("testMultRegister()...");
 
     let aliceRegister = new MultRegisterCrdt("multId", alice, 2);
+    aliceRegister.onchange = (event => console.log(
+        "Alice: " + event.timestamp.getSender() + " multed " + event.description));
     let bobRegister = new MultRegisterCrdt("multId", bob, 2);
+    bobRegister.onchange = (event => console.log(
+        "Bob: " + event.timestamp.getSender() + " multed " + event.description));
     assert.equal(aliceRegister.value, 2);
     assert.equal(bobRegister.value, 2);
 
@@ -54,7 +62,11 @@ function testGSet() {
     console.log("testGSet()...");
 
     let aliceGSet = new GSetCrdt("gsetId", alice);
+    aliceGSet.onchange = (event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + event.description));
     let bobGSet = new GSetCrdt("gsetId", bob);
+    bobGSet.onchange = (event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + event.description));
     assert.deepStrictEqual(aliceGSet.value, new Set());
     assert.deepStrictEqual(bobGSet.value, new Set());
 

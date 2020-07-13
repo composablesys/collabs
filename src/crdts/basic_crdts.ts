@@ -4,6 +4,7 @@ import {CrdtInternal, Crdt} from "./crdt_core";
 /**
  * Operations, messages, and descriptions are all just the
  * number to add/added.
+ * TODO: optimize away 0 adds?
  */
 export class CounterInternal implements CrdtInternal<number> {
     create(initialData?: number): number {
@@ -13,7 +14,7 @@ export class CounterInternal implements CrdtInternal<number> {
     prepare(operation: number, _state: number): number {
         return operation;
     }
-    effect(message: number, state: number, _timestamp?: CausalTimestamp): [number, number] {
+    effect(message: number, state: number, _replicaId: any, _timestamp?: CausalTimestamp): [number, number] {
         return [state + message, message];
     }
     static instance = new CounterInternal();
@@ -57,6 +58,7 @@ export class CounterCrdt extends Crdt<CounterInternal, number> {
 /**
  * Operations, messages, and descriptions are all just the
  * number to multiply/multiplied.
+ * TODO: optimize away 1 mults?
  */
 export class MultRegisterInternal implements CrdtInternal<number> {
     create(initialData?: number): number {
@@ -66,7 +68,7 @@ export class MultRegisterInternal implements CrdtInternal<number> {
     prepare(operation: number, _state: number): number {
         return operation;
     }
-    effect(message: number, state: number, _timestamp?: CausalTimestamp): [number, number] {
+    effect(message: number, state: number, _replicaId: any, _timestamp?: CausalTimestamp): [number, number] {
         return [state * message, message];
     }
     static instance = new MultRegisterInternal();
@@ -111,8 +113,9 @@ export class MultRegisterCrdt extends Crdt<MultRegisterInternal, number> {
 /**
  * Operations and messages are the element to add.  TODO:
  * this means that adding null won't work as GSetCrdt will treat
- * its message as a no-op.  Description is the array of elements
- * added ([] or [added element]).
+ * its message as a no-op.  Description is the element added
+ * (if it's redundant, description is null, so onchange won't
+ * see anything).
  */
 class GSetInternal implements CrdtInternal<Set<any>> {
     create(initialData?: Set<any>): Set<any> {
@@ -126,11 +129,11 @@ class GSetInternal implements CrdtInternal<Set<any>> {
     effect(message: any, state: Set<any>, _timestamp?: CausalTimestamp): [Set<any>, any] {
         if (state.has(message)) {
             // does nothing
-            return [state, []];
+            return [state, null];
         }
         else {
             state.add(message);
-            return [state, [message]];
+            return [state, message];
         }
     }
     static instance = new GSetInternal();

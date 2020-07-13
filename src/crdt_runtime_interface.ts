@@ -7,17 +7,22 @@
  * (e.g., a vector clock).
  */
 export interface CausalTimestamp {
-    // Return the message sender's replica id.
     /**
      * @return the message sender's replica id.
      */
     getSender(): any;
     /**
+     * @return the counter for messages sent by this message's
+     * sender.  It must be the same as
+     * this.asVectorClock().get(this.getSender()).
+     */
+    getSenderCounter(): number;
+    /**
      * @return this timestamp in the form of a vector clock,
      * i.e., as a map from replica ids to the number of their
      * most recent <= message.
      */
-    asVectorClock(): Record<any, number>;
+    asVectorClock(): Map<any, number>;
     // TODO: ?
 }
 

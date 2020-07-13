@@ -12,7 +12,8 @@ class TestingInOrderRuntime implements CrdtRuntime {
                     throw new Error("No Crdt with id " + crdtId +
                         " on replica " + runtime.getReplicaId());
                 }
-                listener.receive(message, null as unknown as CausalTimestamp);
+                let myReplicaId = this.replicaId;
+                listener.receive(message, {getSender() { return myReplicaId;}} as CausalTimestamp);
             }
         }
     }
