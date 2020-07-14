@@ -1,10 +1,10 @@
-const assert = require('assert');
-import {TestingInOrderRuntimeGenerator} from "../runtime_for_testing";
+import assert from 'assert';
+import {TestingRuntimeGenerator} from "../runtime_for_testing";
 import { CounterCrdt, MultRegisterCrdt, GSetCrdt } from "../../src/crdts/basic_crdts";
 
-let runtimeGen = new TestingInOrderRuntimeGenerator();
-let alice = runtimeGen.newRuntime();
-let bob = runtimeGen.newRuntime();
+let runtimeGen = new TestingRuntimeGenerator();
+let alice = runtimeGen.newRuntime("alice");
+let bob = runtimeGen.newRuntime("bob");
 
 function testCounter() {
     console.log("testCounter()...");
@@ -19,16 +19,32 @@ function testCounter() {
     assert.equal(bobCounter.value, 0);
 
     aliceCounter.add(3);
+    runtimeGen.releaseAll();
     assert.equal(aliceCounter.value, 3);
     assert.equal(bobCounter.value, 3);
 
     bobCounter.add(-4);
+    runtimeGen.releaseAll();
     assert.equal(aliceCounter.value, -1);
     assert.equal(bobCounter.value, -1);
 
     aliceCounter.value = 11;
+    runtimeGen.releaseAll();
     assert.equal(aliceCounter.value, 11);
     assert.equal(bobCounter.value, 11);
+
+    // Out of order test
+    aliceCounter.add(2);
+    assert.equal(aliceCounter.value, 13);
+    assert.equal(bobCounter.value, 11);
+
+    bobCounter.add(-5);
+    assert.equal(aliceCounter.value, 13);
+    assert.equal(bobCounter.value, 6);
+
+    runtimeGen.releaseAll();
+    assert.equal(aliceCounter.value, 8);
+    assert.equal(bobCounter.value, 8);
     console.log("...ok");
 }
 
@@ -45,16 +61,32 @@ function testMultRegister() {
     assert.equal(bobRegister.value, 2);
 
     aliceRegister.mult(3);
+    runtimeGen.releaseAll();
     assert.equal(aliceRegister.value, 6);
     assert.equal(bobRegister.value, 6);
 
     bobRegister.mult(-4);
+    runtimeGen.releaseAll();
     assert.equal(aliceRegister.value, -24);
     assert.equal(bobRegister.value, -24);
 
     aliceRegister.value = 11;
+    runtimeGen.releaseAll();
     assert.equal(aliceRegister.value, 11);
     assert.equal(bobRegister.value, 11);
+
+    // Out of order test
+    aliceRegister.mult(2);
+    assert.equal(aliceRegister.value, 22);
+    assert.equal(bobRegister.value, 11);
+
+    bobRegister.mult(-8);
+    assert.equal(aliceRegister.value, 22);
+    assert.equal(bobRegister.value, -88);
+
+    runtimeGen.releaseAll();
+    assert.equal(aliceRegister.value, -176);
+    assert.equal(bobRegister.value, -176);
     console.log("...ok");
 }
 
@@ -71,16 +103,32 @@ function testGSet() {
     assert.deepStrictEqual(bobGSet.value, new Set());
 
     aliceGSet.add("element");
+    runtimeGen.releaseAll();
     assert.deepStrictEqual(aliceGSet.value, new Set(["element"]));
     assert.deepStrictEqual(bobGSet.value, new Set(["element"]));
 
     bobGSet.add(7);
+    runtimeGen.releaseAll();
     assert.deepStrictEqual(aliceGSet.value, new Set(["element", 7]));
     assert.deepStrictEqual(bobGSet.value, new Set(["element", 7]));
 
     aliceGSet.add(7);
+    runtimeGen.releaseAll();
     assert.deepStrictEqual(aliceGSet.value, new Set(["element", 7]));
     assert.deepStrictEqual(bobGSet.value, new Set(["element", 7]));
+
+    // Out of order test
+    aliceGSet.add("first");
+    assert.deepStrictEqual(aliceGSet.value, new Set(["element", 7, "first"]));
+    assert.deepStrictEqual(bobGSet.value, new Set(["element", 7]));
+
+    bobGSet.add("second");
+    assert.deepStrictEqual(aliceGSet.value, new Set(["element", 7, "first"]));
+    assert.deepStrictEqual(bobGSet.value, new Set(["element", 7, "second"]));
+
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceGSet.value, new Set(["element", 7, "first", "second"]));
+    assert.deepStrictEqual(bobGSet.value, new Set(["element", 7, "first", "second"]));
     console.log("...ok");
 }
 

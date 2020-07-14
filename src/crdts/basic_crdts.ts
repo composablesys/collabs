@@ -14,7 +14,7 @@ export class CounterInternal implements CrdtInternal<number> {
     prepare(operation: number, _state: number): number {
         return operation;
     }
-    effect(message: number, state: number, _replicaId: any, _timestamp?: CausalTimestamp): [number, number] {
+    effect(message: number, state: number, _replicaId: any, _timestamp: CausalTimestamp): [number, number] {
         return [state + message, message];
     }
     static instance = new CounterInternal();
@@ -68,7 +68,7 @@ export class MultRegisterInternal implements CrdtInternal<number> {
     prepare(operation: number, _state: number): number {
         return operation;
     }
-    effect(message: number, state: number, _replicaId: any, _timestamp?: CausalTimestamp): [number, number] {
+    effect(message: number, state: number, _replicaId: any, _timestamp: CausalTimestamp): [number, number] {
         return [state * message, message];
     }
     static instance = new MultRegisterInternal();
@@ -126,7 +126,7 @@ class GSetInternal implements CrdtInternal<Set<any>> {
         if (state.has(operation)) return null;
         else return operation;
     }
-    effect(message: any, state: Set<any>, _timestamp?: CausalTimestamp): [Set<any>, any] {
+    effect(message: any, state: Set<any>, _timestamp: CausalTimestamp): [Set<any>, any] {
         if (state.has(message)) {
             // does nothing
             return [state, null];

@@ -1,4 +1,4 @@
-import {CausalTimestamp, CrdtRuntime} from "../crdt_runtime_interface";
+import { CausalTimestamp } from "../crdt_runtime_interface";
 import { CrdtInternal } from "./crdt_core";
 
 // TODO: future opts: indexed messages; setting the history
@@ -21,7 +21,8 @@ export class SemidirectState<S> {
      * a semidirect product and its components.
      */
     private receiptCounter = 0;
-    private history: Map<any, Array<[number, number, any]>> = new Map();
+    // TODO: private
+    history: Map<any, Array<[number, number, any]>> = new Map();
     constructor(public internalState: S) { }
     /**
      * Add message with to the history with the given timestamp.
@@ -40,42 +41,26 @@ export class SemidirectState<S> {
      * the correctness of this replica's getConcurrent method,
      * but it should be kept in mind.
      */
-    add(message: any, replicaId: any, timestamp?: CausalTimestamp) {
-        let sender : any;
-        let counter: number;
-        let senderHistory: Array<[number, number, any]> | undefined;
-        if (timestamp !== undefined) {
-            sender = timestamp.getSender();
-            counter = timestamp.getSenderCounter();
-            senderHistory = this.history.get(sender);
-        }
-        else {
-            // It's by the current replica.  Infer counter as 1 +
-            // the last counter value used.
-            sender = replicaId;
-            senderHistory = this.history.get(sender);
-            if (senderHistory === undefined) counter = 0;
-            else counter = senderHistory[senderHistory.length - 1][0] + 1;
-        }
-
+    add(message: any, timestamp: CausalTimestamp) {
+        let senderHistory = this.history.get(timestamp.getSender());
         if (senderHistory === undefined) {
             senderHistory = [];
-            this.history.set(sender, senderHistory);
+            this.history.set(timestamp.getSender(), senderHistory);
         }
-        senderHistory.push([counter, this.receiptCounter, message]);
+        senderHistory.push([timestamp.getSenderCounter(), this.receiptCounter, message]);
         this.receiptCounter++;
     }
 
     /**
      * Return all messages in the history concurrent to the given
      * timestamp, in some causal order (specifically, this replica's
-     * receipt order).  Timestamp may be undefined, indicating that
-     * this message is by the current replica, hence is causally
-     * greater than all causally prior elements; in that case,
-     * this method will return [], as expected.
+     * receipt order).  If we are the sender (i.e., replicaId ===
+     * timestamp.getSender()), it is assumed that the timestamp is
+     * causally greater than all prior messages, as described in
+     * CrdtInternal.effect, hence [] is returned.
      */
-    getConcurrent(timestamp?: CausalTimestamp): Array<any> {
-        if (timestamp === undefined) return [];
+    getConcurrent(replicaId: any, timestamp: CausalTimestamp): Array<any> {
+        if (replicaId === timestamp.getSender()) return [];
         // Gather up the concurrent messages.  These are all
         // messages by each replicaId with sender counter
         // greater than timestamp.asVectorClock().get(replicaId).
@@ -114,7 +99,7 @@ export class SemidirectState<S> {
     }
 }
 
-export class SemidirectCrdtInternal<S> implements CrdtInternal<SemidirectState<S>> {
+export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
     /**
      * CrdtInternal implementing the semidirect product of
      * crdt1 and crdt2 with the given action, which is a function
@@ -170,16 +155,16 @@ export class SemidirectCrdtInternal<S> implements CrdtInternal<SemidirectState<S
      * the returned description is just null, not [1, null] or [2, null].
      * This allows the Crdt class to optimize away calling onchange.
      */
-    effect(message: [number, any], state: SemidirectState<S>, replicaId: any, timestamp?: CausalTimestamp): [SemidirectState<S>, [number, any] | null] {
+    effect(message: [number, any], state: SemidirectState<S>, replicaId: any, timestamp: CausalTimestamp): [SemidirectState<S>, [number, any] | null] {
         if (message[0] === 2) {
             let result = this.crdt2.effect(message[1], state.internalState, replicaId, timestamp);
             state.internalState = result[0];
-            state.add(message[1], replicaId, timestamp);
+            state.add(message[1], timestamp);
             if (result[1] === null) return [state, null];
             else return [state, [2, result[1]]];
         }
         else {
-            let concurrent = state.getConcurrent(timestamp);
+            let concurrent = state.getConcurrent(replicaId, timestamp);
             let mAct = message[1];
             for (let i = 0; i < concurrent.length; i++) {
                 mAct = this.action(concurrent[i], mAct);

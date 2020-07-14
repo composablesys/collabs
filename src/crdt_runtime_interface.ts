@@ -71,4 +71,16 @@ export interface CrdtRuntime {
      * (replica id, counter)).
      */
     getReplicaId(): any;
+    /**
+     * @return The timestamp that would be assigned to a CRDT
+     * message sent by this replica right now.  This is passed
+     * to CrdtInternal.effect when a replica processes its own
+     * message.
+     * 
+     * TODO: so far, SemidirectInternal only needs to know the
+     * getSenderCounter() part
+     * of the timestamp.  So we could optimize and only return that
+     * if it's tricky/slow to implement this method fully.
+     */
+    getNextTimestamp(): CausalTimestamp;
 }

@@ -1,11 +1,11 @@
 import { Crdt } from "./crdt_core";
-import { SemidirectState, SemidirectCrdtInternal } from "./semidirect";
+import { SemidirectState, SemidirectInternal } from "./semidirect";
 import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
 import { CrdtRuntime } from "../crdt_runtime_interface";
 
-export class IntRegisterCrdt extends Crdt<SemidirectCrdtInternal<number>, SemidirectState<number>> {
+export class IntRegisterCrdt extends Crdt<SemidirectInternal<number>, SemidirectState<number>> {
     // semidirectInstance completely describes this semidirect product
-    static semidirectInstance = new SemidirectCrdtInternal<number>(
+    static semidirectInstance = new SemidirectInternal<number>(
         CounterInternal.instance, MultRegisterInternal.instance,
         (m2: number, m1: number) => m2*m1
     );

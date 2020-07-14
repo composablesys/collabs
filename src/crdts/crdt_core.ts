@@ -49,14 +49,14 @@ export interface CrdtInternal<S> {
      * @param  state     The input state.
      * @param replicaId The id of the replica applying this operation
      * (not the id of the replica that issued this message).
-     * @param  timestamp The message's causal timestamp.  If
-     * timestamp is undefined, it means that the message was
-     * just issued locally, hence is causally greater than all
-     * prior messages.  Note that
+     * @param  timestamp The message's causal timestamp.  Note that
      * because several CRDTs can share the same runtime, timestamps
      * may not be continguous (e.g., entries in their vector clocks
      * might skip numbers).  However, causally ordered delivery is
-     * still guaranteed.
+     * still guaranteed.  If we are processing our own message
+     * (i.e., replicaId === timestamp.getSender()), then it is
+     * guaranteed that the message is causally greater than all prior
+     * messages.
      * @return           [The output state, an implementation-specific
      * description of the change.]  The description will be passed
      * to the application using this CRDT so they know what occurred.
@@ -69,7 +69,7 @@ export interface CrdtInternal<S> {
      * (The converse---if the state was unchanged, then description
      * is null---need not hold, although it is nice if it does.)
      */
-    effect(message: any, state: S, replicaId: any, timestamp?: CausalTimestamp): [S, any];
+    effect(message: any, state: S, replicaId: any, timestamp: CausalTimestamp): [S, any];
 }
 
 /**
@@ -153,7 +153,7 @@ export class Crdt<C extends CrdtInternal<S>, S> implements CrdtMessageListener {
         if (message === null) return null;
         else {
             let result = this.crdtInternal.effect(message, this.state,
-                this.runtime.getReplicaId());
+                this.runtime.getReplicaId(), this.runtime.getNextTimestamp());
             this.state = result[0];
             this.runtime.send(result[1], this.id);
             if (result[1] === null) return null;
@@ -180,7 +180,7 @@ export class Crdt<C extends CrdtInternal<S>, S> implements CrdtMessageListener {
      * another replica.
      */
     receive(message: any, timestamp: CausalTimestamp) {
-        let result = this.crdtInternal.effect(message, this.state, timestamp);
+        let result = this.crdtInternal.effect(message, this.state, this.runtime.getReplicaId(), timestamp);
         this.state = result[0];
         if (this.onchange && result[1] !== null) {
             let translated = this.translateDescription(result[1]);
