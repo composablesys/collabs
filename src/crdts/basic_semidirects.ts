@@ -3,11 +3,11 @@ import { SemidirectState, SemidirectInternal } from "./semidirect";
 import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
 import { CrdtRuntime } from "../crdt_runtime_interface";
 
-export class IntRegisterCrdt extends Crdt<SemidirectInternal<number>, SemidirectState<number>> {
+export class IntRegisterCrdt extends Crdt<SemidirectState<number>> {
     // semidirectInstance completely describes this semidirect product
     static semidirectInstance = new SemidirectInternal<number>(
         CounterInternal.instance, MultRegisterInternal.instance,
-        (m2: number, m1: number) => m2*m1
+        (m2: number, m1: number) => m2*m1, 1
     );
     constructor(id: any, runtime: CrdtRuntime, initialData?: any) {
         super(id, IntRegisterCrdt.semidirectInstance, runtime, initialData);
@@ -19,15 +19,16 @@ export class IntRegisterCrdt extends Crdt<SemidirectInternal<number>, Semidirect
         this.add(-1);
     }
     add(n: number) {
-        this.applyOp([1,n]);
+        this.applyOps([1,n]);
     }
     mult(n: number) {
-        this.applyOp([2,n]);
+        this.applyOps([2,n]);
     }
     get value() : number {
         return this.state.internalState;
     }
-    protected translateDescription(description: [number, number]): [string, number] {
+    protected translateDescriptions(descriptions: Array<[number, number]>): [string, number] {
+        let description = descriptions[0];
         if (description[0] === 1) return ["add", description[1]];
         else return ["mult", description[1]];
     }

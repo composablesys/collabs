@@ -1,6 +1,7 @@
 console.log("Running tests");
 require('./crdts/basic_crdts_tests');
 require('./crdts/basic_semidirects_tests');
+require('./crdts/resettable_tests');
 
 
 // const howLongTillLunch = require('..');

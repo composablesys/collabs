@@ -54,7 +54,7 @@ class TestingRuntime implements CrdtRuntime {
  * when release is called.
  */
 export class TestingRuntimeGenerator {
-    newRuntime(replicaId?: any) : CrdtRuntime {
+    newRuntime(replicaId?: any) : TestingRuntime {
         if (replicaId === undefined) replicaId = this.messageQueues.size;
         let runtime = new TestingRuntime(this, replicaId);
         let newQueue = new Map<TestingRuntime, Array<any>>();

@@ -1,5 +1,6 @@
 import {CausalTimestamp, CrdtRuntime} from "../crdt_runtime_interface";
 import {CrdtInternal, Crdt} from "./crdt_core";
+import { DirectInternal } from "./semidirect";
 
 /**
  * Operations, messages, and descriptions are all just the
@@ -29,7 +30,7 @@ export class CounterInternal implements CrdtInternal<number> {
  * overflow or if you use floating point numbers.  TODO: is there a
  * better type we can use?
  */
-export class CounterCrdt extends Crdt<CounterInternal, number> {
+export class CounterCrdt extends Crdt<number> {
     constructor(id: any, runtime: CrdtRuntime, initialData?: number) {
         super(id, CounterInternal.instance, runtime, initialData);
     }
@@ -40,7 +41,7 @@ export class CounterCrdt extends Crdt<CounterInternal, number> {
         this.add(-1);
     }
     add(n: number) {
-        this.applyOp(n);
+        this.applyOps(n);
     }
     get value() : number {
         return this.state;
@@ -83,12 +84,12 @@ export class MultRegisterInternal implements CrdtInternal<number> {
  * overflow or if you use floating point numbers.  TODO: is there a
  * better type we can use?
  */
-export class MultRegisterCrdt extends Crdt<MultRegisterInternal, number> {
+export class MultRegisterCrdt extends Crdt<number> {
     constructor(id: any, runtime: CrdtRuntime, initialData?: number) {
         super(id, MultRegisterInternal.instance, runtime, initialData);
     }
     mult(n: number) {
-        this.applyOp(n);
+        this.applyOps(n);
     }
     get value() : number {
         return this.state;
@@ -147,17 +148,54 @@ class GSetInternal implements CrdtInternal<Set<any>> {
  *
  * TODO: adding a null value will be ignored.
  */
-export class GSetCrdt extends Crdt<GSetInternal, Set<any>> {
+export class GSetCrdt extends Crdt<Set<any>> {
     constructor(id: any, runtime: CrdtRuntime, initialData?: Set<any>) {
         super(id, GSetInternal.instance, runtime, initialData);
     }
     add(element: any) {
-        this.applyOp(element);
+        this.applyOps(element);
     }
     /**
      * @return The current set.  This should be treated as immutable.
      */
     get value() : Set<any> {
         return this.state;
+    }
+}
+
+
+/**
+ * CrdtInternal which uses any string as an operation/message
+ * which does nothing.  Unlike using null messages to indicate that
+ * nothing happened, the noop message is an explicit non-null
+ * string supplied as the operation.
+ *
+ * Two use cases for adding noop messages to an existing CrdtInternal
+ * via a direct product (using DirectInternal) with this crdt:
+ * - Implementing the unremove method of Removable.  A noop message
+ * "unremove" lets us know that the Crdt is no longer reset without
+ * changing its state.  See DefaultResettableCrdt.
+ * - As a "header" for sequence of operations passed to applyOps,
+ * so that recipients can know what end-user operation the sequence
+ * corresponds to.
+ */
+export class NoOpCrdtInternal<S> implements CrdtInternal<S> {
+    create(_initialData?: any): S {
+        throw new Error("Method not implemented.");
+    }
+    prepare(operation: string, _state: S) {
+        return operation;
+    }
+    /**
+     * The returned description is the original operation.
+     */
+    effect(message: string, state: S, _replicaId: any, _timestamp: CausalTimestamp): [S, string] {
+        return [state, message];
+    }
+
+    static addTo<S>(originalCrdt: CrdtInternal<S>) {
+        return new DirectInternal<S>(originalCrdt,
+            new NoOpCrdtInternal<S>(), 1
+        );
     }
 }
