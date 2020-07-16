@@ -93,6 +93,28 @@ export class CrdtChangeEvent {
         public readonly timestamp: CausalTimestamp) { }
 }
 
+export enum ResetSemantics {
+    /**
+     * Undo the effect of causally prior operations but do not
+     * affect concurrent operations.
+     */
+    ObservedReset,
+    /**
+     * Undo the effect of both causally prior operations and
+     * concurrent operations.
+     */
+    ResetWins,
+    /**
+     * Preserve the state (i.e., do nothing).
+     */
+    PreserveState,
+    /**
+     * A custom remove semantics specific to the Crdt (e.g.,
+     * the Riak counter's anomalous reset semantics).
+     */
+    Custom
+}
+
 // User-facing wrappers around CRDTs should extend this class,
 // adding methods for the CRDT's operations (e.g., increment())
 // which call this class's apply method.
@@ -212,6 +234,44 @@ export class Crdt<S> implements CrdtMessageListener {
             if (translated !== null) {
                 this.onchange(new CrdtChangeEvent(this, translated, timestamp));
             }
+        }
+    }
+
+    /**
+     * Perform a reset operation appropriate
+     * for the removal
+     * of this value's key from a map, with the given semantics.
+     * We require this method in Crdt so that any Crdt can be
+     * used as a value in a map.
+     *
+     * If semantics is not supported, an error should be thrown.
+     * If semantics is not specified, a default supported semantics
+     * should be used.  That way, calling (TODO: precise name)
+     * remove(k) on a map key k will always succeed (see TODO: MapCrdt
+     * class).
+     *
+     * This default implementation supports only
+     * ResetSemantics.PreserveState, its default semantics,
+     * doing nothing.  Subclasses
+     * should override to support additional semantics and override
+     * the default semantics, which should typically be
+     * ResetSemantics.ObservedReset.
+     *
+     * @param semantics The ResetSemantics to use.  If this is
+     * undefined, a default semantics will be used.
+     */
+    reset(semantics = ResetSemantics.PreserveState): void {
+        switch (semantics) {
+            case ResetSemantics.ObservedReset:
+                throw new Error("Unsupported reset semantics: ObservedReset");
+            case ResetSemantics.ResetWins:
+                throw new Error("Unsupported reset semantics: ResetWins");
+            case ResetSemantics.PreserveState:
+                return; // do nothing
+            case ResetSemantics.Custom:
+                throw new Error("Unsupported reset semantics: Custom");
+            default:
+                throw new Error("Unsupported reset semantics: " + semantics);
         }
     }
 }

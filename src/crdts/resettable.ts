@@ -1,90 +1,6 @@
-import { Crdt, CrdtInternal } from "./crdt_core";
+import { Crdt, CrdtInternal, ResetSemantics } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
-import { NoOpCrdtInternal } from "./basic_crdts";
 import { CausalTimestamp, CrdtRuntime } from "../crdt_runtime_interface";
-
-export enum ResetSemantics {
-    /**
-     * Undo the effect of causally prior operations but do not
-     * affect concurrent operations.
-     */
-    ObservedReset,
-    /**
-     * Undo the effect of both causally prior operations and
-     * concurrent operations.
-     */
-    ResetWins,
-    /**
-     * A custom remove semantics specific to the Crdt (e.g.,
-     * the Riak counter's anomalous reset semantics).
-     */
-    Custom
-}
-
-/**
- * Interface describing a Crdt with reset operations sufficient
- * to be used in a Map Crdt with removable keys.
- * TODO: move to file defining Map Crdt.
- */
-export interface Resettable {
-    /**
-     * Perform a reset operation appropriate for the removal
-     * of this value's key from a map.
-     *
-     * If semantics
-     * is not supported, an error should be thrown; however, it's
-     * best practice to never throw an error if semantics is not
-     * specified (i.e., the default semantics should always be
-     * supported).
-     *
-     * @param semantics The ResetSemantics to use.  If this is
-     * undefined, a default semantics should be used.
-     */
-    reset(semantics?: ResetSemantics): void;
-    /**
-     * Returns whether or not the Crdt is in a reset state
-     * i.e., its key should be considered not present in the
-     * map.  The precise meaning of this is CRDT-specific,
-     * but intuitively, it means that every operation occurring
-     * since the last remove() call has been cancelled by the removal's
-     * concurrency semantics.  It should also be true at creation time
-     * until unreset() is called (TODO: which a map using this CRDT
-     * will do to provoke a key-init message).
-     *
-     * E.g.:
-     * - For ObservedReset, this should be true if
-     * there has been an operation not causally dominated by a reset
-     * operation.
-     * - For ResetWins, this should be true if there has been an
-     * operation causally greater than all reset operations.
-     */
-    isReset(): boolean;
-    /**
-     * Perform an operation whose sequential semantics is to
-     * set isRemoved() to true without changing the actual
-     * Crdt state.  Whether this actually sets isRemoved() to true
-     * depends on the semantics of concurrent removals.  E.g.,
-     * a concurrent RemoveWins operation should cancel an
-     * unremove operation, hence isRemoved() will remain false.
-     * This is called when a map key is initialized, including
-     * when it is re-initialized causally
-     * after having been removed.
-     *
-     * TODO: issue with calling reset() then unreset() to perform
-     * a reset that doesn't remove its key: doesn't work in the case
-     * of concurrent reset-wins, since they'll kill each other's
-     * unreset operations.  We could support this use case by
-     * having a state union of two crdts, the original one and one
-     * just for unreset operations, with reset-but-not-remove operations
-     * performing resets on the original crdt only, while remove
-     * operations perform resets on both crdts.  Non-reset operations
-     * on the original crdt would have an accompanying unreset
-     * operation.  However, this might double our state size while
-     * only being useful in the niche case of wanting to
-     * distinguish between reset-wins resets and key removal.
-     */
-    unreset(): void;
-}
 
 export class ResetWinsComponent<S> implements CrdtInternal<S> {
     constructor(public readonly originalCrdt: CrdtInternal<S>,
@@ -167,15 +83,14 @@ export class ObservedResetComponent<S> implements CrdtInternal<S> {
 }
 
 export class DefaultResettableCrdt<S>
-        extends Crdt<SemidirectState<SemidirectState<S>>>
-        implements Resettable {
+        extends Crdt<SemidirectState<SemidirectState<S>>> {
     public readonly originalCrdtInternal: CrdtInternal<S>;
     constructor(id: any, originalCrdtInternal: CrdtInternal<S>,
             resetInitialData: any,
             runtime: CrdtRuntime, initialData?: any) {
         let crdtWrapped = ResetWinsComponent.addTo(
             ObservedResetComponent.addTo(
-                NoOpCrdtInternal.addTo(originalCrdtInternal),
+                originalCrdtInternal,
                 resetInitialData
             ), resetInitialData
         );
@@ -191,16 +106,10 @@ export class DefaultResettableCrdt<S>
                 super.applyOps([2, "reset"]);
                 break;
             case ResetSemantics.Custom:
-                throw new Error("ResetSemantics.Custom is not supported");
+                throw new Error("Unsupported reset semantics: Custom");
             default:
-                throw new Error("Unrecognized semantics: " + semantics);
+                throw new Error("Unsupported reset semantics: " + semantics);
         }
-    }
-    isReset(): boolean {
-        return this.state.internalState.isHistoryEmpty();
-    }
-    unreset(): void {
-        super.applyOps([1, [2, [2, "unreset"]]]);
     }
     /**
      * Apply operations intended for this.originalCrdtInternal,
@@ -210,7 +119,7 @@ export class DefaultResettableCrdt<S>
     protected applyOps(...operations: any) : any {
         let translatedOps: Array<any> = [];
         for (let operation of operations) {
-            translatedOps.push([1, [2, [1, operation]]]);
+            translatedOps.push([1, [2, operation]]);
         }
         return super.applyOps(...translatedOps);
     }
@@ -226,8 +135,6 @@ export class DefaultResettableCrdt<S>
      * - The description of an observed-reset operation is
      * ["reset", ResetSemantics.ObservedReset, [TODO: un-reset
      * operations]]
-     * - The description of an unreset() operation is "unreset",
-     * regradless of whether it changed the state.
      * - The description of an atomic sequence of originalCrdtInternal
      * operations is that returned by translateOriginalDescriptions(
      * list of originalCrdtInternal descriptions).
@@ -251,24 +158,18 @@ export class DefaultResettableCrdt<S>
                 // to be delivered together?
                 return ["reset", ResetSemantics.ObservedReset, []];
             }
-            // Unreset description is [1, [2, [2, "unreset"]]]
-            if (desc[0] === 1 && desc[1][0] === 2 &&
-                desc[1][1][0] === 2 && desc[1][1][1] === "unreset") {
-                return "unreset";
-            }
         }
         // If we get to here, it's a sequence of originalCrdtInternal ops
         let translated = [];
         for (let desc of descriptions) {
-            // Operation must be of the form [1, [2, [1, desc]]]
+            // Operation must be of the form [1, [2, desc]]
             // Exception: nulls get sent directly to null
             if (desc === null) translated.push(null);
             else {
-                if (!(desc[0] === 1 && desc[1][0] === 2 &&
-                    desc[1][1][0] === 1)) {
+                if (!(desc[0] === 1 && desc[1][0] === 2)) {
                     throw new Error("Unrecognized description: " + desc);
                 }
-                translated.push(desc[1][1][1]);
+                translated.push(desc[1][1]);
             }
         }
         return this.translateDescriptionsInternal(translated);

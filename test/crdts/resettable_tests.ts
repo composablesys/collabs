@@ -1,7 +1,7 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
 import {ResettableCounterCrdt} from "../../src/crdts/standard";
-import { ResetSemantics } from '../../src/crdts/resettable';
+import { ResetSemantics } from '../../src/crdts/crdt_core';
 
 let runtimeGen = new TestingRuntimeGenerator();
 let alice = runtimeGen.newRuntime("alice");

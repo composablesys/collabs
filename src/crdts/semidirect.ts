@@ -24,25 +24,18 @@ export class SemidirectState<S> {
     private history: Map<any, Array<[number, number, any]>> = new Map();
     constructor(public internalState: S,
         public readonly historyTimestamps: boolean,
-        public readonly historyKeepOnlyConcurrent: boolean) { }
+        public readonly historyDiscard1Dominated: boolean,
+        public readonly historyDiscard2Dominated: boolean) { }
     /**
-     * Add message with to the history with the given timestamp.
+     * Add message to the history with the given timestamp.
      * Timestamp may be undefined, indicating that this message
      * is by the current replica, hence is causally greater than all
      * causally prior elements.  replicaId is our replica id.
-     *
-     * TODO: when timestamp is omitted, we will store the message
-     * as if its counter (vector clock entry) is one greater than
-     * this replica's maximum counter already in the history.  However,
-     * the CrdtRuntime may assign the message a greater counter value
-     * if there have been messages from other sources since the last
-     * message in this CrdtInternal's history.  That correct counter value
-     * is what will be used by peers in their vector clocks.
-     * This shouldn't affect
-     * the correctness of this replica's getConcurrent method,
-     * but it should be kept in mind.
      */
-    add(message: any, timestamp: CausalTimestamp) {
+    add(replicaId: any, message: any, timestamp: CausalTimestamp) {
+        if (this.historyDiscard2Dominated) {
+            this.processTimestamp(replicaId, timestamp, false, true);
+        }
         let senderHistory = this.history.get(timestamp.getSender());
         if (senderHistory === undefined) {
             senderHistory = [];
@@ -63,9 +56,27 @@ export class SemidirectState<S> {
      * CrdtInternal.effect, hence [] is returned.
      */
     getConcurrent(replicaId: any, timestamp: CausalTimestamp): Array<any> {
-        // TODO: check keep only concurrent
+        return this.processTimestamp(replicaId, timestamp, true,
+            this.historyDiscard1Dominated);
+    }
+
+    /**
+     * Performs specified actions on all messages in the history:
+     * - if returnConcurrent is true, returns the list of
+     * all messages in the history concurrent to timestamp, in
+     * receipt order.
+     * - if discardDominated is true, deletes all messages from
+     * the history whose timestamps are causally dominated by
+     * or equal to the given timestamp.  (Note that this means that
+     * if we want to keep a message with the given timestamp in
+     * the history, it must be added to the history after calling
+     * this method.)
+     */
+    private processTimestamp(replicaId: any,
+            timestamp: CausalTimestamp, returnConcurrent: boolean,
+            discardDominated: boolean): Array<any> {
         if (replicaId === timestamp.getSender()) {
-            if (this.historyKeepOnlyConcurrent) {
+            if (discardDominated) {
                 // Nothing's concurrent, so clear everything
                 this.history.clear();
             }
@@ -81,21 +92,29 @@ export class SemidirectState<S> {
             if (senderHistory !== undefined) {
                 let concurrentIndexStart =
                     SemidirectState.indexAfter(senderHistory, entry[1]);
-                for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
-                    concurrent.push(senderHistory[i]);
+                if (returnConcurrent) {
+                    for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
+                        concurrent.push(senderHistory[i]);
+                    }
                 }
-                if (this.historyKeepOnlyConcurrent) {
+                if (discardDominated) {
                     // Keep only the messages with index
                     // >= concurrentIndexStart
                     senderHistory.splice(0, concurrentIndexStart);
+                    // TODO: delete it from the map if empty,
+                    // as a form of garbage collection.
+                    // This also makes isHistoryEmpty simpler.
                 }
             }
         }
-        // Sort the concurrent messages in receipt order (i.e.,
-        // by the second entry in each triple).
-        concurrent.sort((a, b) => (a[1] - b[1]));
-        // Strip away everything except the messages.
-        return concurrent.map(a => a[2]);
+        if (returnConcurrent) {
+            // Sort the concurrent messages in receipt order (i.e.,
+            // by the second entry in each triple).
+            concurrent.sort((a, b) => (a[1] - b[1]));
+            // Strip away everything except the messages.
+            return concurrent.map(a => a[2]);
+        }
+        else return [];
     }
 
     /**
@@ -143,6 +162,24 @@ export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
      * TODO: options and their theoretical significance.  Formally,
      * historyTimestamps = true means that timestamps become
      * part of the crdt2 messages.  Also createCrdtIndex.
+     * Dominated stats control whether you discard messages in the
+     * history that are causally dominated by crdt1/crdt2 messages;
+     * need to ensure that action is the same with those messages
+     * discarded.  If dominated1 is set, then state.isHistoryEmpty()
+     * becomes (there exists a crdt2 message not causally dominated by a
+     * crdt1 message).  Check this is still true if dominated2 is set.)
+     * Explain examples where this is used (resettable, flags); it's
+     * not quite in the semidirect product spirit unless you think
+     * of it as using the history as part of the crdt1/2 state.
+     * Potential optimization: only delete dominated messages when
+     * receiving our own message (it's basically free and always
+     * clears the history), or only sometimes (will miss some
+     * messages, so need to ensure correctness in that case
+     * (I think it is okay for dominated2 but not dominated1 in our
+     * target use cases), but
+     * should be more efficient due to batching and still kill
+     * off most messages).  This trades a small increase in space
+     * usage for a decrease in CPU time.
      *
      * As described in CrdtInternal and Crdt, null messages are treated
      * as the identity function id, allowing them to be optimized away.
@@ -157,7 +194,8 @@ export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
         public readonly action: (m2: any, m1: any) => any,
         public readonly createCrdtIndex: number,
         public readonly historyTimestamps = false,
-        public readonly historyKeepOnlyConcurrent = false) {
+        public readonly historyDiscard1Dominated = false,
+        public readonly historyDiscard2Dominated = false) {
             if (createCrdtIndex !== 1 && createCrdtIndex !== 2) {
                 throw new Error("Bad createCrdtIndex (must be 1 or 2):" +
                         createCrdtIndex);
@@ -172,7 +210,8 @@ export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
         if (this.createCrdtIndex === 1) internalState = this.crdt1.create(initialData);
         else internalState = this.crdt2.create(initialData);
         return new SemidirectState(internalState,
-            this.historyTimestamps, this.historyKeepOnlyConcurrent);
+            this.historyTimestamps, this.historyDiscard1Dominated,
+            this.historyDiscard2Dominated);
     }
     /**
      * Operation/message format: [crdt number (1 or 2),
@@ -211,7 +250,7 @@ export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
         if (message[0] === 2) {
             let result = this.crdt2.effect(message[1], state.internalState, replicaId, timestamp);
             state.internalState = result[0];
-            state.add(message[1], timestamp);
+            state.add(replicaId, message[1], timestamp);
             if (result[1] === null) return [state, null];
             else return [state, [2, result[1]]];
         }
