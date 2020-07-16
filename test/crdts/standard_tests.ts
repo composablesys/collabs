@@ -1,6 +1,7 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
-import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt } from '../../src/crdts/standard';
+import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet } from '../../src/crdts/standard';
+import { ResetSemantics } from '../../src/crdts/crdt_core';
 
 let runtimeGen = new TestingRuntimeGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -190,8 +191,91 @@ function testUnresettableIntRegister() {
     console.log("...ok");
 }
 
+function testAwSet() {
+    console.log("testAwSet()...");
+
+    let aliceSet = new AddWinsSet<string>("awSetId", alice);
+    aliceSet.onchange = (event => console.log(
+        "Alice: " + event.timestamp.getSender() + " did " +
+         JSON.stringify(event.description)));
+    let bobSet = new AddWinsSet<string>("awSetId", bob);
+    bobSet.onchange = (event => console.log(
+        "Bob: " + event.timestamp.getSender() + " did " +
+         JSON.stringify(event.description)));
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set());
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set());
+
+    aliceSet.add("element");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element"]));
+
+    bobSet.add("7");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7"]));
+
+    aliceSet.add("7");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7"]));
+
+    // Out of order test
+    aliceSet.add("first");
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7"]));
+
+    bobSet.add("second");
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7", "second"]));
+
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7", "first", "second"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7", "first", "second"]));
+
+    // Delete tests on single element (copying EwFlag tests)
+    aliceSet.delete("element");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["7", "first", "second"]));
+
+    bobSet.delete("nonexistent");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["7", "first", "second"]));
+
+    aliceSet.add("concurrent");
+    aliceSet.delete("concurrent");
+    bobSet.add("concurrent");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
+
+    // Observed-reset test
+    bobSet.reset();
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set());
+    aliceSet.add("survivor");
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["survivor"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["survivor"]));
+
+    // Reset-wins test
+    aliceSet.reset(ResetSemantics.ResetWins);
+    aliceSet.add("alice's");
+    bobSet.reset();
+    bobSet.add("bob's");
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["alice's"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["bob's"]));
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["alice's"]));
+    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["alice's"]));
+
+    console.log("...ok");
+}
+
 testEwFlag();
 testDwFlag();
 testIntRegister();
 testFromPaper();
 testUnresettableIntRegister();
+testAwSet();

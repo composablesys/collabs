@@ -147,6 +147,8 @@ class GSetInternal implements CrdtInternal<Set<any>> {
  * ([] or [added element]).
  *
  * TODO: adding a null value will be ignored.
+ * TODO: add a type annotation
+ * TODO: same interface as JS Set
  */
 export class GSetCrdt extends Crdt<Set<any>> {
     constructor(id: any, runtime: CrdtRuntime, initialData?: Set<any>) {
@@ -199,5 +201,130 @@ export class NoOpCrdtInternal<S> implements CrdtInternal<S> {
         return new DirectInternal<S>(originalCrdt,
             new NoOpCrdtInternal<S>(), 1
         );
+    }
+}
+
+export class GrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
+    private readonly initStateForPrepare: S;
+    constructor(public readonly valueCrdtInternal: CrdtInternal<S>,
+            public readonly valueInitialData: any) {
+        this.initStateForPrepare = valueCrdtInternal.create(valueInitialData);
+    }
+    create(_initialData?: any): Map<K, S> {
+        return new Map<K, S>();
+    }
+    /**
+     * Operations:
+     * - ["apply", key, C operation]: applies the C operation to the
+     * given key, initializing it if needed.
+     * - ["init", key]: initializes the given key using create
+     * if it is not already present in the map.
+     */
+    prepare(operation: [string, K, any], state: Map<K, S>, replicaId: any): [string, K, any?] {
+        let key = operation[1];
+        switch (operation[0]) {
+            case "apply":
+                let keyState = state.get(key);
+                if (keyState === undefined) {
+                    keyState = this.initStateForPrepare;
+                }
+                return ["apply", key, this.valueCrdtInternal.prepare(
+                    operation[2], keyState, replicaId
+                )];
+            case "init":
+                return ["init", key];
+            default:
+                throw new Error("Unrecognized operation: " + JSON.stringify(operation));
+        }
+    }
+    /**
+     * Description format:
+     * - for an apply operation: ["apply", key, value description]
+     * - for an init operation: null if the key already existed,
+     * otherwise ["init", key]
+     */
+    effect(message: [string, K, any?], state: Map<K, S>,
+            replicaId: any, timestamp: CausalTimestamp):
+            [Map<K, S>, [string, K, any?] | null] {
+        let key = message[1];
+        switch (message[0]) {
+            case "apply":
+                let keyState = state.get(key);
+                if (keyState === undefined) {
+                    keyState = this.valueCrdtInternal.create(this.valueInitialData);
+                }
+                let result = this.valueCrdtInternal.effect(
+                    message[2], keyState, replicaId, timestamp
+                );
+                state.set(key, result[0]);
+                return [state, ["apply", key, result[1]]];
+            case "init":
+                if (state.has(key)) return [state, null];
+                else {
+                    state.set(key, this.valueCrdtInternal.create(this.valueInitialData));
+                    return [state, ["init", key]];
+                }
+            default:
+                throw new Error("Unrecognized message: " + JSON.stringify(message));
+        }
+    }
+}
+
+/**
+ * Like GrowOnlyMapInternal, but keys whose values are the initial
+ * state are garbage collected.
+ */
+export class GcGrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
+    private readonly initStateForPrepare: S;
+    /**
+     * @param readonlyisInitialState    A function which may return
+     * true if the given state is an initial state (i.e., an output
+     * of valueCrdtInternal.create(valueInitialData)).  It need not
+     * always return true given this condition, but it must return
+     * false if this condition fails.
+     */
+    constructor(public readonly valueCrdtInternal: CrdtInternal<S>,
+            public readonly valueInitialData: any,
+            public readonly isInitialState: (state: S) => boolean) {
+        this.initStateForPrepare = valueCrdtInternal.create(valueInitialData);
+    }
+    create(_initialData?: any): Map<K, S> {
+        return new Map<K, S>();
+    }
+    /**
+     * Operations:
+     * - [key, C operation]: applies the C operation to the
+     * given key, initializing it if needed.
+     */
+    prepare(operation: [K, any], state: Map<K, S>, replicaId: any): [K, any?] {
+        let key = operation[0];
+        let keyState = state.get(key);
+        if (keyState === undefined) {
+            keyState = this.initStateForPrepare;
+        }
+        return [key, this.valueCrdtInternal.prepare(
+            operation[1], keyState, replicaId
+        )];
+    }
+    /**
+     * Description format:
+     * - for an apply operation: ["apply", key, value description]
+     */
+    effect(message: [K, any?], state: Map<K, S>,
+            replicaId: any, timestamp: CausalTimestamp):
+            [Map<K, S>, [string, K, any?] | null] {
+        let key = message[0];
+        let keyState = state.get(key);
+        if (keyState === undefined) {
+            keyState = this.valueCrdtInternal.create(this.valueInitialData);
+        }
+        let result = this.valueCrdtInternal.effect(
+            message[1], keyState, replicaId, timestamp
+        );
+        if (this.isInitialState(result[0])) {
+            state.delete(key);
+        }
+        else state.set(key, result[0]);
+        return [state, ["apply", key, result[1]]];
     }
 }

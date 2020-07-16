@@ -1,6 +1,6 @@
 import {CrdtRuntime} from "../crdt_runtime_interface";
-import {DefaultResettableCrdt} from "./resettable";
-import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal } from "./basic_crdts";
+import {DefaultResettableCrdt, ResetWinsComponent, ObservedResetComponent} from "./resettable";
+import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal, GcGrowOnlyMapInternal } from "./basic_crdts";
 import { ResetSemantics, Crdt } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
 
@@ -133,4 +133,87 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
         }
         else return "disable";
     }
+}
+
+export class AddWinsSet<T> extends
+        Crdt<SemidirectState<Map<T, SemidirectState<SemidirectState<null>>>>> {
+    /**
+     * The CrdtInternal for this datatype (with key type T elided
+     * so it can be static).  This only looks complicated
+     * because we have to manually do the reset-wins and
+     * observed-reset wrapping that EnableWinsFlag gets
+     * automatically (via DefaultResettableCrdt).  Basically
+     * it is just a GcGrowOnlyMapInternal<T, "EnableWinsFlagInternal">,
+     * wrapped in a whole-set reset-wins layer.
+     */
+    private static crdtInternal = ResetWinsComponent.addTo(
+        new GcGrowOnlyMapInternal
+        <any, SemidirectState<SemidirectState<null>>>(
+            ResetWinsComponent.addTo(
+                ObservedResetComponent.addTo(
+                    new NoOpCrdtInternal(() => null),
+                    null, true
+                ), null
+            ), null, (state) => state.internalState.isHistoryEmpty()
+        ), null
+    );
+    constructor(id: any, runtime: CrdtRuntime) {
+        super(id, AddWinsSet.crdtInternal, runtime);
+    }
+    add(value: T) {
+        // We want to do [value, "e"] (for enable).
+        // Complicated because we have to account for the reset
+        // wrapping.
+        this.applyOps([1, [value, [1, [2, "e"]]]]);
+    }
+    delete(value: T) {
+        // Do an observed-reset on value, using its observed-reset
+        // layer.
+        this.applyOps([1, [value, [1, [1, "reset"]]]]);
+    }
+    /**
+     * Deletes the value with strong delete-wins semantics
+     * (delete wins over concurrent add operations, even if
+     * this operation has already been dominated by an add
+     * operation).
+     */
+    deleteStrong(value: T) {
+        // Do a reset-wins reset on value, using its reset-wins layer.
+        this.applyOps([1, [value, [2, "reset"]]]);
+    }
+    has(value: T) {
+        // Return if the entry at value is enabled.
+        // Because the internal map garbage collects disabled
+        // (removed) entries, we can just do:
+        return this.state.internalState.has(value);
+    }
+    values() {
+        // Because the internal map garbage collects disabled
+        // (removed) entries, we can just do:
+        return this.state.internalState.keys();
+    }
+    reset(semantics: ResetSemantics = ResetSemantics.ObservedReset): void {
+        switch (semantics) {
+            case ResetSemantics.ObservedReset:
+                // TODO: more efficient approach
+                // Observed-reset is equivalent to delete
+                // on all keys we currently know of.
+                let resets = [];
+                for (let value of this.values()) {
+                    resets.push([1, [value, [1, [1, "reset"]]]]);
+                }
+                this.applyOps(...resets);
+                break;
+            case ResetSemantics.ResetWins:
+                this.applyOps([2, "reset"]);
+                break;
+            case ResetSemantics.PreserveState:
+                break;
+            case ResetSemantics.Custom:
+                throw new Error("Unsupported reset semantics: Custom");
+            default:
+                throw new Error("Unsupported reset semantics: " + semantics);
+        }
+    }
+    // TODO: translateDescriptions
 }

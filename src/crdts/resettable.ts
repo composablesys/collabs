@@ -2,6 +2,11 @@ import { Crdt, CrdtInternal, ResetSemantics } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
 import { CausalTimestamp, CrdtRuntime } from "../crdt_runtime_interface";
 
+// TODO: how to do garbage collection of reset-wins operations?
+// E.g. for flags in a set: garbage collection will fail if
+// there are reset-wins ops in the history, as it should, but
+// we would like to garbage collect anyway once all the reset-wins
+// are causally stable.
 export class ResetWinsComponent<S> implements CrdtInternal<S> {
     constructor(public readonly originalCrdt: CrdtInternal<S>,
         public readonly resetInitialData: any) { }
@@ -10,7 +15,8 @@ export class ResetWinsComponent<S> implements CrdtInternal<S> {
     }
     prepare(operation: string, _state: S) {
         if (operation !== "reset") {
-            throw new Error("Unrecognized operation: " + operation);
+            throw new Error("Unrecognized operation: " +
+                JSON.stringify(operation));
         }
         return "reset";
     }
@@ -19,7 +25,8 @@ export class ResetWinsComponent<S> implements CrdtInternal<S> {
      */
     effect(message: string, _state: S, _replicaId: any, _timestamp: CausalTimestamp): [S, string] {
         if (message !== "reset") {
-            throw new Error("Unrecognized message: " + message);
+            throw new Error("Unrecognized message: " +
+                JSON.stringify(message));
         }
         // Note we should return a clone of the reset state, not
         // a fixed "reset state", since the returned state may
@@ -46,7 +53,8 @@ export class ObservedResetComponent<S> implements CrdtInternal<S> {
     }
     prepare(operation: string, _state: S) {
         if (operation !== "reset") {
-            throw new Error("Unrecognized operation: " + operation);
+            throw new Error("Unrecognized operation: " +
+                JSON.stringify(operation));
         }
         return [];
     }
