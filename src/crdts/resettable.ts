@@ -33,7 +33,7 @@ export class ResetWinsComponent<S> implements CrdtInternal<S> {
             originalCrdt, new ResetWinsComponent(originalCrdt,
             resetInitialData),
             (_m2 : string, _m1: any) => null,
-            1
+            1, false, false, true
         );
     }
 }
@@ -71,13 +71,13 @@ export class ObservedResetComponent<S> implements CrdtInternal<S> {
     }
 
     static addTo<S>(originalCrdt: CrdtInternal<S>,
-            resetInitialData: any) : SemidirectInternal<S> {
+            resetInitialData: any, keepOnlyMaximal = false) : SemidirectInternal<S> {
         return new SemidirectInternal<S>(
             new ObservedResetComponent(originalCrdt, resetInitialData),
             originalCrdt,
             (m2: [any, CausalTimestamp], m1: Array<[any, CausalTimestamp]>) =>
                 {m1.push(m2); return m1},
-            2, true, true
+            2, true, true, keepOnlyMaximal
         );
     }
 }
@@ -85,13 +85,26 @@ export class ObservedResetComponent<S> implements CrdtInternal<S> {
 export class DefaultResettableCrdt<S>
         extends Crdt<SemidirectState<SemidirectState<S>>> {
     public readonly originalCrdtInternal: CrdtInternal<S>;
+    /**
+     * [constructor description]
+     * @param id                    [description]
+     * @param originalCrdtInternal  [description]
+     * @param resetInitialData      [description]
+     * @param runtime               [description]
+     * @param initialData           [description]
+     * @param keepOnlyMaximal=false Store only causally maximal
+     * messages in the history, to save space (although possibly
+     * at some CPU cost).  This is only allowed if the state
+     * only ever depends on the causally maximal messages.
+     */
     constructor(id: any, originalCrdtInternal: CrdtInternal<S>,
             resetInitialData: any,
-            runtime: CrdtRuntime, initialData?: any) {
+            runtime: CrdtRuntime, initialData?: any,
+            keepOnlyMaximal = false) {
         let crdtWrapped = ResetWinsComponent.addTo(
             ObservedResetComponent.addTo(
                 originalCrdtInternal,
-                resetInitialData
+                resetInitialData, keepOnlyMaximal
             ), resetInitialData
         );
         super(id, crdtWrapped, runtime, initialData);
@@ -104,6 +117,8 @@ export class DefaultResettableCrdt<S>
                 break;
             case ResetSemantics.ResetWins:
                 super.applyOps([2, "reset"]);
+                break;
+            case ResetSemantics.PreserveState:
                 break;
             case ResetSemantics.Custom:
                 throw new Error("Unsupported reset semantics: Custom");
@@ -135,13 +150,17 @@ export class DefaultResettableCrdt<S>
      * - The description of an observed-reset operation is
      * ["reset", ResetSemantics.ObservedReset, [TODO: un-reset
      * operations]]
+     * - The description of an operation that gets killed by
+     * a concurrent reset-wins is null.
      * - The description of an atomic sequence of originalCrdtInternal
      * operations is that returned by translateOriginalDescriptions(
      * list of originalCrdtInternal descriptions).
      */
     protected translateDescriptions(descriptions: Array<any>): any {
-        if (descriptions.length === 1 && descriptions[0]) {
+        if (descriptions.length === 1) {
             let desc = descriptions[0];
+            // Operation killed by a concurrent-reset wins is null
+            if (desc === null) return null;
             // Reset-wins description is [2, "reset"]
             if (desc[0] === 2 && desc[1] === "reset") {
                 return ["reset", ResetSemantics.ResetWins];
@@ -163,14 +182,10 @@ export class DefaultResettableCrdt<S>
         let translated = [];
         for (let desc of descriptions) {
             // Operation must be of the form [1, [2, desc]]
-            // Exception: nulls get sent directly to null
-            if (desc === null) translated.push(null);
-            else {
-                if (!(desc[0] === 1 && desc[1][0] === 2)) {
-                    throw new Error("Unrecognized description: " + desc);
-                }
-                translated.push(desc[1][1]);
+            if (!(desc[0] === 1 && desc[1][0] === 2)) {
+                throw new Error("Unrecognized description: " + desc);
             }
+            translated.push(desc[1][1]);
         }
         return this.translateDescriptionsInternal(translated);
     }

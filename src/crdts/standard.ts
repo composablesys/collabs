@@ -1,12 +1,17 @@
 import {CrdtRuntime} from "../crdt_runtime_interface";
 import {DefaultResettableCrdt} from "./resettable";
-import { CounterInternal, NoOpCrdtInternal } from "./basic_crdts";
-import { ResetSemantics } from "./crdt_core";
+import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal } from "./basic_crdts";
+import { ResetSemantics, Crdt } from "./crdt_core";
+import { SemidirectState, SemidirectInternal } from "./semidirect";
 
-export class ResettableCounterCrdt extends DefaultResettableCrdt<number> {
-    constructor(id: any, runtime: CrdtRuntime,
-            initialValue: number = 0, resetValue: number = 0) {
-        super(id, CounterInternal.instance, resetValue, runtime, initialValue);
+export class UnresettableIntRegisterCrdt extends Crdt<SemidirectState<number>> {
+    // semidirectInstance completely describes this semidirect product
+    static semidirectInstance = new SemidirectInternal<number>(
+        CounterInternal.instance, MultRegisterInternal.instance,
+        (m2: number, m1: number) => m2*m1, 1
+    );
+    constructor(id: any, runtime: CrdtRuntime, initialData?: any) {
+        super(id, IntRegisterCrdt.semidirectInstance, runtime, initialData);
     }
     increment() {
         this.add(1);
@@ -15,10 +20,44 @@ export class ResettableCounterCrdt extends DefaultResettableCrdt<number> {
         this.add(-1);
     }
     add(n: number) {
-        this.applyOps(n);
+        this.applyOps([1,n]);
+    }
+    mult(n: number) {
+        this.applyOps([2,n]);
     }
     get value() : number {
-        return this.originalState;
+        return this.state.internalState;
+    }
+    protected translateDescriptions(descriptions: Array<[number, number]>): [string, number] {
+        let description = descriptions[0];
+        if (description[0] === 1) return ["add", description[1]];
+        else return ["mult", description[1]];
+    }
+}
+
+export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<number>> {
+    static semidirectInstance = new SemidirectInternal<number>(
+        CounterInternal.instance, MultRegisterInternal.instance,
+        (m2: number, m1: number) => m2*m1, 1
+    );
+    constructor(id: any, runtime: CrdtRuntime,
+            initialValue: number = 0, resetValue: number = 0) {
+        super(id, IntRegisterCrdt.semidirectInstance, resetValue, runtime, initialValue);
+    }
+    increment() {
+        this.add(1);
+    }
+    decrement() {
+        this.add(-1);
+    }
+    add(n: number) {
+        this.applyOps([1, n]);
+    }
+    mult(n: number) {
+        this.applyOps([2, n]);
+    }
+    get value() : number {
+        return this.originalState.internalState;
     }
     /**
      * Performs an equivalent add.  As a consequence,
@@ -28,11 +67,17 @@ export class ResettableCounterCrdt extends DefaultResettableCrdt<number> {
     set value(newValue: number) {
         this.add(newValue - this.value);
     }
+    protected translateDescriptionsInternal(descriptions: Array<[number, number]>): [string, number] {
+        let description = descriptions[0];
+        if (description[0] === 1) return ["add", description[1]];
+        else return ["mult", description[1]];
+    }
 }
 
 export class EnableWinsFlag extends DefaultResettableCrdt<null> {
     constructor(id: any, runtime: CrdtRuntime) {
-        super(id, new NoOpCrdtInternal(() => null), null, runtime);
+        super(id, new NoOpCrdtInternal(() => null), null, runtime,
+            undefined, true);
     }
     enable() {
         this.applyOps("e");
@@ -62,7 +107,8 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
 
 export class DisableWinsFlag extends DefaultResettableCrdt<null> {
     constructor(id: any, runtime: CrdtRuntime) {
-        super(id, new NoOpCrdtInternal(() => null), null, runtime);
+        super(id, new NoOpCrdtInternal(() => null), null, runtime,
+            undefined, true);
     }
     enable() {
         this.reset(ResetSemantics.ObservedReset);

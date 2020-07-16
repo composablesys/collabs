@@ -1,6 +1,6 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
-import {ResettableCounterCrdt} from "../../src/crdts/standard";
+import {IntRegisterCrdt} from "../../src/crdts/standard";
 import { ResetSemantics } from '../../src/crdts/crdt_core';
 
 let runtimeGen = new TestingRuntimeGenerator();
@@ -8,12 +8,14 @@ let alice = runtimeGen.newRuntime("alice");
 let bob = runtimeGen.newRuntime("bob");
 
 function testResettableCounter() {
+    // Test DefaultResettableCrdt by testing IntRegisterCrdt's
+    // add and reset operations, since it's a simple example.
     console.log("testResettableCounter()...");
 
-    let aliceCounter = new ResettableCounterCrdt("resettableCounterId", alice);
+    let aliceCounter = new IntRegisterCrdt("resettableCounterId", alice);
     aliceCounter.onchange = (event => console.log(
         "Alice: " + event.timestamp.getSender() + " did/added " + event.description));
-    let bobCounter = new ResettableCounterCrdt("resettableCounterId", bob);
+    let bobCounter = new IntRegisterCrdt("resettableCounterId", bob);
     bobCounter.onchange = (event => console.log(
         "Bob: " + event.timestamp.getSender() + " did/added " + event.description));
     assert.equal(aliceCounter.value, 0);
