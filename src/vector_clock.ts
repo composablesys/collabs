@@ -1,52 +1,53 @@
 // The vector clock designed for CRDT and runtime to ensure 
-// correct causality
+// correct causality.
 
 /**
- * The vector clock class for ensuring casuality
+ * The vector clock class for ensuring casuality.
  */
 export class VectorClock {
     /**
-     * unique ID for each replica to identify itself
+     * Unique ID for each replica to identify itself.
      */    
     uid : any;
- 
     /**
-     * the record map from replica ids to the number of lastest message
+     * The record map from replica ids to the number of lastest message.
      */
     vectorMap : Map<any, number>;
 
     /** 
-     * initialize the vector with user's own entry 
+     * Initialize the vector with user's own entry.
      */
-    constructor(replicaID : any) {
-        this.uid = replicaID;
+    constructor(replicaId : any) {
+        this.uid = replicaId;
         this.vectorMap = new Map<any, number>();
         this.vectorMap.set(this.uid, 0);
     }
-
     /**
-     * @returns the unique ID for this replica
+     * @returns the unique ID for this replica.
      */
-    getUid() : any {
+    getSender() : any {
         return this.uid;
     }
-
     /**
-     * @returns the vector clock with all the entries
+     * @returns the vector clock with all the entries.
      */
-    getVectorMap() : Map<any, number> {
+    asVectorClock() : Map<any, number> {
         return this.vectorMap;
     }
-
     /**
-     * @returns the number of replicas invovled in this crdts
+     * @returns the number of the counter from sender
+     */
+    getSenderCounter() : number | undefined {
+        return this.vectorMap.get(this.uid);
+    }
+    /**
+     * @returns the number of replicas invovled in this crdts.
      */
     getSize() : number {
         return this.vectorMap.size;
     }
-
     /**
-     * update the vector of the uid entry
+     * Update the vector of the uid entry.
      */
     increment() : void { 
         const oldValue = this.vectorMap.get(this.uid);
@@ -55,19 +56,18 @@ export class VectorClock {
             this.vectorMap.set(this.uid, oldValue + 1);
         }
     }
-
     /**
-     * check a message with a certain timestamp is ready for delivery
-     * ensure correct casuality
+     * Check a message with a certain timestamp is ready for delivery
+     * ensure correct casuality.
      * 
-     * @param vc the VectorClock from other replica
-     * @returns the message is ready or not
+     * @param vc the VectorClock from other replica.
+     * @returns the message is ready or not.
      */
     isready(vc : VectorClock) : boolean {
         let ready : boolean = true;
 
-        let otherUid = vc.getUid();
-        let otherVectorMap = vc.getVectorMap();
+        let otherUid = vc.getSender();
+        let otherVectorMap = vc.asVectorClock();
 
         if (this.vectorMap.get(otherUid) !== null) { 
             if (this.vectorMap.get(otherUid) === otherVectorMap.get(otherUid)! - 1) {
@@ -90,19 +90,17 @@ export class VectorClock {
                 }
             }
         }
-
         return ready;
     }
-
     /**
-     * merge current VectorClock with the vector clock recevied from 
-     * other replica
+     * Merge current VectorClock with the vector clock recevied from 
+     * other replica.
      * 
-     * @param vc the VectorClock from other replica
+     * @param vc the VectorClock from other replica.
      */
     merge(vc : VectorClock) : void{
         // let otherUid = vc.getUid();
-        let otherVectorMap = vc.getVectorMap();
+        let otherVectorMap = vc.asVectorClock();
 
         for (let id of otherVectorMap.keys()) {
             if (!this.vectorMap.has(id)) {
@@ -112,14 +110,12 @@ export class VectorClock {
             }
         }
     }
-
     /**
      * 
-     * @param someUid the replica's uid 
-     * @param clockValue the clock number of the replica
+     * @param someUid the replica's uid.
+     * @param clockValue the clock number of the replica.
      */
     setEntry(someUid : any, clockValue : number) : void {
         this.vectorMap.set(someUid, clockValue);
     }
-    
 }
