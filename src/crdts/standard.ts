@@ -43,11 +43,6 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
     get enabled() : boolean {
         return !this.state.internalState.isHistoryEmpty();
     }
-    /**
-     * Performs an equivalent add.  As a consequence,
-     * counter.value += n and counter.value -= n work
-     * as expected (converted to CRDT additions).
-     */
     set enabled(newValue: boolean) {
         if (newValue) this.enable();
         else this.disable();
@@ -61,5 +56,35 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
                 JSON.stringify(descriptions))
         }
         else return "enable";
+    }
+}
+
+
+export class DisableWinsFlag extends DefaultResettableCrdt<null> {
+    constructor(id: any, runtime: CrdtRuntime) {
+        super(id, new NoOpCrdtInternal(() => null), null, runtime);
+    }
+    enable() {
+        this.reset(ResetSemantics.ObservedReset);
+    }
+    disable() {
+        this.applyOps("d");
+    }
+    get enabled() : boolean {
+        return this.state.internalState.isHistoryEmpty();
+    }
+    set enabled(newValue: boolean) {
+        if (newValue) this.enable();
+        else this.disable();
+    }
+    // TODO: would also like to translate observed-resets to
+    // enable (but only if it actually worked).  Perhaps add noop indicator out front?
+    // (Need to add a no-op crdt at the top level)
+    protected translateDescriptionsInternal(descriptions: Array<string>): string {
+        if (descriptions.length !== 1 || descriptions[0] !== "d") {
+            throw new Error("Unrecognized descriptions: " +
+                JSON.stringify(descriptions))
+        }
+        else return "disable";
     }
 }
