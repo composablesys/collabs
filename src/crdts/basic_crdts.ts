@@ -180,8 +180,10 @@ export class GSetCrdt extends Crdt<Set<any>> {
  * corresponds to.
  */
 export class NoOpCrdtInternal<S> implements CrdtInternal<S> {
-    create(_initialData?: any): S {
-        throw new Error("Method not implemented.");
+    constructor(public createFunc?: (initialData: any) => S) {}
+    create(initialData?: any): S {
+        if (this.createFunc) return this.createFunc(initialData);
+        else throw new Error("CreateFunc not supplied");
     }
     prepare(operation: string, _state: S) {
         return operation;

@@ -2,6 +2,7 @@ import { Crdt } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
 import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
 import { CrdtRuntime } from "../crdt_runtime_interface";
+import { DefaultResettableCrdt } from "./resettable";
 
 export class IntRegisterCrdt extends Crdt<SemidirectState<number>> {
     // semidirectInstance completely describes this semidirect product
