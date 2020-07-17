@@ -1,7 +1,6 @@
-import { Crdt } from './crdts/crdt_core';
 import { CrdtRuntime } from './crdt_runtime_interface';
-// import { CausalTimestamp } from './crdt_runtime_interface';
 import { VectorClock } from './vector_clock';
+import WebSocket = require("ws");
 
 
 // The casual broadcast network designed for a two-way interactive 
@@ -26,7 +25,7 @@ export class myMessage {
      * Timestamp for casuality/concurrency check.
      * 
      * Provide basic functions such as :
-     * getSender() \ getSenderCounter() \ asVectorClock().
+     * getSender() / getSenderCounter() / asVectorClock().
      */
     timestamp : VectorClock;
 
@@ -81,30 +80,61 @@ export class CasualBroadcastNetwork {
      */
     messageBuffer : Array<[any, any, VectorClock]>;
     /**
+     * Message waiting to be sent by the WebSocket
+     */
+    sendBuffer : Array<myMessage>;
+    /**
      * Register CrdtRuntime at CasualBroadcastNetwork layer.
      */
     crdtRuntime : CrdtRuntime;
 
     constructor (replicaId: any, crdtRuntime: CrdtRuntime) {
         this.uid = replicaId;
-        this.ws = new WebSocket("ws://localhost:8080");
         this.vcMap = new Map<any, VectorClock>();
         this.messageBuffer = new Array<[any, any, VectorClock]>();
+        this.sendBuffer = new Array<myMessage>();
         this.crdtRuntime = crdtRuntime;
-
         /**
-         * Parse JSON format data into myMessage. 
-         * Push the message into message buffer.
-         * Check the casuality and deliver to application.
-         * 
-         * @param data the JSON format data send via network 
+         * Open WebSocket connection with server.
+         * Register EventListener with corresponding event handler.
          */
-        this.ws.onmessage = (data : any) => {
-            let myPackage = this.parseJSON(data);
-            this.messageBuffer.push([myPackage.message, myPackage.crdtId, myPackage.timestamp]);
-            this.checkMessageBuffer();        
-        };
+        this.ws = new WebSocket("ws://localhost:8080");
+        this.ws.addEventListener('open', this.sendAction);
+        this.ws.addEventListener('message', this.receiveAction);
     }
+    /**
+     * @param ms the time in millionsecond to wait.
+     */
+    myWait(ms : number){
+        var start = new Date().getTime();
+        var end = start;
+        while(end < start + ms) {
+          end = new Date().getTime();
+       }
+      }
+    /**
+     * Check if the send message buffer has any message waiting to be sent.
+     * If there exist, then send it via WebSocket and remove the item from buffer.
+     * If not, then wait a customized time period and check again.
+     */
+    sendAction = () => {
+        while (this.sendBuffer.length != 0) {
+            this.ws.send(this.sendBuffer[0].toJSON());
+            this.sendBuffer.splice(0, 1);
+        }  
+    }
+    /**
+     * Parse JSON format data back into myMessage type. 
+     * Push the message into received message buffer.
+     * Check the casuality of all the messages and deliver to application.
+     * 
+     * @param data the JSON format data send via network 
+     */
+    receiveAction = (data : any) => {
+        let myPackage = this.parseJSON(data.data);
+        this.messageBuffer.push([myPackage.message, myPackage.crdtId, myPackage.timestamp]);
+        this.checkMessageBuffer();        
+    };
     /**
      * Send function on casualbroadcast network layer, which called 
      * by crdt's runtime layer.
@@ -130,9 +160,7 @@ export class CasualBroadcastNetwork {
         // Convert the message into JSON 
         let vcCopy = this.vcMap.get(crdtId);
         let myPackage = new myMessage(message, crdtId, vcCopy!);
-        
-        // Send the message via WebSocket.
-        this.ws.send(myPackage.toJSON()); 
+        this.sendBuffer.push(myPackage);
     }
     /**
      * Parse JSON format data back to customized data type.
@@ -142,8 +170,9 @@ export class CasualBroadcastNetwork {
      */
     parseJSON(data : string) : myMessage {
         let dataJSON = JSON.parse(data);
-        let myPackage = new myMessage(dataJSON[0][1], dataJSON[1][1], 
-            dataJSON[2][1][1][1]);
+        let vc = new VectorClock(dataJSON.timestamp.uid);
+        vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
+        let myPackage = new myMessage(dataJSON.message, dataJSON.crdtId, vc);
         
         return myPackage;
     }
@@ -155,8 +184,8 @@ export class CasualBroadcastNetwork {
      */
     checkMessageBuffer() : void {
         let index = this.messageBuffer.length - 1;
-
-        while(index > 0) {
+        
+        while(index >= 0) {
             let curCrdtId = this.messageBuffer[index][1];
             let curVectorClock = this.messageBuffer[index][2];
 
@@ -170,8 +199,9 @@ export class CasualBroadcastNetwork {
 
                     // TODO: Return back to Runtime
                     // this.crdtRuntime.receive();
-
                     this.messageBuffer.splice(index, 1);
+                    console.log("Client:", this.uid, "VectorClock: \n", this.vcMap);
+                    console.log("================================================")
                 }
             }
             index--;

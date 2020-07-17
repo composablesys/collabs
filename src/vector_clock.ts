@@ -1,10 +1,12 @@
+import { CausalTimestamp } from './crdt_runtime_interface';
+
 // The vector clock designed for CRDT and runtime to ensure 
 // correct causality.
 
 /**
  * The vector clock class for ensuring casuality.
  */
-export class VectorClock {
+export class VectorClock implements CausalTimestamp{
     /**
      * Unique ID for each replica to identify itself.
      */    
@@ -37,8 +39,8 @@ export class VectorClock {
     /**
      * @returns the number of the counter from sender
      */
-    getSenderCounter() : number | undefined {
-        return this.vectorMap.get(this.uid);
+    getSenderCounter() : number {
+        return this.vectorMap.get(this.uid)!;
     }
     /**
      * @returns the number of replicas invovled in this crdts.
@@ -69,7 +71,7 @@ export class VectorClock {
         let otherUid = vc.getSender();
         let otherVectorMap = vc.asVectorClock();
 
-        if (this.vectorMap.get(otherUid) !== null) { 
+        if (this.vectorMap.has(otherUid)) { 
             if (this.vectorMap.get(otherUid) === otherVectorMap.get(otherUid)! - 1) {
                 for (let id of otherVectorMap.keys()) {
                     if (id !== otherUid && !this.vectorMap.has(id)) {
