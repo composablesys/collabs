@@ -1,7 +1,7 @@
 import {CrdtRuntime} from "../crdt_runtime_interface";
-import {DefaultResettableCrdt, ResetWinsComponent, ObservedResetComponent} from "./resettable";
+import {Resettable, DefaultResettableCrdt, ResetWinsComponent, ObservedResetComponent, DefaultResetWinsCrdt} from "./resettable";
 import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal, GcGrowOnlyMapInternal } from "./basic_crdts";
-import { ResetSemantics, Crdt } from "./crdt_core";
+import { Crdt } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
 
 export class UnresettableIntRegisterCrdt extends Crdt<SemidirectState<number>> {
@@ -57,7 +57,7 @@ export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<numbe
         this.applyOps([2, n]);
     }
     get value() : number {
-        return this.originalState.internalState;
+        return this.originalStateResettable.internalState;
     }
     /**
      * Performs an equivalent add.  As a consequence,
@@ -83,7 +83,7 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
         this.applyOps("e");
     }
     disable() {
-        this.reset(ResetSemantics.ObservedReset);
+        this.reset();
     }
     get enabled() : boolean {
         return !this.state.internalState.isHistoryEmpty();
@@ -111,7 +111,7 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
             undefined, true);
     }
     enable() {
-        this.reset(ResetSemantics.ObservedReset);
+        this.reset();
     }
     disable() {
         this.applyOps("d");
@@ -136,40 +136,36 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
 }
 
 export class AddWinsSet<T> extends
-        Crdt<SemidirectState<Map<T, SemidirectState<SemidirectState<null>>>>> {
+        DefaultResetWinsCrdt<Map<T, SemidirectState<SemidirectState<null>>>>
+        implements Resettable {
     /**
      * The CrdtInternal for this datatype (with key type T elided
      * so it can be static).  This only looks complicated
      * because we have to manually do the reset-wins and
      * observed-reset wrapping that EnableWinsFlag gets
      * automatically (via DefaultResettableCrdt).  Basically
-     * it is just a GcGrowOnlyMapInternal<T, "EnableWinsFlagInternal">,
-     * wrapped in a whole-set reset-wins layer.
+     * it is just a GcGrowOnlyMapInternal<T, "EnableWinsFlagInternal">.
      */
-    private static crdtInternal = ResetWinsComponent.addTo(
-        new GcGrowOnlyMapInternal
+    private static crdtInternal = new GcGrowOnlyMapInternal
         <any, SemidirectState<SemidirectState<null>>>(
-            ResetWinsComponent.addTo(
-                ObservedResetComponent.addTo(
-                    new NoOpCrdtInternal(() => null),
-                    null, true
-                ), null
-            ), null, (state) => state.internalState.isHistoryEmpty()
-        ), null
+        ResetWinsComponent.addTo(
+            ObservedResetComponent.addTo(
+                new NoOpCrdtInternal(() => null),
+                null, true
+            ), null
+        ), null, (state) => state.internalState.isHistoryEmpty()
     );
     constructor(id: any, runtime: CrdtRuntime) {
-        super(id, AddWinsSet.crdtInternal, runtime);
+        super(id, AddWinsSet.crdtInternal, null, runtime);
     }
     add(value: T) {
         // We want to do [value, "e"] (for enable).
-        // Complicated because we have to account for the reset
-        // wrapping.
-        this.applyOps([1, [value, [1, [2, "e"]]]]);
+        this.applyOps([value, [1, [2, "e"]]]);
     }
     delete(value: T) {
         // Do an observed-reset on value, using its observed-reset
         // layer.
-        this.applyOps([1, [value, [1, [1, "reset"]]]]);
+        this.applyOps([value, [1, [1, "reset"]]]);
     }
     /**
      * Deletes the value with strong delete-wins semantics
@@ -179,41 +175,35 @@ export class AddWinsSet<T> extends
      */
     deleteStrong(value: T) {
         // Do a reset-wins reset on value, using its reset-wins layer.
-        this.applyOps([1, [value, [2, "reset"]]]);
+        this.applyOps([value, [2, "reset"]]);
     }
     has(value: T) {
         // Return if the entry at value is enabled.
         // Because the internal map garbage collects disabled
         // (removed) entries, we can just do:
-        return this.state.internalState.has(value);
+        return this.originalStateResetWins.has(value);
     }
     values() {
         // Because the internal map garbage collects disabled
         // (removed) entries, we can just do:
-        return this.state.internalState.keys();
+        return this.originalStateResetWins.keys();
     }
-    reset(semantics: ResetSemantics = ResetSemantics.ObservedReset): void {
-        switch (semantics) {
-            case ResetSemantics.ObservedReset:
-                // TODO: more efficient approach
-                // Observed-reset is equivalent to delete
-                // on all keys we currently know of.
-                let resets = [];
-                for (let value of this.values()) {
-                    resets.push([1, [value, [1, [1, "reset"]]]]);
-                }
-                this.applyOps(...resets);
-                break;
-            case ResetSemantics.ResetWins:
-                this.applyOps([2, "reset"]);
-                break;
-            case ResetSemantics.PreserveState:
-                break;
-            case ResetSemantics.Custom:
-                throw new Error("Unsupported reset semantics: Custom");
-            default:
-                throw new Error("Unsupported reset semantics: " + semantics);
+    reset() {
+        // TODO: more efficient approach: direct-product "reset"
+        // operation which just applies reset to all keys on receipt
+        // (regardless of whether they were initialized prior).
+        let resets = [];
+        for (let value of this.values()) {
+            resets.push([value, [1, [1, "reset"]]]);
         }
+        this.applyOps(...resets);
     }
-    // TODO: translateDescriptions
+    // TODO: translateDescriptionsResetWins
+
+    // TODO.
+    // Note we have to manually do the reset-wins wrapping
+    // usually done by super.applyOps.
+    getUniversalResetMessage() {
+        throw new Error("Method not implemented.");
+    }
 }

@@ -1,7 +1,6 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
 import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet } from '../../src/crdts/standard';
-import { ResetSemantics } from '../../src/crdts/crdt_core';
 
 let runtimeGen = new TestingRuntimeGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -260,7 +259,7 @@ function testAwSet() {
     assert.deepStrictEqual(new Set(bobSet.values()), new Set(["survivor"]));
 
     // Reset-wins test
-    aliceSet.reset(ResetSemantics.ResetWins);
+    aliceSet.resetStrong();
     aliceSet.add("alice's");
     bobSet.reset();
     bobSet.add("bob's");

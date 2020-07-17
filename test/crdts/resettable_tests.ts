@@ -1,7 +1,6 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
 import {IntRegisterCrdt} from "../../src/crdts/standard";
-import { ResetSemantics } from '../../src/crdts/crdt_core';
 
 let runtimeGen = new TestingRuntimeGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -68,7 +67,7 @@ function testResettableCounter() {
     assert.equal(bobCounter.value, 10);
 
     // Reset-wins tests
-    bobCounter.reset(ResetSemantics.ResetWins);
+    bobCounter.resetStrong();
     runtimeGen.releaseAll();
     assert.equal(aliceCounter.value, 0);
     assert.equal(bobCounter.value, 0);
@@ -79,7 +78,7 @@ function testResettableCounter() {
     assert.equal(bobCounter.value, 6);
 
     // Concurrent add should not survive
-    aliceCounter.reset(ResetSemantics.ResetWins);
+    aliceCounter.resetStrong();
     bobCounter.add(20);
     runtimeGen.releaseAll();
     assert.equal(aliceCounter.value, 0);
@@ -92,7 +91,7 @@ function testResettableCounter() {
     runtimeGen.release(bob);
     assert.equal(aliceCounter.value, 7);
     assert.equal(bobCounter.value, 7);
-    bobCounter.reset(ResetSemantics.ResetWins);
+    bobCounter.resetStrong();
     runtimeGen.releaseAll();
     assert.equal(aliceCounter.value, 0);
     assert.equal(bobCounter.value, 0);
