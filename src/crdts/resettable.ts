@@ -185,23 +185,23 @@ export class ObservedResetComponent<S> implements CrdtInternal<S> {
         return [];
     }
     /**
-     * The returned description is ["reset", list
+     * The returned description is ["reset", list of
      * the descriptions returned by originalCrdt when processing
      * the messages appearing in message (i.e., the messages that
      * avoided being reset because they were concurrent to the
      * reset operation)].
      */
     effect(message: Array<[any, CausalTimestamp]>, _state: S,
-            replicaId: any, _timestamp: CausalTimestamp): [S, Array<any>] {
+            replicaId: any, _timestamp: CausalTimestamp): [S, [string, Array<any>]] {
         let resetState = this.originalCrdt.create(this.resetInitialData);
-        let description = ["reset"];
+        let descriptions = [];
         for (let concurrentMessage of message) {
             let result = this.originalCrdt.effect(concurrentMessage[0],
                 resetState, replicaId, concurrentMessage[1]);
             resetState = result[0];
-            description.push(result[1]);
+            descriptions.push(result[1]);
         }
-        return [resetState, description];
+        return [resetState, ["reset", descriptions]];
     }
 
     static addTo<S>(originalCrdt: CrdtInternal<S>,
@@ -278,14 +278,14 @@ export class DefaultResettableCrdt<S>
             // Observed reset description is [1, ["reset",
             // list of re-applied ops]]
             if (desc[0] === 1 && desc[1][0] === "reset") {
-                // TODO: in the third array, put the translated
+                // TODO: in the second entry, put the translated
                 // operations that didn't get reset.  Keep in
                 // mind that these will be descriptions from the
-                // innermost direct product.  What to do
+                // innermost semidirect product.  What to do
                 // about operations that were originally grouped
                 // atomically, since translate expects those
                 // to be delivered together?
-                return ["reset", []];
+                return ["reset", desc[1][1]];
             }
         }
         // If we get to here, it's a sequence of originalCrdtInternal ops

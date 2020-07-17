@@ -201,73 +201,73 @@ function testAwSet() {
     bobSet.onchange = (event => console.log(
         "Bob: " + event.timestamp.getSender() + " did " +
          JSON.stringify(event.description)));
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set());
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set());
+    assertSetEquals(new Set(aliceSet.values()), new Set());
+    assertSetEquals(new Set(bobSet.values()), new Set());
 
     aliceSet.add("element");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element"]));
 
     bobSet.add("7");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
 
     aliceSet.add("7");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
 
     // Out of order test
     aliceSet.add("first");
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
 
     bobSet.add("second");
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7", "second"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7", "second"]));
 
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["element", "7", "first", "second"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["element", "7", "first", "second"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first", "second"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7", "first", "second"]));
 
     // Delete tests on single element (copying EwFlag tests)
     aliceSet.delete("element");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["7", "first", "second"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second"]));
 
     bobSet.delete("nonexistent");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["7", "first", "second"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second"]));
 
     aliceSet.add("concurrent");
     aliceSet.delete("concurrent");
     bobSet.add("concurrent");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
 
     // Observed-reset test
     bobSet.reset();
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set());
+    assertSetEquals(new Set(bobSet.values()), new Set());
     aliceSet.add("survivor");
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["survivor"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["survivor"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
 
     // Reset-wins test
     aliceSet.resetStrong();
     aliceSet.add("alice's");
     bobSet.reset();
     bobSet.add("bob's");
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["alice's"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["bob's"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["bob's"]));
     runtimeGen.releaseAll();
-    assert.deepStrictEqual(new Set(aliceSet.values()), new Set(["alice's"]));
-    assert.deepStrictEqual(new Set(bobSet.values()), new Set(["alice's"]));
+    assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["alice's"]));
 
     console.log("...ok");
 }
@@ -278,3 +278,26 @@ testIntRegister();
 testFromPaper();
 testUnresettableIntRegister();
 testAwSet();
+
+
+
+// From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
+function isSuperset<T>(set: Set<T>, subset: Set<T>) {
+    for (let elem of subset) {
+        if (!set.has(elem)) {
+            return false
+        }
+    }
+    return true
+}
+function setEquals<T>(set1: Set<T>, set2: Set<T>) {
+    return isSuperset(set1, set2) && isSuperset(set2, set1);
+}
+function assertSetEquals<T>(set1: Set<T>, set2: Set<T>) {
+    if(!setEquals(set1, set2)) {
+        throw new Error("setEquals failed, actual: " +
+            JSON.stringify([...set1.values()]) + ", expected: " +
+            JSON.stringify([...set2.values()]));
+    }
+    assert(setEquals(set1, set2));
+}

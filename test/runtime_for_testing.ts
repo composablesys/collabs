@@ -21,7 +21,9 @@ class TestingRuntime implements CrdtRuntime {
         let queueMap = this.generator.messageQueues.get(this) as
             Map<TestingRuntime, Array<[any, any, CausalTimestamp]>>;
         for (let queue of queueMap.values()) {
-            queue.push([message, crdtId, timestamp]);
+            // Use different copies for each Crdt, in case they
+            // modify message while processing it
+            queue.push([JSON.parse(JSON.stringify(message)), crdtId, timestamp]);
         }
     }
     register(crdtMessageListener: CrdtMessageListener, crdtId: any): void {

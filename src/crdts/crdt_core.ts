@@ -1,5 +1,7 @@
 import {CausalTimestamp, CrdtRuntime, CrdtMessageListener} from "../crdt_runtime_interface";
 
+// TODO: ids as strings instead of any
+
 /**
  * Interface describing the internal workings of a CRDT in the
  * prepare/effect style of "Pure Operation-Based Replicated Data Types"

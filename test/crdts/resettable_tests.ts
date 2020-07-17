@@ -13,10 +13,10 @@ function testResettableCounter() {
 
     let aliceCounter = new IntRegisterCrdt("resettableCounterId", alice);
     aliceCounter.onchange = (event => console.log(
-        "Alice: " + event.timestamp.getSender() + " did/added " + event.description));
+        "Alice: " + event.timestamp.getSender() + " did " + event.description));
     let bobCounter = new IntRegisterCrdt("resettableCounterId", bob);
     bobCounter.onchange = (event => console.log(
-        "Bob: " + event.timestamp.getSender() + " did/added " + event.description));
+        "Bob: " + event.timestamp.getSender() + " did " + event.description));
     assert.equal(aliceCounter.value, 0);
     assert.equal(bobCounter.value, 0);
 

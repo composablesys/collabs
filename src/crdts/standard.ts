@@ -1,6 +1,6 @@
 import {CrdtRuntime} from "../crdt_runtime_interface";
 import {Resettable, DefaultResettableCrdt, ResetWinsComponent, ObservedResetComponent, DefaultResetWinsCrdt} from "./resettable";
-import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal, GcGrowOnlyMapInternal } from "./basic_crdts";
+import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal, GcGrowOnlyMapInternal, HomapComponent } from "./basic_crdts";
 import { Crdt } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
 
@@ -67,7 +67,7 @@ export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<numbe
     set value(newValue: number) {
         this.add(newValue - this.value);
     }
-    protected translateDescriptionsInternal(descriptions: Array<[number, number]>): [string, number] {
+    protected translateDescriptionsResettable(descriptions: Array<[number, number]>): [string, number] {
         let description = descriptions[0];
         if (description[0] === 1) return ["add", description[1]];
         else return ["mult", description[1]];
@@ -95,7 +95,7 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
     // TODO: would also like to translate observed-resets to
     // disable (but only if it actually worked).  Perhaps add noop indicator out front?
     // (Need to add a no-op crdt at the top level)
-    protected translateDescriptionsInternal(descriptions: Array<string>): string {
+    protected translateDescriptionsResettable(descriptions: Array<string>): string {
         if (descriptions.length !== 1 || descriptions[0] !== "e") {
             throw new Error("Unrecognized descriptions: " +
                 JSON.stringify(descriptions))
@@ -126,7 +126,7 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
     // TODO: would also like to translate observed-resets to
     // enable (but only if it actually worked).  Perhaps add noop indicator out front?
     // (Need to add a no-op crdt at the top level)
-    protected translateDescriptionsInternal(descriptions: Array<string>): string {
+    protected translateDescriptionsResettable(descriptions: Array<string>): string {
         if (descriptions.length !== 1 || descriptions[0] !== "d") {
             throw new Error("Unrecognized descriptions: " +
                 JSON.stringify(descriptions))
@@ -146,26 +146,27 @@ export class AddWinsSet<T> extends
      * automatically (via DefaultResettableCrdt).  Basically
      * it is just a GcGrowOnlyMapInternal<T, "EnableWinsFlagInternal">.
      */
-    private static crdtInternal = new GcGrowOnlyMapInternal
-        <any, SemidirectState<SemidirectState<null>>>(
-        ResetWinsComponent.addTo(
-            ObservedResetComponent.addTo(
-                new NoOpCrdtInternal(() => null),
-                null, true
-            ), null
-        ), null, (state) => state.internalState.isHistoryEmpty()
+    private static crdtInternal = HomapComponent.addToCommuting(
+        new GcGrowOnlyMapInternal<any, SemidirectState<SemidirectState<null>>>(
+            ResetWinsComponent.addTo(
+                ObservedResetComponent.addTo(
+                    new NoOpCrdtInternal(() => null),
+                    null, true
+                ), null
+            ), null, (state) => state.internalState.isHistoryEmpty()
+        )
     );
     constructor(id: any, runtime: CrdtRuntime) {
         super(id, AddWinsSet.crdtInternal, null, runtime);
     }
     add(value: T) {
         // We want to do [value, "e"] (for enable).
-        this.applyOps([value, [1, [2, "e"]]]);
+        this.applyOps([1, [value, [1, [2, "e"]]]]);
     }
     delete(value: T) {
         // Do an observed-reset on value, using its observed-reset
         // layer.
-        this.applyOps([value, [1, [1, "reset"]]]);
+        this.applyOps([1, [value, [1, [1, "reset"]]]]);
     }
     /**
      * Deletes the value with strong delete-wins semantics
@@ -175,7 +176,7 @@ export class AddWinsSet<T> extends
      */
     deleteStrong(value: T) {
         // Do a reset-wins reset on value, using its reset-wins layer.
-        this.applyOps([value, [2, "reset"]]);
+        this.applyOps([1, [value, [2, "reset"]]]);
     }
     has(value: T) {
         // Return if the entry at value is enabled.
@@ -189,21 +190,20 @@ export class AddWinsSet<T> extends
         return this.originalStateResetWins.keys();
     }
     reset() {
-        // TODO: more efficient approach: direct-product "reset"
-        // operation which just applies reset to all keys on receipt
-        // (regardless of whether they were initialized prior).
-        let resets = [];
-        for (let value of this.values()) {
-            resets.push([value, [1, [1, "reset"]]]);
-        }
-        this.applyOps(...resets);
+        // Apply an observed-reset to each value using
+        // a homap operation.
+        // Note here we have to use a reset message, not operation;
+        // it gets prepared as [].
+        this.applyOps([2, [1, [1, []]]]);
     }
-    // TODO: translateDescriptionsResetWins
+    // TODO: translateDescriptionsResetWins, accounting
+    // for the homap
 
-    // TODO.
-    // Note we have to manually do the reset-wins wrapping
-    // usually done by super.applyOps.
     getUniversalResetMessage() {
-        throw new Error("Method not implemented.");
+        // Return the message induced by reset().
+        // Note we have to add an extra [1, -] to account
+        // for the wrapping usually done by
+        // DefaultResetWinsCrdt.
+        return [1, [2, [1, [1, []]]]];
     }
 }

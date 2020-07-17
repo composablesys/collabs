@@ -336,6 +336,9 @@ export class DirectInternal<S> implements CrdtInternal<S> {
      * crdt is null,
      * the returned description is just null, not [1, null] or [2, null].
      * This allows the Crdt class to optimize away calling onchange.
+     * TODO: perhaps add translating descriptions to this class, so
+     * the Crdt doesn't have to understand all of the layers at
+     * once?
      */
     effect(message: [number, any], state: S, replicaId: any, timestamp: CausalTimestamp): [S, [number, any] | null] {
         let result: [S, any];

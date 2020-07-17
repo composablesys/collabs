@@ -308,11 +308,11 @@ export class GcGrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
     }
     /**
      * Description format:
-     * - for an apply operation: ["apply", key, value description]
+     * - for an apply operation: [key, value description]
      */
     effect(message: [K, any?], state: Map<K, S>,
             replicaId: any, timestamp: CausalTimestamp):
-            [Map<K, S>, [string, K, any?] | null] {
+            [Map<K, S>, [K, any?] | null] {
         let key = message[0];
         let keyState = state.get(key);
         if (keyState === undefined) {
@@ -325,6 +325,53 @@ export class GcGrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
             state.delete(key);
         }
         else state.set(key, result[0]);
-        return [state, ["apply", key, result[1]]];
+        return [state, [key, result[1]]];
+    }
+}
+
+/**
+ * CrdtInternal whose operations are to apply a given operation
+ * to every value in map (that is present when the message
+ * is received at each replica), i.e., a higher-order map
+ * operation (homap).
+ */
+export class HomapComponent<K, S> implements CrdtInternal<Map<K, S>> {
+    constructor(public readonly mapInternal:
+        CrdtInternal<Map<K, S>>) { }
+    create(initialData?: any): Map<K, S> {
+        return this.mapInternal.create(initialData);
+    }
+    prepare(operation: any, _state: Map<K, S>, _replicaId: any) {
+        return operation;
+    }
+    // Returned description is an array of [key, description]
+    // for each key application that returned a non-null description.
+    effect(message: any, state: Map<K, S>, replicaId: any, timestamp: CausalTimestamp): [Map<K, S>, Array<[K, any]>] {
+        // To duplicate the message (in case individual values modify
+        // messages internally), we use JSON stringify/parsed.
+        let stringified = JSON.stringify(message);
+        let description: Array<[K, any]> = [];
+        for (let key of state.keys()) {
+            let result = this.mapInternal.effect([key, JSON.parse(stringified)],
+                state, replicaId, timestamp);
+            state = result[0];
+            if (result[1] !== null) description.push([key, result[1]]);
+        }
+        return [state, description];
+    }
+    /**
+     * Add a HomapComponent to the given map-valued CrdtInternal
+     * with a direct product.  For this to be a Crdt, any homap
+     * operation must have no effect on values that were added
+     * to the map concurrently to the homap operation, so that
+     * homap operations commute with key initialization.
+     * (Necessary because a replica receiving a homap message applies
+     * it to all of its values, even ones that were not present
+     * in the sending replica when they sent the message.)
+     */
+    static addToCommuting<K, S>(originalCrdt: CrdtInternal<Map<K, S>>) {
+        return new DirectInternal<Map<K, S>>(originalCrdt,
+            new HomapComponent<K, S>(originalCrdt), 1
+        );
     }
 }
