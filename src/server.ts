@@ -1,11 +1,7 @@
-import * as http from 'http';
-import * as WebSocket from 'ws';
-import { AddressInfo } from 'net';
-
+import WebSocket = require('ws');
 
 // This CRDT server will broadcast all messages that a client 
 // WebSocket broadcasting to every other connected WebSocket clients, excluding itself.
-
 
 // Initialize the WebSocket server instance.
 const wss = new WebSocket.Server({ port: 8080 });
