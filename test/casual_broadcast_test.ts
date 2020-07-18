@@ -1,15 +1,17 @@
 import { CasualBroadcastNetwork } from '../src/casual_broadcast_network';
 import { CrdtRuntime, CrdtMessageListener, CausalTimestamp } from "../src/crdt_runtime_interface";
-import { VectorClock} from '../src/vector_clock';
 import assert = require('assert');
+import WebSocket = require('ws');
 
-function myWait(ms : number){
-    var start = new Date().getTime();
-    var end = start;
-    while(end < start + ms) {
-      end = new Date().getTime();
-   }
-}
+console.log('Test Starting... ')
+
+// function wait(ms:number){
+//     var start = new Date().getTime();
+//     var end = start;
+//     while(end < start + ms) {
+//       end = new Date().getTime();
+//    }
+//  }
 
 class TestRunTime implements CrdtRuntime {
     constructor() { }
@@ -24,46 +26,80 @@ class TestRunTime implements CrdtRuntime {
     };
 }
 
-console.log('Test Starting.. ')
-let crdt_1 = new TestRunTime();
-let crdt_2 = new TestRunTime();
-let crdt_3 = new TestRunTime();
-let casual_broadcast_network_1 = new CasualBroadcastNetwork(1, crdt_1);
-let casual_broadcast_network_2 = new CasualBroadcastNetwork(2, crdt_2);
-let casual_broadcast_network_3 = new CasualBroadcastNetwork(3, crdt_3);
+console.log('Case 1...')
+console.log('----------------------------------------------')
+// let crdt_1 = new TestRunTime();
+// let crdt_2 = new TestRunTime();
+// let crdt_3 = new TestRunTime();
+// let casual_broadcast_network_1 = new CasualBroadcastNetwork(1, crdt_1);
+// let casual_broadcast_network_2 = new CasualBroadcastNetwork(2, crdt_2);
+// let casual_broadcast_network_3 = new CasualBroadcastNetwork(3, crdt_3);
+// casual_broadcast_network_1.vcMap.set("counter_ID", new VectorClock(1));
+// casual_broadcast_network_2.vcMap.set("counter_ID", new VectorClock(2));
+// casual_broadcast_network_3.vcMap.set("counter_ID", new VectorClock(3));
+// casual_broadcast_network_2.sendMessage("Hi layer 2!", "counter_ID");
+// casual_broadcast_network_1.sendMessage("hello layer 1", "counter_ID");
+// casual_broadcast_network_3.sendMessage("hello all", "counter_ID");
+// casual_broadcast_network_2.sendMessage("Welcome layer 3!", "counter_ID");
 
-console.log('Test Case 1 Start')
-casual_broadcast_network_1.vcMap.set("counter_ID", new VectorClock(1));
-casual_broadcast_network_2.vcMap.set("counter_ID", new VectorClock(2));
-casual_broadcast_network_3.vcMap.set("counter_ID", new VectorClock(3));
-let vc1 = casual_broadcast_network_1.vcMap;
-let vc2 = casual_broadcast_network_2.vcMap;
-let vc3 = casual_broadcast_network_3.vcMap;
+function test1(resolve : any, reject : any) {
+    let crdt_1 = new TestRunTime();
+    let crdt_2 = new TestRunTime();
+    let crdt_3 = new TestRunTime();
 
-assert.equal(vc1.get("counter_ID")?.asVectorClock().get(1), 0);
-assert.equal(vc2.get("counter_ID")?.asVectorClock().get(2), 0);
-assert.equal(vc3.get("counter_ID")?.asVectorClock().get(3), 0);
+    let casual_broadcast_network_1 = new CasualBroadcastNetwork(1, crdt_1);
+    let casual_broadcast_network_2 = new CasualBroadcastNetwork(2, crdt_2);
+    let casual_broadcast_network_3 = new CasualBroadcastNetwork(3, crdt_3);
 
-casual_broadcast_network_2.sendMessage("Hi layer 2!", "counter_ID");
-// myWait(10000);
-casual_broadcast_network_1.sendMessage("hello layer 1", "counter_ID");
-// myWait(2000);
-casual_broadcast_network_3.sendMessage("hello all", "counter_ID");
-// myWait(2000);
-casual_broadcast_network_2.sendMessage("Welcome layer 3!", "counter_ID");
-// myWait(2000);
+    casual_broadcast_network_1.register("counter_ID");
+    casual_broadcast_network_2.register("counter_ID");
+    casual_broadcast_network_3.register("counter_ID");
+
+    casual_broadcast_network_2.sendMessage("Hi layer 2!", "counter_ID");
+    casual_broadcast_network_1.sendMessage("hello layer 1", "counter_ID");
+    casual_broadcast_network_3.sendMessage("hello all", "counter_ID");
+    casual_broadcast_network_2.sendMessage("Welcome layer 3!", "counter_ID");
+
+    setTimeout(function () {
+        if (casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(1) == 1 &&
+            casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(2) == 2 &&
+            casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(3) == 1 ){
+            resolve();
+        }
+        else {
+            reject();
+        }
+    }, 1000);
+}
+
+var p1 = new Promise(test1);
+
+p1.then(function () {
+    console.log('----------------------------------------------')
+    console.log('Test 1 passed!!!');
+});
+p1.catch(function () {
+    console.log('----------------------------------------------')
+    console.log('Test 1 failed...');
+});
+
+process.exit();
 
 
-// assert.equal(vc1.get("counter_ID")?.asVectorClock().get(1), 1);
-// assert.equal(vc1.get("counter_ID")?.asVectorClock().get(2), 1);
-// assert.equal(vc1.get("counter_ID")?.asVectorClock().get(3), 1);
-// assert.equal(vc2.get("counter_ID")?.asVectorClock().get(1), 1);
-// assert.equal(vc2.get("counter_ID")?.asVectorClock().get(2), 1);
-// assert.equal(vc2.get("counter_ID")?.asVectorClock().get(3), 1);
-// assert.equal(vc3.get("counter_ID")?.asVectorClock().get(1), 1);
-// assert.equal(vc3.get("counter_ID")?.asVectorClock().get(2), 1);
-// assert.equal(vc3.get("counter_ID")?.asVectorClock().get(3), 1);
-console.log('OK..! Test Case 1 pass')
-
-
- 
+// console.log('Case 2')
+// casual_broadcast_network_1.vcMap.set("multi_ID", new VectorClock(1));
+// casual_broadcast_network_2.vcMap.set("multi_ID", new VectorClock(2));
+// casual_broadcast_network_3.vcMap.set("multi_ID", new VectorClock(3));
+// casual_broadcast_network_2.sendMessage("Hi layer 2!", "multi_ID");
+// casual_broadcast_network_1.sendMessage("hello layer 1", "multi_ID");
+// casual_broadcast_network_3.sendMessage("hello all", "multi_ID");
+// casual_broadcast_network_2.sendMessage("Welcome layer 3!", "multi_ID");
+// casual_broadcast_network_2.sendMessage("Let's begin chat!", "multi_ID");
+// casual_broadcast_network_1.sendMessage("sure!", "multi_ID");
+// let vc_mult_1 = casual_broadcast_network_1.vcMap;
+// let vc_mult_2 = casual_broadcast_network_2.vcMap;
+// let vc_mult_3 = casual_broadcast_network_3.vcMap;
+// assert.equal(vc1.get("multi_ID")?.asVectorClock().get(1), 1);
+// assert.equal(vc2.get("multi_ID")?.asVectorClock().get(2), 3);
+// assert.equal(vc3.get("multi_ID")?.asVectorClock().get(3), 1);
+// console.log('OK..! Case 2 pass')

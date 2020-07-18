@@ -2,7 +2,6 @@ import { CrdtRuntime } from './crdt_runtime_interface';
 import { VectorClock } from './vector_clock';
 import WebSocket = require("ws");
 
-
 // The casual broadcast network designed for a two-way interactive 
 // communication session between user and server using WebSocket API.
 //
@@ -136,6 +135,17 @@ export class CasualBroadcastNetwork {
         this.checkMessageBuffer();        
     };
     /**
+     * Register newly created crdtId on CasualBroadcastNetwork.
+     * 
+     * @param crdtId 
+     */
+    register(crdtId : any) : void {
+        if (this.vcMap.has(crdtId)) {
+            throw new Error("Duplicate crdtId: " + crdtId);
+        } 
+        this.vcMap.set(crdtId, new VectorClock(this.uid));
+    }
+    /**
      * Send function on casualbroadcast network layer, which called 
      * by crdt's runtime layer.
      * 
@@ -195,13 +205,18 @@ export class CasualBroadcastNetwork {
                 let myVectorClock = this.vcMap.get(curCrdtId);
 
                 if (myVectorClock?.isready(curVectorClock)) {
+                    // console.log("From client:", curVectorClock.getSender(), "to client:", this.uid);
+                    // console.log("The message is ready");
+                    // console.log("Client:", this.uid, "VectorClock: \n", this.vcMap);
+                    // console.log("================================================")
+                    
                     myVectorClock.merge(curVectorClock);
-
-                    // TODO: Return back to Runtime
                     // this.crdtRuntime.receive();
                     this.messageBuffer.splice(index, 1);
-                    console.log("Client:", this.uid, "VectorClock: \n", this.vcMap);
-                    console.log("================================================")
+                    
+                } else {
+                    // console.log("From client:", curVectorClock.getSender(), "to client:", this.uid);
+                    // console.log("The message is not ready...");
                 }
             }
             index--;
