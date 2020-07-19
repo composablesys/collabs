@@ -1,4 +1,4 @@
-import { CrdtRuntime } from './crdt_runtime_interface';
+import { CrdtRuntime, CrdtMessageListener } from "../src/crdt_runtime_interface";
 import { VectorClock } from './vector_clock';
 import WebSocket = require("ws");
 
@@ -85,14 +85,19 @@ export class CasualBroadcastNetwork {
     /**
      * Register CrdtRuntime at CasualBroadcastNetwork layer.
      */
-    crdtRuntime : CrdtRuntime;
+    // crdtRuntime : CrdtRuntime;
+    /**
+     * The registered CRDT with corresponding CrdtMessageListener.
+     */
+    listenersById : Map<any, CrdtMessageListener>;
 
-    constructor (replicaId: any, crdtRuntime: CrdtRuntime) {
+    constructor (replicaId: any) {
         this.uid = replicaId;
         this.vcMap = new Map<any, VectorClock>();
         this.messageBuffer = new Array<[any, any, VectorClock]>();
         this.sendBuffer = new Array<myMessage>();
-        this.crdtRuntime = crdtRuntime;
+        // this.crdtRuntime = crdtRuntime;
+        this.listenersById = new Map<any, CrdtMessageListener>();
         /**
          * Open WebSocket connection with server.
          * Register EventListener with corresponding event handler.
@@ -139,10 +144,25 @@ export class CasualBroadcastNetwork {
      * 
      * @param crdtId 
      */
-    register(crdtId : any) : void {
+    registerCrdtId(crdtId : any) : void {
         if (this.vcMap.has(crdtId)) {
             throw new Error("Duplicate crdtId: " + crdtId);
         } 
+        this.vcMap.set(crdtId, new VectorClock(this.uid));
+    }
+    /**
+     * Register newly created crdt with its ID and corresponding message 
+     * listener on CasualBroadcastNetwork.
+     * 
+     * @param crdtMessageListener the message listener of each crdt. 
+     * @param crdtId the ID of each crdt.
+     * 
+     */
+    registerCrdtMessageListener(crdtMessageListener: CrdtMessageListener, crdtId: any) : void {
+        if (this.listenersById.has(crdtId) || this.vcMap.has(crdtId)) {
+            throw new Error("Duplicate crdtId: " + crdtId);
+        }
+        this.listenersById.set(crdtId, crdtMessageListener);
         this.vcMap.set(crdtId, new VectorClock(this.uid));
     }
     /**
@@ -187,10 +207,13 @@ export class CasualBroadcastNetwork {
         return myPackage;
     }
     /**
-     * Check the casuality of buffered message and delivery the 
+     * Check the casuality of buffered messages and delivery the 
      * messages which are ready.
      * 
-     * Update the VectorClock entry and MessageBuffer.
+     * The checking order is from the lastest to the oldest.
+     * Update the VectorClock entry and MessageBuffer is necessary.
+     * 
+     * Send the message back to crdtMessageListener.
      */
     checkMessageBuffer() : void {
         let index = this.messageBuffer.length - 1;
@@ -207,13 +230,14 @@ export class CasualBroadcastNetwork {
                 if (myVectorClock?.isready(curVectorClock)) {
                     // console.log("From client:", curVectorClock.getSender(), "to client:", this.uid);
                     // console.log("The message is ready");
-                    // console.log("Client:", this.uid, "VectorClock: \n", this.vcMap);
-                    // console.log("================================================")
-                    
-                    myVectorClock.merge(curVectorClock);
-                    // this.crdtRuntime.receive();
-                    this.messageBuffer.splice(index, 1);
-                    
+                    if (this.listenersById.has(curCrdtId)) {
+                        this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);
+                        /**
+                         * Update the vector clock and remove the message.
+                         */
+                        myVectorClock.merge(curVectorClock);
+                        this.messageBuffer.splice(index, 1);
+                    }
                 } else {
                     // console.log("From client:", curVectorClock.getSender(), "to client:", this.uid);
                     // console.log("The message is not ready...");

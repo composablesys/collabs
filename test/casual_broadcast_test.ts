@@ -51,9 +51,9 @@ function test1(resolve : any, reject : any) {
     let casual_broadcast_network_2 = new CasualBroadcastNetwork(2, crdt_2);
     let casual_broadcast_network_3 = new CasualBroadcastNetwork(3, crdt_3);
 
-    casual_broadcast_network_1.register("counter_ID");
-    casual_broadcast_network_2.register("counter_ID");
-    casual_broadcast_network_3.register("counter_ID");
+    casual_broadcast_network_1.registerCrdtId("counter_ID");
+    casual_broadcast_network_2.registerCrdtId("counter_ID");
+    casual_broadcast_network_3.registerCrdtId("counter_ID");
 
     casual_broadcast_network_2.sendMessage("Hi layer 2!", "counter_ID");
     casual_broadcast_network_1.sendMessage("hello layer 1", "counter_ID");
@@ -84,6 +84,7 @@ p1.catch(function () {
 });
 
 process.exit();
+
 
 
 // console.log('Case 2')
