@@ -1,4 +1,4 @@
-import { CrdtRuntime, CrdtMessageListener } from "../src/crdt_runtime_interface";
+import { CrdtMessageListener } from "../src/crdt_runtime_interface";
 import { VectorClock } from './vector_clock';
 import WebSocket = require("ws");
 
@@ -123,9 +123,10 @@ export class CasualBroadcastNetwork {
      */
     sendAction = () => {
         while (this.sendBuffer.length != 0) {
+            // console.log("Client:", this.uid, "Pull from buffer");
             this.ws.send(this.sendBuffer[0].toJSON());
             this.sendBuffer.splice(0, 1);
-        }  
+        } 
     }
     /**
      * Parse JSON format data back into myMessage type. 
@@ -175,6 +176,10 @@ export class CasualBroadcastNetwork {
      * Using WebSocket as network transmission protocol.
      * Using JSON format as message type.
      * 
+     * If the WebSocket Readystate is not Open, then buffer the message and
+     * wait until WebSocket open.
+     * If the WebSocket Readystate is Open, then send it with ws.send().
+     * 
      * @param message the crdt update message.
      * @param crdtId the unique ID for each crdt.
      */
@@ -190,7 +195,14 @@ export class CasualBroadcastNetwork {
         // Convert the message into JSON 
         let vcCopy = this.vcMap.get(crdtId);
         let myPackage = new myMessage(message, crdtId, vcCopy!);
-        this.sendBuffer.push(myPackage);
+        
+        if (this.ws.readyState === 1) {
+            this.ws.send(myPackage.toJSON());
+            // console.log("Client:", this.uid, "send message");
+        } else {
+            this.sendBuffer.push(myPackage);
+            // console.log("Client:", this.uid, "Push message to buffer");
+        }
     }
     /**
      * Parse JSON format data back to customized data type.
@@ -226,21 +238,21 @@ export class CasualBroadcastNetwork {
                 this.messageBuffer.splice(index, 1);
             } else {
                 let myVectorClock = this.vcMap.get(curCrdtId);
-
                 if (myVectorClock?.isready(curVectorClock)) {
-                    // console.log("From client:", curVectorClock.getSender(), "to client:", this.uid);
-                    // console.log("The message is ready");
-                    if (this.listenersById.has(curCrdtId)) {
-                        this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);
-                        /**
-                         * Update the vector clock and remove the message.
-                         */
-                        myVectorClock.merge(curVectorClock);
-                        this.messageBuffer.splice(index, 1);
-                    }
+                    // console.log("The message from client:", curVectorClock.getSender(), "to client:", this.uid, "is ready");
+                    
+                    // if (this.listenersById.has(curCrdtId)) {
+                    //     this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);
+                    //     /**
+                    //      * Update the vector clock and remove the message.
+                    //      */
+                    //     myVectorClock.merge(curVectorClock);
+                    //     this.messageBuffer.splice(index, 1);
+                    // }
+                    myVectorClock.merge(curVectorClock);
+                    this.messageBuffer.splice(index, 1);
                 } else {
-                    // console.log("From client:", curVectorClock.getSender(), "to client:", this.uid);
-                    // console.log("The message is not ready...");
+                    // console.log("The message from client:", curVectorClock.getSender(), "to client:", this.uid, "is not ready");
                 }
             }
             index--;
