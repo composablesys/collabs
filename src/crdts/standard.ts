@@ -1,8 +1,9 @@
-import {CrdtRuntime} from "../crdt_runtime_interface";
-import {Resettable, DefaultResettableCrdt, ResetWinsComponent, ObservedResetComponent, DefaultResetWinsCrdt} from "./resettable";
-import { CounterInternal, NoOpCrdtInternal, MultRegisterInternal, GcGrowOnlyMapInternal, HomapComponent } from "./basic_crdts";
-import { Crdt } from "./crdt_core";
+import { CrdtRuntime } from "../crdt_runtime_interface";
+import { Resettable, DefaultResettableCrdt, DefaultResetWinsCrdt, ResetWinsComponent, ObservedResetComponent } from "./resettable";
+import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
+import { Crdt, CrdtInternal } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
+import { PairCrdtInternal, GrowOnlyMapInternal, HomapComponent, NoOpCrdtInternal } from "./components";
 
 export class UnresettableIntRegisterCrdt extends Crdt<SemidirectState<number>> {
     // semidirectInstance completely describes this semidirect product
@@ -76,8 +77,8 @@ export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<numbe
 
 export class EnableWinsFlag extends DefaultResettableCrdt<null> {
     constructor(id: any, runtime: CrdtRuntime) {
-        super(id, new NoOpCrdtInternal(() => null), null, runtime,
-            undefined, true);
+        super(id, new NoOpCrdtInternal(() => null), null,
+            runtime, undefined, true);
     }
     enable() {
         this.applyOps("e");
@@ -107,8 +108,8 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
 
 export class DisableWinsFlag extends DefaultResettableCrdt<null> {
     constructor(id: any, runtime: CrdtRuntime) {
-        super(id, new NoOpCrdtInternal(() => null), null, runtime,
-            undefined, true);
+        super(id, new NoOpCrdtInternal(() => null), null,
+            runtime, undefined, true);
     }
     enable() {
         this.reset();
@@ -135,6 +136,7 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
     }
 }
 
+
 export class AddWinsSet<T> extends
         DefaultResetWinsCrdt<Map<T, SemidirectState<SemidirectState<null>>>>
         implements Resettable {
@@ -146,27 +148,36 @@ export class AddWinsSet<T> extends
      * automatically (via DefaultResettableCrdt).  Basically
      * it is just a GcGrowOnlyMapInternal<T, "EnableWinsFlagInternal">.
      */
-    private static crdtInternal = HomapComponent.addToCommuting(
-        new GcGrowOnlyMapInternal<any, SemidirectState<SemidirectState<null>>>(
-            ResetWinsComponent.addTo(
+    private static crdtInternal?: CrdtInternal<Map<any, SemidirectState<SemidirectState<null>>>> = undefined;
+    constructor(id: any, runtime: CrdtRuntime) {
+        if (!AddWinsSet.crdtInternal) {
+            let enableWinsFlagInternal = ResetWinsComponent.addTo(
                 ObservedResetComponent.addTo(
                     new NoOpCrdtInternal(() => null),
                     null, true
                 ), null
-            ), null, (state) => state.internalState.isHistoryEmpty()
-        )
-    );
-    constructor(id: any, runtime: CrdtRuntime) {
+            );
+            AddWinsSet.crdtInternal = HomapComponent.addToCommuting(
+                new GrowOnlyMapInternal<any, SemidirectState<SemidirectState<null>>>(
+                    enableWinsFlagInternal,
+                    () => enableWinsFlagInternal.create(),
+                    (state) => state.internalState.isHistoryEmpty()
+                )
+            );
+        }
         super(id, AddWinsSet.crdtInternal, null, runtime);
     }
     add(value: T) {
-        // We want to do [value, "e"] (for enable).
-        this.applyOps([1, [value, [1, [2, "e"]]]]);
+        // We want to do "e" (for enable) with key=value.
+        this.applyOps([1, ["applyOp", value, [1, [2, "e"]]]]);
     }
     delete(value: T) {
         // Do an observed-reset on value, using its observed-reset
         // layer.
-        this.applyOps([1, [value, [1, [1, "reset"]]]]);
+        // Skip if it's already disabled (hence op will do nothing).
+        if (this.has(value)) {
+            this.applyOps([1, ["applyOp", value, [1, [1, "reset"]]]]);
+        }
     }
     /**
      * Deletes the value with strong delete-wins semantics
@@ -176,7 +187,7 @@ export class AddWinsSet<T> extends
      */
     deleteStrong(value: T) {
         // Do a reset-wins reset on value, using its reset-wins layer.
-        this.applyOps([1, [value, [2, "reset"]]]);
+        this.applyOps([1, ["applyOp", value, [2, "reset"]]]);
     }
     has(value: T) {
         // Return if the entry at value is enabled.
@@ -189,13 +200,19 @@ export class AddWinsSet<T> extends
         // (removed) entries, we can just do:
         return this.originalStateResetWins.keys();
     }
+    get size() {
+        return this.originalStateResetWins.size;
+    }
     reset() {
         // Apply an observed-reset to each value using
         // a homap operation.
         // Note here we have to use a reset message, not operation;
         // it gets prepared as [].
-        this.applyOps([2, [1, [1, []]]]);
+        // Skip if we are already reset (okay due to observed-reset
+        // semantics).
+        if (this.size !== 0) this.applyOps([2, [1, [1, []]]]);
     }
+
     // TODO: translateDescriptionsResetWins, accounting
     // for the homap
 
@@ -207,3 +224,23 @@ export class AddWinsSet<T> extends
         return [1, [2, [1, [1, []]]]];
     }
 }
+
+// // TODO: future feature: atomic grouping of operations
+// // possibly across keys.  This could also be a general
+// // Crdt feature.  Sort of like transactions.
+// export class MapCrdt<K, S> extends
+//         DefaultResetWinsCrdt<[Map<K, SemidirectState<SemidirectState<null>>>, Map<K, S>]>
+//         implements Resettable {
+//     constructor(id: any,
+//             valueCrdtFactory: (key: string) => (Crdt<S> & Resettable),
+//             runtime: CrdtRuntime) {
+//         super(id,
+//             new PairCrdtInternal(
+//                 AddWinsSet.crdtInternalInstance,
+//                 new GrowOnlyMapInternal<K, S>(
+//                     valueCrdt.crdtInternal, undefined, true
+//                 )
+//             ), null, runtime
+//         );
+//     }
+// }

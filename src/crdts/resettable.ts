@@ -244,7 +244,11 @@ export class DefaultResettableCrdt<S>
         this.originalCrdtInternal = originalCrdtInternal;
     }
     reset() {
-        super.applyOps([1, "reset"]);
+        // Ignore the op if we're already reset (okay given
+        // observe-reset semantics).
+        if (!this.state.internalState.isHistoryEmpty()) {
+            super.applyOps([1, "reset"]);
+        }
     }
     getUniversalResetMessage() {
         // Note here we have to account for the reset-wins layer

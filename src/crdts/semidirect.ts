@@ -205,7 +205,7 @@ export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
      * @param  initialData Initial data used to initialize this.crdt1.
      * @return
      */
-    create(initialData: any): SemidirectState<S> {
+    create(initialData?: any): SemidirectState<S> {
         let internalState: S;
         if (this.createCrdtIndex === 1) internalState = this.crdt1.create(initialData);
         else internalState = this.crdt2.create(initialData);
@@ -301,7 +301,7 @@ export class DirectInternal<S> implements CrdtInternal<S> {
      * @param  initialData Initial data used to initialize this.crdt1.
      * @return
      */
-    create(initialData: any): S {
+    create(initialData?: any): S {
         if (this.createCrdtIndex === 1) return this.crdt1.create(initialData);
         else return this.crdt2.create(initialData);
     }

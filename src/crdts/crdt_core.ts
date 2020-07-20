@@ -205,7 +205,8 @@ export class Crdt<S> implements CrdtMessageListener {
     receive(messages: any, timestamp: CausalTimestamp) {
         let descriptions: Array<any> = [];
         for (let message of messages) {
-            let result = this.crdtInternal.effect(message, this.state, this.runtime.getReplicaId(), timestamp);
+            let result = this.crdtInternal.effect(message, this.state,
+                    this.runtime.getReplicaId(), timestamp);
             this.state = result[0];
             descriptions.push(result[1]);
         }
