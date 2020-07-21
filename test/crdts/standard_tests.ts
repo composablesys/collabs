@@ -199,6 +199,7 @@ class BiCounter extends CrdtObject<string, IntRegisterCrdt> {
         this.startPredefinedPropertyCreation();
         this.a = new IntRegisterCrdt("a", this, 1);
         this.b = new IntRegisterCrdt("b", this, 1);
+        this.endPredefinedPropertyCreation();
     }
 }
 
