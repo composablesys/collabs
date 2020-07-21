@@ -1,9 +1,9 @@
-import { CrdtRuntime } from "../crdt_runtime_interface";
-import { Resettable, DefaultResettableCrdt, DefaultResetWinsCrdt, ResetWinsComponent, ObservedResetComponent } from "./resettable";
+import { CrdtRuntime, CausalTimestamp } from "../crdt_runtime_interface";
+import { Resettable, DefaultResettableCrdt } from "./resettable";
 import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
-import { Crdt, CrdtInternal } from "./crdt_core";
+import { Crdt } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
-import { PairCrdtInternal, GrowOnlyMapInternal, HomapComponent, NoOpCrdtInternal } from "./components";
+import { GrowOnlyMapInternal, NoOpCrdtInternal, CrdtAsCrdtInternal } from "./components";
 
 export class UnresettableIntRegisterCrdt extends Crdt<SemidirectState<number>> {
     // semidirectInstance completely describes this semidirect product
@@ -136,111 +136,228 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
     }
 }
 
-
-export class AddWinsSet<T> extends
-        DefaultResetWinsCrdt<Map<T, SemidirectState<SemidirectState<null>>>>
-        implements Resettable {
+/**
+ * TODO.  Convenient representation of a Crdt-valued grow-only map.
+ * Somewhere: note that initial values of properties must be
+ * a function of their key only (so can't have varying types or
+ * initial data).
+ *
+ * N is the type of member names (typically string).
+ */
+export class CrdtObject<N, C extends Crdt<any>> extends Crdt<Map<N, C>> implements CrdtRuntime {
+    static defaultPropertyFactory = () => {
+        throw new Error("Dynamically created properties are only " +
+                "allowed if propertyFactory is passed to the " +
+                "CrdtObject constructor");
+    };
     /**
-     * The CrdtInternal for this datatype (with key type T elided
-     * so it can be static).  This only looks complicated
-     * because we have to manually do the reset-wins and
-     * observed-reset wrapping that EnableWinsFlag gets
-     * automatically (via DefaultResettableCrdt).  Basically
-     * it is just a GcGrowOnlyMapInternal<T, "EnableWinsFlagInternal">.
+     * TODO: predefined vs dynamic property creation.  Predefined ones
+     * have to be created identically on all replicas in
+     * between startPredefinedPropertyCreation() and
+     * endPredefinedPropertyCreation(), ideally in the constructor. They
+     * are not synced (for efficiency and to save the trouble
+     * of specifying propertyFactory).  Dynamic properties
+     * can only be created through init.
+     *
+     * @param id              [description]
+     * @param runtime         [description]
+     * @param propertyFactory [description]
      */
-    private static crdtInternal?: CrdtInternal<Map<any, SemidirectState<SemidirectState<null>>>> = undefined;
-    constructor(id: any, runtime: CrdtRuntime) {
-        if (!AddWinsSet.crdtInternal) {
-            let enableWinsFlagInternal = ResetWinsComponent.addTo(
-                ObservedResetComponent.addTo(
-                    new NoOpCrdtInternal(() => null),
-                    null, true
-                ), null
-            );
-            AddWinsSet.crdtInternal = HomapComponent.addToCommuting(
-                new GrowOnlyMapInternal<any, SemidirectState<SemidirectState<null>>>(
-                    enableWinsFlagInternal,
-                    () => enableWinsFlagInternal.create(),
-                    (state) => state.internalState.isHistoryEmpty()
-                )
-            );
-        }
-        super(id, AddWinsSet.crdtInternal, null, runtime);
+    constructor(id: any, runtime: CrdtRuntime,
+            propertyFactory: (name: N, internalRuntime: CrdtRuntime) => C
+            = CrdtObject.defaultPropertyFactory) {
+        // TODO: gc ability
+        // We can't actually make our initFactory until after
+        // the super() call, so we have to hack it in after.
+        let crdtInternal = new GrowOnlyMapInternal<N, C>(
+            new CrdtAsCrdtInternal(),
+            undefined as unknown as ((key: N) => C)
+        );
+        super(id, crdtInternal, runtime);
+        crdtInternal.initFactory = (key: N) => {
+            this.inInit = true;
+            let result = propertyFactory(key, this);
+            this.inInit = false;
+            return result;
+        };
+        this.inPredefinedPropertyCreation = false;
+        this.inInit = false;
     }
-    add(value: T) {
-        // We want to do "e" (for enable) with key=value.
-        this.applyOps([1, ["applyOp", value, [1, [2, "e"]]]]);
+
+    private inPredefinedPropertyCreation: boolean;
+    startPredefinedPropertyCreation() {
+        this.inPredefinedPropertyCreation = true;
     }
-    delete(value: T) {
-        // Do an observed-reset on value, using its observed-reset
-        // layer.
-        // Skip if it's already disabled (hence op will do nothing).
-        if (this.has(value)) {
-            this.applyOps([1, ["applyOp", value, [1, [1, "reset"]]]]);
+    endPredefinedPropertyCreation() {
+        this.inPredefinedPropertyCreation = false;
+    }
+    private inInit: boolean;
+    register(crdt: C, name: N): void {
+        if (!(this.inPredefinedPropertyCreation || this.inInit)) {
+            throw new Error("Properties can only be directly " +
+                "registered between startPredefinedPropertyCreation() " +
+                "and endPredefinedPropertyCreation().  Dynamic properties " +
+                "must be created with init(name).");
         }
+        if (this.state.has(name)) {
+            throw new Error("Duplicate property name: " + name);
+        }
+        this.state.set(name, crdt);
+        // Skip sending an init message about it.  Okay because of the
+        // predefined initialization contract.
     }
     /**
-     * Deletes the value with strong delete-wins semantics
-     * (delete wins over concurrent add operations, even if
-     * this operation has already been dominated by an add
-     * operation).
+     * @param  name [description]
+     * @return      The initialized Crdt.
      */
-    deleteStrong(value: T) {
-        // Do a reset-wins reset on value, using its reset-wins layer.
-        this.applyOps([1, ["applyOp", value, [2, "reset"]]]);
-    }
-    has(value: T) {
-        // Return if the entry at value is enabled.
-        // Because the internal map garbage collects disabled
-        // (removed) entries, we can just do:
-        return this.originalStateResetWins.has(value);
-    }
-    values() {
-        // Because the internal map garbage collects disabled
-        // (removed) entries, we can just do:
-        return this.originalStateResetWins.keys();
-    }
-    get size() {
-        return this.originalStateResetWins.size;
-    }
-    reset() {
-        // Apply an observed-reset to each value using
-        // a homap operation.
-        // Note here we have to use a reset message, not operation;
-        // it gets prepared as [].
-        // Skip if we are already reset (okay due to observed-reset
-        // semantics).
-        if (this.size !== 0) this.applyOps([2, [1, [1, []]]]);
+    initProperty(name: N): C {
+        let currentValue = this.state.get(name);
+        if (currentValue !== undefined) return currentValue;
+        else {
+            this.applyOps(["init", name]);
+            return this.state.get(name) as C;
+        }
     }
 
-    // TODO: translateDescriptionsResetWins, accounting
-    // for the homap
+    getProperty(name: N): C | undefined {
+        return this.state.get(name);
+    }
+    propertyNames() {
+        return this.state.keys();
+    }
+    propertyValues() {
+        return this.state.values();
+    }
+    propertyEntries() {
+        return this.state.entries();
+    }
 
-    getUniversalResetMessage() {
-        // Return the message induced by reset().
-        // Note we have to add an extra [1, -] to account
-        // for the wrapping usually done by
-        // DefaultResetWinsCrdt.
-        return [1, [2, [1, [1, []]]]];
+    send(message: any, name: N): void {
+        // Convert into an applySkip message for the map value
+        // at name.  Here we want to skip because
+        // our replica's value has already applied the
+        // operation internally.
+        this.applyOps(["applySkip", name, message]);
+    }
+
+    getReplicaId() {
+        return this.runtime.getReplicaId();
+    }
+    getNextTimestamp(): CausalTimestamp {
+        return this.runtime.getNextTimestamp();
     }
 }
 
-// // TODO: future feature: atomic grouping of operations
-// // possibly across keys.  This could also be a general
-// // Crdt feature.  Sort of like transactions.
-// export class MapCrdt<K, S> extends
-//         DefaultResetWinsCrdt<[Map<K, SemidirectState<SemidirectState<null>>>, Map<K, S>]>
-//         implements Resettable {
-//     constructor(id: any,
-//             valueCrdtFactory: (key: string) => (Crdt<S> & Resettable),
-//             runtime: CrdtRuntime) {
-//         super(id,
-//             new PairCrdtInternal(
-//                 AddWinsSet.crdtInternalInstance,
-//                 new GrowOnlyMapInternal<K, S>(
-//                     valueCrdt.crdtInternal, undefined, true
-//                 )
-//             ), null, runtime
-//         );
-//     }
-// }
+export class AddWinsSet<T> extends CrdtObject<T, EnableWinsFlag> {
+    constructor(id: any, runtime: CrdtRuntime) {
+        // TODO: add gc once we have transactions
+        super(id, runtime, (name: T, internalRuntime: CrdtRuntime) =>
+                new EnableWinsFlag(name, internalRuntime));
+    }
+    add(value: T) {
+        // TODO: do as transaction
+        this.initProperty(value).enable();
+    }
+    delete(value: T) {
+        if (this.has(value)) {
+            (this.getProperty(value) as EnableWinsFlag).disable();
+        }
+    }
+    deleteStrong(value: T) {
+        if (this.has(value)) {
+            (this.getProperty(value) as EnableWinsFlag).resetStrong();
+        }
+    }
+    has(value: T) {
+        let valueFlag = this.getProperty(value);
+        if (valueFlag === undefined) return false;
+        else return valueFlag.enabled;
+    }
+    asSet(): Set<T> {
+        let result = new Set<T>();
+        for (let entry of this.propertyEntries()) {
+            if (entry[1].enabled) result.add(entry[0]);
+        }
+        return result;
+    }
+    values() {
+        // TODO: once it's gc'd we can just use this.state.keys()
+        return this.asSet().values();
+    }
+    // TODO: other set properties (e.g. symbol iterator)
+    // TODO: resets/clear
+    // TODO: capturing and translating descriptions
+}
+
+export class MapCrdt<K, C extends Crdt<any> & Resettable> extends CrdtObject<string, C> {
+    private keySet: AddWinsSet<K>;
+    private valueMap: CrdtObject<K, C>;
+    constructor(id: any, runtime: CrdtRuntime,
+            valueFactory: (key: K, internalRuntime: CrdtRuntime) => C) {
+        super(id, runtime);
+        this.startPredefinedPropertyCreation();
+        this.keySet = new AddWinsSet("keySet", this);
+        this.valueMap = new CrdtObject("valueMap", this, valueFactory);
+        this.endPredefinedPropertyCreation();
+    }
+    /**
+     * Flag indicating that we are in the body of a delete/
+     * deleteStrong call, hence we should not add things
+     * to keySet (as an optimization).
+     */
+    private inDelete = false;
+    /**
+     * Override CrdtObject.send so that we can capture
+     * a send by a valueMap value and follow it up with
+     * an add to keySet, thus reviving the value's key
+     * if appropriate.
+     *
+     * TODO: skip adding the key if it's a reset message?
+     * Not sure if this is possible in general.  But should at
+     * least be possible for our own deletes.
+     */
+    send(message: any, name: string): void {
+        super.send(message, name);
+        if (!this.inDelete && name === "valueMap") {
+            for (let submessage of message) {
+                if (submessage[0] === "applySkip") {
+                    let key = submessage[1] as K;
+                    this.keySet.add(key);
+                }
+            }
+        }
+    }
+    init(key: K): C {
+        // TODO: transactional
+        if (!this.inDelete) this.keySet.add(key);
+        return this.valueMap.initProperty(key);
+    }
+    has(key: K) {
+        return this.keySet.has(key);
+    }
+    get(key: K) {
+        if (this.has(key)) return this.valueMap.getProperty(key);
+        else return undefined;
+    }
+    delete(key: K) {
+        if (this.has(key)) {
+            // TODO: transactional
+            this.inDelete = true;
+            (this.get(key) as Resettable).reset();
+            this.keySet.delete(key);
+            this.inDelete = false;
+        }
+    }
+    deleteStrong(key: K) {
+        this.inDelete = true;
+        this.init(key).resetStrong();
+        this.keySet.deleteStrong(key);
+        this.inDelete = false;
+    }
+    keys() {
+        return this.keySet.values();
+    }
+
+    // TODO: other map methods (e.g. symbol iterator)
+    // TODO: resets
+}

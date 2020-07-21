@@ -171,6 +171,9 @@ export class DefaultResetWinsCrdt<S>
     }
 }
 
+// TODO: rename originalCrdtInternal (above) and originalCrdt
+// to reflect reset-wins vs reset, to avoid confusion.
+
 export class ObservedResetComponent<S> implements CrdtInternal<S> {
     constructor(public readonly originalCrdt: CrdtInternal<S>,
         public readonly resetInitialData: any) { }

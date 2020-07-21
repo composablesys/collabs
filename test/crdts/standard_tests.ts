@@ -1,6 +1,7 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
-import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet } from '../../src/crdts/standard';
+import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet, CrdtObject, MapCrdt } from '../../src/crdts/standard';
+import { CrdtRuntime } from '../../src/crdt_runtime_interface';
 
 let runtimeGen = new TestingRuntimeGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -190,6 +191,67 @@ function testUnresettableIntRegister() {
     console.log("...ok");
 }
 
+class BiCounter extends CrdtObject<string, IntRegisterCrdt> {
+    a: IntRegisterCrdt;
+    b: IntRegisterCrdt;
+    constructor(crdtId: any, runtime: CrdtRuntime) {
+        super(crdtId, runtime);
+        this.startPredefinedPropertyCreation();
+        this.a = new IntRegisterCrdt("a", this, 1);
+        this.b = new IntRegisterCrdt("b", this, 1);
+    }
+}
+
+function testCrdtObject() {
+    console.log("testCrdtObject()...");
+
+    let aliceBi = new BiCounter("biId", alice);
+    let bobBi = new BiCounter("biId", bob);
+
+    // Do testFromPaper() on each counter
+    aliceBi.a.onchange = (event => console.log(
+        "Alice a: " + event.timestamp.getSender() + " " +
+        event.description[0] + "ed " + event.description[1]));
+    bobBi.a.onchange = (event => console.log(
+        "Bob a: " + event.timestamp.getSender() + " " +
+        event.description[0] + "ed " + event.description[1]));
+    aliceBi.b.onchange = (event => console.log(
+        "Alice b: " + event.timestamp.getSender() + " " +
+        event.description[0] + "ed " + event.description[1]));
+    bobBi.b.onchange = (event => console.log(
+        "Bob b: " + event.timestamp.getSender() + " " +
+        event.description[0] + "ed " + event.description[1]));
+    assert.equal(aliceBi.a.value, 1);
+    assert.equal(bobBi.a.value, 1);
+
+    aliceBi.a.mult(2);
+    aliceBi.a.add(1);
+    bobBi.a.mult(3);
+    bobBi.a.add(4);
+    assert.equal(aliceBi.a.value, 3);
+    assert.equal(bobBi.a.value, 7);
+
+    runtimeGen.releaseAll();
+    assert.equal(aliceBi.a.value, 17);
+    assert.equal(bobBi.a.value, 17);
+
+    assert.equal(aliceBi.b.value, 1);
+    assert.equal(bobBi.b.value, 1);
+
+    aliceBi.b.mult(2);
+    aliceBi.b.add(1);
+    bobBi.b.mult(3);
+    bobBi.b.add(4);
+    assert.equal(aliceBi.b.value, 3);
+    assert.equal(bobBi.b.value, 7);
+
+    runtimeGen.releaseAll();
+    assert.equal(aliceBi.b.value, 17);
+    assert.equal(bobBi.b.value, 17);
+
+    console.log("...ok");
+}
+
 function testAwSet() {
     console.log("testAwSet()...");
 
@@ -249,26 +311,88 @@ function testAwSet() {
     runtimeGen.releaseAll();
     assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
     assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
+    // TODO: test deleteStrong
 
-    // Observed-reset test
-    bobSet.reset();
-    assertSetEquals(new Set(bobSet.values()), new Set());
-    aliceSet.add("survivor");
+    // TODO
+    // // Observed-reset test
+    // bobSet.reset();
+    // assertSetEquals(new Set(bobSet.values()), new Set());
+    // aliceSet.add("survivor");
+    // runtimeGen.releaseAll();
+    // assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
+    // assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
+    //
+    // // Reset-wins test
+    // aliceSet.resetStrong();
+    // aliceSet.add("alice's");
+    // bobSet.reset();
+    // bobSet.add("bob's");
+    // assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
+    // assertSetEquals(new Set(bobSet.values()), new Set(["bob's"]));
+    // runtimeGen.releaseAll();
+    // assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
+    // assertSetEquals(new Set(bobSet.values()), new Set(["alice's"]));
+
+    console.log("...ok");
+}
+
+function testMap() {
+    console.log("testMap()...");
+
+    let aliceMap = new MapCrdt<string, IntRegisterCrdt>("map", alice,
+            (key: string, internalRuntime: CrdtRuntime) => new IntRegisterCrdt(key, internalRuntime));
+    let bobMap = new MapCrdt<string, IntRegisterCrdt>("map", bob,
+            (key: string, internalRuntime: CrdtRuntime) => new IntRegisterCrdt(key, internalRuntime));
+
+    assertSetEquals(new Set(aliceMap.keys()), new Set([]));
+    assertSetEquals(new Set(bobMap.keys()), new Set([]));
+
+    // Inits go through
+    aliceMap.init("test");
     runtimeGen.releaseAll();
-    assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
-    assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["test"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["test"]));
+    assert(aliceMap.has("test"));
+    assert(bobMap.has("test"));
 
-    // Reset-wins test
-    aliceSet.resetStrong();
-    aliceSet.add("alice's");
-    bobSet.reset();
-    bobSet.add("bob's");
-    assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
-    assertSetEquals(new Set(bobSet.values()), new Set(["bob's"]));
+    let aliceTest = aliceMap.get("test") as IntRegisterCrdt;
+    assert(aliceTest);
+    let bobTest = bobMap.get("test") as IntRegisterCrdt;
+    assert(bobTest);
+    assert.equal(aliceTest.value, 0);
+    assert.equal(bobTest.value, 0);
+
+    // Value ops work
+    aliceTest.add(3);
+    bobTest.add(4);
     runtimeGen.releaseAll();
-    assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
-    assertSetEquals(new Set(bobSet.values()), new Set(["alice's"]));
+    assert.equal(aliceTest.value, 7);
+    assert.equal(bobTest.value, 7);
 
+    // Delete works
+    bobMap.delete("test");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set([]));
+    assertSetEquals(new Set(bobMap.keys()), new Set([]));
+    assert(aliceMap.get("test") === undefined);
+    assert(bobMap.get("test") === undefined);
+
+    aliceMap.init("register");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
+
+    // Concurrent operation revives key
+    let bobRegister = bobMap.get("register") as IntRegisterCrdt;
+    aliceMap.delete("register");
+    bobRegister.add(3);
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
+    assert.equal(bobRegister.value, 3);
+    assert.equal((aliceMap.get("register") as IntRegisterCrdt).value, 3);
+
+    // TODO: strong delete, resets, nesting?
     console.log("...ok");
 }
 
@@ -277,8 +401,9 @@ testDwFlag();
 testIntRegister();
 testFromPaper();
 testUnresettableIntRegister();
+testCrdtObject();
 testAwSet();
-
+testMap();
 
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set

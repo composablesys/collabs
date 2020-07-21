@@ -1,7 +1,7 @@
 // Utility components for building complex CrdtInternal's/Crdt's
 import { DirectInternal } from "./semidirect";
 import { CrdtInternal, Crdt } from "./crdt_core";
-import { CausalTimestamp, CrdtRuntime, CrdtMessageListener } from "../crdt_runtime_interface";
+import { CausalTimestamp } from "../crdt_runtime_interface";
 
 /**
  * CrdtInternal which uses any string as an operation/message
@@ -58,7 +58,7 @@ export class GrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
      * has been garbage collected.
      */
     constructor(public readonly valueCrdtInternal: CrdtInternal<S>,
-            public readonly initFactory: (key: K) => S,
+            public initFactory: (key: K) => S,
             public readonly shouldGc: (valueState: S) => boolean = (() => false)) {
     }
     create(_initialData?: any): Map<K, S> {
@@ -71,6 +71,13 @@ export class GrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
      * into a message), initializing the key if needed.
      * - ["applyMessage", key, C message]: applies the C message to
      * the given key, initializing the key if needed.
+     * - ["applySkip", key, C message]: applies the C message to
+     * the given key, except for their sender, who is assumed
+     * to have already applied the message.  This is used by
+     * CrdtValuedGrowOnlyMapInternal, whose messages are
+     * sometimes derived from values applying messages to
+     * themselves.  TODO: in principle can optimize so we
+     * don't have to send "skip" over the network.
      * - ["init", key]: initializes the given key using create
      * if it is not already present in the map.
      */
@@ -86,9 +93,11 @@ export class GrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
                     operation[2], keyState as S, replicaId
                 )];
             case "applyMessage":
-                    return ["apply", key, operation[2]];
+                return ["apply", key, operation[2]];
+            case "applySkip":
+                return ["applySkip", key, operation[2]];
             case "init":
-                return ["init", key];
+                if (!state.has(key)) return ["init", key];
             default:
                 throw new Error("Unrecognized operation: " + JSON.stringify(operation));
         }
@@ -105,19 +114,36 @@ export class GrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
             [Map<K, S>, [string, K, any?] | null] {
         let key = message[1];
         switch (message[0]) {
+            case "applySkip":
+                if (replicaId === timestamp.getSender()) {
+                    // Skip applying it to the state.
+                    // We can still gc, though, in case the
+                    // already-applied message has made it
+                    // gc-able.
+                    let keyState = state.get(key);
+                    if (keyState !== undefined &&
+                            this.shouldGc(keyState)) {
+                        state.delete(key);
+                    }
+                    return [state, null];
+                }
+                // Otherwise fall through.
             case "apply":
                 let keyState = state.get(key);
                 if (keyState === undefined) {
                     keyState = this.initFactory(key);
                 }
-                let result = this.valueCrdtInternal.effect(
-                    message[2], keyState, replicaId, timestamp
-                );
-                if (this.shouldGc(result[0])) {
-                    state.delete(key);
+                else {
+                    let result = this.valueCrdtInternal.effect(
+                        message[2], keyState, replicaId, timestamp
+                    );
+                    if (this.shouldGc(result[0])) {
+                        state.delete(key);
+                    }
+                    else state.set(key, result[0]);
+                    if (result[1] === null) return [state, null];
+                    else return [state, ["apply", key, result[1]]];
                 }
-                else state.set(key, result[0]);
-                return [state, ["apply", key, result[1]]];
             case "init":
                 if (state.has(key)) return [state, null];
                 else {
@@ -130,77 +156,6 @@ export class GrowOnlyMapInternal<K, S> implements CrdtInternal<Map<K, S>> {
             default:
                 throw new Error("Unrecognized message: " + JSON.stringify(message));
         }
-    }
-    /**
-     * TODO: describe what the caller is responsible for
-     * in the lifecycle of a message, and how the map
-     * should be used.
-     * @param  runtime    [description]
-     * @param  applyMapOp [description]
-     * @param  initFactory Should provide the given runtime as
-     * the CrdtRuntime and the key as the CrdtId.
-     * @param  shouldGc [description]
-     * @return            [description]
-     */
-    static newCrdtValuedMap<K, C extends Crdt<any>>(
-            runtime: CrdtRuntime,
-            applyMapOp: (mapMessage: any) => void,
-            initFactory: (key: K, runtime: CrdtRuntime) => C,
-            shouldGc: (valueState: C) => boolean = (() => false)
-    ) {
-        let mapValueRuntime = new MapValueRuntime(runtime, applyMapOp);
-        return new GrowOnlyMapInternal(
-            new CrdtAsCrdtInternal<C>(),
-            (key: K) => initFactory(key, mapValueRuntime),
-            shouldGc
-        );
-    }
-}
-
-/**
- * CrdtInternal whose operations are to apply a given operation
- * to every value in map (that is present when the message
- * is received at each replica), i.e., a higher-order map
- * operation (homap).
- */
-export class HomapComponent<K, S> implements CrdtInternal<Map<K, S>> {
-    constructor(public readonly mapInternal:
-        CrdtInternal<Map<K, S>>) { }
-    create(initialData?: any): Map<K, S> {
-        return this.mapInternal.create(initialData);
-    }
-    prepare(operation: any, _state: Map<K, S>, _replicaId: any) {
-        return operation;
-    }
-    // Returned description is an array of [key, description]
-    // for each key application that returned a non-null description.
-    effect(message: any, state: Map<K, S>, replicaId: any, timestamp: CausalTimestamp): [Map<K, S>, Array<[K, any]>] {
-        // To duplicate the message (in case individual values modify
-        // messages internally), we use JSON stringify/parsed.
-        let stringified = JSON.stringify(message);
-        let description: Array<[K, any]> = [];
-        for (let key of state.keys()) {
-            let result = this.mapInternal.effect(["apply", key, JSON.parse(stringified)],
-                state, replicaId, timestamp);
-            state = result[0];
-            if (result[1] !== null) description.push([key, result[1]]);
-        }
-        return [state, description];
-    }
-    /**
-     * Add a HomapComponent to the given map-valued CrdtInternal
-     * with a direct product.  For this to be a Crdt, any homap
-     * operation must have no effect on values that were added
-     * to the map concurrently to the homap operation, so that
-     * homap operations commute with key initialization.
-     * (Necessary because a replica receiving a homap message applies
-     * it to all of its values, even ones that were not present
-     * in the sending replica when they sent the message.)
-     */
-    static addToCommuting<K, S>(originalCrdt: CrdtInternal<Map<K, S>>) {
-        return new DirectInternal<Map<K, S>>(originalCrdt,
-            new HomapComponent<K, S>(originalCrdt), 1
-        );
     }
 }
 
@@ -231,48 +186,84 @@ export class CrdtAsCrdtInternal<C extends Crdt<any>> implements CrdtInternal<C>{
         state.receive(message, timestamp);
         // Descriptions are propagated through state's onchange, so
         // we don't also give a description.
+        // TODO: instead, listen to onchange so we can get the description.
         return [state, null];
     }
 }
 
 /**
- * CrdtRuntime for feeding to Crdt's in a Crdt-valued
- * GrowOnlyMapInternal, causing their messages to be
- * redirected to this.applyMapOp (in the form of
- * GrowOnlyMapInternal operations).
- * TODO: atomic sequence of messages: check it works right
- * with CrdtAsCrdtInternal.
- * TODO: explain how to use it with CrdtAsCrdtInternal.
- * Describe the full lifecycle of a value operation.
+ * CrdtInternal whose operations are to apply a given operation
+ * to every value in map (that is present when the message
+ * is received at each replica), i.e., a higher-order map
+ * operation (homap).
  */
-export class MapValueRuntime implements CrdtRuntime {
+export class HomapComponent<K, S> implements CrdtInternal<Map<K, S>> {
     /**
-     * @param actualRuntime A CrdtRuntime for answering
-     * getReplicaId() and getNextTimestamp() calls.
-     * @param applyMapOp    TODO
+     * Translate a given operation (as given to prepare) to
+     * the message to apply to key, or null if nothing should
+     * be applied to key.  This is useful for encoding operations
+     * that have a different effect on different keys (e.g.,
+     * an operation that only applies to keys matching a certain
+     * filter, or that performs different operations depending
+     * on the value's type and can infer the value type from the
+     * key) without having to serialize the whole function over
+     * the network.
+     *
+     * For correctness, this must be a function solely
+     * of its arguments.  So in particular, it cannot depend
+     * on replicaId or the current state.
+     *
+     * The default applies the given operation to every
+     * key as-is (interpreted as a message).  Note that this
+     * only works if the value's effect functions do not
+     * modify their input message in-place; if that is the case,
+     * you should make translateOp return a copy.
      */
-    constructor(public actualRuntime: CrdtRuntime,
-        public applyMapOp: (mapMessage: any) => void) { }
-    /**
-     * crdtId must match that Crdt's map key.
-     * So make sure to assign crdtId's to be their map keys.
-     */
-    send(message: any, crdtId: any): void {
-        this.applyMapOp(["applyMessage", crdtId, message]);
+    translateOp: (key: K, operation: any) => (any | null)
+            = (_key: K, operation: any) => operation;
+    constructor(public readonly mapInternal:
+        CrdtInternal<Map<K, S>>) { }
+    create(initialData?: any): Map<K, S> {
+        return this.mapInternal.create(initialData);
+    }
+    prepare(operation: any, _state: Map<K, S>, _replicaId: any) {
+        return operation;
+    }
+    // Returned description is an array of [key, description]
+    // for each key application that returned a non-null description.
+    effect(message: any, state: Map<K, S>, replicaId: any, timestamp: CausalTimestamp): [Map<K, S>, Array<[K, any]>] {
+        let description: Array<[K, any]> = [];
+        for (let key of state.keys()) {
+            let keyMessage = this.translateOp(key, message);
+            if (keyMessage !== null) {
+                let result = this.mapInternal.effect(["apply", key, keyMessage],
+                    state, replicaId, timestamp);
+                state = result[0];
+                if (result[1] !== null) description.push([key, result[1]]);
+            }
+        }
+        return [state, description];
     }
     /**
-     * Not used as Crdt's will receive messages through the
-     * map's effect method instead.
+     * Add a HomapComponent to the given map-valued CrdtInternal
+     * with a direct product.  For this to be a Crdt, any homap
+     * operation must have no effect on values that were added
+     * to the map concurrently to the homap operation
+     * (e.g., an observed-reset operation has this property), so that
+     * homap operations commute with key initialization.
+     * (Necessary because a replica receiving a homap message applies
+     * it to all of its values, even ones that were not present
+     * in the sending replica when they sent the message.)
+     *
+     * If you want to set the HomapComponent's translateOp function,
+     * you can access it with (return value).crdt2.translateOp.
      */
-    register(_crdtMessageListener: CrdtMessageListener, _crdtId: any): void { }
-    getReplicaId() {
-        return this.actualRuntime.getReplicaId();
-    }
-    getNextTimestamp(): CausalTimestamp {
-        return this.actualRuntime.getNextTimestamp();
+    static addToCommuting<K, S>(originalCrdt: CrdtInternal<Map<K, S>>) {
+        return new DirectInternal<Map<K, S>>(originalCrdt,
+            new HomapComponent<K, S>(originalCrdt), 1
+        );
     }
 }
-// TODO: factory method for using this with a map?
 
 /**
  * Combines two CrdtInternal's into a CrdtInternal whose state
