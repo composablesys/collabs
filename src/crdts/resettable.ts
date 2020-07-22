@@ -2,48 +2,6 @@ import { Crdt, CrdtInternal } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
 import { CausalTimestamp, CrdtRuntime } from "../crdt_runtime_interface";
 
-export interface Resettable {
-    /**
-     * Perform an observed-reset operation on this Crdt,
-     * which undoes the effect of causally prior operations
-     * but leaves concurrent messages unchanged.
-     * The semantics need not be exactly observed-reset but
-     * should be similar in spirit (e.g., the Riak map's
-     * anomolous counter reset semantics).
-     */
-    reset(): void;
-    /**
-     * Perform a reset-wins operation on this Crdt,
-     * which undoes the effect of causally prior and concurrent
-     * operations.
-     */
-    resetStrong(): void;
-    /**
-     * @return A message (not operation) that can be applied to
-     * any instance of this Crdt to cause an observed-reset operation.
-     * This message is used by MapCrdt to reset every value when
-     * the map itself is reset.
-     * As with reset(), the semantics need not be exactly
-     * observed-reset; however, it is required that applying this
-     * message to a Crdt that was initialized concurrently has
-     * does not change its state.  If a message with these
-     * properties does not exist, an error should be thrown,
-     * which will be passed to the caller of MapCrdt.reset().
-     */
-    getUniversalResetMessage(): any;
-    /**
-     * A message (not operation) that can be applied to any
-     * instance of this Crdt to cause a reset-wins (strong
-     * reset) operation.
-     * This message is used by MapCrdt to strong-reset every value
-     * when the map itself is strong-reset.
-     * If a message with these
-     * properties does not exist, an error should be thrown,
-     * which will be passed to the caller of MapCrdt.resetStrong().
-     */
-    getUniversalResetStrongMessage(): any;
-}
-
 // TODO: how to do garbage collection of reset-wins operations?
 // E.g. for flags in a set: garbage collection will fail if
 // there are reset-wins ops in the history, as it should, but
@@ -220,8 +178,7 @@ export class ObservedResetComponent<S> implements CrdtInternal<S> {
 }
 
 export class DefaultResettableCrdt<S>
-        extends DefaultResetWinsCrdt<SemidirectState<S>>
-        implements Resettable {
+        extends DefaultResetWinsCrdt<SemidirectState<S>> {
     public readonly originalCrdtInternal: CrdtInternal<S>;
     /**
      * [constructor description]
@@ -256,7 +213,7 @@ export class DefaultResettableCrdt<S>
     getUniversalResetMessage() {
         // Note here we have to account for the reset-wins layer
         // (it's not wrapped automatically like in super.applyOps).
-        return [1, [1, "reset"]];
+        return [1, [1, []]];
     }
     /**
      * Apply operations intended for this.originalCrdtInternal,

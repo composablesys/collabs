@@ -314,14 +314,13 @@ function testAwSet() {
     assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
     // TODO: test deleteStrong
 
-    // TODO
-    // // Observed-reset test
-    // bobSet.reset();
-    // assertSetEquals(new Set(bobSet.values()), new Set());
-    // aliceSet.add("survivor");
-    // runtimeGen.releaseAll();
-    // assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
-    // assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
+    // Observed-reset test
+    bobSet.reset();
+    assertSetEquals(new Set(bobSet.values()), new Set());
+    aliceSet.add("survivor");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
     //
     // // Reset-wins test
     // aliceSet.resetStrong();
@@ -393,7 +392,32 @@ function testMap() {
     assert.equal(bobRegister.value, 3);
     assert.equal((aliceMap.get("register") as IntRegisterCrdt).value, 3);
 
-    // TODO: strong delete, resets, nesting?
+    // Reset tests
+    // Concurrent op revives
+    let aliceRegister = aliceMap.get("register") as IntRegisterCrdt;
+    aliceMap.reset();
+    assertSetEquals(new Set(aliceMap.keys()), new Set([]));
+    assert.equal(aliceMap.get("register"), undefined);
+    assert.equal(aliceRegister.value, 0);
+    bobRegister.add(5);
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
+    assert.equal(bobRegister.value, 5);
+    assert.equal(aliceRegister, aliceMap.get("register"));
+    assert.equal(aliceRegister.value, 5);
+
+    // Causally later op revives
+    bobMap.reset();
+    bobRegister.add(7);
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
+    assert.equal(bobRegister.value, 7);
+    assert.equal(aliceRegister, aliceMap.get("register"));
+    assert.equal(aliceRegister.value, 7);
+
+    // TODO: strong delete, strong resets, nesting?
     console.log("...ok");
 }
 

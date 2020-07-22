@@ -197,6 +197,74 @@ export class Crdt<S> implements CrdtMessageListener {
     protected translateDescriptions(descriptions: Array<any>): any {
         return descriptions[0];
     }
+    /**
+     * Override this to implement non-trivial observed resets
+     * for when a CrdtObject containing this Crdt is
+     * reset.  The
+     * default returns null, so such map resets do nothing.
+     * @return A message (not operation) that can be applied to
+     * this Crdt together with any timestamp
+     * to cause an observed-reset operation, or null to do
+     * nothing.  For this Crdt
+     * to be correct (eventually consistent) when used as a
+     * property in an CrdtObject, the returned message
+     * must satisfy:
+     * - when paired with any CausalTimestamp, it commutes with
+     * concurrent messages (usual Crdt requirement), including
+     * concurrent resets and strong-resets.
+     * - when applied to a state which has not received any
+     * messages causally prior to the timestamp, it has
+     * no effect.  In other words, applying it to a concurrently
+     * initialized state has no effect.
+     * Otherwise, it is free to have any semantics, including
+     * doing nothing.  However, the intent is that it
+     * at least approximates
+     * the observed-reset semantics.
+     *
+     * TODO: return list of messages instead, for generality?
+     */
+    getUniversalResetMessage(): any {
+        return null;
+    }
+    /**
+     * Override this to implement nontrivial observed-resets.
+     * Unlike getUniversalResetMessage(), there are no special
+     * requirements (other than the usual Crdt commutativity).
+     * However, the intent is that it
+     * at least approximates
+     * the observed-reset semantics.
+     */
+    reset(): void { }
+    /**
+     * Override this to implement nontrivial strong-resets.
+     * Unlike getUniversalResetMessage(), there are no special
+     * requirements (other than the usual Crdt commutativity).
+     * However, the intent is that it
+     * at least approximates
+     * the strong-reset semantics.
+     */
+    resetStrong(): void { }
+    // /**
+    //  * Override this to implement non-trivial strong resets.  The
+    //  * default returns null, so resets do nothing.
+    //  * @return A message (not operation) that can be applied to
+    //  * this Crdt together with any timestamp
+    //  * to cause a strong-reset operation, or null to do
+    //  * nothing.  For this Crdt
+    //  * to be correct (eventually consistent) when used as a
+    //  * property in an CrdtObject, the returned message
+    //  * must satisfy:
+    //  * - when paired with any CausalTimestamp, it commutes with
+    //  * concurrent messages (usual Crdt requirement), including
+    //  * concurrent resets and strong-resets.
+    //  * Otherwise, it is free to have any semantics, including
+    //  * doing nothing.  However, the intent is that it
+    //  * at least approximates
+    //  * the strong-reset semantics.
+    //  */
+    // getUniversalResetStrongMessage(): any {
+    //     return null;
+    // }
 
     /**
      * Callback for this.runtime when an atomic list of
