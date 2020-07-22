@@ -66,7 +66,7 @@ export class DefaultResetWinsCrdt<S>
         this.originalCrdtInternalResetWins = originalCrdtInternal;
     }
     resetStrong() {
-        super.applyOps([2, "reset"]);
+        super.applyOp([2, "reset"]);
     }
     getUniversalResetStrongMessage() {
         return [2, "reset"];
@@ -76,8 +76,8 @@ export class DefaultResetWinsCrdt<S>
      * by translating them for the resettable CRDT and calling
      * super.applyOps.
      */
-    protected applyOps(...operations: any) : any {
-        return super.applyOps(...operations.map((op: any) => [1, op]));
+    protected applyOp(operation: any) : any {
+        return super.applyOp([1, operation]);
     }
     /**
      * Subclasses that want to translate operations from
@@ -207,7 +207,7 @@ export class DefaultResettableCrdt<S>
         // Ignore the op if we're already reset (okay given
         // observe-reset semantics).
         if (!this.state.internalState.isHistoryEmpty()) {
-            super.applyOps([1, "reset"]);
+            super.applyOp([1, "reset"]);
         }
     }
     getUniversalResetMessage() {
@@ -220,8 +220,8 @@ export class DefaultResettableCrdt<S>
      * by translating them for the resettable CRDT and calling
      * super.applyOps.
      */
-    protected applyOps(...operations: any) : any {
-        return super.applyOps(...operations.map((op: any) => [2, op]));
+    protected applyOp(operation: any) : any {
+        return super.applyOp([2, operation]);
     }
     /**
      * Subclasses that want to translate operations from

@@ -20,10 +20,10 @@ export class UnresettableIntRegisterCrdt extends Crdt<SemidirectState<number>> {
         this.add(-1);
     }
     add(n: number) {
-        this.applyOps([1,n]);
+        this.applyOp([1,n]);
     }
     mult(n: number) {
-        this.applyOps([2,n]);
+        this.applyOp([2,n]);
     }
     get value() : number {
         return this.state.internalState;
@@ -51,10 +51,10 @@ export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<numbe
         this.add(-1);
     }
     add(n: number) {
-        this.applyOps([1, n]);
+        this.applyOp([1, n]);
     }
     mult(n: number) {
-        this.applyOps([2, n]);
+        this.applyOp([2, n]);
     }
     get value() : number {
         return this.originalStateResettable.internalState;
@@ -115,7 +115,7 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
             runtime, undefined, true);
     }
     enable() {
-        this.applyOps("e");
+        this.applyOp("e");
     }
     disable() {
         this.reset();
@@ -149,7 +149,7 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
         this.reset();
     }
     disable() {
-        this.applyOps("d");
+        this.applyOp("d");
     }
     get enabled() : boolean {
         return this.state.internalState.isHistoryEmpty();
@@ -367,12 +367,12 @@ export class CrdtObject<N, C extends Crdt<any>> extends Crdt<Map<N, C>> implemen
         let currentValue = this.state.get(name);
         if (currentValue !== undefined) return currentValue;
         else {
-            this.applyOps(["init", name]);
+            this.applyOp(["init", name]);
             return this.state.get(name) as C;
         }
     }
     resetProperties() {
-        this.applyOps(this.getUniversalResetMessage());
+        this.applyOp(this.getUniversalResetMessage());
     }
     getUniversalResetMessage() {
         return ["reset"];
@@ -396,7 +396,7 @@ export class CrdtObject<N, C extends Crdt<any>> extends Crdt<Map<N, C>> implemen
         // at name.  Here we want to skip because
         // our replica's value has already applied the
         // operation internally.
-        this.applyOps(["applySkip", name, message]);
+        this.applyOp(["applySkip", name, message]);
     }
 
     getReplicaId() {
@@ -414,8 +414,9 @@ export class AddWinsSet<T> extends CrdtObject<T, EnableWinsFlag> {
                 new EnableWinsFlag(name, internalRuntime));
     }
     add(value: T) {
-        // TODO: do as transaction
+        this.startTransaction();
         this.initProperty(value).enable();
+        this.endTransaction();
     }
     delete(value: T) {
         if (this.has(value)) {
@@ -489,9 +490,11 @@ export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsS
         }
     }
     init(key: K): C {
-        // TODO: transactional
+        this.startTransaction();
         if (!this.inDelete) this.keySet.add(key);
-        return this.valueMap.initProperty(key);
+        let result = this.valueMap.initProperty(key);
+        this.endTransaction();
+        return result;
     }
     has(key: K) {
         return this.keySet.has(key);
@@ -502,11 +505,12 @@ export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsS
     }
     delete(key: K) {
         if (this.has(key)) {
-            // TODO: transactional
+            this.startTransaction();
             this.inDelete = true;
             (this.get(key) as C).reset();
             this.keySet.delete(key);
             this.inDelete = false;
+            this.endTransaction();
         }
     }
     deleteStrong(key: K) {

@@ -40,7 +40,7 @@ export class CounterCrdt extends Crdt<number> {
         this.add(-1);
     }
     add(n: number) {
-        this.applyOps(n);
+        this.applyOp(n);
     }
     get value() : number {
         return this.state;
@@ -88,7 +88,7 @@ export class MultRegisterCrdt extends Crdt<number> {
         super(id, MultRegisterInternal.instance, runtime, initialData);
     }
     mult(n: number) {
-        this.applyOps(n);
+        this.applyOp(n);
     }
     get value() : number {
         return this.state;
@@ -154,7 +154,7 @@ export class GSetCrdt extends Crdt<Set<any>> {
         super(id, GSetInternal.instance, runtime, initialData);
     }
     add(element: any) {
-        this.applyOps(element);
+        this.applyOp(element);
     }
     /**
      * @return The current set.  This should be treated as immutable.

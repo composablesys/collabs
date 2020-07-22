@@ -143,38 +143,71 @@ export class Crdt<S> implements CrdtMessageListener {
         this.runtime.register(this, this.id);
     }
 
+    // TODO: describe "transactions".  Right word?  Rename
+    // "atomic" stuff below.  Must happen synchronously so
+    // that runtime.getTimestamp() doesn't change and
+    // no messages are received in the interim.
+    // Allow caller to start/end transactions?
+    private inTransaction = false;
+    private transactionMessages: Array<any> = [];
+    private transactionDescriptions: Array<any> = [];
+    protected startTransaction() {
+        if (this.inTransaction) {
+            throw new Error("A transaction is already in progress.");
+        }
+        this.inTransaction = true;
+    }
+
+    // TODO: Returns the descriptions (translated)
+    protected endTransaction(): any {
+        if (!this.inTransaction) {
+            throw new Error("No transaction is in progress.");
+        }
+        if (this.transactionMessages.length !== 0) {
+            this.runtime.send(this.transactionMessages, this.id);
+        }
+        let descriptions = this.transactionDescriptions;
+        this.inTransaction = false;
+        this.transactionMessages = [];
+        this.transactionDescriptions = [];
+        if (descriptions.length === 0) return null;
+        else return this.translateDescriptions(descriptions);
+    }
+
     /**
-     * Apply the given operations to the state, using prepare and effect,
-     * and sends the generated messages over the network (atomically).
-     * @param  operations An array of the operations to apply (atomically).
+     * Apply the given operation to the state, using prepare and effect,
+     * and sends the generated message over the network.
+     * If a transaction is in progress, this sending is delayed
+     * until
+     * @param  operation The operation to apply.
      * @return           The description of the changes.
      * This is the list of individual message descriptions returned by
      * effect (skipping null messages),
      * after being passed through translateDescription.  An exception
      * is that if all messages are
      * null, null is returned without calling translateDescription.
+     * TODO: null if in a transaction (use endTransaction instead).
+     * TODO: but what if we want it to decide what to do next?
      */
-    protected applyOps(...operations: any) : any {
-        let messages: Array<any> = [];
-        let descriptions: Array<any> = [];
+    protected applyOp(operation: any) : any {
+        let ownTransaction = false;
+        if (!this.inTransaction) {
+            ownTransaction = true;
+            this.startTransaction();
+        }
         let timestamp = this.runtime.getNextTimestamp();
-        for (let operation of operations) {
-            let message = this.crdtInternal.prepare(operation, this.state,
-                this.runtime.getReplicaId());
-            if (message !== null) {
-                messages.push(message);
-                let result = this.crdtInternal.effect(message,
-                    this.state, this.runtime.getReplicaId(),
-                    timestamp);
-                this.state = result[0];
-                descriptions.push(result[1]);
-            }
+        let message = this.crdtInternal.prepare(operation, this.state,
+            this.runtime.getReplicaId());
+        if (message !== null) {
+            this.transactionMessages.push(message);
+            let result = this.crdtInternal.effect(message,
+                this.state, this.runtime.getReplicaId(),
+                timestamp);
+            this.state = result[0];
+            this.transactionDescriptions.push(result[1]);
         }
-        if (messages.length !== 0) {
-            this.runtime.send(messages, this.id);
-        }
-        if (descriptions.length === 0) return null;
-        else return this.translateDescriptions(descriptions);
+        if (ownTransaction) return this.endTransaction();
+        else return null;
     }
 
     /**
@@ -271,6 +304,11 @@ export class Crdt<S> implements CrdtMessageListener {
      * messages is received from another replica.
      */
     receive(messages: any, timestamp: CausalTimestamp) {
+        if (this.inTransaction) {
+            throw new Error("In transaction; the transaction must " +
+                    "be ended synchronously so that messages " +
+                    "cannot be received in the interim.");
+        }
         let descriptions: Array<any> = [];
         for (let message of messages) {
             let result = this.crdtInternal.effect(message, this.state,
