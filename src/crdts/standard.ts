@@ -60,17 +60,23 @@ export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<numbe
         return this.originalStateResettable.internalState;
     }
     /**
-     * Performs an equivalent add.  As a consequence,
-     * counter.value += n and counter.value -= n work
-     * as expected (converted to CRDT additions).
+     * Performs an equivalent reset-then-add.
      */
     set value(newValue: number) {
-        this.add(newValue - this.value);
+        this.startTransaction();
+        this.reset();
+        this.add(newValue);
+        this.endTransaction();
     }
-    protected translateDescriptionsResettable(descriptions: Array<[number, number]>): [string, number] {
+    protected translateDescriptionsResettable(descriptions: Array<[number | string, number]>): [string, number] {
+        if (descriptions.length === 2) {
+            // Transaction due to set value, return the resulting state
+            return ["set", descriptions[1][1]];
+        }
         let description = descriptions[0];
         if (description[0] === 1) return ["add", description[1]];
-        else return ["mult", description[1]];
+        else if (description[0] === 1) return ["mult", description[1]];
+        else return [description[0] as string, this.value]; // resets
     }
 }
 
@@ -120,6 +126,9 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
     disable() {
         this.reset();
     }
+    disableStrong() {
+        this.resetStrong();
+    }
     get enabled() : boolean {
         return !this.state.internalState.isHistoryEmpty();
     }
@@ -127,15 +136,32 @@ export class EnableWinsFlag extends DefaultResettableCrdt<null> {
         if (newValue) this.enable();
         else this.disable();
     }
+    get value() {
+        return this.enabled;
+    }
+    set value(newValue: boolean) {
+        // Note this is equivalent to doing a reset before setting
+        // to newValue, in either case, since any message obviates
+        // causally lesser messages.
+        this.enabled = newValue;
+    }
     // TODO: would also like to translate observed-resets to
     // disable (but only if it actually worked).  Perhaps add noop indicator out front?
     // (Need to add a no-op crdt at the top level)
     protected translateDescriptionsResettable(descriptions: Array<string>): string {
-        if (descriptions.length !== 1 || descriptions[0] !== "e") {
+        if (descriptions.length === 1 && descriptions[0] === "e") {
+            return "enable";
+        }
+        else if (descriptions.length === 1 && descriptions[0][0] === "reset") {
+            return "disable";
+        }
+        else if (descriptions.length === 1 && descriptions[0][0] === "resetStrong") {
+            return "disableStrong";
+        }
+        else {
             throw new Error("Unrecognized descriptions: " +
                 JSON.stringify(descriptions))
         }
-        else return "enable";
     }
 }
 
@@ -148,6 +174,9 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
     enable() {
         this.reset();
     }
+    enableStrong() {
+        this.resetStrong();
+    }
     disable() {
         this.applyOp("d");
     }
@@ -158,15 +187,32 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
         if (newValue) this.enable();
         else this.disable();
     }
+    get value() {
+        return this.enabled;
+    }
+    set value(newValue: boolean) {
+        // Note this is equivalent to doing a reset before setting
+        // to newValue, in either case, since any message obviates
+        // causally lesser messages.
+        this.enabled = newValue;
+    }
     // TODO: would also like to translate observed-resets to
     // enable (but only if it actually worked).  Perhaps add noop indicator out front?
     // (Need to add a no-op crdt at the top level)
     protected translateDescriptionsResettable(descriptions: Array<string>): string {
-        if (descriptions.length !== 1 || descriptions[0] !== "d") {
+        if (descriptions.length === 1 && descriptions[0] === "d") {
+            return "disable";
+        }
+        else if (descriptions.length === 1 && descriptions[0][0] === "reset") {
+            return "enable";
+        }
+        else if (descriptions.length === 1 && descriptions[0][0] === "resetStrong") {
+            return "enableStrong";
+        }
+        else {
             throw new Error("Unrecognized descriptions: " +
                 JSON.stringify(descriptions))
         }
-        else return "disable";
     }
 }
 
@@ -371,7 +417,7 @@ export class CrdtObject<N, C extends Crdt<any>> extends Crdt<Map<N, C>> implemen
             return this.state.get(name) as C;
         }
     }
-    resetProperties() {
+    reset() {
         this.applyOp(this.getUniversalResetMessage());
     }
     getUniversalResetMessage() {
@@ -433,27 +479,32 @@ export class AddWinsSet<T> extends CrdtObject<T, EnableWinsFlag> {
         if (valueFlag === undefined) return false;
         else return valueFlag.enabled;
     }
-    asSet(): Set<T> {
+    get value(): Set<T> {
         let result = new Set<T>();
         for (let entry of this.propertyEntries()) {
             if (entry[1].enabled) result.add(entry[0]);
         }
         return result;
     }
+    set value(newValue: Set<T>) {
+        this.startTransaction();
+        this.reset();
+        for (let element of newValue) {
+            this.add(element);
+        }
+        this.endTransaction();
+    }
     values() {
         // TODO: once it's gc'd we can just use this.state.keys()
-        return this.asSet().values();
-    }
-    reset() {
-        this.resetProperties();
+        return this.value.values();
     }
     // TODO: other set properties (e.g. symbol iterator)
     // TODO: capturing and translating descriptions
 }
 
 export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsSet<K> | CrdtObject<K, C>> {
-    private keySet: AddWinsSet<K>;
-    private valueMap: CrdtObject<K, C>;
+    private readonly keySet: AddWinsSet<K>;
+    private readonly valueMap: CrdtObject<K, C>;
     constructor(id: any, runtime: CrdtRuntime,
             valueFactory: (key: K, internalRuntime: CrdtRuntime) => C) {
         super(id, runtime);
@@ -481,6 +532,12 @@ export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsS
     send(message: any, name: string): void {
         super.send(message, name);
         if (!this.inDelete && name === "valueMap") {
+            // TODO: do this receiver side instead, for network efficiency?
+            // Would need to place the add first, so that it can
+            // be overridden by any included deletes.
+            // Would also need to account for possibility of
+            // transactions.
+            // Also, need to make sure we (sender) do it too.
             for (let submessage of message) {
                 if (submessage[0] === "applySkip") {
                     let key = submessage[1] as K;
@@ -519,14 +576,11 @@ export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsS
         this.keySet.deleteStrong(key);
         this.inDelete = false;
     }
-    reset() {
-        this.keySet.reset();
-        this.valueMap.resetProperties();
-    }
     keys() {
         return this.keySet.values();
     }
 
     // TODO: other map methods (e.g. symbol iterator)
-    // TODO: resets
+    // TODO: strong-reset
+    // TODO: preserve-state delete, reset?
 }

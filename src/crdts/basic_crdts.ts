@@ -160,6 +160,79 @@ export class GSetCrdt extends Crdt<Set<any>> {
      * @return The current set.  This should be treated as immutable.
      */
     get value() : Set<any> {
-        return this.state;
+        return new Set(this.state);
     }
+}
+
+class MultiValueRegisterInternal<T> implements CrdtInternal<Set<[T, any, number]>> {
+    /**
+     * @param  initialData An initial value to set.
+     */
+    create(initialData?: T): Set<[T, any, number]> {
+        if (initialData !== undefined) return new Set([[initialData, null, -1]]);
+        else return new Set();
+    }
+    /**
+     * Operations:
+     * - ["set", value]: set to the given single value.
+     * - ["reset"]: reset, setting the value set to [].
+     * @param  operation [description]
+     * @param  _state    [description]
+     * @return           [description]
+     */
+    prepare(operation: [string, any?], _state: Set<[T, any, number]>, _replicaId: any) {
+        if (!((operation[0] === "set" && operation[1] !== undefined)
+                || operation[0] === "reset")) {
+            throw new Error("Unrecognized operation: " + JSON.stringify(operation));
+        }
+        return operation;
+    }
+    /**
+     * Returned description is:
+     * - for set message, ["set", set value] (even if it
+     * doesn't eliminate all causally prior values).
+     * - for resets, ["reset"].
+     */
+    effect(message: [string, any?], state: Set<[T, any, number]>, _replicaId: any, timestamp: CausalTimestamp): [Set<[T, any, number]>, any] {
+        if (!((message[0] === "set" && message[1] !== undefined)
+                || message[0] === "reset")) {
+            throw new Error("Unrecognized message: " + JSON.stringify(message));
+        }
+        let vc = timestamp.asVectorClock();
+        for (let value of state) {
+            if (value[1] === null) state.delete(value);//initial element
+            else {
+                let vcEntry = vc.get(value[1]);
+                if (vcEntry !== undefined && vcEntry >= value[2]) state.delete(value);
+            }
+        }
+        if (message[0] === "set") {
+            state.add([message[1], timestamp.getSender(), timestamp.getSenderCounter()]);
+        }
+        return [state, message];
+    }
+    static instance = new MultiValueRegisterInternal();
+}
+
+export class MultiValueRegister<T> extends Crdt<Set<[T, any, number]>> {
+    constructor(id: any, runtime: CrdtRuntime, initialData?: T) {
+        super(id,
+            MultiValueRegisterInternal.instance as MultiValueRegisterInternal<T>,
+            runtime, initialData);
+    }
+    set value(value: T) {
+        this.applyOp(["set", value]);
+    }
+    get valueSet(): Set<T> {
+        let values = new Set<T>();
+        for (let value of this.state) values.add(value[0]);
+        return values;
+    }
+    reset() {
+        this.applyOp(["reset"]);
+    }
+    getUniversalResetMessage() {
+        return ["reset"];
+    }
+    // TODO: reset strong
 }

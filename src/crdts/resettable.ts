@@ -87,33 +87,34 @@ export class DefaultResetWinsCrdt<S>
      * Translates internal (semidirect product-based) descriptions
      * so that:
      * - The description of a reset-wins operation is
-     * "resetStrong", regardless of whether it changed the state.
+     * ["resetStrong"], regardless of whether it changed the state.
      * - The description of an operation that gets killed by
-     * a concurrent reset-wins is null.
-     * - The description of an atomic sequence of originalCrdtInternal
-     * operations is that returned by translateDescriptionsResetWins(
-     * list of originalCrdtInternal descriptions).
+     * a concurrent reset-wins is skipped.
+     * - The description of an originalCrdtInternal
+     * operations is unchanged, except for null descriptions,
+     * which are skipped.
+     * Then returns the result of passing this list to
+     * translateDescriptionsResetWins, or null if all
+     * descriptions are null.
      */
     protected translateDescriptions(descriptions: Array<any>): any {
-        if (descriptions.length === 1) {
-            let desc = descriptions[0];
-            // Operation killed by a concurrent-reset wins is null
-            if (desc === null) return null;
-            // Reset-wins description is [2, "reset"]
-            if (desc[0] === 2 && desc[1] === "reset") {
-                return "resetStrong";
-            }
-        }
-        // If we get to here, it's a sequence of originalCrdtInternal ops
         let translated = [];
         for (let desc of descriptions) {
-            // Operation must be of the form [1, desc]
-            if (!(desc[0] === 1)) {
+            if (desc === null) continue;
+            // Reset-wins description is [2, "reset"]
+            else if (desc[0] === 2 && desc[1] === "reset") {
+                translated.push(["resetStrong"]);
+            }
+            // originalCrdtOperation is of the form [1, desc]
+            else if (desc[0] === 1) {
+                translated.push(desc[1]);
+            }
+            else {
                 throw new Error("Unrecognized description: " + JSON.stringify(desc));
             }
-            translated.push(desc[1]);
         }
-        return this.translateDescriptionsResetWins(translated);
+        if (translated.length === 0) return null;
+        else return this.translateDescriptionsResetWins(translated);
     }
 
     /**
@@ -231,17 +232,26 @@ export class DefaultResettableCrdt<S>
      * Translates internal (semidirect product-based) descriptions
      * so that:
      * - The description of an observed-reset operation is
-     * ["reset", [TODO: re-applied ops]]
-     * - The description of an atomic sequence of originalCrdtInternal
-     * operations is that returned by translateDescriptionsResettable(
-     * list of originalCrdtInternal descriptions).
+     * ["reset", [TODO: re-applied ops]].
+     * - The description of an originalCrdtInternal
+     * is unchanged, except for null descriptions, which
+     * are skipped.
+     * Then returns the result of passing this list to
+     * translateDescriptionsResettable, or null if all
+     * descriptions are null.
      */
     protected translateDescriptionsResetWins(descriptions: Array<any>): any {
-        if (descriptions.length === 1) {
-            let desc = descriptions[0];
+        let translated = [];
+        for (let desc of descriptions) {
+            if (desc === null) continue;
+            // Reset-strong (already translated by DefaultResetWinsCrdt)
+            // description is "resetStrong"
+            else if (desc[0] === "resetStrong") {
+                translated.push(desc);
+            }
             // Observed reset description is [1, ["reset",
             // list of re-applied ops]]
-            if (desc[0] === 1 && desc[1][0] === "reset") {
+            else if (desc[0] === 1 && desc[1][0] === "reset") {
                 // TODO: in the second entry, put the translated
                 // operations that didn't get reset.  Keep in
                 // mind that these will be descriptions from the
@@ -249,19 +259,18 @@ export class DefaultResettableCrdt<S>
                 // about operations that were originally grouped
                 // atomically, since translate expects those
                 // to be delivered together?
-                return ["reset", desc[1][1]];
+                translated.push(["reset", desc[1][1]]);
             }
-        }
-        // If we get to here, it's a sequence of originalCrdtInternal ops
-        let translated = [];
-        for (let desc of descriptions) {
-            // Operation must be of the form [2, desc]
-            if (!(desc[0] === 2)) {
+            // originalCrdtOperation is of the form [2, desc]
+            else if (desc[0] === 2) {
+                translated.push(desc[1]);
+            }
+            else {
                 throw new Error("Unrecognized description: " + JSON.stringify(desc));
             }
-            translated.push(desc[1]);
         }
-        return this.translateDescriptionsResettable(translated);
+        if (translated.length === 0) return null;
+        else return this.translateDescriptionsResettable(translated);
     }
 
     /**
