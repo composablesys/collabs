@@ -66,8 +66,6 @@ export class VectorClock implements CausalTimestamp{
      * @returns the message is ready or not.
      */
     isready(vc : VectorClock) : boolean {
-        let ready : boolean = true;
-
         let otherUid = vc.getSender();
         let otherVectorMap = vc.asVectorClock();
 
@@ -75,24 +73,39 @@ export class VectorClock implements CausalTimestamp{
             if (this.vectorMap.get(otherUid) === otherVectorMap.get(otherUid)! - 1) {
                 for (let id of otherVectorMap.keys()) {
                     if (id !== otherUid && !this.vectorMap.has(id)) {
-                        ready = false;
-                    } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
-                        ready = false;
+                        return false;
+                    } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {            
+                        return false;
                     }
                 }
             } else {
-                ready = false;
+                return false;
             }
         } else {
-            for (let id of otherVectorMap.keys()) {
+            if (otherVectorMap.get(otherUid) !== 1) {
+                console.log(otherVectorMap.get(otherUid))
+                return false;
+            }
+            for (let id of otherVectorMap.keys()) {  
                 if (id !== otherUid && !this.vectorMap.has(id)) {
-                    ready = false;
+                    return false;
                 } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
-                    ready = false;
+                    return false;
                 }
             }
         }
-        return ready;
+        return true;
+    }
+    /**
+     * Increment sender's entry in this vectorMap.
+     * 
+     * @param vc the VectorClock from other replica.
+     */
+    incrementSender(vc : VectorClock) : void {
+        let otherUid = vc.getSender();
+        let otherVectorMap = vc.asVectorClock();
+
+        this.vectorMap.set(otherUid, otherVectorMap.get(otherUid)!);
     }
     /**
      * Merge current VectorClock with the vector clock recevied from 
@@ -101,7 +114,6 @@ export class VectorClock implements CausalTimestamp{
      * @param vc the VectorClock from other replica.
      */
     merge(vc : VectorClock) : void{
-        // let otherUid = vc.getUid();
         let otherVectorMap = vc.asVectorClock();
 
         for (let id of otherVectorMap.keys()) {

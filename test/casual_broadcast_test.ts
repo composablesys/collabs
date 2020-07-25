@@ -4,41 +4,6 @@ import WebSocket = require('ws');
 
 console.log('Test Starting... ')
 
-// function wait(ms:number){
-//     var start = new Date().getTime();
-//     var end = start;
-//     while(end < start + ms) {
-//       end = new Date().getTime();
-//    }
-//  }
-
-// class TestRunTime implements CrdtRuntime {
-//     constructor() { }
-//     send(message: any, crdtId: any): void {;}
-//     register(crdtMessageListener: CrdtMessageListener, crdtId: any): void {;}
-//     getReplicaId(): any {return null};
-//     getNextTimestamp(): CausalTimestamp {
-//         return {
-//             getSender() { return null; },
-//             getSenderCounter() { return 0;},
-//             asVectorClock() { return new Map<any, number>(); }}
-//     };
-// }
-
-// let crdt_1 = new TestRunTime();
-// let crdt_2 = new TestRunTime();
-// let crdt_3 = new TestRunTime();
-// let casual_broadcast_network_1 = new CasualBroadcastNetwork(1, crdt_1);
-// let casual_broadcast_network_2 = new CasualBroadcastNetwork(2, crdt_2);
-// let casual_broadcast_network_3 = new CasualBroadcastNetwork(3, crdt_3);
-// casual_broadcast_network_1.vcMap.set("counter_ID", new VectorClock(1));
-// casual_broadcast_network_2.vcMap.set("counter_ID", new VectorClock(2));
-// casual_broadcast_network_3.vcMap.set("counter_ID", new VectorClock(3));
-// casual_broadcast_network_2.sendMessage("Hi layer 2!", "counter_ID");
-// casual_broadcast_network_1.sendMessage("hello layer 1", "counter_ID");
-// casual_broadcast_network_3.sendMessage("hello all", "counter_ID");
-// casual_broadcast_network_2.sendMessage("Welcome layer 3!", "counter_ID");
-
 console.log('Test Case 1...')
 console.log('----------------------------------------------')
 
@@ -56,6 +21,22 @@ function test1(resolve : any, reject : any) {
     casual_broadcast_network_1.sendMessage("hello layer 1", "counter_ID");
     casual_broadcast_network_3.sendMessage("hello all", "counter_ID");
     casual_broadcast_network_2.sendMessage("Welcome layer 3!", "counter_ID");
+
+    // setTimeout(function (){
+    //     if (casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(1) == 1 &&
+    //         casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(2) == 2 &&
+    //         casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(3) == 1 &&
+    //         casual_broadcast_network_2.vcMap.get("counter_ID")?.asVectorClock().get(1) == 1 &&
+    //         casual_broadcast_network_2.vcMap.get("counter_ID")?.asVectorClock().get(2) == 2 &&
+    //         casual_broadcast_network_2.vcMap.get("counter_ID")?.asVectorClock().get(3) == 1 &&
+    //         casual_broadcast_network_3.vcMap.get("counter_ID")?.asVectorClock().get(1) == 1 &&
+    //         casual_broadcast_network_3.vcMap.get("counter_ID")?.asVectorClock().get(2) == 2 &&
+    //         casual_broadcast_network_3.vcMap.get("counter_ID")?.asVectorClock().get(3) == 1 ) {
+    //         resolve();
+    //     } else {
+    //         reject();
+    //     }
+    // }, 1000);
 
     setTimeout(function () {
         if (casual_broadcast_network_1.vcMap.get("counter_ID")?.asVectorClock().get(1) == 1 &&
@@ -99,7 +80,6 @@ p1.catch(function () {
     console.log('Test 1 failed...');
     process.exit();
 });
-
 
 
 // console.log('Case 2')

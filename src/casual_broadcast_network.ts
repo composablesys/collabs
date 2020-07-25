@@ -96,7 +96,6 @@ export class CasualBroadcastNetwork {
         this.vcMap = new Map<any, VectorClock>();
         this.messageBuffer = new Array<[any, any, VectorClock]>();
         this.sendBuffer = new Array<myMessage>();
-        // this.crdtRuntime = crdtRuntime;
         this.listenersById = new Map<any, CrdtMessageListener>();
         /**
          * Open WebSocket connection with server.
@@ -107,26 +106,17 @@ export class CasualBroadcastNetwork {
         this.ws.addEventListener('message', this.receiveAction);
     }
     /**
-     * @param ms the time in millionsecond to wait.
-     */
-    myWait(ms : number){
-        var start = new Date().getTime();
-        var end = start;
-        while(end < start + ms) {
-          end = new Date().getTime();
-       }
-      }
-    /**
      * Check if the send message buffer has any message waiting to be sent.
      * If there exist, then send it via WebSocket and remove the item from buffer.
      * If not, then wait a customized time period and check again.
      */
     sendAction = () => {
-        while (this.sendBuffer.length != 0) {
-            // console.log("Client:", this.uid, "Pull from buffer");
-            this.ws.send(this.sendBuffer[0].toJSON());
-            this.sendBuffer.splice(0, 1);
+        let index = 0;
+        while (index < this.sendBuffer.length) { 
+            this.ws.send(this.sendBuffer[index].toJSON());
+            index++;
         } 
+        this.sendBuffer = new Array<myMessage>();
     }
     /**
      * Parse JSON format data back into myMessage type. 
@@ -192,10 +182,12 @@ export class CasualBroadcastNetwork {
             this.vcMap.get(crdtId)!.increment();
         }
 
-        // Convert the message into JSON 
-        let vcCopy = this.vcMap.get(crdtId);
+        // Copy a new vector clock for sending 
+        let vcCopy = new VectorClock(this.uid);
+        vcCopy.vectorMap = new Map<any, number>(this.vcMap.get(crdtId)?.asVectorClock()!)
         let myPackage = new myMessage(message, crdtId, vcCopy!);
         
+        // Convert the message into JSON 
         if (this.ws.readyState === 1) {
             this.ws.send(myPackage.toJSON());
             // console.log("Client:", this.uid, "send message");
@@ -239,20 +231,20 @@ export class CasualBroadcastNetwork {
             } else {
                 let myVectorClock = this.vcMap.get(curCrdtId);
                 if (myVectorClock?.isready(curVectorClock)) {
-                    // console.log("The message from client:", curVectorClock.getSender(), "to client:", this.uid, "is ready");
-                    
+                    // /**
+                    //  * Send back the received messages to crdtRuntime. 
+                    //  */ 
                     // if (this.listenersById.has(curCrdtId)) {
                     //     this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);
-                    //     /**
-                    //      * Update the vector clock and remove the message.
-                    //      */
-                    //     myVectorClock.merge(curVectorClock);
+                    //     myVectorClock.incrementSender(curVectorClock);
                     //     this.messageBuffer.splice(index, 1);
                     // }
-                    myVectorClock.merge(curVectorClock);
+                    
+                    /**
+                     * TODO: test for correctness.
+                     */
+                    myVectorClock.incrementSender(curVectorClock);
                     this.messageBuffer.splice(index, 1);
-                } else {
-                    // console.log("The message from client:", curVectorClock.getSender(), "to client:", this.uid, "is not ready");
                 }
             }
             index--;
