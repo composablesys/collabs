@@ -1,0 +1,61 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Testing out bundle</title>
+
+</head>
+
+<body>
+
+  This is a test HTML page in case we want to use it for anything.
+  <script src="main.js"></script>
+
+  <p id="counter">0</p>
+  <button id="increment">💯️</button>
+  <script>
+      var HOST = location.origin.replace(/^http/, 'ws')
+     var ws = new WebSocket(HOST);
+     var counter = document.getElementById("counter");
+
+     document.getElementById("increment").onclick = function() {
+         console.log("clicked");
+         counter.innerHTML = "100";
+     }
+
+     // ws.onmessage = function (event) {
+     //   el = document.getElementById('server-time');
+     //   el.innerHTML = 'Server time: ' + event.data;
+     // };
+
+  </script>
+
+  <!-- <script src="skedj.js">
+  </script>
+  <script type = "text/javascript">
+    var url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR_43dIW4qV8eUWJHg9g_IIw4tAMg9Tz7RLcgU0P1C4U43_lxCNNw24_PjDzoAPuTTWCnXT_sXAqAIv/pub?output=csv";
+    var rowcols = [
+                    {
+                      sheet_row_txt: "First Midterm Exam",
+                      color: "#ffe59a"
+                    },
+                    {
+                      // sheet_row: 26,
+                      sheet_row_txt: "Thanksgiving",
+                      color: "#d9ebd3"
+                    },
+                    {
+                      sheet_row_txt: "Second Midterm Exam",
+                      color: "#ffe59a"
+                    }
+                  ];
+    console.log(rowcols);
+    Skedj(url, "myskedj", {
+        columns_to_skip: ["Recitation Lead", "Teaching", "Travel Schedule"],
+        special_row_colors: rowcols
+    });
+  </script> -->
+</body>
+</html>
