@@ -11,6 +11,7 @@ import { CrdtInternal } from "./crdt_core";
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
 export class SemidirectState<S> {
+    private receiptCounter = 0;
     /**
      * Maps a replica id to an array of messages sent by that
      * replica, in order.  Specifically, array elements are tuples
@@ -20,7 +21,6 @@ export class SemidirectState<S> {
      * all Crdts with a given CrdtRuntime and between
      * a semidirect product and its components.
      */
-    private receiptCounter = 0;
     private history: Map<any, Array<[number, number, any]>> = new Map();
     constructor(public internalState: S,
         public readonly historyTimestamps: boolean,
@@ -28,9 +28,7 @@ export class SemidirectState<S> {
         public readonly historyDiscard2Dominated: boolean) { }
     /**
      * Add message to the history with the given timestamp.
-     * Timestamp may be undefined, indicating that this message
-     * is by the current replica, hence is causally greater than all
-     * causally prior elements.  replicaId is our replica id.
+     * replicaId is our replica id.
      */
     add(replicaId: any, message: any, timestamp: CausalTimestamp) {
         if (this.historyDiscard2Dominated) {

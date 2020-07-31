@@ -8,6 +8,7 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
+    "express": "^4.17.1",
     "ws": "^7.3.1"
   },
   "devDependencies": {
@@ -29,7 +30,7 @@
     "wp": "webpack",
     "wpw": "webpack --watch",
     "serve": "http-server build",
-    "start": "node dist/src/server.js"
+    "start": "node dist/test/heroku_server.js"
   },
   "files": [
     "build/main.js"

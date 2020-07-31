@@ -9,9 +9,9 @@ console.log('----------------------------------------------')
 
 function test1(resolve : any, reject : any) {
 
-    let casual_broadcast_network_1 = new CasualBroadcastNetwork(1);
-    let casual_broadcast_network_2 = new CasualBroadcastNetwork(2);
-    let casual_broadcast_network_3 = new CasualBroadcastNetwork(3);
+    let casual_broadcast_network_1 = new CasualBroadcastNetwork(1, "ws://localhost:8080");
+    let casual_broadcast_network_2 = new CasualBroadcastNetwork(2, "ws://localhost:8080");
+    let casual_broadcast_network_3 = new CasualBroadcastNetwork(3, "ws://localhost:8080");
 
     casual_broadcast_network_1.registerCrdtId("counter_ID");
     casual_broadcast_network_2.registerCrdtId("counter_ID");
@@ -48,13 +48,13 @@ function test1(resolve : any, reject : any) {
             casual_broadcast_network_3.vcMap.get("counter_ID")?.asVectorClock().get(1) == 1 &&
             casual_broadcast_network_3.vcMap.get("counter_ID")?.asVectorClock().get(2) == 2 &&
             casual_broadcast_network_3.vcMap.get("counter_ID")?.asVectorClock().get(3) == 1 ){
-            
+
             console.log("Network1: ", casual_broadcast_network_1.vcMap);
             console.log("Network2: ", casual_broadcast_network_2.vcMap);
             console.log("Network3: ", casual_broadcast_network_3.vcMap);
-                
+
             casual_broadcast_network_1.sendMessage("hello layer 1/1", "counter_ID");
-            
+
             setTimeout(function () {
                 if (casual_broadcast_network_2.vcMap.get("counter_ID")?.asVectorClock().get(1) == 2 &&
                     casual_broadcast_network_2.vcMap.get("counter_ID")?.asVectorClock().get(2) == 2 &&
@@ -62,7 +62,7 @@ function test1(resolve : any, reject : any) {
                     resolve();
                 } else {
                     reject();
-                }   
+                }
             }, 1000);
         }
     }, 1000);

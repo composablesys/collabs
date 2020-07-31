@@ -2,13 +2,13 @@ import { CrdtMessageListener } from "../src/crdt_runtime_interface";
 import { VectorClock } from './vector_clock';
 import WebSocket = require("ws");
 
-// The casual broadcast network designed for a two-way interactive 
+// The casual broadcast network designed for a two-way interactive
 // communication session between user and server using WebSocket API.
 //
-// Also ensure the order of delivery with casuality check. 
+// Also ensure the order of delivery with casuality check.
 
 /**
- * Customized message event that travel through 
+ * Customized message event that travel through
  * casualbroadcast network.
  */
 export class myMessage {
@@ -22,7 +22,7 @@ export class myMessage {
     crdtId : any;
     /**
      * Timestamp for casuality/concurrency check.
-     * 
+     *
      * Provide basic functions such as :
      * getSender() / getSenderCounter() / asVectorClock().
      */
@@ -35,13 +35,13 @@ export class myMessage {
     }
     /**
      * customized toJSON function to convert message as JSON format.
-     * 
+     *
      * @returns package info in JSON format.
      */
     toJSON() : string {
         return JSON.stringify(
-            {   "message" : this.message, 
-                "crdtId" : this.crdtId, 
+            {   "message" : this.message,
+                "crdtId" : this.crdtId,
                 "timestamp" : {
                     "uid" : this.timestamp.uid,
                     "vectorMap" : Array.from(this.timestamp.vectorMap.entries())
@@ -52,13 +52,13 @@ export class myMessage {
 }
 
 /**
- * CasualBroadcastNetwork: 
- * 
+ * CasualBroadcastNetwork:
+ *
  * Process initialization when starting a new user node.
- * 
- * Communicate with CRDT's runtime and send/receive message via 
+ *
+ * Communicate with CRDT's runtime and send/receive message via
  * central broadcast server with WebSocket protocol.
- * 
+ *
  * Perform casuality check to ensure message ordering.
  */
 export class CasualBroadcastNetwork {
@@ -91,7 +91,7 @@ export class CasualBroadcastNetwork {
      */
     listenersById : Map<any, CrdtMessageListener>;
 
-    constructor (replicaId: any) {
+    constructor (replicaId: any, webSocketArgs: string) {
         this.uid = replicaId;
         this.vcMap = new Map<any, VectorClock>();
         this.messageBuffer = new Array<[any, any, VectorClock]>();
@@ -101,7 +101,7 @@ export class CasualBroadcastNetwork {
          * Open WebSocket connection with server.
          * Register EventListener with corresponding event handler.
          */
-        this.ws = new WebSocket("ws://localhost:8080");
+        this.ws = new WebSocket(webSocketArgs);
         this.ws.addEventListener('open', this.sendAction);
         this.ws.addEventListener('message', this.receiveAction);
     }
@@ -112,42 +112,42 @@ export class CasualBroadcastNetwork {
      */
     sendAction = () => {
         let index = 0;
-        while (index < this.sendBuffer.length) { 
+        while (index < this.sendBuffer.length) {
             this.ws.send(this.sendBuffer[index].toJSON());
             index++;
-        } 
+        }
         this.sendBuffer = new Array<myMessage>();
     }
     /**
-     * Parse JSON format data back into myMessage type. 
+     * Parse JSON format data back into myMessage type.
      * Push the message into received message buffer.
      * Check the casuality of all the messages and deliver to application.
-     * 
-     * @param data the JSON format data send via network 
+     *
+     * @param data the JSON format data send via network
      */
     receiveAction = (data : any) => {
         let myPackage = this.parseJSON(data.data);
         this.messageBuffer.push([myPackage.message, myPackage.crdtId, myPackage.timestamp]);
-        this.checkMessageBuffer();        
+        this.checkMessageBuffer();
     };
     /**
      * Register newly created crdtId on CasualBroadcastNetwork.
-     * 
-     * @param crdtId 
+     *
+     * @param crdtId
      */
     registerCrdtId(crdtId : any) : void {
         if (this.vcMap.has(crdtId)) {
             throw new Error("Duplicate crdtId: " + crdtId);
-        } 
+        }
         this.vcMap.set(crdtId, new VectorClock(this.uid));
     }
     /**
-     * Register newly created crdt with its ID and corresponding message 
+     * Register newly created crdt with its ID and corresponding message
      * listener on CasualBroadcastNetwork.
-     * 
-     * @param crdtMessageListener the message listener of each crdt. 
+     *
+     * @param crdtMessageListener the message listener of each crdt.
      * @param crdtId the ID of each crdt.
-     * 
+     *
      */
     registerCrdtMessageListener(crdtMessageListener: CrdtMessageListener, crdtId: any) : void {
         if (this.listenersById.has(crdtId) || this.vcMap.has(crdtId)) {
@@ -157,19 +157,19 @@ export class CasualBroadcastNetwork {
         this.vcMap.set(crdtId, new VectorClock(this.uid));
     }
     /**
-     * Send function on casualbroadcast network layer, which called 
+     * Send function on casualbroadcast network layer, which called
      * by crdt's runtime layer.
-     * 
-     * The message is wrapped with its corresponding timestamp (basic sender node 
+     *
+     * The message is wrapped with its corresponding timestamp (basic sender node
      * info and vector clock).
-     * 
+     *
      * Using WebSocket as network transmission protocol.
      * Using JSON format as message type.
-     * 
+     *
      * If the WebSocket Readystate is not Open, then buffer the message and
      * wait until WebSocket open.
      * If the WebSocket Readystate is Open, then send it with ws.send().
-     * 
+     *
      * @param message the crdt update message.
      * @param crdtId the unique ID for each crdt.
      */
@@ -182,12 +182,12 @@ export class CasualBroadcastNetwork {
             this.vcMap.get(crdtId)!.increment();
         }
 
-        // Copy a new vector clock for sending 
+        // Copy a new vector clock for sending
         let vcCopy = new VectorClock(this.uid);
         vcCopy.vectorMap = new Map<any, number>(this.vcMap.get(crdtId)?.asVectorClock()!)
         let myPackage = new myMessage(message, crdtId, vcCopy!);
-        
-        // Convert the message into JSON 
+
+        // Convert the message into JSON
         if (this.ws.readyState === 1) {
             this.ws.send(myPackage.toJSON());
             // console.log("Client:", this.uid, "send message");
@@ -198,7 +198,7 @@ export class CasualBroadcastNetwork {
     }
     /**
      * Parse JSON format data back to customized data type.
-     * 
+     *
      * @param data the JSON format data travel through network.
      * @returns the customized data type => myMessage
      */
@@ -207,21 +207,21 @@ export class CasualBroadcastNetwork {
         let vc = new VectorClock(dataJSON.timestamp.uid);
         vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
         let myPackage = new myMessage(dataJSON.message, dataJSON.crdtId, vc);
-        
+
         return myPackage;
     }
     /**
-     * Check the casuality of buffered messages and delivery the 
+     * Check the casuality of buffered messages and delivery the
      * messages which are ready.
-     * 
+     *
      * The checking order is from the lastest to the oldest.
      * Update the VectorClock entry and MessageBuffer is necessary.
-     * 
+     *
      * Send the message back to crdtMessageListener.
      */
     checkMessageBuffer() : void {
         let index = this.messageBuffer.length - 1;
-        
+
         while(index >= 0) {
             let curCrdtId = this.messageBuffer[index][1];
             let curVectorClock = this.messageBuffer[index][2];
@@ -232,14 +232,14 @@ export class CasualBroadcastNetwork {
                 let myVectorClock = this.vcMap.get(curCrdtId);
                 if (myVectorClock?.isready(curVectorClock)) {
                     // /**
-                    //  * Send back the received messages to crdtRuntime. 
-                    //  */ 
+                    //  * Send back the received messages to crdtRuntime.
+                    //  */
                     // if (this.listenersById.has(curCrdtId)) {
                     //     this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);
                     //     myVectorClock.incrementSender(curVectorClock);
                     //     this.messageBuffer.splice(index, 1);
                     // }
-                    
+
                     /**
                      * TODO: test for correctness.
                      */
