@@ -30,7 +30,7 @@
     "wp": "webpack",
     "wpw": "webpack --watch",
     "serve": "http-server build",
-    "start": "node dist/test/heroku_server.js",
+    "start": "node app/dist/test/heroku_server.js",
     "heroku": "./heroku_build.sh"
   },
   "files": [
