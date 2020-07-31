@@ -28,7 +28,8 @@
     "tscw": "tsc --watch",
     "wp": "webpack",
     "wpw": "webpack --watch",
-    "serve": "http-server build"
+    "serve": "http-server build",
+    "start": "node dist/src/server.js"
   },
   "files": [
     "build/main.js"
