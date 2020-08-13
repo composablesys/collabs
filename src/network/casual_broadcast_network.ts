@@ -1,4 +1,4 @@
-import { CrdtMessageListener } from "../src/crdt_runtime_interface";
+import { CrdtMessageListener } from "../crdt_runtime_interface";
 import { VectorClock } from './vector_clock';
 import WebSocket = require("ws");
 

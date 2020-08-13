@@ -1,4 +1,4 @@
-import { CausalTimestamp } from './crdt_runtime_interface';
+import { CausalTimestamp } from '../crdt_runtime_interface';
 
 // The vector clock designed for CRDT and runtime to ensure 
 // correct causality.

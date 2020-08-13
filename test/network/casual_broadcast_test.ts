@@ -1,4 +1,4 @@
-import { CasualBroadcastNetwork } from '../src/casual_broadcast_network';
+import { CasualBroadcastNetwork } from '../../src/network/casual_broadcast_network';
 import assert = require('assert');
 import WebSocket = require('ws');
 
