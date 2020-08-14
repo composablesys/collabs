@@ -1,6 +1,6 @@
 import assert from 'assert';
 import {TestingRuntimeGenerator} from "../runtime_for_testing";
-import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet, CrdtObject, MapCrdt } from '../../src/crdts/standard';
+import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet, CrdtObject, MapCrdt, OrthogonalCrdt } from '../../src/crdts/standard';
 import { CrdtRuntime } from '../../src/crdt_runtime_interface';
 
 let runtimeGen = new TestingRuntimeGenerator();
@@ -188,6 +188,67 @@ function testUnresettableIntRegister() {
     runtimeGen.releaseAll();
     assert.equal(aliceIntRegister.value, -15);
     assert.equal(bobIntRegister.value, -15);
+    console.log("...ok");
+}
+
+function testOrthogonal() {
+    console.log("testOrthogonal()...");
+
+    let aliceOrthogonal = new OrthogonalCrdt("orthogonalId", alice);
+    aliceOrthogonal.onchange = (event => console.log(
+        "Alice: " + event.timestamp.getSender() + " set to " +
+        event.description));
+    let bobOrthogonal = new OrthogonalCrdt("orthogonalId", bob);
+    bobOrthogonal.onchange = (event => console.log(
+        "Bob: " + event.timestamp.getSender() + " set to " +
+        event.description));
+    assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
+
+    aliceOrthogonal.rotate(1);
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [1, false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [1, false]);
+
+    aliceOrthogonal.rotate(10);
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [11 % (2*Math.PI), false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [11 % (2*Math.PI), false]);
+    aliceOrthogonal.rotate(-10);
+    runtimeGen.releaseAll();
+
+    bobOrthogonal.reflectHorizontalAxis();
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [2*Math.PI - 1, true]);
+    assert.deepStrictEqual(bobOrthogonal.value, [2*Math.PI - 1, true]);
+
+    aliceOrthogonal.rotate(1.5);
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [0.5, true]);
+    assert.deepStrictEqual(bobOrthogonal.value, [0.5, true]);
+
+    bobOrthogonal.reflect(0.5);
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [0.5, false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [0.5, false]);
+
+    // Out of order tests
+    aliceOrthogonal.reset();
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
+
+    aliceOrthogonal.rotate(Math.PI/2);
+    assert.deepStrictEqual(aliceOrthogonal.value, [Math.PI/2, false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
+
+    bobOrthogonal.reflectHorizontalAxis();
+    assert.deepStrictEqual(aliceOrthogonal.value, [Math.PI/2, false]);
+    assert.deepStrictEqual(bobOrthogonal.value, [0, true]);
+
+    runtimeGen.releaseAll();
+    assert.deepStrictEqual(aliceOrthogonal.value, [3*Math.PI/2, true]);
+    assert.deepStrictEqual(bobOrthogonal.value, [3*Math.PI/2, true]);
     console.log("...ok");
 }
 
@@ -426,6 +487,7 @@ testDwFlag();
 testIntRegister();
 testFromPaper();
 testUnresettableIntRegister();
+testOrthogonal();
 testCrdtObject();
 testAwSet();
 testMap();

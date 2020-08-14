@@ -80,6 +80,137 @@ export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<numbe
     }
 }
 
+function positiveMod(a: number, b: number) {
+    if (a >= 0) return a % b;
+    else return b - ((-a) % b);
+}
+
+class OrthogonalRotationInternal implements CrdtInternal<[number, boolean]> {
+    create(initialData?: [number, boolean]): [number, boolean] {
+        if (initialData === undefined) return [0, false];
+        else return initialData;
+    }
+    prepare(operation: number, _state: [number, boolean], _replicaId: any) {
+        return positiveMod(operation, 2*Math.PI);
+    }
+    effect(message: number, state: [number, boolean], _replicaId: any, _timestamp: CausalTimestamp): [[number, boolean], number] {
+        return [[positiveMod(state[0] + message, 2*Math.PI), state[1]], message];
+    }
+    static instance = new OrthogonalRotationInternal();
+}
+
+class OrthogonalReflectionInternal implements CrdtInternal<[number, boolean]> {
+    create(_initialData?: [number, boolean]): [number, boolean] {
+        throw new Error("Not implemented");
+    }
+    prepare(operation: string, _state: [number, boolean], _replicaId: any) {
+        if (operation !== "reflect") throw new Error("Unrecognized operation: " + operation);
+        return "reflect";
+    }
+    effect(message: string, state: [number, boolean], _replicaId: any, _timestamp: CausalTimestamp): [[number, boolean], string] {
+        if (message !== "reflect") throw new Error("Unrecognized message: " + message);
+        // Reflection operation is multiplying on the left,
+        // so to put it in canonical form (g1, g2), we have to
+        // commute it with the current g1 (rotation) value by
+        // acting on it.
+        return [[positiveMod(-state[0], 2*Math.PI), !state[1]], "reflect"];
+    }
+    static instance = new OrthogonalReflectionInternal();
+}
+
+/**
+ * Crdt for the 2-dimensional orthogonal group, which allows
+ * rotations and reflections (about the origin) of an object in the
+ * plane.  Example usage: rotating and reflecting objects in
+ * Powerpoint.
+ *
+ * State is stored as the canonical element of the semidirect
+ * product group, i.e., in the form (g1, g2) for g1 in the rotation
+ * group (reals mod 2pi) and g2 in the reflection group (booleans
+ * with true for 1 and false for 0).
+ */
+export class OrthogonalCrdt extends DefaultResettableCrdt<SemidirectState<[number, boolean]>> {
+    static semidirectInstance = new SemidirectInternal<[number, boolean]>(
+        OrthogonalRotationInternal.instance, OrthogonalReflectionInternal.instance,
+        (_m2: string, m1: number) => -m1, 1
+    );
+    constructor(id: any, runtime: CrdtRuntime,
+            initialValue: [number, boolean] = [0, false],
+            resetValue: [number, boolean] = [0, false]) {
+        super(id, OrthogonalCrdt.semidirectInstance, resetValue, runtime, initialValue);
+    }
+    /**
+     * Angle is in radians CCW.
+     */
+    rotate(angle: number) {
+        this.applyOp([1, angle]);
+    }
+    reflectHorizontalAxis() {
+        this.applyOp([2, "reflect"]);
+    }
+    reflectVerticalAxis() {
+        this.reflect(Math.PI/2);
+    }
+    reflect(angleAxis: number) {
+        this.startTransaction();
+        this.rotate(-angleAxis);
+        this.reflectHorizontalAxis();
+        this.rotate(angleAxis);
+        this.endTransaction();
+    }
+    /**
+     * The current state is given by: reflect across the x-axis
+     * if reflected is true, then rotate by angle (CCW, in radians).
+     */
+     get reflected(): boolean {
+         return this.originalStateResettable.internalState[1];
+     }
+     /**
+      * The current state is given by: reflect across the x-axis
+      * if reflected is true, then rotate by angle (CCW, in radians).
+      */
+     get angle(): number {
+         return this.originalStateResettable.internalState[0];
+     }
+     /**
+      * [reflected, angle]
+      */
+     get value(): [number, boolean] {
+         return [this.angle, this.reflected];
+     }
+     /**
+      * Performs an equivalent reset-then-set.
+      */
+     set value(newValue: [number, boolean]) {
+         this.startTransaction();
+         this.reset();
+         this.rotate(newValue[0]);
+         if (newValue[1]) this.reflectHorizontalAxis();
+         this.endTransaction();
+     }
+     // TODO: matrix versions of get and set.
+     // /**
+     //  * @return The current transformation as a 2x2 orthogonal
+     //  * matrix.
+     //  */
+     // get matrix(): [[number, number], [number, number]] {
+     //
+     // }
+
+    protected translateDescriptionsResettable(_descriptions: Array<[number | string, number]>) {
+        // TODO.  Just returns the resulting state for now.
+        return this.value;
+        // if (descriptions.length === 2) {
+        //     // Transaction due to set value, return the resulting state
+        //     return ["set", descriptions[1][1]];
+        // }
+        // let description = descriptions[0];
+        // if (description[0] === 1) return ["add", description[1]];
+        // else if (description[0] === 1) return ["mult", description[1]];
+        // else return [description[0] as string, this.value]; // resets
+    }
+}
+
 /**
  * CrdtInternal which uses any string as an operation/message
  * which does nothing.  Unlike using null messages to indicate that
@@ -215,6 +346,8 @@ export class DisableWinsFlag extends DefaultResettableCrdt<null> {
         }
     }
 }
+
+
 
 export class GMapInternal<K, C extends Crdt<any>> implements CrdtInternal<Map<K, C>> {
     /**

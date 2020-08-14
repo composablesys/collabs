@@ -110,6 +110,26 @@ export class MultRegisterCrdt extends Crdt<number> {
     }
 }
 
+// export class CounterModInternal implements CrdtInternal<number> {
+//     constructor(readonly modulus: number) {
+//         if (modulus < 0) throw new Error("modulus is negative: " + modulus);
+//     }
+//     create(initialData?: number): number {
+//         if (initialData !== undefined) return initialData;
+//         else return 0;
+//     }
+//     prepare(operation: number, _state: number): number {
+//         return this.mod(operation);
+//     }
+//     effect(message: number, state: number, _replicaId: any, _timestamp: CausalTimestamp): [number, number] {
+//         return [this.mod(state + message), message];
+//     }
+//     mod(x: number): number {
+//         if (x >= 0) return x % this.modulus;
+//         else return this.modulus - ((-x) % this.modulus);
+//     }
+// }
+
 /**
  * Operations and messages are the element to add.  TODO:
  * this means that adding null won't work as GSetCrdt will treat
