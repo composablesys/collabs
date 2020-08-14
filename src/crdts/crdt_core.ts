@@ -195,7 +195,7 @@ export class Crdt<S> implements CrdtMessageListener {
             ownTransaction = true;
             this.startTransaction();
         }
-        let timestamp = this.runtime.getNextTimestamp();
+        let timestamp = this.runtime.getNextTimestamp(this.id);
         let message = this.crdtInternal.prepare(operation, this.state,
             this.runtime.getReplicaId());
         if (message !== null) {

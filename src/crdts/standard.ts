@@ -581,8 +581,8 @@ export class CrdtObject<N, C extends Crdt<any>> extends Crdt<Map<N, C>> implemen
     getReplicaId() {
         return this.runtime.getReplicaId();
     }
-    getNextTimestamp(): CausalTimestamp {
-        return this.runtime.getNextTimestamp();
+    getNextTimestamp(_crdtId: any): CausalTimestamp {
+        return this.runtime.getNextTimestamp(this.id);
     }
 }
 

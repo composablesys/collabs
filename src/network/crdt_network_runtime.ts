@@ -129,10 +129,10 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
     };
     /**
      * Implement the function defined in CrdtRuntime interfaces.
-     * 
-     * @returns This replica's id, used by some CRDTs internally 
+     *
+     * @returns This replica's id, used by some CRDTs internally
      * (e.g., to generate unique identifiers of the form (replica id, counter)).
-     * 
+     *
      */
     getReplicaId() : any {
         return this.uid;
@@ -205,10 +205,10 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
     }
     /**
      * TODO:
-     * @returns A newly generate VectorClock class with 
+     * @returns A newly generate VectorClock class with
      * initial value.
      */
-    getNextTimestamp() : CausalTimestamp {
+    getNextTimestamp(crdtId: any) : CausalTimestamp {
         return new VectorClock(this.uid);
     }
     /**
