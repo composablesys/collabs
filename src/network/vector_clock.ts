@@ -1,14 +1,14 @@
 import { CausalTimestamp } from '../crdt_runtime_interface';
 
-// The vector clock designed for CRDT and runtime to ensure 
-// correct causality.
+// The vector clock designed for CRDT library and casual broadcasting
+// runtime to ensure correct causality.
 
 /**
  * The vector clock class for ensuring casuality.
  */
 export class VectorClock implements CausalTimestamp{
     /**
-     * Unique ID for each replica to identify itself.
+     * Unique ID for each replica to identify itself(replicaId).
      */    
     uid : any;
     /**
@@ -17,7 +17,7 @@ export class VectorClock implements CausalTimestamp{
     vectorMap : Map<any, number>;
 
     /** 
-     * Initialize the vector with user's own entry.
+     * Initialize the vector with replica's own entry.
      */
     constructor(replicaId : any) {
         this.uid = replicaId;
@@ -25,7 +25,7 @@ export class VectorClock implements CausalTimestamp{
         this.vectorMap.set(this.uid, 0);
     }
     /**
-     * @returns the unique ID for this replica.
+     * @returns the unique ID for this replica(replicaId).
      */
     getSender() : any {
         return this.uid;
@@ -37,19 +37,20 @@ export class VectorClock implements CausalTimestamp{
         return this.vectorMap;
     }
     /**
-     * @returns the number of the counter from sender
+     * @returns the visible number of the counter from sender in 
+     * this vectorclock.
      */
     getSenderCounter() : number {
         return this.vectorMap.get(this.uid)!;
     }
     /**
-     * @returns the number of replicas invovled in this crdts.
+     * @returns the total number of replicas invovled in this crdts.
      */
     getSize() : number {
         return this.vectorMap.size;
     }
     /**
-     * Update the vector of the uid entry.
+     * Update the vector of the uid(replicaId) entry.
      */
     increment() : void { 
         const oldValue = this.vectorMap.get(this.uid);
@@ -59,8 +60,8 @@ export class VectorClock implements CausalTimestamp{
         }
     }
     /**
-     * Check a message with a certain timestamp is ready for delivery
-     * ensure correct casuality.
+     * Check a message with a certain timestamp is ready for delivery 
+     * to ensure correct casuality.
      * 
      * @param vc the VectorClock from other replica.
      * @returns the message is ready or not.
@@ -97,7 +98,11 @@ export class VectorClock implements CausalTimestamp{
         return true;
     }
     /**
-     * Increment sender's entry in this vectorMap.
+     * Increment sender's lastest entry received in this VectorClock
+     * in the replica's own vectorMap.
+     * 
+     * This operation is mainly done after correctly deliver the message
+     * when isReady() function returns true.
      * 
      * @param vc the VectorClock from other replica.
      */
