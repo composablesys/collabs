@@ -1,6 +1,6 @@
 import { CrdtMessageListener } from "../crdt_runtime_interface";
 import { VectorClock } from './vector_clock';
-import WebSocket = require("ws");
+// import WebSocket = require("ws");
 
 // The casual broadcast network designed for a two-way interactive
 // communication session between user and server using WebSocket API.

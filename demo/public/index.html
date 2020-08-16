@@ -11,12 +11,12 @@
 <body>
 
   This is a test HTML page in case we want to use it for anything.
-  <script src="main.js"></script>
-
   <p id="counter">0</p>
   <button id="increment">💯️</button>
-  <script>
-      var HOST = location.origin.replace(/^http/, 'ws')
+  
+  <script src="main.js"></script>
+  <!-- <script>
+     var HOST = location.origin.replace(/^http/, 'ws')
      var ws = new WebSocket(HOST);
      var counter = document.getElementById("counter");
 
@@ -25,12 +25,12 @@
          counter.innerHTML = "100";
      }
 
-     // ws.onmessage = function (event) {
-     //   el = document.getElementById('server-time');
-     //   el.innerHTML = 'Server time: ' + event.data;
-     // };
+     ws.onmessage = function (event) {
+       el = document.getElementById('server-time');
+       el.innerHTML = 'Server time: ' + event.data;
+     };
 
-  </script>
+  </script> -->
 
   <!-- <script src="skedj.js">
   </script>
