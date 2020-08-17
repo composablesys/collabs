@@ -1,4 +1,5 @@
 require('../test/test'); // run test.ts
+
 import { CounterCrdt } from "../src/crdts/basic_crdts";
 import { CrdtNetworkRuntime } from '../src/network/crdt_network_runtime';
 
@@ -16,6 +17,10 @@ let clientCounter = new CounterCrdt("counterId", client);
 /* HTML variables */
 var counter = document.getElementById("counter");
 
+/* Customize the onchange() for CRDT as refresh the value */
+clientCounter.onchange = (event => {
+    counter!.innerHTML = clientCounter.value.toString()});
+
 /* Customize onclick() function of increment button with CRDT operation */
 document.getElementById("increment")!.onclick = function() {
     console.log("clicked increment");
@@ -29,3 +34,8 @@ document.getElementById("decrement")!.onclick = function() {
     clientCounter.add(-100);
     counter!.innerHTML = clientCounter.value.toString();
 }
+
+// /* Customize onclick() function of sync to synchronize the value */
+// document.getElementById("sync")!.onclick = function() {
+//     counter!.innerHTML = clientCounter.value.toString();
+// }
