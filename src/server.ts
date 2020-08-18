@@ -11,6 +11,7 @@ export function startBroadcastServer(webSocketArgs: WebSocket.ServerOptions | un
     // Broacast function of the server.
     wss.on('connection', function connection(ws : any) {
         ws.on('message', function incoming(data : string) {
+          console.log("Message: " + data);
           wss.clients.forEach(function each(client : any) {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
               client.send(data);
