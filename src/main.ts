@@ -2,6 +2,7 @@ require('../test/test'); // run test.ts
 
 import { CounterCrdt } from "../src/crdts/basic_crdts";
 import { CrdtNetworkRuntime } from '../src/network/crdt_network_runtime';
+import { v4 as uuid } from 'uuid';
 
 /**
  * Get Heroku server host Websocket.
@@ -9,9 +10,11 @@ import { CrdtNetworkRuntime } from '../src/network/crdt_network_runtime';
 var HOST = location.origin.replace(/^http/, 'ws')
 
 /**
+ * Generate uuid for client.
  * Create CRDTs (e.g. CounterCrdt).
  */
-let client = new CrdtNetworkRuntime("client", HOST);
+const client_uuid: string = uuid();
+let client = new CrdtNetworkRuntime(client_uuid, HOST);
 let clientCounter = new CounterCrdt("counterId", client);
 
 /* HTML variables */
