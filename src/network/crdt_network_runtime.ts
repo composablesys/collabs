@@ -115,9 +115,16 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
         }
         this.sendBuffer = new Array<myMessage>();
 
+        // Use heartbeat to keep client alive.
         this.heartbeat();
     }
-
+    /**
+     * Invoke heartbeat function to keep clients alive.
+     * 
+     * TODO:
+     * The message sending to server is 'heartbeat' right now.
+     * The timeout interval is set to 5000 millionseconds.
+     */
     heartbeat() : void {
         setTimeout(() => {
             this.ws.send('heartbeat');
