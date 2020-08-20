@@ -10,10 +10,13 @@ import { v4 as uuid } from 'uuid';
 var HOST = location.origin.replace(/^http/, 'ws')
 
 /**
- * Generate uuid for client.
- * Create CRDTs (e.g. CounterCrdt).
+ * Generate uuid for each client.
  */
-const client_uuid: string = uuid();
+const client_uuid : string = uuid();
+
+/**
+ * Generate CRDTs' Runtime on each client and create CRDTs (e.g. CounterCrdt).
+ */
 let client = new CrdtNetworkRuntime(client_uuid, HOST);
 let clientCounter = new CounterCrdt("counterId", client);
 

@@ -13,11 +13,13 @@ function startBroadcastServer(webSocketArgs) {
     wss.on('connection', function connection(ws) {
         ws.on('message', function incoming(data) {
             console.log("Message: " + data);
-            wss.clients.forEach(function each(client) {
-                if (client !== ws && client.readyState === WebSocket.OPEN) {
-                    client.send(data);
-                }
-            });
+            if (data !== 'heartbeat') {
+                wss.clients.forEach(function each(client) {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(data);
+                    }
+                });
+            }
         });
     });
 }

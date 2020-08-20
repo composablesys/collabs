@@ -117,6 +117,15 @@ export class CasualBroadcastNetwork {
             index++;
         }
         this.sendBuffer = new Array<myMessage>();
+
+        this.heartbeat();
+    }
+
+    heartbeat() : void {
+        setTimeout(() => {
+            this.ws.send('heartbeat');
+            this.heartbeat();
+        }, 5000);
     }
     /**
      * Parse JSON format data back into myMessage type.
