@@ -119,7 +119,7 @@ export class CasualBroadcastNetwork {
         this.sendBuffer = new Array<myMessage>();
 
         // Use heartbeat to keep client alive.
-        this.heartbeat();
+        // this.heartbeat();
     }
     /**
      * Invoke heartbeat function to keep clients alive.
@@ -128,12 +128,12 @@ export class CasualBroadcastNetwork {
      * The message sending to server is 'heartbeat' right now.
      * The timeout interval is set to 5000 millionseconds.
      */
-    heartbeat() : void {
-        setTimeout(() => {
-            this.ws.send('heartbeat');
-            this.heartbeat();
-        }, 5000);
-    }
+    // heartbeat() : void {
+    //     setTimeout(() => {
+    //         this.ws.send('heartbeat');
+    //         this.heartbeat();
+    //     }, 5000);
+    // }
     /**
      * Parse JSON format data back into myMessage type.
      * Push the message into received message buffer.

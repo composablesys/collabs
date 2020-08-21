@@ -101,6 +101,9 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
         this.ws = new WebSocket(webSocketArgs);
         this.ws.addEventListener('open', this.sendAction);
         this.ws.addEventListener('message', this.receiveAction);
+        // this.ws.addEventListener('ping', function(pingMessage){
+        //     console.log('Receive a ping : ' + pingMessage);
+        // });
     }
     /**
      * Check if the send message buffer has any message waiting to be sent.
@@ -116,7 +119,7 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
         this.sendBuffer = new Array<myMessage>();
 
         // Use heartbeat to keep client alive.
-        this.heartbeat();
+        // this.heartbeat();
     }
     /**
      * Invoke heartbeat function to keep clients alive.
@@ -125,12 +128,12 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      * The message sending to server is 'heartbeat' right now.
      * The timeout interval is set to 5000 millionseconds.
      */
-    heartbeat() : void {
-        setTimeout(() => {
-            this.ws.send('heartbeat');
-            this.heartbeat();
-        }, 5000);
-    }
+    // heartbeat() : void {
+    //     setTimeout(() => {
+    //         this.ws.send('heartbeat');
+    //         this.heartbeat();
+    //     }, 5000);
+    // }
     /**
      * Parse JSON format data back into myMessage type.
      * Push the message into received message buffer.
