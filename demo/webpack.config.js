@@ -6,12 +6,12 @@ module.exports = {
   mode: "development",
   devtool: "inline-source-map",
   entry: {
-    main: "./src/main.ts",
+    main: "./src/client/main.ts",
   },
   output: {
-    path: path.resolve(__dirname, 'build'),
+    path: path.resolve(__dirname, 'demoserver/public'),
     filename: "main.js",
-    library: 'Compoventuals',
+    library: 'compoventuals-demo',
     libraryTarget: 'window', // this needs to be changed
     libraryExport: 'default'
   },
@@ -34,7 +34,7 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin([
       {
-        from: './html',
+        from: './src',
       }
     ]),
   ],
