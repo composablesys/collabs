@@ -1,4 +1,4 @@
-import { CrdtRuntime, CausalTimestamp } from "../crdt_runtime_interface";
+import { CrdtRuntime, CausalTimestamp } from "../network";
 import { DefaultResettableCrdt } from "./resettable";
 import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
 import { Crdt, CrdtInternal } from "./crdt_core";

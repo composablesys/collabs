@@ -1,4 +1,4 @@
-import { CrdtMessageListener } from "../crdt_runtime_interface";
+import { CrdtMessageListener } from "./crdt_runtime_interface";
 import { VectorClock } from './vector_clock';
 // import WebSocket = require("ws");
 
@@ -123,7 +123,7 @@ export class CasualBroadcastNetwork {
     }
     /**
      * Invoke heartbeat function to keep clients alive.
-     * 
+     *
      * TODO:
      * The message sending to server is 'heartbeat' right now.
      * The timeout interval is set to 5000 millionseconds.

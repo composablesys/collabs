@@ -1,4 +1,4 @@
-import { CausalTimestamp } from "../crdt_runtime_interface";
+import { CausalTimestamp } from "../network";
 import { CrdtInternal } from "./crdt_core";
 
 // TODO: future opts: indexed messages; setting the history

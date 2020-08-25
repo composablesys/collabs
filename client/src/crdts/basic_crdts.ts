@@ -1,4 +1,4 @@
-import {CausalTimestamp, CrdtRuntime} from "../crdt_runtime_interface";
+import {CausalTimestamp, CrdtRuntime} from "../network";
 import {CrdtInternal, Crdt} from "./crdt_core";
 
 /**

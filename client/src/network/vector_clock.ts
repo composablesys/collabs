@@ -1,4 +1,4 @@
-import { CausalTimestamp } from '../crdt_runtime_interface';
+import { CausalTimestamp } from './crdt_runtime_interface';
 
 // The vector clock designed for CRDT library and casual broadcasting
 // runtime to ensure correct causality.
@@ -9,14 +9,14 @@ import { CausalTimestamp } from '../crdt_runtime_interface';
 export class VectorClock implements CausalTimestamp{
     /**
      * Unique ID for each replica to identify itself(replicaId).
-     */    
+     */
     uid : any;
     /**
      * The record map from replica ids to the number of lastest message.
      */
     vectorMap : Map<any, number>;
 
-    /** 
+    /**
      * Initialize the vector with replica's own entry.
      */
     constructor(replicaId : any) {
@@ -37,7 +37,7 @@ export class VectorClock implements CausalTimestamp{
         return this.vectorMap;
     }
     /**
-     * @returns the visible number of the counter from sender in 
+     * @returns the visible number of the counter from sender in
      * this vectorclock.
      */
     getSenderCounter() : number {
@@ -52,7 +52,7 @@ export class VectorClock implements CausalTimestamp{
     /**
      * Update the vector of the uid(replicaId) entry.
      */
-    increment() : void { 
+    increment() : void {
         const oldValue = this.vectorMap.get(this.uid);
 
         if(oldValue !== undefined){
@@ -60,9 +60,9 @@ export class VectorClock implements CausalTimestamp{
         }
     }
     /**
-     * Check a message with a certain timestamp is ready for delivery 
+     * Check a message with a certain timestamp is ready for delivery
      * to ensure correct casuality.
-     * 
+     *
      * @param vc the VectorClock from other replica.
      * @returns the message is ready or not.
      */
@@ -70,12 +70,12 @@ export class VectorClock implements CausalTimestamp{
         let otherUid = vc.getSender();
         let otherVectorMap = vc.asVectorClock();
 
-        if (this.vectorMap.has(otherUid)) { 
+        if (this.vectorMap.has(otherUid)) {
             if (this.vectorMap.get(otherUid) === otherVectorMap.get(otherUid)! - 1) {
                 for (let id of otherVectorMap.keys()) {
                     if (id !== otherUid && !this.vectorMap.has(id)) {
                         return false;
-                    } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {            
+                    } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
                         return false;
                     }
                 }
@@ -87,7 +87,7 @@ export class VectorClock implements CausalTimestamp{
                 console.log(otherVectorMap.get(otherUid))
                 return false;
             }
-            for (let id of otherVectorMap.keys()) {  
+            for (let id of otherVectorMap.keys()) {
                 if (id !== otherUid && !this.vectorMap.has(id)) {
                     return false;
                 } else if (id !== otherUid && (this.vectorMap.get(id)! < otherVectorMap.get(id)!)) {
@@ -100,10 +100,10 @@ export class VectorClock implements CausalTimestamp{
     /**
      * Increment sender's lastest entry received in this VectorClock
      * in the replica's own vectorMap.
-     * 
+     *
      * This operation is mainly done after correctly deliver the message
      * when isReady() function returns true.
-     * 
+     *
      * @param vc the VectorClock from other replica.
      */
     incrementSender(vc : VectorClock) : void {
@@ -113,9 +113,9 @@ export class VectorClock implements CausalTimestamp{
         this.vectorMap.set(otherUid, otherVectorMap.get(otherUid)!);
     }
     /**
-     * Merge current VectorClock with the vector clock recevied from 
+     * Merge current VectorClock with the vector clock recevied from
      * other replica.
-     * 
+     *
      * @param vc the VectorClock from other replica.
      */
     merge(vc : VectorClock) : void{
@@ -130,7 +130,7 @@ export class VectorClock implements CausalTimestamp{
         }
     }
     /**
-     * 
+     *
      * @param someUid the replica's uid.
      * @param clockValue the clock number of the replica.
      */

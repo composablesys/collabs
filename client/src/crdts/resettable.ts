@@ -1,6 +1,6 @@
 import { Crdt, CrdtInternal } from "./crdt_core";
 import { SemidirectState, SemidirectInternal } from "./semidirect";
-import { CausalTimestamp, CrdtRuntime } from "../crdt_runtime_interface";
+import { CausalTimestamp, CrdtRuntime } from "../network";
 
 // TODO: how to do garbage collection of reset-wins operations?
 // E.g. for flags in a set: garbage collection will fail if

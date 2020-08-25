@@ -1,5 +1,4 @@
-import { CrdtRuntime, CausalTimestamp } from '../crdt_runtime_interface';
-import { CrdtMessageListener } from "../crdt_runtime_interface";
+import { CrdtRuntime, CausalTimestamp, CrdtMessageListener } from './crdt_runtime_interface';
 import { VectorClock } from './vector_clock';
 // import WebSocket = require("ws");
 
@@ -123,7 +122,7 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
     }
     /**
      * Invoke heartbeat function to keep clients alive.
-     * 
+     *
      * TODO:
      * The message sending to server is 'heartbeat' right now.
      * The timeout interval is set to 5000 millionseconds.
@@ -222,21 +221,21 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
     }
     /**
      * Get the next timestamp of the given crdtId in this replica.
-     * 
+     *
      * This is passed to CrdtInternal.effect when a replica processes its own
      * message.
-     * 
+     *
      * @param crdtId the crdtId that would like to return.
      * @returns The timestamp that would be assigned to a CRDT
      * message sent by this replica and given crdtId right now.
-     * 
+     *
      */
     getNextTimestamp(crdtId: any) : CausalTimestamp {
-        // Copy a new vector clock.  
+        // Copy a new vector clock.
         let vcCopy = new VectorClock(this.uid);
         vcCopy.vectorMap = new Map<any, number>(this.vcMap.get(crdtId)?.asVectorClock()!);
 
-        // Update the timestamp of this replica with next value. 
+        // Update the timestamp of this replica with next value.
         vcCopy.vectorMap.set(this.uid, vcCopy.vectorMap.get(this.uid) as number + 1);
 
         return vcCopy;
@@ -262,7 +261,7 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      * The checking order is from the lastest to the oldest.
      * Update the VectorClock entry and MessageBuffer when necessary.
      *
-     * Send the message back to crdtRuntime with corresponding 
+     * Send the message back to crdtRuntime with corresponding
      * crdtMessageListener.
      */
     checkMessageBuffer() : void {
@@ -279,7 +278,7 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
                 if (myVectorClock?.isready(curVectorClock)) {
                     /**
                      * Send back the received messages to crdtMessageListener.
-                    
+
                      */
                     if (this.listenersById.has(curCrdtId)) {
                         this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);

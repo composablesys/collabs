@@ -1,4 +1,4 @@
-import {CausalTimestamp, CrdtRuntime, CrdtMessageListener} from "../crdt_runtime_interface";
+import {CausalTimestamp, CrdtRuntime, CrdtMessageListener} from "../network";
 
 // TODO: ids as strings instead of any
 

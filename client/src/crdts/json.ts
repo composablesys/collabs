@@ -1,7 +1,7 @@
 import { CrdtObject, MapCrdt, EnableWinsFlag, IntRegisterCrdt, AddWinsSet } from "./standard";
 import { Crdt } from "./crdt_core";
 import { MultiValueRegister } from "./basic_crdts";
-import { CrdtRuntime } from "../crdt_runtime_interface";
+import { CrdtRuntime } from "../network";
 
 interface JsonIndexType {
     [key: string]: any;

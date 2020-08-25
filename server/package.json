@@ -1,0 +1,44 @@
+{
+  "name": "compoventuals-client",
+  "version": "0.1.0",
+  "main": "build/index.js",
+  "unpkg": "build/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "dependencies": {
+    "ws": "^7.3.1",
+    "uuid": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^7.2.6",
+    "@types/uuid": "^3.4.0",
+    "ts-loader": "^7.0.5",
+    "ts-node": "^8.10.1",
+    "tslib": "^2.0.1",
+    "typescript": "^3.9.7"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "tscw": "tsc --watch",
+    "test": "echo \"TODO\"",
+    "clean": "(rm -r ./build || true)"
+  },
+  "files": [
+    "build/src/**/*"
+  ],
+  "description": "CRDTs designed compositionally",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "author": "Heather Miller",
+  "license": "ISC"
+}

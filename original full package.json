@@ -1,0 +1,55 @@
+{
+  "name": "compoventuals-client",
+  "version": "0.1.0",
+  "main": "build/index.js",
+  "unpkg": "build/main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "ws": "^7.3.1",
+    "uuid": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.7",
+    "@types/webpack-env": "^1.15.2",
+    "@types/ws": "^7.2.6",
+    "@types/uuid": "^3.4.0",
+    "copy-webpack-plugin": "^5.1.1",
+    "http-server": "^0.12.3",
+    "terser-webpack-plugin": "^3.1.0",
+    "ts-loader": "^7.0.5",
+    "ts-node": "^8.10.1",
+    "tslib": "^2.0.1",
+    "typescript": "^3.9.7",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.11"
+  },
+  "scripts": {
+    "tsc": "tsc",
+    "tscw": "tsc --watch",
+    "wp": "webpack",
+    "wpw": "webpack --watch",
+    "serve": "http-server build",
+    "start": "node demo/dist/test/demo_server.js",
+    "demobuild": "./demo_build.sh"
+  },
+  "files": [
+    "build/main.js"
+  ],
+  "description": "",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "author": "Heather Miller",
+  "license": "ISC"
+}
