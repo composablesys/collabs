@@ -6,11 +6,12 @@ module.exports = {
   mode: "development",
   devtool: "inline-source-map",
   entry: {
-    main: "./src/client/main.ts",
+    counter: "./src/site/counter.ts"
+    // TODO: Add more entries as needed for new pages
   },
   output: {
     path: path.resolve(__dirname, 'demoserver/public'),
-    filename: "main.js",
+    filename: "deploy/site/[name].js",
     library: 'compoventuals-demo',
     libraryTarget: 'window', // this needs to be changed
     libraryExport: 'default'
@@ -33,9 +34,9 @@ module.exports = {
 //   },
   plugins: [
     new CopyWebpackPlugin([
-      {
-        from: './src',
-      }
+      { from: './src/site/index.html', to: './deploy/site/index.html' },
+      { from: './src/site/counter.html', to: './deploy/site/counter.html' }
+      // TODO: Add more entries as needed for new pages
     ]),
   ],
 };
