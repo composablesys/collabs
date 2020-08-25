@@ -28,7 +28,7 @@
   "files": [
     "build/src/**/*"
   ],
-  "description": "CRDTs designed compositionally",
+  "description": "CRDTs designed compositionally (client library)",
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"
   },
