@@ -8,11 +8,7 @@
   "dependencies": {
     "compoventuals-client": "file:./client",
     "compoventuals-server": "file:./server",
-    "compoventuals-demo": "file:./demo",
-    "express": "^4.17.1",
-    "uuid": "^3.4.0",
-    "ws": "^7.3.1",
-    "webpack": "^4.44.1"
+    "compoventuals-demo": "file:./demo"
   },
   "devDependencies": {
     "@types/express": "^4.17.7",
