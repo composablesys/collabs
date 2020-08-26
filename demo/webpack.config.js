@@ -6,7 +6,8 @@ module.exports = {
   mode: "development",
   devtool: "inline-source-map",
   entry: {
-    counter: "./src/site/counter.ts"
+    counter: "./src/site/counter.ts",
+    whiteboard: "./src/site/whiteboard.ts"
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -36,6 +37,7 @@ module.exports = {
     new CopyWebpackPlugin([
       { from: './src/site/index.html', to: './deploy/site/index.html' },
       { from: './src/site/counter.html', to: './deploy/site/counter.html' }
+      { from: './src/site/whiteboard.html', to: './deploy/site/whiteboard.html' }
       // TODO: Add more entries as needed for new pages
     ]),
   ],

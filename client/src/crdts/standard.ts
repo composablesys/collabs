@@ -717,3 +717,52 @@ export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsS
     // TODO: strong-reset
     // TODO: preserve-state delete, reset?
 }
+
+// TODO: make corresponding Crdt for use in CrdtObject's,
+// so users don't have to worry about translating ops
+// and to support bulk/RPC/homap ops.
+export class ArrayCrdtInternal<S> implements CrdtInternal<S[]> {
+    constructor(public readonly elementCrdt: CrdtInternal<S>) { }
+    /**
+     * @param  initialData An array of initialData to
+     * pass to each entry's create method.  The entries
+     * may be undefined, in which case undefined will
+     * be passed to the entry's create method.  In any
+     * case, initialData.length is used to set the
+     * length.
+     * @return             [description]
+     */
+    create(initialData: any[]): S[] {
+        if (!Array.isArray(initialData)) {
+            throw new Error("Not an array: " + initialData);
+        }
+        let state: S[] = [];
+        state.length = initialData.length;
+        for (let i = 0; i < initialData.length; i++) {
+            state[i] = this.elementCrdt.create(initialData[i]);
+        }
+        return state;
+    }
+    /**
+     * @param  operation [index, op]
+     * @return message of the form [index, message]
+     */
+    prepare(operation: [number, any], state: S[], replicaId: any): [number, any] {
+        if (!(operation[0] >= 0 && operation[0] < state.length && Number.isInteger(operation[0]))) {
+            throw new Error("Index out of bounds: " + operation[0]);
+        }
+        return [operation[0], this.elementCrdt.prepare(operation[1], state[1], replicaId)];
+    }
+    /**
+     * Description format: [index, returned description]
+     * (same as message).
+     * @param  message    [index, message]
+     */
+    effect(message: [number, any], state: S[], replicaId: any, timestamp: CausalTimestamp): [S[], [number, number]] {
+        let desc;
+        [state[message[0]], desc] = this.elementCrdt.effect(
+            message[1], state[message[0]], replicaId, timestamp
+        );
+        return [state, [message[0], desc]];
+    }
+}

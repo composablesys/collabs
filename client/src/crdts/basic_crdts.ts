@@ -11,7 +11,7 @@ export class CounterInternal implements CrdtInternal<number> {
         if (initialData !== undefined) return initialData;
         else return 0;
     }
-    prepare(operation: number, _state: number): number {
+    prepare(operation: number, _state: number, _replicaId: any): number {
         return operation;
     }
     effect(message: number, state: number, _replicaId: any, _timestamp: CausalTimestamp): [number, number] {
@@ -184,7 +184,7 @@ export class GSetCrdt extends Crdt<Set<any>> {
     }
 }
 
-class MultiValueRegisterInternal<T> implements CrdtInternal<Set<[T, any, number]>> {
+export class MultiValueRegisterInternal<T> implements CrdtInternal<Set<[T, any, number]>> {
     /**
      * @param  initialData An initial value to set.
      */
