@@ -1,0 +1,48 @@
+{
+  "name": "compoventuals",
+  "version": "1.0.0",
+  "description": "Compoventuals CRDTs with demos",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "compoventuals-client": "file:./client",
+    "compoventuals-server": "file:./server",
+    "compoventuals-demo": "file:./demo",
+    "express": "^4.17.1",
+    "uuid": "^3.4.0",
+    "ws": "^7.3.1",
+    "webpack": "^4.44.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.7",
+    "@types/webpack-env": "^1.15.2",
+    "@types/ws": "^7.2.6",
+    "@types/uuid": "^3.4.0",
+    "copy-webpack-plugin": "^5.1.1",
+    "http-server": "^0.12.3",
+    "terser-webpack-plugin": "^3.1.0",
+    "ts-loader": "^7.0.5",
+    "ts-node": "^8.10.1",
+    "tslib": "^2.0.1",
+    "typescript": "^3.9.7",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.11"
+  },
+  "scripts": {
+    "start": "npm start --prefix demo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "author": "Heather Miller",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme"
+}
