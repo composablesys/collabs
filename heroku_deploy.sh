@@ -1,7 +1,3 @@
-rm -rf node_modules
-rm -rf ./client/node_modules
-rm -rf ./server/node_modules
-rm -rf ./demo/node_modules
 npm install client
 cd ./client
 npm run tsc 
