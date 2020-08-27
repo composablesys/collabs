@@ -1,14 +1,12 @@
-npm install client
-cd ./client
-npm run tsc 
-cd ..
-npm install server
-cd ./server
-npm run tsc 
-cd ..
-npm install demo
-cd ./demo
-npm run tsc
-npm run wp 
-npm run start
-
+npm install clean
+npm install clean --prefix client
+npm install clean --prefix server
+npm install clean --prefix demo
+npm install --prefix client
+npm run tsc --prefix client
+npm install --prefix server
+npm run tsc --prefix server
+npm install --prefix demo
+npm run tsc --prefix demo
+npm run wp --prefix demo
+npm run start --prefix demo
