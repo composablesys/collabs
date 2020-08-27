@@ -6,6 +6,7 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
+    "clean": "^4.0.2",
     "compoventuals-client": "file:../client",
     "compoventuals-server": "file:../server",
     "express": "^4.17.1",

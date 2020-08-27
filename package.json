@@ -6,9 +6,9 @@
     "test": "test"
   },
   "dependencies": {
-    "compoventuals-client": "file:./client",
-    "compoventuals-server": "file:./server",
-    "compoventuals-demo": "file:./demo"
+    "compoventuals-client": "file:client",
+    "compoventuals-demo": "file:demo",
+    "compoventuals-server": "file:server"
   },
   "devDependencies": {
     "@types/express": "^4.17.7",
@@ -26,7 +26,7 @@
     "webpack-cli": "^3.3.11"
   },
   "scripts": {
-    "start": "npm start --prefix demo"
+    "start": "./heroku_deploy.sh"
   },
   "repository": {
     "type": "git",

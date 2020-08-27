@@ -8,8 +8,9 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
-    "ws": "^7.3.1",
-    "uuid": "^3.4.0"
+    "clean": "^4.0.2",
+    "uuid": "^3.4.0",
+    "ws": "^7.3.1"
   },
   "devDependencies": {
     "@types/ws": "^7.2.6",
@@ -20,6 +21,7 @@
     "typescript": "^3.9.7"
   },
   "scripts": {
+    "tsc": "tsc",
     "build": "npm run clean && tsc",
     "tscw": "tsc --watch",
     "test": "echo \"TODO\"",
