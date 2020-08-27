@@ -1,13 +1,17 @@
-npm install --force client
+rm -rf node_modules
+rm -rf ./client/node_modules
+rm -rf ./server/node_modules
+rm -rf ./demo/node_modules
+npm install client
 cd ./client
-npm run --force tsc 
+npm run tsc 
 cd ..
-npm install --force server
+npm install server
 cd ./server
-npm run --force tsc 
+npm run tsc 
 cd ..
-npm install --forcedemo
+npm install demo
 cd ./demo
-npm run --force tsc
-npm run --force wp 
-npm run --force start
+npm run tsc
+npm run wp 
+npm run start
