@@ -9,4 +9,3 @@ npm run tsc --prefix server
 npm install --prefix demo
 npm run tsc --prefix demo
 npm run wp --prefix demo
-npm run start --prefix demo
