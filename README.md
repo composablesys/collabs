@@ -23,7 +23,22 @@ Run:
     * You can also deploy it locally if you install the heroku command line tools
 * Individual files (e.g., test/causal_broadcast_test_server.ts and test/basic_causal_network/causal_broadcast_tests.ts, which when run in that order will do a basic test of the causal broadcast network): "npm run tsc" to compile; cd into the directory containing the compiled .js version of the files (in demo/); "node &lt; filename &gt;"
 
+## How to build on Heroku?
 
+Log in your Heroku with CLI tool and verify on browser:
+
+```
+heroku login
+```
+
+Commit and push the code on Heroku master just like the way you do on Github:
+
+```
+git add ${selected files}
+git commit -m ${commit messages}
+git push heroku master
+git push
+```
 
 ## How to run tests?
 
