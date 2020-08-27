@@ -24,6 +24,7 @@ Run:
 * Individual files (e.g., test/causal_broadcast_test_server.ts and test/basic_causal_network/causal_broadcast_tests.ts, which when run in that order will do a basic test of the causal broadcast network): "npm run tsc" to compile; cd into the directory containing the compiled .js version of the files (in demo/); "node &lt; filename &gt;"
 
 
+
 ## How to run tests?
 
 After running the complie command `npm run tsc`, all the files that test needed is under `./dist/test/`
