@@ -11,3 +11,4 @@ cd ./demo
 npm run tsc
 npm run wp 
 npm run start
+
