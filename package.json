@@ -27,7 +27,8 @@
     "webpack-cli": "^3.3.11"
   },
   "scripts": {
-    "start": "./heroku_deploy.sh"
+    "start": "npm start --prefix demo",
+    "build": "./heroku_deploy.sh"
   },
   "repository": {
     "type": "git",
