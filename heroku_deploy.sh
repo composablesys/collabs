@@ -2,6 +2,7 @@ npm install clean
 npm install clean --prefix client
 npm install clean --prefix server
 npm install clean --prefix demo
+npm install
 npm install --prefix client
 npm run tsc --prefix client
 npm install --prefix server
