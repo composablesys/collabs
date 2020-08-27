@@ -1,13 +1,13 @@
-npm install client
+npm install --force client
 cd ./client
-npm run tsc 
+npm run --force tsc 
 cd ..
-npm install server
+npm install --force server
 cd ./server
-npm run tsc
+npm run --force tsc 
 cd ..
-npm install demo
+npm install --forcedemo
 cd ./demo
-npm run tsc
-npm run wp 
-npm run start
+npm run --force tsc
+npm run --force wp 
+npm run --force start
