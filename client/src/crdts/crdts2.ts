@@ -45,7 +45,7 @@ export class Crdt2 implements CrdtMessageListener {
     }
 
     protected callRemote<Args extends any[], Return>(
-        method: (remoteCaller: boolean, timestamp: CausalTimestamp, ...args: Args) => Return,
+        method: (this: this, remoteCaller: boolean, timestamp: CausalTimestamp, ...args: Args) => Return,
         ...args: Args
     ): Return {
         // Serialize the method name and args
@@ -54,7 +54,8 @@ export class Crdt2 implements CrdtMessageListener {
             new CrdtMessage(method.name, args)
         );
         // Call the local function
-        let result = method(
+        // @ts-ignore: This should work but TS is confused by args[] vs Any
+        let result = method.call(this,
             false, this.runtime.getNextTimestamp(this.id),
             ...args
         );
@@ -69,21 +70,23 @@ export class Crdt2 implements CrdtMessageListener {
      */
     receive(message: string, timestamp: CausalTimestamp) {
         let messageObj: CrdtMessage = JSON.parse(message);
-        if (!(messageObj instanceof CrdtMessage)) {
+        if (messageObj.method === undefined) {
             // TODO: don't throw here, to avoid messing
             // with caller.
-            throw new Error("Failed to parse CrdtMessage: " + message);
+            console.log("Failed to parse CrdtMessage: " + message);
+            return;
         }
         // @ts-ignore: Call method by name
-        let method = this[messageObj.method]() as
-            (remoteCaller: boolean, timestamp: CausalTimestamp, ...args: any[]) => any;
+        let method = this[messageObj.method] as
+            (this: this, remoteCaller: boolean, timestamp: CausalTimestamp, ...args: any[]) => any;
         if (method === undefined) {
             // TODO: don't throw here, to avoid messing
             // with caller.
-            throw new Error("Unknown method called remotely: " + messageObj.method);
+            console.log("Unknown method called remotely: " + messageObj.method);
+            return;
         }
         // TODO: Check type?  At least make sure it's a function?
-        method(true, timestamp, messageObj.args);
+        method.call(this, true, timestamp, ...messageObj.args);
     }
 
     // TODO: resets
@@ -111,7 +114,7 @@ export class Counter2 extends Crdt2 {
         else this.state = initialValue;
     }
 
-    protected remoteAdd(remoteCaller: boolean, timestamp: CausalTimestamp, toAdd: number): void {
+    remoteAdd(remoteCaller: boolean, timestamp: CausalTimestamp, toAdd: number): void {
         this.state += toAdd;
         if (remoteCaller && this.onchange) {
             this.onchange(new Counter2AddEvent(
@@ -121,7 +124,7 @@ export class Counter2 extends Crdt2 {
     }
 
     add(toAdd: number) {
-        super.callRemote(this.remoteAdd.bind(this), toAdd);
+        super.callRemote(this.remoteAdd, toAdd);
     }
 
     get value(): number {
