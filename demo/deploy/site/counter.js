@@ -15,7 +15,8 @@ const client_uuid = uuid_1.v4();
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. CounterCrdt).
  */
 let client = new compoventuals_client_1.network.CrdtNetworkRuntime(client_uuid, HOST);
-let clientCounter = new compoventuals_client_1.crdts.CounterCrdt("counterId", client);
+//let clientCounter = new crdts.CounterCrdt("counterId", client);
+let clientCounter = new compoventuals_client_1.crdts.Counter2(client_uuid, client);
 /* HTML variables */
 var counter = document.getElementById("counter");
 /* Customize the onchange() for CRDT as refresh the value */

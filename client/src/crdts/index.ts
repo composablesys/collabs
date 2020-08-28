@@ -5,3 +5,4 @@ export * from './json';
 export * from './resettable';
 export * from './semidirect';
 export * from './standard';
+export * from './crdts2';
