@@ -25,12 +25,25 @@ export interface CrdtChangeEvent {
     readonly timestamp: CausalTimestamp;
 }
 
-class CrdtMessage {
+class CrdtUntypedMessage {
     constructor(
         public readonly method: string,
         public readonly args: any[]
     ) {}
 }
+
+type CrdtRemoteMethod<Args extends any[], Return> = (this: Crdt, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args) => [boolean, Return];
+
+export class CrdtTypedMessage<Args extends any[], Return> {
+    readonly args: Args;
+    constructor(public readonly method: CrdtRemoteMethod<Args, Return>, ...args: Args) {
+        this.args = args;
+    }
+}
+// interface CrdtTypedMessage<Args extends any[], Return> extends Array<any> {
+//     0: CrdtRemoteMethod<Args, Return>;
+//     1: Args;
+// }
 
 export class Crdt implements CrdtMessageListener {
     readonly isCrdt = true;
@@ -152,17 +165,16 @@ export class Crdt implements CrdtMessageListener {
      *
      */
     protected callRemote<Args extends any[], Return>(
-        method: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args) => [boolean, Return],
+        method: CrdtRemoteMethod<Args, Return>,
         ...args: Args
     ): Return {
         // Serialize the method name and args
         // Do this first in case calling method changes them
         let message = JSON.stringify(
-            new CrdtMessage(method.name, args)
+            new CrdtUntypedMessage(method.name, args)
         );
         // Call the local function
         let timestamp = this.runtime.getNextTimestamp(this.causalConsistencyGroup);
-        // @ts-ignore: This should work but TS is confused by args[] vs Any
         let result = method.call(
             this, true, timestamp, ...args
         );
@@ -185,22 +197,22 @@ export class Crdt implements CrdtMessageListener {
      * message is received from another replica.
      */
     receive(message: string, timestamp: CausalTimestamp) {
-        let messageObj: CrdtMessage = JSON.parse(message);
+        let messageObj: CrdtUntypedMessage = JSON.parse(message);
         if (messageObj.method === undefined) {
             // TODO: don't throw here, to avoid messing
             // with caller.
-            console.log("Failed to parse CrdtMessage: " + message);
+            console.log("Failed to parse CrdtUntypedMessage: " + message);
             return;
         }
         // @ts-ignore: Call method by name
-        let method = this[messageObj.method] as
-            (this: this, isLoal: boolean, timestamp: CausalTimestamp, ...args: any[]) => [boolean, any];
-        if (method === undefined) {
+        let methodUntyped = this[messageObj.method];
+        if (methodUntyped === undefined) {
             // TODO: don't throw here, to avoid messing
             // with caller.
             console.log("Unknown method called remotely: " + messageObj.method);
             return;
         }
+        let method = methodUntyped as CrdtRemoteMethod<any[], any>;
         // TODO: Check type?  At least make sure it's a function?
         let result = method.call(this, true, timestamp, ...messageObj.args);
         // Dispatch generic CrdtChangeEvent if instructed
@@ -214,12 +226,41 @@ export class Crdt implements CrdtMessageListener {
         }
     }
 
+    // Semidirect section ---------------------------------------
+    private readonly level2Methods = new Set<string>();
+    private readonly level1Methods = new Set<string>();
+    // protected addAction<Args1 extends any[], Args2 extends any[]>(
+    //     m2Method: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args2) => [boolean, any],
+    //     m1Method: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args1) => [boolean, any],
+    //     action: <Args3 extends any[]>(...args: [...Args1, ...Args2]) =>
+    //     [outMethod: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args3) => [boolean, any], ...outArgs: Args3]
+    // ) {
+    //     // TODO
+    // }
+    protected addAction<Args1 extends any[], Args2 extends any[]>(
+        m2Method: CrdtRemoteMethod<Args2, any>,
+        m1Method: CrdtRemoteMethod<Args1, any>,
+        action: <Args3 extends any[]>(...args: [...Args1, ...Args2]) =>
+        CrdtTypedMessage<any[], any>
+    ) {
+        // TODO
+    }
+
     /**
      * Performs an observed-reset operation on this Crdt.
      * The default behavior is to reset every child Crdt;
-     * override to implement different behavior.
+     * override remoteReset() to implement different
+     * behavior.
      */
     reset() {
-        for (let child of this.children) child.reset();
+        this.callRemote(this.remoteReset);
+    }
+    remoteReset(isLocal: boolean, timestamp: CausalTimestamp): [boolean, void] {
+        let changed = false;
+        for (let child of this.children) {
+            let [childChanged, ] = child.remoteReset(isLocal, timestamp);
+            changed ||= childChanged;
+        }
+        return [changed, undefined];
     }
 }

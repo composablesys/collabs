@@ -1,4 +1,4 @@
-import { CrdtChangeEvent, Crdt } from ".";
+import { CrdtChangeEvent, Crdt, CrdtTypedMessage } from ".";
 import { CausalTimestamp, CrdtRuntime } from "../network";
 
 export class CounterAddEvent implements CrdtChangeEvent {
@@ -26,6 +26,10 @@ export class UnresettableCounterCrdt extends Crdt {
         super(parentOrRuntime, id);
         if (initialValue === undefined) this.state = 0;
         else this.state = initialValue;
+        super.addAction(
+            this.remoteMult, this.remoteAdd,
+            (multArgs, addArgs) => new CrdtTypedMessage(this.remoteAdd, multArgs * addArgs)
+        );
     }
 
     add(toAdd: number) {
@@ -36,6 +40,14 @@ export class UnresettableCounterCrdt extends Crdt {
 
     remoteAdd(isLocal: boolean, timestamp: CausalTimestamp, toAdd: number): [boolean, void] {
         this.state += toAdd;
+        this.dispatchEvent(new CounterAddEvent(
+            this, isLocal, timestamp, toAdd, this.state
+        ));
+        return [true, undefined];
+    }
+
+    remoteMult(isLocal: boolean, timestamp: CausalTimestamp, toAdd: number): [boolean, void] {
+        this.state *= toAdd;
         this.dispatchEvent(new CounterAddEvent(
             this, isLocal, timestamp, toAdd, this.state
         ));
