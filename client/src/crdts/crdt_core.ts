@@ -40,10 +40,9 @@ export class CrdtTypedMessage<Args extends any[], Return> {
         this.args = args;
     }
 }
-// interface CrdtTypedMessage<Args extends any[], Return> extends Array<any> {
-//     0: CrdtRemoteMethod<Args, Return>;
-//     1: Args;
-// }
+
+type SemidirectAction<Args1 extends any[], Args2 extends any[]> = (...args: [...Args1, ...Args2]) =>
+CrdtTypedMessage<any[], any>;
 
 export class Crdt implements CrdtMessageListener {
     readonly isCrdt = true;
@@ -98,6 +97,30 @@ export class Crdt implements CrdtMessageListener {
     private readonly children: Crdt[] = [];
     protected registerChild(child: Crdt) {
         this.children.push(child);
+        if (this.eventListeners.has("change")) {
+            this.listenToChild(child);
+        }
+    }
+
+    private listenToChild(child: Crdt) {
+        child.addEventListener(
+            "change",
+            event => {
+                // Skip it if it's part of one of our
+                // own method calls, since that
+                // method will let us know if our
+                // state has changed.
+                if (!this.inCall) {
+                    this.dispatchEvent({
+                        caller: this,
+                        type: "change",
+                        isLocal: event.isLocal,
+                        timestamp: event.timestamp
+                    });
+                }
+            },
+            true
+        );
     }
 
     private readonly eventListeners = new Map<string, [(event: CrdtChangeEvent) => void, boolean][]>();
@@ -113,14 +136,22 @@ export class Crdt implements CrdtMessageListener {
      */
     addEventListener(
         type: string, listener: (event: CrdtChangeEvent) => void,
-        ignoreLocal = true
+        receiveLocal = false
     ) {
         let list = this.eventListeners.get(type);
         if (list === undefined) {
             list = [];
             this.eventListeners.set(type, list);
+            if (type === "change") {
+                // Register change listeners on our existing
+                // children, so we can propagate change
+                // events properly
+                for (let child of this.children) {
+                    this.listenToChild(child);
+                }
+            }
         }
-        list.push([listener, ignoreLocal]);
+        list.push([listener, receiveLocal]);
     }
     /**
      * A subclass should call this in a remote method
@@ -138,6 +169,47 @@ export class Crdt implements CrdtMessageListener {
                 catch(e) {}
             }
         }
+    }
+
+    // TODO: better name.
+    inCall = false;
+    /**
+     * Call the given remote method with the given
+     * args, locally.
+     * Use this when calling a subroutine as part of
+     * this or another Crdt's remote method, instead
+     * of calling the remote method directly, so
+     * that we can do some related tasks (semidirect
+     * products, dispatching a "change" event).
+     * @return The second value returned by the called
+     * method.  Note that because a semidirect product
+     * may transform the message into one that calls
+     * a different remote method, this return value may
+     * not have the same type as method's return value.
+     */
+    call<Args extends any[]>(
+        method: CrdtRemoteMethod<Args, any>,
+        isLocal: boolean,
+        timestamp: CausalTimestamp,
+        ...args: Args
+    ): any {
+        this.inCall = true;
+        let actedMessage = this.processSemidirect(method, isLocal, timestamp, ...args);
+        let result = actedMessage.method.call(
+            this, isLocal, timestamp, ...actedMessage.args
+        );
+        // Dispatch generic CrdtChangeEvent if instructed
+        if (result[0]) {
+            this.dispatchEvent({
+                caller: this,
+                type: "change",
+                isLocal: true,
+                timestamp: timestamp
+            });
+        }
+        // Return local result
+        this.inCall = false;
+        return result[1];
     }
 
     /**
@@ -175,22 +247,18 @@ export class Crdt implements CrdtMessageListener {
         );
         // Call the local function
         let timestamp = this.runtime.getNextTimestamp(this.causalConsistencyGroup);
-        let result = method.call(
-            this, true, timestamp, ...args
+        let result = this.call(
+            method, true, timestamp, ...args
         );
         // Send message on the network
         this.runtime.send(message, this.fullId, this.causalConsistencyGroup);
-        // Dispatch generic CrdtChangeEvent if instructed
-        if (result[0]) {
-            this.dispatchEvent({
-                caller: this,
-                type: "change",
-                isLocal: true,
-                timestamp: timestamp
-            })
-        }
         // Return local result
-        return result[1];
+        // Although result has any type, this is only
+        // in case semidirect action changes the message
+        // type.  But we know this won't happen because
+        // the message originates locally, hence is
+        // causally maximum.
+        return result as Return;
     }
     /**
      * Callback for this.runtime when a
@@ -214,38 +282,45 @@ export class Crdt implements CrdtMessageListener {
         }
         let method = methodUntyped as CrdtRemoteMethod<any[], any>;
         // TODO: Check type?  At least make sure it's a function?
-        let result = method.call(this, true, timestamp, ...messageObj.args);
-        // Dispatch generic CrdtChangeEvent if instructed
-        if (result[0]) {
-            this.dispatchEvent({
-                caller: this,
-                type: "change",
-                isLocal: true,
-                timestamp: timestamp
-            })
-        }
+        this.call(method, false, timestamp, ...messageObj.args);
     }
 
     // Semidirect section ---------------------------------------
-    private readonly level2Methods = new Set<string>();
-    private readonly level1Methods = new Set<string>();
-    // protected addAction<Args1 extends any[], Args2 extends any[]>(
-    //     m2Method: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args2) => [boolean, any],
-    //     m1Method: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args1) => [boolean, any],
-    //     action: <Args3 extends any[]>(...args: [...Args1, ...Args2]) =>
-    //     [outMethod: (this: this, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args3) => [boolean, any], ...outArgs: Args3]
-    // ) {
-    //     // TODO
-    // }
+    // TODO: init these maps only if used, for memory efficiency?
+    private readonly layerByMethod = new Map<CrdtRemoteMethod<any[], any>, number>();
+    private setLayer(method: CrdtRemoteMethod<any, any>, layer: number) {
+        let currentLayer = this.layerByMethod.get(method);
+        if (currentLayer === undefined) {
+            this.layerByMethod.set(method, layer);
+        }
+        else if (currentLayer !== layer) {
+            throw new Error("Method " + method.name + " cannot be both an actor and acted on for semdirect product action");
+        }
+    }
+    private readonly actions = new Map<string, SemidirectAction<any, any>>();
     protected addAction<Args1 extends any[], Args2 extends any[]>(
         m2Method: CrdtRemoteMethod<Args2, any>,
         m1Method: CrdtRemoteMethod<Args1, any>,
-        action: <Args3 extends any[]>(...args: [...Args1, ...Args2]) =>
-        CrdtTypedMessage<any[], any>
+        action: SemidirectAction<Args1, Args2>
     ) {
-        // TODO
+        // Check and set levels
+        this.setLayer(m2Method, 2);
+        this.setLayer(m1Method, 1);
+        // TODO: if we forced action to output a single
+        // message type, we could check that it has level
+        // 1 here instead of only when it actually appears.
+        let key = m2Method.name + "." + m1Method.name;
+        if (this.actions.has(key)) {
+            throw new Error("Duplicate action of " + m2Method.name + " on " + m1Method.name);
+        }
+        this.actions.set(key, action);
     }
 
+    processSemidirect<Args extends any[]>(method: CrdtRemoteMethod<Args, any>, isLocal: boolean, timestamp: CausalTimestamp, ...args: Args): CrdtTypedMessage<any[], any> {
+        throw new Error("Method not implemented.");
+    }
+
+    // Reset section ----------------------------------
     /**
      * Performs an observed-reset operation on this Crdt.
      * The default behavior is to reset every child Crdt;
@@ -255,12 +330,20 @@ export class Crdt implements CrdtMessageListener {
     reset() {
         this.callRemote(this.remoteReset);
     }
-    remoteReset(isLocal: boolean, timestamp: CausalTimestamp): [boolean, void] {
+    /**
+     * In the default implementation, the
+     * method specific return value (2nd output) is
+     * just a copy of the first, indicating whether
+     * the reset changed the state.  It is true
+     * iff one the children's remoteReset methods
+     * returned true.
+     */
+    remoteReset(isLocal: boolean, timestamp: CausalTimestamp): [boolean, boolean] {
         let changed = false;
         for (let child of this.children) {
-            let [childChanged, ] = child.remoteReset(isLocal, timestamp);
+            let childChanged = child.call(child.remoteReset, isLocal, timestamp);
             changed ||= childChanged;
         }
-        return [changed, undefined];
+        return [changed, changed];
     }
 }

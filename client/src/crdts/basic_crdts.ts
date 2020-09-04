@@ -28,7 +28,7 @@ export class UnresettableCounterCrdt extends Crdt {
         else this.state = initialValue;
         super.addAction(
             this.remoteMult, this.remoteAdd,
-            (multArgs, addArgs) => new CrdtTypedMessage(this.remoteAdd, multArgs * addArgs)
+            (multArg, addArg) => new CrdtTypedMessage(this.remoteAdd, multArg * addArg)
         );
     }
 
