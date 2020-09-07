@@ -4,34 +4,50 @@ One day, we'll come up with a better name.
 
 (Template based on [ts-demo-webpack](https://github.com/rauschma/ts-demo-webpack))
 
-Install: npm install
-Also run this whenever someone changes package.json.
+## How to build on local?
 
-Build:
-* Compile: npm run tsc
-* Build webpack webpage: npm run wp
-* (Can also do "npm run tscw" or "npm run wpw" to have things rebuild automatically on file save)
-* Build demo server for Heroku: npm run demobuild
+Run the following command under root folder `/compoventuals` and wait for setup process:
 
-Run:
-* Webpack webpage: npm run serve
-    * Look at the console to see outputs of current tests (anything that's run/required in src/main.ts)
-    * Currently this complains because we use the same webpage (html/index.html and src/main.ts) for both webpack and Heroku, but only Heroku starts the CRDT message server
-* Demo server for Heroku: npm run start
-(This is what Heroku runs when you git commit it)
-    * Deploys to https://compoventuals-tests.herokuapp.com/
-    * You can also deploy it locally if you install the heroku command line tools
-* Individual files (e.g., test/causal_broadcast_test_server.ts and test/basic_causal_network/causal_broadcast_tests.ts, which when run in that order will do a basic test of the causal broadcast network): "npm run tsc" to compile; cd into the directory containing the compiled .js version of the files (in demo/); "node &lt; filename &gt;"
+```
+sh heroku_deploy.sh 
+```
+
+The shell script will do the following work for you:
+* Clean the old dependencies for the main project and all sub npm projects.
+* Install the new dependencies for the main project and all sub npm projects.
+* Compile all the sub projects.
+* Build webpack webpage in the `demo` sub project.
+
+**Note:** 
+All the steps can be done manually with other options
+- Can also do `npm run tscw` or `npm run wpw` to have things rebuild automatically on file save.
+
+
+## How to run the local server?
+
+Run the following command under root folder `/compoventuals`, the local server will listen on port `3000`:
+```
+npm start
+```
+
+Access the service via `localhost:3000`, look at the console to see outputs of current deployment.
 
 ## How to build on Heroku?
 
-Log in your Heroku with CLI tool and verify on browser:
+Deploys to https://compoventuals-tests.herokuapp.com/
+
+* The Heroku deployment will be automatically triggered by `git commit` and `git push`.
+* The Heroku server will run the shell script `heroku_deploy.sh` and `npm start` to build and run the project.
+
+Options for manually deployment: 
+
+* Log in your Heroku with CLI tool and verify on browser:
 
 ```
 heroku login
 ```
 
-Commit and push the code on Heroku master just like the way you do on Github:
+* Commit and push the code on Heroku master just like the way you do on Github:
 
 ```
 git add ${selected files}
@@ -40,31 +56,5 @@ git push heroku master
 git push
 ```
 
-## How to run tests?
-
-After running the complie command `npm run tsc`, all the files that test needed is under `./dist/test/`
-
-- Note: The `./dist` file is in .gitignore 
 
 
-### Run tests without server
-
-You can run test under `./dist/test/crdts` by:
-
-```
-node ${test scripts name}
-```
-
-### Run tests with localhost server 
-
-You have to start the localhost casual broadcasting server by: 
-
-```
-node causal_broadcast_test_server.js
-```
-
-And then you can do the integration test under `./dist/test/crdt_network_integration` by:
-
-```
-node ${test scripts name}
-```
