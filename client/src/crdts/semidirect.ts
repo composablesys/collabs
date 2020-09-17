@@ -235,7 +235,7 @@ export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
         }
     }
     /**
-     * Message/descrption format: [crdt number (1 or 2),
+     * Message/description format: [crdt number (1 or 2),
      * message for/description from that crdt].  For this.crdt1
      * messages, the description is for the acted-on message that
      * is actually applied to this.internalState, not the input

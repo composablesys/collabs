@@ -56,9 +56,10 @@ export class DefaultResetWinsCrdt<S>
      * @param runtime               [description]
      * @param initialData           [description]
      */
-    constructor(id: any, originalCrdtInternal: CrdtInternal<S>,
-            resetInitialData: any,
-            runtime: CrdtRuntime, initialData?: any) {
+    constructor(id: any,
+                originalCrdtInternal: CrdtInternal<S>,
+                resetInitialData: any,
+                runtime: CrdtRuntime, initialData?: any) {
         let crdtWrapped = ResetWinsComponent.addTo(
             originalCrdtInternal, resetInitialData
         );
@@ -66,7 +67,7 @@ export class DefaultResetWinsCrdt<S>
         this.originalCrdtInternalResetWins = originalCrdtInternal;
     }
     resetStrong() {
-        super.applyOp([2, "reset"]);
+        super.applyOp(this.getUniversalResetStrongMessage());
     }
     getUniversalResetStrongMessage() {
         return [2, "reset"];
