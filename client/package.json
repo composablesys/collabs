@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "clean": "^4.0.2",
+    "protobufjs": "~6.10.1",
     "uuid": "^3.4.0",
     "ws": "^7.3.1"
   },

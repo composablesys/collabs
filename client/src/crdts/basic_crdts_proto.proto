@@ -1,0 +1,7 @@
+message CounterMessage {
+    required double toAdd = 1;
+}
+
+message MultRegisterMessage {
+    required double toMult = 1;
+}

@@ -1,5 +1,6 @@
-import { CausalTimestamp } from "../network";
-import { CrdtInternal } from "./crdt_core";
+import { OptionalResettableCrdt } from ".";
+import { CausalTimestamp, CrdtRuntime } from "../network";
+import { Crdt } from "./crdt_core";
 
 // TODO: future opts: indexed messages; setting the history
 // to a subset; causal stability.
@@ -21,8 +22,9 @@ export class SemidirectState<S> {
      * all Crdts with a given CrdtRuntime and between
      * a semidirect product and its components.
      */
-    private history: Map<any, Array<[number, number, any]>> = new Map();
-    constructor(public internalState: S,
+    private history: Map<any, Array<[number, number, Uint8Array | [Uint8Array, CausalTimestamp]]>> = new Map();
+    public internalState!: S;
+    constructor(
         public readonly historyTimestamps: boolean,
         public readonly historyDiscard1Dominated: boolean,
         public readonly historyDiscard2Dominated: boolean) { }
@@ -30,7 +32,7 @@ export class SemidirectState<S> {
      * Add message to the history with the given timestamp.
      * replicaId is our replica id.
      */
-    add(replicaId: any, message: any, timestamp: CausalTimestamp) {
+    add(replicaId: any, message: Uint8Array, timestamp: CausalTimestamp) {
         if (this.historyDiscard2Dominated) {
             this.processTimestamp(replicaId, timestamp, false, true);
         }
@@ -39,7 +41,8 @@ export class SemidirectState<S> {
             senderHistory = [];
             this.history.set(timestamp.getSender(), senderHistory);
         }
-        let messageMaybeWithTimestamp = this.historyTimestamps?
+        let messageMaybeWithTimestamp: Uint8Array | [Uint8Array, CausalTimestamp] =
+                this.historyTimestamps?
                 [message, timestamp]: message;
         senderHistory.push([timestamp.getSenderCounter(), this.receiptCounter, messageMaybeWithTimestamp]);
         this.receiptCounter++;
@@ -149,208 +152,63 @@ export class SemidirectState<S> {
     }
 }
 
-export class SemidirectInternal<S> implements CrdtInternal<SemidirectState<S>> {
-    /**
-     * CrdtInternal implementing the semidirect product of
-     * crdt1 and crdt2 with the given action, which is a function
-     * (m2: crdt2 message, m1: crdt1 message): crdt1 message.
-     * crdt1, crdt2, and action must satisfy the semidirect product
-     * assumptions from our paper.
-     *
-     * TODO: options and their theoretical significance.  Formally,
-     * historyTimestamps = true means that timestamps become
-     * part of the crdt2 messages.  Also createCrdtIndex.
-     * Dominated stats control whether you discard messages in the
-     * history that are causally dominated by crdt1/crdt2 messages;
-     * need to ensure that action is the same with those messages
-     * discarded.  If dominated1 is set, then state.isHistoryEmpty()
-     * becomes (there exists a crdt2 message not causally dominated by a
-     * crdt1 message).  Check this is still true if dominated2 is set.)
-     * Explain examples where this is used (resettable, flags); it's
-     * not quite in the semidirect product spirit unless you think
-     * of it as using the history as part of the crdt1/2 state.
-     * Potential optimization: only delete dominated messages when
-     * receiving our own message (it's basically free and always
-     * clears the history), or only sometimes (will miss some
-     * messages, so need to ensure correctness in that case
-     * (I think it is okay for dominated2 but not dominated1 in our
-     * target use cases), but
-     * should be more efficient due to batching and still kill
-     * off most messages).  This trades a small increase in space
-     * usage for a decrease in CPU time.
-     *
-     * As described in CrdtInternal and Crdt, null messages are treated
-     * as the identity function id, allowing them to be optimized away.
-     * Because of this, action will never be called with null as
-     * either input.  Instead, we behave as if
-     * (action(id (i.e., null), m1) = m1)
-     * for all m1 and (action(m2, id) = id) for all m2.  The semidirect
-     * product assumptions must hold given these assignments.
-     */
-    constructor(public readonly crdt1: CrdtInternal<S>,
-        public readonly crdt2: CrdtInternal<S>,
-        public readonly action: (m2: any, m1: any) => any,
-        public readonly createCrdtIndex: number,
-        public readonly historyTimestamps = false,
-        public readonly historyDiscard1Dominated = false,
-        public readonly historyDiscard2Dominated = false) {
-            if (createCrdtIndex !== 1 && createCrdtIndex !== 2) {
-                throw new Error("Bad createCrdtIndex (must be 1 or 2):" +
-                        createCrdtIndex);
-            }
-        }
-    /**
-     * @param  initialData Initial data used to initialize this.crdt1.
-     * @return
-     */
-    create(initialData?: any): SemidirectState<S> {
-        let internalState: S;
-        if (this.createCrdtIndex === 1) internalState = this.crdt1.create(initialData);
-        else internalState = this.crdt2.create(initialData);
-        return new SemidirectState(internalState,
-            this.historyTimestamps, this.historyDiscard1Dominated,
-            this.historyDiscard2Dominated);
+export class SemidirectProduct<S extends Object> extends OptionalResettableCrdt<SemidirectState<S>> {
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        resettable = true,
+        historyTimestamps = false,
+        historyDiscard1Dominated = false,
+        historyDiscard2Dominated = false,
+    ) {
+        super(parentOrRuntime, id, new SemidirectState(
+            historyTimestamps, historyDiscard1Dominated,
+            historyDiscard2Dominated
+        ), resettable);
     }
-    /**
-     * Operation/message format: [crdt number (1 or 2),
-     * operation/message for that crdt].  An exception is if
-     * the internal crdt returns a null message, in which case
-     * we just return null, not [1, null] or [2, null].  This
-     * allows the Crdt class to optimize away sending the
-     * message.
-     *
-     * TODO (general): error checking
-     */
-    prepare(operation: [number, any], state: SemidirectState<S>,
-            replicaId: any): [number, any] | null {
-        if (operation[0] === 1) {
-            let op1 = this.crdt1.prepare(operation[1], state.internalState, replicaId);
-            if (op1 === null) return null;
-            else return [1, op1];
-        }
-        else {
-            let op2 = this.crdt2.prepare(operation[1], state.internalState, replicaId);
-            if (op2 === null) return null;
-            else return [2, op2];
-        }
-    }
-    /**
-     * Message/descrption format: [crdt number (1 or 2),
-     * message for/description from that crdt].  For this.crdt1
-     * messages, the description is for the acted-on message that
-     * is actually applied to this.internalState, not the input
-     * message.  An exception is if the description from the internal
-     * crdt is null (or if the message gets acted on to become null),
-     * the returned description is just null, not [1, null] or [2, null].
-     * This allows the Crdt class to optimize away calling onchange.
-     */
-    effect(message: [number, any], state: SemidirectState<S>, replicaId: any, timestamp: CausalTimestamp): [SemidirectState<S>, [number, any] | null] {
-        if (message[0] === 2) {
-            let result = this.crdt2.effect(message[1], state.internalState, replicaId, timestamp);
-            state.internalState = result[0];
-            state.add(replicaId, message[1], timestamp);
-            if (result[1] === null) return [state, null];
-            else return [state, [2, result[1]]];
-        }
-        else {
-            let concurrent = state.getConcurrent(replicaId, timestamp);
-            let mAct = message[1];
-            for (let i = 0; i < concurrent.length; i++) {
-                mAct = this.action(concurrent[i], mAct);
-                if (mAct === null) return [state, null];
-            }
-            let result = this.crdt1.effect(mAct, state.internalState,
-                replicaId, timestamp);
-            state.internalState = result[0];
-            if (result[1] === null) return [state, null];
-            else return [state, [1, result[1]]];
-        }
-    }
-}
 
+    crdt1!: Crdt<S>;
+    crdt2!: Crdt<S>;
+    actionVar!: (m2: Uint8Array, m2Timestamp: CausalTimestamp,
+        m1: Uint8Array, m1Timestamp?: CausalTimestamp)
+        => Uint8Array | null;
+    setup(
+        crdt1: Crdt<S>, crdt2: Crdt<S>,
+        action: (m2: Uint8Array, m2Timestamp: CausalTimestamp,
+            m1: Uint8Array, m1Timestamp?: CausalTimestamp)
+            => Uint8Array | null,
+        initialState: S
+    ) {
+        this.state.internalState = initialState;
+        crdt1.state = initialState;
+        crdt2.state = initialState;
+        // TODO: check crdts are our children
+        this.crdt1 = crdt1;
+        this.crdt2 = crdt2;
+        this.actionVar = action;
+    }
 
-export class DirectInternal<S> implements CrdtInternal<S> {
-    /**
-     * Direct product of CrdtInternal's.  This is the
-     * special case of SemidirectInternal when the action is trivial
-     * ((m_2, m1) => m1).  In this case we can optimize
-     * by not keeping the history or acting on messages.
-     *
-     * For this to be a Crdt, concurrent messages of the two input
-     * Crdts must commute.
-     *
-     * Note this construction is symmetric (switching crdt1 and
-     * crdt2 doesn't change the semantics), except for swapping
-     * the meaning of the numbers 1/2 in createCrdtIndex and
-     * in the first coordinates of messages and operations.
-     *
-     * @param createCrdtIndex Which crdt's create method to use
-     * in create.
-     */
-    constructor(public readonly crdt1: CrdtInternal<S>,
-            public readonly crdt2: CrdtInternal<S>,
-            public readonly createCrdtIndex: number) {
-        if (createCrdtIndex !== 1 && createCrdtIndex !== 2) {
-            throw new Error("Bad createCrdtIndex (must be 1 or 2):" +
-                    createCrdtIndex);
-        }
-    }
-    /**
-     * @param  initialData Initial data used to initialize this.crdt1.
-     * @return
-     */
-    create(initialData?: any): S {
-        if (this.createCrdtIndex === 1) return this.crdt1.create(initialData);
-        else return this.crdt2.create(initialData);
-    }
-    /**
-     * Operation/message format: [crdt number (1 or 2),
-     * operation/message for that crdt].  An exception is if
-     * the internal crdt returns a null message, in which case
-     * we just return null, not [1, null] or [2, null].  This
-     * allows the Crdt class to optimize away sending the
-     * message.
-     */
-    prepare(operation: [number, any], state: S,
-            replicaId: any): [number, any] | null {
-        let message: any;
-        switch (operation[0]) {
-            case 1:
-                message = this.crdt1.prepare(operation[1], state, replicaId);
-                break;
-            case 2:
-                message = this.crdt2.prepare(operation[1], state, replicaId);
-                break;
+    receiveInternalForChild(
+        child: Crdt, targetPath: string[],
+        timestamp: CausalTimestamp,
+        message: Uint8Array
+    ): boolean {
+        switch (child) {
+            case this.crdt2:
+                this.state.add(
+                    this.runtime.getReplicaId(),
+                    message,
+                    timestamp
+                );
+                return this.crdt2.receive(targetPath, timestamp, message);
+            case this.crdt1:
+                // TODO
+                return true;
             default:
-                throw new Error("Bad crdt number in operation: " + operation);
+                // Not involved with semidirect product
+                return child.receive(
+                    targetPath, timestamp, message
+                );
         }
-        if (message == null) return null;
-        else return [operation[0], message];
-    }
-    /**
-     * Message/descrption format: [crdt number (1 or 2),
-     * message for/description from that crdt].
-     * An exception is if the description from the internal
-     * crdt is null,
-     * the returned description is just null, not [1, null] or [2, null].
-     * This allows the Crdt class to optimize away calling onchange.
-     * TODO: perhaps add translating descriptions to this class, so
-     * the Crdt doesn't have to understand all of the layers at
-     * once?
-     */
-    effect(message: [number, any], state: S, replicaId: any, timestamp: CausalTimestamp): [S, [number, any] | null] {
-        let result: [S, any];
-        switch (message[0]) {
-            case 1:
-                result = this.crdt1.effect(message[1], state, replicaId, timestamp);
-                break;
-            case 2:
-                result = this.crdt2.effect(message[1], state, replicaId, timestamp);
-                break;
-            default:
-                throw new Error("Bad crdt number in message: " + message);
-        }
-        if (result[1] === null) return [result[0], null];
-        else return [result[0], [message[0], result[1]]];
     }
 }
