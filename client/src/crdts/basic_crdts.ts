@@ -1,6 +1,6 @@
 import { CrdtChangeEvent, Crdt, SemidirectProduct, OptionalResettableCrdt } from ".";
 import { CausalTimestamp, CrdtRuntime } from "../network";
-import {CounterMessage, MultRegisterMessage} from "./basic_crdts_proto";
+import {CounterMessage, MultRegisterMessage} from "../proto_compiled";
 
 export class CrdtAddEvent implements CrdtChangeEvent {
     type = "add";
