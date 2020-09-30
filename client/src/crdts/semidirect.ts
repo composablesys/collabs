@@ -1,5 +1,5 @@
-import { OptionalResettableCrdt } from ".";
-import { CausalTimestamp, CrdtRuntime } from "../network";
+import { CrdtRuntime } from "./crdt_core";
+import { CausalTimestamp } from "../network";
 import { Crdt } from "./crdt_core";
 
 // TODO: future opts: indexed messages; setting the history
@@ -152,11 +152,10 @@ export class SemidirectState<S> {
     }
 }
 
-export class SemidirectProduct<S extends Object> extends OptionalResettableCrdt<SemidirectState<S>> {
+export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>> {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
-        resettable = true,
         historyTimestamps = false,
         historyDiscard1Dominated = false,
         historyDiscard2Dominated = false,
@@ -164,7 +163,7 @@ export class SemidirectProduct<S extends Object> extends OptionalResettableCrdt<
         super(parentOrRuntime, id, new SemidirectState(
             historyTimestamps, historyDiscard1Dominated,
             historyDiscard2Dominated
-        ), resettable);
+        ));
     }
 
     crdt1!: Crdt<S>;

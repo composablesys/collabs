@@ -1,0 +1,4 @@
+message CrdtRuntimeMessage {
+    required bytes innerMessage = 1;
+    repeated string fullId = 2;
+}

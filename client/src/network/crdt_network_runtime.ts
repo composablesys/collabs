@@ -1,5 +1,5 @@
-import { CrdtRuntime, CausalTimestamp, CrdtMessageListener } from './crdt_runtime_interface';
-import { VectorClock } from './vector_clock';
+import { CausalTimestamp,CrdtNetwork,VectorClock } from '.';
+import { CrdtRuntime} from '../crdts';
 // import WebSocket = require("ws");
 
 // The casual broadcast network designed for a two-way interactive
@@ -15,11 +15,11 @@ export class myMessage {
     /**
      * Crdt update message.
      */
-    message : any;
+    message : Uint8Array;
     /**
-     * Unique crdtId for identification.
+     * Unique group for identification.
      */
-    crdtId : any;
+    group: string
     /**
      * Timestamp for casuality/concurrency check.
      *
@@ -28,20 +28,21 @@ export class myMessage {
      */
     timestamp : VectorClock;
 
-    constructor (message : any, crdtId : any, timestamp : VectorClock) {
+    constructor (message : Uint8Array, group: string, timestamp : VectorClock) {
         this.message = message;
-        this.crdtId = crdtId;
+        this.group = group;
         this.timestamp = timestamp;
     }
     /**
      * customized toJSON function to convert message as JSON format.
+     * TODO: use protobufs.
      *
      * @returns package info in JSON format.
      */
     toJSON() : string {
         return JSON.stringify(
             {   "message" : this.message,
-                "crdtId" : this.crdtId,
+                "group" : this.group,
                 "timestamp" : {
                     "uid" : this.timestamp.uid,
                     "vectorMap" : Array.from(this.timestamp.vectorMap.entries())
@@ -52,7 +53,7 @@ export class myMessage {
 }
 
 /**
- * CasualBroadcastNetwork:
+ * WebSocketNetwork:
  *
  * Process initialization when starting a new user node.
  *
@@ -61,38 +62,37 @@ export class myMessage {
  *
  * Perform casuality check to ensure message ordering.
  */
-export class CrdtNetworkRuntime implements CrdtRuntime{
+export class WebSocketNetwork implements CrdtNetwork {
     /**
      * Unique ID for replica for identification.
      */
-    uid : any;
+    uid : string;
+    /**
+     * Registered CrdtRuntime.
+     */
+    crdtRuntime!: CrdtRuntime;
     /**
      * WebSocket for connection to server.
      */
     ws : WebSocket;
     /**
-     * Map stores all crdtId with its corresponding vector clock.
+     * Map stores all groups with its corresponding vector clock.
      */
-    vcMap : Map<any, VectorClock>;
+    vcMap : Map<string, VectorClock>;
     /**
      * Message buffer to store received message to ensure casual delivery.
      */
-    messageBuffer : Array<[any, any, VectorClock]>;
+    messageBuffer : Array<[Uint8Array, string, VectorClock]>;
     /**
      * Message waiting to be sent by the WebSocket
      */
     sendBuffer : Array<myMessage>;
-    /**
-     * The registered CRDT with corresponding CrdtMessageListener.
-     */
-    listenersById : Map<any, CrdtMessageListener>;
 
-    constructor (replicaId: any, webSocketArgs: string) {
+    constructor (replicaId: string, webSocketArgs: string) {
         this.uid = replicaId;
-        this.vcMap = new Map<any, VectorClock>();
-        this.messageBuffer = new Array<[any, any, VectorClock]>();
+        this.vcMap = new Map<string, VectorClock>();
+        this.messageBuffer = new Array<[Uint8Array, string, VectorClock]>();
         this.sendBuffer = new Array<myMessage>();
-        this.listenersById = new Map<any, CrdtMessageListener>();
         /**
          * Open WebSocket connection with server.
          * Register EventListener with corresponding event handler.
@@ -142,7 +142,7 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      */
     receiveAction = (data : any) => {
         let myPackage = this.parseJSON(data.data);
-        this.messageBuffer.push([myPackage.message, myPackage.crdtId, myPackage.timestamp]);
+        this.messageBuffer.push([myPackage.message, myPackage.group, myPackage.timestamp]);
         this.checkMessageBuffer();
     };
     /**
@@ -152,34 +152,16 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      * (e.g., to generate unique identifiers of the form (replica id, counter)).
      *
      */
-    getReplicaId() : any {
+    getReplicaId() : string {
         return this.uid;
     }
     /**
-     * Register newly created crdtId on CasualBroadcastNetwork.
+     * Register CrdtRuntime CasualBroadcastNetwork.
      *
-     * @param crdtId
+     * @param crdtRuntime
      */
-    registerCrdtId(crdtId : any) : void {
-        if (this.vcMap.has(crdtId)) {
-            throw new Error("Duplicate crdtId: " + crdtId);
-        }
-        this.vcMap.set(crdtId, new VectorClock(this.uid));
-    }
-    /**
-     * Register newly created crdt with its ID and corresponding message
-     * listener on CasualBroadcastNetwork.
-     *
-     * @param crdtMessageListener the message listener of each crdt.
-     * @param crdtId the ID of each crdt.
-     *
-     */
-    register(crdtMessageListener: CrdtMessageListener, crdtId: any) : void {
-        if (this.listenersById.has(crdtId) || this.vcMap.has(crdtId)) {
-            throw new Error("Duplicate crdtId: " + crdtId);
-        }
-        this.listenersById.set(crdtId, crdtMessageListener);
-        this.vcMap.set(crdtId, new VectorClock(this.uid));
+    register(crdtRuntime: CrdtRuntime) : void {
+        this.crdtRuntime = crdtRuntime;
     }
     /**
      * Send function on casualbroadcast network layer, which called
@@ -195,22 +177,20 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      * wait until WebSocket open.
      * If the WebSocket Readystate is Open, then send it with ws.send().
      *
-     * @param message the crdt update message.
-     * @param crdtId the unique ID for each crdt.
+     * @param group An identifier for the group that
+     * this message should be broadcast to.  A group
+     * encompasses both a set of replicas and a unit
+     * of causal consistency, i.e., messages should
+     * be causally consistent within a group but need
+     * not be across groups.
+     * @param message The message to send
+     * @param timestamp The CausalTimestamp returned by the
+     * last call to getNextTimestamp(group).
      */
-    send(message : any, crdtId : any) : void{
-        // Check if the crdtId exist in the map.
-        if (this.vcMap.has(crdtId)) {
-            this.vcMap.get(crdtId)!.increment();
-        } else {
-            this.vcMap.set(crdtId, new VectorClock(this.uid));
-            this.vcMap.get(crdtId)!.increment();
-        }
-
-        // Copy a new vector clock for sending
-        let vcCopy = new VectorClock(this.uid);
-        vcCopy.vectorMap = new Map<any, number>(this.vcMap.get(crdtId)?.asVectorClock()!);
-        let myPackage = new myMessage(message, crdtId, vcCopy!);
+    send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
+        let vc = timestamp as VectorClock;
+        this.vcMap.set(group, vc);
+        let myPackage = new myMessage(message, group, vc);
 
         // Convert the message into JSON
         if (this.ws.readyState === 1) {
@@ -230,13 +210,18 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      * message sent by this replica and given crdtId right now.
      *
      */
-    getNextTimestamp(crdtId: any) : CausalTimestamp {
+    getNextTimestamp(group: string) : CausalTimestamp {
         // Copy a new vector clock.
-        let vcCopy = new VectorClock(this.uid);
-        vcCopy.vectorMap = new Map<any, number>(this.vcMap.get(crdtId)?.asVectorClock()!);
+        let vc = this.vcMap.get(group);
+        if (!vc) {
+            vc = new VectorClock(this.uid, true);
+            this.vcMap.set(group, vc);
+        }
+        let vcCopy = new VectorClock(this.uid, true);
+        vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock()!);
 
         // Update the timestamp of this replica with next value.
-        vcCopy.vectorMap.set(this.uid, vcCopy.vectorMap.get(this.uid) as number + 1);
+        vcCopy.increment()
 
         return vcCopy;
     }
@@ -248,7 +233,10 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
      */
     parseJSON(data : string) : myMessage {
         let dataJSON = JSON.parse(data);
-        let vc = new VectorClock(dataJSON.timestamp.uid);
+        let vc = new VectorClock(
+            dataJSON.timestamp.uid,
+            this.uid === dataJSON.timestamp.uid
+        );
         vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
         let myPackage = new myMessage(dataJSON.message, dataJSON.crdtId, vc);
 
@@ -277,14 +265,16 @@ export class CrdtNetworkRuntime implements CrdtRuntime{
                 let myVectorClock = this.vcMap.get(curCrdtId);
                 if (myVectorClock?.isready(curVectorClock)) {
                     /**
-                     * Send back the received messages to crdtMessageListener.
+                     * Send back the received messages to crdtRuntime.
 
                      */
-                    if (this.listenersById.has(curCrdtId)) {
-                        this.listenersById.get(curCrdtId)?.receive(this.messageBuffer[index][0], curVectorClock);
-                        myVectorClock.incrementSender(curVectorClock);
-                        this.messageBuffer.splice(index, 1);
-                    }
+                    this.crdtRuntime.receive(
+                        this.messageBuffer[index][1],
+                        this.messageBuffer[index][0],
+                        this.messageBuffer[index][2]
+                    );
+                    myVectorClock.incrementSender(curVectorClock);
+                    this.messageBuffer.splice(index, 1);
                 }
             }
             index--;

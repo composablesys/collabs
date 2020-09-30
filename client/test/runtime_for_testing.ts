@@ -1,41 +1,29 @@
-import {CrdtRuntime, CrdtMessageListener, CausalTimestamp} from "../src/crdt_runtime_interface";
+import { CrdtRuntime } from "../src/crdts";
+import {CausalTimestamp, CrdtNetwork} from "../src/network";
 
-class TestingRuntime implements CrdtRuntime {
-    listenersById = new Map<any, CrdtMessageListener>();
+class TestingNetwork implements CrdtNetwork {
+    crdtRuntime!: CrdtRuntime;
     vectorClock = new Map<any, number>();
-    constructor(private generator : TestingRuntimeGenerator,
-            private replicaId : any) {
+    constructor(private generator : TestingNetworkGenerator,
+            private replicaId : string) {
         this.vectorClock.set(replicaId, 0);
     }
-    send(message: any, crdtId: any): void {
+    send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
         this.vectorClock.set(this.replicaId, this.vectorClock.get(
             this.replicaId) as number + 1
         );
-        let myReplicaId = this.replicaId;
-        let vcCopy = new Map(this.vectorClock);
-        let timestamp = {
-            getSender() { return myReplicaId; },
-            getSenderCounter() { return vcCopy.get(this.getSender()) as number;},
-            asVectorClock() { return vcCopy; }
-        }
-        let queueMap = this.generator.messageQueues.get(this) as
-            Map<TestingRuntime, Array<[any, any, CausalTimestamp]>>;
+        let queueMap = this.generator.messageQueues.get(this)!;
         for (let queue of queueMap.values()) {
-            // Use different copies for each Crdt, in case they
-            // modify message while processing it
-            queue.push([JSON.parse(JSON.stringify(message)), crdtId, timestamp]);
+            queue.push([group, message, timestamp]);
         }
     }
-    register(crdtMessageListener: CrdtMessageListener, crdtId: any): void {
-        if (this.listenersById.has(crdtId)) {
-            throw new Error("Duplicate crdtId: " + crdtId);
-        }
-        this.listenersById.set(crdtId, crdtMessageListener);
+    register(crdtRuntime: CrdtRuntime): void {
+        this.crdtRuntime = crdtRuntime;
     }
     getReplicaId() {
         return this.replicaId;
     }
-    getNextTimestamp() {
+    getNextTimestamp(_group: string) {
         let vcCopy = new Map(this.vectorClock);
         vcCopy.set(this.replicaId, this.vectorClock.get(
             this.replicaId) as number + 1
@@ -44,7 +32,8 @@ class TestingRuntime implements CrdtRuntime {
         let timestamp = {
             getSender() { return myReplicaId; },
             getSenderCounter() { return vcCopy.get(this.getSender()) as number;},
-            asVectorClock() { return vcCopy; }
+            asVectorClock() { return vcCopy; },
+            isLocal() { return true; }
         }
         return timestamp;
     }
@@ -55,43 +44,36 @@ class TestingRuntime implements CrdtRuntime {
  * (i.e., in-memory networking) that deliver messages
  * when release is called.
  */
-export class TestingRuntimeGenerator {
-    newRuntime(replicaId?: any) : TestingRuntime {
-        if (replicaId === undefined) replicaId = this.messageQueues.size;
-        let runtime = new TestingRuntime(this, replicaId);
-        let newQueue = new Map<TestingRuntime, Array<any>>();
+export class TestingNetworkGenerator {
+    newRuntime(replicaId?: string) {
+        if (replicaId === undefined) replicaId = this.messageQueues.size + "";
+        let network = new TestingNetwork(this, replicaId);
+        let newQueue = new Map<TestingNetwork, Array<any>>();
         for (let oldEntry of this.messageQueues.entries()) {
             newQueue.set(oldEntry[0], []);
-            oldEntry[1].set(runtime, []);
+            oldEntry[1].set(network, []);
         }
-        this.messageQueues.set(runtime, newQueue);
-        return runtime;
+        this.messageQueues.set(network, newQueue);
+        return new CrdtRuntime(network);
     }
     // Maps sender and recipient to an array of queued [message,
     // crdtId, timestamp] tuples.
-    messageQueues = new Map<TestingRuntime,
-        Map<TestingRuntime, Array<[any, any, CausalTimestamp]>>>();
+    messageQueues = new Map<TestingNetwork,
+        Map<TestingNetwork, Array<[string, Uint8Array, CausalTimestamp]>>>();
     /**
      * Release all queued messages sender to the specified recipients.
      * If recipients are not specified, releases them to all
      * recipients.  Only recipients that existed at the time
      * of sending will receive a message.
      */
-    release(sender: TestingRuntime, ...recipients: TestingRuntime[]) {
+    release(sender: TestingNetwork, ...recipients: TestingNetwork[]) {
         if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
-        let senderMap = this.messageQueues.get(sender) as
-            Map<TestingRuntime, Array<any>>;
+        let senderMap = this.messageQueues.get(sender)!;
         for (let recipient of recipients) {
             if (recipient === sender) continue;
-            for (let messagePair of (senderMap.get(recipient) as Array<[any, any, CausalTimestamp]>)) {
-                let listener = recipient.listenersById.get(
-                    messagePair[1]);
-                if (listener === undefined) {
-                    throw new Error("No Crdt with id " + messagePair[1] +
-                        " on replica " + recipient.getReplicaId());
-                }
-                listener.receive(messagePair[0], messagePair[2]);
-                recipient.vectorClock.set(sender.getReplicaId(), messagePair[2].getSenderCounter());
+            for (let message of senderMap.get(recipient)!) {
+                recipient.crdtRuntime.receive(...message);
+                recipient.vectorClock.set(sender.getReplicaId(), message[2].getSenderCounter());
             }
             senderMap.set(recipient, []);
         }

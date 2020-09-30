@@ -1,5 +1,5 @@
-import { Crdt, SemidirectProduct } from ".";
-import { CrdtRuntime } from "../network";
+import { Crdt, CrdtRuntime } from "./crdt_core";
+import { SemidirectProduct } from "./semidirect";
 
 export class ResetWrapperCrdt<S extends Object = any> extends SemidirectProduct<S> {
     /**
@@ -56,3 +56,5 @@ export class OptionalResettableCrdt<S extends Object = any> extends Crdt<S> {
         return this.isResettable;
     }
 }
+
+// TODO: optional resettable semidirect.

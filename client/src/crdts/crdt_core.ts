@@ -1,4 +1,5 @@
-import { CrdtRuntime, CausalTimestamp } from "../network";
+import { CrdtNetwork, CausalTimestamp } from "../network";
+import { CrdtRuntimeMessage } from "../proto_compiled";
 
 /**
  * An event issued when a CRDT is changed by another replica.
@@ -28,9 +29,16 @@ export class Crdt<S extends Object = any> {
     readonly id: string;
     /**
      * The id of this crdt and all of its ancestors in order
-     * from this crdt on up.
+     * from this crdt on up, excluding the root.
      */
-    readonly fullId: string[];
+    readonly pathToRoot: string[];
+    /**
+     * The id of the root Crdt, i.e., the highest-up
+     * ancestor.  The rootId corresponds to a CrdtNetwork
+     * group, so that Crdts with the same rootId are shared
+     * by the same set of replicas and are causally consistent.
+     */
+    readonly rootId: string;
     /**
      * All of this Crdt's mutable non-child-Crdt state should be stored
      * in state, which should have a descriptive type,
@@ -68,14 +76,16 @@ export class Crdt<S extends Object = any> {
         if ("isCrdt" in parentOrRuntime) {
             this.parent = parentOrRuntime;
             this.runtime = this.parent.runtime;
-            this.fullId = [id, ...this.parent.fullId];
+            this.pathToRoot = [id, ...this.parent.pathToRoot];
+            this.rootId = this.parent.rootId;
             this.parent.registerChild(this);
         }
         else {
             this.parent = null;
             this.runtime = parentOrRuntime;
-            this.fullId = [id];
-            this.runtime.register(this, this.id);
+            this.pathToRoot = [];
+            this.rootId = id;
+            this.runtime.register(this);
         }
     }
 
@@ -125,7 +135,7 @@ export class Crdt<S extends Object = any> {
     }
 
     send(message: Uint8Array) {
-        this.runtime.send(this.fullId, message);
+        this.runtime.send(this, message);
     }
 
     inReceiveInternal = false;
@@ -151,7 +161,7 @@ export class Crdt<S extends Object = any> {
             if (child === undefined) {
                 // TODO: deliver error somewhere
                 console.log("Unknown child: " + child +
-                        " in: " + JSON.stringify(this.fullId))
+                        " in: " + JSON.stringify(this.pathToRoot))
                 return false;
             }
             targetPath.length--;
@@ -206,5 +216,51 @@ export class Crdt<S extends Object = any> {
         return child.receive(
             targetPath, timestamp, message
         );
+    }
+}
+
+export class CrdtRuntime {
+    readonly rootCrdts = new Map<string, Crdt>();
+    constructor(readonly network: CrdtNetwork) {
+        this.network.register(this);
+    }
+
+    register(crdt: Crdt) {
+        this.rootCrdts.set(crdt.id, crdt);
+    }
+
+    send(sender: Crdt, message: Uint8Array) {
+        let timestamp = this.network.getNextTimestamp(sender.rootId);
+        // Deliver to self
+        // TODO: error handling
+        this.rootCrdts.get(sender.rootId)!.receive(
+            sender.pathToRoot, timestamp, message
+        );
+        let runtimeMessage = CrdtRuntimeMessage.create({
+            innerMessage: message,
+
+        });
+        let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish()
+        this.network.send(sender.rootId, buffer, timestamp);
+    }
+
+    /**
+     * Callback for CrdtNetwork.
+     */
+    receive(group: string, message: Uint8Array, timestamp: CausalTimestamp) {
+        try {
+            let decoded = CrdtRuntimeMessage.decode(message);
+            this.rootCrdts.get(group)!.receive(
+                decoded.fullId, timestamp, decoded.innerMessage
+            );
+        }
+        catch (e) {
+            // TODO
+            console.log("Decoding error: " + e);
+        }
+    }
+
+    getReplicaId(): string {
+        return this.network.getReplicaId();
     }
 }
