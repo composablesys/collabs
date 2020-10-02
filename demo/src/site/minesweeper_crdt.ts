@@ -8,12 +8,11 @@ enum GameStatus {
 
 enum TileStatus {
     COVERED = 0,
-    FLAGGED = -1,
-    REVEALED_EMPTY = -2,
-    BOOM = -3,
+    REVEALED_EMPTY = -1,
+    BOOM = -2,
 }
 
-export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, number, number], any, number]>[]> {
+export class MinesweeperCrdt extends crdts.Crdt<number[]> {
 
     width: number;
     height: number;
@@ -23,8 +22,7 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
         let board: number[] = Array(width * height);
         super(
             id,
-            new crdts.ArrayCrdtInternal(new crdts.MultiValueRegisterInternal()),
-            board,
+            new crdts.ArrayCrdtInternal(new crdts.MinesweeperInternal()),
             runtime,
             board
         );
@@ -39,7 +37,7 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
             return GameStatus.BOOM;
         }
 
-        if (this.isRevealed(x, y) || this.isFlag(x, y)) {
+        if (this.isRevealed(x, y)) {
             return GameStatus.CONT;
         }
 
@@ -49,27 +47,12 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
     }
 
     /**
-     * Flips the status of the flag if not revealed.
-     */
-    rightClicked(x: number, y: number) {
-        if (this.isRevealed(x, y)) {
-            return; // no-op
-        }
-
-        if (this.isFlag(x, y)) {
-            this.setValue(x, y, TileStatus.COVERED);
-        } else {
-            this.setValue(x, y, TileStatus.FLAGGED)
-        }
-    }
-
-    /**
      * A user wins when only mines are covered or flagged.
      */
     private hasWon(): GameStatus {
         for (let i = 0; i < this.width * this.height; i++) {
             let value = this.get(i);
-            if ((value === TileStatus.COVERED || value === TileStatus.FLAGGED) && !this.mines.has(value)) {
+            if (value === TileStatus.COVERED && !this.mines.has(value)) {
                 return GameStatus.CONT;
             }
         }
@@ -78,8 +61,8 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
 
     /**
      * Recursively traverses the board starting from (x, y) until there is
-     * at least one neighbor bomb.
-     * It assumes that (x, y) is not a bomb.
+     * at least one neighbor mine.
+     * It assumes that (x, y) is not a mine.
      */
     private reveal(x: number, y: number) {
         let neighbors: Array<[number, number]> = this.resolveNeighbors(x, y);
@@ -103,7 +86,7 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
         // Recursively call reveal on the non-revealed (or flagged) neighbors
         for (let neighbor of neighbors) {
             let [x_neighbor, y_neighbor]: [number, number] = neighbor;
-            if (!this.isRevealed(x_neighbor, y_neighbor) && !this.isFlag(x_neighbor, y_neighbor)) {
+            if (!this.isRevealed(x_neighbor, y_neighbor)) {
                 this.reveal(x_neighbor, y_neighbor)
             }
         }
@@ -111,8 +94,7 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
 
     private setValue(x: number, y: number, value: number) {
         let idx: number = this.getIndex(x, y);
-        // this.board[idx] = value;
-        // TODO
+        this.applyOp([idx, value])
         return;
     }
 
@@ -122,7 +104,7 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
     }
 
     private get(idx: number): number {
-        return -1 //TODO
+        return this.state[idx];
     }
 
     /**
@@ -139,14 +121,6 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
     }
 
     // <------- UTILITIES ------->
-
-    /**
-     * Returns true if the current cell is a flag, false otherwise.
-     */
-    private isFlag(x: number, y: number): boolean {
-        let value = this.getValue(x, y)
-        return value === TileStatus.FLAGGED;
-    }
 
     /**
      * Returns true if the current cell has been revealed, false otherwise.
@@ -174,8 +148,6 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
      */
     private resolveNeighbors(x: number, y: number): Array<[number, number]> {
         let neighbors: Array<[number, number]> = [];
-        // source:
-        // sorry, i was too lazy.
         for (let i = Math.max(0, x - 1); i <= Math.min(x + 1, this.width - 1); i++) {
             for (let j = Math.max(0, y - 1); j <= Math.min(y + 1, this.height - 1); j++) {
                 if (x !== i || y !== j) {
@@ -193,9 +165,9 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
      * @param y the y coordinate.
      */
     display(x: number, y: number): string {
-        if (this.isFlag(x, y)) {
-            return "F";
-        }
+        // if (this.isFlag(x, y)) {
+        //     return "F";
+        // }
 
         if (this.getValue(x, y) > 0) {
             return this.getValue(x, y).toString();
@@ -240,8 +212,6 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
                 return "turquoise"
             case TileStatus.REVEALED_EMPTY:
                 return "Gainsboro"
-            case TileStatus.FLAGGED:
-                return "orange"
             default:
                 return "black";
         }
@@ -267,6 +237,7 @@ export class MinesweeperCrdt extends crdts.DefaultResetWinsCrdt<Set<[[number, nu
             indices.splice(minePos, 1);
             numMines--;
         }
-        return new Set(mines);
+        console.debug(mines.toString())
+        return new Set([1, 16, 60, 34, 12, 15, 200, 250, 150, 140, 250, 111, 80, 79]);
     }
 }

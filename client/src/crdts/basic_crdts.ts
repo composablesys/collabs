@@ -256,3 +256,33 @@ export class MultiValueRegister<T> extends Crdt<Set<[T, any, number]>> {
     }
     // TODO: reset strong
 }
+
+export class MinesweeperInternal implements CrdtInternal<number> {
+    create(initialData?: number): number {
+        if (initialData !== undefined) return initialData;
+        else return 0;
+    }
+    prepare(operation: number, _state: number, _replicaId: any): number {
+        return operation;
+    }
+    effect(message: number, state: number, _replicaId: any, _timestamp: CausalTimestamp): [number, number] {
+        if (state !== 0) {
+            return [state, message];
+        } else {
+            return [message, message];
+        }
+    }
+    static instance = new MinesweeperInternal();
+}
+
+export class MinesweeperCrdt extends Crdt<number> {
+    constructor(id: any, runtime: CrdtRuntime, initialData?: number) {
+        super(id, MinesweeperInternal.instance, runtime, initialData);
+    }
+    get value() : number {
+        return this.state;
+    }
+    set value(newValue: number) {
+        this.applyOp(newValue);
+    }
+}

@@ -1,7 +1,9 @@
 /* Creating the grid */
-import {Minesweeper} from "./minesweeper_array";
+import {MinesweeperCrdt} from "./minesweeper_crdt";
+import { network } from 'compoventuals-client';
+import { v4 as uuid } from 'uuid';
 
-function grid(game: Minesweeper) {
+function grid(game: MinesweeperCrdt) {
     let board = document.getElementById("board")
     // @ts-ignore
     board.innerHTML = ""
@@ -19,11 +21,11 @@ function grid(game: Minesweeper) {
                 game.leftClicked(i, j);
                 grid(game);
             });
-            box.addEventListener("contextmenu", function (e) {
-                e.preventDefault();
-                game.rightClicked(i, j);
-                grid(game);
-            });
+            // box.addEventListener("contextmenu", function (e) {
+            //     e.preventDefault();
+            //     game.rightClicked(i, j);
+            //     grid(game);
+            // });
             box.appendChild(document.createTextNode(game.display(i, j)))
             box.style.color = game.color(i, j)
             row.appendChild(box);
@@ -34,7 +36,16 @@ function grid(game: Minesweeper) {
     }
 }
 
-let game = new Minesweeper(16, 16, 40)
+let HOST = location.origin.replace(/^http/, 'ws')
+
+const client_uuid : string = uuid();
+
+/**
+ * Generate CRDTs' Runtime on each client and create CRDTs (e.g. CounterCrdt).
+ */
+let client = new network.CrdtNetworkRuntime(client_uuid, HOST);
+
+let game = new MinesweeperCrdt("minesweeperId", client,16, 16, 40)
 
 grid(game);
 
