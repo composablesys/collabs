@@ -1,84 +1,78 @@
-// import { CrdtRuntime, CausalTimestamp } from "../network";
-// import { DefaultResettableCrdt } from "./resettable";
-// import { CounterInternal, MultRegisterInternal } from "./basic_crdts";
-// import { Crdt, CrdtInternal } from "./crdt_core";
-// import { SemidirectState, SemidirectInternal, DirectInternal } from "./semidirect";
-//
-// export class UnresettableIntRegisterCrdt extends Crdt<SemidirectState<number>> {
-//     // semidirectInstance completely describes this semidirect product
-//     static semidirectInstance = new SemidirectInternal<number>(
-//         CounterInternal.instance, MultRegisterInternal.instance,
-//         (m2: number, m1: number) => m2*m1, 1
-//     );
-//     constructor(id: any, runtime: CrdtRuntime, initialData?: any) {
-//         super(id, IntRegisterCrdt.semidirectInstance, runtime, initialData);
-//     }
-//     increment() {
-//         this.add(1);
-//     }
-//     decrement() {
-//         this.add(-1);
-//     }
-//     add(n: number) {
-//         this.applyOp([1,n]);
-//     }
-//     mult(n: number) {
-//         this.applyOp([2,n]);
-//     }
-//     get value() : number {
-//         return this.state.internalState;
-//     }
-//     protected translateDescriptions(descriptions: Array<[number, number]>): [string, number] {
-//         let description = descriptions[0];
-//         if (description[0] === 1) return ["add", description[1]];
-//         else return ["mult", description[1]];
-//     }
-// }
-//
-// export class IntRegisterCrdt extends DefaultResettableCrdt<SemidirectState<number>> {
-//     static semidirectInstance = new SemidirectInternal<number>(
-//         CounterInternal.instance, MultRegisterInternal.instance,
-//         (m2: number, m1: number) => m2*m1, 1
-//     );
-//     constructor(id: any, runtime: CrdtRuntime,
-//             initialValue: number = 0, resetValue: number = 0) {
-//         super(id, IntRegisterCrdt.semidirectInstance, resetValue, runtime, initialValue);
-//     }
-//     increment() {
-//         this.add(1);
-//     }
-//     decrement() {
-//         this.add(-1);
-//     }
-//     add(n: number) {
-//         this.applyOp([1, n]);
-//     }
-//     mult(n: number) {
-//         this.applyOp([2, n]);
-//     }
-//     get value() : number {
-//         return this.originalStateResettable.internalState;
-//     }
-//     /**
-//      * Performs an equivalent reset-then-add.
-//      */
-//     set value(newValue: number) {
-//         this.startTransaction();
-//         this.reset();
-//         this.add(newValue);
-//         this.endTransaction();
-//     }
-//     protected translateDescriptionsResettable(descriptions: Array<[number | string, number]>): [string, number] {
-//         if (descriptions.length === 2) {
-//             // Transaction due to set value, return the resulting state
-//             return ["set", descriptions[1][1]];
-//         }
-//         let description = descriptions[0];
-//         if (description[0] === 1) return ["add", description[1]];
-//         else if (description[0] === 1) return ["mult", description[1]];
-//         else return [description[0] as string, this.value]; // resets
-//     }
-// }
+import { CausalTimestamp } from "../network";
+import { CounterMessage, MultRegisterMessage } from "../proto_compiled";
+import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState } from "./basic_crdts";
+import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
+import { SemidirectProduct } from "./semidirect";
+
+// TODO: make resettable
+export class NumberCrdt extends SemidirectProduct<NumberState> {
+    private addCrdt: CounterCrdt;
+    private multCrdt: MultRegisterCrdt;
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        initialValue: number = 0
+    ) {
+        super(parentOrRuntime, id);
+        this.addCrdt = new CounterCrdt(this, "add", 0/*, false*/);
+        this.multCrdt = new MultRegisterCrdt(this, "mult", 0/*, false*/);
+        super.setup(
+            this.addCrdt, this.multCrdt,
+            this.action.bind(this),
+            new NumberState(initialValue)
+        )
+        this.addCrdt.addEventListener(
+            "Add", (event: CrdtEvent) => {
+                super.dispatchEvent(new AddEvent(
+                    this, event.timestamp,
+                    (event as AddEvent).valueAdded
+                ))
+            }
+        );
+        this.multCrdt.addEventListener(
+            "Mult", (event: CrdtEvent) => {
+                super.dispatchEvent(new MultEvent(
+                    this, event.timestamp,
+                    (event as MultEvent).valueMulted
+                ))
+            }
+        );
+    }
+
+    action(
+        _m2TargetPath: string[],
+        _m2Timestamp: CausalTimestamp | null,
+        m2Message: Uint8Array,
+        _m1TargetPath: string[],
+        _m1Timestamp: CausalTimestamp,
+        m1Message: Uint8Array
+    ): [string[], Uint8Array] | null {
+        try {
+            let m2Decoded = MultRegisterMessage.decode(m2Message);
+            let m1Decoded = CounterMessage.decode(m1Message);
+            let acted = CounterMessage.create({toAdd: m2Decoded.toMult * m1Decoded.toAdd});
+            return [[], CounterMessage.encode(acted).finish()]
+        }
+        catch (e) {
+            // TODO
+            console.log("Decoding error: " + e);
+            return null;
+        }
+    }
+
+    add(n: number) {
+        this.addCrdt.add(n);
+    }
+
+    mult(n: number) {
+        this.multCrdt.mult(n);
+    }
+
+    get value(): number {
+        return this.state.internalState.value;
+    }
+}
+
 //
 // function positiveMod(a: number, b: number) {
 //     if (a >= 0) return a % b;

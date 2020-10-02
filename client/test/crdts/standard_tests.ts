@@ -1,11 +1,10 @@
-// import assert from 'assert';
-// import {TestingRuntimeGenerator} from "../runtime_for_testing";
-// import { EnableWinsFlag, DisableWinsFlag, IntRegisterCrdt, UnresettableIntRegisterCrdt, AddWinsSet, CrdtObject, MapCrdt, OrthogonalCrdt } from '../../src/crdts/standard';
-// import { CrdtRuntime } from '../../src/crdt_runtime_interface';
-//
-// let runtimeGen = new TestingRuntimeGenerator();
-// let alice = runtimeGen.newRuntime("alice");
-// let bob = runtimeGen.newRuntime("bob");
+import assert from 'assert';
+import { NumberCrdt } from '../../src/crdts/standard';
+import { TestingNetworkGenerator } from '../runtime_for_testing';
+
+let runtimeGen = new TestingNetworkGenerator();
+let alice = runtimeGen.newRuntime("alice");
+let bob = runtimeGen.newRuntime("bob");
 //
 // function testEwFlag() {
 //     console.log("testEwFlag()...");
@@ -16,24 +15,24 @@
 //     let bobFlag = new EnableWinsFlag("ewFlagId", bob);
 //     bobFlag.onchange = (event => console.log(
 //         "Bob: " + event.timestamp.getSender() + " did " + event.description));
-//     assert.equal(aliceFlag.enabled, false);
-//     assert.equal(bobFlag.enabled, false);
+//     assert.strictEqual(aliceFlag.enabled, false);
+//     assert.strictEqual(bobFlag.enabled, false);
 //
 //     aliceFlag.enable();
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, true);
-//     assert.equal(bobFlag.enabled, true);
+//     assert.strictEqual(aliceFlag.enabled, true);
+//     assert.strictEqual(bobFlag.enabled, true);
 //
 //     aliceFlag.disable();
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, false);
-//     assert.equal(bobFlag.enabled, false);
+//     assert.strictEqual(aliceFlag.enabled, false);
+//     assert.strictEqual(bobFlag.enabled, false);
 //
 //     aliceFlag.enable();
 //     bobFlag.disable();
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, true);
-//     assert.equal(bobFlag.enabled, true);
+//     assert.strictEqual(aliceFlag.enabled, true);
+//     assert.strictEqual(bobFlag.enabled, true);
 //
 //     console.log("...ok");
 // }
@@ -47,149 +46,106 @@
 //     let bobFlag = new DisableWinsFlag("dwFlagId", bob);
 //     bobFlag.onchange = (event => console.log(
 //         "Bob: " + event.timestamp.getSender() + " did " + event.description));
-//     assert.equal(aliceFlag.enabled, true);
-//     assert.equal(bobFlag.enabled, true);
+//     assert.strictEqual(aliceFlag.enabled, true);
+//     assert.strictEqual(bobFlag.enabled, true);
 //
 //     aliceFlag.disable();
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, false);
-//     assert.equal(bobFlag.enabled, false);
+//     assert.strictEqual(aliceFlag.enabled, false);
+//     assert.strictEqual(bobFlag.enabled, false);
 //
 //     bobFlag.enable();
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, true);
-//     assert.equal(bobFlag.enabled, true);
+//     assert.strictEqual(aliceFlag.enabled, true);
+//     assert.strictEqual(bobFlag.enabled, true);
 //
 //     aliceFlag.disable();
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, false);
-//     assert.equal(bobFlag.enabled, false);
+//     assert.strictEqual(aliceFlag.enabled, false);
+//     assert.strictEqual(bobFlag.enabled, false);
 //
 //     aliceFlag.enable();
 //     bobFlag.disable();
-//     assert.equal(aliceFlag.enabled, true);
+//     assert.strictEqual(aliceFlag.enabled, true);
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceFlag.enabled, false);
-//     assert.equal(bobFlag.enabled, false);
+//     assert.strictEqual(aliceFlag.enabled, false);
+//     assert.strictEqual(bobFlag.enabled, false);
 //
 //     console.log("...ok");
 // }
-//
-// function testIntRegister() {
-//     console.log("testIntRegister()...");
-//
-//     let aliceIntRegister = new IntRegisterCrdt("intRegisterId", alice);
-//     aliceIntRegister.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     let bobIntRegister = new IntRegisterCrdt("intRegisterId", bob);
-//     bobIntRegister.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     assert.equal(aliceIntRegister.value, 0);
-//     assert.equal(bobIntRegister.value, 0);
-//
-//     aliceIntRegister.add(3);
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, 3);
-//     assert.equal(bobIntRegister.value, 3);
-//
-//     bobIntRegister.mult(-4);
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, -12);
-//     assert.equal(bobIntRegister.value, -12);
-//
-//     aliceIntRegister.add(7);
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, -5);
-//     assert.equal(bobIntRegister.value, -5);
-//
-//     // Out of order tests
-//     aliceIntRegister.add(2);
-//     assert.equal(aliceIntRegister.value, -3);
-//     assert.equal(bobIntRegister.value, -5);
-//
-//     bobIntRegister.mult(5);
-//     assert.equal(aliceIntRegister.value, -3);
-//     assert.equal(bobIntRegister.value, -25);
-//
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, -15);
-//     assert.equal(bobIntRegister.value, -15);
-//     console.log("...ok");
-// }
-//
-// function testFromPaper() {
-//     // The +/x example from the figure in the paper
-//     console.log("testFromPaper()...");
-//
-//     let aliceIntRegister = new IntRegisterCrdt("intRegisterId2", alice, 1);
-//     aliceIntRegister.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     let bobIntRegister = new IntRegisterCrdt("intRegisterId2", bob, 1);
-//     bobIntRegister.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     assert.equal(aliceIntRegister.value, 1);
-//     assert.equal(bobIntRegister.value, 1);
-//
-//     aliceIntRegister.mult(2);
-//     aliceIntRegister.add(1);
-//     bobIntRegister.mult(3);
-//     bobIntRegister.add(4);
-//     assert.equal(aliceIntRegister.value, 3);
-//     assert.equal(bobIntRegister.value, 7);
-//
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, 17);
-//     assert.equal(bobIntRegister.value, 17);
-//     console.log("...ok");
-// }
-//
-// function testUnresettableIntRegister() {
-//     console.log("testIntRegister()...");
-//
-//     let aliceIntRegister = new UnresettableIntRegisterCrdt("intRegisterId3", alice);
-//     aliceIntRegister.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     let bobIntRegister = new UnresettableIntRegisterCrdt("intRegisterId3", bob);
-//     bobIntRegister.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     assert.equal(aliceIntRegister.value, 0);
-//     assert.equal(bobIntRegister.value, 0);
-//
-//     aliceIntRegister.add(3);
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, 3);
-//     assert.equal(bobIntRegister.value, 3);
-//
-//     bobIntRegister.mult(-4);
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, -12);
-//     assert.equal(bobIntRegister.value, -12);
-//
-//     aliceIntRegister.add(7);
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, -5);
-//     assert.equal(bobIntRegister.value, -5);
-//
-//     // Out of order tests
-//     aliceIntRegister.add(2);
-//     assert.equal(aliceIntRegister.value, -3);
-//     assert.equal(bobIntRegister.value, -5);
-//
-//     bobIntRegister.mult(5);
-//     assert.equal(aliceIntRegister.value, -3);
-//     assert.equal(bobIntRegister.value, -25);
-//
-//     runtimeGen.releaseAll();
-//     assert.equal(aliceIntRegister.value, -15);
-//     assert.equal(bobIntRegister.value, -15);
-//     console.log("...ok");
-// }
+
+function testNumber() {
+    console.log("testNumber()...");
+
+    let aliceNumber = new NumberCrdt(alice, "numberId");
+    // TODO
+    // aliceNumber.onchange = (event => console.log(
+    //     "Alice: " + event.timestamp.getSender() + " " +
+    //     event.description[0] + "ed " + event.description[1]));
+    let bobNumber = new NumberCrdt(bob, "numberId");
+    // bobNumber.onchange = (event => console.log(
+    //     "Bob: " + event.timestamp.getSender() + " " +
+    //     event.description[0] + "ed " + event.description[1]));
+    assert.strictEqual(aliceNumber.value, 0);
+    assert.strictEqual(bobNumber.value, 0);
+
+    aliceNumber.add(3);
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceNumber.value, 3);
+    assert.strictEqual(bobNumber.value, 3);
+
+    bobNumber.mult(-4);
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceNumber.value, -12);
+    assert.strictEqual(bobNumber.value, -12);
+
+    aliceNumber.add(7);
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceNumber.value, -5);
+    assert.strictEqual(bobNumber.value, -5);
+
+    // Out of order tests
+    aliceNumber.add(2);
+    assert.strictEqual(aliceNumber.value, -3);
+    assert.strictEqual(bobNumber.value, -5);
+
+    bobNumber.mult(5);
+    assert.strictEqual(aliceNumber.value, -3);
+    assert.strictEqual(bobNumber.value, -25);
+
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceNumber.value, -15);
+    assert.strictEqual(bobNumber.value, -15);
+    console.log("...ok");
+}
+
+function testFromPaper() {
+    // The +/x example from the figure in the paper
+    console.log("testFromPaper()...");
+
+    let aliceNumber = new NumberCrdt(alice, "numberId2", 1);
+    // aliceNumber.onchange = (event => console.log(
+    //     "Alice: " + event.timestamp.getSender() + " " +
+    //     event.description[0] + "ed " + event.description[1]));
+    let bobNumber = new NumberCrdt(bob, "numberId2", 1);
+    // bobNumber.onchange = (event => console.log(
+    //     "Bob: " + event.timestamp.getSender() + " " +
+    //     event.description[0] + "ed " + event.description[1]));
+    assert.strictEqual(aliceNumber.value, 1);
+    assert.strictEqual(bobNumber.value, 1);
+
+    aliceNumber.mult(2);
+    aliceNumber.add(1);
+    bobNumber.mult(3);
+    bobNumber.add(4);
+    assert.strictEqual(aliceNumber.value, 3);
+    assert.strictEqual(bobNumber.value, 7);
+
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceNumber.value, 17);
+    assert.strictEqual(bobNumber.value, 17);
+    console.log("...ok");
+}
 //
 // function testOrthogonal() {
 //     console.log("testOrthogonal()...");
@@ -252,14 +208,14 @@
 //     console.log("...ok");
 // }
 //
-// class BiCounter extends CrdtObject<string, IntRegisterCrdt> {
-//     a: IntRegisterCrdt;
-//     b: IntRegisterCrdt;
+// class BiCounter extends CrdtObject<string, NumberCrdt> {
+//     a: NumberCrdt;
+//     b: NumberCrdt;
 //     constructor(crdtId: any, runtime: CrdtRuntime) {
 //         super(crdtId, runtime);
 //         this.startPredefinedPropertyCreation();
-//         this.a = new IntRegisterCrdt("a", this, 1);
-//         this.b = new IntRegisterCrdt("b", this, 1);
+//         this.a = new NumberCrdt("a", this, 1);
+//         this.b = new NumberCrdt("b", this, 1);
 //         this.endPredefinedPropertyCreation();
 //     }
 // }
@@ -283,33 +239,33 @@
 //     bobBi.b.onchange = (event => console.log(
 //         "Bob b: " + event.timestamp.getSender() + " " +
 //         event.description[0] + "ed " + event.description[1]));
-//     assert.equal(aliceBi.a.value, 1);
-//     assert.equal(bobBi.a.value, 1);
+//     assert.strictEqual(aliceBi.a.value, 1);
+//     assert.strictEqual(bobBi.a.value, 1);
 //
 //     aliceBi.a.mult(2);
 //     aliceBi.a.add(1);
 //     bobBi.a.mult(3);
 //     bobBi.a.add(4);
-//     assert.equal(aliceBi.a.value, 3);
-//     assert.equal(bobBi.a.value, 7);
+//     assert.strictEqual(aliceBi.a.value, 3);
+//     assert.strictEqual(bobBi.a.value, 7);
 //
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceBi.a.value, 17);
-//     assert.equal(bobBi.a.value, 17);
+//     assert.strictEqual(aliceBi.a.value, 17);
+//     assert.strictEqual(bobBi.a.value, 17);
 //
-//     assert.equal(aliceBi.b.value, 1);
-//     assert.equal(bobBi.b.value, 1);
+//     assert.strictEqual(aliceBi.b.value, 1);
+//     assert.strictEqual(bobBi.b.value, 1);
 //
 //     aliceBi.b.mult(2);
 //     aliceBi.b.add(1);
 //     bobBi.b.mult(3);
 //     bobBi.b.add(4);
-//     assert.equal(aliceBi.b.value, 3);
-//     assert.equal(bobBi.b.value, 7);
+//     assert.strictEqual(aliceBi.b.value, 3);
+//     assert.strictEqual(bobBi.b.value, 7);
 //
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceBi.b.value, 17);
-//     assert.equal(bobBi.b.value, 17);
+//     assert.strictEqual(aliceBi.b.value, 17);
+//     assert.strictEqual(bobBi.b.value, 17);
 //
 //     console.log("...ok");
 // }
@@ -400,10 +356,10 @@
 // function testMap() {
 //     console.log("testMap()...");
 //
-//     let aliceMap = new MapCrdt<string, IntRegisterCrdt>("map", alice,
-//             (key: string, internalRuntime: CrdtRuntime) => new IntRegisterCrdt(key, internalRuntime));
-//     let bobMap = new MapCrdt<string, IntRegisterCrdt>("map", bob,
-//             (key: string, internalRuntime: CrdtRuntime) => new IntRegisterCrdt(key, internalRuntime));
+//     let aliceMap = new MapCrdt<string, NumberCrdt>("map", alice,
+//             (key: string, internalRuntime: CrdtRuntime) => new NumberCrdt(key, internalRuntime));
+//     let bobMap = new MapCrdt<string, NumberCrdt>("map", bob,
+//             (key: string, internalRuntime: CrdtRuntime) => new NumberCrdt(key, internalRuntime));
 //
 //     assertSetEquals(new Set(aliceMap.keys()), new Set([]));
 //     assertSetEquals(new Set(bobMap.keys()), new Set([]));
@@ -416,19 +372,19 @@
 //     assert(aliceMap.has("test"));
 //     assert(bobMap.has("test"));
 //
-//     let aliceTest = aliceMap.get("test") as IntRegisterCrdt;
+//     let aliceTest = aliceMap.get("test") as NumberCrdt;
 //     assert(aliceTest);
-//     let bobTest = bobMap.get("test") as IntRegisterCrdt;
+//     let bobTest = bobMap.get("test") as NumberCrdt;
 //     assert(bobTest);
-//     assert.equal(aliceTest.value, 0);
-//     assert.equal(bobTest.value, 0);
+//     assert.strictEqual(aliceTest.value, 0);
+//     assert.strictEqual(bobTest.value, 0);
 //
 //     // Value ops work
 //     aliceTest.add(3);
 //     bobTest.add(4);
 //     runtimeGen.releaseAll();
-//     assert.equal(aliceTest.value, 7);
-//     assert.equal(bobTest.value, 7);
+//     assert.strictEqual(aliceTest.value, 7);
+//     assert.strictEqual(bobTest.value, 7);
 //
 //     // Delete works
 //     bobMap.delete("test");
@@ -444,29 +400,29 @@
 //     assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
 //
 //     // Concurrent operation revives key
-//     let bobRegister = bobMap.get("register") as IntRegisterCrdt;
+//     let bobRegister = bobMap.get("register") as NumberCrdt;
 //     aliceMap.delete("register");
 //     bobRegister.add(3);
 //     runtimeGen.releaseAll();
 //     assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
 //     assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
-//     assert.equal(bobRegister.value, 3);
-//     assert.equal((aliceMap.get("register") as IntRegisterCrdt).value, 3);
+//     assert.strictEqual(bobRegister.value, 3);
+//     assert.strictEqual((aliceMap.get("register") as NumberCrdt).value, 3);
 //
 //     // Reset tests
 //     // Concurrent op revives
-//     let aliceRegister = aliceMap.get("register") as IntRegisterCrdt;
+//     let aliceRegister = aliceMap.get("register") as NumberCrdt;
 //     aliceMap.reset();
 //     assertSetEquals(new Set(aliceMap.keys()), new Set([]));
-//     assert.equal(aliceMap.get("register"), undefined);
-//     assert.equal(aliceRegister.value, 0);
+//     assert.strictEqual(aliceMap.get("register"), undefined);
+//     assert.strictEqual(aliceRegister.value, 0);
 //     bobRegister.add(5);
 //     runtimeGen.releaseAll();
 //     assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
 //     assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
-//     assert.equal(bobRegister.value, 5);
-//     assert.equal(aliceRegister, aliceMap.get("register"));
-//     assert.equal(aliceRegister.value, 5);
+//     assert.strictEqual(bobRegister.value, 5);
+//     assert.strictEqual(aliceRegister, aliceMap.get("register"));
+//     assert.strictEqual(aliceRegister.value, 5);
 //
 //     // Causally later op revives
 //     bobMap.reset();
@@ -474,9 +430,9 @@
 //     runtimeGen.releaseAll();
 //     assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
 //     assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
-//     assert.equal(bobRegister.value, 7);
-//     assert.equal(aliceRegister, aliceMap.get("register"));
-//     assert.equal(aliceRegister.value, 7);
+//     assert.strictEqual(bobRegister.value, 7);
+//     assert.strictEqual(aliceRegister, aliceMap.get("register"));
+//     assert.strictEqual(aliceRegister.value, 7);
 //
 //     // TODO: strong delete, strong resets, nesting?
 //     console.log("...ok");
@@ -484,32 +440,31 @@
 //
 // testEwFlag();
 // testDwFlag();
-// testIntRegister();
-// testFromPaper();
-// testUnresettableIntRegister();
+testNumber();
+testFromPaper();
 // testOrthogonal();
 // testCrdtObject();
 // testAwSet();
 // testMap();
-//
-//
-// // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
-// function isSuperset<T>(set: Set<T>, subset: Set<T>) {
-//     for (let elem of subset) {
-//         if (!set.has(elem)) {
-//             return false
-//         }
-//     }
-//     return true
-// }
-// function setEquals<T>(set1: Set<T>, set2: Set<T>) {
-//     return isSuperset(set1, set2) && isSuperset(set2, set1);
-// }
-// function assertSetEquals<T>(set1: Set<T>, set2: Set<T>) {
-//     if(!setEquals(set1, set2)) {
-//         throw new Error("setEquals failed, actual: " +
-//             JSON.stringify([...set1.values()]) + ", expected: " +
-//             JSON.stringify([...set2.values()]));
-//     }
-//     assert(setEquals(set1, set2));
-// }
+
+
+// From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
+function isSuperset<T>(set: Set<T>, subset: Set<T>) {
+    for (let elem of subset) {
+        if (!set.has(elem)) {
+            return false
+        }
+    }
+    return true
+}
+function setEquals<T>(set1: Set<T>, set2: Set<T>) {
+    return isSuperset(set1, set2) && isSuperset(set2, set1);
+}
+function assertSetEquals<T>(set1: Set<T>, set2: Set<T>) {
+    if(!setEquals(set1, set2)) {
+        throw new Error("setEquals failed, actual: " +
+            JSON.stringify([...set1.values()]) + ", expected: " +
+            JSON.stringify([...set2.values()]));
+    }
+    assert(setEquals(set1, set2));
+}

@@ -11,10 +11,11 @@ export class AddEvent implements CrdtEvent {
         public readonly valueAdded: number) { }
 }
 
-class NumberState {
+export class NumberState {
     constructor(public value: number) { }
 }
 
+// TODO: make resettable
 export class CounterCrdt extends Crdt<NumberState> {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -276,40 +277,3 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
         return values;
     }
 }
-
-// export class IntRegisterCrdt extends SemidirectProduct<NumberState> {
-//     addCrdt: CounterCrdt;
-//     multCrdt: MultRegisterCrdt;
-//     constructor(
-//         parentOrRuntime: Crdt | CrdtRuntime,
-//         id: string,
-//         initialValue: number = 0
-//     ) {
-//         super(parentOrRuntime, id);
-//         this.addCrdt = new CounterCrdt(this, "add", 0/*, false*/);
-//         this.multCrdt = new MultRegisterCrdt(this, "mult", 0/*, false*/);
-//         super.setup(
-//             this.addCrdt, this.multCrdt,
-//             this.action.bind(this),
-//             new NumberState(initialValue)
-//         )
-//     }
-//
-//     action(
-//         m2: Uint8Array, _m2Timestamp: CausalTimestamp,
-//         m1: Uint8Array
-//     ): Uint8Array | null
-//     {
-//         try {
-//             let m2Decoded = MultRegisterMessage.decode(m2);
-//             let m1Decoded = CounterMessage.decode(m1);
-//             let acted = CounterMessage.create({toAdd: m2Decoded.toMult * m1Decoded.toAdd});
-//             return CounterMessage.encode(acted).finish()
-//         }
-//         catch (e) {
-//             // TODO
-//             console.log("Decoding error: " + e);
-//             return null;
-//         }
-//     }
-// }

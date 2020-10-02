@@ -249,6 +249,9 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
                 );
                 let mAct: [string[], Uint8Array] = [targetPath, message];
                 for (let i = 0; i < concurrent.length; i++) {
+                    // TODO: can we avoid serializing and
+                    // deserializing each time?  Like
+                    // with ResetComponent.
                     let mActOrNull = this.actionVar(
                         concurrent[i].targetPath,
                         concurrent[i].timestamp,
