@@ -1,4 +1,5 @@
 import {crdts, network} from "compoventuals-client";
+import Rand from 'rand-seed';
 
 enum GameStatus {
     BOOM,
@@ -17,8 +18,9 @@ export class MinesweeperCrdt extends crdts.Crdt<number[]> {
     width: number;
     height: number;
     mines: Set<number>;
+    rand: Rand;
 
-    constructor(id: any, runtime: network.CrdtRuntime, width: number, height: number, numMines: number) {
+    constructor(id: any, runtime: network.CrdtRuntime, width: number, height: number, numMines: number, seed: string) {
         let board: number[] = Array(width * height);
         super(
             id,
@@ -28,7 +30,8 @@ export class MinesweeperCrdt extends crdts.Crdt<number[]> {
         );
         this.width = width;
         this.height = height;
-        this.mines = MinesweeperCrdt.placeMines(width, height, numMines);
+        this.rand = new Rand(seed);
+        this.mines = this.placeMines(width, height, numMines);
     }
 
     leftClicked(x: number, y: number): GameStatus {
@@ -165,10 +168,6 @@ export class MinesweeperCrdt extends crdts.Crdt<number[]> {
      * @param y the y coordinate.
      */
     display(x: number, y: number): string {
-        // if (this.isFlag(x, y)) {
-        //     return "F";
-        // }
-
         if (this.getValue(x, y) > 0) {
             return this.getValue(x, y).toString();
         }
@@ -220,24 +219,24 @@ export class MinesweeperCrdt extends crdts.Crdt<number[]> {
     /**
      * Utility function to get a number in range [0, max)
      */
-    private static getRandomInt(max: number) {
-        return Math.floor(Math.random() * Math.floor(max));
+    private getRandomInt(max: number) {
+        return Math.floor(this.rand.next() * Math.floor(max));
     }
 
     /**
      * Randomly places the mines on the board.
      * TODO - revisit this, as it doesnt hold.
      */
-    private static placeMines(width: number, height: number, numMines: number): Set<number> {
+    private placeMines(width: number, height: number, numMines: number): Set<number> {
         let indices = [...Array(width * height).keys()]
         let mines = Array(numMines);
         while (numMines > 0) {
-            let minePos = MinesweeperCrdt.getRandomInt(indices.length);
+            let minePos = this.getRandomInt(indices.length);
             mines[numMines - 1] = indices[minePos]
             indices.splice(minePos, 1);
             numMines--;
         }
         console.debug(mines.toString())
-        return new Set([1, 16, 60, 34, 12, 15, 200, 250, 150, 140, 250, 111, 80, 79]);
+        return new Set(mines);
     }
 }

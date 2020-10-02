@@ -11,6 +11,7 @@
     "compoventuals-demo": "file:demo",
     "compoventuals-server": "file:server",
     "express": "^4.17.1",
+    "rand-seed": "^0.1.4",
     "uuid": "^3.4.0",
     "ws": "^7.3.1"
   },

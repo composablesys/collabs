@@ -45,7 +45,9 @@ const client_uuid : string = uuid();
  */
 let client = new network.CrdtNetworkRuntime(client_uuid, HOST);
 
-let game = new MinesweeperCrdt("minesweeperId", client,16, 16, 40)
+let seed = '42';
+
+let game = new MinesweeperCrdt("minesweeperId", client,16, 16, 40, seed)
 
 grid(game);
 
