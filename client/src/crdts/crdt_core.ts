@@ -248,11 +248,11 @@ export class CrdtRuntime {
         // Deliver to self
         // TODO: error handling
         this.rootCrdts.get(sender.rootId)!.receive(
-            sender.pathToRoot, timestamp, message
+            sender.pathToRoot.slice(), timestamp, message
         );
         let runtimeMessage = CrdtRuntimeMessage.create({
             innerMessage: message,
-
+            pathToRoot: sender.pathToRoot
         });
         let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish()
         this.network.send(sender.rootId, buffer, timestamp);
@@ -265,7 +265,7 @@ export class CrdtRuntime {
         try {
             let decoded = CrdtRuntimeMessage.decode(message);
             this.rootCrdts.get(group)!.receive(
-                decoded.fullId, timestamp, decoded.innerMessage
+                decoded.pathToRoot, timestamp, decoded.innerMessage
             );
         }
         catch (e) {

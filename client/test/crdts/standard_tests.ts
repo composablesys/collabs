@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { AddEvent, MultEvent } from '../../src/crdts';
 import { NumberCrdt } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
@@ -78,14 +79,15 @@ function testNumber() {
     console.log("testNumber()...");
 
     let aliceNumber = new NumberCrdt(alice, "numberId");
-    // TODO
-    // aliceNumber.onchange = (event => console.log(
-    //     "Alice: " + event.timestamp.getSender() + " " +
-    //     event.description[0] + "ed " + event.description[1]));
+    aliceNumber.addEventListener("Add", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
+    aliceNumber.addEventListener("Mult", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
     let bobNumber = new NumberCrdt(bob, "numberId");
-    // bobNumber.onchange = (event => console.log(
-    //     "Bob: " + event.timestamp.getSender() + " " +
-    //     event.description[0] + "ed " + event.description[1]));
+    bobNumber.addEventListener("Add", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
+    bobNumber.addEventListener("Mult", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
     assert.strictEqual(aliceNumber.value, 0);
     assert.strictEqual(bobNumber.value, 0);
 
@@ -124,13 +126,15 @@ function testFromPaper() {
     console.log("testFromPaper()...");
 
     let aliceNumber = new NumberCrdt(alice, "numberId2", 1);
-    // aliceNumber.onchange = (event => console.log(
-    //     "Alice: " + event.timestamp.getSender() + " " +
-    //     event.description[0] + "ed " + event.description[1]));
+    aliceNumber.addEventListener("Add", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
+    aliceNumber.addEventListener("Mult", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
     let bobNumber = new NumberCrdt(bob, "numberId2", 1);
-    // bobNumber.onchange = (event => console.log(
-    //     "Bob: " + event.timestamp.getSender() + " " +
-    //     event.description[0] + "ed " + event.description[1]));
+    bobNumber.addEventListener("Add", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
+    bobNumber.addEventListener("Mult", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
     assert.strictEqual(aliceNumber.value, 1);
     assert.strictEqual(bobNumber.value, 1);
 

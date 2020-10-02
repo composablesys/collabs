@@ -27,7 +27,8 @@ export class NumberCrdt extends SemidirectProduct<NumberState> {
                     this, event.timestamp,
                     (event as AddEvent).valueAdded
                 ))
-            }
+            },
+            true
         );
         this.multCrdt.addEventListener(
             "Mult", (event: CrdtEvent) => {
@@ -35,7 +36,8 @@ export class NumberCrdt extends SemidirectProduct<NumberState> {
                     this, event.timestamp,
                     (event as MultEvent).valueMulted
                 ))
-            }
+            },
+            true
         );
     }
 

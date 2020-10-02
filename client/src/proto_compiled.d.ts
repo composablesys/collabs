@@ -5,8 +5,8 @@ export interface ICrdtRuntimeMessage {
     /** CrdtRuntimeMessage innerMessage */
     innerMessage: Uint8Array;
 
-    /** CrdtRuntimeMessage fullId */
-    fullId?: (string[]|null);
+    /** CrdtRuntimeMessage pathToRoot */
+    pathToRoot?: (string[]|null);
 }
 
 /** Represents a CrdtRuntimeMessage. */
@@ -21,8 +21,8 @@ export class CrdtRuntimeMessage implements ICrdtRuntimeMessage {
     /** CrdtRuntimeMessage innerMessage. */
     public innerMessage: Uint8Array;
 
-    /** CrdtRuntimeMessage fullId. */
-    public fullId: string[];
+    /** CrdtRuntimeMessage pathToRoot. */
+    public pathToRoot: string[];
 
     /**
      * Creates a new CrdtRuntimeMessage instance using the specified properties.

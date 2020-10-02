@@ -16,7 +16,7 @@ $root.CrdtRuntimeMessage = (function() {
      * @exports ICrdtRuntimeMessage
      * @interface ICrdtRuntimeMessage
      * @property {Uint8Array} innerMessage CrdtRuntimeMessage innerMessage
-     * @property {Array.<string>|null} [fullId] CrdtRuntimeMessage fullId
+     * @property {Array.<string>|null} [pathToRoot] CrdtRuntimeMessage pathToRoot
      */
 
     /**
@@ -28,7 +28,7 @@ $root.CrdtRuntimeMessage = (function() {
      * @param {ICrdtRuntimeMessage=} [properties] Properties to set
      */
     function CrdtRuntimeMessage(properties) {
-        this.fullId = [];
+        this.pathToRoot = [];
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -44,12 +44,12 @@ $root.CrdtRuntimeMessage = (function() {
     CrdtRuntimeMessage.prototype.innerMessage = $util.newBuffer([]);
 
     /**
-     * CrdtRuntimeMessage fullId.
-     * @member {Array.<string>} fullId
+     * CrdtRuntimeMessage pathToRoot.
+     * @member {Array.<string>} pathToRoot
      * @memberof CrdtRuntimeMessage
      * @instance
      */
-    CrdtRuntimeMessage.prototype.fullId = $util.emptyArray;
+    CrdtRuntimeMessage.prototype.pathToRoot = $util.emptyArray;
 
     /**
      * Creates a new CrdtRuntimeMessage instance using the specified properties.
@@ -76,9 +76,9 @@ $root.CrdtRuntimeMessage = (function() {
         if (!writer)
             writer = $Writer.create();
         writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.innerMessage);
-        if (message.fullId != null && message.fullId.length)
-            for (var i = 0; i < message.fullId.length; ++i)
-                writer.uint32(/* id 2, wireType 2 =*/18).string(message.fullId[i]);
+        if (message.pathToRoot != null && message.pathToRoot.length)
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.pathToRoot[i]);
         return writer;
     };
 
@@ -117,9 +117,9 @@ $root.CrdtRuntimeMessage = (function() {
                 message.innerMessage = reader.bytes();
                 break;
             case 2:
-                if (!(message.fullId && message.fullId.length))
-                    message.fullId = [];
-                message.fullId.push(reader.string());
+                if (!(message.pathToRoot && message.pathToRoot.length))
+                    message.pathToRoot = [];
+                message.pathToRoot.push(reader.string());
                 break;
             default:
                 reader.skipType(tag & 7);
@@ -160,12 +160,12 @@ $root.CrdtRuntimeMessage = (function() {
             return "object expected";
         if (!(message.innerMessage && typeof message.innerMessage.length === "number" || $util.isString(message.innerMessage)))
             return "innerMessage: buffer expected";
-        if (message.fullId != null && message.hasOwnProperty("fullId")) {
-            if (!Array.isArray(message.fullId))
-                return "fullId: array expected";
-            for (var i = 0; i < message.fullId.length; ++i)
-                if (!$util.isString(message.fullId[i]))
-                    return "fullId: string[] expected";
+        if (message.pathToRoot != null && message.hasOwnProperty("pathToRoot")) {
+            if (!Array.isArray(message.pathToRoot))
+                return "pathToRoot: array expected";
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                if (!$util.isString(message.pathToRoot[i]))
+                    return "pathToRoot: string[] expected";
         }
         return null;
     };
@@ -187,12 +187,12 @@ $root.CrdtRuntimeMessage = (function() {
                 $util.base64.decode(object.innerMessage, message.innerMessage = $util.newBuffer($util.base64.length(object.innerMessage)), 0);
             else if (object.innerMessage.length)
                 message.innerMessage = object.innerMessage;
-        if (object.fullId) {
-            if (!Array.isArray(object.fullId))
-                throw TypeError(".CrdtRuntimeMessage.fullId: array expected");
-            message.fullId = [];
-            for (var i = 0; i < object.fullId.length; ++i)
-                message.fullId[i] = String(object.fullId[i]);
+        if (object.pathToRoot) {
+            if (!Array.isArray(object.pathToRoot))
+                throw TypeError(".CrdtRuntimeMessage.pathToRoot: array expected");
+            message.pathToRoot = [];
+            for (var i = 0; i < object.pathToRoot.length; ++i)
+                message.pathToRoot[i] = String(object.pathToRoot[i]);
         }
         return message;
     };
@@ -211,7 +211,7 @@ $root.CrdtRuntimeMessage = (function() {
             options = {};
         var object = {};
         if (options.arrays || options.defaults)
-            object.fullId = [];
+            object.pathToRoot = [];
         if (options.defaults)
             if (options.bytes === String)
                 object.innerMessage = "";
@@ -222,10 +222,10 @@ $root.CrdtRuntimeMessage = (function() {
             }
         if (message.innerMessage != null && message.hasOwnProperty("innerMessage"))
             object.innerMessage = options.bytes === String ? $util.base64.encode(message.innerMessage, 0, message.innerMessage.length) : options.bytes === Array ? Array.prototype.slice.call(message.innerMessage) : message.innerMessage;
-        if (message.fullId && message.fullId.length) {
-            object.fullId = [];
-            for (var j = 0; j < message.fullId.length; ++j)
-                object.fullId[j] = message.fullId[j];
+        if (message.pathToRoot && message.pathToRoot.length) {
+            object.pathToRoot = [];
+            for (var j = 0; j < message.pathToRoot.length; ++j)
+                object.pathToRoot[j] = message.pathToRoot[j];
         }
         return object;
     };
