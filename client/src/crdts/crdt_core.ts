@@ -48,9 +48,18 @@ export class Crdt<S extends Object = any> {
      * into this.state enables semidirect product
      * compositions, in which two Crdt's share the same
      * state.  Note that semidirect products may cause
-     * state to change without this Crdt's action.
+     * state to change without this Crdt's action; also,
+     * when SemidirectProduct.setup() is called, it
+     * will change the pointers of its children's states
+     * (ignoring the readonly descriptor).
+     * state is readonly to force you to only update it
+     * internally, not change its pointer/
+     * If you do not plan to use your Crdt in semidirect
+     * products, and you are sure no one else will want
+     * to do so, you can safely disregard this and store
+     * your state elsewhere instead.
      */
-    state: S;
+    readonly state: S;
     /**
      * @param parentOrRuntime A parent for this Crdt, either another
      * Crdt, or the CrdtRuntime if this has no Crdt parent.

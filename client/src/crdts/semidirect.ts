@@ -144,6 +144,11 @@ export class SemidirectState<S> {
         return true;
     }
 
+    hardReset() {
+        this.receiptCounter = 0;
+        this.history.clear();
+    }
+
     /**
      * Utility method for working with the per-sender history
      * arrays.  Returns the index after the last entry whose
@@ -188,7 +193,8 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
         m1Timestamp: CausalTimestamp,
         m1Message: Uint8Array
     ) => [string[], Uint8Array] | null;
-    setup(
+
+    protected setup(
         crdt1: Crdt<S>, crdt2: Crdt<S>,
         action: (
             m2TargetPath: string[],
@@ -215,7 +221,9 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
         }
         this.crdt1 = crdt1;
         this.crdt2 = crdt2;
+        // @ts-ignore Ignore readonly
         crdt1.state = initialState;
+        // @ts-ignore Ignore readonly
         crdt2.state = initialState;
         this.actionVar = action;
     }
