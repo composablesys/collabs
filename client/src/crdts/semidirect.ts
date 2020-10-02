@@ -2,6 +2,16 @@ import { CrdtRuntime } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import { Crdt } from "./crdt_core";
 
+class StoredMessage {
+    constructor(
+        readonly senderCounter: number,
+        readonly receiptCounter: number,
+        readonly targetPath: string[],
+        readonly timestamp: CausalTimestamp | null,
+        readonly message: Uint8Array
+    ) { }
+}
+
 // TODO: future opts: indexed messages; setting the history
 // to a subset; causal stability.
 // TODO: for this to work, replicaId's must be comparable according
@@ -15,14 +25,11 @@ export class SemidirectState<S> {
     private receiptCounter = 0;
     /**
      * Maps a replica id to an array of messages sent by that
-     * replica, in order.  Specifically, array elements are tuples
-     * [per-sender message counter, this replica's receipt counter,
-     * message].  Keep in mind that per-sender message
+     * replica, in order.  Keep in mind that per-sender message
      * counters may not be contiguous, since they are shared between
-     * all Crdts with a given CrdtRuntime and between
-     * a semidirect product and its components.
+     * all Crdts with a given root.
      */
-    private history: Map<any, Array<[number, number, Uint8Array | [Uint8Array, CausalTimestamp]]>> = new Map();
+    private history: Map<any, Array<StoredMessage>> = new Map();
     public internalState!: S;
     constructor(
         public readonly historyTimestamps: boolean,
@@ -32,7 +39,10 @@ export class SemidirectState<S> {
      * Add message to the history with the given timestamp.
      * replicaId is our replica id.
      */
-    add(replicaId: any, message: Uint8Array, timestamp: CausalTimestamp) {
+    add(
+        replicaId: any, targetPath: string[],
+        timestamp: CausalTimestamp, message: Uint8Array
+    ) {
         if (this.historyDiscard2Dominated) {
             this.processTimestamp(replicaId, timestamp, false, true);
         }
@@ -41,10 +51,13 @@ export class SemidirectState<S> {
             senderHistory = [];
             this.history.set(timestamp.getSender(), senderHistory);
         }
-        let messageMaybeWithTimestamp: Uint8Array | [Uint8Array, CausalTimestamp] =
-                this.historyTimestamps?
-                [message, timestamp]: message;
-        senderHistory.push([timestamp.getSenderCounter(), this.receiptCounter, messageMaybeWithTimestamp]);
+        senderHistory.push(new StoredMessage(
+            timestamp.getSenderCounter(),
+            this.receiptCounter,
+            targetPath,
+            (this.historyTimestamps? timestamp: null),
+            message
+        ));
         this.receiptCounter++;
     }
 
@@ -56,7 +69,7 @@ export class SemidirectState<S> {
      * causally greater than all prior messages, as described in
      * CrdtInternal.effect, hence [] is returned.
      */
-    getConcurrent(replicaId: any, timestamp: CausalTimestamp): Array<any> {
+    getConcurrent(replicaId: any, timestamp: CausalTimestamp) {
         return this.processTimestamp(replicaId, timestamp, true,
             this.historyDiscard1Dominated);
     }
@@ -75,7 +88,7 @@ export class SemidirectState<S> {
      */
     private processTimestamp(replicaId: any,
             timestamp: CausalTimestamp, returnConcurrent: boolean,
-            discardDominated: boolean): Array<any> {
+            discardDominated: boolean) {
         if (replicaId === timestamp.getSender()) {
             if (discardDominated) {
                 // Nothing's concurrent, so clear everything
@@ -86,7 +99,7 @@ export class SemidirectState<S> {
         // Gather up the concurrent messages.  These are all
         // messages by each replicaId with sender counter
         // greater than timestamp.asVectorClock().get(replicaId).
-        let concurrent: Array<[number, number, any]> = [];
+        let concurrent: Array<StoredMessage> = [];
         let vc = timestamp.asVectorClock();
         for (let entry of vc.entries()) {
             let senderHistory = this.history.get(entry[0]);
@@ -109,11 +122,10 @@ export class SemidirectState<S> {
             }
         }
         if (returnConcurrent) {
-            // Sort the concurrent messages in receipt order (i.e.,
-            // by the second entry in each triple).
-            concurrent.sort((a, b) => (a[1] - b[1]));
+            // Sort the concurrent messages in receipt order.
+            concurrent.sort((a, b) => (a.receiptCounter - b.receiptCounter));
             // Strip away everything except the messages.
-            return concurrent.map(a => a[2]);
+            return concurrent;
         }
         else return [];
     }
@@ -138,7 +150,7 @@ export class SemidirectState<S> {
      * per-sender counter (the first tuple element) is <=
      * value.
      */
-    private static indexAfter(sparseArray: Array<[number, number, any]>,
+    private static indexAfter(sparseArray: Array<StoredMessage>,
             value: number): number {
         // TODO: binary search when sparseArray is large
         // Note that there may be duplicate timestamps.
@@ -146,7 +158,7 @@ export class SemidirectState<S> {
         // per-sender counter equals value and infer that
         // the desired index is 1 greater.
         for (let i = 0; i < sparseArray.length; i++) {
-            if (sparseArray[i][0] > value) return i;
+            if (sparseArray[i].senderCounter > value) return i;
         }
         return sparseArray.length;
     }
@@ -168,22 +180,43 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
 
     crdt1!: Crdt<S>;
     crdt2!: Crdt<S>;
-    actionVar!: (m2: Uint8Array, m2Timestamp: CausalTimestamp,
-        m1: Uint8Array, m1Timestamp?: CausalTimestamp)
-        => Uint8Array | null;
+    actionVar!: (
+        m2TargetPath: string[],
+        m2Timestamp: CausalTimestamp | null,
+        m2Message: Uint8Array,
+        m1TargetPath: string[],
+        m1Timestamp: CausalTimestamp,
+        m1Message: Uint8Array
+    ) => [string[], Uint8Array] | null;
     setup(
         crdt1: Crdt<S>, crdt2: Crdt<S>,
-        action: (m2: Uint8Array, m2Timestamp: CausalTimestamp,
-            m1: Uint8Array, m1Timestamp?: CausalTimestamp)
-            => Uint8Array | null,
+        action: (
+            m2TargetPath: string[],
+            m2Timestamp: CausalTimestamp | null,
+            m2Message: Uint8Array,
+            m1TargetPath: string[],
+            m1Timestamp: CausalTimestamp,
+            m1Message: Uint8Array
+        ) => [string[], Uint8Array] | null,
         initialState: S
     ) {
         this.state.internalState = initialState;
-        crdt1.state = initialState;
-        crdt2.state = initialState;
-        // TODO: check crdts are our children
+        if (this.children.get(crdt1.id) !== crdt1) {
+            throw new Error(
+                "crdt1 (" + crdt1.id + ") is not our child" +
+                " (is it using a wrapper crdt, e.g., becuase resettable = true?)"
+            );
+        }
+        if (this.children.get(crdt2.id) !== crdt2) {
+            throw new Error(
+                "crdt2 (" + crdt2.id + ") is not our child" +
+                " (is it using a wrapper crdt, e.g., becuase resettable = true?)"
+            );
+        }
         this.crdt1 = crdt1;
         this.crdt2 = crdt2;
+        crdt1.state = initialState;
+        crdt2.state = initialState;
         this.actionVar = action;
     }
 
@@ -196,13 +229,32 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
             case this.crdt2:
                 this.state.add(
                     this.runtime.getReplicaId(),
-                    message,
-                    timestamp
+                    targetPath,
+                    timestamp,
+                    message
                 );
                 return this.crdt2.receive(targetPath, timestamp, message);
             case this.crdt1:
-                // TODO
-                return true;
+                let concurrent = this.state.getConcurrent(
+                    this.runtime.getReplicaId(),
+                    timestamp
+                );
+                let mAct: [string[], Uint8Array] = [targetPath, message];
+                for (let i = 0; i < concurrent.length; i++) {
+                    let mActOrNull = this.actionVar(
+                        concurrent[i].targetPath,
+                        concurrent[i].timestamp,
+                        concurrent[i].message,
+                        mAct[0],
+                        timestamp,
+                        mAct[1]
+                    );
+                    if (mActOrNull === null) return false;
+                    else mAct = mActOrNull;
+                }
+                return this.crdt1.receive(
+                    mAct[0], timestamp, mAct[1]
+                );
             default:
                 // Not involved with semidirect product
                 return child.receive(

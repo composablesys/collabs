@@ -12,6 +12,7 @@ class TestingNetwork implements CrdtNetwork {
         this.vectorClock.set(this.replicaId, this.vectorClock.get(
             this.replicaId) as number + 1
         );
+        timestamp.isLocal = () => false;
         let queueMap = this.generator.messageQueues.get(this)!;
         for (let queue of queueMap.values()) {
             queue.push([group, message, timestamp]);

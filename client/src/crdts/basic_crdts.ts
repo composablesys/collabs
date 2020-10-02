@@ -141,13 +141,11 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
     }
 
     add(value: T) {
-        if (!this.state.has(value)) {
-            let message = GSetMessage.create({
-                toAdd: this.serialize(value)
-            });
-            let buffer = GSetMessage.encode(message).finish()
-            super.send(buffer);
-        }
+        let message = GSetMessage.create({
+            toAdd: this.serialize(value)
+        });
+        let buffer = GSetMessage.encode(message).finish()
+        super.send(buffer);
     }
 
     receiveInternal(

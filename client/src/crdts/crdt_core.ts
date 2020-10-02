@@ -89,7 +89,7 @@ export class Crdt<S extends Object = any> {
         }
     }
 
-    private readonly children: Map<string, Crdt> = new Map();
+    protected readonly children: Map<string, Crdt> = new Map();
     protected registerChild(child: Crdt) {
         this.children.set(child.id, child)
     }
@@ -125,7 +125,7 @@ export class Crdt<S extends Object = any> {
         let list = this.eventListeners.get(event.type);
         if (list === undefined) return;
         for (let [listener, receiveLocal] of list) {
-            if (receiveLocal || !event.timestamp.isLocal) {
+            if (receiveLocal || !event.timestamp.isLocal()) {
                 try {
                     listener(event);
                 }
@@ -151,6 +151,9 @@ export class Crdt<S extends Object = any> {
         targetPath: string[], timestamp: CausalTimestamp,
         message: Uint8Array
     ): boolean {
+        // TODO: use (homebrew?) iterator for targetPath.
+        // Make it easy to copy for multiple uses (copying
+        // index but not the underlying array).
         let changed = false;
         if (targetPath.length === 0) {
             // We are the target
