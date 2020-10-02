@@ -5,3 +5,11 @@ message CounterMessage {
 message MultRegisterMessage {
     required double toMult = 1;
 }
+
+message GSetMessage {
+    required bytes toAdd = 1;
+}
+
+message MvrMessage {
+    required bytes value = 1;
+}

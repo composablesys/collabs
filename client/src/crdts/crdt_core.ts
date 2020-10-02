@@ -16,7 +16,7 @@ import { CrdtRuntimeMessage } from "../proto_compiled";
  * might skip numbers).  However, causally ordered delivery is
  * still guaranteed.
  */
-export interface CrdtChangeEvent {
+export interface CrdtEvent {
     readonly caller: Crdt;
     readonly type: string;
     readonly timestamp: CausalTimestamp;
@@ -94,7 +94,7 @@ export class Crdt<S extends Object = any> {
         this.children.set(child.id, child)
     }
 
-    private readonly eventListeners = new Map<string, [(event: CrdtChangeEvent) => void, boolean][]>();
+    private readonly eventListeners = new Map<string, [(event: CrdtEvent) => void, boolean][]>();
     // TODO: typing, or at least check type exists?
     // TODO: ability to remove listeners?  Look at how DOM does it.
     /**
@@ -106,7 +106,7 @@ export class Crdt<S extends Object = any> {
      * @return          [description]
      */
     addEventListener(
-        type: string, listener: (event: CrdtChangeEvent) => void,
+        type: string, listener: (event: CrdtEvent) => void,
         receiveLocal = false
     ) {
         let list = this.eventListeners.get(type);
@@ -121,7 +121,7 @@ export class Crdt<S extends Object = any> {
      * when it has an event
      * it wants to deliver to listeners.
      */
-    protected dispatchEvent(event: CrdtChangeEvent) {
+    protected dispatchEvent(event: CrdtEvent) {
         let list = this.eventListeners.get(event.type);
         if (list === undefined) return;
         for (let [listener, receiveLocal] of list) {
@@ -179,7 +179,7 @@ export class Crdt<S extends Object = any> {
      * @param  timestamp  [description]
      * @param  message    [description]
      * @return Whether this Crdt's state was changed, i.e.,
-     * CrdtChangeEvent's of type "change" should be
+     * CrdtEvent's of type "Change" should be
      * dispatched.
      */
     receiveInternal(
@@ -205,7 +205,7 @@ export class Crdt<S extends Object = any> {
      * @param  timestamp  [description]
      * @param  message    [description]
      * @return Whether this Crdt's state was changed, i.e.,
-     * a CrdtChangeEvent of type "change" should be
+     * a CrdtEvent of type "Change" should be
      * dispatched.
      */
     receiveInternalForChild(
@@ -218,6 +218,8 @@ export class Crdt<S extends Object = any> {
         );
     }
 }
+
+// TODO: generic change events from return values
 
 export class CrdtRuntime {
     readonly rootCrdts = new Map<string, Crdt>();

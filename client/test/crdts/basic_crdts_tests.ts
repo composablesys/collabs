@@ -1,6 +1,6 @@
 import assert from 'assert';
 import {TestingNetworkGenerator} from "../runtime_for_testing";
-import { CounterCrdt, CrdtAddEvent, CrdtMultEvent, MultRegisterCrdt/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
+import { CounterCrdt, AddEvent, MultEvent, MultRegisterCrdt, GSetCrdt, MultiValueRegister, GSetAddEvent, MvrEvent/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
 
 let runtimeGen = new TestingNetworkGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -10,11 +10,11 @@ function testCounter() {
     console.log("testCounter()...");
 
     let aliceCounter = new CounterCrdt(alice, "counterId");
-    aliceCounter.addEventListener("add", event => console.log(
-        "Alice: " + event.timestamp.getSender() + " added " + (event as CrdtAddEvent).valueAdded));
+    aliceCounter.addEventListener("Add", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     let bobCounter = new CounterCrdt(bob, "counterId");
-    bobCounter.addEventListener("add", event => console.log(
-        "Bob: " + event.timestamp.getSender() + " added " + (event as CrdtAddEvent).valueAdded));
+    bobCounter.addEventListener("Add", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     assert.strictEqual(aliceCounter.value, 0);
     assert.strictEqual(bobCounter.value, 0);
 
@@ -52,11 +52,11 @@ function testMultRegister() {
     console.log("testMultRegister()...");
 
     let aliceRegister = new MultRegisterCrdt(alice, "multId", 2);
-    aliceRegister.addEventListener("mult", event => console.log(
-        "Alice: " + event.timestamp.getSender() + " multed " + (event as CrdtMultEvent).valueMulted));
+    aliceRegister.addEventListener("Mult", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
     let bobRegister = new MultRegisterCrdt(bob, "multId", 2);
-    bobRegister.addEventListener("mult", event => console.log(
-        "Bob: " + event.timestamp.getSender() + " multed " + (event as CrdtMultEvent).valueMulted));
+    bobRegister.addEventListener("Mult", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
     assert.strictEqual(aliceRegister.value, 2);
     assert.strictEqual(bobRegister.value, 2);
 
@@ -91,103 +91,103 @@ function testMultRegister() {
 }
 
 function testGSet() {
-    // console.log("testGSet()...");
-    //
-    // let aliceGSet = new GSetCrdt("gsetId", alice);
-    // aliceGSet.onchange = (event => console.log(
-    //     "Alice: " + event.timestamp.getSender() + " added " + event.description));
-    // let bobGSet = new GSetCrdt("gsetId", bob);
-    // bobGSet.onchange = (event => console.log(
-    //     "Bob: " + event.timestamp.getSender() + " added " + event.description));
-    // assertSetEquals(aliceGSet.value, new Set());
-    // assertSetEquals(bobGSet.value, new Set());
-    //
-    // aliceGSet.add("element");
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceGSet.value, new Set(["element"]));
-    // assertSetEquals(bobGSet.value, new Set(["element"]));
-    //
-    // bobGSet.add(7);
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceGSet.value, new Set(["element", 7]));
-    // assertSetEquals(bobGSet.value, new Set(["element", 7]));
-    //
-    // aliceGSet.add(7);
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceGSet.value, new Set(["element", 7]));
-    // assertSetEquals(bobGSet.value, new Set(["element", 7]));
-    //
-    // // Out of order test
-    // aliceGSet.add("first");
-    // assertSetEquals(aliceGSet.value, new Set(["element", 7, "first"]));
-    // assertSetEquals(bobGSet.value, new Set(["element", 7]));
-    //
-    // bobGSet.add("second");
-    // assertSetEquals(aliceGSet.value, new Set(["element", 7, "first"]));
-    // assertSetEquals(bobGSet.value, new Set(["element", 7, "second"]));
-    //
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceGSet.value, new Set(["element", 7, "first", "second"]));
-    // assertSetEquals(bobGSet.value, new Set(["element", 7, "first", "second"]));
-    // console.log("...ok");
+    console.log("testGSet()...");
+
+    let aliceGSet = new GSetCrdt(alice, "gsetId");
+    aliceGSet.addEventListener("GSetAdd", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as GSetAddEvent<string>).valueAdded));
+    let bobGSet = new GSetCrdt(bob, "gsetId");
+    bobGSet.addEventListener("GSetAdd", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as GSetAddEvent<string>).valueAdded));
+    assertSetEquals(aliceGSet.value, new Set());
+    assertSetEquals(bobGSet.value, new Set());
+
+    aliceGSet.add("element");
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceGSet.value, new Set(["element"]));
+    assertSetEquals(bobGSet.value, new Set(["element"]));
+
+    bobGSet.add(7);
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceGSet.value, new Set(["element", 7]));
+    assertSetEquals(bobGSet.value, new Set(["element", 7]));
+
+    aliceGSet.add(7);
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceGSet.value, new Set(["element", 7]));
+    assertSetEquals(bobGSet.value, new Set(["element", 7]));
+
+    // Out of order test
+    aliceGSet.add("first");
+    assertSetEquals(aliceGSet.value, new Set(["element", 7, "first"]));
+    assertSetEquals(bobGSet.value, new Set(["element", 7]));
+
+    bobGSet.add("second");
+    assertSetEquals(aliceGSet.value, new Set(["element", 7, "first"]));
+    assertSetEquals(bobGSet.value, new Set(["element", 7, "second"]));
+
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceGSet.value, new Set(["element", 7, "first", "second"]));
+    assertSetEquals(bobGSet.value, new Set(["element", 7, "first", "second"]));
+    console.log("...ok");
 }
 
 function testMvr() {
-    // console.log("testMvr()...");
-    //
-    // let aliceMvr = new MultiValueRegister<string>("mvrId", alice, "initial");
-    // aliceMvr.onchange = (event => console.log(
-    //     "Alice: " + event.timestamp.getSender() + " set to " + JSON.stringify(event.description)));
-    // let bobMvr = new MultiValueRegister<string>("mvrId", bob, "initial");
-    // bobMvr.onchange = (event => console.log(
-    //     "Bob: " + event.timestamp.getSender() + " set to " + JSON.stringify(event.description)));
-    // assertSetEquals(aliceMvr.valueSet, new Set(["initial"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["initial"]));
-    //
-    // aliceMvr.value = "second";
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["second"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["second"]));
-    //
-    // aliceMvr.value = "third";
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["third"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["third"]));
-    //
-    // bobMvr.value = "bob's";
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["bob's"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["bob's"]));
-    //
-    // // Concurrent test
-    // aliceMvr.value = "concA";
-    // bobMvr.value = "concB";
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["concA", "concB"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["concB", "concA"]));
-    //
-    // aliceMvr.value = "concA2";
-    // assertSetEquals(aliceMvr.valueSet, new Set(["concA2"]));
-    // bobMvr.value = "concB2";
-    // assertSetEquals(bobMvr.valueSet, new Set(["concB2"]));
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["concA2", "concB2"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["concB2", "concA2"]));
-    //
-    // // Multiple adds are redundant, unless they're overwritten
-    // aliceMvr.value = "redundant";
-    // bobMvr.value = "redundant";
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["redundant"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["redundant"]));
-    //
-    // aliceMvr.value = "redundant";
-    // bobMvr.value = "redundant";
-    // aliceMvr.value = "overwrite";
-    // runtimeGen.releaseAll();
-    // assertSetEquals(aliceMvr.valueSet, new Set(["redundant", "overwrite"]));
-    // assertSetEquals(bobMvr.valueSet, new Set(["redundant", "overwrite"]));
-    //
+    console.log("testMvr()...");
+
+    let aliceMvr = new MultiValueRegister<string>(alice, "mvrId", "initial");
+    aliceMvr.addEventListener("Mvr", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " set to " + (event as MvrEvent<string>).valueAdded));
+    let bobMvr = new MultiValueRegister<string>(bob, "mvrId", "initial");
+    bobMvr.addEventListener("Mvr", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " set to " + (event as MvrEvent<string>).valueAdded));
+    assertSetEquals(aliceMvr.valueSet, new Set(["initial"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["initial"]));
+
+    aliceMvr.value = "second";
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["second"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["second"]));
+
+    aliceMvr.value = "third";
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["third"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["third"]));
+
+    bobMvr.value = "bob's";
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["bob's"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["bob's"]));
+
+    // Concurrent test
+    aliceMvr.value = "concA";
+    bobMvr.value = "concB";
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["concA", "concB"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["concB", "concA"]));
+
+    aliceMvr.value = "concA2";
+    assertSetEquals(aliceMvr.valueSet, new Set(["concA2"]));
+    bobMvr.value = "concB2";
+    assertSetEquals(bobMvr.valueSet, new Set(["concB2"]));
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["concA2", "concB2"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["concB2", "concA2"]));
+
+    // Multiple adds are redundant, unless they're overwritten
+    aliceMvr.value = "redundant";
+    bobMvr.value = "redundant";
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["redundant"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["redundant"]));
+
+    aliceMvr.value = "redundant";
+    bobMvr.value = "redundant";
+    aliceMvr.value = "overwrite";
+    runtimeGen.releaseAll();
+    assertSetEquals(aliceMvr.valueSet, new Set(["redundant", "overwrite"]));
+    assertSetEquals(bobMvr.valueSet, new Set(["redundant", "overwrite"]));
+
     // // Reset test
     // aliceMvr.reset();
     // assertSetEquals(aliceMvr.valueSet, new Set());
@@ -195,8 +195,8 @@ function testMvr() {
     // runtimeGen.releaseAll();
     // assertSetEquals(aliceMvr.valueSet, new Set(["conc"]));
     // assertSetEquals(bobMvr.valueSet, new Set(["conc"]));
-    //
-    // console.log("...ok");
+
+    console.log("...ok");
 }
 
 testCounter();

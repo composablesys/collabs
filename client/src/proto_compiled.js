@@ -618,4 +618,396 @@ $root.MultRegisterMessage = (function() {
     return MultRegisterMessage;
 })();
 
+$root.GSetMessage = (function() {
+
+    /**
+     * Properties of a GSetMessage.
+     * @exports IGSetMessage
+     * @interface IGSetMessage
+     * @property {Uint8Array} toAdd GSetMessage toAdd
+     */
+
+    /**
+     * Constructs a new GSetMessage.
+     * @exports GSetMessage
+     * @classdesc Represents a GSetMessage.
+     * @implements IGSetMessage
+     * @constructor
+     * @param {IGSetMessage=} [properties] Properties to set
+     */
+    function GSetMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * GSetMessage toAdd.
+     * @member {Uint8Array} toAdd
+     * @memberof GSetMessage
+     * @instance
+     */
+    GSetMessage.prototype.toAdd = $util.newBuffer([]);
+
+    /**
+     * Creates a new GSetMessage instance using the specified properties.
+     * @function create
+     * @memberof GSetMessage
+     * @static
+     * @param {IGSetMessage=} [properties] Properties to set
+     * @returns {GSetMessage} GSetMessage instance
+     */
+    GSetMessage.create = function create(properties) {
+        return new GSetMessage(properties);
+    };
+
+    /**
+     * Encodes the specified GSetMessage message. Does not implicitly {@link GSetMessage.verify|verify} messages.
+     * @function encode
+     * @memberof GSetMessage
+     * @static
+     * @param {IGSetMessage} message GSetMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    GSetMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.toAdd);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified GSetMessage message, length delimited. Does not implicitly {@link GSetMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof GSetMessage
+     * @static
+     * @param {IGSetMessage} message GSetMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    GSetMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a GSetMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof GSetMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {GSetMessage} GSetMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    GSetMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.GSetMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.toAdd = reader.bytes();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("toAdd"))
+            throw $util.ProtocolError("missing required 'toAdd'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a GSetMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof GSetMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {GSetMessage} GSetMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    GSetMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a GSetMessage message.
+     * @function verify
+     * @memberof GSetMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    GSetMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.toAdd && typeof message.toAdd.length === "number" || $util.isString(message.toAdd)))
+            return "toAdd: buffer expected";
+        return null;
+    };
+
+    /**
+     * Creates a GSetMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof GSetMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {GSetMessage} GSetMessage
+     */
+    GSetMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.GSetMessage)
+            return object;
+        var message = new $root.GSetMessage();
+        if (object.toAdd != null)
+            if (typeof object.toAdd === "string")
+                $util.base64.decode(object.toAdd, message.toAdd = $util.newBuffer($util.base64.length(object.toAdd)), 0);
+            else if (object.toAdd.length)
+                message.toAdd = object.toAdd;
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a GSetMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof GSetMessage
+     * @static
+     * @param {GSetMessage} message GSetMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    GSetMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults)
+            if (options.bytes === String)
+                object.toAdd = "";
+            else {
+                object.toAdd = [];
+                if (options.bytes !== Array)
+                    object.toAdd = $util.newBuffer(object.toAdd);
+            }
+        if (message.toAdd != null && message.hasOwnProperty("toAdd"))
+            object.toAdd = options.bytes === String ? $util.base64.encode(message.toAdd, 0, message.toAdd.length) : options.bytes === Array ? Array.prototype.slice.call(message.toAdd) : message.toAdd;
+        return object;
+    };
+
+    /**
+     * Converts this GSetMessage to JSON.
+     * @function toJSON
+     * @memberof GSetMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    GSetMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return GSetMessage;
+})();
+
+$root.MvrMessage = (function() {
+
+    /**
+     * Properties of a MvrMessage.
+     * @exports IMvrMessage
+     * @interface IMvrMessage
+     * @property {Uint8Array} value MvrMessage value
+     */
+
+    /**
+     * Constructs a new MvrMessage.
+     * @exports MvrMessage
+     * @classdesc Represents a MvrMessage.
+     * @implements IMvrMessage
+     * @constructor
+     * @param {IMvrMessage=} [properties] Properties to set
+     */
+    function MvrMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * MvrMessage value.
+     * @member {Uint8Array} value
+     * @memberof MvrMessage
+     * @instance
+     */
+    MvrMessage.prototype.value = $util.newBuffer([]);
+
+    /**
+     * Creates a new MvrMessage instance using the specified properties.
+     * @function create
+     * @memberof MvrMessage
+     * @static
+     * @param {IMvrMessage=} [properties] Properties to set
+     * @returns {MvrMessage} MvrMessage instance
+     */
+    MvrMessage.create = function create(properties) {
+        return new MvrMessage(properties);
+    };
+
+    /**
+     * Encodes the specified MvrMessage message. Does not implicitly {@link MvrMessage.verify|verify} messages.
+     * @function encode
+     * @memberof MvrMessage
+     * @static
+     * @param {IMvrMessage} message MvrMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    MvrMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.value);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified MvrMessage message, length delimited. Does not implicitly {@link MvrMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof MvrMessage
+     * @static
+     * @param {IMvrMessage} message MvrMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    MvrMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a MvrMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof MvrMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {MvrMessage} MvrMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    MvrMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.MvrMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.value = reader.bytes();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("value"))
+            throw $util.ProtocolError("missing required 'value'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a MvrMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof MvrMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {MvrMessage} MvrMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    MvrMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a MvrMessage message.
+     * @function verify
+     * @memberof MvrMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    MvrMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.value && typeof message.value.length === "number" || $util.isString(message.value)))
+            return "value: buffer expected";
+        return null;
+    };
+
+    /**
+     * Creates a MvrMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof MvrMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {MvrMessage} MvrMessage
+     */
+    MvrMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.MvrMessage)
+            return object;
+        var message = new $root.MvrMessage();
+        if (object.value != null)
+            if (typeof object.value === "string")
+                $util.base64.decode(object.value, message.value = $util.newBuffer($util.base64.length(object.value)), 0);
+            else if (object.value.length)
+                message.value = object.value;
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a MvrMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof MvrMessage
+     * @static
+     * @param {MvrMessage} message MvrMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    MvrMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults)
+            if (options.bytes === String)
+                object.value = "";
+            else {
+                object.value = [];
+                if (options.bytes !== Array)
+                    object.value = $util.newBuffer(object.value);
+            }
+        if (message.value != null && message.hasOwnProperty("value"))
+            object.value = options.bytes === String ? $util.base64.encode(message.value, 0, message.value.length) : options.bytes === Array ? Array.prototype.slice.call(message.value) : message.value;
+        return object;
+    };
+
+    /**
+     * Converts this MvrMessage to JSON.
+     * @function toJSON
+     * @memberof MvrMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    MvrMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return MvrMessage;
+})();
+
 module.exports = $root;
