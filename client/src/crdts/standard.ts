@@ -2,18 +2,21 @@ import { CausalTimestamp } from "../network";
 import { CounterMessage, MultRegisterMessage } from "../proto_compiled";
 import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
-import { SemidirectProduct } from "./semidirect";
+import { OptionalResettableSemidirectProduct } from "./resettable";
 
 // TODO: make resettable
-export class NumberCrdt extends SemidirectProduct<NumberState> {
+export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState> {
     private addCrdt: CounterCrdt;
     private multCrdt: MultRegisterCrdt;
+    readonly resetValue;
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
-        initialValue: number = 0
+        initialValue: number = 0,
+        resettable = true,
+        resetValue = initialValue
     ) {
-        super(parentOrRuntime, id);
+        super(parentOrRuntime, id, resettable);
         this.addCrdt = new CounterCrdt(this, "add", 0/*, false*/);
         this.multCrdt = new MultRegisterCrdt(this, "mult", 0/*, false*/);
         super.setup(
@@ -39,6 +42,7 @@ export class NumberCrdt extends SemidirectProduct<NumberState> {
             },
             true
         );
+        this.resetValue = resetValue;
     }
 
     action(
@@ -72,6 +76,10 @@ export class NumberCrdt extends SemidirectProduct<NumberState> {
 
     get value(): number {
         return this.state.internalState.value;
+    }
+
+    hardResetInternal(): void {
+        this.state.internalState.value = this.resetValue;
     }
 }
 

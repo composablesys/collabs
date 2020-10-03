@@ -198,7 +198,7 @@ export class Crdt<S extends Object = any> {
         _timestamp: CausalTimestamp,
         _message: Uint8Array
     ): boolean {
-        return false;
+        throw new Error("Received a message but receiveInternal is not overridden");
     }
 
 

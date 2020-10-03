@@ -237,7 +237,7 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
             case this.crdt2:
                 this.state.add(
                     this.runtime.getReplicaId(),
-                    targetPath,
+                    targetPath.slice(),
                     timestamp,
                     message
                 );

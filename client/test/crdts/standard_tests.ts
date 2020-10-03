@@ -78,12 +78,12 @@ let bob = runtimeGen.newRuntime("bob");
 function testNumber() {
     console.log("testNumber()...");
 
-    let aliceNumber = new NumberCrdt(alice, "numberId");
+    let aliceNumber = new NumberCrdt(alice, "numberId", 0, false);
     aliceNumber.addEventListener("Add", event => console.log(
         "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     aliceNumber.addEventListener("Mult", event => console.log(
         "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
-    let bobNumber = new NumberCrdt(bob, "numberId");
+    let bobNumber = new NumberCrdt(bob, "numberId", 0, false);
     bobNumber.addEventListener("Add", event => console.log(
         "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     bobNumber.addEventListener("Mult", event => console.log(

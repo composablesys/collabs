@@ -1,5 +1,5 @@
 import { CausalTimestamp } from "../network";
-import { Crdt, CrdtRuntime } from "./crdt_core";
+import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { SemidirectProduct } from "./semidirect";
 
 class ResetComponentMessage extends Uint8Array {
@@ -7,7 +7,7 @@ class ResetComponentMessage extends Uint8Array {
     replay: [string[], CausalTimestamp, Uint8Array][] = [];
 }
 
-export class ResetComponent<S extends Object> extends Crdt<S> {
+class ResetComponent<S extends Object> extends Crdt<S> {
     constructor(
         parent: ResetWrapperCrdt<S>,
         id: string,
@@ -21,10 +21,11 @@ export class ResetComponent<S extends Object> extends Crdt<S> {
     }
 
     receiveInternal(
-        _timestamp: CausalTimestamp,
+        timestamp: CausalTimestamp,
         message: Uint8Array | ResetComponentMessage
     ): boolean {
         this.targetCrdt.hardReset();
+        (this.parent as ResetWrapperCrdt).dispatchResetEvent(timestamp);
         if ("isResetComponentMessage" in message) {
             // Replay message.replay
             for (let toReplay of message.replay) {
@@ -51,7 +52,7 @@ export interface HardResettable {
 }
 
 export class ResetWrapperCrdt<S extends Object = any> extends SemidirectProduct<S> {
-    resetComponent!: ResetComponent<S>;
+    private resetComponent!: ResetComponent<S>;
     /**
      * @param keepOnlyMaximal=false Store only causally maximal
      * messages in the history, to save space (although possibly
@@ -88,9 +89,17 @@ export class ResetWrapperCrdt<S extends Object = any> extends SemidirectProduct<
             m1Message = new ResetComponentMessage();
         }
         (m1Message as ResetComponentMessage).replay.push(
-            [m2TargetPath, m2Timestamp!, m2Message]
+            [m2TargetPath.slice(), m2Timestamp!, m2Message]
         );
         return [m1TargetPath, m1Message];
+    }
+
+    dispatchResetEvent(timestamp: CausalTimestamp) {
+        this.dispatchEvent({
+            caller: this,
+            type: "Reset",
+            timestamp: timestamp
+        });
     }
 
     reset() {
@@ -119,16 +128,27 @@ export abstract class OptionalResettableCrdt<S extends Object = any> extends Crd
                 parentOrRuntime, id + "_reset", keepOnlyMaximal
             );
             super(resetWrapperCrdt, id, initialState);
-            resetWrapperCrdt.setup(this);
             this.resetWrapperCrdt = resetWrapperCrdt;
+            resetWrapperCrdt.setup(this);
+            resetWrapperCrdt.addEventListener(
+                "Reset", (event: CrdtEvent) =>
+                this.dispatchEvent({
+                    caller: this,
+                    type: event.type,
+                    timestamp: event.timestamp
+                }), true
+            );
         }
         else super(parentOrRuntime, id, initialState);
         this.resettable = resettable;
     }
 
     reset() {
-        if (this.resetWrapperCrdt) {
-            this.resetWrapperCrdt.reset();
+        if (this.resettable) {
+            this.resetWrapperCrdt!.reset();
+        }
+        else {
+            throw new Error("reset() called but resettable is false");
         }
     }
 
@@ -140,7 +160,7 @@ export abstract class OptionalResettableCrdt<S extends Object = any> extends Crd
  * @param  althoughpossibly*atsomeCPUcost [description]
  * @return                                [description]
  */
-export abstract class OptionalResettableSemirectProduct<S extends Object = any> extends SemidirectProduct<S> implements HardResettable {
+export abstract class OptionalResettableSemidirectProduct<S extends Object = any> extends SemidirectProduct<S> implements HardResettable {
     public readonly resettable: boolean
     resetWrapperCrdt?: ResetWrapperCrdt<S>;
     /**
@@ -154,9 +174,9 @@ export abstract class OptionalResettableSemirectProduct<S extends Object = any> 
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
-        resettable = true,
+        resettable: boolean,
         keepOnlyMaximal = false,
-        historyTimestamps = false,
+        historyTimestamps = true,
         historyDiscard1Dominated = false,
         historyDiscard2Dominated = false,
     ) {
@@ -169,8 +189,16 @@ export abstract class OptionalResettableSemirectProduct<S extends Object = any> 
                 historyDiscard1Dominated,
                 historyDiscard2Dominated
             );
-            resetWrapperCrdt.setup(this);
             this.resetWrapperCrdt = resetWrapperCrdt;
+            resetWrapperCrdt.setup(this);
+            resetWrapperCrdt.addEventListener(
+                "Reset", (event: CrdtEvent) =>
+                this.dispatchEvent({
+                    caller: this,
+                    type: event.type,
+                    timestamp: event.timestamp
+                }), true
+            );
         }
         else super(
             parentOrRuntime, id, historyTimestamps,
