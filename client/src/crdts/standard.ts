@@ -2,9 +2,8 @@ import { CausalTimestamp } from "../network";
 import { CounterMessage, MultRegisterMessage } from "../proto_compiled";
 import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
-import { OptionalResettableSemidirectProduct } from "./resettable";
+import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./resettable";
 
-// TODO: make resettable
 export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState> {
     private addCrdt: CounterCrdt;
     private multCrdt: MultRegisterCrdt;
@@ -214,145 +213,109 @@ export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState>
 //         // else return [description[0] as string, this.value]; // resets
 //     }
 // }
-//
-// /**
-//  * CrdtInternal which uses any string as an operation/message
-//  * which does nothing.  Unlike using null messages to indicate that
-//  * nothing happened, the noop message is an explicit non-null
-//  * string supplied as the operation.
-//  *
-//  * Two use cases:
-//  * - To unreset a state (e.g. in EnableWinsFlag below).
-//  * - As a "header" for sequence of operations passed to applyOps,
-//  * so that recipients can know what end-user operation the sequence
-//  * corresponds to.
-//  */
-// export class NoOpCrdtInternal<S> implements CrdtInternal<S> {
-//     constructor(public createFunc?: (initialData: any) => S) {}
-//     create(initialData?: any): S {
-//         if (this.createFunc) return this.createFunc(initialData);
-//         else throw new Error("CreateFunc not supplied");
-//     }
-//     prepare(operation: string, _state: S) {
-//         return operation;
-//     }
-//     /**
-//      * The returned description is the original operation.
-//      */
-//     effect(message: string, state: S, _replicaId: any, _timestamp: CausalTimestamp): [S, string] {
-//         return [state, message];
-//     }
-//
-//     static addTo<S>(originalCrdt: CrdtInternal<S>) {
-//         return new DirectInternal<S>(originalCrdt,
-//             new NoOpCrdtInternal<S>(), 1
-//         );
-//     }
-// }
-//
-// export class EnableWinsFlag extends DefaultResettableCrdt<null> {
-//     constructor(id: any, runtime: CrdtRuntime) {
-//         super(id, new NoOpCrdtInternal(() => null), null,
-//             runtime, undefined, true);
-//     }
-//     enable() {
-//         this.applyOp("e");
-//     }
-//     disable() {
-//         this.reset();
-//     }
-//     disableStrong() {
-//         this.resetStrong();
-//     }
-//     get enabled() : boolean {
-//         return !this.state.internalState.isHistoryEmpty();
-//     }
-//     set enabled(newValue: boolean) {
-//         if (newValue) this.enable();
-//         else this.disable();
-//     }
-//     get value() {
-//         return this.enabled;
-//     }
-//     set value(newValue: boolean) {
-//         // Note this is equivalent to doing a reset before setting
-//         // to newValue, in either case, since any message obviates
-//         // causally lesser messages.
-//         this.enabled = newValue;
-//     }
-//     // TODO: would also like to translate observed-resets to
-//     // disable (but only if it actually worked).  Perhaps add noop indicator out front?
-//     // (Need to add a no-op crdt at the top level)
-//     protected translateDescriptionsResettable(descriptions: Array<string>): string {
-//         if (descriptions.length === 1 && descriptions[0] === "e") {
-//             return "enable";
-//         }
-//         else if (descriptions.length === 1 && descriptions[0][0] === "reset") {
-//             return "disable";
-//         }
-//         else if (descriptions.length === 1 && descriptions[0][0] === "resetStrong") {
-//             return "disableStrong";
-//         }
-//         else {
-//             throw new Error("Unrecognized descriptions: " +
-//                 JSON.stringify(descriptions))
-//         }
-//     }
-// }
-//
-//
-// export class DisableWinsFlag extends DefaultResettableCrdt<null> {
-//     constructor(id: any, runtime: CrdtRuntime) {
-//         super(id, new NoOpCrdtInternal(() => null), null,
-//             runtime, undefined, true);
-//     }
-//     enable() {
-//         this.reset();
-//     }
-//     enableStrong() {
-//         this.resetStrong();
-//     }
-//     disable() {
-//         this.applyOp("d");
-//     }
-//     get enabled() : boolean {
-//         return this.state.internalState.isHistoryEmpty();
-//     }
-//     set enabled(newValue: boolean) {
-//         if (newValue) this.enable();
-//         else this.disable();
-//     }
-//     get value() {
-//         return this.enabled;
-//     }
-//     set value(newValue: boolean) {
-//         // Note this is equivalent to doing a reset before setting
-//         // to newValue, in either case, since any message obviates
-//         // causally lesser messages.
-//         this.enabled = newValue;
-//     }
-//     // TODO: would also like to translate observed-resets to
-//     // enable (but only if it actually worked).  Perhaps add noop indicator out front?
-//     // (Need to add a no-op crdt at the top level)
-//     protected translateDescriptionsResettable(descriptions: Array<string>): string {
-//         if (descriptions.length === 1 && descriptions[0] === "d") {
-//             return "disable";
-//         }
-//         else if (descriptions.length === 1 && descriptions[0][0] === "reset") {
-//             return "enable";
-//         }
-//         else if (descriptions.length === 1 && descriptions[0][0] === "resetStrong") {
-//             return "enableStrong";
-//         }
-//         else {
-//             throw new Error("Unrecognized descriptions: " +
-//                 JSON.stringify(descriptions))
-//         }
-//     }
-// }
-//
-//
-//
+
+export class EnableWinsFlag extends OptionalResettableCrdt<Object> {
+    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = false) {
+        super(parentOrRuntime, id, {}, true, true);
+        this.addEventListener(
+            "Reset", (event: CrdtEvent) => this.dispatchEvent({
+                type: "Disable",
+                caller: this,
+                timestamp: event.timestamp
+            })
+        );
+        if (initialValue) {
+            // TODO: enable.  Maybe once we have locally
+            // callable pure ops this will be easy?
+        }
+    }
+
+    enable() {
+        this.send(new Uint8Array());
+    }
+    disable() {
+        this.reset();
+    }
+    get enabled() : boolean {
+        return !this.resetWrapperCrdt!.state.isHistoryEmpty();
+    }
+    set enabled(newValue: boolean) {
+        if (newValue) this.enable();
+        else this.disable();
+    }
+    get value() {
+        return this.enabled;
+    }
+    set value(newValue: boolean) {
+        this.enabled = newValue;
+    }
+
+    hardReset() {}
+    receiveInternal(
+        timestamp: CausalTimestamp,
+        _message: Uint8Array
+    ): boolean {
+        // TODO: only do this if previously disabled.  How to check?
+        this.dispatchEvent({
+            type: "Enable",
+            caller: this,
+            timestamp: timestamp
+        });
+        return true;
+    }
+}
+
+export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
+    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = true) {
+        super(parentOrRuntime, id, {}, true, true);
+        this.addEventListener(
+            "Reset", (event: CrdtEvent) => this.dispatchEvent({
+                type: "Enable",
+                caller: this,
+                timestamp: event.timestamp
+            })
+        );
+        if (!initialValue) {
+            // TODO: disable.  Maybe once we have locally
+            // callable pure ops this will be easy?
+        }
+    }
+
+    enable() {
+        this.reset();
+    }
+    disable() {
+        this.send(new Uint8Array());
+    }
+    get enabled() : boolean {
+        return this.resetWrapperCrdt!.state.isHistoryEmpty();
+    }
+    set enabled(newValue: boolean) {
+        if (newValue) this.enable();
+        else this.disable();
+    }
+    get value() {
+        return this.enabled;
+    }
+    set value(newValue: boolean) {
+        this.enabled = newValue;
+    }
+
+    hardReset() {}
+    receiveInternal(
+        timestamp: CausalTimestamp,
+        _message: Uint8Array
+    ): boolean {
+        // TODO: only do this if previously enabled.  How to check?
+        this.dispatchEvent({
+            type: "Disable",
+            caller: this,
+            timestamp: timestamp
+        });
+        return true;
+    }
+}
+
 // export class GMapInternal<K, C extends Crdt<any>> implements CrdtInternal<Map<K, C>> {
 //     /**
 //      * [constructor description]

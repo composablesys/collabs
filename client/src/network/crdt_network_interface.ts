@@ -7,6 +7,8 @@ import { CrdtRuntime } from "../crdts";
  * Interface describing the causal timestamps that
  * get passed to Crdts when they receive a message
  * (e.g., a vector clock).
+ * TODO: have a stripped-down interface plus a wrapper around it
+ * that computes isLocal().
  */
 export interface CausalTimestamp {
     /**

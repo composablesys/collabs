@@ -1,79 +1,87 @@
 import assert from 'assert';
 import { AddEvent, MultEvent } from '../../src/crdts';
-import { NumberCrdt } from '../../src/crdts/standard';
+import { DisableWinsFlag, EnableWinsFlag, NumberCrdt } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
 let alice = runtimeGen.newRuntime("alice");
 let bob = runtimeGen.newRuntime("bob");
-//
-// function testEwFlag() {
-//     console.log("testEwFlag()...");
-//
-//     let aliceFlag = new EnableWinsFlag("ewFlagId", alice);
-//     aliceFlag.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " did " + event.description));
-//     let bobFlag = new EnableWinsFlag("ewFlagId", bob);
-//     bobFlag.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " did " + event.description));
-//     assert.strictEqual(aliceFlag.enabled, false);
-//     assert.strictEqual(bobFlag.enabled, false);
-//
-//     aliceFlag.enable();
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, true);
-//     assert.strictEqual(bobFlag.enabled, true);
-//
-//     aliceFlag.disable();
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, false);
-//     assert.strictEqual(bobFlag.enabled, false);
-//
-//     aliceFlag.enable();
-//     bobFlag.disable();
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, true);
-//     assert.strictEqual(bobFlag.enabled, true);
-//
-//     console.log("...ok");
-// }
-//
-// function testDwFlag() {
-//     console.log("testDwFlag()...");
-//
-//     let aliceFlag = new DisableWinsFlag("dwFlagId", alice);
-//     aliceFlag.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " did " + event.description));
-//     let bobFlag = new DisableWinsFlag("dwFlagId", bob);
-//     bobFlag.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " did " + event.description));
-//     assert.strictEqual(aliceFlag.enabled, true);
-//     assert.strictEqual(bobFlag.enabled, true);
-//
-//     aliceFlag.disable();
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, false);
-//     assert.strictEqual(bobFlag.enabled, false);
-//
-//     bobFlag.enable();
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, true);
-//     assert.strictEqual(bobFlag.enabled, true);
-//
-//     aliceFlag.disable();
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, false);
-//     assert.strictEqual(bobFlag.enabled, false);
-//
-//     aliceFlag.enable();
-//     bobFlag.disable();
-//     assert.strictEqual(aliceFlag.enabled, true);
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceFlag.enabled, false);
-//     assert.strictEqual(bobFlag.enabled, false);
-//
-//     console.log("...ok");
-// }
+
+function testEwFlag() {
+    console.log("testEwFlag()...");
+
+    let aliceFlag = new EnableWinsFlag(alice, "ewFlagId");
+    aliceFlag.addEventListener("Enable", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " enabled"));
+    aliceFlag.addEventListener("Disable", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " disabled"));
+    let bobFlag = new EnableWinsFlag(bob, "ewFlagId");
+    bobFlag.addEventListener("Enable", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " enabled"));
+    bobFlag.addEventListener("Disable", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " disabled"));
+    assert.strictEqual(aliceFlag.enabled, false);
+    assert.strictEqual(bobFlag.enabled, false);
+
+    aliceFlag.enable();
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, true);
+    assert.strictEqual(bobFlag.enabled, true);
+
+    aliceFlag.disable();
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, false);
+    assert.strictEqual(bobFlag.enabled, false);
+
+    aliceFlag.enable();
+    bobFlag.disable();
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, true);
+    assert.strictEqual(bobFlag.enabled, true);
+
+    console.log("...ok");
+}
+
+function testDwFlag() {
+    console.log("testDwFlag()...");
+
+    let aliceFlag = new DisableWinsFlag(alice, "dwFlagId");
+    aliceFlag.addEventListener("Enable", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " enabled"));
+    aliceFlag.addEventListener("Disable", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " disabled"));
+    let bobFlag = new DisableWinsFlag(bob, "dwFlagId");
+    bobFlag.addEventListener("Enable", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " enabled"));
+    bobFlag.addEventListener("Disable", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " disabled"));
+    assert.strictEqual(aliceFlag.enabled, true);
+    assert.strictEqual(bobFlag.enabled, true);
+
+    aliceFlag.disable();
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, false);
+    assert.strictEqual(bobFlag.enabled, false);
+
+    bobFlag.enable();
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, true);
+    assert.strictEqual(bobFlag.enabled, true);
+
+    aliceFlag.disable();
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, false);
+    assert.strictEqual(bobFlag.enabled, false);
+
+    aliceFlag.enable();
+    bobFlag.disable();
+    assert.strictEqual(aliceFlag.enabled, true);
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceFlag.enabled, false);
+    assert.strictEqual(bobFlag.enabled, false);
+
+    console.log("...ok");
+}
 
 function testNumber() {
     console.log("testNumber()...");
@@ -442,8 +450,8 @@ function testFromPaper() {
 //     console.log("...ok");
 // }
 //
-// testEwFlag();
-// testDwFlag();
+testEwFlag();
+testDwFlag();
 testNumber();
 testFromPaper();
 // testOrthogonal();

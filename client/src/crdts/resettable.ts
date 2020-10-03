@@ -124,7 +124,7 @@ export abstract class OptionalResettableCrdt<S extends Object = any> extends Crd
         keepOnlyMaximal = false
     ) {
         if (resettable) {
-            let resetWrapperCrdt = new ResetWrapperCrdt(
+            let resetWrapperCrdt = new ResetWrapperCrdt<S>(
                 parentOrRuntime, id + "_reset", keepOnlyMaximal
             );
             super(resetWrapperCrdt, id, initialState);
@@ -155,11 +155,6 @@ export abstract class OptionalResettableCrdt<S extends Object = any> extends Crd
     abstract hardReset(): void;
 }
 
-/**
- * [space description]
- * @param  althoughpossibly*atsomeCPUcost [description]
- * @return                                [description]
- */
 export abstract class OptionalResettableSemidirectProduct<S extends Object = any> extends SemidirectProduct<S> implements HardResettable {
     public readonly resettable: boolean
     resetWrapperCrdt?: ResetWrapperCrdt<S>;
