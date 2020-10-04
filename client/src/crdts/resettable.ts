@@ -66,7 +66,7 @@ export class DefaultResetWinsCrdt<S>
         this.originalCrdtInternalResetWins = originalCrdtInternal;
     }
     resetStrong() {
-        super.applyOp([2, "reset"]);
+        super.applyOp(this.getUniversalResetStrongMessage);
     }
     getUniversalResetStrongMessage() {
         return [2, "reset"];
