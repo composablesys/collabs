@@ -35,13 +35,14 @@ export class myMessage {
     }
     /**
      * customized toJSON function to convert message as JSON format.
-     * TODO: use protobufs.
+     * TODO: use protobufs.  For now we base64 encode the
+     * inner message.
      *
      * @returns package info in JSON format.
      */
     toJSON() : string {
         return JSON.stringify(
-            {   "message" : this.message,
+            {   "message" : Array.from(this.message.values()),
                 "group" : this.group,
                 "timestamp" : {
                     "uid" : this.timestamp.uid,
@@ -218,7 +219,7 @@ export class WebSocketNetwork implements CrdtNetwork {
             this.vcMap.set(group, vc);
         }
         let vcCopy = new VectorClock(this.uid, true);
-        vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock()!);
+        vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock());
 
         // Update the timestamp of this replica with next value.
         vcCopy.increment()
@@ -238,7 +239,8 @@ export class WebSocketNetwork implements CrdtNetwork {
             this.uid === dataJSON.timestamp.uid
         );
         vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
-        let myPackage = new myMessage(dataJSON.message, dataJSON.crdtId, vc);
+        let message = Uint8Array.from(dataJSON.message as number[]);
+        let myPackage = new myMessage(message, dataJSON.group, vc);
 
         return myPackage;
     }
@@ -256,26 +258,26 @@ export class WebSocketNetwork implements CrdtNetwork {
         let index = this.messageBuffer.length - 1;
 
         while(index >= 0) {
-            let curCrdtId = this.messageBuffer[index][1];
+            let group = this.messageBuffer[index][1];
             let curVectorClock = this.messageBuffer[index][2];
 
-            if (!this.vcMap.has(curCrdtId)) {
-                this.messageBuffer.splice(index, 1);
-            } else {
-                let myVectorClock = this.vcMap.get(curCrdtId);
-                if (myVectorClock?.isready(curVectorClock)) {
-                    /**
-                     * Send back the received messages to crdtRuntime.
+            let myVectorClock = this.vcMap.get(group);
+            if (!myVectorClock) {
+                myVectorClock = new VectorClock(this.uid, true);
+                this.vcMap.set(group, myVectorClock);
+            }
+            if (myVectorClock.isready(curVectorClock)) {
+                /**
+                 * Send back the received messages to crdtRuntime.
 
-                     */
-                    this.crdtRuntime.receive(
-                        this.messageBuffer[index][1],
-                        this.messageBuffer[index][0],
-                        this.messageBuffer[index][2]
-                    );
-                    myVectorClock.incrementSender(curVectorClock);
-                    this.messageBuffer.splice(index, 1);
-                }
+                 */
+                this.crdtRuntime.receive(
+                    this.messageBuffer[index][1],
+                    this.messageBuffer[index][0],
+                    this.messageBuffer[index][2]
+                );
+                myVectorClock.incrementSender(curVectorClock);
+                this.messageBuffer.splice(index, 1);
             }
             index--;
         }

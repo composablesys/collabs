@@ -15,16 +15,17 @@ const client_uuid : string = uuid();
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. CounterCrdt).
  */
-let client = new network.CrdtNetworkRuntime(client_uuid, HOST);
+let client = new crdts.CrdtRuntime(new network.WebSocketNetwork(client_uuid, HOST));
 //let clientCounter = new crdts.CounterCrdt("counterId", client);
-let clientCounter = new crdts.Counter2("counterId", client);
+let clientCounter = new crdts.CounterCrdt(client, "counterId");
 
 /* HTML variables */
 var counter = document.getElementById("counter");
 
-/* Customize the onchange() for CRDT as refresh the value */
-clientCounter.onchange = (() => {
-    counter!.innerHTML = clientCounter.value.toString()});
+/* Customize the event listener for CRDT as refresh the value */
+clientCounter.addEventListener("Add", _ => {
+    counter!.innerHTML = clientCounter.value.toString();
+});
 
 /* Customize onclick() function of increment button with CRDT operation */
 document.getElementById("increment")!.onclick = function() {

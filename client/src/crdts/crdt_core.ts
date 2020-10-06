@@ -181,6 +181,7 @@ export class Crdt<S extends Object = any> {
                 child, targetPath, timestamp, message
             );
         }
+        // TODO: changed event
         return changed;
     }
 
