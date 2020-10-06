@@ -1,4 +1,4 @@
-import { CausalTimestamp } from './crdt_runtime_interface';
+import { CausalTimestamp } from '.';
 
 // The vector clock designed for CRDT library and casual broadcasting
 // runtime to ensure correct causality.
@@ -15,12 +15,14 @@ export class VectorClock implements CausalTimestamp{
      * The record map from replica ids to the number of lastest message.
      */
     vectorMap : Map<any, number>;
+    local: boolean;
 
     /**
      * Initialize the vector with replica's own entry.
      */
-    constructor(replicaId : any) {
+    constructor(replicaId : any, local: boolean) {
         this.uid = replicaId;
+        this.local = local;
         this.vectorMap = new Map<any, number>();
         this.vectorMap.set(this.uid, 0);
     }
@@ -29,6 +31,9 @@ export class VectorClock implements CausalTimestamp{
      */
     getSender() : any {
         return this.uid;
+    }
+    isLocal(): boolean {
+        return this.local;
     }
     /**
      * @returns the vector clock with all the entries.

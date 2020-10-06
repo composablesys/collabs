@@ -1,104 +1,104 @@
 import assert from 'assert';
-import {TestingRuntimeGenerator} from "../runtime_for_testing";
-import { CounterCrdt, MultRegisterCrdt, GSetCrdt, MultiValueRegister } from "../../src/crdts/basic_crdts";
+import {TestingNetworkGenerator} from "../runtime_for_testing";
+import { CounterCrdt, AddEvent, MultEvent, MultRegisterCrdt, GSetCrdt, MultiValueRegister, GSetAddEvent, MvrEvent/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
 
-let runtimeGen = new TestingRuntimeGenerator();
+let runtimeGen = new TestingNetworkGenerator();
 let alice = runtimeGen.newRuntime("alice");
 let bob = runtimeGen.newRuntime("bob");
 
 function testCounter() {
     console.log("testCounter()...");
 
-    let aliceCounter = new CounterCrdt("counterId", alice);
-    aliceCounter.onchange = (event => console.log(
-        "Alice: " + event.timestamp.getSender() + " added " + event.description));
-    let bobCounter = new CounterCrdt("counterId", bob);
-    bobCounter.onchange = (event => console.log(
-        "Bob: " + event.timestamp.getSender() + " added " + event.description));
-    assert.equal(aliceCounter.value, 0);
-    assert.equal(bobCounter.value, 0);
+    let aliceCounter = new CounterCrdt(alice, "counterId");
+    aliceCounter.addEventListener("Add", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
+    let bobCounter = new CounterCrdt(bob, "counterId");
+    bobCounter.addEventListener("Add", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
+    assert.strictEqual(aliceCounter.value, 0);
+    assert.strictEqual(bobCounter.value, 0);
 
     aliceCounter.add(3);
     runtimeGen.releaseAll();
-    assert.equal(aliceCounter.value, 3);
-    assert.equal(bobCounter.value, 3);
+    assert.strictEqual(aliceCounter.value, 3);
+    assert.strictEqual(bobCounter.value, 3);
 
     bobCounter.add(-4);
     runtimeGen.releaseAll();
-    assert.equal(aliceCounter.value, -1);
-    assert.equal(bobCounter.value, -1);
+    assert.strictEqual(aliceCounter.value, -1);
+    assert.strictEqual(bobCounter.value, -1);
 
     aliceCounter.value = 11;
     runtimeGen.releaseAll();
-    assert.equal(aliceCounter.value, 11);
-    assert.equal(bobCounter.value, 11);
+    assert.strictEqual(aliceCounter.value, 11);
+    assert.strictEqual(bobCounter.value, 11);
 
     // Out of order test
     aliceCounter.add(2);
-    assert.equal(aliceCounter.value, 13);
-    assert.equal(bobCounter.value, 11);
+    assert.strictEqual(aliceCounter.value, 13);
+    assert.strictEqual(bobCounter.value, 11);
 
     bobCounter.add(-5);
-    assert.equal(aliceCounter.value, 13);
-    assert.equal(bobCounter.value, 6);
+    assert.strictEqual(aliceCounter.value, 13);
+    assert.strictEqual(bobCounter.value, 6);
 
     runtimeGen.releaseAll();
-    assert.equal(aliceCounter.value, 8);
-    assert.equal(bobCounter.value, 8);
+    assert.strictEqual(aliceCounter.value, 8);
+    assert.strictEqual(bobCounter.value, 8);
     console.log("...ok");
 }
 
 function testMultRegister() {
     console.log("testMultRegister()...");
 
-    let aliceRegister = new MultRegisterCrdt("multId", alice, 2);
-    aliceRegister.onchange = (event => console.log(
-        "Alice: " + event.timestamp.getSender() + " multed " + event.description));
-    let bobRegister = new MultRegisterCrdt("multId", bob, 2);
-    bobRegister.onchange = (event => console.log(
-        "Bob: " + event.timestamp.getSender() + " multed " + event.description));
-    assert.equal(aliceRegister.value, 2);
-    assert.equal(bobRegister.value, 2);
+    let aliceRegister = new MultRegisterCrdt(alice, "multId", 2);
+    aliceRegister.addEventListener("Mult", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
+    let bobRegister = new MultRegisterCrdt(bob, "multId", 2);
+    bobRegister.addEventListener("Mult", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
+    assert.strictEqual(aliceRegister.value, 2);
+    assert.strictEqual(bobRegister.value, 2);
 
     aliceRegister.mult(3);
     runtimeGen.releaseAll();
-    assert.equal(aliceRegister.value, 6);
-    assert.equal(bobRegister.value, 6);
+    assert.strictEqual(aliceRegister.value, 6);
+    assert.strictEqual(bobRegister.value, 6);
 
     bobRegister.mult(-4);
     runtimeGen.releaseAll();
-    assert.equal(aliceRegister.value, -24);
-    assert.equal(bobRegister.value, -24);
+    assert.strictEqual(aliceRegister.value, -24);
+    assert.strictEqual(bobRegister.value, -24);
 
     aliceRegister.value = 11;
     runtimeGen.releaseAll();
-    assert.equal(aliceRegister.value, 11);
-    assert.equal(bobRegister.value, 11);
+    assert.strictEqual(aliceRegister.value, 11);
+    assert.strictEqual(bobRegister.value, 11);
 
     // Out of order test
     aliceRegister.mult(2);
-    assert.equal(aliceRegister.value, 22);
-    assert.equal(bobRegister.value, 11);
+    assert.strictEqual(aliceRegister.value, 22);
+    assert.strictEqual(bobRegister.value, 11);
 
     bobRegister.mult(-8);
-    assert.equal(aliceRegister.value, 22);
-    assert.equal(bobRegister.value, -88);
+    assert.strictEqual(aliceRegister.value, 22);
+    assert.strictEqual(bobRegister.value, -88);
 
     runtimeGen.releaseAll();
-    assert.equal(aliceRegister.value, -176);
-    assert.equal(bobRegister.value, -176);
+    assert.strictEqual(aliceRegister.value, -176);
+    assert.strictEqual(bobRegister.value, -176);
     console.log("...ok");
 }
 
 function testGSet() {
     console.log("testGSet()...");
 
-    let aliceGSet = new GSetCrdt("gsetId", alice);
-    aliceGSet.onchange = (event => console.log(
-        "Alice: " + event.timestamp.getSender() + " added " + event.description));
-    let bobGSet = new GSetCrdt("gsetId", bob);
-    bobGSet.onchange = (event => console.log(
-        "Bob: " + event.timestamp.getSender() + " added " + event.description));
+    let aliceGSet = new GSetCrdt(alice, "gsetId");
+    aliceGSet.addEventListener("GSetAdd", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as GSetAddEvent<string>).valueAdded));
+    let bobGSet = new GSetCrdt(bob, "gsetId");
+    bobGSet.addEventListener("GSetAdd", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as GSetAddEvent<string>).valueAdded));
     assertSetEquals(aliceGSet.value, new Set());
     assertSetEquals(bobGSet.value, new Set());
 
@@ -135,12 +135,12 @@ function testGSet() {
 function testMvr() {
     console.log("testMvr()...");
 
-    let aliceMvr = new MultiValueRegister<string>("mvrId", alice, "initial");
-    aliceMvr.onchange = (event => console.log(
-        "Alice: " + event.timestamp.getSender() + " set to " + JSON.stringify(event.description)));
-    let bobMvr = new MultiValueRegister<string>("mvrId", bob, "initial");
-    bobMvr.onchange = (event => console.log(
-        "Bob: " + event.timestamp.getSender() + " set to " + JSON.stringify(event.description)));
+    let aliceMvr = new MultiValueRegister<string>(alice, "mvrId", "initial");
+    aliceMvr.addEventListener("Mvr", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " set to " + (event as MvrEvent<string>).valueAdded));
+    let bobMvr = new MultiValueRegister<string>(bob, "mvrId", "initial");
+    bobMvr.addEventListener("Mvr", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " set to " + (event as MvrEvent<string>).valueAdded));
     assertSetEquals(aliceMvr.valueSet, new Set(["initial"]));
     assertSetEquals(bobMvr.valueSet, new Set(["initial"]));
 
@@ -188,13 +188,13 @@ function testMvr() {
     assertSetEquals(aliceMvr.valueSet, new Set(["redundant", "overwrite"]));
     assertSetEquals(bobMvr.valueSet, new Set(["redundant", "overwrite"]));
 
-    // Reset test
-    aliceMvr.reset();
-    assertSetEquals(aliceMvr.valueSet, new Set());
-    bobMvr.value = "conc";
-    runtimeGen.releaseAll();
-    assertSetEquals(aliceMvr.valueSet, new Set(["conc"]));
-    assertSetEquals(bobMvr.valueSet, new Set(["conc"]));
+    // // Reset test
+    // aliceMvr.reset();
+    // assertSetEquals(aliceMvr.valueSet, new Set());
+    // bobMvr.value = "conc";
+    // runtimeGen.releaseAll();
+    // assertSetEquals(aliceMvr.valueSet, new Set(["conc"]));
+    // assertSetEquals(bobMvr.valueSet, new Set(["conc"]));
 
     console.log("...ok");
 }
