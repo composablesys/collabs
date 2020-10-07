@@ -63,7 +63,10 @@ export class CheckersCrdt extends crdts.Crdt<number[]> {
 
     // begin the game!
     public startGame() {
+        console.log(cboard)
+        console.log("Starting the Game!");
         this.givePiecesEventListeners();
+        console.log("Listeners in Place")
     }
     
     // initialize event listeners on pieces

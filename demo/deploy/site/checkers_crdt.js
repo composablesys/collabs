@@ -44,7 +44,10 @@ class CheckersCrdt extends compoventuals_client_1.crdts.Crdt {
     // <------- EVENT LISTENERS ------->
     // begin the game!
     startGame() {
+        console.log(cboard);
+        console.log("Starting the Game!");
         this.givePiecesEventListeners();
+        console.log("Listeners in Place");
     }
     // initialize event listeners on pieces
     givePiecesEventListeners() {

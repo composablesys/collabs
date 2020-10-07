@@ -21,12 +21,15 @@ module.exports = {
   },
   resolve: {
     // Add ".ts" and ".tsx" as resolvable extensions.
-    extensions: [".ts", ".tsx", ".js"],
+    extensions: [".ts", ".tsx", ".js", ".css"],
   },
   module: {
     rules: [
       // all files with a `.ts` or `.tsx` extension will be handled by `ts-loader`
-      { test: /\.tsx?$/, loader: "ts-loader" },
+      { test: /\.tsx?$/, 
+        loader: "ts-loader" },
+      { test: /\.css$/, 
+        loader: "css-loader"},
     ],
   },
 //   optimization: {
@@ -41,7 +44,9 @@ module.exports = {
       { from: './src/site/counter.html', to: './deploy/site/counter.html' },
       { from: './src/site/whiteboard.html', to: './deploy/site/whiteboard.html' },
       { from: './src/site/tests.html', to: './deploy/site/tests.html' },
-      { from: './src/site/checkers.html', to: './deploy/site/checkers.html'}
+      { from: './src/site/checkers.html', to: './deploy/site/checkers.html'},
+      { from: './src/site/checkers_style.css', to: './deploy/site/checkers_style.css'}
+
       // TODO: Add more entries as needed for new pages
     ]),
   ],
