@@ -1,6 +1,6 @@
 import assert from 'assert';
 import {TestingNetworkGenerator} from "../runtime_for_testing";
-import { CounterCrdt, AddEvent, MultEvent, MultRegisterCrdt, GSetCrdt, MultiValueRegister, GSetAddEvent, MvrEvent, LwwRegister, LwwEvent/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
+import { CounterCrdt, AddEvent, MultEvent, MultRegisterCrdt, GSetCrdt, MultiValueRegister, SetAddEvent, MvrEvent, LwwRegister, LwwEvent/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
 
 let runtimeGen = new TestingNetworkGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -94,11 +94,11 @@ function testGSet() {
     console.log("testGSet()...");
 
     let aliceGSet = new GSetCrdt(alice, "gsetId");
-    aliceGSet.addEventListener("GSetAdd", event => console.log(
-        "Alice: " + event.timestamp.getSender() + " added " + (event as GSetAddEvent<string>).valueAdded));
+    aliceGSet.addEventListener("SetAdd", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as SetAddEvent<string>).valueAdded));
     let bobGSet = new GSetCrdt(bob, "gsetId");
-    bobGSet.addEventListener("GSetAdd", event => console.log(
-        "Bob: " + event.timestamp.getSender() + " added " + (event as GSetAddEvent<string>).valueAdded));
+    bobGSet.addEventListener("SetAdd", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as SetAddEvent<string>).valueAdded));
     assertSetEquals(aliceGSet.value, new Set());
     assertSetEquals(bobGSet.value, new Set());
 

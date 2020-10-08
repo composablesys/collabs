@@ -22,7 +22,7 @@ export interface CrdtEvent {
     readonly timestamp: CausalTimestamp;
 }
 
-export class Crdt<S extends Object = any> {
+export class Crdt<S extends Object = Object> {
     readonly isCrdt = true;
     readonly parent: Crdt | null;
     readonly runtime: CrdtRuntime;

@@ -1,6 +1,6 @@
 import { CausalTimestamp } from "../network";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
-import { SemidirectProduct } from "./semidirect";
+import { SemidirectProduct, SemidirectState } from "./semidirect";
 
 class ResetComponentMessage extends Uint8Array {
     readonly isResetComponentMessage = true;
@@ -51,7 +51,7 @@ export interface HardResettable {
     hardReset(): void;
 }
 
-export class ResetWrapperCrdt<S extends Object = any> extends SemidirectProduct<S> {
+export class ResetWrapperCrdt<S extends Object = Object> extends SemidirectProduct<S> {
     private resetComponent!: ResetComponent<S>;
     /**
      * @param keepOnlyMaximal=false Store only causally maximal
@@ -67,7 +67,7 @@ export class ResetWrapperCrdt<S extends Object = any> extends SemidirectProduct<
         super(parentOrRuntime, id, true, true, keepOnlyMaximal);
     }
 
-    setup(targetCrdt: Crdt & HardResettable) {
+    setupReset(targetCrdt: Crdt<S> & HardResettable) {
         this.resetComponent = new ResetComponent(
             this, this.id + "_comp", targetCrdt
         );
@@ -107,7 +107,7 @@ export class ResetWrapperCrdt<S extends Object = any> extends SemidirectProduct<
     }
 }
 
-export abstract class OptionalResettableCrdt<S extends Object = any> extends Crdt<S> implements HardResettable {
+export abstract class OptionalResettableCrdt<S extends Object = Object> extends Crdt<S> implements HardResettable {
     public readonly resettable: boolean
     resetWrapperCrdt?: ResetWrapperCrdt<S>;
     /**
@@ -129,7 +129,7 @@ export abstract class OptionalResettableCrdt<S extends Object = any> extends Crd
             );
             super(resetWrapperCrdt, id, initialState);
             this.resetWrapperCrdt = resetWrapperCrdt;
-            resetWrapperCrdt.setup(this);
+            resetWrapperCrdt.setupReset(this);
             resetWrapperCrdt.addEventListener(
                 "Reset", (event: CrdtEvent) =>
                 this.dispatchEvent({
@@ -155,9 +155,9 @@ export abstract class OptionalResettableCrdt<S extends Object = any> extends Crd
     abstract hardReset(): void;
 }
 
-export abstract class OptionalResettableSemidirectProduct<S extends Object = any> extends SemidirectProduct<S> implements HardResettable {
+export abstract class OptionalResettableSemidirectProduct<S extends Object = Object> extends SemidirectProduct<S> implements HardResettable {
     public readonly resettable: boolean
-    resetWrapperCrdt?: ResetWrapperCrdt<S>;
+    resetWrapperCrdt?: ResetWrapperCrdt<SemidirectState<S>>;
     /**
      * For more parameter descriptions, see
      * SemidirectProduct.
@@ -176,7 +176,7 @@ export abstract class OptionalResettableSemidirectProduct<S extends Object = any
         historyDiscard2Dominated = false,
     ) {
         if (resettable) {
-            let resetWrapperCrdt = new ResetWrapperCrdt(
+            let resetWrapperCrdt = new ResetWrapperCrdt<SemidirectState<S>>(
                 parentOrRuntime, id + "_reset", keepOnlyMaximal
             );
             super(
@@ -185,7 +185,7 @@ export abstract class OptionalResettableSemidirectProduct<S extends Object = any
                 historyDiscard2Dominated
             );
             this.resetWrapperCrdt = resetWrapperCrdt;
-            resetWrapperCrdt.setup(this);
+            resetWrapperCrdt.setupReset(this);
             resetWrapperCrdt.addEventListener(
                 "Reset", (event: CrdtEvent) =>
                 this.dispatchEvent({

@@ -1,8 +1,9 @@
 import { CausalTimestamp } from "../network";
-import { CounterMessage, MultRegisterMessage } from "../proto_compiled";
-import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState } from "./basic_crdts";
+import { CounterMessage, GMapMessage, MultRegisterMessage } from "../proto_compiled";
+import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./resettable";
+import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 
 export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState> {
     private addCrdt: CounterCrdt;
@@ -316,295 +317,248 @@ export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
     }
 }
 
-export class GMap<K, C extends Crdt> extends Crdt<Map<K, C>> {
-    
+export class MapInitEvent<K, C extends Crdt> implements CrdtEvent {
+    type = "MapInit";
+    constructor(
+        public readonly caller: Crdt,
+        public readonly timestamp: CausalTimestamp,
+        public readonly key: K,
+        public readonly value: C
+    ) { }
 }
 
-// export class GMapInternal<K, C extends Crdt<any>> implements CrdtInternal<Map<K, C>> {
-//     /**
-//      * [constructor description]
-//      * @param valueCrdtInternal [description]
-//      * @param shouldGc Given a value state, return whether it is safe
-//      * to garbage collect it, removing its key-value pair from the
-//      * map.  For correctness, if shouldGc(valueState) is true, then
-//      * valueState must be identical to valueCrdtInternal.create(valueInitialData);
-//      * and if shouldGc is nontrivial, then users should keep in
-//      * mind that state.has(key) is not reliable, since it may be
-//      * false even after key has been initialized because the value
-//      * has been garbage collected.
-//      */
-//     constructor(public readonly shouldGc: (valueState: C) => boolean = (() => false)) {
-//     }
-//     /**
-//      * TODO.  Needs to be set.  Allow it to be set outside constructor
-//      * because CrdtObject needs to call super before it can set this.
-//      */
-//     public initFactory!: (key: K) => C;
-//     create(_initialData?: any): Map<K, C> {
-//         return new Map<K, C>();
-//     }
-//     /**
-//      * Operations:
-//      * - ["apply", key, C message]: applies the C message to
-//      * the given key, initializing the key if needed.
-//      * - ["applySkip", key, C message]: applies the C message to
-//      * the given key, except for their sender, who is assumed
-//      * to have already applied the message.  This is used by
-//      * CrdtValuedGrowOnlyMapInternal, whose messages are
-//      * sometimes derived from values applying messages to
-//      * themselves.  TODO: in principle can optimize so we
-//      * don't have to send "skip" over the network.
-//      * - ["init", key]: initializes the given key using initFactory
-//      * if it is not already present in the map.
-//      * - ["reset"]: resets every value in the map (using
-//      * each value's getUniversalResetOperation()).
-//      */
-//     prepare(operation: [string, K, any], state: Map<K, C>, _replicaId: any): [string, K?, any?] {
-//         let key = operation[1];
-//         switch (operation[0]) {
-//             case "apply":
-//                 return ["apply", key, operation[2]];
-//             case "applySkip":
-//                 return ["applySkip", key, operation[2]];
-//             case "init":
-//                 if (!state.has(key)) return ["init", key];
-//             case "reset": return ["reset"];
-//             default:
-//                 throw new Error("Unrecognized operation: " + JSON.stringify(operation));
-//         }
-//     }
-//     /**
-//      * In addition to the message output by prepare, we have
-//      * messages (arising through semdirect product):
-//      * - ["initReset", key]: does ["init", key] followed by
-//      * delivering a reset message to the key.
-//      * - ["initResetStrong", key]: does ["init", key] followed
-//      * by delivering a reset-strong message to the key.
-//      *
-//      * Description format:
-//      * - for an apply/applySkip operation:
-//      * null (TODO)
-//      * - for an init operation: null if the key already existed,
-//      * otherwise ["init", key]
-//      * - for a reset operation: ["reset"] (TODO: descriptions from
-//      * reset keys)
-//      */
-//     effect(message: [string, K, any?], state: Map<K, C>,
-//             replicaId: any, timestamp: CausalTimestamp):
-//             [Map<K, C>, [string, K?, any?] | null] {
-//         let key = message[1];
-//         switch (message[0]) {
-//             case "applySkip":
-//                 if (replicaId === timestamp.getSender()) {
-//                     // Skip applying it to the state.
-//                     // We can still gc, though, in case the
-//                     // already-applied message has made it
-//                     // gc-able.
-//                     let keyState = state.get(key);
-//                     if (keyState !== undefined &&
-//                             this.shouldGc(keyState)) {
-//                         state.delete(key);
-//                     }
-//                     return [state, null];
-//                 }
-//                 // Otherwise fall through.
-//             case "apply":{
-//                 let keyState = state.get(key);
-//                 if (keyState === undefined) {
-//                     keyState = this.initFactory(key);
-//                 }
-//                 keyState.receive(message[2], timestamp);
-//                 if (this.shouldGc(keyState)) {
-//                     state.delete(key);
-//                 }
-//                 return [state, null];}
-//             case "init":
-//                 if (state.has(key)) return [state, null];
-//                 else {
-//                     let initState = this.initFactory(key);
-//                     if (!this.shouldGc(initState)) {
-//                         state.set(key, initState);
-//                     }
-//                     return [state, ["init", key]];
-//                 }
-//             case "reset":
-//                 for (let entry of state.entries()) {
-//                     let resetMessage = entry[1].getUniversalResetMessage();
-//                     if (resetMessage !== null) entry[1].receive([resetMessage], timestamp);
-//                     if (this.shouldGc(entry[1])) {
-//                         state.delete(entry[0]);
-//                     }
-//                 }
-//                 return [state, ["reset"]];
-//             default:
-//                 throw new Error("Unrecognized message: " + JSON.stringify(message));
-//         }
-//     }
-// }
-//
-//
-// /**
-//  * Convenient representation of a Crdt-valued grow-only map.
-//  *
-//  * TODO: Somewhere: note that initial values of properties must be
-//  * a function of their key only (so can't have varying types or
-//  * initial data).
-//  *
-//  * N is the type of member names (typically string).
-//  */
-// export class CrdtObject<N, C extends Crdt<any>> extends Crdt<Map<N, C>> implements CrdtRuntime {
-//     static defaultPropertyFactory = () => {
-//         throw new Error("Dynamically created properties are only " +
-//                 "allowed if propertyFactory is passed to the " +
-//                 "CrdtObject constructor");
-//     };
-//     /**
-//      * TODO: predefined vs dynamic property creation.  Predefined ones
-//      * have to be created identically on all replicas in
-//      * between startPredefinedPropertyCreation() and
-//      * endPredefinedPropertyCreation(), ideally in the constructor. They
-//      * are not synced (for efficiency and to save the trouble
-//      * of specifying propertyFactory).  Dynamic properties
-//      * can only be created through init.
-//      *
-//      * @param id              [description]
-//      * @param runtime         [description]
-//      * @param propertyFactory [description]
-//      */
-//     constructor(id: any, runtime: CrdtRuntime,
-//             propertyFactory: (name: N, internalRuntime: CrdtRuntime) => C
-//             = CrdtObject.defaultPropertyFactory) {
-//         // TODO: gc ability
-//         let crdtInternal = new GMapInternal<N, C>();
-//         super(id, crdtInternal, runtime);
-//         crdtInternal.initFactory = (key: N) => {
-//             this.inInit = true;
-//             let result = propertyFactory(key, this);
-//             this.inInit = false;
-//             return result;
-//         };
-//         this.inPredefinedPropertyCreation = false;
-//         this.inInit = false;
-//     }
-//
-//     private inPredefinedPropertyCreation: boolean;
-//     startPredefinedPropertyCreation() {
-//         this.inPredefinedPropertyCreation = true;
-//     }
-//     endPredefinedPropertyCreation() {
-//         this.inPredefinedPropertyCreation = false;
-//     }
-//     private inInit: boolean;
-//     register(crdt: C, name: N): void {
-//         if (!(this.inPredefinedPropertyCreation || this.inInit)) {
-//             throw new Error("Properties can only be directly " +
-//                 "registered between startPredefinedPropertyCreation() " +
-//                 "and endPredefinedPropertyCreation().  Dynamic properties " +
-//                 "must be created with init(name).");
-//         }
-//         if (this.state.has(name)) {
-//             throw new Error("Duplicate property name: " + name);
-//         }
-//         this.state.set(name, crdt);
-//         // Skip sending an init message about it.  Okay because of the
-//         // predefined initialization contract.
-//     }
-//     /**
-//      * @param  name [description]
-//      * @return      The initialized Crdt.
-//      */
-//     initProperty(name: N): C {
-//         let currentValue = this.state.get(name);
-//         if (currentValue !== undefined) return currentValue;
-//         else {
-//             this.applyOp(["init", name]);
-//             return this.state.get(name) as C;
-//         }
-//     }
-//     reset() {
-//         this.applyOp(this.getUniversalResetMessage());
-//     }
-//     getUniversalResetMessage() {
-//         return ["reset"];
-//     }
-//
-//     getProperty(name: N): C | undefined {
-//         return this.state.get(name);
-//     }
-//     propertyNames() {
-//         return this.state.keys();
-//     }
-//     propertyValues() {
-//         return this.state.values();
-//     }
-//     propertyEntries() {
-//         return this.state.entries();
-//     }
-//
-//     send(message: any, name: N): void {
-//         // Convert into an applySkip message for the map value
-//         // at name.  Here we want to skip because
-//         // our replica's value has already applied the
-//         // operation internally.
-//         this.applyOp(["applySkip", name, message]);
-//     }
-//
-//     getReplicaId() {
-//         return this.runtime.getReplicaId();
-//     }
-//     getNextTimestamp(_crdtId: any): CausalTimestamp {
-//         return this.runtime.getNextTimestamp(this.id);
-//     }
-// }
-//
-// export class AddWinsSet<T> extends CrdtObject<T, EnableWinsFlag> {
-//     constructor(id: any, runtime: CrdtRuntime) {
-//         // TODO: add gc once we have transactions
-//         super(id, runtime, (name: T, internalRuntime: CrdtRuntime) =>
-//                 new EnableWinsFlag(name, internalRuntime));
-//     }
-//     add(value: T) {
-//         this.startTransaction();
-//         this.initProperty(value).enable();
-//         this.endTransaction();
-//     }
-//     delete(value: T) {
-//         if (this.has(value)) {
-//             (this.getProperty(value) as EnableWinsFlag).disable();
-//         }
-//     }
-//     deleteStrong(value: T) {
-//         if (this.has(value)) {
-//             (this.getProperty(value) as EnableWinsFlag).resetStrong();
-//         }
-//     }
-//     has(value: T) {
-//         let valueFlag = this.getProperty(value);
-//         if (valueFlag === undefined) return false;
-//         else return valueFlag.enabled;
-//     }
-//     get value(): Set<T> {
-//         let result = new Set<T>();
-//         for (let entry of this.propertyEntries()) {
-//             if (entry[1].enabled) result.add(entry[0]);
-//         }
-//         return result;
-//     }
-//     set value(newValue: Set<T>) {
-//         this.startTransaction();
-//         this.reset();
-//         for (let element of newValue) {
-//             this.add(element);
-//         }
-//         this.endTransaction();
-//     }
-//     values() {
-//         // TODO: once it's gc'd we can just use this.state.keys()
-//         return this.value.values();
-//     }
-//     // TODO: other set properties (e.g. symbol iterator)
-//     // TODO: capturing and translating descriptions
-// }
+export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
+    private readonly valueConstructor: (parent: Crdt, id: string, key: K) => C;
+    private readonly serialize: (value: K) => Uint8Array;
+    private readonly deserialize: (serialized: Uint8Array) => K;
+    /**
+     * A grow-only map Crdt.
+     *
+     * Map keys and their serializer/deserializer are handled as in
+     * GSetCrdt; in particular, only types string, number, and
+     * Crdt are supported by default, with the same semantics
+     * as the usual JS map.
+     *
+     * Map values are constrained to be Crdts of a type
+     * determined at construction, via the valueConstructor
+     * function (see below).  To set the value at a key,
+     * you must first initialize it using initKey() or
+     * getForce(), then portion operations on the resulting
+     * value Crdt, which can be obtained via get() or getForce().
+     * Intuitively, this constrains the map values to be
+     * "by-value" instead of "by-reference": it does not
+     * make sense to use an existing Crdt reference as a
+     * map value (although see TODO: register maps for a way
+     * around this), but you can copy a desired value into
+     * a map value by performing operations on the
+     * initialized Crdt.  However, getting a map value always
+     * returns the same Crdt reference, so operations on it
+     * are reflected in the map.
+     *
+     * @param valueConstructor A function used to initialize
+     * value Crdts when initKey() or getForce() is called on
+     * their key.  The Crdt must have given the parent and id.
+     * In the simplest usage, this function just calls C's
+     * constructor with the given parent and id, and default
+     * values otherwise (independent of key).
+     * If desired,
+     * the result can instead depend on key (e.g., using
+     * varying subclasses of C, or performing local operations
+     * to drive the Crdt to a desired state depending on K).
+     * However, the result must be identical on all replicas,
+     * even if they are in different global states.  The
+     * easiest way to ensure this is to have the result be
+     * a function of the given arguments only.
+     *
+     * TODO: garbage collection stuff for AWSet.
+     */
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        valueConstructor: (parent: Crdt, id: string, key: K) => C,
+        serialize: (key: K) => Uint8Array = defaultCollectionSerializer,
+        deserialize: (serialized: Uint8Array) => K = newDefaultCollectionDeserializer(parentOrRuntime)
+    ) {
+        super(parentOrRuntime, id, new Map());
+        this.valueConstructor = valueConstructor;
+        this.serialize = serialize;
+        this.deserialize = deserialize;
+    }
+
+    get(key: K): C | undefined {
+        return this.state.get(key);
+    }
+
+    getForce(key: K): C {
+        this.initKey(key);
+        return this.get(key)!;
+    }
+
+    has(key: K): boolean {
+        return this.state.has(key);
+    }
+
+    initKey(key: K) {
+        // TODO: if we make this resettable, send values
+        // anyway (or make that an option).  But don't do
+        // so when called via getForce.
+        if (!this.has(key)) {
+            let message = GMapMessage.create({
+                keyToInit: this.serialize(key)
+            });
+            let buffer = GMapMessage.encode(message).finish()
+            super.send(buffer);
+        }
+    }
+
+    receiveInternal(
+        timestamp: CausalTimestamp,
+        message: Uint8Array
+    ): boolean {
+        try {
+            let decoded = GMapMessage.decode(message);
+            let key = this.deserialize(decoded.keyToInit);
+            if (!this.has(key)) {
+                let value = this.valueConstructor(
+                    this,
+                    new TextDecoder("utf8").decode(message),
+                    key
+                );
+                this.state.set(key, value);
+                this.dispatchEvent(new MapInitEvent(
+                    this, timestamp, key, value
+                ));
+                return true;
+            }
+            else return false;
+        }
+        catch (e) {
+            // TODO
+            console.log("Decoding error: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * Don't mutate this directly.
+     */
+    get value(): Map<K, C> {
+        return this.state;
+    }
+
+    // TODO: map helper methods.
+
+    // TODO: reset method (reset all values but
+    // don't reset the state, so Crdt refs still
+    // make sense).
+}
+
+export class SetDeleteEvent<T> implements CrdtEvent {
+    type = "SetDelete";
+    constructor(
+        public readonly caller: Crdt,
+        public readonly timestamp: CausalTimestamp,
+        public readonly valueDeleted: T) { }
+}
+
+export class AddWinsSet<T> extends Crdt {
+    private readonly flagMap: GMapCrdt<T, EnableWinsFlag>;
+    /**
+     * Add-wins set with elements of type T.
+     *
+     * The default serializer supports types string, number,
+     * and Crdt.  string and number types are stored
+     * by-value, as in ordinary JS Set's, so that different
+     * instances of the same value are identified
+     * (even if they are added by different
+     * replicas).  Crdt types are stored
+     * by-reference, as they would be in ordinary JS set's,
+     * with replicas of the same Crdt being identified
+     * (even if they are added by different replicas).
+     * Other types are not supported and will cause an
+     * error when you attempt to add them; use a custom
+     * serializer and deserializer instead, being
+     * aware of JS's clunky set semantics (all Objects
+     * are stored by-reference only, while naive
+     * serialization/deserialization, e.g. with JSON,
+     * will create non-equal
+     * copies of Objects on other replicas,
+     * even if they intuitively correspond to the "same"
+     * variable.)
+     */
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
+        deserialize: (serialized: Uint8Array) => T = newDefaultCollectionDeserializer(parentOrRuntime)
+    ) {
+        super(parentOrRuntime, id, {});
+        this.flagMap = new GMapCrdt(
+            this, "flagMap",
+            (parent: Crdt, id: string, _) => new EnableWinsFlag(
+                parent, id
+            ),
+            serialize, deserialize
+        );
+        // TODO: use GMap garbage collection.  Then revise below.
+        this.flagMap.addEventListener(
+            "MapInit",
+            event => {
+                let initEvent = event as MapInitEvent<T, EnableWinsFlag>;
+                initEvent.value.addEventListener(
+                    "Enable",
+                    enableEvent => this.dispatchEvent(new SetAddEvent(
+                        this, enableEvent.timestamp, initEvent.key
+                    )),
+                    true
+                );
+                initEvent.value.addEventListener(
+                    "Disable",
+                    enableEvent => this.dispatchEvent(new SetDeleteEvent(
+                        this, enableEvent.timestamp, initEvent.key
+                    )),
+                    true
+                );
+            },
+            true
+        );
+    }
+
+    add(value: T) {
+        // TODO: init flags by default instead of doing so here
+        this.flagMap.getForce(value).enable();
+    }
+
+    remove(value: T) {
+        let flag = this.flagMap.get(value);
+        if (flag) flag.disable();
+    }
+
+    delete(value: T) {
+        this.remove(value);
+    }
+
+    has(value: T) {
+        let flag = this.flagMap.get(value);
+        if (!flag) return false;
+        return flag.enabled;
+    }
+
+    get value(): Set<T> {
+        let set = new Set<T>();
+        for (let entry of this.flagMap.value.entries()) {
+            if (entry[1].enabled) set.add(entry[0]);
+        }
+        return set;
+    }
+
+    values() {
+        return this.value.values();
+    }
+
+    // TODO: other helper methods
+}
+
 //
 // export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsSet<K> | CrdtObject<K, C>> {
 //     private readonly keySet: AddWinsSet<K>;
@@ -687,53 +641,4 @@ export class GMap<K, C extends Crdt> extends Crdt<Map<K, C>> {
 //     // TODO: other map methods (e.g. symbol iterator)
 //     // TODO: strong-reset
 //     // TODO: preserve-state delete, reset?
-// }
-//
-// // TODO: make corresponding Crdt for use in CrdtObject's,
-// // so users don't have to worry about translating ops
-// // and to support bulk/RPC/homap ops.
-// export class ArrayCrdtInternal<S> implements CrdtInternal<S[]> {
-//     constructor(public readonly elementCrdt: CrdtInternal<S>) { }
-//     /**
-//      * @param  initialData An array of initialData to
-//      * pass to each entry's create method.  The entries
-//      * may be undefined, in which case undefined will
-//      * be passed to the entry's create method.  In any
-//      * case, initialData.length is used to set the
-//      * length.
-//      * @return             [description]
-//      */
-//     create(initialData: any[]): S[] {
-//         if (!Array.isArray(initialData)) {
-//             throw new Error("Not an array: " + initialData);
-//         }
-//         let state: S[] = [];
-//         state.length = initialData.length;
-//         for (let i = 0; i < initialData.length; i++) {
-//             state[i] = this.elementCrdt.create(initialData[i]);
-//         }
-//         return state;
-//     }
-//     /**
-//      * @param  operation [index, op]
-//      * @return message of the form [index, message]
-//      */
-//     prepare(operation: [number, any], state: S[], replicaId: any): [number, any] {
-//         if (!(operation[0] >= 0 && operation[0] < state.length && Number.isInteger(operation[0]))) {
-//             throw new Error("Index out of bounds: " + operation[0]);
-//         }
-//         return [operation[0], this.elementCrdt.prepare(operation[1], state[1], replicaId)];
-//     }
-//     /**
-//      * Description format: [index, returned description]
-//      * (same as message).
-//      * @param  message    [index, message]
-//      */
-//     effect(message: [number, any], state: S[], replicaId: any, timestamp: CausalTimestamp): [S[], [number, number]] {
-//         let desc;
-//         [state[message[0]], desc] = this.elementCrdt.effect(
-//             message[1], state[message[0]], replicaId, timestamp
-//         );
-//         return [state, [message[0], desc]];
-//     }
 // }

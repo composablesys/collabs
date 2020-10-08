@@ -751,3 +751,93 @@ export class LwwMessage implements ILwwMessage {
      */
     public toJSON(): { [k: string]: any };
 }
+
+/** Properties of a GMapMessage. */
+export interface IGMapMessage {
+
+    /** GMapMessage keyToInit */
+    keyToInit: Uint8Array;
+}
+
+/** Represents a GMapMessage. */
+export class GMapMessage implements IGMapMessage {
+
+    /**
+     * Constructs a new GMapMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: IGMapMessage);
+
+    /** GMapMessage keyToInit. */
+    public keyToInit: Uint8Array;
+
+    /**
+     * Creates a new GMapMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns GMapMessage instance
+     */
+    public static create(properties?: IGMapMessage): GMapMessage;
+
+    /**
+     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @param message GMapMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @param message GMapMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a GMapMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns GMapMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): GMapMessage;
+
+    /**
+     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns GMapMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): GMapMessage;
+
+    /**
+     * Verifies a GMapMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns GMapMessage
+     */
+    public static fromObject(object: { [k: string]: any }): GMapMessage;
+
+    /**
+     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
+     * @param message GMapMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: GMapMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this GMapMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}

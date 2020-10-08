@@ -118,8 +118,8 @@ export class MultRegisterCrdt extends Crdt<NumberState> {
     }
 }
 
-export class GSetAddEvent<T> implements CrdtEvent {
-    type = "GSetAdd";
+export class SetAddEvent<T> implements CrdtEvent {
+    type = "SetAdd";
     constructor(
         public readonly caller: Crdt,
         public readonly timestamp: CausalTimestamp,
@@ -129,6 +129,29 @@ export class GSetAddEvent<T> implements CrdtEvent {
 export class GSetCrdt<T> extends Crdt<Set<T>> {
     private readonly serialize: (value: T) => Uint8Array;
     private readonly deserialize: (serialized: Uint8Array) => T;
+    /**
+     * Grow-only set with elements of type T.
+     *
+     * The default serializer supports types string, number,
+     * and Crdt.  string and number types are stored
+     * by-value, as in ordinary JS Set's, so that different
+     * instances of the same value are identified
+     * (even if they are added by different
+     * replicas).  Crdt types are stored
+     * by-reference, as they would be in ordinary JS set's,
+     * with replicas of the same Crdt being identified
+     * (even if they are added by different replicas).
+     * Other types are not supported and will cause an
+     * error when you attempt to add them; use a custom
+     * serializer and deserializer instead, being
+     * aware of JS's clunky set semantics (all Objects
+     * are stored by-reference only, while naive
+     * serialization/deserialization, e.g. with JSON,
+     * will create non-equal
+     * copies of Objects on other replicas,
+     * even if they intuitively correspond to the "same"
+     * variable.)
+     */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
@@ -141,11 +164,19 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
     }
 
     add(value: T) {
-        let message = GSetMessage.create({
-            toAdd: this.serialize(value)
-        });
-        let buffer = GSetMessage.encode(message).finish()
-        super.send(buffer);
+        // TODO: if we make this resettable, send values
+        // anyway (or make that an option).
+        if (!this.has(value)) {
+            let message = GSetMessage.create({
+                toAdd: this.serialize(value)
+            });
+            let buffer = GSetMessage.encode(message).finish()
+            super.send(buffer);
+        }
+    }
+
+    has(value: T) {
+        return this.state.has(value);
     }
 
     receiveInternal(
@@ -157,7 +188,7 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
             let value = this.deserialize(decoded.toAdd);
             if (!this.state.has(value)) {
                 this.state.add(value);
-                this.dispatchEvent(new GSetAddEvent(
+                this.dispatchEvent(new SetAddEvent(
                     this, timestamp, value
                 ));
                 return true;
@@ -177,6 +208,8 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
     get value(): Set<T> {
         return this.state;
     }
+
+    // TODO: other helper methods
 }
 
 export class MvrEntry<T> {

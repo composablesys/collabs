@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { AddEvent, MultEvent } from '../../src/crdts';
-import { DisableWinsFlag, EnableWinsFlag, NumberCrdt } from '../../src/crdts/standard';
+import { AddEvent, MultEvent, SetAddEvent } from '../../src/crdts';
+import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, NumberCrdt, SetDeleteEvent } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
@@ -231,139 +231,93 @@ function testFromPaper() {
 //         this.endPredefinedPropertyCreation();
 //     }
 // }
-//
-// function testCrdtObject() {
-//     console.log("testCrdtObject()...");
-//
-//     let aliceBi = new BiCounter("biId", alice);
-//     let bobBi = new BiCounter("biId", bob);
-//
-//     // Do testFromPaper() on each counter
-//     aliceBi.a.onchange = (event => console.log(
-//         "Alice a: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     bobBi.a.onchange = (event => console.log(
-//         "Bob a: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     aliceBi.b.onchange = (event => console.log(
-//         "Alice b: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     bobBi.b.onchange = (event => console.log(
-//         "Bob b: " + event.timestamp.getSender() + " " +
-//         event.description[0] + "ed " + event.description[1]));
-//     assert.strictEqual(aliceBi.a.value, 1);
-//     assert.strictEqual(bobBi.a.value, 1);
-//
-//     aliceBi.a.mult(2);
-//     aliceBi.a.add(1);
-//     bobBi.a.mult(3);
-//     bobBi.a.add(4);
-//     assert.strictEqual(aliceBi.a.value, 3);
-//     assert.strictEqual(bobBi.a.value, 7);
-//
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceBi.a.value, 17);
-//     assert.strictEqual(bobBi.a.value, 17);
-//
-//     assert.strictEqual(aliceBi.b.value, 1);
-//     assert.strictEqual(bobBi.b.value, 1);
-//
-//     aliceBi.b.mult(2);
-//     aliceBi.b.add(1);
-//     bobBi.b.mult(3);
-//     bobBi.b.add(4);
-//     assert.strictEqual(aliceBi.b.value, 3);
-//     assert.strictEqual(bobBi.b.value, 7);
-//
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceBi.b.value, 17);
-//     assert.strictEqual(bobBi.b.value, 17);
-//
-//     console.log("...ok");
-// }
-//
-// function testAwSet() {
-//     console.log("testAwSet()...");
-//
-//     let aliceSet = new AddWinsSet<string>("awSetId", alice);
-//     aliceSet.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " did " +
-//          JSON.stringify(event.description)));
-//     let bobSet = new AddWinsSet<string>("awSetId", bob);
-//     bobSet.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " did " +
-//          JSON.stringify(event.description)));
-//     assertSetEquals(new Set(aliceSet.values()), new Set());
-//     assertSetEquals(new Set(bobSet.values()), new Set());
-//
-//     aliceSet.add("element");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["element"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["element"]));
-//
-//     bobSet.add("7");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
-//
-//     aliceSet.add("7");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
-//
-//     // Out of order test
-//     aliceSet.add("first");
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
-//
-//     bobSet.add("second");
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["element", "7", "second"]));
-//
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first", "second"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["element", "7", "first", "second"]));
-//
-//     // Delete tests on single element (copying EwFlag tests)
-//     aliceSet.delete("element");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second"]));
-//
-//     bobSet.delete("nonexistent");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second"]));
-//
-//     aliceSet.add("concurrent");
-//     aliceSet.delete("concurrent");
-//     bobSet.add("concurrent");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
-//     // TODO: test deleteStrong
-//
-//     // Observed-reset test
-//     bobSet.reset();
-//     assertSetEquals(new Set(bobSet.values()), new Set());
-//     aliceSet.add("survivor");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
-//     assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
-//     //
-//     // // Reset-wins test
-//     // aliceSet.resetStrong();
-//     // aliceSet.add("alice's");
-//     // bobSet.reset();
-//     // bobSet.add("bob's");
-//     // assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
-//     // assertSetEquals(new Set(bobSet.values()), new Set(["bob's"]));
-//     // runtimeGen.releaseAll();
-//     // assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
-//     // assertSetEquals(new Set(bobSet.values()), new Set(["alice's"]));
-//
-//     console.log("...ok");
-// }
+
+function testAwSet() {
+    console.log("testAwSet()...");
+
+    let aliceSet = new AddWinsSet<string>(alice, "awSetId");
+    aliceSet.addEventListener("SetAdd", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " added " + (event as SetAddEvent<string>).valueAdded));
+    aliceSet.addEventListener("SetDelete", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " deleted " + (event as SetDeleteEvent<string>).valueDeleted));
+    let bobSet = new AddWinsSet<string>(bob, "awSetId");
+    bobSet.addEventListener("SetAdd", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " added " + (event as SetAddEvent<string>).valueAdded));
+    bobSet.addEventListener("SetDelete", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " deleted " + (event as SetDeleteEvent<string>).valueDeleted));
+    assertSetEquals(new Set(aliceSet.values()), new Set());
+    assertSetEquals(new Set(bobSet.values()), new Set());
+
+    aliceSet.add("element");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element"]));
+
+    bobSet.add("7");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
+
+    aliceSet.add("7");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
+
+    // Out of order test
+    aliceSet.add("first");
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7"]));
+
+    bobSet.add("second");
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7", "second"]));
+
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["element", "7", "first", "second"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["element", "7", "first", "second"]));
+
+    // Delete tests on single element (copying EwFlag tests)
+    aliceSet.delete("element");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second"]));
+
+    bobSet.delete("nonexistent");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second"]));
+
+    aliceSet.add("concurrent");
+    aliceSet.delete("concurrent");
+    bobSet.add("concurrent");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
+    assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
+    // TODO: test deleteStrong
+
+    // Observed-reset test
+    // TODO
+    // bobSet.reset();
+    // assertSetEquals(new Set(bobSet.values()), new Set());
+    // aliceSet.add("survivor");
+    // runtimeGen.releaseAll();
+    // assertSetEquals(new Set(aliceSet.values()), new Set(["survivor"]));
+    // assertSetEquals(new Set(bobSet.values()), new Set(["survivor"]));
+    //
+    // // Reset-wins test
+    // aliceSet.resetStrong();
+    // aliceSet.add("alice's");
+    // bobSet.reset();
+    // bobSet.add("bob's");
+    // assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
+    // assertSetEquals(new Set(bobSet.values()), new Set(["bob's"]));
+    // runtimeGen.releaseAll();
+    // assertSetEquals(new Set(aliceSet.values()), new Set(["alice's"]));
+    // assertSetEquals(new Set(bobSet.values()), new Set(["alice's"]));
+
+    console.log("...ok");
+}
+
 //
 // function testMap() {
 //     console.log("testMap()...");
@@ -455,8 +409,7 @@ testDwFlag();
 testNumber();
 testFromPaper();
 // testOrthogonal();
-// testCrdtObject();
-// testAwSet();
+testAwSet();
 // testMap();
 
 

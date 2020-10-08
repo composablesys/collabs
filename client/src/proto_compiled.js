@@ -1722,4 +1722,200 @@ $root.LwwMessage = (function() {
     return LwwMessage;
 })();
 
+$root.GMapMessage = (function() {
+
+    /**
+     * Properties of a GMapMessage.
+     * @exports IGMapMessage
+     * @interface IGMapMessage
+     * @property {Uint8Array} keyToInit GMapMessage keyToInit
+     */
+
+    /**
+     * Constructs a new GMapMessage.
+     * @exports GMapMessage
+     * @classdesc Represents a GMapMessage.
+     * @implements IGMapMessage
+     * @constructor
+     * @param {IGMapMessage=} [properties] Properties to set
+     */
+    function GMapMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * GMapMessage keyToInit.
+     * @member {Uint8Array} keyToInit
+     * @memberof GMapMessage
+     * @instance
+     */
+    GMapMessage.prototype.keyToInit = $util.newBuffer([]);
+
+    /**
+     * Creates a new GMapMessage instance using the specified properties.
+     * @function create
+     * @memberof GMapMessage
+     * @static
+     * @param {IGMapMessage=} [properties] Properties to set
+     * @returns {GMapMessage} GMapMessage instance
+     */
+    GMapMessage.create = function create(properties) {
+        return new GMapMessage(properties);
+    };
+
+    /**
+     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @function encode
+     * @memberof GMapMessage
+     * @static
+     * @param {IGMapMessage} message GMapMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    GMapMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.keyToInit);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof GMapMessage
+     * @static
+     * @param {IGMapMessage} message GMapMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    GMapMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a GMapMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof GMapMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {GMapMessage} GMapMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    GMapMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.GMapMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.keyToInit = reader.bytes();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("keyToInit"))
+            throw $util.ProtocolError("missing required 'keyToInit'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof GMapMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {GMapMessage} GMapMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    GMapMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a GMapMessage message.
+     * @function verify
+     * @memberof GMapMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    GMapMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.keyToInit && typeof message.keyToInit.length === "number" || $util.isString(message.keyToInit)))
+            return "keyToInit: buffer expected";
+        return null;
+    };
+
+    /**
+     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof GMapMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {GMapMessage} GMapMessage
+     */
+    GMapMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.GMapMessage)
+            return object;
+        var message = new $root.GMapMessage();
+        if (object.keyToInit != null)
+            if (typeof object.keyToInit === "string")
+                $util.base64.decode(object.keyToInit, message.keyToInit = $util.newBuffer($util.base64.length(object.keyToInit)), 0);
+            else if (object.keyToInit.length)
+                message.keyToInit = object.keyToInit;
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof GMapMessage
+     * @static
+     * @param {GMapMessage} message GMapMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    GMapMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults)
+            if (options.bytes === String)
+                object.keyToInit = "";
+            else {
+                object.keyToInit = [];
+                if (options.bytes !== Array)
+                    object.keyToInit = $util.newBuffer(object.keyToInit);
+            }
+        if (message.keyToInit != null && message.hasOwnProperty("keyToInit"))
+            object.keyToInit = options.bytes === String ? $util.base64.encode(message.keyToInit, 0, message.keyToInit.length) : options.bytes === Array ? Array.prototype.slice.call(message.keyToInit) : message.keyToInit;
+        return object;
+    };
+
+    /**
+     * Converts this GMapMessage to JSON.
+     * @function toJSON
+     * @memberof GMapMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    GMapMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return GMapMessage;
+})();
+
 module.exports = $root;
