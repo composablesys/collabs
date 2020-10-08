@@ -7,7 +7,7 @@ import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./r
 export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState> {
     private addCrdt: CounterCrdt;
     private multCrdt: MultRegisterCrdt;
-    readonly resetValue;
+    readonly resetValue: number;
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,

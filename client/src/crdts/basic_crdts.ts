@@ -1,7 +1,7 @@
 import { CrdtEvent, Crdt, CrdtRuntime } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import {CounterMessage, GSetMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
-import { Utils } from "./utils";
+import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 
 export class AddEvent implements CrdtEvent {
     type = "Add";
@@ -133,8 +133,8 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
         initialValue: Set<T> = new Set(),
-        serialize: (value: T) => Uint8Array = Utils.jsonSerialize,
-        deserialize: (serialized: Uint8Array) => T = Utils.jsonDeserialize
+        serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
+        deserialize: (serialized: Uint8Array) => T = newDefaultCollectionDeserializer(parentOrRuntime)
     ) {
         super(parentOrRuntime, id, initialValue);
         this.serialize = serialize;
@@ -201,12 +201,33 @@ export class MvrEvent<T> implements CrdtEvent {
 export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
     private readonly serialize: (value: T) => Uint8Array;
     private readonly deserialize: (serialized: Uint8Array) => T;
+    /**
+     * The default serializer supports types string, number,
+     * and Crdt.  string and number types are stored
+     * by-value, as in ordinary JS Set's, so that different
+     * instances of the same value are identified
+     * (even if they are added by different
+     * replicas).  Crdt types are stored
+     * by-reference, as they would be in ordinary JS set's,
+     * with replicas of the same Crdt being identified
+     * (even if they are added by different replicas).
+     * Other types are not supported and will cause an
+     * error when you attempt to add them; use a custom
+     * serializer and deserializer instead, being
+     * aware of JS's clunky set semantics (all Objects
+     * are stored by-reference only, while naive
+     * serialization/deserialization, e.g. with JSON,
+     * will create non-equal
+     * copies of Objects on other replicas,
+     * even if they intuitively correspond to the "same"
+     * variable.)
+     */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
         initialValue?: T,
-        serialize: (value: T) => Uint8Array = Utils.jsonSerialize,
-        deserialize: (serialized: Uint8Array) => T = Utils.jsonDeserialize
+        serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
+        deserialize: (serialized: Uint8Array) => T = newDefaultCollectionDeserializer(parentOrRuntime)
     ) {
         let initialSet = new Set<MvrEntry<T>>();
         if (initialValue !== undefined) {
@@ -257,7 +278,7 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
                 return false; // no change to actual value
             }
             else {
-                // TODO: exception if value stayed put?
+                // TODO: don't dispatch if value stayed put?
                 this.dispatchEvent(new MvrEvent(
                     this, timestamp, value, removed
                 ));

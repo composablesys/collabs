@@ -244,6 +244,499 @@ $root.CrdtRuntimeMessage = (function() {
     return CrdtRuntimeMessage;
 })();
 
+$root.CrdtReference = (function() {
+
+    /**
+     * Properties of a CrdtReference.
+     * @exports ICrdtReference
+     * @interface ICrdtReference
+     * @property {string} rootId CrdtReference rootId
+     * @property {Array.<string>|null} [pathToRoot] CrdtReference pathToRoot
+     */
+
+    /**
+     * Constructs a new CrdtReference.
+     * @exports CrdtReference
+     * @classdesc Represents a CrdtReference.
+     * @implements ICrdtReference
+     * @constructor
+     * @param {ICrdtReference=} [properties] Properties to set
+     */
+    function CrdtReference(properties) {
+        this.pathToRoot = [];
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * CrdtReference rootId.
+     * @member {string} rootId
+     * @memberof CrdtReference
+     * @instance
+     */
+    CrdtReference.prototype.rootId = "";
+
+    /**
+     * CrdtReference pathToRoot.
+     * @member {Array.<string>} pathToRoot
+     * @memberof CrdtReference
+     * @instance
+     */
+    CrdtReference.prototype.pathToRoot = $util.emptyArray;
+
+    /**
+     * Creates a new CrdtReference instance using the specified properties.
+     * @function create
+     * @memberof CrdtReference
+     * @static
+     * @param {ICrdtReference=} [properties] Properties to set
+     * @returns {CrdtReference} CrdtReference instance
+     */
+    CrdtReference.create = function create(properties) {
+        return new CrdtReference(properties);
+    };
+
+    /**
+     * Encodes the specified CrdtReference message. Does not implicitly {@link CrdtReference.verify|verify} messages.
+     * @function encode
+     * @memberof CrdtReference
+     * @static
+     * @param {ICrdtReference} message CrdtReference message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    CrdtReference.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).string(message.rootId);
+        if (message.pathToRoot != null && message.pathToRoot.length)
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.pathToRoot[i]);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified CrdtReference message, length delimited. Does not implicitly {@link CrdtReference.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof CrdtReference
+     * @static
+     * @param {ICrdtReference} message CrdtReference message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    CrdtReference.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a CrdtReference message from the specified reader or buffer.
+     * @function decode
+     * @memberof CrdtReference
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {CrdtReference} CrdtReference
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    CrdtReference.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CrdtReference();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.rootId = reader.string();
+                break;
+            case 2:
+                if (!(message.pathToRoot && message.pathToRoot.length))
+                    message.pathToRoot = [];
+                message.pathToRoot.push(reader.string());
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("rootId"))
+            throw $util.ProtocolError("missing required 'rootId'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a CrdtReference message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof CrdtReference
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {CrdtReference} CrdtReference
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    CrdtReference.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a CrdtReference message.
+     * @function verify
+     * @memberof CrdtReference
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    CrdtReference.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!$util.isString(message.rootId))
+            return "rootId: string expected";
+        if (message.pathToRoot != null && message.hasOwnProperty("pathToRoot")) {
+            if (!Array.isArray(message.pathToRoot))
+                return "pathToRoot: array expected";
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                if (!$util.isString(message.pathToRoot[i]))
+                    return "pathToRoot: string[] expected";
+        }
+        return null;
+    };
+
+    /**
+     * Creates a CrdtReference message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof CrdtReference
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {CrdtReference} CrdtReference
+     */
+    CrdtReference.fromObject = function fromObject(object) {
+        if (object instanceof $root.CrdtReference)
+            return object;
+        var message = new $root.CrdtReference();
+        if (object.rootId != null)
+            message.rootId = String(object.rootId);
+        if (object.pathToRoot) {
+            if (!Array.isArray(object.pathToRoot))
+                throw TypeError(".CrdtReference.pathToRoot: array expected");
+            message.pathToRoot = [];
+            for (var i = 0; i < object.pathToRoot.length; ++i)
+                message.pathToRoot[i] = String(object.pathToRoot[i]);
+        }
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a CrdtReference message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof CrdtReference
+     * @static
+     * @param {CrdtReference} message CrdtReference
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    CrdtReference.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.arrays || options.defaults)
+            object.pathToRoot = [];
+        if (options.defaults)
+            object.rootId = "";
+        if (message.rootId != null && message.hasOwnProperty("rootId"))
+            object.rootId = message.rootId;
+        if (message.pathToRoot && message.pathToRoot.length) {
+            object.pathToRoot = [];
+            for (var j = 0; j < message.pathToRoot.length; ++j)
+                object.pathToRoot[j] = message.pathToRoot[j];
+        }
+        return object;
+    };
+
+    /**
+     * Converts this CrdtReference to JSON.
+     * @function toJSON
+     * @memberof CrdtReference
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    CrdtReference.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return CrdtReference;
+})();
+
+$root.DefaultSerializerMessage = (function() {
+
+    /**
+     * Properties of a DefaultSerializerMessage.
+     * @exports IDefaultSerializerMessage
+     * @interface IDefaultSerializerMessage
+     * @property {string|null} [stringValue] DefaultSerializerMessage stringValue
+     * @property {number|null} [numberValue] DefaultSerializerMessage numberValue
+     * @property {ICrdtReference|null} [crdtValue] DefaultSerializerMessage crdtValue
+     */
+
+    /**
+     * Constructs a new DefaultSerializerMessage.
+     * @exports DefaultSerializerMessage
+     * @classdesc Represents a DefaultSerializerMessage.
+     * @implements IDefaultSerializerMessage
+     * @constructor
+     * @param {IDefaultSerializerMessage=} [properties] Properties to set
+     */
+    function DefaultSerializerMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * DefaultSerializerMessage stringValue.
+     * @member {string} stringValue
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    DefaultSerializerMessage.prototype.stringValue = "";
+
+    /**
+     * DefaultSerializerMessage numberValue.
+     * @member {number} numberValue
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    DefaultSerializerMessage.prototype.numberValue = 0;
+
+    /**
+     * DefaultSerializerMessage crdtValue.
+     * @member {ICrdtReference|null|undefined} crdtValue
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    DefaultSerializerMessage.prototype.crdtValue = null;
+
+    // OneOf field names bound to virtual getters and setters
+    var $oneOfFields;
+
+    /**
+     * DefaultSerializerMessage value.
+     * @member {"stringValue"|"numberValue"|"crdtValue"|undefined} value
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    Object.defineProperty(DefaultSerializerMessage.prototype, "value", {
+        get: $util.oneOfGetter($oneOfFields = ["stringValue", "numberValue", "crdtValue"]),
+        set: $util.oneOfSetter($oneOfFields)
+    });
+
+    /**
+     * Creates a new DefaultSerializerMessage instance using the specified properties.
+     * @function create
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {IDefaultSerializerMessage=} [properties] Properties to set
+     * @returns {DefaultSerializerMessage} DefaultSerializerMessage instance
+     */
+    DefaultSerializerMessage.create = function create(properties) {
+        return new DefaultSerializerMessage(properties);
+    };
+
+    /**
+     * Encodes the specified DefaultSerializerMessage message. Does not implicitly {@link DefaultSerializerMessage.verify|verify} messages.
+     * @function encode
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {IDefaultSerializerMessage} message DefaultSerializerMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    DefaultSerializerMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        if (message.stringValue != null && Object.hasOwnProperty.call(message, "stringValue"))
+            writer.uint32(/* id 1, wireType 2 =*/10).string(message.stringValue);
+        if (message.numberValue != null && Object.hasOwnProperty.call(message, "numberValue"))
+            writer.uint32(/* id 2, wireType 1 =*/17).double(message.numberValue);
+        if (message.crdtValue != null && Object.hasOwnProperty.call(message, "crdtValue"))
+            $root.CrdtReference.encode(message.crdtValue, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+        return writer;
+    };
+
+    /**
+     * Encodes the specified DefaultSerializerMessage message, length delimited. Does not implicitly {@link DefaultSerializerMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {IDefaultSerializerMessage} message DefaultSerializerMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    DefaultSerializerMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a DefaultSerializerMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {DefaultSerializerMessage} DefaultSerializerMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    DefaultSerializerMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.DefaultSerializerMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.stringValue = reader.string();
+                break;
+            case 2:
+                message.numberValue = reader.double();
+                break;
+            case 3:
+                message.crdtValue = $root.CrdtReference.decode(reader, reader.uint32());
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        return message;
+    };
+
+    /**
+     * Decodes a DefaultSerializerMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {DefaultSerializerMessage} DefaultSerializerMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    DefaultSerializerMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a DefaultSerializerMessage message.
+     * @function verify
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    DefaultSerializerMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        var properties = {};
+        if (message.stringValue != null && message.hasOwnProperty("stringValue")) {
+            properties.value = 1;
+            if (!$util.isString(message.stringValue))
+                return "stringValue: string expected";
+        }
+        if (message.numberValue != null && message.hasOwnProperty("numberValue")) {
+            if (properties.value === 1)
+                return "value: multiple values";
+            properties.value = 1;
+            if (typeof message.numberValue !== "number")
+                return "numberValue: number expected";
+        }
+        if (message.crdtValue != null && message.hasOwnProperty("crdtValue")) {
+            if (properties.value === 1)
+                return "value: multiple values";
+            properties.value = 1;
+            {
+                var error = $root.CrdtReference.verify(message.crdtValue);
+                if (error)
+                    return "crdtValue." + error;
+            }
+        }
+        return null;
+    };
+
+    /**
+     * Creates a DefaultSerializerMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {DefaultSerializerMessage} DefaultSerializerMessage
+     */
+    DefaultSerializerMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.DefaultSerializerMessage)
+            return object;
+        var message = new $root.DefaultSerializerMessage();
+        if (object.stringValue != null)
+            message.stringValue = String(object.stringValue);
+        if (object.numberValue != null)
+            message.numberValue = Number(object.numberValue);
+        if (object.crdtValue != null) {
+            if (typeof object.crdtValue !== "object")
+                throw TypeError(".DefaultSerializerMessage.crdtValue: object expected");
+            message.crdtValue = $root.CrdtReference.fromObject(object.crdtValue);
+        }
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a DefaultSerializerMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof DefaultSerializerMessage
+     * @static
+     * @param {DefaultSerializerMessage} message DefaultSerializerMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    DefaultSerializerMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (message.stringValue != null && message.hasOwnProperty("stringValue")) {
+            object.stringValue = message.stringValue;
+            if (options.oneofs)
+                object.value = "stringValue";
+        }
+        if (message.numberValue != null && message.hasOwnProperty("numberValue")) {
+            object.numberValue = options.json && !isFinite(message.numberValue) ? String(message.numberValue) : message.numberValue;
+            if (options.oneofs)
+                object.value = "numberValue";
+        }
+        if (message.crdtValue != null && message.hasOwnProperty("crdtValue")) {
+            object.crdtValue = $root.CrdtReference.toObject(message.crdtValue, options);
+            if (options.oneofs)
+                object.value = "crdtValue";
+        }
+        return object;
+    };
+
+    /**
+     * Converts this DefaultSerializerMessage to JSON.
+     * @function toJSON
+     * @memberof DefaultSerializerMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    DefaultSerializerMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return DefaultSerializerMessage;
+})();
+
 $root.CounterMessage = (function() {
 
     /**

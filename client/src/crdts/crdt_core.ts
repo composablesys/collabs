@@ -98,7 +98,7 @@ export class Crdt<S extends Object = any> {
         }
     }
 
-    protected readonly children: Map<string, Crdt> = new Map();
+    readonly children: Map<string, Crdt> = new Map();
     protected registerChild(child: Crdt) {
         this.children.set(child.id, child)
     }
@@ -277,5 +277,24 @@ export class CrdtRuntime {
 
     getReplicaId(): string {
         return this.network.getReplicaId();
+    }
+
+    getCrdtByReference(rootId: string, pathToRoot: string[]): Crdt {
+        // TODO: optimize?
+        let currentCrdt = this.rootCrdts.get(rootId);
+        if (!currentCrdt) {
+            throw new Error("Unknown rootId: " + rootId);
+        }
+        for (let i = pathToRoot.length - 1; i >= 0; i--) {
+            currentCrdt = currentCrdt.children.get(pathToRoot[i]);
+            if (!currentCrdt) {
+                throw new Error(
+                    "Unknown child: " + pathToRoot[i] +
+                    " at index " + i + " in reference: rootId=" +
+                    rootId + ", pathToRoot=" + pathToRoot
+                );
+            }
+        }
+        return currentCrdt;
     }
 }

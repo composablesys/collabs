@@ -95,6 +95,207 @@ export class CrdtRuntimeMessage implements ICrdtRuntimeMessage {
     public toJSON(): { [k: string]: any };
 }
 
+/** Properties of a CrdtReference. */
+export interface ICrdtReference {
+
+    /** CrdtReference rootId */
+    rootId: string;
+
+    /** CrdtReference pathToRoot */
+    pathToRoot?: (string[]|null);
+}
+
+/** Represents a CrdtReference. */
+export class CrdtReference implements ICrdtReference {
+
+    /**
+     * Constructs a new CrdtReference.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: ICrdtReference);
+
+    /** CrdtReference rootId. */
+    public rootId: string;
+
+    /** CrdtReference pathToRoot. */
+    public pathToRoot: string[];
+
+    /**
+     * Creates a new CrdtReference instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns CrdtReference instance
+     */
+    public static create(properties?: ICrdtReference): CrdtReference;
+
+    /**
+     * Encodes the specified CrdtReference message. Does not implicitly {@link CrdtReference.verify|verify} messages.
+     * @param message CrdtReference message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: ICrdtReference, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified CrdtReference message, length delimited. Does not implicitly {@link CrdtReference.verify|verify} messages.
+     * @param message CrdtReference message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: ICrdtReference, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a CrdtReference message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns CrdtReference
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CrdtReference;
+
+    /**
+     * Decodes a CrdtReference message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns CrdtReference
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CrdtReference;
+
+    /**
+     * Verifies a CrdtReference message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a CrdtReference message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns CrdtReference
+     */
+    public static fromObject(object: { [k: string]: any }): CrdtReference;
+
+    /**
+     * Creates a plain object from a CrdtReference message. Also converts values to other types if specified.
+     * @param message CrdtReference
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: CrdtReference, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this CrdtReference to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
+/** Properties of a DefaultSerializerMessage. */
+export interface IDefaultSerializerMessage {
+
+    /** DefaultSerializerMessage stringValue */
+    stringValue?: (string|null);
+
+    /** DefaultSerializerMessage numberValue */
+    numberValue?: (number|null);
+
+    /** DefaultSerializerMessage crdtValue */
+    crdtValue?: (ICrdtReference|null);
+}
+
+/** Represents a DefaultSerializerMessage. */
+export class DefaultSerializerMessage implements IDefaultSerializerMessage {
+
+    /**
+     * Constructs a new DefaultSerializerMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: IDefaultSerializerMessage);
+
+    /** DefaultSerializerMessage stringValue. */
+    public stringValue: string;
+
+    /** DefaultSerializerMessage numberValue. */
+    public numberValue: number;
+
+    /** DefaultSerializerMessage crdtValue. */
+    public crdtValue?: (ICrdtReference|null);
+
+    /** DefaultSerializerMessage value. */
+    public value?: ("stringValue"|"numberValue"|"crdtValue");
+
+    /**
+     * Creates a new DefaultSerializerMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns DefaultSerializerMessage instance
+     */
+    public static create(properties?: IDefaultSerializerMessage): DefaultSerializerMessage;
+
+    /**
+     * Encodes the specified DefaultSerializerMessage message. Does not implicitly {@link DefaultSerializerMessage.verify|verify} messages.
+     * @param message DefaultSerializerMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: IDefaultSerializerMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified DefaultSerializerMessage message, length delimited. Does not implicitly {@link DefaultSerializerMessage.verify|verify} messages.
+     * @param message DefaultSerializerMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: IDefaultSerializerMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a DefaultSerializerMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns DefaultSerializerMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): DefaultSerializerMessage;
+
+    /**
+     * Decodes a DefaultSerializerMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns DefaultSerializerMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): DefaultSerializerMessage;
+
+    /**
+     * Verifies a DefaultSerializerMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a DefaultSerializerMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns DefaultSerializerMessage
+     */
+    public static fromObject(object: { [k: string]: any }): DefaultSerializerMessage;
+
+    /**
+     * Creates a plain object from a DefaultSerializerMessage message. Also converts values to other types if specified.
+     * @param message DefaultSerializerMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: DefaultSerializerMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this DefaultSerializerMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
 /** Properties of a CounterMessage. */
 export interface ICounterMessage {
 

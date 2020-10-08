@@ -1,0 +1,12 @@
+message CrdtReference {
+    required string rootId = 1;
+    repeated string pathToRoot = 2;
+}
+
+message DefaultSerializerMessage {
+    oneof value {
+        string stringValue = 1;
+        double numberValue = 2;
+        CrdtReference crdtValue = 3;
+    }
+}
