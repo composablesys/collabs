@@ -1,6 +1,6 @@
 import assert from 'assert';
 import {TestingNetworkGenerator} from "../runtime_for_testing";
-import { CounterCrdt, AddEvent, MultEvent, MultRegisterCrdt, GSetCrdt, MultiValueRegister, GSetAddEvent, MvrEvent/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
+import { CounterCrdt, AddEvent, MultEvent, MultRegisterCrdt, GSetCrdt, MultiValueRegister, GSetAddEvent, MvrEvent, LwwRegister, LwwEvent/*, GSetCrdt, MultiValueRegister*/ } from "../../src/crdts";
 
 let runtimeGen = new TestingNetworkGenerator();
 let alice = runtimeGen.newRuntime("alice");
@@ -188,6 +188,8 @@ function testMvr() {
     assertSetEquals(aliceMvr.valueSet, new Set(["redundant", "overwrite"]));
     assertSetEquals(bobMvr.valueSet, new Set(["redundant", "overwrite"]));
 
+    // TODO: test with Crdt values
+
     // // Reset test
     // aliceMvr.reset();
     // assertSetEquals(aliceMvr.valueSet, new Set());
@@ -199,10 +201,86 @@ function testMvr() {
     console.log("...ok");
 }
 
+function testLwwRegister() {
+    console.log("testLwwRegister()...");
+
+    let aliceLww = new LwwRegister<string>(alice, "lwwId", "initial");
+    aliceLww.addEventListener("Lww", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " set to " + (event as LwwEvent<string>).value));
+    let bobLww = new LwwRegister<string>(bob, "lwwId", "initial");
+    bobLww.addEventListener("Lww", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " set to " + (event as LwwEvent<string>).value));
+    assert.strictEqual(aliceLww.value, "initial");
+    assert.strictEqual(bobLww.value, "initial");
+
+    aliceLww.value = "second";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "second");
+    assert.strictEqual(bobLww.value, "second");
+
+    aliceLww.value = "third";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "third");
+    assert.strictEqual(bobLww.value, "third");
+
+    aliceLww.value = "third";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "third");
+    assert.strictEqual(bobLww.value, "third");
+
+    bobLww.value = "bob's";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "bob's");
+    assert.strictEqual(bobLww.value, "bob's");
+
+    // Concurrent test
+    // Bob will have later time
+    aliceLww.value = "concA";
+    let now = new Date().getTime();
+    while(new Date().getTime() <= now + 1) {}
+    bobLww.value = "concB";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "concB");
+    assert.strictEqual(bobLww.value, "concB");
+
+    aliceLww.value = "concA2";
+    assert.strictEqual(aliceLww.value, "concA2");
+    now = new Date().getTime();
+    while(new Date().getTime() <= now + 1) {}
+    bobLww.value = "concB2";
+    assert.strictEqual(bobLww.value, "concB2");;
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "concB2");
+    assert.strictEqual(bobLww.value, "concB2");
+
+    // Multiple adds are redundant, unless they're overwritten
+    aliceLww.value = "redundant";
+    bobLww.value = "redundant";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "redundant");
+    assert.strictEqual(bobLww.value, "redundant");
+
+    aliceLww.value = "overwrite";
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceLww.value, "overwrite");
+    assert.strictEqual(bobLww.value, "overwrite");
+
+    // // Reset test
+    // aliceLww.reset();
+    // assertSetEquals(aliceLww.valueSet, new Set());
+    // bobLww.value = "conc";
+    // runtimeGen.releaseAll();
+    // assertSetEquals(aliceLww.valueSet, new Set(["conc"]));
+    // assertSetEquals(bobLww.valueSet, new Set(["conc"]));
+
+    console.log("...ok");
+}
+
 testCounter();
 testMultRegister();
 testGSet();
 testMvr();
+testLwwRegister();
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
 function isSuperset<T>(set: Set<T>, subset: Set<T>) {

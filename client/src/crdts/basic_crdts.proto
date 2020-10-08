@@ -13,3 +13,8 @@ message GSetMessage {
 message MvrMessage {
     required bytes value = 1;
 }
+
+message LwwMessage {
+    required bytes value = 1;
+    required double time = 2;
+}

@@ -655,3 +655,99 @@ export class MvrMessage implements IMvrMessage {
      */
     public toJSON(): { [k: string]: any };
 }
+
+/** Properties of a LwwMessage. */
+export interface ILwwMessage {
+
+    /** LwwMessage value */
+    value: Uint8Array;
+
+    /** LwwMessage time */
+    time: number;
+}
+
+/** Represents a LwwMessage. */
+export class LwwMessage implements ILwwMessage {
+
+    /**
+     * Constructs a new LwwMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: ILwwMessage);
+
+    /** LwwMessage value. */
+    public value: Uint8Array;
+
+    /** LwwMessage time. */
+    public time: number;
+
+    /**
+     * Creates a new LwwMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns LwwMessage instance
+     */
+    public static create(properties?: ILwwMessage): LwwMessage;
+
+    /**
+     * Encodes the specified LwwMessage message. Does not implicitly {@link LwwMessage.verify|verify} messages.
+     * @param message LwwMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: ILwwMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified LwwMessage message, length delimited. Does not implicitly {@link LwwMessage.verify|verify} messages.
+     * @param message LwwMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: ILwwMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a LwwMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns LwwMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): LwwMessage;
+
+    /**
+     * Decodes a LwwMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns LwwMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): LwwMessage;
+
+    /**
+     * Verifies a LwwMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a LwwMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns LwwMessage
+     */
+    public static fromObject(object: { [k: string]: any }): LwwMessage;
+
+    /**
+     * Creates a plain object from a LwwMessage message. Also converts values to other types if specified.
+     * @param message LwwMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: LwwMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this LwwMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}

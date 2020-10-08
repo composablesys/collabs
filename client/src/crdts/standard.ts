@@ -316,6 +316,10 @@ export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
     }
 }
 
+export class GMap<K, C extends Crdt> extends Crdt<Map<K, C>> {
+    
+}
+
 // export class GMapInternal<K, C extends Crdt<any>> implements CrdtInternal<Map<K, C>> {
 //     /**
 //      * [constructor description]

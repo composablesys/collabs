@@ -1503,4 +1503,223 @@ $root.MvrMessage = (function() {
     return MvrMessage;
 })();
 
+$root.LwwMessage = (function() {
+
+    /**
+     * Properties of a LwwMessage.
+     * @exports ILwwMessage
+     * @interface ILwwMessage
+     * @property {Uint8Array} value LwwMessage value
+     * @property {number} time LwwMessage time
+     */
+
+    /**
+     * Constructs a new LwwMessage.
+     * @exports LwwMessage
+     * @classdesc Represents a LwwMessage.
+     * @implements ILwwMessage
+     * @constructor
+     * @param {ILwwMessage=} [properties] Properties to set
+     */
+    function LwwMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * LwwMessage value.
+     * @member {Uint8Array} value
+     * @memberof LwwMessage
+     * @instance
+     */
+    LwwMessage.prototype.value = $util.newBuffer([]);
+
+    /**
+     * LwwMessage time.
+     * @member {number} time
+     * @memberof LwwMessage
+     * @instance
+     */
+    LwwMessage.prototype.time = 0;
+
+    /**
+     * Creates a new LwwMessage instance using the specified properties.
+     * @function create
+     * @memberof LwwMessage
+     * @static
+     * @param {ILwwMessage=} [properties] Properties to set
+     * @returns {LwwMessage} LwwMessage instance
+     */
+    LwwMessage.create = function create(properties) {
+        return new LwwMessage(properties);
+    };
+
+    /**
+     * Encodes the specified LwwMessage message. Does not implicitly {@link LwwMessage.verify|verify} messages.
+     * @function encode
+     * @memberof LwwMessage
+     * @static
+     * @param {ILwwMessage} message LwwMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    LwwMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.value);
+        writer.uint32(/* id 2, wireType 1 =*/17).double(message.time);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified LwwMessage message, length delimited. Does not implicitly {@link LwwMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof LwwMessage
+     * @static
+     * @param {ILwwMessage} message LwwMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    LwwMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a LwwMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof LwwMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {LwwMessage} LwwMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    LwwMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.LwwMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.value = reader.bytes();
+                break;
+            case 2:
+                message.time = reader.double();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("value"))
+            throw $util.ProtocolError("missing required 'value'", { instance: message });
+        if (!message.hasOwnProperty("time"))
+            throw $util.ProtocolError("missing required 'time'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a LwwMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof LwwMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {LwwMessage} LwwMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    LwwMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a LwwMessage message.
+     * @function verify
+     * @memberof LwwMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    LwwMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.value && typeof message.value.length === "number" || $util.isString(message.value)))
+            return "value: buffer expected";
+        if (typeof message.time !== "number")
+            return "time: number expected";
+        return null;
+    };
+
+    /**
+     * Creates a LwwMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof LwwMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {LwwMessage} LwwMessage
+     */
+    LwwMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.LwwMessage)
+            return object;
+        var message = new $root.LwwMessage();
+        if (object.value != null)
+            if (typeof object.value === "string")
+                $util.base64.decode(object.value, message.value = $util.newBuffer($util.base64.length(object.value)), 0);
+            else if (object.value.length)
+                message.value = object.value;
+        if (object.time != null)
+            message.time = Number(object.time);
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a LwwMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof LwwMessage
+     * @static
+     * @param {LwwMessage} message LwwMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    LwwMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults) {
+            if (options.bytes === String)
+                object.value = "";
+            else {
+                object.value = [];
+                if (options.bytes !== Array)
+                    object.value = $util.newBuffer(object.value);
+            }
+            object.time = 0;
+        }
+        if (message.value != null && message.hasOwnProperty("value"))
+            object.value = options.bytes === String ? $util.base64.encode(message.value, 0, message.value.length) : options.bytes === Array ? Array.prototype.slice.call(message.value) : message.value;
+        if (message.time != null && message.hasOwnProperty("time"))
+            object.time = options.json && !isFinite(message.time) ? String(message.time) : message.time;
+        return object;
+    };
+
+    /**
+     * Converts this LwwMessage to JSON.
+     * @function toJSON
+     * @memberof LwwMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    LwwMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return LwwMessage;
+})();
+
 module.exports = $root;
