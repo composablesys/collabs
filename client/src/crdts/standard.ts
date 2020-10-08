@@ -317,8 +317,8 @@ export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
     }
 }
 
-export class MapInitEvent<K, C extends Crdt> implements CrdtEvent {
-    type = "MapInit";
+export class KeyAddEvent<K, C extends Crdt> implements CrdtEvent {
+    type = "KeyAdd";
     constructor(
         public readonly caller: Crdt,
         public readonly timestamp: CausalTimestamp,
@@ -390,7 +390,7 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
     }
 
     getForce(key: K): C {
-        this.initKey(key);
+        this.addKey(key);
         return this.get(key)!;
     }
 
@@ -398,10 +398,7 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
         return this.state.has(key);
     }
 
-    initKey(key: K) {
-        // TODO: if we make this resettable, send values
-        // anyway (or make that an option).  But don't do
-        // so when called via getForce.
+    addKey(key: K) {
         if (!this.has(key)) {
             let message = GMapMessage.create({
                 keyToInit: this.serialize(key)
@@ -425,7 +422,7 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
                     key
                 );
                 this.state.set(key, value);
-                this.dispatchEvent(new MapInitEvent(
+                this.dispatchEvent(new KeyAddEvent(
                     this, timestamp, key, value
                 ));
                 return true;
@@ -444,6 +441,14 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
      */
     get value(): Map<K, C> {
         return this.state;
+    }
+
+    keys() {
+        return this.state.keys();
+    }
+
+    values() {
+        return this.state.values();
     }
 
     // TODO: map helper methods.
@@ -502,9 +507,9 @@ export class AddWinsSet<T> extends Crdt {
         );
         // TODO: use GMap garbage collection.  Then revise below.
         this.flagMap.addEventListener(
-            "MapInit",
+            "KeyAdd",
             event => {
-                let initEvent = event as MapInitEvent<T, EnableWinsFlag>;
+                let initEvent = event as KeyAddEvent<T, EnableWinsFlag>;
                 initEvent.value.addEventListener(
                     "Enable",
                     enableEvent => this.dispatchEvent(new SetAddEvent(
@@ -559,86 +564,180 @@ export class AddWinsSet<T> extends Crdt {
     // TODO: other helper methods
 }
 
-//
-// export class MapCrdt<K, C extends Crdt<any>> extends CrdtObject<string, AddWinsSet<K> | CrdtObject<K, C>> {
-//     private readonly keySet: AddWinsSet<K>;
-//     private readonly valueMap: CrdtObject<K, C>;
-//     constructor(id: any, runtime: CrdtRuntime,
-//             valueFactory: (key: K, internalRuntime: CrdtRuntime) => C) {
-//         super(id, runtime);
-//         this.startPredefinedPropertyCreation();
-//         this.keySet = new AddWinsSet("keySet", this);
-//         this.valueMap = new CrdtObject("valueMap", this, valueFactory);
-//         this.endPredefinedPropertyCreation();
-//     }
-//     /**
-//      * Flag indicating that we are in the body of a delete/
-//      * deleteStrong call, hence we should not add things
-//      * to keySet (as an optimization).
-//      */
-//     private inDelete = false;
-//     /**
-//      * Override CrdtObject.send so that we can capture
-//      * a send by a valueMap value and follow it up with
-//      * an add to keySet, thus reviving the value's key
-//      * if appropriate.
-//      *
-//      * TODO: skip adding the key if it's a reset message?
-//      * Not sure if this is possible in general.  But should at
-//      * least be possible for our own deletes.
-//      */
-//     send(message: any, name: string): void {
-//         super.send(message, name);
-//         if (!this.inDelete && name === "valueMap") {
-//             // TODO: do this receiver side instead, for network efficiency?
-//             // Would need to place the add first, so that it can
-//             // be overridden by any included deletes.
-//             // Would also need to account for possibility of
-//             // transactions.
-//             // Also, need to make sure we (sender) do it too.
-//             for (let submessage of message) {
-//                 if (submessage[0] === "applySkip") {
-//                     let key = submessage[1] as K;
-//                     this.keySet.add(key);
-//                 }
-//             }
-//         }
-//     }
-//     init(key: K): C {
-//         this.startTransaction();
-//         if (!this.inDelete) this.keySet.add(key);
-//         let result = this.valueMap.initProperty(key);
-//         this.endTransaction();
-//         return result;
-//     }
-//     has(key: K) {
-//         return this.keySet.has(key);
-//     }
-//     get(key: K) {
-//         if (this.has(key)) return this.valueMap.getProperty(key);
-//         else return undefined;
-//     }
-//     delete(key: K) {
-//         if (this.has(key)) {
-//             this.startTransaction();
-//             this.inDelete = true;
-//             (this.get(key) as C).reset();
-//             this.keySet.delete(key);
-//             this.inDelete = false;
-//             this.endTransaction();
-//         }
-//     }
-//     deleteStrong(key: K) {
-//         this.inDelete = true;
-//         this.init(key).resetStrong();
-//         this.keySet.deleteStrong(key);
-//         this.inDelete = false;
-//     }
-//     keys() {
-//         return this.keySet.values();
-//     }
-//
-//     // TODO: other map methods (e.g. symbol iterator)
-//     // TODO: strong-reset
-//     // TODO: preserve-state delete, reset?
-// }
+
+export class MapCrdt<K, C extends Crdt> extends Crdt {
+    private readonly keySet: AddWinsSet<K>;
+    private readonly valueMap: GMapCrdt<K, C>;
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        valueConstructor: (parent: Crdt, id: string, key: K) => C,
+        serialize: (key: K) => Uint8Array = defaultCollectionSerializer,
+        deserialize: (serialized: Uint8Array) => K = newDefaultCollectionDeserializer(parentOrRuntime)
+    ) {
+        super(parentOrRuntime, id, {});
+        this.keySet = new AddWinsSet(
+            this, "keySet", serialize, deserialize
+        );
+        this.valueMap = new GMapCrdt(
+            parentOrRuntime, "valueMap",
+            valueConstructor, serialize,
+            deserialize
+        );
+        // TODO: events, propagated from children.
+    }
+    // TODO: revive removed elements if they have
+    // a change event.  (Need to implement
+    // change events, including for children,
+    // as well as local ops.)
+    // TODO: resets.
+    // TODO: strong delete and reset.
+
+    // /**
+    //  * Flag indicating that we are in the body of a delete/
+    //  * deleteStrong call, hence we should not add things
+    //  * to keySet (as an optimization).
+    //  */
+    // private inDelete = false;
+    // /**
+    //  * Override CrdtObject.send so that we can capture
+    //  * a send by a valueMap value and follow it up with
+    //  * an add to keySet, thus reviving the value's key
+    //  * if appropriate.
+    //  *
+    //  * TODO: skip adding the key if it's a reset message?
+    //  * Not sure if this is possible in general.  But should at
+    //  * least be possible for our own deletes.
+    //  */
+    // send(message: any, name: string): void {
+    //     super.send(message, name);
+    //     if (!this.inDelete && name === "valueMap") {
+    //         // TODO: do this receiver side instead, for network efficiency?
+    //         // Would need to place the add first, so that it can
+    //         // be overridden by any included deletes.
+    //         // Would also need to account for possibility of
+    //         // transactions.
+    //         // Also, need to make sure we (sender) do it too.
+    //         for (let submessage of message) {
+    //             if (submessage[0] === "applySkip") {
+    //                 let key = submessage[1] as K;
+    //                 this.keySet.add(key);
+    //             }
+    //         }
+    //     }
+    // }
+
+    get(key: K): C | undefined {
+        if (this.has(key)) return this.valueMap.get(key);
+        else return undefined;
+    }
+
+    /**
+     * Gets the value at key even if has since
+     * been deleted (grow-only map semantics).
+     * Note that value Crdts
+     * stick around internally (and possibly via
+     * get-ted references) even if they are deleted,
+     * and if they are changed, they will become
+     * present in the map again.
+     */
+    getIncludeDeleted(key: K): C | undefined {
+        return this.valueMap.get(key);
+    }
+
+    /**
+     * Return the value at key, initializing or
+     * reviving it if needed.
+     * @param  key [description]
+     * @return     [description]
+     */
+    getForce(key: K): C {
+        this.addKey(key);
+        return this.get(key)!;
+    }
+
+    has(key: K): boolean {
+        return this.keySet.has(key);
+    }
+
+    delete(key: K) {
+        // TODO: return whether actually deleted?  Semantically difficult.
+        this.keySet.delete(key);
+    }
+
+    /**
+     * Returns whether key has ever been
+     * initialized, even if it has since
+     * been deleted, (grow-only map semantics),
+     * including if it has never been present
+     * on this replica.
+     * Note that value Crdts
+     * stick around internally (and possibly via
+     * get-ted references) even if they are deleted,
+     * and if they are changed, they will become
+     * present in the map again.
+     */
+    hasIncludeDeleted(key: K): boolean {
+        return this.valueMap.has(key);
+    }
+
+    /**
+     * Makes key present in the map, initializing
+     * it if needed.
+     */
+    addKey(key: K) {
+        this.initKeyNoAdd(key);
+        this.keySet.add(key);
+    }
+
+    /**
+     * Initializes the value at key if it is not
+     * already initialized but does not mark
+     * it present in the map.  To mark it present
+     * as well, use addKey instead.
+     */
+    initKeyNoAdd(key: K) {
+        this.valueMap.addKey(key);
+    }
+
+    keys() {
+        return this.keySet.values();
+    }
+
+    keysIncludeDeleted() {
+        return this.valueMap.keys();
+    }
+
+    values() {
+        return this.value.values();
+    }
+
+    valuesIncludeDeleted() {
+        return this.valueMap.values();
+    }
+
+    get value(): Map<K, C> {
+        let result = new Map<K, C>();
+        for (let key of this.keys()) {
+            result.set(key, this.get(key)!);
+        }
+        return result;
+    }
+
+        /**
+         * Don't mutate this directly.
+         */
+    get valueIncludedDeleted(): Map<K, C> {
+        return this.valueMap.value;
+    }
+
+    // TODO: other map methods (e.g. symbol iterator)
+    // TODO: strong-reset
+    // TODO: preserve-state delete, reset?
+}
+
+
+
+// TODO: register-valued maps with nice set ops;
+// RuntimeCrdtSource;
+// demo with minesweeper.

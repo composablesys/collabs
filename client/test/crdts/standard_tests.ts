@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { AddEvent, MultEvent, SetAddEvent } from '../../src/crdts';
-import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, NumberCrdt, SetDeleteEvent } from '../../src/crdts/standard';
+import { AddEvent, Crdt, MultEvent, SetAddEvent } from '../../src/crdts';
+import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, MapCrdt, NumberCrdt, SetDeleteEvent } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
@@ -318,53 +318,59 @@ function testAwSet() {
     console.log("...ok");
 }
 
-//
-// function testMap() {
-//     console.log("testMap()...");
-//
-//     let aliceMap = new MapCrdt<string, NumberCrdt>("map", alice,
-//             (key: string, internalRuntime: CrdtRuntime) => new NumberCrdt(key, internalRuntime));
-//     let bobMap = new MapCrdt<string, NumberCrdt>("map", bob,
-//             (key: string, internalRuntime: CrdtRuntime) => new NumberCrdt(key, internalRuntime));
-//
-//     assertSetEquals(new Set(aliceMap.keys()), new Set([]));
-//     assertSetEquals(new Set(bobMap.keys()), new Set([]));
-//
-//     // Inits go through
-//     aliceMap.init("test");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceMap.keys()), new Set(["test"]));
-//     assertSetEquals(new Set(bobMap.keys()), new Set(["test"]));
-//     assert(aliceMap.has("test"));
-//     assert(bobMap.has("test"));
-//
-//     let aliceTest = aliceMap.get("test") as NumberCrdt;
-//     assert(aliceTest);
-//     let bobTest = bobMap.get("test") as NumberCrdt;
-//     assert(bobTest);
-//     assert.strictEqual(aliceTest.value, 0);
-//     assert.strictEqual(bobTest.value, 0);
-//
-//     // Value ops work
-//     aliceTest.add(3);
-//     bobTest.add(4);
-//     runtimeGen.releaseAll();
-//     assert.strictEqual(aliceTest.value, 7);
-//     assert.strictEqual(bobTest.value, 7);
-//
-//     // Delete works
-//     bobMap.delete("test");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceMap.keys()), new Set([]));
-//     assertSetEquals(new Set(bobMap.keys()), new Set([]));
-//     assert(aliceMap.get("test") === undefined);
-//     assert(bobMap.get("test") === undefined);
-//
-//     aliceMap.init("register");
-//     runtimeGen.releaseAll();
-//     assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
-//     assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
-//
+
+function testMap() {
+    console.log("testMap()...");
+
+    let aliceMap = new MapCrdt<string, NumberCrdt>(
+        alice, "map",
+        (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
+    );
+    // TODO: event listeners
+    let bobMap = new MapCrdt<string, NumberCrdt>(
+        bob, "map",
+        (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
+    );
+
+    assertSetEquals(new Set(aliceMap.keys()), new Set([]));
+    assertSetEquals(new Set(bobMap.keys()), new Set([]));
+
+    // Inits go through
+    aliceMap.addKey("test");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["test"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["test"]));
+    assert(aliceMap.has("test"));
+    assert(bobMap.has("test"));
+
+    let aliceTest = aliceMap.get("test") as NumberCrdt;
+    assert(aliceTest);
+    let bobTest = bobMap.get("test") as NumberCrdt;
+    assert(bobTest);
+    assert.strictEqual(aliceTest.value, 0);
+    assert.strictEqual(bobTest.value, 0);
+
+    // Value ops work
+    aliceTest.add(3);
+    bobTest.add(4);
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceTest.value, 7);
+    assert.strictEqual(bobTest.value, 7);
+
+    // Delete works
+    bobMap.delete("test");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set([]));
+    assertSetEquals(new Set(bobMap.keys()), new Set([]));
+    assert(aliceMap.get("test") === undefined);
+    assert(bobMap.get("test") === undefined);
+
+    aliceMap.addKey("register");
+    runtimeGen.releaseAll();
+    assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
+    assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
+
+    // TODO
 //     // Concurrent operation revives key
 //     let bobRegister = bobMap.get("register") as NumberCrdt;
 //     aliceMap.delete("register");
@@ -402,15 +408,15 @@ function testAwSet() {
 //
 //     // TODO: strong delete, strong resets, nesting?
 //     console.log("...ok");
-// }
-//
+}
+
 testEwFlag();
 testDwFlag();
 testNumber();
 testFromPaper();
 // testOrthogonal();
 testAwSet();
-// testMap();
+testMap();
 
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
