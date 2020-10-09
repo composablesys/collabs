@@ -1,185 +1,95 @@
 import * as $protobuf from "protobufjs";
-/** Properties of a GMapMessage. */
-export interface IGMapMessage {
+/** Properties of a CrdtRuntimeMessage. */
+export interface ICrdtRuntimeMessage {
 
-    /** GMapMessage keyToInit */
-    keyToInit: Uint8Array;
+    /** CrdtRuntimeMessage innerMessage */
+    innerMessage: Uint8Array;
+
+    /** CrdtRuntimeMessage pathToRoot */
+    pathToRoot?: (string[]|null);
 }
 
-/** Represents a GMapMessage. */
-export class GMapMessage implements IGMapMessage {
+/** Represents a CrdtRuntimeMessage. */
+export class CrdtRuntimeMessage implements ICrdtRuntimeMessage {
 
     /**
-     * Constructs a new GMapMessage.
+     * Constructs a new CrdtRuntimeMessage.
      * @param [properties] Properties to set
      */
-    constructor(properties?: IGMapMessage);
+    constructor(properties?: ICrdtRuntimeMessage);
 
-    /** GMapMessage keyToInit. */
-    public keyToInit: Uint8Array;
+    /** CrdtRuntimeMessage innerMessage. */
+    public innerMessage: Uint8Array;
+
+    /** CrdtRuntimeMessage pathToRoot. */
+    public pathToRoot: string[];
 
     /**
-     * Creates a new GMapMessage instance using the specified properties.
+     * Creates a new CrdtRuntimeMessage instance using the specified properties.
      * @param [properties] Properties to set
-     * @returns GMapMessage instance
+     * @returns CrdtRuntimeMessage instance
      */
-    public static create(properties?: IGMapMessage): GMapMessage;
+    public static create(properties?: ICrdtRuntimeMessage): CrdtRuntimeMessage;
 
     /**
-     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
-     * @param message GMapMessage message or plain object to encode
+     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * @param message CrdtRuntimeMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encode(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encode(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
-     * @param message GMapMessage message or plain object to encode
+     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * @param message CrdtRuntimeMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encodeDelimited(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encodeDelimited(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Decodes a GMapMessage message from the specified reader or buffer.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
      * @param reader Reader or buffer to decode from
      * @param [length] Message length if known beforehand
-     * @returns GMapMessage
+     * @returns CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): GMapMessage;
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CrdtRuntimeMessage;
 
     /**
-     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
      * @param reader Reader or buffer to decode from
-     * @returns GMapMessage
+     * @returns CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): GMapMessage;
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CrdtRuntimeMessage;
 
     /**
-     * Verifies a GMapMessage message.
+     * Verifies a CrdtRuntimeMessage message.
      * @param message Plain object to verify
      * @returns `null` if valid, otherwise the reason why it is not
      */
     public static verify(message: { [k: string]: any }): (string|null);
 
     /**
-     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
      * @param object Plain object
-     * @returns GMapMessage
+     * @returns CrdtRuntimeMessage
      */
-    public static fromObject(object: { [k: string]: any }): GMapMessage;
+    public static fromObject(object: { [k: string]: any }): CrdtRuntimeMessage;
 
     /**
-     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
-     * @param message GMapMessage
+     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
+     * @param message CrdtRuntimeMessage
      * @param [options] Conversion options
      * @returns Plain object
      */
-    public static toObject(message: GMapMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+    public static toObject(message: CrdtRuntimeMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
     /**
-     * Converts this GMapMessage to JSON.
-     * @returns JSON object
-     */
-    public toJSON(): { [k: string]: any };
-}
-
-/** Properties of a RuntimeGeneratorMessage. */
-export interface IRuntimeGeneratorMessage {
-
-    /** RuntimeGeneratorMessage message */
-    message: Uint8Array;
-
-    /** RuntimeGeneratorMessage uniqueId */
-    uniqueId: string;
-}
-
-/** Represents a RuntimeGeneratorMessage. */
-export class RuntimeGeneratorMessage implements IRuntimeGeneratorMessage {
-
-    /**
-     * Constructs a new RuntimeGeneratorMessage.
-     * @param [properties] Properties to set
-     */
-    constructor(properties?: IRuntimeGeneratorMessage);
-
-    /** RuntimeGeneratorMessage message. */
-    public message: Uint8Array;
-
-    /** RuntimeGeneratorMessage uniqueId. */
-    public uniqueId: string;
-
-    /**
-     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
-     * @param [properties] Properties to set
-     * @returns RuntimeGeneratorMessage instance
-     */
-    public static create(properties?: IRuntimeGeneratorMessage): RuntimeGeneratorMessage;
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @param message RuntimeGeneratorMessage message or plain object to encode
-     * @param [writer] Writer to encode to
-     * @returns Writer
-     */
-    public static encode(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @param message RuntimeGeneratorMessage message or plain object to encode
-     * @param [writer] Writer to encode to
-     * @returns Writer
-     */
-    public static encodeDelimited(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-    /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
-     * @param reader Reader or buffer to decode from
-     * @param [length] Message length if known beforehand
-     * @returns RuntimeGeneratorMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): RuntimeGeneratorMessage;
-
-    /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
-     * @param reader Reader or buffer to decode from
-     * @returns RuntimeGeneratorMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): RuntimeGeneratorMessage;
-
-    /**
-     * Verifies a RuntimeGeneratorMessage message.
-     * @param message Plain object to verify
-     * @returns `null` if valid, otherwise the reason why it is not
-     */
-    public static verify(message: { [k: string]: any }): (string|null);
-
-    /**
-     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
-     * @param object Plain object
-     * @returns RuntimeGeneratorMessage
-     */
-    public static fromObject(object: { [k: string]: any }): RuntimeGeneratorMessage;
-
-    /**
-     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
-     * @param message RuntimeGeneratorMessage
-     * @param [options] Conversion options
-     * @returns Plain object
-     */
-    public static toObject(message: RuntimeGeneratorMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-    /**
-     * Converts this RuntimeGeneratorMessage to JSON.
+     * Converts this CrdtRuntimeMessage to JSON.
      * @returns JSON object
      */
     public toJSON(): { [k: string]: any };
@@ -854,97 +764,187 @@ export class LwwMessage implements ILwwMessage {
     public toJSON(): { [k: string]: any };
 }
 
-/** Properties of a CrdtRuntimeMessage. */
-export interface ICrdtRuntimeMessage {
+/** Properties of a GMapMessage. */
+export interface IGMapMessage {
 
-    /** CrdtRuntimeMessage innerMessage */
-    innerMessage: Uint8Array;
-
-    /** CrdtRuntimeMessage pathToRoot */
-    pathToRoot?: (string[]|null);
+    /** GMapMessage keyToInit */
+    keyToInit: Uint8Array;
 }
 
-/** Represents a CrdtRuntimeMessage. */
-export class CrdtRuntimeMessage implements ICrdtRuntimeMessage {
+/** Represents a GMapMessage. */
+export class GMapMessage implements IGMapMessage {
 
     /**
-     * Constructs a new CrdtRuntimeMessage.
+     * Constructs a new GMapMessage.
      * @param [properties] Properties to set
      */
-    constructor(properties?: ICrdtRuntimeMessage);
+    constructor(properties?: IGMapMessage);
 
-    /** CrdtRuntimeMessage innerMessage. */
-    public innerMessage: Uint8Array;
-
-    /** CrdtRuntimeMessage pathToRoot. */
-    public pathToRoot: string[];
+    /** GMapMessage keyToInit. */
+    public keyToInit: Uint8Array;
 
     /**
-     * Creates a new CrdtRuntimeMessage instance using the specified properties.
+     * Creates a new GMapMessage instance using the specified properties.
      * @param [properties] Properties to set
-     * @returns CrdtRuntimeMessage instance
+     * @returns GMapMessage instance
      */
-    public static create(properties?: ICrdtRuntimeMessage): CrdtRuntimeMessage;
+    public static create(properties?: IGMapMessage): GMapMessage;
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
-     * @param message CrdtRuntimeMessage message or plain object to encode
+     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @param message GMapMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encode(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encode(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
-     * @param message CrdtRuntimeMessage message or plain object to encode
+     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @param message GMapMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encodeDelimited(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encodeDelimited(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
+     * Decodes a GMapMessage message from the specified reader or buffer.
      * @param reader Reader or buffer to decode from
      * @param [length] Message length if known beforehand
-     * @returns CrdtRuntimeMessage
+     * @returns GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CrdtRuntimeMessage;
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): GMapMessage;
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
+     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
      * @param reader Reader or buffer to decode from
-     * @returns CrdtRuntimeMessage
+     * @returns GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CrdtRuntimeMessage;
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): GMapMessage;
 
     /**
-     * Verifies a CrdtRuntimeMessage message.
+     * Verifies a GMapMessage message.
      * @param message Plain object to verify
      * @returns `null` if valid, otherwise the reason why it is not
      */
     public static verify(message: { [k: string]: any }): (string|null);
 
     /**
-     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
      * @param object Plain object
-     * @returns CrdtRuntimeMessage
+     * @returns GMapMessage
      */
-    public static fromObject(object: { [k: string]: any }): CrdtRuntimeMessage;
+    public static fromObject(object: { [k: string]: any }): GMapMessage;
 
     /**
-     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
-     * @param message CrdtRuntimeMessage
+     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
+     * @param message GMapMessage
      * @param [options] Conversion options
      * @returns Plain object
      */
-    public static toObject(message: CrdtRuntimeMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+    public static toObject(message: GMapMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
     /**
-     * Converts this CrdtRuntimeMessage to JSON.
+     * Converts this GMapMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
+/** Properties of a RuntimeGeneratorMessage. */
+export interface IRuntimeGeneratorMessage {
+
+    /** RuntimeGeneratorMessage message */
+    message: Uint8Array;
+
+    /** RuntimeGeneratorMessage uniqueId */
+    uniqueId: string;
+}
+
+/** Represents a RuntimeGeneratorMessage. */
+export class RuntimeGeneratorMessage implements IRuntimeGeneratorMessage {
+
+    /**
+     * Constructs a new RuntimeGeneratorMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: IRuntimeGeneratorMessage);
+
+    /** RuntimeGeneratorMessage message. */
+    public message: Uint8Array;
+
+    /** RuntimeGeneratorMessage uniqueId. */
+    public uniqueId: string;
+
+    /**
+     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns RuntimeGeneratorMessage instance
+     */
+    public static create(properties?: IRuntimeGeneratorMessage): RuntimeGeneratorMessage;
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @param message RuntimeGeneratorMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @param message RuntimeGeneratorMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): RuntimeGeneratorMessage;
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): RuntimeGeneratorMessage;
+
+    /**
+     * Verifies a RuntimeGeneratorMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns RuntimeGeneratorMessage
+     */
+    public static fromObject(object: { [k: string]: any }): RuntimeGeneratorMessage;
+
+    /**
+     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * @param message RuntimeGeneratorMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: RuntimeGeneratorMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this RuntimeGeneratorMessage to JSON.
      * @returns JSON object
      */
     public toJSON(): { [k: string]: any };

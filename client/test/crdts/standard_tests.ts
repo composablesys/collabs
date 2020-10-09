@@ -465,7 +465,7 @@ function testRuntimeCrdtGenerator() {
     console.log("...ok");
 }
 
-testLwwMap() {
+function testLwwMap() {
     console.log("testLwwMap()...");
 
     let aliceMap = new LwwMap<string, number>(alice, "lwwMap");
