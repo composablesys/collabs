@@ -11,5 +11,5 @@ const server = express()
     .listen(PORT, () => console.log(`Listening on ${PORT}`));
 // Initialize the WebSocket server instance.
 //const wss = new WebSocket.Server({ port: 8080 });
-compoventuals_server_1.startBroadcastServer({ server });
+compoventuals_server_1.startServer({ server });
 //# sourceMappingURL=demo_server.js.map

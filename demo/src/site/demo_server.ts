@@ -1,5 +1,5 @@
 import express = require('express');
-import { startBroadcastServer } from 'compoventuals-server';
+import { startServer } from 'compoventuals-server';
 
 // Express server based on https://devcenter.heroku.com/articles/node-websockets
 const PORT = process.env.PORT || 3000;
@@ -13,4 +13,4 @@ const server = express()
 
 // Initialize the WebSocket server instance.
 //const wss = new WebSocket.Server({ port: 8080 });
-startBroadcastServer({ server });
+startServer({ server });

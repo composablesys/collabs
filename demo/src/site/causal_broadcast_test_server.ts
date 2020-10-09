@@ -1,3 +1,3 @@
-import { startBroadcastServer } from 'compoventuals-server';
+import { startServer } from 'compoventuals-server';
 
-startBroadcastServer({ port: 8080 });
+startServer({ port: 8080 });

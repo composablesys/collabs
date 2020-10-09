@@ -55,6 +55,3 @@ git commit -m ${commit messages}
 git push heroku master
 git push
 ```
-
-
-

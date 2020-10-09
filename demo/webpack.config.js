@@ -8,7 +8,8 @@ module.exports = {
   entry: {
     counter: "./src/site/counter.ts",
     whiteboard: "./src/site/whiteboard.ts",
-    tests: "./src/site/tests.ts"
+    tests: "./src/site/tests.ts",
+    counterwebrtc: "./src/site/counterwebrtc.ts"
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -39,7 +40,8 @@ module.exports = {
       { from: './src/site/index.html', to: './deploy/site/index.html' },
       { from: './src/site/counter.html', to: './deploy/site/counter.html' },
       { from: './src/site/whiteboard.html', to: './deploy/site/whiteboard.html' },
-      { from: './src/site/tests.html', to: './deploy/site/tests.html' }
+      { from: './src/site/tests.html', to: './deploy/site/tests.html' },
+      { from: './src/site/counter_webrtc.html', to: './deploy/site/counter_webrtc.html' }
       // TODO: Add more entries as needed for new pages
     ]),
   ],
