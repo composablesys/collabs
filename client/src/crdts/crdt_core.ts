@@ -94,7 +94,7 @@ export class Crdt<S extends Object = Object> {
             this.runtime = parentOrRuntime;
             this.pathToRoot = [];
             this.rootId = id;
-            this.runtime.register(this);
+            this.runtime.registerRoot(this);
         }
     }
 
@@ -171,10 +171,9 @@ export class Crdt<S extends Object = Object> {
         else {
             let child = this.children.get(targetPath[targetPath.length - 1]);
             if (child === undefined) {
-                // TODO: deliver error somewhere
-                console.log("Unknown child: " + child +
-                        " in: " + JSON.stringify(this.pathToRoot))
-                return false;
+                // TODO: deliver error somewhere reasonable
+                throw new Error("Unknown child: " + targetPath[targetPath.length - 1] +
+                        " in: " + JSON.stringify(targetPath) + ", children: " + JSON.stringify([...this.children.keys()]));
             }
             targetPath.length--;
             changed = this.receiveInternalForChild(
@@ -240,7 +239,7 @@ export class CrdtRuntime {
         this.network.register(this);
     }
 
-    register(crdt: Crdt) {
+    registerRoot(crdt: Crdt) {
         this.rootCrdts.set(crdt.id, crdt);
     }
 

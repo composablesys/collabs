@@ -391,7 +391,11 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
 
     getForce(key: K): C {
         this.addKey(key);
-        return this.get(key)!;
+        let value = this.get(key);
+        if (value === undefined) {
+            throw new Error("addKey failed for key " + key);
+        }
+        return value;
     }
 
     has(key: K): boolean {
@@ -580,7 +584,7 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
             this, "keySet", serialize, deserialize
         );
         this.valueMap = new GMapCrdt(
-            parentOrRuntime, "valueMap",
+            this, "valueMap",
             valueConstructor, serialize,
             deserialize
         );
@@ -646,14 +650,24 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
     }
 
     /**
-     * Return the value at key, initializing or
-     * reviving it if needed.
+     * Return the value at key, adding it if needed.
      * @param  key [description]
      * @return     [description]
      */
     getForce(key: K): C {
         this.addKey(key);
         return this.get(key)!;
+    }
+
+    /**
+     * Return the value at key, initilizing it if needed
+     * (but not adding it).
+     * @param  key [description]
+     * @return     [description]
+     */
+    getForceNoAdd(key: K): C {
+        this.initKeyNoAdd(key);
+        return this.getIncludeDeleted(key)!;
     }
 
     has(key: K): boolean {
