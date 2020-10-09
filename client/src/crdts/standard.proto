@@ -1,3 +1,8 @@
 message GMapMessage {
     required bytes keyToInit = 1;
 }
+
+message RuntimeGeneratorMessage {
+    required bytes message = 1;
+    required string uniqueId = 2;
+}

@@ -841,3 +841,99 @@ export class GMapMessage implements IGMapMessage {
      */
     public toJSON(): { [k: string]: any };
 }
+
+/** Properties of a RuntimeGeneratorMessage. */
+export interface IRuntimeGeneratorMessage {
+
+    /** RuntimeGeneratorMessage message */
+    message: Uint8Array;
+
+    /** RuntimeGeneratorMessage uniqueId */
+    uniqueId: string;
+}
+
+/** Represents a RuntimeGeneratorMessage. */
+export class RuntimeGeneratorMessage implements IRuntimeGeneratorMessage {
+
+    /**
+     * Constructs a new RuntimeGeneratorMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: IRuntimeGeneratorMessage);
+
+    /** RuntimeGeneratorMessage message. */
+    public message: Uint8Array;
+
+    /** RuntimeGeneratorMessage uniqueId. */
+    public uniqueId: string;
+
+    /**
+     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns RuntimeGeneratorMessage instance
+     */
+    public static create(properties?: IRuntimeGeneratorMessage): RuntimeGeneratorMessage;
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @param message RuntimeGeneratorMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @param message RuntimeGeneratorMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): RuntimeGeneratorMessage;
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): RuntimeGeneratorMessage;
+
+    /**
+     * Verifies a RuntimeGeneratorMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns RuntimeGeneratorMessage
+     */
+    public static fromObject(object: { [k: string]: any }): RuntimeGeneratorMessage;
+
+    /**
+     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * @param message RuntimeGeneratorMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: RuntimeGeneratorMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this RuntimeGeneratorMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}

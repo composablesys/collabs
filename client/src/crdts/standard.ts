@@ -1,5 +1,5 @@
 import { CausalTimestamp } from "../network";
-import { CounterMessage, GMapMessage, MultRegisterMessage } from "../proto_compiled";
+import { CounterMessage, GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage } from "../proto_compiled";
 import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./resettable";
@@ -420,9 +420,10 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
             let decoded = GMapMessage.decode(message);
             let key = this.deserialize(decoded.keyToInit);
             if (!this.has(key)) {
+                // TODO: smaller rep of keys.  Hash?  Base64?
                 let value = this.valueConstructor(
                     this,
-                    new TextDecoder("utf8").decode(message),
+                    Array.from(decoded.keyToInit).toString(),
                     key
                 );
                 this.state.set(key, value);
@@ -750,8 +751,97 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
     // TODO: preserve-state delete, reset?
 }
 
+export class NewCrdtEvent<C extends Crdt> implements CrdtEvent {
+    type = "NewCrdt";
+    constructor(
+        public readonly caller: Crdt,
+        public readonly timestamp: CausalTimestamp,
+        public readonly newCrdt: C) { }
+}
 
+export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt {
+    private readonly generator: (parent: Crdt, id: string, message: Uint8Array) => C;
+    /**
+     * Use this class to generate Crdt's dynamically at
+     * runtime.  Specifically, when this.generate(message)
+     * is called, all replicas will call generator(message)
+     * and return the generated Crdt via a NewCrdtEvent.
+     * To ensure eventual consistency, generator must
+     * give the same result on all replicas even if they are
+     * in different states; the simplest way to ensure
+     * this is for the result to depend only on the given
+     * message.
+     *
+     * Notes:
+     * - generator must use the given parent and id for its
+     * generated Crdt.  parent will be this.
+     * - generator should not call operations on its Crdt,
+     * since those will happen at every replica, hence take
+     * effect once per replica.  Instead, either do the operations
+     * you want to do only on the replica that called
+     * this.generate(), or use local operations in generator
+     * (TODO: not yet implemented).
+     * - You'll probably want to store the generated Crdt's
+     * somewhere to keep track of them.  If you store them
+     * in a Crdt collection (e.g., an AddWinsSet), make sure
+     * to add them only on the replica that called
+     * this.generate(), or use local operations on the collection
+     * (TODO: not yet implemented).  Otherwise, every replica
+     * will cause an add operation.  On the flipside, if
+     * you store them in a non-Crdt collection (e.g., a JS Set),
+     * make sure to add them on every replica.
+     *
+     * MapCrdt and GMapCrdt offer similar but less flexible behavior:
+     * initializing a map key creates a value Crdt dynamically.
+     * Unlike those classes, this class does not constrain
+     * the initialization data to be a unique (not previously
+     * initialized) key, and it does not store the resulting
+     * Crdt anywhere.
+     */
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        generator: (parent: Crdt, id: string, message: Uint8Array) => C
+    ) {
+        super(parentOrRuntime, id, {});
+        this.generator = generator;
+    }
+
+    // Used to return our own generated Crdt's in generate().
+    private lastGenerated?: C;
+    // Counter for unique ids
+    private idCounter = 0;
+
+    generate(message: Uint8Array): C {
+        let uniqueId = (this.idCounter++) + " " + this.runtime.getReplicaId();
+        let genMessage = RuntimeGeneratorMessage.create({
+            message: message,
+            uniqueId: uniqueId
+        });
+        super.send(RuntimeGeneratorMessage.encode(genMessage).finish());
+        return this.lastGenerated!;
+    }
+
+    receiveInternal(
+        timestamp: CausalTimestamp,
+        message: Uint8Array
+    ): boolean {
+        try {
+            let decoded = RuntimeGeneratorMessage.decode(message);
+            let newCrdt = this.generator(this, decoded.uniqueId, decoded.message);
+            this.dispatchEvent(new NewCrdtEvent(
+                this, timestamp, newCrdt
+            ));
+            if (timestamp.isLocal()) this.lastGenerated = newCrdt;
+            return false;
+        }
+        catch (e) {
+            // TODO
+            console.log("Decoding/generator error: " + e);
+            return false;
+        }
+    }
+}
 
 // TODO: register-valued maps with nice set ops;
-// RuntimeCrdtSource;
 // demo with minesweeper.

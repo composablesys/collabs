@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { AddEvent, Crdt, GSetCrdt, MultEvent, SetAddEvent } from '../../src/crdts';
-import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, MapCrdt, NumberCrdt, SetDeleteEvent } from '../../src/crdts/standard';
+import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, MapCrdt, NewCrdtEvent, NumberCrdt, RuntimeCrdtGenerator, SetDeleteEvent } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
@@ -415,7 +415,7 @@ function testCrdtSetValues() {
 
     // Test that we can use Crdts as set values and the
     // references are handled correctly across replicas.
-    
+
     let aliceMap = new MapCrdt<string, NumberCrdt>(
         alice, "valueMap",
         (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
@@ -439,6 +439,32 @@ function testCrdtSetValues() {
     console.log("...ok");
 }
 
+function testRuntimeCrdtGenerator() {
+    console.log("testRuntimeCrdtGenerator()...");
+
+    let generator = (parent: Crdt, id: string, _: Uint8Array) => new NumberCrdt(parent, id);
+    let aliceGen = new RuntimeCrdtGenerator(
+        alice, "gen", generator
+    );
+    let bobGen = new RuntimeCrdtGenerator(
+        bob, "gen", generator
+    );
+
+    let bobCounter: NumberCrdt | null = null;
+    bobGen.addEventListener(
+        "NewCrdt",
+        event => (bobCounter = (event as NewCrdtEvent<NumberCrdt>).newCrdt)
+    );
+    let aliceCounter = aliceGen.generate(new Uint8Array());
+    aliceCounter.add(7);
+    runtimeGen.releaseAll();
+    assert.strictEqual(aliceCounter.value, 7);
+    assert.notStrictEqual(bobCounter, null);
+    assert.strictEqual(bobCounter!.value, 7);
+
+    console.log("...ok");
+}
+
 testEwFlag();
 testDwFlag();
 testNumber();
@@ -447,6 +473,7 @@ testFromPaper();
 testAwSet();
 testMap();
 testCrdtSetValues();
+testRuntimeCrdtGenerator();
 
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set

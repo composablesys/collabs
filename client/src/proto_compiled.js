@@ -1918,4 +1918,223 @@ $root.GMapMessage = (function() {
     return GMapMessage;
 })();
 
+$root.RuntimeGeneratorMessage = (function() {
+
+    /**
+     * Properties of a RuntimeGeneratorMessage.
+     * @exports IRuntimeGeneratorMessage
+     * @interface IRuntimeGeneratorMessage
+     * @property {Uint8Array} message RuntimeGeneratorMessage message
+     * @property {string} uniqueId RuntimeGeneratorMessage uniqueId
+     */
+
+    /**
+     * Constructs a new RuntimeGeneratorMessage.
+     * @exports RuntimeGeneratorMessage
+     * @classdesc Represents a RuntimeGeneratorMessage.
+     * @implements IRuntimeGeneratorMessage
+     * @constructor
+     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
+     */
+    function RuntimeGeneratorMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * RuntimeGeneratorMessage message.
+     * @member {Uint8Array} message
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     */
+    RuntimeGeneratorMessage.prototype.message = $util.newBuffer([]);
+
+    /**
+     * RuntimeGeneratorMessage uniqueId.
+     * @member {string} uniqueId
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     */
+    RuntimeGeneratorMessage.prototype.uniqueId = "";
+
+    /**
+     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
+     * @function create
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage instance
+     */
+    RuntimeGeneratorMessage.create = function create(properties) {
+        return new RuntimeGeneratorMessage(properties);
+    };
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @function encode
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    RuntimeGeneratorMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.message);
+        writer.uint32(/* id 2, wireType 2 =*/18).string(message.uniqueId);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    RuntimeGeneratorMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    RuntimeGeneratorMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.RuntimeGeneratorMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.message = reader.bytes();
+                break;
+            case 2:
+                message.uniqueId = reader.string();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("message"))
+            throw $util.ProtocolError("missing required 'message'", { instance: message });
+        if (!message.hasOwnProperty("uniqueId"))
+            throw $util.ProtocolError("missing required 'uniqueId'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    RuntimeGeneratorMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a RuntimeGeneratorMessage message.
+     * @function verify
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    RuntimeGeneratorMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.message && typeof message.message.length === "number" || $util.isString(message.message)))
+            return "message: buffer expected";
+        if (!$util.isString(message.uniqueId))
+            return "uniqueId: string expected";
+        return null;
+    };
+
+    /**
+     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     */
+    RuntimeGeneratorMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.RuntimeGeneratorMessage)
+            return object;
+        var message = new $root.RuntimeGeneratorMessage();
+        if (object.message != null)
+            if (typeof object.message === "string")
+                $util.base64.decode(object.message, message.message = $util.newBuffer($util.base64.length(object.message)), 0);
+            else if (object.message.length)
+                message.message = object.message;
+        if (object.uniqueId != null)
+            message.uniqueId = String(object.uniqueId);
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {RuntimeGeneratorMessage} message RuntimeGeneratorMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    RuntimeGeneratorMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults) {
+            if (options.bytes === String)
+                object.message = "";
+            else {
+                object.message = [];
+                if (options.bytes !== Array)
+                    object.message = $util.newBuffer(object.message);
+            }
+            object.uniqueId = "";
+        }
+        if (message.message != null && message.hasOwnProperty("message"))
+            object.message = options.bytes === String ? $util.base64.encode(message.message, 0, message.message.length) : options.bytes === Array ? Array.prototype.slice.call(message.message) : message.message;
+        if (message.uniqueId != null && message.hasOwnProperty("uniqueId"))
+            object.uniqueId = message.uniqueId;
+        return object;
+    };
+
+    /**
+     * Converts this RuntimeGeneratorMessage to JSON.
+     * @function toJSON
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    RuntimeGeneratorMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return RuntimeGeneratorMessage;
+})();
+
 module.exports = $root;
