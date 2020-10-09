@@ -9,26 +9,24 @@ var $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.ut
 // Exported root namespace
 var $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
 
-$root.CrdtRuntimeMessage = (function() {
+$root.GMapMessage = (function() {
 
     /**
-     * Properties of a CrdtRuntimeMessage.
-     * @exports ICrdtRuntimeMessage
-     * @interface ICrdtRuntimeMessage
-     * @property {Uint8Array} innerMessage CrdtRuntimeMessage innerMessage
-     * @property {Array.<string>|null} [pathToRoot] CrdtRuntimeMessage pathToRoot
+     * Properties of a GMapMessage.
+     * @exports IGMapMessage
+     * @interface IGMapMessage
+     * @property {Uint8Array} keyToInit GMapMessage keyToInit
      */
 
     /**
-     * Constructs a new CrdtRuntimeMessage.
-     * @exports CrdtRuntimeMessage
-     * @classdesc Represents a CrdtRuntimeMessage.
-     * @implements ICrdtRuntimeMessage
+     * Constructs a new GMapMessage.
+     * @exports GMapMessage
+     * @classdesc Represents a GMapMessage.
+     * @implements IGMapMessage
      * @constructor
-     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
+     * @param {IGMapMessage=} [properties] Properties to set
      */
-    function CrdtRuntimeMessage(properties) {
-        this.pathToRoot = [];
+    function GMapMessage(properties) {
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -36,212 +34,394 @@ $root.CrdtRuntimeMessage = (function() {
     }
 
     /**
-     * CrdtRuntimeMessage innerMessage.
-     * @member {Uint8Array} innerMessage
-     * @memberof CrdtRuntimeMessage
+     * GMapMessage keyToInit.
+     * @member {Uint8Array} keyToInit
+     * @memberof GMapMessage
      * @instance
      */
-    CrdtRuntimeMessage.prototype.innerMessage = $util.newBuffer([]);
+    GMapMessage.prototype.keyToInit = $util.newBuffer([]);
 
     /**
-     * CrdtRuntimeMessage pathToRoot.
-     * @member {Array.<string>} pathToRoot
-     * @memberof CrdtRuntimeMessage
-     * @instance
-     */
-    CrdtRuntimeMessage.prototype.pathToRoot = $util.emptyArray;
-
-    /**
-     * Creates a new CrdtRuntimeMessage instance using the specified properties.
+     * Creates a new GMapMessage instance using the specified properties.
      * @function create
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage instance
+     * @param {IGMapMessage=} [properties] Properties to set
+     * @returns {GMapMessage} GMapMessage instance
      */
-    CrdtRuntimeMessage.create = function create(properties) {
-        return new CrdtRuntimeMessage(properties);
+    GMapMessage.create = function create(properties) {
+        return new GMapMessage(properties);
     };
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
      * @function encode
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
+     * @param {IGMapMessage} message GMapMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CrdtRuntimeMessage.encode = function encode(message, writer) {
+    GMapMessage.encode = function encode(message, writer) {
         if (!writer)
             writer = $Writer.create();
-        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.innerMessage);
-        if (message.pathToRoot != null && message.pathToRoot.length)
-            for (var i = 0; i < message.pathToRoot.length; ++i)
-                writer.uint32(/* id 2, wireType 2 =*/18).string(message.pathToRoot[i]);
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.keyToInit);
         return writer;
     };
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
      * @function encodeDelimited
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
+     * @param {IGMapMessage} message GMapMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CrdtRuntimeMessage.encodeDelimited = function encodeDelimited(message, writer) {
+    GMapMessage.encodeDelimited = function encodeDelimited(message, writer) {
         return this.encode(message, writer).ldelim();
     };
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
+     * Decodes a GMapMessage message from the specified reader or buffer.
      * @function decode
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
      * @param {number} [length] Message length if known beforehand
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
+     * @returns {GMapMessage} GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CrdtRuntimeMessage.decode = function decode(reader, length) {
+    GMapMessage.decode = function decode(reader, length) {
         if (!(reader instanceof $Reader))
             reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CrdtRuntimeMessage();
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.GMapMessage();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
             case 1:
-                message.innerMessage = reader.bytes();
-                break;
-            case 2:
-                if (!(message.pathToRoot && message.pathToRoot.length))
-                    message.pathToRoot = [];
-                message.pathToRoot.push(reader.string());
+                message.keyToInit = reader.bytes();
                 break;
             default:
                 reader.skipType(tag & 7);
                 break;
             }
         }
-        if (!message.hasOwnProperty("innerMessage"))
-            throw $util.ProtocolError("missing required 'innerMessage'", { instance: message });
+        if (!message.hasOwnProperty("keyToInit"))
+            throw $util.ProtocolError("missing required 'keyToInit'", { instance: message });
         return message;
     };
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
+     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
      * @function decodeDelimited
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
+     * @returns {GMapMessage} GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CrdtRuntimeMessage.decodeDelimited = function decodeDelimited(reader) {
+    GMapMessage.decodeDelimited = function decodeDelimited(reader) {
         if (!(reader instanceof $Reader))
             reader = new $Reader(reader);
         return this.decode(reader, reader.uint32());
     };
 
     /**
-     * Verifies a CrdtRuntimeMessage message.
+     * Verifies a GMapMessage message.
      * @function verify
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {Object.<string,*>} message Plain object to verify
      * @returns {string|null} `null` if valid, otherwise the reason why it is not
      */
-    CrdtRuntimeMessage.verify = function verify(message) {
+    GMapMessage.verify = function verify(message) {
         if (typeof message !== "object" || message === null)
             return "object expected";
-        if (!(message.innerMessage && typeof message.innerMessage.length === "number" || $util.isString(message.innerMessage)))
-            return "innerMessage: buffer expected";
-        if (message.pathToRoot != null && message.hasOwnProperty("pathToRoot")) {
-            if (!Array.isArray(message.pathToRoot))
-                return "pathToRoot: array expected";
-            for (var i = 0; i < message.pathToRoot.length; ++i)
-                if (!$util.isString(message.pathToRoot[i]))
-                    return "pathToRoot: string[] expected";
-        }
+        if (!(message.keyToInit && typeof message.keyToInit.length === "number" || $util.isString(message.keyToInit)))
+            return "keyToInit: buffer expected";
         return null;
     };
 
     /**
-     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
      * @function fromObject
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {Object.<string,*>} object Plain object
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
+     * @returns {GMapMessage} GMapMessage
      */
-    CrdtRuntimeMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.CrdtRuntimeMessage)
+    GMapMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.GMapMessage)
             return object;
-        var message = new $root.CrdtRuntimeMessage();
-        if (object.innerMessage != null)
-            if (typeof object.innerMessage === "string")
-                $util.base64.decode(object.innerMessage, message.innerMessage = $util.newBuffer($util.base64.length(object.innerMessage)), 0);
-            else if (object.innerMessage.length)
-                message.innerMessage = object.innerMessage;
-        if (object.pathToRoot) {
-            if (!Array.isArray(object.pathToRoot))
-                throw TypeError(".CrdtRuntimeMessage.pathToRoot: array expected");
-            message.pathToRoot = [];
-            for (var i = 0; i < object.pathToRoot.length; ++i)
-                message.pathToRoot[i] = String(object.pathToRoot[i]);
-        }
+        var message = new $root.GMapMessage();
+        if (object.keyToInit != null)
+            if (typeof object.keyToInit === "string")
+                $util.base64.decode(object.keyToInit, message.keyToInit = $util.newBuffer($util.base64.length(object.keyToInit)), 0);
+            else if (object.keyToInit.length)
+                message.keyToInit = object.keyToInit;
         return message;
     };
 
     /**
-     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
+     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
      * @function toObject
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {CrdtRuntimeMessage} message CrdtRuntimeMessage
+     * @param {GMapMessage} message GMapMessage
      * @param {$protobuf.IConversionOptions} [options] Conversion options
      * @returns {Object.<string,*>} Plain object
      */
-    CrdtRuntimeMessage.toObject = function toObject(message, options) {
+    GMapMessage.toObject = function toObject(message, options) {
         if (!options)
             options = {};
         var object = {};
-        if (options.arrays || options.defaults)
-            object.pathToRoot = [];
         if (options.defaults)
             if (options.bytes === String)
-                object.innerMessage = "";
+                object.keyToInit = "";
             else {
-                object.innerMessage = [];
+                object.keyToInit = [];
                 if (options.bytes !== Array)
-                    object.innerMessage = $util.newBuffer(object.innerMessage);
+                    object.keyToInit = $util.newBuffer(object.keyToInit);
             }
-        if (message.innerMessage != null && message.hasOwnProperty("innerMessage"))
-            object.innerMessage = options.bytes === String ? $util.base64.encode(message.innerMessage, 0, message.innerMessage.length) : options.bytes === Array ? Array.prototype.slice.call(message.innerMessage) : message.innerMessage;
-        if (message.pathToRoot && message.pathToRoot.length) {
-            object.pathToRoot = [];
-            for (var j = 0; j < message.pathToRoot.length; ++j)
-                object.pathToRoot[j] = message.pathToRoot[j];
-        }
+        if (message.keyToInit != null && message.hasOwnProperty("keyToInit"))
+            object.keyToInit = options.bytes === String ? $util.base64.encode(message.keyToInit, 0, message.keyToInit.length) : options.bytes === Array ? Array.prototype.slice.call(message.keyToInit) : message.keyToInit;
         return object;
     };
 
     /**
-     * Converts this CrdtRuntimeMessage to JSON.
+     * Converts this GMapMessage to JSON.
      * @function toJSON
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @instance
      * @returns {Object.<string,*>} JSON object
      */
-    CrdtRuntimeMessage.prototype.toJSON = function toJSON() {
+    GMapMessage.prototype.toJSON = function toJSON() {
         return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
     };
 
-    return CrdtRuntimeMessage;
+    return GMapMessage;
+})();
+
+$root.RuntimeGeneratorMessage = (function() {
+
+    /**
+     * Properties of a RuntimeGeneratorMessage.
+     * @exports IRuntimeGeneratorMessage
+     * @interface IRuntimeGeneratorMessage
+     * @property {Uint8Array} message RuntimeGeneratorMessage message
+     * @property {string} uniqueId RuntimeGeneratorMessage uniqueId
+     */
+
+    /**
+     * Constructs a new RuntimeGeneratorMessage.
+     * @exports RuntimeGeneratorMessage
+     * @classdesc Represents a RuntimeGeneratorMessage.
+     * @implements IRuntimeGeneratorMessage
+     * @constructor
+     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
+     */
+    function RuntimeGeneratorMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * RuntimeGeneratorMessage message.
+     * @member {Uint8Array} message
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     */
+    RuntimeGeneratorMessage.prototype.message = $util.newBuffer([]);
+
+    /**
+     * RuntimeGeneratorMessage uniqueId.
+     * @member {string} uniqueId
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     */
+    RuntimeGeneratorMessage.prototype.uniqueId = "";
+
+    /**
+     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
+     * @function create
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage instance
+     */
+    RuntimeGeneratorMessage.create = function create(properties) {
+        return new RuntimeGeneratorMessage(properties);
+    };
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @function encode
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    RuntimeGeneratorMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.message);
+        writer.uint32(/* id 2, wireType 2 =*/18).string(message.uniqueId);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    RuntimeGeneratorMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    RuntimeGeneratorMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.RuntimeGeneratorMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.message = reader.bytes();
+                break;
+            case 2:
+                message.uniqueId = reader.string();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("message"))
+            throw $util.ProtocolError("missing required 'message'", { instance: message });
+        if (!message.hasOwnProperty("uniqueId"))
+            throw $util.ProtocolError("missing required 'uniqueId'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    RuntimeGeneratorMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a RuntimeGeneratorMessage message.
+     * @function verify
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    RuntimeGeneratorMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.message && typeof message.message.length === "number" || $util.isString(message.message)))
+            return "message: buffer expected";
+        if (!$util.isString(message.uniqueId))
+            return "uniqueId: string expected";
+        return null;
+    };
+
+    /**
+     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     */
+    RuntimeGeneratorMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.RuntimeGeneratorMessage)
+            return object;
+        var message = new $root.RuntimeGeneratorMessage();
+        if (object.message != null)
+            if (typeof object.message === "string")
+                $util.base64.decode(object.message, message.message = $util.newBuffer($util.base64.length(object.message)), 0);
+            else if (object.message.length)
+                message.message = object.message;
+        if (object.uniqueId != null)
+            message.uniqueId = String(object.uniqueId);
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {RuntimeGeneratorMessage} message RuntimeGeneratorMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    RuntimeGeneratorMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults) {
+            if (options.bytes === String)
+                object.message = "";
+            else {
+                object.message = [];
+                if (options.bytes !== Array)
+                    object.message = $util.newBuffer(object.message);
+            }
+            object.uniqueId = "";
+        }
+        if (message.message != null && message.hasOwnProperty("message"))
+            object.message = options.bytes === String ? $util.base64.encode(message.message, 0, message.message.length) : options.bytes === Array ? Array.prototype.slice.call(message.message) : message.message;
+        if (message.uniqueId != null && message.hasOwnProperty("uniqueId"))
+            object.uniqueId = message.uniqueId;
+        return object;
+    };
+
+    /**
+     * Converts this RuntimeGeneratorMessage to JSON.
+     * @function toJSON
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    RuntimeGeneratorMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return RuntimeGeneratorMessage;
 })();
 
 $root.CrdtReference = (function() {
@@ -1722,24 +1902,26 @@ $root.LwwMessage = (function() {
     return LwwMessage;
 })();
 
-$root.GMapMessage = (function() {
+$root.CrdtRuntimeMessage = (function() {
 
     /**
-     * Properties of a GMapMessage.
-     * @exports IGMapMessage
-     * @interface IGMapMessage
-     * @property {Uint8Array} keyToInit GMapMessage keyToInit
+     * Properties of a CrdtRuntimeMessage.
+     * @exports ICrdtRuntimeMessage
+     * @interface ICrdtRuntimeMessage
+     * @property {Uint8Array} innerMessage CrdtRuntimeMessage innerMessage
+     * @property {Array.<string>|null} [pathToRoot] CrdtRuntimeMessage pathToRoot
      */
 
     /**
-     * Constructs a new GMapMessage.
-     * @exports GMapMessage
-     * @classdesc Represents a GMapMessage.
-     * @implements IGMapMessage
+     * Constructs a new CrdtRuntimeMessage.
+     * @exports CrdtRuntimeMessage
+     * @classdesc Represents a CrdtRuntimeMessage.
+     * @implements ICrdtRuntimeMessage
      * @constructor
-     * @param {IGMapMessage=} [properties] Properties to set
+     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
      */
-    function GMapMessage(properties) {
+    function CrdtRuntimeMessage(properties) {
+        this.pathToRoot = [];
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -1747,394 +1929,212 @@ $root.GMapMessage = (function() {
     }
 
     /**
-     * GMapMessage keyToInit.
-     * @member {Uint8Array} keyToInit
-     * @memberof GMapMessage
+     * CrdtRuntimeMessage innerMessage.
+     * @member {Uint8Array} innerMessage
+     * @memberof CrdtRuntimeMessage
      * @instance
      */
-    GMapMessage.prototype.keyToInit = $util.newBuffer([]);
+    CrdtRuntimeMessage.prototype.innerMessage = $util.newBuffer([]);
 
     /**
-     * Creates a new GMapMessage instance using the specified properties.
-     * @function create
-     * @memberof GMapMessage
-     * @static
-     * @param {IGMapMessage=} [properties] Properties to set
-     * @returns {GMapMessage} GMapMessage instance
+     * CrdtRuntimeMessage pathToRoot.
+     * @member {Array.<string>} pathToRoot
+     * @memberof CrdtRuntimeMessage
+     * @instance
      */
-    GMapMessage.create = function create(properties) {
-        return new GMapMessage(properties);
+    CrdtRuntimeMessage.prototype.pathToRoot = $util.emptyArray;
+
+    /**
+     * Creates a new CrdtRuntimeMessage instance using the specified properties.
+     * @function create
+     * @memberof CrdtRuntimeMessage
+     * @static
+     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage instance
+     */
+    CrdtRuntimeMessage.create = function create(properties) {
+        return new CrdtRuntimeMessage(properties);
     };
 
     /**
-     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
      * @function encode
-     * @memberof GMapMessage
+     * @memberof CrdtRuntimeMessage
      * @static
-     * @param {IGMapMessage} message GMapMessage message or plain object to encode
+     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    GMapMessage.encode = function encode(message, writer) {
+    CrdtRuntimeMessage.encode = function encode(message, writer) {
         if (!writer)
             writer = $Writer.create();
-        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.keyToInit);
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.innerMessage);
+        if (message.pathToRoot != null && message.pathToRoot.length)
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.pathToRoot[i]);
         return writer;
     };
 
     /**
-     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
      * @function encodeDelimited
-     * @memberof GMapMessage
+     * @memberof CrdtRuntimeMessage
      * @static
-     * @param {IGMapMessage} message GMapMessage message or plain object to encode
+     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    GMapMessage.encodeDelimited = function encodeDelimited(message, writer) {
+    CrdtRuntimeMessage.encodeDelimited = function encodeDelimited(message, writer) {
         return this.encode(message, writer).ldelim();
     };
 
     /**
-     * Decodes a GMapMessage message from the specified reader or buffer.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
      * @function decode
-     * @memberof GMapMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
      * @param {number} [length] Message length if known beforehand
-     * @returns {GMapMessage} GMapMessage
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    GMapMessage.decode = function decode(reader, length) {
+    CrdtRuntimeMessage.decode = function decode(reader, length) {
         if (!(reader instanceof $Reader))
             reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.GMapMessage();
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CrdtRuntimeMessage();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
             case 1:
-                message.keyToInit = reader.bytes();
-                break;
-            default:
-                reader.skipType(tag & 7);
-                break;
-            }
-        }
-        if (!message.hasOwnProperty("keyToInit"))
-            throw $util.ProtocolError("missing required 'keyToInit'", { instance: message });
-        return message;
-    };
-
-    /**
-     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
-     * @function decodeDelimited
-     * @memberof GMapMessage
-     * @static
-     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {GMapMessage} GMapMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    GMapMessage.decodeDelimited = function decodeDelimited(reader) {
-        if (!(reader instanceof $Reader))
-            reader = new $Reader(reader);
-        return this.decode(reader, reader.uint32());
-    };
-
-    /**
-     * Verifies a GMapMessage message.
-     * @function verify
-     * @memberof GMapMessage
-     * @static
-     * @param {Object.<string,*>} message Plain object to verify
-     * @returns {string|null} `null` if valid, otherwise the reason why it is not
-     */
-    GMapMessage.verify = function verify(message) {
-        if (typeof message !== "object" || message === null)
-            return "object expected";
-        if (!(message.keyToInit && typeof message.keyToInit.length === "number" || $util.isString(message.keyToInit)))
-            return "keyToInit: buffer expected";
-        return null;
-    };
-
-    /**
-     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
-     * @function fromObject
-     * @memberof GMapMessage
-     * @static
-     * @param {Object.<string,*>} object Plain object
-     * @returns {GMapMessage} GMapMessage
-     */
-    GMapMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.GMapMessage)
-            return object;
-        var message = new $root.GMapMessage();
-        if (object.keyToInit != null)
-            if (typeof object.keyToInit === "string")
-                $util.base64.decode(object.keyToInit, message.keyToInit = $util.newBuffer($util.base64.length(object.keyToInit)), 0);
-            else if (object.keyToInit.length)
-                message.keyToInit = object.keyToInit;
-        return message;
-    };
-
-    /**
-     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
-     * @function toObject
-     * @memberof GMapMessage
-     * @static
-     * @param {GMapMessage} message GMapMessage
-     * @param {$protobuf.IConversionOptions} [options] Conversion options
-     * @returns {Object.<string,*>} Plain object
-     */
-    GMapMessage.toObject = function toObject(message, options) {
-        if (!options)
-            options = {};
-        var object = {};
-        if (options.defaults)
-            if (options.bytes === String)
-                object.keyToInit = "";
-            else {
-                object.keyToInit = [];
-                if (options.bytes !== Array)
-                    object.keyToInit = $util.newBuffer(object.keyToInit);
-            }
-        if (message.keyToInit != null && message.hasOwnProperty("keyToInit"))
-            object.keyToInit = options.bytes === String ? $util.base64.encode(message.keyToInit, 0, message.keyToInit.length) : options.bytes === Array ? Array.prototype.slice.call(message.keyToInit) : message.keyToInit;
-        return object;
-    };
-
-    /**
-     * Converts this GMapMessage to JSON.
-     * @function toJSON
-     * @memberof GMapMessage
-     * @instance
-     * @returns {Object.<string,*>} JSON object
-     */
-    GMapMessage.prototype.toJSON = function toJSON() {
-        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-    };
-
-    return GMapMessage;
-})();
-
-$root.RuntimeGeneratorMessage = (function() {
-
-    /**
-     * Properties of a RuntimeGeneratorMessage.
-     * @exports IRuntimeGeneratorMessage
-     * @interface IRuntimeGeneratorMessage
-     * @property {Uint8Array} message RuntimeGeneratorMessage message
-     * @property {string} uniqueId RuntimeGeneratorMessage uniqueId
-     */
-
-    /**
-     * Constructs a new RuntimeGeneratorMessage.
-     * @exports RuntimeGeneratorMessage
-     * @classdesc Represents a RuntimeGeneratorMessage.
-     * @implements IRuntimeGeneratorMessage
-     * @constructor
-     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
-     */
-    function RuntimeGeneratorMessage(properties) {
-        if (properties)
-            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                if (properties[keys[i]] != null)
-                    this[keys[i]] = properties[keys[i]];
-    }
-
-    /**
-     * RuntimeGeneratorMessage message.
-     * @member {Uint8Array} message
-     * @memberof RuntimeGeneratorMessage
-     * @instance
-     */
-    RuntimeGeneratorMessage.prototype.message = $util.newBuffer([]);
-
-    /**
-     * RuntimeGeneratorMessage uniqueId.
-     * @member {string} uniqueId
-     * @memberof RuntimeGeneratorMessage
-     * @instance
-     */
-    RuntimeGeneratorMessage.prototype.uniqueId = "";
-
-    /**
-     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
-     * @function create
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage instance
-     */
-    RuntimeGeneratorMessage.create = function create(properties) {
-        return new RuntimeGeneratorMessage(properties);
-    };
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @function encode
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
-     * @param {$protobuf.Writer} [writer] Writer to encode to
-     * @returns {$protobuf.Writer} Writer
-     */
-    RuntimeGeneratorMessage.encode = function encode(message, writer) {
-        if (!writer)
-            writer = $Writer.create();
-        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.message);
-        writer.uint32(/* id 2, wireType 2 =*/18).string(message.uniqueId);
-        return writer;
-    };
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @function encodeDelimited
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
-     * @param {$protobuf.Writer} [writer] Writer to encode to
-     * @returns {$protobuf.Writer} Writer
-     */
-    RuntimeGeneratorMessage.encodeDelimited = function encodeDelimited(message, writer) {
-        return this.encode(message, writer).ldelim();
-    };
-
-    /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
-     * @function decode
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @param {number} [length] Message length if known beforehand
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    RuntimeGeneratorMessage.decode = function decode(reader, length) {
-        if (!(reader instanceof $Reader))
-            reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.RuntimeGeneratorMessage();
-        while (reader.pos < end) {
-            var tag = reader.uint32();
-            switch (tag >>> 3) {
-            case 1:
-                message.message = reader.bytes();
+                message.innerMessage = reader.bytes();
                 break;
             case 2:
-                message.uniqueId = reader.string();
+                if (!(message.pathToRoot && message.pathToRoot.length))
+                    message.pathToRoot = [];
+                message.pathToRoot.push(reader.string());
                 break;
             default:
                 reader.skipType(tag & 7);
                 break;
             }
         }
-        if (!message.hasOwnProperty("message"))
-            throw $util.ProtocolError("missing required 'message'", { instance: message });
-        if (!message.hasOwnProperty("uniqueId"))
-            throw $util.ProtocolError("missing required 'uniqueId'", { instance: message });
+        if (!message.hasOwnProperty("innerMessage"))
+            throw $util.ProtocolError("missing required 'innerMessage'", { instance: message });
         return message;
     };
 
     /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
      * @function decodeDelimited
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    RuntimeGeneratorMessage.decodeDelimited = function decodeDelimited(reader) {
+    CrdtRuntimeMessage.decodeDelimited = function decodeDelimited(reader) {
         if (!(reader instanceof $Reader))
             reader = new $Reader(reader);
         return this.decode(reader, reader.uint32());
     };
 
     /**
-     * Verifies a RuntimeGeneratorMessage message.
+     * Verifies a CrdtRuntimeMessage message.
      * @function verify
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {Object.<string,*>} message Plain object to verify
      * @returns {string|null} `null` if valid, otherwise the reason why it is not
      */
-    RuntimeGeneratorMessage.verify = function verify(message) {
+    CrdtRuntimeMessage.verify = function verify(message) {
         if (typeof message !== "object" || message === null)
             return "object expected";
-        if (!(message.message && typeof message.message.length === "number" || $util.isString(message.message)))
-            return "message: buffer expected";
-        if (!$util.isString(message.uniqueId))
-            return "uniqueId: string expected";
+        if (!(message.innerMessage && typeof message.innerMessage.length === "number" || $util.isString(message.innerMessage)))
+            return "innerMessage: buffer expected";
+        if (message.pathToRoot != null && message.hasOwnProperty("pathToRoot")) {
+            if (!Array.isArray(message.pathToRoot))
+                return "pathToRoot: array expected";
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                if (!$util.isString(message.pathToRoot[i]))
+                    return "pathToRoot: string[] expected";
+        }
         return null;
     };
 
     /**
-     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
      * @function fromObject
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {Object.<string,*>} object Plain object
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
      */
-    RuntimeGeneratorMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.RuntimeGeneratorMessage)
+    CrdtRuntimeMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.CrdtRuntimeMessage)
             return object;
-        var message = new $root.RuntimeGeneratorMessage();
-        if (object.message != null)
-            if (typeof object.message === "string")
-                $util.base64.decode(object.message, message.message = $util.newBuffer($util.base64.length(object.message)), 0);
-            else if (object.message.length)
-                message.message = object.message;
-        if (object.uniqueId != null)
-            message.uniqueId = String(object.uniqueId);
+        var message = new $root.CrdtRuntimeMessage();
+        if (object.innerMessage != null)
+            if (typeof object.innerMessage === "string")
+                $util.base64.decode(object.innerMessage, message.innerMessage = $util.newBuffer($util.base64.length(object.innerMessage)), 0);
+            else if (object.innerMessage.length)
+                message.innerMessage = object.innerMessage;
+        if (object.pathToRoot) {
+            if (!Array.isArray(object.pathToRoot))
+                throw TypeError(".CrdtRuntimeMessage.pathToRoot: array expected");
+            message.pathToRoot = [];
+            for (var i = 0; i < object.pathToRoot.length; ++i)
+                message.pathToRoot[i] = String(object.pathToRoot[i]);
+        }
         return message;
     };
 
     /**
-     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
      * @function toObject
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
-     * @param {RuntimeGeneratorMessage} message RuntimeGeneratorMessage
+     * @param {CrdtRuntimeMessage} message CrdtRuntimeMessage
      * @param {$protobuf.IConversionOptions} [options] Conversion options
      * @returns {Object.<string,*>} Plain object
      */
-    RuntimeGeneratorMessage.toObject = function toObject(message, options) {
+    CrdtRuntimeMessage.toObject = function toObject(message, options) {
         if (!options)
             options = {};
         var object = {};
-        if (options.defaults) {
+        if (options.arrays || options.defaults)
+            object.pathToRoot = [];
+        if (options.defaults)
             if (options.bytes === String)
-                object.message = "";
+                object.innerMessage = "";
             else {
-                object.message = [];
+                object.innerMessage = [];
                 if (options.bytes !== Array)
-                    object.message = $util.newBuffer(object.message);
+                    object.innerMessage = $util.newBuffer(object.innerMessage);
             }
-            object.uniqueId = "";
+        if (message.innerMessage != null && message.hasOwnProperty("innerMessage"))
+            object.innerMessage = options.bytes === String ? $util.base64.encode(message.innerMessage, 0, message.innerMessage.length) : options.bytes === Array ? Array.prototype.slice.call(message.innerMessage) : message.innerMessage;
+        if (message.pathToRoot && message.pathToRoot.length) {
+            object.pathToRoot = [];
+            for (var j = 0; j < message.pathToRoot.length; ++j)
+                object.pathToRoot[j] = message.pathToRoot[j];
         }
-        if (message.message != null && message.hasOwnProperty("message"))
-            object.message = options.bytes === String ? $util.base64.encode(message.message, 0, message.message.length) : options.bytes === Array ? Array.prototype.slice.call(message.message) : message.message;
-        if (message.uniqueId != null && message.hasOwnProperty("uniqueId"))
-            object.uniqueId = message.uniqueId;
         return object;
     };
 
     /**
-     * Converts this RuntimeGeneratorMessage to JSON.
+     * Converts this CrdtRuntimeMessage to JSON.
      * @function toJSON
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @instance
      * @returns {Object.<string,*>} JSON object
      */
-    RuntimeGeneratorMessage.prototype.toJSON = function toJSON() {
+    CrdtRuntimeMessage.prototype.toJSON = function toJSON() {
         return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
     };
 
-    return RuntimeGeneratorMessage;
+    return CrdtRuntimeMessage;
 })();
 
 module.exports = $root;
