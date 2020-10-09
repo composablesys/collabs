@@ -158,11 +158,12 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 		ws.on("close", function() { 			
 			if(isWebRtc && ws.name) { 
 				users.delete(ws.name);
+				crdtUsers.clear();
 				   
 				if(ws.otherName) { 
 				   console.log("Disconnecting from ", ws.otherName); 
 				   var conn = users.get(ws.otherName); 
-				   conn.otherName = null;
+				   // conn.otherName = null;
 					   
 				   if(conn != null) {
 					    sendWebRtcSignalMessage(conn, {
