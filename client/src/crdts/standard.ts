@@ -1,6 +1,6 @@
 import { CausalTimestamp } from "../network";
 import { CounterMessage, GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage } from "../proto_compiled";
-import { AddEvent, CounterCrdt, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
+import { AddEvent, CounterCrdt, LwwRegister, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./resettable";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
@@ -335,8 +335,9 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
      * A grow-only map Crdt.
      *
      * Map keys and their serializer/deserializer are handled as in
-     * GSetCrdt; in particular, only types string, number, and
-     * Crdt are supported by default, with the same semantics
+     * GSetCrdt; in particular, only types string, number,
+     * Crdt, undefined, and null
+     * are supported by default, with the same semantics
      * as the usual JS map.
      *
      * Map values are constrained to be Crdts of a type
@@ -477,7 +478,8 @@ export class AddWinsSet<T> extends Crdt {
      * Add-wins set with elements of type T.
      *
      * The default serializer supports types string, number,
-     * and Crdt.  string and number types are stored
+     * Crdt, undefined, and null.
+     * string, number, undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
      * (even if they are added by different
@@ -573,6 +575,16 @@ export class AddWinsSet<T> extends Crdt {
 export class MapCrdt<K, C extends Crdt> extends Crdt {
     private readonly keySet: AddWinsSet<K>;
     private readonly valueMap: GMapCrdt<K, C>;
+    /**
+     * TODO.
+     *
+     * TODO: make key revivals from concurrent ops optional.
+     * When off, should have no performance/memory footprint.
+     * Remark that key deletion semantics is add-wins.
+     *
+     * TODO: garbage collection?  Can we ever release the
+     * reference to a deleted value, e.g., using weakrefs?
+     */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
@@ -809,14 +821,11 @@ export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt {
 
     // Used to return our own generated Crdt's in generate().
     private lastGenerated?: C;
-    // Counter for unique ids
-    private idCounter = 0;
 
     generate(message: Uint8Array): C {
-        let uniqueId = (this.idCounter++) + " " + this.runtime.getReplicaId();
         let genMessage = RuntimeGeneratorMessage.create({
             message: message,
-            uniqueId: uniqueId
+            uniqueId: this.runtime.getUid()
         });
         super.send(RuntimeGeneratorMessage.encode(genMessage).finish());
         return this.lastGenerated!;
@@ -843,5 +852,64 @@ export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt {
     }
 }
 
-// TODO: register-valued maps with nice set ops;
-// demo with minesweeper.
+export class LwwMap<K, V> extends Crdt {
+    private readonly internalMap: GMapCrdt<K, LwwRegister<V | undefined>>;
+    /**
+     * A map in which the value associated to each key follows
+     * last-writer-wins (LWW) semantics, i.e., the current
+     * value will be the causally maximal value with the
+     * highest timestamp.  Deleting keys also follows
+     * last-writer-wins semantics and is equivalent to
+     * setting the value to undefined.  This is in contrast to
+     * MapCrdt, in which deleting keys follows add-wins
+     * semantics, possibly with revivals.
+     *
+     * TODO: usual comment about serializers.  Applies to
+     * both keys and values.  For now we require the value
+     * serializer to handle undefined's; could wrap around
+     * this instead.
+     */
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        keySerialize: (key: K) => Uint8Array = defaultCollectionSerializer,
+        keyDeserialize: (serialized: Uint8Array) => K = newDefaultCollectionDeserializer(parentOrRuntime),
+        valueSerialize: (value: V | undefined) => Uint8Array = defaultCollectionSerializer,
+        valueDeserialize: (serialized: Uint8Array) => V | undefined = newDefaultCollectionDeserializer(parentOrRuntime)
+    ) {
+        super(parentOrRuntime, id, {});
+        // Register values are always set immediately
+        this.internalMap = new GMapCrdt(
+            this, "internalMap",
+            (parent, id, _) => new LwwRegister(parent, id, undefined, valueSerialize, valueDeserialize),
+            keySerialize, keyDeserialize
+        );
+    }
+
+    get(key: K): V | undefined {
+        let crdt = this.internalMap.get(key);
+        if (crdt === undefined) return undefined;
+        return crdt.value;
+    }
+
+    has(key: K): boolean {
+        return (this.get(key) !== undefined);
+    }
+
+    set(key: K, value: V) {
+        let crdt = this.internalMap.getForce(key);
+        crdt.value = value;
+    }
+
+    delete(key: K): boolean {
+        let crdt = this.internalMap.get(key);
+        if (crdt === undefined) return false;
+        let deleted = (crdt.value !== undefined);
+        crdt.value = undefined;
+        return deleted;
+    }
+
+    // TODO: events
+    
+    // TODO: reset/clear, keys, values, entries.
+}

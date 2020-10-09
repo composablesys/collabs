@@ -296,4 +296,14 @@ export class CrdtRuntime {
         }
         return currentCrdt;
     }
+
+    private idCounter = 0;
+    /**
+     * @return A unique string that will only appear once
+     * in this CrdtRuntime, obtained by concatenating our
+     * replica id with a counter.
+     */
+    getUid() {
+        return (this.idCounter++) + " " + this.getReplicaId();
+    }
 }

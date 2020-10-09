@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { AddEvent, Crdt, GSetCrdt, MultEvent, SetAddEvent } from '../../src/crdts';
-import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, MapCrdt, NewCrdtEvent, NumberCrdt, RuntimeCrdtGenerator, SetDeleteEvent } from '../../src/crdts/standard';
+import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, LwwMap, MapCrdt, NewCrdtEvent, NumberCrdt, RuntimeCrdtGenerator, SetDeleteEvent } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
@@ -465,6 +465,15 @@ function testRuntimeCrdtGenerator() {
     console.log("...ok");
 }
 
+testLwwMap() {
+    console.log("testLwwMap()...");
+
+    let aliceMap = new LwwMap<string, number>(alice, "lwwMap");
+    let bobMap = new LwwMap<string, number>(bob, "lwwMap");
+
+    console.log("...ok");
+}
+
 testEwFlag();
 testDwFlag();
 testNumber();
@@ -474,6 +483,7 @@ testAwSet();
 testMap();
 testCrdtSetValues();
 testRuntimeCrdtGenerator();
+testLwwMap();
 
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set

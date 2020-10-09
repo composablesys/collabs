@@ -133,7 +133,8 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
      * Grow-only set with elements of type T.
      *
      * The default serializer supports types string, number,
-     * and Crdt.  string and number types are stored
+     * Crdt, undefined, and null.  string, number,
+     * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
      * (even if they are added by different
@@ -237,7 +238,8 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
      * Multi-value register of type T.
      *
      * The default serializer supports types string, number,
-     * and Crdt.  string and number types are stored
+     * Crdt, undefined, and null.  string, number,
+     * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
      * (even if they are added by different
@@ -372,7 +374,8 @@ export class LwwRegister<T> extends Crdt<LwwState<T>> {
      * a causally prior value regardless of timestamps).
      *
      * The default serializer supports types string, number,
-     * and Crdt.  string and number types are stored
+     * Crdt, undefined, and null.  string, number,
+     * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
      * (even if they are added by different

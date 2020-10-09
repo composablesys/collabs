@@ -479,6 +479,8 @@ $root.DefaultSerializerMessage = (function() {
      * @property {string|null} [stringValue] DefaultSerializerMessage stringValue
      * @property {number|null} [numberValue] DefaultSerializerMessage numberValue
      * @property {ICrdtReference|null} [crdtValue] DefaultSerializerMessage crdtValue
+     * @property {boolean|null} [undefinedValue] DefaultSerializerMessage undefinedValue
+     * @property {boolean|null} [nullValue] DefaultSerializerMessage nullValue
      */
 
     /**
@@ -520,17 +522,33 @@ $root.DefaultSerializerMessage = (function() {
      */
     DefaultSerializerMessage.prototype.crdtValue = null;
 
+    /**
+     * DefaultSerializerMessage undefinedValue.
+     * @member {boolean} undefinedValue
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    DefaultSerializerMessage.prototype.undefinedValue = false;
+
+    /**
+     * DefaultSerializerMessage nullValue.
+     * @member {boolean} nullValue
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    DefaultSerializerMessage.prototype.nullValue = false;
+
     // OneOf field names bound to virtual getters and setters
     var $oneOfFields;
 
     /**
      * DefaultSerializerMessage value.
-     * @member {"stringValue"|"numberValue"|"crdtValue"|undefined} value
+     * @member {"stringValue"|"numberValue"|"crdtValue"|"undefinedValue"|"nullValue"|undefined} value
      * @memberof DefaultSerializerMessage
      * @instance
      */
     Object.defineProperty(DefaultSerializerMessage.prototype, "value", {
-        get: $util.oneOfGetter($oneOfFields = ["stringValue", "numberValue", "crdtValue"]),
+        get: $util.oneOfGetter($oneOfFields = ["stringValue", "numberValue", "crdtValue", "undefinedValue", "nullValue"]),
         set: $util.oneOfSetter($oneOfFields)
     });
 
@@ -564,6 +582,10 @@ $root.DefaultSerializerMessage = (function() {
             writer.uint32(/* id 2, wireType 1 =*/17).double(message.numberValue);
         if (message.crdtValue != null && Object.hasOwnProperty.call(message, "crdtValue"))
             $root.CrdtReference.encode(message.crdtValue, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+        if (message.undefinedValue != null && Object.hasOwnProperty.call(message, "undefinedValue"))
+            writer.uint32(/* id 4, wireType 0 =*/32).bool(message.undefinedValue);
+        if (message.nullValue != null && Object.hasOwnProperty.call(message, "nullValue"))
+            writer.uint32(/* id 5, wireType 0 =*/40).bool(message.nullValue);
         return writer;
     };
 
@@ -606,6 +628,12 @@ $root.DefaultSerializerMessage = (function() {
                 break;
             case 3:
                 message.crdtValue = $root.CrdtReference.decode(reader, reader.uint32());
+                break;
+            case 4:
+                message.undefinedValue = reader.bool();
+                break;
+            case 5:
+                message.nullValue = reader.bool();
                 break;
             default:
                 reader.skipType(tag & 7);
@@ -665,6 +693,20 @@ $root.DefaultSerializerMessage = (function() {
                     return "crdtValue." + error;
             }
         }
+        if (message.undefinedValue != null && message.hasOwnProperty("undefinedValue")) {
+            if (properties.value === 1)
+                return "value: multiple values";
+            properties.value = 1;
+            if (typeof message.undefinedValue !== "boolean")
+                return "undefinedValue: boolean expected";
+        }
+        if (message.nullValue != null && message.hasOwnProperty("nullValue")) {
+            if (properties.value === 1)
+                return "value: multiple values";
+            properties.value = 1;
+            if (typeof message.nullValue !== "boolean")
+                return "nullValue: boolean expected";
+        }
         return null;
     };
 
@@ -689,6 +731,10 @@ $root.DefaultSerializerMessage = (function() {
                 throw TypeError(".DefaultSerializerMessage.crdtValue: object expected");
             message.crdtValue = $root.CrdtReference.fromObject(object.crdtValue);
         }
+        if (object.undefinedValue != null)
+            message.undefinedValue = Boolean(object.undefinedValue);
+        if (object.nullValue != null)
+            message.nullValue = Boolean(object.nullValue);
         return message;
     };
 
@@ -719,6 +765,16 @@ $root.DefaultSerializerMessage = (function() {
             object.crdtValue = $root.CrdtReference.toObject(message.crdtValue, options);
             if (options.oneofs)
                 object.value = "crdtValue";
+        }
+        if (message.undefinedValue != null && message.hasOwnProperty("undefinedValue")) {
+            object.undefinedValue = message.undefinedValue;
+            if (options.oneofs)
+                object.value = "undefinedValue";
+        }
+        if (message.nullValue != null && message.hasOwnProperty("nullValue")) {
+            object.nullValue = message.nullValue;
+            if (options.oneofs)
+                object.value = "nullValue";
         }
         return object;
     };

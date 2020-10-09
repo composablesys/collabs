@@ -202,6 +202,12 @@ export interface IDefaultSerializerMessage {
 
     /** DefaultSerializerMessage crdtValue */
     crdtValue?: (ICrdtReference|null);
+
+    /** DefaultSerializerMessage undefinedValue */
+    undefinedValue?: (boolean|null);
+
+    /** DefaultSerializerMessage nullValue */
+    nullValue?: (boolean|null);
 }
 
 /** Represents a DefaultSerializerMessage. */
@@ -222,8 +228,14 @@ export class DefaultSerializerMessage implements IDefaultSerializerMessage {
     /** DefaultSerializerMessage crdtValue. */
     public crdtValue?: (ICrdtReference|null);
 
+    /** DefaultSerializerMessage undefinedValue. */
+    public undefinedValue: boolean;
+
+    /** DefaultSerializerMessage nullValue. */
+    public nullValue: boolean;
+
     /** DefaultSerializerMessage value. */
-    public value?: ("stringValue"|"numberValue"|"crdtValue");
+    public value?: ("stringValue"|"numberValue"|"crdtValue"|"undefinedValue"|"nullValue");
 
     /**
      * Creates a new DefaultSerializerMessage instance using the specified properties.

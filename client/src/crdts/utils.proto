@@ -8,5 +8,7 @@ message DefaultSerializerMessage {
         string stringValue = 1;
         double numberValue = 2;
         CrdtReference crdtValue = 3;
+        bool undefinedValue = 4;
+        bool nullValue = 5;
     }
 }

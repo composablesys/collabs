@@ -17,6 +17,9 @@ export function defaultCollectionSerializer<T>(value: T): Uint8Array {
         case "number":
             message = {numberValue: value};
             break;
+        case "undefined":
+            message = {undefinedValue: true};
+            break;
         default:
             if (value instanceof Crdt) {
                 message = {
@@ -26,8 +29,11 @@ export function defaultCollectionSerializer<T>(value: T): Uint8Array {
                     })
                 }
             }
+            else if (value === null) {
+                message = {nullValue: true};
+            }
             else {
-                throw new Error("defaultCollectionSerializer only works with values of type string | number | Crdt");
+                throw new Error("defaultCollectionSerializer only works with values of type string | number | Crdt | undefined | null");
             }
     }
     return DefaultSerializerMessage.encode(message).finish();
@@ -48,7 +54,7 @@ export function newDefaultCollectionDeserializer<T>(parentOrRuntime: Crdt | Crdt
     return (message: Uint8Array) => defaultCollectionDeserializer(runtime, message) as unknown as T;
 }
 
-function defaultCollectionDeserializer(runtime: CrdtRuntime, message: Uint8Array): string | number | Crdt {
+function defaultCollectionDeserializer(runtime: CrdtRuntime, message: Uint8Array): string | number | Crdt | undefined | null {
     let decoded = DefaultSerializerMessage.decode(message);
     switch (decoded.value) {
         case "stringValue":
@@ -60,6 +66,10 @@ function defaultCollectionDeserializer(runtime: CrdtRuntime, message: Uint8Array
                 decoded.crdtValue!.rootId,
                 decoded.crdtValue!.pathToRoot!
             );
+        case "undefinedValue":
+            return undefined;
+        case "nullValue":
+            return null;
         default:
             throw new Error("Bad message format: decoded.value=" + decoded.value);
     }
