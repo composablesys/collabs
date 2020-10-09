@@ -35,7 +35,7 @@ export class WebRtcNetwork implements CrdtNetwork{
     /**
      * WebRtc for connection to another user.
      */
-    peerRtc : webkitRTCPeerConnection;
+    peerRtc : RTCPeerConnection;
     /**
      * Data channel for connection to another user.
      */
@@ -91,7 +91,7 @@ export class WebRtcNetwork implements CrdtNetwork{
 
     /**
      * Send signal message in JSON format by using WebSocket
-     * 
+     *
      * @param message the JSON format data send via network
      */
     sendSignalingMessage(message : any) : void {
@@ -308,7 +308,7 @@ export class WebRtcNetwork implements CrdtNetwork{
             crdtName: CrdtRuntime.name
         });
 
-        console.log("Create dataChnnel")
+        console.log("Create dataChannel")
         this.dataChannel = this.peerRtc.createDataChannel("channel1"); 
         this.dataChannel.onerror = function (error : any) { 
             console.log("Errors: ", error); 
