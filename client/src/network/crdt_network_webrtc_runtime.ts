@@ -2,8 +2,14 @@ import { CausalTimestamp,CrdtNetwork,VectorClock } from '.';
 import { CrdtRuntime} from '../crdts';
 import { myMessage } from './crdt_network_runtime';
 
-// The webrtc network designed for a two-way interactive
-// communication session among two users using WebRtc.
+// NOTE: This WebRTC network layer is just a prototype, which only
+// two users peer-to-peer connection.
+//
+// The webrtc network designed for a two-way peer-to-peer interactive
+// communication session among two users using WebRTC protocol.
+//
+// The whole infrastructure is based-on the WebSocket protocol to
+// initialize the connection between WebRTC candidates.
 //
 // Also ensure the order of delivery with casuality check.
 
@@ -15,7 +21,7 @@ import { myMessage } from './crdt_network_runtime';
  * Communicate with CRDT's runtime and send/receive message via
  * central server with WebSocket protocol to exchange signals.
  * Then create channels for peer-to-peer communications by using
- * WebRtc
+ * the WebRtc.
  *
  * Perform casuality check to ensure message ordering.
  */
@@ -88,7 +94,6 @@ export class WebRtcNetwork implements CrdtNetwork{
         this.peerRtc.addEventListener('datachannel', this.peerRtcReceiveMessage);
     
     }
-
     /**
      * Send signal message in JSON format by using WebSocket
      *
@@ -102,7 +107,6 @@ export class WebRtcNetwork implements CrdtNetwork{
             this.sendBuffer.push(message);
         }
     }
-
     /**
      * Check if the send message buffer has any message waiting to be sent.
      * If there exist, then send it via WebSocket and remove the item from buffer.
@@ -117,7 +121,6 @@ export class WebRtcNetwork implements CrdtNetwork{
         }
         this.sendBuffer = new Array<any>();
     }
-
     /**
      * Parse JSON format signal message and check signal message type.
      * Jump to the corresponding signal handler for further steps to 
@@ -152,7 +155,6 @@ export class WebRtcNetwork implements CrdtNetwork{
               break; 
         } 
     };
-
     /**
      * Handle register signal sent back from the central server. 
      * Check if login successfully or not. 
@@ -166,7 +168,6 @@ export class WebRtcNetwork implements CrdtNetwork{
             console.log("Register successfully in server.")
         }
     }
-
     /**
      * Handle connect signal sent from the central server.
      * Create an offer and send it to the requested user.
@@ -198,7 +199,6 @@ export class WebRtcNetwork implements CrdtNetwork{
             this.peerRtc.setLocalDescription(offer);
         });
     }
-
     /**
      * Handle offer signal sent from the server. 
      * Create an answer as a response and send the answer to the server.
@@ -218,7 +218,6 @@ export class WebRtcNetwork implements CrdtNetwork{
             this.peerRtc.setLocalDescription(answer);
         });
     };
-
     /**
      * Handle answer signal sent from the central server.
      * Setup remote description by using the answer. 
@@ -238,7 +237,6 @@ export class WebRtcNetwork implements CrdtNetwork{
         this.peerRtc.close(); 
         this.peerRtc.onicecandidate = null; 
     };
-
     /**
      * Handle icecandidate event when an RTCIceCandidate has been 
      * identified and added to the local peer by a call.
@@ -279,8 +277,6 @@ export class WebRtcNetwork implements CrdtNetwork{
         }
         this.dataBuffer = new Array<any>();
     }
-
-    
     /**
      * Implement the function defined in CrdtRuntime interfaces.
      *
@@ -291,7 +287,6 @@ export class WebRtcNetwork implements CrdtNetwork{
     getReplicaId() : any {
         return this.uid;
     }
-
     /**
      * Register newly created crdt with its ID and corresponding message
      * listener on CasualBroadcastNetwork.
@@ -320,7 +315,6 @@ export class WebRtcNetwork implements CrdtNetwork{
             console.log("data channel is closed"); 
         };
     }
-
     /**
      * Send function on casualbroadcast network layer, which called
      * by crdt's runtime layer.
@@ -350,7 +344,6 @@ export class WebRtcNetwork implements CrdtNetwork{
             this.dataBuffer.push(myPackage);
         }
     }
-
     /**
      * Get the next timestamp of the given crdtId in this replica.
      *
@@ -377,7 +370,6 @@ export class WebRtcNetwork implements CrdtNetwork{
 
         return vcCopy;
     }
-
     /**
      * Parse JSON format data back to customized data type.
      *
@@ -396,7 +388,6 @@ export class WebRtcNetwork implements CrdtNetwork{
 
         return myPackage;
     }
-
     /**
      * Check the casuality of buffered messages and delivery the
      * messages back to crdtMessageListener which are ready.
@@ -421,8 +412,8 @@ export class WebRtcNetwork implements CrdtNetwork{
             }
             if (myVectorClock.isready(curVectorClock)) {
                 /**
-                 * Send back the received messages to crdtRuntime.
-
+                 * Send back the received messages from network to the
+                 * registered crdtRuntime.
                  */
                 this.crdtRuntime.receive(
                     this.messageBuffer[index][1],

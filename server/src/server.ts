@@ -1,4 +1,3 @@
-import { request } from 'express';
 import WebSocket = require('ws');
 
 /**
@@ -8,7 +7,7 @@ function noop() {}
 
 /**
  * webRtc server used only.
- * Send Jsonfy signaling message to clients. 
+ * Send Jsonify signaling message to clients.
  */
 function sendWebRtcSignalMessage(connection : any, message: any) { 
 	connection.send(JSON.stringify(message)); 

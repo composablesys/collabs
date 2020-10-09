@@ -1,6 +1,5 @@
 import { CausalTimestamp,CrdtNetwork,VectorClock } from '.';
 import { CrdtRuntime} from '../crdts';
-// import WebSocket = require("ws");
 
 // The casual broadcast network designed for a two-way interactive
 // communication session between user and server using WebSocket API.
