@@ -335,10 +335,7 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
      * A grow-only map Crdt.
      *
      * Map keys and their serializer/deserializer are handled as in
-     * GSetCrdt; in particular, only types string, number,
-     * Crdt, undefined, and null
-     * are supported by default, with the same semantics
-     * as the usual JS map.
+     * GSetCrdt.
      *
      * Map values are constrained to be Crdts of a type
      * determined at construction, via the valueConstructor
@@ -477,9 +474,8 @@ export class AddWinsSet<T> extends Crdt {
     /**
      * Add-wins set with elements of type T.
      *
-     * The default serializer supports types string, number,
-     * Crdt, undefined, and null.
-     * string, number, undefined, and null types are stored
+     * The default serializer behaves as follows.  string, number,
+     * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
      * (even if they are added by different
@@ -487,16 +483,11 @@ export class AddWinsSet<T> extends Crdt {
      * by-reference, as they would be in ordinary JS set's,
      * with replicas of the same Crdt being identified
      * (even if they are added by different replicas).
-     * Other types are not supported and will cause an
-     * error when you attempt to add them; use a custom
-     * serializer and deserializer instead, being
-     * aware of JS's clunky set semantics (all Objects
-     * are stored by-reference only, while naive
-     * serialization/deserialization, e.g. with JSON,
-     * will create non-equal
-     * copies of Objects on other replicas,
-     * even if they intuitively correspond to the "same"
-     * variable.)
+     * Other types are serialized using BSON (via
+     * https://github.com/mongodb/js-bson).  Note this means
+     * that they will effectively be sent by-value to other
+     * replicas, but on each replica, they are treated by reference,
+     * following JS's usual set semantics.
      */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -868,6 +859,8 @@ export class LwwMap<K, V> extends Crdt {
      * both keys and values.  For now we require the value
      * serializer to handle undefined's; could wrap around
      * this instead.
+     *
+     * TODO: garbage collect undefined values?
      */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -910,6 +903,6 @@ export class LwwMap<K, V> extends Crdt {
     }
 
     // TODO: events
-    
+
     // TODO: reset/clear, keys, values, entries.
 }

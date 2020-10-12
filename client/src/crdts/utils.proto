@@ -10,5 +10,6 @@ message DefaultSerializerMessage {
         CrdtReference crdtValue = 3;
         bool undefinedValue = 4;
         bool nullValue = 5;
+        bytes bsonValue = 6;
     }
 }

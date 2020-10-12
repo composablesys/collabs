@@ -132,8 +132,7 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
     /**
      * Grow-only set with elements of type T.
      *
-     * The default serializer supports types string, number,
-     * Crdt, undefined, and null.  string, number,
+     * The default serializer behaves as follows.  string, number,
      * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
@@ -142,16 +141,11 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
      * by-reference, as they would be in ordinary JS set's,
      * with replicas of the same Crdt being identified
      * (even if they are added by different replicas).
-     * Other types are not supported and will cause an
-     * error when you attempt to add them; use a custom
-     * serializer and deserializer instead, being
-     * aware of JS's clunky set semantics (all Objects
-     * are stored by-reference only, while naive
-     * serialization/deserialization, e.g. with JSON,
-     * will create non-equal
-     * copies of Objects on other replicas,
-     * even if they intuitively correspond to the "same"
-     * variable.)
+     * Other types are serialized using BSON (via
+     * https://github.com/mongodb/js-bson).  Note this means
+     * that they will effectively be sent by-value to other
+     * replicas, but on each replica, they are treated by reference,
+     * following JS's usual set semantics.
      */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -237,8 +231,7 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
     /**
      * Multi-value register of type T.
      *
-     * The default serializer supports types string, number,
-     * Crdt, undefined, and null.  string, number,
+     * The default serializer behaves as follows.  string, number,
      * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
@@ -247,16 +240,11 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
      * by-reference, as they would be in ordinary JS set's,
      * with replicas of the same Crdt being identified
      * (even if they are added by different replicas).
-     * Other types are not supported and will cause an
-     * error when you attempt to add them; use a custom
-     * serializer and deserializer instead, being
-     * aware of JS's clunky set semantics (all Objects
-     * are stored by-reference only, while naive
-     * serialization/deserialization, e.g. with JSON,
-     * will create non-equal
-     * copies of Objects on other replicas,
-     * even if they intuitively correspond to the "same"
-     * variable.)
+     * Other types are serialized using BSON (via
+     * https://github.com/mongodb/js-bson).  Note this means
+     * that they will effectively be sent by-value to other
+     * replicas, but on each replica, they are treated by reference,
+     * following JS's usual set semantics.
      */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -373,8 +361,7 @@ export class LwwRegister<T> extends Crdt<LwwState<T>> {
      * timestamps (however, a message will always overwrite
      * a causally prior value regardless of timestamps).
      *
-     * The default serializer supports types string, number,
-     * Crdt, undefined, and null.  string, number,
+     * The default serializer behaves as follows.  string, number,
      * undefined, and null types are stored
      * by-value, as in ordinary JS Set's, so that different
      * instances of the same value are identified
@@ -383,16 +370,11 @@ export class LwwRegister<T> extends Crdt<LwwState<T>> {
      * by-reference, as they would be in ordinary JS set's,
      * with replicas of the same Crdt being identified
      * (even if they are added by different replicas).
-     * Other types are not supported and will cause an
-     * error when you attempt to add them; use a custom
-     * serializer and deserializer instead, being
-     * aware of JS's clunky set semantics (all Objects
-     * are stored by-reference only, while naive
-     * serialization/deserialization, e.g. with JSON,
-     * will create non-equal
-     * copies of Objects on other replicas,
-     * even if they intuitively correspond to the "same"
-     * variable.)
+     * Other types are serialized using BSON (via
+     * https://github.com/mongodb/js-bson).  Note this means
+     * that they will effectively be sent by-value to other
+     * replicas, but on each replica, they are treated by reference,
+     * following JS's usual set semantics.
      */
      constructor(
          parentOrRuntime: Crdt | CrdtRuntime,

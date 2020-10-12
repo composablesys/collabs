@@ -8,14 +8,16 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
+    "bson": "^4.1.0",
     "clean": "^4.0.2",
     "protobufjs": "~6.10.1",
     "uuid": "^3.4.0",
     "ws": "^7.3.1"
   },
   "devDependencies": {
-    "@types/ws": "^7.2.6",
+    "@types/bson": "^4.0.2",
     "@types/uuid": "^3.4.0",
+    "@types/ws": "^7.2.6",
     "ts-loader": "^7.0.5",
     "ts-node": "^8.10.1",
     "tslib": "^2.0.1",

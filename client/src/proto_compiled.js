@@ -481,6 +481,7 @@ $root.DefaultSerializerMessage = (function() {
      * @property {ICrdtReference|null} [crdtValue] DefaultSerializerMessage crdtValue
      * @property {boolean|null} [undefinedValue] DefaultSerializerMessage undefinedValue
      * @property {boolean|null} [nullValue] DefaultSerializerMessage nullValue
+     * @property {Uint8Array|null} [bsonValue] DefaultSerializerMessage bsonValue
      */
 
     /**
@@ -538,17 +539,25 @@ $root.DefaultSerializerMessage = (function() {
      */
     DefaultSerializerMessage.prototype.nullValue = false;
 
+    /**
+     * DefaultSerializerMessage bsonValue.
+     * @member {Uint8Array} bsonValue
+     * @memberof DefaultSerializerMessage
+     * @instance
+     */
+    DefaultSerializerMessage.prototype.bsonValue = $util.newBuffer([]);
+
     // OneOf field names bound to virtual getters and setters
     var $oneOfFields;
 
     /**
      * DefaultSerializerMessage value.
-     * @member {"stringValue"|"numberValue"|"crdtValue"|"undefinedValue"|"nullValue"|undefined} value
+     * @member {"stringValue"|"numberValue"|"crdtValue"|"undefinedValue"|"nullValue"|"bsonValue"|undefined} value
      * @memberof DefaultSerializerMessage
      * @instance
      */
     Object.defineProperty(DefaultSerializerMessage.prototype, "value", {
-        get: $util.oneOfGetter($oneOfFields = ["stringValue", "numberValue", "crdtValue", "undefinedValue", "nullValue"]),
+        get: $util.oneOfGetter($oneOfFields = ["stringValue", "numberValue", "crdtValue", "undefinedValue", "nullValue", "bsonValue"]),
         set: $util.oneOfSetter($oneOfFields)
     });
 
@@ -586,6 +595,8 @@ $root.DefaultSerializerMessage = (function() {
             writer.uint32(/* id 4, wireType 0 =*/32).bool(message.undefinedValue);
         if (message.nullValue != null && Object.hasOwnProperty.call(message, "nullValue"))
             writer.uint32(/* id 5, wireType 0 =*/40).bool(message.nullValue);
+        if (message.bsonValue != null && Object.hasOwnProperty.call(message, "bsonValue"))
+            writer.uint32(/* id 6, wireType 2 =*/50).bytes(message.bsonValue);
         return writer;
     };
 
@@ -634,6 +645,9 @@ $root.DefaultSerializerMessage = (function() {
                 break;
             case 5:
                 message.nullValue = reader.bool();
+                break;
+            case 6:
+                message.bsonValue = reader.bytes();
                 break;
             default:
                 reader.skipType(tag & 7);
@@ -707,6 +721,13 @@ $root.DefaultSerializerMessage = (function() {
             if (typeof message.nullValue !== "boolean")
                 return "nullValue: boolean expected";
         }
+        if (message.bsonValue != null && message.hasOwnProperty("bsonValue")) {
+            if (properties.value === 1)
+                return "value: multiple values";
+            properties.value = 1;
+            if (!(message.bsonValue && typeof message.bsonValue.length === "number" || $util.isString(message.bsonValue)))
+                return "bsonValue: buffer expected";
+        }
         return null;
     };
 
@@ -735,6 +756,11 @@ $root.DefaultSerializerMessage = (function() {
             message.undefinedValue = Boolean(object.undefinedValue);
         if (object.nullValue != null)
             message.nullValue = Boolean(object.nullValue);
+        if (object.bsonValue != null)
+            if (typeof object.bsonValue === "string")
+                $util.base64.decode(object.bsonValue, message.bsonValue = $util.newBuffer($util.base64.length(object.bsonValue)), 0);
+            else if (object.bsonValue.length)
+                message.bsonValue = object.bsonValue;
         return message;
     };
 
@@ -775,6 +801,11 @@ $root.DefaultSerializerMessage = (function() {
             object.nullValue = message.nullValue;
             if (options.oneofs)
                 object.value = "nullValue";
+        }
+        if (message.bsonValue != null && message.hasOwnProperty("bsonValue")) {
+            object.bsonValue = options.bytes === String ? $util.base64.encode(message.bsonValue, 0, message.bsonValue.length) : options.bytes === Array ? Array.prototype.slice.call(message.bsonValue) : message.bsonValue;
+            if (options.oneofs)
+                object.value = "bsonValue";
         }
         return object;
     };

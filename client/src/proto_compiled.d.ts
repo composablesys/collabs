@@ -208,6 +208,9 @@ export interface IDefaultSerializerMessage {
 
     /** DefaultSerializerMessage nullValue */
     nullValue?: (boolean|null);
+
+    /** DefaultSerializerMessage bsonValue */
+    bsonValue?: (Uint8Array|null);
 }
 
 /** Represents a DefaultSerializerMessage. */
@@ -234,8 +237,11 @@ export class DefaultSerializerMessage implements IDefaultSerializerMessage {
     /** DefaultSerializerMessage nullValue. */
     public nullValue: boolean;
 
+    /** DefaultSerializerMessage bsonValue. */
+    public bsonValue: Uint8Array;
+
     /** DefaultSerializerMessage value. */
-    public value?: ("stringValue"|"numberValue"|"crdtValue"|"undefinedValue"|"nullValue");
+    public value?: ("stringValue"|"numberValue"|"crdtValue"|"undefinedValue"|"nullValue"|"bsonValue");
 
     /**
      * Creates a new DefaultSerializerMessage instance using the specified properties.

@@ -1,12 +1,14 @@
 import { CrdtReference, DefaultSerializerMessage, IDefaultSerializerMessage } from "../proto_compiled";
 import { Crdt, CrdtRuntime } from "./crdt_core";
+import { serialize, deserialize } from 'bson';
 
 /**
- * Serializer for string, number, and Crdt types.
- * string and number types are passed by-value.
+ * Default serializer.
+ * string, number, undefined, and null types are passed by-value.
  * Crdt types are sent by-reference, using the Crdt's
  * rootId and pathToRoot to identify different replicas
- * of the same Crdt.  Other types cause an error.
+ * of the same Crdt.  Other types are passed by-value using BSON
+ * (via https://github.com/mongodb/js-bson).
  */
 export function defaultCollectionSerializer<T>(value: T): Uint8Array {
     let message: IDefaultSerializerMessage;
@@ -21,7 +23,10 @@ export function defaultCollectionSerializer<T>(value: T): Uint8Array {
             message = {undefinedValue: true};
             break;
         default:
-            if (value instanceof Crdt) {
+            if (value === null) {
+                message = {nullValue: true};
+            }
+            else if (value instanceof Crdt) {
                 message = {
                     crdtValue: CrdtReference.create({
                         rootId: value.rootId,
@@ -29,32 +34,31 @@ export function defaultCollectionSerializer<T>(value: T): Uint8Array {
                     })
                 }
             }
-            else if (value === null) {
-                message = {nullValue: true};
-            }
             else {
-                throw new Error("defaultCollectionSerializer only works with values of type string | number | Crdt | undefined | null");
+                // Use BSON
+                message = {bsonValue: serialize(value)};
             }
     }
     return DefaultSerializerMessage.encode(message).finish();
 }
 
 /**
- * Returns a deserializer for string, number, and Crdt types.
- * string and number types are passed by-value.
+ * Returns a default deserializer.
+ * string, number, undefined, and null types are passed by-value.
  * Crdt types are sent by-reference, using the Crdt's
  * rootId and pathToRoot to identify different replicas
- * of the same Crdt.  Other types are not supported.
+ * of the same Crdt.  Other types are passed by-value using BSON
+ * (via https://github.com/mongodb/js-bson).
  */
 export function newDefaultCollectionDeserializer<T>(parentOrRuntime: Crdt | CrdtRuntime) {
     let runtime: CrdtRuntime;
     if ("isCrdt" in parentOrRuntime) runtime = parentOrRuntime.runtime;
     else runtime = parentOrRuntime;
     // TODO: how to error if it's not actually T?
-    return (message: Uint8Array) => defaultCollectionDeserializer(runtime, message) as unknown as T;
+    return (message: Uint8Array) => defaultCollectionDeserializer(runtime, message) as T;
 }
 
-function defaultCollectionDeserializer(runtime: CrdtRuntime, message: Uint8Array): string | number | Crdt | undefined | null {
+function defaultCollectionDeserializer(runtime: CrdtRuntime, message: Uint8Array): any {
     let decoded = DefaultSerializerMessage.decode(message);
     switch (decoded.value) {
         case "stringValue":
@@ -70,6 +74,8 @@ function defaultCollectionDeserializer(runtime: CrdtRuntime, message: Uint8Array
             return undefined;
         case "nullValue":
             return null;
+        case "bsonValue":
+            return deserialize(Buffer.from(decoded.bsonValue));
         default:
             throw new Error("Bad message format: decoded.value=" + decoded.value);
     }
