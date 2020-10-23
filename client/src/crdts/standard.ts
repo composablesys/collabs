@@ -2,10 +2,10 @@ import { CausalTimestamp } from "../network";
 import { CounterMessage, GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage } from "../proto_compiled";
 import { AddEvent, CounterCrdt, LwwRegister, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
-import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./resettable";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
+import { SemidirectProduct } from "./semidirect";
 
-export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState> {
+export class NumberCrdt extends SemidirectProduct<NumberState> {
     private addCrdt: CounterCrdt;
     private multCrdt: MultRegisterCrdt;
     readonly resetValue: number;
@@ -23,7 +23,8 @@ export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState>
             this.addCrdt, this.multCrdt,
             this.action.bind(this),
             new NumberState(initialValue)
-        )
+        );
+        // TODO: only do this if I have a listener?
         this.addCrdt.addEventListener(
             "Add", (event: CrdtEvent) => {
                 super.dispatchEvent(new AddEvent(
@@ -215,7 +216,7 @@ export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState>
 //     }
 // }
 
-export class EnableWinsFlag extends OptionalResettableCrdt<Object> {
+export class EnableWinsFlag extends Crdt<Object> {
     constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = false) {
         super(parentOrRuntime, id, {}, true, true);
         this.addEventListener(

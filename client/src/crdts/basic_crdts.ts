@@ -16,7 +16,7 @@ export class NumberState {
 }
 
 // TODO: make resettable
-export class CounterCrdt extends Crdt<NumberState> {
+export class CounterBase extends Crdt<NumberState> {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,

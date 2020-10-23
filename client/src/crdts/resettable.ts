@@ -5,6 +5,7 @@ import { SemidirectProduct, SemidirectState } from "./semidirect";
 class ResetComponentMessage extends Uint8Array {
     readonly isResetComponentMessage = true;
     replay: [string[], CausalTimestamp, Uint8Array][] = [];
+    outOfOrderMessage: Uint8Array | null = null;
 }
 
 class ResetComponent<S extends Object> extends Crdt<S> {
@@ -20,13 +21,32 @@ class ResetComponent<S extends Object> extends Crdt<S> {
         super.send(new Uint8Array());
     }
 
+    doOutOfOrder(timestamp: CausalTimestamp, message: Uint8Array) {
+        // This will deliver message to receiveInternal, but acted
+        // on by the reset action, which will attach all non-causally
+        // prior messages to message.
+        let wrappedMessage = new ResetComponentMessage();
+        wrappedMessage.outOfOrderMessage = message;
+        (this.parent as ResetWrapperCrdt).receiveInternalForChild(
+            this, [], timestamp, wrappedMessage
+        );
+    }
+
     receiveInternal(
         timestamp: CausalTimestamp,
         message: Uint8Array | ResetComponentMessage
     ): boolean {
         this.targetCrdt.hardReset();
         (this.parent as ResetWrapperCrdt).dispatchResetEvent(timestamp);
+        // TODO: use an actual struct (in case the OoO message is lengthless)
         if ("isResetComponentMessage" in message) {
+            // Do the OoO message first
+            if (message.outOfOrderMessage !== null) {
+                // TODO: want the resettable crdt to intercept its
+                // descendants' OoO messages.
+                throw new Error("Not yet implemented");
+                // this.targetCrdt.receive(TODO, timestamp, message.outOfOrderMessage);
+            }
             // Replay message.replay
             for (let toReplay of message.replay) {
                 this.targetCrdt.receive(...toReplay);
@@ -34,11 +54,21 @@ class ResetComponent<S extends Object> extends Crdt<S> {
         }
         return true;
     }
+
+    protected receiveOutOfOrderInternal(_timestamp: CausalTimestamp, _message: Uint8Array): void {
+        // Do nothing.  This is because the only allowed message
+        // is a reset message, and a reset message causally prior
+        // to all existing messages will do nothing.
+    }
+
+    strongReset(): void {
+        throw new Error("Method not implemented.");
+    }
 }
 
 export interface HardResettable {
     /**
-     * This should be called by ResetWrapperCrdt only!
+     * For internal use only!
      * This method should reset the Crdt's state
      * to a value depending only on its constructor
      * arguments (e.g., a fresh copy of the initial
@@ -105,54 +135,10 @@ export class ResetWrapperCrdt<S extends Object = Object> extends SemidirectProdu
     reset() {
         this.resetComponent.reset();
     }
-}
 
-export abstract class OptionalResettableCrdt<S extends Object = Object> extends Crdt<S> implements HardResettable {
-    public readonly resettable: boolean
-    resetWrapperCrdt?: ResetWrapperCrdt<S>;
-    /**
-     * @param keepOnlyMaximal=false Store only causally maximal
-     * messages in the history, to save space (although possibly
-     * at some CPU cost).  This is only allowed if the state
-     * only ever depends on the causally maximal messages.
-     */
-    constructor(
-        parentOrRuntime: Crdt | CrdtRuntime,
-        id: string,
-        initialState: S,
-        resettable = true,
-        keepOnlyMaximal = false
-    ) {
-        if (resettable) {
-            let resetWrapperCrdt = new ResetWrapperCrdt<S>(
-                parentOrRuntime, id + "_reset", keepOnlyMaximal
-            );
-            super(resetWrapperCrdt, id, initialState);
-            this.resetWrapperCrdt = resetWrapperCrdt;
-            resetWrapperCrdt.setupReset(this);
-            resetWrapperCrdt.addEventListener(
-                "Reset", (event: CrdtEvent) =>
-                this.dispatchEvent({
-                    caller: this,
-                    type: event.type,
-                    timestamp: event.timestamp
-                }), true
-            );
-        }
-        else super(parentOrRuntime, id, initialState);
-        this.resettable = resettable;
+    doOutOfOrder(timestamp: CausalTimestamp, message: Uint8Array) {
+        this.resetComponent.doOutOfOrder(timestamp, message);
     }
-
-    reset() {
-        if (this.resettable) {
-            this.resetWrapperCrdt!.reset();
-        }
-        else {
-            throw new Error("reset() called but resettable is false");
-        }
-    }
-
-    abstract hardReset(): void;
 }
 
 export abstract class OptionalResettableSemidirectProduct<S extends Object = Object> extends SemidirectProduct<S> implements HardResettable {
