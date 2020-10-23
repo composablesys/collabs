@@ -1,6 +1,7 @@
-import { CausalTimestamp,CrdtNetwork,VectorClock } from '.';
+import { CausalTimestamp,VectorClock, CausalBroadcastNetwork } from '.';
 import { CrdtRuntime} from '../crdts';
-import { myMessage } from './crdt_network_runtime';
+import { myMessage } from './default_causal_broadcast_network';
+
 
 // NOTE: This WebRTC network layer is just a prototype, which only
 // two users peer-to-peer connection.
@@ -25,7 +26,7 @@ import { myMessage } from './crdt_network_runtime';
  *
  * Perform casuality check to ensure message ordering.
  */
-export class WebRtcNetwork implements CrdtNetwork{
+export class WebRtcNetwork implements CausalBroadcastNetwork{
     /**
      * Unique ID for replica for identification.
      */
@@ -86,13 +87,17 @@ export class WebRtcNetwork implements CrdtNetwork{
          * Open WebRtc peer connection.
          * Register EventListener with corresponding event handler.
          */
-        let configuration : RTCConfiguration = { 
-            "iceServers": [{ "urls": "stun:stun2.1.google.com:19302" }] 
-        }; 
+        let configuration : RTCConfiguration = {
+            "iceServers": [{ "urls": "stun:stun2.1.google.com:19302" }]
+        };
         this.peerRtc = new RTCPeerConnection(configuration);
         this.peerRtc.addEventListener('icecandidate', this.handleIceCandidate);
         this.peerRtc.addEventListener('datachannel', this.peerRtcReceiveMessage);
-    
+
+    }
+
+    joinGroup(group: string): void {
+        // TODO: use this
     }
     /**
      * Send signal message in JSON format by using WebSocket
@@ -102,7 +107,7 @@ export class WebRtcNetwork implements CrdtNetwork{
     sendSignalingMessage(message : any) : void {
         message.webRtc = true;
         if (this.ws.readyState === 1) {
-            this.ws.send(JSON.stringify(message)); 
+            this.ws.send(JSON.stringify(message));
         } else {
             this.sendBuffer.push(message);
         }
@@ -116,49 +121,49 @@ export class WebRtcNetwork implements CrdtNetwork{
         let index = 0;
         while (index < this.sendBuffer.length) {
             console.log(this.sendBuffer[index]);
-            this.ws.send(JSON.stringify(this.sendBuffer[index])); 
+            this.ws.send(JSON.stringify(this.sendBuffer[index]));
             index++;
         }
         this.sendBuffer = new Array<any>();
     }
     /**
      * Parse JSON format signal message and check signal message type.
-     * Jump to the corresponding signal handler for further steps to 
+     * Jump to the corresponding signal handler for further steps to
      * build WebRtc channel.
      *
      * @param msg the JSON format data send via network.
      */
-    receiveAction = (msg : any) => { 
-        console.log("Got message", msg.data); 
-        var data = JSON.parse(msg.data); 
-         
-        switch(data.type) { 
+    receiveAction = (msg : any) => {
+        console.log("Got message", msg.data);
+        var data = JSON.parse(msg.data);
+
+        switch(data.type) {
             case "register":
-                this.handleRegister(data.success); 
-                break; 
+                this.handleRegister(data.success);
+                break;
             case "connect":
                 this.handleConnect(data.users);
                 break;
-            case "offer": 
-                this.handleOffer(data.offer, data.requestName); 
-                break; 
-            case "answer": 
-                this.handleAnswer(data.answer); 
-                break; 
-            case "candidate": 
-                this.handleCandidate(data.candidate); 
-                break; 
-            case "leave": 
-                this.handleLeave(); 
-                break; 
-           default: 
-              break; 
-        } 
+            case "offer":
+                this.handleOffer(data.offer, data.requestName);
+                break;
+            case "answer":
+                this.handleAnswer(data.answer);
+                break;
+            case "candidate":
+                this.handleCandidate(data.candidate);
+                break;
+            case "leave":
+                this.handleLeave();
+                break;
+           default:
+              break;
+        }
     };
     /**
-     * Handle register signal sent back from the central server. 
-     * Check if login successfully or not. 
-     * 
+     * Handle register signal sent back from the central server.
+     * Check if login successfully or not.
+     *
      * @param successStatus A register status sent back from the server.
      */
     handleRegister(successStatus : any) : void {
@@ -171,7 +176,7 @@ export class WebRtcNetwork implements CrdtNetwork{
     /**
      * Handle connect signal sent from the central server.
      * Create an offer and send it to the requested user.
-     * 
+     *
      * @param users An array of users that shared a same CRDTs.
      */
     handleConnect(users : Array<any>) : void {
@@ -200,15 +205,15 @@ export class WebRtcNetwork implements CrdtNetwork{
         });
     }
     /**
-     * Handle offer signal sent from the server. 
+     * Handle offer signal sent from the server.
      * Create an answer as a response and send the answer to the server.
-     * 
+     *
      * @param offer The offer received from the central server.
      * @param name The name of a user who sends this offer.
      */
-    handleOffer(offer : any, name : string) : void { 
+    handleOffer(offer : any, name : string) : void {
         this.userName = name;
-        this.peerRtc.setRemoteDescription(new RTCSessionDescription(offer)); 
+        this.peerRtc.setRemoteDescription(new RTCSessionDescription(offer));
         this.peerRtc.createAnswer().then((answer) => {
             this.sendSignalingMessage({
                 type: "answer",
@@ -220,37 +225,37 @@ export class WebRtcNetwork implements CrdtNetwork{
     };
     /**
      * Handle answer signal sent from the central server.
-     * Setup remote description by using the answer. 
-     * 
+     * Setup remote description by using the answer.
+     *
      * @param answer The answer received from the central server.
      */
-    handleAnswer(answer : any) : void { 
-        this.peerRtc.setRemoteDescription(new RTCSessionDescription(answer)); 
+    handleAnswer(answer : any) : void {
+        this.peerRtc.setRemoteDescription(new RTCSessionDescription(answer));
     };
 
-    handleCandidate(candidate : any) : void { 
+    handleCandidate(candidate : any) : void {
         this.peerRtc.addIceCandidate(new RTCIceCandidate(candidate))
-        .catch(e => console.error(e)); 
+        .catch(e => console.error(e));
     };
 
-    handleLeave() { 
-        this.peerRtc.close(); 
-        this.peerRtc.onicecandidate = null; 
+    handleLeave() {
+        this.peerRtc.close();
+        this.peerRtc.onicecandidate = null;
     };
     /**
-     * Handle icecandidate event when an RTCIceCandidate has been 
+     * Handle icecandidate event when an RTCIceCandidate has been
      * identified and added to the local peer by a call.
-     * Send signal message to the central server. 
-     * 
+     * Send signal message to the central server.
+     *
      * @param event Ice candidate event that should be handled
      */
     handleIceCandidate = (event : any) => {
-        if(event.candidate != null) { 
-            this.sendSignalingMessage({ 
-               type: "candidate", 
-               candidate: event.candidate, 
+        if(event.candidate != null) {
+            this.sendSignalingMessage({
+               type: "candidate",
+               candidate: event.candidate,
                name: this.userName
-            }); 
+            });
         }
     }
 
@@ -272,7 +277,7 @@ export class WebRtcNetwork implements CrdtNetwork{
         let index = 0;
         while (index < this.dataBuffer.length) {
             console.log(this.dataBuffer[index]);
-            this.dataChannel.send(this.dataBuffer[index].toJSON()); 
+            this.dataChannel.send(this.dataBuffer[index].toJSON());
             index++;
         }
         this.dataBuffer = new Array<any>();
@@ -304,15 +309,15 @@ export class WebRtcNetwork implements CrdtNetwork{
         });
 
         console.log("Create dataChannel")
-        this.dataChannel = this.peerRtc.createDataChannel("channel1"); 
-        this.dataChannel.onerror = function (error : any) { 
-            console.log("Errors: ", error); 
-        }; 
+        this.dataChannel = this.peerRtc.createDataChannel("channel1");
+        this.dataChannel.onerror = function (error : any) {
+            console.log("Errors: ", error);
+        };
 
         this.dataChannel.addEventListener("open", this.sendWebRtcData);
 
         this.dataChannel.onclose = function () {
-            console.log("data channel is closed"); 
+            console.log("data channel is closed");
         };
     }
     /**

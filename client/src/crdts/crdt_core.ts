@@ -1,4 +1,4 @@
-import { CrdtNetwork, CausalTimestamp } from "../network";
+import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
 import { CrdtRuntimeMessage } from "../proto_compiled";
 
 /**
@@ -235,7 +235,7 @@ export class Crdt<S extends Object = Object> {
 
 export class CrdtRuntime {
     readonly rootCrdts = new Map<string, Crdt>();
-    constructor(readonly network: CrdtNetwork) {
+    constructor(readonly network: CausalBroadcastNetwork) {
         this.network.register(this);
     }
 

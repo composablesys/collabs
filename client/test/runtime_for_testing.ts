@@ -1,12 +1,15 @@
 import { CrdtRuntime } from "../src/crdts";
-import {CausalTimestamp, CrdtNetwork} from "../src/network";
+import {CausalTimestamp, CausalBroadcastNetwork} from "../src/network";
 
-class TestingNetwork implements CrdtNetwork {
+class TestingNetwork implements CausalBroadcastNetwork {
     crdtRuntime!: CrdtRuntime;
     vectorClock = new Map<any, number>();
     constructor(private generator : TestingNetworkGenerator,
             private replicaId : string) {
         this.vectorClock.set(replicaId, 0);
+    }
+    joinGroup(group: string): void {
+        // Ignored
     }
     send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
         this.vectorClock.set(this.replicaId, this.vectorClock.get(

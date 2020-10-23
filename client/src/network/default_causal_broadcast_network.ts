@@ -1,10 +1,68 @@
-import { CausalTimestamp,CrdtNetwork,VectorClock } from '.';
-import { CrdtRuntime} from '../crdts';
-
 // The casual broadcast network designed for a two-way interactive
 // communication session between user and server using WebSocket API.
 //
 // Also ensure the order of delivery with casuality check.
+
+import { CrdtRuntime } from "../crdts";
+import { CausalTimestamp, CausalBroadcastNetwork } from "./causal_broadcast_network";
+import { VectorClock } from "./vector_clock";
+
+/**
+ * Interface describing a (reliable, at-least-once, ordering
+ * agnostic)
+ * broadcast network.  This network is used
+ * by DefaultCausalBroadcastNetwork to broadcast messages to
+ * other replicaa reliably, while the
+ * DefaultCausalBroadcastNetwork handles the tagged causal
+ * ordering of messages.
+ */
+export interface BroadcastNetwork {
+    /**
+     * Registers the given DefaultCausalBroadcastNetwork
+     * to receive messages
+     * from other replicas.  Such messages should be delivered
+     * to crdtRuntime.receive.  This method will be
+     * called exactly once, before any other methods.
+     * @param causal The DefaultCausalBroadcastNetwork.
+     */
+    register(causal: DefaultCausalBroadcastNetwork): void;
+    /**
+     * See CausalBroadcastNetwork#joinGroup.  (TODO: copy
+     * desc from there, or move it here, since this is
+     * the more user-facing interface).
+     * @param group See CausalBroadcastNetwork#joinGroup
+     */
+    joinGroup(group: string): void;
+    /**
+     * Used by DefaultCausalBroadcastNetwork
+     * to send a broadcast message. This message should be
+     * delivered to the
+     * registered DefaultCausalBroadcastNetwork's
+     * receive method on
+     * all other replicas in group, reliably and at-least-once,
+     * but without any ordering requirements.  (However, messages
+     * will only be delivered to their target Crdt's in
+     * causal order, with DefaultCausalBroadcastNetwork
+     * bufferring messages if needed).
+     * timestamp
+     * is provided for information purposes only -
+     * you can safely ignore it, and in particular, there
+     * is no ordering requirement for delivered messages.
+     * @param group An identifier for the group that
+     * this message should be broadcast to (see joinGroup).
+     * @param message The message to send
+     * @param timestamp The CausalTimestamp of the message,
+     * for information purposes only.  Other nodes in the
+     * system can learn the timestamp
+     * by calling
+     * DefaultCausalBroadcastNetwork.timestampOf(message),
+     * if you want to get a sneak peek  (e.g., in case a
+     * forwarding
+     * server wants to extract its sender's replicaId).
+     */
+    send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void;
+}
+
 
 /**
  * Customized message event that travel through
@@ -62,7 +120,7 @@ export class myMessage {
  *
  * Perform casuality check to ensure message ordering.
  */
-export class WebSocketNetwork implements CrdtNetwork {
+export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     /**
      * Unique ID for replica for identification.
      */
@@ -72,9 +130,9 @@ export class WebSocketNetwork implements CrdtNetwork {
      */
     crdtRuntime!: CrdtRuntime;
     /**
-     * WebSocket for connection to server.
+     * BroadcastNetwork for broadcasting messages.
      */
-    ws : WebSocket;
+    broadcastNetwork: BroadcastNetwork;
     /**
      * Map stores all groups with its corresponding vector clock.
      */
@@ -88,7 +146,7 @@ export class WebSocketNetwork implements CrdtNetwork {
      */
     sendBuffer : Array<myMessage>;
 
-    constructor (replicaId: string, webSocketArgs: string) {
+    constructor (replicaId: string, broadcastNetwork: BroadcastNetwork) {
         this.uid = replicaId;
         this.vcMap = new Map<string, VectorClock>();
         this.messageBuffer = new Array<[Uint8Array, string, VectorClock]>();
@@ -97,51 +155,23 @@ export class WebSocketNetwork implements CrdtNetwork {
          * Open WebSocket connection with server.
          * Register EventListener with corresponding event handler.
          */
-        this.ws = new WebSocket(webSocketArgs);
-        this.ws.addEventListener('open', this.sendAction);
-        this.ws.addEventListener('message', this.receiveAction);
-        // this.ws.addEventListener('ping', function(pingMessage){
-        //     console.log('Receive a ping : ' + pingMessage);
-        // });
+        this.broadcastNetwork = broadcastNetwork;
+        this.broadcastNetwork.register(this);
     }
-    /**
-     * Check if the send message buffer has any message waiting to be sent.
-     * If there exist, then send it via WebSocket and remove the item from buffer.
-     * If not, then wait a customized time period and check again.
-     */
-    sendAction = () => {
-        let index = 0;
-        while (index < this.sendBuffer.length) {
-            this.ws.send(this.sendBuffer[index].toJSON());
-            index++;
-        }
-        this.sendBuffer = new Array<myMessage>();
-
-        // Use heartbeat to keep client alive.
-        // this.heartbeat();
+    
+    joinGroup(group: string): void {
+        this.broadcastNetwork.joinGroup(group);
     }
-    /**
-     * Invoke heartbeat function to keep clients alive.
-     *
-     * TODO:
-     * The message sending to server is 'heartbeat' right now.
-     * The timeout interval is set to 5000 millionseconds.
-     */
-    // heartbeat() : void {
-    //     setTimeout(() => {
-    //         this.ws.send('heartbeat');
-    //         this.heartbeat();
-    //     }, 5000);
-    // }
     /**
      * Parse JSON format data back into myMessage type.
      * Push the message into received message buffer.
      * Check the casuality of all the messages and deliver to application.
+     * TODO: change to use custom serializer instead of JSON
      *
-     * @param data the JSON format data send via network
+     * @param message the JSON format data send via network
      */
-    receiveAction = (data : any) => {
-        let myPackage = this.parseJSON(data.data);
+    receive(message: Uint8Array) {
+        let myPackage = this.parseJSON(new TextDecoder().decode(message));
         this.messageBuffer.push([myPackage.message, myPackage.group, myPackage.timestamp]);
         this.checkMessageBuffer();
     };
@@ -192,12 +222,12 @@ export class WebSocketNetwork implements CrdtNetwork {
         this.vcMap.set(group, vc);
         let myPackage = new myMessage(message, group, vc);
 
-        // Convert the message into JSON
-        if (this.ws.readyState === 1) {
-            this.ws.send(myPackage.toJSON());
-        } else {
-            this.sendBuffer.push(myPackage);
-        }
+        // Convert the message into JSON and send
+        this.broadcastNetwork.send(
+            group,
+            new TextEncoder().encode(myPackage.toJSON()),
+            timestamp
+        );
     }
     /**
      * Get the next timestamp of the given crdtId in this replica.
@@ -208,7 +238,7 @@ export class WebSocketNetwork implements CrdtNetwork {
      * @param crdtId the crdtId that would like to return.
      * @returns The timestamp that would be assigned to a CRDT
      * message sent by this replica and given crdtId right now.
-     *
+     *I'
      */
     getNextTimestamp(group: string) : CausalTimestamp {
         // Copy a new vector clock.
@@ -280,5 +310,10 @@ export class WebSocketNetwork implements CrdtNetwork {
             }
             index--;
         }
+    }
+
+    static timestampOf(message: Uint8Array) {
+        // TODO
+        throw new Error("Method not implemented.");
     }
 }

@@ -15,7 +15,11 @@ const client_uuid : string = uuid();
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. CounterCrdt).
  */
-let client = new crdts.CrdtRuntime(new network.WebSocketNetwork(client_uuid, HOST));
+let client = new crdts.CrdtRuntime(
+    new network.DefaultCausalBroadcastNetwork(
+        client_uuid, new network.WebSocketNetwork(HOST)
+    )
+);
 //let clientCounter = new crdts.CounterCrdt("counterId", client);
 let clientCounter = new crdts.CounterCrdt(client, "counterId");
 
