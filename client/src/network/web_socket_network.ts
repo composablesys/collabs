@@ -33,7 +33,10 @@ export class WebSocketNetwork implements BroadcastNetwork {
     sendAction = () => {
         let index = 0;
         while (index < this.sendBuffer.length) {
-            this.ws.send(this.sendBuffer[index]);
+            // TODO: use Uint8Array directly instead
+            // (requires changing options + server)
+            // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
+            this.ws.send(new TextDecoder().decode(this.sendBuffer[index]));
             index++;
         }
         this.sendBuffer = new Array<Uint8Array>();
@@ -61,8 +64,10 @@ export class WebSocketNetwork implements BroadcastNetwork {
      * @param message the MessageEvent from the WebSocket.
      */
     receiveAction = (message : MessageEvent) => {
-        // TODO: issue with not being a Uint8Array
-        this.causal.receive(message.data);
+        // TODO: use Uint8Array directly instead
+        // (requires changing options + server)
+        // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
+        this.causal.receive(new TextEncoder().encode(message.data));
     };
 
     register(causal: DefaultCausalBroadcastNetwork): void {
@@ -73,7 +78,10 @@ export class WebSocketNetwork implements BroadcastNetwork {
     }
     send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
         if (this.ws.readyState === 1) {
-            this.ws.send(message);
+            // TODO: use Uint8Array directly instead
+            // (requires changing options + server)
+            // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
+            this.ws.send(new TextDecoder().decode(message));
         } else {
             this.sendBuffer.push(message);
         }
