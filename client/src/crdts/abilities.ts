@@ -330,7 +330,7 @@ let parent: Crdt = {} as Crdt; // fake
 const Counter = AddAbilitiesViaHistory(CounterBase);
 type Counter = CounterBase & AllAble;
 let testCounter: Counter = new Counter(parent, "id");
-let testPartial = Counter.withAbilities({resettable: true}, parent, "id", 7);
+let testPartial = Counter.withAbilities({strongResettable: true}, parent, "id", 7);
 
 class NestedCounterBase extends Crdt {
     counter: CounterBase;
@@ -343,4 +343,4 @@ class NestedCounterBase extends Crdt {
 const NestedCounter = AddAbilitiesViaChildren(NestedCounterBase);
 type NestedCounter = NestedCounterBase & AllAble;
 let testNested: NestedCounter = new NestedCounter(parent, "test");
-let testNested2 = NestedCounter.withAbilities(ABILITIES_NONE, parent, "test");
+let testNested2 = NestedCounter.withAbilities({resettable: true}, parent, "test");
