@@ -32,15 +32,15 @@ export interface StrongResettable {
      * it is okay to make this method a no-op, so long as users are
      * aware that strongReset() will have no effect.
      *
-     * TODO: clarify resetStrong vs reset semantics.  What is required
+     * TODO: clarify strongReset vs reset semantics.  What is required
      * for EC?  Sensible approach seems to be that reset-strongs override
      * resets (even if a reset-strong is itself reset).
      */
-    resetStrong(): void;
+    strongReset(): void;
 }
 
 export function isStrongResettable(crdt: StrongResettable | {}): crdt is StrongResettable {
-    return (crdt as StrongResettable).resetStrong !== undefined;
+    return (crdt as StrongResettable).strongReset !== undefined;
 }
 
 export interface OutOfOrderAble {
@@ -126,23 +126,84 @@ export type InterfaceOf<F extends AbilityFlag> =
     F extends {outOfOrderAble: any}? OutOfOrderAble:
     {};
 
-// Adding all features via a history set (intended for primitive Crdts)
+// Adding StrongResettable to any Crdt, via a semidirect product.
 
 type CrdtConstructorBasic = new (...args: any[]) => Crdt;
+
+function AddStrongResettableInternal<TBase extends CrdtConstructorBasic>(Base: TBase) {
+    return class StrongResettableBase extends Base implements StrongResettable {
+        constructor(...args: any[]) {
+            let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
+            let newParent = parentOrRuntime;// TODO: strong resetting parent
+            args[0] = newParent;
+            super(...args);
+        }
+        strongReset() {
+            // TODO
+        }
+    }
+}
+
+export type CrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]) => Crdt;
+
+/**
+ * Maps a CrdtConstructor to a constrained version where
+ * the first two arguments must have signature
+ * (parentOrRuntime: Crdt | CrdtRuntime, id: string),
+ * not just a supertype of that signature.
+ * This is necessary because our mixin subclasses
+ * expect the first two arguments to have those types,
+ * not just superclasses of those types.
+ */
+export type SubclassConstructorOf<TBase extends CrdtConstructor> =
+    TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: infer Args) => infer C?
+    new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C: never;
+
+export type StrongResettableConstructor = new (...args: any[]) => StrongResettable;
+
+/**
+ * TODO
+ */
+export function AddStrongResettable<TBase extends CrdtConstructor>(Base: TBase): SubclassConstructorOf<TBase> & StrongResettableConstructor {
+    return AddStrongResettableInternal(Base) as any;
+}
+
+// Adding all features via a history set (intended for primitive Crdts)
 
 function AddAbilitiesViaHistoryInternal<TBase extends CrdtConstructorBasic>(Base: TBase, historyMaximalOnly: boolean) {
     return class AbleViaHistory extends Base implements AllAble {
         constructor(...args: any[]) {
             let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
             let newParent = parentOrRuntime;// TODO: resetting parent, use historyMaximalOnly
+
+            // let resetWrapperCrdt = new ResetWrapperCrdt<SemidirectState<S>>(
+            //     parentOrRuntime, id + "_reset", keepOnlyMaximal
+            // );
+            // super(
+            //     resetWrapperCrdt, id, historyTimestamps,
+            //     historyDiscard1Dominated,
+            //     historyDiscard2Dominated
+            // );
+            // this.resetWrapperCrdt = resetWrapperCrdt;
+            // resetWrapperCrdt.setupReset(this);
+            // resetWrapperCrdt.addEventListener(
+            //     "Reset", (event: CrdtEvent) =>
+            //     this.dispatchEvent({
+            //         caller: this,
+            //         type: event.type,
+            //         timestamp: event.timestamp
+            //     }), true
+            // );
             args[0] = newParent;
             super(...args);
+            // TODO: implement HardResettable so we can
+            // wrap it in StrongResettable
         }
 
         reset() {
             // TODO
         }
-        resetStrong() {
+        strongReset() {
             // TODO
         }
         receiveOutOfOrder(
@@ -165,7 +226,6 @@ function AddAbilitiesViaHistoryInternal<TBase extends CrdtConstructorBasic>(Base
     };
 }
 
-export type CrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]) => Crdt;
 export type AbleConstructor<F extends AbilityFlag> = new (...args: any[]) => InterfaceOf<F>;
 export type AllAbleConstructor = new (...args: any[]) => AllAble;
 
@@ -173,6 +233,9 @@ export type AllAbleConstructor = new (...args: any[]) => AllAble;
 /**
  * TODO: usage: intended for primitive Crdts.  Stores full history.
  */
+// TODO: specify that the constructor must take a parent + id
+// (not just subtypes), using parameter interference to get
+// the remaining constructor args nicely. (Instead of TBase.)
 export function AddAbilitiesViaHistory<TBase extends CrdtConstructor>(Base: TBase, historyMaximalOnly = false):
     TBase & AllAbleConstructor & {
         withAbilities<F extends AbilityFlag>(
@@ -184,6 +247,9 @@ export function AddAbilitiesViaHistory<TBase extends CrdtConstructor>(Base: TBas
 }
 
 // Adding selected features to a parent Crdt
+
+// TODO: need to make sure this works if the children have
+// abilities added by resets, etc. in interjected parents.
 
 function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Base: TBase) {
     let AbleViaChildren = class AbleViaChildren extends Base {
@@ -238,7 +304,7 @@ function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Bas
             }
         }
 
-        resetStrong() {
+        strongReset() {
             if (this.abilityFlag.strongResettable === undefined) {
                 throw new Error("strongReset called but this.abilityFlag.strongResettable is undefined");
             }
@@ -250,7 +316,7 @@ function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Bas
                         " does not."
                     );
                 }
-                child.resetStrong();
+                child.strongReset();
             }
         }
 

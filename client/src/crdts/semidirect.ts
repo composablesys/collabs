@@ -21,7 +21,7 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-export class SemidirectState<S> {
+export class SemidirectState<S extends Object | null = Object | null> {
     private receiptCounter = 0;
     /**
      * Maps a replica id to an array of messages sent by that
@@ -169,7 +169,7 @@ export class SemidirectState<S> {
     }
 }
 
-export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>> {
+export class SemidirectProduct<S extends Object | null = Object | null> extends Crdt<SemidirectState<S>> {
     /**
      * TODO
      * @param parentOrRuntime                [description]
@@ -218,13 +218,13 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
         if (this.children.get(crdt1.id) !== crdt1) {
             throw new Error(
                 "crdt1 (" + crdt1.id + ") is not our child" +
-                " (is it using a wrapper crdt, e.g., becuase resettable = true?)"
+                " (is it using a wrapper crdt, e.g., because of an Ability mixin?)"
             );
         }
         if (this.children.get(crdt2.id) !== crdt2) {
             throw new Error(
                 "crdt2 (" + crdt2.id + ") is not our child" +
-                " (is it using a wrapper crdt, e.g., becuase resettable = true?)"
+                " (is it using a wrapper crdt, e.g., because of an Ability mixin?)"
             );
         }
         this.crdt1 = crdt1;
