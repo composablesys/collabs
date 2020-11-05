@@ -1,6 +1,7 @@
 import { CausalTimestamp } from "../network";
-import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
-import { SemidirectProduct, SemidirectState } from "./semidirect";
+import { Crdt, CrdtRuntime } from "./crdt_core";
+import { SemidirectProduct } from "./semidirect";
+import { isResettable, isOutOfOrderAble, AllAble, Resettable, OutOfOrderAble } from "./abilities";
 
 export interface HardResettable {
     /**
@@ -34,7 +35,7 @@ class ResetComponent<S extends Object | null = Object | null> extends Crdt<S> {
         super(parent, id, null as unknown as S);
     }
 
-    reset() {
+    resetTarget() {
         super.send(new Uint8Array());
     }
 
@@ -53,7 +54,7 @@ class ResetComponent<S extends Object | null = Object | null> extends Crdt<S> {
     }
 }
 
-export class ResetWrapperCrdt<S extends Object | null = Object | null> extends SemidirectProduct<S> {
+export class ResetWrapperCrdt<S extends Object | null = Object | null> extends SemidirectProduct<S> implements HardResettable, Resettable, OutOfOrderAble {
     private resetComponent!: ResetComponent<S>;
     /**
      * @param keepOnlyMaximal=false Store only causally maximal
@@ -105,7 +106,46 @@ export class ResetWrapperCrdt<S extends Object | null = Object | null> extends S
     }
 
     reset() {
-        this.resetComponent.reset();
+        this.resetComponent.resetTarget();
+    }
+
+    /**
+     * In case we want to further wrap this with StrongResetWrapperCrdt.
+     */
+    hardReset(): void {
+        this.resetComponent.targetCrdt.hardReset();
+        this.state.hardReset();
+    }
+
+    /**
+     * Defers OutOfOrder receipt handling to the target Crdt.
+     * Note that the target Crdt may not actually be OutOfOrderAble,
+     * in which case this will throw an error.
+     * OutOfOrderAble is not supported for reset() operations and
+     * will cause an error.
+     */
+    receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
+        let child = this.children.get(targetPath[targetPath.length - 1]);
+        if (child === undefined) {
+            throw new Error("Unknown child: " + targetPath[targetPath.length - 1] +
+                    " in: " + JSON.stringify(targetPath) + ", children: " + JSON.stringify([...this.children.keys()]));
+        }
+        if (child === this.resetComponent) {
+            throw new Error(
+                "OutOfOrderAble is not supported for reset()" +
+                " operations added by ResetWrapperCrdt"
+            );
+        }
+        if (!isOutOfOrderAble(child)) {
+            throw new Error(
+                "receiveOutOfOrder() called on ResetWrapperCrdt, but the " +
+                "original (wrapped) Crdt is not OutOfOrderAble"
+            );
+        }
+        targetPath.length--;
+        child.receiveOutOfOrder(
+            targetPath, timestamp, message
+        );
     }
 }
 
@@ -127,7 +167,7 @@ export class StrongResetComponent<S extends Object | null = Object | null> exten
         super(parent, id, null as unknown as S);
     }
 
-    strongReset() {
+    strongResetTarget() {
         super.send(new Uint8Array());
     }
 
@@ -139,7 +179,7 @@ export class StrongResetComponent<S extends Object | null = Object | null> exten
     }
 }
 
-export class StrongResetWrapperCrdt<S extends Object | null = Object | null> extends SemidirectProduct<S> {
+export class StrongResetWrapperCrdt<S extends Object | null = Object | null> extends SemidirectProduct<S> implements AllAble {
     private strongResetComponent!: StrongResetComponent<S>;
     /**
      * @param keepOnlyMaximal=false Store only causally maximal
@@ -155,7 +195,7 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null> ext
         super(parentOrRuntime, id, true, true, keepOnlyMaximal);
     }
 
-    setupReset(targetCrdt: Crdt<S> & HardResettable) {
+    setupStrongReset(targetCrdt: Crdt<S> & HardResettable) {
         this.strongResetComponent = new StrongResetComponent(
             this, this.id + "_comp", targetCrdt
         );
@@ -191,6 +231,56 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null> ext
     }
 
     strongReset() {
-        this.strongResetComponent.strongReset();
+        this.strongResetComponent.strongResetTarget();
+    }
+
+    /**
+     * Defers (non-strong) reset() operations to the target Crdt.
+     * Note that the target Crdt may not actually be Resettable,
+     * in which case this will throw an error.
+     * This method is implemented for the sake of AddAbilitiesViaChildren,
+     * which calls reset() on all children of a Crdt; targetCrdt's wrapped with
+     * this class will have this class as the parent's child instead of
+     * targetCrdt, so we need to handle those reset() calls.
+     */
+    reset() {
+        if (isResettable(this.strongResetComponent.targetCrdt)) {
+            this.strongResetComponent.targetCrdt.reset();
+        }
+        else throw new Error(
+            "reset() called on StrongResetWrapperCrdt, but the " +
+            "original (wrapped) Crdt is not Resettable"
+        );
+    }
+
+    /**
+     * Defers OutOfOrder receipt handling to the target Crdt.
+     * Note that the target Crdt may not actually be OutOfOrderAble,
+     * in which case this will throw an error.
+     * OutOfOrderAble is not supported for strongReset() operations and
+     * will cause an error.
+     */
+    receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
+        let child = this.children.get(targetPath[targetPath.length - 1]);
+        if (child === undefined) {
+            throw new Error("Unknown child: " + targetPath[targetPath.length - 1] +
+                    " in: " + JSON.stringify(targetPath) + ", children: " + JSON.stringify([...this.children.keys()]));
+        }
+        if (child === this.strongResetComponent) {
+            throw new Error(
+                "OutOfOrderAble is not supported for strongReset()" +
+                " operations added by StrongResetWrapperCrdt"
+            );
+        }
+        if (!isOutOfOrderAble(child)) {
+            throw new Error(
+                "receiveOutOfOrder() called on StrongResetWrapperCrdt, but the " +
+                "original (wrapped) Crdt is not OutOfOrderAble"
+            );
+        }
+        targetPath.length--;
+        child.receiveOutOfOrder(
+            targetPath, timestamp, message
+        );
     }
 }

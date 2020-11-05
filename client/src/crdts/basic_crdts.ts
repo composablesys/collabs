@@ -2,6 +2,8 @@ import { CrdtEvent, Crdt, CrdtRuntime } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import {CounterMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
+import { HardResettable } from "./resettable";
+import { AllAble, AddAbilitiesViaHistory, OutOfOrderAble } from "./abilities";
 
 export class AddEvent implements CrdtEvent {
     type = "Add";
@@ -16,11 +18,11 @@ export class NumberState {
 }
 
 // TODO: make resettable
-export class CounterBase extends Crdt<NumberState> {
+export class CounterBase extends Crdt<NumberState> implements HardResettable {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
-        initialValue: number = 0
+        readonly initialValue: number = 0
     ) {
         super(parentOrRuntime, id, new NumberState(initialValue));
     }
@@ -61,7 +63,14 @@ export class CounterBase extends Crdt<NumberState> {
     set value(value: number) {
         this.add(value - this.value);
     }
+
+    hardReset() {
+        this.state.value = this.initialValue;
+    }
 }
+
+export const Counter = AddAbilitiesViaHistory(CounterBase);
+export type Counter = CounterBase & AllAble;
 
 export class MultEvent implements CrdtEvent {
     type = "Mult";
@@ -71,11 +80,11 @@ export class MultEvent implements CrdtEvent {
         public readonly valueMulted: number) { }
 }
 
-export class MultRegisterCrdt extends Crdt<NumberState> {
+export class MultRegisterBase extends Crdt<NumberState> implements HardResettable {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
-        initialValue: number = 1
+        readonly initialValue: number = 1
     ) {
         super(parentOrRuntime, id, new NumberState(initialValue));
     }
@@ -116,7 +125,14 @@ export class MultRegisterCrdt extends Crdt<NumberState> {
     set value(value: number) {
         this.mult(value / this.value);
     }
+
+    hardReset() {
+        this.state.value = this.initialValue;
+    }
 }
+
+export const MultRegister = AddAbilitiesViaHistory(MultRegisterBase);
+export type MultRegister = MultRegisterBase & AllAble;
 
 export class SetAddEvent<T> implements CrdtEvent {
     type = "SetAdd";
@@ -126,7 +142,7 @@ export class SetAddEvent<T> implements CrdtEvent {
         public readonly valueAdded: T) { }
 }
 
-export class GSetCrdt<T> extends Crdt<Set<T>> {
+export class GSet<T> extends Crdt<Set<T>> implements OutOfOrderAble {
     private readonly serialize: (value: T) => Uint8Array;
     private readonly deserialize: (serialized: Uint8Array) => T;
     /**
@@ -197,6 +213,11 @@ export class GSetCrdt<T> extends Crdt<Set<T>> {
         }
     }
 
+    receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
+        // GSet Add ops are commutative, so OoO doesn't matter
+        this.receive(targetPath, timestamp, message);
+    }
+
     /**
      * Don't mutate this directly.
      */
@@ -225,9 +246,11 @@ export class MvrEvent<T> implements CrdtEvent {
     ) { }
 }
 
-export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
+export class MultiValueRegisterBase<T> extends Crdt<Set<MvrEntry<T>>> implements HardResettable {
     private readonly serialize: (value: T) => Uint8Array;
     private readonly deserialize: (serialized: Uint8Array) => T;
+    private readonly initialValue: T; // TODO: might unexpectedly prevent GC, or
+    // change mutably
     /**
      * Multi-value register of type T.
      *
@@ -262,6 +285,7 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
         super(parentOrRuntime, id, initialSet);
         this.serialize = serialize;
         this.deserialize = deserialize;
+        this.initialValue = initialValue;
     }
 
     set value(value: T) {
@@ -330,8 +354,16 @@ export class MultiValueRegister<T> extends Crdt<Set<MvrEntry<T>>> {
         return values;
     }
 
-    // TODO: reset.  Settable reset value.
+    hardReset() {
+        this.state.clear();
+        this.state.add(new MvrEntry(
+            this.initialValue, null, -1
+        ));
+    }
 }
+
+export const MultiValueRegister = AddAbilitiesViaHistory(MultiValueRegisterBase, true);
+export type MultiValueRegister<T> = MultiValueRegisterBase<T> & AllAble;
 
 export class LwwState<T> {
     constructor(
@@ -352,9 +384,11 @@ export class LwwEvent<T> implements CrdtEvent {
     ) { }
 }
 
-export class LwwRegister<T> extends Crdt<LwwState<T>> {
+export class LwwRegisterBase<T> extends Crdt<LwwState<T>> implements HardResettable {
     private readonly serialize: (value: T) => Uint8Array;
     private readonly deserialize: (serialized: Uint8Array) => T;
+    private readonly initialValue: T; // TODO: might unexpectedly prevent GC, or
+    // change mutably
     /**
      * Last-writer-wins (LWW) register of type T.  Ties
      * between concurrent messages are based on UTC
@@ -387,6 +421,7 @@ export class LwwRegister<T> extends Crdt<LwwState<T>> {
          super(parentOrRuntime, id, initialState);
          this.serialize = serialize;
          this.deserialize = deserialize;
+         this.initialValue = initialValue;
      }
 
     set value(value: T) {
@@ -453,11 +488,13 @@ export class LwwRegister<T> extends Crdt<LwwState<T>> {
         }
     }
 
-    // TODO: reset.  Settable reset value.
+    hardReset() {
+        this.state.value = this.initialValue;
+        this.state.sender = null;
+        this.state.counter = -1;
+        this.state.time = null;
+    }
 }
 
-// TODO: make above Crdts optional resettable, with
-// settable reset values (either in constructor or via
-// a builder pattern).  Perhaps more generally, Crdts
-// should allow a reset callback, that gets run locally in
-// hardReset (check this is EC).
+export const LwwRegister = AddAbilitiesViaHistory(LwwRegisterBase, true);
+export type LwwRegister<T> = LwwRegisterBase<T> & AllAble;

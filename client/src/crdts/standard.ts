@@ -1,13 +1,14 @@
 import { CausalTimestamp } from "../network";
 import { CounterMessage, GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage } from "../proto_compiled";
-import { AddEvent, CounterCrdt, LwwRegister, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
+import { AddEvent, CounterBase, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { SemidirectProduct } from "./semidirect";
+import { AddAbilitiesViaHistory, AllAble } from "./abilities";
 
-export class NumberCrdt extends SemidirectProduct<NumberState> {
-    private addCrdt: CounterCrdt;
-    private multCrdt: MultRegisterCrdt;
+export class NumberBase extends SemidirectProduct<NumberState> {
+    private addCrdt: CounterBase;
+    private multCrdt: MultRegisterBase;
     readonly resetValue: number;
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -17,8 +18,8 @@ export class NumberCrdt extends SemidirectProduct<NumberState> {
         resetValue = initialValue
     ) {
         super(parentOrRuntime, id, resettable);
-        this.addCrdt = new CounterCrdt(this, "add", 0/*, false*/);
-        this.multCrdt = new MultRegisterCrdt(this, "mult", 0/*, false*/);
+        this.addCrdt = new CounterBase(this, "add", 0);
+        this.multCrdt = new MultRegisterBase(this, "mult", 0);
         super.setup(
             this.addCrdt, this.multCrdt,
             this.action.bind(this),
@@ -79,10 +80,14 @@ export class NumberCrdt extends SemidirectProduct<NumberState> {
         return this.state.internalState.value;
     }
 
-    hardResetInternal(): void {
+    hardReset(): void {
+        this.state.hardReset();
         this.state.internalState.value = this.resetValue;
     }
 }
+
+export const Number = AddAbilitiesViaHistory(NumberBase);
+export type Number = NumberBase & AllAble;
 
 //
 // function positiveMod(a: number, b: number) {

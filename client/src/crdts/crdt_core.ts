@@ -98,6 +98,22 @@ export abstract class Crdt<S extends Object | null = Object | null> {
         }
     }
 
+    /**
+     * Note: children should not be used by subclasses to implement
+     * functionality because it may not be what you expect.  In particular:
+     * - A user of this may attach extra children that you don't expect.
+     * - If you add a child Crdt (by passing this as parentOrRuntime in
+     * its constructor), that Crdt may interject a separate Crdt in
+     * in between it and this (e.g., a Crdt that helps implement
+     * reset abilities, like in AddAbilitiesViaHistory), and the interjected
+     * Crdt is what will appear in children.
+     *
+     * If you want to track of the children that you add, you should do so
+     * using your own instance variables, so that you can completely
+     * control them.
+     *
+     * TODO: way to "lock" adding children?
+     */
     readonly children: Map<string, Crdt> = new Map();
     protected registerChild(child: Crdt) {
         this.children.set(child.id, child)

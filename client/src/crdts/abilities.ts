@@ -1,6 +1,6 @@
 import { CausalTimestamp } from "../network";
 import { Crdt, CrdtRuntime } from "./crdt_core";
-import { CounterBase } from "./basic_crdts";
+import { StrongResetWrapperCrdt, HardResettable, ResetWrapperCrdt } from "./resettable";
 
 // TODO: do this on the receiving end instead?  Doesn't work
 // if you have counter children though.  Same for strongReset.
@@ -47,6 +47,11 @@ export interface OutOfOrderAble {
     /**
      * TODO: like receive, not receiveInternal.
      * TODO: general out-of-order, not just causally prior.
+     * TODO: it is possible some operations are not OoOAble; should
+     * be clearly specified.  E.g. resets and strongResets added via
+     * the mixins below.  Make a note about this on Map's foreach method:
+     * reset, strongReset can't be for-each'd directly, although we can
+     * easily add resetAll() and strongResetAll() ops that have the same effect.
      *
      * Like receiveInternal, but timestamp is causally prior
      * to this Crdt's initialization, i.e., to all operations
@@ -128,23 +133,38 @@ export type InterfaceOf<F extends AbilityFlag> =
 
 // Adding StrongResettable to any Crdt, via a semidirect product.
 
-type CrdtConstructorBasic = new (...args: any[]) => Crdt;
+type HardResettableCrdtConstructorBasic = new (...args: any[]) => Crdt & HardResettable;
 
-function AddStrongResettableInternal<TBase extends CrdtConstructorBasic>(Base: TBase) {
+function AddStrongResettableInternal<TBase extends HardResettableCrdtConstructorBasic>(Base: TBase) {
     return class StrongResettableBase extends Base implements StrongResettable {
+        private strongResetWrapper: StrongResetWrapperCrdt;
         constructor(...args: any[]) {
             let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
-            let newParent = parentOrRuntime;// TODO: strong resetting parent
-            args[0] = newParent;
+            let id = args[1] as string;
+            let strongResetWrapper = new StrongResetWrapperCrdt(
+                parentOrRuntime, id + "_reset"
+            );
+            args[0] = strongResetWrapper;
             super(...args);
+            this.strongResetWrapper = strongResetWrapper;
+            strongResetWrapper.setupStrongReset(this);
+            // TODO: event
+            // strongResetWrapper.addEventListener(
+            //     "Reset", (event: CrdtEvent) =>
+            //     this.dispatchEvent({
+            //         caller: this,
+            //         type: event.type,
+            //         timestamp: event.timestamp
+            //     }), true
+            // );
         }
         strongReset() {
-            // TODO
+            this.strongResetWrapper.strongReset();
         }
     }
 }
 
-export type CrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]) => Crdt;
+export type HardResettableCrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]) => Crdt & HardResettable;
 
 /**
  * Maps a CrdtConstructor to a constrained version where
@@ -155,38 +175,45 @@ export type CrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: stri
  * expect the first two arguments to have those types,
  * not just superclasses of those types.
  */
-export type SubclassConstructorOf<TBase extends CrdtConstructor> =
+export type SubclassConstructorOf<TBase extends HardResettableCrdtConstructor> =
     TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: infer Args) => infer C?
     new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C: never;
+
 
 export type StrongResettableConstructor = new (...args: any[]) => StrongResettable;
 
 /**
- * TODO
+ * TODO.  Can only be used on Crdt's that do not interject their parents (e.g.,
+ * outputs of the other Add... methods).
  */
-export function AddStrongResettable<TBase extends CrdtConstructor>(Base: TBase): SubclassConstructorOf<TBase> & StrongResettableConstructor {
+export function AddStrongResettable<TBase extends HardResettableCrdtConstructor>(Base: TBase): SubclassConstructorOf<TBase> & StrongResettableConstructor {
     return AddStrongResettableInternal(Base) as any;
 }
 
 // Adding all features via a history set (intended for primitive Crdts)
 
-function AddAbilitiesViaHistoryInternal<TBase extends CrdtConstructorBasic>(Base: TBase, historyMaximalOnly: boolean) {
+function AddAbilitiesViaHistoryInternal<TBase extends HardResettableCrdtConstructorBasic>(Base: TBase, historyMaximalOnly: boolean) {
+    let StrongResettableOnly = AddStrongResettable(Base);
     return class AbleViaHistory extends Base implements AllAble {
+        private strongResetWrapper: StrongResetWrapperCrdt;
+        private resetWrapper: ResetWrapperCrdt;
         constructor(...args: any[]) {
             let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
-            let newParent = parentOrRuntime;// TODO: resetting parent, use historyMaximalOnly
-
-            // let resetWrapperCrdt = new ResetWrapperCrdt<SemidirectState<S>>(
-            //     parentOrRuntime, id + "_reset", keepOnlyMaximal
-            // );
-            // super(
-            //     resetWrapperCrdt, id, historyTimestamps,
-            //     historyDiscard1Dominated,
-            //     historyDiscard2Dominated
-            // );
-            // this.resetWrapperCrdt = resetWrapperCrdt;
-            // resetWrapperCrdt.setupReset(this);
-            // resetWrapperCrdt.addEventListener(
+            let id = args[1] as string;
+            let strongResetWrapper = new StrongResetWrapperCrdt(
+                parentOrRuntime, id + "_reset"
+            );
+            let resetWrapper = new ResetWrapperCrdt(
+                strongResetWrapper, id + "_reset", historyMaximalOnly
+            );
+            args[0] = resetWrapper;
+            super(...args);
+            this.resetWrapper = resetWrapper;
+            resetWrapper.setupReset(this);
+            this.strongResetWrapper = strongResetWrapper;
+            strongResetWrapper.setupStrongReset(resetWrapper);
+            // TODO: events: reset and strongReset.
+            // strongResetWrapper.addEventListener(
             //     "Reset", (event: CrdtEvent) =>
             //     this.dispatchEvent({
             //         caller: this,
@@ -194,34 +221,39 @@ function AddAbilitiesViaHistoryInternal<TBase extends CrdtConstructorBasic>(Base
             //         timestamp: event.timestamp
             //     }), true
             // );
-            args[0] = newParent;
-            super(...args);
-            // TODO: implement HardResettable so we can
-            // wrap it in StrongResettable
         }
 
         reset() {
-            // TODO
+            this.resetWrapper.reset();
         }
         strongReset() {
-            // TODO
+            this.strongResetWrapper.strongReset();
         }
         receiveOutOfOrder(
             targetPath: string[], timestamp: CausalTimestamp,
             message: Uint8Array
         ) {
             // TODO
+            throw new Error("Not implemented yet");
         }
 
         static withAbilities<F extends AbilityFlag>(
-            abilityFlag: F, ...args: any[]
+            abilityFlag: F, parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]
         ): InstanceType<TBase> & InterfaceOf<F> {
             if (
                 abilityFlag.resettable === undefined &&
-                abilityFlag.strongResettable === undefined &&
                 abilityFlag.outOfOrderAble === undefined
-            ) return new Base(args) as any;
-            else return new AbleViaHistory(args) as any;
+            ) {
+                if (abilityFlag.strongResettable === undefined) {
+                    return new Base(parentOrRuntime, id, ...otherArgs) as any;
+                }
+                else {
+                    return new StrongResettableOnly(parentOrRuntime, id, ...otherArgs) as any;
+                }
+            }
+            // TODO: as a minor optimization, we could avoid the StrongResettable
+            // layer if we're not using it.
+            else return new AbleViaHistory(parentOrRuntime, id, ...otherArgs) as any;
         }
     };
 }
@@ -229,27 +261,30 @@ function AddAbilitiesViaHistoryInternal<TBase extends CrdtConstructorBasic>(Base
 export type AbleConstructor<F extends AbilityFlag> = new (...args: any[]) => InterfaceOf<F>;
 export type AllAbleConstructor = new (...args: any[]) => AllAble;
 
+export type CrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]) => Crdt;
+/**
+ * Gives the constructor arguments besides parentOrRuntime and id.
+ */
+export type OtherArgsOf<TBase extends CrdtConstructor> =
+    TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: infer Args) => unknown? Args: never;
+
 // Wrapper to constrain input types.
 /**
  * TODO: usage: intended for primitive Crdts.  Stores full history.
  */
-// TODO: specify that the constructor must take a parent + id
-// (not just subtypes), using parameter interference to get
-// the remaining constructor args nicely. (Instead of TBase.)
-export function AddAbilitiesViaHistory<TBase extends CrdtConstructor>(Base: TBase, historyMaximalOnly = false):
-    TBase & AllAbleConstructor & {
+export function AddAbilitiesViaHistory<TBase extends HardResettableCrdtConstructor>(Base: TBase, historyMaximalOnly = false):
+    SubclassConstructorOf<TBase> & AllAbleConstructor & {
         withAbilities<F extends AbilityFlag>(
-            abilityFlag: F, ...args: ConstructorParameters<TBase>
+            abilityFlag: F, parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: OtherArgsOf<TBase>
         ): InstanceType<TBase> & InterfaceOf<F>
     }
 {
-    return AddAbilitiesViaHistoryInternal(Base, historyMaximalOnly);
+    return AddAbilitiesViaHistoryInternal(Base, historyMaximalOnly) as any;
 }
 
 // Adding selected features to a parent Crdt
 
-// TODO: need to make sure this works if the children have
-// abilities added by resets, etc. in interjected parents.
+type CrdtConstructorBasic = new (...args: any[]) => Crdt;
 
 function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Base: TBase) {
     let AbleViaChildren = class AbleViaChildren extends Base {
@@ -278,13 +313,8 @@ function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Bas
                     " does not."
                 );
             }
-            if (this.abilityFlag.outOfOrderAble !== undefined && !isOutOfOrderAble(child)) {
-                throw new Error(
-                    "this.abilityFlag.outOfOrderAble is defined, so AddAbilitiesViaChildren" +
-                    "requires all child Crdts to implement OutOfOrderAble, but child " + child.id +
-                    " does not."
-                );
-            }
+            // Don't check OutOfOrderAble since some operations may not
+            // be intended to support it.
             super.registerChild(child);
         }
 
@@ -320,15 +350,27 @@ function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Bas
             }
         }
 
-        receiveOutOfOrder(
-            targetPath: string[], timestamp: CausalTimestamp,
-            message: Uint8Array
-        ) {
-            // TODO: similar to normal receive.
-            // What if it's a message for us, which is supposed to generate
-            // child messages via runLocally?  Need to deliver it normally
-            // to ourselves but ensure that the children get it delivered
-            // to receiveOutOfOrder.
+        /**
+         * Defers OutOfOrder receipt handling to the target Crdt.
+         * Note that the target Crdt may not actually be OutOfOrderAble,
+         * in which case this will throw an error.
+         */
+        receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
+            let child = this.children.get(targetPath[targetPath.length - 1]);
+            if (child === undefined) {
+                throw new Error("Unknown child: " + targetPath[targetPath.length - 1] +
+                        " in: " + JSON.stringify(targetPath) + ", children: " + JSON.stringify([...this.children.keys()]));
+            }
+            if (!isOutOfOrderAble(child)) {
+                throw new Error(
+                    "receiveOutOfOrder() called on StrongResetWrapperCrdt, but the " +
+                    "original (wrapped) Crdt is not OutOfOrderAble"
+                );
+            }
+            targetPath.length--;
+            child.receiveOutOfOrder(
+                targetPath, timestamp, message
+            );
         }
     };
     // Return a subclass that is AllAble by default.
@@ -339,30 +381,30 @@ function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Bas
         }
 
         static withAbilities<F extends AbilityFlag>(
-            ...args: any[]
+            abilityFlag: F, parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]
         ): InstanceType<TBase> & InterfaceOf<F> {
-            // args has the same signature as Base's constructor args,
+            // our args have the same signature as Base's constructor args,
             // but with the abilityFlag moved from index 2 to 0.
-            let abilityFlag = args[0] as AbilityFlag;
-            let sortedArgs = [args[1], args[2], args[0], ...args.slice(3)];
             if (
                 abilityFlag.resettable === undefined &&
                 abilityFlag.strongResettable === undefined &&
                 abilityFlag.outOfOrderAble === undefined
-            ) return new Base(sortedArgs) as any;
-            else return new AbleViaChildren(sortedArgs) as any;
+            ) return new Base(parentOrRuntime, id, abilityFlag, ...otherArgs) as any;
+            else return new AbleViaChildren(parentOrRuntime, id, abilityFlag, ...otherArgs) as any;
         }
     }
 }
 
+// TODO: arg inference fix
 export type CompositeCrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag, ...otherArgs: any[]) => Crdt;
 export type AddAbilitiesClass<TBase extends CompositeCrdtConstructor> =
     TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag, ...otherArgs: infer Args) => infer C?
     new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C: never;
-export type WithAbilitiesType<TBase extends CompositeCrdtConstructor> =
-    TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag, ...otherArgs: infer Args) => infer C?
-    <F extends AbilityFlag>(abilityFlag: F, parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args)
-    => C & (F extends AbilityFlag? InterfaceOf<F>: AllAble): never;
+/**
+ * Gives the constructor arguments besides parentOrRuntime, id, and abilityFlag.
+ */
+export type OtherArgsOfComposite<TBase extends CompositeCrdtConstructor> =
+    TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag, ...otherArgs: infer Args) => unknown? Args: never;
 
 // Wrapper to constrain input types.
 /**
@@ -384,29 +426,31 @@ export type WithAbilitiesType<TBase extends CompositeCrdtConstructor> =
  */
 export function AddAbilitiesViaChildren<TBase extends CompositeCrdtConstructor>(Base: TBase):
     AddAbilitiesClass<TBase> & AllAbleConstructor & {
-        withAbilities: WithAbilitiesType<TBase>
+        withAbilities<F extends AbilityFlag>(
+            abilityFlag: F, parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: OtherArgsOfComposite<TBase>
+        ): InstanceType<TBase> & InterfaceOf<F>
     }
 {
     return AddAbilitiesViaChildrenInternal(Base) as any;
 }
 
-// Testing
-let parent: Crdt = {} as Crdt; // fake
-
-const Counter = AddAbilitiesViaHistory(CounterBase);
-type Counter = CounterBase & AllAble;
-let testCounter: Counter = new Counter(parent, "id");
-let testPartial = Counter.withAbilities({strongResettable: true}, parent, "id", 7);
-
-class NestedCounterBase extends Crdt {
-    counter: CounterBase;
-    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag) {
-        super(parentOrRuntime, id, null);
-        this.counter = Counter.withAbilities(abilityFlag, this, "counter");
-    }
-}
-
-const NestedCounter = AddAbilitiesViaChildren(NestedCounterBase);
-type NestedCounter = NestedCounterBase & AllAble;
-let testNested: NestedCounter = new NestedCounter(parent, "test");
-let testNested2 = NestedCounter.withAbilities({resettable: true}, parent, "test");
+// // Testing
+// let parent: Crdt = {} as Crdt; // fake
+//
+// const Counter = AddAbilitiesViaHistory(CounterBase);
+// type Counter = CounterBase & AllAble;
+// let testCounter: Counter = new Counter(parent, "id");
+// let testPartial = Counter.withAbilities({strongResettable: true}, parent, "id", 7);
+//
+// class NestedCounterBase extends Crdt {
+//     counter: CounterBase;
+//     constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag) {
+//         super(parentOrRuntime, id, null);
+//         this.counter = Counter.withAbilities(abilityFlag, this, "counter");
+//     }
+// }
+//
+// const NestedCounter = AddAbilitiesViaChildren(NestedCounterBase);
+// type NestedCounter = NestedCounterBase & AllAble;
+// let testNested: NestedCounter = new NestedCounter(parent, "test");
+// let testNested2 = NestedCounter.withAbilities({resettable: true}, parent, "test");
