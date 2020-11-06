@@ -83,7 +83,7 @@ export function isOutOfOrderAble(crdt: OutOfOrderAble | {}): crdt is OutOfOrderA
 
 export interface AllAble extends Resettable, StrongResettable, OutOfOrderAble {}
 
-interface AbilityFlag {
+export interface AbilityFlag {
     /**
      * Include this field (i.e., it is !== undefined) to specify
      * the Resettable interface.
@@ -411,7 +411,7 @@ function AddAbilitiesViaChildrenInternal<TBase extends CrdtConstructorBasic>(Bas
 export type CompositeCrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag, ...otherArgs: any[]) => Crdt;
 export type AddAbilitiesClass<TBase extends CompositeCrdtConstructor> =
     TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, abilityFlag: AbilityFlag, ...otherArgs: infer Args) => infer C?
-    new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C: never;
+    (new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C): never;
 /**
  * Gives the constructor arguments besides parentOrRuntime, id, and abilityFlag.
  */
@@ -435,6 +435,12 @@ export type OtherArgsOfComposite<TBase extends CompositeCrdtConstructor> =
  * (and must be of type AbilityFlag, whereas the type constraint just forces
  * the constructor to be a supertype of AbilityFlag).
  * - output: (input class) & InterfaceOf<abilityFlag>.
+ *
+ * TODO: Need TBase to correctly infer type parameters on Base, but
+ * then plugging in a type parameter switches back to the original constructor
+ * type, without abilityFlag removed.  How to infer type parameters properly?
+ * Should do the same for the other functions so that the enforced constructor
+ * signatures actually work.
  */
 export function AddAbilitiesViaChildren<TBase extends CompositeCrdtConstructor>(Base: TBase):
     AddAbilitiesClass<TBase> & AllAbleConstructor & {

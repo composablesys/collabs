@@ -219,18 +219,6 @@ function testFromPaper() {
 //     assert.deepStrictEqual(bobOrthogonal.value, [3*Math.PI/2, true]);
 //     console.log("...ok");
 // }
-//
-// class BiCounter extends CrdtObject<string, Number> {
-//     a: Number;
-//     b: Number;
-//     constructor(crdtId: any, runtime: CrdtRuntime) {
-//         super(crdtId, runtime);
-//         this.startPredefinedPropertyCreation();
-//         this.a = new Number("a", this, 1);
-//         this.b = new Number("b", this, 1);
-//         this.endPredefinedPropertyCreation();
-//     }
-// }
 
 function testAwSet() {
     console.log("testAwSet()...");
@@ -293,6 +281,7 @@ function testAwSet() {
     runtimeGen.releaseAll();
     assertSetEquals(new Set(aliceSet.values()), new Set(["7", "first", "second", "concurrent"]));
     assertSetEquals(new Set(bobSet.values()), new Set(["7", "first", "second", "concurrent"]));
+
     // TODO: test deleteStrong
 
     // Observed-reset test

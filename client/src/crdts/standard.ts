@@ -478,6 +478,7 @@ export class AddWinsSet<T> extends Crdt {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
+        //_abilityFlag: AbilityFlag,
         serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
         deserialize: (serialized: Uint8Array) => T = newDefaultCollectionDeserializer(parentOrRuntime)
     ) {
@@ -527,6 +528,15 @@ export class AddWinsSet<T> extends Crdt {
         this.remove(value);
     }
 
+    strongRemove(value: T) {
+        let flag = this.flagMap.get(value);
+        if (flag) flag.strongDisable();
+    }
+
+    strongDelete(value: T) {
+        this.strongRemove(value);
+    }
+
     has(value: T) {
         let flag = this.flagMap.get(value);
         if (!flag) return false;
@@ -545,9 +555,11 @@ export class AddWinsSet<T> extends Crdt {
         return this.value.values();
     }
 
-    // TODO: other helper methods
+    // TODO: other helper methods, events
 }
 
+// TODO
+// export class AddWinsSet<T> extends AddAbilitiesViaChildren(AddWinsSetInternal)<T> {}
 
 export class MapCrdt<K, C extends Crdt> extends Crdt {
     private readonly keySet: AddWinsSet<K>;
