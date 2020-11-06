@@ -25,6 +25,8 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 	var isWebRtc = false;
 	var users = new Map();
 	var crdtUsers = new Map<any, Array<any>>();
+	var webSocketGroup = new Map<String, Array<any>>();
+	var webSocketUser = new Map<any, any>();
     const wss = new WebSocket.Server(webSocketArgs);
 	/**
 	 * Casual broadcasting server onconnection function main routine.
@@ -145,12 +147,27 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 						break;
 				}
 			} else {
-				wss.clients.forEach(function each(client : any) {
-					// Broadcasting to every other connected WebSocket clients, excluding itself.
-					if (client !== ws && client.readyState === WebSocket.OPEN) {
-						client.send(data);
+				if(message.type == "register") {
+					if(!webSocketGroup.has(message.group)) {
+						webSocketGroup.set(message.group, new Array<any>());
 					}
-				});
+					webSocketGroup.get(message.group)!.push(ws);
+				} else {
+					if(webSocketGroup.has(message.group)) {
+						webSocketGroup.get(message.group)!.forEach(function each(client : any) {
+							if (client !== ws && client.readyState === WebSocket.OPEN) {
+								client.send(data);
+							}
+						});
+					} else {
+						wss.clients.forEach(function each(client : any) {
+							// Broadcasting to every other connected WebSocket clients, excluding itself.
+							if (client !== ws && client.readyState === WebSocket.OPEN) {
+								client.send(data);
+							}
+						});
+					}
+				}
 			}
 		});
 

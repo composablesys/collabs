@@ -268,12 +268,18 @@ export abstract class Crdt<S extends Object | null = Object | null> {
 
 export class CrdtRuntime {
     readonly rootCrdts = new Map<string, Crdt>();
+    joinedGroup = false;
+
     constructor(readonly network: CausalBroadcastNetwork) {
         this.network.register(this);
     }
 
     registerRoot(crdt: Crdt) {
         this.rootCrdts.set(crdt.id, crdt);
+        if (!this.joinedGroup) {
+            this.network.joinGroup(crdt.rootId);
+            this.joinedGroup = true;
+        }
     }
 
     send(sender: Crdt, message: Uint8Array) {

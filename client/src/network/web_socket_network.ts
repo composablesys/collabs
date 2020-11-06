@@ -11,9 +11,9 @@ export class WebSocketNetwork implements BroadcastNetwork {
     /**
      * Message waiting to be sent by the WebSocket
      */
-    sendBuffer : Array<Uint8Array>;
+    sendBuffer : Array<any>;
     constructor(webSocketArgs: string) {
-        this.sendBuffer = new Array<Uint8Array>();
+        this.sendBuffer = new Array<any>();
         /**
          * Open WebSocket connection with server.
          * Register EventListener with corresponding event handler.
@@ -36,10 +36,11 @@ export class WebSocketNetwork implements BroadcastNetwork {
             // TODO: use Uint8Array directly instead
             // (requires changing options + server)
             // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-            this.ws.send(new TextDecoder().decode(this.sendBuffer[index]));
+            // this.ws.send(new TextDecoder().decode(this.sendBuffer[index]));
+            this.ws.send(this.sendBuffer[index]);
             index++;
         }
-        this.sendBuffer = new Array<Uint8Array>();
+        this.sendBuffer = new Array<any>();
         // Use heartbeat to keep client alive.
         // this.heartbeat();
     }
@@ -75,6 +76,16 @@ export class WebSocketNetwork implements BroadcastNetwork {
     }
     joinGroup(group: string): void {
         // TODO.  Ignore for now.
+        let message = {
+            type: "register",
+            group: group
+        }
+        if(this.ws.readyState == 1) {
+            this.ws.send(JSON.stringify(message));
+        } else {
+            this.sendBuffer.push(JSON.stringify(message));
+        }
+
     }
     send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
         if (this.ws.readyState === 1) {
@@ -83,7 +94,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
             // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
             this.ws.send(new TextDecoder().decode(message));
         } else {
-            this.sendBuffer.push(message);
+            this.sendBuffer.push(new TextDecoder().decode(message));
         }
     }
 }
