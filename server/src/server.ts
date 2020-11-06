@@ -19,21 +19,20 @@ function sendWebRtcSignalMessage(connection : any, message: any) {
  */
 export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 	/**
-	 * Initialize the WebSocket server instance.
+	 * Initialize the WebSocket server instance variables.
 	 */
-
 	var isWebRtc = false;
 	var users = new Map();
 	var crdtUsers = new Map<any, Array<any>>();
 	var webSocketGroup = new Map<String, Array<any>>();
-	var webSocketUser = new Map<any, any>();
     const wss = new WebSocket.Server(webSocketArgs);
 	/**
 	 * Casual broadcasting server onconnection function main routine.
 	 */
-
-	console.log("Web Socket server initialize..")
-
+	console.log("Web Socket server initializing..")
+	/**
+	 * Register server listener functions.
+	 */
     wss.on('connection', function connection(ws : any) {
 
 		// Pong function of the server.
@@ -43,8 +42,6 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 
 		// Broacast function of the server.
 		ws.on('message', function incoming(data : string) {
-			// TODO: Heroku server console log.
-
 			var message;
 			try {
 				message = JSON.parse(data);
@@ -55,6 +52,7 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 				message = {};
 			}
 
+			// Check if it is a WebRTC message.
 			if(isWebRtc) {
 				console.log(message)
 				switch(message.type) {
@@ -147,12 +145,17 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 						break;
 				}
 			} else {
+				// If it is not a WebRTC message.
+				// Then check if it is a "register" message.
+				// If yes, then register the new peer to the group.
 				if(message.type == "register") {
 					if(!webSocketGroup.has(message.group)) {
 						webSocketGroup.set(message.group, new Array<any>());
 					}
 					webSocketGroup.get(message.group)!.push(ws);
 				} else {
+					// If it is not a "register" message, then broadcast the message to
+					// all the related clients.
 					if(webSocketGroup.has(message.group)) {
 						webSocketGroup.get(message.group)!.forEach(function each(client : any) {
 							if (client !== ws && client.readyState === WebSocket.OPEN) {
@@ -160,6 +163,7 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 							}
 						});
 					} else {
+						// If cannot find the groupID, then broadcast the message to all clients.
 						wss.clients.forEach(function each(client : any) {
 							// Broadcasting to every other connected WebSocket clients, excluding itself.
 							if (client !== ws && client.readyState === WebSocket.OPEN) {

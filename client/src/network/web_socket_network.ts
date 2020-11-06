@@ -12,6 +12,13 @@ export class WebSocketNetwork implements BroadcastNetwork {
      * Message waiting to be sent by the WebSocket
      */
     sendBuffer : Array<any>;
+    /**
+     * Constructor which takes in a webSocketArgs for
+     * generating a new WebSocket connection.
+     *
+     * @param webSocketArgs the argument that
+     * use to create a new WebSocket connection.
+     */
     constructor(webSocketArgs: string) {
         this.sendBuffer = new Array<any>();
         /**
@@ -70,12 +77,20 @@ export class WebSocketNetwork implements BroadcastNetwork {
         // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
         this.causal.receive(new TextEncoder().encode(message.data));
     };
-
+    /**
+     * Register a CausalBroadcastNetwork which implement the interface.
+     * Use DefaultCausalBroadcastNetwork is needed.
+     * @param causal the underlying CausalBroadcastNetwork.
+     */
     register(causal: DefaultCausalBroadcastNetwork): void {
         this.causal = causal;
     }
+    /**
+     * Join the group with unique identifier.
+     * @param group the group name which is uniquely identified.
+     */
     joinGroup(group: string): void {
-        // TODO.  Ignore for now.
+        // Create a new message with type == "register"
         let message = {
             type: "register",
             group: group
@@ -85,8 +100,13 @@ export class WebSocketNetwork implements BroadcastNetwork {
         } else {
             this.sendBuffer.push(JSON.stringify(message));
         }
-
     }
+    /**
+     * The actual send function using underlying WebSocket protocol.
+     * @param group the unique string identifier of Group.
+     * @param message the message with Uint8Array type.
+     * @param timestamp the CasualTimestamp.
+     */
     send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
         if (this.ws.readyState === 1) {
             // TODO: use Uint8Array directly instead
