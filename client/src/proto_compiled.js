@@ -9,24 +9,26 @@ var $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.ut
 // Exported root namespace
 var $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
 
-$root.GMapMessage = (function() {
+$root.CrdtRuntimeMessage = (function() {
 
     /**
-     * Properties of a GMapMessage.
-     * @exports IGMapMessage
-     * @interface IGMapMessage
-     * @property {Uint8Array} keyToInit GMapMessage keyToInit
+     * Properties of a CrdtRuntimeMessage.
+     * @exports ICrdtRuntimeMessage
+     * @interface ICrdtRuntimeMessage
+     * @property {Uint8Array} innerMessage CrdtRuntimeMessage innerMessage
+     * @property {Array.<string>|null} [pathToRoot] CrdtRuntimeMessage pathToRoot
      */
 
     /**
-     * Constructs a new GMapMessage.
-     * @exports GMapMessage
-     * @classdesc Represents a GMapMessage.
-     * @implements IGMapMessage
+     * Constructs a new CrdtRuntimeMessage.
+     * @exports CrdtRuntimeMessage
+     * @classdesc Represents a CrdtRuntimeMessage.
+     * @implements ICrdtRuntimeMessage
      * @constructor
-     * @param {IGMapMessage=} [properties] Properties to set
+     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
      */
-    function GMapMessage(properties) {
+    function CrdtRuntimeMessage(properties) {
+        this.pathToRoot = [];
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -34,394 +36,212 @@ $root.GMapMessage = (function() {
     }
 
     /**
-     * GMapMessage keyToInit.
-     * @member {Uint8Array} keyToInit
-     * @memberof GMapMessage
+     * CrdtRuntimeMessage innerMessage.
+     * @member {Uint8Array} innerMessage
+     * @memberof CrdtRuntimeMessage
      * @instance
      */
-    GMapMessage.prototype.keyToInit = $util.newBuffer([]);
+    CrdtRuntimeMessage.prototype.innerMessage = $util.newBuffer([]);
 
     /**
-     * Creates a new GMapMessage instance using the specified properties.
-     * @function create
-     * @memberof GMapMessage
-     * @static
-     * @param {IGMapMessage=} [properties] Properties to set
-     * @returns {GMapMessage} GMapMessage instance
+     * CrdtRuntimeMessage pathToRoot.
+     * @member {Array.<string>} pathToRoot
+     * @memberof CrdtRuntimeMessage
+     * @instance
      */
-    GMapMessage.create = function create(properties) {
-        return new GMapMessage(properties);
+    CrdtRuntimeMessage.prototype.pathToRoot = $util.emptyArray;
+
+    /**
+     * Creates a new CrdtRuntimeMessage instance using the specified properties.
+     * @function create
+     * @memberof CrdtRuntimeMessage
+     * @static
+     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage instance
+     */
+    CrdtRuntimeMessage.create = function create(properties) {
+        return new CrdtRuntimeMessage(properties);
     };
 
     /**
-     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
      * @function encode
-     * @memberof GMapMessage
+     * @memberof CrdtRuntimeMessage
      * @static
-     * @param {IGMapMessage} message GMapMessage message or plain object to encode
+     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    GMapMessage.encode = function encode(message, writer) {
+    CrdtRuntimeMessage.encode = function encode(message, writer) {
         if (!writer)
             writer = $Writer.create();
-        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.keyToInit);
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.innerMessage);
+        if (message.pathToRoot != null && message.pathToRoot.length)
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.pathToRoot[i]);
         return writer;
     };
 
     /**
-     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
      * @function encodeDelimited
-     * @memberof GMapMessage
+     * @memberof CrdtRuntimeMessage
      * @static
-     * @param {IGMapMessage} message GMapMessage message or plain object to encode
+     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    GMapMessage.encodeDelimited = function encodeDelimited(message, writer) {
+    CrdtRuntimeMessage.encodeDelimited = function encodeDelimited(message, writer) {
         return this.encode(message, writer).ldelim();
     };
 
     /**
-     * Decodes a GMapMessage message from the specified reader or buffer.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
      * @function decode
-     * @memberof GMapMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
      * @param {number} [length] Message length if known beforehand
-     * @returns {GMapMessage} GMapMessage
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    GMapMessage.decode = function decode(reader, length) {
+    CrdtRuntimeMessage.decode = function decode(reader, length) {
         if (!(reader instanceof $Reader))
             reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.GMapMessage();
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CrdtRuntimeMessage();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
             case 1:
-                message.keyToInit = reader.bytes();
-                break;
-            default:
-                reader.skipType(tag & 7);
-                break;
-            }
-        }
-        if (!message.hasOwnProperty("keyToInit"))
-            throw $util.ProtocolError("missing required 'keyToInit'", { instance: message });
-        return message;
-    };
-
-    /**
-     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
-     * @function decodeDelimited
-     * @memberof GMapMessage
-     * @static
-     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {GMapMessage} GMapMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    GMapMessage.decodeDelimited = function decodeDelimited(reader) {
-        if (!(reader instanceof $Reader))
-            reader = new $Reader(reader);
-        return this.decode(reader, reader.uint32());
-    };
-
-    /**
-     * Verifies a GMapMessage message.
-     * @function verify
-     * @memberof GMapMessage
-     * @static
-     * @param {Object.<string,*>} message Plain object to verify
-     * @returns {string|null} `null` if valid, otherwise the reason why it is not
-     */
-    GMapMessage.verify = function verify(message) {
-        if (typeof message !== "object" || message === null)
-            return "object expected";
-        if (!(message.keyToInit && typeof message.keyToInit.length === "number" || $util.isString(message.keyToInit)))
-            return "keyToInit: buffer expected";
-        return null;
-    };
-
-    /**
-     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
-     * @function fromObject
-     * @memberof GMapMessage
-     * @static
-     * @param {Object.<string,*>} object Plain object
-     * @returns {GMapMessage} GMapMessage
-     */
-    GMapMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.GMapMessage)
-            return object;
-        var message = new $root.GMapMessage();
-        if (object.keyToInit != null)
-            if (typeof object.keyToInit === "string")
-                $util.base64.decode(object.keyToInit, message.keyToInit = $util.newBuffer($util.base64.length(object.keyToInit)), 0);
-            else if (object.keyToInit.length)
-                message.keyToInit = object.keyToInit;
-        return message;
-    };
-
-    /**
-     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
-     * @function toObject
-     * @memberof GMapMessage
-     * @static
-     * @param {GMapMessage} message GMapMessage
-     * @param {$protobuf.IConversionOptions} [options] Conversion options
-     * @returns {Object.<string,*>} Plain object
-     */
-    GMapMessage.toObject = function toObject(message, options) {
-        if (!options)
-            options = {};
-        var object = {};
-        if (options.defaults)
-            if (options.bytes === String)
-                object.keyToInit = "";
-            else {
-                object.keyToInit = [];
-                if (options.bytes !== Array)
-                    object.keyToInit = $util.newBuffer(object.keyToInit);
-            }
-        if (message.keyToInit != null && message.hasOwnProperty("keyToInit"))
-            object.keyToInit = options.bytes === String ? $util.base64.encode(message.keyToInit, 0, message.keyToInit.length) : options.bytes === Array ? Array.prototype.slice.call(message.keyToInit) : message.keyToInit;
-        return object;
-    };
-
-    /**
-     * Converts this GMapMessage to JSON.
-     * @function toJSON
-     * @memberof GMapMessage
-     * @instance
-     * @returns {Object.<string,*>} JSON object
-     */
-    GMapMessage.prototype.toJSON = function toJSON() {
-        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-    };
-
-    return GMapMessage;
-})();
-
-$root.RuntimeGeneratorMessage = (function() {
-
-    /**
-     * Properties of a RuntimeGeneratorMessage.
-     * @exports IRuntimeGeneratorMessage
-     * @interface IRuntimeGeneratorMessage
-     * @property {Uint8Array} message RuntimeGeneratorMessage message
-     * @property {string} uniqueId RuntimeGeneratorMessage uniqueId
-     */
-
-    /**
-     * Constructs a new RuntimeGeneratorMessage.
-     * @exports RuntimeGeneratorMessage
-     * @classdesc Represents a RuntimeGeneratorMessage.
-     * @implements IRuntimeGeneratorMessage
-     * @constructor
-     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
-     */
-    function RuntimeGeneratorMessage(properties) {
-        if (properties)
-            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                if (properties[keys[i]] != null)
-                    this[keys[i]] = properties[keys[i]];
-    }
-
-    /**
-     * RuntimeGeneratorMessage message.
-     * @member {Uint8Array} message
-     * @memberof RuntimeGeneratorMessage
-     * @instance
-     */
-    RuntimeGeneratorMessage.prototype.message = $util.newBuffer([]);
-
-    /**
-     * RuntimeGeneratorMessage uniqueId.
-     * @member {string} uniqueId
-     * @memberof RuntimeGeneratorMessage
-     * @instance
-     */
-    RuntimeGeneratorMessage.prototype.uniqueId = "";
-
-    /**
-     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
-     * @function create
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage instance
-     */
-    RuntimeGeneratorMessage.create = function create(properties) {
-        return new RuntimeGeneratorMessage(properties);
-    };
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @function encode
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
-     * @param {$protobuf.Writer} [writer] Writer to encode to
-     * @returns {$protobuf.Writer} Writer
-     */
-    RuntimeGeneratorMessage.encode = function encode(message, writer) {
-        if (!writer)
-            writer = $Writer.create();
-        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.message);
-        writer.uint32(/* id 2, wireType 2 =*/18).string(message.uniqueId);
-        return writer;
-    };
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @function encodeDelimited
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
-     * @param {$protobuf.Writer} [writer] Writer to encode to
-     * @returns {$protobuf.Writer} Writer
-     */
-    RuntimeGeneratorMessage.encodeDelimited = function encodeDelimited(message, writer) {
-        return this.encode(message, writer).ldelim();
-    };
-
-    /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
-     * @function decode
-     * @memberof RuntimeGeneratorMessage
-     * @static
-     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @param {number} [length] Message length if known beforehand
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    RuntimeGeneratorMessage.decode = function decode(reader, length) {
-        if (!(reader instanceof $Reader))
-            reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.RuntimeGeneratorMessage();
-        while (reader.pos < end) {
-            var tag = reader.uint32();
-            switch (tag >>> 3) {
-            case 1:
-                message.message = reader.bytes();
+                message.innerMessage = reader.bytes();
                 break;
             case 2:
-                message.uniqueId = reader.string();
+                if (!(message.pathToRoot && message.pathToRoot.length))
+                    message.pathToRoot = [];
+                message.pathToRoot.push(reader.string());
                 break;
             default:
                 reader.skipType(tag & 7);
                 break;
             }
         }
-        if (!message.hasOwnProperty("message"))
-            throw $util.ProtocolError("missing required 'message'", { instance: message });
-        if (!message.hasOwnProperty("uniqueId"))
-            throw $util.ProtocolError("missing required 'uniqueId'", { instance: message });
+        if (!message.hasOwnProperty("innerMessage"))
+            throw $util.ProtocolError("missing required 'innerMessage'", { instance: message });
         return message;
     };
 
     /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
      * @function decodeDelimited
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    RuntimeGeneratorMessage.decodeDelimited = function decodeDelimited(reader) {
+    CrdtRuntimeMessage.decodeDelimited = function decodeDelimited(reader) {
         if (!(reader instanceof $Reader))
             reader = new $Reader(reader);
         return this.decode(reader, reader.uint32());
     };
 
     /**
-     * Verifies a RuntimeGeneratorMessage message.
+     * Verifies a CrdtRuntimeMessage message.
      * @function verify
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {Object.<string,*>} message Plain object to verify
      * @returns {string|null} `null` if valid, otherwise the reason why it is not
      */
-    RuntimeGeneratorMessage.verify = function verify(message) {
+    CrdtRuntimeMessage.verify = function verify(message) {
         if (typeof message !== "object" || message === null)
             return "object expected";
-        if (!(message.message && typeof message.message.length === "number" || $util.isString(message.message)))
-            return "message: buffer expected";
-        if (!$util.isString(message.uniqueId))
-            return "uniqueId: string expected";
+        if (!(message.innerMessage && typeof message.innerMessage.length === "number" || $util.isString(message.innerMessage)))
+            return "innerMessage: buffer expected";
+        if (message.pathToRoot != null && message.hasOwnProperty("pathToRoot")) {
+            if (!Array.isArray(message.pathToRoot))
+                return "pathToRoot: array expected";
+            for (var i = 0; i < message.pathToRoot.length; ++i)
+                if (!$util.isString(message.pathToRoot[i]))
+                    return "pathToRoot: string[] expected";
+        }
         return null;
     };
 
     /**
-     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
      * @function fromObject
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
      * @param {Object.<string,*>} object Plain object
-     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
      */
-    RuntimeGeneratorMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.RuntimeGeneratorMessage)
+    CrdtRuntimeMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.CrdtRuntimeMessage)
             return object;
-        var message = new $root.RuntimeGeneratorMessage();
-        if (object.message != null)
-            if (typeof object.message === "string")
-                $util.base64.decode(object.message, message.message = $util.newBuffer($util.base64.length(object.message)), 0);
-            else if (object.message.length)
-                message.message = object.message;
-        if (object.uniqueId != null)
-            message.uniqueId = String(object.uniqueId);
+        var message = new $root.CrdtRuntimeMessage();
+        if (object.innerMessage != null)
+            if (typeof object.innerMessage === "string")
+                $util.base64.decode(object.innerMessage, message.innerMessage = $util.newBuffer($util.base64.length(object.innerMessage)), 0);
+            else if (object.innerMessage.length)
+                message.innerMessage = object.innerMessage;
+        if (object.pathToRoot) {
+            if (!Array.isArray(object.pathToRoot))
+                throw TypeError(".CrdtRuntimeMessage.pathToRoot: array expected");
+            message.pathToRoot = [];
+            for (var i = 0; i < object.pathToRoot.length; ++i)
+                message.pathToRoot[i] = String(object.pathToRoot[i]);
+        }
         return message;
     };
 
     /**
-     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
      * @function toObject
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @static
-     * @param {RuntimeGeneratorMessage} message RuntimeGeneratorMessage
+     * @param {CrdtRuntimeMessage} message CrdtRuntimeMessage
      * @param {$protobuf.IConversionOptions} [options] Conversion options
      * @returns {Object.<string,*>} Plain object
      */
-    RuntimeGeneratorMessage.toObject = function toObject(message, options) {
+    CrdtRuntimeMessage.toObject = function toObject(message, options) {
         if (!options)
             options = {};
         var object = {};
-        if (options.defaults) {
+        if (options.arrays || options.defaults)
+            object.pathToRoot = [];
+        if (options.defaults)
             if (options.bytes === String)
-                object.message = "";
+                object.innerMessage = "";
             else {
-                object.message = [];
+                object.innerMessage = [];
                 if (options.bytes !== Array)
-                    object.message = $util.newBuffer(object.message);
+                    object.innerMessage = $util.newBuffer(object.innerMessage);
             }
-            object.uniqueId = "";
+        if (message.innerMessage != null && message.hasOwnProperty("innerMessage"))
+            object.innerMessage = options.bytes === String ? $util.base64.encode(message.innerMessage, 0, message.innerMessage.length) : options.bytes === Array ? Array.prototype.slice.call(message.innerMessage) : message.innerMessage;
+        if (message.pathToRoot && message.pathToRoot.length) {
+            object.pathToRoot = [];
+            for (var j = 0; j < message.pathToRoot.length; ++j)
+                object.pathToRoot[j] = message.pathToRoot[j];
         }
-        if (message.message != null && message.hasOwnProperty("message"))
-            object.message = options.bytes === String ? $util.base64.encode(message.message, 0, message.message.length) : options.bytes === Array ? Array.prototype.slice.call(message.message) : message.message;
-        if (message.uniqueId != null && message.hasOwnProperty("uniqueId"))
-            object.uniqueId = message.uniqueId;
         return object;
     };
 
     /**
-     * Converts this RuntimeGeneratorMessage to JSON.
+     * Converts this CrdtRuntimeMessage to JSON.
      * @function toJSON
-     * @memberof RuntimeGeneratorMessage
+     * @memberof CrdtRuntimeMessage
      * @instance
      * @returns {Object.<string,*>} JSON object
      */
-    RuntimeGeneratorMessage.prototype.toJSON = function toJSON() {
+    CrdtRuntimeMessage.prototype.toJSON = function toJSON() {
         return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
     };
 
-    return RuntimeGeneratorMessage;
+    return CrdtRuntimeMessage;
 })();
 
 $root.CrdtReference = (function() {
@@ -1004,24 +824,24 @@ $root.DefaultSerializerMessage = (function() {
     return DefaultSerializerMessage;
 })();
 
-$root.CounterMessage = (function() {
+$root.CounterNonResettableMessage = (function() {
 
     /**
-     * Properties of a CounterMessage.
-     * @exports ICounterMessage
-     * @interface ICounterMessage
-     * @property {number} toAdd CounterMessage toAdd
+     * Properties of a CounterNonResettableMessage.
+     * @exports ICounterNonResettableMessage
+     * @interface ICounterNonResettableMessage
+     * @property {number} toAdd CounterNonResettableMessage toAdd
      */
 
     /**
-     * Constructs a new CounterMessage.
-     * @exports CounterMessage
-     * @classdesc Represents a CounterMessage.
-     * @implements ICounterMessage
+     * Constructs a new CounterNonResettableMessage.
+     * @exports CounterNonResettableMessage
+     * @classdesc Represents a CounterNonResettableMessage.
+     * @implements ICounterNonResettableMessage
      * @constructor
-     * @param {ICounterMessage=} [properties] Properties to set
+     * @param {ICounterNonResettableMessage=} [properties] Properties to set
      */
-    function CounterMessage(properties) {
+    function CounterNonResettableMessage(properties) {
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -1029,35 +849,35 @@ $root.CounterMessage = (function() {
     }
 
     /**
-     * CounterMessage toAdd.
+     * CounterNonResettableMessage toAdd.
      * @member {number} toAdd
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @instance
      */
-    CounterMessage.prototype.toAdd = 0;
+    CounterNonResettableMessage.prototype.toAdd = 0;
 
     /**
-     * Creates a new CounterMessage instance using the specified properties.
+     * Creates a new CounterNonResettableMessage instance using the specified properties.
      * @function create
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
-     * @param {ICounterMessage=} [properties] Properties to set
-     * @returns {CounterMessage} CounterMessage instance
+     * @param {ICounterNonResettableMessage=} [properties] Properties to set
+     * @returns {CounterNonResettableMessage} CounterNonResettableMessage instance
      */
-    CounterMessage.create = function create(properties) {
-        return new CounterMessage(properties);
+    CounterNonResettableMessage.create = function create(properties) {
+        return new CounterNonResettableMessage(properties);
     };
 
     /**
-     * Encodes the specified CounterMessage message. Does not implicitly {@link CounterMessage.verify|verify} messages.
+     * Encodes the specified CounterNonResettableMessage message. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
      * @function encode
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
-     * @param {ICounterMessage} message CounterMessage message or plain object to encode
+     * @param {ICounterNonResettableMessage} message CounterNonResettableMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CounterMessage.encode = function encode(message, writer) {
+    CounterNonResettableMessage.encode = function encode(message, writer) {
         if (!writer)
             writer = $Writer.create();
         writer.uint32(/* id 1, wireType 1 =*/9).double(message.toAdd);
@@ -1065,33 +885,33 @@ $root.CounterMessage = (function() {
     };
 
     /**
-     * Encodes the specified CounterMessage message, length delimited. Does not implicitly {@link CounterMessage.verify|verify} messages.
+     * Encodes the specified CounterNonResettableMessage message, length delimited. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
      * @function encodeDelimited
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
-     * @param {ICounterMessage} message CounterMessage message or plain object to encode
+     * @param {ICounterNonResettableMessage} message CounterNonResettableMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CounterMessage.encodeDelimited = function encodeDelimited(message, writer) {
+    CounterNonResettableMessage.encodeDelimited = function encodeDelimited(message, writer) {
         return this.encode(message, writer).ldelim();
     };
 
     /**
-     * Decodes a CounterMessage message from the specified reader or buffer.
+     * Decodes a CounterNonResettableMessage message from the specified reader or buffer.
      * @function decode
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
      * @param {number} [length] Message length if known beforehand
-     * @returns {CounterMessage} CounterMessage
+     * @returns {CounterNonResettableMessage} CounterNonResettableMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CounterMessage.decode = function decode(reader, length) {
+    CounterNonResettableMessage.decode = function decode(reader, length) {
         if (!(reader instanceof $Reader))
             reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CounterMessage();
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CounterNonResettableMessage();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
@@ -1109,30 +929,30 @@ $root.CounterMessage = (function() {
     };
 
     /**
-     * Decodes a CounterMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CounterNonResettableMessage message from the specified reader or buffer, length delimited.
      * @function decodeDelimited
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {CounterMessage} CounterMessage
+     * @returns {CounterNonResettableMessage} CounterNonResettableMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CounterMessage.decodeDelimited = function decodeDelimited(reader) {
+    CounterNonResettableMessage.decodeDelimited = function decodeDelimited(reader) {
         if (!(reader instanceof $Reader))
             reader = new $Reader(reader);
         return this.decode(reader, reader.uint32());
     };
 
     /**
-     * Verifies a CounterMessage message.
+     * Verifies a CounterNonResettableMessage message.
      * @function verify
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
      * @param {Object.<string,*>} message Plain object to verify
      * @returns {string|null} `null` if valid, otherwise the reason why it is not
      */
-    CounterMessage.verify = function verify(message) {
+    CounterNonResettableMessage.verify = function verify(message) {
         if (typeof message !== "object" || message === null)
             return "object expected";
         if (typeof message.toAdd !== "number")
@@ -1141,32 +961,32 @@ $root.CounterMessage = (function() {
     };
 
     /**
-     * Creates a CounterMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CounterNonResettableMessage message from a plain object. Also converts values to their respective internal types.
      * @function fromObject
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
      * @param {Object.<string,*>} object Plain object
-     * @returns {CounterMessage} CounterMessage
+     * @returns {CounterNonResettableMessage} CounterNonResettableMessage
      */
-    CounterMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.CounterMessage)
+    CounterNonResettableMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.CounterNonResettableMessage)
             return object;
-        var message = new $root.CounterMessage();
+        var message = new $root.CounterNonResettableMessage();
         if (object.toAdd != null)
             message.toAdd = Number(object.toAdd);
         return message;
     };
 
     /**
-     * Creates a plain object from a CounterMessage message. Also converts values to other types if specified.
+     * Creates a plain object from a CounterNonResettableMessage message. Also converts values to other types if specified.
      * @function toObject
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @static
-     * @param {CounterMessage} message CounterMessage
+     * @param {CounterNonResettableMessage} message CounterNonResettableMessage
      * @param {$protobuf.IConversionOptions} [options] Conversion options
      * @returns {Object.<string,*>} Plain object
      */
-    CounterMessage.toObject = function toObject(message, options) {
+    CounterNonResettableMessage.toObject = function toObject(message, options) {
         if (!options)
             options = {};
         var object = {};
@@ -1178,17 +998,535 @@ $root.CounterMessage = (function() {
     };
 
     /**
-     * Converts this CounterMessage to JSON.
+     * Converts this CounterNonResettableMessage to JSON.
      * @function toJSON
-     * @memberof CounterMessage
+     * @memberof CounterNonResettableMessage
      * @instance
      * @returns {Object.<string,*>} JSON object
      */
-    CounterMessage.prototype.toJSON = function toJSON() {
+    CounterNonResettableMessage.prototype.toJSON = function toJSON() {
         return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
     };
 
-    return CounterMessage;
+    return CounterNonResettableMessage;
+})();
+
+$root.CounterResetMessage = (function() {
+
+    /**
+     * Properties of a CounterResetMessage.
+     * @exports ICounterResetMessage
+     * @interface ICounterResetMessage
+     * @property {Object.<string,number>|null} [plusReset] CounterResetMessage plusReset
+     * @property {Object.<string,number>|null} [minusReset] CounterResetMessage minusReset
+     */
+
+    /**
+     * Constructs a new CounterResetMessage.
+     * @exports CounterResetMessage
+     * @classdesc Represents a CounterResetMessage.
+     * @implements ICounterResetMessage
+     * @constructor
+     * @param {ICounterResetMessage=} [properties] Properties to set
+     */
+    function CounterResetMessage(properties) {
+        this.plusReset = {};
+        this.minusReset = {};
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * CounterResetMessage plusReset.
+     * @member {Object.<string,number>} plusReset
+     * @memberof CounterResetMessage
+     * @instance
+     */
+    CounterResetMessage.prototype.plusReset = $util.emptyObject;
+
+    /**
+     * CounterResetMessage minusReset.
+     * @member {Object.<string,number>} minusReset
+     * @memberof CounterResetMessage
+     * @instance
+     */
+    CounterResetMessage.prototype.minusReset = $util.emptyObject;
+
+    /**
+     * Creates a new CounterResetMessage instance using the specified properties.
+     * @function create
+     * @memberof CounterResetMessage
+     * @static
+     * @param {ICounterResetMessage=} [properties] Properties to set
+     * @returns {CounterResetMessage} CounterResetMessage instance
+     */
+    CounterResetMessage.create = function create(properties) {
+        return new CounterResetMessage(properties);
+    };
+
+    /**
+     * Encodes the specified CounterResetMessage message. Does not implicitly {@link CounterResetMessage.verify|verify} messages.
+     * @function encode
+     * @memberof CounterResetMessage
+     * @static
+     * @param {ICounterResetMessage} message CounterResetMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    CounterResetMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        if (message.plusReset != null && Object.hasOwnProperty.call(message, "plusReset"))
+            for (var keys = Object.keys(message.plusReset), i = 0; i < keys.length; ++i)
+                writer.uint32(/* id 1, wireType 2 =*/10).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 1 =*/17).double(message.plusReset[keys[i]]).ldelim();
+        if (message.minusReset != null && Object.hasOwnProperty.call(message, "minusReset"))
+            for (var keys = Object.keys(message.minusReset), i = 0; i < keys.length; ++i)
+                writer.uint32(/* id 2, wireType 2 =*/18).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 1 =*/17).double(message.minusReset[keys[i]]).ldelim();
+        return writer;
+    };
+
+    /**
+     * Encodes the specified CounterResetMessage message, length delimited. Does not implicitly {@link CounterResetMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof CounterResetMessage
+     * @static
+     * @param {ICounterResetMessage} message CounterResetMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    CounterResetMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a CounterResetMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof CounterResetMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {CounterResetMessage} CounterResetMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    CounterResetMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CounterResetMessage(), key, value;
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                if (message.plusReset === $util.emptyObject)
+                    message.plusReset = {};
+                var end2 = reader.uint32() + reader.pos;
+                key = "";
+                value = 0;
+                while (reader.pos < end2) {
+                    var tag2 = reader.uint32();
+                    switch (tag2 >>> 3) {
+                    case 1:
+                        key = reader.string();
+                        break;
+                    case 2:
+                        value = reader.double();
+                        break;
+                    default:
+                        reader.skipType(tag2 & 7);
+                        break;
+                    }
+                }
+                message.plusReset[key] = value;
+                break;
+            case 2:
+                if (message.minusReset === $util.emptyObject)
+                    message.minusReset = {};
+                var end2 = reader.uint32() + reader.pos;
+                key = "";
+                value = 0;
+                while (reader.pos < end2) {
+                    var tag2 = reader.uint32();
+                    switch (tag2 >>> 3) {
+                    case 1:
+                        key = reader.string();
+                        break;
+                    case 2:
+                        value = reader.double();
+                        break;
+                    default:
+                        reader.skipType(tag2 & 7);
+                        break;
+                    }
+                }
+                message.minusReset[key] = value;
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        return message;
+    };
+
+    /**
+     * Decodes a CounterResetMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof CounterResetMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {CounterResetMessage} CounterResetMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    CounterResetMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a CounterResetMessage message.
+     * @function verify
+     * @memberof CounterResetMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    CounterResetMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (message.plusReset != null && message.hasOwnProperty("plusReset")) {
+            if (!$util.isObject(message.plusReset))
+                return "plusReset: object expected";
+            var key = Object.keys(message.plusReset);
+            for (var i = 0; i < key.length; ++i)
+                if (typeof message.plusReset[key[i]] !== "number")
+                    return "plusReset: number{k:string} expected";
+        }
+        if (message.minusReset != null && message.hasOwnProperty("minusReset")) {
+            if (!$util.isObject(message.minusReset))
+                return "minusReset: object expected";
+            var key = Object.keys(message.minusReset);
+            for (var i = 0; i < key.length; ++i)
+                if (typeof message.minusReset[key[i]] !== "number")
+                    return "minusReset: number{k:string} expected";
+        }
+        return null;
+    };
+
+    /**
+     * Creates a CounterResetMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof CounterResetMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {CounterResetMessage} CounterResetMessage
+     */
+    CounterResetMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.CounterResetMessage)
+            return object;
+        var message = new $root.CounterResetMessage();
+        if (object.plusReset) {
+            if (typeof object.plusReset !== "object")
+                throw TypeError(".CounterResetMessage.plusReset: object expected");
+            message.plusReset = {};
+            for (var keys = Object.keys(object.plusReset), i = 0; i < keys.length; ++i)
+                message.plusReset[keys[i]] = Number(object.plusReset[keys[i]]);
+        }
+        if (object.minusReset) {
+            if (typeof object.minusReset !== "object")
+                throw TypeError(".CounterResetMessage.minusReset: object expected");
+            message.minusReset = {};
+            for (var keys = Object.keys(object.minusReset), i = 0; i < keys.length; ++i)
+                message.minusReset[keys[i]] = Number(object.minusReset[keys[i]]);
+        }
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a CounterResetMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof CounterResetMessage
+     * @static
+     * @param {CounterResetMessage} message CounterResetMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    CounterResetMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.objects || options.defaults) {
+            object.plusReset = {};
+            object.minusReset = {};
+        }
+        var keys2;
+        if (message.plusReset && (keys2 = Object.keys(message.plusReset)).length) {
+            object.plusReset = {};
+            for (var j = 0; j < keys2.length; ++j)
+                object.plusReset[keys2[j]] = options.json && !isFinite(message.plusReset[keys2[j]]) ? String(message.plusReset[keys2[j]]) : message.plusReset[keys2[j]];
+        }
+        if (message.minusReset && (keys2 = Object.keys(message.minusReset)).length) {
+            object.minusReset = {};
+            for (var j = 0; j < keys2.length; ++j)
+                object.minusReset[keys2[j]] = options.json && !isFinite(message.minusReset[keys2[j]]) ? String(message.minusReset[keys2[j]]) : message.minusReset[keys2[j]];
+        }
+        return object;
+    };
+
+    /**
+     * Converts this CounterResetMessage to JSON.
+     * @function toJSON
+     * @memberof CounterResetMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    CounterResetMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return CounterResetMessage;
+})();
+
+$root.CounterResettableMessage = (function() {
+
+    /**
+     * Properties of a CounterResettableMessage.
+     * @exports ICounterResettableMessage
+     * @interface ICounterResettableMessage
+     * @property {number|null} [toAdd] CounterResettableMessage toAdd
+     * @property {ICounterResetMessage|null} [toReset] CounterResettableMessage toReset
+     */
+
+    /**
+     * Constructs a new CounterResettableMessage.
+     * @exports CounterResettableMessage
+     * @classdesc Represents a CounterResettableMessage.
+     * @implements ICounterResettableMessage
+     * @constructor
+     * @param {ICounterResettableMessage=} [properties] Properties to set
+     */
+    function CounterResettableMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * CounterResettableMessage toAdd.
+     * @member {number} toAdd
+     * @memberof CounterResettableMessage
+     * @instance
+     */
+    CounterResettableMessage.prototype.toAdd = 0;
+
+    /**
+     * CounterResettableMessage toReset.
+     * @member {ICounterResetMessage|null|undefined} toReset
+     * @memberof CounterResettableMessage
+     * @instance
+     */
+    CounterResettableMessage.prototype.toReset = null;
+
+    // OneOf field names bound to virtual getters and setters
+    var $oneOfFields;
+
+    /**
+     * CounterResettableMessage data.
+     * @member {"toAdd"|"toReset"|undefined} data
+     * @memberof CounterResettableMessage
+     * @instance
+     */
+    Object.defineProperty(CounterResettableMessage.prototype, "data", {
+        get: $util.oneOfGetter($oneOfFields = ["toAdd", "toReset"]),
+        set: $util.oneOfSetter($oneOfFields)
+    });
+
+    /**
+     * Creates a new CounterResettableMessage instance using the specified properties.
+     * @function create
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {ICounterResettableMessage=} [properties] Properties to set
+     * @returns {CounterResettableMessage} CounterResettableMessage instance
+     */
+    CounterResettableMessage.create = function create(properties) {
+        return new CounterResettableMessage(properties);
+    };
+
+    /**
+     * Encodes the specified CounterResettableMessage message. Does not implicitly {@link CounterResettableMessage.verify|verify} messages.
+     * @function encode
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {ICounterResettableMessage} message CounterResettableMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    CounterResettableMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        if (message.toAdd != null && Object.hasOwnProperty.call(message, "toAdd"))
+            writer.uint32(/* id 2, wireType 1 =*/17).double(message.toAdd);
+        if (message.toReset != null && Object.hasOwnProperty.call(message, "toReset"))
+            $root.CounterResetMessage.encode(message.toReset, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+        return writer;
+    };
+
+    /**
+     * Encodes the specified CounterResettableMessage message, length delimited. Does not implicitly {@link CounterResettableMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {ICounterResettableMessage} message CounterResettableMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    CounterResettableMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a CounterResettableMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {CounterResettableMessage} CounterResettableMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    CounterResettableMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CounterResettableMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 2:
+                message.toAdd = reader.double();
+                break;
+            case 3:
+                message.toReset = $root.CounterResetMessage.decode(reader, reader.uint32());
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        return message;
+    };
+
+    /**
+     * Decodes a CounterResettableMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {CounterResettableMessage} CounterResettableMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    CounterResettableMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a CounterResettableMessage message.
+     * @function verify
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    CounterResettableMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        var properties = {};
+        if (message.toAdd != null && message.hasOwnProperty("toAdd")) {
+            properties.data = 1;
+            if (typeof message.toAdd !== "number")
+                return "toAdd: number expected";
+        }
+        if (message.toReset != null && message.hasOwnProperty("toReset")) {
+            if (properties.data === 1)
+                return "data: multiple values";
+            properties.data = 1;
+            {
+                var error = $root.CounterResetMessage.verify(message.toReset);
+                if (error)
+                    return "toReset." + error;
+            }
+        }
+        return null;
+    };
+
+    /**
+     * Creates a CounterResettableMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {CounterResettableMessage} CounterResettableMessage
+     */
+    CounterResettableMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.CounterResettableMessage)
+            return object;
+        var message = new $root.CounterResettableMessage();
+        if (object.toAdd != null)
+            message.toAdd = Number(object.toAdd);
+        if (object.toReset != null) {
+            if (typeof object.toReset !== "object")
+                throw TypeError(".CounterResettableMessage.toReset: object expected");
+            message.toReset = $root.CounterResetMessage.fromObject(object.toReset);
+        }
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a CounterResettableMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof CounterResettableMessage
+     * @static
+     * @param {CounterResettableMessage} message CounterResettableMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    CounterResettableMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (message.toAdd != null && message.hasOwnProperty("toAdd")) {
+            object.toAdd = options.json && !isFinite(message.toAdd) ? String(message.toAdd) : message.toAdd;
+            if (options.oneofs)
+                object.data = "toAdd";
+        }
+        if (message.toReset != null && message.hasOwnProperty("toReset")) {
+            object.toReset = $root.CounterResetMessage.toObject(message.toReset, options);
+            if (options.oneofs)
+                object.data = "toReset";
+        }
+        return object;
+    };
+
+    /**
+     * Converts this CounterResettableMessage to JSON.
+     * @function toJSON
+     * @memberof CounterResettableMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    CounterResettableMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return CounterResettableMessage;
 })();
 
 $root.MultRegisterMessage = (function() {
@@ -1989,26 +2327,24 @@ $root.LwwMessage = (function() {
     return LwwMessage;
 })();
 
-$root.CrdtRuntimeMessage = (function() {
+$root.GMapMessage = (function() {
 
     /**
-     * Properties of a CrdtRuntimeMessage.
-     * @exports ICrdtRuntimeMessage
-     * @interface ICrdtRuntimeMessage
-     * @property {Uint8Array} innerMessage CrdtRuntimeMessage innerMessage
-     * @property {Array.<string>|null} [pathToRoot] CrdtRuntimeMessage pathToRoot
+     * Properties of a GMapMessage.
+     * @exports IGMapMessage
+     * @interface IGMapMessage
+     * @property {Uint8Array} keyToInit GMapMessage keyToInit
      */
 
     /**
-     * Constructs a new CrdtRuntimeMessage.
-     * @exports CrdtRuntimeMessage
-     * @classdesc Represents a CrdtRuntimeMessage.
-     * @implements ICrdtRuntimeMessage
+     * Constructs a new GMapMessage.
+     * @exports GMapMessage
+     * @classdesc Represents a GMapMessage.
+     * @implements IGMapMessage
      * @constructor
-     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
+     * @param {IGMapMessage=} [properties] Properties to set
      */
-    function CrdtRuntimeMessage(properties) {
-        this.pathToRoot = [];
+    function GMapMessage(properties) {
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -2016,212 +2352,394 @@ $root.CrdtRuntimeMessage = (function() {
     }
 
     /**
-     * CrdtRuntimeMessage innerMessage.
-     * @member {Uint8Array} innerMessage
-     * @memberof CrdtRuntimeMessage
+     * GMapMessage keyToInit.
+     * @member {Uint8Array} keyToInit
+     * @memberof GMapMessage
      * @instance
      */
-    CrdtRuntimeMessage.prototype.innerMessage = $util.newBuffer([]);
+    GMapMessage.prototype.keyToInit = $util.newBuffer([]);
 
     /**
-     * CrdtRuntimeMessage pathToRoot.
-     * @member {Array.<string>} pathToRoot
-     * @memberof CrdtRuntimeMessage
-     * @instance
-     */
-    CrdtRuntimeMessage.prototype.pathToRoot = $util.emptyArray;
-
-    /**
-     * Creates a new CrdtRuntimeMessage instance using the specified properties.
+     * Creates a new GMapMessage instance using the specified properties.
      * @function create
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {ICrdtRuntimeMessage=} [properties] Properties to set
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage instance
+     * @param {IGMapMessage=} [properties] Properties to set
+     * @returns {GMapMessage} GMapMessage instance
      */
-    CrdtRuntimeMessage.create = function create(properties) {
-        return new CrdtRuntimeMessage(properties);
+    GMapMessage.create = function create(properties) {
+        return new GMapMessage(properties);
     };
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
      * @function encode
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
+     * @param {IGMapMessage} message GMapMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CrdtRuntimeMessage.encode = function encode(message, writer) {
+    GMapMessage.encode = function encode(message, writer) {
         if (!writer)
             writer = $Writer.create();
-        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.innerMessage);
-        if (message.pathToRoot != null && message.pathToRoot.length)
-            for (var i = 0; i < message.pathToRoot.length; ++i)
-                writer.uint32(/* id 2, wireType 2 =*/18).string(message.pathToRoot[i]);
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.keyToInit);
         return writer;
     };
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
      * @function encodeDelimited
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {ICrdtRuntimeMessage} message CrdtRuntimeMessage message or plain object to encode
+     * @param {IGMapMessage} message GMapMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CrdtRuntimeMessage.encodeDelimited = function encodeDelimited(message, writer) {
+    GMapMessage.encodeDelimited = function encodeDelimited(message, writer) {
         return this.encode(message, writer).ldelim();
     };
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
+     * Decodes a GMapMessage message from the specified reader or buffer.
      * @function decode
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
      * @param {number} [length] Message length if known beforehand
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
+     * @returns {GMapMessage} GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CrdtRuntimeMessage.decode = function decode(reader, length) {
+    GMapMessage.decode = function decode(reader, length) {
         if (!(reader instanceof $Reader))
             reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CrdtRuntimeMessage();
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.GMapMessage();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
             case 1:
-                message.innerMessage = reader.bytes();
-                break;
-            case 2:
-                if (!(message.pathToRoot && message.pathToRoot.length))
-                    message.pathToRoot = [];
-                message.pathToRoot.push(reader.string());
+                message.keyToInit = reader.bytes();
                 break;
             default:
                 reader.skipType(tag & 7);
                 break;
             }
         }
-        if (!message.hasOwnProperty("innerMessage"))
-            throw $util.ProtocolError("missing required 'innerMessage'", { instance: message });
+        if (!message.hasOwnProperty("keyToInit"))
+            throw $util.ProtocolError("missing required 'keyToInit'", { instance: message });
         return message;
     };
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
+     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
      * @function decodeDelimited
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
+     * @returns {GMapMessage} GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CrdtRuntimeMessage.decodeDelimited = function decodeDelimited(reader) {
+    GMapMessage.decodeDelimited = function decodeDelimited(reader) {
         if (!(reader instanceof $Reader))
             reader = new $Reader(reader);
         return this.decode(reader, reader.uint32());
     };
 
     /**
-     * Verifies a CrdtRuntimeMessage message.
+     * Verifies a GMapMessage message.
      * @function verify
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {Object.<string,*>} message Plain object to verify
      * @returns {string|null} `null` if valid, otherwise the reason why it is not
      */
-    CrdtRuntimeMessage.verify = function verify(message) {
+    GMapMessage.verify = function verify(message) {
         if (typeof message !== "object" || message === null)
             return "object expected";
-        if (!(message.innerMessage && typeof message.innerMessage.length === "number" || $util.isString(message.innerMessage)))
-            return "innerMessage: buffer expected";
-        if (message.pathToRoot != null && message.hasOwnProperty("pathToRoot")) {
-            if (!Array.isArray(message.pathToRoot))
-                return "pathToRoot: array expected";
-            for (var i = 0; i < message.pathToRoot.length; ++i)
-                if (!$util.isString(message.pathToRoot[i]))
-                    return "pathToRoot: string[] expected";
-        }
+        if (!(message.keyToInit && typeof message.keyToInit.length === "number" || $util.isString(message.keyToInit)))
+            return "keyToInit: buffer expected";
         return null;
     };
 
     /**
-     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
      * @function fromObject
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
      * @param {Object.<string,*>} object Plain object
-     * @returns {CrdtRuntimeMessage} CrdtRuntimeMessage
+     * @returns {GMapMessage} GMapMessage
      */
-    CrdtRuntimeMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.CrdtRuntimeMessage)
+    GMapMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.GMapMessage)
             return object;
-        var message = new $root.CrdtRuntimeMessage();
-        if (object.innerMessage != null)
-            if (typeof object.innerMessage === "string")
-                $util.base64.decode(object.innerMessage, message.innerMessage = $util.newBuffer($util.base64.length(object.innerMessage)), 0);
-            else if (object.innerMessage.length)
-                message.innerMessage = object.innerMessage;
-        if (object.pathToRoot) {
-            if (!Array.isArray(object.pathToRoot))
-                throw TypeError(".CrdtRuntimeMessage.pathToRoot: array expected");
-            message.pathToRoot = [];
-            for (var i = 0; i < object.pathToRoot.length; ++i)
-                message.pathToRoot[i] = String(object.pathToRoot[i]);
-        }
+        var message = new $root.GMapMessage();
+        if (object.keyToInit != null)
+            if (typeof object.keyToInit === "string")
+                $util.base64.decode(object.keyToInit, message.keyToInit = $util.newBuffer($util.base64.length(object.keyToInit)), 0);
+            else if (object.keyToInit.length)
+                message.keyToInit = object.keyToInit;
         return message;
     };
 
     /**
-     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
+     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
      * @function toObject
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @static
-     * @param {CrdtRuntimeMessage} message CrdtRuntimeMessage
+     * @param {GMapMessage} message GMapMessage
      * @param {$protobuf.IConversionOptions} [options] Conversion options
      * @returns {Object.<string,*>} Plain object
      */
-    CrdtRuntimeMessage.toObject = function toObject(message, options) {
+    GMapMessage.toObject = function toObject(message, options) {
         if (!options)
             options = {};
         var object = {};
-        if (options.arrays || options.defaults)
-            object.pathToRoot = [];
         if (options.defaults)
             if (options.bytes === String)
-                object.innerMessage = "";
+                object.keyToInit = "";
             else {
-                object.innerMessage = [];
+                object.keyToInit = [];
                 if (options.bytes !== Array)
-                    object.innerMessage = $util.newBuffer(object.innerMessage);
+                    object.keyToInit = $util.newBuffer(object.keyToInit);
             }
-        if (message.innerMessage != null && message.hasOwnProperty("innerMessage"))
-            object.innerMessage = options.bytes === String ? $util.base64.encode(message.innerMessage, 0, message.innerMessage.length) : options.bytes === Array ? Array.prototype.slice.call(message.innerMessage) : message.innerMessage;
-        if (message.pathToRoot && message.pathToRoot.length) {
-            object.pathToRoot = [];
-            for (var j = 0; j < message.pathToRoot.length; ++j)
-                object.pathToRoot[j] = message.pathToRoot[j];
-        }
+        if (message.keyToInit != null && message.hasOwnProperty("keyToInit"))
+            object.keyToInit = options.bytes === String ? $util.base64.encode(message.keyToInit, 0, message.keyToInit.length) : options.bytes === Array ? Array.prototype.slice.call(message.keyToInit) : message.keyToInit;
         return object;
     };
 
     /**
-     * Converts this CrdtRuntimeMessage to JSON.
+     * Converts this GMapMessage to JSON.
      * @function toJSON
-     * @memberof CrdtRuntimeMessage
+     * @memberof GMapMessage
      * @instance
      * @returns {Object.<string,*>} JSON object
      */
-    CrdtRuntimeMessage.prototype.toJSON = function toJSON() {
+    GMapMessage.prototype.toJSON = function toJSON() {
         return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
     };
 
-    return CrdtRuntimeMessage;
+    return GMapMessage;
+})();
+
+$root.RuntimeGeneratorMessage = (function() {
+
+    /**
+     * Properties of a RuntimeGeneratorMessage.
+     * @exports IRuntimeGeneratorMessage
+     * @interface IRuntimeGeneratorMessage
+     * @property {Uint8Array} message RuntimeGeneratorMessage message
+     * @property {string} uniqueId RuntimeGeneratorMessage uniqueId
+     */
+
+    /**
+     * Constructs a new RuntimeGeneratorMessage.
+     * @exports RuntimeGeneratorMessage
+     * @classdesc Represents a RuntimeGeneratorMessage.
+     * @implements IRuntimeGeneratorMessage
+     * @constructor
+     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
+     */
+    function RuntimeGeneratorMessage(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * RuntimeGeneratorMessage message.
+     * @member {Uint8Array} message
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     */
+    RuntimeGeneratorMessage.prototype.message = $util.newBuffer([]);
+
+    /**
+     * RuntimeGeneratorMessage uniqueId.
+     * @member {string} uniqueId
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     */
+    RuntimeGeneratorMessage.prototype.uniqueId = "";
+
+    /**
+     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
+     * @function create
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage=} [properties] Properties to set
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage instance
+     */
+    RuntimeGeneratorMessage.create = function create(properties) {
+        return new RuntimeGeneratorMessage(properties);
+    };
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @function encode
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    RuntimeGeneratorMessage.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.message);
+        writer.uint32(/* id 2, wireType 2 =*/18).string(message.uniqueId);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {IRuntimeGeneratorMessage} message RuntimeGeneratorMessage message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    RuntimeGeneratorMessage.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
+     * @function decode
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    RuntimeGeneratorMessage.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.RuntimeGeneratorMessage();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            case 1:
+                message.message = reader.bytes();
+                break;
+            case 2:
+                message.uniqueId = reader.string();
+                break;
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        if (!message.hasOwnProperty("message"))
+            throw $util.ProtocolError("missing required 'message'", { instance: message });
+        if (!message.hasOwnProperty("uniqueId"))
+            throw $util.ProtocolError("missing required 'uniqueId'", { instance: message });
+        return message;
+    };
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    RuntimeGeneratorMessage.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a RuntimeGeneratorMessage message.
+     * @function verify
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    RuntimeGeneratorMessage.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        if (!(message.message && typeof message.message.length === "number" || $util.isString(message.message)))
+            return "message: buffer expected";
+        if (!$util.isString(message.uniqueId))
+            return "uniqueId: string expected";
+        return null;
+    };
+
+    /**
+     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {RuntimeGeneratorMessage} RuntimeGeneratorMessage
+     */
+    RuntimeGeneratorMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.RuntimeGeneratorMessage)
+            return object;
+        var message = new $root.RuntimeGeneratorMessage();
+        if (object.message != null)
+            if (typeof object.message === "string")
+                $util.base64.decode(object.message, message.message = $util.newBuffer($util.base64.length(object.message)), 0);
+            else if (object.message.length)
+                message.message = object.message;
+        if (object.uniqueId != null)
+            message.uniqueId = String(object.uniqueId);
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof RuntimeGeneratorMessage
+     * @static
+     * @param {RuntimeGeneratorMessage} message RuntimeGeneratorMessage
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    RuntimeGeneratorMessage.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults) {
+            if (options.bytes === String)
+                object.message = "";
+            else {
+                object.message = [];
+                if (options.bytes !== Array)
+                    object.message = $util.newBuffer(object.message);
+            }
+            object.uniqueId = "";
+        }
+        if (message.message != null && message.hasOwnProperty("message"))
+            object.message = options.bytes === String ? $util.base64.encode(message.message, 0, message.message.length) : options.bytes === Array ? Array.prototype.slice.call(message.message) : message.message;
+        if (message.uniqueId != null && message.hasOwnProperty("uniqueId"))
+            object.uniqueId = message.uniqueId;
+        return object;
+    };
+
+    /**
+     * Converts this RuntimeGeneratorMessage to JSON.
+     * @function toJSON
+     * @memberof RuntimeGeneratorMessage
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    RuntimeGeneratorMessage.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    return RuntimeGeneratorMessage;
 })();
 
 module.exports = $root;

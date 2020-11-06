@@ -1,5 +1,17 @@
-message CounterMessage {
+message CounterNonResettableMessage {
     required double toAdd = 1;
+}
+
+message CounterResetMessage {
+    map<string, double> plusReset = 1;
+    map<string, double> minusReset = 2;
+}
+
+message CounterResettableMessage {
+    oneof data {
+        double toAdd = 2;
+        CounterResetMessage toReset = 3;
+    }
 }
 
 message MultRegisterMessage {

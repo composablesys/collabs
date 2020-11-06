@@ -1,6 +1,6 @@
 import { CrdtEvent, Crdt, CrdtRuntime } from "./crdt_core";
 import { CausalTimestamp } from "../network";
-import {CounterMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
+import {CounterNonResettableMessage, CounterResettableMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { HardResettable } from "./resettable";
 import { AddAbilitiesViaHistory, OutOfOrderAble } from "./abilities";
@@ -17,8 +17,15 @@ export class NumberState {
     constructor(public value: number) { }
 }
 
-// TODO: make resettable
-export class CounterBase extends Crdt<NumberState> implements HardResettable {
+export interface CounterBase extends Crdt {
+    add(toAdd: number): void;
+    /**
+     *  Setting value performs an equivalent add.
+     */
+    value: number;
+}
+
+export class CounterNonResettable extends Crdt<NumberState> implements CounterBase, OutOfOrderAble, HardResettable {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
@@ -29,8 +36,8 @@ export class CounterBase extends Crdt<NumberState> implements HardResettable {
 
     add(toAdd: number) {
         if (toAdd !== 0) {
-            let message = CounterMessage.create({toAdd: toAdd});
-            let buffer = CounterMessage.encode(message).finish()
+            let message = CounterNonResettableMessage.create({toAdd: toAdd});
+            let buffer = CounterNonResettableMessage.encode(message).finish()
             super.send(buffer);
         }
     }
@@ -38,19 +45,17 @@ export class CounterBase extends Crdt<NumberState> implements HardResettable {
     receiveInternal(
         timestamp: CausalTimestamp,
         message: Uint8Array
-    ): boolean {
+    ) {
         try {
-            let decoded = CounterMessage.decode(message);
+            let decoded = CounterNonResettableMessage.decode(message);
             this.state.value += decoded.toAdd;
             this.dispatchEvent(new AddEvent(
                 this, timestamp, decoded.toAdd
             ));
-            return true;
         }
         catch (e) {
             // TODO
             console.log("Decoding error: " + e);
-            return false;
         }
     }
 
@@ -64,14 +69,116 @@ export class CounterBase extends Crdt<NumberState> implements HardResettable {
         this.add(value - this.value);
     }
 
+    receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
+        this.receive(targetPath, timestamp, message);
+    }
+
     hardReset() {
         this.state.value = this.initialValue;
     }
 }
 
-// export const Counter = AddAbilitiesViaHistory(CounterBase);
-// export type Counter = CounterBase & AllAble;
-export class Counter extends AddAbilitiesViaHistory(CounterBase) {}
+export class CounterResettableState {
+    plusP: {[k: string]: number} = {};
+    plusN: {[k: string]: number} = {};
+    minusP: {[k: string]: number} = {};
+    minusN: {[k: string]: number} = {};
+}
+
+export class CounterResettable extends Crdt<CounterResettableState> implements CounterBase, OutOfOrderAble, HardResettable {
+    constructor(
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        readonly initialValue: number = 0
+    ) {
+        super(parentOrRuntime, id, new CounterResettableState());
+    }
+
+    add(toAdd: number) {
+        if (toAdd !== 0) {
+            let message = CounterResettableMessage.create({toAdd: toAdd});
+            let buffer = CounterResettableMessage.encode(message).finish()
+            super.send(buffer);
+        }
+    }
+
+    reset() {
+        let message = CounterResettableMessage.create({
+            toReset: {
+                plusReset: this.state.plusP,
+                minusReset: this.state.minusP
+            }
+        });
+        let buffer = CounterResettableMessage.encode(message).finish()
+        super.send(buffer);
+    }
+
+    receiveInternal(
+        timestamp: CausalTimestamp,
+        message: Uint8Array
+    ) {
+        try {
+            let decoded = CounterResettableMessage.decode(message);
+            switch (decoded.data) {
+                case "toAdd":
+                    if (decoded.toAdd > 0) {
+                        let current = this.state.plusP[timestamp.getSender()];
+                        if (current === undefined) current = 0;
+                        this.state.plusP[timestamp.getSender()] = current + decoded.toAdd;
+                    }
+                    else {
+                        let current = this.state.minusP[timestamp.getSender()];
+                        if (current === undefined) current = 0;
+                        this.state.minusP[timestamp.getSender()] = current - decoded.toAdd;
+                    }
+                    this.dispatchEvent(new AddEvent(
+                        this, timestamp, decoded.toAdd
+                    ));
+                    break;
+                case "toReset":
+                    this.merge(this.state.plusN, decoded.toReset!.plusReset);
+                    this.merge(this.state.minusN, decoded.toReset!.minusReset);
+                    // TODO: reset event
+                    break;
+                default:
+                    throw new Error("CounterResettable: Bad decoded.data: " + decoded.data);
+            }
+        }
+        catch (e) {
+            // TODO
+            console.log("Decoding error: " + e);
+        }
+    }
+
+    private merge(target: {[k: string]: number}, source: {[k: string]: number}) {
+        // TODO
+    }
+
+    get value(): number {
+        let value = this.initialValue;
+        // TODO: value
+        return value;
+    }
+    /**
+     * Performs an equivalent add.
+     */
+    set value(value: number) {
+        this.add(value - this.value);
+    }
+
+    receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
+        this.receive(targetPath, timestamp, message);
+    }
+
+    hardReset() {
+        this.state.plusP = {};
+        this.state.plusN = {};
+        this.state.minusP = {};
+        this.state.minusN = {};
+    }
+}
+
+// TODO: keep old history-based resettable counter as "PureCounter"?
 
 export class MultEvent implements CrdtEvent {
     type = "Mult";

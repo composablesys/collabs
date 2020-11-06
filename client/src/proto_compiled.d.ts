@@ -1,185 +1,95 @@
 import * as $protobuf from "protobufjs";
-/** Properties of a GMapMessage. */
-export interface IGMapMessage {
+/** Properties of a CrdtRuntimeMessage. */
+export interface ICrdtRuntimeMessage {
 
-    /** GMapMessage keyToInit */
-    keyToInit: Uint8Array;
+    /** CrdtRuntimeMessage innerMessage */
+    innerMessage: Uint8Array;
+
+    /** CrdtRuntimeMessage pathToRoot */
+    pathToRoot?: (string[]|null);
 }
 
-/** Represents a GMapMessage. */
-export class GMapMessage implements IGMapMessage {
+/** Represents a CrdtRuntimeMessage. */
+export class CrdtRuntimeMessage implements ICrdtRuntimeMessage {
 
     /**
-     * Constructs a new GMapMessage.
+     * Constructs a new CrdtRuntimeMessage.
      * @param [properties] Properties to set
      */
-    constructor(properties?: IGMapMessage);
+    constructor(properties?: ICrdtRuntimeMessage);
 
-    /** GMapMessage keyToInit. */
-    public keyToInit: Uint8Array;
+    /** CrdtRuntimeMessage innerMessage. */
+    public innerMessage: Uint8Array;
+
+    /** CrdtRuntimeMessage pathToRoot. */
+    public pathToRoot: string[];
 
     /**
-     * Creates a new GMapMessage instance using the specified properties.
+     * Creates a new CrdtRuntimeMessage instance using the specified properties.
      * @param [properties] Properties to set
-     * @returns GMapMessage instance
+     * @returns CrdtRuntimeMessage instance
      */
-    public static create(properties?: IGMapMessage): GMapMessage;
+    public static create(properties?: ICrdtRuntimeMessage): CrdtRuntimeMessage;
 
     /**
-     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
-     * @param message GMapMessage message or plain object to encode
+     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * @param message CrdtRuntimeMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encode(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encode(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
-     * @param message GMapMessage message or plain object to encode
+     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
+     * @param message CrdtRuntimeMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encodeDelimited(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encodeDelimited(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Decodes a GMapMessage message from the specified reader or buffer.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
      * @param reader Reader or buffer to decode from
      * @param [length] Message length if known beforehand
-     * @returns GMapMessage
+     * @returns CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): GMapMessage;
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CrdtRuntimeMessage;
 
     /**
-     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
      * @param reader Reader or buffer to decode from
-     * @returns GMapMessage
+     * @returns CrdtRuntimeMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): GMapMessage;
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CrdtRuntimeMessage;
 
     /**
-     * Verifies a GMapMessage message.
+     * Verifies a CrdtRuntimeMessage message.
      * @param message Plain object to verify
      * @returns `null` if valid, otherwise the reason why it is not
      */
     public static verify(message: { [k: string]: any }): (string|null);
 
     /**
-     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
      * @param object Plain object
-     * @returns GMapMessage
+     * @returns CrdtRuntimeMessage
      */
-    public static fromObject(object: { [k: string]: any }): GMapMessage;
+    public static fromObject(object: { [k: string]: any }): CrdtRuntimeMessage;
 
     /**
-     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
-     * @param message GMapMessage
+     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
+     * @param message CrdtRuntimeMessage
      * @param [options] Conversion options
      * @returns Plain object
      */
-    public static toObject(message: GMapMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+    public static toObject(message: CrdtRuntimeMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
     /**
-     * Converts this GMapMessage to JSON.
-     * @returns JSON object
-     */
-    public toJSON(): { [k: string]: any };
-}
-
-/** Properties of a RuntimeGeneratorMessage. */
-export interface IRuntimeGeneratorMessage {
-
-    /** RuntimeGeneratorMessage message */
-    message: Uint8Array;
-
-    /** RuntimeGeneratorMessage uniqueId */
-    uniqueId: string;
-}
-
-/** Represents a RuntimeGeneratorMessage. */
-export class RuntimeGeneratorMessage implements IRuntimeGeneratorMessage {
-
-    /**
-     * Constructs a new RuntimeGeneratorMessage.
-     * @param [properties] Properties to set
-     */
-    constructor(properties?: IRuntimeGeneratorMessage);
-
-    /** RuntimeGeneratorMessage message. */
-    public message: Uint8Array;
-
-    /** RuntimeGeneratorMessage uniqueId. */
-    public uniqueId: string;
-
-    /**
-     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
-     * @param [properties] Properties to set
-     * @returns RuntimeGeneratorMessage instance
-     */
-    public static create(properties?: IRuntimeGeneratorMessage): RuntimeGeneratorMessage;
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @param message RuntimeGeneratorMessage message or plain object to encode
-     * @param [writer] Writer to encode to
-     * @returns Writer
-     */
-    public static encode(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-    /**
-     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
-     * @param message RuntimeGeneratorMessage message or plain object to encode
-     * @param [writer] Writer to encode to
-     * @returns Writer
-     */
-    public static encodeDelimited(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-    /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
-     * @param reader Reader or buffer to decode from
-     * @param [length] Message length if known beforehand
-     * @returns RuntimeGeneratorMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): RuntimeGeneratorMessage;
-
-    /**
-     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
-     * @param reader Reader or buffer to decode from
-     * @returns RuntimeGeneratorMessage
-     * @throws {Error} If the payload is not a reader or valid buffer
-     * @throws {$protobuf.util.ProtocolError} If required fields are missing
-     */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): RuntimeGeneratorMessage;
-
-    /**
-     * Verifies a RuntimeGeneratorMessage message.
-     * @param message Plain object to verify
-     * @returns `null` if valid, otherwise the reason why it is not
-     */
-    public static verify(message: { [k: string]: any }): (string|null);
-
-    /**
-     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
-     * @param object Plain object
-     * @returns RuntimeGeneratorMessage
-     */
-    public static fromObject(object: { [k: string]: any }): RuntimeGeneratorMessage;
-
-    /**
-     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
-     * @param message RuntimeGeneratorMessage
-     * @param [options] Conversion options
-     * @returns Plain object
-     */
-    public static toObject(message: RuntimeGeneratorMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-    /**
-     * Converts this RuntimeGeneratorMessage to JSON.
+     * Converts this CrdtRuntimeMessage to JSON.
      * @returns JSON object
      */
     public toJSON(): { [k: string]: any };
@@ -404,91 +314,286 @@ export class DefaultSerializerMessage implements IDefaultSerializerMessage {
     public toJSON(): { [k: string]: any };
 }
 
-/** Properties of a CounterMessage. */
-export interface ICounterMessage {
+/** Properties of a CounterNonResettableMessage. */
+export interface ICounterNonResettableMessage {
 
-    /** CounterMessage toAdd */
+    /** CounterNonResettableMessage toAdd */
     toAdd: number;
 }
 
-/** Represents a CounterMessage. */
-export class CounterMessage implements ICounterMessage {
+/** Represents a CounterNonResettableMessage. */
+export class CounterNonResettableMessage implements ICounterNonResettableMessage {
 
     /**
-     * Constructs a new CounterMessage.
+     * Constructs a new CounterNonResettableMessage.
      * @param [properties] Properties to set
      */
-    constructor(properties?: ICounterMessage);
+    constructor(properties?: ICounterNonResettableMessage);
 
-    /** CounterMessage toAdd. */
+    /** CounterNonResettableMessage toAdd. */
     public toAdd: number;
 
     /**
-     * Creates a new CounterMessage instance using the specified properties.
+     * Creates a new CounterNonResettableMessage instance using the specified properties.
      * @param [properties] Properties to set
-     * @returns CounterMessage instance
+     * @returns CounterNonResettableMessage instance
      */
-    public static create(properties?: ICounterMessage): CounterMessage;
+    public static create(properties?: ICounterNonResettableMessage): CounterNonResettableMessage;
 
     /**
-     * Encodes the specified CounterMessage message. Does not implicitly {@link CounterMessage.verify|verify} messages.
-     * @param message CounterMessage message or plain object to encode
+     * Encodes the specified CounterNonResettableMessage message. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
+     * @param message CounterNonResettableMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encode(message: ICounterMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encode(message: ICounterNonResettableMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Encodes the specified CounterMessage message, length delimited. Does not implicitly {@link CounterMessage.verify|verify} messages.
-     * @param message CounterMessage message or plain object to encode
+     * Encodes the specified CounterNonResettableMessage message, length delimited. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
+     * @param message CounterNonResettableMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encodeDelimited(message: ICounterMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encodeDelimited(message: ICounterNonResettableMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Decodes a CounterMessage message from the specified reader or buffer.
+     * Decodes a CounterNonResettableMessage message from the specified reader or buffer.
      * @param reader Reader or buffer to decode from
      * @param [length] Message length if known beforehand
-     * @returns CounterMessage
+     * @returns CounterNonResettableMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CounterMessage;
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CounterNonResettableMessage;
 
     /**
-     * Decodes a CounterMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CounterNonResettableMessage message from the specified reader or buffer, length delimited.
      * @param reader Reader or buffer to decode from
-     * @returns CounterMessage
+     * @returns CounterNonResettableMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CounterMessage;
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CounterNonResettableMessage;
 
     /**
-     * Verifies a CounterMessage message.
+     * Verifies a CounterNonResettableMessage message.
      * @param message Plain object to verify
      * @returns `null` if valid, otherwise the reason why it is not
      */
     public static verify(message: { [k: string]: any }): (string|null);
 
     /**
-     * Creates a CounterMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CounterNonResettableMessage message from a plain object. Also converts values to their respective internal types.
      * @param object Plain object
-     * @returns CounterMessage
+     * @returns CounterNonResettableMessage
      */
-    public static fromObject(object: { [k: string]: any }): CounterMessage;
+    public static fromObject(object: { [k: string]: any }): CounterNonResettableMessage;
 
     /**
-     * Creates a plain object from a CounterMessage message. Also converts values to other types if specified.
-     * @param message CounterMessage
+     * Creates a plain object from a CounterNonResettableMessage message. Also converts values to other types if specified.
+     * @param message CounterNonResettableMessage
      * @param [options] Conversion options
      * @returns Plain object
      */
-    public static toObject(message: CounterMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+    public static toObject(message: CounterNonResettableMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
     /**
-     * Converts this CounterMessage to JSON.
+     * Converts this CounterNonResettableMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
+/** Properties of a CounterResetMessage. */
+export interface ICounterResetMessage {
+
+    /** CounterResetMessage plusReset */
+    plusReset?: ({ [k: string]: number }|null);
+
+    /** CounterResetMessage minusReset */
+    minusReset?: ({ [k: string]: number }|null);
+}
+
+/** Represents a CounterResetMessage. */
+export class CounterResetMessage implements ICounterResetMessage {
+
+    /**
+     * Constructs a new CounterResetMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: ICounterResetMessage);
+
+    /** CounterResetMessage plusReset. */
+    public plusReset: { [k: string]: number };
+
+    /** CounterResetMessage minusReset. */
+    public minusReset: { [k: string]: number };
+
+    /**
+     * Creates a new CounterResetMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns CounterResetMessage instance
+     */
+    public static create(properties?: ICounterResetMessage): CounterResetMessage;
+
+    /**
+     * Encodes the specified CounterResetMessage message. Does not implicitly {@link CounterResetMessage.verify|verify} messages.
+     * @param message CounterResetMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: ICounterResetMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified CounterResetMessage message, length delimited. Does not implicitly {@link CounterResetMessage.verify|verify} messages.
+     * @param message CounterResetMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: ICounterResetMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a CounterResetMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns CounterResetMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CounterResetMessage;
+
+    /**
+     * Decodes a CounterResetMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns CounterResetMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CounterResetMessage;
+
+    /**
+     * Verifies a CounterResetMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a CounterResetMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns CounterResetMessage
+     */
+    public static fromObject(object: { [k: string]: any }): CounterResetMessage;
+
+    /**
+     * Creates a plain object from a CounterResetMessage message. Also converts values to other types if specified.
+     * @param message CounterResetMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: CounterResetMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this CounterResetMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
+/** Properties of a CounterResettableMessage. */
+export interface ICounterResettableMessage {
+
+    /** CounterResettableMessage toAdd */
+    toAdd?: (number|null);
+
+    /** CounterResettableMessage toReset */
+    toReset?: (ICounterResetMessage|null);
+}
+
+/** Represents a CounterResettableMessage. */
+export class CounterResettableMessage implements ICounterResettableMessage {
+
+    /**
+     * Constructs a new CounterResettableMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: ICounterResettableMessage);
+
+    /** CounterResettableMessage toAdd. */
+    public toAdd: number;
+
+    /** CounterResettableMessage toReset. */
+    public toReset?: (ICounterResetMessage|null);
+
+    /** CounterResettableMessage data. */
+    public data?: ("toAdd"|"toReset");
+
+    /**
+     * Creates a new CounterResettableMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns CounterResettableMessage instance
+     */
+    public static create(properties?: ICounterResettableMessage): CounterResettableMessage;
+
+    /**
+     * Encodes the specified CounterResettableMessage message. Does not implicitly {@link CounterResettableMessage.verify|verify} messages.
+     * @param message CounterResettableMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: ICounterResettableMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified CounterResettableMessage message, length delimited. Does not implicitly {@link CounterResettableMessage.verify|verify} messages.
+     * @param message CounterResettableMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: ICounterResettableMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a CounterResettableMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns CounterResettableMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CounterResettableMessage;
+
+    /**
+     * Decodes a CounterResettableMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns CounterResettableMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CounterResettableMessage;
+
+    /**
+     * Verifies a CounterResettableMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a CounterResettableMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns CounterResettableMessage
+     */
+    public static fromObject(object: { [k: string]: any }): CounterResettableMessage;
+
+    /**
+     * Creates a plain object from a CounterResettableMessage message. Also converts values to other types if specified.
+     * @param message CounterResettableMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: CounterResettableMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this CounterResettableMessage to JSON.
      * @returns JSON object
      */
     public toJSON(): { [k: string]: any };
@@ -860,97 +965,187 @@ export class LwwMessage implements ILwwMessage {
     public toJSON(): { [k: string]: any };
 }
 
-/** Properties of a CrdtRuntimeMessage. */
-export interface ICrdtRuntimeMessage {
+/** Properties of a GMapMessage. */
+export interface IGMapMessage {
 
-    /** CrdtRuntimeMessage innerMessage */
-    innerMessage: Uint8Array;
-
-    /** CrdtRuntimeMessage pathToRoot */
-    pathToRoot?: (string[]|null);
+    /** GMapMessage keyToInit */
+    keyToInit: Uint8Array;
 }
 
-/** Represents a CrdtRuntimeMessage. */
-export class CrdtRuntimeMessage implements ICrdtRuntimeMessage {
+/** Represents a GMapMessage. */
+export class GMapMessage implements IGMapMessage {
 
     /**
-     * Constructs a new CrdtRuntimeMessage.
+     * Constructs a new GMapMessage.
      * @param [properties] Properties to set
      */
-    constructor(properties?: ICrdtRuntimeMessage);
+    constructor(properties?: IGMapMessage);
 
-    /** CrdtRuntimeMessage innerMessage. */
-    public innerMessage: Uint8Array;
-
-    /** CrdtRuntimeMessage pathToRoot. */
-    public pathToRoot: string[];
+    /** GMapMessage keyToInit. */
+    public keyToInit: Uint8Array;
 
     /**
-     * Creates a new CrdtRuntimeMessage instance using the specified properties.
+     * Creates a new GMapMessage instance using the specified properties.
      * @param [properties] Properties to set
-     * @returns CrdtRuntimeMessage instance
+     * @returns GMapMessage instance
      */
-    public static create(properties?: ICrdtRuntimeMessage): CrdtRuntimeMessage;
+    public static create(properties?: IGMapMessage): GMapMessage;
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
-     * @param message CrdtRuntimeMessage message or plain object to encode
+     * Encodes the specified GMapMessage message. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @param message GMapMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encode(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encode(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Encodes the specified CrdtRuntimeMessage message, length delimited. Does not implicitly {@link CrdtRuntimeMessage.verify|verify} messages.
-     * @param message CrdtRuntimeMessage message or plain object to encode
+     * Encodes the specified GMapMessage message, length delimited. Does not implicitly {@link GMapMessage.verify|verify} messages.
+     * @param message GMapMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encodeDelimited(message: ICrdtRuntimeMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encodeDelimited(message: IGMapMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer.
+     * Decodes a GMapMessage message from the specified reader or buffer.
      * @param reader Reader or buffer to decode from
      * @param [length] Message length if known beforehand
-     * @returns CrdtRuntimeMessage
+     * @returns GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CrdtRuntimeMessage;
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): GMapMessage;
 
     /**
-     * Decodes a CrdtRuntimeMessage message from the specified reader or buffer, length delimited.
+     * Decodes a GMapMessage message from the specified reader or buffer, length delimited.
      * @param reader Reader or buffer to decode from
-     * @returns CrdtRuntimeMessage
+     * @returns GMapMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CrdtRuntimeMessage;
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): GMapMessage;
 
     /**
-     * Verifies a CrdtRuntimeMessage message.
+     * Verifies a GMapMessage message.
      * @param message Plain object to verify
      * @returns `null` if valid, otherwise the reason why it is not
      */
     public static verify(message: { [k: string]: any }): (string|null);
 
     /**
-     * Creates a CrdtRuntimeMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a GMapMessage message from a plain object. Also converts values to their respective internal types.
      * @param object Plain object
-     * @returns CrdtRuntimeMessage
+     * @returns GMapMessage
      */
-    public static fromObject(object: { [k: string]: any }): CrdtRuntimeMessage;
+    public static fromObject(object: { [k: string]: any }): GMapMessage;
 
     /**
-     * Creates a plain object from a CrdtRuntimeMessage message. Also converts values to other types if specified.
-     * @param message CrdtRuntimeMessage
+     * Creates a plain object from a GMapMessage message. Also converts values to other types if specified.
+     * @param message GMapMessage
      * @param [options] Conversion options
      * @returns Plain object
      */
-    public static toObject(message: CrdtRuntimeMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+    public static toObject(message: GMapMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
     /**
-     * Converts this CrdtRuntimeMessage to JSON.
+     * Converts this GMapMessage to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
+/** Properties of a RuntimeGeneratorMessage. */
+export interface IRuntimeGeneratorMessage {
+
+    /** RuntimeGeneratorMessage message */
+    message: Uint8Array;
+
+    /** RuntimeGeneratorMessage uniqueId */
+    uniqueId: string;
+}
+
+/** Represents a RuntimeGeneratorMessage. */
+export class RuntimeGeneratorMessage implements IRuntimeGeneratorMessage {
+
+    /**
+     * Constructs a new RuntimeGeneratorMessage.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: IRuntimeGeneratorMessage);
+
+    /** RuntimeGeneratorMessage message. */
+    public message: Uint8Array;
+
+    /** RuntimeGeneratorMessage uniqueId. */
+    public uniqueId: string;
+
+    /**
+     * Creates a new RuntimeGeneratorMessage instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns RuntimeGeneratorMessage instance
+     */
+    public static create(properties?: IRuntimeGeneratorMessage): RuntimeGeneratorMessage;
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @param message RuntimeGeneratorMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified RuntimeGeneratorMessage message, length delimited. Does not implicitly {@link RuntimeGeneratorMessage.verify|verify} messages.
+     * @param message RuntimeGeneratorMessage message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: IRuntimeGeneratorMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): RuntimeGeneratorMessage;
+
+    /**
+     * Decodes a RuntimeGeneratorMessage message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns RuntimeGeneratorMessage
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): RuntimeGeneratorMessage;
+
+    /**
+     * Verifies a RuntimeGeneratorMessage message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a RuntimeGeneratorMessage message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns RuntimeGeneratorMessage
+     */
+    public static fromObject(object: { [k: string]: any }): RuntimeGeneratorMessage;
+
+    /**
+     * Creates a plain object from a RuntimeGeneratorMessage message. Also converts values to other types if specified.
+     * @param message RuntimeGeneratorMessage
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: RuntimeGeneratorMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this RuntimeGeneratorMessage to JSON.
      * @returns JSON object
      */
     public toJSON(): { [k: string]: any };
