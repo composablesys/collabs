@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { AddEvent, MultEvent } from '../../src/crdts';
-import { NumberCrdt } from '../../src/crdts/standard';
+import { Number } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
@@ -12,7 +12,7 @@ function testResettableCounter() {
     // add and reset operations, since it's a simple example.
     console.log("testResettableCounter()...");
 
-    let aliceCounter = new NumberCrdt(alice, "numberId2", 0, true);
+    let aliceCounter = new Number(alice, "numberId2", 0, true);
     aliceCounter.addEventListener("Add", event => console.log(
         "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     aliceCounter.addEventListener("Mult", event => console.log(
@@ -20,7 +20,7 @@ function testResettableCounter() {
     aliceCounter.addEventListener("Reset", event => console.log(
         "Alice: " + event.timestamp.getSender() + " reset"
     ));
-    let bobCounter = new NumberCrdt(bob, "numberId2", 0, true);
+    let bobCounter = new Number(bob, "numberId2", 0, true);
     bobCounter.addEventListener("Add", event => console.log(
         "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     bobCounter.addEventListener("Mult", event => console.log(

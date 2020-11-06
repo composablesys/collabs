@@ -137,7 +137,7 @@ type HardResettableCrdtConstructorBasic = new (...args: any[]) => Crdt & HardRes
 
 function AddStrongResettableInternal<TBase extends HardResettableCrdtConstructorBasic>(Base: TBase) {
     return class StrongResettableBase extends Base implements StrongResettable {
-        private strongResetWrapper: StrongResetWrapperCrdt;
+        protected strongResetWrapper: StrongResetWrapperCrdt;
         constructor(...args: any[]) {
             let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
             let id = args[1] as string;
@@ -177,16 +177,33 @@ export type HardResettableCrdtConstructor = new (parentOrRuntime: Crdt | CrdtRun
  */
 export type SubclassConstructorOf<TBase extends HardResettableCrdtConstructor> =
     TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: infer Args) => infer C?
-    new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C: never;
+    TBase & (new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: Args) => C): never;
+    // We conjunct with TBase so that the result properly inherits generic
+    // type parameters from the original class.  See MultiValueRegister
+    // for an example of this.
 
+/**
+ * Gives the constructor arguments besides parentOrRuntime and id.
+ */
+export type OtherArgsOf<TBase extends CrdtConstructor> =
+    TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: infer Args) => unknown? Args: never;
 
 export type StrongResettableConstructor = new (...args: any[]) => StrongResettable;
 
 /**
  * TODO.  Can only be used on Crdt's that do not interject their parents (e.g.,
  * outputs of the other Add... methods).
+ *
+ * baseResettable should be true if Base already implements Resettable, in
+ * which case the returned class will as well (being a subclass).
+ * If baseResettable is false, then the static withAbilities method will
+ * throw an error when passed a flag with resettable defined.  Likewise
+ * for OutOfOrderAble.  Note that in any case, strongReset() operations
+ * added by this mixin are not OutOfOrderAble.
  */
-export function AddStrongResettable<TBase extends HardResettableCrdtConstructor>(Base: TBase): SubclassConstructorOf<TBase> & StrongResettableConstructor {
+export function AddStrongResettable<TBase extends HardResettableCrdtConstructor>(
+    Base: TBase
+): SubclassConstructorOf<TBase> & StrongResettableConstructor & ReturnType<typeof AddStrongResettableInternal> {
     return AddStrongResettableInternal(Base) as any;
 }
 
@@ -195,8 +212,8 @@ export function AddStrongResettable<TBase extends HardResettableCrdtConstructor>
 function AddAbilitiesViaHistoryInternal<TBase extends HardResettableCrdtConstructorBasic>(Base: TBase, historyMaximalOnly: boolean) {
     let StrongResettableOnly = AddStrongResettable(Base);
     return class AbleViaHistory extends Base implements AllAble {
-        private strongResetWrapper: StrongResetWrapperCrdt;
-        private resetWrapper: ResetWrapperCrdt;
+        protected strongResetWrapper: StrongResetWrapperCrdt;
+        protected resetWrapper: ResetWrapperCrdt;
         constructor(...args: any[]) {
             let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
             let id = args[1] as string;
@@ -262,18 +279,13 @@ export type AbleConstructor<F extends AbilityFlag> = new (...args: any[]) => Int
 export type AllAbleConstructor = new (...args: any[]) => AllAble;
 
 export type CrdtConstructor = new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: any[]) => Crdt;
-/**
- * Gives the constructor arguments besides parentOrRuntime and id.
- */
-export type OtherArgsOf<TBase extends CrdtConstructor> =
-    TBase extends new (parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: infer Args) => unknown? Args: never;
 
 // Wrapper to constrain input types.
 /**
  * TODO: usage: intended for primitive Crdts.  Stores full history.
  */
 export function AddAbilitiesViaHistory<TBase extends HardResettableCrdtConstructor>(Base: TBase, historyMaximalOnly = false):
-    SubclassConstructorOf<TBase> & AllAbleConstructor & {
+    SubclassConstructorOf<TBase> & AllAbleConstructor & ReturnType<typeof AddAbilitiesViaHistoryInternal> & {
         withAbilities<F extends AbilityFlag>(
             abilityFlag: F, parentOrRuntime: Crdt | CrdtRuntime, id: string, ...otherArgs: OtherArgsOf<TBase>
         ): InstanceType<TBase> & InterfaceOf<F>

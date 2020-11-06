@@ -4,7 +4,7 @@ import { AddEvent, CounterBase, LwwRegister, MultEvent, MultRegisterBase, Number
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { SemidirectProduct } from "./semidirect";
-import { AddAbilitiesViaHistory, AllAble } from "./abilities";
+import { AddAbilitiesViaHistory } from "./abilities";
 
 export class NumberBase extends SemidirectProduct<NumberState> {
     private addCrdt: CounterBase;
@@ -86,8 +86,7 @@ export class NumberBase extends SemidirectProduct<NumberState> {
     }
 }
 
-export const Number = AddAbilitiesViaHistory(NumberBase);
-export type Number = NumberBase & AllAble;
+export class Number extends AddAbilitiesViaHistory(NumberBase, true) {}
 
 //
 // function positiveMod(a: number, b: number) {
@@ -221,43 +220,18 @@ export type Number = NumberBase & AllAble;
 //     }
 // }
 
-export class EnableWinsFlag extends Crdt<Object> {
-    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = false) {
-        super(parentOrRuntime, id, {}, true, true);
-        this.addEventListener(
-            "Reset", (event: CrdtEvent) => this.dispatchEvent({
-                type: "Disable",
-                caller: this,
-                timestamp: event.timestamp
-            })
-        );
-        if (initialValue) {
-            // TODO: enable.  Maybe once we have locally
-            // callable pure ops this will be easy?
-        }
+class TrivialCrdt extends Crdt<null> {
+    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string) {
+        super(parentOrRuntime, id, null);
     }
+    hardReset() {}
+}
 
+export class EnableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
+    // TODO: in constructor: capture reset events, convert to Disable events.
     enable() {
         this.send(new Uint8Array());
     }
-    disable() {
-        this.reset();
-    }
-    get enabled() : boolean {
-        return !this.resetWrapperCrdt!.state.isHistoryEmpty();
-    }
-    set enabled(newValue: boolean) {
-        if (newValue) this.enable();
-        else this.disable();
-    }
-    get value() {
-        return this.enabled;
-    }
-    set value(newValue: boolean) {
-        this.enabled = newValue;
-    }
-
-    hardReset() {}
     receiveInternal(
         timestamp: CausalTimestamp,
         _message: Uint8Array
@@ -270,32 +244,14 @@ export class EnableWinsFlag extends Crdt<Object> {
         });
         return true;
     }
-}
-
-export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
-    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = true) {
-        super(parentOrRuntime, id, {}, true, true);
-        this.addEventListener(
-            "Reset", (event: CrdtEvent) => this.dispatchEvent({
-                type: "Enable",
-                caller: this,
-                timestamp: event.timestamp
-            })
-        );
-        if (!initialValue) {
-            // TODO: disable.  Maybe once we have locally
-            // callable pure ops this will be easy?
-        }
-    }
-
-    enable() {
+    disable() {
         this.reset();
     }
-    disable() {
-        this.send(new Uint8Array());
+    strongDisable() {
+        this.strongReset();
     }
     get enabled() : boolean {
-        return this.resetWrapperCrdt!.state.isHistoryEmpty();
+        return !this.resetWrapper.state.isHistoryEmpty();
     }
     set enabled(newValue: boolean) {
         if (newValue) this.enable();
@@ -307,19 +263,43 @@ export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
     set value(newValue: boolean) {
         this.enabled = newValue;
     }
+}
 
-    hardReset() {}
+export class DisableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
+    // TODO: in constructor: capture reset events, convert to Enable events.
+    disable() {
+        this.send(new Uint8Array());
+    }
     receiveInternal(
         timestamp: CausalTimestamp,
         _message: Uint8Array
     ): boolean {
-        // TODO: only do this if previously enabled.  How to check?
+        // TODO: only do this if previously disabled.  How to check?
         this.dispatchEvent({
-            type: "Disable",
+            type: "Enable",
             caller: this,
             timestamp: timestamp
         });
         return true;
+    }
+    enable() {
+        this.reset();
+    }
+    strongEnable() {
+        this.strongReset();
+    }
+    get enabled() : boolean {
+        return this.resetWrapper.state.isHistoryEmpty();
+    }
+    set enabled(newValue: boolean) {
+        if (newValue) this.enable();
+        else this.disable();
+    }
+    get value() {
+        return this.enabled;
+    }
+    set value(newValue: boolean) {
+        this.enabled = newValue;
     }
 }
 

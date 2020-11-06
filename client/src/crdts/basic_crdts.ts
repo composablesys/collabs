@@ -3,7 +3,7 @@ import { CausalTimestamp } from "../network";
 import {CounterMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { HardResettable } from "./resettable";
-import { AllAble, AddAbilitiesViaHistory, OutOfOrderAble } from "./abilities";
+import { AddAbilitiesViaHistory, OutOfOrderAble } from "./abilities";
 
 export class AddEvent implements CrdtEvent {
     type = "Add";
@@ -69,8 +69,9 @@ export class CounterBase extends Crdt<NumberState> implements HardResettable {
     }
 }
 
-export const Counter = AddAbilitiesViaHistory(CounterBase);
-export type Counter = CounterBase & AllAble;
+// export const Counter = AddAbilitiesViaHistory(CounterBase);
+// export type Counter = CounterBase & AllAble;
+export class Counter extends AddAbilitiesViaHistory(CounterBase) {}
 
 export class MultEvent implements CrdtEvent {
     type = "Mult";
@@ -131,8 +132,7 @@ export class MultRegisterBase extends Crdt<NumberState> implements HardResettabl
     }
 }
 
-export const MultRegister = AddAbilitiesViaHistory(MultRegisterBase);
-export type MultRegister = MultRegisterBase & AllAble;
+export class MultRegister extends AddAbilitiesViaHistory(MultRegisterBase) {}
 
 export class SetAddEvent<T> implements CrdtEvent {
     type = "SetAdd";
@@ -227,6 +227,9 @@ export class GSet<T> extends Crdt<Set<T>> implements OutOfOrderAble {
 
     // TODO: other helper methods
 }
+
+// TODO: resettable GSet.  Share common interface.  Needs to track timestamps
+// like MVR.
 
 export class MvrEntry<T> {
     constructor(
@@ -362,8 +365,7 @@ export class MultiValueRegisterBase<T> extends Crdt<Set<MvrEntry<T>>> implements
     }
 }
 
-export const MultiValueRegister = AddAbilitiesViaHistory(MultiValueRegisterBase, true);
-export type MultiValueRegister<T> = MultiValueRegisterBase<T> & AllAble;
+export class MultiValueRegister<T> extends AddAbilitiesViaHistory(MultiValueRegisterBase, true)<T> {}
 
 export class LwwState<T> {
     constructor(
@@ -496,5 +498,4 @@ export class LwwRegisterBase<T> extends Crdt<LwwState<T>> implements HardResetta
     }
 }
 
-export const LwwRegister = AddAbilitiesViaHistory(LwwRegisterBase, true);
-export type LwwRegister<T> = LwwRegisterBase<T> & AllAble;
+export class LwwRegister<T> extends AddAbilitiesViaHistory(LwwRegisterBase, true)<T> {}

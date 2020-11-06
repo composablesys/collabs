@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { AddEvent, Crdt, GSetCrdt, MultEvent, SetAddEvent } from '../../src/crdts';
-import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, LwwMap, MapCrdt, NewCrdtEvent, NumberCrdt, RuntimeCrdtGenerator, SetDeleteEvent } from '../../src/crdts/standard';
+import { AddEvent, Crdt, GSet, MultEvent, SetAddEvent } from '../../src/crdts';
+import { AddWinsSet, DisableWinsFlag, EnableWinsFlag, LwwMap, MapCrdt, NewCrdtEvent, Number, RuntimeCrdtGenerator, SetDeleteEvent } from '../../src/crdts/standard';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
@@ -86,12 +86,12 @@ function testDwFlag() {
 function testNumber() {
     console.log("testNumber()...");
 
-    let aliceNumber = new NumberCrdt(alice, "numberId", 0, false);
+    let aliceNumber = new Number(alice, "numberId", 0, false);
     aliceNumber.addEventListener("Add", event => console.log(
         "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     aliceNumber.addEventListener("Mult", event => console.log(
         "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
-    let bobNumber = new NumberCrdt(bob, "numberId", 0, false);
+    let bobNumber = new Number(bob, "numberId", 0, false);
     bobNumber.addEventListener("Add", event => console.log(
         "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     bobNumber.addEventListener("Mult", event => console.log(
@@ -133,12 +133,12 @@ function testFromPaper() {
     // The +/x example from the figure in the paper
     console.log("testFromPaper()...");
 
-    let aliceNumber = new NumberCrdt(alice, "numberId2", 1);
+    let aliceNumber = new Number(alice, "numberId2", 1);
     aliceNumber.addEventListener("Add", event => console.log(
         "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     aliceNumber.addEventListener("Mult", event => console.log(
         "Alice: " + event.timestamp.getSender() + " multed " + (event as MultEvent).valueMulted));
-    let bobNumber = new NumberCrdt(bob, "numberId2", 1);
+    let bobNumber = new Number(bob, "numberId2", 1);
     bobNumber.addEventListener("Add", event => console.log(
         "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     bobNumber.addEventListener("Mult", event => console.log(
@@ -220,14 +220,14 @@ function testFromPaper() {
 //     console.log("...ok");
 // }
 //
-// class BiCounter extends CrdtObject<string, NumberCrdt> {
-//     a: NumberCrdt;
-//     b: NumberCrdt;
+// class BiCounter extends CrdtObject<string, Number> {
+//     a: Number;
+//     b: Number;
 //     constructor(crdtId: any, runtime: CrdtRuntime) {
 //         super(crdtId, runtime);
 //         this.startPredefinedPropertyCreation();
-//         this.a = new NumberCrdt("a", this, 1);
-//         this.b = new NumberCrdt("b", this, 1);
+//         this.a = new Number("a", this, 1);
+//         this.b = new Number("b", this, 1);
 //         this.endPredefinedPropertyCreation();
 //     }
 // }
@@ -322,14 +322,14 @@ function testAwSet() {
 function testMap() {
     console.log("testMap()...");
 
-    let aliceMap = new MapCrdt<string, NumberCrdt>(
+    let aliceMap = new MapCrdt<string, Number>(
         alice, "map",
-        (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
+        (parent: Crdt, id: string, _) => new Number(parent, id)
     );
     // TODO: event listeners
-    let bobMap = new MapCrdt<string, NumberCrdt>(
+    let bobMap = new MapCrdt<string, Number>(
         bob, "map",
-        (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
+        (parent: Crdt, id: string, _) => new Number(parent, id)
     );
 
     assertSetEquals(new Set(aliceMap.keys()), new Set([]));
@@ -343,9 +343,9 @@ function testMap() {
     assert(aliceMap.has("test"));
     assert(bobMap.has("test"));
 
-    let aliceTest = aliceMap.get("test") as NumberCrdt;
+    let aliceTest = aliceMap.get("test") as Number;
     assert(aliceTest);
-    let bobTest = bobMap.get("test") as NumberCrdt;
+    let bobTest = bobMap.get("test") as Number;
     assert(bobTest);
     assert.strictEqual(aliceTest.value, 0);
     assert.strictEqual(bobTest.value, 0);
@@ -372,18 +372,18 @@ function testMap() {
 
     // TODO
 //     // Concurrent operation revives key
-//     let bobRegister = bobMap.get("register") as NumberCrdt;
+//     let bobRegister = bobMap.get("register") as Number;
 //     aliceMap.delete("register");
 //     bobRegister.add(3);
 //     runtimeGen.releaseAll();
 //     assertSetEquals(new Set(aliceMap.keys()), new Set(["register"]));
 //     assertSetEquals(new Set(bobMap.keys()), new Set(["register"]));
 //     assert.strictEqual(bobRegister.value, 3);
-//     assert.strictEqual((aliceMap.get("register") as NumberCrdt).value, 3);
+//     assert.strictEqual((aliceMap.get("register") as Number).value, 3);
 //
 //     // Reset tests
 //     // Concurrent op revives
-//     let aliceRegister = aliceMap.get("register") as NumberCrdt;
+//     let aliceRegister = aliceMap.get("register") as Number;
 //     aliceMap.reset();
 //     assertSetEquals(new Set(aliceMap.keys()), new Set([]));
 //     assert.strictEqual(aliceMap.get("register"), undefined);
@@ -416,20 +416,20 @@ function testCrdtSetValues() {
     // Test that we can use Crdts as set values and the
     // references are handled correctly across replicas.
 
-    let aliceMap = new MapCrdt<string, NumberCrdt>(
+    let aliceMap = new MapCrdt<string, Number>(
         alice, "valueMap",
-        (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
+        (parent: Crdt, id: string, _) => new Number(parent, id)
     );
-    let bobMap = new MapCrdt<string, NumberCrdt>(
+    let bobMap = new MapCrdt<string, Number>(
         bob, "valueMap",
-        (parent: Crdt, id: string, _) => new NumberCrdt(parent, id)
+        (parent: Crdt, id: string, _) => new Number(parent, id)
     );
     let aliceCounter = aliceMap.getForce("test");
     let bobCounter = bobMap.getForce("test");
     runtimeGen.releaseAll();
 
-    let aliceSet = new GSetCrdt<NumberCrdt>(alice, "valueSet");
-    let bobSet = new GSetCrdt<NumberCrdt>(bob, "valueSet");
+    let aliceSet = new GSet<Number>(alice, "valueSet");
+    let bobSet = new GSet<Number>(bob, "valueSet");
 
     aliceSet.add(aliceCounter);
     assert.strictEqual(aliceSet.has(aliceCounter), true);
@@ -442,7 +442,7 @@ function testCrdtSetValues() {
 function testRuntimeCrdtGenerator() {
     console.log("testRuntimeCrdtGenerator()...");
 
-    let generator = (parent: Crdt, id: string, _: Uint8Array) => new NumberCrdt(parent, id);
+    let generator = (parent: Crdt, id: string, _: Uint8Array) => new Number(parent, id);
     let aliceGen = new RuntimeCrdtGenerator(
         alice, "gen", generator
     );
@@ -450,10 +450,10 @@ function testRuntimeCrdtGenerator() {
         bob, "gen", generator
     );
 
-    let bobCounter: NumberCrdt | null = null;
+    let bobCounter: Number | null = null;
     bobGen.addEventListener(
         "NewCrdt",
-        event => (bobCounter = (event as NewCrdtEvent<NumberCrdt>).newCrdt)
+        event => (bobCounter = (event as NewCrdtEvent<Number>).newCrdt)
     );
     let aliceCounter = aliceGen.generate(new Uint8Array());
     aliceCounter.add(7);
@@ -470,6 +470,9 @@ function testLwwMap() {
 
     let aliceMap = new LwwMap<string, number>(alice, "lwwMap");
     let bobMap = new LwwMap<string, number>(bob, "lwwMap");
+
+    // TODO
+    console.log("test not yet implemented");
 
     console.log("...ok");
 }
