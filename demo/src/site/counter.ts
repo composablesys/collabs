@@ -13,15 +13,15 @@ var HOST = location.origin.replace(/^http/, 'ws')
 const client_uuid : string = uuid();
 
 /**
- * Generate CRDTs' Runtime on each client and create CRDTs (e.g. CounterCrdt).
+ * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
     new network.DefaultCausalBroadcastNetwork(
         client_uuid, new network.WebSocketNetwork(HOST)
     )
 );
-//let clientCounter = new crdts.CounterCrdt("counterId", client);
-let clientCounter = new crdts.CounterCrdt(client, "counterId");
+//let clientCounter = new crdts.Counter("counterId", client);
+let clientCounter = new crdts.Counter(client, "counterId");
 
 /* HTML variables */
 var counter = document.getElementById("counter");
