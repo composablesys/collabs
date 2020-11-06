@@ -1,13 +1,14 @@
 import { CausalTimestamp } from "../network";
 import { CounterMessage, GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage } from "../proto_compiled";
-import { AddEvent, CounterCrdt, LwwRegister, MultEvent, MultRegisterCrdt, NumberState, SetAddEvent } from "./basic_crdts";
+import { AddEvent, CounterBase, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
-import { OptionalResettableCrdt, OptionalResettableSemidirectProduct } from "./resettable";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
+import { SemidirectProduct } from "./semidirect";
+import { AddAbilitiesViaHistory } from "./abilities";
 
-export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState> {
-    private addCrdt: CounterCrdt;
-    private multCrdt: MultRegisterCrdt;
+export class NumberBase extends SemidirectProduct<NumberState> {
+    private addCrdt: CounterBase;
+    private multCrdt: MultRegisterBase;
     readonly resetValue: number;
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
@@ -17,13 +18,14 @@ export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState>
         resetValue = initialValue
     ) {
         super(parentOrRuntime, id, resettable);
-        this.addCrdt = new CounterCrdt(this, "add", 0/*, false*/);
-        this.multCrdt = new MultRegisterCrdt(this, "mult", 0/*, false*/);
+        this.addCrdt = new CounterBase(this, "add", 0);
+        this.multCrdt = new MultRegisterBase(this, "mult", 0);
         super.setup(
             this.addCrdt, this.multCrdt,
             this.action.bind(this),
             new NumberState(initialValue)
-        )
+        );
+        // TODO: only do this if I have a listener?
         this.addCrdt.addEventListener(
             "Add", (event: CrdtEvent) => {
                 super.dispatchEvent(new AddEvent(
@@ -78,10 +80,13 @@ export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState>
         return this.state.internalState.value;
     }
 
-    hardResetInternal(): void {
+    hardReset(): void {
+        this.state.hardReset();
         this.state.internalState.value = this.resetValue;
     }
 }
+
+export class Number extends AddAbilitiesViaHistory(NumberBase, true) {}
 
 //
 // function positiveMod(a: number, b: number) {
@@ -215,43 +220,18 @@ export class NumberCrdt extends OptionalResettableSemidirectProduct<NumberState>
 //     }
 // }
 
-export class EnableWinsFlag extends OptionalResettableCrdt<Object> {
-    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = false) {
-        super(parentOrRuntime, id, {}, true, true);
-        this.addEventListener(
-            "Reset", (event: CrdtEvent) => this.dispatchEvent({
-                type: "Disable",
-                caller: this,
-                timestamp: event.timestamp
-            })
-        );
-        if (initialValue) {
-            // TODO: enable.  Maybe once we have locally
-            // callable pure ops this will be easy?
-        }
+class TrivialCrdt extends Crdt<null> {
+    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string) {
+        super(parentOrRuntime, id, null);
     }
+    hardReset() {}
+}
 
+export class EnableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
+    // TODO: in constructor: capture reset events, convert to Disable events.
     enable() {
         this.send(new Uint8Array());
     }
-    disable() {
-        this.reset();
-    }
-    get enabled() : boolean {
-        return !this.resetWrapperCrdt!.state.isHistoryEmpty();
-    }
-    set enabled(newValue: boolean) {
-        if (newValue) this.enable();
-        else this.disable();
-    }
-    get value() {
-        return this.enabled;
-    }
-    set value(newValue: boolean) {
-        this.enabled = newValue;
-    }
-
-    hardReset() {}
     receiveInternal(
         timestamp: CausalTimestamp,
         _message: Uint8Array
@@ -264,32 +244,14 @@ export class EnableWinsFlag extends OptionalResettableCrdt<Object> {
         });
         return true;
     }
-}
-
-export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
-    constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, initialValue = true) {
-        super(parentOrRuntime, id, {}, true, true);
-        this.addEventListener(
-            "Reset", (event: CrdtEvent) => this.dispatchEvent({
-                type: "Enable",
-                caller: this,
-                timestamp: event.timestamp
-            })
-        );
-        if (!initialValue) {
-            // TODO: disable.  Maybe once we have locally
-            // callable pure ops this will be easy?
-        }
-    }
-
-    enable() {
+    disable() {
         this.reset();
     }
-    disable() {
-        this.send(new Uint8Array());
+    strongDisable() {
+        this.strongReset();
     }
     get enabled() : boolean {
-        return this.resetWrapperCrdt!.state.isHistoryEmpty();
+        return !this.resetWrapper.state.isHistoryEmpty();
     }
     set enabled(newValue: boolean) {
         if (newValue) this.enable();
@@ -301,19 +263,43 @@ export class DisableWinsFlag extends OptionalResettableCrdt<Object> {
     set value(newValue: boolean) {
         this.enabled = newValue;
     }
+}
 
-    hardReset() {}
+export class DisableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
+    // TODO: in constructor: capture reset events, convert to Enable events.
+    disable() {
+        this.send(new Uint8Array());
+    }
     receiveInternal(
         timestamp: CausalTimestamp,
         _message: Uint8Array
     ): boolean {
-        // TODO: only do this if previously enabled.  How to check?
+        // TODO: only do this if previously disabled.  How to check?
         this.dispatchEvent({
-            type: "Disable",
+            type: "Enable",
             caller: this,
             timestamp: timestamp
         });
         return true;
+    }
+    enable() {
+        this.reset();
+    }
+    strongEnable() {
+        this.strongReset();
+    }
+    get enabled() : boolean {
+        return this.resetWrapper.state.isHistoryEmpty();
+    }
+    set enabled(newValue: boolean) {
+        if (newValue) this.enable();
+        else this.disable();
+    }
+    get value() {
+        return this.enabled;
+    }
+    set value(newValue: boolean) {
+        this.enabled = newValue;
     }
 }
 
@@ -492,6 +478,7 @@ export class AddWinsSet<T> extends Crdt {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
+        //_abilityFlag: AbilityFlag,
         serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
         deserialize: (serialized: Uint8Array) => T = newDefaultCollectionDeserializer(parentOrRuntime)
     ) {
@@ -541,6 +528,15 @@ export class AddWinsSet<T> extends Crdt {
         this.remove(value);
     }
 
+    strongRemove(value: T) {
+        let flag = this.flagMap.get(value);
+        if (flag) flag.strongDisable();
+    }
+
+    strongDelete(value: T) {
+        this.strongRemove(value);
+    }
+
     has(value: T) {
         let flag = this.flagMap.get(value);
         if (!flag) return false;
@@ -559,9 +555,11 @@ export class AddWinsSet<T> extends Crdt {
         return this.value.values();
     }
 
-    // TODO: other helper methods
+    // TODO: other helper methods, events
 }
 
+// TODO
+// export class AddWinsSet<T> extends AddAbilitiesViaChildren(AddWinsSetInternal)<T> {}
 
 export class MapCrdt<K, C extends Crdt> extends Crdt {
     private readonly keySet: AddWinsSet<K>;

@@ -5,4 +5,4 @@ export * from './utils';
 //export * from './multi_semidirect';
 export * from './resettable';
 export * from './semidirect';
-//export * from './standard';
+export * from './standard';

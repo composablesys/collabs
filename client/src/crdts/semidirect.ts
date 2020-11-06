@@ -21,7 +21,7 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-export class SemidirectState<S> {
+export class SemidirectState<S extends Object | null = Object | null> {
     private receiptCounter = 0;
     /**
      * Maps a replica id to an array of messages sent by that
@@ -169,7 +169,15 @@ export class SemidirectState<S> {
     }
 }
 
-export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>> {
+export class SemidirectProduct<S extends Object | null = Object | null> extends Crdt<SemidirectState<S>> {
+    /**
+     * TODO
+     * @param parentOrRuntime                [description]
+     * @param id                             [description]
+     * @param historyTimestamps=false        [description]
+     * @param historyDiscard1Dominated=false [description]
+     * @param historyDiscard2Dominated=false [description]
+     */
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
@@ -210,13 +218,13 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
         if (this.children.get(crdt1.id) !== crdt1) {
             throw new Error(
                 "crdt1 (" + crdt1.id + ") is not our child" +
-                " (is it using a wrapper crdt, e.g., becuase resettable = true?)"
+                " (is it using a wrapper crdt, e.g., because of an Ability mixin?)"
             );
         }
         if (this.children.get(crdt2.id) !== crdt2) {
             throw new Error(
                 "crdt2 (" + crdt2.id + ") is not our child" +
-                " (is it using a wrapper crdt, e.g., becuase resettable = true?)"
+                " (is it using a wrapper crdt, e.g., because of an Ability mixin?)"
             );
         }
         this.crdt1 = crdt1;
@@ -232,7 +240,7 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
         child: Crdt, targetPath: string[],
         timestamp: CausalTimestamp,
         message: Uint8Array
-    ): boolean {
+    ) {
         switch (child) {
             case this.crdt2:
                 this.state.add(
@@ -241,7 +249,8 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
                     timestamp,
                     message
                 );
-                return this.crdt2.receive(targetPath, timestamp, message);
+                this.crdt2.receive(targetPath, timestamp, message);
+                break;
             case this.crdt1:
                 let concurrent = this.state.getConcurrent(
                     this.runtime.getReplicaId(),
@@ -263,12 +272,13 @@ export class SemidirectProduct<S extends Object> extends Crdt<SemidirectState<S>
                     if (mActOrNull === null) return false;
                     else mAct = mActOrNull;
                 }
-                return this.crdt1.receive(
+                this.crdt1.receive(
                     mAct[0], timestamp, mAct[1]
                 );
+                break;
             default:
                 // Not involved with semidirect product
-                return child.receive(
+                child.receive(
                     targetPath, timestamp, message
                 );
         }
