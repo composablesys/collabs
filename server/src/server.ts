@@ -22,10 +22,25 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 	 * Initialize the WebSocket server instance variables.
 	 */
 	var isWebRtc = false;
+	/**
+	 * Store all the connected users.
+	 */
 	var users = new Map();
+	/**
+	 * CrdtUsers for WebRTC protocol.
+	 */
 	var crdtUsers = new Map<any, Array<any>>();
+	/**
+	 * Group of WebSocket users.
+	 */
 	var webSocketGroup = new Map<String, Array<any>>();
+	/**
+	 * Naive way of storing all the previous history messages.
+	 */
 	var groupHistory = new Map<String, Array<any>>();
+	/**
+	 * WebSocket server ws.
+	 */
     const wss = new WebSocket.Server(webSocketArgs);
 	/**
 	 * Casual broadcasting server onconnection function main routine.
