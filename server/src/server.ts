@@ -25,6 +25,7 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 	var users = new Map();
 	var crdtUsers = new Map<any, Array<any>>();
 	var webSocketGroup = new Map<String, Array<any>>();
+	var groupHistory = new Map<String, Array<any>>();
     const wss = new WebSocket.Server(webSocketArgs);
 	/**
 	 * Casual broadcasting server onconnection function main routine.
@@ -153,7 +154,22 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
 						webSocketGroup.set(message.group, new Array<any>());
 					}
 					webSocketGroup.get(message.group)!.push(ws);
+
+					// push all the history messages to the new connected client.
+					if (groupHistory.has(message.group)) {
+						groupHistory.get(message.group)!.forEach(function each(history: any) {
+							if (ws.readyState == WebSocket.OPEN) {
+								ws.send(history);
+							}
+						});
+					}
 				} else {
+					// store all the messages in the history log.
+					if (!groupHistory.has(message.group)) {
+						groupHistory.set(message.group, new Array<any>());
+					}
+					groupHistory.get(message.group)!.push(data);
+
 					// If it is not a "register" message, then broadcast the message to
 					// all the related clients.
 					if(webSocketGroup.has(message.group)) {
