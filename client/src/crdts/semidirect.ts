@@ -269,7 +269,7 @@ export class SemidirectProduct<S extends Object | null = Object | null> extends 
                         timestamp,
                         mAct[1]
                     );
-                    if (mActOrNull === null) return false;
+                    if (mActOrNull === null) return;
                     else mAct = mActOrNull;
                 }
                 this.crdt1.receive(

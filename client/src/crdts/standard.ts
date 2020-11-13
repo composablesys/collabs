@@ -1,13 +1,13 @@
 import { CausalTimestamp } from "../network";
-import { CounterMessage, GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage } from "../proto_compiled";
-import { AddEvent, CounterBase, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent } from "./basic_crdts";
+import { GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage, CounterNonResettableMessage } from "../proto_compiled";
+import { AddEvent, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent, CounterNonResettable } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { SemidirectProduct } from "./semidirect";
 import { AddAbilitiesViaHistory } from "./abilities";
 
 export class NumberBase extends SemidirectProduct<NumberState> {
-    private addCrdt: CounterBase;
+    private addCrdt: CounterNonResettable;
     private multCrdt: MultRegisterBase;
     readonly resetValue: number;
     constructor(
@@ -18,7 +18,7 @@ export class NumberBase extends SemidirectProduct<NumberState> {
         resetValue = initialValue
     ) {
         super(parentOrRuntime, id, resettable);
-        this.addCrdt = new CounterBase(this, "add", 0);
+        this.addCrdt = new CounterNonResettable(this, "add", 0);
         this.multCrdt = new MultRegisterBase(this, "mult", 0);
         super.setup(
             this.addCrdt, this.multCrdt,
@@ -57,9 +57,9 @@ export class NumberBase extends SemidirectProduct<NumberState> {
     ): [string[], Uint8Array] | null {
         try {
             let m2Decoded = MultRegisterMessage.decode(m2Message);
-            let m1Decoded = CounterMessage.decode(m1Message);
-            let acted = CounterMessage.create({toAdd: m2Decoded.toMult * m1Decoded.toAdd});
-            return [[], CounterMessage.encode(acted).finish()]
+            let m1Decoded = CounterNonResettableMessage.decode(m1Message);
+            let acted = CounterNonResettableMessage.create({toAdd: m2Decoded.toMult * m1Decoded.toAdd});
+            return [[], CounterNonResettableMessage.encode(acted).finish()]
         }
         catch (e) {
             // TODO

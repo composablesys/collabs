@@ -2,6 +2,7 @@ import { CausalTimestamp } from "../network";
 import { Crdt, CrdtRuntime } from "./crdt_core";
 import { SemidirectProduct } from "./semidirect";
 import { isResettable, isOutOfOrderAble, AllAble, Resettable, OutOfOrderAble } from "./abilities";
+import { Counter } from "./basic_crdts";
 
 export interface HardResettable {
     /**
@@ -200,32 +201,27 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null> ext
             this, this.id + "_comp", targetCrdt
         );
         super.setup(
-            this.strongResetComponent, targetCrdt,
+            targetCrdt, this.strongResetComponent,
             this.action.bind(this), targetCrdt.state
         );
     }
 
     action(
-        m2TargetPath: string[],
-        m2Timestamp: CausalTimestamp | null,
-        m2Message: Uint8Array,
-        m1TargetPath: string[],
+        _m2TargetPath: string[],
+        _m2Timestamp: CausalTimestamp | null,
+        _m2Message: Uint8Array,
+        _m1TargetPath: string[],
         _m1Timestamp: CausalTimestamp,
-        m1Message: Uint8Array
+        _m1Message: Uint8Array
     ): [string[], Uint8Array] | null {
-        if (!("isResetComponentMessage" in m1Message)) {
-            m1Message = new ResetComponentMessage();
-        }
-        (m1Message as ResetComponentMessage).replay.push(
-            [m2TargetPath.slice(), m2Timestamp!, m2Message]
-        );
-        return [m1TargetPath, m1Message];
+        // The action converts every message to the identity
+        return null;
     }
 
-    dispatchResetEvent(timestamp: CausalTimestamp) {
+    dispatchStrongResetEvent(timestamp: CausalTimestamp) {
         this.dispatchEvent({
             caller: this,
-            type: "Reset",
+            type: "StrongReset",
             timestamp: timestamp
         });
     }

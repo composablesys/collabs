@@ -8,7 +8,7 @@ class TestingNetwork implements CausalBroadcastNetwork {
             private replicaId : string) {
         this.vectorClock.set(replicaId, 0);
     }
-    joinGroup(group: string): void {
+    joinGroup(_group: string): void {
         // Ignored
     }
     send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
@@ -63,8 +63,9 @@ export class TestingNetworkGenerator {
             newQueue.set(oldEntry[0], []);
             oldEntry[1].set(network, []);
         }
+        let runtime = new CrdtRuntime(network);
         this.messageQueues.set(network, newQueue);
-        return new CrdtRuntime(network);
+        return runtime;
     }
     // Maps sender and recipient to an array of queued [message,
     // crdtId, timestamp] tuples.
@@ -76,7 +77,9 @@ export class TestingNetworkGenerator {
      * recipients.  Only recipients that existed at the time
      * of sending will receive a message.
      */
-    release(sender: TestingNetwork, ...recipients: TestingNetwork[]) {
+    release(senderRuntime: CrdtRuntime, ...recipientRuntimes: CrdtRuntime[]) {
+        let sender = senderRuntime.network as TestingNetwork;
+        let recipients = recipientRuntimes.map(runtime => runtime.network as TestingNetwork);
         if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
         let senderMap = this.messageQueues.get(sender)!;
         for (let recipient of recipients) {
@@ -89,6 +92,6 @@ export class TestingNetworkGenerator {
         }
     }
     releaseAll() {
-        for (let sender of this.messageQueues.keys()) this.release(sender);
+        for (let sender of this.messageQueues.keys()) this.release(sender.crdtRuntime);
     }
 }

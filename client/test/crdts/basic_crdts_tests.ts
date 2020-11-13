@@ -28,12 +28,13 @@ function testCounter() {
     assert.strictEqual(aliceCounter.value, -1);
     assert.strictEqual(bobCounter.value, -1);
 
-    aliceCounter.value = 11;
+    aliceCounter.reset();
+    aliceCounter.add(11);
     runtimeGen.releaseAll();
     assert.strictEqual(aliceCounter.value, 11);
     assert.strictEqual(bobCounter.value, 11);
 
-    // Concurrent test
+    // Out of order test
     aliceCounter.add(2);
     assert.strictEqual(aliceCounter.value, 13);
     assert.strictEqual(bobCounter.value, 11);
@@ -45,8 +46,6 @@ function testCounter() {
     runtimeGen.releaseAll();
     assert.strictEqual(aliceCounter.value, 8);
     assert.strictEqual(bobCounter.value, 8);
-
-    // TODO: reset tests
 
     console.log("...ok");
 }

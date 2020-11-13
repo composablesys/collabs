@@ -3,7 +3,7 @@ import { CausalTimestamp } from "../network";
 import {CounterNonResettableMessage, CounterResettableMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { HardResettable } from "./resettable";
-import { AddAbilitiesViaHistory, OutOfOrderAble } from "./abilities";
+import { AddAbilitiesViaHistory, OutOfOrderAble, AddStrongResettable, AllAble, AbilityFlag, InterfaceOf, StrongResettable, Resettable } from "./abilities";
 
 export class AddEvent implements CrdtEvent {
     type = "Add";
@@ -78,6 +78,11 @@ export class CounterNonResettable extends Crdt<NumberState> implements CounterBa
     }
 }
 
+/**
+ * TODO: Counter with pure operations.  Less efficient state size.
+ */
+export class CounterPure extends AddAbilitiesViaHistory(CounterNonResettable) implements CounterBase, AllAble {}
+
 export class CounterResettableState {
     plusP: {[k: string]: number} = {};
     plusN: {[k: string]: number} = {};
@@ -85,7 +90,7 @@ export class CounterResettableState {
     minusN: {[k: string]: number} = {};
 }
 
-export class CounterResettable extends Crdt<CounterResettableState> implements CounterBase, OutOfOrderAble, HardResettable {
+export class CounterResettable extends Crdt<CounterResettableState> implements CounterBase, OutOfOrderAble, Resettable, HardResettable {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
@@ -136,8 +141,8 @@ export class CounterResettable extends Crdt<CounterResettableState> implements C
                     ));
                     break;
                 case "toReset":
-                    this.merge(this.state.plusN, decoded.toReset!.plusReset);
-                    this.merge(this.state.minusN, decoded.toReset!.minusReset);
+                    this.merge(this.state.plusN, decoded.toReset!.plusReset!);
+                    this.merge(this.state.minusN, decoded.toReset!.minusReset!);
                     // TODO: reset event
                     break;
                 default:
@@ -151,13 +156,26 @@ export class CounterResettable extends Crdt<CounterResettableState> implements C
     }
 
     private merge(target: {[k: string]: number}, source: {[k: string]: number}) {
-        // TODO
+        for (let k of Object.keys(source)) {
+            if (target[k] === undefined || target[k] < source[k]) {
+                target[k] = source[k];
+            }
+        }
     }
 
     get value(): number {
         let value = this.initialValue;
-        // TODO: value
+        value += this.addValues(this.state.plusP);
+        value -= this.addValues(this.state.plusN);
+        value -= this.addValues(this.state.minusP);
+        value += this.addValues(this.state.minusN);
         return value;
+    }
+
+    private addValues(record: {[k: string]: number}) {
+        let ans = 0;
+        for (let value of Object.values(record)) ans += value;
+        return ans;
     }
     /**
      * Performs an equivalent add.
@@ -167,14 +185,52 @@ export class CounterResettable extends Crdt<CounterResettableState> implements C
     }
 
     receiveOutOfOrder(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): void {
-        this.receive(targetPath, timestamp, message);
+        // TODO.
+        // Error on resets.
+        // For adds, if causally less than merger of all reset timestamps,
+        // also add it to the reset side.  This ensures that
+        // OoO adds also obey the observed-reset semantics.
+        // However we also have to make sure this works in the opposite order:
+        // if I receive an OoO add and later receive a causally (but not
+        // logically) later reset, I have to increase that reset to take into
+        // account the add.
+        throw new Error("not yet implemented");
+        // this.receive(targetPath, timestamp, message);
     }
 
     hardReset() {
-        this.state.plusP = {};
+        this.state.plusP = {}
         this.state.plusN = {};
         this.state.minusP = {};
         this.state.minusN = {};
+    }
+}
+
+export class CounterStrongResettable extends AddStrongResettable(CounterNonResettable) implements CounterBase, StrongResettable, OutOfOrderAble {}
+
+export class Counter extends AddStrongResettable(CounterResettable) implements AllAble {
+    static withAbilities<F extends AbilityFlag>(
+        abilityFlag: F,
+        parentOrRuntime: Crdt | CrdtRuntime,
+        id: string,
+        initialValue: number = 0
+    ): CounterBase & InterfaceOf<F> {
+        if (abilityFlag.resettable !== undefined) {
+            if (abilityFlag.strongResettable !== undefined) {
+                return new Counter(parentOrRuntime, id, initialValue) as any;
+            }
+            else {
+                return new CounterResettable(parentOrRuntime, id, initialValue) as any;
+            }
+        }
+        else {
+            if (abilityFlag.strongResettable !== undefined) {
+                return new CounterStrongResettable(parentOrRuntime, id, initialValue) as any;
+            }
+            else {
+                return new CounterNonResettable(parentOrRuntime, id, initialValue) as any;
+            }
+        }
     }
 }
 
