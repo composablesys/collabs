@@ -86,7 +86,7 @@ export class NumberBase extends SemidirectProduct<NumberState> {
     }
 }
 
-export class Number extends AddAbilitiesViaHistory(NumberBase, true) {}
+export class NumberCrdt extends AddAbilitiesViaHistory(NumberBase, true) {}
 
 //
 // function positiveMod(a: number, b: number) {
