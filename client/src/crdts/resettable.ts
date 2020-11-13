@@ -2,7 +2,6 @@ import { CausalTimestamp } from "../network";
 import { Crdt, CrdtRuntime } from "./crdt_core";
 import { SemidirectProduct } from "./semidirect";
 import { isResettable, isOutOfOrderAble, AllAble, Resettable, OutOfOrderAble } from "./abilities";
-import { Counter } from "./basic_crdts";
 
 export interface HardResettable {
     /**
@@ -173,10 +172,11 @@ export class StrongResetComponent<S extends Object | null = Object | null> exten
     }
 
     receiveInternal(
-        _timestamp: CausalTimestamp,
+        timestamp: CausalTimestamp,
         _message: Uint8Array | ResetComponentMessage
     ) {
         this.targetCrdt.hardReset();
+        (this.parent as StrongResetWrapperCrdt<S>).dispatchStrongResetEvent(timestamp);
     }
 }
 

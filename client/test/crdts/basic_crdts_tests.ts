@@ -58,14 +58,16 @@ function testCounter() {
     aliceCounter.addEventListener("Add", event => console.log(
         "Alice: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     aliceCounter.addEventListener("Reset", event => console.log(
-        "Alice: " + event.timestamp.getSender() + " reset"
-    ));
+        "Alice: " + event.timestamp.getSender() + " reset"));
+    aliceCounter.addEventListener("StrongReset", event => console.log(
+        "Alice: " + event.timestamp.getSender() + " strong reset"));
     let bobCounter = new Counter(bob, "counterReset");
     bobCounter.addEventListener("Add", event => console.log(
         "Bob: " + event.timestamp.getSender() + " added " + (event as AddEvent).valueAdded));
     bobCounter.addEventListener("Reset", event => console.log(
-        "Bob: " + event.timestamp.getSender() + " reset"
-    ));
+        "Bob: " + event.timestamp.getSender() + " reset"));
+    bobCounter.addEventListener("StrongReset", event => console.log(
+        "Bob: " + event.timestamp.getSender() + " strong reset"));
     assert.strictEqual(aliceCounter.value, 0);
     assert.strictEqual(bobCounter.value, 0);
 

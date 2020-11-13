@@ -27,7 +27,7 @@ let clientCounter = new crdts.Counter(client, "counterId");
 var counter = document.getElementById("counter");
 
 /* Customize the event listener for CRDT as refresh the value */
-clientCounter.addEventListener("Add", _ => {
+clientCounter.addEventListener("Change", _ => {
     counter!.innerHTML = clientCounter.value.toString();
 });
 
@@ -42,6 +42,18 @@ document.getElementById("increment")!.onclick = function() {
 document.getElementById("decrement")!.onclick = function() {
     console.log("clicked decrement");
     clientCounter.add(-100);
+    counter!.innerHTML = clientCounter.value.toString();
+}
+
+document.getElementById("reset")!.onclick = function() {
+    console.log("clicked reset");
+    clientCounter.reset();
+    counter!.innerHTML = clientCounter.value.toString();
+}
+
+document.getElementById("strongReset")!.onclick = function() {
+    console.log("clicked strongReset");
+    clientCounter.strongReset();
     counter!.innerHTML = clientCounter.value.toString();
 }
 

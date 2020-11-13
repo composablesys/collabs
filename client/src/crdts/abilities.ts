@@ -148,15 +148,20 @@ function AddStrongResettableInternal<TBase extends HardResettableCrdtConstructor
             super(...args);
             this.strongResetWrapper = strongResetWrapper;
             strongResetWrapper.setupStrongReset(this);
-            // TODO: event
-            // strongResetWrapper.addEventListener(
-            //     "Reset", (event: CrdtEvent) =>
-            //     this.dispatchEvent({
-            //         caller: this,
-            //         type: event.type,
-            //         timestamp: event.timestamp
-            //     }), true
-            // );
+            strongResetWrapper.addEventListener(
+                "StrongReset", event => {
+                    this.dispatchEvent({
+                        caller: this,
+                        type: event.type,
+                        timestamp: event.timestamp
+                    });
+                    this.dispatchEvent({
+                        caller: this,
+                        type: "Change",
+                        timestamp: event.timestamp
+                    });
+                }, true
+            );
         }
         strongReset() {
             this.strongResetWrapper.strongReset();

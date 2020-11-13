@@ -143,7 +143,12 @@ export class CounterResettable extends Crdt<CounterResettableState> implements C
                 case "toReset":
                     this.merge(this.state.plusN, decoded.toReset!.plusReset!);
                     this.merge(this.state.minusN, decoded.toReset!.minusReset!);
-                    // TODO: reset event
+                    this.dispatchEvent({
+                        caller: this,
+                        type: "Reset",
+                        timestamp: timestamp
+                    });
+                    // TODO: event: also include metadata about non-reset ops?
                     break;
                 default:
                     throw new Error("CounterResettable: Bad decoded.data: " + decoded.data);

@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { AddEvent, Counter, NumberCrdt, MultEvent } from '../../src/crdts';
+import { AddEvent, NumberCrdt, MultEvent } from '../../src/crdts';
 import { TestingNetworkGenerator } from '../runtime_for_testing';
 
 let runtimeGen = new TestingNetworkGenerator();
