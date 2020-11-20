@@ -3,11 +3,14 @@ import {CausalTimestamp, BroadcastNetwork, DefaultCausalBroadcastNetwork} from "
 
 class TestingNetwork implements BroadcastNetwork {
     causal!: DefaultCausalBroadcastNetwork;
+    sentBytes = 0;
+    receivedBytes = 0;
     constructor(private generator : TestingNetworkGenerator) { }
     joinGroup(_group: string): void {
         // Ignored
     }
     send(_group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
+        this.sentBytes += message.byteLength;
         let queueMap = this.generator.messageQueues.get(this)!;
         for (let queue of queueMap.values()) {
             queue.push(message);
@@ -53,6 +56,7 @@ export class TestingNetworkGenerator {
         for (let recipient of recipients) {
             if (recipient === sender) continue;
             for (let message of senderMap.get(recipient)!) {
+                recipient.receivedBytes += message.byteLength;
                 recipient.causal.receive(message);
             }
             senderMap.set(recipient, []);

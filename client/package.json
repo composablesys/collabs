@@ -27,6 +27,7 @@
     "build": "npm run clean && npm run protobuild && (tsc || true) && cp src/proto_compiled.js build/src/proto_compiled.js",
     "clean": "(rm -r ./build || true)",
     "test": "node build/test/test.js",
+    "bench": "node build/test/benchmark/benchmark.js",
     "tsc": "tsc",
     "tscw": "tsc --watch",
     "protobuild": "(node_modules/protobufjs/bin/pbjs -t static-module -w commonjs -o src/proto_compiled.js `find src -name '*.proto'`) && (node_modules/protobufjs/bin/pbts -o src/proto_compiled.d.ts src/proto_compiled.js)"
