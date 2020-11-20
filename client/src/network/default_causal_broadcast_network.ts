@@ -55,10 +55,10 @@ export interface BroadcastNetwork {
      * for information purposes only.  Other nodes in the
      * system can learn the timestamp
      * by calling
-     * DefaultCausalBroadcastNetwork.timestampOf(message),
+     * DefaultCausalBroadcastNetwork.timestampOf(message) (TODO: implement),
      * if you want to get a sneak peek  (e.g., in case a
      * forwarding
-     * server wants to extract its sender's replicaId).
+     * server wants to extract its sender's replicaId) (TODO: same for group?).
      */
     send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void;
 }
@@ -158,7 +158,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         this.broadcastNetwork = broadcastNetwork;
         this.broadcastNetwork.register(this);
     }
-    
+
     joinGroup(group: string): void {
         this.broadcastNetwork.joinGroup(group);
     }

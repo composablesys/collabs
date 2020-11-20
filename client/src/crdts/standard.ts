@@ -14,10 +14,9 @@ export class NumberBase extends SemidirectProduct<NumberState> {
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
         initialValue: number = 0,
-        resettable = true,
         resetValue = initialValue
     ) {
-        super(parentOrRuntime, id, resettable);
+        super(parentOrRuntime, id);
         this.addCrdt = new CounterNonResettable(this, "add", 0);
         this.multCrdt = new MultRegisterBase(this, "mult", 0);
         super.setup(

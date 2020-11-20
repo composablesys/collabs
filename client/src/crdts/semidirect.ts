@@ -29,7 +29,7 @@ export class SemidirectState<S extends Object | null = Object | null> {
      * counters may not be contiguous, since they are shared between
      * all Crdts with a given root.
      */
-    private history: Map<any, Array<StoredMessage>> = new Map();
+    private history: Map<string, Array<StoredMessage>> = new Map();
     public internalState!: S;
     constructor(
         public readonly historyTimestamps: boolean,
@@ -40,7 +40,7 @@ export class SemidirectState<S extends Object | null = Object | null> {
      * replicaId is our replica id.
      */
     add(
-        replicaId: any, targetPath: string[],
+        replicaId: string, targetPath: string[],
         timestamp: CausalTimestamp, message: Uint8Array
     ) {
         if (this.historyDiscard2Dominated) {
@@ -69,9 +69,8 @@ export class SemidirectState<S extends Object | null = Object | null> {
      * causally greater than all prior messages, as described in
      * CrdtInternal.effect, hence [] is returned.
      */
-    getConcurrent(replicaId: any, timestamp: CausalTimestamp) {
-        return this.processTimestamp(replicaId, timestamp, true,
-            this.historyDiscard1Dominated);
+    getConcurrent(replicaId: string, timestamp: CausalTimestamp) {
+        return this.processTimestamp(replicaId, timestamp, true, this.historyDiscard1Dominated);
     }
 
     /**
@@ -86,7 +85,7 @@ export class SemidirectState<S extends Object | null = Object | null> {
      * the history, it must be added to the history after calling
      * this method.)
      */
-    private processTimestamp(replicaId: any,
+    private processTimestamp(replicaId: string,
             timestamp: CausalTimestamp, returnConcurrent: boolean,
             discardDominated: boolean) {
         if (replicaId === timestamp.getSender()) {
@@ -101,11 +100,13 @@ export class SemidirectState<S extends Object | null = Object | null> {
         // greater than timestamp.asVectorClock().get(replicaId).
         let concurrent: Array<StoredMessage> = [];
         let vc = timestamp.asVectorClock();
-        for (let entry of vc.entries()) {
-            let senderHistory = this.history.get(entry[0]);
+        for (let historyEntry of this.history.entries()) {
+            let senderHistory = historyEntry[1];
+            let vcEntry = vc.get(historyEntry[0]);
+            if (vcEntry === undefined) vcEntry = -1;
             if (senderHistory !== undefined) {
                 let concurrentIndexStart =
-                    SemidirectState.indexAfter(senderHistory, entry[1]);
+                    SemidirectState.indexAfter(senderHistory, vcEntry);
                 if (returnConcurrent) {
                     for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
                         concurrent.push(senderHistory[i]);

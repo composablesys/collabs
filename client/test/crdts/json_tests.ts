@@ -1,5 +1,5 @@
 // import assert from 'assert';
-// import {TestingRuntimeGenerator} from "../runtime_for_testing";
+// import {TestingNetworkGenerator} from "../testing_network";
 // import { JsonCrdt } from '../../src/crdts/json';
 // import { IntRegisterCrdt } from '../../src/crdts/standard';
 //

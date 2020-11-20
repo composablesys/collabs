@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { AddEvent, NumberCrdt, MultEvent } from '../../src/crdts';
-import { TestingNetworkGenerator } from '../runtime_for_testing';
+import {TestingNetworkGenerator} from "../testing_network";
 
 let runtimeGen = new TestingNetworkGenerator();
 let alice = runtimeGen.newRuntime("alice");

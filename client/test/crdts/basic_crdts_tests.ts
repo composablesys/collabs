@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {TestingNetworkGenerator} from "../runtime_for_testing";
+import {TestingNetworkGenerator} from "../testing_network";
 import { Counter, AddEvent, MultEvent, MultRegister, GSet, MultiValueRegister, SetAddEvent, MvrEvent, LwwRegister, LwwEvent,/*, GSet, MultiValueRegister*/
 CounterNonResettable} from "../../src/crdts";
 
