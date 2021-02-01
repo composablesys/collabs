@@ -29,12 +29,14 @@
   },
   "scripts": {
     "build": "npm run clean && tsc && npm run wp",
+    "test": "echo \"TODO\"",
     "tsc": "tsc",
     "tscw": "tsc --watch",
     "wp": "webpack",
     "wpw": "webpack --watch",
     "start": "node deploy/site/demo_server.js",
-    "clean": "(rm -r ./deploy || true) && (rm -r ./demoserver/public || true)"
+    "clean": "(rm -r ./deploy || true) && (rm -r ./demoserver/public || true)",
+    "prepare": "npm run build"
   },
   "files": [
     "deploy/**/*"
