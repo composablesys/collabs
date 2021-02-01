@@ -29,6 +29,7 @@
   },
   "scripts": {
     "build": "npm run clean && tsc && npm run wp",
+    "test": "echo \"TODO\"",
     "tsc": "tsc",
     "tscw": "tsc --watch",
     "wp": "webpack",

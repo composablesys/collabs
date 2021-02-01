@@ -31,7 +31,8 @@
   },
   "scripts": {
     "start": "npm start --prefix demo",
-    "build": "./heroku_deploy.sh"
+    "build": "./heroku_deploy.sh",
+    "test": "npm run test --prefix client && npm run test --prefix server && npm run test --prefix demo"
   },
   "repository": {
     "type": "git",
