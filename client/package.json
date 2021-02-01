@@ -28,7 +28,7 @@
     "typescript": "^4.0.0"
   },
   "scripts": {
-    "build": "npm run clean && npm run protobuild && (tsc || true) && cp src/proto_compiled.js build/src/proto_compiled.js",
+    "build": "npm run clean && npm run protobuild && tsc && cp src/proto_compiled.js build/src/proto_compiled.js",
     "clean": "(rm -r ./build || true)",
     "test": "mocha",
     "bench": "node build/test/benchmark/benchmark.js",
