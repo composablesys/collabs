@@ -35,7 +35,8 @@
     "wp": "webpack",
     "wpw": "webpack --watch",
     "start": "node deploy/site/demo_server.js",
-    "clean": "(rm -r ./deploy || true) && (rm -r ./demoserver/public || true)"
+    "clean": "(rm -r ./deploy || true) && (rm -r ./demoserver/public || true)",
+    "prepare": "npm run build"
   },
   "files": [
     "deploy/**/*"

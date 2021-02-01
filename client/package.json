@@ -34,7 +34,8 @@
     "bench": "node build/test/benchmark/benchmark.js",
     "tsc": "tsc",
     "tscw": "tsc --watch",
-    "protobuild": "(node_modules/protobufjs/bin/pbjs -t static-module -w commonjs -o src/proto_compiled.js `find src -name '*.proto'`) && (node_modules/protobufjs/bin/pbts -o src/proto_compiled.d.ts src/proto_compiled.js)"
+    "protobuild": "(node_modules/protobufjs/bin/pbjs -t static-module -w commonjs -o src/proto_compiled.js `find src -name '*.proto'`) && (node_modules/protobufjs/bin/pbts -o src/proto_compiled.d.ts src/proto_compiled.js)",
+    "prepare": "npm run build"
   },
   "files": [
     "build/src/**/*"

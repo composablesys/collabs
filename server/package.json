@@ -23,7 +23,8 @@
     "build": "npm run clean && tsc",
     "tscw": "tsc --watch",
     "test": "echo \"TODO\"",
-    "clean": "(rm -r ./build || true)"
+    "clean": "(rm -r ./build || true)",
+    "prepare": "npm run build"
   },
   "files": [
     "build/src/**/*"

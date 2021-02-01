@@ -2,37 +2,15 @@
   "name": "compoventuals",
   "version": "1.0.0",
   "description": "Compoventuals CRDTs with demos",
-  "directories": {
-    "test": "test"
-  },
-  "dependencies": {
-    "clean": "^4.0.2",
-    "compoventuals-client": "file:client",
-    "compoventuals-demo": "file:demo",
-    "compoventuals-server": "file:server",
-    "express": "^4.17.1",
-    "uuid": "^3.4.0",
-    "ws": "^7.3.1"
-  },
-  "devDependencies": {
-    "@types/bson": "^4.0.2",
-    "@types/express": "^4.17.7",
-    "@types/uuid": "^3.4.0",
-    "@types/webpack-env": "^1.15.2",
-    "@types/ws": "^7.2.6",
-    "copy-webpack-plugin": "^5.1.1",
-    "terser-webpack-plugin": "^3.1.0",
-    "ts-loader": "^7.0.5",
-    "ts-node": "^8.10.1",
-    "tslib": "^2.0.1",
-    "typescript": "^3.9.7",
-    "webpack": "^4.44.1",
-    "webpack-cli": "^3.3.11"
-  },
+  "dependencies": {},
+  "devDependencies": {},
   "scripts": {
     "start": "npm start --prefix demo",
-    "build": "./heroku_deploy.sh",
-    "test": "npm run test --prefix client && npm run test --prefix server && npm run test --prefix demo"
+    "test": "npm run test --prefix client && npm run test --prefix server && npm run test --prefix demo",
+    "install:client": "cd client && npm install",
+    "install:server": "cd server && npm install",
+    "install:demo": "cd demo && npm install",
+    "preinstall": "npm run install:client && npm run install:server && npm run install:demo"
   },
   "repository": {
     "type": "git",
