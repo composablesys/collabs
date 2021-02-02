@@ -1,3 +1,3 @@
-console.log("Benchmark v2");
+console.log("Benchmark");
 
 // TODO
