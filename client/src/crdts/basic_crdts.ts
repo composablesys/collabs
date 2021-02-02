@@ -35,6 +35,7 @@ export class CounterNonResettable extends Crdt<NumberState> implements CounterBa
     }
 
     add(toAdd: number) {
+        breaking change
         if (toAdd !== 0) {
             let message = CounterNonResettableMessage.create({toAdd: toAdd});
             let buffer = CounterNonResettableMessage.encode(message).finish()
