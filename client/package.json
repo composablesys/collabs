@@ -30,7 +30,7 @@
   "scripts": {
     "build": "npm run clean && npm run protobuild && tsc && cp src/proto_compiled.js build/src/proto_compiled.js",
     "clean": "(rm -r ./build || true)",
-    "test": "mocha",
+    "test": "mocha && npm run bench",
     "bench": "node build/test/benchmark/benchmark.js",
     "tsc": "tsc",
     "tscw": "tsc --watch",
