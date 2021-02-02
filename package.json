@@ -7,9 +7,9 @@
   "scripts": {
     "start": "npm start --prefix demo",
     "test": "npm run test --prefix client && npm run test --prefix server && npm run test --prefix demo",
-    "install:client": "cd client && npm install",
-    "install:server": "cd server && npm install",
-    "install:demo": "cd demo && npm install",
+    "install:client": "cd client && npm ci",
+    "install:server": "cd server && npm ci",
+    "install:demo": "cd demo && npm ci",
     "preinstall": "npm run install:client && npm run install:server && npm run install:demo"
   },
   "repository": {
