@@ -35,7 +35,9 @@
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc --project tsconfig.build.json",
     "clean": "rimraf generated build",
-    "test": "mocha",
+    "test": "npm-run-all test:*",
+    "test:unit": "mocha",
+    "test:pkg": "pkg-ok",
     "bench": "node build/test/benchmark/benchmark.js",
     "tscw": "tsc --project tsconfig.build.json --watch"
   },

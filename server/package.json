@@ -19,7 +19,8 @@
   "scripts": {
     "build": "tsc",
     "tscw": "tsc --watch",
-    "test": "echo \"TODO\"",
+    "test": "npm-run-all test:*",
+    "test:pkg": "pkg-ok",
     "clean": "rimraf build"
   },
   "files": [

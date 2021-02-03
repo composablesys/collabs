@@ -28,7 +28,8 @@
   },
   "scripts": {
     "build": "webpack",
-    "test": "echo \"TODO\"",
+    "test": "npm-run-all test:*",
+    "test:pkg": "pkg-ok",
     "tscw": "tsc --watch",
     "wpw": "webpack --watch",
     "start": "node deploy/site/demo_server.js",
