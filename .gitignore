@@ -6,3 +6,5 @@ dist
 .idea/
 demo/deploy/
 demo/demoserver/
+client/generated
+*.tsbuildinfo

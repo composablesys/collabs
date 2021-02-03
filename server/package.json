@@ -2,6 +2,7 @@
   "name": "compoventuals-server",
   "version": "0.1.0",
   "main": "build/index.js",
+  "types": "build/index.d.ts",
   "unpkg": "build/index.js",
   "repository": {
     "type": "git",
@@ -13,30 +14,22 @@
   },
   "devDependencies": {
     "@types/ws": "^7.2.6",
-    "ts-loader": "^7.0.5",
-    "ts-node": "^8.10.1",
-    "tslib": "^2.0.1",
-    "typescript": "^3.9.7"
+    "tslib": "^2.0.1"
   },
   "scripts": {
-    "tsc": "tsc",
-    "build": "npm run clean && tsc",
+    "build": "tsc",
     "tscw": "tsc --watch",
     "test": "echo \"TODO\"",
-    "clean": "(rm -r ./build || true)",
-    "prepare": "npm run build"
+    "clean": "rimraf build"
   },
   "files": [
-    "build/src/**/*"
+    "/build"
   ],
   "description": "CRDTs designed compositionally (server library)",
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"
   },
   "homepage": "https://github.com/composablesys/compoventuals#readme",
-  "directories": {
-    "test": "test"
-  },
   "keywords": [
     "crdts"
   ],

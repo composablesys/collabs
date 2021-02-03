@@ -2,15 +2,32 @@
   "name": "compoventuals",
   "version": "1.0.0",
   "description": "Compoventuals CRDTs with demos",
-  "dependencies": {},
-  "devDependencies": {},
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^2.7.1",
+    "ts-node": "^8.10.2",
+    "typescript": "^4.1.3"
+  },
+  "workspaces": [
+    "client",
+    "server",
+    "demo"
+  ],
   "scripts": {
     "start": "npm start --prefix demo",
-    "test": "npm run test --prefix client && npm run test --prefix server && npm run test --prefix demo",
-    "install:client": "cd client && npm ci",
-    "install:server": "cd server && npm ci",
-    "install:demo": "cd demo && npm ci",
-    "preinstall": "npm run install:client && npm run install:server && npm run install:demo"
+    "build": "npm-run-all build:*",
+    "build:client": "npm run build --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build:demo": "npm run build --prefix demo",
+    "test": "npm-run-all test:*",
+    "test:client": "npm run test --prefix client",
+    "test:server": "npm run test --prefix server",
+    "test:demo": "npm run test --prefix demo",
+    "clean": "npm-run-all --parallel clean:*",
+    "clean:client": "npm run clean --prefix client",
+    "clean:server": "npm run clean --prefix server",
+    "clean:demo": "npm run clean --prefix demo",
+    "reset": "rimraf package-lock.json node_modules client/package-lock.json client/node_modules server/package-lock.json server/node_modules demo/package-lock.json demo/node_modules"
   },
   "repository": {
     "type": "git",

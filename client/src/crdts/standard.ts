@@ -1,10 +1,10 @@
 import { CausalTimestamp } from "../network";
-import { GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage, CounterPureBaseMessage } from "../proto_compiled";
+import { GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage, CounterPureBaseMessage } from "../../generated/proto_compiled";
 import { AddEvent, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent, CounterPureBase } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { SemidirectProduct } from "./semidirect";
-import { AddAbilitiesViaHistory } from "./abilities";
+import { AddAllAbilitiesViaHistory } from "./mixins";
 import { HardResettable } from "./resettable";
 
 export class NumberBase extends SemidirectProduct<NumberState> {
@@ -86,7 +86,7 @@ export class NumberBase extends SemidirectProduct<NumberState> {
     }
 }
 
-export class NumberCrdt extends AddAbilitiesViaHistory(NumberBase, true) {}
+export class NumberCrdt extends AddAllAbilitiesViaHistory(NumberBase, true) {}
 
 //
 // function positiveMod(a: number, b: number) {
@@ -227,7 +227,7 @@ class TrivialCrdt extends Crdt<null> implements HardResettable {
     hardReset() {}
 }
 
-export class EnableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
+export class EnableWinsFlag extends AddAllAbilitiesViaHistory(TrivialCrdt) {
     // TODO: in constructor: capture reset events, convert to Disable events.
     enable() {
         this.send(new Uint8Array());
@@ -251,7 +251,7 @@ export class EnableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
         this.strongReset();
     }
     get enabled() : boolean {
-        return !this.resetWrapper.state.isHistoryEmpty();
+        return !this.getResetState().isHistoryEmpty();
     }
     set enabled(newValue: boolean) {
         if (newValue) this.enable();
@@ -265,7 +265,7 @@ export class EnableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
     }
 }
 
-export class DisableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
+export class DisableWinsFlag extends AddAllAbilitiesViaHistory(TrivialCrdt) {
     // TODO: in constructor: capture reset events, convert to Enable events.
     disable() {
         this.send(new Uint8Array());
@@ -289,7 +289,7 @@ export class DisableWinsFlag extends AddAbilitiesViaHistory(TrivialCrdt) {
         this.strongReset();
     }
     get enabled() : boolean {
-        return this.resetWrapper.state.isHistoryEmpty();
+        return this.getResetState().isHistoryEmpty();
     }
     set enabled(newValue: boolean) {
         if (newValue) this.enable();

@@ -1,4 +1,4 @@
-import { CrdtReference, DefaultSerializerMessage, IDefaultSerializerMessage } from "../proto_compiled";
+import { CrdtReference, DefaultSerializerMessage, IDefaultSerializerMessage } from "../../generated/proto_compiled";
 import { Crdt, CrdtRuntime } from "./crdt_core";
 import { serialize, deserialize } from 'bson';
 

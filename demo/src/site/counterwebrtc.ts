@@ -1,5 +1,5 @@
 // require('../test/test'); // run test.ts
-import { crdts, network } from 'compoventuals-client';
+import { crdts, network } from "compoventuals-client";
 import { v4 as uuid } from 'uuid';
 
 /**

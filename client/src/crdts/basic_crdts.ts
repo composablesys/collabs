@@ -1,9 +1,9 @@
 import { CrdtEvent, Crdt, CrdtRuntime } from "./crdt_core";
 import { CausalTimestamp } from "../network";
-import {CounterPureBaseMessage, CounterResettableMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
+import { CounterPureBaseMessage, CounterResettableMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage } from "../../generated/proto_compiled";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { HardResettable } from "./resettable";
-import { AddAbilitiesViaHistory, OutOfOrderAble, AddStrongResettable, AllAble, AbilityFlag, InterfaceOf, StrongResettable, Resettable } from "./abilities";
+import { AddAllAbilitiesViaHistory, OutOfOrderAble, AllAble, AbilityFlag, InterfaceOf, StrongResettable, Resettable, AddStrongResettable } from "./mixins";
 
 export class AddEvent implements CrdtEvent {
     type = "Add";
@@ -81,7 +81,7 @@ export class CounterPureBase extends Crdt<NumberState> implements CounterBase, O
 /**
  * TODO: Counter with pure operations.  Less efficient state size.
  */
-export class CounterPure extends AddAbilitiesViaHistory(CounterPureBase) implements CounterBase, AllAble {}
+export class CounterPure extends AddAllAbilitiesViaHistory(CounterPureBase) implements CounterBase, AllAble {}
 
 export class CounterResettableState {
     plusP: {[k: string]: number} = {};
@@ -301,7 +301,7 @@ export class MultRegisterBase extends Crdt<NumberState> implements HardResettabl
     }
 }
 
-export class MultRegister extends AddAbilitiesViaHistory(MultRegisterBase) {}
+export class MultRegister extends AddAllAbilitiesViaHistory(MultRegisterBase) {}
 
 export class SetAddEvent<T> implements CrdtEvent {
     type = "SetAdd";
@@ -534,7 +534,7 @@ export class MultiValueRegisterBase<T> extends Crdt<Set<MvrEntry<T>>> implements
     }
 }
 
-export class MultiValueRegister<T> extends AddAbilitiesViaHistory(MultiValueRegisterBase, true)<T> {}
+export class MultiValueRegister<T> extends AddAllAbilitiesViaHistory(MultiValueRegisterBase, true) {}
 
 export class LwwState<T> {
     constructor(
@@ -667,4 +667,4 @@ export class LwwRegisterBase<T> extends Crdt<LwwState<T>> implements HardResetta
     }
 }
 
-export class LwwRegister<T> extends AddAbilitiesViaHistory(LwwRegisterBase, true)<T> {}
+export class LwwRegister<T> extends AddAllAbilitiesViaHistory(LwwRegisterBase, true) {}

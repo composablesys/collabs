@@ -1,5 +1,5 @@
 import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
-import { CrdtRuntimeMessage } from "../proto_compiled";
+import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
 
 /**
  * An event issued when a CRDT is changed by another replica.
