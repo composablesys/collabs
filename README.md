@@ -18,11 +18,18 @@ If this is not the case, you can update to the latest version using:
 $ npm install -g npm@latest
 ```
 
-Then, install dependencies and build all sources:
+Then, install dependencies and build all sources.
+It's best to run the build before opening your IDE, as we generate some sources.
 
 ```console
 $ npm install
 $ npm run build
+```
+
+You can also run all tests to ensure that everything is working as expected:
+
+```console
+$ npm run test
 ```
 
 **Note:**
