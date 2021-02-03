@@ -13,8 +13,8 @@ const config: webpack.Configuration = {
     // TODO: Add more entries as needed for new pages
   },
   output: {
-    path: path.resolve(__dirname, "demoserver/public"),
-    filename: "deploy/site/[name].js",
+    path: path.resolve(__dirname, "build/site"),
+    filename: "[name].js",
     library: "compoventuals-demo",
     libraryTarget: "window", // this needs to be changed
     libraryExport: "default",
@@ -26,7 +26,13 @@ const config: webpack.Configuration = {
   module: {
     rules: [
       // all files with a `.ts` or `.tsx` extension will be handled by `ts-loader`
-      { test: /\.tsx?$/, loader: "ts-loader" },
+      {
+        test: /\.tsx?$/,
+        loader: "ts-loader",
+        options: {
+          configFile: "tsconfig.site.json"
+        }
+      },
     ],
   },
   //   optimization: {
@@ -38,11 +44,11 @@ const config: webpack.Configuration = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: "./src/site/index.html", to: "./deploy/site/index.html" },
-        { from: "./src/site/counter.html", to: "./deploy/site/counter.html" },
-        { from: "./src/site/whiteboard.html", to: "./deploy/site/whiteboard.html" },
-        { from: "./src/site/tests.html", to: "./deploy/site/tests.html" },
-        { from: "./src/site/counter_webrtc.html", to: "./deploy/site/counter_webrtc.html" },
+        { from: "./src/site/index.html", to: "index.html" },
+        { from: "./src/site/counter.html", to: "counter.html" },
+        { from: "./src/site/whiteboard.html", to: "whiteboard.html" },
+        { from: "./src/site/tests.html", to: "tests.html" },
+        { from: "./src/site/counter_webrtc.html", to: "counter_webrtc.html" },
         // TODO: Add more entries as needed for new pages
       ],
     }),

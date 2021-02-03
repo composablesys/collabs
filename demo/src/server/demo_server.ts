@@ -1,10 +1,10 @@
-import express = require('express');
 import { startServer } from 'compoventuals-server';
+import express from 'express';
 
 // Express server based on https://devcenter.heroku.com/articles/node-websockets
 const PORT = process.env.PORT || 3000;
 const INDEX = '/index.html';
-const ROOT = __dirname + "../../../demoserver/public/deploy/site";
+const ROOT = __dirname + "/../site";
 
 const server = express()
   .use((req, res) => res.sendFile(req.path, { root: ROOT }))

@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "compoventuals-client": "^0.1.0",
+    "compoventuals-server": "^0.1.0",
     "clean": "^4.0.2",
     "express": "^4.17.1",
     "uuid": "^3.4.0",
@@ -27,16 +28,17 @@
     "webpack-cli": "^3.3.11"
   },
   "scripts": {
-    "build": "webpack",
+    "build": "npm-run-all build:*",
+    "build:site": "webpack",
+    "build:server": "tsc --build tsconfig.server.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
-    "tscw": "tsc --watch",
     "wpw": "webpack --watch",
-    "start": "node deploy/site/demo_server.js",
-    "clean": "rimraf deploy demoserver/public"
+    "start": "node build/server/demo_server.js",
+    "clean": "rimraf build"
   },
   "files": [
-    "deploy/**/*"
+    "/build"
   ],
   "description": "Demo of compoventuals capabilities",
   "bugs": {

@@ -1,11 +1,4 @@
 {
   "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "deploy",
-  },
-  "include": ["src"],
-  "references": [
-    { "path": "../client/tsconfig.build.json" }
-  ]
+  "files": ["webpack.config.ts"]
 }
