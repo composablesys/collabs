@@ -1,4 +1,3 @@
-import { Timestamp } from "bson";
 import { CausalTimestamp } from "../../network/causal_broadcast_network";
 import { Crdt, CrdtRuntime } from "../crdt_core";
 import {

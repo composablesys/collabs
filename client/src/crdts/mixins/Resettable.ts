@@ -1,6 +1,3 @@
-import { Crdt } from "../crdt_core";
-import { Constructor, Mixin } from "./mixin";
-
 // TODO: do this on the receiving end instead?  Doesn't work
 // if you have counter children though.  Same for strongReset.
 export interface Resettable {
