@@ -1,13 +1,14 @@
 import { CausalTimestamp } from "../network";
-import { GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage, CounterNonResettableMessage } from "../proto_compiled";
-import { AddEvent, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent, CounterNonResettable } from "./basic_crdts";
+import { GMapMessage, MultRegisterMessage, RuntimeGeneratorMessage, CounterPureBaseMessage } from "../proto_compiled";
+import { AddEvent, LwwRegister, MultEvent, MultRegisterBase, NumberState, SetAddEvent, CounterPureBase } from "./basic_crdts";
 import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { SemidirectProduct } from "./semidirect";
 import { AddAbilitiesViaHistory } from "./abilities";
+import { HardResettable } from "./resettable";
 
 export class NumberBase extends SemidirectProduct<NumberState> {
-    private addCrdt: CounterNonResettable;
+    private addCrdt: CounterPureBase;
     private multCrdt: MultRegisterBase;
     readonly resetValue: number;
     constructor(
@@ -17,7 +18,7 @@ export class NumberBase extends SemidirectProduct<NumberState> {
         resetValue = initialValue
     ) {
         super(parentOrRuntime, id);
-        this.addCrdt = new CounterNonResettable(this, "add", 0);
+        this.addCrdt = new CounterPureBase(this, "add", 0);
         this.multCrdt = new MultRegisterBase(this, "mult", 0);
         super.setup(
             this.addCrdt, this.multCrdt,
@@ -56,9 +57,9 @@ export class NumberBase extends SemidirectProduct<NumberState> {
     ): [string[], Uint8Array] | null {
         try {
             let m2Decoded = MultRegisterMessage.decode(m2Message);
-            let m1Decoded = CounterNonResettableMessage.decode(m1Message);
-            let acted = CounterNonResettableMessage.create({toAdd: m2Decoded.toMult * m1Decoded.toAdd});
-            return [[], CounterNonResettableMessage.encode(acted).finish()]
+            let m1Decoded = CounterPureBaseMessage.decode(m1Message);
+            let acted = CounterPureBaseMessage.create({toAdd: m2Decoded.toMult * m1Decoded.toAdd});
+            return [[], CounterPureBaseMessage.encode(acted).finish()]
         }
         catch (e) {
             // TODO
@@ -219,7 +220,7 @@ export class NumberCrdt extends AddAbilitiesViaHistory(NumberBase, true) {}
 //     }
 // }
 
-class TrivialCrdt extends Crdt<null> {
+class TrivialCrdt extends Crdt<null> implements HardResettable {
     constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string) {
         super(parentOrRuntime, id, null);
     }

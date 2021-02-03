@@ -1,6 +1,6 @@
 import { CrdtEvent, Crdt, CrdtRuntime } from "./crdt_core";
 import { CausalTimestamp } from "../network";
-import {CounterNonResettableMessage, CounterResettableMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
+import {CounterPureBaseMessage, CounterResettableMessage, GSetMessage, LwwMessage, MultRegisterMessage, MvrMessage} from "../proto_compiled";
 import { defaultCollectionSerializer, newDefaultCollectionDeserializer } from "./utils";
 import { HardResettable } from "./resettable";
 import { AddAbilitiesViaHistory, OutOfOrderAble, AddStrongResettable, AllAble, AbilityFlag, InterfaceOf, StrongResettable, Resettable } from "./abilities";
@@ -25,7 +25,7 @@ export interface CounterBase extends Crdt {
     value: number;
 }
 
-export class CounterNonResettable extends Crdt<NumberState> implements CounterBase, OutOfOrderAble, HardResettable {
+export class CounterPureBase extends Crdt<NumberState> implements CounterBase, OutOfOrderAble, HardResettable {
     constructor(
         parentOrRuntime: Crdt | CrdtRuntime,
         id: string,
@@ -36,8 +36,8 @@ export class CounterNonResettable extends Crdt<NumberState> implements CounterBa
 
     add(toAdd: number) {
         if (toAdd !== 0) {
-            let message = CounterNonResettableMessage.create({toAdd: toAdd});
-            let buffer = CounterNonResettableMessage.encode(message).finish()
+            let message = CounterPureBaseMessage.create({toAdd: toAdd});
+            let buffer = CounterPureBaseMessage.encode(message).finish()
             super.send(buffer);
         }
     }
@@ -47,7 +47,7 @@ export class CounterNonResettable extends Crdt<NumberState> implements CounterBa
         message: Uint8Array
     ) {
         try {
-            let decoded = CounterNonResettableMessage.decode(message);
+            let decoded = CounterPureBaseMessage.decode(message);
             this.state.value += decoded.toAdd;
             this.dispatchEvent(new AddEvent(
                 this, timestamp, decoded.toAdd
@@ -81,7 +81,7 @@ export class CounterNonResettable extends Crdt<NumberState> implements CounterBa
 /**
  * TODO: Counter with pure operations.  Less efficient state size.
  */
-export class CounterPure extends AddAbilitiesViaHistory(CounterNonResettable) implements CounterBase, AllAble {}
+export class CounterPure extends AddAbilitiesViaHistory(CounterPureBase) implements CounterBase, AllAble {}
 
 export class CounterResettableState {
     plusP: {[k: string]: number} = {};
@@ -211,7 +211,10 @@ export class CounterResettable extends Crdt<CounterResettableState> implements C
     }
 }
 
-export class CounterStrongResettable extends AddStrongResettable(CounterNonResettable) implements CounterBase, StrongResettable, OutOfOrderAble {}
+// Don't export to save clutter; it can be accessed via Counter.withAbilities.
+// Other variants are exported, since they are primitive CRDTs that could
+// be used in semidirect products.
+class CounterStrongResettable extends AddStrongResettable(CounterPureBase) implements CounterBase, StrongResettable, OutOfOrderAble {}
 
 export class Counter extends AddStrongResettable(CounterResettable) implements AllAble {
     static withAbilities<F extends AbilityFlag>(
@@ -233,13 +236,11 @@ export class Counter extends AddStrongResettable(CounterResettable) implements A
                 return new CounterStrongResettable(parentOrRuntime, id, initialValue) as any;
             }
             else {
-                return new CounterNonResettable(parentOrRuntime, id, initialValue) as any;
+                return new CounterPureBase(parentOrRuntime, id, initialValue) as any;
             }
         }
     }
 }
-
-// TODO: keep old history-based resettable counter as "PureCounter"?
 
 export class MultEvent implements CrdtEvent {
     type = "Mult";

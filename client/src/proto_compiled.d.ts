@@ -314,91 +314,91 @@ export class DefaultSerializerMessage implements IDefaultSerializerMessage {
     public toJSON(): { [k: string]: any };
 }
 
-/** Properties of a CounterNonResettableMessage. */
-export interface ICounterNonResettableMessage {
+/** Properties of a CounterPureBaseMessage. */
+export interface ICounterPureBaseMessage {
 
-    /** CounterNonResettableMessage toAdd */
+    /** CounterPureBaseMessage toAdd */
     toAdd: number;
 }
 
-/** Represents a CounterNonResettableMessage. */
-export class CounterNonResettableMessage implements ICounterNonResettableMessage {
+/** Represents a CounterPureBaseMessage. */
+export class CounterPureBaseMessage implements ICounterPureBaseMessage {
 
     /**
-     * Constructs a new CounterNonResettableMessage.
+     * Constructs a new CounterPureBaseMessage.
      * @param [properties] Properties to set
      */
-    constructor(properties?: ICounterNonResettableMessage);
+    constructor(properties?: ICounterPureBaseMessage);
 
-    /** CounterNonResettableMessage toAdd. */
+    /** CounterPureBaseMessage toAdd. */
     public toAdd: number;
 
     /**
-     * Creates a new CounterNonResettableMessage instance using the specified properties.
+     * Creates a new CounterPureBaseMessage instance using the specified properties.
      * @param [properties] Properties to set
-     * @returns CounterNonResettableMessage instance
+     * @returns CounterPureBaseMessage instance
      */
-    public static create(properties?: ICounterNonResettableMessage): CounterNonResettableMessage;
+    public static create(properties?: ICounterPureBaseMessage): CounterPureBaseMessage;
 
     /**
-     * Encodes the specified CounterNonResettableMessage message. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
-     * @param message CounterNonResettableMessage message or plain object to encode
+     * Encodes the specified CounterPureBaseMessage message. Does not implicitly {@link CounterPureBaseMessage.verify|verify} messages.
+     * @param message CounterPureBaseMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encode(message: ICounterNonResettableMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encode(message: ICounterPureBaseMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Encodes the specified CounterNonResettableMessage message, length delimited. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
-     * @param message CounterNonResettableMessage message or plain object to encode
+     * Encodes the specified CounterPureBaseMessage message, length delimited. Does not implicitly {@link CounterPureBaseMessage.verify|verify} messages.
+     * @param message CounterPureBaseMessage message or plain object to encode
      * @param [writer] Writer to encode to
      * @returns Writer
      */
-    public static encodeDelimited(message: ICounterNonResettableMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+    public static encodeDelimited(message: ICounterPureBaseMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
     /**
-     * Decodes a CounterNonResettableMessage message from the specified reader or buffer.
+     * Decodes a CounterPureBaseMessage message from the specified reader or buffer.
      * @param reader Reader or buffer to decode from
      * @param [length] Message length if known beforehand
-     * @returns CounterNonResettableMessage
+     * @returns CounterPureBaseMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CounterNonResettableMessage;
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): CounterPureBaseMessage;
 
     /**
-     * Decodes a CounterNonResettableMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CounterPureBaseMessage message from the specified reader or buffer, length delimited.
      * @param reader Reader or buffer to decode from
-     * @returns CounterNonResettableMessage
+     * @returns CounterPureBaseMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CounterNonResettableMessage;
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): CounterPureBaseMessage;
 
     /**
-     * Verifies a CounterNonResettableMessage message.
+     * Verifies a CounterPureBaseMessage message.
      * @param message Plain object to verify
      * @returns `null` if valid, otherwise the reason why it is not
      */
     public static verify(message: { [k: string]: any }): (string|null);
 
     /**
-     * Creates a CounterNonResettableMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CounterPureBaseMessage message from a plain object. Also converts values to their respective internal types.
      * @param object Plain object
-     * @returns CounterNonResettableMessage
+     * @returns CounterPureBaseMessage
      */
-    public static fromObject(object: { [k: string]: any }): CounterNonResettableMessage;
+    public static fromObject(object: { [k: string]: any }): CounterPureBaseMessage;
 
     /**
-     * Creates a plain object from a CounterNonResettableMessage message. Also converts values to other types if specified.
-     * @param message CounterNonResettableMessage
+     * Creates a plain object from a CounterPureBaseMessage message. Also converts values to other types if specified.
+     * @param message CounterPureBaseMessage
      * @param [options] Conversion options
      * @returns Plain object
      */
-    public static toObject(message: CounterNonResettableMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+    public static toObject(message: CounterPureBaseMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
     /**
-     * Converts this CounterNonResettableMessage to JSON.
+     * Converts this CounterPureBaseMessage to JSON.
      * @returns JSON object
      */
     public toJSON(): { [k: string]: any };

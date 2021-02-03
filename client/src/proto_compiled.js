@@ -824,24 +824,24 @@ $root.DefaultSerializerMessage = (function() {
     return DefaultSerializerMessage;
 })();
 
-$root.CounterNonResettableMessage = (function() {
+$root.CounterPureBaseMessage = (function() {
 
     /**
-     * Properties of a CounterNonResettableMessage.
-     * @exports ICounterNonResettableMessage
-     * @interface ICounterNonResettableMessage
-     * @property {number} toAdd CounterNonResettableMessage toAdd
+     * Properties of a CounterPureBaseMessage.
+     * @exports ICounterPureBaseMessage
+     * @interface ICounterPureBaseMessage
+     * @property {number} toAdd CounterPureBaseMessage toAdd
      */
 
     /**
-     * Constructs a new CounterNonResettableMessage.
-     * @exports CounterNonResettableMessage
-     * @classdesc Represents a CounterNonResettableMessage.
-     * @implements ICounterNonResettableMessage
+     * Constructs a new CounterPureBaseMessage.
+     * @exports CounterPureBaseMessage
+     * @classdesc Represents a CounterPureBaseMessage.
+     * @implements ICounterPureBaseMessage
      * @constructor
-     * @param {ICounterNonResettableMessage=} [properties] Properties to set
+     * @param {ICounterPureBaseMessage=} [properties] Properties to set
      */
-    function CounterNonResettableMessage(properties) {
+    function CounterPureBaseMessage(properties) {
         if (properties)
             for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                 if (properties[keys[i]] != null)
@@ -849,35 +849,35 @@ $root.CounterNonResettableMessage = (function() {
     }
 
     /**
-     * CounterNonResettableMessage toAdd.
+     * CounterPureBaseMessage toAdd.
      * @member {number} toAdd
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @instance
      */
-    CounterNonResettableMessage.prototype.toAdd = 0;
+    CounterPureBaseMessage.prototype.toAdd = 0;
 
     /**
-     * Creates a new CounterNonResettableMessage instance using the specified properties.
+     * Creates a new CounterPureBaseMessage instance using the specified properties.
      * @function create
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
-     * @param {ICounterNonResettableMessage=} [properties] Properties to set
-     * @returns {CounterNonResettableMessage} CounterNonResettableMessage instance
+     * @param {ICounterPureBaseMessage=} [properties] Properties to set
+     * @returns {CounterPureBaseMessage} CounterPureBaseMessage instance
      */
-    CounterNonResettableMessage.create = function create(properties) {
-        return new CounterNonResettableMessage(properties);
+    CounterPureBaseMessage.create = function create(properties) {
+        return new CounterPureBaseMessage(properties);
     };
 
     /**
-     * Encodes the specified CounterNonResettableMessage message. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
+     * Encodes the specified CounterPureBaseMessage message. Does not implicitly {@link CounterPureBaseMessage.verify|verify} messages.
      * @function encode
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
-     * @param {ICounterNonResettableMessage} message CounterNonResettableMessage message or plain object to encode
+     * @param {ICounterPureBaseMessage} message CounterPureBaseMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CounterNonResettableMessage.encode = function encode(message, writer) {
+    CounterPureBaseMessage.encode = function encode(message, writer) {
         if (!writer)
             writer = $Writer.create();
         writer.uint32(/* id 1, wireType 1 =*/9).double(message.toAdd);
@@ -885,33 +885,33 @@ $root.CounterNonResettableMessage = (function() {
     };
 
     /**
-     * Encodes the specified CounterNonResettableMessage message, length delimited. Does not implicitly {@link CounterNonResettableMessage.verify|verify} messages.
+     * Encodes the specified CounterPureBaseMessage message, length delimited. Does not implicitly {@link CounterPureBaseMessage.verify|verify} messages.
      * @function encodeDelimited
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
-     * @param {ICounterNonResettableMessage} message CounterNonResettableMessage message or plain object to encode
+     * @param {ICounterPureBaseMessage} message CounterPureBaseMessage message or plain object to encode
      * @param {$protobuf.Writer} [writer] Writer to encode to
      * @returns {$protobuf.Writer} Writer
      */
-    CounterNonResettableMessage.encodeDelimited = function encodeDelimited(message, writer) {
+    CounterPureBaseMessage.encodeDelimited = function encodeDelimited(message, writer) {
         return this.encode(message, writer).ldelim();
     };
 
     /**
-     * Decodes a CounterNonResettableMessage message from the specified reader or buffer.
+     * Decodes a CounterPureBaseMessage message from the specified reader or buffer.
      * @function decode
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
      * @param {number} [length] Message length if known beforehand
-     * @returns {CounterNonResettableMessage} CounterNonResettableMessage
+     * @returns {CounterPureBaseMessage} CounterPureBaseMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CounterNonResettableMessage.decode = function decode(reader, length) {
+    CounterPureBaseMessage.decode = function decode(reader, length) {
         if (!(reader instanceof $Reader))
             reader = $Reader.create(reader);
-        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CounterNonResettableMessage();
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.CounterPureBaseMessage();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
@@ -929,30 +929,30 @@ $root.CounterNonResettableMessage = (function() {
     };
 
     /**
-     * Decodes a CounterNonResettableMessage message from the specified reader or buffer, length delimited.
+     * Decodes a CounterPureBaseMessage message from the specified reader or buffer, length delimited.
      * @function decodeDelimited
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
      * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-     * @returns {CounterNonResettableMessage} CounterNonResettableMessage
+     * @returns {CounterPureBaseMessage} CounterPureBaseMessage
      * @throws {Error} If the payload is not a reader or valid buffer
      * @throws {$protobuf.util.ProtocolError} If required fields are missing
      */
-    CounterNonResettableMessage.decodeDelimited = function decodeDelimited(reader) {
+    CounterPureBaseMessage.decodeDelimited = function decodeDelimited(reader) {
         if (!(reader instanceof $Reader))
             reader = new $Reader(reader);
         return this.decode(reader, reader.uint32());
     };
 
     /**
-     * Verifies a CounterNonResettableMessage message.
+     * Verifies a CounterPureBaseMessage message.
      * @function verify
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
      * @param {Object.<string,*>} message Plain object to verify
      * @returns {string|null} `null` if valid, otherwise the reason why it is not
      */
-    CounterNonResettableMessage.verify = function verify(message) {
+    CounterPureBaseMessage.verify = function verify(message) {
         if (typeof message !== "object" || message === null)
             return "object expected";
         if (typeof message.toAdd !== "number")
@@ -961,32 +961,32 @@ $root.CounterNonResettableMessage = (function() {
     };
 
     /**
-     * Creates a CounterNonResettableMessage message from a plain object. Also converts values to their respective internal types.
+     * Creates a CounterPureBaseMessage message from a plain object. Also converts values to their respective internal types.
      * @function fromObject
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
      * @param {Object.<string,*>} object Plain object
-     * @returns {CounterNonResettableMessage} CounterNonResettableMessage
+     * @returns {CounterPureBaseMessage} CounterPureBaseMessage
      */
-    CounterNonResettableMessage.fromObject = function fromObject(object) {
-        if (object instanceof $root.CounterNonResettableMessage)
+    CounterPureBaseMessage.fromObject = function fromObject(object) {
+        if (object instanceof $root.CounterPureBaseMessage)
             return object;
-        var message = new $root.CounterNonResettableMessage();
+        var message = new $root.CounterPureBaseMessage();
         if (object.toAdd != null)
             message.toAdd = Number(object.toAdd);
         return message;
     };
 
     /**
-     * Creates a plain object from a CounterNonResettableMessage message. Also converts values to other types if specified.
+     * Creates a plain object from a CounterPureBaseMessage message. Also converts values to other types if specified.
      * @function toObject
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @static
-     * @param {CounterNonResettableMessage} message CounterNonResettableMessage
+     * @param {CounterPureBaseMessage} message CounterPureBaseMessage
      * @param {$protobuf.IConversionOptions} [options] Conversion options
      * @returns {Object.<string,*>} Plain object
      */
-    CounterNonResettableMessage.toObject = function toObject(message, options) {
+    CounterPureBaseMessage.toObject = function toObject(message, options) {
         if (!options)
             options = {};
         var object = {};
@@ -998,17 +998,17 @@ $root.CounterNonResettableMessage = (function() {
     };
 
     /**
-     * Converts this CounterNonResettableMessage to JSON.
+     * Converts this CounterPureBaseMessage to JSON.
      * @function toJSON
-     * @memberof CounterNonResettableMessage
+     * @memberof CounterPureBaseMessage
      * @instance
      * @returns {Object.<string,*>} JSON object
      */
-    CounterNonResettableMessage.prototype.toJSON = function toJSON() {
+    CounterPureBaseMessage.prototype.toJSON = function toJSON() {
         return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
     };
 
-    return CounterNonResettableMessage;
+    return CounterPureBaseMessage;
 })();
 
 $root.CounterResetMessage = (function() {

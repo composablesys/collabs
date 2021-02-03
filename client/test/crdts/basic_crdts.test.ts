@@ -3,7 +3,7 @@ import { debug } from "../debug";
 import {
   AddEvent,
   Counter,
-  CounterNonResettable,
+  CounterPureBase,
   CrdtRuntime,
   GSet,
   LwwEvent,
@@ -27,13 +27,13 @@ describe("basic_crdts", () => {
     bob = runtimeGen.newRuntime("bob");
   });
 
-  describe("CounterNonResettable", () => {
-    let aliceCounter: CounterNonResettable;
-    let bobCounter: CounterNonResettable;
+  describe("CounterPureBase", () => {
+    let aliceCounter: CounterPureBase;
+    let bobCounter: CounterPureBase;
 
     beforeEach(() => {
-      aliceCounter = new CounterNonResettable(alice, "counterId");
-      bobCounter = new CounterNonResettable(bob, "counterId");
+      aliceCounter = new CounterPureBase(alice, "counterId");
+      bobCounter = new CounterPureBase(bob, "counterId");
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -41,7 +41,7 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners(
-      counter: CounterNonResettable,
+      counter: CounterPureBase,
       name: string
     ): void {
       counter.addEventListener("Add", (event) =>
