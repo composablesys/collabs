@@ -75,3 +75,8 @@ git push
 * `npm run build`: Build
 * `npm run test`: Run tests (from test/test.ts) in node
 * `npm run bench`: Run benchmark suite (from test/benchmark/benchmark.ts) in node
+
+## Development
+
+We recommend setting up "Format on Save" in your editor.
+See [Prettier's editor setup instructions](https://prettier.io/docs/en/editors.html).

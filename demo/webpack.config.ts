@@ -30,8 +30,8 @@ const config: webpack.Configuration = {
         test: /\.tsx?$/,
         loader: "ts-loader",
         options: {
-          configFile: "tsconfig.site.json"
-        }
+          configFile: "tsconfig.site.json",
+        },
       },
     ],
   },
