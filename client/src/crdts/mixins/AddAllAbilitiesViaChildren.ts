@@ -10,9 +10,9 @@ import {
   isResettable,
   isStrongResettable,
 } from "./abilities";
-import { Constructor, Mixin } from "./mixin";
+import { Constructor, CrdtMixin } from "./mixin";
 
-export const AddAllAbilitiesViaChildren: Mixin<
+export const AddAllAbilitiesViaChildren: CrdtMixin<
   Crdt & HardResettable,
   AllAble
 > = <Input extends Constructor<Crdt & HardResettable>>(Base: Input) => {
