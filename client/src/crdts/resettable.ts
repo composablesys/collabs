@@ -1,7 +1,7 @@
 import { CausalTimestamp } from "../network";
 import { Crdt, CrdtRuntime } from "./crdt_core";
 import { SemidirectProduct } from "./semidirect";
-import { isResettable, isOutOfOrderAble, AllAble, Resettable, OutOfOrderAble } from "./abilities";
+import { isResettable, isOutOfOrderAble, AllAble, Resettable, OutOfOrderAble } from "./mixins";
 
 export interface HardResettable {
     /**

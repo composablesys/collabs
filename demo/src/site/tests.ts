@@ -1,3 +1,3 @@
-import { crdts, network } from 'compoventuals-client';
+import { crdts, network } from "compoventuals-client";
 
 console.log("Testing");

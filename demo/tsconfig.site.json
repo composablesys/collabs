@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src/site",
+    /* We don't need to generate declarations or be imported */
+    "composite": false,
+    "declaration": false
+  },
+  "include": ["src/site", "tsconfig.site.json"],
+  "references": [
+    { "path": "../client/tsconfig.build.json" }
+  ]
+}

@@ -1,8 +1,10 @@
 {
   "name": "compoventuals-client",
   "version": "0.1.0",
-  "main": "build/index.js",
-  "unpkg": "build/index.js",
+  "description": "CRDTs designed compositionally (client library)",
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "unpkg": "build/src/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
@@ -21,31 +23,33 @@
     "@types/uuid": "^3.4.0",
     "@types/ws": "^7.2.6",
     "chai": "^4.2.0",
+    "mkdirp": "^1.0.4",
     "mocha": "^8.2.1",
-    "ts-loader": "^7.0.5",
-    "ts-node": "^8.10.1",
-    "tslib": "^2.0.1",
-    "typescript": "^4.0.0"
+    "tslib": "^2.0.1"
   },
   "scripts": {
-    "build": "npm run clean && npm run protobuild && tsc && cp src/proto_compiled.js build/src/proto_compiled.js",
-    "clean": "(rm -r ./build || true)",
-    "test": "mocha",
+    "build": "npm-run-all build:*",
+    "build:protobuf": "npm-run-all build:protobuf:prepare build:protobuf:js build:protobuf:ts",
+    "build:protobuf:prepare": "mkdirp generated",
+    "build:protobuf:js": "pbjs -t static-module -w commonjs -o generated/proto_compiled.js src/**/*.proto",
+    "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
+    "build:ts": "tsc --project tsconfig.build.json",
+    "clean": "rimraf generated build",
+    "test": "npm-run-all test:*",
+    "test:unit": "mocha",
+    "test:pkg": "pkg-ok",
     "bench": "node build/test/benchmark/benchmark.js",
-    "tsc": "tsc",
-    "tscw": "tsc --watch",
-    "protobuild": "(node_modules/protobufjs/bin/pbjs -t static-module -w commonjs -o src/proto_compiled.js `find src -name '*.proto'`) && (node_modules/protobufjs/bin/pbts -o src/proto_compiled.d.ts src/proto_compiled.js)",
-    "prepare": "npm run build"
+    "tscw": "tsc --project tsconfig.build.json --watch"
   },
   "files": [
-    "build/src/**/*"
+    "/build"
   ],
-  "description": "CRDTs designed compositionally (client library)",
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"
   },
   "homepage": "https://github.com/composablesys/compoventuals#readme",
   "directories": {
+    "lib": "src",
     "test": "test"
   },
   "keywords": [

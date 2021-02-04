@@ -4,30 +4,44 @@ One day, we'll come up with a better name.
 
 (Template based on [ts-demo-webpack](https://github.com/rauschma/ts-demo-webpack))
 
-## How to build on local?
+## Building
 
-Run the following command under root folder `/compoventuals` and wait for setup process:
+First, ensure you have npm 7 or higher:
 
+```console
+$ npm -v
 ```
-sh heroku_deploy.sh
+
+If this is not the case, you can update to the latest version using:
+
+```console
+$ npm install -g npm@latest
 ```
 
-The shell script will do the following work for you:
-* Clean the old dependencies for the main project and all sub npm projects.
-* Install the new dependencies for the main project and all sub npm projects.
-* Compile all the sub projects.
-* Build webpack webpage in the `demo` sub project.
+Then, install dependencies and build all sources.
+It's best to run the build before opening your IDE, as we generate some sources.
+
+```console
+$ npm install
+$ npm run build
+```
+
+You can also run all tests to ensure that everything is working as expected:
+
+```console
+$ npm run test
+```
 
 **Note:**
-All the steps can be done manually with other options
-- Can also do `npm run tscw` or `npm run wpw` to have things rebuild automatically on file save.
-
+When running these commands from the top-level directory, it will be run in all subprojects automatically.
+You can also run them in each subproject to achieve the same result.
+Note that some subprojects also support `npm run tscw` or `npm run wpw` to have things rebuild automatically on file save.
 
 ## How to run the local server?
 
 Run the following command under root folder `/compoventuals`, the local server will listen on port `3000`:
-```
-npm start
+```console
+$ npm start
 ```
 
 Access the service via `localhost:3000`, look at the console to see outputs of current deployment.

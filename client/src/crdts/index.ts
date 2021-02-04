@@ -6,3 +6,4 @@ export * from './utils';
 export * from './resettable';
 export * from './semidirect';
 export * from './standard';
+export * from './mixins';
