@@ -38,6 +38,9 @@
     "test": "npm-run-all test:*",
     "test:unit": "mocha",
     "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
     "bench": "node build/test/benchmark/benchmark.js",
     "tscw": "tsc --project tsconfig.build.json --watch"
   },

@@ -33,6 +33,9 @@
     "build:server": "tsc --build tsconfig.server.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
     "wpw": "webpack --watch",
     "start": "node build/server/demo_server.js",
     "clean": "rimraf build"

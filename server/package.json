@@ -21,6 +21,9 @@
     "tscw": "tsc --watch",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
     "clean": "rimraf build"
   },
   "files": [
