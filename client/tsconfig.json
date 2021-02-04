@@ -1,7 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    /* 
+    /*
      * We do not want to emit for tests. This is overridden in
      * tsconfig.build.json, so that we can emit for src.
      */
@@ -9,7 +9,5 @@
     /* Include generated .js files in compilation run */
     "allowJs": true
   },
-  "include": [
-    "src", "test", "generated"
-  ]
+  "include": ["src", "test", "generated"]
 }

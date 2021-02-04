@@ -5,7 +5,5 @@
     "outDir": "build/server"
   },
   "include": ["src/server", "tsconfig.server.json"],
-  "references": [
-    { "path": "../server/tsconfig.json" }
-  ]
+  "references": [{ "path": "../server/tsconfig.json" }]
 }

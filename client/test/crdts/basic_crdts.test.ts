@@ -40,10 +40,7 @@ describe("basic_crdts", () => {
       }
     });
 
-    function addEventListeners(
-      counter: CounterPureBase,
-      name: string
-    ): void {
+    function addEventListeners(counter: CounterPureBase, name: string): void {
       counter.addEventListener("Add", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} added ${
