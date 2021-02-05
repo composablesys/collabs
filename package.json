@@ -13,7 +13,8 @@
   "workspaces": [
     "client",
     "server",
-    "demo"
+    "demo",
+    "benchmarks"
   ],
   "scripts": {
     "start": "npm start --prefix demo",
@@ -21,15 +22,18 @@
     "build:client": "npm run build --prefix client",
     "build:server": "npm run build --prefix server",
     "build:demo": "npm run build --prefix demo",
+    "build:benchmarks": "npm run build --prefix benchmarks",
     "test": "npm-run-all test:*",
     "test:client": "npm run test --prefix client",
     "test:server": "npm run test --prefix server",
     "test:demo": "npm run test --prefix demo",
+    "test:benchmarks": "npm run test --prefix benchmarks",
     "clean": "npm-run-all --parallel clean:*",
     "clean:client": "npm run clean --prefix client",
     "clean:server": "npm run clean --prefix server",
     "clean:demo": "npm run clean --prefix demo",
-    "reset": "rimraf package-lock.json node_modules client/package-lock.json client/node_modules server/package-lock.json server/node_modules demo/package-lock.json demo/node_modules"
+    "clean:benchmarks": "npm run clean --prefix benchmarks",
+    "reset": "rimraf package-lock.json node_modules client/package-lock.json client/node_modules server/package-lock.json server/node_modules demo/package-lock.json demo/node_modules benchmarks/package-lock.json benchmarks/node_modules"
   },
   "repository": {
     "type": "git",

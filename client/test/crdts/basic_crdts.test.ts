@@ -14,7 +14,7 @@ import {
   MvrEvent,
   SetAddEvent,
 } from "../../src/crdts";
-import { TestingNetworkGenerator } from "../testing_network";
+import { TestingNetworkGenerator } from "../../src/network";
 
 describe("basic_crdts", () => {
   let runtimeGen: TestingNetworkGenerator;
