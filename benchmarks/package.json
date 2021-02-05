@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "compoventuals-client": "^0.1.0",
-    "benny": "^3.6.15",
+    "benchmark": "^2.1.4",
     "clean": "^4.0.2",
     "mathjs": "^9.2.0",
     "csv-write-stream": "^2.0.0"

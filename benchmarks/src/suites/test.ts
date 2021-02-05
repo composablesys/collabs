@@ -10,3 +10,4 @@ function addFunc() {
 
 let suite = framework.newSuite("Test");
 suite.benchMemory("addFunc", () => {}, addFunc);
+suite.benchCpu("addFuncCPU", () => {}, addFunc);

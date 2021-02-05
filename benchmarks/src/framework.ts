@@ -1,18 +1,17 @@
-import b from "benny";
+import Benchmark from "benchmark";
 import path from "path";
 import * as math from "mathjs";
 import fs from "fs";
 import csvWriter from "csv-write-stream";
 
-const maxTime = 120; // max time for a benchmark, in seconds
+const maxTime = 5; // max time for all benchmark, in seconds.
+// benchGeneral will stop after this time is exceeded,
+// so it may run over.
+const minRuns = 5; // min runs for all benchmarks
+const maxRuns = 10; // max runs for benchGeneral.
 const warmupRuns = 5;
 const warmupStopTime = 1; // stop warmup early if it takes
 // at least this many seconds
-const generalMinRuns = 5; // min runs for benchGeneral
-const generalMaxRuns = 10; // max runs for benchGeneral.
-const generalStopTime = maxTime; // The test ends early if
-// this time is exceeded, so long as at least generalMinRuns
-// runs have completed.
 
 class Framework {
   constructor() {}
@@ -24,13 +23,13 @@ class Framework {
     this.version = version;
   }
 
-  newSuite(name: string) {
-    return new FrameworkSuite(name, this);
+  newSuite(suiteName: string) {
+    return new FrameworkSuite(suiteName, this);
   }
 }
 
 class FrameworkSuite {
-  constructor(readonly name: string, readonly framework: Framework) {}
+  constructor(readonly suiteName: string, readonly framework: Framework) {}
 
   /**
    * Benchmark the CPU time of fun, using benny.
@@ -43,21 +42,30 @@ class FrameworkSuite {
    */
   benchCpu(testName: string, setupFun: () => void, fun: () => void) {
     this.warmup(setupFun, fun);
-    // Time with benny
-    b.suite(
-      this.name,
-      b.add(
+    // Time with benchmark
+    let suite = new Benchmark.Suite(this.suiteName);
+    suite.add(testName, fun, { maxTime: maxTime, minSamples: minRuns });
+    // Run setup function before each cycle
+    suite.on("start", () => {
+      setupFun();
+    });
+    suite.on("cycle", () => {
+      setupFun();
+    });
+    let myThis = this;
+    // Record results when complete
+    suite.on("complete", function (this: Benchmark[]) {
+      let result = this[0];
+      myThis.recordResult(
         testName,
-        () => {
-          setupFun();
-          return fun;
-        },
-        { maxTime: maxTime }
-      ),
-      b.cycle(),
-      b.complete((summary) => console.log(summary))
-      //b.complete(summary => this.recordResult(testName, "Time (sec)", summary) // TODO
-    );
+        "Time (sec)",
+        result.stats.mean,
+        result.stats.deviation,
+        result.stats.sample.length
+      );
+    });
+    // Run
+    suite.run();
   }
 
   /**
@@ -106,34 +114,46 @@ class FrameworkSuite {
     this.warmup(setupFun, fun);
     let results: number[] = [];
     let startTime = Date.now();
-    for (let i = 0; i < generalMaxRuns; i++) {
-      if (
-        i >= generalMinRuns &&
-        Date.now() - startTime >= generalStopTime * 1000
-      )
-        break;
+    for (let i = 0; i < maxRuns; i++) {
+      if (i >= minRuns && Date.now() - startTime >= maxTime * 1000) break;
       setupFun();
       results[i] = fun();
     }
     // TODO: what metrics?
-    this.recordResult(testName, metric, math.mean(results), math.std(results));
+    this.recordResult(
+      testName,
+      metric,
+      math.mean(results),
+      math.std(results),
+      results.length
+    );
   }
 
+  /**
+   * Records this result as a line in the CSV file
+   * outDir/suiteName/testName.csv.
+   * @param  testName
+   * @param  metric   Label for the values, in the format
+   * "Label (units)"
+   * @param  mean     Mean result
+   * @param  stdDev   Sample (unbiased) standard deviation
+   */
   private recordResult(
     testName: string,
     metric: string,
     mean: number,
-    deviation: number
+    stdDev: number,
+    count: number
   ) {
-    let parentDir = path.join(this.framework.outDir, this.name);
+    let parentDir = path.join(this.framework.outDir, this.suiteName);
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    let outFile = path.join(parentDir, testName);
+    let outFile = path.join(parentDir, testName + ".csv");
     let writer;
     if (!fs.existsSync(outFile)) {
       writer = csvWriter({
-        headers: ["Metric", "Version", "Mean", "Deviation"],
+        headers: ["Metric", "Version", "Mean", "StdDev", "Count"],
       });
     } else {
       writer = csvWriter({ sendHeaders: false });
@@ -144,7 +164,8 @@ class FrameworkSuite {
       Metric: metric,
       Version: this.framework.version,
       Mean: mean,
-      Deviation: deviation,
+      StdDev: stdDev,
+      Count: count,
     });
     writer.end();
   }

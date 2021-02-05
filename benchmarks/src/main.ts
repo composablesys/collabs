@@ -12,17 +12,21 @@ if (process.argv.length != 4) printUsage();
 
 let outDir = process.argv[2];
 let version = process.argv[3];
-fs.access(outDir, function (error) {
-  if (error) {
-    console.log("Failed to access outDir: ");
-    console.log(error);
-    printUsage();
+try {
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
   }
-});
+  fs.accessSync(outDir, fs.constants.W_OK);
+} catch (err) {
+  console.log("Failed to access outDir: ");
+  console.log(err);
+  printUsage();
+}
 
 // Pass args to the framework, like global vars
 framework.setup(outDir, version);
 // Run every file in suites/, which uses framework
 glob.sync("./build/src/suites/**/*.js").forEach(function (file) {
+  console.log(file);
   require(path.resolve(file));
 });
