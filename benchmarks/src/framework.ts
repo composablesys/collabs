@@ -1,8 +1,8 @@
 import b from "benny";
 import path from "path";
-import math from "mathjs";
+import * as math from "mathjs";
 import fs from "fs";
-import { csvWriter } from "csv-write-stream";
+import csvWriter from "csv-write-stream";
 
 const maxTime = 120; // max time for a benchmark, in seconds
 const warmupRuns = 5;
@@ -125,7 +125,11 @@ class FrameworkSuite {
     mean: number,
     deviation: number
   ) {
-    let outFile = path.join(this.framework.outDir, this.name, testName);
+    let parentDir = path.join(this.framework.outDir, this.name);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    let outFile = path.join(parentDir, testName);
     let writer;
     if (!fs.existsSync(outFile)) {
       writer = csvWriter({
