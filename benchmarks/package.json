@@ -11,7 +11,8 @@
     "benchmark": "^2.1.4",
     "clean": "^4.0.2",
     "mathjs": "^9.2.0",
-    "csv-write-stream": "^2.0.0"
+    "csv-write-stream": "^2.0.0",
+    "arg": "^5.0.0"
   },
   "devDependencies": {
     "@types/benchmark": "^2.1.0",

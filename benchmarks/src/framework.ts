@@ -18,12 +18,17 @@ class Framework {
 
   outDir!: string;
   version!: string;
-  setup(outDir: string, version: string) {
+  noWrite!: boolean;
+  regex!: RegExp;
+  setup(outDir: string, version: string, noWrite: boolean, regex: RegExp) {
     this.outDir = outDir;
     this.version = version;
+    this.noWrite = noWrite;
+    this.regex = regex;
   }
 
   newSuite(suiteName: string) {
+    console.log("    " + suiteName);
     return new FrameworkSuite(suiteName, this);
   }
 }
@@ -41,6 +46,7 @@ class FrameworkSuite {
    * @param  fun Function to benchmark
    */
   benchCpu(testName: string, setupFun: () => void, fun: () => void) {
+    if (this.prepare(testName)) return;
     this.warmup(setupFun, fun);
     // Time with benchmark
     let suite = new Benchmark.Suite(this.suiteName);
@@ -109,13 +115,16 @@ class FrameworkSuite {
     testName: string,
     metric: string,
     setupFun: () => void,
-    fun: () => number
+    fun: () => number,
+    runs?: number
   ) {
+    if (this.prepare(testName)) return;
     this.warmup(setupFun, fun);
     let results: number[] = [];
     let startTime = Date.now();
-    for (let i = 0; i < maxRuns; i++) {
-      if (i >= minRuns && Date.now() - startTime >= maxTime * 1000) break;
+    for (let i = 0; i < (runs ? runs : maxRuns); i++) {
+      if (!runs && i >= minRuns && Date.now() - startTime >= maxTime * 1000)
+        break;
       setupFun();
       results[i] = fun();
     }
@@ -145,29 +154,53 @@ class FrameworkSuite {
     stdDev: number,
     count: number
   ) {
+    let headers = ["Date", "Version", "Metric", "Mean", "StdDev", "Count"];
     let parentDir = path.join(this.framework.outDir, this.suiteName);
-    if (!fs.existsSync(parentDir)) {
-      fs.mkdirSync(parentDir, { recursive: true });
-    }
     let outFile = path.join(parentDir, testName + ".csv");
     let writer;
-    if (!fs.existsSync(outFile)) {
+
+    if (this.framework.noWrite) {
+      console.log("        Intended output file: " + outFile);
+      console.log("        Intended output (including header):\n");
       writer = csvWriter({
-        headers: ["Metric", "Version", "Mean", "StdDev", "Count"],
+        headers: headers,
       });
+      writer.pipe(process.stdout);
     } else {
-      writer = csvWriter({ sendHeaders: false });
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+      if (!fs.existsSync(outFile)) {
+        writer = csvWriter({
+          headers: headers,
+        });
+      } else {
+        writer = csvWriter({ sendHeaders: false });
+      }
+      writer.pipe(fs.createWriteStream(outFile, { flags: "a" }));
     }
 
-    writer.pipe(fs.createWriteStream(outFile, { flags: "a" }));
     writer.write({
-      Metric: metric,
+      Date: new Date().toDateString(),
       Version: this.framework.version,
+      Metric: metric,
       Mean: mean,
       StdDev: stdDev,
       Count: count,
     });
     writer.end();
+    if (this.framework.noWrite) console.log();
+  }
+
+  /**
+   * @return          true if the test should be skipped
+   */
+  private prepare(testName: string): boolean {
+    console.log("      " + testName);
+    if (!this.framework.regex.test(this.suiteName + "/" + testName)) {
+      console.log("        (Skipped)");
+      return true;
+    } else return false;
   }
 
   private warmup(setupFun: () => void, fun: () => void) {
