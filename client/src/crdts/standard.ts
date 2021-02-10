@@ -6,15 +6,15 @@ import {
   CounterPureBaseMessage,
 } from "../../generated/proto_compiled";
 import {
-  AddEvent,
   LwwRegister,
-  MultEvent,
   MultRegisterBase,
   NumberState,
-  SetAddEvent,
   CounterPureBase,
+  CounterEventsRecord,
+  MultEventsRecord,
+  GSetEventsRecord,
 } from "./basic_crdts";
-import { Crdt, CrdtEvent, CrdtRuntime } from "./crdt_core";
+import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtRuntime } from "./crdt_core";
 import {
   defaultCollectionSerializer,
   newDefaultCollectionDeserializer,
@@ -22,8 +22,14 @@ import {
 import { SemidirectProduct } from "./semidirect";
 import { AddAllAbilitiesViaHistory } from "./mixins";
 import { HardResettable } from "./resettable";
+import { makeEventAdder } from "./mixins/mixin";
 
-export class NumberBase extends SemidirectProduct<NumberState> {
+type NumberEventsRecord = CounterEventsRecord & MultEventsRecord;
+
+export class NumberBase extends SemidirectProduct<
+  NumberState,
+  NumberEventsRecord
+> {
   private addCrdt: CounterPureBase;
   private multCrdt: MultRegisterBase;
   readonly resetValue: number;
@@ -42,24 +48,11 @@ export class NumberBase extends SemidirectProduct<NumberState> {
       this.action.bind(this),
       new NumberState(initialValue)
     );
-    // TODO: only do this if I have a listener?
-    this.addCrdt.addEventListener(
-      "Add",
-      (event: CrdtEvent) => {
-        super.dispatchEvent(
-          new AddEvent(this, event.timestamp, (event as AddEvent).valueAdded)
-        );
-      },
-      true
+    this.addCrdt.on("Add", (event) =>
+      super.emit("Add", { ...event, caller: this })
     );
-    this.multCrdt.addEventListener(
-      "Mult",
-      (event: CrdtEvent) => {
-        super.dispatchEvent(
-          new MultEvent(this, event.timestamp, (event as MultEvent).valueMulted)
-        );
-      },
-      true
+    this.multCrdt.on("Mult", (event) =>
+      super.emit("Mult", { ...event, caller: this })
     );
     this.resetValue = resetValue;
   }
@@ -245,15 +238,22 @@ class TrivialCrdt extends Crdt<null> implements HardResettable {
   hardReset() {}
 }
 
-export class EnableWinsFlag extends AddAllAbilitiesViaHistory(TrivialCrdt) {
+interface EnableEventsRecord extends CrdtEventsRecord {
+  Enable: CrdtEvent;
+}
+
+const AddEnableEvent = makeEventAdder<EnableEventsRecord>();
+
+export class EnableWinsFlag extends AddEnableEvent(
+  AddAllAbilitiesViaHistory(TrivialCrdt)
+) {
   // TODO: in constructor: capture reset events, convert to Disable events.
   enable() {
     this.send(new Uint8Array());
   }
   receiveInternal(timestamp: CausalTimestamp, _message: Uint8Array): boolean {
     // TODO: only do this if previously disabled.  How to check?
-    this.dispatchEvent({
-      type: "Enable",
+    this.emit("Enable", {
       caller: this,
       timestamp: timestamp,
     });
@@ -280,15 +280,16 @@ export class EnableWinsFlag extends AddAllAbilitiesViaHistory(TrivialCrdt) {
   }
 }
 
-export class DisableWinsFlag extends AddAllAbilitiesViaHistory(TrivialCrdt) {
+export class DisableWinsFlag extends AddEnableEvent(
+  AddAllAbilitiesViaHistory(TrivialCrdt)
+) {
   // TODO: in constructor: capture reset events, convert to Enable events.
   disable() {
     this.send(new Uint8Array());
   }
   receiveInternal(timestamp: CausalTimestamp, _message: Uint8Array): boolean {
     // TODO: only do this if previously disabled.  How to check?
-    this.dispatchEvent({
-      type: "Enable",
+    this.emit("Enable", {
       caller: this,
       timestamp: timestamp,
     });
@@ -315,17 +316,20 @@ export class DisableWinsFlag extends AddAllAbilitiesViaHistory(TrivialCrdt) {
   }
 }
 
-export class KeyAddEvent<K, C extends Crdt> implements CrdtEvent {
-  type = "KeyAdd";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly key: K,
-    public readonly value: C
-  ) {}
+export interface KeyAddEvent<K, C extends Crdt> extends CrdtEvent {
+  readonly key: K;
+  readonly value: C;
 }
 
-export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
+export interface GMapCrdtEventsRecord<K, C extends Crdt>
+  extends CrdtEventsRecord {
+  KeyAdd: KeyAddEvent<K, C>;
+}
+
+export class GMapCrdt<K, C extends Crdt> extends Crdt<
+  Map<K, C>,
+  GMapCrdtEventsRecord<K, C>
+> {
   private readonly valueConstructor: (parent: Crdt, id: string, key: K) => C;
   private readonly serialize: (value: K) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => K;
@@ -422,7 +426,7 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
           key
         );
         this.state.set(key, value);
-        this.dispatchEvent(new KeyAddEvent(this, timestamp, key, value));
+        this.emit("KeyAdd", { caller: this, timestamp, key, value });
         return true;
       } else return false;
     } catch (e) {
@@ -454,16 +458,15 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<Map<K, C>> {
   // make sense).
 }
 
-export class SetDeleteEvent<T> implements CrdtEvent {
-  type = "SetDelete";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly valueDeleted: T
-  ) {}
+export interface SetDeleteEvent<T> extends CrdtEvent {
+  readonly valueDeleted: T;
 }
 
-export class AddWinsSet<T> extends Crdt {
+export interface SetEventsRecord<T> extends GSetEventsRecord<T> {
+  SetDelete: SetDeleteEvent<T>;
+}
+
+export class AddWinsSet<T> extends Crdt<Object | null, SetEventsRecord<T>> {
   private readonly flagMap: GMapCrdt<T, EnableWinsFlag>;
   /**
    * Add-wins set with elements of type T.
@@ -501,29 +504,23 @@ export class AddWinsSet<T> extends Crdt {
       deserialize
     );
     // TODO: use GMap garbage collection.  Then revise below.
-    this.flagMap.addEventListener(
-      "KeyAdd",
-      (event) => {
-        let initEvent = event as KeyAddEvent<T, EnableWinsFlag>;
-        initEvent.value.addEventListener(
-          "Enable",
-          (enableEvent) =>
-            this.dispatchEvent(
-              new SetAddEvent(this, enableEvent.timestamp, initEvent.key)
-            ),
-          true
-        );
-        initEvent.value.addEventListener(
-          "Disable",
-          (enableEvent) =>
-            this.dispatchEvent(
-              new SetDeleteEvent(this, enableEvent.timestamp, initEvent.key)
-            ),
-          true
-        );
-      },
-      true
-    );
+    this.flagMap.on("KeyAdd", (addEvent) => {
+      const flag = addEvent.value;
+      flag.on("Enable", (enableEvent) =>
+        this.emit("SetAdd", {
+          caller: this,
+          timestamp: enableEvent.timestamp,
+          valueAdded: addEvent.key,
+        })
+      );
+      flag.on("Enable", (disableEvent) =>
+        this.emit("SetDelete", {
+          caller: this,
+          timestamp: disableEvent.timestamp,
+          valueDeleted: addEvent.key,
+        })
+      );
+    });
   }
 
   add(value: T) {
@@ -766,16 +763,19 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
   // TODO: preserve-state delete, reset?
 }
 
-export class NewCrdtEvent<C extends Crdt> implements CrdtEvent {
-  type = "NewCrdt";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly newCrdt: C
-  ) {}
+export interface NewCrdtEvent<C extends Crdt> extends CrdtEvent {
+  readonly newCrdt: C;
 }
 
-export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt {
+export interface RuntimeCrdtEventsRecord<C extends Crdt>
+  extends CrdtEventsRecord {
+  NewCrdt: NewCrdtEvent<C>;
+}
+
+export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt<
+  Object | null,
+  RuntimeCrdtEventsRecord<C>
+> {
   private readonly generator: (
     parent: Crdt,
     id: string,
@@ -843,7 +843,7 @@ export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt {
     try {
       let decoded = RuntimeGeneratorMessage.decode(message);
       let newCrdt = this.generator(this, decoded.uniqueId, decoded.message);
-      this.dispatchEvent(new NewCrdtEvent(this, timestamp, newCrdt));
+      this.emit("NewCrdt", { caller: this, timestamp, newCrdt });
       if (timestamp.isLocal()) this.lastGenerated = newCrdt;
       return false;
     } catch (e) {

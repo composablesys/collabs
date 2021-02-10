@@ -9,10 +9,8 @@ import {
   GSet,
   LwwMap,
   MapCrdt,
-  NewCrdtEvent,
   NumberCrdt,
   RuntimeCrdtGenerator,
-  SetAddEvent,
 } from "../../src/crdts";
 import { debug } from "../debug";
 
@@ -43,10 +41,10 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: EnableWinsFlag, name: string): void {
-      flag.addEventListener("Enable", (event) =>
+      flag.on("Enable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} enabled`)
       );
-      flag.addEventListener("Disable", (event) =>
+      flag.on("Disable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} disabled`)
       );
     }
@@ -101,10 +99,10 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: DisableWinsFlag, name: string): void {
-      flag.addEventListener("Enable", (event) =>
+      flag.on("Enable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} enabled`)
       );
-      flag.addEventListener("Disable", (event) =>
+      flag.on("Disable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} disabled`)
       );
     }
@@ -155,7 +153,7 @@ describe("standard", () => {
     }
 
     function addEventListeners(number: NumberCrdt, name: string): void {
-      number.addEventListener("Add", (event) =>
+      number.on("Add", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} added ${
             (event as AddEvent).valueAdded
@@ -163,14 +161,12 @@ describe("standard", () => {
         )
       );
 
-      number.addEventListener("Mult", (event) =>
+      number.on("Mult", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${
-            (event as AddEvent).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} multed ${event.valueMulted}`
         )
       );
-      number.addEventListener("Reset", (event) =>
+      number.on("Reset", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
         )
@@ -340,17 +336,15 @@ describe("standard", () => {
     });
 
     function addEventListeners(set: AddWinsSet<string>, name: string): void {
-      set.addEventListener("SetAdd", (event) =>
+      set.on("SetAdd", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${
-            (event as SetAddEvent<string>).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} added ${event.valueAdded}`
         )
       );
-      set.addEventListener("SetDelete", (event) =>
+      set.on("SetDelete", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} deleted ${
-            (event as SetAddEvent<string>).valueAdded
+            event.valueDeleted
           }`
         )
       );
@@ -709,10 +703,7 @@ describe("standard", () => {
       aliceGen = new RuntimeCrdtGenerator(alice, "gen", generator);
       bobGen = new RuntimeCrdtGenerator(bob, "gen", generator);
       aliceCounter = aliceGen.generate(new Uint8Array());
-      bobGen.addEventListener(
-        "NewCrdt",
-        (event) => (bobCounter = (event as NewCrdtEvent<NumberCrdt>).newCrdt)
-      );
+      bobGen.on("NewCrdt", (event) => (bobCounter = event.newCrdt));
     });
 
     describe("generate", () => {
