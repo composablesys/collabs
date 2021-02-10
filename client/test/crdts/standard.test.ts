@@ -14,7 +14,7 @@ import {
 } from "../../src/crdts";
 import { debug } from "../debug";
 
-import { TestingNetworkGenerator } from "../testing_network";
+import { TestingNetworkGenerator } from "../../src/network";
 
 describe("standard", () => {
   let runtimeGen: TestingNetworkGenerator;

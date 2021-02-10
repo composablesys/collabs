@@ -1,9 +1,9 @@
-import { CrdtRuntime } from "../src/crdts";
+import { CrdtRuntime } from "../crdts";
+import { CausalTimestamp } from "./causal_broadcast_network";
 import {
-  CausalTimestamp,
   BroadcastNetwork,
   DefaultCausalBroadcastNetwork,
-} from "../src/network";
+} from "./default_causal_broadcast_network";
 
 class TestingNetwork implements BroadcastNetwork {
   causal!: DefaultCausalBroadcastNetwork;
