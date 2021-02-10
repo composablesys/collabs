@@ -26,7 +26,7 @@ let clientCounter = new crdts.Counter(client, "counterId");
 var counter = document.getElementById("counter");
 
 /* Customize the event listener for CRDT as refresh the value */
-clientCounter.addEventListener("Add", (_) => {
+clientCounter.on("Add", (_) => {
   counter!.innerHTML = clientCounter.value.toString();
 });
 
