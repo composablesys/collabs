@@ -40,6 +40,22 @@ export abstract class EventEmitter<Events extends EventsRecord> {
   }
 
   /**
+   * Returns a promise that will be resolved exactly once, next time the event
+   * is emitted. If the event never happens, the promise is neither resolved nor
+   * rejected.
+   *
+   * @param eventName Name of the event to listen to
+   */
+  nextEvent<K extends keyof Events>(eventName: K): Promise<Events[K]> {
+    return new Promise((resolve) => {
+      const unsubscribe = this.on(eventName, (event) => {
+        unsubscribe();
+        resolve(event);
+      });
+    });
+  }
+
+  /**
    * Emits an event, which triggers all the registered event handlers.
    *
    * @param eventName Name of the event

@@ -83,6 +83,46 @@ describe("standard", () => {
       assert.isTrue(aliceFlag.enabled);
       assert.isTrue(bobFlag.enabled);
     });
+
+    describe("enable", () => {
+      it("emits an Enable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Enable"),
+          bobFlag.nextEvent("Enable"),
+        ]);
+        aliceFlag.on("Disable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Disable", () => {
+          assert.fail("Did not expect Disable event from Bob");
+        });
+
+        aliceFlag.enable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
+
+    describe("disable", () => {
+      it("emits a Disable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Disable"),
+          bobFlag.nextEvent("Disable"),
+        ]);
+        aliceFlag.on("Enable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Enable", () => {
+          assert.fail("Did not expect Enable event from Bob");
+        });
+
+        aliceFlag.disable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
   });
 
   describe("DisableWinsFlag", () => {
@@ -134,6 +174,46 @@ describe("standard", () => {
       runtimeGen.releaseAll();
       assert.isFalse(aliceFlag.enabled);
       assert.isFalse(bobFlag.enabled);
+    });
+
+    describe("enable", () => {
+      it("emits an Enable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Enable"),
+          bobFlag.nextEvent("Enable"),
+        ]);
+        aliceFlag.on("Disable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Disable", () => {
+          assert.fail("Did not expect Disable event from Bob");
+        });
+
+        aliceFlag.enable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
+
+    describe("disable", () => {
+      it("emits a Disable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Disable"),
+          bobFlag.nextEvent("Disable"),
+        ]);
+        aliceFlag.on("Enable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Enable", () => {
+          assert.fail("Did not expect Enable event from Bob");
+        });
+
+        aliceFlag.disable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
     });
   });
 
