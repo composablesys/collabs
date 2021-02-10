@@ -1,4 +1,4 @@
-import { CrdtEvent, Crdt, CrdtRuntime } from "./crdt_core";
+import { CrdtEvent, Crdt, CrdtRuntime, CrdtEventsRecord } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import {
   CounterPureBaseMessage,
@@ -22,22 +22,22 @@ import {
   StrongResettable,
   Resettable,
   AddStrongResettable,
+  ResettableEventsRecord,
 } from "./mixins";
-
-export class AddEvent implements CrdtEvent {
-  type = "Add";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly valueAdded: number
-  ) {}
-}
 
 export class NumberState {
   constructor(public value: number) {}
 }
 
-export interface CounterBase extends Crdt {
+export interface AddEvent extends CrdtEvent {
+  readonly valueAdded: number;
+}
+
+export interface CounterEventsRecord extends CrdtEventsRecord {
+  Add: AddEvent;
+}
+
+export interface CounterBase {
   add(toAdd: number): void;
   /**
    *  Setting value performs an equivalent add.
@@ -46,7 +46,7 @@ export interface CounterBase extends Crdt {
 }
 
 export class CounterPureBase
-  extends Crdt<NumberState>
+  extends Crdt<NumberState, CounterEventsRecord>
   implements CounterBase, OutOfOrderAble, HardResettable {
   constructor(
     parentOrRuntime: Crdt | CrdtRuntime,
@@ -68,7 +68,11 @@ export class CounterPureBase
     try {
       let decoded = CounterPureBaseMessage.decode(message);
       this.state.value += decoded.toAdd;
-      this.dispatchEvent(new AddEvent(this, timestamp, decoded.toAdd));
+      this.emit("Add", {
+        caller: this,
+        timestamp,
+        valueAdded: decoded.toAdd,
+      });
     } catch (e) {
       // TODO
       console.log("Decoding error: " + e);
@@ -113,7 +117,10 @@ export class CounterResettableState {
 }
 
 export class CounterResettable
-  extends Crdt<CounterResettableState>
+  extends Crdt<
+    CounterResettableState,
+    CounterEventsRecord & ResettableEventsRecord
+  >
   implements CounterBase, OutOfOrderAble, Resettable, HardResettable {
   constructor(
     parentOrRuntime: Crdt | CrdtRuntime,
@@ -156,14 +163,17 @@ export class CounterResettable
             if (current === undefined) current = 0;
             this.state.minusP[timestamp.getSender()] = current - decoded.toAdd;
           }
-          this.dispatchEvent(new AddEvent(this, timestamp, decoded.toAdd));
+          this.emit("Add", {
+            caller: this,
+            timestamp,
+            valueAdded: decoded.toAdd,
+          });
           break;
         case "toReset":
           this.merge(this.state.plusN, decoded.toReset!.plusReset!);
           this.merge(this.state.minusN, decoded.toReset!.minusReset!);
-          this.dispatchEvent({
+          this.emit("Reset", {
             caller: this,
-            type: "Reset",
             timestamp: timestamp,
           });
           // TODO: event: also include metadata about non-reset ops?
@@ -273,17 +283,16 @@ export class Counter
   }
 }
 
-export class MultEvent implements CrdtEvent {
-  type = "Mult";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly valueMulted: number
-  ) {}
+export interface MultEvent extends CrdtEvent {
+  readonly valueMulted: number;
+}
+
+export interface MultEventsRecord extends CrdtEventsRecord {
+  Mult: MultEvent;
 }
 
 export class MultRegisterBase
-  extends Crdt<NumberState>
+  extends Crdt<NumberState, MultEventsRecord>
   implements HardResettable {
   constructor(
     parentOrRuntime: Crdt | CrdtRuntime,
@@ -305,7 +314,11 @@ export class MultRegisterBase
     try {
       let decoded = MultRegisterMessage.decode(message);
       this.state.value *= decoded.toMult;
-      this.dispatchEvent(new MultEvent(this, timestamp, decoded.toMult));
+      this.emit("Mult", {
+        caller: this,
+        timestamp,
+        valueMulted: decoded.toMult,
+      });
       return true;
     } catch (e) {
       // TODO
@@ -331,16 +344,17 @@ export class MultRegisterBase
 
 export class MultRegister extends AddAllAbilitiesViaHistory(MultRegisterBase) {}
 
-export class SetAddEvent<T> implements CrdtEvent {
-  type = "SetAdd";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly valueAdded: T
-  ) {}
+export interface SetAddEvent<T> extends CrdtEvent {
+  readonly valueAdded: T;
 }
 
-export class GSet<T> extends Crdt<Set<T>> implements OutOfOrderAble {
+export interface GSetEventsRecord<T> extends CrdtEventsRecord {
+  SetAdd: SetAddEvent<T>;
+}
+
+export class GSet<T>
+  extends Crdt<Set<T>, GSetEventsRecord<T>>
+  implements OutOfOrderAble {
   private readonly serialize: (value: T) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => T;
   /**
@@ -396,7 +410,7 @@ export class GSet<T> extends Crdt<Set<T>> implements OutOfOrderAble {
       let value = this.deserialize(decoded.toAdd);
       if (!this.state.has(value)) {
         this.state.add(value);
-        this.dispatchEvent(new SetAddEvent(this, timestamp, value));
+        this.emit("SetAdd", { caller: this, timestamp, valueAdded: value });
         return true;
       } else return false;
     } catch (e) {
@@ -436,18 +450,17 @@ export class MvrEntry<T> {
   ) {}
 }
 
-export class MvrEvent<T> implements CrdtEvent {
-  type = "Mvr";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly valueAdded: T,
-    public readonly valuesRemoved: Set<T>
-  ) {}
+export interface MvrEvent<T> extends CrdtEvent {
+  readonly valueAdded: T;
+  readonly valuesRemoved: Set<T>;
+}
+
+export interface MvrEventsRecord<T> extends CrdtEventsRecord {
+  Mvr: MvrEvent<T>;
 }
 
 export class MultiValueRegisterBase<T>
-  extends Crdt<Set<MvrEntry<T>>>
+  extends Crdt<Set<MvrEntry<T>>, MvrEventsRecord<T>>
   implements HardResettable {
   private readonly serialize: (value: T) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => T;
@@ -523,7 +536,12 @@ export class MultiValueRegisterBase<T>
         return false; // no change to actual value
       } else {
         // TODO: don't dispatch if value stayed put?
-        this.dispatchEvent(new MvrEvent(this, timestamp, value, removed));
+        this.emit("Mvr", {
+          caller: this,
+          timestamp,
+          valueAdded: value,
+          valuesRemoved: removed,
+        });
         return true;
       }
     } catch (e) {
@@ -567,18 +585,17 @@ export class LwwState<T> {
   ) {}
 }
 
-export class LwwEvent<T> implements CrdtEvent {
-  type = "Lww";
-  constructor(
-    public readonly caller: Crdt,
-    public readonly timestamp: CausalTimestamp,
-    public readonly value: T,
-    public readonly timeSet: Date
-  ) {}
+export interface LwwEvent<T> extends CrdtEvent {
+  readonly value: T;
+  readonly timeSet: Date;
+}
+
+export interface LwwEventsRecord<T> extends CrdtEventsRecord {
+  Lww: LwwEvent<T>;
 }
 
 export class LwwRegisterBase<T>
-  extends Crdt<LwwState<T>>
+  extends Crdt<LwwState<T>, LwwEventsRecord<T>>
   implements HardResettable {
   private readonly serialize: (value: T) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => T;
@@ -666,9 +683,12 @@ export class LwwRegisterBase<T>
         this.state.time = decoded.time;
         this.state.value = value;
         if (changed) {
-          this.dispatchEvent(
-            new LwwEvent(this, timestamp, value, new Date(decoded.time))
-          );
+          this.emit("Lww", {
+            caller: this,
+            timestamp,
+            value,
+            timeSet: new Date(decoded.time),
+          });
         }
         return changed;
       } else return false;

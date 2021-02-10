@@ -1,8 +1,14 @@
 import { OutOfOrderAble } from "./OutOfOrderAble";
-import { Resettable } from "./Resettable";
-import { StrongResettable } from "./StrongResettable";
+import { Resettable, ResettableEventsRecord } from "./Resettable";
+import {
+  StrongResettable,
+  StrongResettableEventsRecord,
+} from "./StrongResettable";
 
 export interface AllAble extends Resettable, StrongResettable, OutOfOrderAble {}
+
+export type AllAbleEventsRecord = ResettableEventsRecord &
+  StrongResettableEventsRecord;
 
 // TODO: undo/redo abilities?
 export interface AbilityFlag {

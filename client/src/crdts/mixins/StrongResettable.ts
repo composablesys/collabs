@@ -1,6 +1,6 @@
-import { Crdt, CrdtRuntime } from "../crdt_core";
+import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtRuntime } from "../crdt_core";
 import { HardResettable, StrongResetWrapperCrdt } from "../resettable";
-import { Constructor, CrdtConstructor, CrdtMixin } from "./mixin";
+import { Constructor, CrdtMixinWithNewEvents, makeEventAdder } from "./mixin";
 
 export interface StrongResettable {
   /**
@@ -19,41 +19,43 @@ export interface StrongResettable {
   strongReset(): void;
 }
 
-export const AddStrongResettable: CrdtMixin<
+export interface StrongResettableEventsRecord extends CrdtEventsRecord {
+  StrongReset: CrdtEvent;
+}
+
+export const AddStrongResettable: CrdtMixinWithNewEvents<
   Crdt & HardResettable,
-  StrongResettable
-> = <Input extends Constructor<Crdt & HardResettable>>(Base: Input) =>
-  class StrongResettableBase extends Base implements StrongResettable {
+  StrongResettable,
+  StrongResettableEventsRecord
+> = <Input extends Constructor<Crdt & HardResettable>>(Base: Input) => {
+  const AddEvents = makeEventAdder<StrongResettableEventsRecord>();
+  return class StrongResettableBase
+    extends AddEvents(Base)
+    implements StrongResettable {
     protected strongResetWrapper: StrongResetWrapperCrdt;
     constructor(...args: any[]) {
-      let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
-      let id = args[1] as string;
-      let strongResetWrapper = new StrongResetWrapperCrdt(
+      const parentOrRuntime = args[0] as Crdt | CrdtRuntime;
+      const id = args[1] as string;
+      const strongResetWrapper = new StrongResetWrapperCrdt(
         parentOrRuntime,
         id + "_reset"
       );
-      args[0] = strongResetWrapper;
-      super(...args);
+      super(strongResetWrapper, id, ...args.slice(2));
       this.strongResetWrapper = strongResetWrapper;
       strongResetWrapper.setupStrongReset(this);
-      strongResetWrapper.addEventListener(
-        "StrongReset",
-        (event) => {
-          this.dispatchEvent({
-            caller: this,
-            type: event.type,
-            timestamp: event.timestamp,
-          });
-          this.dispatchEvent({
-            caller: this,
-            type: "Change",
-            timestamp: event.timestamp,
-          });
-        },
-        true
-      );
+      strongResetWrapper.on("StrongReset", (event) => {
+        this.emit("StrongReset", {
+          caller: this,
+          timestamp: event.timestamp,
+        });
+        this.emit("Change", {
+          caller: this,
+          timestamp: event.timestamp,
+        });
+      });
     }
     strongReset() {
       this.strongResetWrapper.strongReset();
     }
-  };
+  } as any;
+};

@@ -1,4 +1,4 @@
-import { CrdtRuntime } from "./crdt_core";
+import { CrdtRuntime, CrdtEventsRecord } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import { Crdt } from "./crdt_core";
 
@@ -187,8 +187,9 @@ export class SemidirectState<S extends Object | null = Object | null> {
 }
 
 export class SemidirectProduct<
-  S extends Object | null = Object | null
-> extends Crdt<SemidirectState<S>> {
+  S extends Object | null = Object | null,
+  Events extends CrdtEventsRecord = CrdtEventsRecord
+> extends Crdt<SemidirectState<S>, Events> {
   /**
    * TODO
    * @param parentOrRuntime                [description]

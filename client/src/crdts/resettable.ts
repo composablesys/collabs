@@ -7,6 +7,8 @@ import {
   AllAble,
   Resettable,
   OutOfOrderAble,
+  ResettableEventsRecord,
+  StrongResettableEventsRecord,
 } from "./mixins";
 
 export interface HardResettable {
@@ -61,7 +63,7 @@ class ResetComponent<S extends Object | null = Object | null> extends Crdt<S> {
 }
 
 export class ResetWrapperCrdt<S extends Object | null = Object | null>
-  extends SemidirectProduct<S>
+  extends SemidirectProduct<S, ResettableEventsRecord>
   implements HardResettable, Resettable, OutOfOrderAble {
   private resetComponent!: ResetComponent<S>;
   /**
@@ -112,9 +114,8 @@ export class ResetWrapperCrdt<S extends Object | null = Object | null>
   }
 
   dispatchResetEvent(timestamp: CausalTimestamp) {
-    this.dispatchEvent({
+    this.emit("Reset", {
       caller: this,
-      type: "Reset",
       timestamp: timestamp,
     });
   }
@@ -205,7 +206,7 @@ export class StrongResetComponent<
 }
 
 export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
-  extends SemidirectProduct<S>
+  extends SemidirectProduct<S, StrongResettableEventsRecord>
   implements AllAble {
   private strongResetComponent!: StrongResetComponent<S>;
   /**
@@ -249,9 +250,8 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
   }
 
   dispatchStrongResetEvent(timestamp: CausalTimestamp) {
-    this.dispatchEvent({
+    this.emit("StrongReset", {
       caller: this,
-      type: "StrongReset",
       timestamp: timestamp,
     });
   }

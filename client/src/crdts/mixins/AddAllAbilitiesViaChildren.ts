@@ -5,16 +5,18 @@ import {
   ABILITIES_ALL,
   AbilityFlag,
   AllAble,
+  AllAbleEventsRecord,
   InterfaceOf,
   isOutOfOrderAble,
   isResettable,
   isStrongResettable,
 } from "./abilities";
-import { Constructor, CrdtMixin } from "./mixin";
+import { Constructor, CrdtMixin, CrdtMixinWithNewEvents } from "./mixin";
 
-export const AddAllAbilitiesViaChildren: CrdtMixin<
+export const AddAllAbilitiesViaChildren: CrdtMixinWithNewEvents<
   Crdt & HardResettable,
-  AllAble
+  AllAble,
+  AllAbleEventsRecord
 > = <Input extends Constructor<Crdt & HardResettable>>(Base: Input) => {
   let AbleViaChildren = class AbleViaChildren extends Base {
     abilityFlag: AbilityFlag;
@@ -150,5 +152,5 @@ export const AddAllAbilitiesViaChildren: CrdtMixin<
           ...otherArgs
         ) as any;
     }
-  };
+  } as any;
 };

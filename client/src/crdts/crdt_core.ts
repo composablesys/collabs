@@ -1,5 +1,6 @@
 import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
 import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
+import { EventEmitter, EventsRecord } from "../utils/EventEmitter";
 
 /**
  * An event issued when a CRDT is changed by another replica.
@@ -7,22 +8,29 @@ import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
  * and pass those to registered listeners when the Crdt's
  * state is changed by a remote message (i.e., in a
  * remote method when remoteCaller is false).
- *
- * @param caller      The Crdt instance that was changed.
- * @param type        A string containing the event's type.
- * @param timestamp   The causal timestamp of the change. Note that
- * because several CRDTs can share the same runtime, timestamps
- * may not be continguous (e.g., entries in their vector clocks
- * might skip numbers).  However, causally ordered delivery is
- * still guaranteed.
  */
 export interface CrdtEvent {
+  /** The Crdt instance that was changed. */
   readonly caller: Crdt;
-  readonly type: string;
+
+  /**
+   * The causal timestamp of the change. Note that
+   * because several CRDTs can share the same runtime, timestamps
+   * may not be continguous (e.g., entries in their vector clocks
+   * might skip numbers).  However, causally ordered delivery is
+   * still guaranteed.
+   * */
   readonly timestamp: CausalTimestamp;
 }
 
-export class Crdt<S extends Object | null = Object | null> {
+export interface CrdtEventsRecord {
+  Change: CrdtEvent;
+}
+
+export class Crdt<
+  S extends Object | null = Object | null,
+  Events extends CrdtEventsRecord = CrdtEventsRecord
+> extends EventEmitter<Events> {
   readonly isCrdt = true;
   readonly parent: Crdt | null;
   readonly runtime: CrdtRuntime;
@@ -76,6 +84,7 @@ export class Crdt<S extends Object | null = Object | null> {
    * for the CrdtRuntime to route messages to them properly.
    */
   constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, state: S) {
+    super();
     this.id = id;
     this.state = state;
     if ("isCrdt" in parentOrRuntime) {
@@ -112,54 +121,6 @@ export class Crdt<S extends Object | null = Object | null> {
   readonly children: Map<string, Crdt> = new Map();
   protected registerChild(child: Crdt) {
     this.children.set(child.id, child);
-  }
-
-  private readonly eventListeners = new Map<
-    string,
-    [(event: CrdtEvent) => void, boolean][]
-  >();
-  // TODO: typing, or at least check type exists?
-  // TODO: ability to remove listeners?  Look at how DOM does it.
-  /**
-   * TODO: copy DOM description.
-   * An event of type "Change" is dispatched whenever this Crdt
-   * or one of its children
-   * finishes receiving a message.  (TODO: separate out this vs
-   * child changes.  Note we may later optimize away this Crdt's
-   * seeing child messages.)
-   * @param  type     [description]
-   * @param  listener [description]
-   * @param  receiveLocal = false  If false, events with isLocal = true
-   * are not delivered.
-   * @return          [description]
-   */
-  addEventListener(
-    type: string,
-    listener: (event: CrdtEvent) => void,
-    receiveLocal = false
-  ) {
-    let list = this.eventListeners.get(type);
-    if (list === undefined) {
-      list = [];
-      this.eventListeners.set(type, list);
-    }
-    list.push([listener, receiveLocal]);
-  }
-  /**
-   * A subclass should call this in a remote method
-   * when it has an event
-   * it wants to deliver to listeners.
-   */
-  protected dispatchEvent(event: CrdtEvent) {
-    let list = this.eventListeners.get(event.type);
-    if (list === undefined) return;
-    for (let [listener, receiveLocal] of list) {
-      if (receiveLocal || !event.timestamp.isLocal()) {
-        try {
-          listener(event);
-        } catch (e) {}
-      }
-    }
   }
 
   protected send(message: Uint8Array) {
@@ -212,9 +173,8 @@ export class Crdt<S extends Object | null = Object | null> {
       // a method locally as part of our own receiveInternal call,
       // in which case we skip it because we're going to
       // do so at the end of that call.
-      this.dispatchEvent({
+      this.emit("Change", {
         caller: this,
-        type: "Change",
         timestamp: timestamp,
       });
     }

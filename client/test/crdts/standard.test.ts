@@ -9,10 +9,8 @@ import {
   GSet,
   LwwMap,
   MapCrdt,
-  NewCrdtEvent,
   NumberCrdt,
   RuntimeCrdtGenerator,
-  SetAddEvent,
 } from "../../src/crdts";
 import { debug } from "../debug";
 
@@ -43,10 +41,10 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: EnableWinsFlag, name: string): void {
-      flag.addEventListener("Enable", (event) =>
+      flag.on("Enable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} enabled`)
       );
-      flag.addEventListener("Disable", (event) =>
+      flag.on("Disable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} disabled`)
       );
     }
@@ -85,6 +83,46 @@ describe("standard", () => {
       assert.isTrue(aliceFlag.enabled);
       assert.isTrue(bobFlag.enabled);
     });
+
+    describe("enable", () => {
+      it("emits an Enable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Enable"),
+          bobFlag.nextEvent("Enable"),
+        ]);
+        aliceFlag.on("Disable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Disable", () => {
+          assert.fail("Did not expect Disable event from Bob");
+        });
+
+        aliceFlag.enable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
+
+    describe("disable", () => {
+      it("emits a Disable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Disable"),
+          bobFlag.nextEvent("Disable"),
+        ]);
+        aliceFlag.on("Enable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Enable", () => {
+          assert.fail("Did not expect Enable event from Bob");
+        });
+
+        aliceFlag.disable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
   });
 
   describe("DisableWinsFlag", () => {
@@ -101,10 +139,10 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: DisableWinsFlag, name: string): void {
-      flag.addEventListener("Enable", (event) =>
+      flag.on("Enable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} enabled`)
       );
-      flag.addEventListener("Disable", (event) =>
+      flag.on("Disable", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} disabled`)
       );
     }
@@ -137,6 +175,46 @@ describe("standard", () => {
       assert.isFalse(aliceFlag.enabled);
       assert.isFalse(bobFlag.enabled);
     });
+
+    describe("enable", () => {
+      it("emits an Enable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Enable"),
+          bobFlag.nextEvent("Enable"),
+        ]);
+        aliceFlag.on("Disable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Disable", () => {
+          assert.fail("Did not expect Disable event from Bob");
+        });
+
+        aliceFlag.enable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
+
+    describe("disable", () => {
+      it("emits a Disable event", async () => {
+        const promise = Promise.all([
+          aliceFlag.nextEvent("Disable"),
+          bobFlag.nextEvent("Disable"),
+        ]);
+        aliceFlag.on("Enable", () =>
+          assert.fail("Did not expect Enable event from Alice")
+        );
+        bobFlag.on("Enable", () => {
+          assert.fail("Did not expect Enable event from Bob");
+        });
+
+        aliceFlag.disable();
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
   });
 
   describe("NumberCrdt", () => {
@@ -155,7 +233,7 @@ describe("standard", () => {
     }
 
     function addEventListeners(number: NumberCrdt, name: string): void {
-      number.addEventListener("Add", (event) =>
+      number.on("Add", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} added ${
             (event as AddEvent).valueAdded
@@ -163,14 +241,12 @@ describe("standard", () => {
         )
       );
 
-      number.addEventListener("Mult", (event) =>
+      number.on("Mult", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${
-            (event as AddEvent).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} multed ${event.valueMulted}`
         )
       );
-      number.addEventListener("Reset", (event) =>
+      number.on("Reset", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
         )
@@ -340,17 +416,15 @@ describe("standard", () => {
     });
 
     function addEventListeners(set: AddWinsSet<string>, name: string): void {
-      set.addEventListener("SetAdd", (event) =>
+      set.on("SetAdd", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${
-            (event as SetAddEvent<string>).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} added ${event.valueAdded}`
         )
       );
-      set.addEventListener("SetDelete", (event) =>
+      set.on("SetDelete", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} deleted ${
-            (event as SetAddEvent<string>).valueAdded
+            event.valueDeleted
           }`
         )
       );
@@ -709,10 +783,7 @@ describe("standard", () => {
       aliceGen = new RuntimeCrdtGenerator(alice, "gen", generator);
       bobGen = new RuntimeCrdtGenerator(bob, "gen", generator);
       aliceCounter = aliceGen.generate(new Uint8Array());
-      bobGen.addEventListener(
-        "NewCrdt",
-        (event) => (bobCounter = (event as NewCrdtEvent<NumberCrdt>).newCrdt)
-      );
+      bobGen.on("NewCrdt", (event) => (bobCounter = event.newCrdt));
     });
 
     describe("generate", () => {

@@ -6,54 +6,65 @@ import {
   StrongResetWrapperCrdt,
 } from "../resettable";
 import { SemidirectState } from "../semidirect";
-import { AbilityFlag, AllAble, InterfaceOf } from "./abilities";
-import { Constructor, CrdtMixinWithOptions } from "./mixin";
+import {
+  AbilityFlag,
+  AllAble,
+  AllAbleEventsRecord,
+  InterfaceOf,
+} from "./abilities";
+import {
+  Constructor,
+  CrdtMixinWithOptionsAndNewEvents,
+  makeEventAdder,
+} from "./mixin";
 import { AddStrongResettable } from "./StrongResettable";
 
 export interface AllAbleWithResetState extends AllAble {
   getResetState(): SemidirectState;
 }
 
-export const AddAllAbilitiesViaHistory: CrdtMixinWithOptions<
+export const AddAllAbilitiesViaHistory: CrdtMixinWithOptionsAndNewEvents<
   Crdt & HardResettable,
   AllAbleWithResetState,
-  boolean
+  boolean,
+  AllAbleEventsRecord
 > = <Input extends Constructor<Crdt & HardResettable>>(
   Base: Input,
   historyMaximalOnly: boolean = false
 ) => {
-  let StrongResettableOnly = AddStrongResettable(Base);
-  return class AbleViaHistory extends Base implements AllAbleWithResetState {
+  const StrongResettableOnly = AddStrongResettable(Base);
+  const AddEvents = makeEventAdder<AllAbleEventsRecord>();
+  return class AbleViaHistory
+    extends AddEvents(Base)
+    implements AllAbleWithResetState {
     protected strongResetWrapper: StrongResetWrapperCrdt;
     protected resetWrapper: ResetWrapperCrdt;
 
     constructor(...args: any[]) {
-      let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
-      let id = args[1] as string;
-      let strongResetWrapper = new StrongResetWrapperCrdt(
+      const parentOrRuntime = args[0] as Crdt | CrdtRuntime;
+      const id = args[1] as string;
+      const strongResetWrapper = new StrongResetWrapperCrdt(
         parentOrRuntime,
         id + "_reset"
       );
-      let resetWrapper = new ResetWrapperCrdt(
+      const resetWrapper = new ResetWrapperCrdt(
         strongResetWrapper,
         id + "_reset",
         historyMaximalOnly
       );
-      args[0] = resetWrapper;
-      super(...args);
+      super(resetWrapper, id, ...args.slice(2));
+
       this.resetWrapper = resetWrapper;
       resetWrapper.setupReset(this);
+      resetWrapper.on("Reset", (event) =>
+        this.emit("Reset", { ...event, caller: this })
+      );
+
       this.strongResetWrapper = strongResetWrapper;
       strongResetWrapper.setupStrongReset(resetWrapper);
-      // TODO: events: reset and strongReset.
-      // strongResetWrapper.addEventListener(
-      //     "Reset", (event: CrdtEvent) =>
-      //     this.dispatchEvent({
-      //         caller: this,
-      //         type: event.type,
-      //         timestamp: event.timestamp
-      //     }), true
-      // );
+      strongResetWrapper.on("StrongReset", (event) =>
+        this.emit("StrongReset", { ...event, caller: this })
+      );
     }
 
     getResetState(): SemidirectState {
@@ -99,5 +110,5 @@ export const AddAllAbilitiesViaHistory: CrdtMixinWithOptions<
       // layer if we're not using it.
       else return new AbleViaHistory(parentOrRuntime, id, ...otherArgs) as any;
     }
-  };
+  } as any;
 };

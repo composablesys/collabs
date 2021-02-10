@@ -1,18 +1,13 @@
 import { assert } from "chai";
 import { debug } from "../debug";
 import {
-  AddEvent,
   Counter,
   CounterPureBase,
   CrdtRuntime,
   GSet,
-  LwwEvent,
   LwwRegister,
-  MultEvent,
   MultiValueRegister,
   MultRegister,
-  MvrEvent,
-  SetAddEvent,
 } from "../../src/crdts";
 import { TestingNetworkGenerator } from "../testing_network";
 
@@ -41,11 +36,9 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners(counter: CounterPureBase, name: string): void {
-      counter.addEventListener("Add", (event) =>
+      counter.on("Add", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${
-            (event as AddEvent).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} added ${event.valueAdded}`
         )
       );
     }
@@ -103,17 +96,15 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners(counter: Counter, name: string): void {
-      counter.addEventListener("Add", (event) =>
+      counter.on("Add", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${
-            (event as AddEvent).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} added ${event.valueAdded}`
         )
       );
-      counter.addEventListener("Reset", (event) =>
+      counter.on("Reset", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} reset`)
       );
-      counter.addEventListener("StrongReset", (event) =>
+      counter.on("StrongReset", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} strong reset`)
       );
     }
@@ -260,11 +251,9 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners(register: MultRegister, name: string): void {
-      register.addEventListener("Mult", (event) =>
+      register.on("Mult", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${
-            (event as MultEvent).valueMulted
-          }`
+          `${name}: ${event.timestamp.getSender()} multed ${event.valueMulted}`
         )
       );
     }
@@ -333,11 +322,9 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners<T>(gSet: GSet<T>, name: string): void {
-      gSet.addEventListener("SetAdd", (event) =>
+      gSet.on("SetAdd", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${
-            (event as SetAddEvent<T>).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} added ${event.valueAdded}`
         )
       );
     }
@@ -398,11 +385,9 @@ describe("basic_crdts", () => {
       mvr: MultiValueRegister<T>,
       name: string
     ): void {
-      mvr.addEventListener("Mvr", (event) =>
+      mvr.on("Mvr", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} set to ${
-            (event as MvrEvent<T>).valueAdded
-          }`
+          `${name}: ${event.timestamp.getSender()} set to ${event.valueAdded}`
         )
       );
     }
@@ -504,11 +489,9 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners<T>(lww: LwwRegister<T>, name: string): void {
-      lww.addEventListener("Lww", (event) =>
+      lww.on("Lww", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} set to ${
-            (event as LwwEvent<string>).value
-          }`
+          `${name}: ${event.timestamp.getSender()} set to ${event.value}`
         )
       );
     }

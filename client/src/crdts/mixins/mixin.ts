@@ -1,4 +1,4 @@
-import { Crdt, CrdtRuntime } from "../crdt_core";
+import { Crdt, CrdtEventsRecord, CrdtRuntime } from "../crdt_core";
 
 export type Constructor<T> = new (...args: any[]) => T;
 
@@ -62,3 +62,37 @@ export type CrdtMixinWithOptions<Required extends Crdt, Self, Options> = <
   Base: CrdtConstructor<Input>,
   options?: Options
 ) => CrdtConstructor<Input & Self>;
+
+export type CrdtMixinWithNewEvents<
+  Required extends Crdt,
+  Self,
+  NewEvents extends CrdtEventsRecord
+> = <Input extends Required>(
+  Base: CrdtConstructor<Input>
+) => CrdtConstructor<AddEvents<NewEvents, Input> & Self>;
+
+export type CrdtMixinWithOptionsAndNewEvents<
+  Required extends Crdt,
+  Self,
+  Options,
+  NewEvents extends CrdtEventsRecord
+> = <Input extends Required>(
+  Base: CrdtConstructor<Input>,
+  options?: Options
+) => CrdtConstructor<AddEvents<NewEvents, Input> & Self>;
+
+type AddEvents<
+  NewEvents extends CrdtEventsRecord,
+  C extends Crdt
+> = C extends Crdt<infer S, infer OldEvents>
+  ? C & Crdt<S, OldEvents & NewEvents>
+  : C;
+
+export function makeEventAdder<AdditionalEvents extends CrdtEventsRecord>(): <
+  Instance extends Crdt
+>(
+  Base: CrdtConstructor<Instance>
+) => CrdtConstructor<AddEvents<AdditionalEvents, Instance>> {
+  // Just trust me!
+  return (Base) => Base as any;
+}

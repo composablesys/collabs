@@ -1,4 +1,7 @@
 // TODO: do this on the receiving end instead?  Doesn't work
+
+import { CrdtEvent, CrdtEventsRecord } from "../crdt_core";
+
 // if you have counter children though.  Same for strongReset.
 export interface Resettable {
   /**
@@ -12,4 +15,8 @@ export interface Resettable {
    * reset() will have no effect.
    */
   reset(): void;
+}
+
+export interface ResettableEventsRecord extends CrdtEventsRecord {
+  Reset: CrdtEvent;
 }
