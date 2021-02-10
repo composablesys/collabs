@@ -71,7 +71,17 @@ export type CrdtMixinWithNewEvents<
   Base: CrdtConstructor<Input>
 ) => CrdtConstructor<AddEvents<NewEvents, Input> & Self>;
 
-export type AddEvents<
+export type CrdtMixinWithOptionsAndNewEvents<
+  Required extends Crdt,
+  Self,
+  Options,
+  NewEvents extends CrdtEventsRecord
+> = <Input extends Required>(
+  Base: CrdtConstructor<Input>,
+  options?: Options
+) => CrdtConstructor<AddEvents<NewEvents, Input> & Self>;
+
+type AddEvents<
   NewEvents extends CrdtEventsRecord,
   C extends Crdt
 > = C extends Crdt<infer S, infer OldEvents>

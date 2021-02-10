@@ -238,16 +238,23 @@ class TrivialCrdt extends Crdt<null> implements HardResettable {
   hardReset() {}
 }
 
-interface EnableEventsRecord extends CrdtEventsRecord {
+interface FlagEventsRecord extends CrdtEventsRecord {
   Enable: CrdtEvent;
+  Disable: CrdtEvent;
 }
 
-const AddEnableEvent = makeEventAdder<EnableEventsRecord>();
+const AddFlagEvents = makeEventAdder<FlagEventsRecord>();
 
-export class EnableWinsFlag extends AddEnableEvent(
+export class EnableWinsFlag extends AddFlagEvents(
   AddAllAbilitiesViaHistory(TrivialCrdt)
 ) {
-  // TODO: in constructor: capture reset events, convert to Disable events.
+  constructor(parent: Crdt | CrdtRuntime, id: string) {
+    super(parent, id);
+    this.on("Reset", (event) =>
+      this.emit("Disable", { ...event, caller: this })
+    );
+  }
+
   enable() {
     this.send(new Uint8Array());
   }
@@ -280,16 +287,22 @@ export class EnableWinsFlag extends AddEnableEvent(
   }
 }
 
-export class DisableWinsFlag extends AddEnableEvent(
+export class DisableWinsFlag extends AddFlagEvents(
   AddAllAbilitiesViaHistory(TrivialCrdt)
 ) {
-  // TODO: in constructor: capture reset events, convert to Enable events.
+  constructor(parent: Crdt | CrdtRuntime, id: string) {
+    super(parent, id);
+    this.on("Reset", (event) =>
+      this.emit("Enable", { ...event, caller: this })
+    );
+  }
+
   disable() {
     this.send(new Uint8Array());
   }
   receiveInternal(timestamp: CausalTimestamp, _message: Uint8Array): boolean {
-    // TODO: only do this if previously disabled.  How to check?
-    this.emit("Enable", {
+    // TODO: only do this if previously enabled.  How to check?
+    this.emit("Disable", {
       caller: this,
       timestamp: timestamp,
     });

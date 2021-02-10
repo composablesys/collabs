@@ -1,11 +1,6 @@
 import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtRuntime } from "../crdt_core";
 import { HardResettable, StrongResetWrapperCrdt } from "../resettable";
-import {
-  AddEvents,
-  Constructor,
-  CrdtMixinWithNewEvents,
-  makeEventAdder,
-} from "./mixin";
+import { Constructor, CrdtMixinWithNewEvents, makeEventAdder } from "./mixin";
 
 export interface StrongResettable {
   /**
@@ -39,14 +34,13 @@ export const AddStrongResettable: CrdtMixinWithNewEvents<
     implements StrongResettable {
     protected strongResetWrapper: StrongResetWrapperCrdt;
     constructor(...args: any[]) {
-      let parentOrRuntime = args[0] as Crdt | CrdtRuntime;
-      let id = args[1] as string;
-      let strongResetWrapper = new StrongResetWrapperCrdt(
+      const parentOrRuntime = args[0] as Crdt | CrdtRuntime;
+      const id = args[1] as string;
+      const strongResetWrapper = new StrongResetWrapperCrdt(
         parentOrRuntime,
         id + "_reset"
       );
-      args[0] = strongResetWrapper;
-      super(...args);
+      super(strongResetWrapper, id, ...args.slice(2));
       this.strongResetWrapper = strongResetWrapper;
       strongResetWrapper.setupStrongReset(this);
       strongResetWrapper.on("StrongReset", (event) => {
@@ -63,5 +57,5 @@ export const AddStrongResettable: CrdtMixinWithNewEvents<
     strongReset() {
       this.strongResetWrapper.strongReset();
     }
-  };
+  } as any;
 };
