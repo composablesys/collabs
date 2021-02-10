@@ -41,7 +41,6 @@
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "bench": "node test/benchmark/benchmark.ts",
     "tscw": "tsc --project tsconfig.build.json --watch"
   },
   "files": [
