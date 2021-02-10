@@ -110,6 +110,10 @@ class FrameworkSuite {
    * @param  setupFun Function to run once before each call
    * to fun
    * @param  fun Function to benchmark
+   * @param runs If set, runs the benchmark the specified
+   * number of times.  Set this to 1 if you know the result
+   * is deterministic (e.g. network traffic for CRDT
+   * microbenchmarks).
    */
   benchGeneral(
     testName: string,

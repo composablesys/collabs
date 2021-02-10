@@ -29,7 +29,8 @@
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
     "tscw": "tsc --project tsconfig.build.json --watch",
-    "start": "node --expose-gc build/src/main.js"
+    "start": "node --expose-gc build/src/main.js",
+    "dryrun": "npm start -- . test --no-write"
   },
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"
