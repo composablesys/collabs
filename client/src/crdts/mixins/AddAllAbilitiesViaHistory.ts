@@ -7,14 +7,14 @@ import {
 } from "../resettable";
 import { SemidirectState } from "../semidirect";
 import { AbilityFlag, AllAble, InterfaceOf } from "./abilities";
-import { Constructor, MixinOpt1 } from "./mixin";
+import { Constructor, CrdtMixinWithOptions } from "./mixin";
 import { AddStrongResettable } from "./StrongResettable";
 
 export interface AllAbleWithResetState extends AllAble {
   getResetState(): SemidirectState;
 }
 
-export const AddAllAbilitiesViaHistory: MixinOpt1<
+export const AddAllAbilitiesViaHistory: CrdtMixinWithOptions<
   Crdt & HardResettable,
   AllAbleWithResetState,
   boolean

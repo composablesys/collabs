@@ -1,6 +1,6 @@
 import { Crdt, CrdtRuntime } from "../crdt_core";
 import { HardResettable, StrongResetWrapperCrdt } from "../resettable";
-import { Constructor, Mixin } from "./mixin";
+import { Constructor, CrdtConstructor, CrdtMixin } from "./mixin";
 
 export interface StrongResettable {
   /**
@@ -19,7 +19,7 @@ export interface StrongResettable {
   strongReset(): void;
 }
 
-export const AddStrongResettable: Mixin<
+export const AddStrongResettable: CrdtMixin<
   Crdt & HardResettable,
   StrongResettable
 > = <Input extends Constructor<Crdt & HardResettable>>(Base: Input) =>
