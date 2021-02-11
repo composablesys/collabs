@@ -12,6 +12,7 @@
     "clean": "^4.0.2",
     "mathjs": "^9.2.0",
     "csv-write-stream": "^2.0.0",
+    "uuid": "^3.4.0",
     "arg": "^5.0.0"
   },
   "devDependencies": {

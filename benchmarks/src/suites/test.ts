@@ -9,7 +9,7 @@ function addFunc() {
   return { x };
 }
 
-let suite = framework.newSuite("Test");
+const suite = framework.newSuite("Test");
 suite.benchCpu("addFunc#time", () => {}, addFunc);
 suite.benchMemory("addFunc#memory", () => {}, addFunc);
 suite.benchGeneral(

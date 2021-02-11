@@ -4,8 +4,9 @@ import * as math from "mathjs";
 import fs from "fs";
 import csvWriter from "csv-write-stream";
 
-const maxTime = 5; // max time for all benchmark, in seconds.
-// benchGeneral will stop after this time is exceeded,
+const maxTime = 1; // max time for all benchmarks, in seconds.
+// benchGeneral will stop after this time is exceeded so long
+// as at least minRuns have elapsed,
 // so it may run over.
 const minRuns = 5; // min runs for all benchmarks
 const maxRuns = 10; // max runs for benchGeneral.
@@ -83,6 +84,11 @@ class FrameworkSuite {
    * @param  fun Function to benchmark.  It should output
    * an object that references all of the memory you want
    * to count, to ensure it is not GC'd before we count it.
+   * Note that either through the return value or other
+   * still-in-memory variables, any memory in use after
+   * setupFun() should still be in-use at the end of fun(),
+   * since the memory usage will be subtracted between those
+   * two times to get the measured value.
    * TODO: what's the best way to do this?
    */
   benchMemory(testName: string, setupFun: () => void, fun: () => Object) {
