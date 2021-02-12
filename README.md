@@ -55,7 +55,7 @@ Access the service via `localhost:3000`, look at the console to see outputs of c
 Deploys to https://compoventuals-tests.herokuapp.com/
 
 * The Heroku deployment will be automatically triggered by `git commit` and `git push`.
-* The Heroku server will run the shell script `heroku_deploy.sh` and `npm start` to build and run the project.
+* The Heroku server will run `npm install` and `npm build` to build the project, and `npm start` to run it (according to Procfile).
 
 Options for manually deployment:
 
@@ -65,6 +65,12 @@ Options for manually deployment:
 heroku login
 ```
 
+* Create a heroku project on your machine by running (in the repo's top-level directory):
+```
+heroku create
+```
+This should also create a git remote repo named `heroku`. See [here](https://devcenter.heroku.com/articles/git#creating-a-heroku-remote) for how to customize or repair this if needed.
+
 * Commit and push the code on Heroku master just like the way you do on Github:
 
 ```
@@ -73,12 +79,6 @@ git commit -m ${commit messages}
 git push heroku master
 git push
 ```
-
-## client package commands
-
-* `npm run build`: Build
-* `npm run test`: Run tests (from test/test.ts) in node
-* `npm run bench`: Run benchmark suite (from test/benchmark/benchmark.ts) in node
 
 ## Development
 
