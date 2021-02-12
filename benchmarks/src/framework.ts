@@ -3,6 +3,7 @@ import path from "path";
 import * as math from "mathjs";
 import fs from "fs";
 import csvWriter from "csv-write-stream";
+import streams from "memory-streams";
 
 const maxTime = 1; // max time for all benchmarks, in seconds.
 // benchGeneral will stop after this time is exceeded so long
@@ -46,9 +47,13 @@ class FrameworkSuite {
    * interval)
    * @param  fun Function to benchmark
    */
-  benchCpu(testName: string, setupFun: () => void, fun: () => void) {
-    if (this.prepare(testName)) return;
-    this.warmup(setupFun, fun);
+  benchCpu(
+    testName: string,
+    setupFun: () => void,
+    fun: () => void,
+    extraFields: { [header: string]: string } = {}
+  ) {
+    if (this.prepare(testName, setupFun, fun, extraFields)) return;
     // Time with benchmark
     let suite = new Benchmark.Suite(this.suiteName);
     suite.add(testName, fun, { maxTime: maxTime, minSamples: minRuns });
@@ -68,7 +73,8 @@ class FrameworkSuite {
         "Time (sec)",
         result.stats.mean,
         result.stats.deviation,
-        result.stats.sample.length
+        result.stats.sample.length,
+        extraFields
       );
     });
     // Run
@@ -91,7 +97,12 @@ class FrameworkSuite {
    * two times to get the measured value.
    * TODO: what's the best way to do this?
    */
-  benchMemory(testName: string, setupFun: () => void, fun: () => Object) {
+  benchMemory(
+    testName: string,
+    setupFun: () => void,
+    fun: () => Object,
+    extraFields: { [header: string]: string } = {}
+  ) {
     let memStart = 0;
     let wrappedSetupFun = () => {
       setupFun();
@@ -104,7 +115,13 @@ class FrameworkSuite {
       let memDiff = process.memoryUsage().heapUsed - memStart;
       return memDiff;
     };
-    this.benchGeneral(testName, "Memory (bytes)", wrappedSetupFun, wrappedFun);
+    this.benchGeneral(
+      testName,
+      "Memory (bytes)",
+      wrappedSetupFun,
+      wrappedFun,
+      extraFields
+    );
   }
 
   /**
@@ -126,10 +143,10 @@ class FrameworkSuite {
     metric: string,
     setupFun: () => void,
     fun: () => number,
+    extraFields: { [header: string]: string } = {},
     runs?: number
   ) {
-    if (this.prepare(testName)) return;
-    this.warmup(setupFun, fun);
+    if (this.prepare(testName, setupFun, fun, extraFields)) return;
     let results: number[] = [];
     let startTime = Date.now();
     for (let i = 0; i < (runs ? runs : maxRuns); i++) {
@@ -144,7 +161,8 @@ class FrameworkSuite {
       metric,
       math.mean(results),
       math.std(results),
-      results.length
+      results.length,
+      extraFields
     );
   }
 
@@ -156,18 +174,32 @@ class FrameworkSuite {
    * "Label (units)"
    * @param  mean     Mean result
    * @param  stdDev   Sample (unbiased) standard deviation
+   * @param  count    Number of samples in the result
+   * @param  extraFields Extra fields to include in the csv
+   * file, with entries in the form
+   * { "header": "this row value"}.
    */
   private recordResult(
     testName: string,
     metric: string,
     mean: number,
     stdDev: number,
-    count: number
+    count: number,
+    extraFields: { [header: string]: string }
   ) {
-    let headers = ["Date", "Version", "Metric", "Mean", "StdDev", "Count"];
+    let headers = [
+      "Date",
+      "Version",
+      "Metric",
+      "Mean",
+      "StdDev",
+      "Count",
+      ...Object.keys(extraFields),
+    ];
     let parentDir = path.join(this.framework.outDir, this.suiteName);
     let outFile = path.join(parentDir, testName + ".csv");
     let writer;
+    let buffer = new streams.WritableStream();
 
     if (this.framework.noWrite) {
       console.log("        Intended output file: " + outFile);
@@ -187,7 +219,7 @@ class FrameworkSuite {
       } else {
         writer = csvWriter({ sendHeaders: false });
       }
-      writer.pipe(fs.createWriteStream(outFile, { flags: "a" }));
+      writer.pipe(buffer);
     }
 
     writer.write({
@@ -197,20 +229,30 @@ class FrameworkSuite {
       Mean: mean,
       StdDev: stdDev,
       Count: count,
+      ...extraFields,
     });
     writer.end();
     if (this.framework.noWrite) console.log();
+    else {
+      // Write the buffer to file
+      fs.appendFileSync(outFile, buffer.toString());
+    }
   }
 
   /**
    * @return          true if the test should be skipped
    */
-  private prepare(testName: string): boolean {
-    console.log("      " + testName);
-    if (!this.framework.regex.test(this.suiteName + "/" + testName)) {
-      console.log("        (Skipped)");
-      return true;
-    } else return false;
+  private prepare(
+    testName: string,
+    setupFun: () => void,
+    fun: () => void,
+    extraFields: { [header: string]: string }
+  ): boolean {
+    if (this.framework.regex.test(this.suiteName + "/" + testName)) {
+      console.log("      " + testName + ", " + JSON.stringify(extraFields));
+      this.warmup(setupFun, fun);
+      return false;
+    } else return true;
   }
 
   private warmup(setupFun: () => void, fun: () => void) {
