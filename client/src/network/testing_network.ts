@@ -5,7 +5,7 @@ import {
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
 
-class TestingNetwork implements BroadcastNetwork {
+export class TestingNetwork implements BroadcastNetwork {
   causal!: DefaultCausalBroadcastNetwork;
   sentBytes = 0;
   receivedBytes = 0;
@@ -32,6 +32,9 @@ class TestingNetwork implements BroadcastNetwork {
  */
 export class TestingNetworkGenerator {
   newRuntime(replicaId?: string) {
+    return new CrdtRuntime(this.newNetwork(replicaId));
+  }
+  newNetwork(replicaId?: string) {
     if (replicaId === undefined) replicaId = this.messageQueues.size + "";
     let network = new TestingNetwork(this);
     let newQueue = new Map<TestingNetwork, Array<any>>();
@@ -39,11 +42,8 @@ export class TestingNetworkGenerator {
       newQueue.set(oldEntry[0], []);
       oldEntry[1].set(network, []);
     }
-    let runtime = new CrdtRuntime(
-      new DefaultCausalBroadcastNetwork(replicaId, network)
-    );
     this.messageQueues.set(network, newQueue);
-    return runtime;
+    return new DefaultCausalBroadcastNetwork(replicaId, network);
   }
   // Maps sender and recipient to an array of queued messages.
   messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
@@ -77,5 +77,11 @@ export class TestingNetworkGenerator {
   getTestingNetwork(runtime: CrdtRuntime) {
     let causal = runtime.network as DefaultCausalBroadcastNetwork;
     return causal.broadcastNetwork as TestingNetwork;
+  }
+
+  getTotalSentBytes() {
+    let ret = 0;
+    for (let sender of this.messageQueues.keys()) ret += sender.sentBytes;
+    return ret;
   }
 }
