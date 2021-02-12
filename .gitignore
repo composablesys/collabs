@@ -2,6 +2,7 @@
 node_modules
 build
 dist
+docs
 .vscode/
 .idea/
 client/generated

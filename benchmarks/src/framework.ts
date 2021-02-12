@@ -15,7 +15,7 @@ const warmupRuns = 5;
 const warmupStopTime = 1; // stop warmup early if it takes
 // at least this many seconds
 
-class Framework {
+export class Framework {
   constructor() {}
 
   outDir!: string;
@@ -35,7 +35,7 @@ class Framework {
   }
 }
 
-class FrameworkSuite {
+export class FrameworkSuite {
   constructor(readonly suiteName: string, readonly framework: Framework) {}
 
   /**

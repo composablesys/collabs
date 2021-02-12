@@ -25,7 +25,8 @@
   "scripts": {
     "build": "npm-run-all build:*",
     "build:ts": "tsc",
-    "clean": "rimraf build",
+    "build:docs": "typedoc --out docs src/framework.ts",
+    "clean": "rimraf build docs",
     "test": "npm-run-all test:*",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
