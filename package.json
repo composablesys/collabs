@@ -36,6 +36,9 @@
     "clean:benchmarks": "npm run clean --prefix benchmarks",
     "reset": "rimraf package-lock.json node_modules client/package-lock.json client/node_modules server/package-lock.json server/node_modules demo/package-lock.json demo/node_modules benchmarks/package-lock.json benchmarks/node_modules"
   },
+  "engines": {
+    "node": "15.6"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
