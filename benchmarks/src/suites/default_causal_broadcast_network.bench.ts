@@ -19,6 +19,15 @@ class TrivialRuntime {
     _message: Uint8Array,
     _timestamp: network.CausalTimestamp
   ) {}
+  /**
+   * Assuming this.network was created by TestingNetworkGenerator.netNetwork,
+   * return its internal TestingNetwork.
+   * @return [description]
+   */
+  getTestingNetwork() {
+    return (this.network as network.DefaultCausalBroadcastNetwork)
+      .broadcastNetwork as network.TestingNetwork;
+  }
 }
 
 const suite = framework.newSuite("DefaultCausalBroadcastNetwork");
@@ -35,9 +44,10 @@ for (let users = 1; users <= 16; users *= 2) {
         "Active users": `${activeUsers}`,
         Rounds: `${rounds}`,
       };
-      const generator = new network.TestingNetworkGenerator();
+      let generator: network.TestingNetworkGenerator;
       let runtimes: TrivialRuntime[] = [];
       let setupFun = () => {
+        generator = new network.TestingNetworkGenerator();
         for (let i = 0; i < users; i++) {
           runtimes[i] = new TrivialRuntime(generator.newNetwork(uuid()));
         }
@@ -46,29 +56,80 @@ for (let users = 1; users <= 16; users *= 2) {
         runtimes.forEach((runtime) => runtime.send());
         generator.releaseAll();
       };
-      let fun = () => {
+
+      // 1. Each active user sends concurrently in each round.
+      let funConcurrent = () => {
         // Have each active user send a message concurrently,
         // in rounds.
         for (let r = 0; r < rounds; r++) {
           for (let i = 0; i < activeUsers; i++) runtimes[i].send();
-          generator.releaseAll();
+          for (let i = 0; i < activeUsers; i++)
+            generator.releaseByNetwork(runtimes[i].getTestingNetwork());
         }
         return runtimes;
       };
-      suite.benchMemory(`Round#Memory`, setupFun, fun, extraFields);
-      suite.benchCpu(`Round#Cpu`, setupFun, fun, extraFields);
-      suite.benchGeneral(
-        `Round#SentBytes`,
-        "Sent Bytes",
-        setupFun,
-        () => {
-          let startBytes = generator.getTotalSentBytes();
-          fun();
-          return generator.getTotalSentBytes() - startBytes;
-        },
-        extraFields,
-        1
-      );
+
+      // 2. Each active user sends in sequence in each round.
+      let funLinear = () => {
+        for (let r = 0; r < rounds; r++) {
+          for (let i = 0; i < activeUsers; i++) {
+            runtimes[i].send();
+            generator.releaseByNetwork(runtimes[i].getTestingNetwork());
+          }
+        }
+        return runtimes;
+      };
+
+      // 3. Partition the users and active users by parity.  Each partition
+      // sends in sequence for 10 rounds, then the partitions are reunited,
+      // repeatedly.
+      let funPartition = () => {
+        for (let r = 0; r < rounds; r++) {
+          for (let i = 0; i < activeUsers; i++) {
+            runtimes[i].send();
+            // Deliver to all users in the same partition (parity)
+            for (let j = 0; j < users; j++) {
+              if ((j - i) % 2 == 0) {
+                generator.releaseByNetwork(
+                  runtimes[i].getTestingNetwork(),
+                  runtimes[j].getTestingNetwork()
+                );
+              }
+            }
+          }
+          // Every 2 rounds, briefly heal the partition
+          if (rounds % 10 == 0) generator.releaseAll();
+        }
+        return runtimes;
+      };
+
+      let funs = {
+        Concurrent: funConcurrent,
+        Linear: funLinear,
+        Partition: funPartition,
+      };
+
+      for (let entry of Object.entries(funs)) {
+        suite.benchMemory(
+          `${entry[0]}#Memory`,
+          setupFun,
+          entry[1],
+          extraFields
+        );
+        suite.benchCpu(`${entry[0]}#Cpu`, setupFun, entry[1], extraFields);
+        suite.benchGeneral(
+          `${entry[0]}#SentBytes`,
+          "Sent Bytes",
+          setupFun,
+          () => {
+            let startBytes = generator.getTotalSentBytes();
+            entry[1]();
+            return generator.getTotalSentBytes() - startBytes;
+          },
+          extraFields,
+          1
+        );
+      }
     }
   }
 }

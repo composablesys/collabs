@@ -58,6 +58,9 @@ export class TestingNetworkGenerator {
     let recipients = recipientRuntimes.map((runtime) =>
       this.getTestingNetwork(runtime)
     );
+    this.releaseByNetwork(sender, ...recipients);
+  }
+  releaseByNetwork(sender: TestingNetwork, ...recipients: TestingNetwork[]) {
     if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
     let senderMap = this.messageQueues.get(sender)!;
     for (let recipient of recipients) {
