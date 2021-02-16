@@ -232,8 +232,11 @@ export class FrameworkSuite {
       ...extraFields,
     });
     writer.end();
-    if (this.framework.noWrite) console.log();
-    else {
+    if (this.framework.noWrite) {
+      console.log();
+      // Try to prevent MaxListenersExceededWarning
+      writer.unpipe(process.stdout);
+    } else {
       // Write the buffer to file
       fs.appendFileSync(outFile, buffer.toString());
     }
