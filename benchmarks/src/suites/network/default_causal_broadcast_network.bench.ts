@@ -1,5 +1,5 @@
 import { network, crdts } from "compoventuals-client";
-import framework from "../framework";
+import framework from "../../framework";
 import { v4 as uuid } from "uuid";
 
 /**
@@ -30,7 +30,7 @@ class TrivialRuntime {
   }
 }
 
-const suite = framework.newSuite("DefaultCausalBroadcastNetwork");
+const suite = framework.newSuite("network/DefaultCausalBroadcastNetwork");
 
 // Benchmark: active users sent messages with various concurrency patterns,
 // in rounds.

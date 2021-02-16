@@ -3,7 +3,7 @@ import framework, { FrameworkSuite } from "./framework";
 import { v4 as uuid } from "uuid";
 import seedrandom from "seedrandom";
 
-export class CrdtSuite<C extends crdts.Crdt> {
+export class CrdtSuite<C> {
   suite: FrameworkSuite;
 
   constructor(suiteName: string) {
