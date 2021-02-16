@@ -147,8 +147,8 @@ export class CrdtSuite<C> {
             "Sent Bytes",
             () => {},
             () => {
-              let startBytes = generator.getTotalSentBytes();
               setupFun();
+              let startBytes = generator.getTotalSentBytes();
               entry[1]();
               return generator.getTotalSentBytes() - startBytes;
             },
