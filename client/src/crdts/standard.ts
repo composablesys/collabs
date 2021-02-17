@@ -329,9 +329,9 @@ export class DisableWinsFlag extends AddFlagEvents(
   }
 }
 
-export interface KeyAddEvent<K, C extends Crdt> extends CrdtEvent {
+export interface KeyAddEvent<K, V> extends CrdtEvent {
   readonly key: K;
-  readonly value: C;
+  readonly value: V;
 }
 
 export interface GMapCrdtEventsRecord<K, C extends Crdt>
@@ -867,7 +867,23 @@ export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt<
   }
 }
 
-export class LwwMap<K, V> extends Crdt {
+// TODO: also include old values?
+export interface KeyDeleteEvent<K> extends CrdtEvent {
+  readonly key: K;
+}
+
+export interface ValueChangeEvent<K, V> extends CrdtEvent {
+  readonly key: K;
+  readonly value: V;
+}
+
+export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
+  KeyAdd: KeyAddEvent<K, V>;
+  KeyDelete: KeyDeleteEvent<K>;
+  ValueChange: ValueChangeEvent<K, V>;
+}
+
+export class LwwMap<K, V> extends Crdt<null, LwwMapEventsRecord<K, V>> {
   private readonly internalMap: GMapCrdt<K, LwwRegister<V | undefined>>;
   /**
    * A map in which the value associated to each key follows
@@ -900,7 +916,7 @@ export class LwwMap<K, V> extends Crdt {
       serialized: Uint8Array
     ) => V | undefined = newDefaultCollectionDeserializer(parentOrRuntime)
   ) {
-    super(parentOrRuntime, id, {});
+    super(parentOrRuntime, id, null);
     // Register values are always set immediately
     this.internalMap = new GMapCrdt(
       this,
@@ -916,6 +932,31 @@ export class LwwMap<K, V> extends Crdt {
       keySerialize,
       keyDeserialize
     );
+    this.internalMap.on("KeyAdd", (event) => {
+      event.value.on("Lww", (innerEvent) => {
+        // TODO: remove listeners if GC'd
+        if (innerEvent.value === undefined) {
+          this.emit("KeyDelete", {
+            caller: this,
+            timestamp: innerEvent.timestamp,
+            key: event.key,
+          });
+        } else {
+          this.emit("ValueChange", {
+            caller: this,
+            timestamp: innerEvent.timestamp,
+            key: event.key,
+            value: innerEvent.value!,
+          });
+        }
+      });
+      this.emit("KeyAdd", {
+        caller: this,
+        timestamp: event.timestamp,
+        key: event.key,
+        value: event.value.value!,
+      });
+    });
   }
 
   get(key: K): V | undefined {
