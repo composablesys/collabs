@@ -253,6 +253,7 @@ export class FrameworkSuite {
   ): boolean {
     if (this.framework.regex.test(this.suiteName + "/" + testName)) {
       console.log("      " + testName + ", " + JSON.stringify(extraFields));
+      global.gc();
       this.warmup(setupFun, fun);
       return false;
     } else return true;

@@ -19,8 +19,10 @@ class BaselineCrdt extends crdts.Crdt<null> {
   }
 }
 
-new CrdtSuite<BaselineCrdt>("crdts/Baseline").runTest(
-  "",
-  (parentOrRuntime) => new BaselineCrdt(parentOrRuntime, "BaselineId"),
-  { MessageWeight: [(crdt) => crdt.noop(), 1] }
-);
+(async function () {
+  await new CrdtSuite<BaselineCrdt>("crdts/Baseline").runTest(
+    "",
+    (parentOrRuntime) => new BaselineCrdt(parentOrRuntime, "BaselineId"),
+    { MessageWeight: [(crdt) => crdt.noop(), 1] }
+  );
+})();

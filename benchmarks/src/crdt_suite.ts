@@ -10,7 +10,7 @@ export class CrdtSuite<C> {
     this.suite = framework.newSuite(suiteName);
   }
 
-  runTest(
+  async runTest(
     testName: string,
     crdtConstructor: (parentOrRuntime: crdts.Crdt | crdts.CrdtRuntime) => C,
     ops: {
@@ -133,6 +133,7 @@ export class CrdtSuite<C> {
             },
             extraFields
           );
+          await threadYield();
           this.suite.benchCpu(
             `${testNameMaybeHash}${entry[0]}#Cpu`,
             () => {},
@@ -142,6 +143,7 @@ export class CrdtSuite<C> {
             },
             extraFields
           );
+          await threadYield();
           this.suite.benchGeneral(
             `${testNameMaybeHash}${entry[0]}#SentBytes`,
             "Sent Bytes",
@@ -155,8 +157,13 @@ export class CrdtSuite<C> {
             extraFields,
             1
           );
+          await threadYield();
         }
       }
     }
   }
+}
+
+async function threadYield() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
