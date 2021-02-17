@@ -982,7 +982,31 @@ export class LwwMap<K, V> extends Crdt<null, LwwMapEventsRecord<K, V>> {
     return deleted;
   }
 
-  // TODO: events
+  keys() {
+    let keys: K[] = [];
+    for (let key of this.internalMap.keys()) {
+      if (this.has(key)) keys.push(key);
+    }
+    return keys.values();
+  }
 
-  // TODO: reset/clear, keys, values, entries.
+  values() {
+    let values: V[] = [];
+    for (let key of this.internalMap.keys()) {
+      let value = this.get(key);
+      if (value !== undefined) values.push(value);
+    }
+    return values.values();
+  }
+
+  entries() {
+    let entries: [K, V][] = [];
+    for (let key of this.internalMap.keys()) {
+      let value = this.get(key);
+      if (value !== undefined) entries.push([key, value]);
+    }
+    return entries.values();
+  }
+
+  // TODO: reset/clear
 }

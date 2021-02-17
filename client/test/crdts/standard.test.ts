@@ -7,10 +7,13 @@ import {
   DisableWinsFlag,
   EnableWinsFlag,
   GSet,
+  KeyAddEvent,
+  KeyDeleteEvent,
   LwwMap,
   MapCrdt,
   NumberCrdt,
   RuntimeCrdtGenerator,
+  ValueChangeEvent,
 } from "../../src/crdts";
 import { debug } from "../debug";
 
@@ -91,7 +94,7 @@ describe("standard", () => {
           bobFlag.nextEvent("Enable"),
         ]);
         aliceFlag.on("Disable", () =>
-          assert.fail("Did not expect Enable event from Alice")
+          assert.fail("Did not expect Disable event from Alice")
         );
         bobFlag.on("Disable", () => {
           assert.fail("Did not expect Disable event from Bob");
@@ -687,7 +690,7 @@ describe("standard", () => {
       });
 
       // TODO: make this test pass.
-      it.skip("lets concurrent add survive", () => {
+      it.skip("lets concurrent value operation survive", () => {
         aliceMap.addKey("register");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
@@ -800,8 +803,211 @@ describe("standard", () => {
   describe("LwwMap", () => {
     let aliceMap: LwwMap<string, number>;
     let bobMap: LwwMap<string, number>;
-    // TODO implement tests
-    it("is initially empty");
+
+    beforeEach(() => {
+      aliceMap = new LwwMap(alice, "lwwMap");
+      bobMap = new LwwMap(bob, "lwwMap");
+      if (debug) {
+        addEventListeners(aliceMap, "Alice");
+        addEventListeners(bobMap, "Bob");
+      }
+    });
+
+    function addEventListeners<K, V extends Object | null>(
+      map: LwwMap<any, any>,
+      name: string
+    ): void {
+      // TODO: add listeners
+    }
+
+    it("is initially empty", () => {
+      assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
+      assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
+      assert.deepStrictEqual(new Set(aliceMap.values()), new Set([]));
+      assert.deepStrictEqual(new Set(bobMap.values()), new Set([]));
+      assert.deepStrictEqual(new Set(aliceMap.entries()), new Set([]));
+      assert.deepStrictEqual(new Set(bobMap.entries()), new Set([]));
+    });
+
+    describe("addKey", () => {
+      it("works with non-concurrent updates", () => {
+        aliceMap.set("test", 7);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["test"]));
+        assert.deepStrictEqual(new Set(aliceMap.values()), new Set([7]));
+        assert.deepStrictEqual(new Set(bobMap.values()), new Set([7]));
+        assert.deepStrictEqual(
+          new Set(aliceMap.entries()),
+          new Set([["test", 7]])
+        );
+        assert.deepStrictEqual(
+          new Set(bobMap.entries()),
+          new Set([["test", 7]])
+        );
+      });
+      it("emits right events", async () => {
+        const promise = Promise.all([
+          aliceMap.nextEvent("KeyAdd"),
+          bobMap.nextEvent("KeyAdd"),
+        ]);
+        function checkKeyAdd(event: KeyAddEvent<string, number>) {
+          assert.strictEqual(event.key, "test");
+          // TODO: this depends on the value getting through,
+          // but it isn't set until after the add.
+          // Will work once events are async.
+          //assert.strictEqual(event.value, 7);
+        }
+        aliceMap.on("KeyAdd", checkKeyAdd);
+        bobMap.on("KeyAdd", checkKeyAdd);
+        function checkValueChange(event: ValueChangeEvent<string, number>) {
+          assert.strictEqual(event.key, "test");
+          assert.strictEqual(event.value, 7);
+        }
+        aliceMap.on("ValueChange", checkValueChange);
+        bobMap.on("ValueChange", checkValueChange);
+        aliceMap.on("KeyDelete", () =>
+          assert.fail("Did not expect KeyDelete event from Alice")
+        );
+        bobMap.on("KeyDelete", () => {
+          assert.fail("Did not expect KeyDelete event from Bob");
+        });
+
+        aliceMap.set("test", 7);
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
+
+    describe("has", () => {
+      it("returns true if the key is in the map", () => {
+        aliceMap.set("test", 7);
+        assert.isTrue(aliceMap.has("test"));
+        assert.isFalse(bobMap.has("test"));
+
+        runtimeGen.releaseAll();
+        assert.isTrue(aliceMap.has("test"));
+        assert.isTrue(bobMap.has("test"));
+      });
+
+      it("returns false if the key is not in the map", () => {
+        aliceMap.set("test", 7);
+        assert.isFalse(aliceMap.has("not in map"));
+        assert.isFalse(bobMap.has("not in map"));
+
+        runtimeGen.releaseAll();
+        assert.isFalse(aliceMap.has("not in map"));
+        assert.isFalse(bobMap.has("not in map"));
+      });
+    });
+
+    describe("get", () => {
+      it("returns the value if the key is in the map", () => {
+        aliceMap.set("test", 7);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceMap.get("test"), 7);
+        assert.strictEqual(bobMap.get("test"), 7);
+      });
+
+      it("returns undefined if the key is not in the map", () => {
+        aliceMap.set("test", 7);
+        runtimeGen.releaseAll();
+        assert.isUndefined(aliceMap.get("not in map"));
+        assert.isUndefined(bobMap.get("not in map"));
+      });
+    });
+
+    describe("delete", () => {
+      it("deletes existing elements", () => {
+        bobMap.set("test", 7);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
+
+        bobMap.delete("test");
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
+        assert.deepStrictEqual(new Set(aliceMap.values()), new Set([]));
+        assert.deepStrictEqual(new Set(bobMap.values()), new Set([]));
+        assert.deepStrictEqual(new Set(aliceMap.entries()), new Set([]));
+        assert.deepStrictEqual(new Set(bobMap.entries()), new Set([]));
+        assert.isUndefined(aliceMap.get("test"));
+        assert.isUndefined(bobMap.get("test"));
+      });
+
+      it("does not delete non-existing elements", () => {
+        bobMap.delete("test");
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
+        assert.deepStrictEqual(new Set(aliceMap.values()), new Set([]));
+        assert.deepStrictEqual(new Set(bobMap.values()), new Set([]));
+        assert.deepStrictEqual(new Set(aliceMap.entries()), new Set([]));
+        assert.deepStrictEqual(new Set(bobMap.entries()), new Set([]));
+        assert.isUndefined(aliceMap.get("test"));
+        assert.isUndefined(bobMap.get("test"));
+      });
+
+      // TODO: for future observed-remove semantics,
+      // this should no longer need the time interval
+      it("lets later set survive", () => {
+        aliceMap.set("register", 7);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
+
+        assert.strictEqual(bobMap.get("register"), 7);
+
+        aliceMap.delete("register");
+        let now = new Date().getTime();
+        while (new Date().getTime() <= now) {
+          // Loop; Bob will have a later time than now
+        }
+        bobMap.set("register", 3);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
+        assert.strictEqual(bobMap.get("register"), 3);
+        assert.strictEqual(aliceMap.get("register"), 3);
+      });
+
+      it("emits right events", async () => {
+        aliceMap.set("test", 7);
+        runtimeGen.releaseAll();
+
+        const promise = Promise.all([
+          aliceMap.nextEvent("KeyDelete"),
+          bobMap.nextEvent("KeyDelete"),
+        ]);
+        function checkKeyDelete(event: KeyDeleteEvent<string>) {
+          assert.strictEqual(event.key, "test");
+          // TODO: this depends on the value getting through,
+          // but it isn't set until after the add.
+          // Will work once events are async.
+          //assert.strictEqual(event.value, 7);
+        }
+        aliceMap.on("KeyDelete", checkKeyDelete);
+        bobMap.on("KeyDelete", checkKeyDelete);
+        aliceMap.on("ValueChange", () =>
+          assert.fail("Did not expect ValueChange event from Alice")
+        );
+        bobMap.on("ValueChange", () => {
+          assert.fail("Did not expect ValueChange event from Bob");
+        });
+        aliceMap.on("KeyAdd", () =>
+          assert.fail("Did not expect KeyAdd event from Alice")
+        );
+        bobMap.on("KeyAdd", () => {
+          assert.fail("Did not expect KeyAdd event from Bob");
+        });
+
+        aliceMap.delete("test");
+        runtimeGen.releaseAll();
+
+        await promise;
+      });
+    });
   });
 });
 
