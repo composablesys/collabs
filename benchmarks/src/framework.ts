@@ -6,11 +6,11 @@ import csvWriter from "csv-write-stream";
 import streams from "memory-streams";
 
 const maxTime = 1; // max time for all benchmarks, in seconds.
-// benchGeneral will stop after this time is exceeded so long
+// addGeneralBenchmark will stop after this time is exceeded so long
 // as at least minRuns have elapsed,
 // so it may run over.
 const minRuns = 5; // min runs for all benchmarks
-const maxRuns = 10; // max runs for benchGeneral.
+const maxRuns = 10; // max runs for addGeneralBenchmark.
 const warmupRuns = 5;
 const warmupStopTime = 1; // stop warmup early if it takes
 // at least this many seconds
@@ -29,14 +29,31 @@ export class Framework {
     this.regex = regex;
   }
 
+  pendingSuites: FrameworkSuite[] = [];
   newSuite(suiteName: string) {
     console.log("    " + suiteName);
-    return new FrameworkSuite(suiteName, this);
+    let suite = new FrameworkSuite(suiteName, this);
+    this.pendingSuites.push(suite);
+    return suite;
+  }
+
+  async runToCompletion() {
+    for (let suite of this.pendingSuites) {
+      await suite.runToCompletion();
+    }
   }
 }
 
 export class FrameworkSuite {
   constructor(readonly suiteName: string, readonly framework: Framework) {}
+
+  private pendingBenchmarks: (() => Promise<void>)[] = [];
+
+  async runToCompletion() {
+    for (let benchmark of this.pendingBenchmarks) {
+      await benchmark();
+    }
+  }
 
   /**
    * Benchmark the CPU time of fun, using benny.
@@ -47,38 +64,40 @@ export class FrameworkSuite {
    * interval)
    * @param  fun Function to benchmark
    */
-  benchCpu(
+  addCpuBenchmark(
     testName: string,
     setupFun: () => void,
     fun: () => void,
     extraFields: { [header: string]: string } = {}
   ) {
-    if (this.prepare(testName, setupFun, fun, extraFields)) return;
-    // Time with benchmark
-    let suite = new Benchmark.Suite(this.suiteName);
-    suite.add(testName, fun, { maxTime: maxTime, minSamples: minRuns });
-    // Run setup function before each cycle
-    suite.on("start", () => {
-      setupFun();
+    this.pendingBenchmarks.push(async () => {
+      if (this.prepare(testName, setupFun, fun, extraFields)) return;
+      // Time with benchmark
+      let suite = new Benchmark.Suite(this.suiteName);
+      suite.add(testName, fun, { maxTime: maxTime, minSamples: minRuns });
+      // Run setup function before each cycle
+      suite.on("start", () => {
+        setupFun();
+      });
+      suite.on("cycle", () => {
+        setupFun();
+      });
+      let myThis = this;
+      // Record results when complete
+      suite.on("complete", function (this: Benchmark[]) {
+        let result = this[0];
+        myThis.recordResult(
+          testName,
+          "Time (sec)",
+          result.stats.mean,
+          result.stats.deviation,
+          result.stats.sample.length,
+          extraFields
+        );
+      });
+      // Run
+      suite.run();
     });
-    suite.on("cycle", () => {
-      setupFun();
-    });
-    let myThis = this;
-    // Record results when complete
-    suite.on("complete", function (this: Benchmark[]) {
-      let result = this[0];
-      myThis.recordResult(
-        testName,
-        "Time (sec)",
-        result.stats.mean,
-        result.stats.deviation,
-        result.stats.sample.length,
-        extraFields
-      );
-    });
-    // Run
-    suite.run();
   }
 
   /**
@@ -97,7 +116,7 @@ export class FrameworkSuite {
    * two times to get the measured value.
    * TODO: what's the best way to do this?
    */
-  benchMemory(
+  addMemoryBenchmark(
     testName: string,
     setupFun: () => void,
     fun: () => Object,
@@ -115,7 +134,7 @@ export class FrameworkSuite {
       let memDiff = process.memoryUsage().heapUsed - memStart;
       return memDiff;
     };
-    this.benchGeneral(
+    this.addGeneralBenchmark(
       testName,
       "Memory (bytes)",
       wrappedSetupFun,
@@ -138,7 +157,7 @@ export class FrameworkSuite {
    * is deterministic (e.g. network traffic for CRDT
    * microbenchmarks).
    */
-  benchGeneral(
+  addGeneralBenchmark(
     testName: string,
     metric: string,
     setupFun: () => void,
@@ -146,24 +165,26 @@ export class FrameworkSuite {
     extraFields: { [header: string]: string } = {},
     runs?: number
   ) {
-    if (this.prepare(testName, setupFun, fun, extraFields)) return;
-    let results: number[] = [];
-    let startTime = Date.now();
-    for (let i = 0; i < (runs ? runs : maxRuns); i++) {
-      if (!runs && i >= minRuns && Date.now() - startTime >= maxTime * 1000)
-        break;
-      setupFun();
-      results[i] = fun();
-    }
-    // TODO: what metrics?
-    this.recordResult(
-      testName,
-      metric,
-      math.mean(results),
-      math.std(results),
-      results.length,
-      extraFields
-    );
+    this.pendingBenchmarks.push(async () => {
+      if (this.prepare(testName, setupFun, fun, extraFields)) return;
+      let results: number[] = [];
+      let startTime = Date.now();
+      for (let i = 0; i < (runs ? runs : maxRuns); i++) {
+        if (!runs && i >= minRuns && Date.now() - startTime >= maxTime * 1000)
+          break;
+        setupFun();
+        results[i] = fun();
+      }
+      // TODO: what metrics?
+      this.recordResult(
+        testName,
+        metric,
+        math.mean(results),
+        math.std(results),
+        results.length,
+        extraFields
+      );
+    });
   }
 
   /**

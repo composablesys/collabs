@@ -7,12 +7,12 @@ import { crdts } from "compoventuals-client";
     const counterSuite = new CrdtSuite<crdts.CounterBase & crdts.Resettable>(
       `crdts/${entry[0]}`
     );
-    await counterSuite.runTest(
+    counterSuite.addTest(
       "add",
       (parentOrRuntime) => new entry[1](parentOrRuntime, "CounterId"),
       { Add: [(crdt, rng) => crdt.add(rng() * 100 - 50), 1] }
     );
-    await counterSuite.runTest(
+    counterSuite.addTest(
       "resetHalf",
       (parentOrRuntime) => new entry[1](parentOrRuntime, "CounterId"),
       {
@@ -20,7 +20,7 @@ import { crdts } from "compoventuals-client";
         Reset: [(crdt) => crdt.reset(), 0.5],
       }
     );
-    await counterSuite.runTest(
+    counterSuite.addTest(
       "resetOnePercent",
       (parentOrRuntime) => new entry[1](parentOrRuntime, "CounterId"),
       {
@@ -33,12 +33,12 @@ import { crdts } from "compoventuals-client";
   const multRegisterSuite = new CrdtSuite<crdts.MultRegister>(
     "crdts/MultRegister"
   );
-  await multRegisterSuite.runTest(
+  multRegisterSuite.addTest(
     "mult",
     (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),
     { Add: [(crdt, rng) => crdt.mult(rng() * 4 - 2), 1] }
   );
-  await multRegisterSuite.runTest(
+  multRegisterSuite.addTest(
     "resetHalf",
     (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),
     {
@@ -46,7 +46,7 @@ import { crdts } from "compoventuals-client";
       Reset: [(crdt) => crdt.reset(), 0.5],
     }
   );
-  await multRegisterSuite.runTest(
+  multRegisterSuite.addTest(
     "resetOnePercent",
     (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),
     {
@@ -59,7 +59,7 @@ import { crdts } from "compoventuals-client";
   // TODO: try out serializers for different entry/value types
 
   const gSetSuite = new CrdtSuite<crdts.GSet<number>>("crdts/GSet");
-  await gSetSuite.runTest(
+  gSetSuite.addTest(
     "add",
     (parentOrRuntime) => new crdts.GSet(parentOrRuntime, "GSetId"),
     { Add: [(crdt, rng) => crdt.add(rng()), 1] }
@@ -68,7 +68,7 @@ import { crdts } from "compoventuals-client";
   const mvrSuite = new CrdtSuite<crdts.MultiValueRegister<number>>(
     "crdts/MultiValueRegister"
   );
-  await mvrSuite.runTest(
+  mvrSuite.addTest(
     "set",
     (parentOrRuntime) =>
       new crdts.MultiValueRegister(parentOrRuntime, "MultiValueRegisterId", 0),
@@ -78,7 +78,7 @@ import { crdts } from "compoventuals-client";
   const lwwSuite = new CrdtSuite<crdts.LwwRegister<number>>(
     "crdts/LwwRegister"
   );
-  await lwwSuite.runTest(
+  lwwSuite.addTest(
     "set",
     (parentOrRuntime) =>
       new crdts.LwwRegister(parentOrRuntime, "LwwRegisterId", 0),

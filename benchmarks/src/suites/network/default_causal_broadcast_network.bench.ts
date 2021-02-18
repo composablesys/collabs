@@ -111,14 +111,19 @@ for (let users = 1; users <= 16; users *= 2) {
       };
 
       for (let entry of Object.entries(funs)) {
-        suite.benchMemory(
+        suite.addMemoryBenchmark(
           `${entry[0]}#Memory`,
           setupFun,
           entry[1],
           extraFields
         );
-        suite.benchCpu(`${entry[0]}#Cpu`, setupFun, entry[1], extraFields);
-        suite.benchGeneral(
+        suite.addCpuBenchmark(
+          `${entry[0]}#Cpu`,
+          setupFun,
+          entry[1],
+          extraFields
+        );
+        suite.addGeneralBenchmark(
           `${entry[0]}#SentBytes`,
           "Sent Bytes",
           setupFun,

@@ -10,7 +10,7 @@ export class CrdtSuite<C> {
     this.suite = framework.newSuite(suiteName);
   }
 
-  runTest(
+  addTest(
     testName: string,
     crdtConstructor: (parentOrRuntime: crdts.Crdt | crdts.CrdtRuntime) => C,
     ops: {
@@ -124,7 +124,7 @@ export class CrdtSuite<C> {
         // stuff done in crdtConstructor will affect it.
         const testNameMaybeHash = testName == "" ? testName : testName + "#";
         for (let entry of Object.entries(funs)) {
-          this.suite.benchMemory(
+          this.suite.addMemoryBenchmark(
             `${testNameMaybeHash}${entry[0]}#Memory`,
             () => {},
             () => {
@@ -133,7 +133,7 @@ export class CrdtSuite<C> {
             },
             extraFields
           );
-          this.suite.benchCpu(
+          this.suite.addCpuBenchmark(
             `${testNameMaybeHash}${entry[0]}#Cpu`,
             () => {},
             () => {
@@ -142,7 +142,7 @@ export class CrdtSuite<C> {
             },
             extraFields
           );
-          this.suite.benchGeneral(
+          this.suite.addGeneralBenchmark(
             `${testNameMaybeHash}${entry[0]}#SentBytes`,
             "Sent Bytes",
             () => {},
