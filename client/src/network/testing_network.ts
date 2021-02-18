@@ -48,7 +48,7 @@ export class TestingNetworkGenerator {
   // Maps sender and recipient to an array of queued messages.
   messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
   /**
-   * Release all queued messages sender to the specified recipients.
+   * Release all queued messages from sender to the specified recipients.
    * If recipients are not specified, releases them to all
    * recipients.  Only recipients that existed at the time
    * of sending will receive a message.

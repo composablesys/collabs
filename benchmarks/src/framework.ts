@@ -31,7 +31,6 @@ export class Framework {
 
   pendingSuites: FrameworkSuite[] = [];
   newSuite(suiteName: string) {
-    console.log("    " + suiteName);
     let suite = new FrameworkSuite(suiteName, this);
     this.pendingSuites.push(suite);
     return suite;
@@ -39,10 +38,17 @@ export class Framework {
 
   async runToCompletion() {
     for (let suite of this.pendingSuites) {
+      console.log("    " + suite.suiteName);
       await suite.runToCompletion();
     }
+    this.pendingSuites = [];
   }
 }
+
+// Benchmark's deferred arg
+type Deferred = {
+  resolve(): void;
+};
 
 export class FrameworkSuite {
   constructor(readonly suiteName: string, readonly framework: Framework) {}
@@ -53,51 +59,88 @@ export class FrameworkSuite {
     for (let benchmark of this.pendingBenchmarks) {
       await benchmark();
     }
+    this.pendingBenchmarks = [];
   }
 
   /**
    * Benchmark the CPU time of fun, using benny.
    * @param  testName File to output this test's results to,
    * within this suite's directory
-   * @param  setupFun Function to run once before each cycle
-   * (series of fun calls run in a row to generate a timeable
-   * interval)
    * @param  fun Function to benchmark
+   * @param  extraFields extra fields to include in the CSV output row
+   * for this test, in the form {header: value}
    */
   addCpuBenchmark(
     testName: string,
-    setupFun: () => void,
+    //setupFun: (() => void) | (() => Promise<void>),
+    fun: () => Promise<void>,
+    extraFields: { [header: string]: string } = {}
+  ) {
+    // Time with benchmark
+    let suite = new Benchmark.Suite(this.suiteName);
+    suite.add(testName, {
+      defer: true,
+      fn: (deferred: Deferred) => {
+        // TODO: might this overestimate on short sync functions,
+        // due to promise's extra event loop iteration?
+        // Not sure if just calling deferred.resolve() directly is
+        // a good idea, in case benchmark.js is depending on it's being
+        // called in the next event loop iteration.
+        fun().then(() => deferred.resolve());
+      },
+      maxTime: maxTime,
+      minSamples: minRuns,
+    });
+    this.addCpuBenchmarkCommon(testName, fun, extraFields, suite);
+  }
+
+  private addCpuBenchmarkCommon(
+    testName: string,
+    fun: (() => void) | (() => Promise<void>),
+    extraFields: { [header: string]: string },
+    internalSuite: Benchmark.Suite
+  ) {
+    this.pendingBenchmarks.push(async () => {
+      if (
+        await this.prepare(testName, () => Promise.resolve(), fun, extraFields)
+      )
+        return;
+      let myThis = this;
+      // Record results when complete
+      let onComplete = new Promise<void>((resolve) => {
+        internalSuite.on("complete", function (this: Benchmark[]) {
+          let result = this[0];
+          myThis.recordResult(
+            testName,
+            "Time (sec)",
+            result.stats.mean,
+            result.stats.deviation,
+            result.stats.sample.length,
+            extraFields
+          );
+          resolve();
+        });
+      });
+      // Run
+      internalSuite.run();
+      // Await completion
+      await onComplete;
+    });
+  }
+
+  addCpuBenchmarkSync(
+    testName: string,
+    //setupFun: (() => void) | (() => Promise<void>),
     fun: () => void,
     extraFields: { [header: string]: string } = {}
   ) {
-    this.pendingBenchmarks.push(async () => {
-      if (this.prepare(testName, setupFun, fun, extraFields)) return;
-      // Time with benchmark
-      let suite = new Benchmark.Suite(this.suiteName);
-      suite.add(testName, fun, { maxTime: maxTime, minSamples: minRuns });
-      // Run setup function before each cycle
-      suite.on("start", () => {
-        setupFun();
-      });
-      suite.on("cycle", () => {
-        setupFun();
-      });
-      let myThis = this;
-      // Record results when complete
-      suite.on("complete", function (this: Benchmark[]) {
-        let result = this[0];
-        myThis.recordResult(
-          testName,
-          "Time (sec)",
-          result.stats.mean,
-          result.stats.deviation,
-          result.stats.sample.length,
-          extraFields
-        );
-      });
-      // Run
-      suite.run();
+    // Time with benchmark
+    let suite = new Benchmark.Suite(this.suiteName);
+    suite.add(testName, fun, {
+      maxTime: maxTime,
+      minSamples: minRuns,
     });
+    this.addCpuBenchmarkCommon(testName, fun, extraFields, suite);
   }
 
   /**
@@ -118,18 +161,18 @@ export class FrameworkSuite {
    */
   addMemoryBenchmark(
     testName: string,
-    setupFun: () => void,
-    fun: () => Object,
+    setupFun: (() => void) | (() => Promise<void>),
+    fun: () => Object | Promise<Object>,
     extraFields: { [header: string]: string } = {}
   ) {
     let memStart = 0;
-    let wrappedSetupFun = () => {
-      setupFun();
+    let wrappedSetupFun = async () => {
+      await setupFun();
       global.gc();
       memStart = process.memoryUsage().heapUsed;
     };
-    let wrappedFun = () => {
-      let memoryRef = fun();
+    let wrappedFun = async () => {
+      let memoryRef = await fun();
       global.gc();
       let memDiff = process.memoryUsage().heapUsed - memStart;
       return memDiff;
@@ -160,20 +203,20 @@ export class FrameworkSuite {
   addGeneralBenchmark(
     testName: string,
     metric: string,
-    setupFun: () => void,
-    fun: () => number,
+    setupFun: (() => void) | (() => Promise<void>),
+    fun: () => number | Promise<number>,
     extraFields: { [header: string]: string } = {},
     runs?: number
   ) {
     this.pendingBenchmarks.push(async () => {
-      if (this.prepare(testName, setupFun, fun, extraFields)) return;
+      if (await this.prepare(testName, setupFun, fun, extraFields)) return;
       let results: number[] = [];
       let startTime = Date.now();
       for (let i = 0; i < (runs ? runs : maxRuns); i++) {
         if (!runs && i >= minRuns && Date.now() - startTime >= maxTime * 1000)
           break;
-        setupFun();
-        results[i] = fun();
+        await setupFun();
+        results[i] = await fun();
       }
       // TODO: what metrics?
       this.recordResult(
@@ -266,28 +309,31 @@ export class FrameworkSuite {
   /**
    * @return          true if the test should be skipped
    */
-  private prepare(
+  private async prepare(
     testName: string,
-    setupFun: () => void,
-    fun: () => void,
+    setupFun: (() => void) | (() => Promise<void>),
+    fun: (() => void) | (() => Promise<void>),
     extraFields: { [header: string]: string }
-  ): boolean {
+  ) {
     if (this.framework.regex.test(this.suiteName + "/" + testName)) {
       console.log("      " + testName + ", " + JSON.stringify(extraFields));
       global.gc();
-      this.warmup(setupFun, fun);
+      await this.warmup(setupFun, fun);
       return false;
     } else return true;
   }
 
-  private warmup(setupFun: () => void, fun: () => void) {
+  private async warmup(
+    setupFun: (() => void) | (() => Promise<void>),
+    fun: (() => void) | (() => Promise<void>)
+  ) {
     // Run warmupRuns times or until warmupStopTime
     // seconds pass, whichever is shorter
     let startTime = Date.now();
     for (let i = 0; i < warmupRuns; i++) {
       if (Date.now() - startTime >= warmupStopTime * 1000) break;
-      setupFun();
-      fun();
+      await setupFun();
+      await fun();
     }
   }
 }

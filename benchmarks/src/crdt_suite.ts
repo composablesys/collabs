@@ -60,7 +60,7 @@ export class CrdtSuite<C> {
         let runtimes: crdts.CrdtRuntime[] = [];
         let crdts: C[] = [];
         let rng: seedrandom.prng;
-        let setupFun = () => {
+        let setupFun = async () => {
           generator = new network.TestingNetworkGenerator();
           rng = seedrandom(seed);
           for (let i = 0; i < users; i++) {
@@ -70,24 +70,28 @@ export class CrdtSuite<C> {
         };
 
         // 1. Each active user sends concurrently in each round.
-        let funConcurrent = () => {
+        let funConcurrent = async () => {
           // Have each active user send a message concurrently,
           // in rounds.
           for (let r = 0; r < rounds; r++) {
             for (let i = 0; i < users; i++) {
               getWeightedRandomOp(rng)(crdts[i], rng);
             }
+            // TODO: await sending
             for (let i = 0; i < users; i++) generator.release(runtimes[i]);
+            // TODO: await delivery
           }
           return runtimes;
         };
 
         // 2. Each active user sends in sequence in each round.
-        let funLinear = () => {
+        let funLinear = async () => {
           for (let r = 0; r < rounds; r++) {
             for (let i = 0; i < users; i++) {
               getWeightedRandomOp(rng)(crdts[i], rng);
+              // TODO: await sending
               generator.release(runtimes[i]);
+              // TODO: await delivery
             }
           }
           return runtimes;
@@ -96,19 +100,22 @@ export class CrdtSuite<C> {
         // 3. Partition the users and active users by parity.  Each partition
         // sends in sequence for 10 rounds, then the partitions are reunited,
         // repeatedly.
-        let funPartition = () => {
+        let funPartition = async () => {
           for (let r = 0; r < rounds; r++) {
             for (let i = 0; i < users; i++) {
               getWeightedRandomOp(rng)(crdts[i], rng);
+              // TODO: await sending
               // Deliver to all users in the same partition (parity)
               for (let j = 0; j < users; j++) {
                 if ((j - i) % 2 == 0) {
                   generator.release(runtimes[i], runtimes[j]);
                 }
               }
+              // TODO: await delivery
             }
-            // Every 2 rounds, briefly heal the partition
+            // Every 10 rounds, briefly heal the partition
             if (rounds % 10 == 0) generator.releaseAll();
+            // TODO: await delivery
           }
           return runtimes;
         };
@@ -127,18 +134,17 @@ export class CrdtSuite<C> {
           this.suite.addMemoryBenchmark(
             `${testNameMaybeHash}${entry[0]}#Memory`,
             () => {},
-            () => {
-              setupFun();
-              return entry[1]();
+            async () => {
+              await setupFun();
+              return await entry[1]();
             },
             extraFields
           );
           this.suite.addCpuBenchmark(
             `${testNameMaybeHash}${entry[0]}#Cpu`,
-            () => {},
-            () => {
-              setupFun();
-              return entry[1]();
+            async () => {
+              await setupFun();
+              await entry[1]();
             },
             extraFields
           );
@@ -146,10 +152,10 @@ export class CrdtSuite<C> {
             `${testNameMaybeHash}${entry[0]}#SentBytes`,
             "Sent Bytes",
             () => {},
-            () => {
-              setupFun();
+            async () => {
+              await setupFun();
               let startBytes = generator.getTotalSentBytes();
-              entry[1]();
+              await entry[1]();
               return generator.getTotalSentBytes() - startBytes;
             },
             extraFields,

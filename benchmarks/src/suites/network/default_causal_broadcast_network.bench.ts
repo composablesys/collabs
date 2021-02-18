@@ -47,7 +47,7 @@ for (let users = 1; users <= 16; users *= 2) {
       };
       let generator: network.TestingNetworkGenerator;
       let runtimes: TrivialRuntime[] = [];
-      let setupFun = () => {
+      let setupFun = async () => {
         generator = new network.TestingNetworkGenerator();
         for (let i = 0; i < users; i++) {
           runtimes[i] = new TrivialRuntime(generator.newNetwork(uuid()));
@@ -55,27 +55,33 @@ for (let users = 1; users <= 16; users *= 2) {
         // Warmup with one message from each user, to give
         // them entries in each other's vector clocks.
         runtimes.forEach((runtime) => runtime.send());
+        // TODO: await sending
         generator.releaseAll();
+        // TODO: await delivery
       };
 
       // 1. Each active user sends concurrently in each round.
-      let funConcurrent = () => {
+      let funConcurrent = async () => {
         // Have each active user send a message concurrently,
         // in rounds.
         for (let r = 0; r < rounds; r++) {
           for (let i = 0; i < activeUsers; i++) runtimes[i].send();
+          // TODO: await sending
           for (let i = 0; i < activeUsers; i++)
             generator.releaseByNetwork(runtimes[i].getTestingNetwork());
+          // TODO: await delivery
         }
         return runtimes;
       };
 
       // 2. Each active user sends in sequence in each round.
-      let funLinear = () => {
+      let funLinear = async () => {
         for (let r = 0; r < rounds; r++) {
           for (let i = 0; i < activeUsers; i++) {
             runtimes[i].send();
+            // TODO: await sending
             generator.releaseByNetwork(runtimes[i].getTestingNetwork());
+            // TODO: await delivery
           }
         }
         return runtimes;
@@ -84,10 +90,11 @@ for (let users = 1; users <= 16; users *= 2) {
       // 3. Partition the users and active users by parity.  Each partition
       // sends in sequence for 10 rounds, then the partitions are reunited,
       // repeatedly.
-      let funPartition = () => {
+      let funPartition = async () => {
         for (let r = 0; r < rounds; r++) {
           for (let i = 0; i < activeUsers; i++) {
             runtimes[i].send();
+            // TODO: await sending
             // Deliver to all users in the same partition (parity)
             for (let j = 0; j < users; j++) {
               if ((j - i) % 2 == 0) {
@@ -97,9 +104,11 @@ for (let users = 1; users <= 16; users *= 2) {
                 );
               }
             }
+            // TODO: await delivery
           }
           // Every 2 rounds, briefly heal the partition
           if (rounds % 10 == 0) generator.releaseAll();
+          // TODO: await delivery
         }
         return runtimes;
       };
@@ -119,8 +128,10 @@ for (let users = 1; users <= 16; users *= 2) {
         );
         suite.addCpuBenchmark(
           `${entry[0]}#Cpu`,
-          setupFun,
-          entry[1],
+          async () => {
+            await setupFun();
+            await entry[1]();
+          },
           extraFields
         );
         suite.addGeneralBenchmark(

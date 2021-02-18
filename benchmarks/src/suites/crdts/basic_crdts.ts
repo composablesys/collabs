@@ -50,7 +50,7 @@ import { crdts } from "compoventuals-client";
     "resetOnePercent",
     (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),
     {
-      Add: [(crdt, rng) => crdt.mult(rng() * 4 - 2), 0.99],
+      Mult: [(crdt, rng) => crdt.mult(rng() * 4 - 2), 0.99],
       Reset: [(crdt) => crdt.reset(), 0.01],
     }
   );

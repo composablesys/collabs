@@ -22,5 +22,5 @@ class BaselineCrdt extends crdts.Crdt<null> {
 new CrdtSuite<BaselineCrdt>("crdts/Baseline").addTest(
   "",
   (parentOrRuntime) => new BaselineCrdt(parentOrRuntime, "BaselineId"),
-  { MessageWeight: [(crdt) => crdt.noop(), 1] }
+  { Noop: [(crdt) => crdt.noop(), 1] }
 );
