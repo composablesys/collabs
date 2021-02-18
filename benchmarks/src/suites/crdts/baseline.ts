@@ -2,7 +2,8 @@ import { CrdtSuite } from "../../crdt_suite";
 import { crdts, network } from "compoventuals-client";
 
 // Crdt with no-op ops that send an empty message.
-class BaselineCrdt extends crdts.Crdt<null> {
+// TODO: make TrivialCrdt be this; then remove this class.
+export class BaselineCrdt extends crdts.Crdt<null> {
   constructor(parentOrRuntime: crdts.Crdt | crdts.CrdtRuntime, id: string) {
     super(parentOrRuntime, id, null);
   }
