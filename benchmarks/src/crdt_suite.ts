@@ -129,10 +129,10 @@ export class CrdtSuite<C> {
         // TODO: When to do setupFun?  For now we do it with each test,
         // since most of it can be subtracted out, although any complex
         // stuff done in crdtConstructor will affect it.
-        const testNameMaybeHash = testName == "" ? testName : testName + "#";
+        const testNameMaybeHash = testName == "" ? testName : testName + "-";
         for (let entry of Object.entries(funs)) {
           this.suite.addMemoryBenchmark(
-            `${testNameMaybeHash}${entry[0]}#Memory`,
+            `${testNameMaybeHash}${entry[0]}-Memory`,
             () => {},
             async () => {
               await setupFun();
@@ -141,7 +141,7 @@ export class CrdtSuite<C> {
             extraFields
           );
           this.suite.addCpuBenchmark(
-            `${testNameMaybeHash}${entry[0]}#Cpu`,
+            `${testNameMaybeHash}${entry[0]}-Cpu`,
             async () => {
               await setupFun();
               await entry[1]();
@@ -149,7 +149,7 @@ export class CrdtSuite<C> {
             extraFields
           );
           this.suite.addGeneralBenchmark(
-            `${testNameMaybeHash}${entry[0]}#SentBytes`,
+            `${testNameMaybeHash}${entry[0]}-SentBytes`,
             "Sent Bytes",
             () => {},
             async () => {

@@ -121,13 +121,13 @@ for (let users = 1; users <= 16; users *= 2) {
 
       for (let entry of Object.entries(funs)) {
         suite.addMemoryBenchmark(
-          `${entry[0]}#Memory`,
+          `${entry[0]}-Memory`,
           setupFun,
           entry[1],
           extraFields
         );
         suite.addCpuBenchmark(
-          `${entry[0]}#Cpu`,
+          `${entry[0]}-Cpu`,
           async () => {
             await setupFun();
             await entry[1]();
@@ -135,7 +135,7 @@ for (let users = 1; users <= 16; users *= 2) {
           extraFields
         );
         suite.addGeneralBenchmark(
-          `${entry[0]}#SentBytes`,
+          `${entry[0]}-SentBytes`,
           "Sent Bytes",
           setupFun,
           () => {
