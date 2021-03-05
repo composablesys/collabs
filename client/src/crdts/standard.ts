@@ -342,7 +342,7 @@ export interface GMapCrdtEventsRecord<K, C extends Crdt>
 export class GMapCrdt<K, C extends Crdt> extends Crdt<
   Map<K, C>,
   GMapCrdtEventsRecord<K, C>
-> {
+> implements HardResettable {
   private readonly valueConstructor: (parent: Crdt, id: string, key: K) => C;
   private readonly serialize: (value: K) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => K;
@@ -469,6 +469,9 @@ export class GMapCrdt<K, C extends Crdt> extends Crdt<
   // TODO: reset method (reset all values but
   // don't reset the state, so Crdt refs still
   // make sense).
+  hardReset() {
+    this.state.clear();
+  }
 }
 
 export interface SetDeleteEvent<T> extends CrdtEvent {
@@ -883,7 +886,8 @@ export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
   ValueChange: ValueChangeEvent<K, V>;
 }
 
-export class LwwMap<K, V> extends Crdt<null, LwwMapEventsRecord<K, V>> {
+export class LwwMap<K, V> extends Crdt<null, LwwMapEventsRecord<K, V>> 
+  implements HardResettable {
   private readonly internalMap: GMapCrdt<K, LwwRegister<V | undefined>>;
   /**
    * A map in which the value associated to each key follows
@@ -1009,4 +1013,7 @@ export class LwwMap<K, V> extends Crdt<null, LwwMapEventsRecord<K, V>> {
   }
 
   // TODO: reset/clear
+  hardReset() {
+    this.internalMap.hardReset();
+  }
 }
