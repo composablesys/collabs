@@ -24,34 +24,41 @@ let client = new crdts.CrdtRuntime(
 // The key represents a stroke in the form: endX:endY:startX:startY
 // The value is the color of the stroke.
 let clientBoard : crdts.LwwMap<string, string> = new crdts.LwwMap(client, "whiteboardId");
+let clientClear : crdts.Counter = new crdts.Counter(client, "clearBoard");
 
 window.onload = function() {
-    var colors = document.getElementsByClassName("btn-colors");
+	var colors = document.getElementsByClassName("btn-colors");
+	var clear = <HTMLButtonElement> document.getElementById("clear");
 	var board = <HTMLCanvasElement> document.getElementById("board");
 	var ctx = board.getContext("2d");
 	ctx!.lineWidth = 5;
 
-	clientBoard.on("KeyAdd", (event : crdts.KeyAddEvent<string, string>) => {
-		ctx!.strokeStyle = event.value;
-		var keys = event.key.split(":");
-		ctx!.beginPath();
-		ctx!.moveTo(parseInt(keys[0]), parseInt(keys[1]));
-		ctx!.lineTo(parseInt(keys[2]), parseInt(keys[3]));
-		ctx!.stroke();
-		ctx!.closePath();
-	});
-	
+	let keyReactGeneric = function(key : string, value : string) {
+		if (key == "clear") {
+			ctx!.clearRect(0, 0, board.width, board.height);
+		} else {
+			ctx!.strokeStyle = value;
+			var keys = key.split(":");
+			ctx!.beginPath();
+			ctx!.moveTo(parseInt(keys[0]), parseInt(keys[1]));
+			ctx!.lineTo(parseInt(keys[2]), parseInt(keys[3]));
+			ctx!.stroke();
+			ctx!.closePath();
+		}
+	};
 
-	clientBoard.on("ValueChange", (event : crdts.ValueChangeEvent<string, string>) => {
-		ctx!.strokeStyle = event.value;
-		var keys = event.key.split(":");
-		ctx!.beginPath();
-		ctx!.moveTo(parseInt(keys[0]), parseInt(keys[1]));
-		ctx!.lineTo(parseInt(keys[2]), parseInt(keys[3]));
-		ctx!.stroke();
-		ctx!.closePath();
+	clientBoard.on("KeyAdd", (event : crdts.KeyAddEvent<string, string>) => {
+		keyReactGeneric(event.key, event.value);
 	});
 	
+	clientBoard.on("ValueChange", (event : crdts.ValueChangeEvent<string, string>) => {
+		keyReactGeneric(event.key, event.value);
+	});
+	
+	clientClear.on("Change", (event : crdts.CrdtEvent) => {
+		ctx!.clearRect(0, 0, board.width, board.height);
+	});
+
     // Mouse Event Handlers
 	if(board){
 		var ctx = board.getContext("2d");
@@ -67,6 +74,11 @@ window.onload = function() {
 		.on("click", function(e : JQuery.ClickEvent) {
 			console.log(e.target.id);
 			ctx!.strokeStyle = e.target.id;
+		});
+
+		$(clear)
+		.on("click", function() {
+			clientClear.add(1);
 		});
 		
 		// Draw on board
@@ -90,7 +102,7 @@ window.onload = function() {
 				prevY = canvasY;
 			}
 		})
-		.on("mouseup", function(_){
+		.on("mouseup", function(){
 			isDown = false;
 		});
 	}
