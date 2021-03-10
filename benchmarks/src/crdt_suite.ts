@@ -16,8 +16,8 @@ export class CrdtSuite<C> {
     ops: {
       [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
     },
-    userCounts = [1, 2, 4, 8, 16],
-    roundCounts = [1, 10, 100],
+    userCounts = [1, 16],
+    roundCounts = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
     seed = "42"
   ) {
     // Init ability to choose random ops with given weights
@@ -122,8 +122,8 @@ export class CrdtSuite<C> {
 
         let funs = {
           Concurrent: funConcurrent,
-          Linear: funLinear,
-          Partition: funPartition,
+          //Linear: funLinear,
+          //Partition: funPartition,
         };
 
         // TODO: When to do setupFun?  For now we do it with each test,
@@ -133,9 +133,10 @@ export class CrdtSuite<C> {
         for (let entry of Object.entries(funs)) {
           this.suite.addMemoryBenchmark(
             `${testNameMaybeHash}${entry[0]}#Memory`,
-            () => {},
             async () => {
               await setupFun();
+            },
+            async () => {
               return await entry[1]();
             },
             extraFields
@@ -151,9 +152,10 @@ export class CrdtSuite<C> {
           this.suite.addGeneralBenchmark(
             `${testNameMaybeHash}${entry[0]}#SentBytes`,
             "Sent Bytes",
-            () => {},
             async () => {
               await setupFun();
+            },
+            async () => {
               let startBytes = generator.getTotalSentBytes();
               await entry[1]();
               return generator.getTotalSentBytes() - startBytes;

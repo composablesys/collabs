@@ -11,14 +11,14 @@ for (let entry of Object.entries(counters)) {
     (parentOrRuntime) => new entry[1](parentOrRuntime, "CounterId"),
     { Add: [(crdt, rng) => crdt.add(rng() * 100 - 50), 1] }
   );
-  counterSuite.addTest(
+  /*counterSuite.addTest(
     "resetHalf",
     (parentOrRuntime) => new entry[1](parentOrRuntime, "CounterId"),
     {
       Add: [(crdt, rng) => crdt.add(rng() * 100 - 50), 0.5],
       Reset: [(crdt) => crdt.reset(), 0.5],
     }
-  );
+  );*/
   counterSuite.addTest(
     "resetOnePercent",
     (parentOrRuntime) => new entry[1](parentOrRuntime, "CounterId"),
@@ -37,14 +37,14 @@ multRegisterSuite.addTest(
   (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),
   { Add: [(crdt, rng) => crdt.mult(rng() * 4 - 2), 1] }
 );
-multRegisterSuite.addTest(
+/*multRegisterSuite.addTest(
   "resetHalf",
   (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),
   {
     Add: [(crdt, rng) => crdt.mult(rng() * 4 - 2), 0.5],
     Reset: [(crdt) => crdt.reset(), 0.5],
   }
-);
+);*/
 multRegisterSuite.addTest(
   "resetOnePercent",
   (parentOrRuntime) => new crdts.MultRegister(parentOrRuntime, "CounterId"),

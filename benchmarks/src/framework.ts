@@ -15,6 +15,10 @@ const warmupRuns = 5;
 const warmupStopTime = 1; // stop warmup early if it takes
 // at least this many seconds
 
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class Framework {
   constructor() {}
 
@@ -168,11 +172,13 @@ export class FrameworkSuite {
     let memStart = 0;
     let wrappedSetupFun = async () => {
       await setupFun();
+      sleep(100); // Sleep a bit to help the GC?
       global.gc();
       memStart = process.memoryUsage().heapUsed;
     };
     let wrappedFun = async () => {
       let memoryRef = await fun();
+      sleep(100); // Sleep a bit to help the GC?
       global.gc();
       let memDiff = process.memoryUsage().heapUsed - memStart;
       return memDiff;
@@ -317,6 +323,7 @@ export class FrameworkSuite {
   ) {
     if (this.framework.regex.test(this.suiteName + "/" + testName)) {
       console.log("      " + testName + ", " + JSON.stringify(extraFields));
+      await sleep(100); // Sleep a bit to help GC, test independence?
       global.gc();
       await this.warmup(setupFun, fun);
       return false;

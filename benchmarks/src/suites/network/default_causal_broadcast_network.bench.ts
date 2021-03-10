@@ -35,9 +35,9 @@ const suite = framework.newSuite("network/DefaultCausalBroadcastNetwork");
 // Benchmark: active users sent messages with various concurrency patterns,
 // in rounds.
 // Params: users, active users, rounds.
-for (let users = 1; users <= 16; users *= 2) {
-  for (let activeUsers = 1; activeUsers <= users; activeUsers *= 2) {
-    for (let rounds = 1; rounds <= 100; rounds *= 10) {
+for (let users = 16; users <= 16; users *= 2) {
+  for (let activeUsers = users; activeUsers <= users; activeUsers *= 2) {
+    for (let rounds = 10; rounds <= 100; rounds += 10) {
       // Not yet efficient enough to support big tests
       //if (users * activeUsers * rounds > 1000) continue;
       let extraFields = {
