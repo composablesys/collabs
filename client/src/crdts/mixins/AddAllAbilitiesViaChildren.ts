@@ -1,6 +1,5 @@
 import { CausalTimestamp } from "../../network/causal_broadcast_network";
 import { Crdt, CrdtRuntime } from "../crdt_core";
-import { HardResettable } from "../resettable";
 import {
   ABILITIES_ALL,
   AbilityFlag,
@@ -11,13 +10,13 @@ import {
   isResettable,
   isStrongResettable,
 } from "./abilities";
-import { Constructor, CrdtMixin, CrdtMixinWithNewEvents } from "./mixin";
+import { Constructor, CrdtMixinWithNewEvents } from "./mixin";
 
 export const AddAllAbilitiesViaChildren: CrdtMixinWithNewEvents<
-  Crdt & HardResettable,
+  Crdt,
   AllAble,
   AllAbleEventsRecord
-> = <Input extends Constructor<Crdt & HardResettable>>(Base: Input) => {
+> = <Input extends Constructor<Crdt>>(Base: Input) => {
   let AbleViaChildren = class AbleViaChildren extends Base {
     abilityFlag: AbilityFlag;
     constructor(...args: any[]) {

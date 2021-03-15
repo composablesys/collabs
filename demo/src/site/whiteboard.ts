@@ -23,79 +23,84 @@ let client = new crdts.CrdtRuntime(
 
 // The key represents a stroke in the form: endX:endY:startX:startY
 // The value is the color of the stroke.
-export class LwwMapResettable<K, V> extends crdts.AddAllAbilitiesViaChildren(crdts.LwwMap) {}
-let clientBoard : LwwMapResettable<string, string> = new LwwMapResettable(client, "whiteboardId");
+export class LwwMapResettable<K, V> extends crdts.AddAllAbilitiesViaChildren(
+  crdts.LwwMap
+) {}
+let clientBoard: LwwMapResettable<string, string> = new LwwMapResettable(
+  client,
+  "whiteboardId"
+);
 
-window.onload = function() {
-	var colors = document.getElementsByClassName("btn-colors");
-	var clear = <HTMLButtonElement> document.getElementById("clear");
-	var board = <HTMLCanvasElement> document.getElementById("board");
-	var ctx = board.getContext("2d");
-	ctx!.lineWidth = 5;
+window.onload = function () {
+  var colors = document.getElementsByClassName("btn-colors");
+  var clear = <HTMLButtonElement>document.getElementById("clear");
+  var board = <HTMLCanvasElement>document.getElementById("board");
+  var ctx = board.getContext("2d");
+  ctx!.lineWidth = 5;
 
-	let keyReactGeneric = function(key : string, value : string) {
-		ctx!.strokeStyle = value;
-		var keys = key.split(":");
-		ctx!.beginPath();
-		ctx!.moveTo(parseInt(keys[0]), parseInt(keys[1]));
-		ctx!.lineTo(parseInt(keys[2]), parseInt(keys[3]));
-		ctx!.stroke();
-		ctx!.closePath();
-	};
+  let keyReactGeneric = function (key: string, value: string) {
+    ctx!.strokeStyle = value;
+    var keys = key.split(":");
+    ctx!.beginPath();
+    ctx!.moveTo(parseInt(keys[0]), parseInt(keys[1]));
+    ctx!.lineTo(parseInt(keys[2]), parseInt(keys[3]));
+    ctx!.stroke();
+    ctx!.closePath();
+  };
 
-	clientBoard.on("KeyAdd", (event : crdts.KeyAddEvent<string, string>) => {
-		keyReactGeneric(event.key, event.value);
-	});
-	
-	clientBoard.on("ValueChange", (event : crdts.ValueChangeEvent<string, string>) => {
-		keyReactGeneric(event.key, event.value);
-	});
+  clientBoard.on("KeyAdd", (event) => {
+    // TODO: remove cast to string once we fix mixin generics
+    keyReactGeneric(event.key as string, event.value as string);
+  });
 
-    // Mouse Event Handlers
-	if(board){
-		var ctx = board.getContext("2d");
-		
-		var isDown = false;
-		var canvasX, canvasY, prevX : number, prevY : number;
+  clientBoard.on("ValueChange", (event) => {
+    // TODO: remove cast to string once we fix mixin generics
+    keyReactGeneric(event.key as string, event.value as string);
+  });
 
-		ctx!.lineWidth = 5;
-		ctx!.strokeStyle = "black";
-		
-		// Update color selection
-		$(colors)
-		.on("click", function(e : JQuery.ClickEvent) {
-			console.log(e.target.id);
-			ctx!.strokeStyle = e.target.id;
-		});
+  // Mouse Event Handlers
+  if (board) {
+    var ctx = board.getContext("2d");
 
-		$(clear)
-		.on("click", function() {
-			clientBoard.hardReset();
-		});
-		
-		// Draw on board
-		$(board)
-		.on("mousedown", function(e : JQuery.MouseDownEvent){
-			isDown = true;
-			canvasX = e.pageX - board.offsetLeft;
-			canvasY = e.pageY - board.offsetTop;
-			prevX = canvasX;
-			prevY = canvasY;
-			var key = prevX + ":" + prevY + ":" + canvasX + ":" + canvasY;
-			clientBoard.set(key, <string> ctx!.strokeStyle);
-		})
-		.on("mousemove", function(e : JQuery.MouseMoveEvent){
-			if(isDown !== false) {
-				canvasX = e.pageX - board.offsetLeft;
-				canvasY = e.pageY - board.offsetTop;
-				var key = prevX + ":" + prevY + ":" + canvasX + ":" + canvasY;
-				clientBoard.set(key, <string> ctx!.strokeStyle);
-				prevX = canvasX;
-				prevY = canvasY;
-			}
-		})
-		.on("mouseup", function(){
-			isDown = false;
-		});
-	}
+    var isDown = false;
+    var canvasX, canvasY, prevX: number, prevY: number;
+
+    ctx!.lineWidth = 5;
+    ctx!.strokeStyle = "black";
+
+    // Update color selection
+    $(colors).on("click", function (e: JQuery.ClickEvent) {
+      console.log(e.target.id);
+      ctx!.strokeStyle = e.target.id;
+    });
+
+    $(clear).on("click", function () {
+      clientBoard.hardReset();
+    });
+
+    // Draw on board
+    $(board)
+      .on("mousedown", function (e: JQuery.MouseDownEvent) {
+        isDown = true;
+        canvasX = e.pageX - board.offsetLeft;
+        canvasY = e.pageY - board.offsetTop;
+        prevX = canvasX;
+        prevY = canvasY;
+        var key = prevX + ":" + prevY + ":" + canvasX + ":" + canvasY;
+        clientBoard.set(key, <string>ctx!.strokeStyle);
+      })
+      .on("mousemove", function (e: JQuery.MouseMoveEvent) {
+        if (isDown !== false) {
+          canvasX = e.pageX - board.offsetLeft;
+          canvasY = e.pageY - board.offsetTop;
+          var key = prevX + ":" + prevY + ":" + canvasX + ":" + canvasY;
+          clientBoard.set(key, <string>ctx!.strokeStyle);
+          prevX = canvasX;
+          prevY = canvasY;
+        }
+      })
+      .on("mouseup", function () {
+        isDown = false;
+      });
+  }
 };

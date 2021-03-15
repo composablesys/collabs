@@ -1,4 +1,4 @@
-import { CrdtSuite } from "../../crdt_suite";
+uimport { CrdtSuite } from "../../crdt_suite";
 import { crdts } from "compoventuals-client";
 import { BaselineCrdt } from "./baseline";
 
