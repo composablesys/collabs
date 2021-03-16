@@ -1,6 +1,6 @@
 import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
 import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
-import { EventEmitter, EventsRecord } from "../utils/EventEmitter";
+import { EventEmitter } from "../utils/EventEmitter";
 
 /**
  * An event issued when a CRDT is changed by another replica.
@@ -27,47 +27,17 @@ export interface CrdtEventsRecord {
   Change: CrdtEvent;
 }
 
-export class Crdt<
-  S extends Object | null = Object | null,
+export abstract class Crdt<
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
-  readonly isCrdt = true;
-  readonly parent: Crdt | null;
+  readonly parent: CrdtParent<this>;
   readonly runtime: CrdtRuntime;
-  readonly id: string;
+  readonly name: string;
   /**
-   * The id of this crdt and all of its ancestors in order
-   * from this crdt on up, excluding the root.
+   * The names of this crdt and all of its ancestors in order
+   * from this crdt on up.
    */
   readonly pathToRoot: string[];
-  /**
-   * The id of the root Crdt, i.e., the highest-up
-   * ancestor.  The rootId corresponds to a CrdtNetwork
-   * group, so that Crdts with the same rootId are shared
-   * by the same set of replicas and are causally consistent.
-   */
-  readonly rootId: string;
-  /**
-   * All of this Crdt's mutable non-child-Crdt state should be stored
-   * in state, which should have a descriptive type,
-   * ideally a custom class.  E.g., a CounterCrdt has state of type
-   * NumberState, containing a single number (the
-   * current counter value).  Putting all mutable state
-   * into this.state enables semidirect product
-   * compositions, in which two Crdt's share the same
-   * state.  Note that semidirect products may cause
-   * state to change without this Crdt's action; also,
-   * when SemidirectProduct.setup() is called, it
-   * will change the pointers of its children's states
-   * (ignoring the readonly descriptor).
-   * state is readonly to force you to only update it
-   * internally, not change its pointer/
-   * If you do not plan to use your Crdt in semidirect
-   * products, and you are sure no one else will want
-   * to do so, you can safely disregard this and store
-   * your state elsewhere instead.
-   */
-  readonly state: S;
   /**
    * @param parentOrRuntime A parent for this Crdt, either another
    * Crdt, or the CrdtRuntime if this has no Crdt parent.
@@ -83,61 +53,145 @@ export class Crdt<
    * be the same for all replicas of a given CRDT, in order
    * for the CrdtRuntime to route messages to them properly.
    */
-  constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string, state: S) {
+  constructor(parent: CrdtParent<this>, name: string) {
     super();
-    this.id = id;
-    this.state = state;
-    if ("isCrdt" in parentOrRuntime) {
-      this.parent = parentOrRuntime;
-      this.runtime = this.parent.runtime;
-      this.pathToRoot = [id, ...this.parent.pathToRoot];
-      this.rootId = this.parent.rootId;
-      this.parent.registerChild(this);
-    } else {
-      this.parent = null;
-      this.runtime = parentOrRuntime;
-      this.pathToRoot = [];
-      this.rootId = id;
-      this.runtime.registerRoot(this);
-    }
+    this.parent = parent;
+    this.name = name;
+    this.parent.registerChild(this);
+    this.runtime = this.parent.runtime;
+    this.pathToRoot = [name, ...this.parent.pathToRoot];
   }
 
   /**
-   * Note: children should not be used by subclasses to implement
-   * functionality because it may not be what you expect.  In particular:
-   * - A user of this may attach extra children that you don't expect.
-   * - If you add a child Crdt (by passing this as parentOrRuntime in
-   * its constructor), that Crdt may interject a separate Crdt in
-   * in between it and this (e.g., a Crdt that helps implement
-   * reset abilities, like in AddAbilitiesViaHistory), and the interjected
-   * Crdt is what will appear in children.
-   *
-   * If you want to track of the children that you add, you should do so
-   * using your own instance variables, so that you can completely
-   * control them.
+   * Callback used by CrdtRuntime or a parent Crdt.
+   * @targetPath: the target Crdt's id followed by
+   * the ids of its ancestors in ascending order,
+   * excluding the current Crdt.  TODO: warning: mutated
+   * @param timestamp The timestamp of the received message
+   * @param message   The received message
+   */
+  abstract receiveGeneral(
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void;
+  // TODO: use (homebrew?) iterator for targetPath.
+  // Make it easy to copy for multiple uses (copying
+  // index but not the underlying array).
+
+  abstract getDescendant(targetPath: string[]): Crdt;
+}
+
+/**
+ * TODO
+ */
+export interface CrdtParent<F extends Crdt> {
+  readonly runtime: CrdtRuntime;
+  readonly pathToRoot: string[];
+  registerChild(child: F): void;
+}
+
+/**
+ * Interface describing a Crdt which stores all of its mutable state
+ * in a single readonly variable state of type S.
+ * Such a Crdt must continue
+ * to function after state is mutated or even replaced (ignoring state's
+ * readonly property) as if it had changed state itself.
+ *
+ * This interace is used by SemidirectProduct, which composes two
+ * StatefulCrdt's of the same type, unifying their states by setting
+ * both state variables equal to the same value.
+ *
+ * @param S the type of state
+ */
+export interface StatefulCrdt<S extends Object> extends Crdt {
+  readonly state: S;
+}
+
+// TODO: abilities via children
+export class CompositeCrdt<Events extends CrdtEventsRecord = CrdtEventsRecord>
+  extends Crdt<Events>
+  implements CrdtParent<Crdt> {
+  /**
+   * TODO
    *
    * TODO: way to "lock" adding children?
    */
   readonly children: Map<string, Crdt> = new Map();
-  protected registerChild(child: Crdt) {
-    this.children.set(child.id, child);
+  public registerChild(child: Crdt) {
+    this.children.set(child.name, child);
+  }
+
+  receiveGeneral(
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
+    if (targetPath.length === 0) {
+      // We are the target
+      throw new Error("TODO");
+    }
+
+    let child = this.children.get(targetPath[targetPath.length - 1]);
+    if (child === undefined) {
+      // TODO: deliver error somewhere reasonable
+      throw new Error(
+        "Unknown child: " +
+          targetPath[targetPath.length - 1] +
+          " in: " +
+          JSON.stringify(targetPath) +
+          ", children: " +
+          JSON.stringify([...this.children.keys()])
+      );
+    }
+    targetPath.length--;
+    child.receiveGeneral(targetPath, timestamp, message);
+
+    // Dispatch a generic Change event
+    this.emit("Change", {
+      caller: this,
+      timestamp: timestamp,
+    });
+  }
+
+  getDescendant(targetPath: string[]): Crdt<CrdtEventsRecord> {
+    if (targetPath.length === 0) return this;
+
+    let child = this.children.get(targetPath[targetPath.length - 1]);
+    if (child === undefined) {
+      throw new Error(
+        "Unknown child: " +
+          targetPath[targetPath.length - 1] +
+          " in: " +
+          JSON.stringify(targetPath) +
+          ", children: " +
+          JSON.stringify([...this.children.keys()])
+      );
+    }
+    targetPath.length--;
+    return child.getDescendant(targetPath);
+  }
+}
+
+export abstract class PrimitiveCrdt<
+    S extends Object,
+    Events extends CrdtEventsRecord = CrdtEventsRecord
+  >
+  extends Crdt<Events>
+  implements StatefulCrdt<S> {
+  readonly state: S;
+
+  constructor(parent: CrdtParent<this>, name: string, state: S) {
+    super(parent, name);
+    this.state = state;
   }
 
   protected send(message: Uint8Array) {
     this.runtime.send(this, message);
   }
 
-  protected inOwnReceiveInternal = false;
-
-  /**
-   * Callback used by CrdtRuntime or a parent Crdt.
-   * @targetPath: the target Crdt's id followed by
-   * the ids of its ancestors in ascending order,
-   * excluding the current Crdt.
-   * @param timestamp The timestamp of the received message
-   * @param message   The received message
-   */
-  receive(
+  // TODO: receive: use "final" hack? https://github.com/microsoft/TypeScript/issues/33446#issuecomment-692928123
+  receiveGeneral(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -145,114 +199,93 @@ export class Crdt<
     // TODO: use (homebrew?) iterator for targetPath.
     // Make it easy to copy for multiple uses (copying
     // index but not the underlying array).
-    if (targetPath.length === 0) {
-      // We are the target
-      let oldInOwnReceiveInternal = this.inOwnReceiveInternal;
-      this.inOwnReceiveInternal = true;
-      this.receiveInternal(timestamp, message);
-      this.inOwnReceiveInternal = oldInOwnReceiveInternal;
-    } else {
-      let child = this.children.get(targetPath[targetPath.length - 1]);
-      if (child === undefined) {
-        // TODO: deliver error somewhere reasonable
-        throw new Error(
-          "Unknown child: " +
-            targetPath[targetPath.length - 1] +
-            " in: " +
-            JSON.stringify(targetPath) +
-            ", children: " +
-            JSON.stringify([...this.children.keys()])
-        );
-      }
-      targetPath.length--;
-      this.receiveInternalForChild(child, targetPath, timestamp, message);
+    if (targetPath.length !== 0) {
+      // We are not the target
+      throw new Error("TODO");
     }
-    if (!this.inOwnReceiveInternal) {
-      // Dispatch a generic "Change" event, unless it's a message
-      // (possibly for a child) that we generated by calling
-      // a method locally as part of our own receiveInternal call,
-      // in which case we skip it because we're going to
-      // do so at the end of that call.
-      this.emit("Change", {
-        caller: this,
-        timestamp: timestamp,
-      });
-    }
-  }
+    this.receive(timestamp, message);
 
-  /**
-   * Override this to receive messages sent by send
-   * on children of this Crdt.
-   * The default behavior is to pass the
-   * message to child unchanged, by
-   * calling child.receive(targetPath, timestamp, message).
-   * @param child The child
-   * @param  targetPath The targetPath that would normally
-   * be delivered to the child, i.e., the ids of the Crdts
-   * on the path
-   * from the message's ultimate target to child, excluding
-   * child.
-   * @param  timestamp  [description]
-   * @param  message    [description]
-   * @return Whether this Crdt's state was changed, i.e.,
-   * a CrdtEvent of type "Change" should be
-   * dispatched.
-   */
-  protected receiveInternalForChild(
-    child: Crdt,
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
-    child.receive(targetPath, timestamp, message);
+    // TODO: generic change events from return values
   }
 
   /**
    * Receives messages sent by send
    * on replicas of this crdt (including those sent
    * locally).
-   *
-   * The default implementation throws an error, since if you
-   * expect to receive any messages, you should override this method.
    * @param  timestamp  [description]
    * @param  message    [description]
    */
-  protected receiveInternal(_timestamp: CausalTimestamp, _message: Uint8Array) {
-    throw new Error("Received message but receiveInternal is not overridden");
+  protected abstract receive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void;
+
+  getDescendant(targetPath: string[]) {
+    if (targetPath.length === 0) return this;
+    else {
+      throw new Error(
+        "Unknown child: " +
+          targetPath[targetPath.length - 1] +
+          " in: " +
+          JSON.stringify(targetPath) +
+          ", children: [] (PrimitiveCrdt)"
+      );
+    }
   }
 }
 
-// TODO: generic change events from return values
+// TODO in other files: SemidirectProduct<S> implements CrdtParent<StatefulCrdt<S>>, StatefulCrdt<SemidirectState<S>>,
+// GMap<F> implements CrdtParent<Crdt & F> (F for abilities?)
+
+class CrdtRoot implements CrdtParent<Crdt> {
+  pathToRoot = [];
+  constructor(readonly runtime: CrdtRuntime) {}
+  registerChild(_child: Crdt<CrdtEventsRecord>): void {}
+}
+
+// TODO: conventions: set listener var instead of this.network.register;
+// onEtc method names instead of receive
+
+// TODO: docs in this file
 
 export class CrdtRuntime {
-  readonly rootCrdts = new Map<string, Crdt>();
-  joinedGroup = false;
+  readonly crdtRoot: CrdtRoot;
+  readonly groupParents = new Map<string, CompositeCrdt>();
 
   constructor(readonly network: CausalBroadcastNetwork) {
     this.network.register(this);
+    this.crdtRoot = new CrdtRoot(this);
   }
 
-  registerRoot(crdt: Crdt) {
-    this.rootCrdts.set(crdt.id, crdt);
-    if (!this.joinedGroup) {
-      this.network.joinGroup(crdt.rootId);
-      this.joinedGroup = true;
+  groupParent(group: string): CrdtParent<Crdt> {
+    let groupParent = this.groupParents.get(group);
+    if (groupParent === undefined) {
+      // Joining group for the first time
+      this.network.joinGroup(group);
+      groupParent = new CompositeCrdt(this.crdtRoot, group);
+      this.groupParents.set(group, groupParent);
     }
+    return groupParent;
   }
 
   send(sender: Crdt, message: Uint8Array) {
-    let timestamp = this.network.getNextTimestamp(sender.rootId);
-    // Deliver to self
+    let group = sender.pathToRoot[sender.pathToRoot.length - 1];
+    let timestamp = this.network.getNextTimestamp(group);
+    // Deliver to self, synchronously
     // TODO: error handling
-    this.rootCrdts
-      .get(sender.rootId)!
-      .receive(sender.pathToRoot.slice(), timestamp, message);
+    this.groupParents
+      .get(group)!
+      .receiveGeneral(
+        sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
+        timestamp,
+        message
+      );
     let runtimeMessage = CrdtRuntimeMessage.create({
       innerMessage: message,
-      pathToRoot: sender.pathToRoot,
+      pathToGroup: sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
     });
     let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
-    this.network.send(sender.rootId, buffer, timestamp);
+    this.network.send(group, buffer, timestamp);
   }
 
   /**
@@ -261,9 +294,9 @@ export class CrdtRuntime {
   receive(group: string, message: Uint8Array, timestamp: CausalTimestamp) {
     try {
       let decoded = CrdtRuntimeMessage.decode(message);
-      this.rootCrdts
+      this.groupParents
         .get(group)!
-        .receive(decoded.pathToRoot, timestamp, decoded.innerMessage);
+        .receiveGeneral(decoded.pathToGroup, timestamp, decoded.innerMessage);
     } catch (e) {
       // TODO
       console.log("Decoding error: " + e);
@@ -274,28 +307,15 @@ export class CrdtRuntime {
     return this.network.getReplicaId();
   }
 
-  getCrdtByReference(rootId: string, pathToRoot: string[]): Crdt {
+  // TODO: warning: pathToRoot is mutated!  (Change this?)
+  getCrdtByReference(pathToRoot: string[]): Crdt {
     // TODO: optimize?
-    let currentCrdt = this.rootCrdts.get(rootId);
-    if (!currentCrdt) {
-      throw new Error("Unknown rootId: " + rootId);
+    let groupParent = this.groupParents.get(pathToRoot[pathToRoot.length - 1]);
+    if (groupParent === undefined) {
+      throw new Error("Unknown group: " + pathToRoot[pathToRoot.length - 1]);
     }
-    for (let i = pathToRoot.length - 1; i >= 0; i--) {
-      currentCrdt = currentCrdt.children.get(pathToRoot[i]);
-      if (!currentCrdt) {
-        throw new Error(
-          "Unknown child: " +
-            pathToRoot[i] +
-            " at index " +
-            i +
-            " in reference: rootId=" +
-            rootId +
-            ", pathToRoot=" +
-            pathToRoot
-        );
-      }
-    }
-    return currentCrdt;
+    pathToRoot.length--;
+    return groupParent.getDescendant(pathToRoot);
   }
 
   private idCounter = 0;
