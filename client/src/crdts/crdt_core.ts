@@ -195,12 +195,12 @@ export abstract class PrimitiveCrdt<
 }
 
 export class CompositeCrdt<
-    F extends Crdt<any> = Crdt<any>,
+    C extends Crdt<any> = Crdt<any>,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
   implements CrdtParent {
-  private readonly children: Map<string, F> = new Map();
+  private readonly children: Map<string, C> = new Map();
 
   /**
    * TODO.  child returned to allow writing e.g.
@@ -209,7 +209,7 @@ export class CompositeCrdt<
    * TODO: pass constructor and params instead, to enforce that the Crdt
    * is fresh and that we will call init?
    */
-  protected addChild<C extends F>(name: string, child: C): C {
+  protected addChild<D extends C>(name: string, child: D): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate name: "' + name + '"');
     }
@@ -220,7 +220,7 @@ export class CompositeCrdt<
     return child;
   }
 
-  private childBeingAdded?: F;
+  private childBeingAdded?: C;
   onChildInit(child: Crdt<any>) {
     if (child != this.childBeingAdded) {
       throw new Error(
@@ -282,7 +282,7 @@ export class CompositeCrdt<
 }
 
 export class GroupParent extends CompositeCrdt {
-  public addChild<C extends Crdt<any>>(name: string, child: C): C {
+  public addChild<D extends Crdt<any>>(name: string, child: D): D {
     return super.addChild(name, child);
   }
 }
