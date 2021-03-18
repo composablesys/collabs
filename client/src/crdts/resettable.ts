@@ -36,7 +36,7 @@ class ResetComponentMessage extends Uint8Array {
 
 class ResetComponent<S extends Object | null> extends PrimitiveCrdt<S> {
   constructor(
-    readonly targetCrdt: StatefulCrdt<S, any> & HardResettable,
+    readonly targetCrdt: StatefulCrdt<S> & HardResettable,
     readonly resetWrapperCrdt: ResetWrapperCrdt<S>
   ) {
     super((null as unknown) as S);
@@ -75,7 +75,7 @@ export class ResetWrapperCrdt<S extends Object | null>
     super(true, true, keepOnlyMaximal);
   }
 
-  setupReset(targetCrdt: StatefulCrdt<S, any> & HardResettable) {
+  setupReset(targetCrdt: StatefulCrdt<S> & HardResettable) {
     this.resetComponent = new ResetComponent(targetCrdt, this);
     super.setup(this.resetComponent, targetCrdt, targetCrdt.state);
   }
@@ -168,7 +168,7 @@ export class StrongResetComponent<
   S extends Object | null
 > extends PrimitiveCrdt<S> {
   constructor(
-    readonly targetCrdt: StatefulCrdt<S, any> & HardResettable,
+    readonly targetCrdt: StatefulCrdt<S> & HardResettable,
     readonly strongResetWrapperCrdt: StrongResetWrapperCrdt<S>
   ) {
     super((null as unknown) as S);
@@ -201,7 +201,7 @@ export class StrongResetWrapperCrdt<S extends Object | null>
     super(true, true, keepOnlyMaximal);
   }
 
-  setupStrongReset(targetCrdt: StatefulCrdt<S, any> & HardResettable) {
+  setupStrongReset(targetCrdt: StatefulCrdt<S> & HardResettable) {
     this.strongResetComponent = new StrongResetComponent(targetCrdt, this);
     super.setup(targetCrdt, this.strongResetComponent, targetCrdt.state);
   }

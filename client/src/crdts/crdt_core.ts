@@ -11,7 +11,7 @@ import { EventEmitter } from "../utils/EventEmitter";
  */
 export interface CrdtEvent {
   /** The Crdt instance that was changed. */
-  readonly caller: Crdt<any>;
+  readonly caller: Crdt;
 
   /**
    * The causal timestamp of the change. Note that
@@ -39,11 +39,11 @@ export interface CrdtParent {
    * object calling init.
    * @param child the child Crdt on which init was called with this as parent
    */
-  onChildInit(child: Crdt<any>): void;
+  onChildInit(child: Crdt): void;
 }
 
 export abstract class Crdt<
-  Events extends CrdtEventsRecord
+  Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
   private static readonly notYetInitMessage =
     "init() must be called before using this Crdt";
@@ -113,7 +113,7 @@ export abstract class Crdt<
   // Make it easy to copy for multiple uses (copying
   // index but not the underlying array).
 
-  abstract getDescendant(targetPath: string[]): Crdt<any>;
+  abstract getDescendant(targetPath: string[]): Crdt;
 }
 
 /**
@@ -131,7 +131,7 @@ export abstract class Crdt<
  */
 export interface StatefulCrdt<
   S extends Object | null,
-  Events extends CrdtEventsRecord
+  Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends Crdt<Events> {
   readonly state: S;
 }
@@ -198,7 +198,7 @@ export abstract class PrimitiveCrdt<
 }
 
 export class CompositeCrdt<
-    C extends Crdt<any> = Crdt<any>,
+    C extends Crdt = Crdt,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
@@ -224,7 +224,7 @@ export class CompositeCrdt<
   }
 
   private childBeingAdded?: C;
-  onChildInit(child: Crdt<any>) {
+  onChildInit(child: Crdt) {
     if (child != this.childBeingAdded) {
       throw new Error(
         "this was passed to Crdt.init as parent externally" +
@@ -265,7 +265,7 @@ export class CompositeCrdt<
     });
   }
 
-  getDescendant(targetPath: string[]): Crdt<any> {
+  getDescendant(targetPath: string[]): Crdt {
     if (targetPath.length === 0) return this;
 
     let child = this.children.get(targetPath[targetPath.length - 1]);
@@ -285,7 +285,7 @@ export class CompositeCrdt<
 }
 
 export class GroupParent extends CompositeCrdt {
-  public addChild<D extends Crdt<any>>(name: string, child: D): D {
+  public addChild<D extends Crdt>(name: string, child: D): D {
     return super.addChild(name, child);
   }
 }
@@ -298,7 +298,7 @@ class CrdtRoot implements CrdtParent {
   constructor(readonly runtime: CrdtRuntime) {}
   // Since this is private in CrdtRuntime, we don't have to worry about
   // this being passed to Crdt.init outside of our control.
-  onChildInit(_child: Crdt<any>): void {}
+  onChildInit(_child: Crdt): void {}
 }
 
 // TODO: conventions: set listener var instead of this.network.register;
@@ -327,7 +327,7 @@ export class CrdtRuntime {
     return groupParent;
   }
 
-  send(sender: Crdt<any>, message: Uint8Array) {
+  send(sender: Crdt, message: Uint8Array) {
     let group = sender.pathToRoot[sender.pathToRoot.length - 1];
     let timestamp = this.network.getNextTimestamp(group);
     // Deliver to self, synchronously
@@ -368,7 +368,7 @@ export class CrdtRuntime {
   }
 
   // TODO: warning: pathToRoot is mutated!  (Change this?)
-  getCrdtByReference(pathToRoot: string[]): Crdt<any> {
+  getCrdtByReference(pathToRoot: string[]): Crdt {
     // TODO: optimize?
     let groupParent = this.groupParents.get(pathToRoot[pathToRoot.length - 1]);
     if (groupParent === undefined) {

@@ -215,8 +215,8 @@ export abstract class SemidirectProduct<
     );
   }
 
-  crdt1!: StatefulCrdt<S, any>;
-  crdt2!: StatefulCrdt<S, any>;
+  crdt1!: StatefulCrdt<S>;
+  crdt2!: StatefulCrdt<S>;
 
   /**
    * TODO
@@ -238,8 +238,8 @@ export abstract class SemidirectProduct<
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
   protected setup(
-    crdt1: StatefulCrdt<S, any>,
-    crdt2: StatefulCrdt<S, any>,
+    crdt1: StatefulCrdt<S>,
+    crdt2: StatefulCrdt<S>,
     initialState: S
   ) {
     this.state.internalState = initialState;
@@ -256,8 +256,8 @@ export abstract class SemidirectProduct<
     crdt2.state = initialState;
   }
 
-  private childBeingAdded?: Crdt<any>;
-  onChildInit(child: Crdt<any>) {
+  private childBeingAdded?: Crdt;
+  onChildInit(child: Crdt) {
     if (child != this.childBeingAdded) {
       throw new Error(
         "this was passed to Crdt.init as parent externally" +
@@ -326,10 +326,10 @@ export abstract class SemidirectProduct<
     }
   }
 
-  getDescendant(targetPath: string[]): Crdt<any> {
+  getDescendant(targetPath: string[]): Crdt {
     if (targetPath.length === 0) return this;
 
-    let child: Crdt<any>;
+    let child: Crdt;
     switch (targetPath[0]) {
       case SemidirectProduct.crdt1Name:
         child = this.crdt1;
