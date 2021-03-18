@@ -133,6 +133,9 @@ export interface StatefulCrdt<
   S extends Object | null,
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends Crdt<Events> {
+  /**
+   * Not for external use, except by SemidirectProduct.
+   */
   readonly state: S;
 }
 

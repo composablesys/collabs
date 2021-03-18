@@ -1,4 +1,4 @@
-import { Crdt, CrdtEventsRecord, CrdtRuntime } from "../crdt_core";
+import { Crdt, CrdtEventsRecord } from "../crdt_core";
 
 export type Constructor<T> = new (...args: any[]) => T;
 
@@ -8,13 +8,11 @@ export type Constructor<T> = new (...args: any[]) => T;
  * No constraint is imposed on the remaining parameters. This constructor
  * function must return a {@link Crdt} instance of type `T`.
  *
+ * TODO: delete in favor of Constructor<T extends Crdt>?
+ *
  * @typeParam T - Type of the returned {@link Crdt} instance
  */
-export type CrdtConstructor<T extends Crdt> = new (
-  parent: Crdt | CrdtRuntime,
-  id: string,
-  ...otherArgs: any[]
-) => T;
+export type CrdtConstructor<T extends Crdt> = new (...args: any[]) => T;
 
 /**
  * A mixin meant to be applied to a {@link Crdt}.
@@ -84,9 +82,7 @@ export type CrdtMixinWithOptionsAndNewEvents<
 type AddEvents<
   NewEvents extends CrdtEventsRecord,
   C extends Crdt
-> = C extends Crdt<infer S, infer OldEvents>
-  ? C & Crdt<S, OldEvents & NewEvents>
-  : C;
+> = C extends Crdt<infer OldEvents> ? C & Crdt<OldEvents & NewEvents> : C;
 
 export function makeEventAdder<AdditionalEvents extends CrdtEventsRecord>(): <
   Instance extends Crdt

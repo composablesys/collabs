@@ -1,6 +1,7 @@
 import { CrdtEventsRecord, StatefulCrdt, CrdtParent } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import { Crdt } from "./crdt_core";
+import { LocallyResettableState } from "./resettable";
 
 class StoredMessage {
   constructor(
@@ -21,15 +22,15 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-export class SemidirectState<S extends Object | null> {
-  private receiptCounter = 0;
+class SemidirectStateBase<S extends Object | null> {
+  protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
    * replica, in order.  Keep in mind that per-sender message
    * counters may not be contiguous, since they are shared between
    * all Crdts with a given root.
    */
-  private history: Map<string, Array<StoredMessage>> = new Map();
+  protected history: Map<string, Array<StoredMessage>> = new Map();
   public internalState!: S;
   constructor(
     public readonly historyTimestamps: boolean,
@@ -118,7 +119,7 @@ export class SemidirectState<S extends Object | null> {
       let vcEntry = vc.get(historyEntry[0]);
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = SemidirectState.indexAfter(
+        let concurrentIndexStart = SemidirectStateBase.indexAfter(
           senderHistory,
           vcEntry
         );
@@ -159,11 +160,6 @@ export class SemidirectState<S extends Object | null> {
     return true;
   }
 
-  hardReset() {
-    this.receiptCounter = 0;
-    this.history.clear();
-  }
-
   /**
    * Utility method for working with the per-sender history
    * arrays.  Returns the index after the last entry whose
@@ -185,6 +181,22 @@ export class SemidirectState<S extends Object | null> {
     return sparseArray.length;
   }
 }
+
+class SemidirectStateLocallyResettable<S extends LocallyResettableState>
+  extends SemidirectStateBase<S>
+  implements LocallyResettableState {
+  resetLocalState() {
+    this.receiptCounter = 0;
+    this.history.clear();
+    this.internalState.resetLocalState();
+  }
+}
+
+// TODO: instead of subclass, have interface for all-but-reset part of
+// SemidirectState, then have just one class including reset?
+export type SemidirectState<S> = S extends LocallyResettableState
+  ? SemidirectStateBase<S> & LocallyResettableState
+  : SemidirectStateBase<S>;
 
 export abstract class SemidirectProduct<
     S extends Object | null,
@@ -208,11 +220,14 @@ export abstract class SemidirectProduct<
     historyDiscard2Dominated = false
   ) {
     super();
-    this.state = new SemidirectState<S>(
+    // Types are hacked a bit here to make implementation simpler
+    this.state = new SemidirectStateLocallyResettable<
+      S & LocallyResettableState
+    >(
       historyTimestamps,
       historyDiscard1Dominated,
       historyDiscard2Dominated
-    );
+    ) as SemidirectState<S>;
   }
 
   crdt1!: StatefulCrdt<S>;
