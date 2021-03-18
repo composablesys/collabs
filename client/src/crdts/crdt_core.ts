@@ -11,7 +11,7 @@ import { EventEmitter } from "../utils/EventEmitter";
  */
 export interface CrdtEvent {
   /** The Crdt instance that was changed. */
-  readonly caller: Crdt;
+  readonly caller: Crdt<any>;
 
   /**
    * The causal timestamp of the change. Note that
@@ -43,7 +43,7 @@ export interface CrdtParent {
 }
 
 export abstract class Crdt<
-  Events extends CrdtEventsRecord = CrdtEventsRecord
+  Events extends CrdtEventsRecord
 > extends EventEmitter<Events> {
   private static readonly notYetInitMessage =
     "init() must be called before using this Crdt";
@@ -113,7 +113,7 @@ export abstract class Crdt<
   // Make it easy to copy for multiple uses (copying
   // index but not the underlying array).
 
-  abstract getDescendant(targetPath: string[]): Crdt;
+  abstract getDescendant(targetPath: string[]): Crdt<any>;
 }
 
 /**
@@ -129,16 +129,19 @@ export abstract class Crdt<
  *
  * @param S the type of state
  */
-export interface StatefulCrdt<S extends Object> extends Crdt {
+export interface StatefulCrdt<
+  S extends Object | null,
+  Events extends CrdtEventsRecord
+> extends Crdt<Events> {
   readonly state: S;
 }
 
 export abstract class PrimitiveCrdt<
-    S extends Object,
+    S extends Object | null,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<S> {
+  implements StatefulCrdt<S, Events> {
   readonly state: S;
 
   constructor(state: S) {
@@ -324,7 +327,7 @@ export class CrdtRuntime {
     return groupParent;
   }
 
-  send(sender: Crdt, message: Uint8Array) {
+  send(sender: Crdt<any>, message: Uint8Array) {
     let group = sender.pathToRoot[sender.pathToRoot.length - 1];
     let timestamp = this.network.getNextTimestamp(group);
     // Deliver to self, synchronously
@@ -365,7 +368,7 @@ export class CrdtRuntime {
   }
 
   // TODO: warning: pathToRoot is mutated!  (Change this?)
-  getCrdtByReference(pathToRoot: string[]): Crdt {
+  getCrdtByReference(pathToRoot: string[]): Crdt<any> {
     // TODO: optimize?
     let groupParent = this.groupParents.get(pathToRoot[pathToRoot.length - 1]);
     if (groupParent === undefined) {

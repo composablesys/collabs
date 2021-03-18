@@ -1,4 +1,10 @@
-import { CrdtEvent, Crdt, CrdtRuntime, CrdtEventsRecord } from "./crdt_core";
+import {
+  CrdtEvent,
+  Crdt,
+  CrdtRuntime,
+  CrdtEventsRecord,
+  PrimitiveCrdt,
+} from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import {
   CounterPureBaseMessage,
@@ -46,14 +52,10 @@ export interface CounterBase {
 }
 
 export class CounterPureBase
-  extends Crdt<NumberState, CounterEventsRecord>
+  extends PrimitiveCrdt<NumberState, CounterEventsRecord>
   implements CounterBase, OutOfOrderAble, HardResettable {
-  constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    readonly initialValue: number = 0
-  ) {
-    super(parentOrRuntime, id, new NumberState(initialValue));
+  constructor(readonly initialValue: number = 0) {
+    super(new NumberState(initialValue));
   }
 
   add(toAdd: number) {
@@ -64,7 +66,7 @@ export class CounterPureBase
     }
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array) {
+  receive(timestamp: CausalTimestamp, message: Uint8Array) {
     try {
       let decoded = CounterPureBaseMessage.decode(message);
       this.state.value += decoded.toAdd;
@@ -94,7 +96,7 @@ export class CounterPureBase
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    this.receive(targetPath, timestamp, message);
+    this.receiveGeneral(targetPath, timestamp, message);
   }
 
   hardReset() {
@@ -117,17 +119,13 @@ export class CounterResettableState {
 }
 
 export class CounterResettable
-  extends Crdt<
+  extends PrimitiveCrdt<
     CounterResettableState,
     CounterEventsRecord & ResettableEventsRecord
   >
   implements CounterBase, OutOfOrderAble, Resettable, HardResettable {
-  constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    readonly initialValue: number = 0
-  ) {
-    super(parentOrRuntime, id, new CounterResettableState());
+  constructor(readonly initialValue: number = 0) {
+    super(new CounterResettableState());
   }
 
   add(toAdd: number) {
@@ -149,7 +147,7 @@ export class CounterResettable
     super.send(buffer);
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array) {
+  receive(timestamp: CausalTimestamp, message: Uint8Array) {
     try {
       let decoded = CounterResettableMessage.decode(message);
       switch (decoded.data) {
@@ -292,14 +290,10 @@ export interface MultEventsRecord extends CrdtEventsRecord {
 }
 
 export class MultRegisterBase
-  extends Crdt<NumberState, MultEventsRecord>
+  extends PrimitiveCrdt<NumberState, MultEventsRecord>
   implements HardResettable {
-  constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    readonly initialValue: number = 1
-  ) {
-    super(parentOrRuntime, id, new NumberState(initialValue));
+  constructor(readonly initialValue: number = 1) {
+    super(new NumberState(initialValue));
   }
 
   mult(toMult: number) {
@@ -310,7 +304,7 @@ export class MultRegisterBase
     }
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = MultRegisterMessage.decode(message);
       this.state.value *= decoded.toMult;
@@ -353,7 +347,7 @@ export interface GSetEventsRecord<T> extends CrdtEventsRecord {
 }
 
 export class GSet<T>
-  extends Crdt<Set<T>, GSetEventsRecord<T>>
+  extends PrimitiveCrdt<Set<T>, GSetEventsRecord<T>>
   implements OutOfOrderAble {
   private readonly serialize: (value: T) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => T;
@@ -376,14 +370,12 @@ export class GSet<T>
    * following JS's usual set semantics.
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
     serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
     deserialize: (
       serialized: Uint8Array
     ) => T = newDefaultCollectionDeserializer(parentOrRuntime)
   ) {
-    super(parentOrRuntime, id, new Set());
+    super(new Set());
     this.serialize = serialize;
     this.deserialize = deserialize;
   }
@@ -404,7 +396,7 @@ export class GSet<T>
     return this.state.has(value);
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = GSetMessage.decode(message);
       let value = this.deserialize(decoded.toAdd);
@@ -426,7 +418,7 @@ export class GSet<T>
     message: Uint8Array
   ): void {
     // GSet Add ops are commutative, so OoO doesn't matter
-    this.receive(targetPath, timestamp, message);
+    this.receiveGeneral(targetPath, timestamp, message);
   }
 
   /**
@@ -460,7 +452,7 @@ export interface MvrEventsRecord<T> extends CrdtEventsRecord {
 }
 
 export class MultiValueRegisterBase<T>
-  extends Crdt<Set<MvrEntry<T>>, MvrEventsRecord<T>>
+  extends PrimitiveCrdt<Set<MvrEntry<T>>, MvrEventsRecord<T>>
   implements HardResettable {
   private readonly serialize: (value: T) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => T;
@@ -485,8 +477,6 @@ export class MultiValueRegisterBase<T>
    * following JS's usual set semantics.
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
     initialValue: T,
     serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
     deserialize: (
@@ -497,7 +487,7 @@ export class MultiValueRegisterBase<T>
     // TODO: use generic way (runLocally), to
     // reduce code duplication.
     initialSet.add(new MvrEntry(initialValue, null, -1));
-    super(parentOrRuntime, id, initialSet);
+    super(initialSet);
     this.serialize = serialize;
     this.deserialize = deserialize;
     this.initialValue = initialValue;
@@ -511,7 +501,7 @@ export class MultiValueRegisterBase<T>
     super.send(buffer);
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = MvrMessage.decode(message);
       let value = this.deserialize(decoded.value);
@@ -595,7 +585,7 @@ export interface LwwEventsRecord<T> extends CrdtEventsRecord {
 }
 
 export class LwwRegisterBase<T>
-  extends Crdt<LwwState<T>, LwwEventsRecord<T>>
+  extends PrimitiveCrdt<LwwState<T>, LwwEventsRecord<T>>
   implements HardResettable {
   private readonly serialize: (value: T) => Uint8Array;
   private readonly deserialize: (serialized: Uint8Array) => T;
@@ -623,8 +613,6 @@ export class LwwRegisterBase<T>
    * following JS's usual set semantics.
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
     initialValue: T,
     serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
     deserialize: (
@@ -632,7 +620,7 @@ export class LwwRegisterBase<T>
     ) => T = newDefaultCollectionDeserializer(parentOrRuntime)
   ) {
     let initialState = new LwwState(initialValue, null, -1, null);
-    super(parentOrRuntime, id, initialState);
+    super(initialState);
     this.serialize = serialize;
     this.deserialize = deserialize;
     this.initialValue = initialValue;
@@ -651,7 +639,7 @@ export class LwwRegisterBase<T>
     return this.state.value;
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = LwwMessage.decode(message);
       let value = this.deserialize(decoded.value);
