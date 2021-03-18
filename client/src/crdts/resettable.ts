@@ -1,5 +1,5 @@
 import { CausalTimestamp } from "../network";
-import { Crdt, CrdtRuntime } from "./crdt_core";
+import { PrimitiveCrdt, StatefulCrdt } from "./crdt_core";
 import { SemidirectProduct } from "./semidirect";
 import {
   isResettable,
@@ -13,8 +13,8 @@ import {
 
 export interface HardResettable {
   /**
-   * Warning: not a Crdt operation (may not be
-   * eventually consistent)!
+   * Warning: not a Crdt operation (not synced to
+   * other replicas)!
    *
    * This method should reset the Crdt's state
    * to a value depending only on its constructor
@@ -34,35 +34,34 @@ class ResetComponentMessage extends Uint8Array {
   outOfOrderMessage: Uint8Array | null = null;
 }
 
-class ResetComponent<S extends Object | null = Object | null> extends Crdt<S> {
+class ResetComponent<S extends Object | null> extends PrimitiveCrdt<S> {
   constructor(
-    parent: ResetWrapperCrdt<S>,
-    id: string,
-    readonly targetCrdt: Crdt & HardResettable
+    readonly targetCrdt: StatefulCrdt<S, any> & HardResettable,
+    readonly resetWrapperCrdt: ResetWrapperCrdt<S>
   ) {
-    super(parent, id, (null as unknown) as S);
+    super((null as unknown) as S);
   }
 
   resetTarget() {
     super.send(new Uint8Array());
   }
 
-  receiveInternal(
+  receive(
     timestamp: CausalTimestamp,
     message: Uint8Array | ResetComponentMessage
   ) {
     this.targetCrdt.hardReset();
-    (this.parent as ResetWrapperCrdt).dispatchResetEvent(timestamp);
+    this.resetWrapperCrdt.dispatchResetEvent(timestamp);
     if ("isResetComponentMessage" in message) {
       // Replay message.replay
       for (let toReplay of message.replay) {
-        this.targetCrdt.receive(...toReplay);
+        this.targetCrdt.receiveGeneral(...toReplay);
       }
     }
   }
 }
 
-export class ResetWrapperCrdt<S extends Object | null = Object | null>
+export class ResetWrapperCrdt<S extends Object | null>
   extends SemidirectProduct<S, ResettableEventsRecord>
   implements HardResettable, Resettable, OutOfOrderAble {
   private resetComponent!: ResetComponent<S>;
@@ -72,26 +71,13 @@ export class ResetWrapperCrdt<S extends Object | null = Object | null>
    * at some CPU cost).  This is only allowed if the state
    * only ever depends on the causally maximal messages.
    */
-  constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    keepOnlyMaximal = false
-  ) {
-    super(parentOrRuntime, id, true, true, keepOnlyMaximal);
+  constructor(keepOnlyMaximal = false) {
+    super(true, true, keepOnlyMaximal);
   }
 
-  setupReset(targetCrdt: Crdt<S> & HardResettable) {
-    this.resetComponent = new ResetComponent(
-      this,
-      this.id + "_comp",
-      targetCrdt
-    );
-    super.setup(
-      this.resetComponent,
-      targetCrdt,
-      this.action.bind(this),
-      targetCrdt.state
-    );
+  setupReset(targetCrdt: StatefulCrdt<S, any> & HardResettable) {
+    this.resetComponent = new ResetComponent(targetCrdt, this);
+    super.setup(this.resetComponent, targetCrdt, targetCrdt.state);
   }
 
   action(
@@ -101,7 +87,7 @@ export class ResetWrapperCrdt<S extends Object | null = Object | null>
     m1TargetPath: string[],
     _m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
-  ): [string[], Uint8Array] | null {
+  ) {
     if (!("isResetComponentMessage" in m1Message)) {
       m1Message = new ResetComponentMessage();
     }
@@ -110,7 +96,7 @@ export class ResetWrapperCrdt<S extends Object | null = Object | null>
       m2Timestamp!,
       m2Message,
     ]);
-    return [m1TargetPath, m1Message];
+    return { m1TargetPath, m1Message };
   }
 
   dispatchResetEvent(timestamp: CausalTimestamp) {
@@ -144,68 +130,64 @@ export class ResetWrapperCrdt<S extends Object | null = Object | null>
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    let child = this.children.get(targetPath[targetPath.length - 1]);
-    if (child === undefined) {
-      throw new Error(
-        "Unknown child: " +
-          targetPath[targetPath.length - 1] +
-          " in: " +
-          JSON.stringify(targetPath) +
-          ", children: " +
-          JSON.stringify([...this.children.keys()])
-      );
-    }
-    if (child === this.resetComponent) {
+    // TODO: this is bad layering
+    // TODO: what if the OoO op is reset?
+    if (targetPath[0] === SemidirectProduct.crdt1Name) {
       throw new Error(
         "OutOfOrderAble is not supported for reset()" +
           " operations added by ResetWrapperCrdt"
       );
     }
-    if (!isOutOfOrderAble(child)) {
+    if (targetPath[0] !== SemidirectProduct.crdt2Name) {
+      throw new Error(
+        "Unknown child: " +
+          targetPath[targetPath.length - 1] +
+          " in semidirect product: " +
+          JSON.stringify(targetPath)
+      );
+    }
+    if (!isOutOfOrderAble(this.resetComponent.targetCrdt)) {
+      // TODO: only be OutOfOrderAble if the target is
       throw new Error(
         "receiveOutOfOrder() called on ResetWrapperCrdt, but the " +
           "original (wrapped) Crdt is not OutOfOrderAble"
       );
     }
     targetPath.length--;
-    child.receiveOutOfOrder(targetPath, timestamp, message);
+    this.resetComponent.targetCrdt.receiveOutOfOrder(
+      targetPath,
+      timestamp,
+      message
+    );
   }
 }
 
 // Strong reset
 
-// TODO: how to do garbage collection of reset-wins operations?
-// E.g. for flags in a set: garbage collection will fail if
-// there are reset-wins ops in the history, as it should, but
-// we would like to garbage collect anyway once all the reset-wins
-// are causally stable.
 export class StrongResetComponent<
-  S extends Object | null = Object | null
-> extends Crdt<S> {
+  S extends Object | null
+> extends PrimitiveCrdt<S> {
   constructor(
-    parent: StrongResetWrapperCrdt<S>,
-    id: string,
-    readonly targetCrdt: Crdt & HardResettable
+    readonly targetCrdt: StatefulCrdt<S, any> & HardResettable,
+    readonly strongResetWrapperCrdt: StrongResetWrapperCrdt<S>
   ) {
-    super(parent, id, (null as unknown) as S);
+    super((null as unknown) as S);
   }
 
   strongResetTarget() {
     super.send(new Uint8Array());
   }
 
-  receiveInternal(
+  receive(
     timestamp: CausalTimestamp,
     _message: Uint8Array | ResetComponentMessage
   ) {
     this.targetCrdt.hardReset();
-    (this.parent as StrongResetWrapperCrdt<S>).dispatchStrongResetEvent(
-      timestamp
-    );
+    this.strongResetWrapperCrdt.dispatchStrongResetEvent(timestamp);
   }
 }
 
-export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
+export class StrongResetWrapperCrdt<S extends Object | null>
   extends SemidirectProduct<S, StrongResettableEventsRecord>
   implements AllAble {
   private strongResetComponent!: StrongResetComponent<S>;
@@ -215,26 +197,13 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
    * at some CPU cost).  This is only allowed if the state
    * only ever depends on the causally maximal messages.
    */
-  constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    keepOnlyMaximal = false
-  ) {
-    super(parentOrRuntime, id, true, true, keepOnlyMaximal);
+  constructor(keepOnlyMaximal = false) {
+    super(true, true, keepOnlyMaximal);
   }
 
-  setupStrongReset(targetCrdt: Crdt<S> & HardResettable) {
-    this.strongResetComponent = new StrongResetComponent(
-      this,
-      this.id + "_comp",
-      targetCrdt
-    );
-    super.setup(
-      targetCrdt,
-      this.strongResetComponent,
-      this.action.bind(this),
-      targetCrdt.state
-    );
+  setupStrongReset(targetCrdt: StatefulCrdt<S, any> & HardResettable) {
+    this.strongResetComponent = new StrongResetComponent(targetCrdt, this);
+    super.setup(targetCrdt, this.strongResetComponent, targetCrdt.state);
   }
 
   action(
@@ -244,7 +213,7 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
     _m1TargetPath: string[],
     _m1Timestamp: CausalTimestamp,
     _m1Message: Uint8Array
-  ): [string[], Uint8Array] | null {
+  ) {
     // The action converts every message to the identity
     return null;
   }
@@ -268,6 +237,8 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
    * which calls reset() on all children of a Crdt; targetCrdt's wrapped with
    * this class will have this class as the parent's child instead of
    * targetCrdt, so we need to handle those reset() calls.
+   *
+   * TODO: only support if target is Resettable?
    */
   reset() {
     if (isResettable(this.strongResetComponent.targetCrdt)) {
@@ -291,30 +262,34 @@ export class StrongResetWrapperCrdt<S extends Object | null = Object | null>
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    let child = this.children.get(targetPath[targetPath.length - 1]);
-    if (child === undefined) {
+    // TODO: this is bad layering
+    // TODO: what if the OoO op is reset?
+    if (targetPath[0] === SemidirectProduct.crdt2Name) {
+      throw new Error(
+        "OutOfOrderAble is not supported for reset()" +
+          " operations added by ResetWrapperCrdt"
+      );
+    }
+    if (targetPath[0] !== SemidirectProduct.crdt1Name) {
       throw new Error(
         "Unknown child: " +
           targetPath[targetPath.length - 1] +
-          " in: " +
-          JSON.stringify(targetPath) +
-          ", children: " +
-          JSON.stringify([...this.children.keys()])
+          " in semidirect product: " +
+          JSON.stringify(targetPath)
       );
     }
-    if (child === this.strongResetComponent) {
+    if (!isOutOfOrderAble(this.strongResetComponent.targetCrdt)) {
+      // TODO: only be OutOfOrderAble if the target is
       throw new Error(
-        "OutOfOrderAble is not supported for strongReset()" +
-          " operations added by StrongResetWrapperCrdt"
-      );
-    }
-    if (!isOutOfOrderAble(child)) {
-      throw new Error(
-        "receiveOutOfOrder() called on StrongResetWrapperCrdt, but the " +
+        "receiveOutOfOrder() called on ResetWrapperCrdt, but the " +
           "original (wrapped) Crdt is not OutOfOrderAble"
       );
     }
     targetPath.length--;
-    child.receiveOutOfOrder(targetPath, timestamp, message);
+    this.strongResetComponent.targetCrdt.receiveOutOfOrder(
+      targetPath,
+      timestamp,
+      message
+    );
   }
 }

@@ -192,6 +192,9 @@ export abstract class SemidirectProduct<
   >
   extends Crdt<Events>
   implements StatefulCrdt<SemidirectState<S>, Events>, CrdtParent {
+  static readonly crdt1Name = "crdt1";
+  static readonly crdt2Name = "crdt2";
+
   readonly state: SemidirectState<S>;
   /**
    * TODO
@@ -232,7 +235,7 @@ export abstract class SemidirectProduct<
     m1TargetPath: string[],
     m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
-  ): { newM1TargetPath: string[]; newM1Message: Uint8Array } | null;
+  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
   protected setup(
     crdt1: StatefulCrdt<S, any>,
@@ -243,9 +246,9 @@ export abstract class SemidirectProduct<
     this.crdt1 = crdt1;
     this.crdt2 = crdt2;
     this.childBeingAdded = crdt1;
-    crdt1.init("crdt1", this);
+    crdt1.init(SemidirectProduct.crdt1Name, this);
     this.childBeingAdded = crdt2;
-    crdt2.init("crdt2", this);
+    crdt2.init(SemidirectProduct.crdt2Name, this);
     this.childBeingAdded = undefined;
     // @ts-ignore Ignore readonly
     crdt1.state = initialState;
@@ -292,8 +295,8 @@ export abstract class SemidirectProduct<
         );
         targetPath.length--;
         let mAct = {
-          newM1TargetPath: targetPath,
-          newM1Message: message,
+          m1TargetPath: targetPath,
+          m1Message: message,
         };
         for (let i = 0; i < concurrent.length; i++) {
           // TODO: can we avoid serializing and
@@ -303,18 +306,14 @@ export abstract class SemidirectProduct<
             concurrent[i].targetPath,
             concurrent[i].timestamp,
             concurrent[i].message,
-            mAct.newM1TargetPath,
+            mAct.m1TargetPath,
             timestamp,
-            mAct.newM1Message
+            mAct.m1Message
           );
           if (mActOrNull === null) return;
           else mAct = mActOrNull;
         }
-        this.crdt1.receiveGeneral(
-          mAct.newM1TargetPath,
-          timestamp,
-          mAct.newM1Message
-        );
+        this.crdt1.receiveGeneral(mAct.m1TargetPath, timestamp, mAct.m1Message);
         break;
       default:
         // TODO: deliver error somewhere reasonable
@@ -325,5 +324,28 @@ export abstract class SemidirectProduct<
             JSON.stringify(targetPath)
         );
     }
+  }
+
+  getDescendant(targetPath: string[]): Crdt<any> {
+    if (targetPath.length === 0) return this;
+
+    let child: Crdt<any>;
+    switch (targetPath[0]) {
+      case SemidirectProduct.crdt1Name:
+        child = this.crdt1;
+        break;
+      case SemidirectProduct.crdt2Name:
+        child = this.crdt2;
+        break;
+      default:
+        throw new Error(
+          "Unknown child: " +
+            targetPath[targetPath.length - 1] +
+            " in SemidirectProduct: " +
+            JSON.stringify(targetPath)
+        );
+    }
+    targetPath.length--;
+    return child.getDescendant(targetPath);
   }
 }

@@ -265,7 +265,7 @@ export class CompositeCrdt<
     });
   }
 
-  getDescendant(targetPath: string[]): Crdt<CrdtEventsRecord> {
+  getDescendant(targetPath: string[]): Crdt<any> {
     if (targetPath.length === 0) return this;
 
     let child = this.children.get(targetPath[targetPath.length - 1]);
