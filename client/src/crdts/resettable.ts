@@ -3,12 +3,10 @@ import { PrimitiveCrdt, StatefulCrdt } from "./crdt_core";
 import { SemidirectProduct, SemidirectState } from "./semidirect";
 import {
   isResettable,
-  isOutOfOrderAble,
-  AllAble,
   Resettable,
-  OutOfOrderAble,
   ResettableEventsRecord,
   StrongResettableEventsRecord,
+  StrongResettable,
 } from "./mixins";
 
 /**
@@ -71,10 +69,7 @@ class ResetComponent<
 
 export class ResetWrapperCrdt<S extends LocallyResettableState>
   extends SemidirectProduct<S, ResettableEventsRecord>
-  implements
-    Resettable,
-    OutOfOrderAble,
-    StatefulCrdtLocalReset<SemidirectState<S>> {
+  implements Resettable, StatefulCrdtLocalReset<SemidirectState<S>> {
   private resetComponent!: ResetComponent<S>;
   /**
    * @param keepOnlyMaximal=false Store only causally maximal
@@ -128,7 +123,7 @@ export class ResetWrapperCrdt<S extends LocallyResettableState>
    * OutOfOrderAble is not supported for reset() operations and
    * will cause an error.
    */
-  receiveOutOfOrder(
+  /*receiveOutOfOrder(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -162,7 +157,7 @@ export class ResetWrapperCrdt<S extends LocallyResettableState>
       timestamp,
       message
     );
-  }
+  }*/
 }
 
 // Strong reset
@@ -192,7 +187,7 @@ export class StrongResetComponent<
 
 export class StrongResetWrapperCrdt<S extends LocallyResettableState>
   extends SemidirectProduct<S, StrongResettableEventsRecord>
-  implements AllAble {
+  implements StrongResettable, Resettable {
   private strongResetComponent!: StrongResetComponent<S>;
   /**
    * @param keepOnlyMaximal=false Store only causally maximal
@@ -260,7 +255,7 @@ export class StrongResetWrapperCrdt<S extends LocallyResettableState>
    * OutOfOrderAble is not supported for strongReset() operations and
    * will cause an error.
    */
-  receiveOutOfOrder(
+  /*receiveOutOfOrder(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -294,5 +289,5 @@ export class StrongResetWrapperCrdt<S extends LocallyResettableState>
       timestamp,
       message
     );
-  }
+  }*/
 }

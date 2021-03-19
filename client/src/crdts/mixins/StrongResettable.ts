@@ -1,5 +1,5 @@
 import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtRuntime } from "../crdt_core";
-import { HardResettable, StrongResetWrapperCrdt } from "../resettable";
+import { StrongResetWrapperCrdt } from "../resettable";
 import { Constructor, CrdtMixinWithNewEvents, makeEventAdder } from "./mixin";
 
 export interface StrongResettable {
