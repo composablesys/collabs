@@ -130,7 +130,7 @@ export abstract class Crdt<
  * @param S the type of state
  */
 export interface StatefulCrdt<
-  S extends Object | null,
+  S extends Object,
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends Crdt<Events> {
   /**
@@ -140,7 +140,7 @@ export interface StatefulCrdt<
 }
 
 export abstract class PrimitiveCrdt<
-    S extends Object | null,
+    S extends Object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>

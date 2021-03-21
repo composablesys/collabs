@@ -1,8 +1,7 @@
 import { CausalTimestamp } from "../network";
 import { PrimitiveCrdt, StatefulCrdt } from "./crdt_core";
-import { SemidirectProduct, SemidirectState } from "./semidirect";
+import { SemidirectProduct } from "./semidirect";
 import {
-  isResettable,
   Resettable,
   ResettableEventsRecord,
   StrongResettableEventsRecord,
@@ -28,9 +27,6 @@ export interface LocallyResettableState {
   resetLocalState(): void;
 }
 
-// TODO: better name (do we really need this type?)
-type StatefulCrdtLocalReset<S extends LocallyResettableState> = StatefulCrdt<S>;
-
 class ResetComponentMessage extends Uint8Array {
   readonly isResetComponentMessage = true;
   // TODO: named params?
@@ -41,10 +37,8 @@ class ResetComponentMessage extends Uint8Array {
 class ResetComponent<
   S extends LocallyResettableState
 > extends PrimitiveCrdt<S> {
-  constructor(
-    readonly targetCrdt: StatefulCrdtLocalReset<S>,
-    readonly resetWrapperCrdt: ResetWrapperCrdt<S>
-  ) {
+  constructor(readonly resetWrapperCrdt: ResetWrapperCrdt<S, StatefulCrdt<S>>) {
+    // This state will get overwritten by original's state
     super((null as unknown) as S);
   }
 
@@ -56,20 +50,23 @@ class ResetComponent<
     timestamp: CausalTimestamp,
     message: Uint8Array | ResetComponentMessage
   ) {
-    this.targetCrdt.state.resetLocalState();
+    this.resetWrapperCrdt.original.state.resetLocalState();
     this.resetWrapperCrdt.dispatchResetEvent(timestamp);
     if ("isResetComponentMessage" in message) {
       // Replay message.replay
       for (let toReplay of message.replay) {
-        this.targetCrdt.receiveGeneral(...toReplay);
+        this.resetWrapperCrdt.original.receiveGeneral(...toReplay);
       }
     }
   }
 }
 
-export class ResetWrapperCrdt<S extends LocallyResettableState>
+export class ResetWrapperCrdt<
+    S extends LocallyResettableState,
+    C extends StatefulCrdt<S>
+  >
   extends SemidirectProduct<S, ResettableEventsRecord>
-  implements Resettable, StatefulCrdtLocalReset<SemidirectState<S>> {
+  implements Resettable {
   private resetComponent!: ResetComponent<S>;
   /**
    * @param keepOnlyMaximal=false Store only causally maximal
@@ -77,16 +74,13 @@ export class ResetWrapperCrdt<S extends LocallyResettableState>
    * at some CPU cost).  This is only allowed if the state
    * only ever depends on the causally maximal messages.
    */
-  constructor(keepOnlyMaximal = false) {
+  constructor(readonly original: C, keepOnlyMaximal = false) {
     super(true, true, keepOnlyMaximal);
+    this.resetComponent = new ResetComponent(this);
+    super.setup(this.resetComponent, original, original.state);
   }
 
-  setupReset(targetCrdt: StatefulCrdtLocalReset<S>) {
-    this.resetComponent = new ResetComponent(targetCrdt, this);
-    super.setup(this.resetComponent, targetCrdt, targetCrdt.state);
-  }
-
-  action(
+  protected action(
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
@@ -166,9 +160,9 @@ export class StrongResetComponent<
   S extends LocallyResettableState
 > extends PrimitiveCrdt<S> {
   constructor(
-    readonly targetCrdt: StatefulCrdtLocalReset<S>,
-    readonly strongResetWrapperCrdt: StrongResetWrapperCrdt<S>
+    readonly strongResetWrapperCrdt: StrongResetWrapperCrdt<S, StatefulCrdt<S>>
   ) {
+    // This state will get overwritten by original's state
     super((null as unknown) as S);
   }
 
@@ -180,14 +174,17 @@ export class StrongResetComponent<
     timestamp: CausalTimestamp,
     _message: Uint8Array | ResetComponentMessage
   ) {
-    this.targetCrdt.state.resetLocalState();
+    this.strongResetWrapperCrdt.original.state.resetLocalState();
     this.strongResetWrapperCrdt.dispatchStrongResetEvent(timestamp);
   }
 }
 
-export class StrongResetWrapperCrdt<S extends LocallyResettableState>
+export class StrongResetWrapperCrdt<
+    S extends LocallyResettableState,
+    C extends StatefulCrdt<S>
+  >
   extends SemidirectProduct<S, StrongResettableEventsRecord>
-  implements StrongResettable, Resettable {
+  implements StrongResettable {
   private strongResetComponent!: StrongResetComponent<S>;
   /**
    * @param keepOnlyMaximal=false Store only causally maximal
@@ -195,16 +192,13 @@ export class StrongResetWrapperCrdt<S extends LocallyResettableState>
    * at some CPU cost).  This is only allowed if the state
    * only ever depends on the causally maximal messages.
    */
-  constructor(keepOnlyMaximal = false) {
+  constructor(readonly original: C, keepOnlyMaximal = false) {
     super(true, true, keepOnlyMaximal);
+    this.strongResetComponent = new StrongResetComponent(this);
+    super.setup(original, this.strongResetComponent, original.state);
   }
 
-  setupStrongReset(targetCrdt: StatefulCrdtLocalReset<S>) {
-    this.strongResetComponent = new StrongResetComponent(targetCrdt, this);
-    super.setup(targetCrdt, this.strongResetComponent, targetCrdt.state);
-  }
-
-  action(
+  protected action(
     _m2TargetPath: string[],
     _m2Timestamp: CausalTimestamp | null,
     _m2Message: Uint8Array,
@@ -225,27 +219,6 @@ export class StrongResetWrapperCrdt<S extends LocallyResettableState>
 
   strongReset() {
     this.strongResetComponent.strongResetTarget();
-  }
-
-  /**
-   * Defers (non-strong) reset() operations to the target Crdt.
-   * Note that the target Crdt may not actually be Resettable,
-   * in which case this will throw an error.
-   * This method is implemented for the sake of AddAbilitiesViaChildren,
-   * which calls reset() on all children of a Crdt; targetCrdt's wrapped with
-   * this class will have this class as the parent's child instead of
-   * targetCrdt, so we need to handle those reset() calls.
-   *
-   * TODO: only support if target is Resettable
-   */
-  reset() {
-    if (isResettable(this.strongResetComponent.targetCrdt)) {
-      this.strongResetComponent.targetCrdt.reset();
-    } else
-      throw new Error(
-        "reset() called on StrongResetWrapperCrdt, but the " +
-          "original (wrapped) Crdt is not Resettable"
-      );
   }
 
   /**

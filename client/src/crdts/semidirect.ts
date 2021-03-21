@@ -243,7 +243,7 @@ export abstract class SemidirectProduct<
    * @param  m1Message    [description]
    * @return              [description]
    */
-  abstract action(
+  protected abstract action(
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
