@@ -46,7 +46,9 @@ export abstract class Crdt<
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
   private static readonly notYetInitMessage =
-    "init() must be called before using this Crdt";
+    "this value is not available until after Crdt.init() " +
+    "(consider overriding init() and doing this after super.init())";
+  protected afterInit = false;
 
   private runtimePrivate?: CrdtRuntime;
   get runtime(): CrdtRuntime {
@@ -94,6 +96,7 @@ export abstract class Crdt<
     }
     this.runtimePrivate = parent.runtime;
     this.pathToRootPrivate = Object.freeze([name, ...parent.pathToRoot]);
+    this.afterInit = true;
   }
 
   /**
@@ -167,7 +170,7 @@ export abstract class PrimitiveCrdt<
     // index but not the underlying array).
     if (targetPath.length !== 0) {
       // We are not the target
-      throw new Error("TODO");
+      throw new Error("PrimitiveCrdt received message for child");
     }
     this.receive(timestamp, message);
 
@@ -214,16 +217,30 @@ export class CompositeCrdt<
    *
    * TODO: pass constructor and params instead, to enforce that the Crdt
    * is fresh and that we will call init?
+   *
+   * TODO: instead of passing name, just use 0, 1, 2, ...?
    */
   protected addChild<D extends C>(name: string, child: D): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
+    this.children.set(name, child);
+    if (this.afterInit) this.initChild(name, child);
+    return child;
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    // Init children added before init was called
+    for (let entry of this.children.entries()) {
+      this.initChild(entry[0], entry[1]);
+    }
+  }
+
+  private initChild(name: string, child: C) {
     this.childBeingAdded = child;
     child.init(name, this);
     this.childBeingAdded = undefined;
-    this.children.set(name, child);
-    return child;
   }
 
   private childBeingAdded?: C;
@@ -334,6 +351,12 @@ export class CrdtRuntime {
 
   send(sender: Crdt, message: Uint8Array) {
     let group = sender.pathToRoot[sender.pathToRoot.length - 1];
+    // console.log("In CrdtRuntime.send");
+    // console.log("  group: " + group);
+    // console.log(
+    //   "  targetPath: " +
+    //     sender.pathToRoot.slice(0, sender.pathToRoot.length - 1)
+    // );
     let timestamp = this.network.getNextTimestamp(group);
     // Deliver to self, synchronously
     // TODO: error handling
@@ -357,15 +380,11 @@ export class CrdtRuntime {
    * Callback for CrdtNetwork.
    */
   receive(group: string, message: Uint8Array, timestamp: CausalTimestamp) {
-    try {
-      let decoded = CrdtRuntimeMessage.decode(message);
-      this.groupParents
-        .get(group)!
-        .receiveGeneral(decoded.pathToGroup, timestamp, decoded.innerMessage);
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-    }
+    // TODO: error handling
+    let decoded = CrdtRuntimeMessage.decode(message);
+    this.groupParents
+      .get(group)!
+      .receiveGeneral(decoded.pathToGroup, timestamp, decoded.innerMessage);
   }
 
   getReplicaId(): string {

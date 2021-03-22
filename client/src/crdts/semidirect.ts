@@ -252,6 +252,9 @@ export abstract class SemidirectProduct<
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
+  // TODO: move setup into constructor?  Then we don't have to worry about
+  // it being called after init.  But then it's annoying to pass
+  // this to the children (as is one in ResetWrapperCrdt).
   protected setup(
     crdt1: StatefulCrdt<S>,
     crdt2: StatefulCrdt<S>,
@@ -260,15 +263,27 @@ export abstract class SemidirectProduct<
     this.state.internalState = initialState;
     this.crdt1 = crdt1;
     this.crdt2 = crdt2;
-    this.childBeingAdded = crdt1;
-    crdt1.init(SemidirectProduct.crdt1Name, this);
-    this.childBeingAdded = crdt2;
-    crdt2.init(SemidirectProduct.crdt2Name, this);
-    this.childBeingAdded = undefined;
     // @ts-ignore Ignore readonly
     crdt1.state = initialState;
     // @ts-ignore Ignore readonly
     crdt2.state = initialState;
+    if (this.afterInit) this.initChildren();
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    if (this.crdt1 !== undefined) {
+      // setup has already been called
+      this.initChildren();
+    }
+  }
+
+  private initChildren() {
+    this.childBeingAdded = this.crdt1;
+    this.crdt1.init(SemidirectProduct.crdt1Name, this);
+    this.childBeingAdded = this.crdt2;
+    this.crdt2.init(SemidirectProduct.crdt2Name, this);
+    this.childBeingAdded = undefined;
   }
 
   private childBeingAdded?: Crdt;
@@ -292,23 +307,23 @@ export abstract class SemidirectProduct<
       // We are the target
       throw new Error("TODO");
     }
-    switch (targetPath[0]) {
-      case "crdt1":
+    switch (targetPath[targetPath.length - 1]) {
+      case SemidirectProduct.crdt2Name:
+        targetPath.length--;
         this.state.add(
           this.runtime.getReplicaId(),
           targetPath.slice(),
           timestamp,
           message
         );
-        targetPath.length--;
         this.crdt2.receiveGeneral(targetPath, timestamp, message);
         break;
-      case "crdt2":
+      case SemidirectProduct.crdt1Name:
+        targetPath.length--;
         let concurrent = this.state.getConcurrent(
           this.runtime.getReplicaId(),
           timestamp
         );
-        targetPath.length--;
         let mAct = {
           m1TargetPath: targetPath,
           m1Message: message,

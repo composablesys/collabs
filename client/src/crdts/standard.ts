@@ -62,21 +62,15 @@ export class NumberBase
     _m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    try {
-      let m2Decoded = MultRegisterMessage.decode(m2Message);
-      let m1Decoded = CounterPureBaseMessage.decode(m1Message);
-      let acted = CounterPureBaseMessage.create({
-        toAdd: m2Decoded.toMult * m1Decoded.toAdd,
-      });
-      return {
-        m1TargetPath: [],
-        m1Message: CounterPureBaseMessage.encode(acted).finish(),
-      };
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-      return null;
-    }
+    let m2Decoded = MultRegisterMessage.decode(m2Message);
+    let m1Decoded = CounterPureBaseMessage.decode(m1Message);
+    let acted = CounterPureBaseMessage.create({
+      toAdd: m2Decoded.toMult * m1Decoded.toAdd,
+    });
+    return {
+      m1TargetPath: [],
+      m1Message: CounterPureBaseMessage.encode(acted).finish(),
+    };
   }
 
   add(toAdd: number) {
@@ -254,15 +248,23 @@ export class NumberCrdt
 //     }
 // }
 
+// TODO: move to basic_crdts; use in benchmarks
 export class NoopState implements LocallyResettableState {
   resetLocalState(): void {}
+  static instance = new NoopState();
 }
 
 export class NoopCrdt extends PrimitiveCrdt<NoopState> {
+  constructor() {
+    super(NoopState.instance);
+  }
   noop() {
     this.send(new Uint8Array());
   }
-  protected receive(_timestamp: CausalTimestamp, _message: Uint8Array): void {}
+  protected receive(_timestamp: CausalTimestamp, message: Uint8Array): void {
+    if (message.length !== 0)
+      throw new Error("Unexpected nontrivial message for NoopCrdt");
+  }
 }
 
 export interface FlagEventsRecord extends CrdtEventsRecord {
@@ -480,28 +482,23 @@ export class LazyMap<K, C extends Crdt>
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    try {
-      // Message for a child
-      let keyString = targetPath[targetPath.length - 1];
-      let key = this.stringAsKey(keyString);
-      let value = this.getInternal(key, keyString);
-      targetPath.length--;
-      value.receiveGeneral(targetPath, timestamp, message);
-      this.emit("ValueChange", {
-        key,
-        value,
-        caller: this,
-        timestamp,
-      });
-      // Dispatch a generic Change event
-      this.emit("Change", {
-        caller: this,
-        timestamp: timestamp,
-      });
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-    }
+    // Message for a child
+    let keyString = targetPath[targetPath.length - 1];
+    let key = this.stringAsKey(keyString);
+    let value = this.getInternal(key, keyString);
+    targetPath.length--;
+    value.receiveGeneral(targetPath, timestamp, message);
+    this.emit("ValueChange", {
+      key,
+      value,
+      caller: this,
+      timestamp,
+    });
+    // Dispatch a generic Change event
+    this.emit("Change", {
+      caller: this,
+      timestamp: timestamp,
+    });
   }
 
   // TODO: hack for MapCrdt; remove later
@@ -512,7 +509,7 @@ export class LazyMap<K, C extends Crdt>
     message: Uint8Array
   ) {
     this.receiveGeneral(
-      [this.keyAsString(key), ...targetPath],
+      [...targetPath, this.keyAsString(key)],
       timestamp,
       message
     );
@@ -776,8 +773,8 @@ export class MapCrdt<K, C extends Crdt & Resettable>
 
   delete(key: K) {
     // TODO: return whether actually deleted?  Semantically difficult.
-    this.keySet.delete(key);
     this.valueMap.get(key).reset();
+    this.keySet.delete(key);
   }
 
   /**
@@ -793,10 +790,10 @@ export class MapCrdt<K, C extends Crdt & Resettable>
   // (In that case this is just the generic
   // CompositeCrdt reset.)
   reset() {
-    this.keySet.reset();
     for (let value of this.valueMap.explicitValues()) {
       value.reset();
     }
+    this.keySet.reset();
   }
 
   keys() {
@@ -897,17 +894,11 @@ export class MapCrdt<K, C extends Crdt & Resettable>
 //   }
 //
 //   receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
-//     try {
 //       let decoded = RuntimeGeneratorMessage.decode(message);
 //       let newCrdt = this.generator(this, decoded.uniqueId, decoded.message);
 //       this.emit("NewCrdt", { caller: this, timestamp, newCrdt });
 //       if (timestamp.isLocal()) this.lastGenerated = newCrdt;
 //       return false;
-//     } catch (e) {
-//       // TODO
-//       console.log("Decoding/generator error: " + e);
-//       return false;
-//     }
 //   }
 // }
 

@@ -22,6 +22,7 @@ describe("basic_crdts", () => {
     bob = runtimeGen.newRuntime("bob");
   });
 
+  // TODO: test CounterPure instead
   describe("CounterPureBase", () => {
     let aliceCounter: CounterPureBase;
     let bobCounter: CounterPureBase;
@@ -469,7 +470,7 @@ describe("basic_crdts", () => {
     });
 
     describe("reset", () => {
-      it("works with non-concurrent updates", () => {
+      it("works with concurrent updates", () => {
         aliceMvr.reset();
         assert.deepStrictEqual(aliceMvr.valueSet, new Set([]));
 
@@ -583,7 +584,7 @@ describe("basic_crdts", () => {
     });
 
     describe("reset", () => {
-      it("works with non-concurrent reset", () => {
+      it("works with concurrent reset", () => {
         aliceLww.reset();
         assert.strictEqual(aliceLww.value, "initial");
 

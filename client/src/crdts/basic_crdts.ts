@@ -59,18 +59,13 @@ export class CounterPureBase
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
-    try {
-      let decoded = CounterPureBaseMessage.decode(message);
-      this.state.value += decoded.toAdd;
-      this.emit("Add", {
-        caller: this,
-        timestamp,
-        valueAdded: decoded.toAdd,
-      });
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-    }
+    let decoded = CounterPureBaseMessage.decode(message);
+    this.state.value += decoded.toAdd;
+    this.emit("Add", {
+      caller: this,
+      timestamp,
+      valueAdded: decoded.toAdd,
+    });
   }
 
   get value(): number {
@@ -159,42 +154,35 @@ export class Counter
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
-    try {
-      let decoded = CounterResettableMessage.decode(message);
-      switch (decoded.data) {
-        case "toAdd":
-          if (decoded.toAdd > 0) {
-            let current = this.state.plusP[timestamp.getSender()];
-            if (current === undefined) current = 0;
-            this.state.plusP[timestamp.getSender()] = current + decoded.toAdd;
-          } else {
-            let current = this.state.minusP[timestamp.getSender()];
-            if (current === undefined) current = 0;
-            this.state.minusP[timestamp.getSender()] = current - decoded.toAdd;
-          }
-          this.emit("Add", {
-            caller: this,
-            timestamp,
-            valueAdded: decoded.toAdd,
-          });
-          break;
-        case "toReset":
-          this.merge(this.state.plusN, decoded.toReset!.plusReset!);
-          this.merge(this.state.minusN, decoded.toReset!.minusReset!);
-          this.emit("Reset", {
-            caller: this,
-            timestamp: timestamp,
-          });
-          // TODO: event: also include metadata about non-reset ops?
-          break;
-        default:
-          throw new Error(
-            "CounterResettable: Bad decoded.data: " + decoded.data
-          );
-      }
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
+    let decoded = CounterResettableMessage.decode(message);
+    switch (decoded.data) {
+      case "toAdd":
+        if (decoded.toAdd > 0) {
+          let current = this.state.plusP[timestamp.getSender()];
+          if (current === undefined) current = 0;
+          this.state.plusP[timestamp.getSender()] = current + decoded.toAdd;
+        } else {
+          let current = this.state.minusP[timestamp.getSender()];
+          if (current === undefined) current = 0;
+          this.state.minusP[timestamp.getSender()] = current - decoded.toAdd;
+        }
+        this.emit("Add", {
+          caller: this,
+          timestamp,
+          valueAdded: decoded.toAdd,
+        });
+        break;
+      case "toReset":
+        this.merge(this.state.plusN, decoded.toReset!.plusReset!);
+        this.merge(this.state.minusN, decoded.toReset!.minusReset!);
+        this.emit("Reset", {
+          caller: this,
+          timestamp: timestamp,
+        });
+        // TODO: event: also include metadata about non-reset ops?
+        break;
+      default:
+        throw new Error("CounterResettable: Bad decoded.data: " + decoded.data);
     }
   }
 
@@ -294,20 +282,14 @@ export class MultRegisterBase
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
-    try {
-      let decoded = MultRegisterMessage.decode(message);
-      this.state.value *= decoded.toMult;
-      this.emit("Mult", {
-        caller: this,
-        timestamp,
-        valueMulted: decoded.toMult,
-      });
-      return true;
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-      return false;
-    }
+    let decoded = MultRegisterMessage.decode(message);
+    this.state.value *= decoded.toMult;
+    this.emit("Mult", {
+      caller: this,
+      timestamp,
+      valueMulted: decoded.toMult,
+    });
+    return true;
   }
 
   get value(): number {
@@ -396,22 +378,13 @@ export class GSet<T>
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
-    try {
-      let decoded = GSetMessage.decode(message);
-      let value = this.elementSerializer.deserialize(
-        decoded.toAdd,
-        this.runtime
-      );
-      if (!this.state.has(value)) {
-        this.state.add(value);
-        this.emit("SetAdd", { caller: this, timestamp, valueAdded: value });
-        return true;
-      } else return false;
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-      return false;
-    }
+    let decoded = GSetMessage.decode(message);
+    let value = this.elementSerializer.deserialize(decoded.toAdd, this.runtime);
+    if (!this.state.has(value)) {
+      this.state.add(value);
+      this.emit("SetAdd", { caller: this, timestamp, valueAdded: value });
+      return true;
+    } else return false;
   }
 
   receiveOutOfOrder(
@@ -503,56 +476,50 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
-    try {
-      let decoded = MvrMessage.decode(message);
-      let removed = new Set<T>();
-      let vc = timestamp.asVectorClock();
-      for (let entry of this.state) {
-        let vcEntry = vc.get(entry.sender);
-        if (vcEntry !== undefined && vcEntry >= entry.counter) {
-          this.state.delete(entry);
-          removed.add(entry.value);
+    let decoded = MvrMessage.decode(message);
+    let removed = new Set<T>();
+    let vc = timestamp.asVectorClock();
+    for (let entry of this.state) {
+      let vcEntry = vc.get(entry.sender);
+      if (vcEntry !== undefined && vcEntry >= entry.counter) {
+        this.state.delete(entry);
+        removed.add(entry.value);
+      }
+    }
+    switch (decoded.data) {
+      case "value":
+        // Add the new entry
+        let value = this.valueSerializer.deserialize(
+          decoded.value,
+          this.runtime
+        );
+        this.state.add(
+          new MvrEntry(
+            value,
+            timestamp.getSender(),
+            timestamp.getSenderCounter()
+          )
+        );
+        if (removed.size === 1 && removed.entries().next().value === value) {
+          return false; // no change to actual value
+        } else {
+          this.emit("Mvr", {
+            caller: this,
+            timestamp,
+            valueAdded: value,
+            valuesRemoved: removed,
+          });
+          return true;
         }
-      }
-      switch (decoded.data) {
-        case "value":
-          // Add the new entry
-          let value = this.valueSerializer.deserialize(
-            decoded.value,
-            this.runtime
-          );
-          this.state.add(
-            new MvrEntry(
-              value,
-              timestamp.getSender(),
-              timestamp.getSenderCounter()
-            )
-          );
-          if (removed.size === 1 && removed.entries().next().value === value) {
-            return false; // no change to actual value
-          } else {
-            this.emit("Mvr", {
-              caller: this,
-              timestamp,
-              valueAdded: value,
-              valuesRemoved: removed,
-            });
-            return true;
-          }
-        case "reset":
-          this.emit("Reset", { caller: this, timestamp });
-          return removed.size === 0;
-        // TODO: also do normal Mvr event?  Would need to make valueAdded
-        // optional.
-        default:
-          throw new Error(
-            "MultiValueRegister: Bad decoded.data: " + decoded.data
-          );
-      }
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-      return false;
+      case "reset":
+        this.emit("Reset", { caller: this, timestamp });
+        return removed.size === 0;
+      // TODO: also do normal Mvr event?  Would need to make valueAdded
+      // optional.
+      default:
+        throw new Error(
+          "MultiValueRegister: Bad decoded.data: " + decoded.data
+        );
     }
   }
 
@@ -649,51 +616,45 @@ export class LwwRegisterBase<T>
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
-    try {
-      let decoded = LwwMessage.decode(message);
-      let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
-      // See if it's causally greater than the current state
-      let vc = timestamp.asVectorClock();
-      let overwrite = false;
-      if (this.state.sender === null) {
-        // Initial element
+    let decoded = LwwMessage.decode(message);
+    let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
+    // See if it's causally greater than the current state
+    let vc = timestamp.asVectorClock();
+    let overwrite = false;
+    if (this.state.sender === null) {
+      // Initial element
+      overwrite = true;
+    } else {
+      let vcEntry = vc.get(this.state.sender);
+      if (vcEntry !== undefined && vcEntry >= this.state.counter) {
         overwrite = true;
-      } else {
-        let vcEntry = vc.get(this.state.sender);
-        if (vcEntry !== undefined && vcEntry >= this.state.counter) {
-          overwrite = true;
-        }
       }
-      // If it's concurrent, compare timestamps.  Use
-      // arbitrary order on sender as tiebreaker.
-      if (!overwrite) {
-        if (decoded.time > this.state.time!) overwrite = true;
-        else if (decoded.time == this.state.time) {
-          overwrite = timestamp.getSender() > this.state.sender!;
-        }
-      }
-
-      if (overwrite) {
-        let changed = this.state.value !== value;
-        this.state.counter = timestamp.getSenderCounter();
-        this.state.sender = timestamp.getSender();
-        this.state.time = decoded.time;
-        this.state.value = value;
-        if (changed) {
-          this.emit("Lww", {
-            caller: this,
-            timestamp,
-            value,
-            timeSet: new Date(decoded.time),
-          });
-        }
-        return changed;
-      } else return false;
-    } catch (e) {
-      // TODO
-      console.log("Decoding error: " + e);
-      return false;
     }
+    // If it's concurrent, compare timestamps.  Use
+    // arbitrary order on sender as tiebreaker.
+    if (!overwrite) {
+      if (decoded.time > this.state.time!) overwrite = true;
+      else if (decoded.time == this.state.time) {
+        overwrite = timestamp.getSender() > this.state.sender!;
+      }
+    }
+
+    if (overwrite) {
+      let changed = this.state.value !== value;
+      this.state.counter = timestamp.getSenderCounter();
+      this.state.sender = timestamp.getSender();
+      this.state.time = decoded.time;
+      this.state.value = value;
+      if (changed) {
+        this.emit("Lww", {
+          caller: this,
+          timestamp,
+          value,
+          timeSet: new Date(decoded.time),
+        });
+      }
+      return changed;
+    } else return false;
   }
 }
 

@@ -2,7 +2,6 @@ import { assert } from "chai";
 import {
   AddEvent,
   AddWinsSet,
-  Crdt,
   CrdtRuntime,
   DisableWinsFlag,
   EnableWinsFlag,
@@ -228,13 +227,13 @@ describe("standard", () => {
 
     beforeEach(() => init(0));
 
-    function init(initialValue: number): void {
+    function init(initialValue: number, name = "numberId"): void {
       aliceNumber = alice
         .groupParent("")
-        .addChild("numberId", new NumberCrdt(initialValue));
+        .addChild(name, new NumberCrdt(initialValue));
       bobNumber = bob
         .groupParent("")
-        .addChild("numberId", new NumberCrdt(initialValue));
+        .addChild(name, new NumberCrdt(initialValue));
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -328,7 +327,7 @@ describe("standard", () => {
 
       it("works with the example from the paper", () => {
         // See https://arxiv.org/abs/2004.04303, §3.1
-        init(1);
+        init(1, "numberIdPaper");
 
         aliceNumber.mult(2);
         aliceNumber.add(1);
@@ -548,7 +547,10 @@ describe("standard", () => {
 
         bobSet.reset();
         aliceSet.add("survivor");
-        assert.deepStrictEqual(aliceSet.value, new Set(["survivor"]));
+        assert.deepStrictEqual(
+          aliceSet.value,
+          new Set(["survivor", "first", "second"])
+        );
         assert.deepStrictEqual(bobSet.value, new Set([]));
 
         runtimeGen.releaseAll();
@@ -696,7 +698,7 @@ describe("standard", () => {
         assert.isUndefined(bobMap.get("test"));
       });
 
-      it.skip("lets concurrent value operation survive", () => {
+      it("lets concurrent value operation survive", () => {
         aliceMap.addKey("register");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
@@ -810,8 +812,8 @@ describe("standard", () => {
     let bobMap: LwwMap<string, number>;
 
     beforeEach(() => {
-      let aliceMap = alice.groupParent("").addChild("lwwMap", new LwwMap());
-      let bobMap = bob.groupParent("").addChild("lwwMap", new LwwMap());
+      aliceMap = alice.groupParent("").addChild("lwwMap", new LwwMap());
+      bobMap = bob.groupParent("").addChild("lwwMap", new LwwMap());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");

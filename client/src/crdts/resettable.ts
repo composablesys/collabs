@@ -51,6 +51,8 @@ class ResetComponent<
     timestamp: CausalTimestamp,
     message: Uint8Array | ResetComponentMessage
   ) {
+    if (message.length !== 0)
+      throw new Error("Unexcepted nontrivial message for ResetComponent");
     this.resetWrapperCrdt.original.state.resetLocalState();
     this.resetWrapperCrdt.dispatchResetEvent(timestamp);
     if ("isResetComponentMessage" in message) {
@@ -62,6 +64,7 @@ class ResetComponent<
   }
 }
 
+// TODO: rename ResetWrapper; same for StrongResetWrapper
 export class ResetWrapperCrdt<
     S extends LocallyResettableState,
     C extends StatefulCrdt<S>
@@ -189,10 +192,9 @@ export class StrongResetComponent<
     super.send(new Uint8Array());
   }
 
-  receive(
-    timestamp: CausalTimestamp,
-    _message: Uint8Array | ResetComponentMessage
-  ) {
+  receive(timestamp: CausalTimestamp, message: Uint8Array) {
+    if (message.length !== 0)
+      throw new Error("Unexcepted nontrivial message for StrongResetComponent");
     this.strongResetWrapperCrdt.original.state.resetLocalState();
     this.strongResetWrapperCrdt.dispatchStrongResetEvent(timestamp);
   }
