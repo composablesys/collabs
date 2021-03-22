@@ -22,7 +22,7 @@ let client = new crdts.CrdtRuntime(
   )
 );
 let clientCounter = client
-  .groupParent("default")
+  .groupParent("counterGroup")
   .addChild("counter", new crdts.Counter());
 
 /* HTML variables */

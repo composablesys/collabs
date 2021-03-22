@@ -24,7 +24,7 @@ let client = new crdts.CrdtRuntime(
 // The key represents a stroke in the form: endX:endY:startX:startY
 // The value is the color of the stroke.
 let clientBoard: crdts.LwwMap<string, string> = client
-  .groupParent("default")
+  .groupParent("whiteboardGroup")
   .addChild("whiteboardId", new crdts.LwwMap());
 
 window.onload = function () {

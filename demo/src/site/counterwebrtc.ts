@@ -20,7 +20,7 @@ let client = new crdts.CrdtRuntime(
   new network.WebRtcNetwork(client_uuid, HOST)
 );
 let clientCounter = client
-  .groupParent("default")
+  .groupParent("counterWebrtcGroup")
   .addChild("counter", new crdts.Counter());
 
 /* HTML variables */
