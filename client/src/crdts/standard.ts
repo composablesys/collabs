@@ -26,7 +26,9 @@ import { Resettable } from "./mixins";
 import { DefaultElementSerializer, ElementSerializer } from "./utils";
 import { Buffer } from "buffer";
 
-type NumberEventsRecord = CounterEventsRecord & MultEventsRecord;
+// interface NumberEventsRecord extends CounterEventsRecord, MultEventsRecord {}
+
+interface NumberEventsRecord extends CounterEventsRecord, MultEventsRecord {}
 
 export interface INumber extends Crdt<NumberEventsRecord> {
   add(toAdd: number): void;
@@ -94,9 +96,20 @@ export class NumberBase
   }
 }
 
-export class Number
-  extends ResetWrapClass(NumberBase)
+const AddNumberEvents = makeEventAdder<NumberEventsRecord>();
+
+export class NumberCrdt
+  extends AddNumberEvents(ResetWrapClass(NumberBase))
   implements INumber, Resettable {
+  constructor(initialValue: number = 0) {
+    super(initialValue);
+    this.original.on("Add", (event) =>
+      this.emit("Add", { ...event, caller: this })
+    );
+    this.original.on("Mult", (event) =>
+      this.emit("Mult", { ...event, caller: this })
+    );
+  }
   add(toAdd: number): void {
     this.original.add(toAdd);
   }

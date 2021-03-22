@@ -10,7 +10,12 @@ import {
 } from "../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "./utils";
 import { LocallyResettableState, ResetWrapClass } from "./resettable";
-import { OutOfOrderAble, Resettable, ResettableEventsRecord } from "./mixins";
+import {
+  makeEventAdder,
+  OutOfOrderAble,
+  Resettable,
+  ResettableEventsRecord,
+} from "./mixins";
 
 export class NumberState implements LocallyResettableState {
   private readonly initialValue: number;
@@ -87,12 +92,24 @@ export class CounterPureBase
   }
 }
 
+const AddCounterEvents = makeEventAdder<CounterEventsRecord>();
+
+// TODO: issue with makeEventsAdder: when you type .emit or .on, the new ones
+// don't show up in the tooltip.  However they do compile.
+// Should check whether Typedoc shows them correctly.
+
 /**
  * TODO: Counter with pure operations.  Less efficient state size.
  */
 export class CounterPure
-  extends ResetWrapClass(CounterPureBase)
+  extends AddCounterEvents(ResetWrapClass(CounterPureBase))
   implements ICounter, Resettable {
+  constructor(initialValue = 0) {
+    super(initialValue);
+    this.original.on("Add", (event) =>
+      this.emit("Add", { ...event, caller: this })
+    );
+  }
   add(toAdd: number): void {
     this.original.add(toAdd);
   }
@@ -304,9 +321,17 @@ export class MultRegisterBase
   }
 }
 
+const AddMultEvents = makeEventAdder<MultEventsRecord>();
+
 export class MultRegister
-  extends ResetWrapClass(MultRegisterBase)
+  extends AddMultEvents(ResetWrapClass(MultRegisterBase))
   implements IMultRegister, Resettable {
+  constructor(initialValue = 1) {
+    super(initialValue);
+    this.original.on("Mult", (event) =>
+      this.emit("Mult", { ...event, caller: this })
+    );
+  }
   mult(toMult: number): void {
     this.original.mult(toMult);
   }
@@ -671,6 +696,10 @@ export class LwwRegisterBase<T>
     }
   }
 }
+
+// TODO: doesn't work due to missing type parameter
+// const AddLwwEvents = makeEventAdder<LwwEventsRecord>();
+
 export class LwwRegister<T>
   extends ResetWrapClass(LwwRegisterBase, true)<T>
   implements ILwwRegister<T>, Resettable {

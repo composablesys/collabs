@@ -217,7 +217,7 @@ export class CompositeCrdt<
    */
   protected addChild<D extends C>(name: string, child: D): D {
     if (this.children.has(name)) {
-      throw new Error('Duplicate name: "' + name + '"');
+      throw new Error('Duplicate child name: "' + name + '"');
     }
     this.childBeingAdded = child;
     child.init(name, this);
@@ -288,6 +288,7 @@ export class CompositeCrdt<
 }
 
 export class GroupParent extends CompositeCrdt {
+  // Expose publicly
   public addChild<D extends Crdt>(name: string, child: D): D {
     return super.addChild(name, child);
   }
@@ -310,15 +311,16 @@ class CrdtRoot implements CrdtParent {
 // TODO: docs in this file
 
 export class CrdtRuntime {
-  readonly crdtRoot: CrdtRoot;
-  readonly groupParents = new Map<string, GroupParent>();
+  private readonly crdtRoot: CrdtRoot;
+  private readonly groupParents = new Map<string, GroupParent>();
 
   constructor(readonly network: CausalBroadcastNetwork) {
     this.network.register(this);
     this.crdtRoot = new CrdtRoot(this);
   }
 
-  groupParent(group: string): CrdtParent {
+  // TODO: rename this to group, group to groupName?
+  groupParent(group: string): GroupParent {
     let groupParent = this.groupParents.get(group);
     if (groupParent === undefined) {
       // Joining group for the first time
