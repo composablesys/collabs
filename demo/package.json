@@ -38,7 +38,7 @@
     "fix:format": "prettier --write .",
     "wpw": "webpack --watch",
     "start": "node build/server/demo_server.js",
-    "clean": "rimraf build"
+    "clean": "rimraf build tsconfig.server.tsbuildinfo"
   },
   "files": [
     "/build"
