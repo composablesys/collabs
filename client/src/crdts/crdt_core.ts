@@ -201,8 +201,8 @@ export abstract class PrimitiveCrdt<
 }
 
 export class CompositeCrdt<
-    C extends Crdt = Crdt,
-    Events extends CrdtEventsRecord = CrdtEventsRecord
+    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    C extends Crdt = Crdt
   >
   extends Crdt<Events>
   implements CrdtParent {

@@ -1,6 +1,5 @@
 import { CausalTimestamp } from "../network";
 import {
-  GMapMessage,
   MultRegisterMessage,
   RuntimeGeneratorMessage,
   CounterPureBaseMessage,
@@ -12,66 +11,67 @@ import {
   CounterPureBase,
   CounterEventsRecord,
   MultEventsRecord,
-  GSetEventsRecord,
 } from "./basic_crdts";
-import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtRuntime } from "./crdt_core";
 import {
-  defaultCollectionSerializer,
-  newDefaultCollectionDeserializer,
-} from "./utils";
+  CompositeCrdt,
+  Crdt,
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtParent,
+  CrdtRuntime,
+  PrimitiveCrdt,
+} from "./crdt_core";
 import { SemidirectProduct } from "./semidirect";
-import { AddAllAbilitiesViaHistory } from "./mixins";
-import { HardResettable } from "./resettable";
 import { makeEventAdder } from "./mixins/mixin";
+import { LocallyResettableState, ResetWrapClass } from "./resettable";
+import { Resettable } from "./mixins";
+import { DefaultElementSerializer, ElementSerializer } from "./utils";
+import { Buffer } from "buffer";
 
 type NumberEventsRecord = CounterEventsRecord & MultEventsRecord;
 
-export class NumberBase extends SemidirectProduct<
-  NumberState,
-  NumberEventsRecord
-> {
+export interface INumber extends Crdt<NumberEventsRecord> {
+  add(toAdd: number): void;
+  mult(toMult: number, affectConcurrentAdds?: boolean): void;
+  readonly value: number;
+}
+
+export class NumberBase
+  extends SemidirectProduct<NumberState, NumberEventsRecord>
+  implements INumber {
   private addCrdt: CounterPureBase;
   private multCrdt: MultRegisterBase;
-  readonly resetValue: number;
-  constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    initialValue: number = 0,
-    resetValue = initialValue
-  ) {
-    super(parentOrRuntime, id);
-    this.addCrdt = new CounterPureBase(this, "add", 0);
-    this.multCrdt = new MultRegisterBase(this, "mult", 0);
-    super.setup(
-      this.addCrdt,
-      this.multCrdt,
-      this.action.bind(this),
-      new NumberState(initialValue)
-    );
+  constructor(initialValue: number = 0) {
+    super(false);
+    this.addCrdt = new CounterPureBase(0);
+    this.multCrdt = new MultRegisterBase(0);
+    super.setup(this.addCrdt, this.multCrdt, new NumberState(initialValue));
     this.addCrdt.on("Add", (event) =>
       super.emit("Add", { ...event, caller: this })
     );
     this.multCrdt.on("Mult", (event) =>
       super.emit("Mult", { ...event, caller: this })
     );
-    this.resetValue = resetValue;
   }
 
-  action(
+  protected action(
     _m2TargetPath: string[],
     _m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
     _m1TargetPath: string[],
     _m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
-  ): [string[], Uint8Array] | null {
+  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
     try {
       let m2Decoded = MultRegisterMessage.decode(m2Message);
       let m1Decoded = CounterPureBaseMessage.decode(m1Message);
       let acted = CounterPureBaseMessage.create({
         toAdd: m2Decoded.toMult * m1Decoded.toAdd,
       });
-      return [[], CounterPureBaseMessage.encode(acted).finish()];
+      return {
+        m1TargetPath: [],
+        m1Message: CounterPureBaseMessage.encode(acted).finish(),
+      };
     } catch (e) {
       // TODO
       console.log("Decoding error: " + e);
@@ -79,25 +79,37 @@ export class NumberBase extends SemidirectProduct<
     }
   }
 
-  add(n: number) {
-    this.addCrdt.add(n);
+  add(toAdd: number) {
+    this.addCrdt.add(toAdd);
   }
 
-  mult(n: number) {
-    this.multCrdt.mult(n);
+  mult(toMult: number, affectConcurrentAdds = true) {
+    if (affectConcurrentAdds) this.multCrdt.mult(toMult);
+    else {
+      // Perform an equivalent add
+      this.add(toMult * this.value - this.value);
+    }
   }
 
   get value(): number {
     return this.state.internalState.value;
   }
-
-  hardReset(): void {
-    this.state.hardReset();
-    this.state.internalState.value = this.resetValue;
-  }
 }
 
-export class NumberCrdt extends AddAllAbilitiesViaHistory(NumberBase, true) {}
+export class Number
+  extends ResetWrapClass(NumberBase)
+  implements INumber, Resettable {
+  add(toAdd: number): void {
+    this.original.add(toAdd);
+  }
+  mult(toMult: number, affectConcurrentAdds = true) {
+    this.original.mult(toMult, affectConcurrentAdds);
+  }
+  get value(): number {
+    return this.original.value;
+  }
+}
+// TODO: StrongResettable
 
 //
 // function positiveMod(a: number, b: number) {
@@ -231,49 +243,91 @@ export class NumberCrdt extends AddAllAbilitiesViaHistory(NumberBase, true) {}
 //     }
 // }
 
-class TrivialCrdt extends Crdt<null> implements HardResettable {
-  constructor(parentOrRuntime: Crdt | CrdtRuntime, id: string) {
-    super(parentOrRuntime, id, null);
-  }
-  hardReset() {}
+export class NoopState implements LocallyResettableState {
+  resetLocalState(): void {}
 }
 
-interface FlagEventsRecord extends CrdtEventsRecord {
+export class NoopCrdt extends PrimitiveCrdt<NoopState> {
+  noop() {
+    this.send(new Uint8Array());
+  }
+  protected receive(_timestamp: CausalTimestamp, _message: Uint8Array): void {}
+}
+
+export interface FlagEventsRecord extends CrdtEventsRecord {
   Enable: CrdtEvent;
   Disable: CrdtEvent;
 }
 
+// TODO: remove old boolean return values (everywhere) from receive
+
+export interface IFlag extends Crdt<FlagEventsRecord> {
+  enable(): void;
+  disable(): void;
+  enabled: boolean;
+  value: boolean;
+}
+
+// TODO: makeEventAdder: preserve constructor args
 const AddFlagEvents = makeEventAdder<FlagEventsRecord>();
 
-export class EnableWinsFlag extends AddFlagEvents(
-  AddAllAbilitiesViaHistory(TrivialCrdt)
-) {
-  constructor(parent: Crdt | CrdtRuntime, id: string) {
-    super(parent, id);
-    this.on("Reset", (event) =>
+export class EnableWinsFlag
+  extends AddFlagEvents(ResetWrapClass(NoopCrdt))
+  implements IFlag, Resettable {
+  constructor() {
+    super();
+    this.on("Reset", (event) => this.emit("Disable", { ...event }));
+    this.original.on("Change", (event) =>
+      this.emit("Enable", { ...event, caller: this })
+    );
+  }
+
+  enable() {
+    this.original.noop();
+  }
+  disable() {
+    this.reset();
+  }
+  // strongDisable() {
+  //   this.strongReset();
+  // }
+  get enabled(): boolean {
+    return !this.state.isHistoryEmpty();
+  }
+  set enabled(newValue: boolean) {
+    if (newValue) this.enable();
+    else this.disable();
+  }
+  get value() {
+    return this.enabled;
+  }
+  set value(newValue: boolean) {
+    this.enabled = newValue;
+  }
+}
+
+export class DisableWinsFlag
+  extends AddFlagEvents(ResetWrapClass(NoopCrdt))
+  implements IFlag, Resettable {
+  constructor() {
+    super();
+    this.on("Reset", (event) => this.emit("Enable", { ...event }));
+    this.original.on("Change", (event) =>
       this.emit("Disable", { ...event, caller: this })
     );
   }
 
   enable() {
-    this.send(new Uint8Array());
-  }
-  receiveInternal(timestamp: CausalTimestamp, _message: Uint8Array): boolean {
-    // TODO: only do this if previously disabled.  How to check?
-    this.emit("Enable", {
-      caller: this,
-      timestamp: timestamp,
-    });
-    return true;
-  }
-  disable() {
     this.reset();
   }
-  strongDisable() {
-    this.strongReset();
+  disable() {
+    this.original.noop();
   }
+  // strongDisable() {
+  //   this.strongReset();
+  // }
   get enabled(): boolean {
-    return !this.getResetState().isHistoryEmpty();
+    return this.state.isHistoryEmpty();
   }
   set enabled(newValue: boolean) {
     if (newValue) this.enable();
@@ -287,66 +341,36 @@ export class EnableWinsFlag extends AddFlagEvents(
   }
 }
 
-export class DisableWinsFlag extends AddFlagEvents(
-  AddAllAbilitiesViaHistory(TrivialCrdt)
-) {
-  constructor(parent: Crdt | CrdtRuntime, id: string) {
-    super(parent, id);
-    this.on("Reset", (event) =>
-      this.emit("Enable", { ...event, caller: this })
-    );
-  }
-
-  disable() {
-    this.send(new Uint8Array());
-  }
-  receiveInternal(timestamp: CausalTimestamp, _message: Uint8Array): boolean {
-    // TODO: only do this if previously enabled.  How to check?
-    this.emit("Disable", {
-      caller: this,
-      timestamp: timestamp,
-    });
-    return true;
-  }
-  enable() {
-    this.reset();
-  }
-  strongEnable() {
-    this.strongReset();
-  }
-  get enabled(): boolean {
-    return this.getResetState().isHistoryEmpty();
-  }
-  set enabled(newValue: boolean) {
-    if (newValue) this.enable();
-    else this.disable();
-  }
-  get value() {
-    return this.enabled;
-  }
-  set value(newValue: boolean) {
-    this.enabled = newValue;
-  }
-}
-
-export interface KeyAddEvent<K, V> extends CrdtEvent {
+export interface MapEvent<K, V> extends CrdtEvent {
   readonly key: K;
   readonly value: V;
 }
 
-export interface GMapCrdtEventsRecord<K, C extends Crdt>
+export interface LazyMapEventsRecord<K, C extends Crdt>
   extends CrdtEventsRecord {
-  KeyAdd: KeyAddEvent<K, C>;
+  ValueChange: MapEvent<K, C>;
 }
 
-export class GMapCrdt<K, C extends Crdt>
-  extends Crdt<Map<K, C>, GMapCrdtEventsRecord<K, C>>
-  implements HardResettable {
-  private readonly valueConstructor: (parent: Crdt, id: string, key: K) => C;
-  private readonly serialize: (value: K) => Uint8Array;
-  private readonly deserialize: (serialized: Uint8Array) => K;
+// TODO: rename ValueChange event, because it is not
+// necessarily equal to the child throwing a Change event?
+// Unless we move Change events to Crdt, which seems
+// like a good idea.  I.e. they correspond to message
+// delivery.
+
+// TODO: resettable if C is resettable?
+// TODO: strong resets if C is resettable?
+// TODO: weak value map, to allow GC even when
+// flag is not passed.
+
+export class LazyMap<K, C extends Crdt>
+  extends Crdt<LazyMapEventsRecord<K, C>>
+  implements CrdtParent {
+  private readonly internalMap: Map<string, C> = new Map();
   /**
-   * A grow-only map Crdt.
+   * TODO: a map with all keys present, with their values
+   * initialized to default values (and possibly GC'd and
+   * re-initialized as needed).  Like Apache Common's
+   * LazyMap.
    *
    * Map keys and their serializer/deserializer are handled as in
    * GSetCrdt.
@@ -385,104 +409,148 @@ export class GMapCrdt<K, C extends Crdt>
    * TODO: garbage collection stuff for AWSet.
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    valueConstructor: (parent: Crdt, id: string, key: K) => C,
-    serialize: (key: K) => Uint8Array = defaultCollectionSerializer,
-    deserialize: (
-      serialized: Uint8Array
-    ) => K = newDefaultCollectionDeserializer(parentOrRuntime)
+    private readonly valueConstructor: (key: K) => C,
+    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
-    super(parentOrRuntime, id, new Map());
-    this.valueConstructor = valueConstructor;
-    this.serialize = serialize;
-    this.deserialize = deserialize;
+    super();
   }
 
-  get(key: K): C | undefined {
-    return this.state.get(key);
+  // TODO: move to utils (also useful in network)
+  private static ENCODING: "base64" = "base64";
+  private static arrayAsString(array: Uint8Array) {
+    return Buffer.from(array).toString(LazyMap.ENCODING);
+  }
+  private static stringAsArray(str: string) {
+    return new Uint8Array(Buffer.from(str, LazyMap.ENCODING));
   }
 
-  getForce(key: K): C {
-    this.addKey(key);
-    let value = this.get(key);
+  private keyAsString(key: K) {
+    return LazyMap.arrayAsString(this.keySerializer.serialize(key));
+  }
+  private stringAsKey(str: string) {
+    return this.keySerializer.deserialize(
+      LazyMap.stringAsArray(str),
+      this.runtime
+    );
+  }
+
+  get(key: K): C {
+    return this.getInternal(key, this.keyAsString(key));
+  }
+
+  private getInternal(key: K, keyString: string): C {
+    let value = this.internalMap.get(keyString);
     if (value === undefined) {
-      throw new Error("addKey failed for key " + key);
+      // Create it
+      value = this.valueConstructor(key);
+
+      this.childBeingAdded = value;
+      value.init(keyString, this);
+      this.childBeingAdded = undefined;
+
+      this.internalMap.set(keyString, value);
     }
     return value;
   }
 
-  has(key: K): boolean {
-    return this.state.has(key);
-  }
-
-  addKey(key: K) {
-    if (!this.has(key)) {
-      let message = GMapMessage.create({
-        keyToInit: this.serialize(key),
-      });
-      let buffer = GMapMessage.encode(message).finish();
-      super.send(buffer);
+  private childBeingAdded?: C;
+  onChildInit(child: Crdt) {
+    if (child != this.childBeingAdded) {
+      throw new Error(
+        "this was passed to Crdt.init as parent externally" +
+          " (GMap manages its own children - they are its values)"
+      );
     }
   }
 
-  receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  receiveGeneral(
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
     try {
-      let decoded = GMapMessage.decode(message);
-      let key = this.deserialize(decoded.keyToInit);
-      if (!this.has(key)) {
-        // TODO: smaller rep of keys.  Hash?  Base64?
-        let value = this.valueConstructor(
-          this,
-          Array.from(decoded.keyToInit).toString(),
-          key
-        );
-        this.state.set(key, value);
-        this.emit("KeyAdd", { caller: this, timestamp, key, value });
-        return true;
-      } else return false;
+      // Message for a child
+      let keyString = targetPath[targetPath.length - 1];
+      let key = this.stringAsKey(keyString);
+      let value = this.getInternal(key, keyString);
+      targetPath.length--;
+      value.receiveGeneral(targetPath, timestamp, message);
+      this.emit("ValueChange", {
+        key,
+        value,
+        caller: this,
+        timestamp,
+      });
+      // Dispatch a generic Change event
+      this.emit("Change", {
+        caller: this,
+        timestamp: timestamp,
+      });
     } catch (e) {
       // TODO
       console.log("Decoding error: " + e);
-      return false;
     }
   }
 
+  // TODO: ChangeEvent's whenever children are changed
+
+  getDescendant(targetPath: string[]): Crdt {
+    if (targetPath.length === 0) return this;
+
+    let keyString = targetPath[targetPath.length - 1];
+    let value = this.getInternal(this.stringAsKey(keyString), keyString);
+    targetPath.length--;
+    return value.getDescendant(targetPath);
+  }
+
+  // TODO: map helper methods?
+
   /**
-   * Don't mutate this directly.
+   * Returns a Map of all entries that are explicitly
+   * present in this LazyMap.  All other entries
+   * all implicitly given by their initial states.
+   * @return [description]
    */
-  get value(): Map<K, C> {
-    return this.state;
+  explicitEntries(): Map<K, C> {
+    let ans = new Map<K, C>();
+    for (let entry of this.internalMap.entries()) {
+      ans.set(this.stringAsKey(entry[0]), entry[1]);
+    }
+    return ans;
   }
 
-  keys() {
-    return this.state.keys();
+  explicitKeys(): Set<K> {
+    let ans = new Set<K>();
+    for (let keyString of this.internalMap.keys()) {
+      ans.add(this.stringAsKey(keyString));
+    }
+    return ans;
   }
 
-  values() {
-    return this.state.values();
-  }
-
-  // TODO: map helper methods.
-
-  // TODO: reset method (reset all values but
-  // don't reset the state, so Crdt refs still
-  // make sense).
-  hardReset() {
-    this.state.clear();
+  explicitValues() {
+    return this.internalMap.values();
   }
 }
 
-export interface SetDeleteEvent<T> extends CrdtEvent {
-  readonly valueDeleted: T;
+// TODO: for now, let decoding errors propogate, instead of
+// catching them
+
+// TODO: also have GSet use string-based keys like GMap.
+// Move the conversion functionality to ElementSerializer?
+
+export interface SetEvent<T> extends CrdtEvent {
+  readonly element: T;
 }
 
-export interface SetEventsRecord<T> extends GSetEventsRecord<T> {
-  SetDelete: SetDeleteEvent<T>;
+export interface SetEventsRecord<T> extends CrdtEventsRecord {
+  SetAdd: SetEvent<T>;
+  SetDelete: SetEvent<T>;
 }
 
-export class AddWinsSet<T> extends Crdt<Object | null, SetEventsRecord<T>> {
-  private readonly flagMap: GMapCrdt<T, EnableWinsFlag>;
+export class AddWinsSet<T>
+  extends CompositeCrdt<SetEventsRecord<T>>
+  implements Resettable {
+  private readonly flagMap: LazyMap<T, EnableWinsFlag>;
   /**
    * Add-wins set with elements of type T.
    *
@@ -502,74 +570,56 @@ export class AddWinsSet<T> extends Crdt<Object | null, SetEventsRecord<T>> {
    * following JS's usual set semantics.
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    //_abilityFlag: AbilityFlag,
-    serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
-    deserialize: (
-      serialized: Uint8Array
-    ) => T = newDefaultCollectionDeserializer(parentOrRuntime)
+    elementSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super(parentOrRuntime, id, {});
-    this.flagMap = new GMapCrdt(
-      this,
+    super();
+    this.flagMap = this.addChild(
       "flagMap",
-      (parent: Crdt, id: string, _) => new EnableWinsFlag(parent, id),
-      serialize,
-      deserialize
+      new LazyMap(() => new EnableWinsFlag(), elementSerializer)
     );
-    // TODO: use GMap garbage collection.  Then revise below.
-    this.flagMap.on("KeyAdd", (addEvent) => {
-      const flag = addEvent.value;
-      flag.on("Enable", (enableEvent) =>
-        this.emit("SetAdd", {
-          caller: this,
-          timestamp: enableEvent.timestamp,
-          valueAdded: addEvent.key,
-        })
-      );
-      flag.on("Enable", (disableEvent) =>
-        this.emit("SetDelete", {
-          caller: this,
-          timestamp: disableEvent.timestamp,
-          valueDeleted: addEvent.key,
-        })
-      );
+    this.flagMap.on("ValueChange", (event) => {
+      let type: "SetAdd" | "SetDelete" = event.value.enabled
+        ? "SetAdd"
+        : "SetDelete";
+      this.emit(type, {
+        element: event.key,
+        caller: this,
+        timestamp: event.timestamp,
+      });
     });
   }
 
   add(value: T) {
-    // TODO: init flags by default instead of doing so here
-    this.flagMap.getForce(value).enable();
-  }
-
-  remove(value: T) {
-    let flag = this.flagMap.get(value);
-    if (flag) flag.disable();
+    this.flagMap.get(value).enable();
   }
 
   delete(value: T) {
-    this.remove(value);
+    this.flagMap.get(value).disable();
   }
 
-  strongRemove(value: T) {
-    let flag = this.flagMap.get(value);
-    if (flag) flag.strongDisable();
+  // TODO: optimize (just one message)
+  reset(): void {
+    for (let value of this.flagMap.explicitValues()) {
+      value.disable();
+    }
   }
 
-  strongDelete(value: T) {
-    this.strongRemove(value);
-  }
+  // strongRemove(value: T) {
+  //   let flag = this.flagMap.get(value);
+  //   if (flag) flag.strongDisable();
+  // }
+  //
+  // strongDelete(value: T) {
+  //   this.strongRemove(value);
+  // }
 
   has(value: T) {
-    let flag = this.flagMap.get(value);
-    if (!flag) return false;
-    return flag.enabled;
+    return this.flagMap.get(value).enabled;
   }
 
   get value(): Set<T> {
     let set = new Set<T>();
-    for (let entry of this.flagMap.value.entries()) {
+    for (let entry of this.flagMap.explicitEntries().entries()) {
       if (entry[1].enabled) set.add(entry[0]);
     }
     return set;
@@ -579,15 +629,28 @@ export class AddWinsSet<T> extends Crdt<Object | null, SetEventsRecord<T>> {
     return this.value.values();
   }
 
-  // TODO: other helper methods, events
+  // TODO: other helper methods?
 }
 
-// TODO
-// export class AddWinsSet<T> extends AddAbilitiesViaChildren(AddWinsSetInternal)<T> {}
+// TODO: strong resets (individual elements and whole map,
+// by deferring to child LazyMap).
 
-export class MapCrdt<K, C extends Crdt> extends Crdt {
+// TODO: RemoveWinsSet
+// TODO: LwwSet?
+
+export interface MapEventsRecord<K, C extends Crdt> extends CrdtEventsRecord {
+  ValueChange: MapEvent<K, C>;
+  KeyAdd: MapEvent<K, C>;
+  KeyDelete: MapEvent<K, C>;
+}
+
+// TODO: garbage collection
+
+export class MapCrdt<K, C extends Crdt & Resettable>
+  extends CompositeCrdt<MapEventsRecord<K, C>>
+  implements Resettable {
   private readonly keySet: AddWinsSet<K>;
-  private readonly valueMap: GMapCrdt<K, C>;
+  private readonly valueMap: LazyMap<K, C>;
   /**
    * TODO.
    *
@@ -599,22 +662,14 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
    * reference to a deleted value, e.g., using weakrefs?
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    valueConstructor: (parent: Crdt, id: string, key: K) => C,
-    serialize: (key: K) => Uint8Array = defaultCollectionSerializer,
-    deserialize: (
-      serialized: Uint8Array
-    ) => K = newDefaultCollectionDeserializer(parentOrRuntime)
+    valueConstructor: (key: K) => C,
+    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
-    super(parentOrRuntime, id, {});
-    this.keySet = new AddWinsSet(this, "keySet", serialize, deserialize);
-    this.valueMap = new GMapCrdt(
-      this,
+    super();
+    this.keySet = this.addChild("keySet", new AddWinsSet(keySerializer));
+    this.valueMap = this.addChild(
       "valueMap",
-      valueConstructor,
-      serialize,
-      deserialize
+      new LazyMap(valueConstructor, keySerializer)
     );
     // TODO: events, propagated from children.
   }
@@ -625,55 +680,20 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
   // TODO: resets.
   // TODO: strong delete and reset.
 
-  // /**
-  //  * Flag indicating that we are in the body of a delete/
-  //  * deleteStrong call, hence we should not add things
-  //  * to keySet (as an optimization).
-  //  */
-  // private inDelete = false;
-  // /**
-  //  * Override CrdtObject.send so that we can capture
-  //  * a send by a valueMap value and follow it up with
-  //  * an add to keySet, thus reviving the value's key
-  //  * if appropriate.
-  //  *
-  //  * TODO: skip adding the key if it's a reset message?
-  //  * Not sure if this is possible in general.  But should at
-  //  * least be possible for our own deletes.
-  //  */
-  // send(message: any, name: string): void {
-  //     super.send(message, name);
-  //     if (!this.inDelete && name === "valueMap") {
-  //         // TODO: do this receiver side instead, for network efficiency?
-  //         // Would need to place the add first, so that it can
-  //         // be overridden by any included deletes.
-  //         // Would also need to account for possibility of
-  //         // transactions.
-  //         // Also, need to make sure we (sender) do it too.
-  //         for (let submessage of message) {
-  //             if (submessage[0] === "applySkip") {
-  //                 let key = submessage[1] as K;
-  //                 this.keySet.add(key);
-  //             }
-  //         }
-  //     }
-  // }
-
   get(key: K): C | undefined {
     if (this.has(key)) return this.valueMap.get(key);
     else return undefined;
   }
 
   /**
-   * Gets the value at key even if has since
-   * been deleted (grow-only map semantics).
-   * Note that value Crdts
-   * stick around internally (and possibly via
-   * get-ted references) even if they are deleted,
-   * and if they are changed, they will become
-   * present in the map again.
+   * Gets the value at key even if it is not
+   * present in the map, (re-)initializing it
+   * if necessary.
+   *
+   * TODO: delete this method?
+   * TODO: analogous iterator methods?
    */
-  getIncludeDeleted(key: K): C | undefined {
+  getIncludeDeleted(key: K): C {
     return this.valueMap.get(key);
   }
 
@@ -687,17 +707,6 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
     return this.get(key)!;
   }
 
-  /**
-   * Return the value at key, initilizing it if needed
-   * (but not adding it).
-   * @param  key [description]
-   * @return     [description]
-   */
-  getForceNoAdd(key: K): C {
-    this.initKeyNoAdd(key);
-    return this.getIncludeDeleted(key)!;
-  }
-
   has(key: K): boolean {
     return this.keySet.has(key);
   }
@@ -708,74 +717,43 @@ export class MapCrdt<K, C extends Crdt> extends Crdt {
   }
 
   /**
-   * Returns whether key has ever been
-   * initialized, even if it has since
-   * been deleted, (grow-only map semantics),
-   * including if it has never been present
-   * on this replica.
-   * Note that value Crdts
-   * stick around internally (and possibly via
-   * get-ted references) even if they are deleted,
-   * and if they are changed, they will become
-   * present in the map again.
-   */
-  hasIncludeDeleted(key: K): boolean {
-    return this.valueMap.has(key);
-  }
-
-  /**
-   * Makes key present in the map, initializing
-   * it if needed.
+   * Makes key present in the map.
    */
   addKey(key: K) {
-    this.initKeyNoAdd(key);
     this.keySet.add(key);
   }
 
-  /**
-   * Initializes the value at key if it is not
-   * already initialized but does not mark
-   * it present in the map.  To mark it present
-   * as well, use addKey instead.
-   */
-  initKeyNoAdd(key: K) {
-    this.valueMap.addKey(key);
+  // TODO: optimize if possible (pure resets)?
+  // TODO: move the reset-all-values function to
+  // LazyMap, if it has Resettable values?
+  // (In that case this is just the generic
+  // CompositeCrdt reset.)
+  reset() {
+    this.keySet.reset();
+    for (let value of this.valueMap.explicitValues()) {
+      value.reset();
+    }
   }
 
   keys() {
     return this.keySet.values();
   }
 
-  keysIncludeDeleted() {
-    return this.valueMap.keys();
-  }
-
   values() {
     return this.value.values();
-  }
-
-  valuesIncludeDeleted() {
-    return this.valueMap.values();
   }
 
   get value(): Map<K, C> {
     let result = new Map<K, C>();
     for (let key of this.keys()) {
-      result.set(key, this.get(key)!);
+      result.set(key, this.valueMap.get(key));
     }
     return result;
   }
 
-  /**
-   * Don't mutate this directly.
-   */
-  get valueIncludedDeleted(): Map<K, C> {
-    return this.valueMap.value;
-  }
-
   // TODO: other map methods (e.g. symbol iterator)
-  // TODO: strong-reset
-  // TODO: preserve-state delete, reset?
+  // TODO: strong-resets (keys, values, whole thing)
+  // TODO: preserve-state delete?
 }
 
 export interface NewCrdtEvent<C extends Crdt> extends CrdtEvent {
@@ -826,7 +804,7 @@ export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt<
    * you store them in a non-Crdt collection (e.g., a JS Set),
    * make sure to add them on every replica.
    *
-   * MapCrdt and GMapCrdt offer similar but less flexible behavior:
+   * MapCrdt and LazyMap offer similar but less flexible behavior:
    * initializing a map key creates a value Crdt dynamically.
    * Unlike those classes, this class does not constrain
    * the initialization data to be a unique (not previously
@@ -874,21 +852,16 @@ export interface KeyDeleteEvent<K> extends CrdtEvent {
   readonly key: K;
 }
 
-export interface ValueChangeEvent<K, V> extends CrdtEvent {
-  readonly key: K;
-  readonly value: V;
-}
-
 export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
-  KeyAdd: KeyAddEvent<K, V>;
+  KeyAdd: MapEvent<K, V>;
   KeyDelete: KeyDeleteEvent<K>;
-  ValueChange: ValueChangeEvent<K, V>;
+  ValueChange: MapEvent<K, V>;
 }
 
 export class LwwMap<K, V>
   extends Crdt<null, LwwMapEventsRecord<K, V>>
   implements HardResettable {
-  private readonly internalMap: GMapCrdt<K, LwwRegister<V | undefined>>;
+  private readonly internalMap: LazyMap<K, LwwRegister<V | undefined>>;
   /**
    * A map in which the value associated to each key follows
    * last-writer-wins (LWW) semantics, i.e., the current
@@ -922,7 +895,7 @@ export class LwwMap<K, V>
   ) {
     super(parentOrRuntime, id, null);
     // Register values are always set immediately
-    this.internalMap = new GMapCrdt(
+    this.internalMap = new LazyMap(
       this,
       "internalMap",
       (parent, id, _) =>
