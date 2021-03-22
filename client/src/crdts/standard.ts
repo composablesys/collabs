@@ -903,9 +903,9 @@ export class MapCrdt<K, C extends Crdt & Resettable>
 // }
 
 export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
-  KeyAdd: MapEvent<K, V>;
+  //KeyAdd: MapEvent<K, V>; // TODO
   KeyDelete: KeyEvent<K>;
-  ValueChange: MapEvent<K, V>;
+  ValueChange: MapEvent<K, V>; // TODO: include old value?
 }
 
 export class LwwMap<K, V>
@@ -938,6 +938,25 @@ export class LwwMap<K, V>
         keySerializer
       )
     );
+
+    this.internalMap.on("ValueChange", (event) => {
+      if (event.value.value === null) {
+        // The key was deleted (value was reset)
+        this.emit("KeyDelete", {
+          caller: this,
+          timestamp: event.timestamp,
+          key: event.key,
+        });
+      } else {
+        this.emit("ValueChange", {
+          caller: this,
+          timestamp: event.timestamp,
+          key: event.key,
+          value: event.value.value,
+        });
+      }
+    });
+
     // TODO: events
     // this.internalMap.on("KeyAdd", (event) => {
     //   event.value.on("Lww", (innerEvent) => {

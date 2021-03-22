@@ -541,6 +541,7 @@ export interface IMultiValueRegister<T> extends MultiValueRegister<T> {}
 
 export interface LwwEvent<T> extends CrdtEvent {
   readonly value: T;
+  readonly oldValue: T;
   readonly timeSet: Date;
 }
 
@@ -641,6 +642,7 @@ export class LwwRegisterBase<T>
 
     if (overwrite) {
       let changed = this.state.value !== value;
+      let oldValue = this.state.value;
       this.state.counter = timestamp.getSenderCounter();
       this.state.sender = timestamp.getSender();
       this.state.time = decoded.time;
@@ -650,6 +652,7 @@ export class LwwRegisterBase<T>
           caller: this,
           timestamp,
           value,
+          oldValue,
           timeSet: new Date(decoded.time),
         });
       }

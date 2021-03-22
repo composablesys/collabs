@@ -855,18 +855,18 @@ describe("standard", () => {
       });
       it("emits right events", async () => {
         const promise = Promise.all([
-          aliceMap.nextEvent("KeyAdd"),
-          bobMap.nextEvent("KeyAdd"),
+          aliceMap.nextEvent("ValueChange"),
+          bobMap.nextEvent("ValueChange"),
         ]);
-        function checkKeyAdd(event: KeyEvent<string>) {
-          assert.strictEqual(event.key, "test");
-          // TODO: this depends on the value getting through,
-          // but it isn't set until after the add.
-          // Will work once events are async.
-          //assert.strictEqual(event.value, 7);
-        }
-        aliceMap.on("KeyAdd", checkKeyAdd);
-        bobMap.on("KeyAdd", checkKeyAdd);
+        // function checkKeyAdd(event: KeyEvent<string>) {
+        //   assert.strictEqual(event.key, "test");
+        //   // TODO: this depends on the value getting through,
+        //   // but it isn't set until after the add.
+        //   // Will work once events are async.
+        //   //assert.strictEqual(event.value, 7);
+        // }
+        // aliceMap.on("KeyAdd", checkKeyAdd);
+        // bobMap.on("KeyAdd", checkKeyAdd);
         function checkValueChange(event: MapEvent<string, number>) {
           assert.strictEqual(event.key, "test");
           assert.strictEqual(event.value, 7);
@@ -1002,12 +1002,12 @@ describe("standard", () => {
         bobMap.on("ValueChange", () => {
           assert.fail("Did not expect ValueChange event from Bob");
         });
-        aliceMap.on("KeyAdd", () =>
-          assert.fail("Did not expect KeyAdd event from Alice")
-        );
-        bobMap.on("KeyAdd", () => {
-          assert.fail("Did not expect KeyAdd event from Bob");
-        });
+        // aliceMap.on("KeyAdd", () =>
+        //   assert.fail("Did not expect KeyAdd event from Alice")
+        // );
+        // bobMap.on("KeyAdd", () => {
+        //   assert.fail("Did not expect KeyAdd event from Bob");
+        // });
 
         aliceMap.delete("test");
         runtimeGen.releaseAll();

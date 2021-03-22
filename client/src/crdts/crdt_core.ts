@@ -174,7 +174,8 @@ export abstract class PrimitiveCrdt<
     }
     this.receive(timestamp, message);
 
-    // TODO: generic change events from return values
+    // TODO: do this in Crdt instead
+    this.emit("Change", { caller: this, timestamp });
   }
 
   /**
