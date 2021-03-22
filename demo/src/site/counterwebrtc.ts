@@ -19,8 +19,9 @@ const client_uuid: string = uuid();
 let client = new crdts.CrdtRuntime(
   new network.WebRtcNetwork(client_uuid, HOST)
 );
-//let clientCounter = new crdts.Counter("counterId", client);
-let clientCounter = new crdts.Counter(client, "counterId");
+let clientCounter = client
+  .groupParent("default")
+  .addChild("counter", new crdts.Counter());
 
 /* HTML variables */
 var counter = document.getElementById("counter");
