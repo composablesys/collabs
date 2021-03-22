@@ -22,7 +22,7 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-class SemidirectStateBase<S extends Object | null> {
+class SemidirectStateBase<S extends Object> {
   protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
@@ -33,9 +33,9 @@ class SemidirectStateBase<S extends Object | null> {
   protected history: Map<string, Array<StoredMessage>> = new Map();
   public internalState!: S;
   constructor(
-    public readonly historyTimestamps: boolean,
-    public readonly historyDiscard1Dominated: boolean,
-    public readonly historyDiscard2Dominated: boolean
+    private readonly historyTimestamps: boolean,
+    private readonly historyDiscard1Dominated: boolean,
+    private readonly historyDiscard2Dominated: boolean
   ) {}
   /**
    * Add message to the history with the given timestamp.
@@ -199,7 +199,7 @@ export type SemidirectState<S> = S extends LocallyResettableState
   : SemidirectStateBase<S>;
 
 export abstract class SemidirectProduct<
-    S extends Object | null,
+    S extends Object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
@@ -230,8 +230,8 @@ export abstract class SemidirectProduct<
     ) as SemidirectState<S>;
   }
 
-  crdt1!: StatefulCrdt<S>;
-  crdt2!: StatefulCrdt<S>;
+  protected crdt1!: StatefulCrdt<S>;
+  protected crdt2!: StatefulCrdt<S>;
 
   /**
    * TODO

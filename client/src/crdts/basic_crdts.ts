@@ -1,10 +1,4 @@
-import {
-  CrdtEvent,
-  Crdt,
-  CrdtRuntime,
-  CrdtEventsRecord,
-  PrimitiveCrdt,
-} from "./crdt_core";
+import { CrdtEvent, Crdt, CrdtEventsRecord, PrimitiveCrdt } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import {
   CounterPureBaseMessage,
@@ -14,25 +8,18 @@ import {
   MultRegisterMessage,
   MvrMessage,
 } from "../../generated/proto_compiled";
-import {
-  defaultCollectionSerializer,
-  newDefaultCollectionDeserializer,
-} from "./utils";
-import { HardResettable } from "./resettable";
-import {
-  AddAllAbilitiesViaHistory,
-  OutOfOrderAble,
-  AllAble,
-  AbilityFlag,
-  InterfaceOf,
-  StrongResettable,
-  Resettable,
-  AddStrongResettable,
-  ResettableEventsRecord,
-} from "./mixins";
+import { DefaultElementSerializer, ElementSerializer } from "./utils";
+import { LocallyResettableState, ResetWrapClass } from "./resettable";
+import { OutOfOrderAble, Resettable, ResettableEventsRecord } from "./mixins";
 
-export class NumberState {
-  constructor(public value: number) {}
+export class NumberState implements LocallyResettableState {
+  private readonly initialValue: number;
+  constructor(public value: number) {
+    this.initialValue = value;
+  }
+  resetLocalState(): void {
+    this.value = this.initialValue;
+  }
 }
 
 export interface AddEvent extends CrdtEvent {
@@ -43,7 +30,7 @@ export interface CounterEventsRecord extends CrdtEventsRecord {
   Add: AddEvent;
 }
 
-export interface CounterBase {
+export interface ICounter extends Crdt<CounterEventsRecord> {
   add(toAdd: number): void;
   /**
    *  Setting value performs an equivalent add.
@@ -53,8 +40,8 @@ export interface CounterBase {
 
 export class CounterPureBase
   extends PrimitiveCrdt<NumberState, CounterEventsRecord>
-  implements CounterBase, OutOfOrderAble, HardResettable {
-  constructor(readonly initialValue: number = 0) {
+  implements ICounter, OutOfOrderAble {
+  constructor(initialValue: number = 0) {
     super(new NumberState(initialValue));
   }
 
@@ -66,7 +53,7 @@ export class CounterPureBase
     }
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
     try {
       let decoded = CounterPureBaseMessage.decode(message);
       this.state.value += decoded.toAdd;
@@ -98,34 +85,41 @@ export class CounterPureBase
   ): void {
     this.receiveGeneral(targetPath, timestamp, message);
   }
-
-  hardReset() {
-    this.state.value = this.initialValue;
-  }
 }
 
 /**
  * TODO: Counter with pure operations.  Less efficient state size.
  */
 export class CounterPure
-  extends AddAllAbilitiesViaHistory(CounterPureBase)
-  implements CounterBase, AllAble {}
+  extends ResetWrapClass(CounterPureBase)
+  implements ICounter, Resettable {
+  add(toAdd: number): void {
+    this.original.add(toAdd);
+  }
+  get value(): number {
+    return this.original.value;
+  }
+  set value(value: number) {
+    this.original.value = value;
+  }
+}
+// TODO: StrongResettable
 
-export class CounterResettableState {
+export class CounterState {
   plusP: { [k: string]: number } = {};
   plusN: { [k: string]: number } = {};
   minusP: { [k: string]: number } = {};
   minusN: { [k: string]: number } = {};
 }
 
-export class CounterResettable
+export class Counter
   extends PrimitiveCrdt<
-    CounterResettableState,
+    CounterState,
     CounterEventsRecord & ResettableEventsRecord
   >
-  implements CounterBase, OutOfOrderAble, Resettable, HardResettable {
+  implements ICounter, Resettable {
   constructor(readonly initialValue: number = 0) {
-    super(new CounterResettableState());
+    super(new CounterState());
   }
 
   add(toAdd: number) {
@@ -147,7 +141,7 @@ export class CounterResettable
     super.send(buffer);
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
     try {
       let decoded = CounterResettableMessage.decode(message);
       switch (decoded.data) {
@@ -218,68 +212,38 @@ export class CounterResettable
   set value(value: number) {
     this.add(value - this.value);
   }
-
-  receiveOutOfOrder(
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
-    // TODO.
-    // Error on resets.
-    // For adds, if causally less than merger of all reset timestamps,
-    // also add it to the reset side.  This ensures that
-    // OoO adds also obey the observed-reset semantics.
-    // However we also have to make sure this works in the opposite order:
-    // if I receive an OoO add and later receive a causally (but not
-    // logically) later reset, I have to increase that reset to take into
-    // account the add.
-    throw new Error("not yet implemented");
-    // this.receive(targetPath, timestamp, message);
-  }
-
-  hardReset() {
-    this.state.plusP = {};
-    this.state.plusN = {};
-    this.state.minusP = {};
-    this.state.minusN = {};
-  }
 }
 
-// Don't export to save clutter; it can be accessed via Counter.withAbilities.
-// Other variants are exported, since they are primitive CRDTs that could
-// be used in semidirect products.
-class CounterStrongResettable
-  extends AddStrongResettable(CounterPureBase)
-  implements CounterBase, StrongResettable, OutOfOrderAble {}
+// TODO: StrongResettable
 
-export class Counter
-  extends AddStrongResettable(CounterResettable)
-  implements AllAble {
-  static withAbilities<F extends AbilityFlag>(
-    abilityFlag: F,
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
-    initialValue: number = 0
-  ): CounterBase & InterfaceOf<F> {
-    if (abilityFlag.resettable !== undefined) {
-      if (abilityFlag.strongResettable !== undefined) {
-        return new Counter(parentOrRuntime, id, initialValue) as any;
-      } else {
-        return new CounterResettable(parentOrRuntime, id, initialValue) as any;
-      }
-    } else {
-      if (abilityFlag.strongResettable !== undefined) {
-        return new CounterStrongResettable(
-          parentOrRuntime,
-          id,
-          initialValue
-        ) as any;
-      } else {
-        return new CounterPureBase(parentOrRuntime, id, initialValue) as any;
-      }
-    }
-  }
-}
+// export class Counter
+//   extends AddStrongResettable(CounterResettable)
+//   implements AllAble {
+//   static withAbilities<F extends AbilityFlag>(
+//     abilityFlag: F,
+//     parentOrRuntime: Crdt | CrdtRuntime,
+//     id: string,
+//     initialValue: number = 0
+//   ): CounterBase & InterfaceOf<F> {
+//     if (abilityFlag.resettable !== undefined) {
+//       if (abilityFlag.strongResettable !== undefined) {
+//         return new Counter(parentOrRuntime, id, initialValue) as any;
+//       } else {
+//         return new CounterResettable(parentOrRuntime, id, initialValue) as any;
+//       }
+//     } else {
+//       if (abilityFlag.strongResettable !== undefined) {
+//         return new CounterStrongResettable(
+//           parentOrRuntime,
+//           id,
+//           initialValue
+//         ) as any;
+//       } else {
+//         return new CounterPureBase(parentOrRuntime, id, initialValue) as any;
+//       }
+//     }
+//   }
+// }
 
 export interface MultEvent extends CrdtEvent {
   readonly valueMulted: number;
@@ -289,9 +253,17 @@ export interface MultEventsRecord extends CrdtEventsRecord {
   Mult: MultEvent;
 }
 
+export interface IMultRegister extends Crdt<MultEventsRecord> {
+  mult(toMult: number): void;
+  /**
+   *  Setting value performs an equivalent mult.
+   */
+  value: number;
+}
+
 export class MultRegisterBase
   extends PrimitiveCrdt<NumberState, MultEventsRecord>
-  implements HardResettable {
+  implements IMultRegister {
   constructor(readonly initialValue: number = 1) {
     super(new NumberState(initialValue));
   }
@@ -304,7 +276,7 @@ export class MultRegisterBase
     }
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = MultRegisterMessage.decode(message);
       this.state.value *= decoded.toMult;
@@ -330,13 +302,22 @@ export class MultRegisterBase
   set value(value: number) {
     this.mult(value / this.value);
   }
-
-  hardReset() {
-    this.state.value = this.initialValue;
-  }
 }
 
-export class MultRegister extends AddAllAbilitiesViaHistory(MultRegisterBase) {}
+export class MultRegister
+  extends ResetWrapClass(MultRegisterBase)
+  implements IMultRegister, Resettable {
+  mult(toMult: number): void {
+    this.original.mult(toMult);
+  }
+  get value(): number {
+    return this.original.value;
+  }
+  set value(value: number) {
+    this.original.value = value;
+  }
+}
+// TODO: StrongResettable
 
 export interface SetAddEvent<T> extends CrdtEvent {
   readonly valueAdded: T;
@@ -349,8 +330,6 @@ export interface GSetEventsRecord<T> extends CrdtEventsRecord {
 export class GSet<T>
   extends PrimitiveCrdt<Set<T>, GSetEventsRecord<T>>
   implements OutOfOrderAble {
-  private readonly serialize: (value: T) => Uint8Array;
-  private readonly deserialize: (serialized: Uint8Array) => T;
   /**
    * Grow-only set with elements of type T.
    *
@@ -370,14 +349,9 @@ export class GSet<T>
    * following JS's usual set semantics.
    */
   constructor(
-    serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
-    deserialize: (
-      serialized: Uint8Array
-    ) => T = newDefaultCollectionDeserializer(parentOrRuntime)
+    private readonly elementSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super(new Set());
-    this.serialize = serialize;
-    this.deserialize = deserialize;
   }
 
   add(value: T) {
@@ -385,7 +359,7 @@ export class GSet<T>
     // anyway (or make that an option).
     if (!this.has(value)) {
       let message = GSetMessage.create({
-        toAdd: this.serialize(value),
+        toAdd: this.elementSerializer.serialize(value),
       });
       let buffer = GSetMessage.encode(message).finish();
       super.send(buffer);
@@ -396,10 +370,13 @@ export class GSet<T>
     return this.state.has(value);
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = GSetMessage.decode(message);
-      let value = this.deserialize(decoded.toAdd);
+      let value = this.elementSerializer.deserialize(
+        decoded.toAdd,
+        this.runtime
+      );
       if (!this.state.has(value)) {
         this.state.add(value);
         this.emit("SetAdd", { caller: this, timestamp, valueAdded: value });
@@ -431,13 +408,15 @@ export class GSet<T>
   // TODO: other helper methods
 }
 
-// TODO: resettable GSet.  Share common interface.  Needs to track timestamps
+export interface IGSet<T> extends GSet<T> {}
+
+// TODO: resettable GSet?  Share common interface.  Needs to track timestamps
 // like MVR.
 
 export class MvrEntry<T> {
   constructor(
     readonly value: T,
-    readonly sender: string | null,
+    readonly sender: string,
     readonly counter: number
   ) {}
 }
@@ -449,15 +428,15 @@ export interface MvrEvent<T> extends CrdtEvent {
 
 export interface MvrEventsRecord<T> extends CrdtEventsRecord {
   Mvr: MvrEvent<T>;
+  Reset: CrdtEvent;
 }
 
-export class MultiValueRegisterBase<T>
-  extends PrimitiveCrdt<Set<MvrEntry<T>>, MvrEventsRecord<T>>
-  implements HardResettable {
-  private readonly serialize: (value: T) => Uint8Array;
-  private readonly deserialize: (serialized: Uint8Array) => T;
-  private readonly initialValue: T; // TODO: might unexpectedly prevent GC, or
-  // change mutably
+// TODO: initial values?  Or just wait for generic way (runLocally)?
+// TODO: strong reset
+export class MultiValueRegister<T> extends PrimitiveCrdt<
+  Set<MvrEntry<T>>,
+  MvrEventsRecord<T>
+> {
   /**
    * Multi-value register of type T.
    *
@@ -477,62 +456,73 @@ export class MultiValueRegisterBase<T>
    * following JS's usual set semantics.
    */
   constructor(
-    initialValue: T,
-    serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
-    deserialize: (
-      serialized: Uint8Array
-    ) => T = newDefaultCollectionDeserializer(parentOrRuntime)
+    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    let initialSet = new Set<MvrEntry<T>>();
-    // TODO: use generic way (runLocally), to
-    // reduce code duplication.
-    initialSet.add(new MvrEntry(initialValue, null, -1));
-    super(initialSet);
-    this.serialize = serialize;
-    this.deserialize = deserialize;
-    this.initialValue = initialValue;
+    super(new Set<MvrEntry<T>>());
   }
 
   set value(value: T) {
     let message = MvrMessage.create({
-      value: this.serialize(value),
+      value: this.valueSerializer.serialize(value),
     });
     let buffer = MvrMessage.encode(message).finish();
     super.send(buffer);
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  reset() {
+    let message = MvrMessage.create({
+      reset: true,
+    }); // no value
+    let buffer = MvrMessage.encode(message).finish();
+    super.send(buffer);
+  }
+
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = MvrMessage.decode(message);
-      let value = this.deserialize(decoded.value);
       let removed = new Set<T>();
       let vc = timestamp.asVectorClock();
       for (let entry of this.state) {
-        if (entry.sender === null) {
-          // Initial element
+        let vcEntry = vc.get(entry.sender);
+        if (vcEntry !== undefined && vcEntry >= entry.counter) {
           this.state.delete(entry);
-        } else {
-          let vcEntry = vc.get(entry.sender);
-          if (vcEntry !== undefined && vcEntry >= entry.counter) {
-            this.state.delete(entry);
-            removed.add(entry.value);
-          }
+          removed.add(entry.value);
         }
       }
-      this.state.add(
-        new MvrEntry(value, timestamp.getSender(), timestamp.getSenderCounter())
-      );
-      if (removed.size === 1 && removed.entries().next().value === value) {
-        return false; // no change to actual value
-      } else {
-        // TODO: don't dispatch if value stayed put?
-        this.emit("Mvr", {
-          caller: this,
-          timestamp,
-          valueAdded: value,
-          valuesRemoved: removed,
-        });
-        return true;
+      switch (decoded.data) {
+        case "value":
+          // Add the new entry
+          let value = this.valueSerializer.deserialize(
+            decoded.value,
+            this.runtime
+          );
+          this.state.add(
+            new MvrEntry(
+              value,
+              timestamp.getSender(),
+              timestamp.getSenderCounter()
+            )
+          );
+          if (removed.size === 1 && removed.entries().next().value === value) {
+            return false; // no change to actual value
+          } else {
+            this.emit("Mvr", {
+              caller: this,
+              timestamp,
+              valueAdded: value,
+              valuesRemoved: removed,
+            });
+            return true;
+          }
+        case "reset":
+          this.emit("Reset", { caller: this, timestamp });
+          return removed.size === 0;
+        // TODO: also do normal Mvr event?  Would need to make valueAdded
+        // optional.
+        default:
+          throw new Error(
+            "MultiValueRegister: Bad decoded.data: " + decoded.data
+          );
       }
     } catch (e) {
       // TODO
@@ -545,35 +535,17 @@ export class MultiValueRegisterBase<T>
    * Return the current set of values, i.e., the
    * set of non-overwritten values.  This may have
    * more than one element due to concurrent writes,
-   * but it will never have zero elements.  (If you
-   * want to allow null/undefined values, include
-   * that in T's type.)
+   * or it may have zero elements because the register is
+   * newly initialized or has been reset.
    */
   get valueSet(): Set<T> {
     let values = new Set<T>();
     for (let entry of this.state) values.add(entry.value);
     return values;
   }
-
-  hardReset() {
-    this.state.clear();
-    this.state.add(new MvrEntry(this.initialValue, null, -1));
-  }
 }
 
-export class MultiValueRegister<T> extends AddAllAbilitiesViaHistory(
-  MultiValueRegisterBase,
-  true
-) {}
-
-export class LwwState<T> {
-  constructor(
-    public value: T,
-    public sender: string | null,
-    public counter: number,
-    public time: number | null
-  ) {}
-}
+export interface IMultiValueRegister<T> extends MultiValueRegister<T> {}
 
 export interface LwwEvent<T> extends CrdtEvent {
   readonly value: T;
@@ -584,13 +556,32 @@ export interface LwwEventsRecord<T> extends CrdtEventsRecord {
   Lww: LwwEvent<T>;
 }
 
+export interface ILwwRegister<T> extends Crdt<LwwEventsRecord<T>> {}
+
+export class LwwState<T> implements LocallyResettableState {
+  value: T;
+  // TODO: initialValue might unexpectedly prevent GC, or
+  // change mutably
+  constructor(
+    public initialValue: T,
+    public sender: string | null,
+    public counter: number,
+    public time: number | null
+  ) {
+    this.value = initialValue;
+  }
+
+  resetLocalState(): void {
+    this.value = this.initialValue;
+    this.sender = null;
+    this.counter = -1;
+    this.time = null;
+  }
+}
+
 export class LwwRegisterBase<T>
   extends PrimitiveCrdt<LwwState<T>, LwwEventsRecord<T>>
-  implements HardResettable {
-  private readonly serialize: (value: T) => Uint8Array;
-  private readonly deserialize: (serialized: Uint8Array) => T;
-  private readonly initialValue: T; // TODO: might unexpectedly prevent GC, or
-  // change mutably
+  implements ILwwRegister<T> {
   /**
    * Last-writer-wins (LWW) register of type T.  Ties
    * between concurrent messages are based on UTC
@@ -614,21 +605,14 @@ export class LwwRegisterBase<T>
    */
   constructor(
     initialValue: T,
-    serialize: (value: T) => Uint8Array = defaultCollectionSerializer,
-    deserialize: (
-      serialized: Uint8Array
-    ) => T = newDefaultCollectionDeserializer(parentOrRuntime)
+    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    let initialState = new LwwState(initialValue, null, -1, null);
-    super(initialState);
-    this.serialize = serialize;
-    this.deserialize = deserialize;
-    this.initialValue = initialValue;
+    super(new LwwState(initialValue, null, -1, null));
   }
 
   set value(value: T) {
     let message = LwwMessage.create({
-      value: this.serialize(value),
+      value: this.valueSerializer.serialize(value),
       time: Date.now(),
     });
     let buffer = LwwMessage.encode(message).finish();
@@ -639,10 +623,10 @@ export class LwwRegisterBase<T>
     return this.state.value;
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     try {
       let decoded = LwwMessage.decode(message);
-      let value = this.deserialize(decoded.value);
+      let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
       // See if it's causally greater than the current state
       let vc = timestamp.asVectorClock();
       let overwrite = false;
@@ -686,16 +670,15 @@ export class LwwRegisterBase<T>
       return false;
     }
   }
-
-  hardReset() {
-    this.state.value = this.initialValue;
-    this.state.sender = null;
-    this.state.counter = -1;
-    this.state.time = null;
+}
+export class LwwRegister<T>
+  extends ResetWrapClass(LwwRegisterBase)<T>
+  implements ILwwRegister<T>, Resettable {
+  get value(): T {
+    return this.original.value;
+  }
+  set value(value: T) {
+    this.original.value = value;
   }
 }
-
-export class LwwRegister<T> extends AddAllAbilitiesViaHistory(
-  LwwRegisterBase,
-  true
-) {}
+// TODO: StrongResettable

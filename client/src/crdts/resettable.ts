@@ -6,6 +6,7 @@ import {
   ResettableEventsRecord,
   StrongResettableEventsRecord,
   StrongResettable,
+  ConstructorArgs,
 } from "./mixins";
 
 /**
@@ -68,6 +69,8 @@ export class ResetWrapperCrdt<
   extends SemidirectProduct<S, ResettableEventsRecord>
   implements Resettable {
   private resetComponent!: ResetComponent<S>;
+  // TODO: make original protected?  Must then also pass to
+  // resetComponent.
   /**
    * @param keepOnlyMaximal=false Store only causally maximal
    * messages in the history, to save space (although possibly
@@ -152,6 +155,22 @@ export class ResetWrapperCrdt<
       message
     );
   }*/
+}
+
+export function ResetWrapClass<
+  S extends LocallyResettableState,
+  C extends StatefulCrdt<S>,
+  Args extends any[]
+>(
+  Base: ConstructorArgs<Args, C>,
+  keepOnlyMaximal = false
+): ConstructorArgs<Args, ResetWrapperCrdt<S, C>> {
+  return class ResetWrapped extends ResetWrapperCrdt<S, C> {
+    constructor(...args: Args) {
+      let original = new Base(...args);
+      super(original, keepOnlyMaximal);
+    }
+  };
 }
 
 // Strong reset
@@ -263,4 +282,20 @@ export class StrongResetWrapperCrdt<
       message
     );
   }*/
+}
+
+export function StrongResetWrapClass<
+  S extends LocallyResettableState,
+  C extends StatefulCrdt<S>,
+  Args extends any[]
+>(
+  Base: ConstructorArgs<Args, C>,
+  keepOnlyMaximal = false
+): ConstructorArgs<Args, StrongResetWrapperCrdt<S, C>> {
+  return class StrongResetWrapped extends StrongResetWrapperCrdt<S, C> {
+    constructor(...args: Args) {
+      let original = new Base(...args);
+      super(original, keepOnlyMaximal);
+    }
+  };
 }

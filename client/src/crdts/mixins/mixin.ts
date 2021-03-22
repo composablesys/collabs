@@ -2,6 +2,8 @@ import { Crdt, CrdtEventsRecord } from "../crdt_core";
 
 export type Constructor<T> = new (...args: any[]) => T;
 
+export type ConstructorArgs<Args extends any[], T> = new (...args: Args) => T;
+
 /**
  * A `CrdtConstructor` is a constructor function that takes as its first two
  * parameters the two parameters that all CRDTs must take: a `parent` and an id.
@@ -13,6 +15,13 @@ export type Constructor<T> = new (...args: any[]) => T;
  * @typeParam T - Type of the returned {@link Crdt} instance
  */
 export type CrdtConstructor<T extends Crdt> = new (...args: any[]) => T;
+
+// Mixin types for wrapper Crdts, which wrap an existing Crdt, taking
+// the same constructor arguments to initialize the wrapped Crdt, but
+// are themselves given by some existing class.
+// E.g. ResetWrapperMixin, StrongResetWrapperMixin in resettable.ts.
+
+// TODO
 
 /**
  * A mixin meant to be applied to a {@link Crdt}.
