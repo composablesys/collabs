@@ -672,13 +672,22 @@ export class LwwRegisterBase<T>
   }
 }
 export class LwwRegister<T>
-  extends ResetWrapClass(LwwRegisterBase)<T>
+  extends ResetWrapClass(LwwRegisterBase, true)<T>
   implements ILwwRegister<T>, Resettable {
   get value(): T {
     return this.original.value;
   }
   set value(value: T) {
     this.original.value = value;
+  }
+  /**
+   * Returns true if this register has never received
+   * any operations, or if all operations have been
+   * reset.
+   * @return if this register is in the initial state
+   */
+  isInInitialState(): boolean {
+    return this.original.state.sender === null;
   }
 }
 // TODO: StrongResettable
