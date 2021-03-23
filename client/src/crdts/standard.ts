@@ -22,7 +22,7 @@ import {
 import { SemidirectProduct } from "./semidirect";
 import { makeEventAdder } from "./mixins/mixin";
 import { LocallyResettableState, ResetWrapClass } from "./resettable";
-import { Resettable } from "./mixins";
+import { Resettable, StrongResettable } from "./mixins";
 import { DefaultElementSerializer, ElementSerializer } from "./utils";
 import { Buffer } from "buffer";
 
@@ -254,7 +254,9 @@ export class NoopState implements LocallyResettableState {
   static instance = new NoopState();
 }
 
-export class NoopCrdt extends PrimitiveCrdt<NoopState> {
+export class NoopCrdt
+  extends PrimitiveCrdt<NoopState>
+  implements Resettable, StrongResettable {
   constructor() {
     super(NoopState.instance);
   }
@@ -265,6 +267,8 @@ export class NoopCrdt extends PrimitiveCrdt<NoopState> {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for NoopCrdt");
   }
+  reset() {}
+  strongReset() {}
 }
 
 export interface FlagEventsRecord extends CrdtEventsRecord {
