@@ -3,7 +3,7 @@ import framework, { FrameworkSuite } from "./framework";
 import { v4 as uuid } from "uuid";
 import seedrandom from "seedrandom";
 
-export class CrdtSuite<C> {
+export class CrdtSuite<C extends crdts.Crdt> {
   suite: FrameworkSuite;
 
   constructor(suiteName: string) {
@@ -12,7 +12,7 @@ export class CrdtSuite<C> {
 
   addTest(
     testName: string,
-    crdtConstructor: (parentOrRuntime: crdts.Crdt | crdts.CrdtRuntime) => C,
+    crdtConstructor: () => C,
     ops: {
       [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
     },
@@ -65,7 +65,8 @@ export class CrdtSuite<C> {
           rng = seedrandom(seed);
           for (let i = 0; i < users; i++) {
             runtimes[i] = generator.newRuntime(uuid());
-            crdts[i] = crdtConstructor(runtimes[i]);
+            crdts[i] = crdtConstructor();
+            runtimes[i].groupParent("").addChild("benchmark", crdts[i]);
           }
         };
 

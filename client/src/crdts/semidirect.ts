@@ -1,6 +1,7 @@
-import { CrdtRuntime, CrdtEventsRecord } from "./crdt_core";
+import { CrdtEventsRecord, StatefulCrdt, CrdtParent } from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import { Crdt } from "./crdt_core";
+import { LocallyResettableState } from "./resettable";
 
 class StoredMessage {
   constructor(
@@ -21,20 +22,20 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-export class SemidirectState<S extends Object | null = Object | null> {
-  private receiptCounter = 0;
+class SemidirectStateBase<S extends Object> {
+  protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
    * replica, in order.  Keep in mind that per-sender message
    * counters may not be contiguous, since they are shared between
    * all Crdts with a given root.
    */
-  private history: Map<string, Array<StoredMessage>> = new Map();
+  protected history: Map<string, Array<StoredMessage>> = new Map();
   public internalState!: S;
   constructor(
-    public readonly historyTimestamps: boolean,
-    public readonly historyDiscard1Dominated: boolean,
-    public readonly historyDiscard2Dominated: boolean
+    private readonly historyTimestamps: boolean,
+    private readonly historyDiscard1Dominated: boolean,
+    private readonly historyDiscard2Dominated: boolean
   ) {}
   /**
    * Add message to the history with the given timestamp.
@@ -118,7 +119,7 @@ export class SemidirectState<S extends Object | null = Object | null> {
       let vcEntry = vc.get(historyEntry[0]);
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = SemidirectState.indexAfter(
+        let concurrentIndexStart = SemidirectStateBase.indexAfter(
           senderHistory,
           vcEntry
         );
@@ -159,11 +160,6 @@ export class SemidirectState<S extends Object | null = Object | null> {
     return true;
   }
 
-  hardReset() {
-    this.receiptCounter = 0;
-    this.history.clear();
-  }
-
   /**
    * Utility method for working with the per-sender history
    * arrays.  Returns the index after the last entry whose
@@ -186,128 +182,200 @@ export class SemidirectState<S extends Object | null = Object | null> {
   }
 }
 
-export class SemidirectProduct<
-  S extends Object | null = Object | null,
-  Events extends CrdtEventsRecord = CrdtEventsRecord
-> extends Crdt<SemidirectState<S>, Events> {
+class SemidirectStateLocallyResettable<S extends LocallyResettableState>
+  extends SemidirectStateBase<S>
+  implements LocallyResettableState {
+  resetLocalState() {
+    this.receiptCounter = 0;
+    this.history.clear();
+    this.internalState.resetLocalState();
+  }
+}
+
+// TODO: instead of subclass, have interface for all-but-reset part of
+// SemidirectState, then have just one class including reset?
+export type SemidirectState<S> = S extends LocallyResettableState
+  ? SemidirectStateBase<S> & LocallyResettableState
+  : SemidirectStateBase<S>;
+
+export abstract class SemidirectProduct<
+    S extends Object,
+    Events extends CrdtEventsRecord = CrdtEventsRecord
+  >
+  extends Crdt<Events>
+  implements StatefulCrdt<SemidirectState<S>, Events>, CrdtParent {
+  static readonly crdt1Name = "crdt1";
+  static readonly crdt2Name = "crdt2";
+
+  readonly state: SemidirectState<S>;
   /**
    * TODO
-   * @param parentOrRuntime                [description]
-   * @param id                             [description]
    * @param historyTimestamps=false        [description]
    * @param historyDiscard1Dominated=false [description]
    * @param historyDiscard2Dominated=false [description]
    */
   constructor(
-    parentOrRuntime: Crdt | CrdtRuntime,
-    id: string,
     historyTimestamps = false,
     historyDiscard1Dominated = false,
     historyDiscard2Dominated = false
   ) {
-    super(
-      parentOrRuntime,
-      id,
-      new SemidirectState(
-        historyTimestamps,
-        historyDiscard1Dominated,
-        historyDiscard2Dominated
-      )
-    );
+    super();
+    // Types are hacked a bit here to make implementation simpler
+    this.state = new SemidirectStateLocallyResettable<
+      S & LocallyResettableState
+    >(
+      historyTimestamps,
+      historyDiscard1Dominated,
+      historyDiscard2Dominated
+    ) as SemidirectState<S>;
   }
 
-  crdt1!: Crdt<S>;
-  crdt2!: Crdt<S>;
-  actionVar!: (
+  protected crdt1!: StatefulCrdt<S>;
+  protected crdt2!: StatefulCrdt<S>;
+
+  /**
+   * TODO
+   * @param  m2TargetPath [description]
+   * @param  m2Timestamp  [description]
+   * @param  m2Message    [description]
+   * @param  m1TargetPath [description]
+   * @param  m1Timestamp  [description]
+   * @param  m1Message    [description]
+   * @return              [description]
+   */
+  protected abstract action(
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
     m1TargetPath: string[],
     m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
-  ) => [string[], Uint8Array] | null;
+  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
+  // TODO: move setup into constructor?  Then we don't have to worry about
+  // it being called after init.  But then it's annoying to pass
+  // this to the children (as is one in ResetWrapperCrdt).
   protected setup(
-    crdt1: Crdt<S>,
-    crdt2: Crdt<S>,
-    action: (
-      m2TargetPath: string[],
-      m2Timestamp: CausalTimestamp | null,
-      m2Message: Uint8Array,
-      m1TargetPath: string[],
-      m1Timestamp: CausalTimestamp,
-      m1Message: Uint8Array
-    ) => [string[], Uint8Array] | null,
+    crdt1: StatefulCrdt<S>,
+    crdt2: StatefulCrdt<S>,
     initialState: S
   ) {
     this.state.internalState = initialState;
-    if (this.children.get(crdt1.id) !== crdt1) {
-      throw new Error(
-        "crdt1 (" +
-          crdt1.id +
-          ") is not our child" +
-          " (is it using a wrapper crdt, e.g., because of an Ability mixin?)"
-      );
-    }
-    if (this.children.get(crdt2.id) !== crdt2) {
-      throw new Error(
-        "crdt2 (" +
-          crdt2.id +
-          ") is not our child" +
-          " (is it using a wrapper crdt, e.g., because of an Ability mixin?)"
-      );
-    }
     this.crdt1 = crdt1;
     this.crdt2 = crdt2;
     // @ts-ignore Ignore readonly
     crdt1.state = initialState;
     // @ts-ignore Ignore readonly
     crdt2.state = initialState;
-    this.actionVar = action;
+    if (this.afterInit) this.initChildren();
   }
 
-  receiveInternalForChild(
-    child: Crdt,
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    if (this.crdt1 !== undefined) {
+      // setup has already been called
+      this.initChildren();
+    }
+  }
+
+  private initChildren() {
+    this.childBeingAdded = this.crdt1;
+    this.crdt1.init(SemidirectProduct.crdt1Name, this);
+    this.childBeingAdded = this.crdt2;
+    this.crdt2.init(SemidirectProduct.crdt2Name, this);
+    this.childBeingAdded = undefined;
+  }
+
+  private childBeingAdded?: Crdt;
+  onChildInit(child: Crdt) {
+    if (child != this.childBeingAdded) {
+      throw new Error(
+        "this was passed to Crdt.init as parent externally" +
+          " (use this.setup instead)"
+      );
+    }
+  }
+
+  // TODO: errors if setup is not called exactly once?
+
+  receiveGeneral(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
   ) {
-    switch (child) {
-      case this.crdt2:
+    if (targetPath.length === 0) {
+      // We are the target
+      throw new Error("TODO");
+    }
+    switch (targetPath[targetPath.length - 1]) {
+      case SemidirectProduct.crdt2Name:
+        targetPath.length--;
         this.state.add(
           this.runtime.getReplicaId(),
           targetPath.slice(),
           timestamp,
           message
         );
-        this.crdt2.receive(targetPath, timestamp, message);
+        this.crdt2.receiveGeneral(targetPath, timestamp, message);
         break;
-      case this.crdt1:
+      case SemidirectProduct.crdt1Name:
+        targetPath.length--;
         let concurrent = this.state.getConcurrent(
           this.runtime.getReplicaId(),
           timestamp
         );
-        let mAct: [string[], Uint8Array] = [targetPath, message];
+        let mAct = {
+          m1TargetPath: targetPath,
+          m1Message: message,
+        };
         for (let i = 0; i < concurrent.length; i++) {
           // TODO: can we avoid serializing and
           // deserializing each time?  Like
           // with ResetComponent.
-          let mActOrNull = this.actionVar(
+          let mActOrNull = this.action(
             concurrent[i].targetPath,
             concurrent[i].timestamp,
             concurrent[i].message,
-            mAct[0],
+            mAct.m1TargetPath,
             timestamp,
-            mAct[1]
+            mAct.m1Message
           );
           if (mActOrNull === null) return;
           else mAct = mActOrNull;
         }
-        this.crdt1.receive(mAct[0], timestamp, mAct[1]);
+        this.crdt1.receiveGeneral(mAct.m1TargetPath, timestamp, mAct.m1Message);
         break;
       default:
-        // Not involved with semidirect product
-        child.receive(targetPath, timestamp, message);
+        // TODO: deliver error somewhere reasonable
+        throw new Error(
+          "Unknown SemidirectProduct child: " +
+            targetPath[targetPath.length - 1] +
+            " in: " +
+            JSON.stringify(targetPath)
+        );
     }
+  }
+
+  getDescendant(targetPath: string[]): Crdt {
+    if (targetPath.length === 0) return this;
+
+    let child: Crdt;
+    switch (targetPath[0]) {
+      case SemidirectProduct.crdt1Name:
+        child = this.crdt1;
+        break;
+      case SemidirectProduct.crdt2Name:
+        child = this.crdt2;
+        break;
+      default:
+        throw new Error(
+          "Unknown child: " +
+            targetPath[targetPath.length - 1] +
+            " in SemidirectProduct: " +
+            JSON.stringify(targetPath)
+        );
+    }
+    targetPath.length--;
+    return child.getDescendant(targetPath);
   }
 }

@@ -22,13 +22,18 @@ describe("basic_crdts", () => {
     bob = runtimeGen.newRuntime("bob");
   });
 
+  // TODO: test CounterPure instead
   describe("CounterPureBase", () => {
     let aliceCounter: CounterPureBase;
     let bobCounter: CounterPureBase;
 
     beforeEach(() => {
-      aliceCounter = new CounterPureBase(alice, "counterId");
-      bobCounter = new CounterPureBase(bob, "counterId");
+      aliceCounter = alice
+        .groupParent("")
+        .addChild("counterId", new CounterPureBase());
+      bobCounter = bob
+        .groupParent("")
+        .addChild("counterId", new CounterPureBase());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -87,8 +92,8 @@ describe("basic_crdts", () => {
     let bobCounter: Counter;
 
     beforeEach(() => {
-      aliceCounter = new Counter(alice, "counterId");
-      bobCounter = new Counter(bob, "counterId");
+      aliceCounter = alice.groupParent("").addChild("counterId", new Counter());
+      bobCounter = bob.groupParent("").addChild("counterId", new Counter());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -104,9 +109,10 @@ describe("basic_crdts", () => {
       counter.on("Reset", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} reset`)
       );
-      counter.on("StrongReset", (event) =>
-        console.log(`${name}: ${event.timestamp.getSender()} strong reset`)
-      );
+      // TODO
+      // counter.on("StrongReset", (event) =>
+      //   console.log(`${name}: ${event.timestamp.getSender()} strong reset`)
+      // );
     }
 
     it("is initially 0", () => {
@@ -191,34 +197,34 @@ describe("basic_crdts", () => {
     });
 
     describe("strong reset", () => {
-      it("works with non-concurrent updates", () => {
-        aliceCounter.add(10);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceCounter.value, 10);
-        assert.strictEqual(bobCounter.value, 10);
-
-        bobCounter.strongReset();
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceCounter.value, 0);
-        assert.strictEqual(bobCounter.value, 0);
-
-        aliceCounter.add(6);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceCounter.value, 6);
-        assert.strictEqual(bobCounter.value, 6);
+      it.skip("works with non-concurrent updates", () => {
+        // aliceCounter.add(10);
+        // runtimeGen.releaseAll();
+        // assert.strictEqual(aliceCounter.value, 10);
+        // assert.strictEqual(bobCounter.value, 10);
+        //
+        // bobCounter.strongReset();
+        // runtimeGen.releaseAll();
+        // assert.strictEqual(aliceCounter.value, 0);
+        // assert.strictEqual(bobCounter.value, 0);
+        //
+        // aliceCounter.add(6);
+        // runtimeGen.releaseAll();
+        // assert.strictEqual(aliceCounter.value, 6);
+        // assert.strictEqual(bobCounter.value, 6);
       });
 
-      it("wins over concurrent add", () => {
-        aliceCounter.add(10);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceCounter.value, 10);
-        assert.strictEqual(bobCounter.value, 10);
-
-        aliceCounter.strongReset();
-        bobCounter.add(20);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceCounter.value, 0);
-        assert.strictEqual(bobCounter.value, 0);
+      it.skip("wins over concurrent add", () => {
+        // aliceCounter.add(10);
+        // runtimeGen.releaseAll();
+        // assert.strictEqual(aliceCounter.value, 10);
+        // assert.strictEqual(bobCounter.value, 10);
+        //
+        // aliceCounter.strongReset();
+        // bobCounter.add(20);
+        // runtimeGen.releaseAll();
+        // assert.strictEqual(aliceCounter.value, 0);
+        // assert.strictEqual(bobCounter.value, 0);
       });
     });
 
@@ -230,10 +236,11 @@ describe("basic_crdts", () => {
       assert.strictEqual(aliceCounter.value, 7);
       assert.strictEqual(bobCounter.value, 7);
 
-      bobCounter.strongReset();
-      runtimeGen.releaseAll();
-      assert.strictEqual(aliceCounter.value, 0);
-      assert.strictEqual(bobCounter.value, 0);
+      // TODO
+      // bobCounter.strongReset();
+      // runtimeGen.releaseAll();
+      // assert.strictEqual(aliceCounter.value, 0);
+      // assert.strictEqual(bobCounter.value, 0);
     });
   });
 
@@ -242,8 +249,10 @@ describe("basic_crdts", () => {
     let bobRegister: MultRegister;
 
     beforeEach(() => {
-      aliceRegister = new MultRegister(alice, "multId", 2);
-      bobRegister = bobRegister = new MultRegister(bob, "multId", 2);
+      aliceRegister = alice
+        .groupParent("")
+        .addChild("multId", new MultRegister(2));
+      bobRegister = bob.groupParent("").addChild("multId", new MultRegister(2));
       if (debug) {
         addEventListeners(aliceRegister, "Alice");
         addEventListeners(bobRegister, "Bob");
@@ -313,8 +322,8 @@ describe("basic_crdts", () => {
     let bobGSet: GSet<any>;
 
     beforeEach(() => {
-      aliceGSet = new GSet(alice, "gsetId");
-      bobGSet = new GSet(bob, "gsetId");
+      aliceGSet = alice.groupParent("").addChild("gsetId", new GSet());
+      bobGSet = bob.groupParent("").addChild("gsetId", new GSet());
       if (debug) {
         addEventListeners(aliceGSet, "Alice");
         addEventListeners(bobGSet, "Bob");
@@ -373,8 +382,10 @@ describe("basic_crdts", () => {
     let bobMvr: MultiValueRegister<string>;
 
     beforeEach(() => {
-      aliceMvr = new MultiValueRegister<string>(alice, "mvrId", "initial");
-      bobMvr = new MultiValueRegister<string>(bob, "mvrId", "initial");
+      aliceMvr = alice
+        .groupParent("")
+        .addChild("mvrId", new MultiValueRegister());
+      bobMvr = bob.groupParent("").addChild("mvrId", new MultiValueRegister());
       if (debug) {
         addEventListeners(aliceMvr, "Alice");
         addEventListeners(bobMvr, "Bob");
@@ -392,9 +403,9 @@ describe("basic_crdts", () => {
       );
     }
 
-    it('initially contains "initial"', () => {
-      assert.deepStrictEqual(aliceMvr.valueSet, new Set(["initial"]));
-      assert.deepStrictEqual(bobMvr.valueSet, new Set(["initial"]));
+    it("initially is empty", () => {
+      assert.deepStrictEqual(aliceMvr.valueSet, new Set([]));
+      assert.deepStrictEqual(bobMvr.valueSet, new Set([]));
     });
 
     describe("setter", () => {
@@ -459,9 +470,9 @@ describe("basic_crdts", () => {
     });
 
     describe("reset", () => {
-      it("works with non-concurrent updates", () => {
+      it("works with concurrent updates", () => {
         aliceMvr.reset();
-        assert.deepStrictEqual(aliceMvr.valueSet, new Set(["initial"]));
+        assert.deepStrictEqual(aliceMvr.valueSet, new Set([]));
 
         bobMvr.value = "conc";
         runtimeGen.releaseAll();
@@ -480,8 +491,12 @@ describe("basic_crdts", () => {
     let bobLww: LwwRegister<string>;
 
     beforeEach(() => {
-      aliceLww = new LwwRegister<string>(alice, "lwwId", "initial");
-      bobLww = new LwwRegister<string>(bob, "lwwId", "initial");
+      aliceLww = alice
+        .groupParent("")
+        .addChild("lwwId", new LwwRegister("initial"));
+      bobLww = bob
+        .groupParent("")
+        .addChild("lwwId", new LwwRegister("initial"));
       if (debug) {
         addEventListeners(aliceLww, "Alice");
         addEventListeners(bobLww, "Bob");
@@ -489,11 +504,12 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners<T>(lww: LwwRegister<T>, name: string): void {
-      lww.on("Lww", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} set to ${event.value}`
-        )
-      );
+      // TODO
+      // lww.on("Lww", (event) =>
+      //   console.log(
+      //     `${name}: ${event.timestamp.getSender()} set to ${event.value}`
+      //   )
+      // );
     }
 
     it('is initially "initial"', () => {
@@ -568,7 +584,7 @@ describe("basic_crdts", () => {
     });
 
     describe("reset", () => {
-      it("works with non-concurrent reset", () => {
+      it("works with concurrent reset", () => {
         aliceLww.reset();
         assert.strictEqual(aliceLww.value, "initial");
 

@@ -1,4 +1,4 @@
 message CrdtRuntimeMessage {
     required bytes innerMessage = 1;
-    repeated string pathToRoot = 2;
+    repeated string pathToGroup = 2;
 }

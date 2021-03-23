@@ -1,6 +1,5 @@
 message CrdtReference {
-    required string rootId = 1;
-    repeated string pathToRoot = 2;
+    repeated string pathToRoot = 1;
 }
 
 message DefaultSerializerMessage {
