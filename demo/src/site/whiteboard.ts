@@ -1,5 +1,4 @@
 import { crdts, network } from "compoventuals-client";
-import { v4 as uuid } from "uuid";
 
 /**
  * Get Heroku server host Websocket.
@@ -7,18 +6,10 @@ import { v4 as uuid } from "uuid";
 var HOST = location.origin.replace(/^http/, "ws");
 
 /**
- * Generate uuid for each client.
- */
-const client_uuid: string = uuid();
-
-/**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    client_uuid,
-    new network.WebSocketNetwork(HOST)
-  )
+  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST))
 );
 
 // The key represents a stroke in the form: endX:endY:startX:startY
