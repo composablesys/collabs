@@ -109,7 +109,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
    * @param message the message with Uint8Array type.
    * @param timestamp the CasualTimestamp.
    */
-  send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
+  send(_group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
     if (this.ws.readyState === 1) {
       // TODO: use Uint8Array directly instead
       // (requires changing options + server)

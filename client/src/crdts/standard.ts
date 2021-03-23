@@ -891,7 +891,7 @@ export class MapCrdt<K, C extends Crdt & Resettable>
 //   generate(message: Uint8Array): C {
 //     let genMessage = RuntimeGeneratorMessage.create({
 //       message: message,
-//       uniqueId: this.runtime.getUid(),
+//       uniqueId: this.runtime.getUniqueString(),
 //     });
 //     super.send(RuntimeGeneratorMessage.encode(genMessage).finish());
 //     return this.lastGenerated!;

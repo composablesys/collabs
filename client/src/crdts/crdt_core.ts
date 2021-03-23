@@ -1,6 +1,7 @@
 import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
 import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
 import { EventEmitter } from "../utils/EventEmitter";
+import uuid from "uuid";
 
 /**
  * An event issued when a CRDT is changed by another replica.
@@ -329,10 +330,12 @@ class CrdtRoot implements CrdtParent {
 // TODO: docs in this file
 
 export class CrdtRuntime {
+  private readonly replicaId: string;
   private readonly crdtRoot: CrdtRoot;
   private readonly groupParents = new Map<string, GroupParent>();
 
   constructor(readonly network: CausalBroadcastNetwork) {
+    this.replicaId = uuid();
     this.network.register(this);
     this.crdtRoot = new CrdtRoot(this);
   }
@@ -389,7 +392,7 @@ export class CrdtRuntime {
   }
 
   getReplicaId(): string {
-    return this.network.getReplicaId();
+    return this.replicaId;
   }
 
   // TODO: warning: pathToRoot is mutated!  (Change this?)
@@ -406,10 +409,20 @@ export class CrdtRuntime {
   private idCounter = 0;
   /**
    * @return A unique string that will only appear once
-   * in this CrdtRuntime, obtained by concatenating our
+   * across all replicas, obtained by concatenating our
    * replica id with a counter.
    */
-  getUid() {
-    return this.idCounter++ + " " + this.getReplicaId();
+  getUniqueString() {
+    // TODO: shorten?  (base64 instead of base10)
+    return this.getReplicaUniqueNumber() + " " + this.getReplicaId();
+  }
+
+  /**
+   * @return A unique number that will only be
+   * associated with this runtime's replica id
+   * once, obtained using a counter.
+   */
+  getReplicaUniqueNumber() {
+    return this.idCounter++;
   }
 }

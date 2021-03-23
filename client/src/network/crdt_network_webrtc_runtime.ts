@@ -27,10 +27,6 @@ import { myMessage } from "./default_causal_broadcast_network";
  */
 export class WebRtcNetwork implements CausalBroadcastNetwork {
   /**
-   * Unique ID for replica for identification.
-   */
-  uid: any;
-  /**
    * Registered CrdtRuntime.
    */
   crdtRuntime!: CrdtRuntime;
@@ -49,11 +45,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
   /**
    * Map stores all crdtId with its corresponding vector clock.
    */
-  vcMap: Map<any, VectorClock>;
+  vcMap: Map<string, VectorClock>;
   /**
    * Message buffer to store received message to ensure casual delivery.
    */
-  messageBuffer: Array<[any, any, VectorClock]>;
+  messageBuffer: Array<[string, Uint8Array, VectorClock]>;
   /**
    * Message waiting to be sent by the WebSocket
    */
@@ -67,8 +63,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    */
   userName: String;
 
-  constructor(replicaId: any, webSocketArgs: string) {
-    this.uid = replicaId;
+  constructor(webSocketArgs: string) {
     this.vcMap = new Map<any, VectorClock>();
     this.messageBuffer = new Array<[any, any, VectorClock]>();
     this.sendBuffer = new Array<any>();
@@ -94,7 +89,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.peerRtc.addEventListener("datachannel", this.peerRtcReceiveMessage);
   }
 
-  joinGroup(group: string): void {
+  joinGroup(_group: string): void {
     // TODO: use this
   }
   /**
@@ -183,7 +178,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // TODO: Complete multiple users connection built.
     let index = 0;
     while (index < users.length) {
-      if (users[index] != this.uid) {
+      if (users[index] != this.crdtRuntime.getReplicaId()) {
         this.userName = users[index];
         break;
       }
@@ -197,7 +192,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
         type: "offer",
         name: this.userName,
         offer: offer,
-        requestName: this.uid,
+        requestName: this.crdtRuntime.getReplicaId(),
       });
       this.peerRtc.setLocalDescription(offer);
     });
@@ -268,8 +263,8 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     console.log(event.data);
     let myPackage = this.parseJSON(event.data);
     this.messageBuffer.push([
-      myPackage.message,
       myPackage.group,
+      myPackage.message,
       myPackage.timestamp,
     ]);
     this.checkMessageBuffer();
@@ -280,7 +275,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let index = 0;
     while (index < this.dataBuffer.length) {
       console.log(this.dataBuffer[index]);
-      this.dataChannel.send(this.dataBuffer[index].toJSON());
+      this.dataChannel.send(this.dataBuffer[index].serialize());
       index++;
     }
     this.dataBuffer = new Array<any>();
@@ -293,7 +288,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    *
    */
   getReplicaId(): any {
-    return this.uid;
+    return this.crdtRuntime.getReplicaId();
   }
   /**
    * Register newly created crdt with its ID and corresponding message
@@ -307,7 +302,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.crdtRuntime = crdtRuntime;
     this.sendSignalingMessage({
       type: "register",
-      name: this.uid,
+      name: this.crdtRuntime.getReplicaId(),
       crdtName: CrdtRuntime.name,
     });
 
@@ -347,7 +342,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let myPackage = new myMessage(message, group, vc);
 
     if (this.dataChannel.readyState == "open") {
-      this.dataChannel.send(myPackage.toJSON());
+      this.dataChannel.send(myPackage.serialize());
     } else {
       this.dataBuffer.push(myPackage);
     }
@@ -367,10 +362,10 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // Copy a new vector clock.
     let vc = this.vcMap.get(group);
     if (!vc) {
-      vc = new VectorClock(this.uid, true);
+      vc = new VectorClock(this.crdtRuntime.getReplicaId(), true);
       this.vcMap.set(group, vc);
     }
-    let vcCopy = new VectorClock(this.uid, true);
+    let vcCopy = new VectorClock(this.crdtRuntime.getReplicaId(), true);
     vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock());
 
     // Update the timestamp of this replica with next value.
@@ -388,7 +383,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let dataJSON = JSON.parse(data);
     let vc = new VectorClock(
       dataJSON.timestamp.uid,
-      this.uid === dataJSON.timestamp.uid
+      this.crdtRuntime.getReplicaId() === dataJSON.timestamp.uid
     );
     vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
     let message = Uint8Array.from(dataJSON.message as number[]);
@@ -410,28 +405,28 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let index = this.messageBuffer.length - 1;
 
     while (index >= 0) {
-      let group = this.messageBuffer[index][1];
+      let group = this.messageBuffer[index][0];
       let curVectorClock = this.messageBuffer[index][2];
 
       let myVectorClock = this.vcMap.get(group);
       if (!myVectorClock) {
-        myVectorClock = new VectorClock(this.uid, true);
+        myVectorClock = new VectorClock(this.crdtRuntime.getReplicaId(), true);
         this.vcMap.set(group, myVectorClock);
       }
-      if (myVectorClock.isready(curVectorClock)) {
+      if (myVectorClock.isReady(curVectorClock)) {
         /**
-         * Send back the received messages from network to the
-         * registered crdtRuntime.
-         */
-        this.crdtRuntime.receive(
-          this.messageBuffer[index][1],
-          this.messageBuffer[index][0],
-          this.messageBuffer[index][2]
-        );
+                  * Send back the received messages to runtime.
+
+                  */
+        this.crdtRuntime.receive(...this.messageBuffer[index]);
         myVectorClock.incrementSender(curVectorClock);
         this.messageBuffer.splice(index, 1);
+        // Set index to the end and try again, in case
+        // this makes more messages ready
+        index = this.messageBuffer.length - 1;
+      } else {
+        index--;
       }
-      index--;
     }
   }
 }

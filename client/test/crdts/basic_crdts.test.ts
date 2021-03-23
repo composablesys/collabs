@@ -18,8 +18,8 @@ describe("basic_crdts", () => {
 
   beforeEach(() => {
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("alice");
-    bob = runtimeGen.newRuntime("bob");
+    alice = runtimeGen.newRuntime();
+    bob = runtimeGen.newRuntime();
   });
 
   // TODO: test CounterPure instead

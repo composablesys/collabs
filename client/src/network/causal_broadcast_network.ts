@@ -95,12 +95,6 @@ export interface CausalBroadcastNetwork {
    */
   send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void;
   /**
-   * @return This replica's id, used by some Crdts internally
-   * (e.g., to generate unique identifiers of the form
-   * (replica id, counter)).
-   */
-  getReplicaId(): string;
-  /**
    * @param  group An identifier for the group that
    * this message should be broadcast to (see joinGroup).
    * @return       The CausalTimestamp that should

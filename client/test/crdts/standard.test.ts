@@ -23,8 +23,8 @@ describe("standard", () => {
 
   beforeEach(() => {
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("alice");
-    bob = runtimeGen.newRuntime("bob");
+    alice = runtimeGen.newRuntime();
+    bob = runtimeGen.newRuntime();
   });
 
   describe("EnableWinsFlag", () => {

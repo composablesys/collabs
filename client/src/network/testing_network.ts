@@ -31,11 +31,10 @@ export class TestingNetwork implements BroadcastNetwork {
  * when release is called.
  */
 export class TestingNetworkGenerator {
-  newRuntime(replicaId?: string) {
-    return new CrdtRuntime(this.newNetwork(replicaId));
+  newRuntime() {
+    return new CrdtRuntime(this.newNetwork());
   }
-  newNetwork(replicaId?: string) {
-    if (replicaId === undefined) replicaId = this.messageQueues.size + "";
+  newNetwork() {
     let network = new TestingNetwork(this);
     let newQueue = new Map<TestingNetwork, Array<any>>();
     for (let oldEntry of this.messageQueues.entries()) {
@@ -43,7 +42,7 @@ export class TestingNetworkGenerator {
       oldEntry[1].set(network, []);
     }
     this.messageQueues.set(network, newQueue);
-    return new DefaultCausalBroadcastNetwork(replicaId, network);
+    return new DefaultCausalBroadcastNetwork(network);
   }
   // Maps sender and recipient to an array of queued messages.
   messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
