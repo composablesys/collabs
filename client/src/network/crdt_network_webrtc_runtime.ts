@@ -57,17 +57,17 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
   /**
    * Message waiting to be sent by the WebRtc
    */
-  dataBuffer: Array<myMessage>;
+  dataBuffer: Array<string>;
   /**
    * User's name that current data channel connected.
    */
   userName: String;
 
   constructor(webSocketArgs: string) {
-    this.vcMap = new Map<any, VectorClock>();
-    this.messageBuffer = new Array<[any, any, VectorClock]>();
-    this.sendBuffer = new Array<any>();
-    this.dataBuffer = new Array<any>();
+    this.vcMap = new Map();
+    this.messageBuffer = [];
+    this.sendBuffer = [];
+    this.dataBuffer = [];
     this.userName = "";
     /**
      * Open WebSocket connection with server.
@@ -261,9 +261,13 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
 
   dataChanelReceiveMsg = (event: any) => {
     console.log(event.data);
-    let myPackage = this.parseJSON(event.data);
+    let parsed = JSON.parse(event.data) as { group: string; message: string };
+    let myPackage = myMessage.deserialize(
+      new Uint8Array(Buffer.from(parsed.message, "base64")),
+      this.crdtRuntime.getReplicaId()
+    );
     this.messageBuffer.push([
-      myPackage.group,
+      parsed.group,
       myPackage.message,
       myPackage.timestamp,
     ]);
@@ -275,10 +279,10 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let index = 0;
     while (index < this.dataBuffer.length) {
       console.log(this.dataBuffer[index]);
-      this.dataChannel.send(this.dataBuffer[index].serialize());
+      this.dataChannel.send(this.dataBuffer[index]);
       index++;
     }
-    this.dataBuffer = new Array<any>();
+    this.dataBuffer = [];
   };
   /**
    * Implement the function defined in CrdtRuntime interfaces.
@@ -339,12 +343,19 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // Check if the crdtId exist in the map.
     let vc = timestamp as VectorClock;
     this.vcMap.set(group, vc);
-    let myPackage = new myMessage(message, group, vc);
+    let myPackage = new myMessage(message, vc);
+
+    let encoded = Buffer.from(myPackage.serialize()).toString("base64");
+    let toSend = JSON.stringify({
+      group: group,
+      message: encoded,
+    });
 
     if (this.dataChannel.readyState == "open") {
-      this.dataChannel.send(myPackage.serialize());
+      // TODO: as abo
+      this.dataChannel.send(toSend);
     } else {
-      this.dataBuffer.push(myPackage);
+      this.dataBuffer.push(toSend);
     }
   }
   /**
@@ -372,24 +383,6 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     vcCopy.increment();
 
     return vcCopy;
-  }
-  /**
-   * Parse JSON format data back to customized data type.
-   *
-   * @param data the JSON format data travel through network.
-   * @returns the customized data type => myMessage
-   */
-  parseJSON(data: string): myMessage {
-    let dataJSON = JSON.parse(data);
-    let vc = new VectorClock(
-      dataJSON.timestamp.uid,
-      this.crdtRuntime.getReplicaId() === dataJSON.timestamp.uid
-    );
-    vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
-    let message = Uint8Array.from(dataJSON.message as number[]);
-    let myPackage = new myMessage(message, dataJSON.group, vc);
-
-    return myPackage;
   }
   /**
    * Check the casuality of buffered messages and delivery the

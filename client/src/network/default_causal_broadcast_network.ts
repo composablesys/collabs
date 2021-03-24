@@ -77,10 +77,6 @@ export class myMessage {
    */
   message: Uint8Array;
   /**
-   * Unique group for identification.
-   */
-  group: string;
-  /**
    * Timestamp for casuality/concurrency check.
    *
    * Provide basic functions such as :
@@ -88,9 +84,8 @@ export class myMessage {
    */
   timestamp: VectorClock;
 
-  constructor(message: Uint8Array, group: string, timestamp: VectorClock) {
+  constructor(message: Uint8Array, timestamp: VectorClock) {
     this.message = message;
-    this.group = group;
     this.timestamp = timestamp;
   }
   /**
@@ -105,7 +100,6 @@ export class myMessage {
     }
     let message = DefaultCausalBroadcastMessage.create({
       message: this.message,
-      group: this.group,
       sender: this.timestamp.sender,
       vectorMap: vectorMapAsIndexSignature,
     });
@@ -123,7 +117,7 @@ export class myMessage {
     let decoded = DefaultCausalBroadcastMessage.decode(data);
     let vc = new VectorClock(decoded.sender, myReplicaId === decoded.sender);
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
-    return new myMessage(decoded.message, decoded.group, vc);
+    return new myMessage(decoded.message, vc);
   }
 }
 
@@ -185,16 +179,12 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param message the JSON format data send via network
    */
-  receive(message: Uint8Array) {
+  receive(group: string, message: Uint8Array) {
     let myPackage = myMessage.deserialize(
       message,
       this.crdtRuntime.getReplicaId()
     );
-    this.messageBuffer.push([
-      myPackage.group,
-      myPackage.message,
-      myPackage.timestamp,
-    ]);
+    this.messageBuffer.push([group, myPackage.message, myPackage.timestamp]);
     this.checkMessageBuffer();
   }
   /**
@@ -232,7 +222,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
     let vc = timestamp as VectorClock;
     this.vcMap.set(group, vc);
-    let myPackage = new myMessage(message, group, vc);
+    let myPackage = new myMessage(message, vc);
 
     // Convert the message into JSON and send
     this.broadcastNetwork.send(group, myPackage.serialize(), timestamp);
@@ -301,6 +291,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         index = this.messageBuffer.length - 1;
       } else {
         index--;
+        console.log("not ready");
       }
     }
   }
