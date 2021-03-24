@@ -268,7 +268,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     );
     this.messageBuffer.push([
       parsed.group,
-      myPackage.message,
+      myPackage.messages[0],
       myPackage.timestamp,
     ]);
     this.checkMessageBuffer();
@@ -343,7 +343,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // Check if the crdtId exist in the map.
     let vc = timestamp as VectorClock;
     this.vcMap.set(group, vc);
-    let myPackage = new myMessage(message, vc);
+    let myPackage = new myMessage([message], vc);
 
     let encoded = Buffer.from(myPackage.serialize()).toString("base64");
     let toSend = JSON.stringify({
@@ -418,6 +418,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
         // this makes more messages ready
         index = this.messageBuffer.length - 1;
       } else {
+        if (myVectorClock.isAlreadyReceived(curVectorClock)) {
+          // Remove the message from the buffer
+          this.messageBuffer.splice(index, 1);
+          console.log("(already received)");
+        }
         index--;
       }
     }

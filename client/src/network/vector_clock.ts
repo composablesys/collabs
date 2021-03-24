@@ -60,23 +60,24 @@ export class VectorClock implements CausalTimestamp {
    */
   increment(): void {
     const oldValue = this.vectorMap.get(this.sender);
-
-    if (oldValue !== undefined) {
-      this.vectorMap.set(this.sender, oldValue + 1);
+    if (oldValue === undefined) {
+      throw new Error("sender's vc entry is not set");
     }
+    this.vectorMap.set(this.sender, oldValue + 1);
   }
   /**
-   * Check a message with a certain timestamp is ready for
-   * delivery in causal order, given the vector clock
-   * merge of all previously-received messages.
+   * Check if a message with a certain timestamp is ready for
+   * delivery in causal order, given that this is
+   * the vector clock merge of all previously-received
+   * messages.
    *
-   * @param alreadyReceived the vector clock
-   * merge of all previously-received messages.
-   * @returns the message is ready or not.
+   * @param other the vector clock
+   * the other message
+   * @returns other's message is ready or not.
    */
-  isReady(alreadyReceived: VectorClock): boolean {
-    let otherSender = alreadyReceived.getSender();
-    let otherVectorMap = alreadyReceived.asVectorClock();
+  isReady(other: VectorClock): boolean {
+    let otherSender = other.getSender();
+    let otherVectorMap = other.asVectorClock();
 
     // Check sender's entry is one more than ours
     if (this.vectorMap.has(otherSender)) {
@@ -105,15 +106,20 @@ export class VectorClock implements CausalTimestamp {
   /**
    * TODO: test
    *
-   * @param  alreadyReceived the vector clock
-   * merge of all previously-received messages.
-   * @return if a message with this VectorClock has
-   * already been received, according to alreadyReceived
+   * Check if a message with a certain timestamp has already
+   * been received, given that this is
+   * the vector clock merge of all previously-received
+   * messages.
+   *
+   * @param  other the vector clock
+   * the other message
+   * @return if a message with VectorClock other has
+   * already been received, according to this
    */
-  isAlreadyReceived(alreadyReceived: VectorClock): boolean {
-    let senderEntry = alreadyReceived.vectorMap.get(this.sender);
+  isAlreadyReceived(other: VectorClock): boolean {
+    let senderEntry = this.vectorMap.get(other.sender);
     if (senderEntry !== undefined) {
-      if (senderEntry >= this.getSenderCounter()) return true;
+      if (senderEntry >= other.getSenderCounter()) return true;
     }
     return false;
   }
@@ -160,5 +166,19 @@ export class VectorClock implements CausalTimestamp {
    */
   setEntry(replicaId: string, clockValue: number): void {
     this.vectorMap.set(replicaId, clockValue);
+  }
+
+  toString(): string {
+    return JSON.stringify({
+      sender: this.sender,
+      isLocal: this.local,
+      clock: [...this.vectorMap.entries()],
+    });
+  }
+
+  clone(): VectorClock {
+    let copy = new VectorClock(this.sender, this.local);
+    copy.vectorMap = new Map(this.vectorMap);
+    return copy;
   }
 }
