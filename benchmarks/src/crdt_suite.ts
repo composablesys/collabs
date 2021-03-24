@@ -1,6 +1,5 @@
 import { network, crdts } from "compoventuals-client";
 import framework, { FrameworkSuite } from "./framework";
-import { v4 as uuid } from "uuid";
 import seedrandom from "seedrandom";
 
 export class CrdtSuite<C extends crdts.Crdt> {
@@ -64,7 +63,7 @@ export class CrdtSuite<C extends crdts.Crdt> {
           generator = new network.TestingNetworkGenerator();
           rng = seedrandom(seed);
           for (let i = 0; i < users; i++) {
-            runtimes[i] = generator.newRuntime(uuid());
+            runtimes[i] = generator.newRuntime();
             crdts[i] = crdtConstructor();
             runtimes[i].groupParent("").addChild("benchmark", crdts[i]);
           }

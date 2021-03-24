@@ -1,0 +1,5 @@
+message DefaultCausalBroadcastMessage {
+    repeated bytes messages = 1;
+    required string sender = 2;
+    map<string, uint32> vectorMap = 3;
+}

@@ -1,6 +1,5 @@
 import { network, crdts } from "compoventuals-client";
 import framework from "../../framework";
-import { v4 as uuid } from "uuid";
 
 /**
  * Variant of CrdtRuntime that sends empty messages, so that
@@ -50,7 +49,7 @@ for (let users = 16; users <= 16; users *= 2) {
       let setupFun = async () => {
         generator = new network.TestingNetworkGenerator();
         for (let i = 0; i < users; i++) {
-          runtimes[i] = new TrivialRuntime(generator.newNetwork(uuid()));
+          runtimes[i] = new TrivialRuntime(generator.newNetwork());
         }
         // Warmup with one message from each user, to give
         // them entries in each other's vector clocks.

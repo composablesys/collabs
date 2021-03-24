@@ -3,6 +3,7 @@
 //
 // Also ensure the order of delivery with casuality check.
 
+import { DefaultCausalBroadcastMessage } from "../../generated/proto_compiled";
 import { CrdtRuntime } from "../crdts";
 import {
   CausalTimestamp,
@@ -15,7 +16,7 @@ import { VectorClock } from "./vector_clock";
  * agnostic)
  * broadcast network.  This network is used
  * by DefaultCausalBroadcastNetwork to broadcast messages to
- * other replicaa reliably, while the
+ * other replicas reliably, while the
  * DefaultCausalBroadcastNetwork handles the tagged causal
  * ordering of messages.
  */
@@ -24,7 +25,7 @@ export interface BroadcastNetwork {
    * Registers the given DefaultCausalBroadcastNetwork
    * to receive messages
    * from other replicas.  Such messages should be delivered
-   * to crdtRuntime.receive.  This method will be
+   * to runtime.receive.  This method will be
    * called exactly once, before any other methods.
    * @param causal The DefaultCausalBroadcastNetwork.
    */
@@ -72,13 +73,9 @@ export interface BroadcastNetwork {
  */
 export class myMessage {
   /**
-   * Crdt update message.
+   * Crdt update messages.
    */
-  message: Uint8Array;
-  /**
-   * Unique group for identification.
-   */
-  group: string;
+  messages: Uint8Array[];
   /**
    * Timestamp for casuality/concurrency check.
    *
@@ -87,27 +84,40 @@ export class myMessage {
    */
   timestamp: VectorClock;
 
-  constructor(message: Uint8Array, group: string, timestamp: VectorClock) {
-    this.message = message;
-    this.group = group;
+  constructor(messages: Uint8Array[], timestamp: VectorClock) {
+    this.messages = messages;
     this.timestamp = timestamp;
   }
   /**
-   * customized toJSON function to convert message as JSON format.
-   * TODO: use protobufs.  For now we base64 encode the
-   * inner message.
+   * Returns a serialized form of the message.
    *
-   * @returns package info in JSON format.
+   * @returns serialize message
    */
-  toJSON(): string {
-    return JSON.stringify({
-      message: Array.from(this.message.values()),
-      group: this.group,
-      timestamp: {
-        uid: this.timestamp.uid,
-        vectorMap: Array.from(this.timestamp.vectorMap.entries()),
-      },
+  serialize(): Uint8Array {
+    let vectorMapAsIndexSignature: { [key: string]: number } = {};
+    for (let entry of this.timestamp.vectorMap.entries()) {
+      vectorMapAsIndexSignature[entry[0]] = entry[1];
+    }
+    let message = DefaultCausalBroadcastMessage.create({
+      messages: this.messages,
+      sender: this.timestamp.sender,
+      vectorMap: vectorMapAsIndexSignature,
     });
+    return DefaultCausalBroadcastMessage.encode(message).finish();
+  }
+
+  /**
+   * Parse serialized data back to myMessage.
+   *
+   * @param data serialized message
+   * @param myReplicaId the local use's replicaId
+   * @returns a deserialized myMessage
+   */
+  static deserialize(data: Uint8Array, myReplicaId: string): myMessage {
+    let decoded = DefaultCausalBroadcastMessage.decode(data);
+    let vc = new VectorClock(decoded.sender, myReplicaId === decoded.sender);
+    vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
+    return new myMessage(decoded.messages, vc);
   }
 }
 
@@ -123,35 +133,59 @@ export class myMessage {
  */
 export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   /**
-   * Unique ID for replica for identification.
-   */
-  uid: string;
-  /**
    * Registered CrdtRuntime.
    */
-  crdtRuntime!: CrdtRuntime;
+  private runtime!: CrdtRuntime;
   /**
    * BroadcastNetwork for broadcasting messages.
    */
-  broadcastNetwork: BroadcastNetwork;
+  readonly broadcastNetwork: BroadcastNetwork;
   /**
    * Map stores all groups with its corresponding vector clock.
    */
-  vcMap: Map<string, VectorClock>;
+  private readonly vcMap: Map<string, VectorClock>;
   /**
    * Message buffer to store received message to ensure casual delivery.
    */
-  messageBuffer: Array<[Uint8Array, string, VectorClock]>;
+  private readonly messageBuffer: Map<string, Array<myMessage>>;
   /**
    * Message waiting to be sent by the WebSocket
+   * TODO: implement; test with network disconnection
    */
-  sendBuffer: Array<myMessage>;
+  private readonly sendBuffer: Array<myMessage>;
+  /**
+   * [constructor description]
+   * @param broadcastNetwork [description]
+   * @param batchingPeriodMs [description]
+   */
+  private readonly batches: Map<
+    string,
+    [vc: VectorClock, messages: Uint8Array[]]
+  > = new Map();
 
-  constructor(replicaId: string, broadcastNetwork: BroadcastNetwork) {
-    this.uid = replicaId;
-    this.vcMap = new Map<string, VectorClock>();
-    this.messageBuffer = new Array<[Uint8Array, string, VectorClock]>();
-    this.sendBuffer = new Array<myMessage>();
+  /**
+   * [constructor description]
+   * @param broadcastNetwork [description]
+   * @param batchingPeriodMs if defined, gives the interval
+   * in ms to wait while collecting messages to be sent
+   * in a single batch, with a common group and timestamp,
+   * as a network optimization.  If 0, this has the effect
+   * of batching all messages sent in the same cycle of
+   * the event loop.  Note that while a batch is pending,
+   * received messages are queued until after the batch
+   * is sent, so a value > 0 impacts the latency of
+   * both send and receive operations.  TODO: default
+   * to 0 once the tests and benchmarks can handle
+   * async sending.  TODO: set to 0 in demos; slider
+   * to allow testing artificial concurrency.
+   */
+  constructor(
+    broadcastNetwork: BroadcastNetwork,
+    readonly batchingPeriodMs: number | undefined = undefined
+  ) {
+    this.vcMap = new Map();
+    this.messageBuffer = new Map();
+    this.sendBuffer = [];
     /**
      * Open WebSocket connection with server.
      * Register EventListener with corresponding event handler.
@@ -162,6 +196,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
 
   joinGroup(group: string): void {
     this.broadcastNetwork.joinGroup(group);
+    this.messageBuffer.set(group, []);
   }
   /**
    * Parse JSON format data back into myMessage type.
@@ -171,32 +206,20 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param message the JSON format data send via network
    */
-  receive(message: Uint8Array) {
-    let myPackage = this.parseJSON(new TextDecoder().decode(message));
-    this.messageBuffer.push([
-      myPackage.message,
-      myPackage.group,
-      myPackage.timestamp,
-    ]);
-    this.checkMessageBuffer();
-  }
-  /**
-   * Implement the function defined in CrdtRuntime interfaces.
-   *
-   * @returns This replica's id, used by some CRDTs internally
-   * (e.g., to generate unique identifiers of the form (replica id, counter)).
-   *
-   */
-  getReplicaId(): string {
-    return this.uid;
+  receive(group: string, message: Uint8Array) {
+    this.messageBuffer
+      .get(group)!
+      .push(myMessage.deserialize(message, this.crdtRuntime.getReplicaId()));
+    // Don't receive yet if there is a pending batch
+    if (!this.batches.has(group)) this.checkMessageBuffer(group);
   }
   /**
    * Register CrdtRuntime CasualBroadcastNetwork.
    *
-   * @param crdtRuntime
+   * @param runtime
    */
-  register(crdtRuntime: CrdtRuntime): void {
-    this.crdtRuntime = crdtRuntime;
+  register(runtime: CrdtRuntime): void {
+    this.runtime = runtime;
   }
   /**
    * Send function on casualbroadcast network layer, which called
@@ -225,14 +248,36 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
     let vc = timestamp as VectorClock;
     this.vcMap.set(group, vc);
-    let myPackage = new myMessage(message, group, vc);
 
-    // Convert the message into JSON and send
-    this.broadcastNetwork.send(
-      group,
-      new TextEncoder().encode(myPackage.toJSON()),
-      timestamp
-    );
+    // Queue the message for sending
+    let batch: Uint8Array[];
+    if (!this.batches.has(group)) {
+      // New batch
+      batch = [];
+      this.batches.set(group, [vc, batch]);
+      if (this.batchingPeriodMs !== undefined) {
+        // Send after the batching period
+        setTimeout(() => this.sendBatch(group), this.batchingPeriodMs);
+      }
+    } else batch = this.batches.get(group)![1];
+    batch.push(message);
+    if (this.batchingPeriodMs === undefined) {
+      // Send immediately
+      this.sendBatch(group);
+    }
+  }
+
+  private sendBatch(group: string) {
+    let batch = this.batches.get(group);
+    if (batch === undefined) return;
+    let myPackage = new myMessage(batch[1], batch[0]);
+    this.broadcastNetwork.send(group, myPackage.serialize(), batch[0]);
+    this.batches.delete(group);
+    // Check the message buffer for messages received
+    // while the batch was in progress
+    // TODO: only do this if you've received messages
+    // in the meantime (optimization)?
+    this.checkMessageBuffer(group);
   }
   /**
    * Get the next timestamp of the given crdtId in this replica.
@@ -247,12 +292,13 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    */
   getNextTimestamp(group: string): CausalTimestamp {
     // Copy a new vector clock.
+    // TODO: can we avoid copying, for efficiency?
     let vc = this.vcMap.get(group);
     if (!vc) {
-      vc = new VectorClock(this.uid, true);
+      vc = new VectorClock(this.runtime.getReplicaId(), true);
       this.vcMap.set(group, vc);
     }
-    let vcCopy = new VectorClock(this.uid, true);
+    let vcCopy = new VectorClock(this.runtime.getReplicaId(), true);
     vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock());
 
     // Update the timestamp of this replica with next value.
@@ -261,63 +307,65 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     return vcCopy;
   }
   /**
-   * Parse JSON format data back to customized data type.
-   *
-   * @param data the JSON format data travel through network.
-   * @returns the customized data type => myMessage
-   */
-  parseJSON(data: string): myMessage {
-    let dataJSON = JSON.parse(data);
-    let vc = new VectorClock(
-      dataJSON.timestamp.uid,
-      this.uid === dataJSON.timestamp.uid
-    );
-    vc.vectorMap = new Map(dataJSON.timestamp.vectorMap);
-    let message = Uint8Array.from(dataJSON.message as number[]);
-    let myPackage = new myMessage(message, dataJSON.group, vc);
-
-    return myPackage;
-  }
-  /**
-   * Check the casuality of buffered messages and delivery the
+   * Check the casuality of buffered messages and deliver the
    * messages back to crdtMessageListener which are ready.
    *
    * The checking order is from the lastest to the oldest.
    * Update the VectorClock entry and MessageBuffer when necessary.
    *
-   * Send the message back to crdtRuntime with corresponding
+   * Send the message back to runtime with corresponding
    * crdtMessageListener.
+   *
+   * TODO: optimize?
    */
-  checkMessageBuffer(): void {
-    let index = this.messageBuffer.length - 1;
+  checkMessageBuffer(group: string): void {
+    let groupBuffer = this.messageBuffer.get(group)!;
+    let index = groupBuffer.length - 1;
 
     while (index >= 0) {
-      let group = this.messageBuffer[index][1];
-      let curVectorClock = this.messageBuffer[index][2];
+      let curVectorClock = groupBuffer[index].timestamp;
 
       let myVectorClock = this.vcMap.get(group);
       if (!myVectorClock) {
-        myVectorClock = new VectorClock(this.uid, true);
+        myVectorClock = new VectorClock(this.runtime.getReplicaId(), true);
         this.vcMap.set(group, myVectorClock);
       }
-      if (myVectorClock.isready(curVectorClock)) {
+      if (myVectorClock.isReady(curVectorClock)) {
         /**
-                 * Send back the received messages to crdtRuntime.
-
-                 */
-        this.crdtRuntime.receive(
-          this.messageBuffer[index][1],
-          this.messageBuffer[index][0],
-          this.messageBuffer[index][2]
+         * Send back the received messages to runtime.
+         */
+        let timestamp = curVectorClock;
+        for (let internalMessage of groupBuffer[index].messages) {
+          this.runtime.receive(group, internalMessage, timestamp);
+          myVectorClock.incrementSender(timestamp);
+          timestamp = timestamp.clone();
+          timestamp.increment();
+        }
+        groupBuffer.splice(index, 1);
+        // Set index to the end and try again, in case
+        // this makes more messages ready
+        index = groupBuffer.length - 1;
+      } else {
+        console.log(
+          "DefaultCausalBroadcastNetwork.checkMessageBuffer: not ready"
         );
-        myVectorClock.incrementSender(curVectorClock);
-        this.messageBuffer.splice(index, 1);
+        if (myVectorClock.isAlreadyReceived(curVectorClock)) {
+          // Remove the message from the buffer
+          groupBuffer.splice(index, 1);
+          console.log("(already received)");
+        }
+        index--;
+        console.log(myVectorClock.toString());
+        console.log(curVectorClock.toString());
       }
-      index--;
     }
   }
 
-  static timestampOf(message: Uint8Array) {
+  get crdtRuntime(): CrdtRuntime {
+    return this.runtime;
+  }
+
+  static timestampOf(_message: Uint8Array) {
     // TODO
     throw new Error("Method not implemented.");
   }
