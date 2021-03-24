@@ -13,7 +13,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
   /**
    * Message waiting to be sent by the WebSocket
    */
-  sendBuffer: Array<any>;
+  sendBuffer: Array<string>;
   /**
    * Constructor which takes in a webSocketArgs for
    * generating a new WebSocket connection.
@@ -22,7 +22,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
    * use to create a new WebSocket connection.
    */
   constructor(webSocketArgs: string) {
-    this.sendBuffer = new Array<any>();
+    this.sendBuffer = [];
     /**
      * Open WebSocket connection with server.
      * Register EventListener with corresponding event handler.
@@ -49,7 +49,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
       this.ws.send(this.sendBuffer[index]);
       index++;
     }
-    this.sendBuffer = new Array<any>();
+    this.sendBuffer = [];
     // Use heartbeat to keep client alive.
     // this.heartbeat();
   };
@@ -77,7 +77,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
     // TODO: use Uint8Array directly instead
     // (requires changing options + server)
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-    this.causal.receive(new TextEncoder().encode(message.data));
+    this.causal.receive(new Uint8Array(Buffer.from(message.data, "base64")));
   };
   /**
    * Register a CausalBroadcastNetwork which implement the interface.
@@ -110,13 +110,14 @@ export class WebSocketNetwork implements BroadcastNetwork {
    * @param timestamp the CasualTimestamp.
    */
   send(_group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
+    let encoded = Buffer.from(message).toString("base64");
     if (this.ws.readyState === 1) {
       // TODO: use Uint8Array directly instead
       // (requires changing options + server)
       // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-      this.ws.send(new TextDecoder().decode(message));
+      this.ws.send(encoded);
     } else {
-      this.sendBuffer.push(new TextDecoder().decode(message));
+      this.sendBuffer.push(encoded);
     }
   }
 }
