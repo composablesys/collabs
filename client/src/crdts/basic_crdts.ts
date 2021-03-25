@@ -680,6 +680,18 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
     };
   }
 
+  /**
+   * @return the set of all concurrently-set values for
+   * this register, including the "winning" value and
+   * others that have lower times but have not been
+   * causally overwritten (multi-value register semantics).
+   */
+  conflicts(): Set<T> {
+    let ans = new Set<T>();
+    for (let value of this.mvr.valueSet) ans.add(value.value);
+    return ans;
+  }
+
   reset() {
     // TODO: generic CompositeCrdt reset
     this.mvr.reset();
