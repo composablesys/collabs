@@ -681,6 +681,8 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
   }
 
   /**
+   * TODO: corresponding events?  Direct access to mvr?
+   *
    * @return the set of all concurrently-set values for
    * this register, including the "winning" value and
    * others that have lower times but have not been
