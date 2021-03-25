@@ -1,4 +1,11 @@
-import { CrdtEvent, Crdt, CrdtEventsRecord, PrimitiveCrdt } from "./crdt_core";
+import {
+  CrdtEvent,
+  Crdt,
+  CrdtEventsRecord,
+  PrimitiveCrdt,
+  CompositeCrdt,
+  CrdtRuntime,
+} from "./crdt_core";
 import { CausalTimestamp } from "../network";
 import {
   CounterPureBaseMessage,
@@ -459,6 +466,8 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     super(new Set<MvrEntry<T>>());
   }
 
+  // TODO: change; auto-generates value getter,
+  // which we don't want
   set value(value: T) {
     let message = MvrMessage.create({
       value: this.valueSerializer.serialize(value),
@@ -531,8 +540,15 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
    * newly initialized or has been reset.
    */
   get valueSet(): Set<T> {
+    // TODO: cache?
     let values = new Set<T>();
     for (let entry of this.state) values.add(entry.value);
+    return values;
+  }
+
+  get valueSetWithSenders(): Set<[value: T, sender: string]> {
+    let values = new Set<[T, string]>();
+    for (let entry of this.state) values.add([entry.value, entry.sender]);
     return values;
   }
 }
@@ -547,140 +563,235 @@ export interface LwwEvent<T> extends CrdtEvent {
 
 export interface LwwEventsRecord<T> extends CrdtEventsRecord {
   Lww: LwwEvent<T>;
+  Reset: CrdtEvent;
 }
 
-export interface ILwwRegister<T> extends Crdt<LwwEventsRecord<T>> {}
-
-export class LwwState<T> implements LocallyResettableState {
+interface LwwEntry<T> {
   value: T;
-  // TODO: initialValue might unexpectedly prevent GC, or
-  // change mutably
-  constructor(
-    public initialValue: T,
-    public sender: string | null,
-    public counter: number,
-    public time: number | null
-  ) {
-    this.value = initialValue;
-  }
-
-  resetLocalState(): void {
-    this.value = this.initialValue;
-    this.sender = null;
-    this.counter = -1;
-    this.time = null;
-  }
+  timeSet: number;
 }
 
-export class LwwRegisterBase<T>
-  extends PrimitiveCrdt<LwwState<T>, LwwEventsRecord<T>>
-  implements ILwwRegister<T> {
-  /**
-   * Last-writer-wins (LWW) register of type T.  Ties
-   * between concurrent messages are based on UTC
-   * timestamps (however, a message will always overwrite
-   * a causally prior value regardless of timestamps).
-   *
-   * The default serializer behaves as follows.  string, number,
-   * undefined, and null types are stored
-   * by-value, as in ordinary JS Set's, so that different
-   * instances of the same value are identified
-   * (even if they are added by different
-   * replicas).  Crdt types are stored
-   * by-reference, as they would be in ordinary JS set's,
-   * with replicas of the same Crdt being identified
-   * (even if they are added by different replicas).
-   * Other types are serialized using BSON (via
-   * https://github.com/mongodb/js-bson).  Note this means
-   * that they will effectively be sent by-value to other
-   * replicas, but on each replica, they are treated by reference,
-   * following JS's usual set semantics.
-   */
-  constructor(
-    initialValue: T,
-    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
-  ) {
-    super(new LwwState(initialValue, null, -1, null));
-  }
-
-  set value(value: T) {
+// TODO: can we avoid sending sender, instead
+// getting it from the CausalTimestamp?
+class LwwEntrySerializer<T> implements ElementSerializer<LwwEntry<T>> {
+  constructor(private readonly elementSerializer: ElementSerializer<T>) {}
+  serialize(value: LwwEntry<T>): Uint8Array {
     let message = LwwMessage.create({
-      value: this.valueSerializer.serialize(value),
-      time: Date.now(),
+      value: this.elementSerializer.serialize(value.value),
+      timeSet: Date.now(),
     });
-    let buffer = LwwMessage.encode(message).finish();
-    super.send(buffer);
+    return LwwMessage.encode(message).finish();
   }
-
-  get value(): T {
-    return this.state.value;
-  }
-
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  deserialize(message: Uint8Array, runtime: CrdtRuntime): LwwEntry<T> {
     let decoded = LwwMessage.decode(message);
-    let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
-    // See if it's causally greater than the current state
-    let vc = timestamp.asVectorClock();
-    let overwrite = false;
-    if (this.state.sender === null) {
-      // Initial element
-      overwrite = true;
-    } else {
-      let vcEntry = vc.get(this.state.sender);
-      if (vcEntry !== undefined && vcEntry >= this.state.counter) {
-        overwrite = true;
-      }
-    }
-    // If it's concurrent, compare timestamps.  Use
-    // arbitrary order on sender as tiebreaker.
-    if (!overwrite) {
-      if (decoded.time > this.state.time!) overwrite = true;
-      else if (decoded.time == this.state.time) {
-        overwrite = timestamp.getSender() > this.state.sender!;
-      }
-    }
-
-    if (overwrite) {
-      let changed = this.state.value !== value;
-      let oldValue = this.state.value;
-      this.state.counter = timestamp.getSenderCounter();
-      this.state.sender = timestamp.getSender();
-      this.state.time = decoded.time;
-      this.state.value = value;
-      if (changed) {
-        this.emit("Lww", {
-          caller: this,
-          timestamp,
-          value,
-          oldValue,
-          timeSet: new Date(decoded.time),
-        });
-      }
-      return changed;
-    } else return false;
+    return {
+      value: this.elementSerializer.deserialize(decoded.value, runtime),
+      timeSet: decoded.timeSet,
+    };
   }
 }
 
-// TODO: doesn't work due to missing type parameter
-// const AddLwwEvents = makeEventAdder<LwwEventsRecord>();
+export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
+  // TODO: check date serialization
+  private mvr: MultiValueRegister<LwwEntry<T>>;
+  private currentValue: T;
 
-export class LwwRegister<T>
-  extends ResetWrapClass(LwwRegisterBase, true)<T>
-  implements ILwwRegister<T>, Resettable {
+  // TODO: initialValue might unexpectedly prevent GC, or
+  // change mutably.  Also note that initialValue
+  // is used after reset, in case it's not clear?
+  constructor(
+    private readonly initialValue: T,
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super();
+    this.mvr = this.addChild(
+      "mvr",
+      new MultiValueRegister(new LwwEntrySerializer(valueSerializer))
+    );
+    this.mvr.on("Change", (event) => this.refreshValue(event));
+    this.currentValue = initialValue;
+  }
+
+  private refreshValue(event: CrdtEvent) {
+    let mvrEntries = this.mvr.valueSetWithSenders;
+    if (mvrEntries.size === 0) {
+      // Value was reset
+      this.currentValue = this.initialValue;
+      this.emit("Reset", { ...event, caller: this });
+      return;
+    }
+    // Choose value by highest timestamp, with
+    // ties broken by sender id
+    let oldValue = this.currentValue;
+    let maxEntry: [entry: LwwEntry<T>, sender: string] | undefined = undefined;
+    for (let entry of mvrEntries) {
+      if (maxEntry === undefined) maxEntry = entry;
+      else {
+        if (entry[0].timeSet > maxEntry[0].timeSet) maxEntry = entry;
+        else if (
+          entry[0].timeSet === maxEntry[0].timeSet &&
+          entry[1] > maxEntry[1]
+        )
+          maxEntry = entry;
+      }
+    }
+    this.currentValue = maxEntry![0].value;
+    this.emit("Lww", {
+      value: this.currentValue,
+      oldValue,
+      timeSet: new Date(maxEntry![0].timeSet),
+      caller: this,
+      timestamp: event.timestamp,
+    });
+  }
+
   get value(): T {
-    return this.original.value;
+    return this.currentValue;
   }
+
   set value(value: T) {
-    this.original.value = value;
+    this.mvr.value = {
+      value,
+      timeSet: Date.now(),
+    };
   }
-  /**
-   * Returns true if this register has never received
-   * any operations, or if all operations have been
-   * reset.
-   * @return if this register is in the initial state
-   */
-  isInInitialState(): boolean {
-    return this.original.state.sender === null;
+
+  reset() {
+    // TODO: generic CompositeCrdt reset
+    this.mvr.reset();
   }
 }
-// TODO: StrongResettable
+
+// export class LwwState<T> implements LocallyResettableState {
+//   value: T;
+//   // TODO: initialValue might unexpectedly prevent GC, or
+//   // change mutably
+//   constructor(
+//     public initialValue: T,
+//     public sender: string | null,
+//     public counter: number,
+//     public time: number | null
+//   ) {
+//     this.value = initialValue;
+//   }
+//
+//   resetLocalState(): void {
+//     this.value = this.initialValue;
+//     this.sender = null;
+//     this.counter = -1;
+//     this.time = null;
+//   }
+// }
+//
+// export class LwwRegisterBase<T>
+//   extends PrimitiveCrdt<LwwState<T>, LwwEventsRecord<T>>
+//   implements ILwwRegister<T> {
+//   /**
+//    * Last-writer-wins (LWW) register of type T.  Ties
+//    * between concurrent messages are based on UTC
+//    * timestamps (however, a message will always overwrite
+//    * a causally prior value regardless of timestamps).
+//    *
+//    * The default serializer behaves as follows.  string, number,
+//    * undefined, and null types are stored
+//    * by-value, as in ordinary JS Set's, so that different
+//    * instances of the same value are identified
+//    * (even if they are added by different
+//    * replicas).  Crdt types are stored
+//    * by-reference, as they would be in ordinary JS set's,
+//    * with replicas of the same Crdt being identified
+//    * (even if they are added by different replicas).
+//    * Other types are serialized using BSON (via
+//    * https://github.com/mongodb/js-bson).  Note this means
+//    * that they will effectively be sent by-value to other
+//    * replicas, but on each replica, they are treated by reference,
+//    * following JS's usual set semantics.
+//    */
+//   constructor(
+//     initialValue: T,
+//     private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+//   ) {
+//     super(new LwwState(initialValue, null, -1, null));
+//   }
+//
+//   set value(value: T) {
+//     let message = LwwMessage.create({
+//       value: this.valueSerializer.serialize(value),
+//       time: Date.now(),
+//     });
+//     let buffer = LwwMessage.encode(message).finish();
+//     super.send(buffer);
+//   }
+//
+//   get value(): T {
+//     return this.state.value;
+//   }
+//
+//   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+//     let decoded = LwwMessage.decode(message);
+//     let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
+//     // See if it's causally greater than the current state
+//     let vc = timestamp.asVectorClock();
+//     let overwrite = false;
+//     if (this.state.sender === null) {
+//       // Initial element
+//       overwrite = true;
+//     } else {
+//       let vcEntry = vc.get(this.state.sender);
+//       if (vcEntry !== undefined && vcEntry >= this.state.counter) {
+//         overwrite = true;
+//       }
+//     }
+//     // If it's concurrent, compare timestamps.  Use
+//     // arbitrary order on sender as tiebreaker.
+//     if (!overwrite) {
+//       if (decoded.time > this.state.time!) overwrite = true;
+//       else if (decoded.time == this.state.time) {
+//         overwrite = timestamp.getSender() > this.state.sender!;
+//       }
+//     }
+//
+//     if (overwrite) {
+//       let changed = this.state.value !== value;
+//       let oldValue = this.state.value;
+//       this.state.counter = timestamp.getSenderCounter();
+//       this.state.sender = timestamp.getSender();
+//       this.state.time = decoded.time;
+//       this.state.value = value;
+//       if (changed) {
+//         this.emit("Lww", {
+//           caller: this,
+//           timestamp,
+//           value,
+//           oldValue,
+//           timeSet: new Date(decoded.time),
+//         });
+//       }
+//       return changed;
+//     } else return false;
+//   }
+// }
+//
+// // TODO: doesn't work due to missing type parameter
+// // const AddLwwEvents = makeEventAdder<LwwEventsRecord>();
+//
+// export class LwwRegister<T>
+//   extends ResetWrapClass(LwwRegisterBase, true)<T>
+//   implements ILwwRegister<T>, Resettable {
+//   get value(): T {
+//     return this.original.value;
+//   }
+//   set value(value: T) {
+//     this.original.value = value;
+//   }
+//   /**
+//    * Returns true if this register has never received
+//    * any operations, or if all operations have been
+//    * reset.
+//    * @return if this register is in the initial state
+//    */
+//   isInInitialState(): boolean {
+//     return this.original.state.sender === null;
+//   }
+// }
+// // TODO: StrongResettable

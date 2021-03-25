@@ -1,6 +1,8 @@
 import { Crdt } from "./crdt_core";
 import { Resettable } from "./mixins";
 
+// TODO: events
+
 /**
  * A list whose elements are atoms, i.e.,
  * immutable values (although they may be references

@@ -12,3 +12,8 @@ message DefaultSerializerMessage {
         bytes bsonValue = 6;
     }
 }
+
+message OptionalSerializerMessage {
+  required bool isPresent = 1;
+  optional bytes valueIfPresent = 2;
+}

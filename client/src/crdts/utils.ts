@@ -2,6 +2,8 @@ import {
   CrdtReference,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
+  IOptionalSerializerMessage,
+  OptionalSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Crdt, CrdtRuntime } from "./crdt_core";
 import { serialize, deserialize } from "bson";
@@ -91,5 +93,51 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
     }
     // TODO: throw an error if ans is not of type T?
     return ans as T;
+  }
+}
+
+export class Optional<T> {
+  private constructor(
+    readonly isPresent: boolean,
+    private readonly valueIfPresent: T | undefined
+  ) {}
+  get(): T {
+    if (!this.isPresent)
+      throw new Error("Optional.value called but isSet is false");
+    return this.valueIfPresent!;
+  }
+  orElse(other: T): T {
+    if (this.isPresent) return this.valueIfPresent!;
+    else return other;
+  }
+
+  private static emptyInstance = new Optional(false, undefined);
+  static empty<T>(): Optional<T> {
+    return (Optional.emptyInstance as unknown) as Optional<T>;
+  }
+  static of<T>(value: T): Optional<T> {
+    return new Optional(true, value);
+  }
+}
+
+export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
+  constructor(private readonly valueSerializer: ElementSerializer<T>) {}
+  serialize(value: Optional<T>): Uint8Array {
+    let message: IOptionalSerializerMessage;
+    if (value.isPresent)
+      message = {
+        isPresent: true,
+        valueIfPresent: this.valueSerializer.serialize(value.get()),
+      };
+    else message = { isPresent: false };
+    return OptionalSerializerMessage.encode(message).finish();
+  }
+  deserialize(message: Uint8Array, runtime: CrdtRuntime): Optional<T> {
+    let decoded = OptionalSerializerMessage.decode(message);
+    if (decoded.isPresent) {
+      return Optional.of(
+        this.valueSerializer.deserialize(decoded.valueIfPresent, runtime)
+      );
+    } else return Optional.empty();
   }
 }
