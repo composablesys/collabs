@@ -47,7 +47,7 @@ class ResetComponent<
     super.send(new Uint8Array());
   }
 
-  receive(
+  receivePrimitive(
     timestamp: CausalTimestamp,
     message: Uint8Array | ResetComponentMessage
   ) {
@@ -58,7 +58,7 @@ class ResetComponent<
     if ("isResetComponentMessage" in message) {
       // Replay message.replay
       for (let toReplay of message.replay) {
-        this.resetWrapperCrdt.original.receiveGeneral(...toReplay);
+        this.resetWrapperCrdt.original.receive(...toReplay);
       }
     }
   }
@@ -192,7 +192,7 @@ export class StrongResetComponent<
     super.send(new Uint8Array());
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     if (message.length !== 0)
       throw new Error("Unexcepted nontrivial message for StrongResetComponent");
     this.strongResetWrapperCrdt.original.state.resetLocalState();

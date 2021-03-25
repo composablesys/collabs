@@ -70,7 +70,7 @@ export class CounterPureBase
     }
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = CounterPureBaseMessage.decode(message);
     this.state.value += decoded.toAdd;
     this.emit("Add", {
@@ -95,7 +95,7 @@ export class CounterPureBase
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    this.receiveGeneral(targetPath, timestamp, message);
+    this.receive(targetPath, timestamp, message);
   }
 }
 
@@ -167,7 +167,7 @@ export class Counter
     super.send(buffer);
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = CounterResettableMessage.decode(message);
     switch (decoded.data) {
       case "toAdd":
@@ -295,7 +295,10 @@ export class MultRegisterBase
     }
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): boolean {
     let decoded = MultRegisterMessage.decode(message);
     this.state.value *= decoded.toMult;
     this.emit("Mult", {
@@ -403,7 +406,10 @@ export class GSet<T>
     return this.state.has(this.elementAsString(value));
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): boolean {
     let decoded = GSetMessage.decode(message);
     let value = this.elementSerializer.deserialize(decoded.toAdd, this.runtime);
     if (!this.has(value)) {
@@ -419,7 +425,7 @@ export class GSet<T>
     message: Uint8Array
   ): void {
     // GSet Add ops are commutative, so OoO doesn't matter
-    this.receiveGeneral(targetPath, timestamp, message);
+    this.receive(targetPath, timestamp, message);
   }
 
   /**
@@ -512,7 +518,10 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     super.send(buffer);
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): boolean {
     let decoded = MvrMessage.decode(message);
     let removed = new Set<T>();
     let vc = timestamp.asVectorClock();
@@ -769,7 +778,7 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
 //     return this.state.value;
 //   }
 //
-//   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+//   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
 //     let decoded = LwwMessage.decode(message);
 //     let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
 //     // See if it's causally greater than the current state

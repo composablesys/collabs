@@ -280,7 +280,10 @@ export class NoopCrdt
   noop() {
     this.send(new Uint8Array());
   }
-  protected receive(_timestamp: CausalTimestamp, message: Uint8Array): void {
+  protected receivePrimitive(
+    _timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for NoopCrdt");
   }
@@ -490,7 +493,7 @@ export class LazyMap<K, C extends Crdt>
     }
   }
 
-  receiveGeneral(
+  protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -500,17 +503,12 @@ export class LazyMap<K, C extends Crdt>
     let key = this.stringAsKey(keyString);
     let value = this.getInternal(key, keyString);
     targetPath.length--;
-    value.receiveGeneral(targetPath, timestamp, message);
+    value.receive(targetPath, timestamp, message);
     this.emit("ValueChange", {
       key,
       value,
       caller: this,
       timestamp,
-    });
-    // Dispatch a generic Change event
-    this.emit("Change", {
-      caller: this,
-      timestamp: timestamp,
     });
   }
 
@@ -521,11 +519,7 @@ export class LazyMap<K, C extends Crdt>
     timestamp: CausalTimestamp,
     message: Uint8Array
   ) {
-    this.receiveGeneral(
-      [...targetPath, this.keyAsString(key)],
-      timestamp,
-      message
-    );
+    this.receive([...targetPath, this.keyAsString(key)], timestamp, message);
   }
 
   // TODO: ChangeEvent's whenever children are changed
@@ -920,7 +914,7 @@ export class MapCrdt<K, C extends Crdt & Resettable>
 //     return this.lastGenerated!;
 //   }
 //
-//   receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+//   protected receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
 //       let decoded = RuntimeGeneratorMessage.decode(message);
 //       let newCrdt = this.generator(this, decoded.uniqueId, decoded.message);
 //       this.emit("NewCrdt", { caller: this, timestamp, newCrdt });
