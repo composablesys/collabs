@@ -23,8 +23,14 @@ import { SemidirectProduct } from "./semidirect";
 import { makeEventAdder } from "./mixins/mixin";
 import { LocallyResettableState, ResetWrapClass } from "./resettable";
 import { Resettable, StrongResettable } from "./mixins";
-import { DefaultElementSerializer, ElementSerializer } from "./utils";
-import { Buffer } from "buffer";
+import {
+  arrayAsString,
+  DefaultElementSerializer,
+  ElementSerializer,
+  Optional,
+  OptionalSerializer,
+  stringAsArray,
+} from "./utils";
 
 // interface NumberEventsRecord extends CounterEventsRecord, MultEventsRecord {}
 
@@ -433,23 +439,11 @@ export class LazyMap<K, C extends Crdt>
     super();
   }
 
-  // TODO: move to utils (also useful in network)
-  private static ENCODING: "base64" = "base64";
-  private static arrayAsString(array: Uint8Array) {
-    return Buffer.from(array).toString(LazyMap.ENCODING);
-  }
-  private static stringAsArray(str: string) {
-    return new Uint8Array(Buffer.from(str, LazyMap.ENCODING));
-  }
-
   private keyAsString(key: K) {
-    return LazyMap.arrayAsString(this.keySerializer.serialize(key));
+    return arrayAsString(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(
-      LazyMap.stringAsArray(str),
-      this.runtime
-    );
+    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
   get(key: K): C {
@@ -915,7 +909,7 @@ export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
 export class LwwMap<K, V>
   extends CompositeCrdt<LwwMapEventsRecord<K, V>>
   implements Resettable {
-  private readonly internalMap: LazyMap<K, LwwRegister<V>>;
+  private readonly internalMap: LazyMap<K, LwwRegister<Optional<V>>>;
   /**
    * A map in which the value associated to each key follows
    * last-writer-wins (LWW) semantics, i.e., the current
@@ -938,13 +932,20 @@ export class LwwMap<K, V>
     this.internalMap = this.addChild(
       "internalMap",
       new LazyMap(
-        () => new LwwRegister((null as unknown) as V, valueSerializer),
+        () =>
+          new LwwRegister(
+            Optional.empty(),
+            new OptionalSerializer(valueSerializer)
+          ),
         keySerializer
       )
     );
 
+    // TODO: use LwwRegister's LwwEvent's instead
+    // so we can report old value & whether the
+    // value is new
     this.internalMap.on("ValueChange", (event) => {
-      if (event.value.value === null) {
+      if (!event.value.value.isPresent) {
         // The key was deleted (value was reset)
         this.emit("KeyDelete", {
           caller: this,
@@ -956,7 +957,7 @@ export class LwwMap<K, V>
           caller: this,
           timestamp: event.timestamp,
           key: event.key,
-          value: event.value.value,
+          value: event.value.value.get(),
         });
       }
     });
@@ -991,18 +992,18 @@ export class LwwMap<K, V>
 
   get(key: K): V | undefined {
     if (!this.has(key)) return undefined;
-    else return this.internalMap.get(key).value;
+    else return this.internalMap.get(key).value.get();
   }
 
   has(key: K): boolean {
     // TODO: way to optimize checking if the value is
     // not present?  Currently this creates the value
     // and will then immediately GC it.
-    return !this.internalMap.get(key).isInInitialState();
+    return this.internalMap.get(key).value.isPresent;
   }
 
   set(key: K, value: V) {
-    this.internalMap.get(key).value = value;
+    this.internalMap.get(key).value = Optional.of(value);
   }
 
   delete(key: K) {
@@ -1020,7 +1021,7 @@ export class LwwMap<K, V>
   values() {
     let values: V[] = [];
     for (let crdt of this.internalMap.explicitValues()) {
-      if (!crdt.isInInitialState()) values.push(crdt.value);
+      if (crdt.value.isPresent) values.push(crdt.value.get());
     }
     return values.values();
   }
@@ -1028,8 +1029,8 @@ export class LwwMap<K, V>
   entries() {
     let entries: [K, V][] = [];
     for (let entry of this.internalMap.explicitEntries().entries()) {
-      if (!entry[1].isInInitialState())
-        entries.push([entry[0], entry[1].value]);
+      if (entry[1].value.isPresent)
+        entries.push([entry[0], entry[1].value.get()]);
     }
     return entries.values();
   }
