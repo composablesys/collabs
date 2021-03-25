@@ -141,3 +141,12 @@ export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
     } else return Optional.empty();
   }
 }
+
+// TODO: use these in networks
+const ENCODING: "base64" = "base64";
+export function arrayAsString(array: Uint8Array) {
+  return Buffer.from(array).toString(ENCODING);
+}
+export function stringAsArray(str: string) {
+  return new Uint8Array(Buffer.from(str, ENCODING));
+}

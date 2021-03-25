@@ -15,7 +15,12 @@ import {
   MultRegisterMessage,
   MvrMessage,
 } from "../../generated/proto_compiled";
-import { DefaultElementSerializer, ElementSerializer } from "./utils";
+import {
+  arrayAsString,
+  DefaultElementSerializer,
+  ElementSerializer,
+  stringAsArray,
+} from "./utils";
 import { LocallyResettableState, ResetWrapClass } from "./resettable";
 import {
   makeEventAdder,
@@ -342,7 +347,7 @@ export interface GSetEventsRecord<T> extends CrdtEventsRecord {
 }
 
 export class GSet<T>
-  extends PrimitiveCrdt<Set<T>, GSetEventsRecord<T>>
+  extends PrimitiveCrdt<Set<string>, GSetEventsRecord<T>>
   implements OutOfOrderAble {
   /**
    * Grow-only set with elements of type T.
@@ -360,7 +365,14 @@ export class GSet<T>
    * https://github.com/mongodb/js-bson).  Note this means
    * that they will effectively be sent by-value to other
    * replicas, but on each replica, they are treated by reference,
-   * following JS's usual set semantics.
+   * following JS's usual set semantics.  TODO: no longer
+   * true; stored and getted by serialized string, so uses
+   * the same equality semantics as the serializer.
+   * (Should we do it this way?  Same Q for LazyMap keys.)
+   * TODO: add tests of the by-value nature (e.g. add
+   * an Object and then try to get it, make sure it works;
+   * also try to get an identical object).  Same for
+   * LazyMap (like bug Ria found earlier).
    */
   constructor(
     private readonly elementSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
@@ -368,27 +380,30 @@ export class GSet<T>
     super(new Set());
   }
 
+  private elementAsString(element: T): string {
+    return arrayAsString(this.elementSerializer.serialize(element));
+  }
+  private stringAsElement(str: string): T {
+    return this.elementSerializer.deserialize(stringAsArray(str), this.runtime);
+  }
+
   add(value: T) {
-    // TODO: if we make this resettable, send values
-    // anyway (or make that an option).
-    if (!this.has(value)) {
-      let message = GSetMessage.create({
-        toAdd: this.elementSerializer.serialize(value),
-      });
-      let buffer = GSetMessage.encode(message).finish();
-      super.send(buffer);
-    }
+    let message = GSetMessage.create({
+      toAdd: this.elementSerializer.serialize(value),
+    });
+    let buffer = GSetMessage.encode(message).finish();
+    super.send(buffer);
   }
 
   has(value: T) {
-    return this.state.has(value);
+    return this.state.has(this.elementAsString(value));
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
     let decoded = GSetMessage.decode(message);
     let value = this.elementSerializer.deserialize(decoded.toAdd, this.runtime);
-    if (!this.state.has(value)) {
-      this.state.add(value);
+    if (!this.has(value)) {
+      this.state.add(this.elementAsString(value));
       this.emit("SetAdd", { caller: this, timestamp, valueAdded: value });
       return true;
     } else return false;
@@ -405,9 +420,18 @@ export class GSet<T>
 
   /**
    * Don't mutate this directly.
+   *
+   * TODO: with current approach, value's elements
+   * may be unique each time.  This makes it annoying
+   * to compare values between times (e.g. subset
+   * relationships).
    */
   get value(): Set<T> {
-    return this.state;
+    let ans = new Set<T>();
+    for (let elementString of this.state.values()) {
+      ans.add(this.stringAsElement(elementString));
+    }
+    return ans;
   }
 
   // TODO: other helper methods

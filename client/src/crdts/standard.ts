@@ -24,12 +24,13 @@ import { makeEventAdder } from "./mixins/mixin";
 import { LocallyResettableState, ResetWrapClass } from "./resettable";
 import { Resettable, StrongResettable } from "./mixins";
 import {
+  arrayAsString,
   DefaultElementSerializer,
   ElementSerializer,
   Optional,
   OptionalSerializer,
+  stringAsArray,
 } from "./utils";
-import { Buffer } from "buffer";
 
 // interface NumberEventsRecord extends CounterEventsRecord, MultEventsRecord {}
 
@@ -438,23 +439,11 @@ export class LazyMap<K, C extends Crdt>
     super();
   }
 
-  // TODO: move to utils (also useful in network)
-  private static ENCODING: "base64" = "base64";
-  private static arrayAsString(array: Uint8Array) {
-    return Buffer.from(array).toString(LazyMap.ENCODING);
-  }
-  private static stringAsArray(str: string) {
-    return new Uint8Array(Buffer.from(str, LazyMap.ENCODING));
-  }
-
   private keyAsString(key: K) {
-    return LazyMap.arrayAsString(this.keySerializer.serialize(key));
+    return arrayAsString(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(
-      LazyMap.stringAsArray(str),
-      this.runtime
-    );
+    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
   get(key: K): C {
