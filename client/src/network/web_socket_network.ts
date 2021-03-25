@@ -97,7 +97,6 @@ export class WebSocketNetwork implements BroadcastNetwork {
    */
   joinGroup(group: string): void {
     // Create a new message with type == "register"
-    console.log("join group:" + group);
     let message = JSON.stringify({
       type: "register",
       group: group,
