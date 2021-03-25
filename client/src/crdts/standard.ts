@@ -52,11 +52,15 @@ export class NumberBase
     this.addCrdt = new CounterPureBase(0);
     this.multCrdt = new MultRegisterBase(0);
     super.setup(this.addCrdt, this.multCrdt, new NumberState(initialValue));
-    this.addCrdt.on("Add", (event) =>
-      super.emit("Add", { ...event, caller: this })
+    this.addCrdt.on(
+      "Add",
+      (event) => super.emit("Add", { ...event, caller: this }),
+      true
     );
-    this.multCrdt.on("Mult", (event) =>
-      super.emit("Mult", { ...event, caller: this })
+    this.multCrdt.on(
+      "Mult",
+      (event) => super.emit("Mult", { ...event, caller: this }),
+      true
     );
   }
 
@@ -103,11 +107,18 @@ export class NumberCrdt
   implements INumber, Resettable {
   constructor(initialValue: number = 0) {
     super(initialValue);
-    this.original.on("Add", (event) =>
-      this.emit("Add", { ...event, caller: this })
+    // TODO: general way to replay events like this
+    // (both for resettable like here, and for
+    // NumberBase's use)
+    this.original.on(
+      "Add",
+      (event) => this.emit("Add", { ...event, caller: this }),
+      true
     );
-    this.original.on("Mult", (event) =>
-      this.emit("Mult", { ...event, caller: this })
+    this.original.on(
+      "Mult",
+      (event) => this.emit("Mult", { ...event, caller: this }),
+      true
     );
   }
   add(toAdd: number): void {
@@ -299,9 +310,11 @@ export class EnableWinsFlag
   implements IFlag, Resettable {
   constructor() {
     super();
-    this.on("Reset", (event) => this.emit("Disable", { ...event }));
-    this.original.on("Change", (event) =>
-      this.emit("Enable", { ...event, caller: this })
+    this.on("Reset", (event) => this.emit("Disable", { ...event }), true);
+    this.original.on(
+      "Change",
+      (event) => this.emit("Enable", { ...event, caller: this }),
+      true
     );
   }
 
@@ -335,9 +348,11 @@ export class DisableWinsFlag
   implements IFlag, Resettable {
   constructor() {
     super();
-    this.on("Reset", (event) => this.emit("Enable", { ...event }));
-    this.original.on("Change", (event) =>
-      this.emit("Disable", { ...event, caller: this })
+    this.on("Reset", (event) => this.emit("Enable", { ...event }), true);
+    this.original.on(
+      "Change",
+      (event) => this.emit("Disable", { ...event, caller: this }),
+      true
     );
   }
 
@@ -598,16 +613,20 @@ export class AddWinsSet<T>
       "flagMap",
       new LazyMap(() => new EnableWinsFlag(), elementSerializer)
     );
-    this.flagMap.on("ValueChange", (event) => {
-      let type: "SetAdd" | "SetDelete" = event.value.enabled
-        ? "SetAdd"
-        : "SetDelete";
-      this.emit(type, {
-        element: event.key,
-        caller: this,
-        timestamp: event.timestamp,
-      });
-    });
+    this.flagMap.on(
+      "ValueChange",
+      (event) => {
+        let type: "SetAdd" | "SetDelete" = event.value.enabled
+          ? "SetAdd"
+          : "SetDelete";
+        this.emit(type, {
+          element: event.key,
+          caller: this,
+          timestamp: event.timestamp,
+        });
+      },
+      true
+    );
   }
 
   add(value: T) {
@@ -712,28 +731,38 @@ export class MapCrdt<K, C extends Crdt & Resettable>
       "valueMap",
       new LazyMap(valueConstructor, keySerializer)
     );
-    this.keySet.on("SetAdd", (event) =>
-      this.emit("KeyAdd", {
-        key: event.element,
-        caller: this,
-        timestamp: event.timestamp,
-      })
+    this.keySet.on(
+      "SetAdd",
+      (event) =>
+        this.emit("KeyAdd", {
+          key: event.element,
+          caller: this,
+          timestamp: event.timestamp,
+        }),
+      true
     );
-    this.keySet.on("SetDelete", (event) =>
-      this.emit("KeyDelete", {
-        key: event.element,
-        caller: this,
-        timestamp: event.timestamp,
-      })
+    this.keySet.on(
+      "SetDelete",
+      (event) =>
+        this.emit("KeyDelete", {
+          key: event.element,
+          caller: this,
+          timestamp: event.timestamp,
+        }),
+      true
     );
-    this.valueMap.on("ValueChange", (event) =>
-      this.emit("ValueChange", { ...event, caller: this })
+    this.valueMap.on(
+      "ValueChange",
+      (event) => this.emit("ValueChange", { ...event, caller: this }),
+      true
     );
     // TODO: note events might correspond to actual changes,
     // it might have been re-added or just received an op.
     // Can we fix this?
-    this.valueMap.on("ValueChange", (event) =>
-      this.keySet.receiveAdd(event.key, event.timestamp)
+    this.valueMap.on(
+      "ValueChange",
+      (event) => this.keySet.receiveAdd(event.key, event.timestamp),
+      true
     );
   }
   // TODO: strong delete and reset.
@@ -944,23 +973,27 @@ export class LwwMap<K, V>
     // TODO: use LwwRegister's LwwEvent's instead
     // so we can report old value & whether the
     // value is new
-    this.internalMap.on("ValueChange", (event) => {
-      if (!event.value.value.isPresent) {
-        // The key was deleted (value was reset)
-        this.emit("KeyDelete", {
-          caller: this,
-          timestamp: event.timestamp,
-          key: event.key,
-        });
-      } else {
-        this.emit("ValueChange", {
-          caller: this,
-          timestamp: event.timestamp,
-          key: event.key,
-          value: event.value.value.get(),
-        });
-      }
-    });
+    this.internalMap.on(
+      "ValueChange",
+      (event) => {
+        if (!event.value.value.isPresent) {
+          // The key was deleted (value was reset)
+          this.emit("KeyDelete", {
+            caller: this,
+            timestamp: event.timestamp,
+            key: event.key,
+          });
+        } else {
+          this.emit("ValueChange", {
+            caller: this,
+            timestamp: event.timestamp,
+            key: event.key,
+            value: event.value.value.get(),
+          });
+        }
+      },
+      true
+    );
 
     // TODO: events
     // this.internalMap.on("KeyAdd", (event) => {

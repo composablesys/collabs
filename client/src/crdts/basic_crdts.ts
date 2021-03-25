@@ -113,8 +113,10 @@ export class CounterPure
   implements ICounter, Resettable {
   constructor(initialValue = 0) {
     super(initialValue);
-    this.original.on("Add", (event) =>
-      this.emit("Add", { ...event, caller: this })
+    this.original.on(
+      "Add",
+      (event) => this.emit("Add", { ...event, caller: this }),
+      true
     );
   }
   add(toAdd: number): void {
@@ -322,8 +324,10 @@ export class MultRegister
   implements IMultRegister, Resettable {
   constructor(initialValue = 1) {
     super(initialValue);
-    this.original.on("Mult", (event) =>
-      this.emit("Mult", { ...event, caller: this })
+    this.original.on(
+      "Mult",
+      (event) => this.emit("Mult", { ...event, caller: this }),
+      true
     );
   }
   mult(toMult: number): void {
@@ -632,7 +636,7 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
       "mvr",
       new MultiValueRegister(new LwwEntrySerializer(valueSerializer))
     );
-    this.mvr.on("Change", (event) => this.refreshValue(event));
+    this.mvr.on("Change", (event) => this.refreshValue(event), true);
     this.currentValue = initialValue;
   }
 

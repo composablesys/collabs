@@ -19,7 +19,10 @@ export abstract class EventEmitter<Events extends EventsRecord> {
   /**
    * Maps event names to registered handlers.
    */
-  private readonly handlers: Partial<
+  private readonly handlersSync: Partial<
+    { [K in keyof Events]: Set<Handler<Events[K]>> }
+  > = {};
+  private readonly handlersAsync: Partial<
     { [K in keyof Events]: Set<Handler<Events[K]>> }
   > = {};
 
@@ -28,13 +31,22 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    *
    * @param eventName Name of the event to listen to
    * @param handler Callback that handles the event
+   * @param synchronous Whether emit will call the handler
+   * synchronously (within the body of emit) or
+   * asynchronously (in a future event loop iteration).
+   * Typically, applications using a Crdt should set this
+   * to false, while Crdt's listening on other Crdt's as
+   * part of an operation, or to dispatch their own events,
+   * should set this to true.
    */
   on<K extends keyof Events>(
     eventName: K,
-    handler: Handler<Events[K]>
+    handler: Handler<Events[K]>,
+    synchronous: boolean = false
   ): Unsubscribe {
-    const set: Set<Handler<Events[K]>> = (this.handlers[eventName] =
-      this.handlers[eventName] ?? new Set([handler]));
+    let handlers = synchronous ? this.handlersSync : this.handlersAsync;
+    const set: Set<Handler<Events[K]>> = (handlers[eventName] =
+      handlers[eventName] ?? new Set([handler]));
     set.add(handler);
     return () => set.delete(handler);
   }
@@ -45,13 +57,23 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    * rejected.
    *
    * @param eventName Name of the event to listen to
+   * @param synchronous Whether emit will call the handler
+   * synchronously (within the body of emit) or
+   * asynchronously (in a future event loop iteration).
    */
-  nextEvent<K extends keyof Events>(eventName: K): Promise<Events[K]> {
+  nextEvent<K extends keyof Events>(
+    eventName: K,
+    synchronous: boolean = false
+  ): Promise<Events[K]> {
     return new Promise((resolve) => {
-      const unsubscribe = this.on(eventName, (event) => {
-        unsubscribe();
-        resolve(event);
-      });
+      const unsubscribe = this.on(
+        eventName,
+        (event) => {
+          unsubscribe();
+          resolve(event);
+        },
+        synchronous
+      );
     });
   }
 
@@ -62,8 +84,16 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    * @param event Event object to pass to the event handlers
    */
   protected emit<K extends keyof Events>(eventName: K, event: Events[K]): void {
-    for (const handler of this.handlers[eventName] ?? []) {
-      handler(event);
+    for (const handler of this.handlersSync[eventName] ?? []) {
+      try {
+        handler(event);
+      } catch (e) {
+        console.log("Error in event handler: ");
+        console.log(e);
+      }
+    }
+    for (const handler of this.handlersAsync[eventName] ?? []) {
+      setTimeout(() => handler(event), 0);
     }
   }
 }
