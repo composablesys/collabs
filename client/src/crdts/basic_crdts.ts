@@ -203,6 +203,11 @@ export class GCounter
           this.state.N.set(keyString, decoded.add!.prOld);
         }
         this.state.P.set(keyString, decoded.add!.prNew);
+        this.emit("Add", {
+          valueAdded: decoded.add!.prNew - decoded.add!.prOld,
+          caller: this,
+          timestamp,
+        });
         break;
       case "reset":
         for (let vEntry of Object.entries(decoded.reset!.V!)) {
@@ -215,6 +220,7 @@ export class GCounter
             }
           }
         }
+        this.emit("Reset", { caller: this, timestamp });
         break;
       default:
         throw new Error("Unknown decoded.data: " + decoded.data);
@@ -254,6 +260,22 @@ export class Counter
     super();
     this.plus = this.addChild("plus", new GCounter());
     this.minus = this.addChild("minus", new GCounter());
+    this.plus.on("Add", (event) =>
+      this.emit("Add", { ...event, caller: this })
+    );
+    this.minus.on("Add", (event) =>
+      this.emit("Add", {
+        valueAdded: -event.valueAdded,
+        caller: this,
+        timestamp: event.timestamp,
+      })
+    );
+    // Dispatch on minus since that is reset last.
+    // TODO: that may break with generic CompositeCrdt.
+    // How to dispatch reset events for CompositeCrdt in general?
+    this.minus.on("Reset", (event) =>
+      this.emit("Reset", { ...event, caller: this })
+    );
   }
 
   add(toAdd: number) {
