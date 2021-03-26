@@ -118,6 +118,22 @@ export abstract class Crdt<
   // index but not the underlying array).
 
   abstract getDescendant(targetPath: string[]): Crdt;
+
+  /**
+   * If this Crdt is in its initial, post-constructor state, then
+   * this method may (but is not required to) return true.  Users of
+   * this Crdt may then delete it from memory ("garbage collection"),
+   * recreating it using the
+   * same constructor arguments if needed later.  That reduces
+   * the state space of some Crdt's, such as LazyMap.
+   *
+   * The default implementation always returns false, which is safe but
+   * may unnecessarily increase the state size of Crdt's using this
+   * Crdt (in particular LazyMap).
+   */
+  canGC(): boolean {
+    return false;
+  }
 }
 
 /**
@@ -304,12 +320,23 @@ export class CompositeCrdt<
     targetPath.length--;
     return child.getDescendant(targetPath);
   }
+
+  canGC(): boolean {
+    for (let child of this.children.values()) {
+      if (!child.canGC()) return false;
+    }
+    return true;
+  }
 }
 
 export class GroupParent extends CompositeCrdt {
   // Expose publicly
   public addChild<D extends Crdt>(name: string, child: D): D {
     return super.addChild(name, child);
+  }
+
+  canGC(): boolean {
+    return false;
   }
 }
 

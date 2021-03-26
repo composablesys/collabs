@@ -62,6 +62,10 @@ class ResetComponent<
       }
     }
   }
+
+  canGC() {
+    return true;
+  }
 }
 
 // TODO: rename ResetWrapper; same for StrongResetWrapper
@@ -197,6 +201,10 @@ export class StrongResetComponent<
       throw new Error("Unexcepted nontrivial message for StrongResetComponent");
     this.strongResetWrapperCrdt.original.state.resetLocalState();
     this.strongResetWrapperCrdt.dispatchStrongResetEvent(timestamp);
+  }
+
+  canGC() {
+    return true;
   }
 }
 

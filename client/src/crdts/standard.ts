@@ -275,6 +275,10 @@ export class NoopCrdt
   }
   reset() {}
   strongReset() {}
+
+  canGC() {
+    return true;
+  }
 }
 
 export interface FlagEventsRecord extends CrdtEventsRecord {
@@ -390,6 +394,7 @@ export class LazyMap<K, C extends Crdt>
   extends Crdt<LazyMapEventsRecord<K, C>>
   implements CrdtParent {
   private readonly internalMap: Map<string, C> = new Map();
+  private readonly pendingGCs = new Set<string>();
   /**
    * TODO: a map with all keys present, with their values
    * initialized to default values (and possibly GC'd and
@@ -430,11 +435,17 @@ export class LazyMap<K, C extends Crdt>
    * easiest way to ensure this is to have the result be
    * a function of the given arguments only.
    *
-   * TODO: garbage collection stuff for AWSet.
+   * @param gcValues If true, value Crdt's that are garbage
+   * collectible (canGC() is true) will occasionally be deleted
+   * from this map's explicit keys to save space, later being
+   * recreated with valueConstructor if necessary.  This is only safe
+   * if value Crdt's and their descendants are never stored by-reference
+   * across event loops.
    */
   constructor(
     private readonly valueConstructor: (key: K) => C,
-    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
+    private readonly gcValues = false
   ) {
     super();
   }
@@ -497,6 +508,14 @@ export class LazyMap<K, C extends Crdt>
       caller: this,
       timestamp: timestamp,
     });
+    if (this.gcValues) {
+      // Schedule a later check for garbage collection
+      if (this.pendingGCs.size === 0) {
+        // TODO: less aggressive strategy?
+        setTimeout(() => this.tryGC(), 0);
+      }
+      this.pendingGCs.add(keyString);
+    }
   }
 
   // TODO: hack for MapCrdt; remove later
@@ -551,13 +570,23 @@ export class LazyMap<K, C extends Crdt>
   explicitValues() {
     return this.internalMap.values();
   }
+
+  canGC() {
+    return this.internalMap.size === 0;
+  }
+
+  private tryGC() {
+    for (let keyString of this.pendingGCs.values()) {
+      let value = this.internalMap.get(keyString);
+      if (value !== undefined) {
+        if (value.canGC()) {
+          // Delete it from the explicit map
+          this.internalMap.delete(keyString);
+        }
+      }
+    }
+  }
 }
-
-// TODO: for now, let decoding errors propogate, instead of
-// catching them
-
-// TODO: also have GSet use string-based keys like GMap.
-// Move the conversion functionality to ElementSerializer?
 
 export interface SetEvent<T> extends CrdtEvent {
   readonly element: T;
@@ -596,7 +625,7 @@ export class AddWinsSet<T>
     super();
     this.flagMap = this.addChild(
       "flagMap",
-      new LazyMap(() => new EnableWinsFlag(), elementSerializer)
+      new LazyMap(() => new EnableWinsFlag(), elementSerializer, true)
     );
     this.flagMap.on("ValueChange", (event) => {
       let type: "SetAdd" | "SetDelete" = event.value.enabled
@@ -701,16 +730,24 @@ export class MapCrdt<K, C extends Crdt & Resettable>
    *
    * TODO: garbage collection?  Can we ever release the
    * reference to a deleted value, e.g., using weakrefs?
+   *
+   * @param gcValues If true, value Crdt's that are garbage
+   * collectible (canGC() is true) will occasionally be deleted
+   * from this map's explicit keys to save space, later being
+   * recreated with valueConstructor if necessary.  This is only safe
+   * if value Crdt's and their descendants are never stored by-reference
+   * across event loops.
    */
   constructor(
     valueConstructor: (key: K) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
+    gcValues = false
   ) {
     super();
     this.keySet = this.addChild("keySet", new AddWinsSet(keySerializer));
     this.valueMap = this.addChild(
       "valueMap",
-      new LazyMap(valueConstructor, keySerializer)
+      new LazyMap(valueConstructor, keySerializer, gcValues)
     );
     this.keySet.on("SetAdd", (event) =>
       this.emit("KeyAdd", {
@@ -937,7 +974,8 @@ export class LwwMap<K, V>
             Optional.empty(),
             new OptionalSerializer(valueSerializer)
           ),
-        keySerializer
+        keySerializer,
+        true
       )
     );
 

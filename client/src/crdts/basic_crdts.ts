@@ -30,7 +30,7 @@ import {
 } from "./mixins";
 
 export class NumberState implements LocallyResettableState {
-  private readonly initialValue: number;
+  readonly initialValue: number;
   constructor(public value: number) {
     this.initialValue = value;
   }
@@ -97,6 +97,10 @@ export class CounterPureBase
   ): void {
     this.receiveGeneral(targetPath, timestamp, message);
   }
+
+  canGC() {
+    return this.state.value === this.state.initialValue;
+  }
 }
 
 const AddCounterEvents = makeEventAdder<CounterEventsRecord>();
@@ -134,6 +138,10 @@ export class CounterState {
   plusN: { [k: string]: number } = {};
   minusP: { [k: string]: number } = {};
   minusN: { [k: string]: number } = {};
+  canGC(): boolean {
+    // TODO
+    return false;
+  }
 }
 
 export class Counter
@@ -229,6 +237,10 @@ export class Counter
   set value(value: number) {
     this.add(value - this.value);
   }
+
+  canGC() {
+    return this.state.canGC();
+  }
 }
 
 // TODO: StrongResettable
@@ -312,6 +324,10 @@ export class MultRegisterBase
    */
   set value(value: number) {
     this.mult(value / this.value);
+  }
+
+  canGC() {
+    return this.state.value === this.state.initialValue;
   }
 }
 
@@ -432,6 +448,10 @@ export class GSet<T>
       ans.add(this.stringAsElement(elementString));
     }
     return ans;
+  }
+
+  canGC() {
+    return this.state.size === 0;
   }
 
   // TODO: other helper methods
@@ -574,6 +594,10 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     let values = new Set<[T, string]>();
     for (let entry of this.state) values.add([entry.value, entry.sender]);
     return values;
+  }
+
+  canGC() {
+    return this.state.size === 0;
   }
 }
 

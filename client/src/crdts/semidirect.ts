@@ -378,4 +378,15 @@ export abstract class SemidirectProduct<
     targetPath.length--;
     return child.getDescendant(targetPath);
   }
+
+  canGC(): boolean {
+    // TODO: this may spuriously return false if one of the Crdt's is not
+    // in its initial state only because we overwrote that state with
+    // the semidirect initial state.  Although, for our Crdt's so far
+    // (e.g NumberCrdt), it ends up working because they check canGC()
+    // by asking the state if it is in its initial state.
+    return (
+      this.state.isHistoryEmpty() && this.crdt1.canGC() && this.crdt2.canGC()
+    );
+  }
 }
