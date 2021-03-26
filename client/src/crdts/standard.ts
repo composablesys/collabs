@@ -571,6 +571,10 @@ export class LazyMap<K, C extends Crdt>
     return this.internalMap.values();
   }
 
+  get explicitSize(): number {
+    return this.internalMap.size;
+  }
+
   canGC() {
     return this.internalMap.size === 0;
   }
@@ -688,6 +692,11 @@ export class AddWinsSet<T>
 
   values() {
     return this.value.values();
+  }
+
+  get size(): number {
+    // TODO: optimize.  This should take constant time.
+    return this.value.size;
   }
 
   // TODO: other helper methods?
@@ -837,6 +846,10 @@ export class MapCrdt<K, C extends Crdt & Resettable>
 
   values() {
     return this.value.values();
+  }
+
+  get size(): number {
+    return this.keySet.size;
   }
 
   get value(): Map<K, C> {
@@ -1071,6 +1084,15 @@ export class LwwMap<K, V>
         entries.push([entry[0], entry[1].value.get()]);
     }
     return entries.values();
+  }
+
+  get size(): number {
+    // TODO: optimize.  This should take constant time.
+    let ans = 0;
+    for (let key of this.internalMap.explicitKeys()) {
+      if (this.has(key)) ans++;
+    }
+    return ans;
   }
 
   reset() {

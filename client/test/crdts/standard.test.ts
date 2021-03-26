@@ -578,6 +578,67 @@ describe("standard", () => {
     //       assert.deepStrictEqual(bobSet.value, new Set([]));
     //     });
     //   });
+    describe("gc", () => {
+      it("garbage collects deleted entries", async () => {
+        for (let i = 0; i < 100; i++) {
+          aliceSet.add(i + "");
+        }
+        runtimeGen.releaseAll();
+        for (let i = 0; i < 100; i++) {
+          if (i < 50) aliceSet.delete(i + "");
+          else bobSet.delete(i + "");
+        }
+        runtimeGen.releaseAll();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        // @ts-ignore flagMap is private
+        assert.strictEqual(aliceSet.flagMap.explicitSize, 0);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(bobSet.flagMap.explicitSize, 0);
+      });
+
+      it("does not garbage collect non-deleted entries", async () => {
+        for (let i = 0; i < 100; i++) {
+          aliceSet.add(i + "");
+        }
+        runtimeGen.releaseAll();
+        // Check nothing has happened synchronously
+        assert.strictEqual(aliceSet.size, 100);
+        assert.strictEqual(bobSet.size, 100);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(aliceSet.flagMap.explicitSize, 100);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(bobSet.flagMap.explicitSize, 100);
+
+        // Wait for GC to actually run
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        assert.strictEqual(aliceSet.size, 100);
+        assert.strictEqual(bobSet.size, 100);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(aliceSet.flagMap.explicitSize, 100);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(bobSet.flagMap.explicitSize, 100);
+      });
+
+      it("does not garbage collect synchronously", async () => {
+        for (let i = 0; i < 100; i++) {
+          aliceSet.add(i + "");
+        }
+        runtimeGen.releaseAll();
+        for (let i = 0; i < 100; i++) {
+          if (i < 50) aliceSet.delete(i + "");
+          else bobSet.delete(i + "");
+        }
+        runtimeGen.releaseAll();
+
+        // Don't wait for GC to run; it shouldn't GC yet
+        assert.strictEqual(aliceSet.size, 0);
+        assert.strictEqual(bobSet.size, 0);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(aliceSet.flagMap.explicitSize, 100);
+        // @ts-ignore flagMap is private
+        assert.strictEqual(bobSet.flagMap.explicitSize, 100);
+      });
+    });
   });
 
   describe("MapCrdt", () => {
@@ -1013,6 +1074,67 @@ describe("standard", () => {
         runtimeGen.releaseAll();
 
         await promise;
+      });
+    });
+    describe("gc", () => {
+      it("garbage collects deleted entries", async () => {
+        for (let i = 0; i < 100; i++) {
+          aliceMap.set(i + "", 10 * i);
+        }
+        runtimeGen.releaseAll();
+        for (let i = 0; i < 100; i++) {
+          if (i < 50) aliceMap.delete(i + "");
+          else bobMap.delete(i + "");
+        }
+        runtimeGen.releaseAll();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        // @ts-ignore internalMap is private
+        assert.strictEqual(aliceMap.internalMap.explicitSize, 0);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(bobMap.internalMap.explicitSize, 0);
+      });
+
+      it("does not garbage collect non-deleted entries", async () => {
+        for (let i = 0; i < 100; i++) {
+          aliceMap.set(i + "", 10 * i);
+        }
+        runtimeGen.releaseAll();
+        // Check nothing has happened synchronously
+        assert.strictEqual(aliceMap.size, 100);
+        assert.strictEqual(bobMap.size, 100);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(aliceMap.internalMap.explicitSize, 100);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(bobMap.internalMap.explicitSize, 100);
+
+        // Wait for GC to actually run
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        assert.strictEqual(aliceMap.size, 100);
+        assert.strictEqual(bobMap.size, 100);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(aliceMap.internalMap.explicitSize, 100);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(bobMap.internalMap.explicitSize, 100);
+      });
+
+      it("does not garbage collect synchronously", async () => {
+        for (let i = 0; i < 100; i++) {
+          aliceMap.set(i + "", 10 * i);
+        }
+        runtimeGen.releaseAll();
+        for (let i = 0; i < 100; i++) {
+          if (i < 50) aliceMap.delete(i + "");
+          else bobMap.delete(i + "");
+        }
+        runtimeGen.releaseAll();
+
+        // Don't wait for GC to run; it shouldn't GC yet
+        assert.strictEqual(aliceMap.size, 0);
+        assert.strictEqual(bobMap.size, 0);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(aliceMap.internalMap.explicitSize, 100);
+        // @ts-ignore internalMap is private
+        assert.strictEqual(bobMap.internalMap.explicitSize, 100);
       });
     });
   });
