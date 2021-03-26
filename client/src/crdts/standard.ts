@@ -589,6 +589,7 @@ export class LazyMap<K, C extends Crdt>
         }
       }
     }
+    this.pendingGCs.clear();
   }
 }
 

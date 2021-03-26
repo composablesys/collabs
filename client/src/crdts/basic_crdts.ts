@@ -9,7 +9,7 @@ import {
 import { CausalTimestamp } from "../network";
 import {
   CounterPureBaseMessage,
-  CounterResettableMessage,
+  GCounterMessage,
   GSetMessage,
   LwwMessage,
   MultRegisterMessage,
@@ -133,104 +133,105 @@ export class CounterPure
 }
 // TODO: StrongResettable
 
-export class CounterState {
-  plusP: { [k: string]: number } = {};
-  plusN: { [k: string]: number } = {};
-  minusP: { [k: string]: number } = {};
-  minusN: { [k: string]: number } = {};
-  canGC(): boolean {
-    // TODO
-    return false;
-  }
+export class GCounterState {
+  P = new Map<string, number>();
+  N = new Map<string, number>();
+  idCounter?: number;
 }
 
-export class Counter
+export class GCounter
   extends PrimitiveCrdt<
-    CounterState,
+    GCounterState,
     CounterEventsRecord & ResettableEventsRecord
   >
-  implements ICounter, Resettable {
-  constructor(readonly initialValue: number = 0) {
-    super(new CounterState());
+  implements Resettable {
+  constructor() {
+    super(new GCounterState());
+  }
+
+  private keyString(sender: string, idCounter: number) {
+    return idCounter + " " + sender;
   }
 
   add(toAdd: number) {
-    if (toAdd !== 0) {
-      let message = CounterResettableMessage.create({ toAdd: toAdd });
-      let buffer = CounterResettableMessage.encode(message).finish();
-      super.send(buffer);
+    if (toAdd < 0) {
+      throw new Error(
+        "GCounter.add: toAdd = " +
+          toAdd +
+          "; must be nonnegative (consider using Counter instead)"
+      );
     }
+    if (toAdd === 0) return;
+    if (this.state.idCounter === undefined) {
+      // TODO: do this in constructor once we get
+      // access to this.runtime there
+      this.state.idCounter = this.runtime.getReplicaUniqueNumber();
+    }
+
+    let prOld =
+      this.state.P.get(
+        this.keyString(this.runtime.getReplicaId(), this.state.idCounter!)
+      ) ?? 0;
+    let message = GCounterMessage.create({
+      add: { prOld, prNew: prOld + toAdd, idCounter: this.state.idCounter! },
+    });
+    super.send(GCounterMessage.encode(message).finish());
   }
 
   reset() {
-    let message = CounterResettableMessage.create({
-      toReset: {
-        plusReset: this.state.plusP,
-        minusReset: this.state.minusP,
+    let pAsIndexSignature: { [key: string]: number } = {};
+    for (let entry of this.state.P.entries()) {
+      pAsIndexSignature[entry[0]] = entry[1];
+    }
+    let message = GCounterMessage.create({
+      reset: {
+        V: pAsIndexSignature,
       },
     });
-    let buffer = CounterResettableMessage.encode(message).finish();
-    super.send(buffer);
+    super.send(GCounterMessage.encode(message).finish());
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = CounterResettableMessage.decode(message);
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array): void {
+    let decoded = GCounterMessage.decode(message);
     switch (decoded.data) {
-      case "toAdd":
-        if (decoded.toAdd > 0) {
-          let current = this.state.plusP[timestamp.getSender()];
-          if (current === undefined) current = 0;
-          this.state.plusP[timestamp.getSender()] = current + decoded.toAdd;
-        } else {
-          let current = this.state.minusP[timestamp.getSender()];
-          if (current === undefined) current = 0;
-          this.state.minusP[timestamp.getSender()] = current - decoded.toAdd;
+      case "add":
+        let keyString = this.keyString(
+          timestamp.getSender(),
+          decoded.add!.idCounter
+        );
+        if (!this.state.P.has(keyString)) {
+          this.state.N.set(keyString, decoded.add!.prOld);
         }
-        this.emit("Add", {
-          caller: this,
-          timestamp,
-          valueAdded: decoded.toAdd,
-        });
+        this.state.P.set(keyString, decoded.add!.prNew);
         break;
-      case "toReset":
-        this.merge(this.state.plusN, decoded.toReset!.plusReset!);
-        this.merge(this.state.minusN, decoded.toReset!.minusReset!);
-        this.emit("Reset", {
-          caller: this,
-          timestamp: timestamp,
-        });
-        // TODO: event: also include metadata about non-reset ops?
+      case "reset":
+        for (let vEntry of Object.entries(decoded.reset!.V!)) {
+          let nEntry = this.state.N.get(vEntry[0]);
+          if (nEntry !== undefined) {
+            this.state.N.set(vEntry[0], Math.max(nEntry, vEntry[1]));
+            if (this.state.N.get(vEntry[0]) === this.state.P.get(vEntry[0])) {
+              this.state.N.delete(vEntry[0]);
+              this.state.P.delete(vEntry[0]);
+            }
+          }
+        }
         break;
       default:
-        throw new Error("CounterResettable: Bad decoded.data: " + decoded.data);
-    }
-  }
-
-  private merge(
-    target: { [k: string]: number },
-    source: { [k: string]: number }
-  ) {
-    for (let k of Object.keys(source)) {
-      if (target[k] === undefined || target[k] < source[k]) {
-        target[k] = source[k];
-      }
+        throw new Error("Unknown decoded.data: " + decoded.data);
     }
   }
 
   get value(): number {
-    let value = this.initialValue;
-    value += this.addValues(this.state.plusP);
-    value -= this.addValues(this.state.plusN);
-    value -= this.addValues(this.state.minusP);
-    value += this.addValues(this.state.minusN);
-    return value;
+    // TODO: cache value as optimization?
+    return this.sum(this.state.P) - this.sum(this.state.N);
   }
 
-  private addValues(record: { [k: string]: number }) {
+  private sum(map: Map<string, number>): number {
     let ans = 0;
-    for (let value of Object.values(record)) ans += value;
+    for (let value of map.values()) ans += value;
     return ans;
   }
+
   /**
    * Performs an equivalent add.
    */
@@ -239,7 +240,42 @@ export class Counter
   }
 
   canGC() {
-    return this.state.canGC();
+    return this.state.P.size === 0 && this.state.N.size === 0;
+  }
+}
+
+export class Counter
+  extends CompositeCrdt<CounterEventsRecord & ResettableEventsRecord>
+  implements ICounter, Resettable {
+  private readonly plus: GCounter;
+  private readonly minus: GCounter;
+
+  constructor(readonly initialValue: number = 0) {
+    super();
+    this.plus = this.addChild("plus", new GCounter());
+    this.minus = this.addChild("minus", new GCounter());
+  }
+
+  add(toAdd: number) {
+    if (toAdd > 0) this.plus.add(toAdd);
+    else this.minus.add(-toAdd);
+  }
+
+  reset() {
+    // TODO: generic CompositeCrdt reset
+    this.plus.reset();
+    this.minus.reset();
+  }
+
+  get value(): number {
+    return this.plus.value - this.minus.value;
+  }
+
+  /**
+   * Performs an equivalent add.
+   */
+  set value(value: number) {
+    this.add(value - this.value);
   }
 }
 

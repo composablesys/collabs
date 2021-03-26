@@ -131,20 +131,32 @@ describe("basic_crdts", () => {
         runtimeGen.releaseAll();
         assert.strictEqual(aliceCounter.value, -1);
         assert.strictEqual(bobCounter.value, -1);
+
+        aliceCounter.add(-3);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, -4);
+        assert.strictEqual(bobCounter.value, -4);
+
+        bobCounter.add(4);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, 0);
+        assert.strictEqual(bobCounter.value, 0);
       });
 
       it("works for concurrent updates", () => {
         aliceCounter.add(2);
-        assert.strictEqual(aliceCounter.value, 2);
+        aliceCounter.add(-7);
+        assert.strictEqual(aliceCounter.value, -5);
         assert.strictEqual(bobCounter.value, 0);
 
         bobCounter.add(-5);
-        assert.strictEqual(aliceCounter.value, 2);
-        assert.strictEqual(bobCounter.value, -5);
+        bobCounter.add(4);
+        assert.strictEqual(aliceCounter.value, -5);
+        assert.strictEqual(bobCounter.value, -1);
 
         runtimeGen.releaseAll();
-        assert.strictEqual(aliceCounter.value, -3);
-        assert.strictEqual(bobCounter.value, -3);
+        assert.strictEqual(aliceCounter.value, -6);
+        assert.strictEqual(bobCounter.value, -6);
       });
     });
 
@@ -193,6 +205,38 @@ describe("basic_crdts", () => {
         runtimeGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 10);
         assert.strictEqual(bobCounter.value, 10);
+      });
+    });
+
+    describe("gc", () => {
+      it("allows garbage collection when reset", () => {
+        aliceCounter.add(10);
+        aliceCounter.add(-1);
+        bobCounter.add(11);
+        bobCounter.add(-2);
+        runtimeGen.releaseAll();
+
+        aliceCounter.reset();
+        runtimeGen.releaseAll();
+
+        assert.isTrue(aliceCounter.canGC());
+        assert.isTrue(bobCounter.canGC());
+      });
+
+      it("does not allow garbage collection when not reset", () => {
+        aliceCounter.add(10);
+        aliceCounter.add(-1);
+        aliceCounter.reset();
+        bobCounter.add(11);
+        bobCounter.add(-2);
+        runtimeGen.releaseAll();
+
+        assert.isFalse(aliceCounter.canGC());
+        assert.isFalse(bobCounter.canGC());
+      });
+
+      it.skip("works with recreating gc'd Counter", () => {
+        // TODO
       });
     });
 
