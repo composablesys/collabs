@@ -1,0 +1,5 @@
+message StatelessTreeMessage {
+    required bytes path = 1;
+    required string sender = 2;
+    required uint32 senderCounter = 3;
+}
