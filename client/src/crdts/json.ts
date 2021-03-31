@@ -21,35 +21,39 @@ export interface JsonEventsRecord extends CrdtEventsRecord {
 export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     private readonly internalNumberMap: MapCrdt<string, MultiValueRegister<Number>>;
     private readonly internalStringMap: MapCrdt<string, MultiValueRegister<string>>;
+    private cursor;
 
     constructor() {
         super();
         this.internalNumberMap = new MapCrdt(() => new MultiValueRegister());
         this.internalStringMap = new MapCrdt(() => new MultiValueRegister());
+        this.cursor = "";
     }
 
     set(key : string, val : any) {
         switch (typeof val) {
             case "string":
-                let mvr_str = this.internalStringMap.getForce(key);
+                let mvr_str = this.internalStringMap.getForce(this.cursor + key);
                 if (mvr_str) mvr_str.value = val;
                 break;
 
             case "number":
-                let mvr_num = this.internalNumberMap.getForce(key);
+                let mvr_num = this.internalNumberMap.getForce(this.cursor + key);
                 if (mvr_num) mvr_num.value = val;
                 break;
         }
     }
 
     get(key : string) : any[] {
+        this.cursor += (":" + key);
+
         let vals : any[] = [];
         let val;
 
-        val = this.internalStringMap.get(key)
+        val = this.internalStringMap.get(this.cursor + key)
         if (val) vals.push(val);
         
-        val = this.internalNumberMap.get(key)
+        val = this.internalNumberMap.get(this.cursor + key)
         if (val) vals.push(val);
 
         return vals;
@@ -62,5 +66,9 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
 
     keys() : string[] {
         return [...this.internalStringMap.keys()].concat([...this.internalNumberMap.keys()]);
+    }
+
+    resetCursor() {
+        this.cursor = "";
     }
 }
