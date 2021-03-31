@@ -1,14 +1,7 @@
 import { assert } from "chai";
-import { debug } from "../debug";
 import {
-  Counter,
-  CounterPureBase,
   CrdtRuntime,
-  GSet,
   ISequenceSource,
-  LwwRegister,
-  MultiValueRegister,
-  MultRegister,
   NaiveStatelessTreeSource,
 } from "../../src/crdts";
 import { TestingNetworkGenerator } from "../../src/network";
@@ -106,7 +99,7 @@ describe("list", () => {
         senderCounter: 17,
       };
       let mid = source.createBetween(before, after, 1)[0];
-      assert.strictEqual([...mid.path], expectedPath);
+      assert.deepStrictEqual([...mid.path], expectedPath);
     }
 
     it("creates expected paths", () => {
@@ -117,6 +110,10 @@ describe("list", () => {
       checkCreatedPath([0, 255, 255], [1, 0, 0, 0, 7], [1]);
       checkCreatedPath([0, 255, 255, 255], [1], [0, 255, 255, 255, 128]);
       checkCreatedPath([17, 255, 255, 40], [18], [17, 255, 255, 148]);
+      checkCreatedPath([], [1], [0, 128]);
+      checkCreatedPath([0, 128], [1], [0, 192]);
+      checkCreatedPath([0, 255], [1], [0, 255, 128]);
+      checkCreatedPath([], [0, 128], [0, 64]);
     });
   });
 
@@ -134,7 +131,15 @@ describe("list", () => {
             for (let j = 0; j < seqIds.length; j++) {
               assert.strictEqual(
                 Math.sign(source.compare(seqIds[i], seqIds[j])),
-                Math.sign(i - j)
+                Math.sign(i - j),
+                "i = " +
+                  i +
+                  ", j = " +
+                  j +
+                  ", seqIds[i] = " +
+                  JSON.stringify(seqIds[i]) +
+                  ", seqIds[j] = " +
+                  JSON.stringify(seqIds[j])
               );
             }
           }
@@ -203,15 +208,16 @@ describe("list", () => {
 
         it("works for RtL insertions", () => {
           let lastSeqId = aliceSource.end;
-          let seqIds: any[] = [];
+          let seqIdsRev: any[] = [];
           for (let i = 0; i < 100; i++) {
             lastSeqId = aliceSource.createBetween(
               aliceSource.start,
               lastSeqId,
               1
             )[0];
-            seqIds.push(lastSeqId);
+            seqIdsRev.push(lastSeqId);
           }
+          let seqIds = seqIdsRev.reverse();
           checkOrder(aliceSource, seqIds);
           runtimeGen.releaseAll();
           checkOrder(bobSource, transfer(aliceSource, bobSource, seqIds));

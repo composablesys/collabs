@@ -287,6 +287,10 @@ export abstract class StatelessTreeSource
     // sender, then senderCounter.
     // The paths are treated as little-endian numbers
     // with matching magnitudes.
+    if (a.path.length === 0) {
+      if (b.path.length === 0) return 0;
+      else return -1;
+    }
     for (let i = 0; i < a.path.length; i++) {
       if (i === b.path.length) {
         // a and b are equal so far, but b is shorter, so it
@@ -364,26 +368,34 @@ export class NaiveStatelessTreeSource extends StatelessTreeSource {
     after: Uint8Array,
     count: number
   ): Uint8Array[] {
+    return this.createPathsBetweenInternal(before, after, count).map(
+      (value) => new Uint8Array(value)
+    );
+  }
+
+  private createPathsBetweenInternal(
+    before: Uint8Array | number[],
+    after: Uint8Array | number[],
+    count: number
+  ): number[][] {
     // Base case
     if (count === 0) return [];
 
     // Find a path midway between before and after
-    let mid = new Uint8Array();
+    let mid: number[] = [];
     // Find the first index where before and after differ
     let i;
-    for (i = 0; i < before.length; i++) {
-      if (i === after.length) {
-        throw new Error("after is less than before");
-      }
-      if (before[i] !== after[i]) break;
+    for (i = 0; i < after.length; i++) {
+      let beforeI = before[i] ?? 0;
+      if (beforeI !== after[i]) break;
       // Else
-      mid[i] = before[i];
+      mid[i] = beforeI;
     }
-    if (after[i] === undefined) throw new Error("after equals before");
+    if (after[i] === undefined) throw new Error("after <= before");
     let beforeI = before[i] ?? 0;
     let afterI = after[i];
     if (afterI === beforeI + 1) {
-      if (after.length > i) {
+      if (after.length > i + 1) {
         // We are guaranteed that after has no trailing
         // zeroes, so there must be a nonzero value
         // in after somewhere beyond after[i].
@@ -401,22 +413,32 @@ export class NaiveStatelessTreeSource extends StatelessTreeSource {
         // before[j] = 255, then setting the final value
         // to be in between before[j] and 255 (and definitely
         // greather than before[j]).
-        let j = i;
+        mid[i] = beforeI;
+        let j = i + 1;
         while (before[j] === 255) {
           mid[j] = 255;
           j++;
         }
-        mid[j] = Math.ceil((before[j] ?? 0 + 255) / 2);
+        mid[j] = Math.ceil(((before[j] ?? 0) + 255) / 2);
       }
     } else {
+      // console.log("setting mid:");
+      // console.log(mid);
       mid[i] = Math.floor((beforeI + afterI) / 2);
+      // console.log(i);
+      // console.log(Math.floor((beforeI + afterI) / 2));
+      // console.log(mid);
     }
 
     // Divide and conquer
     return [
-      ...this.createPathsBetween(before, mid, Math.floor(count / 2)),
+      ...this.createPathsBetweenInternal(before, mid, Math.floor(count / 2)),
       mid,
-      ...this.createPathsBetween(mid, after, Math.floor((count - 1) / 2)),
+      ...this.createPathsBetweenInternal(
+        mid,
+        after,
+        Math.floor((count - 1) / 2)
+      ),
     ];
   }
 }
