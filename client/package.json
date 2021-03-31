@@ -23,12 +23,14 @@
     "@types/chai": "^4.2.14",
     "@types/functional-red-black-tree": "^1.0.0",
     "@types/mocha": "^8.2.0",
+    "@types/seedrandom": "^2.4.28",
     "@types/uuid": "^3.4.0",
     "@types/ws": "^7.2.6",
     "chai": "^4.2.0",
     "mkdirp": "^1.0.4",
     "mocha": "^8.2.1",
-    "tslib": "^2.0.1"
+    "tslib": "^2.0.1",
+    "seedrandom": "^3.0.5"
   },
   "scripts": {
     "build": "npm-run-all build:*",
