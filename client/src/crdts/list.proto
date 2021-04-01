@@ -1,5 +1,5 @@
-message StatelessTreeMessage {
-    required bytes path = 1;
-    required string sender = 2;
-    required uint32 senderCounter = 3;
+message TreedocIdMessage {
+  required bytes path = 1;
+  required uint32 pathLength = 2;
+  map<uint32, string> disambiguators = 3;
 }

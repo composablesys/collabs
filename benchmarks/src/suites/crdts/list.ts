@@ -1,7 +1,7 @@
 import { CrdtSuite } from "../../crdt_suite";
 import { crdts } from "compoventuals-client";
 
-const lists = { NaiveList: crdts.NaiveList };
+const lists = { TreedocList: crdts.TreedocList };
 
 for (let entry of Object.entries(lists)) {
   const listSuite = new CrdtSuite<crdts.List<any, crdts.LwwRegister<string>>>(
@@ -20,7 +20,7 @@ for (let entry of Object.entries(lists)) {
     {
       Type: [
         (crdt, rng) =>
-          (crdt.insertAt(Math.floor(rng() * crdt.length + 1))[1].value = "a"),
+          (crdt.insertAt(Math.floor(rng() * (crdt.length + 1)))[1].value = "a"),
         1,
       ],
     }

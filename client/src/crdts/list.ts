@@ -1,11 +1,11 @@
-import { CompositeCrdt, Crdt, CrdtRuntime, PrimitiveCrdt } from "./crdt_core";
+import { CompositeCrdt, Crdt, CrdtRuntime } from "./crdt_core";
 import { Resettable } from "./mixins";
 import { ElementSerializer } from "./utils";
 import createTree from "functional-red-black-tree";
 import { Tree } from "functional-red-black-tree";
 import { MapCrdt } from "./standard";
-import { StatelessTreeMessage } from "../../generated/proto_compiled";
-import { CausalTimestamp } from "../network";
+import { TreedocIdMessage } from "../../generated/proto_compiled";
+import { BitSet } from "../utils/bitset";
 
 // TODO: should this have any events?
 
@@ -44,25 +44,12 @@ export interface ISequenceSource<I> extends Crdt, ElementSerializer<I> {
    * an arbitrary tie-breaker between elements that
    * would otherwise be equivalently ordered.
    *
-   * @param  before [description]
-   * @param  after  [description]
+   * @param  before null for start
+   * @param  after  null for end
    * @param count   [description]
    * @return        [description]
    */
-  createBetween(before: I, after: I, count: number): I[];
-
-  /**
-   * A formal identifier less than all identifers
-   * actually used.  Use this as
-   * before when inserting at the beginning of a sequence.
-   */
-  readonly start: I;
-  /**
-   * A formal identifier greater than all identifers
-   * actually used.  Use this as
-   * after when inserting at the end of a sequence.
-   */
-  readonly end: I;
+  createBetween(before: I | null, after: I | null, count: number): I[];
 }
 
 export class List<I, C extends Crdt & Resettable>
@@ -160,9 +147,8 @@ export class List<I, C extends Crdt & Resettable>
           ")"
       );
     }
-    let before = index === 0 ? this.sequenceSource.start : this.idAt(index - 1);
-    let after =
-      index === this.length ? this.sequenceSource.end : this.idAt(index);
+    let before = index === 0 ? null : this.idAt(index - 1);
+    let after = index === this.length ? null : this.idAt(index);
     return this.insertBetween(before, after, count);
   }
 
@@ -171,7 +157,7 @@ export class List<I, C extends Crdt & Resettable>
   }
 
   insertAfterRange(seqId: I, count: number): [seqId: I, value: C][] {
-    let after = this.sortedKeys.gt(seqId).key ?? this.sequenceSource.end;
+    let after = this.sortedKeys.gt(seqId).key ?? null;
     return this.insertBetween(seqId, after, count);
   }
 
@@ -180,13 +166,13 @@ export class List<I, C extends Crdt & Resettable>
   }
 
   insertBeforeRange(seqId: I, count: number): [seqId: I, value: C][] {
-    let before = this.sortedKeys.lt(seqId).key ?? this.sequenceSource.start;
+    let before = this.sortedKeys.lt(seqId).key ?? null;
     return this.insertBetween(before, seqId, count);
   }
 
   private insertBetween(
-    before: I,
-    after: I,
+    before: I | null,
+    after: I | null,
     count: number
   ): [seqId: I, value: C][] {
     let seqIds = this.sequenceSource.createBetween(before, after, count);
@@ -263,194 +249,230 @@ export class List<I, C extends Crdt & Resettable>
 
 // Implementations
 
-export interface StatelessTreeId {
-  // Trailing zeroes are not allowed, nor are
-  // paths besides StatelessTreeSource.end with
-  // high byte 255.
-  // TODO: use larger numeric size, if we can figure
-  // out how to serialize it properly with consistent
-  // endianness.
-  readonly path: Uint8Array;
-  readonly sender: string;
-  readonly senderCounter: number;
+export interface TreedocId {
+  path: BitSet; // top bit is always 0
+  disambiguators: { [index: number]: string };
 }
 
-export abstract class StatelessTreeSource
-  extends PrimitiveCrdt<{}>
-  implements ISequenceSource<StatelessTreeId> {
-  constructor() {
-    super({});
+export class TreedocSource
+  extends CompositeCrdt
+  implements ISequenceSource<TreedocId> {
+  compare(a: TreedocId, b: TreedocId): number {
+    // TODO: optimize to compare paths in chunks
+    // Find the first index where they differ
+    let i;
+    for (i = 0; i < Math.min(a.path.length, b.path.length); i++) {
+      if (
+        a.path.get(i) !== b.path.get(i) ||
+        a.disambiguators[i] !== b.disambiguators[i]
+      )
+        break;
+    }
+    if (i === a.path.length && i === b.path.length) {
+      // They're equal
+      return 0;
+    }
+    // The last index of the shorter path doesn't count
+    // as different if the bits are the same and only
+    // the shorter path has a (leaf) disambiguator.
+    // This isn't stated clearly in the paper but appears
+    // to be explicit in their definition of mini-nodes.
+    if (
+      i === Math.min(a.path.length, b.path.length) - 1 &&
+      a.path.get(i) === b.path.get(i) &&
+      (a.disambiguators[i] === undefined || b.disambiguators[i] === undefined)
+    ) {
+      // Move to the prefix case
+      i++;
+    }
+
+    if (i === a.path.length) {
+      // a is a prefix of b.  Determine order by the next
+      // bit of b.
+      return b.path.get(i) ? -1 : 1;
+    }
+    if (i === b.path.length) {
+      // b is a prefix of a
+      return a.path.get(i) ? 1 : -1;
+    }
+    // Otherwise, compare by the i-th bits of each, breaking
+    // ties with the disambiguators.
+    if (
+      this.indexLess(
+        a.path.getNum(i),
+        a.disambiguators[i],
+        b.path.getNum(i),
+        b.disambiguators[i]
+      )
+    ) {
+      return -1;
+    }
+    if (
+      this.indexLess(
+        b.path.getNum(i),
+        b.disambiguators[i],
+        a.path.getNum(i),
+        a.disambiguators[i]
+      )
+    ) {
+      return 1;
+    }
+    return 0;
   }
 
-  compare(a: StatelessTreeId, b: StatelessTreeId): number {
-    // Compare lexicographically by path, then
-    // sender, then senderCounter.
-    // The paths are treated as little-endian numbers
-    // with matching magnitudes.
-    if (a.path.length === 0) {
-      if (b.path.length === 0) return 0;
-      else return -1;
-    }
-    for (let i = 0; i < a.path.length; i++) {
-      if (i === b.path.length) {
-        // a and b are equal so far, but b is shorter, so it
-        // is lesser.
-        return 1;
-      }
-      if (a.path[i] !== b.path[i]) return a.path[i] - b.path[i];
-    }
-    // If we get here, the paths are equal; sort by sender.
-    if (a.sender < b.sender) return -1;
-    if (a.sender > b.sender) return 1;
-    // If we get here, path and sender are equal; sort by
-    // senderCounter.
-    return a.senderCounter - b.senderCounter;
+  private indexLess(
+    aBit: 0 | 1,
+    aDis: string | undefined,
+    bBit: 0 | 1,
+    bDis: string | undefined
+  ): boolean {
+    if (aBit < bBit) return true;
+    if (aDis !== undefined && bDis !== undefined && aDis < bDis) return true;
+    if (aBit === 0 && aDis === undefined && bDis !== undefined) return true;
+    if (aDis !== undefined && bBit === 1 && bDis === undefined) return true;
+    return false;
   }
 
   createBetween(
-    before: StatelessTreeId,
-    after: StatelessTreeId,
+    before: TreedocId | null,
+    after: TreedocId | null,
     count: number
-  ): StatelessTreeId[] {
-    let paths = this.createPathsBetween(before.path, after.path, count);
-    let seqIds: StatelessTreeId[] = [];
-    for (let path of paths) {
-      seqIds.push({
-        path,
-        sender: this.runtime.getReplicaId(),
-        senderCounter: this.runtime.getReplicaUniqueNumber(),
-      });
+  ): TreedocId[] {
+    // TODO: optimize to use count?
+    let ans: TreedocId[] = [];
+    let prev = before;
+    for (let i = 0; i < count; i++) {
+      prev = this.createBetweenOne(prev, after);
+      ans.push(prev);
     }
-    return seqIds;
+    return ans;
   }
 
-  protected abstract createPathsBetween(
-    before: Uint8Array,
-    after: Uint8Array,
-    count: number
-  ): Uint8Array[];
+  private createBetweenOne(
+    before: TreedocId | null,
+    after: TreedocId | null
+  ): TreedocId {
+    let path: BitSet;
+    let disambiguators: { [index: number]: string };
 
-  readonly start: StatelessTreeId = {
-    path: new Uint8Array([]),
-    sender: "",
-    senderCounter: 0,
-  };
-  readonly end: StatelessTreeId = {
-    path: new Uint8Array([255]),
-    sender: "",
-    senderCounter: 0,
-  };
+    // TODO: depth heuristic from Treedoc paper
 
-  serialize(value: StatelessTreeId): Uint8Array {
-    let message = StatelessTreeMessage.create(value);
-    return StatelessTreeMessage.encode(message).finish();
-  }
-
-  deserialize(message: Uint8Array, _runtime: CrdtRuntime): StatelessTreeId {
-    return StatelessTreeMessage.decode(message);
-  }
-
-  protected receive(_timestamp: CausalTimestamp, _message: Uint8Array): void {
-    throw new Error("Unexpected message for StatelessTreeSource");
-  }
-}
-
-export class NaiveStatelessTreeSource extends StatelessTreeSource {
-  /**
-   * Create count (approximately) evenly-spaced paths between
-   * before and after.  Note that this will
-   * have worst-case (linear) performance on
-   * data inserted in a fixed order - the common
-   * case.
-   */
-  protected createPathsBetween(
-    before: Uint8Array,
-    after: Uint8Array,
-    count: number
-  ): Uint8Array[] {
-    return this.createPathsBetweenInternal(before, after, count).map(
-      (value) => new Uint8Array(value)
-    );
-  }
-
-  private createPathsBetweenInternal(
-    before: Uint8Array | number[],
-    after: Uint8Array | number[],
-    count: number
-  ): number[][] {
-    // Base case
-    if (count === 0) return [];
-
-    // Find a path midway between before and after
-    let mid: number[] = [];
-    // Find the first index where before and after differ
-    let i;
-    for (i = 0; i < after.length; i++) {
-      let beforeI = before[i] ?? 0;
-      if (beforeI !== after[i]) break;
-      // Else
-      mid[i] = beforeI;
-    }
-    if (after[i] === undefined) throw new Error("after <= before");
-    let beforeI = before[i] ?? 0;
-    let afterI = after[i];
-    if (afterI === beforeI + 1) {
-      if (after.length > i + 1) {
-        // We are guaranteed that after has no trailing
-        // zeroes, so there must be a nonzero value
-        // in after somewhere beyond after[i].
-        // Thus it is safe to set
-        // mid[i] = after[i] and leave the rest unset,
-        // implicitly zero.
-        mid[i] = after[i];
-      } else {
-        // We have to worry about the situation when
-        // before now consists of a bunch of 255's while
-        // after is finished (implicitly all 0's),
-        // analogous to finding a value between
-        // 0.9999.... and 1.  We solve this by setting
-        // mid[j] = 255 for all remaining j for which
-        // before[j] = 255, then setting the final value
-        // to be in between before[j] and 255 (and definitely
-        // greather than before[j]).
-        mid[i] = beforeI;
-        let j = i + 1;
-        while (before[j] === 255) {
-          mid[j] = 255;
-          j++;
-        }
-        mid[j] = Math.ceil(((before[j] ?? 0) + 255) / 2);
-      }
+    // If they are both null, create the root.
+    if (before === null && after === null) {
+      // We make the first bit present so that the root
+      // can have an associated disambiguator.
+      path = new BitSet(1);
+      disambiguators = {};
     } else {
-      // console.log("setting mid:");
-      // console.log(mid);
-      mid[i] = Math.floor((beforeI + afterI) / 2);
-      // console.log(i);
-      // console.log(Math.floor((beforeI + afterI) / 2));
-      // console.log(mid);
+      // If one is the other's descendant, create an inside
+      // child of the descendant.
+      let source: TreedocId;
+      let descendant = this.descendantOrNull(before, after);
+      if (descendant !== null) source = descendant;
+      // If one is null, create an inside child of the
+      // non-null node.
+      else if (before === null) source = after!;
+      else if (after === null) source = before;
+      // Otherwise, they are distinct leaves.
+      // Create an inside child of the node with
+      // a shorter path.
+      else {
+        source = before.path.length <= after.path.length ? before : after;
+      }
+
+      path = BitSet.copy(source.path, source.path.length + 1);
+      path.set(path.length - 1, source === before);
+      disambiguators = { ...source!.disambiguators };
+      // Keep source's leaf disambiguator if before and after
+      // are mini-siblings, otherwise delete it.
+      if (!this.miniSiblings(before, after)) {
+        delete disambiguators[source.path.length - 1];
+      }
     }
 
-    // Divide and conquer
-    return [
-      ...this.createPathsBetweenInternal(before, mid, Math.floor(count / 2)),
-      mid,
-      ...this.createPathsBetweenInternal(
-        mid,
-        after,
-        Math.floor((count - 1) / 2)
-      ),
-    ];
+    // Set new leaf disambiguator
+    disambiguators[path.length - 1] = this.runtime.getReplicaId();
+    return { path, disambiguators };
+  }
+
+  /**
+   * If one id is a (potential)
+   * strict descendant of the other, return it;
+   * else return null.
+   * @param  before [description]
+   * @param  after  [description]
+   * @return        [description]
+   */
+  private descendantOrNull(
+    before: TreedocId | null,
+    after: TreedocId | null
+  ): TreedocId | null {
+    if (before === null || after === null) return null;
+    if (before.path.length === after.path.length) return null;
+    // TODO: optimize loop
+    let i;
+    for (i = 0; i < Math.min(before.path.length, after.path.length) - 1; i++) {
+      if (
+        before.path.get(i) !== after.path.get(i) ||
+        before.disambiguators[i] !== after.disambiguators[i]
+      )
+        return null;
+    }
+    // Special check for the final disambiguators: it is
+    // okay if one is missing and the other is present
+    if (before.path.get(i) !== after.path.get(i)) return null;
+    if (
+      before.disambiguators[i] !== undefined &&
+      after.disambiguators[i] !== undefined &&
+      before.disambiguators[i] !== after.disambiguators[i]
+    )
+      return null;
+
+    // One is a descendant of the other
+    return before.path.length > after.path.length ? before : after;
+  }
+
+  /**
+   * @param  source [description]
+   * @param  other  [description]
+   * @return whether they are mini-siblings, i.e., they are
+   * identical except for their leaf disambiguators
+   */
+  private miniSiblings(
+    before: TreedocId | null,
+    after: TreedocId | null
+  ): boolean {
+    if (before === null || after === null) return false;
+    if (!before.path.equals(after.path)) return false;
+    // Compare all disambiguators except the last
+    // TODO: optimize
+    for (let i = 0; i < before.path.length - 1; i++) {
+      if (before.disambiguators[i] !== after.disambiguators[i]) return false;
+    }
+    return true;
+  }
+
+  serialize(value: TreedocId): Uint8Array {
+    let message = TreedocIdMessage.create({
+      path: value.path.array,
+      pathLength: value.path.length,
+      disambiguators: value.disambiguators,
+    });
+    return TreedocIdMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array, _runtime: CrdtRuntime): TreedocId {
+    let decoded = TreedocIdMessage.decode(message);
+    let path = new BitSet(decoded.pathLength, decoded.path);
+    return { path, disambiguators: decoded.disambiguators };
   }
 }
 
-export class NaiveList<C extends Crdt & Resettable> extends List<
-  StatelessTreeId,
+export class TreedocList<C extends Crdt & Resettable> extends List<
+  TreedocId,
   C
 > {
-  constructor(
-    valueConstructor: (seqId: StatelessTreeId) => C,
-    gcValues = false
-  ) {
-    super(new NaiveStatelessTreeSource(), valueConstructor, gcValues);
+  constructor(valueConstructor: (seqId: TreedocId) => C, gcValues = false) {
+    super(new TreedocSource(), valueConstructor, gcValues);
   }
 }
