@@ -1,0 +1,5 @@
+message TreedocIdMessage {
+  required bytes path = 1;
+  required uint32 pathLength = 2;
+  map<uint32, string> disambiguators = 3;
+}

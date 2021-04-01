@@ -61,7 +61,12 @@ export class FrameworkSuite {
 
   async runToCompletion() {
     for (let benchmark of this.pendingBenchmarks) {
-      await benchmark();
+      try {
+        await benchmark();
+      } catch (e) {
+        console.log("Error in benchmark suite " + this.suiteName + ":");
+        console.log(e);
+      }
     }
     this.pendingBenchmarks = [];
   }
