@@ -20,7 +20,7 @@ for (let entry of Object.entries(lists)) {
     {
       Type: [
         (crdt, rng) =>
-          (crdt.insertAt(Math.floor(rng() * crdt.length + 1))[1].value = "a"),
+          (crdt.insertAt(Math.floor(rng() * (crdt.length + 1)))[1].value = "a"),
         1,
       ],
     }
