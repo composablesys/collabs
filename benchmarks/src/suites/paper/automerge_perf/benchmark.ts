@@ -2,6 +2,7 @@ import { crdts, network } from "compoventuals-client";
 import { edits, finalText } from "./editing-trace";
 import framework from "../../../framework";
 import Automerge from "automerge";
+import * as Y from "yjs";
 
 // Based on https://github.com/automerge/automerge-perf/blob/master/edit-by-index/baseline.js
 
@@ -278,7 +279,34 @@ function mapLww() {
   ).add();
 }
 
-// TODO: Yjs, delta-crdts
+function yjs() {
+  let doc: Y.Doc;
+  let totalSentBytes: number;
+
+  new AutomergePerfBenchmark(
+    "Yjs",
+    () => {
+      doc = new Y.Doc();
+      totalSentBytes = 0;
+      doc.on("updateV2", (update: any) => {
+        totalSentBytes += update.byteLength;
+      });
+    },
+    (edit) => {
+      if (edit[2] !== undefined) {
+        doc.getText("text").insert(edit[0], edit[2]);
+      } else {
+        doc.getText("text").delete(edit[0], 1);
+      }
+    },
+    () => totalSentBytes,
+    () => doc.getText("text").toString()
+  ).add();
+}
+
+// TODO: delta-crdts
+// TODO: use two crdts, like in dmonad benchmarks?
+// Might run out of memory with Automerge.
 
 trivial();
 plainJsArray();
@@ -286,6 +314,7 @@ treedocLww();
 mapLww();
 automerge(false);
 automerge(true);
+yjs();
 
 // function baseline() {
 //   console.log("Baseline: NoopCrdt");
