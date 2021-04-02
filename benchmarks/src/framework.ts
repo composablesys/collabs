@@ -72,6 +72,20 @@ export class FrameworkSuite {
   }
 
   /**
+   * Add an arbitrary function to run when
+   * this.runToCompletion() is called.  benchmark
+   * should record its results by calling this.recordResult.
+   * @param  benchmark [description]
+   * @return           [description]
+   */
+  addBenchmark(testName: string, benchmark: () => Promise<void>) {
+    this.pendingBenchmarks.push(async () => {
+      if (await this.shouldSkip(testName)) return;
+      await benchmark();
+    });
+  }
+
+  /**
    * Benchmark the CPU time of fun, using benny.
    * @param  testName File to output this test's results to,
    * within this suite's directory
@@ -254,7 +268,7 @@ export class FrameworkSuite {
    * file, with entries in the form
    * { "header": "this row value"}.
    */
-  private recordResult(
+  recordResult(
     testName: string,
     metric: string,
     mean: number,
@@ -324,13 +338,19 @@ export class FrameworkSuite {
     testName: string,
     setupFun: (() => void) | (() => Promise<void>),
     fun: (() => void) | (() => Promise<void>),
-    extraFields: { [header: string]: string }
+    _extraFields: { [header: string]: string }
   ) {
-    if (this.framework.regex.test(this.suiteName + "/" + testName)) {
-      console.log("      " + testName + ", " + JSON.stringify(extraFields));
+    if (!(await this.shouldSkip(testName))) {
       await sleep(100); // Sleep a bit to help GC, test independence?
       global.gc();
       await this.warmup(setupFun, fun);
+      return false;
+    } else return true;
+  }
+
+  private async shouldSkip(testName: string) {
+    if (this.framework.regex.test(this.suiteName + "/" + testName)) {
+      console.log("      " + testName);
       return false;
     } else return true;
   }
