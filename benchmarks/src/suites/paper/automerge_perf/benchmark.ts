@@ -228,12 +228,12 @@ function treedocLww() {
   ).add();
 }
 
-function automerge(genMessages: boolean) {
+function automerge() {
   let state: { text: Automerge.Text };
   let totalSentBytes: number;
 
   new AutomergePerfBenchmark(
-    "Automerge" + (genMessages ? "_with_msgs" : ""),
+    "Automerge",
     () => {
       state = Automerge.from({ text: new Automerge.Text() });
       totalSentBytes = 0;
@@ -313,5 +313,4 @@ plainJsArray();
 treedocLww();
 mapLww();
 yjs();
-automerge(false);
-//automerge(true); // Runs out of memory before 170,000 edits
+automerge();
