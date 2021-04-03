@@ -251,86 +251,119 @@ export class List<I, C extends Crdt & Resettable>
 
 export interface TreedocId {
   path: BitSet; // top bit is always 0
-  disambiguators: { [index: number]: string };
+  /**
+   * Sparse map from indices to values, represented
+   * as an array of index-value pairs, ordered by index
+   * increasing.
+   */
+  disambiguators: [index: number, value: string][];
 }
 
+/**
+ * ISequenceSource based on the Treedoc sequence CRDT
+ * algorithm [1].
+ *
+ * [1] Nuno Preguiça, Joan Manuel Marquès, Marc Shapiro,
+ * Mihai Leția. A commutative replicated data type for
+ * cooperative editing. 29th IEEE International Conference on
+ * Distributed Computing Systems (ICDCS 2009), Jun 2009,
+ * Montreal, Québec, Canada. pp.395-403,
+ * 10.1109/ICDCS.2009.20.  inria-00445975
+ */
 export class TreedocSource
   extends CompositeCrdt
   implements ISequenceSource<TreedocId> {
   compare(a: TreedocId, b: TreedocId): number {
-    // TODO: optimize to compare paths in chunks
-    // Find the first index where they differ
-    let i;
-    for (i = 0; i < Math.min(a.path.length, b.path.length); i++) {
-      if (
-        a.path.get(i) !== b.path.get(i) ||
-        a.disambiguators[i] !== b.disambiguators[i]
-      )
-        break;
-    }
-    if (i === a.path.length && i === b.path.length) {
-      // They're equal
-      return 0;
-    }
-    // The last index of the shorter path doesn't count
-    // as different if the bits are the same and only
-    // the shorter path has a (leaf) disambiguator.
-    // This isn't stated clearly in the paper but appears
-    // to be explicit in their definition of mini-nodes.
-    if (
-      i === Math.min(a.path.length, b.path.length) - 1 &&
-      a.path.get(i) === b.path.get(i) &&
-      (a.disambiguators[i] === undefined || b.disambiguators[i] === undefined)
-    ) {
-      // Move to the prefix case
-      i++;
-    }
+    // Find the first index where they differ in either
+    // path or disambiguators.  "Not present" vs present
+    // counts as a difference for paths but not for
+    // disambiguators.
+    // 1. path
+    let [pathCompare, pathIndex] = BitSet.compare(a.path, b.path);
+    // 2. disambiguators
+    let [disIndex, aDis, bDis] = this.diffDisambiguators(
+      a.disambiguators,
+      b.disambiguators
+    );
 
-    if (i === a.path.length) {
-      // a is a prefix of b.  Determine order by the next
-      // bit of b.
-      return b.path.get(i) ? -1 : 1;
+    let diffIndex = Math.min(pathIndex, disIndex);
+
+    // Now compare diffIndex based
+    // on the combined order:
+    // 0 < (0: a) < (0: z) < not present < (1: a) < (1: z) < 1.
+
+    // path dominates:
+    if (pathIndex <= disIndex) return pathCompare;
+
+    // Now we need to compare disambiguators using the
+    // order:
+    // - if path bit is 0: not present < a < z
+    // - if path bit is 1: a < z < not present
+    // It is guaranteed that both path bits are present and equal.
+    if (aDis === bDis) return 0;
+    if (a.path.get(diffIndex)) {
+      if (aDis === undefined) return 1;
+      if (bDis === undefined) return -1;
+    } else {
+      if (aDis === undefined) return -1;
+      if (bDis === undefined) return 1;
     }
-    if (i === b.path.length) {
-      // b is a prefix of a
-      return a.path.get(i) ? 1 : -1;
-    }
-    // Otherwise, compare by the i-th bits of each, breaking
-    // ties with the disambiguators.
-    if (
-      this.indexLess(
-        a.path.getNum(i),
-        a.disambiguators[i],
-        b.path.getNum(i),
-        b.disambiguators[i]
-      )
-    ) {
-      return -1;
-    }
-    if (
-      this.indexLess(
-        b.path.getNum(i),
-        b.disambiguators[i],
-        a.path.getNum(i),
-        a.disambiguators[i]
-      )
-    ) {
-      return 1;
-    }
-    return 0;
+    // In this case, the disambiguators are both present
+    // and unequal.
+    return aDis < bDis ? -1 : 1;
   }
 
-  private indexLess(
-    aBit: 0 | 1,
-    aDis: string | undefined,
-    bBit: 0 | 1,
-    bDis: string | undefined
-  ): boolean {
-    if (aBit < bBit) return true;
-    if (aDis !== undefined && bDis !== undefined && aDis < bDis) return true;
-    if (aBit === 0 && aDis === undefined && bDis !== undefined) return true;
-    if (aDis !== undefined && bBit === 1 && bDis === undefined) return true;
-    return false;
+  /**
+   * [compareDisambiguators description]
+   * @param  a [description]
+   * @param  b [description]
+   * @return  [first index where differs
+   * (Number.MAX_VALUE if identical), a value at index,
+   * b value at index]
+   */
+  private diffDisambiguators(
+    a: [index: number, value: string][],
+    b: [index: number, value: string][]
+  ): [number, string | undefined, string | undefined] {
+    /* There is one special case mentioned in prose in
+      the Treedoc paper, but not in the formal definition of
+      the total order (last two paragraphs in left column of
+      page 397): if one id would be a prefix of another,
+      except that the "suffix" has no disambiguator to match
+      the "prefix"'s leaf disambiguator, then we treat them
+      as a prefix/suffix regardless.  E.g.,
+      00(1: bob) should be treated as a prefix of 0010(0: charlie),
+      and since the next bit after the
+      prefix is 0, 00(1: bob) > 0010(0: charlie), even
+      though (1: bob) < 1.  This ensures that left children
+      of a major node come before all mini-nodes within
+      the major node, as the paper states in prose.
+        Without this rule, the last line of Algorithm 1 does
+      not always give a PosId in between the two inputs.
+        TODO: need to check that this really defines a
+      total order.
+     */
+    let i: number;
+    for (i = 0; i < Math.min(a.length, b.length) - 1; i++) {
+      if (a[i][0] < b[i][0]) return [a[i][0], a[i][1], undefined];
+      if (b[i][0] < a[i][0]) return [b[i][0], undefined, b[i][1]];
+      // Now a[i][0] === b[i][0]
+      if (a[i][1] !== b[i][1]) return [a[i][0], a[i][1], b[i][1]];
+    }
+    // For the shorter one's leaf disambiguator, we only
+    // consider it distinct from the other's if both
+    // are present, per the above discussion.
+    // i = Math.min(a.length, b.length) - 1;
+    if (a[i][0] === b[i][0]) {
+      if (a[i][1] !== b[i][1]) return [a[i][0], a[i][1], b[i][1]];
+    }
+    // Now they agree on their prefixes, taking into account
+    // the above rule.
+    if (a.length === b.length) return [Number.MAX_VALUE, undefined, undefined];
+    // Now one is longer than the other.
+    // Its next index is the first difference.
+    if (a.length > b.length) return [a[b.length][0], a[b.length][1], undefined];
+    else return [b[a.length][0], undefined, b[a.length][1]];
   }
 
   createBetween(
@@ -353,7 +386,7 @@ export class TreedocSource
     after: TreedocId | null
   ): TreedocId {
     let path: BitSet;
-    let disambiguators: { [index: number]: string };
+    let disambiguators: [index: number, value: string][];
 
     // TODO: depth heuristic from Treedoc paper
 
@@ -362,7 +395,7 @@ export class TreedocSource
       // We make the first bit present so that the root
       // can have an associated disambiguator.
       path = new BitSet(1);
-      disambiguators = {};
+      disambiguators = [];
     } else {
       // If one is the other's descendant, create an inside
       // child of the descendant.
@@ -375,23 +408,34 @@ export class TreedocSource
       else if (after === null) source = before;
       // Otherwise, they are distinct leaves.
       // Create an inside child of the node with
-      // a shorter path.
+      // fewer disambiguators, breaking ties by
+      // path length.
+      // TODO: instead weight disambiguators heavily?
       else {
-        source = before.path.length <= after.path.length ? before : after;
+        if (before.disambiguators.length < after.disambiguators.length) {
+          source = before;
+        } else {
+          source = before.path.length <= after.path.length ? before : after;
+        }
       }
 
       path = BitSet.copy(source.path, source.path.length + 1);
       path.set(path.length - 1, source === before);
-      disambiguators = { ...source!.disambiguators };
       // Keep source's leaf disambiguator if before and after
-      // are mini-siblings, otherwise delete it.
-      if (!this.miniSiblings(before, after)) {
-        delete disambiguators[source.path.length - 1];
+      // are mini-siblings, otherwise keep it off
+      // (due to slice ending one index early).
+      if (this.miniSiblings(before, after)) {
+        disambiguators = source!.disambiguators.slice();
+      } else {
+        disambiguators = source!.disambiguators.slice(
+          0,
+          source!.disambiguators.length - 1
+        );
       }
     }
 
     // Set new leaf disambiguator
-    disambiguators[path.length - 1] = this.runtime.getReplicaId();
+    disambiguators.push([path.length - 1, this.runtime.getReplicaId()]);
     return { path, disambiguators };
   }
 
@@ -409,27 +453,39 @@ export class TreedocSource
   ): TreedocId | null {
     if (before === null || after === null) return null;
     if (before.path.length === after.path.length) return null;
+    let [shorter, longer] =
+      before.path.length > after.path.length
+        ? [after, before]
+        : [before, after];
+    // Check that they agree on their shared path
     // TODO: optimize loop
-    let i;
-    for (i = 0; i < Math.min(before.path.length, after.path.length) - 1; i++) {
-      if (
-        before.path.get(i) !== after.path.get(i) ||
-        before.disambiguators[i] !== after.disambiguators[i]
-      )
+    for (let i = 0; i < shorter.path.length; i++) {
+      if (shorter.path.get(i) !== longer.path.get(i)) return null;
+    }
+    // Check that they agree on their shared disambiguators.
+    for (let d = 0; d < shorter.disambiguators.length - 1; d++) {
+      if (!this.disEqual(shorter.disambiguators[d], longer.disambiguators[d]))
         return null;
     }
-    // Special check for the final disambiguators: it is
-    // okay if one is missing and the other is present
-    if (before.path.get(i) !== after.path.get(i)) return null;
+    // Special check for the shorter one's leaf disambiguator:
+    // it is okay if the other is not present.
+    // See the discussion in diffDisambiguators.
+    let longerNextDis =
+      longer.disambiguators[shorter.disambiguators.length - 1];
     if (
-      before.disambiguators[i] !== undefined &&
-      after.disambiguators[i] !== undefined &&
-      before.disambiguators[i] !== after.disambiguators[i]
-    )
+      longerNextDis !== undefined &&
+      longerNextDis[0] <=
+        shorter.disambiguators[shorter.disambiguators.length - 1][0] &&
+      !this.disEqual(
+        longerNextDis,
+        shorter.disambiguators[shorter.disambiguators.length - 1]
+      )
+    ) {
       return null;
+    }
 
     // One is a descendant of the other
-    return before.path.length > after.path.length ? before : after;
+    return longer;
   }
 
   /**
@@ -444,10 +500,21 @@ export class TreedocSource
   ): boolean {
     if (before === null || after === null) return false;
     if (!before.path.equals(after.path)) return false;
-    // Compare all disambiguators except the last
-    // TODO: optimize
-    for (let i = 0; i < before.path.length - 1; i++) {
-      if (before.disambiguators[i] !== after.disambiguators[i]) return false;
+    if (before.disambiguators.length !== after.disambiguators.length)
+      return false;
+    // Compare all disambiguators except the last (leaf)
+    for (
+      let disIndex = 0;
+      disIndex < before.disambiguators.length - 1;
+      disIndex++
+    ) {
+      if (
+        !this.disEqual(
+          before.disambiguators[disIndex],
+          after.disambiguators[disIndex]
+        )
+      )
+        return false;
     }
     return true;
   }
@@ -456,7 +523,8 @@ export class TreedocSource
     let message = TreedocIdMessage.create({
       path: value.path.array,
       pathLength: value.path.length,
-      disambiguators: value.disambiguators,
+      disIndices: value.disambiguators.map((elem) => elem[0]),
+      disValues: value.disambiguators.map((elem) => elem[1]),
     });
     return TreedocIdMessage.encode(message).finish();
   }
@@ -464,7 +532,18 @@ export class TreedocSource
   deserialize(message: Uint8Array, _runtime: CrdtRuntime): TreedocId {
     let decoded = TreedocIdMessage.decode(message);
     let path = new BitSet(decoded.pathLength, decoded.path);
-    return { path, disambiguators: decoded.disambiguators };
+    let disambiguators: [index: number, value: string][] = [];
+    for (let i = 0; i < decoded.disIndices.length; i++) {
+      disambiguators.push([decoded.disIndices[i], decoded.disValues[i]]);
+    }
+    return { path, disambiguators };
+  }
+
+  private disEqual(
+    a: [index: number, value: string],
+    b: [index: number, value: string]
+  ): boolean {
+    return a[0] === b[0] && a[1] === b[1];
   }
 }
 
