@@ -4,6 +4,8 @@ import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";
 import util from "util";
+import { result10000 } from "./results";
+import { assert } from "chai";
 
 // Experiment params
 const TRIALS = 1; // TODO: make 5 or 10 for real paper
@@ -121,6 +123,13 @@ class TodoListBenchmark {
         // Print trial totals
         console.log(
           `Trial ${trial} finished for test ${this.testName}\n  total time = ${this.totalTime} ms\n  max memory = ${this.maxMemory}\n  total sent bytes = ${this.totalSentBytes}`
+        );
+
+        // Check equality
+        assert.deepStrictEqual(
+          this.toObject(this.list),
+          result10000,
+          "resulting object did not equal result10000"
         );
       }
     });
@@ -352,43 +361,93 @@ function plainJs() {
   }).add();
 }
 
-// function treedocLww() {
-//   let generator: network.TestingNetworkGenerator;
-//   let runtime: crdts.CrdtRuntime;
-//   let list: crdts.TreedocList<crdts.LwwRegister<string>>;
-//
-//   new TodoListBenchmark(
-//     "TreedocList<LwwRegister>",
-//     () => {
-//       generator = new network.TestingNetworkGenerator();
-//       runtime = generator.newRuntime();
-//       list = runtime
-//         .groupParent("")
-//         .addChild(
-//           "",
-//           new crdts.TreedocList<crdts.LwwRegister<string>>(
-//             () => new crdts.LwwRegister(""),
-//             true
-//           )
-//         );
-//     },
-//     (edit) => {
-//       if (edit[2] !== undefined) {
-//         // Insert edit[2] at edit[0]
-//         list.insertAt(edit[0])[1].value = edit[2];
-//       } else {
-//         // Delete character at edit[0]
-//         list.deleteAt(edit[0]);
-//       }
-//     },
-//     () => generator.getTotalSentBytes(),
-//     () =>
-//       list
-//         .asArray()
-//         .map((lww) => lww.value)
-//         .join("")
-//   ).add();
-// }
+class CrdtTodoList
+  extends crdts.CompositeCrdt
+  implements ITodoList, crdts.Resettable {
+  private readonly text: crdts.TreedocList<crdts.LwwRegister<string>>;
+  private readonly doneCrdt: crdts.EnableWinsFlag;
+  private readonly items: crdts.TreedocList<CrdtTodoList>;
+
+  constructor() {
+    super();
+    this.text = this.addChild(
+      "text",
+      new crdts.TreedocList(() => new crdts.LwwRegister(""), true)
+    );
+    this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
+    this.items = this.addChild(
+      "items",
+      new crdts.TreedocList(() => new CrdtTodoList(), true)
+    );
+  }
+
+  addItem(index: number, text: string): void {
+    let item = this.items.insertAt(index)[1];
+    item.insertText(0, text);
+  }
+  deleteItem(index: number): void {
+    this.items.deleteAt(index);
+  }
+  getItem(index: number): CrdtTodoList {
+    return this.items.getAt(index);
+  }
+  get itemsSize(): number {
+    return this.items.length;
+  }
+
+  set done(done: boolean) {
+    this.doneCrdt.value = done;
+  }
+  get done(): boolean {
+    return this.doneCrdt.value;
+  }
+
+  insertText(index: number, text: string): void {
+    for (let i = 0; i < text.length; i++) {
+      let reg = this.text.insertAt(index + i)[1];
+      reg.value = text[i];
+    }
+  }
+  deleteText(index: number, count: number): void {
+    let upper = Math.min(index + count, this.textSize);
+    for (let i = index; i < upper; i++) {
+      this.text.deleteAt(index);
+    }
+  }
+  get textSize(): number {
+    return this.text.length; // Assumes all text registers are one char
+  }
+  getText(): string {
+    return this.text
+      .asArray()
+      .map((register) => register.value)
+      .join("");
+  }
+
+  reset() {
+    this.text.reset();
+    this.doneCrdt.reset();
+    this.items.reset();
+  }
+}
+
+function compoCrdt() {
+  let generator: network.TestingNetworkGenerator;
+  let runtime: crdts.CrdtRuntime;
+
+  new TodoListBenchmark("Compo Crdt", {
+    newTodoList() {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime();
+      let list = runtime.groupParent("").addChild("", new CrdtTodoList());
+      return list;
+    },
+    getSentBytes() {
+      return generator.getTotalSentBytes();
+    },
+  }).add();
+}
+
 //
 // function automerge() {
 //   let state: { text: Automerge.Text };
@@ -440,6 +499,6 @@ function plainJs() {
 // }
 
 plainJs();
-// treedocLww();
+compoCrdt();
 // yjs();
 // automerge();
