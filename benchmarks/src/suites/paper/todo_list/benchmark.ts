@@ -11,7 +11,9 @@ import { assert } from "chai";
 const TRIALS = 1; // TODO: make 5 or 10 for real paper
 const SEED = "42";
 const ROUND_OPS = 1000;
+// const ROUND_OPS = 1;
 const ROUNDS = 10;
+const DEBUG = true; // TODO: change to false
 
 // Helper funcs
 async function sleep(ms: number) {
@@ -196,7 +198,9 @@ class TodoListBenchmark {
     } else if (opChoice < 0.65) {
       // Delete text in existing item
       let item = this.randomItem(this.list, true);
-      item.deleteText(this.choice(item.textSize + 1), this.choice(41) + 10);
+      let index = this.choice(item.textSize);
+      let count = Math.min(this.choice(41) + 10, item.textSize - index);
+      item.deleteText(index, count);
     } else if (opChoice < 0.85) {
       // Toggle "done" on existing item
       let item = this.randomItem(this.list, true);
@@ -266,17 +270,17 @@ class TodoListBenchmark {
       }
     );
 
-    // TODO: compare against known-good (sequential normal JS object)
-    // answers, instead of just printing as an object.
-    console.log("Current state:");
-    console.log(
-      util.inspect(this.toObject(this.list), {
-        depth: null,
-        maxArrayLength: null,
-        maxStringLength: null,
-        colors: true,
-      })
-    );
+    if (DEBUG) {
+      console.log("Current state:");
+      console.log(
+        util.inspect(this.toObject(this.list), {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+    }
     console.log("Total items: " + this.totalItems(this.list));
     console.log("Max depth: " + (this.maxDepth(this.list) - 1));
 
@@ -312,45 +316,45 @@ class TodoListBenchmark {
   }
 }
 
-class PlainJsTodoList implements ITodoList {
-  private text: string;
-  done: boolean;
-  private items: PlainJsTodoList[];
-
-  constructor(text: string) {
-    this.text = text;
-    this.done = false;
-    this.items = [];
-  }
-
-  addItem(index: number, text: string): void {
-    this.items.splice(index, 0, new PlainJsTodoList(text));
-  }
-  deleteItem(index: number): void {
-    this.items.splice(index, 1);
-  }
-  getItem(index: number): PlainJsTodoList {
-    return this.items[index];
-  }
-  get itemsSize(): number {
-    return this.items.length;
-  }
-
-  insertText(index: number, text: string): void {
-    this.text = this.text.slice(0, index) + text + this.text.slice(index);
-  }
-  deleteText(index: number, count: number): void {
-    this.text = this.text.slice(0, index) + this.text.slice(index + count);
-  }
-  get textSize(): number {
-    return this.text.length;
-  }
-  getText(): string {
-    return this.text;
-  }
-}
-
 function plainJs() {
+  class PlainJsTodoList implements ITodoList {
+    private text: string;
+    done: boolean;
+    private items: PlainJsTodoList[];
+
+    constructor(text: string) {
+      this.text = text;
+      this.done = false;
+      this.items = [];
+    }
+
+    addItem(index: number, text: string): void {
+      this.items.splice(index, 0, new PlainJsTodoList(text));
+    }
+    deleteItem(index: number): void {
+      this.items.splice(index, 1);
+    }
+    getItem(index: number): PlainJsTodoList {
+      return this.items[index];
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    insertText(index: number, text: string): void {
+      this.text = this.text.slice(0, index) + text + this.text.slice(index);
+    }
+    deleteText(index: number, count: number): void {
+      this.text = this.text.slice(0, index) + this.text.slice(index + count);
+    }
+    get textSize(): number {
+      return this.text.length;
+    }
+    getText(): string {
+      return this.text;
+    }
+  }
+
   new TodoListBenchmark("Plain JS array", {
     newTodoList() {
       return new PlainJsTodoList("");
@@ -361,77 +365,77 @@ function plainJs() {
   }).add();
 }
 
-class CrdtTodoList
-  extends crdts.CompositeCrdt
-  implements ITodoList, crdts.Resettable {
-  private readonly text: crdts.TreedocList<crdts.LwwRegister<string>>;
-  private readonly doneCrdt: crdts.EnableWinsFlag;
-  private readonly items: crdts.TreedocList<CrdtTodoList>;
-
-  constructor() {
-    super();
-    this.text = this.addChild(
-      "text",
-      new crdts.TreedocList(() => new crdts.LwwRegister(""), true)
-    );
-    this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
-    this.items = this.addChild(
-      "items",
-      new crdts.TreedocList(() => new CrdtTodoList(), true)
-    );
-  }
-
-  addItem(index: number, text: string): void {
-    let item = this.items.insertAt(index)[1];
-    item.insertText(0, text);
-  }
-  deleteItem(index: number): void {
-    this.items.deleteAt(index);
-  }
-  getItem(index: number): CrdtTodoList {
-    return this.items.getAt(index);
-  }
-  get itemsSize(): number {
-    return this.items.length;
-  }
-
-  set done(done: boolean) {
-    this.doneCrdt.value = done;
-  }
-  get done(): boolean {
-    return this.doneCrdt.value;
-  }
-
-  insertText(index: number, text: string): void {
-    for (let i = 0; i < text.length; i++) {
-      let reg = this.text.insertAt(index + i)[1];
-      reg.value = text[i];
-    }
-  }
-  deleteText(index: number, count: number): void {
-    let upper = Math.min(index + count, this.textSize);
-    for (let i = index; i < upper; i++) {
-      this.text.deleteAt(index);
-    }
-  }
-  get textSize(): number {
-    return this.text.length; // Assumes all text registers are one char
-  }
-  getText(): string {
-    return this.text
-      .asArray()
-      .map((register) => register.value)
-      .join("");
-  }
-
-  reset() {
-    this.text.reset();
-    this.doneCrdt.reset();
-    this.items.reset();
-  }
-}
-
 function compoCrdt() {
+  class CrdtTodoList
+    extends crdts.CompositeCrdt
+    implements ITodoList, crdts.Resettable {
+    private readonly text: crdts.TreedocList<crdts.LwwRegister<string>>;
+    private readonly doneCrdt: crdts.EnableWinsFlag;
+    private readonly items: crdts.TreedocList<CrdtTodoList>;
+
+    constructor() {
+      super();
+      this.text = this.addChild(
+        "text",
+        new crdts.TreedocList(() => new crdts.LwwRegister(""), true)
+      );
+      this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
+      this.items = this.addChild(
+        "items",
+        new crdts.TreedocList(() => new CrdtTodoList(), true)
+      );
+    }
+
+    addItem(index: number, text: string): void {
+      let item = this.items.insertAt(index)[1];
+      item.insertText(0, text);
+    }
+    deleteItem(index: number): void {
+      this.items.deleteAt(index);
+    }
+    getItem(index: number): CrdtTodoList {
+      return this.items.getAt(index);
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    set done(done: boolean) {
+      this.doneCrdt.value = done;
+    }
+    get done(): boolean {
+      return this.doneCrdt.value;
+    }
+
+    insertText(index: number, text: string): void {
+      for (let i = 0; i < text.length; i++) {
+        let reg = this.text.insertAt(index + i)[1];
+        reg.value = text[i];
+      }
+    }
+    deleteText(index: number, count: number): void {
+      let upper = Math.min(index + count, this.textSize);
+      for (let i = index; i < upper; i++) {
+        this.text.deleteAt(index);
+      }
+    }
+    get textSize(): number {
+      return this.text.length; // Assumes all text registers are one char
+    }
+    getText(): string {
+      return this.text
+        .asArray()
+        .map((register) => register.value)
+        .join("");
+    }
+
+    reset() {
+      this.text.reset();
+      this.doneCrdt.reset();
+      this.items.reset();
+    }
+  }
+
   let generator: network.TestingNetworkGenerator;
   let runtime: crdts.CrdtRuntime;
 
@@ -448,31 +452,106 @@ function compoCrdt() {
   }).add();
 }
 
-//
-// function automerge() {
-//   let state: { text: Automerge.Text };
-//   let totalSentBytes: number;
-//
-//   new TodoListBenchmark(
-//     "Automerge",
-//     () => {
-//       state = Automerge.from({ text: new Automerge.Text() });
-//       totalSentBytes = 0;
-//     },
-//     (edit) => {
-//       let newState = Automerge.change(state, (doc) => {
-//         if (edit[1] > 0) doc.text.deleteAt!(edit[0], edit[1]);
-//         if (edit.length > 2) doc.text.insertAt!(edit[0], edit[2]!);
-//       });
-//       let message = JSON.stringify(Automerge.getChanges(state, newState));
-//       totalSentBytes += message.length;
-//       state = newState;
-//     },
-//     () => totalSentBytes,
-//     () => state.text.join("")
-//   ).add();
-// }
-//
+function automerge() {
+  let theDoc: Automerge.FreezeObject<any>;
+  let totalSentBytes = 0;
+
+  function setNewDoc(newDoc: any) {
+    let message = JSON.stringify(Automerge.getChanges(theDoc, newDoc));
+    totalSentBytes += message.length;
+    theDoc = newDoc;
+  }
+
+  class AutomergeTodoList implements ITodoList {
+    /**
+     * @param cursor series of indices to use in theDoc to access this item
+     */
+    constructor(private readonly cursor: readonly number[]) {}
+
+    private getThis(doc: any): any {
+      let thisObj = doc;
+      for (let index of this.cursor) {
+        thisObj = thisObj.items[index];
+      }
+      return thisObj;
+    }
+
+    addItem(index: number, text: string): void {
+      let newDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        let textCrdt = new Automerge.Text();
+        thisDoc.items.insertAt(index, {
+          text: textCrdt,
+          done: false,
+          items: [],
+        });
+        textCrdt.insertAt!(0, ...text);
+      });
+      setNewDoc(newDoc);
+    }
+    deleteItem(index: number): void {
+      let newDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        thisDoc.items.deleteAt(index);
+      });
+      setNewDoc(newDoc);
+    }
+    getItem(index: number): AutomergeTodoList {
+      return new AutomergeTodoList([...this.cursor, index]);
+    }
+    get itemsSize(): number {
+      return this.getThis(theDoc).items.length;
+    }
+
+    get done(): boolean {
+      return this.getThis(theDoc).done;
+    }
+    set done(done: boolean) {
+      let newDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        thisDoc.done = done;
+      });
+      setNewDoc(newDoc);
+    }
+
+    insertText(index: number, text: string): void {
+      let newDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        (thisDoc.text as Automerge.Text).insertAt!(index, ...text);
+      });
+      setNewDoc(newDoc);
+    }
+    deleteText(index: number, count: number): void {
+      let newDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        (thisDoc.text as Automerge.Text).deleteAt!(index, count);
+      });
+      setNewDoc(newDoc);
+    }
+    get textSize(): number {
+      return (this.getThis(theDoc).text as Automerge.Text).length;
+    }
+    getText(): string {
+      return (this.getThis(theDoc).text as Automerge.Text).toString();
+    }
+  }
+
+  new TodoListBenchmark("Automerge", {
+    newTodoList() {
+      theDoc = Automerge.from({
+        text: new Automerge.Text(),
+        done: false,
+        items: [],
+      });
+      totalSentBytes = 0;
+      return new AutomergeTodoList([]);
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  }).add();
+}
+
 // function yjs() {
 //   let doc: Y.Doc;
 //   let totalSentBytes: number;
@@ -501,4 +580,4 @@ function compoCrdt() {
 plainJs();
 compoCrdt();
 // yjs();
-// automerge();
+automerge();
