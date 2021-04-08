@@ -429,8 +429,7 @@ function compoCrdt() {
       }
     }
     deleteText(index: number, count: number): void {
-      let upper = Math.min(index + count, this.textSize);
-      for (let i = index; i < upper; i++) {
+      for (let i = 0; i < count; i++) {
         this.text.deleteAt(index);
       }
     }
@@ -460,6 +459,82 @@ function compoCrdt() {
       runtime = generator.newRuntime();
       let list = runtime.groupParent("").addChild("", new CrdtTodoList());
       return list;
+    },
+    getSentBytes() {
+      return generator.getTotalSentBytes();
+    },
+  }).add();
+}
+
+function compoJson() {
+  class JsonTodoList implements ITodoList {
+    constructor(private readonly jsonObj: crdts.JsonObject) {}
+    addItem(index: number, text: string): void {
+      let item = (this.jsonObj.get("items")!.value as crdts.JsonArray).insert(
+        index
+      );
+      item.setOrdinaryJS({
+        items: [],
+        done: false,
+        text: [...text],
+      });
+    }
+    deleteItem(index: number): void {
+      (this.jsonObj.get("items")!.value as crdts.JsonArray).delete(index);
+    }
+    getItem(index: number): ITodoList {
+      return new JsonTodoList(
+        (this.jsonObj.get("items")!.value as crdts.JsonArray).get(index)!
+          .value as crdts.JsonObject
+      );
+    }
+    get itemsSize(): number {
+      return (this.jsonObj.get("items")!.value as crdts.JsonArray).length;
+    }
+
+    get done(): boolean {
+      return this.jsonObj.get("done")!.value as boolean;
+    }
+
+    set done(done: boolean) {
+      this.jsonObj.get("done")!.setPrimitive(done);
+    }
+
+    insertText(index: number, text: string): void {
+      let textArray = this.jsonObj.get("text")!.value as crdts.JsonArray;
+      for (let i = 0; i < text.length; i++) {
+        textArray.insert(index + i).setPrimitive(text[i]);
+      }
+    }
+    deleteText(index: number, count: number): void {
+      let textArray = this.jsonObj.get("text")!.value as crdts.JsonArray;
+      for (let i = 0; i < count; i++) {
+        textArray.delete(index);
+      }
+    }
+    get textSize(): number {
+      return (this.jsonObj.get("text")!.value as crdts.JsonArray).length;
+    }
+    getText(): string {
+      return (this.jsonObj.get("text")!.value as crdts.JsonArray)
+        .asArray()
+        .map((element) => element.value)
+        .join("");
+    }
+  }
+
+  let generator: network.TestingNetworkGenerator;
+  let runtime: crdts.CrdtRuntime;
+
+  new TodoListBenchmark("Compo Json", {
+    newTodoList() {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime();
+      let list = runtime
+        .groupParent("")
+        .addChild("", crdts.JsonElement.NewJson());
+      list.setOrdinaryJS({ items: [] });
+      return new JsonTodoList(list.value as crdts.JsonObject);
     },
     getSentBytes() {
       return generator.getTotalSentBytes();
@@ -630,5 +705,6 @@ function yjs() {
 
 plainJs();
 compoCrdt();
+compoJson();
 yjs();
 automerge();
