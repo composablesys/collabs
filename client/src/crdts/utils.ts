@@ -22,7 +22,7 @@ export interface ElementSerializer<T> {
 
 /**
  * Default serializer.
- * string, number, undefined, and null types are passed by-value.
+ * string, number, boolean, undefined, and null types are passed by-value.
  * Crdt types are sent by-reference, using the Crdt's
  * rootId and pathToRoot to identify different replicas
  * of the same Crdt.  Other types are passed by-value using BSON
@@ -45,6 +45,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         break;
       case "number":
         message = { numberValue: value };
+        break;
+      case "boolean":
+        message = { booleanValue: value };
         break;
       case "undefined":
         message = { undefinedValue: true };
@@ -76,14 +79,17 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
       case "numberValue":
         ans = decoded.numberValue;
         break;
-      case "crdtValue":
-        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToRoot!);
+      case "booleanValue":
+        ans = decoded.booleanValue;
+        break;
+      case "nullValue":
+        ans = null;
         break;
       case "undefinedValue":
         ans = undefined;
         break;
-      case "nullValue":
-        ans = null;
+      case "crdtValue":
+        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToRoot!);
         break;
       case "bsonValue":
         ans = deserialize(Buffer.from(decoded.bsonValue));

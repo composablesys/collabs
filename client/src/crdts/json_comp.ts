@@ -7,7 +7,13 @@ import { DefaultElementSerializer } from "./utils";
 
 // TODO: disable GC by default, since users might store objects elsewhere.
 
-export type JsonValue = string | number | null | JsonObject | JsonArray;
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonObject
+  | JsonArray;
 
 export class JsonObject extends CompositeCrdt implements Resettable {
   private readonly internalMap: MapCrdt<string, JsonElement>;
@@ -49,12 +55,14 @@ export class JsonObject extends CompositeCrdt implements Resettable {
 
   delete(key: string) {
     // TODO: return whether actually deleted?  Semantically difficult.
-    this.makeThisExistent();
+    // TODO: comment for now because it seems to make semantic sense.
+    // this.makeThisExistent();
     this.internalMap.delete(key);
   }
 
   reset() {
-    this.makeThisExistent();
+    // TODO: comment for now to avoid recursion & expensive resets
+    // this.makeThisExistent();
     this.internalMap.reset();
   }
 
@@ -95,7 +103,8 @@ export class JsonArray extends CompositeCrdt implements Resettable {
   }
 
   delete(index: number): void {
-    this.makeThisExistent();
+    // TODO: comment for now because it seems to make semantic sense.
+    // this.makeThisExistent();
     this.internalList.deleteAt(index);
   }
 
@@ -104,7 +113,8 @@ export class JsonArray extends CompositeCrdt implements Resettable {
   }
 
   reset(): void {
-    this.makeThisExistent();
+    // TODO: comment for now to avoid recursion & expensive resets
+    // this.makeThisExistent();
     this.internalList.reset();
   }
 
@@ -138,21 +148,32 @@ export class JsonElement extends CompositeCrdt implements Resettable {
     super();
     this.makeThisExistent = makeThisExistent;
     this.register = this.addChild("register", new LwwRegister<JsonValue>(null));
-    this.object = new JsonObject(() => this.setIsObject());
-    this.array = new JsonArray(() => this.setIsArray());
+    this.object = this.addChild(
+      "object",
+      new JsonObject(() => this.setIsObject())
+    );
+    this.array = this.addChild("array", new JsonArray(() => this.setIsArray()));
   }
 
   get value(): JsonValue {
     return this.register.value;
   }
 
-  get type(): "number" | "string" | "null" | "JsonObject" | "JsonArray" {
+  get type():
+    | "number"
+    | "string"
+    | "boolean"
+    | "null"
+    | "JsonObject"
+    | "JsonArray" {
     let value = this.value;
     switch (typeof value) {
       case "number":
         return "number";
       case "string":
         return "string";
+      case "boolean":
+        return "boolean";
       case "object":
         if (value === null) return "null";
         if (value instanceof JsonObject) return "JsonObject";
@@ -165,7 +186,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
 
   // TODO: way to examine conflicts
 
-  setPrimitive(value: number | string | null) {
+  setPrimitive(value: number | string | boolean | null) {
     this.makeThisExistent();
     this.object.reset();
     this.array.reset();
@@ -217,9 +238,10 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   // public top-level version that does one reset.
   setOrdinaryJS(value: any) {
     this.reset();
-    switch (value.type) {
+    switch (typeof value) {
       case "number":
       case "string":
+      case "boolean":
         this.setPrimitive(value);
         return;
       case "object":
@@ -236,6 +258,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
             this.object.getForce(entry[0]).setOrdinaryJS(entry[1]);
           }
         }
+        return;
     }
     throw new Error("Unsupported value: " + value);
   }

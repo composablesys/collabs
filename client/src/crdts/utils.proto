@@ -6,10 +6,11 @@ message DefaultSerializerMessage {
     oneof value {
         string stringValue = 1;
         double numberValue = 2;
-        CrdtReference crdtValue = 3;
-        bool undefinedValue = 4;
-        bool nullValue = 5;
-        bytes bsonValue = 6;
+        bool booleanValue = 3;
+        bool nullValue = 4;
+        bool undefinedValue = 5;
+        CrdtReference crdtValue = 6;
+        bytes bsonValue = 7;
     }
 }
 
