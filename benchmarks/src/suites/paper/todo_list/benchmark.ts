@@ -13,7 +13,7 @@ const SEED = "42";
 const ROUND_OPS = 1000;
 // const ROUND_OPS = 1;
 const ROUNDS = 10;
-const DEBUG = true; // TODO: change to false
+const DEBUG = false;
 
 // Helper funcs
 async function sleep(ms: number) {
@@ -74,67 +74,77 @@ class TodoListBenchmark {
   private list!: ITodoList;
 
   add() {
-    // TODO: real benchmarking (warmup, multiple runs,
-    // record CPU, memory, network separately & incrementally,
-    // record results in a file/using framework),
-    // breathing room for GC in all benchmarks
-    suite.addBenchmark(this.testName, async () => {
-      this.baseMemory = await getMemoryUsed();
+    suite.addBenchmark(
+      this.testName + "-Rounds",
+      async () => await this.runTest(false)
+    );
+    suite.addBenchmark(
+      this.testName + "-Uninterrupted",
+      async () => await this.runTest(true)
+    );
+  }
 
-      console.log("Starting todo_list test: " + this.testName);
+  private async runTest(uninterrupted: boolean) {
+    this.baseMemory = await getMemoryUsed();
 
-      // Warmup
-      console.log("Warmup");
+    console.log("Starting todo_list test: " + this.testName);
+
+    // Warmup
+    console.log("Warmup");
+    this.rng = seedrandom(SEED);
+    this.list = this.testFactory.newTodoList();
+    for (let i = 0; i < ROUND_OPS; i++) {
+      this.randomOp();
+    }
+    await sleep(0);
+
+    for (let trial = 0; trial < TRIALS; trial++) {
+      console.log("Starting trial " + trial);
       this.rng = seedrandom(SEED);
       this.list = this.testFactory.newTodoList();
-      for (let i = 0; i < ROUND_OPS; i++) {
-        this.randomOp();
-      }
-      await sleep(0);
 
-      for (let trial = 0; trial < TRIALS; trial++) {
-        this.rng = seedrandom(SEED);
-        this.list = this.testFactory.newTodoList();
+      this.totalTime = 0;
+      this.totalSentBytes = 0;
+      this.maxMemory = 0;
 
-        this.roundStartOps = 0;
-        this.roundStartTime = 0;
-        this.roundStartSentBytes = 0;
+      this.roundStartOps = 0;
+      this.roundStartSentBytes = 0;
+      this.roundStartTime = Date.now();
 
-        console.log("Starting trial " + trial);
-        for (this.op = 0; this.op < ROUND_OPS * ROUNDS; this.op++) {
-          if (this.op % ROUND_OPS === 0) {
-            if (this.op !== 0) {
-              await this.record();
-            }
+      for (this.op = 0; this.op < ROUND_OPS * ROUNDS; this.op++) {
+        if (!uninterrupted && this.op % ROUND_OPS === 0) {
+          if (this.op !== 0) {
+            await this.record();
+
             // Prepare for next measurement
             this.roundStartOps = this.op;
             this.roundStartSentBytes = this.testFactory.getSentBytes();
             this.roundStartTime = Date.now();
           }
-          // Process one edit
-          this.randomOp();
-          // TODO: Let event loop rollover between ops - more
-          // realistic?  Also gives GC some breathing
-          // room.
-          // This slows down the tests a lot, though.
-          //await sleep(0);
         }
-        // Record final result
-        await this.record();
-
-        // Print trial totals
-        console.log(
-          `Trial ${trial} finished for test ${this.testName}\n  total time = ${this.totalTime} ms\n  max memory = ${this.maxMemory}\n  total sent bytes = ${this.totalSentBytes}`
-        );
-
-        // Check equality
-        assert.deepStrictEqual(
-          this.toObject(this.list, true),
-          result10000,
-          "resulting object did not equal result10000"
-        );
+        // Process one edit
+        this.randomOp();
+        // TODO: Let event loop rollover between ops - more
+        // realistic?  Also gives GC some breathing
+        // room.
+        // This slows down the tests a lot, though.
+        //await sleep(0);
       }
-    });
+      // Record final result
+      await this.record();
+
+      // Print trial totals
+      console.log(
+        `Trial ${trial} finished for test ${this.testName}\n  total time = ${this.totalTime} ms\n  max memory = ${this.maxMemory}\n  total sent bytes = ${this.totalSentBytes}`
+      );
+
+      // Check equality
+      assert.deepStrictEqual(
+        this.toObject(this.list, true),
+        result10000,
+        "resulting object did not equal result10000"
+      );
+    }
   }
 
   private choice(options: number) {
