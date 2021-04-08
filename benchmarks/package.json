@@ -16,14 +16,16 @@
     "memory-streams": "^0.1.3",
     "seedrandom": "^3.0.5",
     "automerge": "^0.14.2",
-    "yjs": "^13.5.3"
+    "yjs": "^13.5.3",
+    "chai": "^4.2.0"
   },
   "devDependencies": {
     "@types/benchmark": "^2.1.0",
     "@types/glob": "^7.1.3",
     "@types/mathjs": "^6.0.11",
     "tslib": "^2.0.1",
-    "@types/seedrandom": "^2.4.28"
+    "@types/seedrandom": "^2.4.28",
+    "@types/chai": "^4.2.14"
   },
   "scripts": {
     "build": "npm-run-all build:*",
