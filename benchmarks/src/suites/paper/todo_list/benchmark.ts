@@ -129,7 +129,7 @@ class TodoListBenchmark {
 
         // Check equality
         assert.deepStrictEqual(
-          this.toObject(this.list),
+          this.toObject(this.list, true),
           result10000,
           "resulting object did not equal result10000"
         );
@@ -273,7 +273,7 @@ class TodoListBenchmark {
     if (DEBUG) {
       console.log("Current state:");
       console.log(
-        util.inspect(this.toObject(this.list), {
+        util.inspect(this.toObject(this.list, true), {
           depth: null,
           maxArrayLength: null,
           maxStringLength: null,
@@ -287,14 +287,19 @@ class TodoListBenchmark {
     // TODO: record document size over time, to plot memory against
   }
 
-  private toObject(list: ITodoList): Object {
-    let obj = {
-      text: list.getText(),
-      done: list.done,
-      items: [] as Object[],
-    };
+  private toObject(list: ITodoList, topLevel: boolean): Object {
+    let obj: any;
+    if (topLevel) {
+      obj = { items: [] };
+    } else {
+      obj = {
+        text: list.getText(),
+        done: list.done,
+        items: [],
+      };
+    }
     for (let i = 0; i < list.itemsSize; i++) {
-      obj.items.push(this.toObject(list.getItem(i)));
+      obj.items.push(this.toObject(list.getItem(i), false));
     }
     return obj;
   }
@@ -539,8 +544,6 @@ function automerge() {
   new TodoListBenchmark("Automerge", {
     newTodoList() {
       theDoc = Automerge.from({
-        text: new Automerge.Text(),
-        done: false,
         items: [],
       });
       totalSentBytes = 0;
@@ -552,32 +555,70 @@ function automerge() {
   }).add();
 }
 
-// function yjs() {
-//   let doc: Y.Doc;
-//   let totalSentBytes: number;
-//
-//   new TodoListBenchmark(
-//     "Yjs",
-//     () => {
-//       doc = new Y.Doc();
-//       totalSentBytes = 0;
-//       doc.on("updateV2", (update: any) => {
-//         totalSentBytes += update.byteLength;
-//       });
-//     },
-//     (edit) => {
-//       if (edit[2] !== undefined) {
-//         doc.getText("text").insert(edit[0], edit[2]);
-//       } else {
-//         doc.getText("text").delete(edit[0], 1);
-//       }
-//     },
-//     () => totalSentBytes,
-//     () => doc.getText("text").toString()
-//   ).add();
-// }
+function yjs() {
+  let topDoc: Y.Doc;
+  let totalSentBytes: number;
+
+  class YjsTodoList implements ITodoList {
+    constructor(private readonly doc: Y.Doc) {}
+
+    addItem(index: number, text: string): void {
+      let item = new Y.Doc();
+      this.doc.getArray<Y.Doc>("items").insert(index, [item]);
+      item.getText("text").insert(0, text);
+      item.getArray<Y.Doc>("items");
+      item.getMap().set("done", false);
+    }
+    deleteItem(index: number): void {
+      this.doc.getArray<Y.Doc>("items").delete(index);
+    }
+    getItem(index: number): ITodoList {
+      return new YjsTodoList(this.doc.getArray<Y.Doc>("items").get(index));
+    }
+    get itemsSize(): number {
+      return this.doc.getArray<Y.Doc>("items").length;
+    }
+
+    get done(): boolean {
+      return this.doc.getMap().get("done");
+    }
+    set done(done: boolean) {
+      this.doc.getMap().set("done", done);
+    }
+
+    insertText(index: number, text: string): void {
+      this.doc.getText("text").insert(index, text);
+    }
+    deleteText(index: number, count: number): void {
+      this.doc.getText("text").delete(index, count);
+    }
+    get textSize(): number {
+      return this.doc.getText("text").length;
+    }
+    getText(): string {
+      return this.doc.getText("text").toString();
+    }
+  }
+
+  new TodoListBenchmark("Yjs", {
+    newTodoList() {
+      topDoc = new Y.Doc();
+      totalSentBytes = 0;
+      // TODO: use update instead?  updateV2 is marked experimental;
+      // it is meant to be smaller in general.
+      // Could similarly argue for/against Automerge's perf branch.
+      topDoc.on("updateV2", (update: any) => {
+        totalSentBytes += update.byteLength;
+      });
+      return new YjsTodoList(topDoc);
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  }).add();
+}
 
 plainJs();
 compoCrdt();
-// yjs();
+yjs();
 automerge();

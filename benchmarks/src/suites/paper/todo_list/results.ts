@@ -3,8 +3,6 @@
  * plainJs().
  */
 export const result10000: Object = {
-  text: "",
-  done: false,
   items: [
     {
       text: "0.977117638620370.30214499922595644543287034290.15",
