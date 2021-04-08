@@ -228,12 +228,12 @@ function treedocLww() {
   ).add();
 }
 
-function automerge(genMessages: boolean) {
+function automerge() {
   let state: { text: Automerge.Text };
   let totalSentBytes: number;
 
   new AutomergePerfBenchmark(
-    "Automerge" + (genMessages ? "_with_msgs" : ""),
+    "Automerge",
     () => {
       state = Automerge.from({ text: new Automerge.Text() });
       totalSentBytes = 0;
@@ -248,7 +248,7 @@ function automerge(genMessages: boolean) {
       state = newState;
     },
     () => totalSentBytes,
-    () => state.text.join("")
+    () => state.text.join("") // TODO: use toString() instead?
   ).add();
 }
 
@@ -312,110 +312,5 @@ trivial();
 plainJsArray();
 treedocLww();
 mapLww();
-automerge(false);
-automerge(true);
 yjs();
-
-// function baseline() {
-//   console.log("Baseline: NoopCrdt");
-//   const generator = new network.TestingNetworkGenerator();
-//   const runtime = generator.newRuntime();
-//   const list = runtime.groupParent("").addChild("", new crdts.NoopCrdt());
-//   addBenchmark((edit) => {
-//     list.noop();
-//   });
-// }
-//
-// function mapNoop() {
-//   console.log("MapCrdt<number, NoopCrdt>");
-//   const generator = new network.TestingNetworkGenerator();
-//   const runtime = generator.newRuntime();
-//   const list = runtime
-//     .groupParent("")
-//     .addChild(
-//       "",
-//       new crdts.MapCrdt<number, crdts.NoopCrdt>(
-//         () => new crdts.NoopCrdt(),
-//         crdts.DefaultElementSerializer.getInstance(),
-//         true
-//       )
-//     );
-//   addBenchmark((edit) => {
-//     if (edit[2] !== undefined) {
-//       // Insert edit[2] at edit[0]
-//       list.getForce(edit[0]).noop();
-//     } else {
-//       // Delete character at edit[0]
-//       list.delete(edit[0]);
-//     }
-//   });
-// }
-//
-// function mapLww() {
-//   console.log("MapCrdt<number, LwwRegister>");
-//   const generator = new network.TestingNetworkGenerator();
-//   const runtime = generator.newRuntime();
-//   const list = runtime
-//     .groupParent("")
-//     .addChild(
-//       "",
-//       new crdts.MapCrdt<number, crdts.LwwRegister<string>>(
-//         () => new crdts.LwwRegister(""),
-//         crdts.DefaultElementSerializer.getInstance(),
-//         true
-//       )
-//     );
-//   addBenchmark((edit) => {
-//     if (edit[2] !== undefined) {
-//       // Insert edit[2] at edit[0]
-//       list.getForce(edit[0]).value = edit[2];
-//     } else {
-//       // Delete character at edit[0]
-//       list.delete(edit[0]);
-//     }
-//   });
-// }
-//
-// function treedocNoValueOps() {
-//   console.log("TreedocList<NoopCrdt>, no value ops");
-//   const generator = new network.TestingNetworkGenerator();
-//   const runtime = generator.newRuntime();
-//   const list = runtime
-//     .groupParent("")
-//     .addChild(
-//       "",
-//       new crdts.TreedocList<crdts.NoopCrdt>(() => new crdts.NoopCrdt(), true)
-//     );
-//   addBenchmark((edit) => {
-//     if (edit[2] !== undefined) {
-//       // Insert edit[2] at edit[0]
-//       list.insertAt(edit[0]);
-//     } else {
-//       // Delete character at edit[0]
-//       list.deleteAt(edit[0]);
-//     }
-//   });
-// }
-//
-// function treedocNoop() {
-//   console.log("TreedocList<NoopCrdt>");
-//   const generator = new network.TestingNetworkGenerator();
-//   const runtime = generator.newRuntime();
-//   const list = runtime
-//     .groupParent("")
-//     .addChild(
-//       "",
-//       new crdts.TreedocList<crdts.NoopCrdt>(() => new crdts.NoopCrdt(), true)
-//     );
-//   addBenchmark((edit) => {
-//     if (edit[2] !== undefined) {
-//       // Insert edit[2] at edit[0]
-//       list.insertAt(edit[0])[1].noop();
-//     } else {
-//       // Delete character at edit[0]
-//       list.deleteAt(edit[0]);
-//     }
-//   });
-// }
-//
-// treedocLww();
+automerge();

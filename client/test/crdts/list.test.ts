@@ -38,11 +38,17 @@ describe("list", () => {
         source.compare(
           {
             path: BitSet.parseBinary("01101100100110110010"),
-            disambiguators: { 0: "alice", 2: "alice" },
+            disambiguators: [
+              [0, "alice"],
+              [2, "alice"],
+            ],
           },
           {
             path: BitSet.parseBinary("011010"),
-            disambiguators: { 0: "alice", 2: "alice" },
+            disambiguators: [
+              [0, "alice"],
+              [2, "alice"],
+            ],
           }
         ),
         0
@@ -54,11 +60,17 @@ describe("list", () => {
         source.compare(
           {
             path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: { 0: "bob", 2: "alice" },
+            disambiguators: [
+              [0, "bob"],
+              [19, "alice"],
+            ],
           },
           {
             path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: { 0: "alice", 2: "alice" },
+            disambiguators: [
+              [0, "alice"],
+              [19, "alice"],
+            ],
           }
         ),
         0
@@ -67,11 +79,19 @@ describe("list", () => {
         source.compare(
           {
             path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: { 0: "alice", 2: "bob" },
+            disambiguators: [
+              [0, "alice"],
+              [2, "bob"],
+              [19, "alice"],
+            ],
           },
           {
             path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: { 0: "alice", 2: "alice" },
+            disambiguators: [
+              [0, "alice"],
+              [2, "alice"],
+              [19, "alice"],
+            ],
           }
         ),
         0
@@ -80,11 +100,11 @@ describe("list", () => {
 
     function checkCreatedId(
       beforePath: string | null,
-      beforeDis: { [index: number]: string } | null,
+      beforeDis: [index: number, value: string][] | null,
       afterPath: string | null,
-      afterDis: { [index: number]: string } | null,
+      afterDis: [index: number, value: string][] | null,
       expectedPath: string,
-      expectedDis: { [index: number]: string }
+      expectedDis: [index: number, value: string][]
     ) {
       let before =
         beforePath === null
@@ -109,67 +129,100 @@ describe("list", () => {
     }
 
     it("creates expected ids when non-mini-sibling leaves", () => {
-      checkCreatedId(null, null, null, null, "0", { 0: aliceId });
-      checkCreatedId(null, null, "0", { 0: "bob" }, "00", { 1: aliceId });
-      checkCreatedId("0", { 0: "bob" }, null, null, "01", { 1: aliceId });
+      checkCreatedId(null, null, null, null, "0", [[0, aliceId]]);
+      checkCreatedId(null, null, "0", [[0, "bob"]], "00", [[1, aliceId]]);
+      checkCreatedId("0", [[0, "bob"]], null, null, "01", [[1, aliceId]]);
       checkCreatedId(
         "01001111111111",
-        { 13: "bob" },
+        [[13, "bob"]],
         "011010011",
-        { 8: "charlie" },
+        [[8, "charlie"]],
         "0110100110",
-        { 9: aliceId }
+        [[9, aliceId]]
       );
       checkCreatedId(
         "01001111111111",
-        { 6: "eve", 13: "bob" },
+        [
+          [6, "eve"],
+          [13, "bob"],
+        ],
         "011010011",
-        { 7: "dave", 8: "charlie" },
+        [
+          [7, "dave"],
+          [8, "charlie"],
+        ],
         "0110100110",
-        { 7: "dave", 9: aliceId }
+        [
+          [7, "dave"],
+          [9, aliceId],
+        ]
       );
     });
 
     it("creates expected ids when descendants", () => {
-      checkCreatedId("0", { 0: "bob" }, "01", { 1: "bob" }, "010", {
-        2: aliceId,
-      });
-      checkCreatedId("00", { 1: "bob" }, "0", { 0: "bob" }, "001", {
-        2: aliceId,
-      });
+      checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "010", [
+        [2, aliceId],
+      ]);
+      checkCreatedId("00", [[1, "bob"]], "0", [[0, "bob"]], "001", [
+        [2, aliceId],
+      ]);
       checkCreatedId(
         "000000",
-        { 3: "bob", 5: "alice" },
+        [
+          [3, "bob"],
+          [5, "alice"],
+        ],
         "00000010000",
-        {
-          3: "bob",
-          5: "alice",
-          10: "charlie",
-        },
+        [
+          [3, "bob"],
+          [5, "alice"],
+          [10, "charlie"],
+        ],
         "000000100000",
-        { 3: "bob", 5: "alice", 11: aliceId }
+
+        [
+          [3, "bob"],
+          [5, "alice"],
+          [11, aliceId],
+        ]
       );
       checkCreatedId(
         "000000",
-        { 3: "bob", 5: "alice" },
+        [
+          [3, "bob"],
+          [5, "alice"],
+        ],
         "00000010000",
-        {
-          3: "bob",
-          10: "charlie",
-        },
+        [
+          [3, "bob"],
+          [10, "charlie"],
+        ],
         "000000100000",
-        { 3: "bob", 11: aliceId }
+        [
+          [3, "bob"],
+          [11, aliceId],
+        ]
       );
     });
 
     it("creates expected ids when mini-siblings", () => {
       checkCreatedId(
         "010101",
-        { 1: "bob", 5: "charlie" },
+        [
+          [1, "bob"],
+          [5, "charlie"],
+        ],
         "010101",
-        { 1: "bob", 5: "dave" },
+        [
+          [1, "bob"],
+          [5, "dave"],
+        ],
         "0101011",
-        { 1: "bob", 5: "charlie", 6: aliceId }
+        [
+          [1, "bob"],
+          [5, "charlie"],
+          [6, aliceId],
+        ]
       );
     });
   });
