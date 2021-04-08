@@ -542,12 +542,15 @@ function compoJson() {
   new TodoListBenchmark("Compo Json", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime();
+      runtime = generator.newRuntime({ manual: true });
       let list = runtime
         .groupParent("")
         .addChild("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       return new JsonTodoList(list.value as crdts.JsonObject);
+    },
+    sendNextMessage() {
+      generator.getTestingNetwork(runtime).sendBatches();
     },
     getSentBytes() {
       return generator.getTotalSentBytes();
