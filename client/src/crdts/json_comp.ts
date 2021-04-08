@@ -3,63 +3,114 @@ import { CompositeCrdt } from "./crdt_core";
 import { TreedocList, List } from "./list";
 import { Resettable } from "./mixins";
 import { MapCrdt } from "./standard";
+import { DefaultElementSerializer } from "./utils";
 
-export type JsonValue =
-  | string
-  | number
-  | null
-  | MapCrdt<string, JsonCrdt>
-  | TreedocList<JsonCrdt>;
+// TODO: disable GC by default, since users might store objects elsewhere.
 
-export class JsonCrdt extends CompositeCrdt implements Resettable {
-  private register: LwwRegister<JsonValue>;
-  private nestedMap: MapCrdt<string, JsonCrdt>;
-  private nestedList: TreedocList<JsonCrdt>;
-  private makeThisExistent?: () => void;
+export type JsonValue = string | number | null | JsonObject | JsonArray;
 
-  static New(): JsonCrdt {
-    return new JsonCrdt();
+export class JsonObject extends CompositeCrdt implements Resettable {
+  private readonly internalMap: MapCrdt<string, JsonElement>;
+  /**
+   * Internal use only
+   */
+  constructor(private readonly makeThisExistent: () => void) {
+    super();
+    // Note that adding the key explicitly is redundant, since a value
+    // only ever calls makeThisExistent as part of an operation, and
+    // that operation suffices to revive its map key, due to MapCrdt's
+    // semantics.
+    this.internalMap = this.addChild(
+      "nestedMap",
+      new MapCrdt(
+        () => new JsonElement(makeThisExistent),
+        DefaultElementSerializer.getInstance(),
+        true
+      )
+    );
   }
 
-  private constructor(makeThisExistent?: () => void) {
+  get(key: string): JsonElement | undefined {
+    return this.internalMap.get(key);
+  }
+
+  addKey(key: string): void {
+    this.makeThisExistent();
+    this.internalMap.addKey(key);
+  }
+
+  getForce(key: string): JsonElement {
+    return this.internalMap.getForce(key);
+  }
+
+  has(key: string): boolean {
+    return this.internalMap.has(key);
+  }
+
+  delete(key: string) {
+    // TODO: return whether actually deleted?  Semantically difficult.
+    this.makeThisExistent();
+    this.internalMap.delete(key);
+  }
+
+  reset() {
+    this.makeThisExistent();
+    this.internalMap.reset();
+  }
+
+  keys() {
+    return this.internalMap.keys();
+  }
+
+  values() {
+    return this.internalMap.values();
+  }
+}
+
+export class JsonArray extends CompositeCrdt implements Resettable {
+  private readonly internalList: TreedocList<JsonElement>;
+  constructor(private readonly makeThisExistent: () => void) {
+    super();
+    this.internalList = this.addChild(
+      "nestedMap",
+      new TreedocList(() => new JsonElement(makeThisExistent), true)
+    );
+  }
+
+  get(index: number) {}
+
+  reset(): void {
+    this.makeThisExistent();
+    this.internalList.reset();
+  }
+}
+
+export class JsonElement extends CompositeCrdt implements Resettable {
+  private register: LwwRegister<JsonValue>;
+  private object: JsonObject;
+  private array: JsonArray;
+  private makeThisExistent: () => void;
+
+  static New(): JsonElement {
+    return new JsonElement(() => {});
+  }
+
+  /**
+   * Internal use only
+   */
+  constructor(makeThisExistent: () => void) {
     super();
     this.makeThisExistent = makeThisExistent;
     this.register = this.addChild("register", new LwwRegister<JsonValue>(null));
-    this.nestedMap = this.addChild(
-      "nestedMap",
-      new MapCrdt(() => new JsonCrdt(this.makeMapExistent.bind(this)))
-    );
-    this.nestedList = this.addChild(
-      "nestedList",
-      new TreedocList(() => new JsonCrdt(this.makeListExistent.bind(this)))
-    );
-  }
-
-  // TODO: eventually we can do these with events
-  // instead, once we have runLocally.
-  // But that seems better suited in an optimized version.
-  // Note that that makes reset() sensitive to order.
-  private makeMapExistent() {
-    if (this.makeThisExistent) this.makeThisExistent();
-    this.register.value = "map";
-    // Note that we don't have to explicitly add the key
-    // of the map value that is being made existent,
-    // since this method is always called as part of
-    // an operation by the calling value, which will
-    // resurrect the value's key due to MapCrdt's
-    // semantics.
-  }
-
-  private makeListExistent() {
-    if (this.makeThisExistent) this.makeThisExistent();
-    this.register.value = "list";
+    this.object = new JsonObject(() => this.setIsObject());
+    this.array = new JsonArray(() => this.setIsArray());
   }
 
   get value(): JsonValue {
     return this.register.value;
   }
 
-  get type(): "number" | "string" | "null" | "MapCrdt" | "List" {
+  get type(): "number" | "string" | "null" | "JsonObject" | "JsonArray" {
     let value = this.value;
     switch (typeof value) {
       case "number":
@@ -68,8 +119,8 @@ export class JsonCrdt extends CompositeCrdt implements Resettable {
         return "string";
       case "object":
         if (value === null) return "null";
-        if (value instanceof MapCrdt) return "MapCrdt";
-        if (value instanceof List) return "List";
+        if (value instanceof JsonObject) return "JsonObject";
+        if (value instanceof JsonArray) return "JsonArray";
     }
     throw new Error(
       "this.value did not match any expected type: " + this.value
@@ -79,26 +130,28 @@ export class JsonCrdt extends CompositeCrdt implements Resettable {
   // TODO: way to examine conflicts
 
   setPrimitive(value: number | string | null) {
-    if (this.makeThisExistent) this.makeThisExistent();
-    this.nestedMap.reset();
-    this.nestedList.reset();
+    this.makeThisExistent();
+    this.object.reset();
+    this.array.reset();
     this.register.value = value;
   }
 
-  setIsMap() {
-    if (this.makeThisExistent) this.makeThisExistent();
-    this.register.value = this.nestedMap;
+  setIsObject() {
+    this.makeThisExistent();
+    this.array.reset();
+    this.register.value = this.object;
   }
 
-  setIsList() {
-    if (this.makeThisExistent) this.makeThisExistent();
-    this.register.value = this.nestedList;
+  setIsArray() {
+    this.makeThisExistent();
+    this.object.reset();
+    this.register.value = this.array;
   }
 
   reset() {
     // TODO: use generic CompositeCrdt reset
-    this.nestedMap.reset();
-    this.nestedList.reset();
+    this.object.reset();
+    this.array.reset();
     this.register.reset();
   }
 
