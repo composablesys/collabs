@@ -248,7 +248,7 @@ function automerge() {
       state = newState;
     },
     () => totalSentBytes,
-    () => state.text.join("")
+    () => state.text.join("") // TODO: use toString() instead?
   ).add();
 }
 
