@@ -8,3 +8,4 @@ export * from "./semidirect";
 export * from "./standard";
 export * from "./mixins";
 export * from "./list";
+export * from "./json_comp";
