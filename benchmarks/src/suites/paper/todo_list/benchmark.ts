@@ -49,7 +49,15 @@ interface ITodoList {
 
 interface ITestFactory {
   newTodoList(): ITodoList;
-  // resets on each newTodoList
+  /**
+   * Cause a message summarizing the most recent changes to be "sent"
+   * and its size records in getSentBytes().  This is called after each
+   * op.
+   */
+  sendNextMessage(): void;
+  /**
+   * Reset this on each call to newTodoList()
+   */
   getSentBytes(): number;
 }
 
@@ -124,6 +132,7 @@ class TodoListBenchmark {
         }
         // Process one edit
         this.randomOp();
+        this.testFactory.sendNextMessage();
         // TODO: Let event loop rollover between ops - more
         // realistic?  Also gives GC some breathing
         // room.
@@ -374,6 +383,7 @@ function plainJs() {
     newTodoList() {
       return new PlainJsTodoList("");
     },
+    sendNextMessage() {},
     getSentBytes() {
       return 0;
     },
@@ -457,9 +467,12 @@ function compoCrdt() {
   new TodoListBenchmark("Compo Crdt", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime();
+      runtime = generator.newRuntime({ manual: true });
       let list = runtime.groupParent("").addChild("", new CrdtTodoList());
       return list;
+    },
+    sendNextMessage() {
+      generator.getTestingNetwork(runtime).sendBatches();
     },
     getSentBytes() {
       return generator.getTotalSentBytes();
@@ -468,14 +481,9 @@ function compoCrdt() {
 }
 
 function automerge() {
+  let lastDoc: Automerge.FreezeObject<any>;
   let theDoc: Automerge.FreezeObject<any>;
   let totalSentBytes = 0;
-
-  function setNewDoc(newDoc: any) {
-    let message = JSON.stringify(Automerge.getChanges(theDoc, newDoc));
-    totalSentBytes += message.length;
-    theDoc = newDoc;
-  }
 
   class AutomergeTodoList implements ITodoList {
     /**
@@ -492,7 +500,7 @@ function automerge() {
     }
 
     addItem(index: number, text: string): void {
-      let newDoc = Automerge.change(theDoc, (doc) => {
+      theDoc = Automerge.change(theDoc, (doc) => {
         let thisDoc = this.getThis(doc);
         let textCrdt = new Automerge.Text();
         thisDoc.items.insertAt(index, {
@@ -502,14 +510,12 @@ function automerge() {
         });
         textCrdt.insertAt!(0, ...text);
       });
-      setNewDoc(newDoc);
     }
     deleteItem(index: number): void {
-      let newDoc = Automerge.change(theDoc, (doc) => {
+      theDoc = Automerge.change(theDoc, (doc) => {
         let thisDoc = this.getThis(doc);
         thisDoc.items.deleteAt(index);
       });
-      setNewDoc(newDoc);
     }
     getItem(index: number): AutomergeTodoList {
       return new AutomergeTodoList([...this.cursor, index]);
@@ -522,26 +528,23 @@ function automerge() {
       return this.getThis(theDoc).done;
     }
     set done(done: boolean) {
-      let newDoc = Automerge.change(theDoc, (doc) => {
+      theDoc = Automerge.change(theDoc, (doc) => {
         let thisDoc = this.getThis(doc);
         thisDoc.done = done;
       });
-      setNewDoc(newDoc);
     }
 
     insertText(index: number, text: string): void {
-      let newDoc = Automerge.change(theDoc, (doc) => {
+      theDoc = Automerge.change(theDoc, (doc) => {
         let thisDoc = this.getThis(doc);
         (thisDoc.text as Automerge.Text).insertAt!(index, ...text);
       });
-      setNewDoc(newDoc);
     }
     deleteText(index: number, count: number): void {
-      let newDoc = Automerge.change(theDoc, (doc) => {
+      theDoc = Automerge.change(theDoc, (doc) => {
         let thisDoc = this.getThis(doc);
         (thisDoc.text as Automerge.Text).deleteAt!(index, count);
       });
-      setNewDoc(newDoc);
     }
     get textSize(): number {
       return (this.getThis(theDoc).text as Automerge.Text).length;
@@ -556,8 +559,14 @@ function automerge() {
       theDoc = Automerge.from({
         items: [],
       });
+      lastDoc = theDoc;
       totalSentBytes = 0;
       return new AutomergeTodoList([]);
+    },
+    sendNextMessage() {
+      let message = JSON.stringify(Automerge.getChanges(lastDoc, theDoc));
+      totalSentBytes += message.length;
+      lastDoc = theDoc;
     },
     getSentBytes() {
       return totalSentBytes;
@@ -621,6 +630,11 @@ function yjs() {
         totalSentBytes += update.byteLength;
       });
       return new YjsTodoList(topDoc);
+    },
+    sendNextMessage() {
+      // TODO.  Currently they get sent right away.  Perhaps use transactions?
+      // Although I think currently, each benchmark op corresponds to one
+      // Yjs op.
     },
     getSentBytes() {
       return totalSentBytes;

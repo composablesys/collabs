@@ -181,7 +181,10 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    */
   constructor(
     broadcastNetwork: BroadcastNetwork,
-    readonly batchingPeriodMs: number | undefined = undefined
+    readonly batchOptions:
+      | undefined
+      | { periodMs: number }
+      | { manual: true } = undefined
   ) {
     this.vcMap = new Map();
     this.messageBuffer = new Map();
@@ -255,16 +258,25 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
       // New batch
       batch = [];
       this.batches.set(group, [vc, batch]);
-      if (this.batchingPeriodMs !== undefined) {
+      if (this.batchOptions !== undefined && "periodMs" in this.batchOptions) {
         // Send after the batching period
-        setTimeout(() => this.sendBatch(group), this.batchingPeriodMs);
+        setTimeout(() => this.sendBatch(group), this.batchOptions.periodMs);
       }
     } else batch = this.batches.get(group)![1];
     batch.push(message);
-    if (this.batchingPeriodMs === undefined) {
+    if (this.batchOptions === undefined) {
       // Send immediately
       this.sendBatch(group);
     }
+  }
+
+  /**
+   * Causes all pending batched messages to be sent, in one batch per
+   * group.  If batchOptions is {manual: true}, messages will only be
+   * sent when this method is called.
+   */
+  sendBatches() {
+    for (let group of this.batches.keys()) this.sendBatch(group);
   }
 
   private sendBatch(group: string) {
