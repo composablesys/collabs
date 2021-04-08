@@ -11,7 +11,7 @@ var HOST = location.origin.replace(/^http/, "ws");
 let client = new crdts.CrdtRuntime(
   new network.DefaultCausalBroadcastNetwork(
     new network.WebSocketNetwork(HOST),
-    0
+    { periodMs: 0 }
   )
 );
 
