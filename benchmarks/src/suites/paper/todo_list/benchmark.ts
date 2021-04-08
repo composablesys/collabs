@@ -467,6 +467,10 @@ function compoCrdt() {
   }).add();
 }
 
+function compoJson() {
+  // TODO
+}
+
 function automerge() {
   let theDoc: Automerge.FreezeObject<any>;
   let totalSentBytes = 0;
@@ -630,5 +634,6 @@ function yjs() {
 
 plainJs();
 compoCrdt();
+compoJson();
 yjs();
 automerge();

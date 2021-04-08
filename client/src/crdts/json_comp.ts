@@ -1,6 +1,6 @@
 import { LwwRegister } from "./basic_crdts";
 import { CompositeCrdt } from "./crdt_core";
-import { TreedocList, List } from "./list";
+import { TreedocList } from "./list";
 import { Resettable } from "./mixins";
 import { MapCrdt } from "./standard";
 import { DefaultElementSerializer } from "./utils";
@@ -65,6 +65,18 @@ export class JsonObject extends CompositeCrdt implements Resettable {
   values() {
     return this.internalMap.values();
   }
+
+  asMap(): Map<string, JsonElement> {
+    return this.internalMap.value;
+  }
+
+  asObject(): { [key: string]: JsonElement } {
+    let ans: { [key: string]: JsonElement } = {};
+    for (let entry of this.asMap()) {
+      ans[entry[0]] = entry[1];
+    }
+    return ans;
+  }
 }
 
 export class JsonArray extends CompositeCrdt implements Resettable {
@@ -77,13 +89,37 @@ export class JsonArray extends CompositeCrdt implements Resettable {
     );
   }
 
-  get(index: number) {}
+  insert(index: number): JsonElement {
+    this.makeThisExistent();
+    return this.internalList.insertAt(index)[1];
+  }
+
+  delete(index: number): void {
+    this.makeThisExistent();
+    this.internalList.deleteAt(index);
+  }
+
+  get(index: number): JsonElement {
+    return this.internalList.getAt(index);
+  }
 
   reset(): void {
     this.makeThisExistent();
     this.internalList.reset();
   }
+
+  get length(): number {
+    return this.internalList.length;
+  }
+
+  asArray(): JsonElement[] {
+    return this.internalList.asArray();
+  }
 }
+
+// TODO: only call makeThisExistent once per meta-op.
+// E.g. currently a reset on a big object will call it once per
+// sub-reset, each causing a call up the whole chain.
 
 export class JsonElement extends CompositeCrdt implements Resettable {
   private register: LwwRegister<JsonValue>;
@@ -91,7 +127,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   private array: JsonArray;
   private makeThisExistent: () => void;
 
-  static New(): JsonElement {
+  static NewJson(): JsonElement {
     return new JsonElement(() => {});
   }
 
@@ -156,20 +192,19 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   }
 
   asOrdinaryJS(): any {
-    switch (this.type) {
-      case "MapCrdt":
-        let map = this.value as MapCrdt<string, JsonCrdt>;
+    switch (this.value) {
+      case this.object:
         let ansMap: { [key: string]: any } = {};
-        for (let key of map.keys()) {
-          ansMap[key] = map.get(key)!.asOrdinaryJS();
+        for (let key of this.object.keys()) {
+          ansMap[key] = this.object.get(key)!.asOrdinaryJS();
         }
         return ansMap;
-      case "List":
-        let list = this.value as TreedocList<JsonCrdt>;
+      case this.array:
         let ansList: any[] = [];
-        for (let i = 0; i < list.length; i++) {
-          ansList.push(list.getAt(i).asOrdinaryJS());
+        for (let i = 0; i < this.array.length; i++) {
+          ansList.push(this.array.get(i).asOrdinaryJS());
         }
+        return ansList;
       default:
         return this.value;
     }
@@ -190,15 +225,15 @@ export class JsonElement extends CompositeCrdt implements Resettable {
       case "object":
         if (value === null) this.setPrimitive(null);
         else if (Array.isArray(value)) {
-          this.setIsList();
+          this.setIsArray();
           for (let i = 0; i < value.length; i++) {
-            this.nestedList.insertAt(i)[1].setOrdinaryJS(value[i]);
+            this.array.insert(i).setOrdinaryJS(value[i]);
           }
         } else {
           // Ordinary object; use map
-          this.setIsMap();
+          this.setIsObject();
           for (let entry of Object.entries(value)) {
-            this.nestedMap.getForce(entry[0]).setOrdinaryJS(entry[1]);
+            this.object.getForce(entry[0]).setOrdinaryJS(entry[1]);
           }
         }
     }
