@@ -1,5 +1,9 @@
 import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
-import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
+import {
+  CrdtRuntimeMessage,
+  ICrdtPointer,
+  ICrdtRuntimeOneMessage,
+} from "../../generated/proto_compiled";
 import { EventEmitter } from "../utils/EventEmitter";
 import uuid from "uuid";
 
@@ -29,7 +33,8 @@ export interface CrdtEventsRecord {
 }
 
 /**
- * TODO
+ * TODO.  Should only be implemented by Crdt's
+ * (except for the internal CrdtRoot).
  */
 export interface CrdtParent {
   readonly runtime: CrdtRuntime;
@@ -71,6 +76,22 @@ export abstract class Crdt<
     return this.pathToRootPrivate;
   }
 
+  private parentPrivate?: CrdtParent;
+  get parent(): CrdtParent {
+    if (this.parentPrivate === undefined) {
+      throw new Error(Crdt.notYetInitMessage);
+    }
+    return this.parentPrivate;
+  }
+
+  private namePrivate?: string;
+  get name(): string {
+    if (this.namePrivate === undefined) {
+      throw new Error(Crdt.notYetInitMessage);
+    }
+    return this.namePrivate;
+  }
+
   /**
    * TODO: this should only be called by parent.  Rename to reflect that,
    * and update error message above.
@@ -97,6 +118,8 @@ export abstract class Crdt<
     }
     this.runtimePrivate = parent.runtime;
     this.pathToRootPrivate = Object.freeze([name, ...parent.pathToRoot]);
+    this.parentPrivate = parent;
+    this.namePrivate = name;
     this.afterInit = true;
   }
 
@@ -356,8 +379,14 @@ class CrdtRoot implements CrdtParent {
 
 // TODO: docs in this file
 
+// Note that pointers stored in pointerByCrdt and messages
+// are one greater than the corresponding index in
+// pointers; 0 denotes the group parent, which is not stored in
+// pointers.
 interface BatchInfo {
-  messages: [innerMessage: Uint8Array, pathToGroup: string[]][];
+  pointers: ICrdtPointer[];
+  pointerByCrdt: Map<Crdt, number>;
+  messages: ICrdtRuntimeOneMessage[];
   firstTimestamp: CausalTimestamp;
   previousTimestamp: CausalTimestamp;
 }
@@ -410,6 +439,8 @@ export class CrdtRuntime {
     if (batchInfo === undefined) {
       timestamp = this.network.beginBatch(group);
       batchInfo = {
+        pointers: [],
+        pointerByCrdt: new Map(),
         messages: [],
         firstTimestamp: timestamp,
         previousTimestamp: timestamp,
@@ -422,19 +453,19 @@ export class CrdtRuntime {
 
     // Deliver to self, synchronously
     // TODO: error handling
-    this.groupParents
-      .get(group)!
-      .receiveGeneral(
-        sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
-        timestamp,
-        message
-      );
+    let groupParent = this.groupParents.get(group)!;
+    groupParent.receiveGeneral(
+      sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
+      timestamp,
+      message
+    );
 
     // Add to the pending batch
-    batchInfo.messages.push([
-      message,
-      sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
-    ]);
+    let pointer = this.getPointer(batchInfo, sender, groupParent);
+    batchInfo.messages.push({
+      sender: pointer,
+      innerMessage: message,
+    });
     batchInfo.previousTimestamp = timestamp;
 
     if (this.batchType === "immediate") {
@@ -445,6 +476,32 @@ export class CrdtRuntime {
     }
   }
 
+  private getPointer(
+    batchInfo: BatchInfo,
+    to: Crdt,
+    groupParent: GroupParent
+  ): number {
+    // Base case: group parent
+    if (to === groupParent) return 0;
+
+    // Check if it already exists in pointers
+    let toCrdt = to as Crdt;
+    let existing = batchInfo.pointerByCrdt.get(toCrdt);
+    if (existing !== undefined) return existing;
+
+    // Add it the pointers list.  First need to make
+    // sure its parent is added.
+    let parentPointer = this.getPointer(
+      batchInfo,
+      (toCrdt.parent as unknown) as Crdt,
+      groupParent
+    );
+    let newPointer = batchInfo.pointers.length + 1;
+    batchInfo.pointers.push({ parent: parentPointer, name: toCrdt.name });
+    batchInfo.pointerByCrdt.set(toCrdt, newPointer);
+    return newPointer;
+  }
+
   commitBatch(group: string) {
     let batchInfo = this.pendingBatches.get(group);
     if (batchInfo === undefined) return;
@@ -452,12 +509,8 @@ export class CrdtRuntime {
 
     // Serialize the batch and send it over this.network
     let runtimeMessage = CrdtRuntimeMessage.create({
-      messages: batchInfo.messages.map((value) => {
-        return {
-          innerMessage: value[0],
-          pathToGroup: value[1],
-        };
-      }),
+      pointers: batchInfo.pointers,
+      messages: batchInfo.messages,
     });
     let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
     this.network.commitBatch(
@@ -491,19 +544,28 @@ export class CrdtRuntime {
     }
     // TODO: error handling
     let decoded = CrdtRuntimeMessage.decode(message);
+
+    // Build up the map from pointers to pathToGroup's.
+    // Index 0 is for the groupParent, whose pathToGroup
+    // is [].
+    let pathToGroups: string[][] = [[]];
+    for (let pointer of decoded.pointers) {
+      pathToGroups.push([pointer.name, ...pathToGroups[pointer.parent]]);
+    }
+
+    // Deliver messages
+    let groupParent = this.groupParents.get(group)!;
     let timestamp = firstTimestamp;
     let first = true;
     for (let oneMessage of decoded.messages) {
       if (first) first = false;
       else timestamp = this.network.nextTimestamp(timestamp);
       try {
-        this.groupParents
-          .get(group)!
-          .receiveGeneral(
-            oneMessage.pathToGroup!,
-            timestamp,
-            oneMessage.innerMessage
-          );
+        groupParent.receiveGeneral(
+          pathToGroups[oneMessage.sender],
+          timestamp,
+          oneMessage.innerMessage
+        );
       } catch (e) {
         // TODO: handle gracefully
         throw e;
