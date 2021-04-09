@@ -5,7 +5,7 @@ import {
   ICrdtRuntimeOneMessage,
 } from "../../generated/proto_compiled";
 import { EventEmitter } from "../utils/EventEmitter";
-import uuid from "uuid";
+import cryptoRandomString from "crypto-random-string";
 
 /**
  * An event issued when a CRDT is changed by another replica.
@@ -391,6 +391,8 @@ interface BatchInfo {
   previousTimestamp: CausalTimestamp;
 }
 
+const REPLICA_ID_LENGTH = 14;
+
 export class CrdtRuntime {
   private readonly replicaId: string;
   private readonly crdtRoot: CrdtRoot;
@@ -403,7 +405,10 @@ export class CrdtRuntime {
     readonly network: CausalBroadcastNetwork,
     batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate"
   ) {
-    this.replicaId = uuid();
+    this.replicaId = cryptoRandomString({
+      length: REPLICA_ID_LENGTH,
+      type: "base64",
+    });
     this.network.register(this);
     this.crdtRoot = new CrdtRoot(this);
     if (typeof batchOptions === "object") {

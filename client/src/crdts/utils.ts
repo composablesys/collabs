@@ -149,7 +149,7 @@ export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
 }
 
 // TODO: use these in networks
-const ENCODING: "base64" = "base64";
+const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);
 }
