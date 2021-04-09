@@ -199,7 +199,7 @@ function treedocLww() {
     "TreedocList<LwwRegister>",
     () => {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime({ manual: true });
+      runtime = generator.newRuntime("manual");
       list = runtime
         .groupParent("")
         .addChild(
@@ -218,7 +218,7 @@ function treedocLww() {
         // Delete character at edit[0]
         list.deleteAt(edit[0]);
       }
-      generator.getTestingNetwork(runtime).sendBatches();
+      runtime.commitAll();
     },
     () => generator.getTotalSentBytes(),
     () =>

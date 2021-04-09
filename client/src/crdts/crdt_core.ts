@@ -482,6 +482,13 @@ export class CrdtRuntime {
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ): CausalTimestamp {
+    if (this.pendingBatches.has(group)) {
+      throw new Error(
+        'CrdtRuntime.receive called, but group "' +
+          group +
+          '" has a pending send batch'
+      );
+    }
     // TODO: error handling
     let decoded = CrdtRuntimeMessage.decode(message);
     let timestamp = firstTimestamp;

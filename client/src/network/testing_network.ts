@@ -31,8 +31,8 @@ export class TestingNetwork implements BroadcastNetwork {
  * when release is called.
  */
 export class TestingNetworkGenerator {
-  newRuntime() {
-    return new CrdtRuntime(this.newNetwork());
+  newRuntime(batchOptions?: "immediate" | "manual" | { periodMs: number }) {
+    return new CrdtRuntime(this.newNetwork(), batchOptions);
   }
   newNetwork() {
     let network = new TestingNetwork(this);

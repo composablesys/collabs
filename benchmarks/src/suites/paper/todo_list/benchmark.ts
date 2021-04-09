@@ -466,12 +466,12 @@ function compoCrdt() {
   new TodoListBenchmark("Compo Crdt", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime({ manual: true });
+      runtime = generator.newRuntime("manual");
       let list = runtime.groupParent("").addChild("", new CrdtTodoList());
       return list;
     },
     sendNextMessage() {
-      generator.getTestingNetwork(runtime).sendBatches();
+      runtime.commitAll();
     },
     getSentBytes() {
       return generator.getTotalSentBytes();
@@ -542,7 +542,7 @@ function compoJson() {
   new TodoListBenchmark("Compo Json", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime({ manual: true });
+      runtime = generator.newRuntime("manual");
       let list = runtime
         .groupParent("")
         .addChild("", crdts.JsonElement.NewJson());
@@ -550,7 +550,7 @@ function compoJson() {
       return new JsonTodoList(list.value as crdts.JsonObject);
     },
     sendNextMessage() {
-      generator.getTestingNetwork(runtime).sendBatches();
+      runtime.commitAll();
     },
     getSentBytes() {
       return generator.getTotalSentBytes();
