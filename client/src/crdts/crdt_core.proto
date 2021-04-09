@@ -1,7 +1,7 @@
 // TODO: flatten all and pack both sets of ids? ([packed=true])
 message CrdtPointer {
   required uint32 parent = 1;
-  required string name = 2;
+  required bytes name = 2;
 }
 
 message CrdtRuntimeOneMessage {

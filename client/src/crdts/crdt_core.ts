@@ -6,6 +6,7 @@ import {
 } from "../../generated/proto_compiled";
 import { EventEmitter } from "../utils/EventEmitter";
 import cryptoRandomString from "crypto-random-string";
+import { arrayAsString, stringAsArray } from "./utils";
 
 /**
  * An event issued when a CRDT is changed by another replica.
@@ -502,7 +503,10 @@ export class CrdtRuntime {
       groupParent
     );
     let newPointer = batchInfo.pointers.length + 1;
-    batchInfo.pointers.push({ parent: parentPointer, name: toCrdt.name });
+    batchInfo.pointers.push({
+      parent: parentPointer,
+      name: stringAsArray(toCrdt.name),
+    });
     batchInfo.pointerByCrdt.set(toCrdt, newPointer);
     return newPointer;
   }
@@ -555,7 +559,10 @@ export class CrdtRuntime {
     // is [].
     let pathToGroups: string[][] = [[]];
     for (let pointer of decoded.pointers) {
-      pathToGroups.push([pointer.name, ...pathToGroups[pointer.parent]]);
+      pathToGroups.push([
+        arrayAsString(pointer.name),
+        ...pathToGroups[pointer.parent],
+      ]);
     }
 
     // Deliver messages
