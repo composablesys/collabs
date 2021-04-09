@@ -1,4 +1,8 @@
-message CrdtRuntimeMessage {
+message CrdtRuntimeOneMessage {
     required bytes innerMessage = 1;
     repeated string pathToGroup = 2;
+}
+
+message CrdtRuntimeMessage {
+  repeated CrdtRuntimeOneMessage messages = 1;
 }

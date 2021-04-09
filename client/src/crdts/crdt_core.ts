@@ -356,15 +356,34 @@ class CrdtRoot implements CrdtParent {
 
 // TODO: docs in this file
 
+interface BatchInfo {
+  messages: [innerMessage: Uint8Array, pathToGroup: string[]][];
+  firstTimestamp: CausalTimestamp;
+  previousTimestamp: CausalTimestamp;
+}
+
 export class CrdtRuntime {
   private readonly replicaId: string;
   private readonly crdtRoot: CrdtRoot;
   private readonly groupParents = new Map<string, GroupParent>();
+  private readonly pendingBatches = new Map<string, BatchInfo>();
+  private readonly batchType: "immediate" | "manual" | "periodic";
+  private readonly batchingPeriodMs: number | undefined;
 
-  constructor(readonly network: CausalBroadcastNetwork) {
+  constructor(
+    readonly network: CausalBroadcastNetwork,
+    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate"
+  ) {
     this.replicaId = uuid();
     this.network.register(this);
     this.crdtRoot = new CrdtRoot(this);
+    if (typeof batchOptions === "object") {
+      this.batchType = "periodic";
+      this.batchingPeriodMs = batchOptions.periodMs;
+    } else {
+      this.batchType = batchOptions;
+      this.batchingPeriodMs = undefined;
+    }
   }
 
   // TODO: rename this to group, group to groupName?
@@ -382,13 +401,25 @@ export class CrdtRuntime {
 
   send(sender: Crdt, message: Uint8Array) {
     let group = sender.pathToRoot[sender.pathToRoot.length - 1];
-    // console.log("In CrdtRuntime.send");
-    // console.log("  group: " + group);
-    // console.log(
-    //   "  targetPath: " +
-    //     sender.pathToRoot.slice(0, sender.pathToRoot.length - 1)
-    // );
-    let timestamp = this.network.getNextTimestamp(group);
+
+    // TODO: reuse batchInfo's, to avoid object creation, since set
+    // of groups should remain constant.
+    let batchInfo = this.pendingBatches.get(group);
+    let timestamp: CausalTimestamp;
+    let newBatch = false;
+    if (batchInfo === undefined) {
+      timestamp = this.network.beginBatch(group);
+      batchInfo = {
+        messages: [],
+        firstTimestamp: timestamp,
+        previousTimestamp: timestamp,
+      };
+      this.pendingBatches.set(group, batchInfo);
+      newBatch = true;
+    } else {
+      timestamp = this.network.nextTimestamp(batchInfo.previousTimestamp);
+    }
+
     // Deliver to self, synchronously
     // TODO: error handling
     this.groupParents
@@ -398,24 +429,80 @@ export class CrdtRuntime {
         timestamp,
         message
       );
-    // Send over the network
+
+    // Add to the pending batch
+    batchInfo.messages.push([
+      message,
+      sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
+    ]);
+    batchInfo.previousTimestamp = timestamp;
+
+    if (this.batchType === "immediate") {
+      // Send immediately
+      this.commitBatch(group);
+    } else if (newBatch && this.batchType === "periodic") {
+      setTimeout(() => this.commitBatch(group), this.batchingPeriodMs!);
+    }
+  }
+
+  commitBatch(group: string) {
+    let batchInfo = this.pendingBatches.get(group);
+    if (batchInfo === undefined) return;
+    this.pendingBatches.delete(group);
+
+    // Serialize the batch and send it over this.network
     let runtimeMessage = CrdtRuntimeMessage.create({
-      innerMessage: message,
-      pathToGroup: sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
+      messages: batchInfo.messages.map((value) => {
+        return {
+          innerMessage: value[0],
+          pathToGroup: value[1],
+        };
+      }),
     });
     let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
-    this.network.send(group, buffer, timestamp);
+    this.network.commitBatch(
+      group,
+      buffer,
+      batchInfo.firstTimestamp,
+      batchInfo.previousTimestamp
+    );
+  }
+
+  commitAll() {
+    for (let group of this.pendingBatches.keys()) this.commitBatch(group);
   }
 
   /**
-   * Callback for CrdtNetwork.
+   * Callback for CausalBroadcastNetwork.
+   *
+   * Returns the CausalTimestamp of the last message processed.
    */
-  receive(group: string, message: Uint8Array, timestamp: CausalTimestamp) {
+  receive(
+    group: string,
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp
+  ): CausalTimestamp {
     // TODO: error handling
     let decoded = CrdtRuntimeMessage.decode(message);
-    this.groupParents
-      .get(group)!
-      .receiveGeneral(decoded.pathToGroup, timestamp, decoded.innerMessage);
+    let timestamp = firstTimestamp;
+    let first = true;
+    for (let oneMessage of decoded.messages) {
+      if (first) first = false;
+      else timestamp = this.network.nextTimestamp(timestamp);
+      try {
+        this.groupParents
+          .get(group)!
+          .receiveGeneral(
+            oneMessage.pathToGroup!,
+            timestamp,
+            oneMessage.innerMessage
+          );
+      } catch (e) {
+        // TODO: handle gracefully
+        throw e;
+      }
+    }
+    return timestamp;
   }
 
   getReplicaId(): string {

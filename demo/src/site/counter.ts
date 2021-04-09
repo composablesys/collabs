@@ -10,10 +10,7 @@ var HOST = location.origin.replace(/^http/, "ws");
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    new network.WebSocketNetwork(HOST),
-    { periodMs: 0 }
-  )
+  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST))
 );
 let clientCounter = client
   .groupParent("counterGroup")
