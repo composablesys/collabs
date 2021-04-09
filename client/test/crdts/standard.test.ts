@@ -6,6 +6,8 @@ import {
   DisableWinsFlag,
   EnableWinsFlag,
   GSet,
+  JsonCrdt,
+  JsonCursor,
   KeyEvent,
   LwwMap,
   MapCrdt,
@@ -1137,6 +1139,37 @@ describe("standard", () => {
         assert.strictEqual(bobMap.internalMap.explicitSize, 100);
       });
     });
+  });
+
+  describe("JsonCrdt", () => {
+    // let aliceJson: JsonCrdt
+    let aliceJson: JsonCursor
+    let bobJson: JsonCursor
+  
+    beforeEach(() => {
+      // aliceJson = alice.groupParent("").addChild("cursor", new JsonCursor());
+      // aliceJson = alice.groupParent("").addChild("cursor", new JsonCrdt());
+      aliceJson = new JsonCursor();
+      bobJson = new JsonCursor();      
+    });
+
+    it("is initially empty", () => {
+      assert.isEmpty(aliceJson.keys())
+      assert.isEmpty(bobJson.keys())
+      assert.isEmpty(aliceJson.values())
+      assert.isEmpty(bobJson.values())
+    })
+
+    describe("add non-nested", () => {
+      it("works with non-concurrent updates", () => {
+        aliceJson.set("test", 9);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceJson.keys(), ["test"])
+        assert.strictEqual(aliceJson.values(), [9])
+        assert.strictEqual(bobJson.keys(), ["test"])
+        assert.strictEqual(bobJson.values(), [9])
+      })
+    })
   });
 });
 

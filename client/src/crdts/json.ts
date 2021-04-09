@@ -14,7 +14,7 @@ export interface JsonEventsRecord extends CrdtEventsRecord {
   Delete: JsonEvent;
 }
 
-class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
+export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   private readonly internalMap: MapCrdt<
     string,
     MultiValueRegister<number | string | {}>
@@ -31,7 +31,6 @@ class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   }
 
   set(key: string, val: number | string | {}) {
-    this.internalMap.delete(key);
     this.deleteSubKeys(key);
     let mvr = this.internalMap.getForce(key);
     mvr.value = val;
@@ -54,7 +53,7 @@ class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
 
   deleteSubKeys(key: string) {
     for (let anyKey of this.internalMap.keys()) {
-      if (anyKey.substring(0, key.length) == key) {
+      if (anyKey.substring(0, key.length + 1) == key + ":") {
         this.internalMap.delete(anyKey);
       }
     }
@@ -109,18 +108,14 @@ export class JsonCursor {
   }
 
   get(key: string): (number | string | JsonCursor)[] | JsonCursor {
-    if (this.internal.hasKey(this.cursor + key)) {
-      return this.internal.get(this.cursor + key);
-    } else {
-      return new JsonCursor(this.internal, this.cursor + ":" + key);
-    }
+    return this.internal.get(this.cursor + key);
   }
 
   set(key: string, val: number | string) {
     this.internal.set(this.cursor + key, val);
   }
 
-  setMap(key: string) {
+  setIsMap(key: string) {
     this.internal.setIsMap(key);
   }
 
@@ -133,9 +128,6 @@ export class JsonCursor {
   }
 
   values(): (number | string | JsonCursor)[] {
-    let intermediateVals = this.internal.values(this.cursor);
-    let vals: (number | string | JsonCursor)[] = intermediateVals;
-
-    return vals;
+    return this.internal.values(this.cursor);
   }
 }
