@@ -579,11 +579,14 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
   }
 
   reset() {
-    let message = MvrMessage.create({
-      reset: true,
-    }); // no value
-    let buffer = MvrMessage.encode(message).finish();
-    super.send(buffer);
+    // Only reset if needed
+    if (!this.canGC()) {
+      let message = MvrMessage.create({
+        reset: true,
+      }); // no value
+      let buffer = MvrMessage.encode(message).finish();
+      super.send(buffer);
+    }
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {

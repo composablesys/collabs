@@ -7,6 +7,8 @@ import { DefaultElementSerializer } from "./utils";
 
 // TODO: disable GC by default, since users might store objects elsewhere.
 
+// TODO: remove makeExistent stuff?  Very expensive and rarely useful.
+
 export type JsonValue =
   | string
   | number

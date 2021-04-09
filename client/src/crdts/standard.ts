@@ -808,7 +808,7 @@ export class MapCrdt<K, C extends Crdt & Resettable>
    * @return     [description]
    */
   getForce(key: K): C {
-    this.addKey(key);
+    if (!this.has(key)) this.addKey(key);
     return this.get(key)!;
   }
 
