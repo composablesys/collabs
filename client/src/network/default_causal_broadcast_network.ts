@@ -73,9 +73,9 @@ export interface BroadcastNetwork {
  */
 export class myMessage {
   /**
-   * Crdt update messages.
+   * Crdt update message.
    */
-  messages: Uint8Array[];
+  message: Uint8Array;
   /**
    * Timestamp for casuality/concurrency check.
    *
@@ -84,8 +84,8 @@ export class myMessage {
    */
   timestamp: VectorClock;
 
-  constructor(messages: Uint8Array[], timestamp: VectorClock) {
-    this.messages = messages;
+  constructor(message: Uint8Array, timestamp: VectorClock) {
+    this.message = message;
     this.timestamp = timestamp;
   }
   /**
@@ -99,7 +99,7 @@ export class myMessage {
       vectorMapAsIndexSignature[entry[0]] = entry[1];
     }
     let message = DefaultCausalBroadcastMessage.create({
-      messages: this.messages,
+      message: this.message,
       sender: this.timestamp.sender,
       vectorMap: vectorMapAsIndexSignature,
     });
@@ -117,7 +117,7 @@ export class myMessage {
     let decoded = DefaultCausalBroadcastMessage.decode(data);
     let vc = new VectorClock(decoded.sender, myReplicaId === decoded.sender);
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
-    return new myMessage(decoded.messages, vc);
+    return new myMessage(decoded.message, vc);
   }
 }
 
@@ -153,39 +153,12 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    * TODO: implement; test with network disconnection
    */
   private readonly sendBuffer: Array<myMessage>;
-  /**
-   * [constructor description]
-   * @param broadcastNetwork [description]
-   * @param batchingPeriodMs [description]
-   */
-  private readonly batches: Map<
-    string,
-    [vc: VectorClock, messages: Uint8Array[]]
-  > = new Map();
 
   /**
    * [constructor description]
    * @param broadcastNetwork [description]
-   * @param batchingPeriodMs if defined, gives the interval
-   * in ms to wait while collecting messages to be sent
-   * in a single batch, with a common group and timestamp,
-   * as a network optimization.  If 0, this has the effect
-   * of batching all messages sent in the same cycle of
-   * the event loop.  Note that while a batch is pending,
-   * received messages are queued until after the batch
-   * is sent, so a value > 0 impacts the latency of
-   * both send and receive operations.  TODO: default
-   * to 0 once the tests and benchmarks can handle
-   * async sending.  TODO: set to 0 in demos; slider
-   * to allow testing artificial concurrency.
    */
-  constructor(
-    broadcastNetwork: BroadcastNetwork,
-    readonly batchOptions:
-      | undefined
-      | { periodMs: number }
-      | { manual: true } = undefined
-  ) {
+  constructor(broadcastNetwork: BroadcastNetwork) {
     this.vcMap = new Map();
     this.messageBuffer = new Map();
     this.sendBuffer = [];
@@ -214,7 +187,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
       .get(group)!
       .push(myMessage.deserialize(message, this.crdtRuntime.getReplicaId()));
     // Don't receive yet if there is a pending batch
-    if (!this.batches.has(group)) this.checkMessageBuffer(group);
+    this.checkMessageBuffer(group);
   }
   /**
    * Register CrdtRuntime CasualBroadcastNetwork.
@@ -252,45 +225,11 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     let vc = timestamp as VectorClock;
     this.vcMap.set(group, vc);
 
-    // Queue the message for sending
-    let batch: Uint8Array[];
-    if (!this.batches.has(group)) {
-      // New batch
-      batch = [];
-      this.batches.set(group, [vc, batch]);
-      if (this.batchOptions !== undefined && "periodMs" in this.batchOptions) {
-        // Send after the batching period
-        setTimeout(() => this.sendBatch(group), this.batchOptions.periodMs);
-      }
-    } else batch = this.batches.get(group)![1];
-    batch.push(message);
-    if (this.batchOptions === undefined) {
-      // Send immediately
-      this.sendBatch(group);
-    }
+    // Send the message
+    let myPackage = new myMessage(message, vc);
+    this.broadcastNetwork.send(group, myPackage.serialize(), vc);
   }
 
-  /**
-   * Causes all pending batched messages to be sent, in one batch per
-   * group.  If batchOptions is {manual: true}, messages will only be
-   * sent when this method is called.
-   */
-  sendBatches() {
-    for (let group of this.batches.keys()) this.sendBatch(group);
-  }
-
-  private sendBatch(group: string) {
-    let batch = this.batches.get(group);
-    if (batch === undefined) return;
-    let myPackage = new myMessage(batch[1], batch[0]);
-    this.broadcastNetwork.send(group, myPackage.serialize(), batch[0]);
-    this.batches.delete(group);
-    // Check the message buffer for messages received
-    // while the batch was in progress
-    // TODO: only do this if you've received messages
-    // in the meantime (optimization)?
-    this.checkMessageBuffer(group);
-  }
   /**
    * Get the next timestamp of the given crdtId in this replica.
    *
@@ -344,15 +283,10 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
       }
       if (myVectorClock.isReady(curVectorClock)) {
         /**
-         * Send back the received messages to runtime.
+         * Send back the received message to runtime.
          */
-        let timestamp = curVectorClock;
-        for (let internalMessage of groupBuffer[index].messages) {
-          this.runtime.receive(group, internalMessage, timestamp);
-          myVectorClock.incrementSender(timestamp);
-          timestamp = timestamp.clone();
-          timestamp.increment();
-        }
+        this.runtime.receive(group, groupBuffer[index].message, curVectorClock);
+        myVectorClock.incrementSender(curVectorClock);
         groupBuffer.splice(index, 1);
         // Set index to the end and try again, in case
         // this makes more messages ready
