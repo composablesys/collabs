@@ -56,9 +56,11 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         if (value === null) {
           message = { nullValue: true };
         } else if (value instanceof Crdt) {
+          // TODO: require to be in the same group.
+          // How to enforce?
           message = {
             crdtValue: CrdtReference.create({
-              pathToRoot: value.pathToRoot as string[],
+              pathToRoot: value.pathToRoot().map(stringAsArray),
             }),
           };
         } else {
@@ -89,7 +91,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         ans = undefined;
         break;
       case "crdtValue":
-        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToRoot!);
+        ans = runtime.getCrdtByReference(
+          decoded.crdtValue!.pathToRoot!.map(arrayAsString)
+        );
         break;
       case "bsonValue":
         ans = deserialize(Buffer.from(decoded.bsonValue));

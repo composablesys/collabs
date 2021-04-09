@@ -39,7 +39,7 @@ export interface CrdtEventsRecord {
  */
 export interface CrdtParent {
   readonly runtime: CrdtRuntime;
-  readonly pathToRoot: readonly string[];
+  pathToRoot(): string[];
   /**
    * Callback called by a child at the end of init when this is passed
    * to init as parent.  It should throw an error if this is not the
@@ -65,18 +65,6 @@ export abstract class Crdt<
     return this.runtimePrivate;
   }
 
-  private pathToRootPrivate?: readonly string[];
-  /**
-   * The names of this crdt and all of its ancestors in order
-   * from this crdt on up.
-   */
-  get pathToRoot(): readonly string[] {
-    if (this.pathToRootPrivate === undefined) {
-      throw new Error(Crdt.notYetInitMessage);
-    }
-    return this.pathToRootPrivate;
-  }
-
   private parentPrivate?: CrdtParent;
   get parent(): CrdtParent {
     if (this.parentPrivate === undefined) {
@@ -91,6 +79,10 @@ export abstract class Crdt<
       throw new Error(Crdt.notYetInitMessage);
     }
     return this.namePrivate;
+  }
+
+  pathToRoot(): string[] {
+    return [this.name, ...this.parent.pathToRoot()];
   }
 
   /**
@@ -118,7 +110,6 @@ export abstract class Crdt<
       );
     }
     this.runtimePrivate = parent.runtime;
-    this.pathToRootPrivate = Object.freeze([name, ...parent.pathToRoot]);
     this.parentPrivate = parent;
     this.namePrivate = name;
     this.afterInit = true;
@@ -368,8 +359,10 @@ export class GroupParent extends CompositeCrdt {
 // GMap<F> implements CrdtParent<Crdt & F> (F for abilities?)
 
 class CrdtRoot implements CrdtParent {
-  readonly pathToRoot = Object.freeze([] as string[]);
   constructor(readonly runtime: CrdtRuntime) {}
+  pathToRoot() {
+    return [];
+  }
   // Since this is private in CrdtRuntime, we don't have to worry about
   // this being passed to Crdt.init outside of our control.
   onChildInit(_child: Crdt): void {}
@@ -392,7 +385,13 @@ interface BatchInfo {
   previousTimestamp: CausalTimestamp;
 }
 
-const REPLICA_ID_LENGTH = 14;
+const REPLICA_ID_LENGTH = 11;
+const REPLICA_ID_CHARS = allAscii();
+function allAscii() {
+  let arr = new Array<number>(128);
+  for (let i = 0; i < 128; i++) arr[i] = i;
+  return String.fromCharCode(...arr);
+}
 
 export class CrdtRuntime {
   private readonly replicaId: string;
@@ -408,7 +407,7 @@ export class CrdtRuntime {
   ) {
     this.replicaId = cryptoRandomString({
       length: REPLICA_ID_LENGTH,
-      type: "base64",
+      characters: REPLICA_ID_CHARS,
     });
     this.network.register(this);
     this.crdtRoot = new CrdtRoot(this);
@@ -435,7 +434,8 @@ export class CrdtRuntime {
   }
 
   send(sender: Crdt, message: Uint8Array) {
-    let group = sender.pathToRoot[sender.pathToRoot.length - 1];
+    let pathToRoot = sender.pathToRoot();
+    let group = pathToRoot[pathToRoot.length - 1];
 
     // TODO: reuse batchInfo's, to avoid object creation, since set
     // of groups should remain constant.
@@ -461,7 +461,7 @@ export class CrdtRuntime {
     // TODO: error handling
     let groupParent = this.groupParents.get(group)!;
     groupParent.receiveGeneral(
-      sender.pathToRoot.slice(0, sender.pathToRoot.length - 1),
+      pathToRoot.slice(0, pathToRoot.length - 1),
       timestamp,
       message
     );
