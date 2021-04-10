@@ -258,8 +258,8 @@ export class Counter
 
   constructor(readonly initialValue: number = 0) {
     super();
-    this.plus = this.addChild("plus", new GCounter());
-    this.minus = this.addChild("minus", new GCounter());
+    this.plus = this.addChild("1", new GCounter());
+    this.minus = this.addChild("2", new GCounter());
     this.plus.on("Add", (event) =>
       this.emit("Add", { ...event, caller: this })
     );
@@ -714,7 +714,7 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
   ) {
     super();
     this.mvr = this.addChild(
-      "mvr",
+      "1",
       new MultiValueRegister(new LwwEntrySerializer(valueSerializer))
     );
     this.mvr.on("Change", (event) => this.refreshValue(event));
