@@ -1,6 +1,6 @@
 import { LwwRegister } from "./basic_crdts";
 import { CompositeCrdt } from "./crdt_core";
-import { TreedocList } from "./list";
+import { TreedocList, TreedocPrimitiveList } from "./list";
 import { Resettable } from "./mixins";
 import { MapCrdt } from "./standard";
 import { DefaultElementSerializer } from "./utils";
@@ -15,7 +15,8 @@ export type JsonValue =
   | boolean
   | null
   | JsonObject
-  | JsonArray;
+  | JsonArray
+  | TreedocPrimitiveList<string>;
 
 export class JsonObject extends CompositeCrdt implements Resettable {
   private readonly internalMap: MapCrdt<string, JsonElement>;
@@ -136,6 +137,10 @@ export class JsonArray extends CompositeCrdt implements Resettable {
   }
 }
 
+export class TextWrapper {
+  constructor(public text: string) {}
+}
+
 // TODO: only call makeThisExistent once per meta-op.
 // E.g. currently a reset on a big object will call it once per
 // sub-reset, each causing a call up the whole chain.
@@ -144,6 +149,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   private register: LwwRegister<JsonValue>;
   private object: JsonObject;
   private array: JsonArray;
+  private text: TreedocPrimitiveList<string>;
   private makeThisExistent: () => void;
 
   static NewJson(): JsonElement {
@@ -162,6 +168,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
       new JsonObject(() => this.setIsObject())
     );
     this.array = this.addChild("array", new JsonArray(() => this.setIsArray()));
+    this.text = this.addChild("text", new TreedocPrimitiveList());
   }
 
   get value(): JsonValue {
@@ -174,7 +181,8 @@ export class JsonElement extends CompositeCrdt implements Resettable {
     | "boolean"
     | "null"
     | "JsonObject"
-    | "JsonArray" {
+    | "JsonArray"
+    | "Text" {
     let value = this.value;
     switch (typeof value) {
       case "number":
@@ -185,8 +193,9 @@ export class JsonElement extends CompositeCrdt implements Resettable {
         return "boolean";
       case "object":
         if (value === null) return "null";
-        if (value instanceof JsonObject) return "JsonObject";
-        if (value instanceof JsonArray) return "JsonArray";
+        if (value === this.object) return "JsonObject";
+        if (value === this.array) return "JsonArray";
+        if (value === this.text) return "Text";
     }
     throw new Error(
       "this.value did not match any expected type: " + this.value
@@ -214,10 +223,17 @@ export class JsonElement extends CompositeCrdt implements Resettable {
     this.register.value = this.array;
   }
 
+  setIsText() {
+    this.makeThisExistent();
+    this.object.reset();
+    this.register.value = this.text;
+  }
+
   reset() {
     // TODO: use generic CompositeCrdt reset
     this.object.reset();
     this.array.reset();
+    this.text.reset();
     this.register.reset();
   }
 
@@ -235,6 +251,8 @@ export class JsonElement extends CompositeCrdt implements Resettable {
           ansList.push(this.array.get(i).asOrdinaryJS());
         }
         return ansList;
+      case this.text:
+        return new TextWrapper(this.text.asArray().join(""));
       default:
         return this.value;
     }
@@ -255,7 +273,10 @@ export class JsonElement extends CompositeCrdt implements Resettable {
         return;
       case "object":
         if (value === null) this.setPrimitive(null);
-        else if (Array.isArray(value)) {
+        else if (value instanceof TextWrapper) {
+          this.setIsText();
+          this.text.insertAtRange(0, [...value.text]);
+        } else if (Array.isArray(value)) {
           this.setIsArray();
           this.array.insertRange(0, value.length);
           for (let i = 0; i < value.length; i++) {

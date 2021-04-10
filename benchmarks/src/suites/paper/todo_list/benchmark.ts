@@ -516,6 +516,7 @@ function compoJson() {
     }
 
     insertText(index: number, text: string): void {
+      // TODO: use bulk ops
       let textArray = this.jsonObj.get("text")!.value as crdts.JsonArray;
       for (let i = 0; i < text.length; i++) {
         textArray.insert(index + i).setPrimitive(text[i]);
@@ -553,6 +554,99 @@ function compoJson() {
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTodoList(list.value as crdts.JsonObject);
+    },
+    sendNextMessage() {
+      runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  }).add();
+}
+
+/**
+ * Like Compo JSON but uses our dedicated text-editing
+ * data structure.
+ */
+function compoJsonText() {
+  class JsonTextTodoList implements ITodoList {
+    constructor(private readonly jsonObj: crdts.JsonObject) {}
+    addItem(index: number, text: string): void {
+      let item = (this.jsonObj.get("items")!.value as crdts.JsonArray).insert(
+        index
+      );
+      item.setOrdinaryJS({
+        items: [],
+        done: false,
+        text: new crdts.TextWrapper(text),
+      });
+    }
+    deleteItem(index: number): void {
+      (this.jsonObj.get("items")!.value as crdts.JsonArray).delete(index);
+    }
+    getItem(index: number): ITodoList {
+      return new JsonTextTodoList(
+        (this.jsonObj.get("items")!.value as crdts.JsonArray).get(index)!
+          .value as crdts.JsonObject
+      );
+    }
+    get itemsSize(): number {
+      return (this.jsonObj.get("items")!.value as crdts.JsonArray).length;
+    }
+
+    get done(): boolean {
+      return this.jsonObj.get("done")!.value as boolean;
+    }
+
+    set done(done: boolean) {
+      this.jsonObj.get("done")!.setPrimitive(done);
+    }
+
+    insertText(index: number, text: string): void {
+      let textArray = this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>;
+      textArray.insertAtRange(index, [...text]);
+    }
+    deleteText(index: number, count: number): void {
+      let textList = this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>;
+      for (let i = 0; i < count; i++) {
+        textList.deleteAt(index);
+      }
+    }
+    get textSize(): number {
+      return (this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>).length;
+    }
+    getText(): string {
+      return (this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>)
+        .asArray()
+        .join("");
+    }
+  }
+
+  let generator: network.TestingNetworkGenerator;
+  let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
+
+  new TodoListBenchmark("Compo Json Text", {
+    newTodoList() {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
+      let list = runtime
+        .groupParent("")
+        .addChild("", crdts.JsonElement.NewJson());
+      list.setOrdinaryJS({ items: [] });
+      this.sendNextMessage();
+      return new JsonTextTodoList(list.value as crdts.JsonObject);
     },
     sendNextMessage() {
       runtime.commitAll();
@@ -737,5 +831,6 @@ function yjs() {
 plainJs();
 compoCrdt();
 compoJson();
+compoJsonText();
 yjs();
 automerge();
