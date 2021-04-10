@@ -435,9 +435,7 @@ function compoCrdt() {
       this.text.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
-      for (let i = 0; i < count; i++) {
-        this.text.deleteAt(index);
-      }
+      this.text.deleteAt(index, count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
@@ -616,9 +614,7 @@ function compoJsonText() {
     deleteText(index: number, count: number): void {
       let textList = this.jsonObj.get("text")!
         .value as crdts.TreedocPrimitiveList<string>;
-      for (let i = 0; i < count; i++) {
-        textList.deleteAt(index);
-      }
+      textList.deleteAt(index, count);
     }
     get textSize(): number {
       return (this.jsonObj.get("text")!

@@ -622,6 +622,11 @@ export class UniqueMap<K extends HasSender, V>
     return value === undefined ? undefined : value[0];
   }
 
+  getMetadata(key: K): [sender: string, senderCounter: number] | undefined {
+    let value = this.state.get(this.keyAsString(key));
+    return value === undefined ? undefined : [key.sender, value[1]];
+  }
+
   has(key: K) {
     return this.state.has(this.keyAsString(key));
   }

@@ -5,7 +5,8 @@ import createTree from "functional-red-black-tree";
 import { Tree } from "functional-red-black-tree";
 import { MapCrdt } from "./standard";
 import {
-  BulkInsertMessage,
+  IRangeMessage,
+  PrimitiveListMessage,
   TreedocIdMessage,
 } from "../../generated/proto_compiled";
 import { BitSet } from "../utils/bitset";
@@ -339,8 +340,42 @@ export class PrimitiveList<I extends HasSender, T>
     this.valueMap.delete(seqId);
   }
 
-  deleteAt(index: number) {
-    this.deleteId(this.idAt(index));
+  deleteAt(index: number, count = 1) {
+    if (count === 1) this.deleteId(this.idAt(index));
+    else {
+      // Do a bulk delete
+      let before = index === 0 ? null : this.idAt(index);
+      let after =
+        index + count === this.length ? null : this.idAt(index + count - 1);
+      let message = new PrimitiveListMessage({
+        delete: {
+          range: this.rangeMessage(before, after),
+        },
+      });
+      super.sendRpc(PrimitiveListMessage.encode(message).finish());
+    }
+  }
+
+  private rangeMessage(before: I | null, after: I | null): IRangeMessage {
+    return {
+      hasBefore: before !== null,
+      before:
+        before === null ? undefined : this.sequenceSource.serialize(before),
+      hasAfter: after !== null,
+      after: after === null ? undefined : this.sequenceSource.serialize(after),
+    };
+  }
+
+  private fromRangeMessage(
+    decoded: IRangeMessage
+  ): [before: I | null, after: I | null] {
+    let before = decoded.hasBefore
+      ? this.sequenceSource.deserialize(decoded.before!, this.runtime)
+      : null;
+    let after = decoded.hasAfter
+      ? this.sequenceSource.deserialize(decoded.after!, this.runtime)
+      : null;
+    return [before, after];
   }
 
   insertAt(index: number, value: T): I {
@@ -391,16 +426,13 @@ export class PrimitiveList<I extends HasSender, T>
     );
     if (values.length > 2) {
       // Do a bulk insert RPC
-      let message = new BulkInsertMessage({
-        hasBefore: before !== null,
-        before:
-          before === null ? undefined : this.sequenceSource.serialize(before),
-        hasAfter: after !== null,
-        after:
-          after === null ? undefined : this.sequenceSource.serialize(after),
-        values: values.map((value) => this.valueSerializer.serialize(value)),
+      let message = new PrimitiveListMessage({
+        insert: {
+          range: this.rangeMessage(before, after),
+          values: values.map((value) => this.valueSerializer.serialize(value)),
+        },
       });
-      super.sendRpc(BulkInsertMessage.encode(message).finish());
+      super.sendRpc(PrimitiveListMessage.encode(message).finish());
     } else {
       // Do normal ops
       for (let i = 0; i < values.length; i++) {
@@ -413,28 +445,60 @@ export class PrimitiveList<I extends HasSender, T>
   protected receiveRpc(timestamp: CausalTimestamp, message: Uint8Array) {
     // TODO: bulk delete as well?  Then need to track
     // causality info.
-    let decoded = BulkInsertMessage.decode(message);
-    let before = decoded.hasBefore
-      ? this.sequenceSource.deserialize(decoded.before, this.runtime)
-      : null;
-    let after = decoded.hasAfter
-      ? this.sequenceSource.deserialize(decoded.after, this.runtime)
-      : null;
-    let values = decoded.values.map((value) =>
-      this.valueSerializer.deserialize(value, this.runtime)
-    );
+    let decoded = PrimitiveListMessage.decode(message);
+    switch (decoded.data) {
+      case "insert": {
+        let insert = decoded.insert!;
+        let values = insert.values!.map((value) =>
+          this.valueSerializer.deserialize(value, this.runtime)
+        );
+        let [before, after] = this.fromRangeMessage(insert.range!);
 
-    let seqIds = this.sequenceSource.createBetween(
-      before,
-      after,
-      values.length,
-      timestamp.getSender()
-    );
-    this.runtime.runLocally(timestamp, () => {
-      for (let i = 0; i < values.length; i++) {
-        this.valueMap.set(seqIds[i], values[i]);
+        let seqIds = this.sequenceSource.createBetween(
+          before,
+          after,
+          values.length,
+          timestamp.getSender()
+        );
+        this.runtime.runLocally(timestamp, () => {
+          for (let i = 0; i < values.length; i++) {
+            this.valueMap.set(seqIds[i], values[i]);
+          }
+        });
+        break;
       }
-    });
+      case "delete": {
+        let deleteMessage = decoded.delete!;
+        let [before, after] = this.fromRangeMessage(deleteMessage.range!);
+        let start = before === null ? 0 : this.sortedKeys.ge(before).index;
+        start = Math.max(start, 0);
+        // Inclusive
+        let end =
+          after === null ? this.length - 1 : this.sortedKeys.le(after).index;
+        end = Math.min(end, this.length - 1);
+
+        // TODO: use an iterator instead of indices
+        let vc = timestamp.asVectorClock();
+        let toDelete: I[] = [];
+        for (let i = start; i <= end; i++) {
+          // TODO: instead of checking manually here,
+          // make UniqueMap.delete check timestamps?
+          let key = this.idAt(i);
+          let [sender, senderCounter] = this.valueMap.getMetadata(key)!;
+          let vcEntry = vc.get(sender);
+          if (vcEntry !== undefined && vcEntry >= senderCounter) {
+            // Delete it
+            toDelete.push(key);
+          }
+        }
+        this.runtime.runLocally(timestamp, () => {
+          for (let key of toDelete) this.deleteId(key);
+        });
+        break;
+      }
+      default:
+        throw new Error("Unrecognized decoded.data: " + decoded.data);
+    }
   }
 
   reset() {

@@ -5,10 +5,27 @@ message TreedocIdMessage {
   repeated string disValues = 4;
 }
 
-message BulkInsertMessage {
+message RangeMessage {
   required bool hasBefore = 1;
   optional bytes before = 2;
   required bool hasAfter = 3;
   optional bytes after = 4;
-  repeated bytes values = 5;
+}
+
+// Range is exclusive (current bounds)
+message BulkInsertMessage {
+  required RangeMessage range = 1;
+  repeated bytes values = 2;
+}
+
+// Range is inclusive (skipping null before/after)
+message BulkDeleteMessage {
+  required RangeMessage range = 1;
+}
+
+message PrimitiveListMessage {
+  oneof data {
+    BulkInsertMessage insert = 1;
+    BulkDeleteMessage delete = 2;
+  }
 }
