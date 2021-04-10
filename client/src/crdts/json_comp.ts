@@ -104,6 +104,13 @@ export class JsonArray extends CompositeCrdt implements Resettable {
     return this.internalList.insertAt(index)[1];
   }
 
+  insertRange(index: number, count: number): JsonElement[] {
+    this.makeThisExistent();
+    return this.internalList
+      .insertAtRange(index, count)
+      .map((value) => value[1]);
+  }
+
   delete(index: number): void {
     // TODO: comment for now because it seems to make semantic sense.
     // this.makeThisExistent();
@@ -250,8 +257,9 @@ export class JsonElement extends CompositeCrdt implements Resettable {
         if (value === null) this.setPrimitive(null);
         else if (Array.isArray(value)) {
           this.setIsArray();
+          this.array.insertRange(0, value.length);
           for (let i = 0; i < value.length; i++) {
-            this.array.insert(i).setOrdinaryJS(value[i]);
+            this.array.get(i).setOrdinaryJS(value[i]);
           }
         } else {
           // Ordinary object; use map

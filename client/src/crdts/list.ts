@@ -371,20 +371,6 @@ export class TreedocSource
     after: TreedocId | null,
     count: number
   ): TreedocId[] {
-    // TODO: optimize to use count?
-    let ans: TreedocId[] = [];
-    let prev = before;
-    for (let i = 0; i < count; i++) {
-      prev = this.createBetweenOne(prev, after);
-      ans.push(prev);
-    }
-    return ans;
-  }
-
-  private createBetweenOne(
-    before: TreedocId | null,
-    after: TreedocId | null
-  ): TreedocId {
     let path: BitSet;
     let disambiguators: [index: number, value: string][];
 
@@ -436,7 +422,19 @@ export class TreedocSource
 
     // Set new leaf disambiguator
     disambiguators.push([path.length - 1, this.runtime.getReplicaId()]);
-    return { path, disambiguators };
+
+    // Make count new ids as leaf descendants of path.
+    let depth = Math.ceil(Math.log2(count));
+    let ans = new Array<TreedocId>(count);
+    for (let i = 0; i < count; i++) {
+      let iPath = BitSet.copy(path, path.length + depth);
+      // Set depth next bits as the low depth bits of i
+      for (let d = 0; d < depth; d++) {
+        iPath.set(path.length + d, (i & (1 << (depth - d - 1))) !== 0);
+      }
+      ans[i] = { path: iPath, disambiguators };
+    }
+    return ans;
   }
 
   /**

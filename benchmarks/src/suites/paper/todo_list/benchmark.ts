@@ -433,9 +433,9 @@ function compoCrdt() {
     }
 
     insertText(index: number, text: string): void {
+      let regs = this.text.insertAtRange(index, text.length);
       for (let i = 0; i < text.length; i++) {
-        let reg = this.text.insertAt(index + i)[1];
-        reg.value = text[i];
+        regs[i][1].value = text[i];
       }
     }
     deleteText(index: number, count: number): void {
