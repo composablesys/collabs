@@ -14,7 +14,7 @@ import {
   LwwMessage,
   MultRegisterMessage,
   MvrMessage,
-  UniqueMapMessage,
+  PartitionedMapMessage,
 } from "../../generated/proto_compiled";
 import {
   arrayAsString,
@@ -521,45 +521,43 @@ export interface IGSet<T> extends GSet<T> {}
 // TODO: resettable GSet?  Share common interface.  Needs to track timestamps
 // like MVR.
 
-interface UniqueMapSetEvent<K, V> extends CrdtEvent {
+export interface HasSender {
+  readonly sender: string;
+}
+
+interface PartitionedMapSetEvent<K, V> extends CrdtEvent {
   key: K;
   value: V;
   // TODO: oldValue?
 }
 
-interface UniqueMapDeleteEvent<K> extends CrdtEvent {
+interface PartitionedMapDeleteEvent<K> extends CrdtEvent {
   key: K;
 }
 
-interface UniqueMapEventsRecord<K, V> extends CrdtEventsRecord {
-  Set: UniqueMapSetEvent<K, V>;
-  Delete: UniqueMapDeleteEvent<K>;
-}
-
-export interface HasSender {
-  /**
-   * the replicaId of this value's sender/creator
-   */
-  readonly sender: string;
+interface PartitionedMapEventsRecord<K, V> extends CrdtEventsRecord {
+  Set: PartitionedMapSetEvent<K, V>;
+  Delete: PartitionedMapDeleteEvent<K>;
 }
 
 // TODO: tests
 /**
- * A map with primitive values in which it is promised
- * that keys are unique, i.e., they are only inserted
- * once.  More generally, it is acceptable if keys
- * are inserted only when they are not present, and
- * the same key is never inserted multiple times
- * concurrently.  The former is enforced by throwing
- * an error if set(key, value) is called when has(key)
- * is true, while the latter is enforced by the
- * GetSender interface.  This promise
- * allows us to use the typical sequential semantics.
+ * A map with primitive values in which keys are
+ * partitioned by sender: it is promised that each
+ * replica only sets keys with itself as sender.
+ * This means that set operations cannot conflict,
+ * and delete operations can indicate which version they
+ * are deleting using a single version number,
+ * similar to in an observed-remove set.
+ *
+ * When keys are partitioned as required, this
+ * provides the same semantics as LwwMap, but
+ * is more efficient.
  */
-export class UniqueMap<K extends HasSender, V>
+export class PartitionedMap<K extends HasSender, V>
   extends PrimitiveCrdt<
     Map<string, [value: V, senderCounter: number]>,
-    UniqueMapEventsRecord<K, V>
+    PartitionedMapEventsRecord<K, V>
   >
   implements Resettable {
   constructor(
@@ -572,27 +570,16 @@ export class UniqueMap<K extends HasSender, V>
   private keyAsString(key: K): string {
     return arrayAsString(this.keySerializer.serialize(key));
   }
-  private stringAsKey(str: string): K {
-    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
-  }
 
   set(key: K, value: V) {
-    if (this.has(key)) {
-      throw new Error(
-        "UniqueMap does not permit setting a key" +
-          'that is already set (attempted to set: "' +
-          key +
-          '")'
-      );
-    }
-    let message = UniqueMapMessage.create({
+    let message = PartitionedMapMessage.create({
       keyMessage: {
         key: this.keySerializer.serialize(key),
         isDelete: false,
         value: this.valueSerializer.serialize(value),
       },
     });
-    let buffer = UniqueMapMessage.encode(message).finish();
+    let buffer = PartitionedMapMessage.encode(message).finish();
     super.send(buffer);
   }
 
@@ -600,20 +587,20 @@ export class UniqueMap<K extends HasSender, V>
     this.deleteArray(this.keySerializer.serialize(key));
   }
 
-  private deleteArray(keyArray: Uint8Array) {
-    let message = UniqueMapMessage.create({
+  private deleteArray(key: Uint8Array) {
+    let message = PartitionedMapMessage.create({
       keyMessage: {
-        key: keyArray,
+        key,
         isDelete: true,
       },
     });
-    let buffer = UniqueMapMessage.encode(message).finish();
+    let buffer = PartitionedMapMessage.encode(message).finish();
     super.send(buffer);
   }
 
   reset() {
-    let message = UniqueMapMessage.create({ reset: true });
-    let buffer = UniqueMapMessage.encode(message).finish();
+    let message = PartitionedMapMessage.create({ reset: true });
+    let buffer = PartitionedMapMessage.encode(message).finish();
     super.send(buffer);
   }
 
@@ -622,53 +609,66 @@ export class UniqueMap<K extends HasSender, V>
     return value === undefined ? undefined : value[0];
   }
 
-  getMetadata(key: K): [sender: string, senderCounter: number] | undefined {
-    let value = this.state.get(this.keyAsString(key));
-    return value === undefined ? undefined : [key.sender, value[1]];
-  }
-
   has(key: K) {
     return this.state.has(this.keyAsString(key));
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = UniqueMapMessage.decode(message);
+    let decoded = PartitionedMapMessage.decode(message);
     switch (decoded.data) {
       case "keyMessage":
         let keyMessage = decoded.keyMessage!;
         let key = this.keySerializer.deserialize(keyMessage.key, this.runtime);
         let keyAsString = arrayAsString(keyMessage.key);
         if (keyMessage.isDelete) {
-          if (this.state.delete(keyAsString)) {
-            this.emit("Delete", { caller: this, timestamp, key });
-          }
+          this.deleteIfDominated(
+            timestamp,
+            timestamp.asVectorClock(),
+            key,
+            keyAsString
+          );
         } else {
           let value = this.valueSerializer.deserialize(
             keyMessage.value!,
             this.runtime
           );
           this.state.set(keyAsString, [value, timestamp.getSenderCounter()]);
-          this.emit("Set", { caller: this, timestamp: timestamp, key, value });
+          this.emit("Set", { caller: this, timestamp, key, value });
         }
         break;
       case "reset":
-        // Delete all keys causally <= timestamp
-        let vc = timestamp.asVectorClock();
-        for (let entry of this.state.entries()) {
-          let key = this.stringAsKey(entry[0]);
-          let sender = key.sender;
-          let senderCounter = entry[1][1];
-          let vcEntry = vc.get(sender);
-          if (vcEntry !== undefined && vcEntry >= senderCounter) {
-            // Delete it
-            this.state.delete(entry[0]);
-            this.emit("Delete", { caller: this, timestamp, key });
+        this.runtime.runLocally(timestamp, () => {
+          for (let keyString of this.state.keys()) {
+            this.deleteArray(stringAsArray(keyString));
           }
-        }
+        });
         break;
       default:
         throw new Error("Unrecognized decoded.data: " + decoded.data);
     }
+  }
+
+  /**
+   * Delete the entry at key only if it is causally
+   * dominated by vc.
+   */
+  private deleteIfDominated(
+    timestamp: CausalTimestamp,
+    vc: Map<string, number>,
+    key: K,
+    keyAsString: string
+  ) {
+    let valueMeta = this.state.get(keyAsString);
+    if (valueMeta) {
+      let vcEntry = vc.get(key.sender);
+      if (vcEntry !== undefined && vcEntry >= valueMeta[1]) {
+        // Delete it
+        if (this.state.delete(keyAsString)) {
+          this.emit("Delete", { caller: this, timestamp, key });
+        }
+      }
+    }
+    return false;
   }
 
   // TODO

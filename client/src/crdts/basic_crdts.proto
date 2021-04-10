@@ -33,9 +33,15 @@ message UniqueMapKeyMessage {
     optional bytes value = 3;
 }
 
-message UniqueMapMessage {
+message PartitionedMapKeyMessage {
+    required bytes key = 1;
+    required bool isDelete = 2;
+    optional bytes value = 3;
+}
+
+message PartitionedMapMessage {
   oneof data {
-    UniqueMapKeyMessage keyMessage = 1;
+    PartitionedMapKeyMessage keyMessage = 1;
     bool reset = 2;
   }
 }

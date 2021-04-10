@@ -16,7 +16,7 @@ import {
   TreedocIdMessage,
 } from "../../generated/proto_compiled";
 import { BitSet } from "../utils/bitset";
-import { HasSender, UniqueMap } from "./basic_crdts";
+import { HasSender, PartitionedMap } from "./basic_crdts";
 import { CausalTimestamp } from "../network";
 
 // TODO: should this have any events?
@@ -284,7 +284,7 @@ export class PrimitiveList<I extends HasSender, T>
   extends CompositeCrdt
   implements Resettable {
   private readonly sequenceSource: ISequenceSource<I>;
-  private readonly valueMap: UniqueMap<I, T>;
+  private readonly valueMap: PartitionedMap<I, T>;
   // Note this is a persistent (immutable) data structure.
   private sortedKeys: Tree<I, true>;
   constructor(
@@ -298,7 +298,7 @@ export class PrimitiveList<I extends HasSender, T>
     this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
-      new UniqueMap<I, T>(this.sequenceSource, this.valueSerializer)
+      new PartitionedMap<I, T>(this.sequenceSource, this.valueSerializer)
     );
     this.sortedKeys = createTree(
       this.sequenceSource.compare.bind(sequenceSource)
@@ -515,18 +515,9 @@ export class PrimitiveList<I extends HasSender, T>
         end = Math.min(end, this.length - 1);
 
         // TODO: use an iterator instead of indices
-        let vc = timestamp.asVectorClock();
         let toDelete: I[] = [];
         for (let i = start; i <= end; i++) {
-          // TODO: instead of checking manually here,
-          // make UniqueMap.delete check timestamps?
-          let key = this.idAt(i);
-          let [sender, senderCounter] = this.valueMap.getMetadata(key)!;
-          let vcEntry = vc.get(sender);
-          if (vcEntry !== undefined && vcEntry >= senderCounter) {
-            // Delete it
-            toDelete.push(key);
-          }
+          toDelete.push(this.idAt(i));
         }
         this.runtime.runLocally(timestamp, () => {
           for (let key of toDelete) this.deleteId(key);

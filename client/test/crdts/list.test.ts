@@ -3,7 +3,6 @@ import {
   CrdtRuntime,
   ISequenceSource,
   TreedocSource,
-  TreedocList,
   TreedocId,
 } from "../../src/crdts";
 import { BitSet } from "../../src/utils/bitset";
