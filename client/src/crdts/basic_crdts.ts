@@ -536,6 +536,13 @@ interface UniqueMapEventsRecord<K, V> extends CrdtEventsRecord {
   Delete: UniqueMapDeleteEvent<K>;
 }
 
+export interface GetSender {
+  /**
+   * @return the replicaId of this value's sender/creator
+   */
+  getSender(): string;
+}
+
 // TODO: tests
 /**
  * A map with primitive values in which it is promised
@@ -544,8 +551,11 @@ interface UniqueMapEventsRecord<K, V> extends CrdtEventsRecord {
  * replica id in each inserted key.  This promise
  * allows us to use the typical sequential semantics.
  */
-export class UniqueMap<K, V>
-  extends PrimitiveCrdt<Map<string, V>, UniqueMapEventsRecord<K, V>>
+export class UniqueMap<K extends GetSender, V>
+  extends PrimitiveCrdt<
+    Map<string, [value: V, senderCounter: number]>,
+    UniqueMapEventsRecord<K, V>
+  >
   implements Resettable {
   constructor(
     private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
@@ -589,7 +599,8 @@ export class UniqueMap<K, V>
   }
 
   get(key: K): V | undefined {
-    return this.state.get(this.keyAsString(key));
+    let value = this.state.get(this.keyAsString(key));
+    return value === undefined ? undefined : value[0];
   }
 
   has(key: K) {
@@ -606,7 +617,7 @@ export class UniqueMap<K, V>
       }
     } else {
       let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
-      this.state.set(keyAsString, value);
+      this.state.set(keyAsString, [value, timestamp.getSenderCounter()]);
       this.emit("Set", { caller: this, timestamp: timestamp, key, value });
     }
   }
