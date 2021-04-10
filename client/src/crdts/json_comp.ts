@@ -34,6 +34,7 @@ export class JsonObject extends CompositeCrdt implements Resettable {
       new MapCrdt(
         () => new JsonElement(makeThisExistent),
         DefaultElementSerializer.getInstance(),
+        true,
         true
       )
     );
@@ -96,7 +97,7 @@ export class JsonArray extends CompositeCrdt implements Resettable {
     super();
     this.internalList = this.addChild(
       "nestedMap",
-      new TreedocList(() => new JsonElement(makeThisExistent), true)
+      new TreedocList(() => new JsonElement(makeThisExistent), true, true)
     );
   }
 

@@ -83,13 +83,19 @@ export class List<I, C extends Crdt & Resettable>
   constructor(
     sequenceSource: ISequenceSource<I>,
     valueConstructor: (seqId: I) => C,
-    gcValues = false
+    gcValues = false,
+    pureResets = false
   ) {
     super();
     this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
-      new MapCrdt<I, C>(valueConstructor, this.sequenceSource, gcValues)
+      new MapCrdt<I, C>(
+        valueConstructor,
+        this.sequenceSource,
+        gcValues,
+        pureResets
+      )
     );
     this.sortedKeys = createTree(
       this.sequenceSource.compare.bind(sequenceSource)
@@ -869,8 +875,12 @@ export class TreedocList<C extends Crdt & Resettable> extends List<
   TreedocId,
   C
 > {
-  constructor(valueConstructor: (seqId: TreedocId) => C, gcValues = false) {
-    super(new TreedocSource(), valueConstructor, gcValues);
+  constructor(
+    valueConstructor: (seqId: TreedocId) => C,
+    gcValues = false,
+    pureResets = false
+  ) {
+    super(new TreedocSource(), valueConstructor, gcValues, pureResets);
   }
 }
 

@@ -613,6 +613,7 @@ export class CrdtRuntime {
     for (let i = 0; i < decoded.messageSenders.length; i++) {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
+        this.currentlyProcessedTimestamp = timestamp;
         groupParent.receiveGeneral(
           pathToGroups[decoded.messageSenders[i]],
           timestamp,
@@ -680,7 +681,7 @@ export class CrdtRuntime {
   runLocally(timestamp: CausalTimestamp, doPureOps: () => void) {
     if (timestamp !== this.currentlyProcessedTimestamp) {
       throw new Error(
-        "wrong timestamp passed to runLocally;" +
+        "Wrong timestamp passed to runLocally;" +
           " it must be from a current receive... call"
       );
     }

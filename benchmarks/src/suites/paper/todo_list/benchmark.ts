@@ -406,7 +406,7 @@ function compoCrdt() {
       this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
       this.items = this.addChild(
         "items",
-        new crdts.TreedocList(() => new CrdtTodoList(), true)
+        new crdts.TreedocList(() => new CrdtTodoList(), true, true)
       );
     }
 

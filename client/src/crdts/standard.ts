@@ -652,11 +652,17 @@ export class AddWinsSet<T>
     this.flagMap.get(value).disable();
   }
 
-  // TODO: optimize (just one message)
-  reset(): void {
-    for (let value of this.flagMap.explicitValues()) {
-      value.disable();
+  protected receiveRpc(timestamp: CausalTimestamp, message: Uint8Array) {
+    if (message.byteLength !== 0) {
+      throw new Error("Failed to deserialize RPC message");
     }
+    this.runtime.runLocally(timestamp, () => {
+      for (let value of this.flagMap.explicitValues()) value.reset();
+    });
+  }
+
+  reset(): void {
+    if (this.size > 0) this.sendRpc(new Uint8Array());
   }
 
   // TODO: replace this with general receiveLocal way
@@ -751,7 +757,8 @@ export class MapCrdt<K, C extends Crdt & Resettable>
   constructor(
     valueConstructor: (key: K) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
-    gcValues = false
+    gcValues = false,
+    private readonly pureResets = false
   ) {
     super();
     this.keySet = this.addChild("1", new AddWinsSet(keySerializer));
@@ -829,16 +836,29 @@ export class MapCrdt<K, C extends Crdt & Resettable>
     this.keySet.add(key);
   }
 
-  // TODO: optimize if possible (pure resets)?
   // TODO: move the reset-all-values function to
   // LazyMap, if it has Resettable values?
   // (In that case this is just the generic
   // CompositeCrdt reset.)
   reset() {
-    for (let value of this.valueMap.explicitValues()) {
-      value.reset();
+    if (this.pureResets) {
+      this.sendRpc(new Uint8Array());
+    } else {
+      for (let value of this.valueMap.explicitValues()) {
+        value.reset();
+      }
+      this.keySet.reset();
     }
-    this.keySet.reset();
+  }
+
+  protected receiveRpc(timestamp: CausalTimestamp, message: Uint8Array) {
+    if (message.byteLength !== 0) {
+      throw new Error("Failed to deserialize RPC message");
+    }
+    this.runtime.runLocally(timestamp, () => {
+      for (let value of this.valueMap.explicitValues()) value.reset();
+      this.keySet.reset();
+    });
   }
 
   keys() {
