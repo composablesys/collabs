@@ -6,7 +6,7 @@ import { Tree } from "functional-red-black-tree";
 import { MapCrdt } from "./standard";
 import { TreedocIdMessage } from "../../generated/proto_compiled";
 import { BitSet } from "../utils/bitset";
-import { UniqueMap } from "./basic_crdts";
+import { HasSender, PartitionedMap } from "./basic_crdts";
 
 // TODO: should this have any events?
 
@@ -249,9 +249,11 @@ export class List<I, C extends Crdt & Resettable>
 //   };
 // }
 
-export class PrimitiveList<I, T> extends CompositeCrdt implements Resettable {
+export class PrimitiveList<I extends HasSender, T>
+  extends CompositeCrdt
+  implements Resettable {
   private readonly sequenceSource: ISequenceSource<I>;
-  private readonly valueMap: UniqueMap<I, T>;
+  private readonly valueMap: PartitionedMap<I, T>;
   // Note this is a persistent (immutable) data structure.
   private sortedKeys: Tree<I, true>;
   constructor(
@@ -262,7 +264,7 @@ export class PrimitiveList<I, T> extends CompositeCrdt implements Resettable {
     this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
-      new UniqueMap<I, T>(this.sequenceSource, valueSerializer)
+      new PartitionedMap<I, T>(this.sequenceSource, valueSerializer)
     );
     this.sortedKeys = createTree(
       this.sequenceSource.compare.bind(sequenceSource)
@@ -402,14 +404,21 @@ export class PrimitiveList<I, T> extends CompositeCrdt implements Resettable {
 
 // Implementations
 
-export interface TreedocId {
-  path: BitSet; // top bit is always 0
+export class TreedocId implements HasSender {
   /**
-   * Sparse map from indices to values, represented
+   * @param path top bit is always 0
+   * @param disambiguators Sparse map from indices to values, represented
    * as an array of index-value pairs, ordered by index
    * increasing.
    */
-  disambiguators: [index: number, value: string][];
+  constructor(
+    readonly path: BitSet,
+    readonly disambiguators: [index: number, value: string][]
+  ) {}
+
+  get sender(): string {
+    return this.disambiguators[this.disambiguators.length - 1][1];
+  }
 }
 
 /**
@@ -585,7 +594,7 @@ export class TreedocSource
       for (let d = 0; d < depth; d++) {
         iPath.set(path.length + d, (i & (1 << (depth - d - 1))) !== 0);
       }
-      ans[i] = { path: iPath, disambiguators };
+      ans[i] = new TreedocId(iPath, disambiguators);
     }
     return ans;
   }
@@ -687,7 +696,7 @@ export class TreedocSource
     for (let i = 0; i < decoded.disIndices.length; i++) {
       disambiguators.push([decoded.disIndices[i], decoded.disValues[i]]);
     }
-    return { path, disambiguators };
+    return new TreedocId(path, disambiguators);
   }
 
   private disEqual(
