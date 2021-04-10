@@ -12,10 +12,17 @@ message RangeMessage {
   optional bytes after = 4;
 }
 
+message RepeatedBytesMessage {
+  repeated bytes values = 1;
+}
+
 // Range is exclusive (current bounds)
 message BulkInsertMessage {
   required RangeMessage range = 1;
-  repeated bytes values = 2;
+  oneof data {
+    bytes bulkValues = 2;
+    RepeatedBytesMessage values = 3;
+  }
 }
 
 // Range is inclusive (skipping null before/after)

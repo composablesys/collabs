@@ -1,10 +1,16 @@
 import { CompositeCrdt, Crdt, CrdtRuntime } from "./crdt_core";
 import { Resettable } from "./mixins";
-import { DefaultElementSerializer, ElementSerializer } from "./utils";
+import {
+  DefaultElementSerializer,
+  ElementSerializer,
+  TextSerializer,
+  CharArraySerializer,
+} from "./utils";
 import createTree from "functional-red-black-tree";
 import { Tree } from "functional-red-black-tree";
 import { MapCrdt } from "./standard";
 import {
+  BulkInsertMessage,
   IRangeMessage,
   PrimitiveListMessage,
   TreedocIdMessage,
@@ -277,7 +283,10 @@ export class PrimitiveList<I extends HasSender, T>
   private sortedKeys: Tree<I, true>;
   constructor(
     sequenceSource: ISequenceSource<I>,
-    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    private readonly bulkValueSerializer:
+      | ElementSerializer<T[]>
+      | undefined = undefined
   ) {
     super();
     this.sequenceSource = this.addChild("1", sequenceSource);
@@ -426,10 +435,19 @@ export class PrimitiveList<I extends HasSender, T>
     );
     if (values.length > 2) {
       // Do a bulk insert RPC
+      let valuesMessage = this.bulkValueSerializer
+        ? { bulkValues: this.bulkValueSerializer.serialize(values) }
+        : {
+            values: {
+              values: values.map((value) =>
+                this.valueSerializer.serialize(value)
+              ),
+            },
+          };
       let message = new PrimitiveListMessage({
         insert: {
           range: this.rangeMessage(before, after),
-          values: values.map((value) => this.valueSerializer.serialize(value)),
+          ...valuesMessage,
         },
       });
       super.sendRpc(PrimitiveListMessage.encode(message).finish());
@@ -448,10 +466,23 @@ export class PrimitiveList<I extends HasSender, T>
     let decoded = PrimitiveListMessage.decode(message);
     switch (decoded.data) {
       case "insert": {
-        let insert = decoded.insert!;
-        let values = insert.values!.map((value) =>
-          this.valueSerializer.deserialize(value, this.runtime)
-        );
+        let insert = new BulkInsertMessage(decoded.insert!);
+        let values: T[];
+        switch (insert.data) {
+          case "bulkValues":
+            values = this.bulkValueSerializer!.deserialize(
+              insert.bulkValues,
+              this.runtime
+            );
+            break;
+          case "values":
+            values = insert.values!.values!.map((value) =>
+              this.valueSerializer.deserialize(value, this.runtime)
+            );
+            break;
+          default:
+            throw new Error("Unrecognized insert.data: " + insert.data);
+        }
         let [before, after] = this.fromRangeMessage(insert.range!);
 
         let seqIds = this.sequenceSource.createBetween(
@@ -845,8 +876,19 @@ export class TreedocList<C extends Crdt & Resettable> extends List<
 
 export class TreedocPrimitiveList<T> extends PrimitiveList<TreedocId, T> {
   constructor(
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    bulkValueSerializer: ElementSerializer<T[]> | undefined = undefined
   ) {
-    super(new TreedocSource(), valueSerializer);
+    super(new TreedocSource(), valueSerializer, bulkValueSerializer);
   }
+}
+
+export class TreedocText extends TreedocPrimitiveList<string> {
+  constructor() {
+    super(TextSerializer.instance, CharArraySerializer.instance);
+  }
+
+  // TODO: optimize insertAtRange to avoid conversion to
+  // char array and back?  At least override so you can
+  // input a string directly.
 }
