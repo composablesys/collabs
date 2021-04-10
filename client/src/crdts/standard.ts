@@ -841,6 +841,7 @@ export class MapCrdt<K, C extends Crdt & Resettable>
   // (In that case this is just the generic
   // CompositeCrdt reset.)
   reset() {
+    if (this.keySet.size === 0) return;
     if (this.pureResets) {
       this.sendRpc(new Uint8Array());
     } else {
