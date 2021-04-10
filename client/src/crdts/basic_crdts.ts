@@ -575,14 +575,6 @@ export class PartitionedMap<K extends HasSender, V>
   }
 
   set(key: K, value: V) {
-    if (this.has(key)) {
-      throw new Error(
-        "PartitionedMap does not permit setting a key" +
-          'that is already set (attempted to set: "' +
-          key +
-          '")'
-      );
-    }
     let message = PartitionedMapMessage.create({
       keyMessage: {
         key: this.keySerializer.serialize(key),
@@ -595,13 +587,9 @@ export class PartitionedMap<K extends HasSender, V>
   }
 
   delete(key: K) {
-    this.deleteArray(this.keySerializer.serialize(key));
-  }
-
-  private deleteArray(keyArray: Uint8Array) {
     let message = PartitionedMapMessage.create({
       keyMessage: {
-        key: keyArray,
+        key: this.keySerializer.serialize(key),
         isDelete: true,
       },
     });
@@ -638,36 +626,59 @@ export class PartitionedMap<K extends HasSender, V>
         let key = this.keySerializer.deserialize(keyMessage.key, this.runtime);
         let keyAsString = arrayAsString(keyMessage.key);
         if (keyMessage.isDelete) {
-          if (this.state.delete(keyAsString)) {
-            this.emit("Delete", { caller: this, timestamp, key });
-          }
+          this.deleteIfDominated(
+            timestamp,
+            timestamp.asVectorClock(),
+            key,
+            keyAsString
+          );
         } else {
           let value = this.valueSerializer.deserialize(
             keyMessage.value!,
             this.runtime
           );
           this.state.set(keyAsString, [value, timestamp.getSenderCounter()]);
-          this.emit("Set", { caller: this, timestamp: timestamp, key, value });
+          this.emit("Set", { caller: this, timestamp, key, value });
         }
         break;
       case "reset":
         // Delete all keys causally <= timestamp
         let vc = timestamp.asVectorClock();
-        for (let entry of this.state.entries()) {
-          let key = this.stringAsKey(entry[0]);
-          let sender = key.sender;
-          let senderCounter = entry[1][1];
-          let vcEntry = vc.get(sender);
-          if (vcEntry !== undefined && vcEntry >= senderCounter) {
-            // Delete it
-            this.state.delete(entry[0]);
-            this.emit("Delete", { caller: this, timestamp, key });
-          }
+        for (let keyAsString of this.state.keys()) {
+          this.deleteIfDominated(
+            timestamp,
+            vc,
+            this.stringAsKey(keyAsString),
+            keyAsString
+          );
         }
         break;
       default:
         throw new Error("Unrecognized decoded.data: " + decoded.data);
     }
+  }
+
+  /**
+   * Delete the entry at key only if it is causally
+   * dominated by vc.
+   */
+  private deleteIfDominated(
+    timestamp: CausalTimestamp,
+    vc: Map<string, number>,
+    key: K,
+    keyAsString: string
+  ) {
+    let valueMeta = this.state.get(keyAsString);
+    if (valueMeta) {
+      let vcEntry = vc.get(key.sender);
+      if (vcEntry !== undefined && vcEntry >= valueMeta[1]) {
+        // Delete it
+        if (this.state.delete(keyAsString)) {
+          this.emit("Delete", { caller: this, timestamp, key });
+        }
+      }
+    }
+    return false;
   }
 
   // TODO
