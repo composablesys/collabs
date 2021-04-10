@@ -546,9 +546,16 @@ export interface GetSender {
 // TODO: tests
 /**
  * A map with primitive values in which it is promised
- * that the same key will never be inserted concurrently.
- * This is typically ensured by including the sender's
- * replica id in each inserted key.  This promise
+ * that keys are unique, i.e., they are only inserted
+ * once.  More generally, it is acceptable if keys
+ * are inserted only when they are not present, and
+ * the same key is never inserted multiple times
+ * concurrently.  The former is enforced by throwing
+ * an error if set(key, value) is called when has(key)
+ * is true, while the latter is typically achieved
+ * by including the inserter's replicaId with each
+ * key (TODO: enforce by making each key have a
+ * getSender() method?).  This promise
  * allows us to use the typical sequential semantics.
  */
 export class UniqueMap<K extends GetSender, V>
@@ -569,6 +576,14 @@ export class UniqueMap<K extends GetSender, V>
   }
 
   set(key: K, value: V) {
+    if (this.has(key)) {
+      throw new Error(
+        "UniqueMap does not permit setting a key" +
+          'that is already set (attempted to set: "' +
+          key +
+          '")'
+      );
+    }
     let message = UniqueMapMessage.create({
       key: this.keySerializer.serialize(key),
       isDelete: false,
