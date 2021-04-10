@@ -536,11 +536,11 @@ interface UniqueMapEventsRecord<K, V> extends CrdtEventsRecord {
   Delete: UniqueMapDeleteEvent<K>;
 }
 
-export interface GetSender {
+export interface HasSender {
   /**
-   * @return the replicaId of this value's sender/creator
+   * the replicaId of this value's sender/creator
    */
-  getSender(): string;
+  readonly sender: string;
 }
 
 // TODO: tests
@@ -552,13 +552,11 @@ export interface GetSender {
  * the same key is never inserted multiple times
  * concurrently.  The former is enforced by throwing
  * an error if set(key, value) is called when has(key)
- * is true, while the latter is typically achieved
- * by including the inserter's replicaId with each
- * key (TODO: enforce by making each key have a
- * getSender() method?).  This promise
+ * is true, while the latter is enforced by the
+ * GetSender interface.  This promise
  * allows us to use the typical sequential semantics.
  */
-export class UniqueMap<K extends GetSender, V>
+export class UniqueMap<K extends HasSender, V>
   extends PrimitiveCrdt<
     Map<string, [value: V, senderCounter: number]>,
     UniqueMapEventsRecord<K, V>
@@ -574,6 +572,9 @@ export class UniqueMap<K extends GetSender, V>
   private keyAsString(key: K): string {
     return arrayAsString(this.keySerializer.serialize(key));
   }
+  private stringAsKey(str: string): K {
+    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
+  }
 
   set(key: K, value: V) {
     if (this.has(key)) {
@@ -585,9 +586,11 @@ export class UniqueMap<K extends GetSender, V>
       );
     }
     let message = UniqueMapMessage.create({
-      key: this.keySerializer.serialize(key),
-      isDelete: false,
-      value: this.valueSerializer.serialize(value),
+      keyMessage: {
+        key: this.keySerializer.serialize(key),
+        isDelete: false,
+        value: this.valueSerializer.serialize(value),
+      },
     });
     let buffer = UniqueMapMessage.encode(message).finish();
     super.send(buffer);
@@ -599,18 +602,19 @@ export class UniqueMap<K extends GetSender, V>
 
   private deleteArray(keyArray: Uint8Array) {
     let message = UniqueMapMessage.create({
-      key: keyArray,
-      isDelete: true,
+      keyMessage: {
+        key: keyArray,
+        isDelete: true,
+      },
     });
     let buffer = UniqueMapMessage.encode(message).finish();
     super.send(buffer);
   }
 
-  // TODO: optimize
   reset() {
-    for (let keyString of this.state.keys()) {
-      this.deleteArray(stringAsArray(keyString));
-    }
+    let message = UniqueMapMessage.create({ reset: true });
+    let buffer = UniqueMapMessage.encode(message).finish();
+    super.send(buffer);
   }
 
   get(key: K): V | undefined {
@@ -624,16 +628,41 @@ export class UniqueMap<K extends GetSender, V>
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = UniqueMapMessage.decode(message);
-    let key = this.keySerializer.deserialize(decoded.key, this.runtime);
-    let keyAsString = arrayAsString(decoded.key);
-    if (decoded.isDelete) {
-      if (this.state.delete(keyAsString)) {
-        this.emit("Delete", { caller: this, timestamp, key });
-      }
-    } else {
-      let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
-      this.state.set(keyAsString, [value, timestamp.getSenderCounter()]);
-      this.emit("Set", { caller: this, timestamp: timestamp, key, value });
+    switch (decoded.data) {
+      case "keyMessage":
+        let keyMessage = decoded.keyMessage!;
+        let key = this.keySerializer.deserialize(keyMessage.key, this.runtime);
+        let keyAsString = arrayAsString(keyMessage.key);
+        if (keyMessage.isDelete) {
+          if (this.state.delete(keyAsString)) {
+            this.emit("Delete", { caller: this, timestamp, key });
+          }
+        } else {
+          let value = this.valueSerializer.deserialize(
+            keyMessage.value!,
+            this.runtime
+          );
+          this.state.set(keyAsString, [value, timestamp.getSenderCounter()]);
+          this.emit("Set", { caller: this, timestamp: timestamp, key, value });
+        }
+        break;
+      case "reset":
+        // Delete all keys causally <= timestamp
+        let vc = timestamp.asVectorClock();
+        for (let entry of this.state.entries()) {
+          let key = this.stringAsKey(entry[0]);
+          let sender = key.sender;
+          let senderCounter = entry[1][1];
+          let vcEntry = vc.get(sender);
+          if (vcEntry !== undefined && vcEntry >= senderCounter) {
+            // Delete it
+            this.state.delete(entry[0]);
+            this.emit("Delete", { caller: this, timestamp, key });
+          }
+        }
+        break;
+      default:
+        throw new Error("Unrecognized decoded.data: " + decoded.data);
     }
   }
 

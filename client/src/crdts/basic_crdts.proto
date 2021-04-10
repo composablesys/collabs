@@ -27,10 +27,17 @@ message GSetMessage {
     required bytes toAdd = 1;
 }
 
-message UniqueMapMessage {
+message UniqueMapKeyMessage {
     required bytes key = 1;
     required bool isDelete = 2;
     optional bytes value = 3;
+}
+
+message UniqueMapMessage {
+  oneof data {
+    UniqueMapKeyMessage keyMessage = 1;
+    bool reset = 2;
+  }
 }
 
 message MvrMessage {
