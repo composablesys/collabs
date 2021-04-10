@@ -10,7 +10,6 @@ export interface JsonEvent extends CrdtEvent {
 
 export interface JsonEventsRecord extends CrdtEventsRecord {
   Add: JsonEvent;
-  Change: JsonEvent;
   Delete: JsonEvent;
 }
 
@@ -41,10 +40,14 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     let mvr = this.internalMap.get(key);
     if (mvr) {
       for (let val of mvr.valueSet) {
-        if (val == {}) {
-          vals.push(new JsonCursor(this, key));
-        } else {
-          vals.push(val);
+        switch (typeof val) {
+          case "object":
+            vals.push(new JsonCursor(this, key));
+            break;
+
+          default:
+            vals.push(val);
+            break;
         }
       }
     }
@@ -53,7 +56,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
 
   deleteSubKeys(key: string) {
     for (let anyKey of this.internalMap.keys()) {
-      if (anyKey.substring(0, key.length + 1) == key + ":") {
+      if (anyKey.substring(0, key.length) == key && anyKey != key) {
         this.internalMap.delete(anyKey);
       }
     }
@@ -68,8 +71,9 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     let keys = [];
 
     for (let anyKey of this.internalMap.keys()) {
-      if (anyKey.substring(0, cursor.length) == cursor)
-        keys.push(anyKey.substring(cursor.length));
+      if (anyKey.substring(0, cursor.length) == cursor && anyKey != cursor) {
+        keys.push(anyKey.substring(cursor.length).split(":")[0]);
+      }
     }
 
     return keys;
@@ -79,7 +83,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     let vals: (number | string | JsonCursor)[] = [];
 
     for (let key of this.keys(cursor)) {
-      vals.push(...this.get(key));
+      vals.push(...this.get(cursor + key + ":"));
     }
 
     return vals;
@@ -107,20 +111,20 @@ export class JsonCursor {
     this.cursor = cursor;
   }
 
-  get(key: string): (number | string | JsonCursor)[] | JsonCursor {
-    return this.internal.get(this.cursor + key);
+  get(key: string): (number | string | JsonCursor)[] {
+    return this.internal.get(this.cursor + key + ":");
   }
 
   set(key: string, val: number | string) {
-    this.internal.set(this.cursor + key, val);
+    this.internal.set(this.cursor + key + ":", val);
   }
 
   setIsMap(key: string) {
-    this.internal.setIsMap(key);
+    this.internal.setIsMap(this.cursor + key + ":");
   }
 
   delete(key: string) {
-    this.internal.delete(this.cursor + key);
+    this.internal.delete(this.cursor + key + ":");
   }
 
   keys(): string[] {
