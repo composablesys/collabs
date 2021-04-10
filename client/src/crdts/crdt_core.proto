@@ -1,15 +1,6 @@
-// TODO: flatten all and pack both sets of ids? ([packed=true])
-message CrdtPointer {
-  required uint32 parent = 1;
-  required bytes name = 2;
-}
-
-message CrdtRuntimeOneMessage {
-  required uint32 sender = 1;
-  required bytes innerMessage = 2;
-}
-
 message CrdtRuntimeMessage {
-  repeated CrdtPointer pointers = 1;
-  repeated CrdtRuntimeOneMessage messages = 2;
+  repeated uint32 pointerParents = 1 [packed=true];
+  repeated bytes pointerNames = 2;
+  repeated uint32 messageSenders = 3 [packed=true];
+  repeated bytes innerMessages = 4;
 }

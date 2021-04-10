@@ -4,6 +4,7 @@ import {
   ISequenceSource,
   TreedocSource,
   TreedocList,
+  TreedocId,
 } from "../../src/crdts";
 import { BitSet } from "../../src/utils/bitset";
 import { TestingNetworkGenerator } from "../../src/network";
@@ -36,20 +37,14 @@ describe("list", () => {
     it("compares sample correctly", () => {
       assert.isAbove(
         source.compare(
-          {
-            path: BitSet.parseBinary("01101100100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "alice"],
-            ],
-          },
-          {
-            path: BitSet.parseBinary("011010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "alice"],
-            ],
-          }
+          new TreedocId(BitSet.parseBinary("01101100100110110010"), [
+            [0, "alice"],
+            [2, "alice"],
+          ]),
+          new TreedocId(BitSet.parseBinary("011010"), [
+            [0, "alice"],
+            [2, "alice"],
+          ])
         ),
         0
       );
@@ -58,41 +53,29 @@ describe("list", () => {
     it("breaks ties by disambiguators", () => {
       assert.isAbove(
         source.compare(
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "bob"],
-              [19, "alice"],
-            ],
-          },
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [19, "alice"],
-            ],
-          }
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "bob"],
+            [19, "alice"],
+          ]),
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "alice"],
+            [19, "alice"],
+          ])
         ),
         0
       );
       assert.isAbove(
         source.compare(
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "bob"],
-              [19, "alice"],
-            ],
-          },
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "alice"],
-              [19, "alice"],
-            ],
-          }
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "alice"],
+            [2, "bob"],
+            [19, "alice"],
+          ]),
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "alice"],
+            [2, "alice"],
+            [19, "alice"],
+          ])
         ),
         0
       );
@@ -125,24 +108,18 @@ describe("list", () => {
       let before =
         beforePath === null
           ? null
-          : {
-              path: BitSet.parseBinary(beforePath),
-              disambiguators: beforeDis!,
-            };
+          : new TreedocId(BitSet.parseBinary(beforePath), beforeDis!);
       let after =
         afterPath === null
           ? null
-          : {
-              path: BitSet.parseBinary(afterPath),
-              disambiguators: afterDis!,
-            };
+          : new TreedocId(BitSet.parseBinary(afterPath), afterDis!);
       let expectedIds = expected.map((value) => {
         return {
           path: BitSet.parseBinary(value[0]),
           disambiguators: value[1],
         };
       });
-      let mid = source.createBetween(before, after, expected.length);
+      let mid = source.createBetween(before, after, expected.length, aliceId);
       assert.deepStrictEqual(mid, expectedIds);
     }
 
@@ -303,12 +280,22 @@ describe("list", () => {
         });
 
         it("works for basic insertion", () => {
-          let mid = aliceSource.createBetween(null, null, 1)[0];
+          let mid = aliceSource.createBetween(
+            null,
+            null,
+            1,
+            alice.getReplicaId()
+          )[0];
           checkOrder(aliceSource, [mid]);
         });
 
         it("transfers basic insertion", () => {
-          let mid = aliceSource.createBetween(null, null, 1)[0];
+          let mid = aliceSource.createBetween(
+            null,
+            null,
+            1,
+            alice.getReplicaId()
+          )[0];
           runtimeGen.releaseAll();
           checkOrder(bobSource, transfer(aliceSource, bobSource, [mid]));
         });
@@ -317,7 +304,12 @@ describe("list", () => {
           let lastSeqId = null;
           let seqIds: any[] = [];
           for (let i = 0; i < 100; i++) {
-            lastSeqId = aliceSource.createBetween(lastSeqId, null, 1)[0];
+            lastSeqId = aliceSource.createBetween(
+              lastSeqId,
+              null,
+              1,
+              alice.getReplicaId()
+            )[0];
             seqIds.push(lastSeqId);
           }
           checkOrder(aliceSource, seqIds);
@@ -329,7 +321,12 @@ describe("list", () => {
           let lastSeqId = null;
           let seqIdsRev: any[] = [];
           for (let i = 0; i < 100; i++) {
-            lastSeqId = aliceSource.createBetween(null, lastSeqId, 1)[0];
+            lastSeqId = aliceSource.createBetween(
+              null,
+              lastSeqId,
+              1,
+              alice.getReplicaId()
+            )[0];
             seqIdsRev.push(lastSeqId);
           }
           let seqIds = seqIdsRev.reverse();
@@ -345,7 +342,8 @@ describe("list", () => {
             let newId = aliceSource.createBetween(
               seqIds[randIndex - 1] ?? null,
               seqIds[randIndex] ?? null,
-              1
+              1,
+              alice.getReplicaId()
             )[0];
             seqIds.splice(randIndex, 0, newId);
           }
@@ -355,15 +353,30 @@ describe("list", () => {
         });
 
         it("works for concurrent insertions", () => {
-          let [left, right] = aliceSource.createBetween(null, null, 2);
+          let [left, right] = aliceSource.createBetween(
+            null,
+            null,
+            2,
+            alice.getReplicaId()
+          );
           runtimeGen.releaseAll();
           let [bobLeft, bobRight] = transfer(aliceSource, bobSource, [
             left,
             right,
           ]);
 
-          let aliceMid = aliceSource.createBetween(left, right, 1)[0];
-          let bobMid = bobSource.createBetween(bobLeft, bobRight, 1)[0];
+          let aliceMid = aliceSource.createBetween(
+            left,
+            right,
+            1,
+            alice.getReplicaId()
+          )[0];
+          let bobMid = bobSource.createBetween(
+            bobLeft,
+            bobRight,
+            1,
+            bob.getReplicaId()
+          )[0];
           runtimeGen.releaseAll();
 
           let aliceMidBob = transfer(aliceSource, bobSource, [aliceMid])[0];
@@ -387,15 +400,30 @@ describe("list", () => {
         });
 
         it("works for insertions between concurrent insertions", () => {
-          let [left, right] = aliceSource.createBetween(null, null, 2);
+          let [left, right] = aliceSource.createBetween(
+            null,
+            null,
+            2,
+            alice.getReplicaId()
+          );
           runtimeGen.releaseAll();
           let [bobLeft, bobRight] = transfer(aliceSource, bobSource, [
             left,
             right,
           ]);
 
-          let aliceMid = aliceSource.createBetween(left, right, 1)[0];
-          let bobMid = bobSource.createBetween(bobLeft, bobRight, 1)[0];
+          let aliceMid = aliceSource.createBetween(
+            left,
+            right,
+            1,
+            alice.getReplicaId()
+          )[0];
+          let bobMid = bobSource.createBetween(
+            bobLeft,
+            bobRight,
+            1,
+            bob.getReplicaId()
+          )[0];
           runtimeGen.releaseAll();
 
           // let aliceMidBob = transfer(aliceSource, bobSource, [aliceMid])[0];
@@ -408,7 +436,8 @@ describe("list", () => {
           let aliceMidMid = aliceSource.createBetween(
             leftAlice,
             rightAlice,
-            1
+            1,
+            alice.getReplicaId()
           )[0];
 
           let ordered = [left, leftAlice, aliceMidMid, rightAlice, right];
