@@ -8,14 +8,14 @@ import { result10000 } from "./results";
 import { assert } from "chai";
 import zlib from "zlib";
 
+const DEBUG = false;
+
 // Experiment params
+const GZIP = false;
 const TRIALS = 1; // TODO: make 5 or 10 for real paper
 const SEED = "42";
-const ROUND_OPS = 1000;
-// const ROUND_OPS = 1;
+const ROUND_OPS = DEBUG ? 1 : 1000;
 const ROUNDS = 10;
-const DEBUG = false;
-const GZIP = false;
 
 // Helper funcs
 async function sleep(ms: number) {

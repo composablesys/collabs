@@ -4,6 +4,8 @@ import { EventEmitter } from "../utils/EventEmitter";
 import cryptoRandomString from "crypto-random-string";
 import { arrayAsString, stringAsArray } from "./utils";
 
+const DEBUG = false;
+
 /**
  * An event issued when a CRDT is changed by another replica.
  * Crdt's should define events implementing this interface
@@ -534,6 +536,23 @@ export class CrdtRuntime {
     if (batchInfo === undefined) return;
     this.pendingBatches.delete(group);
 
+    if (DEBUG) {
+      console.log("\nCrdtRuntime.commitBatch:");
+      console.log(
+        batchInfo.pointers.map((value) => {
+          return { parent: value.parent, name: arrayAsString(value.name) };
+        })
+      );
+      console.log(
+        batchInfo.messages.map((value) => {
+          return {
+            sender: value.sender,
+            length: value.innerMessage.byteLength,
+          };
+        })
+      );
+    }
+
     // Serialize the batch and send it over this.network
     let runtimeMessage = CrdtRuntimeMessage.create({
       pointerParents: batchInfo.pointers.map((pointer) => pointer.parent),
@@ -542,6 +561,9 @@ export class CrdtRuntime {
       innerMessages: batchInfo.messages.map((message) => message.innerMessage),
     });
     let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
+    if (DEBUG) {
+      console.log("Final message length: " + buffer.byteLength);
+    }
     this.network.commitBatch(
       group,
       buffer,
