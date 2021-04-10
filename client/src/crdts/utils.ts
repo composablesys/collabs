@@ -152,6 +152,17 @@ export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
   }
 }
 
+export class TextSerializer implements ElementSerializer<string> {
+  private constructor() {}
+  serialize(value: string): Uint8Array {
+    return new Uint8Array(Buffer.from(value, "utf-8"));
+  }
+  deserialize(message: Uint8Array, _runtime: CrdtRuntime): string {
+    return Buffer.from(message).toString("utf-8");
+  }
+  static instance = new TextSerializer();
+}
+
 // TODO: use these in networks
 const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {

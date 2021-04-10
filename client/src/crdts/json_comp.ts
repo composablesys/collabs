@@ -3,7 +3,7 @@ import { CompositeCrdt } from "./crdt_core";
 import { TreedocList, TreedocPrimitiveList } from "./list";
 import { Resettable } from "./mixins";
 import { MapCrdt } from "./standard";
-import { DefaultElementSerializer } from "./utils";
+import { DefaultElementSerializer, TextSerializer } from "./utils";
 
 // TODO: disable GC by default, since users might store objects elsewhere.
 
@@ -168,7 +168,10 @@ export class JsonElement extends CompositeCrdt implements Resettable {
       new JsonObject(() => this.setIsObject())
     );
     this.array = this.addChild("array", new JsonArray(() => this.setIsArray()));
-    this.text = this.addChild("text", new TreedocPrimitiveList());
+    this.text = this.addChild(
+      "text",
+      new TreedocPrimitiveList(TextSerializer.instance)
+    );
   }
 
   get value(): JsonValue {

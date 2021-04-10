@@ -402,7 +402,10 @@ function compoCrdt() {
 
     constructor() {
       super();
-      this.text = this.addChild("text", new crdts.TreedocPrimitiveList());
+      this.text = this.addChild(
+        "text",
+        new crdts.TreedocPrimitiveList(crdts.TextSerializer.instance)
+      );
       this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
       this.items = this.addChild(
         "items",
