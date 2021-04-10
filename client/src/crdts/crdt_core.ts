@@ -1,9 +1,5 @@
 import { CausalBroadcastNetwork, CausalTimestamp } from "../network";
-import {
-  CrdtRuntimeMessage,
-  ICrdtPointer,
-  ICrdtRuntimeOneMessage,
-} from "../../generated/proto_compiled";
+import { CrdtRuntimeMessage } from "../../generated/proto_compiled";
 import { EventEmitter } from "../utils/EventEmitter";
 import cryptoRandomString from "crypto-random-string";
 import { arrayAsString, stringAsArray } from "./utils";
@@ -378,9 +374,9 @@ class CrdtRoot implements CrdtParent {
 // pointers; 0 denotes the group parent, which is not stored in
 // pointers.
 interface BatchInfo {
-  pointers: ICrdtPointer[];
+  pointers: { parent: number; name: Uint8Array }[];
   pointerByCrdt: Map<Crdt, number>;
-  messages: ICrdtRuntimeOneMessage[];
+  messages: { sender: number; innerMessage: Uint8Array }[];
   firstTimestamp: CausalTimestamp;
   previousTimestamp: CausalTimestamp;
 }
@@ -518,8 +514,10 @@ export class CrdtRuntime {
 
     // Serialize the batch and send it over this.network
     let runtimeMessage = CrdtRuntimeMessage.create({
-      pointers: batchInfo.pointers,
-      messages: batchInfo.messages,
+      pointerParents: batchInfo.pointers.map((pointer) => pointer.parent),
+      pointerNames: batchInfo.pointers.map((pointer) => pointer.name),
+      messageSenders: batchInfo.messages.map((message) => message.sender),
+      innerMessages: batchInfo.messages.map((message) => message.innerMessage),
     });
     let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
     this.network.commitBatch(
@@ -558,25 +556,23 @@ export class CrdtRuntime {
     // Index 0 is for the groupParent, whose pathToGroup
     // is [].
     let pathToGroups: string[][] = [[]];
-    for (let pointer of decoded.pointers) {
+    for (let i = 0; i < decoded.pointerParents.length; i++) {
       pathToGroups.push([
-        arrayAsString(pointer.name),
-        ...pathToGroups[pointer.parent],
+        arrayAsString(decoded.pointerNames[i]),
+        ...pathToGroups[decoded.pointerParents[i]],
       ]);
     }
 
     // Deliver messages
     let groupParent = this.groupParents.get(group)!;
     let timestamp = firstTimestamp;
-    let first = true;
-    for (let oneMessage of decoded.messages) {
-      if (first) first = false;
-      else timestamp = this.network.nextTimestamp(timestamp);
+    for (let i = 0; i < decoded.messageSenders.length; i++) {
+      if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
         groupParent.receiveGeneral(
-          pathToGroups[oneMessage.sender],
+          pathToGroups[decoded.messageSenders[i]],
           timestamp,
-          oneMessage.innerMessage
+          decoded.innerMessages[i]
         );
       } catch (e) {
         // TODO: handle gracefully
