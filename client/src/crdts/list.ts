@@ -4,9 +4,13 @@ import { DefaultElementSerializer, ElementSerializer } from "./utils";
 import createTree from "functional-red-black-tree";
 import { Tree } from "functional-red-black-tree";
 import { MapCrdt } from "./standard";
-import { TreedocIdMessage } from "../../generated/proto_compiled";
+import {
+  BulkInsertMessage,
+  TreedocIdMessage,
+} from "../../generated/proto_compiled";
 import { BitSet } from "../utils/bitset";
 import { UniqueMap } from "./basic_crdts";
+import { CausalTimestamp } from "../network";
 
 // TODO: should this have any events?
 
@@ -45,12 +49,21 @@ export interface ISequenceSource<I> extends Crdt, ElementSerializer<I> {
    * an arbitrary tie-breaker between elements that
    * would otherwise be equivalently ordered.
    *
+   * TODO: currently must be deterministic.  Allow
+   * randomness if you're not doing fancy things,
+   * or supply random seed if requested.
+   *
    * @param  before null for start
    * @param  after  null for end
    * @param count   [description]
    * @return        [description]
    */
-  createBetween(before: I | null, after: I | null, count: number): I[];
+  createBetween(
+    before: I | null,
+    after: I | null,
+    count: number,
+    sender: string
+  ): I[];
 }
 
 export class List<I, C extends Crdt & Resettable>
@@ -176,7 +189,12 @@ export class List<I, C extends Crdt & Resettable>
     after: I | null,
     count: number
   ): [seqId: I, value: C][] {
-    let seqIds = this.sequenceSource.createBetween(before, after, count);
+    let seqIds = this.sequenceSource.createBetween(
+      before,
+      after,
+      count,
+      this.runtime.getReplicaId()
+    );
     let ret: [seqId: I, value: C][] = [];
     for (let seqId of seqIds) {
       this.valueMap.addKey(seqId);
@@ -256,13 +274,13 @@ export class PrimitiveList<I, T> extends CompositeCrdt implements Resettable {
   private sortedKeys: Tree<I, true>;
   constructor(
     sequenceSource: ISequenceSource<I>,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
     this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
-      new UniqueMap<I, T>(this.sequenceSource, valueSerializer)
+      new UniqueMap<I, T>(this.sequenceSource, this.valueSerializer)
     );
     this.sortedKeys = createTree(
       this.sequenceSource.compare.bind(sequenceSource)
@@ -362,15 +380,59 @@ export class PrimitiveList<I, T> extends CompositeCrdt implements Resettable {
   // }
 
   private insertBetween(before: I | null, after: I | null, values: T[]): I[] {
+    // TODO: avoid doing this redundantly (2x)
     let seqIds = this.sequenceSource.createBetween(
       before,
       after,
-      values.length
+      values.length,
+      this.runtime.getReplicaId()
     );
-    for (let i = 0; i < values.length; i++) {
-      this.valueMap.set(seqIds[i], values[i]);
+    if (values.length > 2) {
+      // Do a bulk insert RPC
+      let message = new BulkInsertMessage({
+        hasBefore: before !== null,
+        before:
+          before === null ? undefined : this.sequenceSource.serialize(before),
+        hasAfter: after !== null,
+        after:
+          after === null ? undefined : this.sequenceSource.serialize(after),
+        values: values.map((value) => this.valueSerializer.serialize(value)),
+      });
+      super.sendRpc(BulkInsertMessage.encode(message).finish());
+    } else {
+      // Do normal ops
+      for (let i = 0; i < values.length; i++) {
+        this.valueMap.set(seqIds[i], values[i]);
+      }
     }
     return seqIds;
+  }
+
+  protected receiveRpc(timestamp: CausalTimestamp, message: Uint8Array) {
+    // TODO: bulk delete as well?  Then need to track
+    // causality info.
+    let decoded = BulkInsertMessage.decode(message);
+    let before = decoded.hasBefore
+      ? this.sequenceSource.deserialize(decoded.before, this.runtime)
+      : null;
+    let after = decoded.hasAfter
+      ? this.sequenceSource.deserialize(decoded.after, this.runtime)
+      : null;
+    let values = decoded.values.map((value) =>
+      this.valueSerializer.deserialize(value, this.runtime)
+    );
+
+    let seqIds = this.sequenceSource.createBetween(
+      before,
+      after,
+      values.length,
+      timestamp.getSender()
+    );
+    this.runtime.runLocally(timestamp, () => {
+      for (let i = 0; i < values.length; i++) {
+        this.valueMap.set(seqIds[i], values[i]);
+      }
+    });
   }
 
   reset() {
@@ -522,7 +584,8 @@ export class TreedocSource
   createBetween(
     before: TreedocId | null,
     after: TreedocId | null,
-    count: number
+    count: number,
+    sender: string
   ): TreedocId[] {
     let path: BitSet;
     let disambiguators: [index: number, value: string][];
@@ -574,7 +637,7 @@ export class TreedocSource
     }
 
     // Set new leaf disambiguator
-    disambiguators.push([path.length - 1, this.runtime.getReplicaId()]);
+    disambiguators.push([path.length - 1, sender]);
 
     // Make count new ids as leaf descendants of path.
     let depth = Math.ceil(Math.log2(count));

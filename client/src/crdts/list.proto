@@ -4,3 +4,11 @@ message TreedocIdMessage {
   repeated uint32 disIndices = 3;
   repeated string disValues = 4;
 }
+
+message BulkInsertMessage {
+  required bool hasBefore = 1;
+  optional bytes before = 2;
+  required bool hasAfter = 3;
+  optional bytes after = 4;
+  repeated bytes values = 5;
+}

@@ -293,7 +293,8 @@ export class CompositeCrdt<
   ): void {
     if (targetPath.length === 0) {
       // We are the target
-      throw new Error("TODO");
+      this.receiveRpc(timestamp, message);
+      return;
     }
 
     let child = this.children.get(targetPath[targetPath.length - 1]);
@@ -316,6 +317,14 @@ export class CompositeCrdt<
       caller: this,
       timestamp: timestamp,
     });
+  }
+
+  protected sendRpc(message: Uint8Array) {
+    this.runtime.send(this, message);
+  }
+
+  protected receiveRpc(_timestamp: CausalTimestamp, _message: Uint8Array) {
+    throw new Error("Not expecting rpc messages");
   }
 
   getDescendant(targetPath: string[]): Crdt {
@@ -437,6 +446,17 @@ export class CrdtRuntime {
     let pathToRoot = sender.pathToRoot();
     let group = pathToRoot[pathToRoot.length - 1];
 
+    if (this.inRunLocally) {
+      // Deliver immediately back to the sender
+      let groupParent = this.groupParents.get(group)!;
+      groupParent.receiveGeneral(
+        pathToRoot.slice(0, pathToRoot.length - 1),
+        this.currentlyProcessedTimestamp!,
+        message
+      );
+      return;
+    }
+
     // TODO: reuse batchInfo's, to avoid object creation, since set
     // of groups should remain constant.
     let batchInfo = this.pendingBatches.get(group);
@@ -460,11 +480,13 @@ export class CrdtRuntime {
     // Deliver to self, synchronously
     // TODO: error handling
     let groupParent = this.groupParents.get(group)!;
+    this.currentlyProcessedTimestamp = timestamp;
     groupParent.receiveGeneral(
       pathToRoot.slice(0, pathToRoot.length - 1),
       timestamp,
       message
     );
+    this.currentlyProcessedTimestamp = undefined;
 
     // Add to the pending batch
     let pointer = this.getPointer(batchInfo, sender, groupParent);
@@ -572,6 +594,7 @@ export class CrdtRuntime {
     for (let oneMessage of decoded.messages) {
       if (first) first = false;
       else timestamp = this.network.nextTimestamp(timestamp);
+      this.currentlyProcessedTimestamp = timestamp;
       try {
         groupParent.receiveGeneral(
           pathToGroups[oneMessage.sender],
@@ -581,6 +604,8 @@ export class CrdtRuntime {
       } catch (e) {
         // TODO: handle gracefully
         throw e;
+      } finally {
+        this.currentlyProcessedTimestamp = undefined;
       }
     }
     return timestamp;
@@ -619,5 +644,32 @@ export class CrdtRuntime {
    */
   getReplicaUniqueNumber() {
     return this.idCounter++;
+  }
+
+  private inRunLocally = false;
+  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
+  /**
+   * TODOs: generally check this makes sense;
+   * harden against repeated timestamps;
+   * use said repeated timestamps in batching;
+   * sample ops; copy elsewhere, e.g. protected
+   * method in Crdt?  Currently not discoverable;
+   *
+   * timestamp is just here to force you to use
+   * this only when processing a raw message.
+   * It's only used for bug-catching (compared to
+   * the real timestamp).
+   */
+  runLocally(timestamp: CausalTimestamp, doPureOps: () => void) {
+    if (timestamp !== this.currentlyProcessedTimestamp) {
+      throw new Error(
+        "wrong timestamp passed to runLocally;" +
+          " it must be from a current receive... call"
+      );
+    }
+    let oldInRunLocally = this.inRunLocally;
+    this.inRunLocally = true;
+    doPureOps();
+    this.inRunLocally = oldInRunLocally;
   }
 }
