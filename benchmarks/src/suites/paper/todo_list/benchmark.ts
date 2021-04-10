@@ -6,6 +6,7 @@ import * as Y from "yjs";
 import util from "util";
 import { result10000 } from "./results";
 import { assert } from "chai";
+import zlib from "zlib";
 
 // Experiment params
 const TRIALS = 1; // TODO: make 5 or 10 for real paper
@@ -14,6 +15,7 @@ const ROUND_OPS = 1000;
 // const ROUND_OPS = 1;
 const ROUNDS = 10;
 const DEBUG = false;
+const GZIP = false;
 
 // Helper funcs
 async function sleep(ms: number) {
@@ -462,19 +464,28 @@ function compoCrdt() {
 
   let generator: network.TestingNetworkGenerator;
   let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
 
   new TodoListBenchmark("Compo Crdt", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
       let list = runtime.groupParent("").addChild("", new CrdtTodoList());
+      this.sendNextMessage();
       return list;
     },
     sendNextMessage() {
       runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
     },
     getSentBytes() {
-      return generator.getTotalSentBytes();
+      return totalSentBytes;
     },
   }).add();
 }
@@ -538,22 +549,31 @@ function compoJson() {
 
   let generator: network.TestingNetworkGenerator;
   let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
 
   new TodoListBenchmark("Compo Json", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
       let list = runtime
         .groupParent("")
         .addChild("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
+      this.sendNextMessage();
       return new JsonTodoList(list.value as crdts.JsonObject);
     },
     sendNextMessage() {
       runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
     },
     getSentBytes() {
-      return generator.getTotalSentBytes();
+      return totalSentBytes;
     },
   }).add();
 }
@@ -643,7 +663,10 @@ function automerge() {
     },
     sendNextMessage() {
       let message = JSON.stringify(Automerge.getChanges(lastDoc, theDoc));
-      totalSentBytes += message.length;
+      if (GZIP) totalSentBytes += zlib.gzipSync(message).byteLength;
+      // TODO: really should use byte length.  Probably
+      // okay though as it sticks to ascii.
+      else totalSentBytes += message.length;
       lastDoc = theDoc;
     },
     getSentBytes() {

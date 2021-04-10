@@ -19,6 +19,7 @@ export class TestingNetwork implements BroadcastNetwork {
     for (let queue of queueMap.values()) {
       queue.push([group, message]);
     }
+    this.generator.lastMessage = message;
   }
   register(causal: DefaultCausalBroadcastNetwork): void {
     this.causal = causal;
@@ -89,4 +90,6 @@ export class TestingNetworkGenerator {
     for (let sender of this.messageQueues.keys()) ret += sender.sentBytes;
     return ret;
   }
+
+  lastMessage: Uint8Array | undefined = undefined;
 }
