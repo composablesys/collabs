@@ -396,16 +396,13 @@ function compoCrdt() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable {
-    private readonly text: crdts.TreedocList<crdts.LwwRegister<string>>;
+    private readonly text: crdts.TreedocPrimitiveList<string>;
     private readonly doneCrdt: crdts.EnableWinsFlag;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild(
-        "text",
-        new crdts.TreedocList(() => new crdts.LwwRegister(""), true)
-      );
+      this.text = this.addChild("text", new crdts.TreedocPrimitiveList());
       this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
       this.items = this.addChild(
         "items",
@@ -435,10 +432,7 @@ function compoCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      let regs = this.text.insertAtRange(index, text.length);
-      for (let i = 0; i < text.length; i++) {
-        regs[i][1].value = text[i];
-      }
+      this.text.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
       for (let i = 0; i < count; i++) {
@@ -449,10 +443,7 @@ function compoCrdt() {
       return this.text.length; // Assumes all text registers are one char
     }
     getText(): string {
-      return this.text
-        .asArray()
-        .map((register) => register.value)
-        .join("");
+      return this.text.asArray().join("");
     }
 
     reset() {

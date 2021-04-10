@@ -14,6 +14,7 @@ import {
   LwwMessage,
   MultRegisterMessage,
   MvrMessage,
+  UniqueMapMessage,
 } from "../../generated/proto_compiled";
 import {
   arrayAsString,
@@ -519,6 +520,120 @@ export interface IGSet<T> extends GSet<T> {}
 
 // TODO: resettable GSet?  Share common interface.  Needs to track timestamps
 // like MVR.
+
+interface UniqueMapSetEvent<K, V> extends CrdtEvent {
+  key: K;
+  value: V;
+  // TODO: oldValue?
+}
+
+interface UniqueMapDeleteEvent<K> extends CrdtEvent {
+  key: K;
+}
+
+interface UniqueMapEventsRecord<K, V> extends CrdtEventsRecord {
+  Set: UniqueMapSetEvent<K, V>;
+  Delete: UniqueMapDeleteEvent<K>;
+}
+
+// TODO: tests
+/**
+ * A map with primitive values in which it is promised
+ * that the same key will never be inserted concurrently.
+ * This is typically ensured by including the sender's
+ * replica id in each inserted key.  This promise
+ * allows us to use the typical sequential semantics.
+ */
+export class UniqueMap<K, V>
+  extends PrimitiveCrdt<Map<string, V>, UniqueMapEventsRecord<K, V>>
+  implements Resettable {
+  constructor(
+    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
+    private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
+  ) {
+    super(new Map());
+  }
+
+  private keyAsString(key: K): string {
+    return arrayAsString(this.keySerializer.serialize(key));
+  }
+
+  set(key: K, value: V) {
+    let message = UniqueMapMessage.create({
+      key: this.keySerializer.serialize(key),
+      isDelete: false,
+      value: this.valueSerializer.serialize(value),
+    });
+    let buffer = UniqueMapMessage.encode(message).finish();
+    super.send(buffer);
+  }
+
+  delete(key: K) {
+    this.deleteArray(this.keySerializer.serialize(key));
+  }
+
+  private deleteArray(keyArray: Uint8Array) {
+    let message = UniqueMapMessage.create({
+      key: keyArray,
+      isDelete: true,
+    });
+    let buffer = UniqueMapMessage.encode(message).finish();
+    super.send(buffer);
+  }
+
+  // TODO: optimize
+  reset() {
+    for (let keyString of this.state.keys()) {
+      this.deleteArray(stringAsArray(keyString));
+    }
+  }
+
+  get(key: K): V | undefined {
+    return this.state.get(this.keyAsString(key));
+  }
+
+  has(key: K) {
+    return this.state.has(this.keyAsString(key));
+  }
+
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
+    let decoded = UniqueMapMessage.decode(message);
+    let key = this.keySerializer.deserialize(decoded.key, this.runtime);
+    let keyAsString = arrayAsString(decoded.key);
+    if (decoded.isDelete) {
+      if (this.state.delete(keyAsString)) {
+        this.emit("Delete", { caller: this, timestamp, key });
+      }
+    } else {
+      let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
+      this.state.set(keyAsString, value);
+      this.emit("Set", { caller: this, timestamp: timestamp, key, value });
+    }
+  }
+
+  // TODO
+  // /**
+  //  * Don't mutate this directly.
+  //  *
+  //  * TODO: with current approach, value's keys
+  //  * may be unique each time.  This makes it annoying
+  //  * to compare values between times (e.g. subset
+  //  * relationships).
+  //  */
+  // get value(): Set<T> {
+  //   let ans = new Set<T>();
+  //   for (let keyString of this.state.values()) {
+  //     ans.add(this.stringAsKey(keyString));
+  //   }
+  //   return ans;
+  // }
+
+  canGC() {
+    return this.state.size === 0;
+  }
+
+  // TODO: other helper methods
+}
 
 export class MvrEntry<T> {
   constructor(
