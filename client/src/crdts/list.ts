@@ -1,11 +1,12 @@
 import { CompositeCrdt, Crdt, CrdtRuntime } from "./crdt_core";
 import { Resettable } from "./mixins";
-import { ElementSerializer } from "./utils";
+import { DefaultElementSerializer, ElementSerializer } from "./utils";
 import createTree from "functional-red-black-tree";
 import { Tree } from "functional-red-black-tree";
 import { MapCrdt } from "./standard";
 import { TreedocIdMessage } from "../../generated/proto_compiled";
 import { BitSet } from "../utils/bitset";
+import { UniqueMap } from "./basic_crdts";
 
 // TODO: should this have any events?
 
@@ -65,9 +66,9 @@ export class List<I, C extends Crdt & Resettable>
     gcValues = false
   ) {
     super();
-    this.sequenceSource = this.addChild("sequenceSource", sequenceSource);
+    this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
-      "valueMap",
+      "2",
       new MapCrdt<I, C>(valueConstructor, this.sequenceSource, gcValues)
     );
     this.sortedKeys = createTree(
@@ -196,9 +197,10 @@ export class List<I, C extends Crdt & Resettable>
   }
 
   asArray(): C[] {
-    let arr: C[] = [];
-    for (let seqId of this.sortedKeys.keys) {
-      arr.push(this.getId(seqId)!);
+    let keys = this.sortedKeys.keys;
+    let arr = new Array<C>(keys.length);
+    for (let i = 0; i < keys.length; i++) {
+      arr[i] = this.getId(keys[i])!;
     }
     return arr;
   }
@@ -246,6 +248,157 @@ export class List<I, C extends Crdt & Resettable>
 //     }
 //   };
 // }
+
+export class PrimitiveList<I, T> extends CompositeCrdt implements Resettable {
+  private readonly sequenceSource: ISequenceSource<I>;
+  private readonly valueMap: UniqueMap<I, T>;
+  // Note this is a persistent (immutable) data structure.
+  private sortedKeys: Tree<I, true>;
+  constructor(
+    sequenceSource: ISequenceSource<I>,
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super();
+    this.sequenceSource = this.addChild("1", sequenceSource);
+    this.valueMap = this.addChild(
+      "2",
+      new UniqueMap<I, T>(this.sequenceSource, valueSerializer)
+    );
+    this.sortedKeys = createTree(
+      this.sequenceSource.compare.bind(sequenceSource)
+    );
+    // Catch map key events and adjusting sortedKeys
+    // accordingly, so that its key set always coincides
+    // with valueMap's.
+    this.valueMap.on("Set", (event) => {
+      // Add the key if it is not present (Tree permits
+      // multiple instances of the same key, so adding it
+      // again if it already exists is not a no-op).
+      if (!this.sortedKeys.get(event.key)) {
+        this.sortedKeys = this.sortedKeys.insert(event.key, true);
+      }
+    });
+    this.valueMap.on("Delete", (event) => {
+      this.sortedKeys = this.sortedKeys.remove(event.key);
+    });
+    // TODO: In tests, add assertions checking
+    // size equality constantly.
+    // TODO: dispatching events
+  }
+
+  idAt(index: number): I {
+    this.checkIndex(index);
+    return this.sortedKeys.at(index).key!;
+  }
+
+  private checkIndex(index: number) {
+    if (!this.hasAt(index)) {
+      throw new Error(
+        "Index out of bounds: " + index + " (length: " + this.length + ")"
+      );
+    }
+  }
+
+  getId(seqId: I): T | undefined {
+    return this.valueMap.get(seqId);
+  }
+
+  getAt(index: number): T {
+    return this.getId(this.idAt(index))!;
+  }
+
+  hasId(seqId: I): boolean {
+    return this.valueMap.has(seqId);
+  }
+
+  hasAt(index: number): boolean {
+    return !(index < 0 || index >= this.length);
+  }
+
+  deleteId(seqId: I) {
+    this.valueMap.delete(seqId);
+  }
+
+  deleteAt(index: number) {
+    this.deleteId(this.idAt(index));
+  }
+
+  insertAt(index: number, value: T): I {
+    return this.insertAtRange(index, [value])[0];
+  }
+
+  insertAtRange(index: number, values: T[]): I[] {
+    if (index < 0 || index > this.length) {
+      throw new Error(
+        "insertAt index out of range: " +
+          index +
+          " (length: " +
+          this.length +
+          ")"
+      );
+    }
+    let before = index === 0 ? null : this.idAt(index - 1);
+    let after = index === this.length ? null : this.idAt(index);
+    return this.insertBetween(before, after, values);
+  }
+
+  // TODO
+  // insertAfter(seqId: I): [seqId: I, value: C] {
+  //   return this.insertAfterRange(seqId, 1)[0];
+  // }
+  //
+  // insertAfterRange(seqId: I, count: number): [seqId: I, value: C][] {
+  //   let after = this.sortedKeys.gt(seqId).key ?? null;
+  //   return this.insertBetween(seqId, after, count);
+  // }
+  //
+  // insertBefore(seqId: I): [seqId: I, value: C] {
+  //   return this.insertBeforeRange(seqId, 1)[0];
+  // }
+  //
+  // insertBeforeRange(seqId: I, count: number): [seqId: I, value: C][] {
+  //   let before = this.sortedKeys.lt(seqId).key ?? null;
+  //   return this.insertBetween(before, seqId, count);
+  // }
+
+  private insertBetween(before: I | null, after: I | null, values: T[]): I[] {
+    let seqIds = this.sequenceSource.createBetween(
+      before,
+      after,
+      values.length
+    );
+    for (let i = 0; i < values.length; i++) {
+      this.valueMap.set(seqIds[i], values[i]);
+    }
+    return seqIds;
+  }
+
+  reset() {
+    this.valueMap.reset();
+    // sortedKeys will be reset automatically in response
+    // to map events; no need to reset sequenceSource since
+    // it doesn't have any exposed state.
+  }
+
+  idsAsArray(): I[] {
+    return this.sortedKeys.keys;
+  }
+
+  asArray(): T[] {
+    let keys = this.sortedKeys.keys;
+    let arr = new Array<T>(keys.length);
+    for (let i = 0; i < keys.length; i++) {
+      arr[i] = this.getId(keys[i])!;
+    }
+    return arr;
+  }
+
+  // TODO: iterator versions of asArray methods
+
+  get length(): number {
+    return this.sortedKeys.length;
+  }
+}
 
 // Implementations
 
@@ -371,20 +524,6 @@ export class TreedocSource
     after: TreedocId | null,
     count: number
   ): TreedocId[] {
-    // TODO: optimize to use count?
-    let ans: TreedocId[] = [];
-    let prev = before;
-    for (let i = 0; i < count; i++) {
-      prev = this.createBetweenOne(prev, after);
-      ans.push(prev);
-    }
-    return ans;
-  }
-
-  private createBetweenOne(
-    before: TreedocId | null,
-    after: TreedocId | null
-  ): TreedocId {
     let path: BitSet;
     let disambiguators: [index: number, value: string][];
 
@@ -436,7 +575,19 @@ export class TreedocSource
 
     // Set new leaf disambiguator
     disambiguators.push([path.length - 1, this.runtime.getReplicaId()]);
-    return { path, disambiguators };
+
+    // Make count new ids as leaf descendants of path.
+    let depth = Math.ceil(Math.log2(count));
+    let ans = new Array<TreedocId>(count);
+    for (let i = 0; i < count; i++) {
+      let iPath = BitSet.copy(path, path.length + depth);
+      // Set depth next bits as the low depth bits of i
+      for (let d = 0; d < depth; d++) {
+        iPath.set(path.length + d, (i & (1 << (depth - d - 1))) !== 0);
+      }
+      ans[i] = { path: iPath, disambiguators };
+    }
+    return ans;
   }
 
   /**
@@ -553,5 +704,13 @@ export class TreedocList<C extends Crdt & Resettable> extends List<
 > {
   constructor(valueConstructor: (seqId: TreedocId) => C, gcValues = false) {
     super(new TreedocSource(), valueConstructor, gcValues);
+  }
+}
+
+export class TreedocPrimitiveList<T> extends PrimitiveList<TreedocId, T> {
+  constructor(
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super(new TreedocSource(), valueSerializer);
   }
 }

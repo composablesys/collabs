@@ -629,7 +629,7 @@ export class AddWinsSet<T>
   ) {
     super();
     this.flagMap = this.addChild(
-      "flagMap",
+      "1",
       new LazyMap(() => new EnableWinsFlag(), elementSerializer, true)
     );
     this.flagMap.on("ValueChange", (event) => {
@@ -754,9 +754,9 @@ export class MapCrdt<K, C extends Crdt & Resettable>
     gcValues = false
   ) {
     super();
-    this.keySet = this.addChild("keySet", new AddWinsSet(keySerializer));
+    this.keySet = this.addChild("1", new AddWinsSet(keySerializer));
     this.valueMap = this.addChild(
-      "valueMap",
+      "2",
       new LazyMap(valueConstructor, keySerializer, gcValues)
     );
     this.keySet.on("SetAdd", (event) =>
@@ -981,7 +981,7 @@ export class LwwMap<K, V>
     // requires us to provide an initial value.
     // We just pass null and cast it to V.
     this.internalMap = this.addChild(
-      "internalMap",
+      "1",
       new LazyMap(
         () =>
           new LwwRegister(

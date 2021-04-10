@@ -27,7 +27,8 @@ import { myMessage } from "./default_causal_broadcast_network";
  */
 export class WebRtcNetwork implements CausalBroadcastNetwork {
   /**
-   * Registered CrdtRuntime.
+   * Registered CrdtRuntime.  TODO: rename runtime, for consistency
+   * with DefaultCausalBroadcastNetwork
    */
   crdtRuntime!: CrdtRuntime;
   /**
@@ -62,6 +63,8 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * User's name that current data channel connected.
    */
   userName: String;
+
+  private readonly pendingBatches = new Set<string>();
 
   constructor(webSocketArgs: string) {
     this.vcMap = new Map();
@@ -268,7 +271,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     );
     this.messageBuffer.push([
       parsed.group,
-      myPackage.messages[0],
+      myPackage.message,
       myPackage.timestamp,
     ]);
     this.checkMessageBuffer();
@@ -322,6 +325,19 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
       console.log("data channel is closed");
     };
   }
+
+  beginBatch(group: string): CausalTimestamp {
+    this.pendingBatches.add(group);
+
+    // Return the next timestamp for group.
+    let vc = this.vcMap.get(group);
+    if (!vc) {
+      vc = new VectorClock(this.crdtRuntime.getReplicaId(), true);
+      this.vcMap.set(group, vc);
+    }
+    return this.nextTimestamp(vc);
+  }
+
   /**
    * Send function on casualbroadcast network layer, which called
    * by crdt's runtime layer.
@@ -339,11 +355,15 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * @param message the crdt update message.
    * @param crdtId the unique ID for each crdt.
    */
-  send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
-    // Check if the crdtId exist in the map.
-    let vc = timestamp as VectorClock;
-    this.vcMap.set(group, vc);
-    let myPackage = new myMessage([message], vc);
+  commitBatch(
+    group: string,
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp,
+    lastTimestamp: CausalTimestamp
+  ): void {
+    this.vcMap.set(group, lastTimestamp as VectorClock);
+
+    let myPackage = new myMessage(message, firstTimestamp as VectorClock);
 
     let encoded = Buffer.from(myPackage.serialize()).toString("base64");
     let toSend = JSON.stringify({
@@ -352,11 +372,16 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     });
 
     if (this.dataChannel.readyState == "open") {
-      // TODO: as abo
       this.dataChannel.send(toSend);
     } else {
       this.dataBuffer.push(toSend);
     }
+
+    this.pendingBatches.delete(group);
+
+    // Deliver any messages received in the meantime, which were previously
+    // blocked by the pending batch.
+    this.checkMessageBuffer();
   }
   /**
    * Get the next timestamp of the given crdtId in this replica.
@@ -369,14 +394,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * message sent by this replica and given crdtId right now.
    *
    */
-  getNextTimestamp(group: string): CausalTimestamp {
+  nextTimestamp(previous: CausalTimestamp): CausalTimestamp {
     // Copy a new vector clock.
-    let vc = this.vcMap.get(group);
-    if (!vc) {
-      vc = new VectorClock(this.crdtRuntime.getReplicaId(), true);
-      this.vcMap.set(group, vc);
-    }
-    let vcCopy = new VectorClock(this.crdtRuntime.getReplicaId(), true);
+    // TODO: can we avoid copying, for efficiency?
+    let vc = previous as CausalTimestamp;
+    let vcCopy = new VectorClock(previous.getSender(), previous.isLocal());
     vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock());
 
     // Update the timestamp of this replica with next value.
@@ -384,6 +406,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
 
     return vcCopy;
   }
+
   /**
    * Check the casuality of buffered messages and delivery the
    * messages back to crdtMessageListener which are ready.
@@ -399,6 +422,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
 
     while (index >= 0) {
       let group = this.messageBuffer[index][0];
+
+      // Don't deliver any messages to the runtime if there is a pending
+      // batch of messages to send.
+      if (this.pendingBatches.has(group)) return;
+
       let curVectorClock = this.messageBuffer[index][2];
 
       let myVectorClock = this.vcMap.get(group);
@@ -411,8 +439,10 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
                   * Send back the received messages to runtime.
 
                   */
-        this.crdtRuntime.receive(...this.messageBuffer[index]);
-        myVectorClock.incrementSender(curVectorClock);
+        let lastTimestamp = this.crdtRuntime.receive(
+          ...this.messageBuffer[index]
+        );
+        myVectorClock.mergeSender(lastTimestamp as VectorClock);
         this.messageBuffer.splice(index, 1);
         // Set index to the end and try again, in case
         // this makes more messages ready

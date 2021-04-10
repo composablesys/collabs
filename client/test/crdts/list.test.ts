@@ -106,6 +106,22 @@ describe("list", () => {
       expectedPath: string,
       expectedDis: [index: number, value: string][]
     ) {
+      checkCreatedIds(beforePath, beforeDis, afterPath, afterDis, [
+        expectedPath,
+        expectedDis,
+      ]);
+    }
+
+    function checkCreatedIds(
+      beforePath: string | null,
+      beforeDis: [index: number, value: string][] | null,
+      afterPath: string | null,
+      afterDis: [index: number, value: string][] | null,
+      ...expected: [
+        expectedPath: string,
+        expectedDis: [index: number, value: string][]
+      ][]
+    ) {
       let before =
         beforePath === null
           ? null
@@ -120,12 +136,14 @@ describe("list", () => {
               path: BitSet.parseBinary(afterPath),
               disambiguators: afterDis!,
             };
-      let expected = {
-        path: BitSet.parseBinary(expectedPath),
-        disambiguators: expectedDis,
-      };
-      let mid = source.createBetween(before, after, 1)[0];
-      assert.deepStrictEqual(mid, expected);
+      let expectedIds = expected.map((value) => {
+        return {
+          path: BitSet.parseBinary(value[0]),
+          disambiguators: value[1],
+        };
+      });
+      let mid = source.createBetween(before, after, expected.length);
+      assert.deepStrictEqual(mid, expectedIds);
     }
 
     it("creates expected ids when non-mini-sibling leaves", () => {
@@ -223,6 +241,18 @@ describe("list", () => {
           [5, "charlie"],
           [6, aliceId],
         ]
+      );
+    });
+
+    it("creates expected ids for bulk insertion", () => {
+      checkCreatedIds(
+        "01001111111111",
+        [[13, "bob"]],
+        "011010011",
+        [[8, "charlie"]],
+        ["011010011000", [[9, aliceId]]],
+        ["011010011001", [[9, aliceId]]],
+        ["011010011010", [[9, aliceId]]]
       );
     });
   });

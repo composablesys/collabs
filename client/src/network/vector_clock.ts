@@ -125,19 +125,16 @@ export class VectorClock implements CausalTimestamp {
   }
 
   /**
-   * Increment sender's lastest entry received in this VectorClock
-   * in the replica's own vectorMap.
+   * Set sender's lastest entry received in this VectorClock
+   * to that of vc.
    *
    * This operation is mainly done after correctly deliver the message
    * when isReady() function returns true.
    *
    * @param vc the VectorClock from other replica.
    */
-  incrementSender(vc: VectorClock): void {
-    let otherUid = vc.getSender();
-    let otherVectorMap = vc.asVectorClock();
-
-    this.vectorMap.set(otherUid, otherVectorMap.get(otherUid)!);
+  mergeSender(vc: VectorClock): void {
+    this.vectorMap.set(vc.getSender(), vc.getSenderCounter());
   }
   /**
    * Merge current VectorClock with the vector clock recevied from

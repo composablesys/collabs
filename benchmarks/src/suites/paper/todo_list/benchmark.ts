@@ -6,6 +6,7 @@ import * as Y from "yjs";
 import util from "util";
 import { result10000 } from "./results";
 import { assert } from "chai";
+import zlib from "zlib";
 
 // Experiment params
 const TRIALS = 1; // TODO: make 5 or 10 for real paper
@@ -14,6 +15,7 @@ const ROUND_OPS = 1000;
 // const ROUND_OPS = 1;
 const ROUNDS = 10;
 const DEBUG = false;
+const GZIP = false;
 
 // Helper funcs
 async function sleep(ms: number) {
@@ -394,16 +396,13 @@ function compoCrdt() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable {
-    private readonly text: crdts.TreedocList<crdts.LwwRegister<string>>;
+    private readonly text: crdts.TreedocPrimitiveList<string>;
     private readonly doneCrdt: crdts.EnableWinsFlag;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild(
-        "text",
-        new crdts.TreedocList(() => new crdts.LwwRegister(""), true)
-      );
+      this.text = this.addChild("text", new crdts.TreedocPrimitiveList());
       this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
       this.items = this.addChild(
         "items",
@@ -433,10 +432,7 @@ function compoCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      for (let i = 0; i < text.length; i++) {
-        let reg = this.text.insertAt(index + i)[1];
-        reg.value = text[i];
-      }
+      this.text.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
       for (let i = 0; i < count; i++) {
@@ -447,10 +443,7 @@ function compoCrdt() {
       return this.text.length; // Assumes all text registers are one char
     }
     getText(): string {
-      return this.text
-        .asArray()
-        .map((register) => register.value)
-        .join("");
+      return this.text.asArray().join("");
     }
 
     reset() {
@@ -462,19 +455,28 @@ function compoCrdt() {
 
   let generator: network.TestingNetworkGenerator;
   let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
 
   new TodoListBenchmark("Compo Crdt", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime({ manual: true });
+      runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
       let list = runtime.groupParent("").addChild("", new CrdtTodoList());
+      this.sendNextMessage();
       return list;
     },
     sendNextMessage() {
-      generator.getTestingNetwork(runtime).sendBatches();
+      runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
     },
     getSentBytes() {
-      return generator.getTotalSentBytes();
+      return totalSentBytes;
     },
   }).add();
 }
@@ -514,6 +516,7 @@ function compoJson() {
     }
 
     insertText(index: number, text: string): void {
+      // TODO: use bulk ops
       let textArray = this.jsonObj.get("text")!.value as crdts.JsonArray;
       for (let i = 0; i < text.length; i++) {
         textArray.insert(index + i).setPrimitive(text[i]);
@@ -538,22 +541,124 @@ function compoJson() {
 
   let generator: network.TestingNetworkGenerator;
   let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
 
   new TodoListBenchmark("Compo Json", {
     newTodoList() {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime({ manual: true });
+      runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
       let list = runtime
         .groupParent("")
         .addChild("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
+      this.sendNextMessage();
       return new JsonTodoList(list.value as crdts.JsonObject);
     },
     sendNextMessage() {
-      generator.getTestingNetwork(runtime).sendBatches();
+      runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
     },
     getSentBytes() {
-      return generator.getTotalSentBytes();
+      return totalSentBytes;
+    },
+  }).add();
+}
+
+/**
+ * Like Compo JSON but uses our dedicated text-editing
+ * data structure.
+ */
+function compoJsonText() {
+  class JsonTextTodoList implements ITodoList {
+    constructor(private readonly jsonObj: crdts.JsonObject) {}
+    addItem(index: number, text: string): void {
+      let item = (this.jsonObj.get("items")!.value as crdts.JsonArray).insert(
+        index
+      );
+      item.setOrdinaryJS({
+        items: [],
+        done: false,
+        text: new crdts.TextWrapper(text),
+      });
+    }
+    deleteItem(index: number): void {
+      (this.jsonObj.get("items")!.value as crdts.JsonArray).delete(index);
+    }
+    getItem(index: number): ITodoList {
+      return new JsonTextTodoList(
+        (this.jsonObj.get("items")!.value as crdts.JsonArray).get(index)!
+          .value as crdts.JsonObject
+      );
+    }
+    get itemsSize(): number {
+      return (this.jsonObj.get("items")!.value as crdts.JsonArray).length;
+    }
+
+    get done(): boolean {
+      return this.jsonObj.get("done")!.value as boolean;
+    }
+
+    set done(done: boolean) {
+      this.jsonObj.get("done")!.setPrimitive(done);
+    }
+
+    insertText(index: number, text: string): void {
+      let textArray = this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>;
+      textArray.insertAtRange(index, [...text]);
+    }
+    deleteText(index: number, count: number): void {
+      let textList = this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>;
+      for (let i = 0; i < count; i++) {
+        textList.deleteAt(index);
+      }
+    }
+    get textSize(): number {
+      return (this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>).length;
+    }
+    getText(): string {
+      return (this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>)
+        .asArray()
+        .join("");
+    }
+  }
+
+  let generator: network.TestingNetworkGenerator;
+  let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
+
+  new TodoListBenchmark("Compo Json Text", {
+    newTodoList() {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
+      let list = runtime
+        .groupParent("")
+        .addChild("", crdts.JsonElement.NewJson());
+      list.setOrdinaryJS({ items: [] });
+      this.sendNextMessage();
+      return new JsonTextTodoList(list.value as crdts.JsonObject);
+    },
+    sendNextMessage() {
+      runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
     },
   }).add();
 }
@@ -643,7 +748,10 @@ function automerge() {
     },
     sendNextMessage() {
       let message = JSON.stringify(Automerge.getChanges(lastDoc, theDoc));
-      totalSentBytes += message.length;
+      if (GZIP) totalSentBytes += zlib.gzipSync(message).byteLength;
+      // TODO: really should use byte length.  Probably
+      // okay though as it sticks to ascii.
+      else totalSentBytes += message.length;
       lastDoc = theDoc;
     },
     getSentBytes() {
@@ -723,5 +831,6 @@ function yjs() {
 plainJs();
 compoCrdt();
 compoJson();
+compoJsonText();
 yjs();
 automerge();

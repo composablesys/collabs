@@ -19,12 +19,10 @@ export class TestingNetwork implements BroadcastNetwork {
     for (let queue of queueMap.values()) {
       queue.push([group, message]);
     }
+    this.generator.lastMessage = message;
   }
   register(causal: DefaultCausalBroadcastNetwork): void {
     this.causal = causal;
-  }
-  sendBatches() {
-    this.causal.sendBatches();
   }
 }
 
@@ -34,20 +32,10 @@ export class TestingNetwork implements BroadcastNetwork {
  * when release is called.
  */
 export class TestingNetworkGenerator {
-  newRuntime(
-    batchOptions:
-      | undefined
-      | { periodMs: number }
-      | { manual: true } = undefined
-  ) {
-    return new CrdtRuntime(this.newNetwork(batchOptions));
+  newRuntime(batchOptions?: "immediate" | "manual" | { periodMs: number }) {
+    return new CrdtRuntime(this.newNetwork(), batchOptions);
   }
-  newNetwork(
-    batchOptions:
-      | undefined
-      | { periodMs: number }
-      | { manual: true } = undefined
-  ) {
+  newNetwork() {
     let network = new TestingNetwork(this);
     let newQueue = new Map<TestingNetwork, Array<any>>();
     for (let oldEntry of this.messageQueues.entries()) {
@@ -55,7 +43,7 @@ export class TestingNetworkGenerator {
       oldEntry[1].set(network, []);
     }
     this.messageQueues.set(network, newQueue);
-    return new DefaultCausalBroadcastNetwork(network, batchOptions);
+    return new DefaultCausalBroadcastNetwork(network);
   }
   // Maps sender and recipient to an array of queued messages.
   messageQueues = new Map<
@@ -102,4 +90,6 @@ export class TestingNetworkGenerator {
     for (let sender of this.messageQueues.keys()) ret += sender.sentBytes;
     return ret;
   }
+
+  lastMessage: Uint8Array | undefined = undefined;
 }
