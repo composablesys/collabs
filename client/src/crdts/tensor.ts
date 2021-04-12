@@ -71,7 +71,7 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
   TensorGCounterState,
   TensorCounterEventsRecord
 > {
-  constructor() {
+  constructor(private readonly shape: number[]) {
     super(new TensorGCounterState());
   }
 
@@ -93,10 +93,10 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
       // access to this.runtime there
       this.state.idCounter = this.runtime.getReplicaUniqueNumber();
     }
-    // TODO(mkjaer): check if P actually contains keyString
-    const prOldTensor = this.state.P.get(
-      this.keyString(this.runtime.getReplicaId(), this.state.idCounter!)
-    )!;
+    const prOldTensor =
+      this.state.P.get(
+        this.keyString(this.runtime.getReplicaId(), this.state.idCounter!)
+      ) ?? tf.zeros(this.shape);
     const prNewTensor = prOldTensor.add(toAdd);
     const prOld = conversions.tfToProtobuf.tensor(prOldTensor);
     const prNew = conversions.tfToProtobuf.tensor(prNewTensor);
@@ -141,13 +141,13 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
     }
   }
 
-  value(): tf.Tensor {
-    return this.sum(this.state.N).add(this.sum(this.state.P));
+  get value(): tf.Tensor {
+    return this.sum([...this.state.N.values(), ...this.state.P.values()]);
   }
 
-  private sum(map: Map<any, tf.Tensor>): tf.Tensor {
+  private sum(tensors: tf.Tensor[]): tf.Tensor {
     return tf.tidy(() =>
-      [...map.values()].reduce((acc, tensor) => acc.add(tensor))
+      tensors.reduce((acc, tensor) => acc.add(tensor), tf.zeros(this.shape))
     );
   }
 
@@ -162,8 +162,8 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
 
   constructor(private readonly shape: number[]) {
     super();
-    this.plus = this.addChild("1", new TensorGCounterCrdt());
-    this.minus = this.addChild("2", new TensorGCounterCrdt());
+    this.plus = this.addChild("1", new TensorGCounterCrdt(shape));
+    this.minus = this.addChild("2", new TensorGCounterCrdt(shape));
   }
 
   add(toAdd: tf.Tensor) {
@@ -184,6 +184,6 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
   }
 
   get value() {
-    return this.plus.value().sub(this.minus.value());
+    return this.plus.value.sub(this.minus.value);
   }
 }
