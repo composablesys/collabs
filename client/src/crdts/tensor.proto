@@ -1,0 +1,21 @@
+message Tensor {
+  repeated uint32 shape = 0;
+  enum DType {
+    float32 = 0;
+    int32 = 1;
+    complex64 = 2;
+    bool = 3;
+  }
+  required DType dtype = 1;
+  required bytes data = 2;
+}
+
+message TensorGCounterAddMessage {
+  required Tensor prNew = 1;
+  required Tensor prOld = 2;
+  required uint32 idCounter = 3;
+}
+
+message TensorGCounterMessage {
+  oneof data { TensorGCounterAddMessage add = 1; }
+}

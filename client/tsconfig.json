@@ -7,7 +7,12 @@
      */
     "noEmit": true,
     /* Include generated .js files in compilation run */
-    "allowJs": true
+    "allowJs": true,
+    /*
+     * Necessary for TensorFlow.js.
+     * See https://www.tensorflow.org/js/tutorials/setup#typescript
+     */
+    "skipLibCheck": true
   },
   "include": ["src", "test", "generated"]
 }
