@@ -10,13 +10,14 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^3.3.0",
     "bson": "^4.1.0",
     "buffer": "^6.0.3",
     "clean": "^4.0.2",
+    "crypto-random-string": "~3.3.1",
     "functional-red-black-tree": "^1.0.1",
     "protobufjs": "~6.10.1",
     "ws": "^7.3.1",
-    "crypto-random-string": "~3.3.1",
     "reconnecting-websocket": "^4.4.0"
   },
   "devDependencies": {
@@ -29,8 +30,8 @@
     "chai": "^4.2.0",
     "mkdirp": "^1.0.4",
     "mocha": "^8.2.1",
-    "tslib": "^2.0.1",
-    "seedrandom": "^3.0.5"
+    "seedrandom": "^3.0.5",
+    "tslib": "^2.0.1"
   },
   "scripts": {
     "build": "npm-run-all build:*",
