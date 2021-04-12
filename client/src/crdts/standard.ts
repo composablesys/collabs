@@ -83,12 +83,13 @@ export class NumberBase
     this.addCrdt.add(toAdd);
   }
 
-  mult(toMult: number, affectConcurrentAdds = true) {
-    if (affectConcurrentAdds) this.multCrdt.mult(toMult);
-    else {
-      // Perform an equivalent add
-      this.add(toMult * this.value - this.value);
-    }
+  mult(toMult: number) {
+    this.multCrdt.mult(toMult);
+  }
+
+  multAsAdd(toMult: number) {
+    // Perform an equivalent add
+    this.add(toMult * this.value - this.value);
   }
 
   get value(): number {
@@ -113,8 +114,13 @@ export class NumberCrdt
   add(toAdd: number): void {
     this.original.add(toAdd);
   }
-  mult(toMult: number, affectConcurrentAdds = true) {
-    this.original.mult(toMult, affectConcurrentAdds);
+
+  mult(toMult: number) {
+    this.original.mult(toMult);
+  }
+
+  multAsAdd(toMult: number) {
+    this.original.multAsAdd(toMult);
   }
   get value(): number {
     return this.original.value;
