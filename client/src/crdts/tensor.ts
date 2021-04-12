@@ -160,9 +160,30 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
   private readonly plus: TensorGCounterCrdt;
   private readonly minus: TensorGCounterCrdt;
 
-  constructor(readonly initialValue: tf.Tensor) {
+  constructor(private readonly shape: number[]) {
     super();
     this.plus = this.addChild("1", new TensorGCounterCrdt());
     this.minus = this.addChild("2", new TensorGCounterCrdt());
+  }
+
+  add(toAdd: tf.Tensor) {
+    // JSON.stringify is a commonly used way to check for deep equality
+    if (JSON.stringify(toAdd.shape) !== JSON.stringify(this.shape)) {
+      throw new Error(
+        `Expected the tensor to have shape ${this.shape} but got ${toAdd.shape}`
+      );
+    }
+    const [positive, negative] = tf.tidy(() => {
+      const zeros = tf.zeros(this.shape, toAdd.dtype);
+      const positive = tf.where(toAdd.greater(0), toAdd, zeros);
+      const negative = tf.where(toAdd.lessEqual(0), toAdd.neg(), zeros);
+      return [positive, negative];
+    });
+    this.plus.add(positive);
+    this.minus.add(negative);
+  }
+
+  get value() {
+    return this.plus.value().sub(this.minus.value());
   }
 }
