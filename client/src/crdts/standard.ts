@@ -305,7 +305,7 @@ export interface IFlag extends Crdt<FlagEventsRecord> {
 const AddFlagEvents = makeEventAdder<FlagEventsRecord>();
 
 export class EnableWinsFlag
-  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true))
+  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
   implements IFlag, Resettable {
   constructor() {
     super();
@@ -341,7 +341,7 @@ export class EnableWinsFlag
 }
 
 export class DisableWinsFlag
-  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true))
+  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
   implements IFlag, Resettable {
   constructor() {
     super();

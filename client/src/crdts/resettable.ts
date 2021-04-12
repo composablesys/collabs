@@ -31,7 +31,7 @@ export interface LocallyResettableState {
 class ResetComponentMessage extends Uint8Array {
   readonly isResetComponentMessage = true;
   // TODO: named params?
-  replay: [string[], CausalTimestamp, Uint8Array][] = [];
+  replay: [string[], CausalTimestamp | null, Uint8Array][] = [];
   outOfOrderMessage: Uint8Array | null = null;
 }
 
@@ -58,7 +58,15 @@ class ResetComponent<
     if ("isResetComponentMessage" in message) {
       // Replay message.replay
       for (let toReplay of message.replay) {
-        this.resetWrapperCrdt.original.receiveGeneral(...toReplay);
+        // toReplay[1] is only null if keepTimestamps
+        // was set to false, in which case original
+        // promises not to look at it anyway, hence this
+        // is okay.  TODO: type-safe way to do this?
+        this.resetWrapperCrdt.original.receiveGeneral(
+          toReplay[0],
+          toReplay[1]!,
+          toReplay[2]
+        );
       }
     }
   }
@@ -83,9 +91,21 @@ export class ResetWrapperCrdt<
    * messages in the history, to save space (although possibly
    * at some CPU cost).  This is only allowed if the state
    * only ever depends on the causally maximal messages.
+   * @param keepTimestamps=true If false, when replaying messages after
+   * a reset, replace their timestamps with null.  That is only
+   * allowed if original and its descendants never use timestamps
+   * in their receive methods.  Setting this to false saves storage space
+   * by not storing timestamps in the history.
+   * TODO: issue: timestamps are always used in events,
+   * now they'll be null.  Although they're kind of weird
+   * in resets anyway.
    */
-  constructor(readonly original: C, keepOnlyMaximal = false) {
-    super(true, true, keepOnlyMaximal);
+  constructor(
+    readonly original: C,
+    keepOnlyMaximal = false,
+    keepTimestamps = true
+  ) {
+    super(keepTimestamps, true, keepOnlyMaximal);
     this.resetComponent = new ResetComponent(this);
     super.setup(this.resetComponent, original, original.state);
   }
@@ -103,7 +123,7 @@ export class ResetWrapperCrdt<
     }
     (m1Message as ResetComponentMessage).replay.push([
       m2TargetPath.slice(),
-      m2Timestamp!,
+      m2Timestamp,
       m2Message,
     ]);
     return { m1TargetPath, m1Message };
@@ -170,12 +190,13 @@ export function ResetWrapClass<
   Args extends any[]
 >(
   Base: ConstructorArgs<Args, C>,
-  keepOnlyMaximal = false
+  keepOnlyMaximal = false,
+  keepTimestamps = true
 ): ConstructorArgs<Args, ResetWrapperCrdt<S, C>> {
   return class ResetWrapped extends ResetWrapperCrdt<S, C> {
     constructor(...args: Args) {
       let original = new Base(...args);
-      super(original, keepOnlyMaximal);
+      super(original, keepOnlyMaximal, keepTimestamps);
     }
   };
 }
@@ -222,7 +243,7 @@ export class StrongResetWrapperCrdt<
    * only ever depends on the causally maximal messages.
    */
   constructor(readonly original: C, keepOnlyMaximal = false) {
-    super(true, true, keepOnlyMaximal);
+    super(false, true, keepOnlyMaximal);
     this.strongResetComponent = new StrongResetComponent(this);
     super.setup(original, this.strongResetComponent, original.state);
   }
