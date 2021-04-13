@@ -86,6 +86,8 @@ export function record(
         };
         for (let i = 0; i < roundResult.length; i++) {
           data["Sample " + i] = roundResult[i];
+        }
+        for (let i = 0; i < roundResult.length; i++) {
           data["Base " + i] = baseValues[i];
         }
         writer.write(data);
