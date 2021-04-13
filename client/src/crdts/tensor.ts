@@ -215,6 +215,18 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
     super();
     this.plus = this.addChild("1", new TensorGCounterCrdt(shape, dtype));
     this.minus = this.addChild("2", new TensorGCounterCrdt(shape, dtype));
+    this.plus.on("Add", (event) =>
+      this.emit("Add", { ...event, caller: this })
+    );
+    this.minus.on("Add", (event) =>
+      tf.tidy(() =>
+        this.emit("Add", {
+          timestamp: event.timestamp,
+          valueAdded: event.valueAdded.neg(),
+          caller: this,
+        })
+      )
+    );
   }
 
   add(toAdd: tf.Tensor) {
@@ -246,6 +258,9 @@ export class TensorAverageCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
     super();
     this.numerator = this.addChild("1", new TensorCounterCrdt(shape, dtype));
     this.denominator = this.addChild("2", new GCounter());
+    this.numerator.on("Add", (event) =>
+      this.emit("Add", { ...event, caller: this })
+    );
   }
 
   add(toAdd: tf.Tensor) {
