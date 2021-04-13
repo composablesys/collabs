@@ -8,6 +8,8 @@ import { getMemoryUsed, record, sleep } from "../record";
 
 const WARMUP = 5;
 const TRIALS = 10;
+const OPS = edits.length;
+const ROUND_OPS = 10000;
 
 class AutomergePerfBenchmark {
   constructor(
@@ -21,10 +23,19 @@ class AutomergePerfBenchmark {
     private readonly getFinalText?: () => string
   ) {}
 
-  async run(measurement: "time" | "memory" | "network") {
+  async run(
+    measurement: "time" | "memory" | "network",
+    frequency: "whole" | "rounds"
+  ) {
     console.log("Starting automerge_perf test: " + this.testName);
 
     let results = new Array<number>(TRIALS);
+    let roundResults = new Array<number[]>(TRIALS);
+    let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+    if (frequency === "rounds") {
+      for (let i = 0; i < TRIALS; i++)
+        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+    }
 
     for (let trial = -WARMUP; trial < TRIALS; trial++) {
       if (trial !== -WARMUP) this.cleanupFun();
@@ -50,24 +61,57 @@ class AutomergePerfBenchmark {
           startSentBytes = this.getSentBytes();
       }
 
-      for (let edit of edits) {
+      let round = 0;
+      let op: number;
+      for (op = 0; op < edits.length; op++) {
+        if (
+          frequency === "rounds" &&
+          trial >= 0 &&
+          op !== 0 &&
+          op % ROUND_OPS === 0
+        ) {
+          // Record result
+          switch (measurement) {
+            case "time":
+              roundResults[trial][round] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
+              break;
+            case "memory":
+              roundResults[trial][round] = (await getMemoryUsed()) - baseMemory;
+              break;
+            case "network":
+              roundResults[trial][round] = this.getSentBytes() - startSentBytes;
+          }
+          roundOps[round] = op;
+          round++;
+        }
+
         // Process one edit
-        this.processEdit(edit);
+        this.processEdit(edits[op]);
       }
 
       if (trial >= 0) {
         // Record result
+        let result = -1;
         switch (measurement) {
           case "time":
-            results[trial] = new Number(
-              process.hrtime.bigint() - startTime!
-            ).valueOf();
+            result = new Number(process.hrtime.bigint() - startTime!).valueOf();
             break;
           case "memory":
-            results[trial] = (await getMemoryUsed()) - baseMemory;
+            result = (await getMemoryUsed()) - baseMemory;
             break;
           case "network":
-            results[trial] = this.getSentBytes() - startSentBytes;
+            result = this.getSentBytes() - startSentBytes;
+        }
+        switch (frequency) {
+          case "whole":
+            results[trial] = result;
+            break;
+          case "rounds":
+            roundResults[trial][round] = result;
+            roundOps[round] = op;
+            break;
         }
       }
 
@@ -80,7 +124,15 @@ class AutomergePerfBenchmark {
       }
     }
 
-    record("automerge_perf/" + measurement, this.testName, results);
+    record(
+      "automerge_perf/" + measurement,
+      this.testName,
+      frequency,
+      TRIALS,
+      results,
+      roundResults,
+      roundOps
+    );
   }
 }
 
@@ -310,5 +362,8 @@ export default async function automergePerf(args: string[]) {
   if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
-  await benchmark.run(args[1]);
+  if (!(args[2] === "whole" || args[2] === "rounds")) {
+    throw new Error("Unrecognized frequency: " + args[2]);
+  }
+  await benchmark.run(args[1], args[2]);
 }

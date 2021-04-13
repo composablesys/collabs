@@ -6,17 +6,25 @@ import streams from "memory-streams";
 
 let folder = ".";
 
-export function record(fileBase: string, name: string, results: number[]) {
-  // Print final mean, stddev, data
-  let mean = math.mean(results);
-  let stddev = math.std(results);
-  console.log("Results:");
-  console.log(results);
-  console.log(`Mean: ${mean}\nStdDev: ${stddev}`);
-
+export function record(
+  fileBase: string,
+  name: string,
+  frequency: "whole" | "rounds",
+  trials: number,
+  results: number[],
+  roundResults: number[][],
+  roundOps: number[]
+) {
   // Output to files
-  let headers = ["Date", "Name", "Mean", "StdDev", "Count"];
-  let outFile = path.join(folder, fileBase + ".csv");
+  let headers;
+  if (frequency === "whole")
+    headers = ["Date", "Name", "Mean", "StdDev", "Count"];
+  else
+    headers = ["Date", "Name", "Round", "OpsSoFar", "Mean", "StdDev", "Count"];
+  for (let i = 0; i < trials; i++) {
+    headers.push("Sample " + i);
+  }
+  let outFile = path.join(folder, fileBase + "-" + frequency + ".csv");
   let parent = path.dirname(outFile);
   let buffer = new streams.WritableStream();
 
@@ -33,13 +41,51 @@ export function record(fileBase: string, name: string, results: number[]) {
   }
   writer.pipe(buffer);
 
-  writer.write({
-    Date: new Date().toDateString(),
-    Name: name,
-    Mean: mean,
-    StdDev: stddev,
-    Count: results.length,
-  });
+  switch (frequency) {
+    case "whole":
+      // Print final mean, stddev, data
+      let mean = math.mean(results);
+      let stddev = math.std(results);
+      console.log("Results:");
+      console.log(results);
+      console.log(`Mean: ${mean}\nStdDev: ${stddev}`);
+      let data: any = {
+        Date: new Date().toDateString(),
+        Name: name,
+        Mean: mean,
+        StdDev: stddev,
+        Count: results.length,
+      };
+      for (let i = 0; i < results.length; i++) {
+        data["Sample " + i] = results[i];
+      }
+      writer.write(data);
+      break;
+    case "rounds":
+      for (let i = 0; i < roundOps.length; i++) {
+        let roundResult = roundResults.map((rounds) => rounds[i]);
+        let mean = math.mean(roundResult);
+        let stddev = math.std(roundResult);
+        console.log("Round " + i + " results:");
+        console.log(roundResult);
+        console.log(`Mean: ${mean}\nStdDev: ${stddev}`);
+
+        let data: any = {
+          Date: new Date().toDateString(),
+          Name: name,
+          Round: i,
+          OpsSoFar: roundOps[i],
+          Mean: mean,
+          StdDev: stddev,
+          Count: roundResult.length,
+        };
+        for (let i = 0; i < roundResult.length; i++) {
+          data["Sample " + i] = roundResult[i];
+        }
+        writer.write(data);
+      }
+      break;
+  }
   writer.end();
   fs.appendFileSync(outFile, buffer.toString());
 

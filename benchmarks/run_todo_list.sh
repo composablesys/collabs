@@ -12,6 +12,6 @@ for measurement in "time" "memory" "network"
 do
   for name in "plainJs" "compoCrdt" "compoJsonText" "yjs" #"compoJson" "automerge"
   do
-    npm start -- $1 "todo_list" $name $measurement
+    npm start -- $1 "todo_list" $name $measurement $2
   done
 done

@@ -14,6 +14,7 @@ const DEBUG = false;
 const WARMUP = 5;
 const TRIALS = 10;
 const SEED = "42";
+const ROUND_OPS = 1000;
 const OPS = 10000;
 
 const GZIP = false;
@@ -63,10 +64,19 @@ class TodoListBenchmark {
 
   private rng!: seedrandom.prng;
 
-  async run(measurement: "time" | "memory" | "network") {
+  async run(
+    measurement: "time" | "memory" | "network",
+    frequency: "whole" | "rounds"
+  ) {
     console.log("Starting todo_list test: " + this.testName);
 
     let results = new Array<number>(TRIALS);
+    let roundResults = new Array<number[]>(TRIALS);
+    let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+    if (frequency === "rounds") {
+      for (let i = 0; i < TRIALS; i++)
+        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+    }
 
     for (let trial = -WARMUP; trial < TRIALS; trial++) {
       if (trial !== -WARMUP) this.testFactory.cleanup();
@@ -94,7 +104,34 @@ class TodoListBenchmark {
           startSentBytes = this.testFactory.getSentBytes();
       }
 
-      for (let op = 0; op < OPS; op++) {
+      let round = 0;
+      let op: number;
+      for (op = 0; op < OPS; op++) {
+        if (
+          frequency === "rounds" &&
+          trial >= 0 &&
+          op !== 0 &&
+          op % ROUND_OPS === 0
+        ) {
+          // Record result
+          switch (measurement) {
+            case "time":
+              roundResults[trial][round] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
+
+              break;
+            case "memory":
+              roundResults[trial][round] = (await getMemoryUsed()) - baseMemory;
+              break;
+            case "network":
+              roundResults[trial][round] =
+                this.testFactory.getSentBytes() - startSentBytes;
+          }
+          roundOps[round] = op;
+          round++;
+        }
+
         // Process one edit
         this.randomOp(list);
         this.testFactory.sendNextMessage();
@@ -102,17 +139,25 @@ class TodoListBenchmark {
 
       if (trial >= 0) {
         // Record result
+        let result = -1;
         switch (measurement) {
           case "time":
-            results[trial] = new Number(
-              process.hrtime.bigint() - startTime!
-            ).valueOf();
+            result = new Number(process.hrtime.bigint() - startTime!).valueOf();
             break;
           case "memory":
-            results[trial] = (await getMemoryUsed()) - baseMemory;
+            result = (await getMemoryUsed()) - baseMemory;
             break;
           case "network":
-            results[trial] = this.testFactory.getSentBytes() - startSentBytes;
+            result = this.testFactory.getSentBytes() - startSentBytes;
+        }
+        switch (frequency) {
+          case "whole":
+            results[trial] = result;
+            break;
+          case "rounds":
+            roundResults[trial][round] = result;
+            roundOps[round] = op;
+            break;
         }
       }
 
@@ -140,7 +185,15 @@ class TodoListBenchmark {
       );
     }
 
-    record("todo_list/" + measurement, this.testName, results);
+    record(
+      "todo_list/" + measurement,
+      this.testName,
+      frequency,
+      TRIALS,
+      results,
+      roundResults,
+      roundOps
+    );
   }
 
   private choice(options: number) {
@@ -787,5 +840,8 @@ export default async function todoList(args: string[]) {
   if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
-  await benchmark.run(args[1]);
+  if (!(args[2] === "whole" || args[2] === "rounds")) {
+    throw new Error("Unrecognized frequency: " + args[2]);
+  }
+  await benchmark.run(args[1], args[2]);
 }
