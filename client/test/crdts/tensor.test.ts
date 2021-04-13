@@ -3,6 +3,7 @@ import { assert } from "chai";
 import { CrdtRuntime } from "../../src/crdts";
 import {
   conversions,
+  TensorAverageCrdt,
   TensorCounterCrdt,
   TensorGCounterCrdt,
 } from "../../src/crdts/tensor";
@@ -23,6 +24,13 @@ describe("tensor", () => {
   afterEach(() => {
     tf.engine().endScope();
   });
+
+  function assertTensorIsNaN<R extends tf.Rank>(actual: tf.Tensor<R>): void {
+    assert(
+      tf.all(actual.isNaN()).arraySync() === 1,
+      failedAssertionMessage(actual, NaN)
+    );
+  }
 
   function assertTensorsStrictEqual<R extends tf.Rank>(
     actual: tf.Tensor<R>,
@@ -140,7 +148,7 @@ describe("tensor", () => {
 
   describe("TensorCounter", function () {
     this.slow(1000); // tensor operations on large tensors can be slow
-    const shape = [2, 2];
+    const shape = [100, 100];
     let aliceCounter: TensorCounterCrdt;
     let bobCounter: TensorCounterCrdt;
 
@@ -198,6 +206,68 @@ describe("tensor", () => {
         runtimeGen.releaseAll();
         assertTensorsStrictEqual(aliceCounter.value, sum);
         assertTensorsStrictEqual(bobCounter.value, sum);
+      });
+    });
+  });
+
+  describe("TensorAverage", function () {
+    this.slow(1000); // tensor operations on large tensors can be slow
+    const shape = [100, 100];
+    let aliceAvg: TensorAverageCrdt;
+    let bobAvg: TensorAverageCrdt;
+
+    beforeEach(() => {
+      aliceAvg = alice
+        .groupParent("")
+        .addChild("avgId", new TensorAverageCrdt(shape, "float32"));
+      bobAvg = bob
+        .groupParent("")
+        .addChild("avgId", new TensorAverageCrdt(shape, "float32"));
+    });
+
+    it("initially returns a tensor containing NaN", () => {
+      assertTensorIsNaN(aliceAvg.value);
+      assertTensorIsNaN(bobAvg.value);
+    });
+
+    describe("add", () => {
+      it("works for non-concurrent updates", () => {
+        const tensor1 = tf.zeros(shape).add(-1);
+        const tensor2 = tf.zeros(shape).add(1);
+        const tensor3 = tf.randomNormal(shape);
+
+        aliceAvg.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsApproxEqual(aliceAvg.value, tensor1);
+        assertTensorsApproxEqual(bobAvg.value, tensor1);
+
+        bobAvg.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsApproxEqual(aliceAvg.value, 0);
+        assertTensorsApproxEqual(bobAvg.value, 0);
+
+        aliceAvg.add(tensor3);
+        const expected = tensor1.add(tensor2).add(tensor3).div(3);
+        runtimeGen.releaseAll();
+        assertTensorsApproxEqual(aliceAvg.value, expected);
+        assertTensorsApproxEqual(bobAvg.value, expected);
+      });
+
+      it("works for concurrent updates", () => {
+        const tensor1 = tf.zeros(shape).add(3);
+        const tensor2 = tf.zeros(shape).add(-1);
+
+        aliceAvg.add(tensor1);
+        assertTensorsStrictEqual(aliceAvg.value, tensor1);
+        assertTensorIsNaN(bobAvg.value);
+
+        bobAvg.add(tensor2);
+        assertTensorsStrictEqual(aliceAvg.value, tensor1);
+        assertTensorsStrictEqual(bobAvg.value, tensor2);
+
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, 1);
+        assertTensorsStrictEqual(bobAvg.value, 1);
       });
     });
   });

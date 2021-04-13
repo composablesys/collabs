@@ -7,6 +7,7 @@ import {
   PrimitiveCrdt,
 } from "./crdt_core";
 import * as proto from "../../generated/proto_compiled";
+import { GCounter } from "./basic_crdts";
 
 export interface TensorCounterEvent extends CrdtEvent {
   readonly valueAdded: tf.Tensor;
@@ -229,7 +230,32 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
     this.minus.add(negative);
   }
 
-  get value() {
+  get value(): tf.Tensor {
     return this.plus.value.sub(this.minus.value);
+  }
+}
+
+export class TensorAverageCrdt extends CompositeCrdt<TensorCounterEventsRecord> {
+  private readonly numerator: TensorCounterCrdt;
+  private readonly denominator: GCounter;
+
+  constructor(
+    private readonly shape: number[],
+    private readonly dtype: tf.NumericDataType
+  ) {
+    super();
+    this.numerator = this.addChild("1", new TensorCounterCrdt(shape, dtype));
+    this.denominator = this.addChild("2", new GCounter());
+  }
+
+  add(toAdd: tf.Tensor) {
+    checkShape(toAdd.shape, this.shape);
+    checkDType(toAdd.dtype, this.dtype);
+    this.numerator.add(toAdd);
+    this.denominator.add(1);
+  }
+
+  get value(): tf.Tensor {
+    return this.numerator.value.div(this.denominator.value);
   }
 }
