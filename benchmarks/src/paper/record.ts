@@ -62,6 +62,8 @@ export function record(
       };
       for (let i = 0; i < results.length; i++) {
         data["Sample " + i] = results[i];
+      }
+      for (let i = 0; i < results.length; i++) {
         data["Base " + i] = baseValues[i];
       }
       writer.write(data);
