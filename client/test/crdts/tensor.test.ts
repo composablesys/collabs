@@ -1,13 +1,16 @@
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import { CrdtRuntime } from "../../src/crdts";
+import { EventEmitter } from "../../src/utils/EventEmitter";
+import { Crdt, CrdtRuntime } from "../../src/crdts";
 import {
   conversions,
   TensorAverageCrdt,
   TensorCounterCrdt,
+  TensorCounterEventsRecord,
   TensorGCounterCrdt,
 } from "../../src/crdts/tensor";
 import { TestingNetworkGenerator } from "../../src/network";
+import { debug } from "../debug";
 
 describe("tensor", () => {
   let runtimeGen: TestingNetworkGenerator;
@@ -68,6 +71,17 @@ describe("tensor", () => {
     );
   }
 
+  function addEventListeners(
+    crdt: EventEmitter<TensorCounterEventsRecord>,
+    name: string
+  ): void {
+    crdt.on("Add", (event) =>
+      console.log(
+        `${name}: ${event.timestamp.getSender()} added ${event.valueAdded.toString()}`
+      )
+    );
+  }
+
   describe("conversions", () => {
     it("converts tensors back to their original value", () => {
       const tensor1 = tf.zeros([2, 2], "float32").add(1);
@@ -91,6 +105,10 @@ describe("tensor", () => {
       bobCounter = bob
         .groupParent("")
         .addChild("counterId", new TensorGCounterCrdt(shape, "float32"));
+      if (debug) {
+        addEventListeners(aliceCounter, "Alice");
+        addEventListeners(bobCounter, "Bob");
+      }
     });
 
     it("is initially all zero", () => {
@@ -159,6 +177,10 @@ describe("tensor", () => {
       bobCounter = bob
         .groupParent("")
         .addChild("counterId", new TensorCounterCrdt(shape, "float32"));
+      if (debug) {
+        addEventListeners(aliceCounter, "Alice");
+        addEventListeners(bobCounter, "Bob");
+      }
     });
 
     it("is initially all zero", () => {
@@ -223,6 +245,10 @@ describe("tensor", () => {
       bobAvg = bob
         .groupParent("")
         .addChild("avgId", new TensorAverageCrdt(shape, "float32"));
+      if (debug) {
+        addEventListeners(aliceAvg, "Alice");
+        addEventListeners(bobAvg, "Bob");
+      }
     });
 
     it("initially returns a tensor containing NaN", () => {
