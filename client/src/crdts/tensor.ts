@@ -67,15 +67,37 @@ const conversions = {
   },
 };
 
+function checkShape(actual: number[], expected: number[]): void {
+  // JSON.stringify is a commonly used way to check for deep equality
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(
+      `Expected the tensor to have shape ${expected}, but got ${actual}`
+    );
+  }
+}
+
+function checkDType(actual: tf.DataType, expected: tf.DataType): void {
+  if (actual !== expected) {
+    throw new Error(
+      `Expected the tensor to have dtype ${expected}, but got ${actual}`
+    );
+  }
+}
+
 export class TensorGCounterCrdt extends PrimitiveCrdt<
   TensorGCounterState,
   TensorCounterEventsRecord
 > {
-  constructor(private readonly shape: number[]) {
+  constructor(
+    private readonly shape: number[],
+    private readonly dtype: tf.NumericDataType
+  ) {
     super(new TensorGCounterState());
   }
 
   add(toAdd: tf.Tensor) {
+    checkShape(toAdd.shape, this.shape);
+    checkDType(toAdd.dtype, this.dtype);
     const anyLessThanZero = (toAdd.less(0).any().arraySync() as number) === 1;
     if (anyLessThanZero) {
       throw new Error(
@@ -160,19 +182,18 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
   private readonly plus: TensorGCounterCrdt;
   private readonly minus: TensorGCounterCrdt;
 
-  constructor(private readonly shape: number[]) {
+  constructor(
+    private readonly shape: number[],
+    private readonly dtype: tf.NumericDataType
+  ) {
     super();
-    this.plus = this.addChild("1", new TensorGCounterCrdt(shape));
-    this.minus = this.addChild("2", new TensorGCounterCrdt(shape));
+    this.plus = this.addChild("1", new TensorGCounterCrdt(shape, dtype));
+    this.minus = this.addChild("2", new TensorGCounterCrdt(shape, dtype));
   }
 
   add(toAdd: tf.Tensor) {
-    // JSON.stringify is a commonly used way to check for deep equality
-    if (JSON.stringify(toAdd.shape) !== JSON.stringify(this.shape)) {
-      throw new Error(
-        `Expected the tensor to have shape ${this.shape} but got ${toAdd.shape}`
-      );
-    }
+    checkShape(toAdd.shape, this.shape);
+    checkDType(toAdd.dtype, this.dtype);
     const [positive, negative] = tf.tidy(() => {
       const zeros = tf.zeros(this.shape, toAdd.dtype);
       const positive = tf.where(toAdd.greater(0), toAdd, zeros);
