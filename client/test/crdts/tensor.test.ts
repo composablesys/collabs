@@ -24,11 +24,10 @@ describe("tensor", () => {
     a: tf.Tensor<R>,
     b: tf.Tensor<R> | tf.TensorLike
   ): void {
-    assert.strictEqual(
-      tf.all(a.equal(b)).arraySync(),
-      1,
+    assert(
+      tf.all(a.equal(b)).arraySync() === 1,
       "Expected all values in a to equal b.\n" +
-        `  a: ${a.toString(true)}` +
+        `  a: ${a.toString(true)}\n` +
         `  b: ${
           typeof b === "number"
             ? `Tensor of ${b}`
@@ -46,10 +45,10 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice
         .groupParent("")
-        .addChild("counterId", new TensorGCounterCrdt(shape));
+        .addChild("counterId", new TensorGCounterCrdt(shape, "float32"));
       bobCounter = bob
         .groupParent("")
-        .addChild("counterId", new TensorGCounterCrdt(shape));
+        .addChild("counterId", new TensorGCounterCrdt(shape, "float32"));
     });
 
     it("is initially all zero", () => {
@@ -114,10 +113,10 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice
         .groupParent("")
-        .addChild("counterId", new TensorCounterCrdt(shape));
+        .addChild("counterId", new TensorCounterCrdt(shape, "float32"));
       bobCounter = bob
         .groupParent("")
-        .addChild("counterId", new TensorCounterCrdt(shape));
+        .addChild("counterId", new TensorCounterCrdt(shape, "float32"));
     });
 
     it("is initially all zero", () => {
