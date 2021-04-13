@@ -13,7 +13,8 @@ export function record(
   trials: number,
   results: number[],
   roundResults: number[][],
-  roundOps: number[]
+  roundOps: number[],
+  baseValues: number[]
 ) {
   // Output to files
   let headers;
@@ -23,6 +24,9 @@ export function record(
     headers = ["Date", "Name", "Round", "OpsSoFar", "Mean", "StdDev", "Count"];
   for (let i = 0; i < trials; i++) {
     headers.push("Sample " + i);
+  }
+  for (let i = 0; i < trials; i++) {
+    headers.push("Base " + i);
   }
   let outFile = path.join(folder, fileBase + "-" + frequency + ".csv");
   let parent = path.dirname(outFile);
@@ -58,6 +62,7 @@ export function record(
       };
       for (let i = 0; i < results.length; i++) {
         data["Sample " + i] = results[i];
+        data["Base " + i] = baseValues[i];
       }
       writer.write(data);
       break;
@@ -81,6 +86,7 @@ export function record(
         };
         for (let i = 0; i < roundResult.length; i++) {
           data["Sample " + i] = roundResult[i];
+          data["Base " + i] = baseValues[i];
         }
         writer.write(data);
       }

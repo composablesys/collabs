@@ -73,6 +73,7 @@ class TodoListBenchmark {
     let results = new Array<number>(TRIALS);
     let roundResults = new Array<number[]>(TRIALS);
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+    let baseMemories = new Array<number>(TRIALS);
     if (frequency === "rounds") {
       for (let i = 0; i < TRIALS; i++)
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
@@ -87,11 +88,10 @@ class TodoListBenchmark {
 
       this.rng = seedrandom(SEED);
 
-      let baseMemory = 0;
       let startTime: bigint;
       let startSentBytes = 0;
 
-      if (measurement === "memory") baseMemory = await getMemoryUsed();
+      if (measurement === "memory") baseMemories[trial] = await getMemoryUsed();
 
       // TODO: should we include setup in the time recording?
       let list = this.testFactory.newTodoList();
@@ -122,7 +122,8 @@ class TodoListBenchmark {
 
               break;
             case "memory":
-              roundResults[trial][round] = (await getMemoryUsed()) - baseMemory;
+              roundResults[trial][round] =
+                (await getMemoryUsed()) - baseMemories[trial];
               break;
             case "network":
               roundResults[trial][round] =
@@ -145,7 +146,7 @@ class TodoListBenchmark {
             result = new Number(process.hrtime.bigint() - startTime!).valueOf();
             break;
           case "memory":
-            result = (await getMemoryUsed()) - baseMemory;
+            result = (await getMemoryUsed()) - baseMemories[trial];
             break;
           case "network":
             result = this.testFactory.getSentBytes() - startSentBytes;
@@ -192,7 +193,10 @@ class TodoListBenchmark {
       TRIALS,
       results,
       roundResults,
-      roundOps
+      roundOps,
+      measurement === "memory"
+        ? baseMemories
+        : new Array<number>(TRIALS).fill(0)
     );
   }
 

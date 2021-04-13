@@ -9,7 +9,7 @@ import { getMemoryUsed, record, sleep } from "../record";
 const WARMUP = 5;
 const TRIALS = 10;
 const OPS = edits.length;
-const ROUND_OPS = 10000;
+const ROUND_OPS = 25978;
 
 class AutomergePerfBenchmark {
   constructor(
@@ -32,6 +32,7 @@ class AutomergePerfBenchmark {
     let results = new Array<number>(TRIALS);
     let roundResults = new Array<number[]>(TRIALS);
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+    let baseMemories = new Array<number>(TRIALS);
     if (frequency === "rounds") {
       for (let i = 0; i < TRIALS; i++)
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
@@ -44,11 +45,12 @@ class AutomergePerfBenchmark {
       await sleep(1000);
       console.log("Starting trial " + trial);
 
-      let baseMemory = 0;
       let startTime: bigint;
       let startSentBytes = 0;
 
-      if (measurement === "memory") baseMemory = await getMemoryUsed();
+      if (measurement === "memory") {
+        baseMemories[trial] = await getMemoryUsed();
+      }
 
       // TODO: should we include setup in the time recording?
       this.setupFun();
@@ -78,7 +80,8 @@ class AutomergePerfBenchmark {
               ).valueOf();
               break;
             case "memory":
-              roundResults[trial][round] = (await getMemoryUsed()) - baseMemory;
+              roundResults[trial][round] =
+                (await getMemoryUsed()) - baseMemories[trial];
               break;
             case "network":
               roundResults[trial][round] = this.getSentBytes() - startSentBytes;
@@ -99,7 +102,7 @@ class AutomergePerfBenchmark {
             result = new Number(process.hrtime.bigint() - startTime!).valueOf();
             break;
           case "memory":
-            result = (await getMemoryUsed()) - baseMemory;
+            result = (await getMemoryUsed()) - baseMemories[trial];
             break;
           case "network":
             result = this.getSentBytes() - startSentBytes;
@@ -131,7 +134,10 @@ class AutomergePerfBenchmark {
       TRIALS,
       results,
       roundResults,
-      roundOps
+      roundOps,
+      measurement === "memory"
+        ? baseMemories
+        : new Array<number>(TRIALS).fill(0)
     );
   }
 }
