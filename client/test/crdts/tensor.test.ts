@@ -1,7 +1,11 @@
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import { CrdtRuntime } from "../../src/crdts";
-import { TensorCounterCrdt, TensorGCounterCrdt } from "../../src/crdts/tensor";
+import {
+  conversions,
+  TensorCounterCrdt,
+  TensorGCounterCrdt,
+} from "../../src/crdts/tensor";
 import { TestingNetworkGenerator } from "../../src/network";
 
 describe("tensor", () => {
@@ -20,21 +24,51 @@ describe("tensor", () => {
     tf.engine().endScope();
   });
 
-  function assertTensorsEqual<R extends tf.Rank>(
-    a: tf.Tensor<R>,
-    b: tf.Tensor<R> | tf.TensorLike
+  function assertTensorsStrictEqual<R extends tf.Rank>(
+    actual: tf.Tensor<R>,
+    expected: tf.Tensor<R> | number
   ): void {
     assert(
-      tf.all(a.equal(b)).arraySync() === 1,
-      "Expected all values in a to equal b.\n" +
-        `  a: ${a.toString(true)}\n` +
-        `  b: ${
-          typeof b === "number"
-            ? `Tensor of ${b}`
-            : (b as tf.Tensor).toString(true)
-        }\n`
+      tf.all(actual.equal(expected)).arraySync() === 1,
+      failedAssertionMessage(actual, expected)
     );
   }
+
+  function assertTensorsApproxEqual<R extends tf.Rank>(
+    actual: tf.Tensor<R>,
+    expected: tf.Tensor<R> | number,
+    epsilon: number = 0.0001
+  ): void {
+    assert(
+      tf.all(actual.sub(expected).abs().lessEqual(epsilon)).arraySync() === 1,
+      failedAssertionMessage(actual, expected)
+    );
+  }
+
+  function failedAssertionMessage(
+    actual: tf.Tensor,
+    expected: tf.Tensor | number
+  ): string {
+    return (
+      "Expected all values in a to equal b.\n" +
+      `  a: ${actual.toString(true)}\n` +
+      `  b: ${
+        typeof expected === "number"
+          ? `Tensor of ${expected}`
+          : (expected as tf.Tensor).toString(true)
+      }\n`
+    );
+  }
+
+  describe("conversions", () => {
+    it("converts tensors back to their original value", () => {
+      const tensor1 = tf.zeros([2, 2], "float32").add(1);
+      const message = conversions.tfToProtobuf.tensor(tensor1);
+      const tensor2 = conversions.protobufToTF.tensor(message);
+      assert.strictEqual(tensor1.dtype, "float32");
+      assertTensorsStrictEqual(tensor1, tensor2);
+    });
+  });
 
   describe("TensorGCounter", function () {
     this.slow(1000); // tensor operations on large tensors can be slow
@@ -52,8 +86,8 @@ describe("tensor", () => {
     });
 
     it("is initially all zero", () => {
-      assertTensorsEqual(aliceCounter.value, 0);
-      assertTensorsEqual(bobCounter.value, 0);
+      assertTensorsStrictEqual(aliceCounter.value, 0);
+      assertTensorsStrictEqual(bobCounter.value, 0);
     });
 
     describe("add", () => {
@@ -64,20 +98,20 @@ describe("tensor", () => {
 
         aliceCounter.add(tensor1);
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, tensor1);
-        assertTensorsEqual(bobCounter.value, tensor1);
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
 
         bobCounter.add(tensor2);
         const expected1 = tensor1.add(tensor2);
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, expected1);
-        assertTensorsEqual(bobCounter.value, expected1);
+        assertTensorsStrictEqual(aliceCounter.value, expected1);
+        assertTensorsStrictEqual(bobCounter.value, expected1);
 
         aliceCounter.add(tensor3);
         const expected2 = expected1.add(tensor3);
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, expected2);
-        assertTensorsEqual(bobCounter.value, expected2);
+        assertTensorsStrictEqual(aliceCounter.value, expected2);
+        assertTensorsStrictEqual(bobCounter.value, expected2);
       });
 
       it("works for concurrent updates", () => {
@@ -86,16 +120,16 @@ describe("tensor", () => {
         const sum = tensor1.add(tensor2);
 
         aliceCounter.add(tensor1);
-        assertTensorsEqual(aliceCounter.value, tensor1);
-        assertTensorsEqual(bobCounter.value, 0);
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, 0);
 
         bobCounter.add(tensor2);
-        assertTensorsEqual(aliceCounter.value, tensor1);
-        assertTensorsEqual(bobCounter.value, tensor2);
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
 
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, sum);
-        assertTensorsEqual(bobCounter.value, sum);
+        assertTensorsStrictEqual(aliceCounter.value, sum);
+        assertTensorsStrictEqual(bobCounter.value, sum);
       });
 
       it("throws an error for tensors containing negative values", () => {
@@ -120,8 +154,8 @@ describe("tensor", () => {
     });
 
     it("is initially all zero", () => {
-      assertTensorsEqual(aliceCounter.value, 0);
-      assertTensorsEqual(bobCounter.value, 0);
+      assertTensorsStrictEqual(aliceCounter.value, 0);
+      assertTensorsStrictEqual(bobCounter.value, 0);
     });
 
     describe("add", () => {
@@ -132,20 +166,20 @@ describe("tensor", () => {
 
         aliceCounter.add(tensor1);
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, tensor1);
-        assertTensorsEqual(bobCounter.value, tensor1);
+        assertTensorsApproxEqual(aliceCounter.value, tensor1);
+        assertTensorsApproxEqual(bobCounter.value, tensor1);
 
         bobCounter.add(tensor2);
         const expected1 = tensor1.add(tensor2);
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, expected1);
-        assertTensorsEqual(bobCounter.value, expected1);
+        assertTensorsApproxEqual(aliceCounter.value, expected1);
+        assertTensorsApproxEqual(bobCounter.value, expected1);
 
         aliceCounter.add(tensor3);
         const expected2 = expected1.add(tensor3);
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, expected2);
-        assertTensorsEqual(bobCounter.value, expected2);
+        assertTensorsApproxEqual(aliceCounter.value, expected2);
+        assertTensorsApproxEqual(bobCounter.value, expected2);
       });
 
       it("works for concurrent updates", () => {
@@ -154,16 +188,16 @@ describe("tensor", () => {
         const sum = tensor1.add(tensor2);
 
         aliceCounter.add(tensor1);
-        assertTensorsEqual(aliceCounter.value, tensor1);
-        assertTensorsEqual(bobCounter.value, 0);
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, 0);
 
         bobCounter.add(tensor2);
-        assertTensorsEqual(aliceCounter.value, tensor1);
-        assertTensorsEqual(bobCounter.value, tensor2);
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
 
         runtimeGen.releaseAll();
-        assertTensorsEqual(aliceCounter.value, sum);
-        assertTensorsEqual(bobCounter.value, sum);
+        assertTensorsStrictEqual(aliceCounter.value, sum);
+        assertTensorsStrictEqual(bobCounter.value, sum);
       });
     });
   });

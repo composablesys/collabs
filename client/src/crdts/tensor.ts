@@ -22,7 +22,7 @@ export class TensorGCounterState {
   idCounter?: number;
 }
 
-const conversions = {
+export const conversions = {
   protobufToTF: {
     dtype(dtype: proto.Tensor.DType): tf.NumericDataType {
       const conversion: Record<proto.Tensor.DType, tf.NumericDataType> = {
@@ -39,7 +39,24 @@ const conversions = {
       if (shape === undefined || shape === null) {
         throw new Error("shape was not defined: " + shape);
       }
-      return tf.tensor(tensor.data, shape, this.dtype(tensor.dtype));
+      const dtype = this.dtype(tensor.dtype);
+      const data = this.tensorData(dtype, tensor.data);
+      return tf.tensor(data, shape, dtype);
+    },
+
+    tensorData(dtype: tf.NumericDataType, data: Uint8Array): tf.TypedArray {
+      type Conversion = {
+        [key in tf.NumericDataType]: (data: Uint8Array) => tf.DataTypeMap[key];
+      };
+      const bufferSlice = (data: Uint8Array) =>
+        data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      const conversion: Conversion = {
+        bool: (data) => data,
+        float32: (data) => new Float32Array(bufferSlice(data)),
+        complex64: (data) => new Float32Array(bufferSlice(data)),
+        int32: (data) => new Int32Array(bufferSlice(data)),
+      };
+      return conversion[dtype](data);
     },
   },
 
@@ -61,8 +78,15 @@ const conversions = {
       return proto.Tensor.create({
         shape: tensor.shape,
         dtype: this.dtype(tensor.dtype),
-        data: Uint8Array.from(tensor.dataSync()),
+        data: this.tensorData(tensor.dataSync()),
       });
+    },
+
+    tensorData(data: tf.TypedArray): Uint8Array {
+      if (data instanceof Uint8Array) {
+        return data;
+      }
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
     },
   },
 };
@@ -140,12 +164,13 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
     const decoded = proto.TensorGCounterMessage.decode(message);
     switch (decoded.data) {
       case "add":
+        const addMessage = decoded.add!;
         const keyString = this.keyString(
           timestamp.getSender(),
-          decoded.add!.idCounter
+          addMessage.idCounter
         );
-        const prNewTensor = conversions.protobufToTF.tensor(decoded.add!.prNew);
-        const prOldTensor = conversions.protobufToTF.tensor(decoded.add!.prOld);
+        const prNewTensor = conversions.protobufToTF.tensor(addMessage.prNew);
+        const prOldTensor = conversions.protobufToTF.tensor(addMessage.prOld);
         if (!this.state.P.has(keyString)) {
           this.state.N.get(keyString)?.dispose();
           this.state.N.set(keyString, prOldTensor);
