@@ -1,3 +1,4 @@
 /build/*
 /docs/*
-/src/suites/paper/automerge_perf/editing-trace.js
+/src/old/suites/paper/automerge_perf/editing-trace.js
+/src/paper/automerge_perf/editing-trace.js
