@@ -123,14 +123,7 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
   add(toAdd: tf.Tensor) {
     checkShape(toAdd.shape, this.shape);
     checkDType(toAdd.dtype, this.dtype);
-    const anyLessThanZero = (toAdd.less(0).any().arraySync() as number) === 1;
-    if (anyLessThanZero) {
-      throw new Error(
-        "TensorGCounter.add: toAdd = " +
-          toAdd.arraySync() +
-          "; must only have nonnegative values (consider using TensorCounter instead)"
-      );
-    }
+    this.checkPositive(toAdd);
 
     const allEqualToZero = (toAdd.equal(0).all().arraySync() as number) === 1;
     if (allEqualToZero) return;
@@ -152,6 +145,17 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
       add: { prOld, prNew, idCounter: this.state.idCounter! },
     });
     super.send(proto.TensorGCounterMessage.encode(message).finish());
+  }
+
+  private checkPositive(tensor: tf.Tensor): void {
+    const anyNegative = (tensor.less(0).any().arraySync() as number) === 1;
+    if (anyNegative) {
+      throw new Error(
+        "TensorGCounter.add: toAdd = " +
+          tensor.arraySync() +
+          "; must only have nonnegative values (consider using TensorCounter instead)"
+      );
+    }
   }
 
   private keyString(sender: string, idCounter: number) {
