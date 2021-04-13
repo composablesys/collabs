@@ -1,0 +1,314 @@
+import { crdts, network } from "compoventuals-client";
+import { edits, finalText } from "./editing-trace";
+import Automerge from "automerge";
+import * as Y from "yjs";
+import { getMemoryUsed, record, sleep } from "../record";
+
+// Based on https://github.com/automerge/automerge-perf/blob/master/edit-by-index/baseline.js
+
+const WARMUP = 5;
+const TRIALS = 10;
+
+class AutomergePerfBenchmark {
+  constructor(
+    private readonly testName: string,
+    private readonly setupFun: () => void,
+    private readonly cleanupFun: () => void,
+    private readonly processEdit: (
+      edit: [number, number, string | undefined]
+    ) => void,
+    private readonly getSentBytes: () => number,
+    private readonly getFinalText?: () => string
+  ) {}
+
+  async run(measurement: "time" | "memory" | "network") {
+    console.log("Starting automerge_perf test: " + this.testName);
+
+    let results = new Array<number>(TRIALS);
+
+    for (let trial = -WARMUP; trial < TRIALS; trial++) {
+      if (trial !== -WARMUP) this.cleanupFun();
+
+      // Sleep between trials
+      await sleep(1000);
+      console.log("Starting trial " + trial);
+
+      let baseMemory = 0;
+      let startTime: bigint;
+      let startSentBytes = 0;
+
+      if (measurement === "memory") baseMemory = await getMemoryUsed();
+
+      // TODO: should we include setup in the time recording?
+      this.setupFun();
+
+      switch (measurement) {
+        case "time":
+          startTime = process.hrtime.bigint();
+          break;
+        case "network":
+          startSentBytes = this.getSentBytes();
+      }
+
+      for (let edit of edits) {
+        // Process one edit
+        this.processEdit(edit);
+      }
+
+      if (trial >= 0) {
+        // Record result
+        switch (measurement) {
+          case "time":
+            results[trial] = new Number(
+              process.hrtime.bigint() - startTime!
+            ).valueOf();
+            break;
+          case "memory":
+            results[trial] = (await getMemoryUsed()) - baseMemory;
+            break;
+          case "network":
+            results[trial] = this.getSentBytes() - startSentBytes;
+        }
+      }
+
+      if (this.getFinalText) {
+        // Check result
+        let result = this.getFinalText();
+        if (result != finalText) {
+          throw new Error("result does not equal final text");
+        }
+      }
+    }
+
+    record("automerge_perf/" + measurement, this.testName, results);
+  }
+}
+
+// TODO: record document size over time, to plot memory against
+
+function trivial() {
+  return new AutomergePerfBenchmark(
+    "Trivial",
+    () => {},
+    () => {},
+    () => {},
+    () => 0
+  );
+}
+
+function plainJsArray() {
+  let chars: string[];
+  return new AutomergePerfBenchmark(
+    "Plain JS array",
+    () => {
+      chars = [];
+    },
+    () => {
+      chars = [];
+    },
+    (edit) => chars.splice(...(edit as [number, number, string])),
+    () => 0,
+    () => chars.join("")
+  );
+}
+
+function treedocLww() {
+  let generator: network.TestingNetworkGenerator | null;
+  let runtime: crdts.CrdtRuntime | null;
+  let list: crdts.TreedocList<crdts.LwwRegister<string>> | null;
+
+  return new AutomergePerfBenchmark(
+    "TreedocList<LwwRegister>",
+    () => {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual");
+      list = runtime
+        .groupParent("")
+        .addChild(
+          "",
+          new crdts.TreedocList<crdts.LwwRegister<string>>(
+            () => new crdts.LwwRegister(""),
+            true
+          )
+        );
+    },
+    () => {
+      generator = null;
+      runtime = null;
+      list = null;
+    },
+    (edit) => {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list!.insertAt(edit[0])[1].value = edit[2];
+      } else {
+        // Delete character at edit[0]
+        list!.deleteAt(edit[0]);
+      }
+      runtime!.commitAll();
+    },
+    () => generator!.getTotalSentBytes(),
+    () =>
+      list!
+        .asArray()
+        .map((lww) => lww.value)
+        .join("")
+  );
+}
+
+function treedocPrimitiveLww() {
+  let generator: network.TestingNetworkGenerator | null;
+  let runtime: crdts.CrdtRuntime | null;
+  let list: crdts.TreedocPrimitiveList<string> | null;
+
+  return new AutomergePerfBenchmark(
+    "TreedocPrimitiveList",
+    () => {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual");
+      list = runtime
+        .groupParent("")
+        .addChild("", new crdts.TreedocPrimitiveList<string>());
+    },
+    () => {
+      generator = null;
+      runtime = null;
+      list = null;
+    },
+    (edit) => {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list!.insertAt(edit[0], edit[2]);
+      } else {
+        // Delete character at edit[0]
+        list!.deleteAt(edit[0]);
+      }
+      runtime!.commitAll();
+    },
+    () => generator!.getTotalSentBytes(),
+    () => list!.asArray().join("")
+  );
+}
+
+function automerge() {
+  let state: { text: Automerge.Text } | null;
+  let totalSentBytes: number;
+
+  return new AutomergePerfBenchmark(
+    "Automerge",
+    () => {
+      state = Automerge.from({ text: new Automerge.Text() });
+      totalSentBytes = 0;
+    },
+    () => {
+      state = null;
+    },
+    (edit) => {
+      let newState = Automerge.change(state!, (doc) => {
+        if (edit[1] > 0) doc.text.deleteAt!(edit[0], edit[1]);
+        if (edit.length > 2) doc.text.insertAt!(edit[0], edit[2]!);
+      });
+      let message = JSON.stringify(Automerge.getChanges(state!, newState));
+      totalSentBytes += message.length;
+      state = newState;
+    },
+    () => totalSentBytes,
+    () => state!.text.join("") // TODO: use toString() instead?
+  );
+}
+
+function mapLww() {
+  let generator: network.TestingNetworkGenerator | null;
+  let runtime: crdts.CrdtRuntime | null;
+  let list: crdts.LwwMap<number, string> | null;
+
+  return new AutomergePerfBenchmark(
+    "LwwMap",
+    () => {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime();
+      list = runtime
+        .groupParent("")
+        .addChild("", new crdts.LwwMap<number, string>());
+    },
+    () => {
+      generator = null;
+      runtime = null;
+      list = null;
+    },
+    (edit) => {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list!.set(edit[0], edit[2]);
+      } else {
+        // Delete character at edit[0]
+        list!.delete(edit[0]);
+      }
+    },
+    () => generator!.getTotalSentBytes()
+  );
+}
+
+function yjs() {
+  let doc: Y.Doc | null;
+  let totalSentBytes: number;
+
+  return new AutomergePerfBenchmark(
+    "Yjs",
+    () => {
+      doc = new Y.Doc();
+      totalSentBytes = 0;
+      doc.on("updateV2", (update: any) => {
+        totalSentBytes += update.byteLength;
+      });
+    },
+    () => {
+      doc = null;
+    },
+    (edit) => {
+      if (edit[2] !== undefined) {
+        doc!.getText("text").insert(edit[0], edit[2]);
+      } else {
+        doc!.getText("text").delete(edit[0], 1);
+      }
+    },
+    () => totalSentBytes,
+    () => doc!.getText("text").toString()
+  );
+}
+
+// TODO: delta-crdts
+// TODO: use two crdts, like in dmonad benchmarks?
+
+export default async function automergePerf(args: string[]) {
+  let benchmark: AutomergePerfBenchmark;
+  switch (args[0]) {
+    case "trivial":
+      benchmark = trivial();
+      break;
+    case "plainJsArray":
+      benchmark = plainJsArray();
+      break;
+    case "treedocLww":
+      benchmark = treedocLww();
+      break;
+    case "treedocPrimitiveLww":
+      benchmark = treedocPrimitiveLww();
+      break;
+    case "mapLww":
+      benchmark = mapLww();
+      break;
+    case "yjs":
+      benchmark = yjs();
+      break;
+    case "automerge":
+      benchmark = automerge();
+      break;
+    default:
+      throw new Error("Unrecognized benchmark arg: " + args[0]);
+  }
+  if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
+    throw new Error("Unrecognized metric arg: " + args[1]);
+  }
+  await benchmark.run(args[1]);
+}
