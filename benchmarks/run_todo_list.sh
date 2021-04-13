@@ -6,13 +6,11 @@ if [ -z "$1" ]
     exit 1
 fi
 
-# exit when any command fails
-set -e
 
 # todo_list
-for name in "plainJs" "compoCrdt" "compoJson" "compoJsonText" "yjs" "automerge"
+for measurement in "time" "memory" "network"
 do
-  for measurement in "time" "memory" "network"
+  for name in "plainJs" "compoCrdt" "compoJsonText" "yjs" #"compoJson" "automerge"
   do
     npm start -- $1 "todo_list" $name $measurement
   done

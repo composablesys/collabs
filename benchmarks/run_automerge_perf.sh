@@ -6,13 +6,11 @@ if [ -z "$1" ]
     exit 1
 fi
 
-# exit when any command fails
-set -e
 
 # automerge_perf
-for name in "trivial" "plainJsArray" "treedocLww" "treedocPrimitiveLww" "mapLww" "yjs" "automerge"
+for measurement in "time" "memory" "network"
 do
-  for measurement in "time" "memory" "network"
+  for name in "trivial" "plainJsArray" "treedocLww" "treedocPrimitiveLww" "mapLww" "yjs" #"automerge"
   do
     npm start -- $1 "automerge_perf" $name $measurement
   done

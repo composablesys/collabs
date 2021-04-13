@@ -57,7 +57,7 @@ export async function sleep(ms: number) {
 }
 
 export async function getMemoryUsed(): Promise<number> {
-  await sleep(100); // Sleep a bit to help the GC?
   global.gc();
+  await sleep(1000); // Sleep a bit to help the GC?
   return process.memoryUsage().heapUsed;
 }
