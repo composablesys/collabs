@@ -1,8 +1,8 @@
 #/usr/bin/sh
 
-if [ -z "$1" ]
+if [ -z "$2" ]
   then
-    echo "Usage: ./paper_benchmarks.sh <outdir>"
+    echo "Usage: ./run_automerge_perf.sh <outdir> <frequency>"
     exit 1
 fi
 
