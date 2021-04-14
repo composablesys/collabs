@@ -806,9 +806,6 @@ function yjs() {
     newTodoList() {
       topDoc = new Y.Doc();
       totalSentBytes = 0;
-      // TODO: use update instead?  updateV2 is marked experimental;
-      // it is meant to be smaller in general.
-      // Could similarly argue for/against Automerge's perf branch.
       topDoc.on("update", (update: any) => {
         totalSentBytes += update.byteLength;
       });

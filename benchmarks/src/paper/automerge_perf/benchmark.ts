@@ -316,7 +316,7 @@ function yjs() {
     () => {
       doc = new Y.Doc();
       totalSentBytes = 0;
-      doc.on("updateV2", (update: any) => {
+      doc.on("update", (update: any) => {
         totalSentBytes += update.byteLength;
       });
     },
@@ -324,11 +324,13 @@ function yjs() {
       doc = null;
     },
     (edit) => {
-      if (edit[2] !== undefined) {
-        doc!.getText("text").insert(edit[0], edit[2]);
-      } else {
-        doc!.getText("text").delete(edit[0], 1);
-      }
+      doc!.transact(() => {
+        if (edit[2] !== undefined) {
+          doc!.getText("text").insert(edit[0], edit[2]);
+        } else {
+          doc!.getText("text").delete(edit[0], 1);
+        }
+      });
     },
     () => totalSentBytes,
     () => doc!.getText("text").toString()
