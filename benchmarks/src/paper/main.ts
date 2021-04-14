@@ -2,6 +2,7 @@ import arg from "arg";
 import automergePerf from "./automerge_perf/benchmark";
 import todoList from "./todo_list/benchmark";
 import { setFolder } from "./record";
+import microCrdts from "./micro_crdts/benchmark";
 
 (async function () {
   function printUsage(exitCode: number) {
@@ -36,6 +37,9 @@ Options:
       break;
     case "todo_list":
       await todoList(testArgs);
+      break;
+    case "micro_crdts":
+      await microCrdts(testArgs);
       break;
     default:
       console.log("Unrecognized major test: " + majorTest);
