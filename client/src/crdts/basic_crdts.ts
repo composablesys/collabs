@@ -14,6 +14,7 @@ import {
   LwwMessage,
   MultRegisterMessage,
   MvrMessage,
+  PartitionedMapMessage,
 } from "../../generated/proto_compiled";
 import {
   arrayAsString,
@@ -113,7 +114,7 @@ const AddCounterEvents = makeEventAdder<CounterEventsRecord>();
  * TODO: Counter with pure operations.  Less efficient state size.
  */
 export class CounterPure
-  extends AddCounterEvents(ResetWrapClass(CounterPureBase))
+  extends AddCounterEvents(ResetWrapClass(CounterPureBase, false, true))
   implements ICounter, Resettable {
   constructor(initialValue = 0) {
     super(initialValue);
@@ -258,8 +259,8 @@ export class Counter
 
   constructor(readonly initialValue: number = 0) {
     super();
-    this.plus = this.addChild("plus", new GCounter());
-    this.minus = this.addChild("minus", new GCounter());
+    this.plus = this.addChild("1", new GCounter());
+    this.minus = this.addChild("2", new GCounter());
     this.plus.on("Add", (event) =>
       this.emit("Add", { ...event, caller: this })
     );
@@ -392,7 +393,7 @@ export class MultRegisterBase
 const AddMultEvents = makeEventAdder<MultEventsRecord>();
 
 export class MultRegister
-  extends AddMultEvents(ResetWrapClass(MultRegisterBase))
+  extends AddMultEvents(ResetWrapClass(MultRegisterBase, false, true))
   implements IMultRegister, Resettable {
   constructor(initialValue = 1) {
     super(initialValue);
@@ -520,6 +521,190 @@ export interface IGSet<T> extends GSet<T> {}
 // TODO: resettable GSet?  Share common interface.  Needs to track timestamps
 // like MVR.
 
+export interface HasSender {
+  readonly sender: string;
+}
+
+interface PartitionedMapSetEvent<K, V> extends CrdtEvent {
+  key: K;
+  value: V;
+  // TODO: oldValue?
+}
+
+interface PartitionedMapDeleteEvent<K> extends CrdtEvent {
+  key: K;
+}
+
+interface PartitionedMapEventsRecord<K, V> extends CrdtEventsRecord {
+  Set: PartitionedMapSetEvent<K, V>;
+  Delete: PartitionedMapDeleteEvent<K>;
+}
+
+// TODO: tests
+/**
+ * A map with primitive values in which keys are
+ * partitioned by sender: it is promised that each
+ * replica only sets keys with itself as sender.
+ * This means that set operations cannot conflict,
+ * and delete operations can indicate which version they
+ * are deleting using a single version number,
+ * similar to in an observed-remove set.
+ *
+ * When keys are partitioned as required, this
+ * provides the same semantics as LwwMap, but
+ * is more efficient.
+ */
+export class PartitionedMap<K extends HasSender, V>
+  extends PrimitiveCrdt<
+    Map<string, [value: V, senderCounter: number]>,
+    PartitionedMapEventsRecord<K, V>
+  >
+  implements Resettable {
+  constructor(
+    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
+    private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
+  ) {
+    super(new Map());
+  }
+
+  private keyAsString(key: K): string {
+    return arrayAsString(this.keySerializer.serialize(key));
+  }
+  private stringAsKey(str: string): K {
+    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
+  }
+
+  set(key: K, value: V) {
+    let message = PartitionedMapMessage.create({
+      keyMessage: {
+        key: this.keySerializer.serialize(key),
+        isDelete: false,
+        value: this.valueSerializer.serialize(value),
+      },
+    });
+    let buffer = PartitionedMapMessage.encode(message).finish();
+    super.send(buffer);
+  }
+
+  delete(key: K) {
+    let message = PartitionedMapMessage.create({
+      keyMessage: {
+        key: this.keySerializer.serialize(key),
+        isDelete: true,
+      },
+    });
+    let buffer = PartitionedMapMessage.encode(message).finish();
+    super.send(buffer);
+  }
+
+  reset() {
+    let message = PartitionedMapMessage.create({ reset: true });
+    let buffer = PartitionedMapMessage.encode(message).finish();
+    super.send(buffer);
+  }
+
+  get(key: K): V | undefined {
+    let value = this.state.get(this.keyAsString(key));
+    return value === undefined ? undefined : value[0];
+  }
+
+  // TODO: include?
+  // getMetadata(key: K): [sender: string, senderCounter: number] | undefined {
+  //   let value = this.state.get(this.keyAsString(key));
+  //   return value === undefined ? undefined : [key.sender, value[1]];
+  // }
+
+  has(key: K) {
+    return this.state.has(this.keyAsString(key));
+  }
+
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
+    let decoded = PartitionedMapMessage.decode(message);
+    switch (decoded.data) {
+      case "keyMessage":
+        let keyMessage = decoded.keyMessage!;
+        let key = this.keySerializer.deserialize(keyMessage.key, this.runtime);
+        let keyAsString = arrayAsString(keyMessage.key);
+        if (keyMessage.isDelete) {
+          this.deleteIfDominated(
+            timestamp,
+            timestamp.asVectorClock(),
+            key,
+            keyAsString
+          );
+        } else {
+          let value = this.valueSerializer.deserialize(
+            keyMessage.value!,
+            this.runtime
+          );
+          this.state.set(keyAsString, [value, timestamp.getSenderCounter()]);
+          this.emit("Set", { caller: this, timestamp, key, value });
+        }
+        break;
+      case "reset":
+        // Delete all keys causally <= timestamp
+        let vc = timestamp.asVectorClock();
+        for (let keyAsString of this.state.keys()) {
+          this.deleteIfDominated(
+            timestamp,
+            vc,
+            this.stringAsKey(keyAsString),
+            keyAsString
+          );
+        }
+        break;
+      default:
+        throw new Error("Unrecognized decoded.data: " + decoded.data);
+    }
+  }
+
+  /**
+   * Delete the entry at key only if it is causally
+   * dominated by vc.
+   */
+  private deleteIfDominated(
+    timestamp: CausalTimestamp,
+    vc: Map<string, number>,
+    key: K,
+    keyAsString: string
+  ) {
+    let valueMeta = this.state.get(keyAsString);
+    if (valueMeta) {
+      let vcEntry = vc.get(key.sender);
+      if (vcEntry !== undefined && vcEntry >= valueMeta[1]) {
+        // Delete it
+        if (this.state.delete(keyAsString)) {
+          this.emit("Delete", { caller: this, timestamp, key });
+        }
+      }
+    }
+    return false;
+  }
+
+  // TODO
+  // /**
+  //  * Don't mutate this directly.
+  //  *
+  //  * TODO: with current approach, value's keys
+  //  * may be unique each time.  This makes it annoying
+  //  * to compare values between times (e.g. subset
+  //  * relationships).
+  //  */
+  // get value(): Set<T> {
+  //   let ans = new Set<T>();
+  //   for (let keyString of this.state.values()) {
+  //     ans.add(this.stringAsKey(keyString));
+  //   }
+  //   return ans;
+  // }
+
+  canGC() {
+    return this.state.size === 0;
+  }
+
+  // TODO: other helper methods
+}
+
 export class MvrEntry<T> {
   constructor(
     readonly value: T,
@@ -579,11 +764,14 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
   }
 
   reset() {
-    let message = MvrMessage.create({
-      reset: true,
-    }); // no value
-    let buffer = MvrMessage.encode(message).finish();
-    super.send(buffer);
+    // Only reset if needed
+    if (!this.canGC()) {
+      let message = MvrMessage.create({
+        reset: true,
+      }); // no value
+      let buffer = MvrMessage.encode(message).finish();
+      super.send(buffer);
+    }
   }
 
   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
@@ -711,7 +899,7 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
   ) {
     super();
     this.mvr = this.addChild(
-      "mvr",
+      "1",
       new MultiValueRegister(new LwwEntrySerializer(valueSerializer))
     );
     this.mvr.on("Change", (event) => this.refreshValue(event));

@@ -83,12 +83,13 @@ export class NumberBase
     this.addCrdt.add(toAdd);
   }
 
-  mult(toMult: number, affectConcurrentAdds = true) {
-    if (affectConcurrentAdds) this.multCrdt.mult(toMult);
-    else {
-      // Perform an equivalent add
-      this.add(toMult * this.value - this.value);
-    }
+  mult(toMult: number) {
+    this.multCrdt.mult(toMult);
+  }
+
+  multAsAdd(toMult: number) {
+    // Perform an equivalent add
+    this.add(toMult * this.value - this.value);
   }
 
   get value(): number {
@@ -113,8 +114,13 @@ export class NumberCrdt
   add(toAdd: number): void {
     this.original.add(toAdd);
   }
-  mult(toMult: number, affectConcurrentAdds = true) {
-    this.original.mult(toMult, affectConcurrentAdds);
+
+  mult(toMult: number) {
+    this.original.mult(toMult);
+  }
+
+  multAsAdd(toMult: number) {
+    this.original.multAsAdd(toMult);
   }
   get value(): number {
     return this.original.value;
@@ -299,7 +305,7 @@ export interface IFlag extends Crdt<FlagEventsRecord> {
 const AddFlagEvents = makeEventAdder<FlagEventsRecord>();
 
 export class EnableWinsFlag
-  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true))
+  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
   implements IFlag, Resettable {
   constructor() {
     super();
@@ -335,7 +341,7 @@ export class EnableWinsFlag
 }
 
 export class DisableWinsFlag
-  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true))
+  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
   implements IFlag, Resettable {
   constructor() {
     super();
@@ -629,7 +635,7 @@ export class AddWinsSet<T>
   ) {
     super();
     this.flagMap = this.addChild(
-      "flagMap",
+      "1",
       new LazyMap(() => new EnableWinsFlag(), elementSerializer, true)
     );
     this.flagMap.on("ValueChange", (event) => {
@@ -754,9 +760,9 @@ export class MapCrdt<K, C extends Crdt & Resettable>
     gcValues = false
   ) {
     super();
-    this.keySet = this.addChild("keySet", new AddWinsSet(keySerializer));
+    this.keySet = this.addChild("1", new AddWinsSet(keySerializer));
     this.valueMap = this.addChild(
-      "valueMap",
+      "2",
       new LazyMap(valueConstructor, keySerializer, gcValues)
     );
     this.keySet.on("SetAdd", (event) =>
@@ -808,7 +814,7 @@ export class MapCrdt<K, C extends Crdt & Resettable>
    * @return     [description]
    */
   getForce(key: K): C {
-    this.addKey(key);
+    if (!this.has(key)) this.addKey(key);
     return this.get(key)!;
   }
 
@@ -981,7 +987,7 @@ export class LwwMap<K, V>
     // requires us to provide an initial value.
     // We just pass null and cast it to V.
     this.internalMap = this.addChild(
-      "internalMap",
+      "1",
       new LazyMap(
         () =>
           new LwwRegister(

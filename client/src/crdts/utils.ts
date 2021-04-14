@@ -22,7 +22,7 @@ export interface ElementSerializer<T> {
 
 /**
  * Default serializer.
- * string, number, undefined, and null types are passed by-value.
+ * string, number, boolean, undefined, and null types are passed by-value.
  * Crdt types are sent by-reference, using the Crdt's
  * rootId and pathToRoot to identify different replicas
  * of the same Crdt.  Other types are passed by-value using BSON
@@ -46,6 +46,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
       case "number":
         message = { numberValue: value };
         break;
+      case "boolean":
+        message = { booleanValue: value };
+        break;
       case "undefined":
         message = { undefinedValue: true };
         break;
@@ -53,9 +56,11 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         if (value === null) {
           message = { nullValue: true };
         } else if (value instanceof Crdt) {
+          // TODO: require to be in the same group.
+          // How to enforce?
           message = {
             crdtValue: CrdtReference.create({
-              pathToRoot: value.pathToRoot as string[],
+              pathToRoot: value.pathToRoot().map(stringAsArray),
             }),
           };
         } else {
@@ -76,14 +81,19 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
       case "numberValue":
         ans = decoded.numberValue;
         break;
-      case "crdtValue":
-        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToRoot!);
+      case "booleanValue":
+        ans = decoded.booleanValue;
+        break;
+      case "nullValue":
+        ans = null;
         break;
       case "undefinedValue":
         ans = undefined;
         break;
-      case "nullValue":
-        ans = null;
+      case "crdtValue":
+        ans = runtime.getCrdtByReference(
+          decoded.crdtValue!.pathToRoot!.map(arrayAsString)
+        );
         break;
       case "bsonValue":
         ans = deserialize(Buffer.from(decoded.bsonValue));
@@ -142,8 +152,19 @@ export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
   }
 }
 
+export class TextSerializer implements ElementSerializer<string> {
+  private constructor() {}
+  serialize(value: string): Uint8Array {
+    return new Uint8Array(Buffer.from(value, "utf-8"));
+  }
+  deserialize(message: Uint8Array, _runtime: CrdtRuntime): string {
+    return Buffer.from(message).toString("utf-8");
+  }
+  static instance = new TextSerializer();
+}
+
 // TODO: use these in networks
-const ENCODING: "base64" = "base64";
+const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);
 }

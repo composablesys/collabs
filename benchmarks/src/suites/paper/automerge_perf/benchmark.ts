@@ -199,7 +199,7 @@ function treedocLww() {
     "TreedocList<LwwRegister>",
     () => {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime();
+      runtime = generator.newRuntime("manual");
       list = runtime
         .groupParent("")
         .addChild(
@@ -218,6 +218,7 @@ function treedocLww() {
         // Delete character at edit[0]
         list.deleteAt(edit[0]);
       }
+      runtime.commitAll();
     },
     () => generator.getTotalSentBytes(),
     () =>
@@ -225,6 +226,35 @@ function treedocLww() {
         .asArray()
         .map((lww) => lww.value)
         .join("")
+  ).add();
+}
+
+function treedocPrimitiveLww() {
+  let generator: network.TestingNetworkGenerator;
+  let runtime: crdts.CrdtRuntime;
+  let list: crdts.TreedocPrimitiveList<string>;
+
+  new AutomergePerfBenchmark(
+    "TreedocPrimitiveList",
+    () => {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual");
+      list = runtime
+        .groupParent("")
+        .addChild("", new crdts.TreedocPrimitiveList<string>());
+    },
+    (edit) => {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list.insertAt(edit[0], edit[2]);
+      } else {
+        // Delete character at edit[0]
+        list.deleteAt(edit[0]);
+      }
+      runtime.commitAll();
+    },
+    () => generator.getTotalSentBytes(),
+    () => list.asArray().join("")
   ).add();
 }
 
@@ -311,6 +341,7 @@ function yjs() {
 trivial();
 plainJsArray();
 treedocLww();
+treedocPrimitiveLww();
 mapLww();
 yjs();
 automerge();

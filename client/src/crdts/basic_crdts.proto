@@ -27,6 +27,19 @@ message GSetMessage {
     required bytes toAdd = 1;
 }
 
+message PartitionedMapKeyMessage {
+    required bytes key = 1;
+    required bool isDelete = 2;
+    optional bytes value = 3;
+}
+
+message PartitionedMapMessage {
+  oneof data {
+    PartitionedMapKeyMessage keyMessage = 1;
+    bool reset = 2;
+  }
+}
+
 message MvrMessage {
     oneof data {
       bytes value = 1;

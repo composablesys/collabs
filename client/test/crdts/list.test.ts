@@ -3,7 +3,7 @@ import {
   CrdtRuntime,
   ISequenceSource,
   TreedocSource,
-  TreedocList,
+  TreedocId,
 } from "../../src/crdts";
 import { BitSet } from "../../src/utils/bitset";
 import { TestingNetworkGenerator } from "../../src/network";
@@ -36,20 +36,14 @@ describe("list", () => {
     it("compares sample correctly", () => {
       assert.isAbove(
         source.compare(
-          {
-            path: BitSet.parseBinary("01101100100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "alice"],
-            ],
-          },
-          {
-            path: BitSet.parseBinary("011010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "alice"],
-            ],
-          }
+          new TreedocId(BitSet.parseBinary("01101100100110110010"), [
+            [0, "alice"],
+            [2, "alice"],
+          ]),
+          new TreedocId(BitSet.parseBinary("011010"), [
+            [0, "alice"],
+            [2, "alice"],
+          ])
         ),
         0
       );
@@ -58,41 +52,29 @@ describe("list", () => {
     it("breaks ties by disambiguators", () => {
       assert.isAbove(
         source.compare(
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "bob"],
-              [19, "alice"],
-            ],
-          },
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [19, "alice"],
-            ],
-          }
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "bob"],
+            [19, "alice"],
+          ]),
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "alice"],
+            [19, "alice"],
+          ])
         ),
         0
       );
       assert.isAbove(
         source.compare(
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "bob"],
-              [19, "alice"],
-            ],
-          },
-          {
-            path: BitSet.parseBinary("01101000100110110010"),
-            disambiguators: [
-              [0, "alice"],
-              [2, "alice"],
-              [19, "alice"],
-            ],
-          }
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "alice"],
+            [2, "bob"],
+            [19, "alice"],
+          ]),
+          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+            [0, "alice"],
+            [2, "alice"],
+            [19, "alice"],
+          ])
         ),
         0
       );
@@ -106,26 +88,38 @@ describe("list", () => {
       expectedPath: string,
       expectedDis: [index: number, value: string][]
     ) {
+      checkCreatedIds(beforePath, beforeDis, afterPath, afterDis, [
+        expectedPath,
+        expectedDis,
+      ]);
+    }
+
+    function checkCreatedIds(
+      beforePath: string | null,
+      beforeDis: [index: number, value: string][] | null,
+      afterPath: string | null,
+      afterDis: [index: number, value: string][] | null,
+      ...expected: [
+        expectedPath: string,
+        expectedDis: [index: number, value: string][]
+      ][]
+    ) {
       let before =
         beforePath === null
           ? null
-          : {
-              path: BitSet.parseBinary(beforePath),
-              disambiguators: beforeDis!,
-            };
+          : new TreedocId(BitSet.parseBinary(beforePath), beforeDis!);
       let after =
         afterPath === null
           ? null
-          : {
-              path: BitSet.parseBinary(afterPath),
-              disambiguators: afterDis!,
-            };
-      let expected = {
-        path: BitSet.parseBinary(expectedPath),
-        disambiguators: expectedDis,
-      };
-      let mid = source.createBetween(before, after, 1)[0];
-      assert.deepStrictEqual(mid, expected);
+          : new TreedocId(BitSet.parseBinary(afterPath), afterDis!);
+      let expectedIds = expected.map((value) => {
+        return {
+          path: BitSet.parseBinary(value[0]),
+          disambiguators: value[1],
+        };
+      });
+      let mid = source.createBetween(before, after, expected.length);
+      assert.deepStrictEqual(mid, expectedIds);
     }
 
     it("creates expected ids when non-mini-sibling leaves", () => {
@@ -223,6 +217,18 @@ describe("list", () => {
           [5, "charlie"],
           [6, aliceId],
         ]
+      );
+    });
+
+    it("creates expected ids for bulk insertion", () => {
+      checkCreatedIds(
+        "01001111111111",
+        [[13, "bob"]],
+        "011010011",
+        [[8, "charlie"]],
+        ["011010011000", [[9, aliceId]]],
+        ["011010011001", [[9, aliceId]]],
+        ["011010011010", [[9, aliceId]]]
       );
     });
   });
