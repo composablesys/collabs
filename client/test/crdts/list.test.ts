@@ -47,6 +47,12 @@ describe("list", () => {
         ),
         0
       );
+
+      let value = new TreedocId(BitSet.parseBinary("010"), [
+        [0, "d\x19kg#\x0FaG~v%"],
+        [2, "\x07H&\x13$:WYs\x05_"],
+      ]);
+      assert.strictEqual(source.compare(value, value), 0);
     });
 
     it("breaks ties by disambiguators", () => {
@@ -226,9 +232,9 @@ describe("list", () => {
         [[13, "bob"]],
         "011010011",
         [[8, "charlie"]],
-        ["011010011000", [[9, aliceId]]],
-        ["011010011001", [[9, aliceId]]],
-        ["011010011010", [[9, aliceId]]]
+        ["011010011000", [[11, aliceId]]],
+        ["011010011001", [[11, aliceId]]],
+        ["011010011010", [[11, aliceId]]]
       );
     });
   });
