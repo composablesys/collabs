@@ -136,6 +136,7 @@ class TodoListBenchmark {
         // Process one edit
         this.randomOp(list);
         this.testFactory.sendNextMessage();
+        if (measurement === "memory") await sleep(0);
       }
 
       if (trial >= 0) {

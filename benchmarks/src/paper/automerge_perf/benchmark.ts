@@ -94,6 +94,7 @@ class AutomergePerfBenchmark {
 
         // Process one edit
         this.processEdit(edits[op]);
+        if (measurement === "memory") await sleep(0);
       }
 
       if (trial >= 0) {
