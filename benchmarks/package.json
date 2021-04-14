@@ -17,7 +17,9 @@
     "seedrandom": "^3.0.5",
     "automerge": "^0.14.2",
     "yjs": "^13.5.3",
-    "chai": "^4.2.0"
+    "chai": "^4.2.0",
+    "delta-crdts": "^0.10.3",
+    "delta-crdts-msgpack-codec": "^0.2.0"
   },
   "devDependencies": {
     "@types/benchmark": "^2.1.0",

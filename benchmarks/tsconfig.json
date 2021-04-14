@@ -4,7 +4,8 @@
     "outDir": "build",
     "noEmit": false,
     "typeRoots": ["./src/@types"],
-    "allowJs": true
+    "allowJs": true,
+    "noImplicitAny": false
   },
   "include": ["src"]
 }

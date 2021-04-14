@@ -2,6 +2,8 @@ import { crdts, network } from "compoventuals-client";
 import { edits, finalText } from "./editing-trace";
 import Automerge from "automerge";
 import * as Y from "yjs";
+import DeltaCRDT from "delta-crdts";
+import deltaCodec from "delta-crdts-msgpack-codec";
 import { getMemoryUsed, record, sleep } from "../record";
 
 // Based on https://github.com/automerge/automerge-perf/blob/master/edit-by-index/baseline.js
@@ -337,7 +339,34 @@ function yjs() {
   );
 }
 
-// TODO: delta-crdts
+// Removed; according to dmonad benchmarks, takes 20,000 seconds!
+// function deltaCrdts() {
+//   let doc: any;
+//   let totalSentBytes: number;
+//
+//   return new AutomergePerfBenchmark(
+//     "deltaCrdts",
+//     () => {
+//       doc = DeltaCRDT("rga")("1");
+//       totalSentBytes = 0;
+//     },
+//     () => {
+//       doc = null;
+//     },
+//     (edit) => {
+//       let message: Uint8Array;
+//       if (edit[2] !== undefined) {
+//         message = deltaCodec.encode(doc.insertAt(edit[0], edit[2]));
+//       } else {
+//         message = deltaCodec.encode(doc.removeAt(edit[0], edit[1]));
+//       }
+//       totalSentBytes += message.byteLength;
+//     },
+//     () => totalSentBytes,
+//     () => doc.value().join("")
+//   );
+// }
+
 // TODO: use two crdts, like in dmonad benchmarks?
 
 export default async function automergePerf(args: string[]) {
@@ -364,6 +393,9 @@ export default async function automergePerf(args: string[]) {
     case "automerge":
       benchmark = automerge();
       break;
+    // case "deltaCrdts":
+    //   benchmark = deltaCrdts();
+    //   break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
