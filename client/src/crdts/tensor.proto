@@ -11,11 +11,22 @@ message Tensor {
 }
 
 message TensorGCounterAddMessage {
+  /** P[r] + toAdd */
   required Tensor prNew = 1;
+  /** P[r] */
   required Tensor prOld = 2;
+  /** r */
   required uint32 idCounter = 3;
 }
 
+message TensorGCounterResetMessage {
+  /** P map */
+  map<string, Tensor> V = 1;
+}
+
 message TensorGCounterMessage {
-  oneof data { TensorGCounterAddMessage add = 1; }
+  oneof data {
+    TensorGCounterAddMessage add = 1;
+    TensorGCounterResetMessage reset = 2;
+  }
 }
