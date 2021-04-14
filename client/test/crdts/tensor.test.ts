@@ -162,6 +162,62 @@ describe("tensor", () => {
         assert.throws(() => aliceCounter.add(tf.zeros(shape).add(-1)));
       });
     });
+
+    describe("reset", () => {
+      it("works for non-concurrent updates", () => {
+        const tensor1 = tf.zeros(shape).add(5);
+        const tensor2 = tf.zeros(shape).add(10);
+
+        bobCounter.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        aliceCounter.reset();
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, 0);
+        assertTensorsStrictEqual(bobCounter.value, 0);
+
+        bobCounter.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor2);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
+      });
+
+      it("works for non-concurrent reset followed by add", () => {
+        const tensor1 = tf.zeros(shape).add(324);
+        const tensor2 = tf.zeros(shape).add(213);
+
+        aliceCounter.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        aliceCounter.reset();
+        assertTensorsStrictEqual(aliceCounter.value, 0);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        aliceCounter.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor2);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
+      });
+
+      it("lets concurrent adds survive", () => {
+        const tensor = tf.zeros(shape).add(10);
+
+        aliceCounter.add(tensor);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor);
+        assertTensorsStrictEqual(bobCounter.value, tensor);
+
+        aliceCounter.reset();
+        bobCounter.add(tensor);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor);
+        assertTensorsStrictEqual(bobCounter.value, tensor);
+      });
+    });
   });
 
   describe("TensorCounter", function () {
@@ -230,6 +286,62 @@ describe("tensor", () => {
         assertTensorsStrictEqual(bobCounter.value, sum);
       });
     });
+
+    describe("reset", () => {
+      it("works for non-concurrent updates", () => {
+        const tensor1 = tf.zeros(shape).add(-5);
+        const tensor2 = tf.zeros(shape).add(10);
+
+        bobCounter.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        aliceCounter.reset();
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, 0);
+        assertTensorsStrictEqual(bobCounter.value, 0);
+
+        bobCounter.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor2);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
+      });
+
+      it("works for non-concurrent reset followed by add", () => {
+        const tensor1 = tf.zeros(shape).add(324);
+        const tensor2 = tf.zeros(shape).add(-213);
+
+        aliceCounter.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        aliceCounter.reset();
+        assertTensorsStrictEqual(aliceCounter.value, 0);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        aliceCounter.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor2);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
+      });
+
+      it("lets concurrent adds survive", () => {
+        const tensor = tf.zeros(shape).add(10);
+
+        aliceCounter.add(tensor);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor);
+        assertTensorsStrictEqual(bobCounter.value, tensor);
+
+        aliceCounter.reset();
+        bobCounter.add(tensor);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceCounter.value, tensor);
+        assertTensorsStrictEqual(bobCounter.value, tensor);
+      });
+    });
   });
 
   describe("TensorAverage", function () {
@@ -294,6 +406,62 @@ describe("tensor", () => {
         runtimeGen.releaseAll();
         assertTensorsStrictEqual(aliceAvg.value, 1);
         assertTensorsStrictEqual(bobAvg.value, 1);
+      });
+    });
+
+    describe("reset", () => {
+      it("works for non-concurrent updates", () => {
+        const tensor1 = tf.zeros(shape).add(-5);
+        const tensor2 = tf.zeros(shape).add(10);
+
+        bobAvg.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, tensor1);
+        assertTensorsStrictEqual(bobAvg.value, tensor1);
+
+        aliceAvg.reset();
+        runtimeGen.releaseAll();
+        assertTensorIsNaN(aliceAvg.value);
+        assertTensorIsNaN(bobAvg.value);
+
+        bobAvg.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, tensor2);
+        assertTensorsStrictEqual(bobAvg.value, tensor2);
+      });
+
+      it("works for non-concurrent reset followed by add", () => {
+        const tensor1 = tf.zeros(shape).add(324);
+        const tensor2 = tf.zeros(shape).add(-213);
+
+        aliceAvg.add(tensor1);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, tensor1);
+        assertTensorsStrictEqual(bobAvg.value, tensor1);
+
+        aliceAvg.reset();
+        assertTensorIsNaN(aliceAvg.value);
+        assertTensorsStrictEqual(bobAvg.value, tensor1);
+
+        aliceAvg.add(tensor2);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, tensor2);
+        assertTensorsStrictEqual(bobAvg.value, tensor2);
+      });
+
+      it("lets concurrent adds survive", () => {
+        const tensor = tf.zeros(shape).add(10);
+
+        aliceAvg.add(tensor);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, tensor);
+        assertTensorsStrictEqual(bobAvg.value, tensor);
+
+        aliceAvg.reset();
+        bobAvg.add(tensor);
+        runtimeGen.releaseAll();
+        assertTensorsStrictEqual(aliceAvg.value, tensor);
+        assertTensorsStrictEqual(bobAvg.value, tensor);
       });
     });
   });

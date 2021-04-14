@@ -8,13 +8,13 @@ import {
 } from "./crdt_core";
 import * as proto from "../../generated/proto_compiled";
 import { GCounter } from "./basic_crdts";
-
-export interface TensorCounterEvent extends CrdtEvent {
-  readonly valueAdded: tf.Tensor;
-}
+import { Resettable } from "./mixins/Resettable";
 
 export interface TensorCounterEventsRecord extends CrdtEventsRecord {
-  Add: TensorCounterEvent;
+  Add: CrdtEvent & {
+    readonly valueAdded: tf.Tensor;
+  };
+  Reset: CrdtEvent;
 }
 
 export class TensorGCounterState {
@@ -109,10 +109,16 @@ function checkDType(actual: tf.DataType, expected: tf.DataType): void {
   }
 }
 
-export class TensorGCounterCrdt extends PrimitiveCrdt<
-  TensorGCounterState,
-  TensorCounterEventsRecord
-> {
+function tensorsEqual<R extends tf.Rank>(
+  a: tf.Tensor<R> | number,
+  b: tf.Tensor<R> | number
+): boolean {
+  return (tf.equal(a, b).all().arraySync() as number) === 1;
+}
+
+export class TensorGCounterCrdt
+  extends PrimitiveCrdt<TensorGCounterState, TensorCounterEventsRecord>
+  implements Resettable {
   constructor(
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
@@ -124,9 +130,7 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
     checkShape(toAdd.shape, this.shape);
     checkDType(toAdd.dtype, this.dtype);
     this.checkPositive(toAdd);
-
-    const allEqualToZero = (toAdd.equal(0).all().arraySync() as number) === 1;
-    if (allEqualToZero) return;
+    if (tensorsEqual(toAdd, 0)) return;
 
     if (this.state.idCounter === undefined) {
       // TODO: do this in constructor once we get
@@ -143,6 +147,20 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
     prNewTensor.dispose();
     const message = proto.TensorGCounterMessage.create({
       add: { prOld, prNew, idCounter: this.state.idCounter! },
+    });
+    super.send(proto.TensorGCounterMessage.encode(message).finish());
+  }
+
+  reset(): void {
+    const message = proto.TensorGCounterMessage.create({
+      reset: {
+        V: Object.fromEntries(
+          [...this.state.P.entries()].map(([replica, tensor]) => [
+            replica,
+            conversions.tfToProtobuf.tensor(tensor),
+          ])
+        ),
+      },
     });
     super.send(proto.TensorGCounterMessage.encode(message).finish());
   }
@@ -190,6 +208,31 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
         });
         valueAdded.dispose();
         break;
+
+      case "reset":
+        const resetMessage = decoded.reset!;
+        for (const [replica, value] of Object.entries(resetMessage.V!)) {
+          const received = conversions.protobufToTF.tensor(value);
+          const oldNValue = this.state.N.get(replica);
+          if (oldNValue !== undefined) {
+            const newNValue = tf.maximum(oldNValue, received);
+            this.state.N.set(replica, newNValue);
+            oldNValue.dispose();
+            const pValue = this.state.P.get(replica);
+            if (pValue !== undefined && tensorsEqual(newNValue, pValue)) {
+              this.state.N.delete(replica);
+              this.state.P.delete(replica);
+              newNValue.dispose();
+              pValue.dispose();
+            }
+          }
+          received.dispose();
+        }
+        this.emit("Reset", { caller: this, timestamp });
+        break;
+
+      default:
+        throw new Error("Unknown decoded.data: " + decoded.data);
     }
   }
 
@@ -208,7 +251,9 @@ export class TensorGCounterCrdt extends PrimitiveCrdt<
   }
 }
 
-export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> {
+export class TensorCounterCrdt
+  extends CompositeCrdt<TensorCounterEventsRecord>
+  implements Resettable {
   private readonly plus: TensorGCounterCrdt;
   private readonly minus: TensorGCounterCrdt;
 
@@ -231,6 +276,9 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
         })
       )
     );
+    this.minus.on("Reset", (event) =>
+      this.emit("Reset", { ...event, caller: this })
+    );
   }
 
   add(toAdd: tf.Tensor) {
@@ -246,12 +294,19 @@ export class TensorCounterCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
     this.minus.add(negative);
   }
 
+  reset(): void {
+    this.plus.reset();
+    this.minus.reset();
+  }
+
   get value(): tf.Tensor {
     return this.plus.value.sub(this.minus.value);
   }
 }
 
-export class TensorAverageCrdt extends CompositeCrdt<TensorCounterEventsRecord> {
+export class TensorAverageCrdt
+  extends CompositeCrdt<TensorCounterEventsRecord>
+  implements Resettable {
   private readonly numerator: TensorCounterCrdt;
   private readonly denominator: GCounter;
 
@@ -265,6 +320,9 @@ export class TensorAverageCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
     this.numerator.on("Add", (event) =>
       this.emit("Add", { ...event, caller: this })
     );
+    this.denominator.on("Reset", (event) =>
+      this.emit("Reset", { ...event, caller: this })
+    );
   }
 
   add(toAdd: tf.Tensor) {
@@ -272,6 +330,11 @@ export class TensorAverageCrdt extends CompositeCrdt<TensorCounterEventsRecord> 
     checkDType(toAdd.dtype, this.dtype);
     this.numerator.add(toAdd);
     this.denominator.add(1);
+  }
+
+  reset(): void {
+    this.numerator.reset();
+    this.denominator.reset();
   }
 
   get value(): tf.Tensor {
