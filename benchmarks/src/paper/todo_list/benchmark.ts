@@ -748,20 +748,25 @@ function automerge() {
 }
 
 function yjs() {
+  let topDoc: Y.Doc | null;
   let totalSentBytes: number;
 
   class YjsTodoList implements ITodoList {
     constructor(private readonly doc: Y.Doc) {}
 
     addItem(index: number, text: string): void {
-      let item = new Y.Doc();
-      this.doc.getArray<Y.Doc>("items").insert(index, [item]);
-      item.getText("text").insert(0, text);
-      item.getArray<Y.Doc>("items");
-      item.getMap().set("done", false);
+      topDoc!.transact(() => {
+        let item = new Y.Doc();
+        this.doc.getArray<Y.Doc>("items").insert(index, [item]);
+        item.getText("text").insert(0, text);
+        item.getArray<Y.Doc>("items");
+        item.getMap().set("done", false);
+      });
     }
     deleteItem(index: number): void {
-      this.doc.getArray<Y.Doc>("items").delete(index);
+      topDoc!.transact(() => {
+        this.doc.getArray<Y.Doc>("items").delete(index);
+      });
     }
     getItem(index: number): ITodoList {
       return new YjsTodoList(this.doc.getArray<Y.Doc>("items").get(index));
@@ -774,14 +779,20 @@ function yjs() {
       return this.doc.getMap().get("done");
     }
     set done(done: boolean) {
-      this.doc.getMap().set("done", done);
+      topDoc!.transact(() => {
+        this.doc.getMap().set("done", done);
+      });
     }
 
     insertText(index: number, text: string): void {
-      this.doc.getText("text").insert(index, text);
+      topDoc!.transact(() => {
+        this.doc.getText("text").insert(index, text);
+      });
     }
     deleteText(index: number, count: number): void {
-      this.doc.getText("text").delete(index, count);
+      topDoc!.transact(() => {
+        this.doc.getText("text").delete(index, count);
+      });
     }
     get textSize(): number {
       return this.doc.getText("text").length;
@@ -793,17 +804,19 @@ function yjs() {
 
   return new TodoListBenchmark("Yjs", {
     newTodoList() {
-      let topDoc = new Y.Doc();
+      topDoc = new Y.Doc();
       totalSentBytes = 0;
       // TODO: use update instead?  updateV2 is marked experimental;
       // it is meant to be smaller in general.
       // Could similarly argue for/against Automerge's perf branch.
-      topDoc.on("updateV2", (update: any) => {
+      topDoc.on("update", (update: any) => {
         totalSentBytes += update.byteLength;
       });
       return new YjsTodoList(topDoc);
     },
-    cleanup() {},
+    cleanup() {
+      topDoc = null;
+    },
     sendNextMessage() {
       // TODO.  Currently they get sent right away.  Perhaps use transactions?
       // Although I think currently, each benchmark op corresponds to one
