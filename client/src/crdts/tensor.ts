@@ -113,7 +113,7 @@ function tensorsEqual<R extends tf.Rank>(
   a: tf.Tensor<R> | number,
   b: tf.Tensor<R> | number
 ): boolean {
-  return (tf.equal(a, b).all().arraySync() as number) === 1;
+  return tf.tidy(() => (tf.equal(a, b).all().arraySync() as number) === 1);
 }
 
 export class TensorGCounterCrdt
@@ -137,12 +137,15 @@ export class TensorGCounterCrdt
       // access to this.runtime there
       this.state.idCounter = this.runtime.getReplicaUniqueNumber();
     }
-    const prOldTensor =
-      this.state.P.get(
-        this.keyString(this.runtime.getReplicaId(), this.state.idCounter!)
-      ) ?? tf.zeros(this.shape);
+    const ownId = this.keyString(
+      this.runtime.getReplicaId(),
+      this.state.idCounter!
+    );
+    const prOldValue = this.state.P.get(ownId);
+    const prOldTensor = prOldValue ?? tf.zeros(this.shape);
     const prNewTensor = prOldTensor.add(toAdd);
     const prOld = conversions.tfToProtobuf.tensor(prOldTensor);
+    prOldValue ?? prOldTensor.dispose();
     const prNew = conversions.tfToProtobuf.tensor(prNewTensor);
     prNewTensor.dispose();
     const message = proto.TensorGCounterMessage.create({
@@ -166,14 +169,16 @@ export class TensorGCounterCrdt
   }
 
   private checkPositive(tensor: tf.Tensor): void {
-    const anyNegative = (tensor.less(0).any().arraySync() as number) === 1;
-    if (anyNegative) {
-      throw new Error(
-        "TensorGCounter.add: toAdd = " +
-          tensor.arraySync() +
-          "; must only have nonnegative values (consider using TensorCounter instead)"
-      );
-    }
+    tf.tidy(() => {
+      const anyNegative = (tensor.less(0).any().arraySync() as number) === 1;
+      if (anyNegative) {
+        throw new Error(
+          "TensorGCounter.add: toAdd = " +
+            tensor.arraySync() +
+            "; must only have nonnegative values (consider using TensorCounter instead)"
+        );
+      }
+    });
   }
 
   private keyString(sender: string, idCounter: number) {
@@ -194,13 +199,15 @@ export class TensorGCounterCrdt
         );
         const prNewTensor = conversions.protobufToTF.tensor(addMessage.prNew);
         const prOldTensor = conversions.protobufToTF.tensor(addMessage.prOld);
+        const valueAdded = prNewTensor.sub(prOldTensor);
         if (!this.state.P.has(keyString)) {
           this.state.N.get(keyString)?.dispose();
           this.state.N.set(keyString, prOldTensor);
+        } else {
+          prOldTensor.dispose();
         }
         this.state.P.get(keyString)?.dispose();
         this.state.P.set(keyString, prNewTensor);
-        const valueAdded = prNewTensor.sub(prOldTensor);
         this.emit("Add", {
           valueAdded,
           caller: this,
