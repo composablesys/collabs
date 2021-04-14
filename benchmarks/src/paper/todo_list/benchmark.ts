@@ -39,7 +39,7 @@ interface ITodoList {
 }
 
 interface ITestFactory {
-  newTodoList(): ITodoList;
+  newTodoList(rng: seedrandom.prng): ITodoList;
   /**
    * Free old state so that it can be GC'd.
    */
@@ -94,7 +94,7 @@ class TodoListBenchmark {
       if (measurement === "memory") baseMemories[trial] = await getMemoryUsed();
 
       // TODO: should we include setup in the time recording?
-      let list = this.testFactory.newTodoList();
+      let list = this.testFactory.newTodoList(this.rng);
 
       switch (measurement) {
         case "time":
@@ -432,9 +432,9 @@ function compoCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Crdt", {
-    newTodoList() {
+    newTodoList(rng: seedrandom.prng) {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual");
+      runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.groupParent("").addChild("", new CrdtTodoList());
       this.sendNextMessage();
@@ -522,9 +522,9 @@ function compoJson() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
-    newTodoList() {
+    newTodoList(rng: seedrandom.prng) {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual");
+      runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime
         .groupParent("")
@@ -619,9 +619,9 @@ function compoJsonText() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
-    newTodoList() {
+    newTodoList(rng: seedrandom.prng) {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual");
+      runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime
         .groupParent("")

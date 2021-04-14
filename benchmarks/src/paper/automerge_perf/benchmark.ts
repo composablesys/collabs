@@ -5,6 +5,7 @@ import * as Y from "yjs";
 import DeltaCRDT from "delta-crdts";
 import deltaCodec from "delta-crdts-msgpack-codec";
 import { getMemoryUsed, record, sleep } from "../record";
+import seedrandom from "seedrandom";
 
 // Based on https://github.com/automerge/automerge-perf/blob/master/edit-by-index/baseline.js
 
@@ -12,11 +13,12 @@ const WARMUP = 5;
 const TRIALS = 10;
 const OPS = edits.length;
 const ROUND_OPS = 25978;
+const SEED = "42";
 
 class AutomergePerfBenchmark {
   constructor(
     private readonly testName: string,
-    private readonly setupFun: () => void,
+    private readonly setupFun: (rng: seedrandom.prng) => void,
     private readonly cleanupFun: () => void,
     private readonly processEdit: (
       edit: [number, number, string | undefined]
@@ -47,6 +49,8 @@ class AutomergePerfBenchmark {
       await sleep(1000);
       console.log("Starting trial " + trial);
 
+      let rng = seedrandom(SEED);
+
       let startTime: bigint;
       let startSentBytes = 0;
 
@@ -55,7 +59,7 @@ class AutomergePerfBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      this.setupFun();
+      this.setupFun(rng);
 
       switch (measurement) {
         case "time":
@@ -180,9 +184,9 @@ function treedocLww() {
 
   return new AutomergePerfBenchmark(
     "TreedocList<LwwRegister>",
-    () => {
+    (rng) => {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual");
+      runtime = generator.newRuntime("manual", rng);
       list = runtime
         .groupParent("")
         .addChild(
@@ -224,9 +228,9 @@ function treedocPrimitiveLww() {
 
   return new AutomergePerfBenchmark(
     "TreedocPrimitiveList",
-    () => {
+    (rng) => {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual");
+      runtime = generator.newRuntime("manual", rng);
       list = runtime
         .groupParent("")
         .addChild("", new crdts.TreedocPrimitiveList<string>());
@@ -314,9 +318,9 @@ function mapLww() {
 
   return new AutomergePerfBenchmark(
     "LwwMap",
-    () => {
+    (rng) => {
       generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime();
+      runtime = generator.newRuntime("manual", rng);
       list = runtime
         .groupParent("")
         .addChild("", new crdts.LwwMap<number, string>());

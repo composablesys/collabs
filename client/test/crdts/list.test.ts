@@ -16,10 +16,10 @@ describe("list", () => {
   let rng: seedrandom.prng;
 
   beforeEach(() => {
+    rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime();
-    bob = runtimeGen.newRuntime();
-    rng = rng = seedrandom("42");
+    alice = runtimeGen.newRuntime("immediate", rng);
+    bob = runtimeGen.newRuntime("immediate", rng);
   });
 
   describe("TreedocSource", () => {

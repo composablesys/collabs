@@ -80,7 +80,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let runtimes: crdts.CrdtRuntime[] = [];
       let crdts: C[] = [];
       for (let i = 0; i < USERS; i++) {
-        runtimes[i] = generator.newRuntime("manual");
+        runtimes[i] = generator.newRuntime("manual", rng);
         crdts[i] = this.crdtConstructor();
         runtimes[i].groupParent("").addChild("", crdts[i]);
       }
