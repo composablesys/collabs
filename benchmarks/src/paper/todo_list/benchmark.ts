@@ -262,6 +262,8 @@ class TodoListBenchmark {
     } else if (opChoice < 0.65) {
       // Delete text in existing item
       let item = this.randomItem(list, true);
+      // TODO: skip if item.textSize is 0.  Not changing
+      // for now to avoid re-running benchmarks.
       let index = this.choice(item.textSize);
       let count = Math.min(this.choice(41) + 10, item.textSize - index);
       item.deleteText(index, count);
@@ -748,6 +750,105 @@ function automerge() {
   });
 }
 
+function automergeNoText() {
+  let lastDoc: Automerge.FreezeObject<any> | null;
+  let theDoc: Automerge.FreezeObject<any> | null;
+  let totalSentBytes = 0;
+
+  class AutomergeTodoList implements ITodoList {
+    /**
+     * @param cursor series of indices to use in theDoc to access this item
+     */
+    constructor(private readonly cursor: readonly number[]) {}
+
+    private getThis(doc: any): any {
+      let thisObj = doc;
+      for (let index of this.cursor) {
+        thisObj = thisObj.items[index];
+      }
+      return thisObj;
+    }
+
+    addItem(index: number, text: string): void {
+      theDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        thisDoc.items.insertAt(index, {
+          text: [...text],
+          done: false,
+          items: [],
+        });
+      });
+    }
+    deleteItem(index: number): void {
+      theDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        thisDoc.items.deleteAt(index);
+      });
+    }
+    getItem(index: number): AutomergeTodoList {
+      return new AutomergeTodoList([...this.cursor, index]);
+    }
+    get itemsSize(): number {
+      return this.getThis(theDoc).items.length;
+    }
+
+    get done(): boolean {
+      return this.getThis(theDoc).done;
+    }
+    set done(done: boolean) {
+      theDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        thisDoc.done = done;
+      });
+    }
+
+    insertText(index: number, text: string): void {
+      theDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        (thisDoc.text as string[]).splice(index, 0, ...text);
+      });
+    }
+    deleteText(index: number, count: number): void {
+      theDoc = Automerge.change(theDoc, (doc) => {
+        let thisDoc = this.getThis(doc);
+        (thisDoc.text as string[]).splice(index, count);
+      });
+    }
+    get textSize(): number {
+      return (this.getThis(theDoc).text as string[]).length;
+    }
+    getText(): string {
+      return (this.getThis(theDoc).text as string[]).join("");
+    }
+  }
+
+  return new TodoListBenchmark("AutomergeNoText", {
+    newTodoList() {
+      theDoc = Automerge.from({
+        items: [],
+      });
+      lastDoc = theDoc;
+      totalSentBytes = 0;
+      return new AutomergeTodoList([]);
+    },
+    cleanup() {
+      theDoc = null;
+      lastDoc = null;
+    },
+    sendNextMessage() {
+      let message = JSON.stringify(Automerge.getChanges(lastDoc!, theDoc!));
+      if (GZIP) totalSentBytes += zlib.gzipSync(message).byteLength;
+      // TODO: really should use byte length.  Probably
+      // okay though as it sticks to ascii.
+      else totalSentBytes += message.length;
+      lastDoc = theDoc;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  });
+}
+
 function yjs() {
   let topDoc: Y.Doc | null;
   let totalSentBytes: number;
@@ -848,6 +949,9 @@ export default async function todoList(args: string[]) {
       break;
     case "automerge":
       benchmark = automerge();
+      break;
+    case "automergeNoText":
+      benchmark = automergeNoText();
       break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);

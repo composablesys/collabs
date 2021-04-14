@@ -278,6 +278,35 @@ function automerge() {
   );
 }
 
+// function automergeNoText() {
+//   let state: { text: string[] } | null;
+//   let totalSentBytes: number;
+//
+//   return new AutomergePerfBenchmark(
+//     "AutomergeNoText",
+//     () => {
+//       state = Automerge.from({ text: [] });
+//       totalSentBytes = 0;
+//     },
+//     () => {
+//       state = null;
+//     },
+//     (edit) => {
+//       let newState = Automerge.change(state!, (doc) => {
+//         // @ts-ignore deleteAt exists
+//         if (edit[1] > 0) doc.text.deleteAt!(edit[0], edit[1]);
+//         // @ts-ignore insertAt exists
+//         if (edit.length > 2) doc.text.insertAt!(edit[0], edit[2]!);
+//       });
+//       let message = JSON.stringify(Automerge.getChanges(state!, newState));
+//       totalSentBytes += message.length;
+//       state = newState;
+//     },
+//     () => totalSentBytes,
+//     () => state!.text.join("")
+//   );
+// }
+
 function mapLww() {
   let generator: network.TestingNetworkGenerator | null;
   let runtime: crdts.CrdtRuntime | null;
@@ -394,6 +423,9 @@ export default async function automergePerf(args: string[]) {
     case "automerge":
       benchmark = automerge();
       break;
+    // case "automergeNoText":
+    //   benchmark = automergeNoText();
+    //   break;
     // case "deltaCrdts":
     //   benchmark = deltaCrdts();
     //   break;
