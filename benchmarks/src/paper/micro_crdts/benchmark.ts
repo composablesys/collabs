@@ -602,14 +602,20 @@ function TreedocPrimitiveListRandomGrow() {
   );
 }
 
-function TensorAvg(
+function ITensor(
+  name: "TensorAvg" | "TensorCounter",
   shape: number[],
   dtype: tf.NumericDataType,
   resetFraction: number
 ) {
-  return new MicroCrdtsBenchmark<crdts.TensorAverageCrdt>(
-    "TensorAvg",
-    () => new crdts.TensorAverageCrdt(shape, dtype),
+  return new MicroCrdtsBenchmark<
+    crdts.TensorAverageCrdt | crdts.TensorCounterCrdt
+  >(
+    name,
+    () =>
+      name === "TensorAvg"
+        ? new crdts.TensorAverageCrdt(shape, dtype)
+        : new crdts.TensorCounterCrdt(shape, dtype),
     {
       Add: [
         (crdt, rng) => {
@@ -716,20 +722,35 @@ export default async function microCrdts(args: string[]) {
     case "TextRandomGrow":
       benchmark = TreedocPrimitiveListRandomGrow();
       break;
+    case "TensorCounter":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
+      break;
+    case "TensorCounter-1":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
+      break;
+    case "TensorCounter-10":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
+      break;
+    case "TensorCounter-50":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
+      break;
+    case "TensorCounter-100":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
+      break;
     case "TensorAvg":
-      benchmark = TensorAvg([2, 2], "int32", 0);
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
       break;
     case "TensorAvg-1":
-      benchmark = TensorAvg([2, 2], "int32", 0.01);
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
       break;
     case "TensorAvg-10":
-      benchmark = TensorAvg([2, 2], "int32", 0.1);
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
       break;
     case "TensorAvg-50":
-      benchmark = TensorAvg([2, 2], "int32", 0.5);
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
       break;
     case "TensorAvg-100":
-      benchmark = TensorAvg([2, 2], "int32", 1);
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
       break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC
