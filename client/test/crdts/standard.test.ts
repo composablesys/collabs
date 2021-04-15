@@ -1270,6 +1270,10 @@ describe("standard", () => {
           new Set(bobCursorNested.values()),
           new Set([20, "string"])
         );
+
+        // Test that keys only returns keys for top level of Json object
+        assert.deepStrictEqual(aliceCursor.keys(), ["testNested"]);
+        assert.deepStrictEqual(bobCursor.keys(), ["testNested"]);
       });
     });
 
@@ -1356,7 +1360,6 @@ describe("standard", () => {
         assert.deepStrictEqual(bobCursorNested.keys(), ["nestedValNum"]);
         assert.deepStrictEqual(bobCursorNested.values(), [20]);
 
-        console.log(aliceCursor.keys());
         // Internally, 'testNested' -> {} is removed
         assert.deepStrictEqual(
           new Set(aliceCursor.keys()),

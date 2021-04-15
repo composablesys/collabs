@@ -1,7 +1,8 @@
 import { Crdt, CompositeCrdt, CrdtEvent, CrdtEventsRecord } from "./crdt_core";
 import { MultiValueRegister } from "./basic_crdts";
-import { MapCrdt } from "./standard";
+import { LazyMap, MapCrdt } from "./standard";
 import { DefaultElementSerializer, ElementSerializer } from "./utils";
+import { TreedocPrimitiveList } from "./list";
 
 export interface JsonEvent extends CrdtEvent {
   readonly key: string;
@@ -13,10 +14,19 @@ export interface JsonEventsRecord extends CrdtEventsRecord {
   Delete: JsonEvent;
 }
 
+enum InternalType {
+  Nested,
+  List
+}
+
 export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   private readonly internalMap: MapCrdt<
     string,
-    MultiValueRegister<number | string | {}>
+    MultiValueRegister<number | string | boolean | InternalType>
+  >;
+  private readonly internalListMap: LazyMap<
+    string,
+    TreedocPrimitiveList<string>
   >;
 
   constructor() {
@@ -27,22 +37,30 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
       "internalMap",
       new MapCrdt(() => new MultiValueRegister(), keySerializer, true)
     );
+
+    this.internalListMap = this.addChild("internalListMap",
+      new LazyMap(() => new TreedocPrimitiveList(), keySerializer, true)
+    );
   }
 
-  set(key: string, val: number | string | {}) {
+  set(key: string, val: number | string | boolean | InternalType) {
     this.deleteSubKeys(key);
     let mvr = this.internalMap.getForce(key);
     mvr.value = val;
   }
 
-  get(key: string): (number | string | JsonCursor)[] {
+  get(key: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
     let vals: any[] = [];
     let mvr = this.internalMap.get(key);
     if (mvr) {
       for (let val of mvr.valueSet) {
-        switch (typeof val) {
-          case "object":
+        switch (+val) {
+          case InternalType.Nested:
             vals.push(new JsonCursor(this, key));
+            break;
+
+          case InternalType.List:
+            vals.push(this.internalListMap.get(key));
             break;
 
           default:
@@ -51,6 +69,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
         }
       }
     }
+
     return vals;
   }
 
@@ -68,19 +87,19 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   }
 
   keys(cursor: string): string[] {
-    let keys = [];
+    let keys = new Set<string>();
 
     for (let anyKey of this.internalMap.keys()) {
       if (anyKey.substring(0, cursor.length) == cursor && anyKey != cursor) {
-        keys.push(anyKey.substring(cursor.length).split(":")[0]);
+        keys.add(anyKey.substring(cursor.length).split(":")[0]);
       }
     }
 
-    return keys;
+    return [...keys];
   }
 
-  values(cursor: string): (number | string | JsonCursor)[] {
-    let vals: (number | string | JsonCursor)[] = [];
+  values(cursor: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+    let vals: (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] = [];
 
     for (let key of this.keys(cursor)) {
       vals.push(...this.get(cursor + key + ":"));
@@ -94,8 +113,11 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   }
 
   setIsMap(key: string) {
-    this.set(key, {});
-    this.deleteSubKeys(key);
+    this.set(key, InternalType.Nested);
+  }
+
+  setIsList(key: string) {
+    this.set(key, InternalType.List);
   }
 }
 
@@ -111,16 +133,24 @@ export class JsonCursor {
     this.cursor = cursor;
   }
 
-  get(key: string): (number | string | JsonCursor)[] {
+  // size(key: string): number {
+  //   return this.internal.size(this.cursor + key + ":");
+  // }
+
+  get(key: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
     return this.internal.get(this.cursor + key + ":");
   }
 
-  set(key: string, val: number | string) {
+  set(key: string, val: number | string | boolean) {
     this.internal.set(this.cursor + key + ":", val);
   }
 
   setIsMap(key: string) {
     this.internal.setIsMap(this.cursor + key + ":");
+  }
+
+  setIsList(key: string) {
+    this.internal.setIsList(this.cursor + key + ":");
   }
 
   delete(key: string) {
@@ -131,7 +161,7 @@ export class JsonCursor {
     return this.internal.keys(this.cursor);
   }
 
-  values(): (number | string | JsonCursor)[] {
+  values(): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
     return this.internal.values(this.cursor);
   }
 }

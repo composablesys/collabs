@@ -832,9 +832,101 @@ function yjs() {
   }).add();
 }
 
-plainJs();
-compoCrdt();
-compoJson();
-compoJsonText();
-yjs();
-automerge();
+function jsonCrdt() {
+  class JsonCrdtTodoList implements ITodoList {
+    constructor(private readonly crdt: crdts.JsonCursor) {
+      this.crdt.setIsMap("items");
+      this.crdt.set("done", false);
+      this.crdt.setIsList("text");
+    }
+    addItem(index: number, text: string): void {
+      let items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      items.setIsMap(index.toString());
+
+      let newItem = items.get(index.toString())[0] as crdts.JsonCursor;
+      newItem.setIsMap("items");
+      newItem.set("done", false);
+      newItem.setIsList("text");
+      
+      let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      textItem.insertAt(0, text);
+    }
+    deleteItem(index: number): void {
+      let items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      items.delete(index.toString());
+    }
+    getItem(index: number): ITodoList {
+      let items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      return new JsonCrdtTodoList(
+        items.get(index.toString())[0] as crdts.JsonCursor
+      )
+    }
+    get itemsSize(): number {
+      let items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      return items.keys().length
+    }
+
+    get done(): boolean {
+      return this.crdt.get("done")[0] as boolean;
+    }
+
+    set done(done: boolean) {
+      this.crdt.set("done", true);
+    }
+
+    insertText(index: number, text: string): void {
+      let textItem = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      textItem.insertAtRange(index, [...text]);
+    }
+    deleteText(index: number, count: number): void {
+      let textItem = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      textItem.deleteAt(index);
+    }
+    get textSize(): number {
+      let textItem = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      return textItem.length;
+    }
+    getText(): string {
+      let textItem = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      return textItem.asArray().join("");
+    }
+  }
+
+  let generator: network.TestingNetworkGenerator;
+  let runtime: crdts.CrdtRuntime;
+  let totalSentBytes: number;
+
+  new TodoListBenchmark("Compo Json Crdt", {
+    newTodoList() {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual");
+      totalSentBytes = 0;
+      let crdt = new crdts.JsonCursor(new crdts.JsonCrdt());
+      let list = runtime
+        .groupParent("")
+        .addChild("", crdt);
+      this.sendNextMessage();
+      return new JsonCrdtTodoList(list);
+    },
+    sendNextMessage() {
+      runtime.commitAll();
+      totalSentBytes += generator.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator.lastMessage).byteLength
+          : generator.lastMessage.byteLength
+        : 0;
+      generator.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  }).add();
+}
+
+// plainJs();
+// compoCrdt();
+// compoJson();
+// compoJsonText();
+// yjs();
+// automerge();
+jsonCrdt();
