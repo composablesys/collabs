@@ -44,6 +44,9 @@ class AutomergePerfBenchmark {
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     }
 
+    let startingBaseline = 0;
+    if (measurement === "memory") startingBaseline = await getMemoryUsed();
+
     for (let trial = -WARMUP; trial < TRIALS; trial++) {
       if (trial !== -WARMUP) this.cleanupFun();
 
@@ -84,7 +87,7 @@ class AutomergePerfBenchmark {
               ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
               break;
             case "memory":
-              ans = (await getMemoryUsed()) - baseMemory;
+              ans = await getMemoryUsed();
               break;
             case "network":
               ans = this.getSentBytes() - startSentBytes;
@@ -106,7 +109,7 @@ class AutomergePerfBenchmark {
           result = new Number(process.hrtime.bigint() - startTime!).valueOf();
           break;
         case "memory":
-          result = (await getMemoryUsed()) - baseMemory;
+          result = await getMemoryUsed();
           break;
         case "network":
           result = this.getSentBytes() - startSentBytes;
@@ -142,7 +145,8 @@ class AutomergePerfBenchmark {
       roundOps,
       measurement === "memory"
         ? baseMemories
-        : new Array<number>(TRIALS).fill(0)
+        : new Array<number>(TRIALS).fill(0),
+      startingBaseline
     );
   }
 }

@@ -3,6 +3,7 @@ import * as math from "mathjs";
 import fs from "fs";
 import csvWriter from "csv-write-stream";
 import streams from "memory-streams";
+import memwatch from "@airbnb/node-memwatch";
 
 let folder = ".";
 
@@ -14,7 +15,8 @@ export function record(
   results: number[],
   roundResults: number[][],
   roundOps: number[],
-  baseValues: number[]
+  baseValues: number[],
+  startingBaseline: number
 ) {
   // Output to files
   let headers;
@@ -28,6 +30,7 @@ export function record(
   for (let i = 0; i < trials; i++) {
     headers.push("Base " + i);
   }
+  headers.push("StartingBaseline");
   let outFile = path.join(folder, fileBase + "-" + frequency + ".csv");
   let parent = path.dirname(outFile);
   let buffer = new streams.WritableStream();
@@ -66,6 +69,7 @@ export function record(
       for (let i = 0; i < results.length; i++) {
         data["Base " + i] = baseValues[i];
       }
+      data["StartingBaseline"] = startingBaseline;
       writer.write(data);
       break;
     case "rounds":
@@ -92,6 +96,7 @@ export function record(
         for (let i = 0; i < roundResult.length; i++) {
           data["Base " + i] = baseValues[i];
         }
+        data["StartingBaseline"] = startingBaseline;
         writer.write(data);
       }
       break;
@@ -120,8 +125,32 @@ export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function getMemoryUsed(): Promise<number> {
-  global.gc();
-  await sleep(1000); // Sleep a bit to help the GC?
-  return process.memoryUsage().heapUsed;
+// export async function getMemoryUsed(): Promise<number> {
+//   global.gc();
+//   await sleep(1000); // Sleep a bit to help the GC?
+//   return process.memoryUsage().heapUsed;
+// }
+
+let memListening = false;
+let nextResolve: ((value: number) => void) | undefined = undefined;
+
+function onStats(stats: memwatch.GcStats) {
+  if (nextResolve) {
+    console.log(stats);
+    nextResolve(stats.used_heap_size);
+    nextResolve = undefined;
+  }
+}
+
+export function getMemoryUsed(): Promise<number> {
+  if (!memListening) {
+    memListening = true;
+    memwatch.on("stats", onStats);
+  }
+  let statsPromise = new Promise<number>((resolve) => {
+    nextResolve = resolve;
+  });
+  // @ts-ignore types forgot gc
+  memwatch.gc();
+  return statsPromise;
 }
