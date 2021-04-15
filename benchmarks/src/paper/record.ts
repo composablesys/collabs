@@ -14,7 +14,8 @@ export function record(
   results: number[],
   roundResults: number[][],
   roundOps: number[],
-  baseValues: number[]
+  baseValues: number[],
+  startingBaseline: number
 ) {
   // Output to files
   let headers;
@@ -28,6 +29,7 @@ export function record(
   for (let i = 0; i < trials; i++) {
     headers.push("Base " + i);
   }
+  headers.push("StartingBaseline");
   let outFile = path.join(folder, fileBase + "-" + frequency + ".csv");
   let parent = path.dirname(outFile);
   let buffer = new streams.WritableStream();
@@ -66,6 +68,7 @@ export function record(
       for (let i = 0; i < results.length; i++) {
         data["Base " + i] = baseValues[i];
       }
+      data["StartingBaseline"] = startingBaseline;
       writer.write(data);
       break;
     case "rounds":
@@ -92,6 +95,7 @@ export function record(
         for (let i = 0; i < roundResult.length; i++) {
           data["Base " + i] = baseValues[i];
         }
+        data["StartingBaseline"] = startingBaseline;
         writer.write(data);
       }
       break;

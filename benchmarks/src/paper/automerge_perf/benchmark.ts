@@ -44,6 +44,9 @@ class AutomergePerfBenchmark {
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     }
 
+    let startingBaseline = 0;
+    if (measurement === "memory") startingBaseline = await getMemoryUsed();
+
     for (let trial = -WARMUP; trial < TRIALS; trial++) {
       if (trial !== -WARMUP) this.cleanupFun();
 
@@ -142,7 +145,8 @@ class AutomergePerfBenchmark {
       roundOps,
       measurement === "memory"
         ? baseMemories
-        : new Array<number>(TRIALS).fill(0)
+        : new Array<number>(TRIALS).fill(0),
+      startingBaseline
     );
   }
 }
