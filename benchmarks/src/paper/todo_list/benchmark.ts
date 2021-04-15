@@ -90,8 +90,12 @@ class TodoListBenchmark {
 
       let startTime: bigint;
       let startSentBytes = 0;
+      let baseMemory = -1;
 
-      if (measurement === "memory") baseMemories[trial] = await getMemoryUsed();
+      if (measurement === "memory") {
+        baseMemory = await getMemoryUsed();
+        if (trial >= 0) baseMemories[trial] = baseMemory;
+      }
 
       // TODO: should we include setup in the time recording?
       let list = this.testFactory.newTodoList(this.rng);
@@ -107,28 +111,21 @@ class TodoListBenchmark {
       let round = 0;
       let op: number;
       for (op = 0; op < OPS; op++) {
-        if (
-          frequency === "rounds" &&
-          trial >= 0 &&
-          op !== 0 &&
-          op % ROUND_OPS === 0
-        ) {
+        if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
+          let ans = -1;
           switch (measurement) {
             case "time":
-              roundResults[trial][round] = new Number(
-                process.hrtime.bigint() - startTime!
-              ).valueOf();
+              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
 
               break;
             case "memory":
-              roundResults[trial][round] =
-                (await getMemoryUsed()) - baseMemories[trial];
+              ans = (await getMemoryUsed()) - baseMemory;
               break;
             case "network":
-              roundResults[trial][round] =
-                this.testFactory.getSentBytes() - startSentBytes;
+              ans = this.testFactory.getSentBytes() - startSentBytes;
           }
+          if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
           round++;
         }
@@ -139,19 +136,19 @@ class TodoListBenchmark {
         if (measurement === "memory") await sleep(0);
       }
 
+      // Record result
+      let result = -1;
+      switch (measurement) {
+        case "time":
+          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          break;
+        case "memory":
+          result = (await getMemoryUsed()) - baseMemory;
+          break;
+        case "network":
+          result = this.testFactory.getSentBytes() - startSentBytes;
+      }
       if (trial >= 0) {
-        // Record result
-        let result = -1;
-        switch (measurement) {
-          case "time":
-            result = new Number(process.hrtime.bigint() - startTime!).valueOf();
-            break;
-          case "memory":
-            result = (await getMemoryUsed()) - baseMemories[trial];
-            break;
-          case "network":
-            result = this.testFactory.getSentBytes() - startSentBytes;
-        }
         switch (frequency) {
           case "whole":
             results[trial] = result;

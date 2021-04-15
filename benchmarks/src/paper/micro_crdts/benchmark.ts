@@ -73,6 +73,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 
       let startTime: bigint;
       let startSentBytes = 0;
+      let baseMemory = -1;
 
       // Setup
       // TODO: should this be included in memory?
@@ -86,7 +87,8 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
 
       if (measurement === "memory") {
-        baseMemories[trial] = await getMemoryUsed();
+        baseMemory = await getMemoryUsed();
+        if (trial >= 0) baseMemories[trial] = baseMemory;
       }
 
       switch (measurement) {
@@ -100,29 +102,22 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let round = 0;
       let op: number;
       for (op = 0; op < OPS; op++) {
-        if (
-          frequency === "rounds" &&
-          trial >= 0 &&
-          op !== 0 &&
-          op % ROUND_OPS === 0
-        ) {
+        if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
+          let ans = -1;
           switch (measurement) {
             case "time":
-              roundResults[trial][round] = new Number(
-                process.hrtime.bigint() - startTime!
-              ).valueOf();
+              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
               break;
             case "memory":
               // Don't count the last message in TestingNetwork
               generator.lastMessage = undefined;
-              roundResults[trial][round] =
-                (await getMemoryUsed()) - baseMemories[trial];
+              ans = (await getMemoryUsed()) - baseMemory;
               break;
             case "network":
-              roundResults[trial][round] =
-                generator.getTotalSentBytes() - startSentBytes;
+              ans = generator.getTotalSentBytes() - startSentBytes;
           }
+          if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
           round++;
         }
@@ -139,21 +134,21 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
         if (measurement === "memory") await sleep(0);
       }
 
+      // Record result
+      let result = -1;
+      switch (measurement) {
+        case "time":
+          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          break;
+        case "memory":
+          // Don't count the last message in TestingNetwork
+          generator.lastMessage = undefined;
+          result = (await getMemoryUsed()) - baseMemory;
+          break;
+        case "network":
+          result = generator.getTotalSentBytes() - startSentBytes;
+      }
       if (trial >= 0) {
-        // Record result
-        let result = -1;
-        switch (measurement) {
-          case "time":
-            result = new Number(process.hrtime.bigint() - startTime!).valueOf();
-            break;
-          case "memory":
-            // Don't count the last message in TestingNetwork
-            generator.lastMessage = undefined;
-            result = (await getMemoryUsed()) - baseMemories[trial];
-            break;
-          case "network":
-            result = generator.getTotalSentBytes() - startSentBytes;
-        }
         switch (frequency) {
           case "whole":
             results[trial] = result;
