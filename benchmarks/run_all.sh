@@ -51,7 +51,7 @@ for measurement in "time" "network" "memory"
 do
     for frequency in "whole" "rounds"
     do
-        for name in "plainJsArray" "treedocLww" "treedocPrimitiveLww" "yjs" "automerge"
+        for name in "plainJsArray" "treedocLww" "treedocPrimitiveLww" "yjs"
         do
             npm start -- $1 "automerge_perf" $name $measurement $frequency
         done
