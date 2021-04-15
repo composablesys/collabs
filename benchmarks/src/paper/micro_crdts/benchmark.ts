@@ -619,7 +619,7 @@ function ITensor(
     {
       Add: [
         (crdt, rng) => {
-          const toAdd = tf.rand(shape, () => rng(), dtype);
+          const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
           crdt.add(toAdd);
           toAdd.dispose();
         },
