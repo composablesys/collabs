@@ -1,7 +1,7 @@
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import { EventEmitter } from "../../src/utils/EventEmitter";
-import { Crdt, CrdtRuntime } from "../../src/crdts";
+import { CrdtRuntime } from "../../src/crdts";
 import {
   conversions,
   TensorAverageCrdt,
@@ -216,6 +216,37 @@ describe("tensor", () => {
         runtimeGen.releaseAll();
         assertTensorsStrictEqual(aliceCounter.value, tensor);
         assertTensorsStrictEqual(bobCounter.value, tensor);
+      });
+
+      it("lets concurrent non-uniform adds survive", () => {
+        const shape = [2, 2];
+        const dtype = "float32";
+        const aliceCounter = alice
+          .groupParent("")
+          .addChild("counterId2", new TensorGCounterCrdt(shape, dtype));
+        const bobCounter = bob
+          .groupParent("")
+          .addChild("counterId2", new TensorGCounterCrdt(shape, dtype));
+        const identity = tf.eye(shape[0], shape[1], undefined, "float32");
+        const tensor1 = identity.mul(2);
+        const tensor2 = identity.reverse().mul(3);
+        const sum = tensor1.add(tensor2);
+
+        aliceCounter.add(tensor1);
+        bobCounter.add(tensor2);
+        runtimeGen.release(bob, alice);
+        assertTensorsStrictEqual(aliceCounter.value, sum);
+        assertTensorsStrictEqual(bobCounter.value, tensor2);
+
+        bobCounter.reset();
+
+        runtimeGen.release(alice, bob);
+        assertTensorsStrictEqual(aliceCounter.value, sum);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
+
+        runtimeGen.release(bob, alice);
+        assertTensorsStrictEqual(aliceCounter.value, tensor1);
+        assertTensorsStrictEqual(bobCounter.value, tensor1);
       });
     });
   });
