@@ -123,4 +123,8 @@ export class BitSet {
     }
     return str;
   }
+
+  get [Symbol.toStringTag]() {
+    return this.toString();
+  }
 }

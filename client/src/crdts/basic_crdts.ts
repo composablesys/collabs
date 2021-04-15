@@ -678,7 +678,10 @@ export class PartitionedMap<K extends HasSender, V>
         }
       }
     }
-    return false;
+  }
+
+  get size(): number {
+    return this.state.size;
   }
 
   // TODO

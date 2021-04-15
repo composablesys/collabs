@@ -17,7 +17,9 @@
     "seedrandom": "^3.0.5",
     "automerge": "^0.14.2",
     "yjs": "^13.5.3",
-    "chai": "^4.2.0"
+    "chai": "^4.2.0",
+    "delta-crdts": "^0.10.3",
+    "delta-crdts-msgpack-codec": "^0.2.0"
   },
   "devDependencies": {
     "@types/benchmark": "^2.1.0",
@@ -30,16 +32,13 @@
   "scripts": {
     "build": "npm-run-all build:*",
     "build:ts": "tsc",
-    "build:docs": "typedoc --out docs src/framework.ts",
     "clean": "rimraf build docs",
     "test": "npm-run-all test:*",
-    "test:load-suites": "npm start -- . test --no-write --only=\".^\"",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
     "tscw": "tsc --project tsconfig.build.json --watch",
-    "start": "node --expose-gc --max-old-space-size=3000 build/src/main.js",
-    "dryrun": "npm start -- . dryrun --no-write"
+    "start": "node --expose-gc --max-old-space-size=3000 build/src/paper/main.js"
   },
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"

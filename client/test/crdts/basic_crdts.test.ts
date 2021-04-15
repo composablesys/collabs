@@ -10,16 +10,19 @@ import {
   MultRegister,
 } from "../../src/crdts";
 import { TestingNetworkGenerator } from "../../src/network";
+import seedrandom from "seedrandom";
 
 describe("basic_crdts", () => {
   let runtimeGen: TestingNetworkGenerator;
   let alice: CrdtRuntime;
   let bob: CrdtRuntime;
+  let rng: seedrandom.prng;
 
   beforeEach(() => {
+    rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime();
-    bob = runtimeGen.newRuntime();
+    alice = runtimeGen.newRuntime("immediate", rng);
+    bob = runtimeGen.newRuntime("immediate", rng);
   });
 
   // TODO: test CounterPure instead
