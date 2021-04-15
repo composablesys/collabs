@@ -26,14 +26,36 @@ export class TestingNetwork implements BroadcastNetwork {
   }
 }
 
+// Copied from CrdtRuntime (TODO: use directly to
+// avoid duplication?)
+const REPLICA_ID_LENGTH = 11;
+const REPLICA_ID_CHARS = allAscii();
+function allAscii() {
+  let arr = new Array<number>(128);
+  for (let i = 0; i < 128; i++) arr[i] = i;
+  return String.fromCharCode(...arr);
+}
+
+function pseudorandomReplicaId(rng: seedrandom.prng) {
+  let chars = new Array<string>(REPLICA_ID_LENGTH);
+  for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
+    chars[i] = REPLICA_ID_CHARS[Math.floor(rng() * REPLICA_ID_CHARS.length)];
+  }
+  return chars.join("");
+}
+
 /**
  * Creates a collection of CrdtRuntimes linked together
  * (i.e., in-memory networking) that deliver messages
  * when release is called.
  */
 export class TestingNetworkGenerator {
-  newRuntime(batchOptions?: "immediate" | "manual" | { periodMs: number }) {
-    return new CrdtRuntime(this.newNetwork(), batchOptions);
+  newRuntime(
+    batchOptions?: "immediate" | "manual" | { periodMs: number },
+    rng: seedrandom.prng | undefined = undefined
+  ) {
+    let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;
+    return new CrdtRuntime(this.newNetwork(), batchOptions, replicaId);
   }
   newNetwork() {
     let network = new TestingNetwork(this);

@@ -17,16 +17,19 @@ import {
 import { debug } from "../debug";
 
 import { TestingNetworkGenerator } from "../../src/network";
+import seedrandom from "seedrandom";
 
 describe("standard", () => {
   let runtimeGen: TestingNetworkGenerator;
   let alice: CrdtRuntime;
   let bob: CrdtRuntime;
+  let rng: seedrandom.prng;
 
   beforeEach(() => {
+    rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime();
-    bob = runtimeGen.newRuntime();
+    alice = runtimeGen.newRuntime("immediate", rng);
+    bob = runtimeGen.newRuntime("immediate", rng);
   });
 
   describe("EnableWinsFlag", () => {

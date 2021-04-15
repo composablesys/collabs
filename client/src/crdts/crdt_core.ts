@@ -397,14 +397,24 @@ export class CrdtRuntime {
   private readonly batchType: "immediate" | "manual" | "periodic";
   private readonly batchingPeriodMs: number | undefined;
 
+  /**
+   * @param readonlynetwork [description]
+   * @param batchOptions    [description]
+   * @param debugReplicaId  Set a replicaId explicitly.
+   * Debug use only (e.g. ensuring determinism in tests).
+   */
   constructor(
     readonly network: CausalBroadcastNetwork,
-    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate"
+    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate",
+    debugReplicaId: string | undefined = undefined
   ) {
-    this.replicaId = cryptoRandomString({
-      length: REPLICA_ID_LENGTH,
-      characters: REPLICA_ID_CHARS,
-    });
+    if (debugReplicaId) this.replicaId = debugReplicaId;
+    else {
+      this.replicaId = cryptoRandomString({
+        length: REPLICA_ID_LENGTH,
+        characters: REPLICA_ID_CHARS,
+      });
+    }
     this.network.register(this);
     this.crdtRoot = new CrdtRoot(this);
     if (typeof batchOptions === "object") {
