@@ -168,6 +168,13 @@ export class TensorGCounterCrdt
     super.send(proto.TensorGCounterMessage.encode(message).finish());
   }
 
+  /** Clears the memory taken by the tensors */
+  dispose(): void {
+    [...this.state.N.values(), ...this.state.P.values()].forEach((tensor) =>
+      tensor.dispose()
+    );
+  }
+
   private checkPositive(tensor: tf.Tensor): void {
     tf.tidy(() => {
       const anyNegative = (tensor.less(0).any().arraySync() as number) === 1;
@@ -299,6 +306,8 @@ export class TensorCounterCrdt
     });
     this.plus.add(positive);
     this.minus.add(negative);
+    positive.dispose();
+    negative.dispose();
   }
 
   reset(): void {
@@ -308,6 +317,12 @@ export class TensorCounterCrdt
 
   get value(): tf.Tensor {
     return this.plus.value.sub(this.minus.value);
+  }
+
+  /** Clears the memory taken by the tensors */
+  dispose(): void {
+    this.plus.dispose();
+    this.minus.dispose();
   }
 }
 
@@ -346,5 +361,10 @@ export class TensorAverageCrdt
 
   get value(): tf.Tensor {
     return this.numerator.value.div(this.denominator.value);
+  }
+
+  /** Clears the memory taken by the tensors */
+  dispose(): void {
+    this.numerator.dispose();
   }
 }
