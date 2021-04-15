@@ -87,7 +87,7 @@ class AutomergePerfBenchmark {
               ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
               break;
             case "memory":
-              ans = (await getMemoryUsed()) - baseMemory;
+              ans = await getMemoryUsed();
               break;
             case "network":
               ans = this.getSentBytes() - startSentBytes;
@@ -109,7 +109,7 @@ class AutomergePerfBenchmark {
           result = new Number(process.hrtime.bigint() - startTime!).valueOf();
           break;
         case "memory":
-          result = (await getMemoryUsed()) - baseMemory;
+          result = await getMemoryUsed();
           break;
         case "network":
           result = this.getSentBytes() - startSentBytes;

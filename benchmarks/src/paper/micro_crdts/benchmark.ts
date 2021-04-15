@@ -117,7 +117,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
             case "memory":
               // Don't count the last message in TestingNetwork
               generator.lastMessage = undefined;
-              ans = (await getMemoryUsed()) - baseMemory;
+              ans = await getMemoryUsed();
               break;
             case "network":
               ans = generator.getTotalSentBytes() - startSentBytes;
@@ -148,7 +148,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
         case "memory":
           // Don't count the last message in TestingNetwork
           generator.lastMessage = undefined;
-          result = (await getMemoryUsed()) - baseMemory;
+          result = await getMemoryUsed();
           break;
         case "network":
           result = generator.getTotalSentBytes() - startSentBytes;

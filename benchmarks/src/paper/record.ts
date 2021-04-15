@@ -142,7 +142,7 @@ function onStats(stats: memwatch.GcStats) {
   }
 }
 
-export async function getMemoryUsed(): Promise<number> {
+export function getMemoryUsed(): Promise<number> {
   if (!memListening) {
     memListening = true;
     memwatch.on("stats", onStats);
@@ -152,5 +152,5 @@ export async function getMemoryUsed(): Promise<number> {
   });
   // @ts-ignore types forgot gc
   memwatch.gc();
-  return await statsPromise;
+  return statsPromise;
 }
