@@ -16,7 +16,7 @@ for frequency in "whole" "rounds"
 do
     for measurement in "time" "network" "memory"
     do
-      for name in "NoopCrdt" "DeepNoopCrdt" "Counter" "CounterPure" "Counter-1" "CounterPure-1" "Counter-10" "CounterPure-10" "Counter-50" "CounterPure-50" "Counter-100" "CounterPure-100" "MultiValueRegister" "Register" "NumberCrdt" "EnableWinsFlag" "AddWinsSet" "AddWinsSetRolling" "AddWinsSetRollingGrow" "MapCrdt" "MapCrdtRolling" "MapCrdtRollingGrow" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom" "LwwMapRollingGrow" "TextLtrGrow" "TextRandomGrow"
+      for name in "NoopCrdt" "DeepNoopCrdt" "Counter" "CounterPure" "Counter-1" "CounterPure-1" "Counter-10" "CounterPure-10" "Counter-50" "CounterPure-50" "Counter-100" "CounterPure-100" "MultiValueRegister" "Register" "NumberCrdt" "EnableWinsFlag" "AddWinsSet" "AddWinsSetRolling" "AddWinsSetRollingGrow" "MapCrdt" "MapCrdtRolling" "MapCrdtRollingGrow" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom" "LwwMapRollingGrow" "TextLtrGrow" "TextRandomGrow" "TensorAvg" "TensorAvg-1" "TensorAvg-10" "TensorAvg-50" "TensorAvg-100"
       do
         npm start -- $1 $2 $3 $4 "micro_crdts" $name $measurement $frequency
       done
