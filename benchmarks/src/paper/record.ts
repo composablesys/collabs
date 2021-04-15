@@ -106,6 +106,14 @@ export function setFolder(newFolder: string) {
   folder = newFolder;
 }
 
+let isTestRun = false;
+export function setIsTestRun() {
+  isTestRun = true;
+}
+export function getIsTestRun() {
+  return isTestRun;
+}
+
 // Helper funcs
 
 export async function sleep(ms: number) {

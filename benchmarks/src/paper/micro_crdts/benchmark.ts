@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { crdts, network } from "compoventuals-client";
 import seedrandom from "seedrandom";
-import { getMemoryUsed, record, sleep } from "../record";
+import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
 
 const WARMUP = 5;
 const TRIALS = 10;
@@ -55,6 +55,8 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
   ) {
     console.log("Starting micro_crdts test: " + this.testName);
 
+    if (getIsTestRun()) return;
+
     let results = new Array<number>(TRIALS);
     let roundResults = new Array<number[]>(TRIALS);
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
@@ -73,7 +75,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 
       let startTime: bigint;
       let startSentBytes = 0;
-      let baseMemory = -1;
+      let baseMemory = 0;
 
       // Setup
       // TODO: should this be included in memory?

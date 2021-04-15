@@ -1,35 +1,21 @@
 import arg from "arg";
 import automergePerf from "./automerge_perf/benchmark";
 import todoList from "./todo_list/benchmark";
-import { setFolder } from "./record";
+import { setFolder, setIsTestRun } from "./record";
 import microCrdts from "./micro_crdts/benchmark";
 
 (async function () {
   function printUsage(exitCode: number) {
-    console.log(`Usage: npm start -- <out folder> <major test> <test args...>
-Options:
-  -h, --help\t\tPrint this help content
+    console.log(`Usage: npm start -- <out folder | --testRun> <major test> <test args...>
 `);
     process.exit(exitCode);
   }
 
-  const args = arg({
-    // Options
-    "--help": Boolean,
-    // Aliases
-    "-h": "--help",
-  });
-
-  if (args["--help"]) printUsage(0);
-
-  if (args._.length < 2) {
-    console.log("Error: Wrong number of arguments");
-    printUsage(1);
-  }
-
-  setFolder(args._[0]);
-  let majorTest = args._[1];
-  let testArgs = args._.slice(2);
+  let args = process.argv.slice(2);
+  if (args[0] === "--testRun") setIsTestRun();
+  else setFolder(args[0]);
+  let majorTest = args[1];
+  let testArgs = args.slice(2);
 
   switch (majorTest) {
     case "automerge_perf":

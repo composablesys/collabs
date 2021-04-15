@@ -4,7 +4,7 @@ import Automerge from "automerge";
 import * as Y from "yjs";
 import DeltaCRDT from "delta-crdts";
 import deltaCodec from "delta-crdts-msgpack-codec";
-import { getMemoryUsed, record, sleep } from "../record";
+import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
 import seedrandom from "seedrandom";
 
 // Based on https://github.com/automerge/automerge-perf/blob/master/edit-by-index/baseline.js
@@ -33,6 +33,8 @@ class AutomergePerfBenchmark {
   ) {
     console.log("Starting automerge_perf test: " + this.testName);
 
+    if (getIsTestRun()) return;
+
     let results = new Array<number>(TRIALS);
     let roundResults = new Array<number[]>(TRIALS);
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
@@ -53,7 +55,7 @@ class AutomergePerfBenchmark {
 
       let startTime: bigint;
       let startSentBytes = 0;
-      let baseMemory = -1;
+      let baseMemory = 0;
 
       if (measurement === "memory") {
         baseMemory = await getMemoryUsed();
@@ -87,7 +89,7 @@ class AutomergePerfBenchmark {
             case "network":
               ans = this.getSentBytes() - startSentBytes;
           }
-          roundResults[trial][round] = ans;
+          if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
           round++;
         }

@@ -6,7 +6,7 @@ import util from "util";
 import { result10000 } from "./results";
 import { assert } from "chai";
 import zlib from "zlib";
-import { getMemoryUsed, record, sleep } from "../record";
+import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
 
 const DEBUG = false;
 
@@ -70,6 +70,8 @@ class TodoListBenchmark {
   ) {
     console.log("Starting todo_list test: " + this.testName);
 
+    if (getIsTestRun()) return;
+
     let results = new Array<number>(TRIALS);
     let roundResults = new Array<number[]>(TRIALS);
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
@@ -90,7 +92,7 @@ class TodoListBenchmark {
 
       let startTime: bigint;
       let startSentBytes = 0;
-      let baseMemory = -1;
+      let baseMemory = 0;
 
       if (measurement === "memory") {
         baseMemory = await getMemoryUsed();
