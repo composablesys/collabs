@@ -3,6 +3,7 @@ import * as math from "mathjs";
 import fs from "fs";
 import csvWriter from "csv-write-stream";
 import streams from "memory-streams";
+import memwatch from "@airbnb/node-memwatch";
 
 let folder = ".";
 
@@ -124,8 +125,32 @@ export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// export async function getMemoryUsed(): Promise<number> {
+//   global.gc();
+//   await sleep(1000); // Sleep a bit to help the GC?
+//   return process.memoryUsage().heapUsed;
+// }
+
+let memListening = false;
+let nextResolve: ((value: number) => void) | undefined = undefined;
+
+function onStats(stats: memwatch.GcStats) {
+  if (nextResolve) {
+    console.log(stats);
+    nextResolve(stats.used_heap_size);
+    nextResolve = undefined;
+  }
+}
+
 export async function getMemoryUsed(): Promise<number> {
-  global.gc();
-  await sleep(1000); // Sleep a bit to help the GC?
-  return process.memoryUsage().heapUsed;
+  if (!memListening) {
+    memListening = true;
+    memwatch.on("stats", onStats);
+  }
+  let statsPromise = new Promise<number>((resolve) => {
+    nextResolve = resolve;
+  });
+  // @ts-ignore types forgot gc
+  memwatch.gc();
+  return await statsPromise;
 }
