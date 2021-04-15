@@ -100,7 +100,7 @@ class TodoListBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      let list = this.testFactory.newTodoList(this.rng);
+      let list = this.testFactory.newTodoList(seedrandom(SEED));
 
       switch (measurement) {
         case "time":

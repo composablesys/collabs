@@ -63,7 +63,7 @@ class AutomergePerfBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      this.setupFun(rng);
+      this.setupFun(seedrandom(SEED));
 
       switch (measurement) {
         case "time":
