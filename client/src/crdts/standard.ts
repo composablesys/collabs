@@ -31,6 +31,7 @@ import {
   OptionalSerializer,
   stringAsArray,
 } from "./utils";
+import { WeakValueMap } from "../utils/weak_value_map";
 
 // interface NumberEventsRecord extends CounterEventsRecord, MultEventsRecord {}
 
@@ -400,7 +401,7 @@ export class LazyMap<K, C extends Crdt>
   extends Crdt<LazyMapEventsRecord<K, C>>
   implements CrdtParent {
   private readonly internalMap: Map<string, C> = new Map();
-  private readonly pendingGCs = new Set<string>();
+  private readonly backupMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
    * TODO: a map with all keys present, with their values
    * initialized to default values (and possibly GC'd and
@@ -464,22 +465,30 @@ export class LazyMap<K, C extends Crdt>
   }
 
   get(key: K): C {
-    return this.getInternal(key, this.keyAsString(key));
+    return this.getInternal(key, this.keyAsString(key))[0];
   }
 
-  private getInternal(key: K, keyString: string): C {
+  private getInternal(
+    key: K,
+    keyString: string
+  ): [value: C, nontrivial: boolean] {
     let value = this.internalMap.get(keyString);
     if (value === undefined) {
-      // Create it
-      value = this.valueConstructor(key);
+      // Check the backup map
+      value = this.backupMap.get(keyString);
+      if (value === undefined) {
+        // Create it, but only in the backup map,
+        // since it is currently GC-able
+        value = this.valueConstructor(key);
 
-      this.childBeingAdded = value;
-      value.init(keyString, this);
-      this.childBeingAdded = undefined;
+        this.childBeingAdded = value;
+        value.init(keyString, this);
+        this.childBeingAdded = undefined;
 
-      this.internalMap.set(keyString, value);
-    }
-    return value;
+        this.backupMap.set(keyString, value);
+      }
+      return [value, false];
+    } else return [value, true];
   }
 
   private childBeingAdded?: C;
@@ -500,7 +509,7 @@ export class LazyMap<K, C extends Crdt>
     // Message for a child
     let keyString = targetPath[targetPath.length - 1];
     let key = this.stringAsKey(keyString);
-    let value = this.getInternal(key, keyString);
+    let [value, nontrivialStart] = this.getInternal(key, keyString);
     targetPath.length--;
     value.receiveGeneral(targetPath, timestamp, message);
     this.emit("ValueChange", {
@@ -514,13 +523,17 @@ export class LazyMap<K, C extends Crdt>
       caller: this,
       timestamp: timestamp,
     });
-    if (this.gcValues) {
-      // Schedule a later check for garbage collection
-      if (this.pendingGCs.size === 0) {
-        // TODO: less aggressive strategy?
-        setTimeout(() => this.tryGC(), 0);
-      }
-      this.pendingGCs.add(keyString);
+    // If the value became GC-able, move it to the
+    // backup map
+    if (nontrivialStart && value.canGC()) {
+      this.internalMap.delete(keyString);
+      this.backupMap.set(keyString, value);
+    }
+    // If the value became nontrivial, move it to the
+    // main map
+    else if (!nontrivialStart && !value.canGC()) {
+      this.backupMap.delete(keyString);
+      this.internalMap.set(keyString, value);
     }
   }
 
@@ -544,7 +557,7 @@ export class LazyMap<K, C extends Crdt>
     if (targetPath.length === 0) return this;
 
     let keyString = targetPath[targetPath.length - 1];
-    let value = this.getInternal(this.stringAsKey(keyString), keyString);
+    let value = this.getInternal(this.stringAsKey(keyString), keyString)[0];
     targetPath.length--;
     return value.getDescendant(targetPath);
   }
@@ -562,6 +575,9 @@ export class LazyMap<K, C extends Crdt>
     for (let entry of this.internalMap.entries()) {
       ans.set(this.stringAsKey(entry[0]), entry[1]);
     }
+    for (let entry of this.backupMap.entries()) {
+      ans.set(this.stringAsKey(entry[0]), entry[1]);
+    }
     return ans;
   }
 
@@ -570,32 +586,30 @@ export class LazyMap<K, C extends Crdt>
     for (let keyString of this.internalMap.keys()) {
       ans.add(this.stringAsKey(keyString));
     }
+    for (let entry of this.backupMap.entries()) {
+      ans.add(this.stringAsKey(entry[0]));
+    }
     return ans;
   }
 
   explicitValues() {
-    return this.internalMap.values();
+    let ans: C[] = [];
+    for (let value of this.internalMap.values()) {
+      ans.push(value);
+    }
+    for (let entry of this.backupMap.entries()) {
+      ans.push(entry[1]);
+    }
+    return ans;
   }
 
   get explicitSize(): number {
-    return this.internalMap.size;
+    // TODO: make run in constant time?  Or remove this method?
+    return this.internalMap.size + this.backupMap.entries().length;
   }
 
   canGC() {
     return this.internalMap.size === 0;
-  }
-
-  private tryGC() {
-    for (let keyString of this.pendingGCs.values()) {
-      let value = this.internalMap.get(keyString);
-      if (value !== undefined) {
-        if (value.canGC()) {
-          // Delete it from the explicit map
-          this.internalMap.delete(keyString);
-        }
-      }
-    }
-    this.pendingGCs.clear();
   }
 }
 
