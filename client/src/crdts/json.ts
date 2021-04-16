@@ -1,7 +1,11 @@
 import { Crdt, CompositeCrdt, CrdtEvent, CrdtEventsRecord } from "./crdt_core";
 import { MultiValueRegister } from "./basic_crdts";
 import { LazyMap, MapCrdt } from "./standard";
-import { DefaultElementSerializer, ElementSerializer, TextSerializer } from "./utils";
+import {
+  DefaultElementSerializer,
+  ElementSerializer,
+  TextSerializer,
+} from "./utils";
 import { TreedocPrimitiveList, TreedocSource } from "./list";
 
 export interface JsonEvent extends CrdtEvent {
@@ -16,7 +20,7 @@ export interface JsonEventsRecord extends CrdtEventsRecord {
 
 enum InternalType {
   Nested,
-  List
+  List,
 }
 
 export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
@@ -38,8 +42,13 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
       new MapCrdt(() => new MultiValueRegister(), keySerializer, true)
     );
 
-    this.internalListMap = this.addChild("internalListMap",
-      new LazyMap(() => new TreedocPrimitiveList(TextSerializer.instance), keySerializer, true)
+    this.internalListMap = this.addChild(
+      "internalListMap",
+      new LazyMap(
+        () => new TreedocPrimitiveList(TextSerializer.instance),
+        keySerializer,
+        true
+      )
     );
   }
 
@@ -54,7 +63,9 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     mvr.value = val;
   }
 
-  get(key: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+  get(
+    key: string
+  ): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
     let vals: any[] = [];
     let mvr = this.internalMap.get(key);
     if (mvr) {
@@ -103,8 +114,16 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     return [...keys];
   }
 
-  values(cursor: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
-    let vals: (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] = [];
+  values(
+    cursor: string
+  ): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+    let vals: (
+      | number
+      | string
+      | boolean
+      | TreedocPrimitiveList<string>
+      | JsonCursor
+    )[] = [];
 
     for (let key of this.keys(cursor)) {
       vals.push(...this.get(cursor + key + ":"));
@@ -142,7 +161,9 @@ export class JsonCursor {
     this.cursor = cursor;
   }
 
-  get(key: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+  get(
+    key: string
+  ): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
     return this.internal.get(this.cursor + key + ":");
   }
 
@@ -166,7 +187,13 @@ export class JsonCursor {
     return this.internal.keys(this.cursor);
   }
 
-  values(): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+  values(): (
+    | number
+    | string
+    | boolean
+    | TreedocPrimitiveList<string>
+    | JsonCursor
+  )[] {
     return this.internal.values(this.cursor);
   }
 }

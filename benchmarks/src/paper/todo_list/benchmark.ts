@@ -8,7 +8,6 @@ import { assert } from "chai";
 import zlib from "zlib";
 import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
 
-
 const DEBUG = false;
 
 // Experiment params
@@ -936,20 +935,34 @@ function jsonCrdt() {
     private readonly items: crdts.JsonCursor;
     private readonly ids: crdts.TreedocPrimitiveList<string>;
     private readonly text: crdts.TreedocPrimitiveList<string>;
-    constructor(private readonly crdt: crdts.JsonCursor, private readonly idGen: crdts.TreedocSource, private readonly runtime: crdts.CrdtRuntime) {
+    constructor(
+      private readonly crdt: crdts.JsonCursor,
+      private readonly idGen: crdts.TreedocSource,
+      private readonly runtime: crdts.CrdtRuntime
+    ) {
       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
-      this.ids = this.crdt.get("itemsIds")[0] as crdts.TreedocPrimitiveList<string>;
-      this.text = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      this.ids = this.crdt.get(
+        "itemsIds"
+      )[0] as crdts.TreedocPrimitiveList<string>;
+      this.text = this.crdt.get(
+        "text"
+      )[0] as crdts.TreedocPrimitiveList<string>;
     }
     addItem(index: number, text: string): void {
       // Generate new id for this index
       let startId: null | crdts.TreedocId = null;
       let endId: null | crdts.TreedocId = null;
       if (index < this.ids.length) {
-        endId = this.idGen.deserialize(crdts.stringAsArray(this.ids.getAt(index)), this.runtime);
+        endId = this.idGen.deserialize(
+          crdts.stringAsArray(this.ids.getAt(index)),
+          this.runtime
+        );
       }
       if (index > 0) {
-        startId = this.idGen.deserialize(crdts.stringAsArray(this.ids.getAt(index - 1)), this.runtime);
+        startId = this.idGen.deserialize(
+          crdts.stringAsArray(this.ids.getAt(index - 1)),
+          this.runtime
+        );
       }
       let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
       let key: string = crdts.arrayAsString(this.idGen.serialize(id));
@@ -964,7 +977,9 @@ function jsonCrdt() {
       newItem.setIsList("text");
 
       // Update text item
-      let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      let textItem = newItem.get(
+        "text"
+      )[0] as crdts.TreedocPrimitiveList<string>;
       textItem.insertAtRange(0, [...text]);
     }
     deleteItem(index: number): void {
@@ -975,11 +990,13 @@ function jsonCrdt() {
     getItem(index: number): ITodoList {
       let id: string = this.ids.getAt(index);
       return new JsonCrdtTodoList(
-        this.items.get(id)[0] as crdts.JsonCursor, this.idGen, this.runtime
-      )
+        this.items.get(id)[0] as crdts.JsonCursor,
+        this.idGen,
+        this.runtime
+      );
     }
     get itemsSize(): number {
-      return this.ids.length
+      return this.ids.length;
     }
 
     get done(): boolean {
