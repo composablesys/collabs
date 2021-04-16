@@ -154,3 +154,13 @@ export function getMemoryUsed(): Promise<number> {
   memwatch.gc();
   return statsPromise;
 }
+
+let s = "";
+for (var i = 32; i <= 126; i++) {
+  s += String.fromCharCode(i);
+}
+export const CHARS = s;
+export function randomChar(rng: seedrandom.prng) {
+  let index = Math.floor(rng() * CHARS.length);
+  return CHARS[index];
+}
