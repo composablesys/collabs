@@ -46,19 +46,6 @@ do
 done
 
 
-# automerge_perf, short tests
-for measurement in "time" "network" "memory"
-do
-    for frequency in "whole" "rounds"
-    do
-        for name in "plainJsArray" "treedocLww" "treedocPrimitiveLww" "yjs"
-        do
-            npm start -- $1 "automerge_perf" $name $measurement $frequency
-        done
-    done
-done
-
-
 # todo_list, long tests
 for measurement in "time" "memory" "network"
 do
@@ -67,6 +54,19 @@ do
         for name in "compoJson" "automerge" "automergeNoText"
         do
             npm start -- $1 "todo_list" $name $measurement $frequency
+        done
+    done
+done
+
+
+# automerge_perf, short tests
+for measurement in "time" "network" "memory"
+do
+    for frequency in "whole" "rounds"
+    do
+        for name in "treedocLww" "treedocPrimitiveLww" "yjs"
+        do
+            npm start -- $1 "automerge_perf" $name $measurement $frequency
         done
     done
 done
