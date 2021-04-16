@@ -758,3 +758,5 @@ export class TreedocPrimitiveList<T> extends PrimitiveList<TreedocId, T> {
     super(new TreedocSource(), valueSerializer);
   }
 }
+
+export class TextCrdt extends TreedocPrimitiveList<string> {}

@@ -114,7 +114,7 @@ const AddCounterEvents = makeEventAdder<CounterEventsRecord>();
  * TODO: Counter with pure operations.  Less efficient state size.
  */
 export class CounterPure
-  extends AddCounterEvents(ResetWrapClass(CounterPureBase, false, true))
+  extends AddCounterEvents(ResetWrapClass(CounterPureBase, false, false))
   implements ICounter, Resettable {
   constructor(initialValue = 0) {
     super(initialValue);
@@ -393,7 +393,7 @@ export class MultRegisterBase
 const AddMultEvents = makeEventAdder<MultEventsRecord>();
 
 export class MultRegister
-  extends AddMultEvents(ResetWrapClass(MultRegisterBase, false, true))
+  extends AddMultEvents(ResetWrapClass(MultRegisterBase, false, false))
   implements IMultRegister, Resettable {
   constructor(initialValue = 1) {
     super(initialValue);
