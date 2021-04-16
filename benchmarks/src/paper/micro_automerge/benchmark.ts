@@ -203,7 +203,7 @@ class MicroAutomergeBenchmark {
 
 function Register() {
   return new MicroAutomergeBenchmark("Register", {
-    Set: [(doc, rng) => (doc[""] = rng()), 1],
+    Set: [(doc, rng) => (doc["v"] = rng()), 1],
   });
 }
 
@@ -211,10 +211,10 @@ function Counter() {
   return new MicroAutomergeBenchmark("Counter", {
     Add: [
       (doc, rng) => {
-        let counter: Automerge.Counter | undefined = doc[""];
+        let counter: Automerge.Counter | undefined = doc["v"];
         if (counter === undefined) {
           counter = new Automerge.Counter();
-          doc[""] = counter;
+          doc["v"] = counter;
         }
         counter.increment(Math.floor(rng() * 100 - 50));
       },
@@ -311,10 +311,10 @@ function TextLtr() {
   return new MicroAutomergeBenchmark("TextLtr", {
     Op: [
       (doc, rng) => {
-        let text = doc[""] as Automerge.Text | undefined;
+        let text = doc["v"] as Automerge.Text | undefined;
         if (text === undefined) {
           text = new Automerge.Text();
-          doc[""] = text;
+          doc["v"] = text;
         }
         if (doc.length > 100) text.deleteAt!(Math.floor(rng() * 100));
         else text.insertAt!(text.length, randomChar(rng));
@@ -328,10 +328,10 @@ function TextRandom() {
   return new MicroAutomergeBenchmark("TextRandom", {
     Op: [
       (doc, rng) => {
-        let text = doc[""] as Automerge.Text | undefined;
+        let text = doc["v"] as Automerge.Text | undefined;
         if (text === undefined) {
           text = new Automerge.Text();
-          doc[""] = text;
+          doc["v"] = text;
         }
         if (doc.length > 100) text.deleteAt!(Math.floor(rng() * 100));
         else
