@@ -3,19 +3,19 @@ import { crdts, network } from "compoventuals-client";
 import Automerge from "automerge";
 import seedrandom from "seedrandom";
 import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
+import { json } from "mathjs";
 
 const WARMUP = 5;
 const TRIALS = 10;
-const OPS = 1000;
-const ROUND_OPS = 100;
+const OPS = 100;
+const ROUND_OPS = 10;
 const SEED = "42";
 const USERS = 16;
 
 class CompareBenchmark {
   constructor(
     private readonly testName: string,
-    private readonly setupFun: (rng: seedrandom.prng) => void,
-    private readonly getSentBytes: () => number
+    private readonly setupFun: (rng: seedrandom.prng) => void
   ) {}
 
   private generateRandomOps(rng: seedrandom.prng) {
@@ -56,12 +56,11 @@ class CompareBenchmark {
 
       // Setup
       // TODO: should this be included in memory?
-      let originDoc = Automerge.from({ value : 0 })
       let automerges = new Map<number, any>();
+      let changes = new Map<number, any>();
+    
       for (let i = 0; i < USERS; i++) {
-        let doc = Automerge.init();
-        Automerge.merge(originDoc, doc)
-        automerges.set(i, doc);
+        automerges.set(i, Automerge.from({ value : 0 }));
       }
 
       if (measurement === "memory") {
@@ -75,12 +74,11 @@ class CompareBenchmark {
         case "time":
           startTime = process.hrtime.bigint();
           break;
-        case "network":
-          startSentBytes = this.getSentBytes();
       }
 
       let round = 0;
       let op: number;
+      let totalSentBytes = 0;
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
@@ -93,7 +91,7 @@ class CompareBenchmark {
               ans = await getMemoryUsed();
               break;
             case "network":
-              ans = this.getSentBytes() - startSentBytes;
+              ans = totalSentBytes - startSentBytes;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -108,13 +106,19 @@ class CompareBenchmark {
           let newDoc = Automerge.change(doc, (d : any) => {
             d.value = this.generateRandomOps(rng)
           })
-          automerges.set(i, newDoc);
+          let message = JSON.stringify(Automerge.getChanges(doc!, newDoc!));
+          totalSentBytes += message.length;
+          changes.set(i, Automerge.getChanges(doc!, newDoc!));
         }
 
         for(let i = 0; i < USERS; i++) {
-          originDoc = Automerge.merge(originDoc, automerges.get(i));
+          let updateDoc = automerges.get(i);
+          for (let j = 0; j < USERS && j != i; j++) {
+            // let updateDoc = Automerge.applyChanges(automerges.get(j), JSON.parse(changes.get(i)));
+            updateDoc = Automerge.applyChanges(updateDoc, changes.get(j))
+          }
+          automerges.set(i, updateDoc);
         }
-
         if (measurement === "memory") await sleep(0);
       }
 
@@ -128,7 +132,7 @@ class CompareBenchmark {
           result = await getMemoryUsed();
           break;
         case "network":
-          result = this.getSentBytes() - startSentBytes;
+          result = totalSentBytes - startSentBytes;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -163,8 +167,7 @@ function automerge() {
   let totalSentBytes: number;
   return new CompareBenchmark(
     "Automerge",
-    () => {totalSentBytes = 0},
-    () => totalSentBytes
+    () => {}
   )
 }
 
