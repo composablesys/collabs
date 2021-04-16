@@ -857,53 +857,58 @@ function yjs() {
   let totalSentBytes: number;
 
   class YjsTodoList implements ITodoList {
-    constructor(private readonly doc: Y.Doc) {}
+    private readonly textCrdt: Y.Text;
+    private readonly items: Y.Array<Y.Map<any>>;
+    constructor(private readonly map: Y.Map<any>) {
+      this.textCrdt = map.get("text");
+      this.items = map.get("items");
+    }
 
     addItem(index: number, text: string): void {
       topDoc!.transact(() => {
-        let item = new Y.Doc();
-        this.doc.getArray<Y.Doc>("items").insert(index, [item]);
-        item.getText("text").insert(0, text);
-        item.getArray<Y.Doc>("items");
-        item.getMap().set("done", false);
+        let item = new Y.Map<any>();
+        item.set("text", new Y.Text(text));
+        item.set("items", new Y.Array<Y.Map<any>>());
+        item.set("done", false);
+        this.items.insert(index, [item]);
       });
     }
     deleteItem(index: number): void {
       topDoc!.transact(() => {
-        this.doc.getArray<Y.Doc>("items").delete(index);
+        this.items.delete(index);
       });
     }
     getItem(index: number): ITodoList {
-      return new YjsTodoList(this.doc.getArray<Y.Doc>("items").get(index));
+      return new YjsTodoList(this.items.get(index));
     }
     get itemsSize(): number {
-      return this.doc.getArray<Y.Doc>("items").length;
+      return this.items.length;
     }
 
     get done(): boolean {
-      return this.doc.getMap().get("done");
+      return this.map.get("done");
     }
     set done(done: boolean) {
       topDoc!.transact(() => {
-        this.doc.getMap().set("done", done);
+        this.map.set("done", done);
       });
     }
 
     insertText(index: number, text: string): void {
       topDoc!.transact(() => {
-        this.doc.getText("text").insert(index, text);
+        this.textCrdt.insert(index, text);
       });
     }
     deleteText(index: number, count: number): void {
       topDoc!.transact(() => {
-        this.doc.getText("text").delete(index, count);
+        this.textCrdt.delete(index, count);
       });
     }
     get textSize(): number {
-      return this.doc.getText("text").length;
+      return this.textCrdt.length;
     }
     getText(): string {
-      return this.doc.getText("text").toString();
+      return this.textCrdt.toString();
     }
   }
 
@@ -914,16 +919,13 @@ function yjs() {
       topDoc.on("update", (update: any) => {
         totalSentBytes += update.byteLength;
       });
-      return new YjsTodoList(topDoc);
+      topDoc.getMap().set("items", new Y.Array<Y.Map<any>>());
+      return new YjsTodoList(topDoc.getMap());
     },
     cleanup() {
       topDoc = null;
     },
-    sendNextMessage() {
-      // TODO.  Currently they get sent right away.  Perhaps use transactions?
-      // Although I think currently, each benchmark op corresponds to one
-      // Yjs op.
-    },
+    sendNextMessage() {},
     getSentBytes() {
       return totalSentBytes;
     },
