@@ -26,9 +26,9 @@ for measurement in "time" "network" "memory"
 do
     for frequency in "whole" "rounds"
     do
-        for name in "Register" "Counter" "CounterMap" "CounterMapRolling" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom"
+        for name in "Register" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom"
         do
-            npm start -- $1 "micro_automerge" $name $measurement $frequency
+            npm start -- $1 "micro_yjs" $name $measurement $frequency
         done
     done
 done

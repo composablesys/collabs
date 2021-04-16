@@ -407,6 +407,53 @@ function MapCrdtRolling() {
   );
 }
 
+function LwwMap() {
+  return new MicroCrdtsBenchmark(
+    "LwwMap",
+    () => new crdts.LwwMap<number, number>(),
+    {
+      Toggle: [
+        (crdt, rng) => {
+          let key = Math.floor(rng() * 100);
+          if (crdt.has(key)) crdt.delete(key);
+          else crdt.set(key, 0);
+        },
+        0.5,
+      ],
+      ValueOp: [
+        (crdt, rng) => {
+          let key = Math.floor(rng() * 100);
+          crdt.set(key, Math.floor(rng() * 100 - 50));
+        },
+        0.5,
+      ],
+    },
+    (crdt) => new Map(crdt.entries())
+  );
+}
+
+function LwwMapRolling() {
+  let i = 0;
+  return new MicroCrdtsBenchmark(
+    "LwwMapRolling",
+    () => {
+      i = 0;
+      return new crdts.LwwMap<number, number>();
+    },
+    {
+      Roll: [
+        (crdt, rng) => {
+          if (i >= 100) crdt.delete(i - 100);
+          crdt.set(i, Math.floor(rng() * 100 - 50));
+          i++;
+        },
+        1.0,
+      ],
+    },
+    (crdt) => new Map(crdt.entries())
+  );
+}
+
 function TreedocPrimitiveListLtr() {
   return new MicroCrdtsBenchmark(
     "TreedocPrimitiveListLtr",
@@ -507,6 +554,12 @@ export default async function microCrdts(args: string[]) {
       break;
     case "MapCrdtRolling":
       benchmark = MapCrdtRolling();
+      break;
+    case "LwwMap":
+      benchmark = LwwMap();
+      break;
+    case "LwwMapRolling":
+      benchmark = LwwMapRolling();
       break;
     case "TreedocPrimitiveListLtr":
       benchmark = TreedocPrimitiveListLtr();

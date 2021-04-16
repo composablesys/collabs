@@ -4,6 +4,7 @@ import todoList from "./todo_list/benchmark";
 import { setFolder, setIsTestRun } from "./record";
 import microCrdts from "./micro_crdts/benchmark";
 import microAutomerge from "./micro_automerge/benchmark";
+import microYjs from "./micro_yjs/benchmark";
 
 (async function () {
   function printUsage(exitCode: number) {
@@ -30,6 +31,9 @@ import microAutomerge from "./micro_automerge/benchmark";
       break;
     case "micro_automerge":
       await microAutomerge(testArgs);
+      break;
+    case "micro_yjs":
+      await microYjs(testArgs);
       break;
     default:
       console.log("Unrecognized major test: " + majorTest);

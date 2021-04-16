@@ -1,6 +1,6 @@
-import Automerge from "automerge";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
+import * as Y from "yjs";
 import {
   getIsTestRun,
   getMemoryUsed,
@@ -11,23 +11,24 @@ import {
 
 const WARMUP = 5;
 const TRIALS = 10;
-const OPS = 100;
-const ROUND_OPS = 10;
+const OPS = 200;
+const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
 const USERS = 16;
 
-class MicroAutomergeBenchmark {
+class MicroYjsBenchmark {
   private readonly totalWeight: number;
   private readonly weightIndexedOps: ((
-    doc: any,
+    doc: Y.Doc,
     rng: seedrandom.prng
   ) => void)[];
   private readonly cumulativeWeights: number[];
   constructor(
     private readonly testName: string,
     ops: {
-      [opName: string]: [(doc: any, rng: seedrandom.prng) => void, number];
-    }
+      [opName: string]: [(doc: Y.Doc, rng: seedrandom.prng) => void, number];
+    },
+    private readonly getState: (doc: Y.Doc) => any
   ) {
     // Init ability to choose random ops with given weights
     this.cumulativeWeights = [];
@@ -80,17 +81,17 @@ class MicroAutomergeBenchmark {
       let rng = seedrandom(SEED);
 
       let startTime: bigint;
-      let startSentBytes = 0;
+      let totalSentBytes = 0;
       let baseMemory = 0;
 
       // Setup
       // TODO: should this be included in memory?
-      let automerges = new Array<any>(USERS);
-      let changes = new Array<string>(USERS);
+      let yjss = new Array<Y.Doc>(USERS);
+      let changes = new Array<Uint8Array>(USERS);
 
       for (let i = 0; i < USERS; i++) {
         // TODO: deterministic actor ids (second arg)
-        automerges[i] = Automerge.init();
+        yjss[i] = new Y.Doc();
       }
 
       if (measurement === "memory") {
@@ -106,7 +107,6 @@ class MicroAutomergeBenchmark {
 
       let round = 0;
       let op: number;
-      let totalSentBytes = 0;
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
@@ -119,7 +119,7 @@ class MicroAutomergeBenchmark {
               ans = await getMemoryUsed();
               break;
             case "network":
-              ans = totalSentBytes - startSentBytes;
+              ans = totalSentBytes;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -129,24 +129,16 @@ class MicroAutomergeBenchmark {
         // Do one "op" (really one op per user).
         // Each user sends concurrently, then receives
         // each other's messages.
+        let stateVector = Y.encodeStateVector(yjss[0]);
         for (let i = 0; i < USERS; i++) {
-          let doc = automerges[i];
-          let newDoc = Automerge.change(doc, (d: any) => {
-            this.getWeightedRandomOp(rng)(d, rng);
-          });
-          let message = JSON.stringify(Automerge.getChanges(doc!, newDoc!));
-          totalSentBytes += message.length;
-          changes[i] = message;
-          automerges[i] = newDoc;
+          yjss[i].transact(() => this.getWeightedRandomOp(rng)(yjss[i], rng));
+          changes[i] = Y.encodeStateAsUpdate(yjss[i], stateVector);
+          totalSentBytes += changes[i].byteLength;
         }
-
         for (let i = 0; i < USERS; i++) {
           for (let j = 0; j < USERS; j++) {
             if (j != i) {
-              automerges[j] = Automerge.applyChanges(
-                automerges[j],
-                JSON.parse(changes[i])
-              );
+              Y.applyUpdate(yjss[j], changes[i]);
             }
           }
         }
@@ -164,7 +156,7 @@ class MicroAutomergeBenchmark {
           result = await getMemoryUsed();
           break;
         case "network":
-          result = totalSentBytes - startSentBytes;
+          result = totalSentBytes;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -179,14 +171,14 @@ class MicroAutomergeBenchmark {
       }
 
       // Check results are all the same
-      let result0 = automerges[0];
+      let result0 = this.getState(yjss[0]);
       for (let i = 1; i < USERS; i++) {
-        assert.deepStrictEqual(automerges[i], result0);
+        assert.deepStrictEqual(this.getState(yjss[i]), result0);
       }
     }
 
     record(
-      "micro_automerge/" + measurement,
+      "micro_yjs/" + measurement,
       this.testName,
       frequency,
       TRIALS,
@@ -202,54 +194,39 @@ class MicroAutomergeBenchmark {
 }
 
 function Register() {
-  return new MicroAutomergeBenchmark("Register", {
-    Set: [(doc, rng) => (doc.v = rng()), 1],
-  });
+  return new MicroYjsBenchmark(
+    "Register",
+    {
+      Set: [(doc, rng) => doc.getMap().set("v", rng()), 1],
+    },
+    (doc) => doc.getMap().get("v")
+  );
 }
 
-function Counter() {
-  return new MicroAutomergeBenchmark("Counter", {
-    Add: [
-      (doc, rng) => {
-        let counter: Automerge.Counter | undefined = doc.v;
-        if (counter === undefined) {
-          counter = new Automerge.Counter(Math.floor(rng() * 100 - 50));
-          doc.v = counter;
-          // Doesn't like if you increment a new counter
-          return;
-        }
-        counter.increment(Math.floor(rng() * 100 - 50));
-      },
-      1,
-    ],
-  });
-}
-
-function CounterMap() {
-  return new MicroAutomergeBenchmark("CounterMap", {
-    Toggle: [
-      (doc, rng) => {
-        let key = Math.floor(rng() * 100);
-        if (doc[key]) delete doc[key];
-        else doc[key] = new Automerge.Counter();
-      },
-      0.5,
-    ],
-    ValueOp: [
-      (doc, rng) => {
-        let key = Math.floor(rng() * 100);
-        let value = doc[key] as Automerge.Counter;
-        if (value === undefined) {
-          value = new Automerge.Counter(Math.floor(rng() * 100 - 50));
-          doc[key] = value;
-          // Doesn't like if you increment a new counter
-          return;
-        }
-        value.increment(Math.floor(rng() * 100 - 50));
-      },
-      0.5,
-    ],
-  });
+function LwwMap() {
+  return new MicroYjsBenchmark(
+    "LwwMap",
+    {
+      Toggle: [
+        (doc, rng) => {
+          let key = Math.floor(rng() * 100);
+          let map = doc.getMap();
+          if (map.has(key + "")) map.delete(key + "");
+          else map.set(key + "", 0);
+        },
+        0.5,
+      ],
+      Set: [
+        (doc, rng) => {
+          let key = Math.floor(rng() * 100);
+          let map = doc.getMap();
+          map.set(key + "", Math.floor(rng() * 100 - 50));
+        },
+        0.5,
+      ],
+    },
+    (doc) => new Map(doc.getMap().entries())
+  );
 }
 
 /**
@@ -258,106 +235,65 @@ function CounterMap() {
  * Useful for memory benchmarking.
  * Note each op is an add+delete, unlike AddWinsSet().
  */
-function CounterMapRolling() {
-  let i = 0;
-  return new MicroAutomergeBenchmark("CounterMapRolling", {
-    Roll: [
-      (doc, rng) => {
-        if (i >= 100) delete doc[i - 100];
-        doc[i] = new Automerge.Counter(Math.floor(rng() * 100 - 50));
-        i++;
-      },
-      1.0,
-    ],
-  });
-}
-
-function LwwMap() {
-  return new MicroAutomergeBenchmark("LwwMap", {
-    Toggle: [
-      (doc, rng) => {
-        let key = Math.floor(rng() * 100);
-        if (doc[key]) delete doc[key];
-        else doc[key] = 0;
-      },
-      0.5,
-    ],
-    ValueOp: [
-      (doc, rng) => {
-        let key = Math.floor(rng() * 100);
-        doc[key] = Math.floor(rng() * 100 - 50);
-      },
-      0.5,
-    ],
-  });
-}
-
 function LwwMapRolling() {
   let i = 0;
-  return new MicroAutomergeBenchmark("LwwMapRolling", {
-    Roll: [
-      (doc, rng) => {
-        if (i >= 100) delete doc[i - 100];
-        doc[i] = Math.floor(rng() * 100 - 50);
-        i++;
-      },
-      1.0,
-    ],
-  });
+  return new MicroYjsBenchmark(
+    "LwwMapRolling",
+    {
+      Roll: [
+        (doc, rng) => {
+          let map = doc.getMap();
+          if (i >= 100) map.delete(i - 100 + "");
+          map.set(i + "", Math.floor(rng() * 100 - 50));
+          i++;
+        },
+        1.0,
+      ],
+    },
+    (doc) => new Map(doc.getMap().entries())
+  );
 }
 
 function TextLtr() {
-  return new MicroAutomergeBenchmark("TextLtr", {
-    Op: [
-      (doc, rng) => {
-        let text = doc.v as Automerge.Text | undefined;
-        if (text === undefined) {
-          text = new Automerge.Text();
-          doc.v = text;
-        }
-        if (text.length > 100) text.deleteAt!(Math.floor(rng() * 100));
-        else text.insertAt!(text.length, randomChar(rng));
-      },
-      1.0,
-    ],
-  });
+  return new MicroYjsBenchmark(
+    "TextLtr",
+    {
+      Op: [
+        (doc, rng) => {
+          let text = doc.getText();
+          if (text.length > 100) text.delete(Math.floor(rng() * 100), 1);
+          else text.insert(text.length, randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (doc) => doc.getText().toString()
+  );
 }
 
 function TextRandom() {
-  return new MicroAutomergeBenchmark("TextRandom", {
-    Op: [
-      (doc, rng) => {
-        let text = doc.v as Automerge.Text | undefined;
-        if (text === undefined) {
-          text = new Automerge.Text();
-          doc.v = text;
-        }
-        if (text.length > 100) text.deleteAt!(Math.floor(rng() * 100));
-        else
-          text.insertAt!(
-            Math.floor(rng() * (text.length + 1)),
-            randomChar(rng)
-          );
-      },
-      1.0,
-    ],
-  });
+  return new MicroYjsBenchmark(
+    "TextRandom",
+    {
+      Op: [
+        (doc, rng) => {
+          let text = doc.getText();
+          if (text.length > 100) text.delete(Math.floor(rng() * 100), 1);
+          else
+            text.insert(Math.floor(rng() * (text.length + 1)), randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (doc) => doc.getText().toString()
+  );
 }
 
-export default async function microAutomerge(args: string[]) {
-  let benchmark: MicroAutomergeBenchmark;
+export default async function microYjs(args: string[]) {
+  let benchmark: MicroYjsBenchmark;
   switch (args[0]) {
     case "Register":
       benchmark = Register();
-      break;
-    case "Counter":
-      benchmark = Counter();
-      break;
-    case "CounterMap":
-      benchmark = CounterMap();
-      break;
-    case "CounterMapRolling":
-      benchmark = CounterMapRolling();
       break;
     case "LwwMap":
       benchmark = LwwMap();
