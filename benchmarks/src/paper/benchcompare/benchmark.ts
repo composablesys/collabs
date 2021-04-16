@@ -105,10 +105,10 @@ class CompareBenchmark {
         // each other's messages.
         for (let i = 0; i < USERS; i++) {
           let doc = automerges.get(i);
-          doc = Automerge.change(doc, (d : any) => {
+          let newDoc = Automerge.change(doc, (d : any) => {
             d.value = this.generateRandomOps(rng)
           })
-          automerges.set(i, doc);
+          automerges.set(i, newDoc);
         }
 
         for(let i = 0; i < USERS; i++) {
