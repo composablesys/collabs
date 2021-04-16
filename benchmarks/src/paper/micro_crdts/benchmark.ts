@@ -561,10 +561,10 @@ export default async function microCrdts(args: string[]) {
     case "LwwMapRolling":
       benchmark = LwwMapRolling();
       break;
-    case "TreedocPrimitiveListLtr":
+    case "TextLtr":
       benchmark = TreedocPrimitiveListLtr();
       break;
-    case "TreedocPrimitiveListRandom":
+    case "TextRandom":
       benchmark = TreedocPrimitiveListRandom();
       break;
     // TODO: LwwMap<number, number>?
