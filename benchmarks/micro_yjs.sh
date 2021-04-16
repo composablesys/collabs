@@ -12,23 +12,16 @@ if [ $1 == "--testRun" ]; then
     set -e
 fi
 
-#git pull origin paper-benchmarks
-#cd ..
-#npm reset
-#npm run clean
-#npm install
-#npm run build
-#cd benchmarks
-
-
-# micro_crdts
-for measurement in "time" "network" "memory"
+for frequency in "whole" "rounds"
 do
-    for frequency in "whole" "rounds"
+    for measurement in "time" "network" "memory"
     do
-        for name in "Register" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom"
+      for name in "Register" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom"
+      do
+        for lib in "micro_yjs"
         do
-            npm start -- $1 "micro_yjs" $name $measurement $frequency
+            npm start -- $1 $lib $name $measurement $frequency
         done
+      done
     done
 done

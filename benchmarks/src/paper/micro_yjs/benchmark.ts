@@ -88,10 +88,21 @@ class MicroYjsBenchmark {
       // TODO: should this be included in memory?
       let yjss = new Array<Y.Doc>(USERS);
       let changes = new Array<Uint8Array>(USERS);
+      let turn = -1;
 
       for (let i = 0; i < USERS; i++) {
         // TODO: deterministic actor ids (second arg)
         yjss[i] = new Y.Doc();
+        yjss[i].on("update", (update: Uint8Array) => {
+          // Yjs dispatches update events not just when i sends
+          // a message, but also when it receives one for
+          // the first time.  We only care when they actually
+          // send the message.
+          if (turn === i) {
+            totalSentBytes += update.byteLength;
+            changes[i] = update;
+          }
+        });
       }
 
       if (measurement === "memory") {
@@ -129,12 +140,11 @@ class MicroYjsBenchmark {
         // Do one "op" (really one op per user).
         // Each user sends concurrently, then receives
         // each other's messages.
-        let stateVector = Y.encodeStateVector(yjss[0]);
         for (let i = 0; i < USERS; i++) {
+          turn = i;
           yjss[i].transact(() => this.getWeightedRandomOp(rng)(yjss[i], rng));
-          changes[i] = Y.encodeStateAsUpdate(yjss[i], stateVector);
-          totalSentBytes += changes[i].byteLength;
         }
+        turn = -1;
         for (let i = 0; i < USERS; i++) {
           for (let j = 0; j < USERS; j++) {
             if (j != i) {
