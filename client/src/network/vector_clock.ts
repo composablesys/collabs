@@ -5,32 +5,33 @@ import { CausalTimestamp } from ".";
 
 /**
  * The vector clock class for ensuring casuality.
+ * TODO: private / readonly
  */
 export class VectorClock implements CausalTimestamp {
   /**
-   * Unique ID for each replica to identify itself(replicaId).
+   * replicaId of the sender
    */
-  uid: any;
+  sender: string;
   /**
    * The record map from replica ids to the number of lastest message.
    */
-  vectorMap: Map<any, number>;
+  vectorMap: Map<string, number>;
   local: boolean;
 
   /**
    * Initialize the vector with replica's own entry.
    */
-  constructor(replicaId: any, local: boolean) {
-    this.uid = replicaId;
+  constructor(sender: string, local: boolean) {
+    this.sender = sender;
     this.local = local;
-    this.vectorMap = new Map<any, number>();
-    this.vectorMap.set(this.uid, 0);
+    this.vectorMap = new Map();
+    this.vectorMap.set(this.sender, 0);
   }
   /**
    * @returns the unique ID for this replica(replicaId).
    */
   getSender(): any {
-    return this.uid;
+    return this.sender;
   }
   isLocal(): boolean {
     return this.local;
@@ -46,7 +47,7 @@ export class VectorClock implements CausalTimestamp {
    * this vectorclock.
    */
   getSenderCounter(): number {
-    return this.vectorMap.get(this.uid)!;
+    return this.vectorMap.get(this.sender)!;
   }
   /**
    * @returns the total number of replicas invovled in this crdts.
@@ -55,73 +56,85 @@ export class VectorClock implements CausalTimestamp {
     return this.vectorMap.size;
   }
   /**
-   * Update the vector of the uid(replicaId) entry.
+   * Update the vector of the sender's entry.
    */
   increment(): void {
-    const oldValue = this.vectorMap.get(this.uid);
-
-    if (oldValue !== undefined) {
-      this.vectorMap.set(this.uid, oldValue + 1);
+    const oldValue = this.vectorMap.get(this.sender);
+    if (oldValue === undefined) {
+      throw new Error("sender's vc entry is not set");
     }
+    this.vectorMap.set(this.sender, oldValue + 1);
   }
   /**
-   * Check a message with a certain timestamp is ready for delivery
-   * to ensure correct casuality.
+   * Check if a message with a certain timestamp is ready for
+   * delivery in causal order, given that this is
+   * the vector clock merge of all previously-received
+   * messages.
    *
-   * @param vc the VectorClock from other replica.
-   * @returns the message is ready or not.
+   * @param other the vector clock
+   * the other message
+   * @returns other's message is ready or not.
    */
-  isready(vc: VectorClock): boolean {
-    let otherUid = vc.getSender();
-    let otherVectorMap = vc.asVectorClock();
+  isReady(other: VectorClock): boolean {
+    let otherSender = other.getSender();
+    let otherVectorMap = other.asVectorClock();
 
-    if (this.vectorMap.has(otherUid)) {
-      if (this.vectorMap.get(otherUid) === otherVectorMap.get(otherUid)! - 1) {
-        for (let id of otherVectorMap.keys()) {
-          if (id !== otherUid && !this.vectorMap.has(id)) {
-            return false;
-          } else if (
-            id !== otherUid &&
-            this.vectorMap.get(id)! < otherVectorMap.get(id)!
-          ) {
-            return false;
-          }
-        }
-      } else {
+    // Check sender's entry is one more than ours
+    if (this.vectorMap.has(otherSender)) {
+      if (
+        this.vectorMap.get(otherSender) !==
+        otherVectorMap.get(otherSender)! - 1
+      )
         return false;
-      }
-    } else {
-      if (otherVectorMap.get(otherUid) !== 1) {
-        console.log(otherVectorMap.get(otherUid));
+    } else if (otherVectorMap.get(otherSender) !== 1) {
+      return false;
+    }
+
+    // Check other entries are <= ours
+    for (let id of otherVectorMap.keys()) {
+      if (id === otherSender) continue;
+      if (!this.vectorMap.has(id)) {
         return false;
-      }
-      for (let id of otherVectorMap.keys()) {
-        if (id !== otherUid && !this.vectorMap.has(id)) {
-          return false;
-        } else if (
-          id !== otherUid &&
-          this.vectorMap.get(id)! < otherVectorMap.get(id)!
-        ) {
-          return false;
-        }
+      } else if (this.vectorMap.get(id)! < otherVectorMap.get(id)!) {
+        return false;
       }
     }
+
     return true;
   }
+
   /**
-   * Increment sender's lastest entry received in this VectorClock
-   * in the replica's own vectorMap.
+   * TODO: test
+   *
+   * Check if a message with a certain timestamp has already
+   * been received, given that this is
+   * the vector clock merge of all previously-received
+   * messages.
+   *
+   * @param  other the vector clock
+   * the other message
+   * @return if a message with VectorClock other has
+   * already been received, according to this
+   */
+  isAlreadyReceived(other: VectorClock): boolean {
+    let senderEntry = this.vectorMap.get(other.sender);
+    if (senderEntry !== undefined) {
+      if (senderEntry >= other.getSenderCounter()) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Set sender's lastest entry received in this VectorClock
+   * to that of vc.
    *
    * This operation is mainly done after correctly deliver the message
    * when isReady() function returns true.
    *
    * @param vc the VectorClock from other replica.
    */
-  incrementSender(vc: VectorClock): void {
-    let otherUid = vc.getSender();
-    let otherVectorMap = vc.asVectorClock();
-
-    this.vectorMap.set(otherUid, otherVectorMap.get(otherUid)!);
+  mergeSender(vc: VectorClock): void {
+    this.vectorMap.set(vc.getSender(), vc.getSenderCounter());
   }
   /**
    * Merge current VectorClock with the vector clock recevied from
@@ -145,10 +158,24 @@ export class VectorClock implements CausalTimestamp {
   }
   /**
    *
-   * @param someUid the replica's uid.
+   * @param replicaId the replicaId of the entry to set
    * @param clockValue the clock number of the replica.
    */
-  setEntry(someUid: any, clockValue: number): void {
-    this.vectorMap.set(someUid, clockValue);
+  setEntry(replicaId: string, clockValue: number): void {
+    this.vectorMap.set(replicaId, clockValue);
+  }
+
+  toString(): string {
+    return JSON.stringify({
+      sender: this.sender,
+      isLocal: this.local,
+      clock: [...this.vectorMap.entries()],
+    });
+  }
+
+  clone(): VectorClock {
+    let copy = new VectorClock(this.sender, this.local);
+    copy.vectorMap = new Map(this.vectorMap);
+    return copy;
   }
 }

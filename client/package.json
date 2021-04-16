@@ -11,21 +11,25 @@
   },
   "dependencies": {
     "bson": "^4.1.0",
+    "buffer": "^6.0.3",
     "clean": "^4.0.2",
+    "functional-red-black-tree": "^1.0.1",
     "protobufjs": "~6.10.1",
-    "uuid": "^3.4.0",
-    "ws": "^7.3.1"
+    "ws": "^7.3.1",
+    "crypto-random-string": "~3.3.1"
   },
   "devDependencies": {
     "@types/bson": "^4.0.2",
     "@types/chai": "^4.2.14",
+    "@types/functional-red-black-tree": "^1.0.0",
     "@types/mocha": "^8.2.0",
-    "@types/uuid": "^3.4.0",
+    "@types/seedrandom": "^2.4.28",
     "@types/ws": "^7.2.6",
     "chai": "^4.2.0",
     "mkdirp": "^1.0.4",
     "mocha": "^8.2.1",
-    "tslib": "^2.0.1"
+    "tslib": "^2.0.1",
+    "seedrandom": "^3.0.5"
   },
   "scripts": {
     "build": "npm-run-all build:*",
@@ -34,7 +38,7 @@
     "build:protobuf:js": "pbjs -t static-module -w commonjs -o generated/proto_compiled.js src/**/*.proto",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc --project tsconfig.build.json",
-    "build:docs": "typedoc --out docs src/index.ts",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.build.json",
     "clean": "rimraf generated build docs",
     "test": "npm-run-all test:*",
     "test:unit": "mocha",

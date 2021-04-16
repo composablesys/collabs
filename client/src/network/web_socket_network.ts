@@ -13,7 +13,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
   /**
    * Message waiting to be sent by the WebSocket
    */
-  sendBuffer: Array<any>;
+  sendBuffer: Array<string>;
   /**
    * Constructor which takes in a webSocketArgs for
    * generating a new WebSocket connection.
@@ -22,7 +22,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
    * use to create a new WebSocket connection.
    */
   constructor(webSocketArgs: string) {
-    this.sendBuffer = new Array<any>();
+    this.sendBuffer = [];
     /**
      * Open WebSocket connection with server.
      * Register EventListener with corresponding event handler.
@@ -49,7 +49,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
       this.ws.send(this.sendBuffer[index]);
       index++;
     }
-    this.sendBuffer = new Array<any>();
+    this.sendBuffer = [];
     // Use heartbeat to keep client alive.
     // this.heartbeat();
   };
@@ -77,7 +77,11 @@ export class WebSocketNetwork implements BroadcastNetwork {
     // TODO: use Uint8Array directly instead
     // (requires changing options + server)
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-    this.causal.receive(new TextEncoder().encode(message.data));
+    let parsed = JSON.parse(message.data) as { group: string; message: string };
+    this.causal.receive(
+      parsed.group,
+      new Uint8Array(Buffer.from(parsed.message, "base64"))
+    );
   };
   /**
    * Register a CausalBroadcastNetwork which implement the interface.
@@ -93,14 +97,14 @@ export class WebSocketNetwork implements BroadcastNetwork {
    */
   joinGroup(group: string): void {
     // Create a new message with type == "register"
-    let message = {
+    let message = JSON.stringify({
       type: "register",
       group: group,
-    };
+    });
     if (this.ws.readyState == 1) {
-      this.ws.send(JSON.stringify(message));
+      this.ws.send(message);
     } else {
-      this.sendBuffer.push(JSON.stringify(message));
+      this.sendBuffer.push(message);
     }
   }
   /**
@@ -109,14 +113,16 @@ export class WebSocketNetwork implements BroadcastNetwork {
    * @param message the message with Uint8Array type.
    * @param timestamp the CasualTimestamp.
    */
-  send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void {
+  send(group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
+    let encoded = Buffer.from(message).toString("base64");
+    let toSend = JSON.stringify({ group: group, message: encoded });
     if (this.ws.readyState === 1) {
       // TODO: use Uint8Array directly instead
       // (requires changing options + server)
       // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-      this.ws.send(new TextDecoder().decode(message));
+      this.ws.send(toSend);
     } else {
-      this.sendBuffer.push(new TextDecoder().decode(message));
+      this.sendBuffer.push(toSend);
     }
   }
 }

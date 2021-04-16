@@ -81,35 +81,28 @@ export interface CausalBroadcastNetwork {
    * concerns?  Perhaps have "document" vs "causalGroup").
    */
   joinGroup(group: string): void;
+
   /**
-   * Used by CrdtRuntime to send a broadcast message.
-   * This message should be delivered to the
-   * registered CrdtRuntime's receive method on
-   * all other replicas in group, in causal order,
-   * with the given timestamp.
-   * @param group An identifier for the group that
-   * this message should be broadcast to (see joinGroup).
-   * @param message The message to send
-   * @param timestamp The CausalTimestamp returned by the
-   * last call to getNextTimestamp(group).
+   * Return the timestamp for the next message sent by previous' sender
+   * after a message with the given timestamp.  This should not
+   * change the internal state---it is not guaranteed that this timestamp
+   * will be used/received, in case processing its message fails.
+   * @param previous [description]
+   * @return         [description]
    */
-  send(group: string, message: Uint8Array, timestamp: CausalTimestamp): void;
+  nextTimestamp(previous: CausalTimestamp): CausalTimestamp;
+
   /**
-   * @return This replica's id, used by some Crdts internally
-   * (e.g., to generate unique identifiers of the form
-   * (replica id, counter)).
+   * TODO: batching.  During a batch, don't deliver any messages for
+   * that group to the CrdtRuntime.
+   * @param  group [description]
+   * @return       [description]
    */
-  getReplicaId(): string;
-  /**
-   * @param  group An identifier for the group that
-   * this message should be broadcast to (see joinGroup).
-   * @return       The CausalTimestamp that should
-   * be sent with the next message to group.  This
-   * timestamp will be used immediately to
-   * deliver a message to the local replica and then
-   * be passed to send along with group and that message,
-   * unless there is an error processing the message
-   * locally, in which case send will not be called.
-   */
-  getNextTimestamp(group: string): CausalTimestamp;
+  beginBatch(group: string): CausalTimestamp;
+  commitBatch(
+    group: string,
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp,
+    lastTimestamp: CausalTimestamp
+  ): void;
 }

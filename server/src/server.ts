@@ -64,6 +64,8 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
           isWebRtc = true;
         }
       } catch (e) {
+        console.log("Failed to parse message:");
+        console.log(message);
         message = {};
       }
 

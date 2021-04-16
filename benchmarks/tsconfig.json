@@ -3,7 +3,9 @@
   "compilerOptions": {
     "outDir": "build",
     "noEmit": false,
-    "typeRoots": ["./src/@types"]
+    "typeRoots": ["./src/@types"],
+    "allowJs": true,
+    "noImplicitAny": false
   },
   "include": ["src"]
 }

@@ -13,16 +13,35 @@ export class TestingNetwork implements BroadcastNetwork {
   joinGroup(_group: string): void {
     // Ignored
   }
-  send(_group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
+  send(group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
     this.sentBytes += message.byteLength;
     let queueMap = this.generator.messageQueues.get(this)!;
     for (let queue of queueMap.values()) {
-      queue.push(message);
+      queue.push([group, message]);
     }
+    this.generator.lastMessage = message;
   }
   register(causal: DefaultCausalBroadcastNetwork): void {
     this.causal = causal;
   }
+}
+
+// Copied from CrdtRuntime (TODO: use directly to
+// avoid duplication?)
+const REPLICA_ID_LENGTH = 11;
+const REPLICA_ID_CHARS = allAscii();
+function allAscii() {
+  let arr = new Array<number>(128);
+  for (let i = 0; i < 128; i++) arr[i] = i;
+  return String.fromCharCode(...arr);
+}
+
+function pseudorandomReplicaId(rng: seedrandom.prng) {
+  let chars = new Array<string>(REPLICA_ID_LENGTH);
+  for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
+    chars[i] = REPLICA_ID_CHARS[Math.floor(rng() * REPLICA_ID_CHARS.length)];
+  }
+  return chars.join("");
 }
 
 /**
@@ -31,11 +50,14 @@ export class TestingNetwork implements BroadcastNetwork {
  * when release is called.
  */
 export class TestingNetworkGenerator {
-  newRuntime(replicaId?: string) {
-    return new CrdtRuntime(this.newNetwork(replicaId));
+  newRuntime(
+    batchOptions?: "immediate" | "manual" | { periodMs: number },
+    rng: seedrandom.prng | undefined = undefined
+  ) {
+    let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;
+    return new CrdtRuntime(this.newNetwork(), batchOptions, replicaId);
   }
-  newNetwork(replicaId?: string) {
-    if (replicaId === undefined) replicaId = this.messageQueues.size + "";
+  newNetwork() {
     let network = new TestingNetwork(this);
     let newQueue = new Map<TestingNetwork, Array<any>>();
     for (let oldEntry of this.messageQueues.entries()) {
@@ -43,10 +65,13 @@ export class TestingNetworkGenerator {
       oldEntry[1].set(network, []);
     }
     this.messageQueues.set(network, newQueue);
-    return new DefaultCausalBroadcastNetwork(replicaId, network);
+    return new DefaultCausalBroadcastNetwork(network);
   }
   // Maps sender and recipient to an array of queued messages.
-  messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
+  messageQueues = new Map<
+    TestingNetwork,
+    Map<TestingNetwork, [group: string, message: Uint8Array][]>
+  >();
   /**
    * Release all queued messages from sender to the specified recipients.
    * If recipients are not specified, releases them to all
@@ -65,9 +90,9 @@ export class TestingNetworkGenerator {
     let senderMap = this.messageQueues.get(sender)!;
     for (let recipient of recipients) {
       if (recipient === sender) continue;
-      for (let message of senderMap.get(recipient)!) {
-        recipient.receivedBytes += message.byteLength;
-        recipient.causal.receive(message);
+      for (let queued of senderMap.get(recipient)!) {
+        recipient.receivedBytes += queued[1].byteLength;
+        recipient.causal.receive(...queued);
       }
       senderMap.set(recipient, []);
     }
@@ -87,4 +112,6 @@ export class TestingNetworkGenerator {
     for (let sender of this.messageQueues.keys()) ret += sender.sentBytes;
     return ret;
   }
+
+  lastMessage: Uint8Array | undefined = undefined;
 }

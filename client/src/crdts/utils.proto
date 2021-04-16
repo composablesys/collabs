@@ -1,15 +1,20 @@
 message CrdtReference {
-    required string rootId = 1;
-    repeated string pathToRoot = 2;
+    repeated bytes pathToRoot = 1;
 }
 
 message DefaultSerializerMessage {
     oneof value {
         string stringValue = 1;
         double numberValue = 2;
-        CrdtReference crdtValue = 3;
-        bool undefinedValue = 4;
-        bool nullValue = 5;
-        bytes bsonValue = 6;
+        bool booleanValue = 3;
+        bool nullValue = 4;
+        bool undefinedValue = 5;
+        CrdtReference crdtValue = 6;
+        bytes bsonValue = 7;
     }
+}
+
+message OptionalSerializerMessage {
+  required bool isPresent = 1;
+  optional bytes valueIfPresent = 2;
 }

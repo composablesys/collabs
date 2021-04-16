@@ -1,6 +1,4 @@
 import { crdts, network } from "compoventuals-client";
-import { LwwMap } from "compoventuals-client/build/src/crdts";
-import { v4 as uuid } from "uuid";
 
 /**
  * Get Heroku server host Websocket.
@@ -8,31 +6,17 @@ import { v4 as uuid } from "uuid";
 var HOST = location.origin.replace(/^http/, "ws");
 
 /**
- * Generate uuid for each client.
- */
-const client_uuid: string = uuid();
-
-/**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    client_uuid,
-    new network.WebSocketNetwork(HOST)
-  )
+  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST))
 );
 
 // The key represents a stroke in the form: endX:endY:startX:startY
 // The value is the color of the stroke.
-export class LwwMapResettable<K, V> extends crdts.AddAllAbilitiesViaChildren(
-  crdts.LwwMap
-) {}
-// let clientBoard: LwwMapResettable<string, string> = new LwwMapResettable(
-//   client,
-//   "whiteboardId"
-// );
-
-let clientBoard : LwwMap<string, string> = new LwwMap(client, "whiteboardId");
+let clientBoard: crdts.LwwMap<string, string> = client
+  .groupParent("whiteboardGroup")
+  .addChild("whiteboardId", new crdts.LwwMap());
 
 window.onload = function () {
   var colors = document.getElementsByClassName("btn-colors");
@@ -68,14 +52,12 @@ window.onload = function () {
     return pts;
   };
 
-  clientBoard.on("KeyAdd", (event) => {
-    // TODO: remove cast to string once we fix mixin generics
-    keyReactGeneric(event.key as string, event.value as string);
-  });
+  // clientBoard.on("KeyAdd", (event) => { generics
+  //   keyReactGeneric(event.key, event.value);
+  // });
 
   clientBoard.on("ValueChange", (event) => {
-    // TODO: remove cast to string once we fix mixin generics
-    keyReactGeneric(event.key as string, event.value as string);
+    keyReactGeneric(event.key, event.value);
   });
 
   // Mouse Event Handlers
@@ -92,7 +74,7 @@ window.onload = function () {
     });
 
     $(clear).on("click", function () {
-      clientBoard.hardReset();
+      clientBoard.reset();
     });
 
     // Draw on board

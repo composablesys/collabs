@@ -1,0 +1,6 @@
+message TreedocIdMessage {
+  required bytes path = 1;
+  required uint32 pathLength = 2;
+  repeated uint32 disIndices = 3;
+  repeated string disValues = 4;
+}

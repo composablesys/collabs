@@ -1,6 +1,5 @@
 // require('../test/test'); // run test.ts
 import { crdts, network } from "compoventuals-client";
-import { v4 as uuid } from "uuid";
 
 /**
  * Get Heroku server host Websocket.
@@ -8,21 +7,14 @@ import { v4 as uuid } from "uuid";
 var HOST = location.origin.replace(/^http/, "ws");
 
 /**
- * Generate uuid for each client.
- */
-const client_uuid: string = uuid();
-
-/**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    client_uuid,
-    new network.WebSocketNetwork(HOST)
-  )
+  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST))
 );
-//let clientCounter = new crdts.Counter("counterId", client);
-let clientCounter = new crdts.Counter(client, "counterId");
+let clientCounter = client
+  .groupParent("counterGroup")
+  .addChild("counter", new crdts.Counter());
 
 /* HTML variables */
 var counter = document.getElementById("counter");
@@ -52,11 +44,11 @@ document.getElementById("reset")!.onclick = function () {
   counter!.innerHTML = clientCounter.value.toString();
 };
 
-document.getElementById("strongReset")!.onclick = function () {
-  console.log("clicked strongReset");
-  clientCounter.strongReset();
-  counter!.innerHTML = clientCounter.value.toString();
-};
+// document.getElementById("strongReset")!.onclick = function () {
+//   console.log("clicked strongReset");
+//   clientCounter.strongReset();
+//   counter!.innerHTML = clientCounter.value.toString();
+// };
 
 // /* Customize onclick() function of sync to synchronize the value */
 // document.getElementById("sync")!.onclick = function() {
