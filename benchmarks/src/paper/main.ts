@@ -28,7 +28,7 @@ import benchCompare from "./benchcompare/benchmark";
     case "micro_crdts":
       await microCrdts(testArgs);
       break;
-    case "benchCompare":
+    case "bench_compare":
       await benchCompare(testArgs);
       break;
     default:

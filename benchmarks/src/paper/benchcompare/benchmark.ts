@@ -1,9 +1,7 @@
-import { assert } from "chai";
-import { crdts, network } from "compoventuals-client";
 import Automerge from "automerge";
+import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
-import { json } from "mathjs";
 
 const WARMUP = 5;
 const TRIALS = 10;
@@ -19,7 +17,7 @@ class CompareBenchmark {
   ) {}
 
   private generateRandomOps(rng: seedrandom.prng) {
-    const rand = rng()
+    const rand = rng();
     return rand;
   }
 
@@ -27,7 +25,7 @@ class CompareBenchmark {
     measurement: "time" | "memory" | "network",
     frequency: "whole" | "rounds"
   ) {
-    console.log("Starting micro_crdts test: " + this.testName);
+    console.log("Starting bench_compare test: " + this.testName);
 
     if (getIsTestRun()) return;
 
@@ -56,11 +54,12 @@ class CompareBenchmark {
 
       // Setup
       // TODO: should this be included in memory?
-      let automerges = new Map<number, any>();
-      let changes = new Map<number, any>();
-    
+      let automerges = new Array<any>(USERS);
+      let changes = new Array<string>(USERS);
+
       for (let i = 0; i < USERS; i++) {
-        automerges.set(i, Automerge.from({ value : 0 }));
+        // TODO: deterministic actor ids (second arg)
+        automerges[i] = Automerge.init();
       }
 
       if (measurement === "memory") {
@@ -102,23 +101,27 @@ class CompareBenchmark {
         // Each user sends concurrently, then receives
         // each other's messages.
         for (let i = 0; i < USERS; i++) {
-          let doc = automerges.get(i);
-          let newDoc = Automerge.change(doc, (d : any) => {
-            d.value = this.generateRandomOps(rng)
-          })
+          let doc = automerges[i];
+          let newDoc = Automerge.change(doc, (d: any) => {
+            d.value = this.generateRandomOps(rng);
+          });
           let message = JSON.stringify(Automerge.getChanges(doc!, newDoc!));
           totalSentBytes += message.length;
-          changes.set(i, Automerge.getChanges(doc!, newDoc!));
+          changes[i] = message;
+          automerges[i] = newDoc;
         }
 
-        for(let i = 0; i < USERS; i++) {
-          let updateDoc = automerges.get(i);
-          for (let j = 0; j < USERS && j != i; j++) {
-            // let updateDoc = Automerge.applyChanges(automerges.get(j), JSON.parse(changes.get(i)));
-            updateDoc = Automerge.applyChanges(updateDoc, changes.get(j))
+        for (let i = 0; i < USERS; i++) {
+          for (let j = 0; j < USERS; j++) {
+            if (j != i) {
+              automerges[j] = Automerge.applyChanges(
+                automerges[j],
+                JSON.parse(changes[i])
+              );
+            }
           }
-          automerges.set(i, updateDoc);
         }
+
         if (measurement === "memory") await sleep(0);
       }
 
@@ -145,6 +148,12 @@ class CompareBenchmark {
             break;
         }
       }
+
+      // Check results are all the same
+      let result0 = automerges[0];
+      for (let i = 1; i < USERS; i++) {
+        assert.deepStrictEqual(automerges[i], result0);
+      }
     }
 
     record(
@@ -163,20 +172,18 @@ class CompareBenchmark {
   }
 }
 
-function automerge() {
+function automergeRegister() {
   let totalSentBytes: number;
-  return new CompareBenchmark(
-    "Automerge",
-    () => {}
-  )
+  return new CompareBenchmark("automergeRegister", () => {});
 }
 
+// TODO: Automerge.Counter; Automerge our map, list tests
 
 export default async function benchCompare(args: string[]) {
   let benchmark: CompareBenchmark;
   switch (args[0]) {
-    case "compareBench":
-      benchmark = automerge();
+    case "automergeRegister":
+      benchmark = automergeRegister();
       break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
