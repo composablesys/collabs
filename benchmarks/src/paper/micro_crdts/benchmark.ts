@@ -11,8 +11,8 @@ import {
 
 const WARMUP = 5;
 const TRIALS = 10;
-const OPS = 1000;
-const ROUND_OPS = 100;
+const OPS = 200;
+const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
 const USERS = 16;
 
@@ -259,7 +259,7 @@ function MultiValueRegister() {
 
 function LwwRegister() {
   return new MicroCrdtsBenchmark(
-    "LwwRegister",
+    "Register",
     () => new crdts.LwwRegister<number>(0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.value
@@ -456,7 +456,7 @@ function LwwMapRolling() {
 
 function TreedocPrimitiveListLtr() {
   return new MicroCrdtsBenchmark(
-    "TreedocPrimitiveListLtr",
+    "TextLtr",
     () => new crdts.TreedocPrimitiveList<string>(),
     {
       Op: [
@@ -473,7 +473,7 @@ function TreedocPrimitiveListLtr() {
 
 function TreedocPrimitiveListRandom() {
   return new MicroCrdtsBenchmark(
-    "TreedocPrimitiveListRandom",
+    "TextRandom",
     () => new crdts.TreedocPrimitiveList<string>(),
     {
       Op: [
@@ -534,7 +534,7 @@ export default async function microCrdts(args: string[]) {
     case "MultiValueRegister":
       benchmark = MultiValueRegister();
       break;
-    case "LwwRegister":
+    case "Register":
       benchmark = LwwRegister();
       break;
     case "NumberCrdt":

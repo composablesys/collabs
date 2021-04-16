@@ -1,6 +1,16 @@
 #/usr/bin/sh
 
-set -e
+if [ -z "$1" ]
+  then
+    echo "Usage: ./run_all.sh <outdir>"
+    echo "(or ./run_all.sh --testRun to do a test run)"
+    exit 1
+fi
+
+if [ $1 == "--testRun" ]; then
+    echo "test run"
+    set -e
+fi
 
 for frequency in "whole" "rounds"
 do
