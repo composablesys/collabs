@@ -186,7 +186,7 @@ class MicroAutomergeBenchmark {
     }
 
     record(
-      "beanch_compare/" + measurement,
+      "micro_automerge/" + measurement,
       this.testName,
       frequency,
       TRIALS,
