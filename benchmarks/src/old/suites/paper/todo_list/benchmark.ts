@@ -842,12 +842,12 @@ function yjs() {
 //       this.crdt = crdt;
 //       this.crdt.setIsMap("items");
 //       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
-      
+
 //       this.crdt.setIsList("itemsIds");
 //       this.ids = this.crdt.get("itemsIds")[0] as crdts.TreedocPrimitiveList<string>;
-      
+
 //       this.crdt.set("done", false);
-      
+
 //       this.crdt.setIsList("text");
 //       this.text = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
 
@@ -871,7 +871,7 @@ function yjs() {
 //       newItem.setIsMap("items");
 //       newItem.set("done", false);
 //       newItem.setIsList("text");
-      
+
 //       let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
 //       textItem.insertAt(0, text);
 //     }
