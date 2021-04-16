@@ -56,7 +56,7 @@ class CompareBenchmark {
 
       // Setup
       // TODO: should this be included in memory?
-      let originDoc = Automerge.from({ value : [] })
+      let originDoc = Automerge.from({ value : 0 })
       let automerges = new Map<number, any>();
       for (let i = 0; i < USERS; i++) {
         let doc = Automerge.init();
@@ -104,10 +104,9 @@ class CompareBenchmark {
         // Each user sends concurrently, then receives
         // each other's messages.
         for (let i = 0; i < USERS; i++) {
-          let op = this.generateRandomOps(rng);
           let doc = automerges.get(i);
-          doc = Automerge.change(doc, 'Add a random value', d => {
-            doc.value.push(0, {val : op})
+          doc = Automerge.change(doc, (d : any) => {
+            d.value = this.generateRandomOps(rng)
           })
           automerges.set(i, doc);
         }
