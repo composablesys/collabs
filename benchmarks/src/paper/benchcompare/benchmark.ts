@@ -19,7 +19,8 @@ class CompareBenchmark {
   ) {}
 
   private generateRandomOps(rng: seedrandom.prng) {
-
+    const rand = rng()
+    return rand;
   }
 
   async run(
@@ -55,9 +56,11 @@ class CompareBenchmark {
 
       // Setup
       // TODO: should this be included in memory?
+      let originDoc = Automerge.from({ value : [] })
       let automerges = new Map<number, any>();
       for (let i = 0; i < USERS; i++) {
         let doc = Automerge.init();
+        Automerge.merge(originDoc, doc)
         automerges.set(i, doc);
       }
 
@@ -103,7 +106,14 @@ class CompareBenchmark {
         for (let i = 0; i < USERS; i++) {
           let op = this.generateRandomOps(rng);
           let doc = automerges.get(i);
-          
+          doc = Automerge.change(doc, 'Add a random value', d => {
+            doc.value.push(0, {val : op})
+          })
+          automerges.set(i, doc);
+        }
+
+        for(let i = 0; i < USERS; i++) {
+          originDoc = Automerge.merge(originDoc, automerges.get(i));
         }
 
         if (measurement === "memory") await sleep(0);
@@ -131,12 +141,6 @@ class CompareBenchmark {
             roundOps[round] = op;
             break;
         }
-      }
-
-      // Check results are all the same
-      let result0 = automerges.get(0);
-      for (let i = 1; i < USERS; i++) {
-        assert.deepStrictEqual(automerges.get(i), result0);
       }
     }
 
@@ -166,7 +170,7 @@ function automerge() {
 }
 
 
-export default async function microCrdts(args: string[]) {
+export default async function benchCompare(args: string[]) {
   let benchmark: CompareBenchmark;
   switch (args[0]) {
     case "compareBench":

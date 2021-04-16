@@ -3,6 +3,7 @@ import automergePerf from "./automerge_perf/benchmark";
 import todoList from "./todo_list/benchmark";
 import { setFolder, setIsTestRun } from "./record";
 import microCrdts from "./micro_crdts/benchmark";
+import benchCompare from "./benchcompare/benchmark";
 
 (async function () {
   function printUsage(exitCode: number) {
@@ -26,6 +27,9 @@ import microCrdts from "./micro_crdts/benchmark";
       break;
     case "micro_crdts":
       await microCrdts(testArgs);
+      break;
+    case "benchCompare":
+      await benchCompare(testArgs);
       break;
     default:
       console.log("Unrecognized major test: " + majorTest);
