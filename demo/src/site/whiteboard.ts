@@ -36,19 +36,19 @@ window.onload = function () {
 
       return pts;
     }
-    
+
     let slope = (eY - sY) / (eX - sX);
-    console.log(slope)
-    let pts = []
+    console.log(slope);
+    let pts = [];
     let intercept = sY - slope * sX;
-    
+
     // Depending on slope, iterate by xs or ys
     if (slope <= 1 && slope >= -1) {
       for (let i = min(sX, eX); i <= max(sX, eX); i++) {
-        pts.push(i + ":" + (slope*i + intercept));
+        pts.push(i + ":" + (slope * i + intercept));
       }
     } else {
-      console.log("in here")
+      console.log("in here");
       for (let i = min(sY, eY); i <= max(sY, eY); i++) {
         pts.push((i - intercept) / slope + ":" + i);
       }
