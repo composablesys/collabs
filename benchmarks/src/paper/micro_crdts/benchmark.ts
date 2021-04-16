@@ -1,7 +1,13 @@
 import { assert } from "chai";
 import { crdts, network } from "compoventuals-client";
 import seedrandom from "seedrandom";
-import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
+import {
+  getIsTestRun,
+  getMemoryUsed,
+  randomChar,
+  record,
+  sleep,
+} from "../record";
 
 const WARMUP = 5;
 const TRIALS = 10;
@@ -404,12 +410,12 @@ function MapCrdtRolling() {
 function TreedocPrimitiveListLtr() {
   return new MicroCrdtsBenchmark(
     "TreedocPrimitiveListLtr",
-    () => new crdts.TreedocPrimitiveList<number>(),
+    () => new crdts.TreedocPrimitiveList<string>(),
     {
       Op: [
         (crdt, rng) => {
           if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
-          else crdt.insertAt(crdt.length, rng());
+          else crdt.insertAt(crdt.length, randomChar(rng));
         },
         1.0,
       ],
@@ -421,12 +427,16 @@ function TreedocPrimitiveListLtr() {
 function TreedocPrimitiveListRandom() {
   return new MicroCrdtsBenchmark(
     "TreedocPrimitiveListRandom",
-    () => new crdts.TreedocPrimitiveList<number>(),
+    () => new crdts.TreedocPrimitiveList<string>(),
     {
       Op: [
         (crdt, rng) => {
           if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
-          else crdt.insertAt(Math.floor(rng() * (crdt.length + 1)), rng());
+          else
+            crdt.insertAt(
+              Math.floor(rng() * (crdt.length + 1)),
+              randomChar(rng)
+            );
         },
         1.0,
       ],
