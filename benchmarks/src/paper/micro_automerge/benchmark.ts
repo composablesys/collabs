@@ -203,7 +203,7 @@ class MicroAutomergeBenchmark {
 
 function Register() {
   return new MicroAutomergeBenchmark("Register", {
-    Set: [(doc, rng) => (doc["v"] = rng()), 1],
+    Set: [(doc, rng) => (doc.v = rng()), 1],
   });
 }
 
@@ -211,10 +211,12 @@ function Counter() {
   return new MicroAutomergeBenchmark("Counter", {
     Add: [
       (doc, rng) => {
-        let counter: Automerge.Counter | undefined = doc["v"];
+        let counter: Automerge.Counter | undefined = doc.v;
         if (counter === undefined) {
-          counter = new Automerge.Counter();
-          doc["v"] = counter;
+          counter = new Automerge.Counter(Math.floor(rng() * 100 - 50));
+          doc.v = counter;
+          // Doesn't like if you increment a new counter
+          return;
         }
         counter.increment(Math.floor(rng() * 100 - 50));
       },
@@ -238,8 +240,10 @@ function CounterMap() {
         let key = Math.floor(rng() * 100);
         let value = doc[key] as Automerge.Counter;
         if (value === undefined) {
-          value = new Automerge.Counter();
+          value = new Automerge.Counter(Math.floor(rng() * 100 - 50));
           doc[key] = value;
+          // Doesn't like if you increment a new counter
+          return;
         }
         value.increment(Math.floor(rng() * 100 - 50));
       },
@@ -311,10 +315,10 @@ function TextLtr() {
   return new MicroAutomergeBenchmark("TextLtr", {
     Op: [
       (doc, rng) => {
-        let text = doc["v"] as Automerge.Text | undefined;
+        let text = doc.v as Automerge.Text | undefined;
         if (text === undefined) {
           text = new Automerge.Text();
-          doc["v"] = text;
+          doc.v = text;
         }
         if (doc.length > 100) text.deleteAt!(Math.floor(rng() * 100));
         else text.insertAt!(text.length, randomChar(rng));
@@ -328,10 +332,10 @@ function TextRandom() {
   return new MicroAutomergeBenchmark("TextRandom", {
     Op: [
       (doc, rng) => {
-        let text = doc["v"] as Automerge.Text | undefined;
+        let text = doc.v as Automerge.Text | undefined;
         if (text === undefined) {
           text = new Automerge.Text();
-          doc["v"] = text;
+          doc.v = text;
         }
         if (doc.length > 100) text.deleteAt!(Math.floor(rng() * 100));
         else
