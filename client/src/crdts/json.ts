@@ -2,7 +2,7 @@ import { Crdt, CompositeCrdt, CrdtEvent, CrdtEventsRecord } from "./crdt_core";
 import { MultiValueRegister } from "./basic_crdts";
 import { LazyMap, MapCrdt } from "./standard";
 import { DefaultElementSerializer, ElementSerializer } from "./utils";
-import { TreedocPrimitiveList } from "./list";
+import { TreedocPrimitiveList, TreedocSource } from "./list";
 
 export interface JsonEvent extends CrdtEvent {
   readonly key: string;
@@ -54,7 +54,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     let mvr = this.internalMap.get(key);
     if (mvr) {
       for (let val of mvr.valueSet) {
-        switch (+val) {
+        switch (val) {
           case InternalType.Nested:
             vals.push(new JsonCursor(this, key));
             break;
@@ -119,6 +119,10 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   setIsList(key: string) {
     this.set(key, InternalType.List);
   }
+
+  addExtChild(name: string, child: Crdt) {
+    this.addChild(name, child);
+  }
 }
 
 export class JsonCursor {
@@ -132,10 +136,6 @@ export class JsonCursor {
     if (!cursor) cursor = "";
     this.cursor = cursor;
   }
-
-  // size(key: string): number {
-  //   return this.internal.size(this.cursor + key + ":");
-  // }
 
   get(key: string): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
     return this.internal.get(this.cursor + key + ":");

@@ -7,7 +7,6 @@ import util from "util";
 import { result10000 } from "./results";
 import { assert } from "chai";
 import zlib from "zlib";
-import {arrayAsString, stringAsArray} from "./utils";
 
 const DEBUG = false;
 
@@ -833,119 +832,119 @@ function yjs() {
   }).add();
 }
 
-function jsonCrdt() {
-  class JsonCrdtTodoList implements ITodoList {
-    private readonly items: crdts.JsonCursor;
-    private readonly ids: crdts.TreedocPrimitiveList<string>;
-    private readonly text: crdts.TreedocPrimitiveList<string>;
-    private readonly idGen: crdts.TreedocSource;
-    constructor(private readonly crdt: crdts.JsonCursor) {
-      this.crdt = crdt;
-      this.crdt.setIsMap("items");
-      this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
+// function jsonCrdt() {
+//   class JsonCrdtTodoList implements ITodoList {
+//     private readonly items: crdts.JsonCursor;
+//     private readonly ids: crdts.TreedocPrimitiveList<string>;
+//     private readonly text: crdts.TreedocPrimitiveList<string>;
+//     private readonly idGen: crdts.TreedocSource;
+//     constructor(private readonly crdt: crdts.JsonCursor) {
+//       this.crdt = crdt;
+//       this.crdt.setIsMap("items");
+//       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
       
-      this.crdt.setIsList("itemsIds");
-      this.ids = this.crdt.get("itemsIds")[0] as crdts.TreedocPrimitiveList<string>;
+//       this.crdt.setIsList("itemsIds");
+//       this.ids = this.crdt.get("itemsIds")[0] as crdts.TreedocPrimitiveList<string>;
       
-      this.crdt.set("done", false);
+//       this.crdt.set("done", false);
       
-      this.crdt.setIsList("text");
-      this.text = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+//       this.crdt.setIsList("text");
+//       this.text = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
 
-      this.idGen = new crdts.TreedocSource();
-    }
-    addItem(index: number, text: string): void {
-      let startId: crdts.TreedocId = null;
-      let endId: crdts.TreedocId = null;
-      if (index < this.ids.length) {
-        endId = this.idGen.deserialize(stringAsArray(this.ids.idAt(index)));
-      }
-      if (index > 0) {
-        startId = this.ids.idAt(index - 1);
-      }
-      let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
-      let key: string = arrayAsString(this.idGen.serialize(id));
-      this.ids.insertAt(index, key);
-      // id = this.idGen.deserialize(stringAsArray(key));
-      this.items.setIsMap(key);
-      let newItem = this.items.get(key)[0] as crdts.JsonCursor;
-      newItem.setIsMap("items");
-      newItem.set("done", false);
-      newItem.setIsList("text");
+//       this.idGen = new crdts.TreedocSource();
+//     }
+//     addItem(index: number, text: string): void {
+//       let startId: crdts.TreedocId = null;
+//       let endId: crdts.TreedocId = null;
+//       if (index < this.ids.length) {
+//         endId = this.idGen.deserialize(stringAsArray(this.ids.idAt(index)));
+//       }
+//       if (index > 0) {
+//         startId = this.ids.idAt(index - 1);
+//       }
+//       let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
+//       let key: string = arrayAsString(this.idGen.serialize(id));
+//       this.ids.insertAt(index, key);
+//       // id = this.idGen.deserialize(stringAsArray(key));
+//       this.items.setIsMap(key);
+//       let newItem = this.items.get(key)[0] as crdts.JsonCursor;
+//       newItem.setIsMap("items");
+//       newItem.set("done", false);
+//       newItem.setIsList("text");
       
-      let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
-      textItem.insertAt(0, text);
-    }
-    deleteItem(index: number): void {
-      this.items.delete(index.toString());
-    }
-    getItem(index: number): ITodoList {
-      return new JsonCrdtTodoList(
-        this.items.get(index.toString())[0] as crdts.JsonCursor
-      )
-    }
-    get itemsSize(): number {
-      return this.items.keys().length
-    }
+//       let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+//       textItem.insertAt(0, text);
+//     }
+//     deleteItem(index: number): void {
+//       this.items.delete(index.toString());
+//     }
+//     getItem(index: number): ITodoList {
+//       return new JsonCrdtTodoList(
+//         this.items.get(index.toString())[0] as crdts.JsonCursor
+//       )
+//     }
+//     get itemsSize(): number {
+//       return this.items.keys().length
+//     }
 
-    get done(): boolean {
-      return this.crdt.get("done")[0] as boolean;
-    }
+//     get done(): boolean {
+//       return this.crdt.get("done")[0] as boolean;
+//     }
 
-    set done(done: boolean) {
-      this.crdt.set("done", done);
-    }
+//     set done(done: boolean) {
+//       this.crdt.set("done", done);
+//     }
 
-    insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
-    }
-    deleteText(index: number, count: number): void {
-      this.text.deleteAt(index);
-    }
-    get textSize(): number {
-      return this.text.length;
-    }
-    getText(): string {
-      return this.text.asArray().join("");
-    }
-  }
+//     insertText(index: number, text: string): void {
+//       this.text.insertAtRange(index, [...text]);
+//     }
+//     deleteText(index: number, count: number): void {
+//       this.text.deleteAt(index);
+//     }
+//     get textSize(): number {
+//       return this.text.length;
+//     }
+//     getText(): string {
+//       return this.text.asArray().join("");
+//     }
+//   }
 
-  let generator: network.TestingNetworkGenerator;
-  let runtime: crdts.CrdtRuntime;
-  let totalSentBytes: number;
+//   let generator: network.TestingNetworkGenerator;
+//   let runtime: crdts.CrdtRuntime;
+//   let totalSentBytes: number;
 
-  new TodoListBenchmark("Compo Json Crdt", {
-    newTodoList() {
-      generator = new network.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual");
-      totalSentBytes = 0;
-      let crdt = new crdts.JsonCrdt();
-      let cursor = new crdts.JsonCursor(crdt);
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdt);
-      this.sendNextMessage();
-      return new JsonCrdtTodoList(cursor);
-    },
-    sendNextMessage() {
-      runtime.commitAll();
-      totalSentBytes += generator.lastMessage
-        ? GZIP
-          ? zlib.gzipSync(generator.lastMessage).byteLength
-          : generator.lastMessage.byteLength
-        : 0;
-      generator.lastMessage = undefined;
-    },
-    getSentBytes() {
-      return totalSentBytes;
-    },
-  }).add();
-}
+//   new TodoListBenchmark("Compo Json Crdt", {
+//     newTodoList() {
+//       generator = new network.TestingNetworkGenerator();
+//       runtime = generator.newRuntime("manual");
+//       totalSentBytes = 0;
+//       let crdt = new crdts.JsonCrdt();
+//       let cursor = new crdts.JsonCursor(crdt);
+//       let list = runtime
+//         .groupParent("")
+//         .addChild("", crdt);
+//       this.sendNextMessage();
+//       return new JsonCrdtTodoList(cursor);
+//     },
+//     sendNextMessage() {
+//       runtime.commitAll();
+//       totalSentBytes += generator.lastMessage
+//         ? GZIP
+//           ? zlib.gzipSync(generator.lastMessage).byteLength
+//           : generator.lastMessage.byteLength
+//         : 0;
+//       generator.lastMessage = undefined;
+//     },
+//     getSentBytes() {
+//       return totalSentBytes;
+//     },
+//   }).add();
+// }
 
-// plainJs();
-// compoCrdt();
-// compoJson();
-// compoJsonText();
-// yjs();
-// automerge();
-jsonCrdt();
+plainJs();
+compoCrdt();
+compoJson();
+compoJsonText();
+yjs();
+automerge();
+// jsonCrdt();

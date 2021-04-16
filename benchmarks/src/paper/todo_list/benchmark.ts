@@ -8,13 +8,17 @@ import { assert } from "chai";
 import zlib from "zlib";
 import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
 
+
 const DEBUG = false;
 
 // Experiment params
-const WARMUP = 5;
-const TRIALS = 10;
+// const WARMUP = 5;
+const WARMUP = 1;
+// const TRIALS = 10;
+const TRIALS = 0;
 const SEED = "42";
 const ROUND_OPS = 1000;
+// const OPS = 100;
 const OPS = 10000;
 
 const GZIP = false;
@@ -930,6 +934,121 @@ function yjs() {
   });
 }
 
+function jsonCrdt() {
+  class JsonCrdtTodoList implements ITodoList {
+    private readonly items: crdts.JsonCursor;
+    private readonly ids: crdts.TreedocPrimitiveList<string>;
+    private readonly text: crdts.TreedocPrimitiveList<string>;
+    constructor(private readonly crdt: crdts.JsonCursor, private readonly idGen: crdts.TreedocSource, private readonly runtime: crdts.CrdtRuntime) {
+      this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      this.ids = this.crdt.get("itemsIds")[0] as crdts.TreedocPrimitiveList<string>;
+      this.text = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+    }
+    addItem(index: number, text: string): void {
+      let startId: null | crdts.TreedocId = null;
+      let endId: null | crdts.TreedocId = null;
+      if (index < this.ids.length) {
+        endId = this.idGen.deserialize(crdts.stringAsArray(this.ids.getAt(index)), this.runtime);
+      }
+      if (index > 0) {
+        startId = this.idGen.deserialize(crdts.stringAsArray(this.ids.getAt(index - 1)), this.runtime);
+      }
+      let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
+      let key: string = crdts.arrayAsString(this.idGen.serialize(id));
+      this.ids.insertAt(index, key);
+
+      this.items.setIsMap(key);
+      let newItem = this.items.get(key)[0] as crdts.JsonCursor;
+      newItem.setIsMap("items");
+      newItem.setIsList("itemsIds");
+      newItem.set("done", false);
+      newItem.setIsList("text");
+      
+      let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
+      textItem.insertAt(0, text);
+    }
+    deleteItem(index: number): void {
+      let id: string = this.ids.getAt(index);
+      this.items.delete(id);
+      this.ids.deleteAt(index);
+    }
+    getItem(index: number): ITodoList {
+      let id: string = this.ids.getAt(index);
+      return new JsonCrdtTodoList(
+        this.items.get(id)[0] as crdts.JsonCursor, this.idGen, this.runtime
+      )
+    }
+    get itemsSize(): number {
+      return this.items.keys().length
+    }
+
+    get done(): boolean {
+      return this.crdt.get("done")[0] as boolean;
+    }
+
+    set done(done: boolean) {
+      this.crdt.set("done", done);
+    }
+
+    insertText(index: number, text: string): void {
+      this.text.insertAtRange(index, [...text]);
+    }
+    deleteText(index: number, count: number): void {
+      for (let i = 0; i < count; i++) {
+        this.text.deleteAt(index);
+      }
+    }
+    get textSize(): number {
+      return this.text.length;
+    }
+    getText(): string {
+      return this.text.asArray().join("");
+    }
+  }
+
+  let generator: network.TestingNetworkGenerator | null;
+  let runtime: crdts.CrdtRuntime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Json Crdt", {
+    newTodoList(rng: seedrandom.prng) {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+
+      let crdt = new crdts.JsonCrdt();
+
+      let cursor = new crdts.JsonCursor(crdt);
+      runtime.groupParent("").addChild("", crdt);
+      this.sendNextMessage();
+      cursor.setIsMap("items");
+      cursor.setIsList("itemsIds");
+      cursor.set("done", false);
+      cursor.setIsList("text");
+
+      let idGen = new crdts.TreedocSource();
+      crdt.addExtChild("treedocSource", idGen);
+      return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
+    sendNextMessage() {
+      runtime!.commitAll();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  });
+}
+
 // TODO: use two crdts, like in dmonad benchmarks?
 
 export default async function todoList(args: string[]) {
@@ -955,6 +1074,9 @@ export default async function todoList(args: string[]) {
       break;
     case "automergeNoText":
       benchmark = automergeNoText();
+      break;
+    case "compoJsonCrdt":
+      benchmark = jsonCrdt();
       break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
