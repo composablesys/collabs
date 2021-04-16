@@ -1,4 +1,5 @@
 import { crdts, network } from "compoventuals-client";
+import { min, max } from "mathjs";
 
 /**
  * Get Heroku server host Websocket.
@@ -12,7 +13,7 @@ let client = new crdts.CrdtRuntime(
   new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST))
 );
 
-// The key represents a stroke in the form: endX:endY:startX:startY
+// The key represents a point in the form: x:y
 // The value is the color of the stroke.
 let clientBoard: crdts.LwwMap<string, string> = client
   .groupParent("whiteboardGroup")
@@ -25,39 +26,48 @@ window.onload = function () {
   var ctx = board.getContext("2d");
   ctx!.lineWidth = 5;
 
-  let keyReactGeneric = function (key: string, value: string) {
-    var keys = key.split(":");
-    ctx!.fillStyle = value;
-    ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), 5, 5);
-  };
-
-  let interpolate = function (startX: number, startY: number, endX: number, endY: number) {
-    // special case - line goes straight down
-    if (endX - startX == 0) {
+  let interpolate = function (sX: number, sY: number, eX: number, eY: number) {
+    // special case - line goes straight up/down
+    if (sX == eX) {
       let pts = [];
-      for (let i = startY; i <= endY; i++) {
-        pts.push(startX + ":" + i);
+      for (let i = min(sY, eY); i <= max(sY, eY); i++) {
+        pts.push(sX + ":" + i);
       }
 
       return pts;
     }
     
-    let slope = (endY - startY) / (endX - startX);
-    let intercept = startY - slope * startX;
-    let pts = [];
-    for (let i = startX; i <= endX; i++) {
-      pts.push(i + ":" + (slope*i + intercept));
+    let slope = (eY - sY) / (eX - sX);
+    console.log(slope)
+    let pts = []
+    let intercept = sY - slope * sX;
+    
+    // Depending on slope, iterate by xs or ys
+    if (slope <= 1 && slope >= -1) {
+      for (let i = min(sX, eX); i <= max(sX, eX); i++) {
+        pts.push(i + ":" + (slope*i + intercept));
+      }
+    } else {
+      console.log("in here")
+      for (let i = min(sY, eY); i <= max(sY, eY); i++) {
+        pts.push((i - intercept) / slope + ":" + i);
+      }
     }
 
     return pts;
   };
 
-  // clientBoard.on("KeyAdd", (event) => { generics
-  //   keyReactGeneric(event.key, event.value);
-  // });
-
+  // Draw points
   clientBoard.on("ValueChange", (event) => {
-    keyReactGeneric(event.key, event.value);
+    var keys = event.key.split(":");
+    ctx!.fillStyle = event.value;
+    ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), 5, 5);
+  });
+
+  // Clear points
+  clientBoard.on("KeyDelete", (event) => {
+    var keys = event.key.split(":");
+    ctx!.clearRect(parseInt(keys[0]), parseInt(keys[1]), 5, 5);
   });
 
   // Mouse Event Handlers
@@ -66,7 +76,7 @@ window.onload = function () {
     var color = "black";
 
     var isDown = false;
-    var canvasX, canvasY, prevX, prevY;
+    var canvasX: number, canvasY: number, prevX: number, prevY: number;
 
     // Update color selection
     $(colors).on("click", function (e: JQuery.ClickEvent) {
