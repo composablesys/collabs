@@ -1,7 +1,7 @@
 import { Crdt, CompositeCrdt, CrdtEvent, CrdtEventsRecord } from "./crdt_core";
 import { MultiValueRegister } from "./basic_crdts";
 import { LazyMap, MapCrdt } from "./standard";
-import { DefaultElementSerializer, ElementSerializer } from "./utils";
+import { DefaultElementSerializer, ElementSerializer, TextSerializer } from "./utils";
 import { TreedocPrimitiveList, TreedocSource } from "./list";
 
 export interface JsonEvent extends CrdtEvent {
@@ -39,12 +39,17 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     );
 
     this.internalListMap = this.addChild("internalListMap",
-      new LazyMap(() => new TreedocPrimitiveList(), keySerializer, true)
+      new LazyMap(() => new TreedocPrimitiveList(TextSerializer.instance), keySerializer, true)
     );
   }
 
   set(key: string, val: number | string | boolean | InternalType) {
+    // Reset an existing map or list
     this.deleteSubKeys(key);
+    if (val === InternalType.List) {
+      this.internalListMap.get(key).reset();
+    }
+
     let mvr = this.internalMap.getForce(key);
     mvr.value = val;
   }

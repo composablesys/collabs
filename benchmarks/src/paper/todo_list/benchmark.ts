@@ -12,13 +12,10 @@ import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
 const DEBUG = false;
 
 // Experiment params
-// const WARMUP = 5;
-const WARMUP = 1;
-// const TRIALS = 10;
-const TRIALS = 0;
+const WARMUP = 5;
+const TRIALS = 10;
 const SEED = "42";
 const ROUND_OPS = 1000;
-// const OPS = 100;
 const OPS = 10000;
 
 const GZIP = false;
@@ -945,6 +942,7 @@ function jsonCrdt() {
       this.text = this.crdt.get("text")[0] as crdts.TreedocPrimitiveList<string>;
     }
     addItem(index: number, text: string): void {
+      // Generate new id for this index
       let startId: null | crdts.TreedocId = null;
       let endId: null | crdts.TreedocId = null;
       if (index < this.ids.length) {
@@ -957,20 +955,22 @@ function jsonCrdt() {
       let key: string = crdts.arrayAsString(this.idGen.serialize(id));
       this.ids.insertAt(index, key);
 
+      // Update Json Crdt with new item
       this.items.setIsMap(key);
       let newItem = this.items.get(key)[0] as crdts.JsonCursor;
       newItem.setIsMap("items");
       newItem.setIsList("itemsIds");
       newItem.set("done", false);
       newItem.setIsList("text");
-      
+
+      // Update text item
       let textItem = newItem.get("text")[0] as crdts.TreedocPrimitiveList<string>;
-      textItem.insertAt(0, text);
+      textItem.insertAtRange(0, [...text]);
     }
     deleteItem(index: number): void {
       let id: string = this.ids.getAt(index);
-      this.items.delete(id);
       this.ids.deleteAt(index);
+      this.items.delete(id);
     }
     getItem(index: number): ITodoList {
       let id: string = this.ids.getAt(index);
@@ -979,7 +979,7 @@ function jsonCrdt() {
       )
     }
     get itemsSize(): number {
-      return this.items.keys().length
+      return this.ids.length
     }
 
     get done(): boolean {
