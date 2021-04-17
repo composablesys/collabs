@@ -11,7 +11,7 @@ import {
 
 const WARMUP = 5;
 const TRIALS = 10;
-const OPS = 100;
+const OPS = 200;
 const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
 const USERS = 16;
