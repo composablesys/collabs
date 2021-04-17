@@ -339,6 +339,30 @@ function AddWinsSetRolling() {
   );
 }
 
+function AddWinsSetRollingGrow() {
+  let i = 0;
+  return new MicroCrdtsBenchmark(
+    "AddWinsSetRollingGrow",
+    () => {
+      i = 0;
+      return new crdts.AddWinsSet<number>();
+    },
+    {
+      Roll: [
+        (crdt) => {
+          crdt.add(i);
+          i++;
+        },
+        1.0,
+      ],
+    },
+    (crdt) => {
+      //console.log("AddWinsSetRolling total elements touched: " + i);
+      return crdt.value;
+    }
+  );
+}
+
 function MapCrdt() {
   return new MicroCrdtsBenchmark(
     "MapCrdt",
@@ -392,6 +416,36 @@ function MapCrdtRolling() {
       Roll: [
         (crdt, rng) => {
           if (i >= 100) crdt.delete(i - 100);
+          crdt.getForce(i).add(Math.floor(rng() * 100 - 50));
+          i++;
+        },
+        1.0,
+      ],
+    },
+    (crdt) => {
+      //console.log("MapCrdtRolling total elements touched: " + i);
+      return new Map(
+        [...crdt.value].map((value) => [value[0], value[1].value])
+      );
+    }
+  );
+}
+
+function MapCrdtRollingGrow() {
+  let i = 0;
+  return new MicroCrdtsBenchmark(
+    "MapCrdtRollingGrow",
+    () => {
+      i = 0;
+      return new crdts.MapCrdt<number, crdts.Counter>(
+        () => new crdts.Counter(),
+        crdts.DefaultElementSerializer.getInstance(),
+        true
+      );
+    },
+    {
+      Roll: [
+        (crdt, rng) => {
           crdt.getForce(i).add(Math.floor(rng() * 100 - 50));
           i++;
         },
@@ -602,11 +656,17 @@ export default async function microCrdts(args: string[]) {
     case "AddWinsSetRolling":
       benchmark = AddWinsSetRolling();
       break;
+    case "AddWinsSetRollingGrow":
+      benchmark = AddWinsSetRollingGrow();
+      break;
     case "MapCrdt":
       benchmark = MapCrdt();
       break;
     case "MapCrdtRolling":
       benchmark = MapCrdtRolling();
+      break;
+    case "MapCrdtRollingGrow":
+      benchmark = MapCrdtRollingGrow();
       break;
     case "LwwMap":
       benchmark = LwwMap();
