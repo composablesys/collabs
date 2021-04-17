@@ -454,6 +454,27 @@ function LwwMapRolling() {
   );
 }
 
+function LwwMapRollingGrow() {
+  let i = 0;
+  return new MicroCrdtsBenchmark(
+    "LwwMapRollingGrow",
+    () => {
+      i = 0;
+      return new crdts.LwwMap<number, number>();
+    },
+    {
+      Roll: [
+        (crdt, rng) => {
+          crdt.set(i, Math.floor(rng() * 100 - 50));
+          i++;
+        },
+        1.0,
+      ],
+    },
+    (crdt) => new Map(crdt.entries())
+  );
+}
+
 function TreedocPrimitiveListLtr() {
   return new MicroCrdtsBenchmark(
     "TextLtr",
@@ -463,6 +484,22 @@ function TreedocPrimitiveListLtr() {
         (crdt, rng) => {
           if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
           else crdt.insertAt(crdt.length, randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (crdt) => crdt.asArray()
+  );
+}
+
+function TreedocPrimitiveListLtrGrow() {
+  return new MicroCrdtsBenchmark(
+    "TextLtrGrow",
+    () => new crdts.TreedocPrimitiveList<string>(),
+    {
+      Op: [
+        (crdt, rng) => {
+          crdt.insertAt(crdt.length, randomChar(rng));
         },
         1.0,
       ],
@@ -484,6 +521,22 @@ function TreedocPrimitiveListRandom() {
               Math.floor(rng() * (crdt.length + 1)),
               randomChar(rng)
             );
+        },
+        1.0,
+      ],
+    },
+    (crdt) => crdt.asArray()
+  );
+}
+
+function TreedocPrimitiveListRandomGrow() {
+  return new MicroCrdtsBenchmark(
+    "TextRandomGrow",
+    () => new crdts.TreedocPrimitiveList<string>(),
+    {
+      Op: [
+        (crdt, rng) => {
+          crdt.insertAt(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
         },
         1.0,
       ],
@@ -566,6 +619,15 @@ export default async function microCrdts(args: string[]) {
       break;
     case "TextRandom":
       benchmark = TreedocPrimitiveListRandom();
+      break;
+    case "LwwMapRollingGrow":
+      benchmark = LwwMapRollingGrow();
+      break;
+    case "TextLtrGrow":
+      benchmark = TreedocPrimitiveListLtrGrow();
+      break;
+    case "TextRandomGrow":
+      benchmark = TreedocPrimitiveListRandomGrow();
       break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC
