@@ -298,7 +298,7 @@ export abstract class SemidirectProduct<
 
   // TODO: errors if setup is not called exactly once?
 
-  receiveGeneral(
+  protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -316,7 +316,7 @@ export abstract class SemidirectProduct<
           timestamp,
           message
         );
-        this.crdt2.receiveGeneral(targetPath, timestamp, message);
+        this.crdt2.receive(targetPath, timestamp, message);
         break;
       case SemidirectProduct.crdt1Name:
         targetPath.length--;
@@ -343,7 +343,7 @@ export abstract class SemidirectProduct<
           if (mActOrNull === null) return;
           else mAct = mActOrNull;
         }
-        this.crdt1.receiveGeneral(mAct.m1TargetPath, timestamp, mAct.m1Message);
+        this.crdt1.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
         break;
       default:
         // TODO: deliver error somewhere reasonable

@@ -23,12 +23,7 @@ import {
   stringAsArray,
 } from "./utils";
 import { LocallyResettableState, ResetWrapClass } from "./resettable";
-import {
-  makeEventAdder,
-  OutOfOrderAble,
-  Resettable,
-  ResettableEventsRecord,
-} from "./mixins";
+import { makeEventAdder, Resettable, ResettableEventsRecord } from "./mixins";
 
 export class NumberState implements LocallyResettableState {
   readonly initialValue: number;
@@ -58,7 +53,7 @@ export interface ICounter extends Crdt<CounterEventsRecord> {
 
 export class CounterPureBase
   extends PrimitiveCrdt<NumberState, CounterEventsRecord>
-  implements ICounter, OutOfOrderAble {
+  implements ICounter {
   constructor(initialValue: number = 0) {
     super(new NumberState(initialValue));
   }
@@ -71,7 +66,7 @@ export class CounterPureBase
     }
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = CounterPureBaseMessage.decode(message);
     this.state.value += decoded.toAdd;
     this.emit("Add", {
@@ -89,14 +84,6 @@ export class CounterPureBase
    */
   set value(value: number) {
     this.add(value - this.value);
-  }
-
-  receiveOutOfOrder(
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
-    this.receiveGeneral(targetPath, timestamp, message);
   }
 
   canGC() {
@@ -192,7 +179,10 @@ export class GCounter
     super.send(GCounterMessage.encode(message).finish());
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): void {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
     let decoded = GCounterMessage.decode(message);
     switch (decoded.data) {
       case "add":
@@ -364,7 +354,10 @@ export class MultRegisterBase
     }
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): boolean {
     let decoded = MultRegisterMessage.decode(message);
     this.state.value *= decoded.toMult;
     this.emit("Mult", {
@@ -421,9 +414,7 @@ export interface GSetEventsRecord<T> extends CrdtEventsRecord {
   SetAdd: SetAddEvent<T>;
 }
 
-export class GSet<T>
-  extends PrimitiveCrdt<Set<string>, GSetEventsRecord<T>>
-  implements OutOfOrderAble {
+export class GSet<T> extends PrimitiveCrdt<Set<string>, GSetEventsRecord<T>> {
   /**
    * Grow-only set with elements of type T.
    *
@@ -474,7 +465,10 @@ export class GSet<T>
     return this.state.has(this.elementAsString(value));
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): boolean {
     let decoded = GSetMessage.decode(message);
     let value = this.elementSerializer.deserialize(decoded.toAdd, this.runtime);
     if (!this.has(value)) {
@@ -482,15 +476,6 @@ export class GSet<T>
       this.emit("SetAdd", { caller: this, timestamp, valueAdded: value });
       return true;
     } else return false;
-  }
-
-  receiveOutOfOrder(
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
-    // GSet Add ops are commutative, so OoO doesn't matter
-    this.receiveGeneral(targetPath, timestamp, message);
   }
 
   /**
@@ -618,7 +603,7 @@ export class PartitionedMap<K extends HasSender, V>
     return this.state.has(this.keyAsString(key));
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = PartitionedMapMessage.decode(message);
     switch (decoded.data) {
       case "keyMessage":
@@ -777,7 +762,10 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     }
   }
 
-  protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): boolean {
     let decoded = MvrMessage.decode(message);
     let removed = new Set<T>();
     let vc = timestamp.asVectorClock();
@@ -1038,7 +1026,7 @@ export class LwwRegister<T> extends CompositeCrdt<LwwEventsRecord<T>> {
 //     return this.state.value;
 //   }
 //
-//   protected receive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
+//   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array): boolean {
 //     let decoded = LwwMessage.decode(message);
 //     let value = this.valueSerializer.deserialize(decoded.value, this.runtime);
 //     // See if it's causally greater than the current state

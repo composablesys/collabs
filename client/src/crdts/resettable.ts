@@ -47,7 +47,7 @@ class ResetComponent<
     super.send(new Uint8Array());
   }
 
-  receive(
+  protected receivePrimitive(
     timestamp: CausalTimestamp,
     message: Uint8Array | ResetComponentMessage
   ) {
@@ -62,7 +62,7 @@ class ResetComponent<
         // was set to false, in which case original
         // promises not to look at it anyway, hence this
         // is okay.  TODO: type-safe way to do this?
-        this.resetWrapperCrdt.original.receiveGeneral(
+        this.resetWrapperCrdt.original.receive(
           toReplay[0],
           toReplay[1]!,
           toReplay[2]
@@ -217,7 +217,7 @@ export class StrongResetComponent<
     super.send(new Uint8Array());
   }
 
-  receive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     if (message.length !== 0)
       throw new Error("Unexcepted nontrivial message for StrongResetComponent");
     this.strongResetWrapperCrdt.original.state.resetLocalState();

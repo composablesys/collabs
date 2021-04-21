@@ -857,53 +857,58 @@ function yjs() {
   let totalSentBytes: number;
 
   class YjsTodoList implements ITodoList {
-    constructor(private readonly doc: Y.Doc) {}
+    private readonly textCrdt: Y.Text;
+    private readonly items: Y.Array<Y.Map<any>>;
+    constructor(private readonly map: Y.Map<any>) {
+      this.textCrdt = map.get("text");
+      this.items = map.get("items");
+    }
 
     addItem(index: number, text: string): void {
       topDoc!.transact(() => {
-        let item = new Y.Doc();
-        this.doc.getArray<Y.Doc>("items").insert(index, [item]);
-        item.getText("text").insert(0, text);
-        item.getArray<Y.Doc>("items");
-        item.getMap().set("done", false);
+        let item = new Y.Map<any>();
+        item.set("text", new Y.Text(text));
+        item.set("items", new Y.Array<Y.Map<any>>());
+        item.set("done", false);
+        this.items.insert(index, [item]);
       });
     }
     deleteItem(index: number): void {
       topDoc!.transact(() => {
-        this.doc.getArray<Y.Doc>("items").delete(index);
+        this.items.delete(index);
       });
     }
     getItem(index: number): ITodoList {
-      return new YjsTodoList(this.doc.getArray<Y.Doc>("items").get(index));
+      return new YjsTodoList(this.items.get(index));
     }
     get itemsSize(): number {
-      return this.doc.getArray<Y.Doc>("items").length;
+      return this.items.length;
     }
 
     get done(): boolean {
-      return this.doc.getMap().get("done");
+      return this.map.get("done");
     }
     set done(done: boolean) {
       topDoc!.transact(() => {
-        this.doc.getMap().set("done", done);
+        this.map.set("done", done);
       });
     }
 
     insertText(index: number, text: string): void {
       topDoc!.transact(() => {
-        this.doc.getText("text").insert(index, text);
+        this.textCrdt.insert(index, text);
       });
     }
     deleteText(index: number, count: number): void {
       topDoc!.transact(() => {
-        this.doc.getText("text").delete(index, count);
+        this.textCrdt.delete(index, count);
       });
     }
     get textSize(): number {
-      return this.doc.getText("text").length;
+      return this.textCrdt.length;
     }
     getText(): string {
-      return this.doc.getText("text").toString();
+      return this.textCrdt.toString();
     }
   }
 
@@ -914,15 +919,148 @@ function yjs() {
       topDoc.on("update", (update: any) => {
         totalSentBytes += update.byteLength;
       });
-      return new YjsTodoList(topDoc);
+      topDoc.getMap().set("items", new Y.Array<Y.Map<any>>());
+      return new YjsTodoList(topDoc.getMap());
     },
     cleanup() {
       topDoc = null;
     },
+    sendNextMessage() {},
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  });
+}
+
+function jsonCrdt() {
+  class JsonCrdtTodoList implements ITodoList {
+    private readonly items: crdts.JsonCursor;
+    private readonly ids: crdts.TreedocPrimitiveList<string>;
+    private readonly text: crdts.TreedocPrimitiveList<string>;
+    constructor(
+      private readonly crdt: crdts.JsonCursor,
+      private readonly idGen: crdts.TreedocSource,
+      private readonly runtime: crdts.CrdtRuntime
+    ) {
+      this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      this.ids = this.crdt.get(
+        "itemsIds"
+      )[0] as crdts.TreedocPrimitiveList<string>;
+      this.text = this.crdt.get(
+        "text"
+      )[0] as crdts.TreedocPrimitiveList<string>;
+    }
+    addItem(index: number, text: string): void {
+      // Generate new id for this index
+      let startId: null | crdts.TreedocId = null;
+      let endId: null | crdts.TreedocId = null;
+      if (index < this.ids.length) {
+        endId = this.idGen.deserialize(
+          crdts.stringAsArray(this.ids.getAt(index)),
+          this.runtime
+        );
+      }
+      if (index > 0) {
+        startId = this.idGen.deserialize(
+          crdts.stringAsArray(this.ids.getAt(index - 1)),
+          this.runtime
+        );
+      }
+      let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
+      let key: string = crdts.arrayAsString(this.idGen.serialize(id));
+      this.ids.insertAt(index, key);
+
+      // Update Json Crdt with new item
+      this.items.setIsMap(key);
+      let newItem = this.items.get(key)[0] as crdts.JsonCursor;
+      newItem.setIsMap("items");
+      newItem.setIsList("itemsIds");
+      newItem.set("done", false);
+      newItem.setIsList("text");
+
+      // Update text item
+      let textItem = newItem.get(
+        "text"
+      )[0] as crdts.TreedocPrimitiveList<string>;
+      textItem.insertAtRange(0, [...text]);
+    }
+    deleteItem(index: number): void {
+      let id: string = this.ids.getAt(index);
+      this.ids.deleteAt(index);
+      this.items.delete(id);
+    }
+    getItem(index: number): ITodoList {
+      let id: string = this.ids.getAt(index);
+      return new JsonCrdtTodoList(
+        this.items.get(id)[0] as crdts.JsonCursor,
+        this.idGen,
+        this.runtime
+      );
+    }
+    get itemsSize(): number {
+      return this.ids.length;
+    }
+
+    get done(): boolean {
+      return this.crdt.get("done")[0] as boolean;
+    }
+
+    set done(done: boolean) {
+      this.crdt.set("done", done);
+    }
+
+    insertText(index: number, text: string): void {
+      this.text.insertAtRange(index, [...text]);
+    }
+    deleteText(index: number, count: number): void {
+      for (let i = 0; i < count; i++) {
+        this.text.deleteAt(index);
+      }
+    }
+    get textSize(): number {
+      return this.text.length;
+    }
+    getText(): string {
+      return this.text.asArray().join("");
+    }
+  }
+
+  let generator: network.TestingNetworkGenerator | null;
+  let runtime: crdts.CrdtRuntime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Json Crdt", {
+    newTodoList(rng: seedrandom.prng) {
+      generator = new network.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+
+      let crdt = new crdts.JsonCrdt();
+
+      let cursor = new crdts.JsonCursor(crdt);
+      runtime.groupParent("").addChild("", crdt);
+      this.sendNextMessage();
+      cursor.setIsMap("items");
+      cursor.setIsList("itemsIds");
+      cursor.set("done", false);
+      cursor.setIsList("text");
+
+      let idGen = new crdts.TreedocSource();
+      crdt.addExtChild("treedocSource", idGen);
+      return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
     sendNextMessage() {
-      // TODO.  Currently they get sent right away.  Perhaps use transactions?
-      // Although I think currently, each benchmark op corresponds to one
-      // Yjs op.
+      runtime!.commitAll();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
     },
     getSentBytes() {
       return totalSentBytes;
@@ -955,6 +1093,9 @@ export default async function todoList(args: string[]) {
       break;
     case "automergeNoText":
       benchmark = automergeNoText();
+      break;
+    case "compoJsonCrdt":
+      benchmark = jsonCrdt();
       break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);

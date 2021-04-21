@@ -192,7 +192,7 @@ function treedocLww() {
       list = runtime
         .groupParent("")
         .addChild(
-          "",
+          "text",
           new crdts.TreedocList<crdts.LwwRegister<string>>(
             () => new crdts.LwwRegister(""),
             true
@@ -235,7 +235,7 @@ function treedocPrimitiveLww() {
       runtime = generator.newRuntime("manual", rng);
       list = runtime
         .groupParent("")
-        .addChild("", new crdts.TreedocPrimitiveList<string>());
+        .addChild("text", new crdts.TreedocPrimitiveList<string>());
     },
     () => {
       generator = null;
@@ -325,7 +325,7 @@ function mapLww() {
       runtime = generator.newRuntime("manual", rng);
       list = runtime
         .groupParent("")
-        .addChild("", new crdts.LwwMap<number, string>());
+        .addChild("text", new crdts.LwwMap<number, string>());
     },
     () => {
       generator = null;
