@@ -142,7 +142,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
         }
         for (let i = 0; i < USERS; i++) generator.release(runtimes[i]);
 
-        if (measurement === "memory") await sleep(0);
+        // if (measurement === "memory") await sleep(0);
       }
 
       // Record result
