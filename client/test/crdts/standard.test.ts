@@ -4,12 +4,14 @@ import {
   AddWinsSet,
   CrdtRuntime,
   DisableWinsFlag,
+  DynamicCrdtSource,
   EnableWinsFlag,
   GSet,
   JsonCrdt,
   JsonCursor,
   KeyEvent,
   LwwMap,
+  LwwRegister,
   MapCrdt,
   MapEvent,
   NumberCrdt,
@@ -1375,6 +1377,79 @@ describe("standard", () => {
           new Set(["testNested", "non-nested"])
         );
       });
+    });
+  });
+
+  describe("DynamicCrdtSource", () => {
+    let aliceSource: DynamicCrdtSource<[], NumberCrdt>;
+    let bobSource: DynamicCrdtSource<[], NumberCrdt>;
+    let aliceRegister: LwwRegister<NumberCrdt | undefined>;
+    let bobRegister: LwwRegister<NumberCrdt | undefined>;
+
+    beforeEach(() => {
+      aliceSource = alice
+        .groupParent("")
+        .addChild("source", new DynamicCrdtSource(() => new NumberCrdt()));
+      bobSource = bob
+        .groupParent("")
+        .addChild("source", new DynamicCrdtSource(() => new NumberCrdt()));
+      aliceRegister = alice
+        .groupParent("")
+        .addChild(
+          "register",
+          new LwwRegister<NumberCrdt | undefined>(undefined)
+        );
+      bobRegister = bob
+        .groupParent("")
+        .addChild(
+          "register",
+          new LwwRegister<NumberCrdt | undefined>(undefined)
+        );
+    });
+
+    it("returns new Crdt", () => {
+      let newCrdt = aliceSource.new();
+      assert.strictEqual(newCrdt.value, 0);
+    });
+
+    it("transfers new Crdt via register", () => {
+      aliceRegister.value = aliceSource.new();
+      aliceRegister.value.add(7);
+      assert.strictEqual(aliceRegister.value.value, 7);
+
+      runtimeGen.releaseAll();
+      assert.strictEqual(bobRegister.value!.value, 7);
+    });
+
+    it("allows sequential creation", () => {
+      let new1 = aliceSource.new();
+      let new2 = aliceSource.new();
+      new1.add(7);
+      new2.add(-3);
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+    });
+
+    it("allows concurrent creation", () => {
+      let new1 = aliceSource.new();
+      let new2 = bobSource.new();
+      new1.add(7);
+      new2.add(-3);
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+
+      runtimeGen.releaseAll();
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+
+      aliceRegister.value = new1;
+      runtimeGen.releaseAll();
+      let new1Bob = bobRegister.value!;
+      bobRegister.value = new2;
+      runtimeGen.releaseAll();
+      let new2Alice = aliceRegister.value!;
+      assert.strictEqual(new1Bob.value, 7);
+      assert.strictEqual(new2Alice.value, -3);
     });
   });
 });

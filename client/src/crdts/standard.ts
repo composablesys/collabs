@@ -881,91 +881,6 @@ export class MapCrdt<K, C extends Crdt & Resettable>
   // TODO: preserve-state delete?
 }
 
-// // TODO: refactor
-// export interface NewCrdtEvent<C extends Crdt> extends CrdtEvent {
-//   readonly newCrdt: C;
-// }
-//
-// export interface RuntimeCrdtEventsRecord<C extends Crdt>
-//   extends CrdtEventsRecord {
-//   NewCrdt: NewCrdtEvent<C>;
-// }
-//
-// export class RuntimeCrdtGenerator<C extends Crdt> extends Crdt<
-//   RuntimeCrdtEventsRecord<C>
-// > {
-//   private readonly generator: (
-//     parent: Crdt,
-//     id: string,
-//     message: Uint8Array
-//   ) => C;
-//   /**
-//    * Use this class to generate Crdt's dynamically at
-//    * runtime.  Specifically, when this.generate(message)
-//    * is called, all replicas will call generator(message)
-//    * and return the generated Crdt via a NewCrdtEvent.
-//    * To ensure eventual consistency, generator must
-//    * give the same result on all replicas even if they are
-//    * in different states; the simplest way to ensure
-//    * this is for the result to depend only on the given
-//    * message.
-//    *
-//    * Notes:
-//    * - generator must use the given parent and id for its
-//    * generated Crdt.  parent will be this.
-//    * - generator should not call operations on its Crdt,
-//    * since those will happen at every replica, hence take
-//    * effect once per replica.  Instead, either do the operations
-//    * you want to do only on the replica that called
-//    * this.generate(), or use local operations in generator
-//    * (TODO: not yet implemented).
-//    * - You'll probably want to store the generated Crdt's
-//    * somewhere to keep track of them.  If you store them
-//    * in a Crdt collection (e.g., an AddWinsSet), make sure
-//    * to add them only on the replica that called
-//    * this.generate(), or use local operations on the collection
-//    * (TODO: not yet implemented).  Otherwise, every replica
-//    * will cause an add operation.  On the flipside, if
-//    * you store them in a non-Crdt collection (e.g., a JS Set),
-//    * make sure to add them on every replica.
-//    *
-//    * MapCrdt and LazyMap offer similar but less flexible behavior:
-//    * initializing a map key creates a value Crdt dynamically.
-//    * Unlike those classes, this class does not constrain
-//    * the initialization data to be a unique (not previously
-//    * initialized) key, and it does not store the resulting
-//    * Crdt anywhere.
-//    */
-//   constructor(
-//     parentOrRuntime: Crdt | CrdtRuntime,
-//     id: string,
-//     generator: (parent: Crdt, id: string, message: Uint8Array) => C
-//   ) {
-//     super(parentOrRuntime, id, {});
-//     this.generator = generator;
-//   }
-//
-//   // Used to return our own generated Crdt's in generate().
-//   private lastGenerated?: C;
-//
-//   generate(message: Uint8Array): C {
-//     let genMessage = RuntimeGeneratorMessage.create({
-//       message: message,
-//       uniqueId: this.runtime.getUniqueString(),
-//     });
-//     super.send(RuntimeGeneratorMessage.encode(genMessage).finish());
-//     return this.lastGenerated!;
-//   }
-//
-//   protected receiveInternal(timestamp: CausalTimestamp, message: Uint8Array): boolean {
-//       let decoded = RuntimeGeneratorMessage.decode(message);
-//       let newCrdt = this.generator(this, decoded.uniqueId, decoded.message);
-//       this.emit("NewCrdt", { caller: this, timestamp, newCrdt });
-//       if (timestamp.isLocal()) this.lastGenerated = newCrdt;
-//       return false;
-//   }
-// }
-
 export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
   //KeyAdd: MapEvent<K, V>; // TODO
   KeyDelete: KeyEvent<K>;
@@ -1120,3 +1035,145 @@ export class LwwMap<K, V>
 }
 
 // TODO: set/map return things: can't use set for values in case of duplicates? (what do Set/Map do?)
+
+export interface NewCrdtEvent<C extends Crdt> extends CrdtEvent {
+  readonly newCrdt: C;
+}
+
+export interface DynamicCrdtSourceEventsRecord<C extends Crdt>
+  extends CrdtEventsRecord {
+  NewCrdt: NewCrdtEvent<C>;
+}
+
+// TODO: resets/canGC, to allow proper nesting?
+// What would the use case and semantics be?
+// TODO: use crdtConstructor type as generic type instead
+// of explicitly separating args and C?  Makes using the
+// type more intuitive.
+export class DynamicCrdtSource<
+  TArgs extends any[],
+  C extends Crdt
+> extends Crdt<DynamicCrdtSourceEventsRecord<C>> {
+  private readonly children: Map<string, C> = new Map();
+
+  /**
+   * If you use the default argsSerializer, then args
+   * (as an array) must be serializable with BSON.
+   * In particular, undefined (e.g. due to optional
+   * arguments), functions, and serializers
+   * are not allowed.
+   * TODO: nicer way to do this?
+   * @param crdtConstructor [description]
+   */
+  constructor(
+    private readonly crdtConstructor: (...args: TArgs) => C,
+    private readonly argsSerializer: ElementSerializer<TArgs> = DefaultElementSerializer.getInstance()
+  ) {
+    super();
+  }
+
+  private ourCreatedCrdt: C | undefined = undefined;
+  new(...args: TArgs): C {
+    this.runtime.send(this, this.argsSerializer.serialize(args));
+    let created = this.ourCreatedCrdt;
+    if (created === undefined) {
+      // TODO: use assertion instead
+      throw new Error("Bug: created was undefined");
+    }
+    this.ourCreatedCrdt = undefined;
+    return created;
+  }
+
+  protected receiveInternal(
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
+    if (targetPath.length === 0) {
+      // It's a new Crdt message.
+      const args = this.argsSerializer.deserialize(message, this.runtime);
+      const newCrdt = this.crdtConstructor(...args);
+      // Add as child with "counter:sender" as id.  Similar
+      // to CompositeCrdt#addChild.
+      let name = timestamp.getSenderCounter() + ":" + timestamp.getSender();
+      if (this.children.has(name)) {
+        throw new Error(
+          'Duplicate newCrdt name (was timestamp reused?): "' + name + '"'
+        );
+      }
+      this.children.set(name, newCrdt);
+      this.childBeingAdded = newCrdt;
+      newCrdt.init(name, this);
+      this.childBeingAdded = undefined;
+
+      this.emit("NewCrdt", { caller: this, newCrdt, timestamp });
+
+      if (timestamp.isLocal()) {
+        this.ourCreatedCrdt = newCrdt;
+      }
+    } else {
+      // Message for an existing child.  Proceed as in
+      // CompositeCrdt.
+      let child = this.children.get(targetPath[targetPath.length - 1]);
+      if (child === undefined) {
+        // TODO: deliver error somewhere reasonable
+        throw new Error(
+          "Unknown child: " +
+            targetPath[targetPath.length - 1] +
+            " in: " +
+            JSON.stringify(targetPath) +
+            ", children: " +
+            JSON.stringify([...this.children.keys()])
+        );
+      }
+      targetPath.length--;
+      child.receive(targetPath, timestamp, message);
+    }
+  }
+
+  private childBeingAdded?: C;
+  onChildInit(child: Crdt) {
+    if (child != this.childBeingAdded) {
+      throw new Error(
+        "this was passed to Crdt.init as parent externally" +
+          " (use this.new or a CompositeCrdt instead)"
+      );
+    }
+  }
+
+  getDescendant(targetPath: string[]): Crdt<CrdtEventsRecord> {
+    // Copied from CompositeCrdt.  TODO: unify implementations?
+    if (targetPath.length === 0) return this;
+
+    let child = this.children.get(targetPath[targetPath.length - 1]);
+    if (child === undefined) {
+      throw new Error(
+        "Unknown child: " +
+          targetPath[targetPath.length - 1] +
+          " in: " +
+          JSON.stringify(targetPath) +
+          ", children: " +
+          JSON.stringify([...this.children.keys()])
+      );
+    }
+    targetPath.length--;
+    return child.getDescendant(targetPath);
+  }
+
+  canGC(): boolean {
+    return this.children.size === 0;
+  }
+
+  // /**
+  //  * Constructor args must be serializable with the
+  //  * default serializer (basically BSON).
+  //  *
+  //  * @param  [description]
+  //  * @return          [description]
+  //  */
+  // static for<TArgs extends any[], C extends Crdt>(
+  //   CrdtClass: ConstructorArgs<TArgs, C>
+  // ): DynamicCrdtSource<TArgs, C> {
+  //   return new DynamicCrdtSource((...args: TArgs) => new CrdtClass(...args));
+  // }
+}
