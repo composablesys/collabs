@@ -40,22 +40,11 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
   serialize(value: T): Uint8Array {
     let message: IDefaultSerializerMessage;
     switch (typeof value) {
-      case "string":
-        message = { stringValue: value };
-        break;
-      case "number":
-        message = { numberValue: value };
-        break;
-      case "boolean":
-        message = { booleanValue: value };
-        break;
       case "undefined":
         message = { undefinedValue: true };
         break;
       default:
-        if (value === null) {
-          message = { nullValue: true };
-        } else if (value instanceof Crdt) {
+        if (value instanceof Crdt) {
           // TODO: require to be in the same group.
           // How to enforce?
           message = {
@@ -64,8 +53,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
             }),
           };
         } else {
-          // Use BSON
-          message = { bsonValue: serialize(value) };
+          // Use BSON.  It only works on objects, so
+          // we have to wrap value in an object.
+          message = { bsonValue: serialize({ "": value }) };
         }
     }
     return DefaultSerializerMessage.encode(message).finish();
@@ -75,28 +65,17 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
     let decoded = DefaultSerializerMessage.decode(message);
     let ans: any;
     switch (decoded.value) {
-      case "stringValue":
-        ans = decoded.stringValue;
-        break;
-      case "numberValue":
-        ans = decoded.numberValue;
-        break;
-      case "booleanValue":
-        ans = decoded.booleanValue;
-        break;
-      case "nullValue":
-        ans = null;
-        break;
-      case "undefinedValue":
-        ans = undefined;
+      case "bsonValue":
+        // Unwrap the object by indexing ""
+        ans = deserialize(Buffer.from(decoded.bsonValue))[""];
         break;
       case "crdtValue":
         ans = runtime.getCrdtByReference(
           decoded.crdtValue!.pathToRoot!.map(arrayAsString)
         );
         break;
-      case "bsonValue":
-        ans = deserialize(Buffer.from(decoded.bsonValue));
+      case "undefinedValue":
+        ans = undefined;
         break;
       default:
         throw new Error("Bad message format: decoded.value=" + decoded.value);
