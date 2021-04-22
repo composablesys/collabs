@@ -5,7 +5,7 @@ import seedrandom = require("seedrandom");
 const board = document.getElementById("board");
 const winText = document.getElementById("winText")!;
 
-// TODO: make refresh not destroy board each time
+// TODO: make refresh not destroy board each time?
 // TODO: if game over, say win/lose and display whole board
 function refreshDisplay() {
   // @ts-ignore
@@ -31,7 +31,9 @@ function refreshDisplay() {
           e.preventDefault();
           game.rightClick(x, y);
         });
-        box.appendChild(document.createTextNode(game.tiles[x][y].letterCode));
+        let letterCode = game.tiles[x][y].letterCode;
+        if (letterCode === "0") letterCode = " ";
+        box.appendChild(document.createTextNode(letterCode));
         // Set the text and background colors
         switch (tile.status) {
           case TileStatus.BLANK:
@@ -132,6 +134,21 @@ function invalidate() {
   }
 }
 
+// Settings inputs
+let widthInput = document.getElementById("width") as HTMLInputElement;
+let heightInput = document.getElementById("height") as HTMLInputElement;
+let percentMinesInput = document.getElementById(
+  "percentMines"
+) as HTMLInputElement;
+
+function settingsFromInput(): GameSettings {
+  return {
+    width: widthInput.valueAsNumber,
+    height: heightInput.valueAsNumber,
+    fractionMines: percentMinesInput.valueAsNumber / 100,
+  };
+}
+
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs
  */
@@ -156,14 +173,14 @@ let gameSource = client
         new MinesweeperCrdt(width, height, fractionMines, seed, startX, startY)
     )
   );
-let currentSettings = client.groupParent("minesGroup").addChild(
-  "currentSettings",
-  new crdts.LwwRegister<GameSettings>({
-    width: 10,
-    height: 10,
-    fractionMines: 10 / 64,
-  })
-);
+let currentSettings = client
+  .groupParent("minesGroup")
+  .addChild(
+    "currentSettings",
+    new crdts.LwwRegister<GameSettings>(settingsFromInput())
+  );
+// TODO: FWW instead of LWW?  Also backup to view all games
+// in case of concurrent progress.
 let currentState = client
   .groupParent("minesGroup")
   .addChild(
@@ -174,6 +191,7 @@ let currentState = client
 client.groupParent("minesGroup").on("Change", invalidate);
 
 document.getElementById("newGame")!.onclick = function () {
+  currentSettings.value = settingsFromInput();
   currentState.value = currentSettings.value;
   invalidate();
 };
