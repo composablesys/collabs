@@ -263,13 +263,13 @@ class TileCrdt extends crdts.CompositeCrdt {
       case TileStatus.BLANK:
         return " ";
       case TileStatus.FLAG:
-        return "F";
+        return "⚑";
       case TileStatus.QUESTION_FLAG:
         return "?";
       case TileStatus.REVEALED_EMPTY:
         return this.number + "";
       case TileStatus.REVEALED_MINE:
-        return "X";
+        return "✹";
     }
   }
 }
