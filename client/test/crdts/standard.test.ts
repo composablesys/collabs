@@ -4,10 +4,14 @@ import {
   AddWinsSet,
   CrdtRuntime,
   DisableWinsFlag,
+  DynamicCrdtSource,
   EnableWinsFlag,
   GSet,
+  JsonCrdt,
+  JsonCursor,
   KeyEvent,
   LwwMap,
+  LwwRegister,
   MapCrdt,
   MapEvent,
   NumberCrdt,
@@ -582,7 +586,7 @@ describe("standard", () => {
     //     });
     //   });
     describe("gc", () => {
-      it("garbage collects deleted entries", async () => {
+      it.skip("garbage collects deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
           aliceSet.add(i + "");
         }
@@ -592,7 +596,8 @@ describe("standard", () => {
           else bobSet.delete(i + "");
         }
         runtimeGen.releaseAll();
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // TODO: use memtest to force gc
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         // @ts-ignore flagMap is private
         assert.strictEqual(aliceSet.flagMap.explicitSize, 0);
         // @ts-ignore flagMap is private
@@ -612,8 +617,8 @@ describe("standard", () => {
         // @ts-ignore flagMap is private
         assert.strictEqual(bobSet.flagMap.explicitSize, 100);
 
-        // Wait for GC to actually run
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // TODO: Wait for GC to actually run
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         assert.strictEqual(aliceSet.size, 100);
         assert.strictEqual(bobSet.size, 100);
         // @ts-ignore flagMap is private
@@ -633,7 +638,7 @@ describe("standard", () => {
         }
         runtimeGen.releaseAll();
 
-        // Don't wait for GC to run; it shouldn't GC yet
+        // Don't wait for GC to run; it (probably) shouldn't GC yet
         assert.strictEqual(aliceSet.size, 0);
         assert.strictEqual(bobSet.size, 0);
         // @ts-ignore flagMap is private
@@ -1080,7 +1085,7 @@ describe("standard", () => {
       });
     });
     describe("gc", () => {
-      it("garbage collects deleted entries", async () => {
+      it.skip("garbage collects deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
           aliceMap.set(i + "", 10 * i);
         }
@@ -1090,7 +1095,8 @@ describe("standard", () => {
           else bobMap.delete(i + "");
         }
         runtimeGen.releaseAll();
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // TODO: use memtest to force gc
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         // @ts-ignore internalMap is private
         assert.strictEqual(aliceMap.internalMap.explicitSize, 0);
         // @ts-ignore internalMap is private
@@ -1110,8 +1116,8 @@ describe("standard", () => {
         // @ts-ignore internalMap is private
         assert.strictEqual(bobMap.internalMap.explicitSize, 100);
 
-        // Wait for GC to actually run
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // TODO: Wait for GC to actually run
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         assert.strictEqual(aliceMap.size, 100);
         assert.strictEqual(bobMap.size, 100);
         // @ts-ignore internalMap is private
@@ -1139,6 +1145,311 @@ describe("standard", () => {
         // @ts-ignore internalMap is private
         assert.strictEqual(bobMap.internalMap.explicitSize, 100);
       });
+    });
+  });
+
+  describe("JsonCrdt", () => {
+    let aliceJson: JsonCrdt;
+    let aliceCursor: JsonCursor;
+    let bobJson: JsonCrdt;
+    let bobCursor: JsonCursor;
+
+    beforeEach(() => {
+      let aliceCrdt = new JsonCrdt();
+      let bobCrdt = new JsonCrdt();
+      aliceCursor = new JsonCursor(aliceCrdt);
+      bobCursor = new JsonCursor(bobCrdt);
+      aliceJson = alice.groupParent("").addChild("cursor", aliceCrdt);
+      bobJson = bob.groupParent("").addChild("cursor", bobCrdt);
+    });
+
+    it("is initially empty", () => {
+      assert.isEmpty(aliceCursor.keys());
+      assert.isEmpty(bobCursor.keys());
+      assert.isEmpty(aliceCursor.values());
+      assert.isEmpty(bobCursor.values());
+    });
+
+    describe("add non-nested objects", () => {
+      it("works with non-concurrent updates", () => {
+        aliceCursor.set("test", 9);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(aliceCursor.keys(), ["test"]);
+        assert.deepStrictEqual(aliceCursor.values(), [9]);
+        assert.deepStrictEqual(bobCursor.keys(), ["test"]);
+        assert.deepStrictEqual(bobCursor.values(), [9]);
+      });
+
+      it("works with concurrent updates", () => {
+        aliceCursor.set("test", 9);
+        bobCursor.set("test", "testString");
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(aliceCursor.keys(), ["test"]);
+        assert.deepStrictEqual(
+          new Set(aliceCursor.get("test")),
+          new Set([9, "testString"])
+        );
+        assert.deepStrictEqual(bobCursor.keys(), ["test"]);
+        assert.deepStrictEqual(
+          new Set(bobCursor.get("test")),
+          new Set([9, "testString"])
+        );
+
+        bobCursor.set("test", 10);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(aliceCursor.keys(), ["test"]);
+        assert.deepStrictEqual(aliceCursor.get("test"), [10]);
+        assert.deepStrictEqual(bobCursor.keys(), ["test"]);
+        assert.deepStrictEqual(bobCursor.get("test"), [10]);
+      });
+    });
+
+    describe("add nested objects", () => {
+      it("works with non-concurrent updates", () => {
+        bobCursor.setIsMap("testNested");
+        runtimeGen.releaseAll();
+
+        assert.lengthOf(aliceCursor.get("testNested"), 1);
+        assert.lengthOf(bobCursor.get("testNested"), 1);
+        assert.typeOf(aliceCursor.get("testNested")[0], "object");
+        assert.typeOf(bobCursor.get("testNested")[0], "object");
+
+        let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
+        let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+        assert.deepStrictEqual(aliceCursorNested.keys(), []);
+        assert.deepStrictEqual(bobCursorNested.keys(), []);
+
+        aliceCursorNested.set("nestedVal", 20);
+        runtimeGen.releaseAll();
+
+        assert.deepStrictEqual(aliceCursorNested.keys(), ["nestedVal"]);
+        assert.deepStrictEqual(aliceCursorNested.values(), [20]);
+        assert.deepStrictEqual(bobCursorNested.keys(), ["nestedVal"]);
+        assert.deepStrictEqual(bobCursorNested.values(), [20]);
+      });
+
+      it("works with concurrent updates", () => {
+        aliceCursor.set("testNested", 7);
+        bobCursor.setIsMap("testNested");
+        runtimeGen.releaseAll();
+
+        assert.lengthOf(aliceCursor.get("testNested"), 2);
+        assert.lengthOf(bobCursor.get("testNested"), 2);
+
+        aliceCursor.setIsMap("testNested");
+        runtimeGen.releaseAll();
+
+        assert.lengthOf(aliceCursor.get("testNested"), 1);
+        assert.lengthOf(bobCursor.get("testNested"), 1);
+        assert.typeOf(aliceCursor.get("testNested")[0], "object");
+        assert.typeOf(bobCursor.get("testNested")[0], "object");
+
+        let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
+        let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+        assert.deepStrictEqual(aliceCursorNested.keys(), []);
+        assert.deepStrictEqual(bobCursorNested.keys(), []);
+
+        aliceCursorNested.set("nestedValNum", 20);
+        bobCursorNested.set("nestedValString", "string");
+        runtimeGen.releaseAll();
+
+        assert.deepStrictEqual(
+          new Set(aliceCursorNested.keys()),
+          new Set(["nestedValNum", "nestedValString"])
+        );
+        assert.deepStrictEqual(aliceCursorNested.get("nestedValNum"), [20]);
+        assert.deepStrictEqual(aliceCursorNested.get("nestedValString"), [
+          "string",
+        ]);
+        assert.deepStrictEqual(
+          new Set(aliceCursorNested.values()),
+          new Set([20, "string"])
+        );
+        assert.deepStrictEqual(
+          new Set(bobCursorNested.keys()),
+          new Set(["nestedValNum", "nestedValString"])
+        );
+        assert.deepStrictEqual(bobCursorNested.get("nestedValNum"), [20]);
+        assert.deepStrictEqual(bobCursorNested.get("nestedValString"), [
+          "string",
+        ]);
+        assert.deepStrictEqual(
+          new Set(bobCursorNested.values()),
+          new Set([20, "string"])
+        );
+
+        // Test that keys only returns keys for top level of Json object
+        assert.deepStrictEqual(aliceCursor.keys(), ["testNested"]);
+        assert.deepStrictEqual(bobCursor.keys(), ["testNested"]);
+      });
+    });
+
+    describe("delete non-nested objects", () => {
+      it("works with non-concurrent updates", () => {
+        aliceCursor.set("test", 9);
+        runtimeGen.releaseAll();
+
+        bobCursor.delete("test");
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(aliceCursor.get("test"), []);
+        assert.deepStrictEqual(bobCursor.get("test"), []);
+      });
+
+      it("works with concurrent updates", () => {
+        aliceCursor.set("testNum", 9);
+        bobCursor.set("testStr", "string");
+        runtimeGen.releaseAll();
+
+        aliceCursor.delete("testStr");
+        bobCursor.set("testNum", 10);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(aliceCursor.keys(), ["testNum"]);
+        assert.deepStrictEqual(aliceCursor.get("testNum"), [10]);
+        assert.deepStrictEqual(bobCursor.keys(), ["testNum"]);
+        assert.deepStrictEqual(bobCursor.get("testNum"), [10]);
+      });
+    });
+
+    describe("delete nested objects", () => {
+      it("works with non-concurrent updates", () => {
+        bobCursor.setIsMap("testNested");
+        runtimeGen.releaseAll();
+
+        let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
+        let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+
+        aliceCursorNested.set("nestedVal", 20);
+        runtimeGen.releaseAll();
+
+        bobCursor.set("non-nested", "string");
+        bobCursor.delete("testNested");
+        runtimeGen.releaseAll();
+
+        assert.deepStrictEqual(aliceCursorNested.keys(), []);
+        assert.deepStrictEqual(aliceCursorNested.values(), []);
+        assert.deepStrictEqual(bobCursorNested.keys(), []);
+        assert.deepStrictEqual(bobCursorNested.values(), []);
+
+        assert.deepStrictEqual(aliceCursor.keys(), ["non-nested"]);
+        assert.deepStrictEqual(aliceCursor.values(), ["string"]);
+        assert.deepStrictEqual(bobCursor.keys(), ["non-nested"]);
+        assert.deepStrictEqual(bobCursor.values(), ["string"]);
+      });
+
+      it("works with concurrent updates", () => {
+        aliceCursor.setIsMap("testNested");
+        bobCursor.set("non-nested", 16);
+        runtimeGen.releaseAll();
+
+        assert.deepStrictEqual(
+          new Set(aliceCursor.keys()),
+          new Set(["testNested", "non-nested"])
+        );
+        assert.includeDeepMembers(aliceCursor.values(), [16]);
+        assert.deepStrictEqual(
+          new Set(bobCursor.keys()),
+          new Set(["testNested", "non-nested"])
+        );
+        assert.includeDeepMembers(bobCursor.values(), [16]);
+
+        let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
+        let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+
+        bobCursorNested.set("nestedValString", "string");
+        runtimeGen.releaseAll();
+
+        aliceCursorNested.set("nestedValNum", 20);
+        bobCursor.delete("testNested");
+        runtimeGen.releaseAll();
+
+        assert.deepStrictEqual(aliceCursorNested.keys(), ["nestedValNum"]);
+        assert.deepStrictEqual(aliceCursorNested.values(), [20]);
+        assert.deepStrictEqual(bobCursorNested.keys(), ["nestedValNum"]);
+        assert.deepStrictEqual(bobCursorNested.values(), [20]);
+
+        // Internally, 'testNested' -> {} is removed
+        assert.deepStrictEqual(
+          new Set(aliceCursor.keys()),
+          new Set(["testNested", "non-nested"])
+        );
+        assert.deepStrictEqual(
+          new Set(bobCursor.keys()),
+          new Set(["testNested", "non-nested"])
+        );
+      });
+    });
+  });
+
+  describe("DynamicCrdtSource", () => {
+    let aliceSource: DynamicCrdtSource<[], NumberCrdt>;
+    let bobSource: DynamicCrdtSource<[], NumberCrdt>;
+    let aliceRegister: LwwRegister<NumberCrdt | undefined>;
+    let bobRegister: LwwRegister<NumberCrdt | undefined>;
+
+    beforeEach(() => {
+      aliceSource = alice
+        .groupParent("")
+        .addChild("source", new DynamicCrdtSource(() => new NumberCrdt()));
+      bobSource = bob
+        .groupParent("")
+        .addChild("source", new DynamicCrdtSource(() => new NumberCrdt()));
+      aliceRegister = alice
+        .groupParent("")
+        .addChild(
+          "register",
+          new LwwRegister<NumberCrdt | undefined>(undefined)
+        );
+      bobRegister = bob
+        .groupParent("")
+        .addChild(
+          "register",
+          new LwwRegister<NumberCrdt | undefined>(undefined)
+        );
+    });
+
+    it("returns new Crdt", () => {
+      let newCrdt = aliceSource.new();
+      assert.strictEqual(newCrdt.value, 0);
+    });
+
+    it("transfers new Crdt via register", () => {
+      aliceRegister.value = aliceSource.new();
+      aliceRegister.value.add(7);
+      assert.strictEqual(aliceRegister.value.value, 7);
+
+      runtimeGen.releaseAll();
+      assert.strictEqual(bobRegister.value!.value, 7);
+    });
+
+    it("allows sequential creation", () => {
+      let new1 = aliceSource.new();
+      let new2 = aliceSource.new();
+      new1.add(7);
+      new2.add(-3);
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+    });
+
+    it("allows concurrent creation", () => {
+      let new1 = aliceSource.new();
+      let new2 = bobSource.new();
+      new1.add(7);
+      new2.add(-3);
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+
+      runtimeGen.releaseAll();
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+
+      aliceRegister.value = new1;
+      runtimeGen.releaseAll();
+      let new1Bob = bobRegister.value!;
+      bobRegister.value = new2;
+      runtimeGen.releaseAll();
+      let new2Alice = aliceRegister.value!;
+      assert.strictEqual(new1Bob.value, 7);
+      assert.strictEqual(new2Alice.value, -3);
     });
   });
 });

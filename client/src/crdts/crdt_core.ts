@@ -112,14 +112,38 @@ export abstract class Crdt<
   }
 
   /**
-   * Callback used by CrdtRuntime or a parent Crdt.
+   * Callback used by this Crdt's CrdtParent to deliver
+   * a message, possibly for one of this Crdt's descendants.
+   * This method calls receiveInternal and
+   * then dispatches a "Change" event.
+   *
+   * Final method (do not override).
    * @targetPath: the target Crdt's id followed by
    * the ids of its ancestors in ascending order,
    * excluding the current Crdt.  TODO: warning: mutated
    * @param timestamp The timestamp of the received message
    * @param message   The received message
    */
-  abstract receiveGeneral(
+  receive(
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ) {
+    this.receiveInternal(targetPath, timestamp, message);
+    this.emit("Change", { caller: this, timestamp: timestamp });
+  }
+
+  /**
+   * Core method used to receive messages, possibly for
+   * one of this Crdt's descendants.  See
+   * receive.
+   * @targetPath: the target Crdt's id followed by
+   * the ids of its ancestors in ascending order,
+   * excluding the current Crdt.
+   * @param timestamp The timestamp of the received message
+   * @param message   The received message
+   */
+  protected abstract receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -187,8 +211,7 @@ export abstract class PrimitiveCrdt<
     this.runtime.send(this, message);
   }
 
-  // TODO: receive: use "final" hack? https://github.com/microsoft/TypeScript/issues/33446#issuecomment-692928123
-  receiveGeneral(
+  protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -200,10 +223,7 @@ export abstract class PrimitiveCrdt<
       // We are not the target
       throw new Error("PrimitiveCrdt received message for child");
     }
-    this.receive(timestamp, message);
-
-    // TODO: do this in Crdt instead
-    this.emit("Change", { caller: this, timestamp });
+    this.receivePrimitive(timestamp, message);
   }
 
   /**
@@ -213,7 +233,7 @@ export abstract class PrimitiveCrdt<
    * @param  timestamp  [description]
    * @param  message    [description]
    */
-  protected abstract receive(
+  protected abstract receivePrimitive(
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void;
@@ -282,7 +302,7 @@ export class CompositeCrdt<
     }
   }
 
-  receiveGeneral(
+  protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -305,13 +325,7 @@ export class CompositeCrdt<
       );
     }
     targetPath.length--;
-    child.receiveGeneral(targetPath, timestamp, message);
-
-    // Dispatch a generic Change event
-    this.emit("Change", {
-      caller: this,
-      timestamp: timestamp,
-    });
+    child.receive(targetPath, timestamp, message);
   }
 
   getDescendant(targetPath: string[]): Crdt {
@@ -466,7 +480,7 @@ export class CrdtRuntime {
     // Deliver to self, synchronously
     // TODO: error handling
     let groupParent = this.groupParents.get(group)!;
-    groupParent.receiveGeneral(
+    groupParent.receive(
       pathToRoot.slice(0, pathToRoot.length - 1),
       timestamp,
       message
@@ -579,7 +593,7 @@ export class CrdtRuntime {
     for (let i = 0; i < decoded.messageSenders.length; i++) {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
-        groupParent.receiveGeneral(
+        groupParent.receive(
           pathToGroups[decoded.messageSenders[i]],
           timestamp,
           decoded.innerMessages[i]

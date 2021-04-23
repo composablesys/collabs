@@ -3,15 +3,11 @@ message CrdtReference {
 }
 
 message DefaultSerializerMessage {
-    oneof value {
-        string stringValue = 1;
-        double numberValue = 2;
-        bool booleanValue = 3;
-        bool nullValue = 4;
-        bool undefinedValue = 5;
-        CrdtReference crdtValue = 6;
-        bytes bsonValue = 7;
-    }
+  oneof value {
+    bytes bsonValue = 1;
+    CrdtReference crdtValue = 2;
+    bool undefinedValue = 3;
+  }
 }
 
 message OptionalSerializerMessage {

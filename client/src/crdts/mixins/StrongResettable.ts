@@ -51,10 +51,6 @@ export interface StrongResettableEventsRecord extends CrdtEventsRecord {
 //           caller: this,
 //           timestamp: event.timestamp,
 //         });
-//         this.emit("Change", {
-//           caller: this,
-//           timestamp: event.timestamp,
-//         });
 //       });
 //     }
 //     strongReset() {
