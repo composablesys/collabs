@@ -594,7 +594,7 @@ export class CrdtRuntime {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
         groupParent.receive(
-          pathToGroups[decoded.messageSenders[i]],
+          pathToGroups[decoded.messageSenders[i]].slice(),
           timestamp,
           decoded.innerMessages[i]
         );
