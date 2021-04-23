@@ -3,17 +3,14 @@ import {
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
 import { CausalTimestamp } from "./causal_broadcast_network";
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 export class WebSocketNetwork implements BroadcastNetwork {
   causal!: DefaultCausalBroadcastNetwork;
   /**
    * WebSocket for connection to server.
    */
-  ws: WebSocket;
-  /**
-   * Message waiting to be sent by the WebSocket
-   */
-  sendBuffer: Array<string>;
+  ws: ReconnectingWebSocket;
   /**
    * Constructor which takes in a webSocketArgs for
    * generating a new WebSocket connection.
@@ -22,37 +19,13 @@ export class WebSocketNetwork implements BroadcastNetwork {
    * use to create a new WebSocket connection.
    */
   constructor(webSocketArgs: string) {
-    this.sendBuffer = [];
     /**
      * Open WebSocket connection with server.
      * Register EventListener with corresponding event handler.
      */
-    this.ws = new WebSocket(webSocketArgs);
-    this.ws.addEventListener("open", this.sendAction);
+    this.ws = new ReconnectingWebSocket(webSocketArgs);
     this.ws.addEventListener("message", this.receiveAction);
-    // this.ws.addEventListener('ping', function(pingMessage){
-    //     console.log('Receive a ping : ' + pingMessage);
-    // });
   }
-  /**
-   * Check if the send message buffer has any message waiting to be sent.
-   * If there exist, then send it via WebSocket and remove the item from buffer.
-   * If not, then wait a customized time period and check again.
-   */
-  sendAction = () => {
-    let index = 0;
-    while (index < this.sendBuffer.length) {
-      // TODO: use Uint8Array directly instead
-      // (requires changing options + server)
-      // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-      // this.ws.send(new TextDecoder().decode(this.sendBuffer[index]));
-      this.ws.send(this.sendBuffer[index]);
-      index++;
-    }
-    this.sendBuffer = [];
-    // Use heartbeat to keep client alive.
-    // this.heartbeat();
-  };
   /**
    * Invoke heartbeat function to keep clients alive.
    *
@@ -101,11 +74,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
       type: "register",
       group: group,
     });
-    if (this.ws.readyState == 1) {
-      this.ws.send(message);
-    } else {
-      this.sendBuffer.push(message);
-    }
+    this.ws.send(message);
   }
   /**
    * The actual send function using underlying WebSocket protocol.
@@ -116,13 +85,9 @@ export class WebSocketNetwork implements BroadcastNetwork {
   send(group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
     let encoded = Buffer.from(message).toString("base64");
     let toSend = JSON.stringify({ group: group, message: encoded });
-    if (this.ws.readyState === 1) {
-      // TODO: use Uint8Array directly instead
-      // (requires changing options + server)
-      // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-      this.ws.send(toSend);
-    } else {
-      this.sendBuffer.push(toSend);
-    }
+    // TODO: use Uint8Array directly instead
+    // (requires changing options + server)
+    // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
+    this.ws.send(toSend);
   }
 }

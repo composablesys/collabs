@@ -593,7 +593,7 @@ export class CrdtRuntime {
     for (let i = 0; i < decoded.messageSenders.length; i++) {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
-        groupParent.receiveGeneral(
+        groupParent.receive(
           pathToGroups[decoded.messageSenders[i]].slice(),
           timestamp,
           decoded.innerMessages[i]
