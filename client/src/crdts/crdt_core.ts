@@ -354,20 +354,6 @@ export class CompositeCrdt<
   }
 }
 
-export class GroupParent extends CompositeCrdt {
-  // Expose publicly
-  public addChild<D extends Crdt>(name: string, child: D): D {
-    return super.addChild(name, child);
-  }
-
-  canGC(): boolean {
-    return false;
-  }
-}
-
-// TODO in other files: SemidirectProduct<S> implements CrdtParent<StatefulCrdt<S>>, StatefulCrdt<SemidirectState<S>>,
-// GMap<F> implements CrdtParent<Crdt & F> (F for abilities?)
-
 class CrdtRoot implements CrdtParent {
   constructor(readonly runtime: CrdtRuntime) {}
   pathToRoot() {
