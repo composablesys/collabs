@@ -97,21 +97,35 @@ text.on("Change", () => {
     Math.max(0, oldSelectionStart ?? textInput.value.length)
   );
   textInput.selectionEnd = textInput.selectionStart;
+  if (afterChange) {
+    afterChange();
+    afterChange = null;
+  }
 });
-// Move cursor in response to others' text changes
+// Move cursor in response to others' text changes.
+// Need to delay this until after the Change event, since
+// the text is not yet edited.
+let afterChange: (() => void) | null = null;
 text.on("Insert", (e) => {
   if (!e.timestamp.isLocal()) {
-    if (textInput.selectionStart !== null && e.index < textInput.selectionStart)
-      moveCursorRight();
+    afterChange = () => {
+      if (
+        textInput.selectionStart !== null &&
+        e.index < textInput.selectionStart
+      )
+        moveCursorRight();
+    };
   }
 });
 text.on("Delete", (e) => {
   if (!e.timestamp.isLocal()) {
-    if (
-      textInput.selectionStart !== null &&
-      e.index <= textInput.selectionStart
-    )
-      moveCursorLeft();
+    afterChange = () => {
+      if (
+        textInput.selectionStart !== null &&
+        e.index <= textInput.selectionStart
+      )
+        moveCursorLeft();
+    };
   }
 });
 
