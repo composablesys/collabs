@@ -89,7 +89,6 @@ function moveCursorRight() {
 }
 
 // Respond to text changes
-// TODO: move cursor in response to others' inputs
 text.on("Change", () => {
   const oldSelectionStart = textInput.selectionStart;
   textInput.value = text.asArray().join("");
@@ -98,6 +97,22 @@ text.on("Change", () => {
     Math.max(0, oldSelectionStart ?? textInput.value.length)
   );
   textInput.selectionEnd = textInput.selectionStart;
+});
+// Move cursor in response to others' text changes
+text.on("Insert", (e) => {
+  if (!e.timestamp.isLocal()) {
+    if (textInput.selectionStart !== null && e.index < textInput.selectionStart)
+      moveCursorRight();
+  }
+});
+text.on("Delete", (e) => {
+  if (!e.timestamp.isLocal()) {
+    if (
+      textInput.selectionStart !== null &&
+      e.index <= textInput.selectionStart
+    )
+      moveCursorLeft();
+  }
 });
 
 // Display info text (time and win state)
