@@ -94,7 +94,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       for (let i = 0; i < USERS; i++) {
         runtimes[i] = generator.newRuntime("manual", rng);
         crdts[i] = this.crdtConstructor();
-        runtimes[i].groupParent("").addChild("", crdts[i]);
+        runtimes[i].registerCrdt("", crdts[i]);
       }
 
       if (measurement === "memory") {
@@ -138,7 +138,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
         // each other's messages.
         for (let i = 0; i < USERS; i++) {
           this.getWeightedRandomOp(rng)(crdts[i], rng);
-          runtimes[i].commitAll();
+          runtimes[i].commitBatch();
         }
         for (let i = 0; i < USERS; i++) generator.release(runtimes[i]);
 

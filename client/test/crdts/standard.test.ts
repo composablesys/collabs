@@ -39,10 +39,8 @@ describe("standard", () => {
     let bobFlag: EnableWinsFlag;
 
     beforeEach(() => {
-      aliceFlag = alice
-        .groupParent("")
-        .addChild("ewFlagId", new EnableWinsFlag());
-      bobFlag = bob.groupParent("").addChild("ewFlagId", new EnableWinsFlag());
+      aliceFlag = alice.registerCrdt("ewFlagId", new EnableWinsFlag());
+      bobFlag = bob.registerCrdt("ewFlagId", new EnableWinsFlag());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -139,10 +137,8 @@ describe("standard", () => {
     let bobFlag: DisableWinsFlag;
 
     beforeEach(() => {
-      aliceFlag = alice
-        .groupParent("")
-        .addChild("dwFlagId", new DisableWinsFlag());
-      bobFlag = bob.groupParent("").addChild("dwFlagId", new DisableWinsFlag());
+      aliceFlag = alice.registerCrdt("dwFlagId", new DisableWinsFlag());
+      bobFlag = bob.registerCrdt("dwFlagId", new DisableWinsFlag());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -235,12 +231,8 @@ describe("standard", () => {
     beforeEach(() => init(0));
 
     function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice
-        .groupParent("")
-        .addChild(name, new NumberCrdt(initialValue));
-      bobNumber = bob
-        .groupParent("")
-        .addChild(name, new NumberCrdt(initialValue));
+      aliceNumber = alice.registerCrdt(name, new NumberCrdt(initialValue));
+      bobNumber = bob.registerCrdt(name, new NumberCrdt(initialValue));
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -423,8 +415,8 @@ describe("standard", () => {
     let bobSet: AddWinsSet<string>;
 
     beforeEach(() => {
-      aliceSet = alice.groupParent("").addChild("awSetId", new AddWinsSet());
-      bobSet = bob.groupParent("").addChild("awSetId", new AddWinsSet());
+      aliceSet = alice.registerCrdt("awSetId", new AddWinsSet());
+      bobSet = bob.registerCrdt("awSetId", new AddWinsSet());
       if (debug) {
         addEventListeners(aliceSet, "Alice");
         addEventListeners(bobSet, "Bob");
@@ -655,12 +647,8 @@ describe("standard", () => {
 
     beforeEach(() => {
       const valueConstructor = () => new NumberCrdt();
-      aliceMap = alice
-        .groupParent("")
-        .addChild("map", new MapCrdt(valueConstructor));
-      bobMap = bob
-        .groupParent("")
-        .addChild("map", new MapCrdt(valueConstructor));
+      aliceMap = alice.registerCrdt("map", new MapCrdt(valueConstructor));
+      bobMap = bob.registerCrdt("map", new MapCrdt(valueConstructor));
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -838,8 +826,8 @@ describe("standard", () => {
         let bobCounter = bobMap.getForce("test");
         runtimeGen.releaseAll();
 
-        let aliceSet = alice.groupParent("").addChild("valueSet", new GSet());
-        let bobSet = bob.groupParent("").addChild("valueSet", new GSet());
+        let aliceSet = alice.registerCrdt("valueSet", new GSet());
+        let bobSet = bob.registerCrdt("valueSet", new GSet());
 
         aliceSet.add(aliceCounter);
         assert.strictEqual(aliceSet.has(aliceCounter), true);
@@ -881,8 +869,8 @@ describe("standard", () => {
     let bobMap: LwwMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.groupParent("").addChild("lwwMap", new LwwMap());
-      bobMap = bob.groupParent("").addChild("lwwMap", new LwwMap());
+      aliceMap = alice.registerCrdt("lwwMap", new LwwMap());
+      bobMap = bob.registerCrdt("lwwMap", new LwwMap());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -1159,8 +1147,8 @@ describe("standard", () => {
       let bobCrdt = new JsonCrdt();
       aliceCursor = new JsonCursor(aliceCrdt);
       bobCursor = new JsonCursor(bobCrdt);
-      aliceJson = alice.groupParent("").addChild("cursor", aliceCrdt);
-      bobJson = bob.groupParent("").addChild("cursor", bobCrdt);
+      aliceJson = alice.registerCrdt("cursor", aliceCrdt);
+      bobJson = bob.registerCrdt("cursor", bobCrdt);
     });
 
     it("is initially empty", () => {
@@ -1387,24 +1375,22 @@ describe("standard", () => {
     let bobRegister: LwwRegister<NumberCrdt | undefined>;
 
     beforeEach(() => {
-      aliceSource = alice
-        .groupParent("")
-        .addChild("source", new DynamicCrdtSource(() => new NumberCrdt()));
-      bobSource = bob
-        .groupParent("")
-        .addChild("source", new DynamicCrdtSource(() => new NumberCrdt()));
-      aliceRegister = alice
-        .groupParent("")
-        .addChild(
-          "register",
-          new LwwRegister<NumberCrdt | undefined>(undefined)
-        );
-      bobRegister = bob
-        .groupParent("")
-        .addChild(
-          "register",
-          new LwwRegister<NumberCrdt | undefined>(undefined)
-        );
+      aliceSource = alice.registerCrdt(
+        "source",
+        new DynamicCrdtSource(() => new NumberCrdt())
+      );
+      bobSource = bob.registerCrdt(
+        "source",
+        new DynamicCrdtSource(() => new NumberCrdt())
+      );
+      aliceRegister = alice.registerCrdt(
+        "register",
+        new LwwRegister<NumberCrdt | undefined>(undefined)
+      );
+      bobRegister = bob.registerCrdt(
+        "register",
+        new LwwRegister<NumberCrdt | undefined>(undefined)
+      );
     });
 
     it("returns new Crdt", () => {

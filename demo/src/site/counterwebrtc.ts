@@ -11,9 +11,7 @@ var HOST = location.origin.replace(/^http/, "ws");
  */
 
 let client = new crdts.CrdtRuntime(new network.WebRtcNetwork(HOST));
-let clientCounter = client
-  .groupParent("counterWebrtcGroup")
-  .addChild("counter", new crdts.Counter());
+let clientCounter = client.registerCrdt("counter", new crdts.Counter());
 
 /* HTML variables */
 var counter = document.getElementById("counter");

@@ -27,9 +27,7 @@ describe("list", () => {
     let aliceId: string;
 
     beforeEach(() => {
-      source = alice
-        .groupParent("")
-        .addChild("treedocSourceId", new TreedocSource());
+      source = alice.registerCrdt("treedocSourceId", new TreedocSource());
       aliceId = alice.getReplicaId();
     });
 
@@ -280,8 +278,8 @@ describe("list", () => {
         }
 
         beforeEach(() => {
-          aliceSource = alice.groupParent("").addChild("sourceId", entry[1]());
-          bobSource = bob.groupParent("").addChild("sourceId", entry[1]());
+          aliceSource = alice.registerCrdt("sourceId", entry[1]());
+          bobSource = bob.registerCrdt("sourceId", entry[1]());
         });
 
         it("works for basic insertion", () => {

@@ -30,7 +30,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * Registered CrdtRuntime.  TODO: rename runtime, for consistency
    * with DefaultCausalBroadcastNetwork
    */
-  crdtRuntime!: CrdtRuntime;
+  runtime!: CrdtRuntime;
   /**
    * WebSocket for connection to server.
    */
@@ -46,11 +46,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
   /**
    * Map stores all crdtId with its corresponding vector clock.
    */
-  vcMap: Map<string, VectorClock>;
+  vc!: VectorClock;
   /**
    * Message buffer to store received message to ensure casual delivery.
    */
-  messageBuffer: Array<[string, Uint8Array, VectorClock]>;
+  messageBuffer: Array<[Uint8Array, VectorClock]>;
   /**
    * Message waiting to be sent by the WebSocket
    */
@@ -64,10 +64,9 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    */
   userName: String;
 
-  private readonly pendingBatches = new Set<string>();
+  private isPendingBatch: boolean = false;
 
   constructor(webSocketArgs: string) {
-    this.vcMap = new Map();
     this.messageBuffer = [];
     this.sendBuffer = [];
     this.dataBuffer = [];
@@ -90,10 +89,6 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.peerRtc = new RTCPeerConnection(configuration);
     this.peerRtc.addEventListener("icecandidate", this.handleIceCandidate);
     this.peerRtc.addEventListener("datachannel", this.peerRtcReceiveMessage);
-  }
-
-  joinGroup(_group: string): void {
-    // TODO: use this
   }
   /**
    * Send signal message in JSON format by using WebSocket
@@ -181,7 +176,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // TODO: Complete multiple users connection built.
     let index = 0;
     while (index < users.length) {
-      if (users[index] != this.crdtRuntime.getReplicaId()) {
+      if (users[index] != this.runtime.getReplicaId()) {
         this.userName = users[index];
         break;
       }
@@ -195,7 +190,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
         type: "offer",
         name: this.userName,
         offer: offer,
-        requestName: this.crdtRuntime.getReplicaId(),
+        requestName: this.runtime.getReplicaId(),
       });
       this.peerRtc.setLocalDescription(offer);
     });
@@ -264,16 +259,12 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
 
   dataChanelReceiveMsg = (event: any) => {
     console.log(event.data);
-    let parsed = JSON.parse(event.data) as { group: string; message: string };
+    let parsed = JSON.parse(event.data) as { message: string };
     let myPackage = myMessage.deserialize(
       new Uint8Array(Buffer.from(parsed.message, "base64")),
-      this.crdtRuntime.getReplicaId()
+      this.runtime.getReplicaId()
     );
-    this.messageBuffer.push([
-      parsed.group,
-      myPackage.message,
-      myPackage.timestamp,
-    ]);
+    this.messageBuffer.push([myPackage.message, myPackage.timestamp]);
     this.checkMessageBuffer();
   };
 
@@ -295,7 +286,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    *
    */
   getReplicaId(): any {
-    return this.crdtRuntime.getReplicaId();
+    return this.runtime.getReplicaId();
   }
   /**
    * Register newly created crdt with its ID and corresponding message
@@ -305,11 +296,12 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * @param crdtId the ID of each crdt.
    *
    */
-  register(crdtRuntime: CrdtRuntime): void {
-    this.crdtRuntime = crdtRuntime;
+  register(runtime: CrdtRuntime): void {
+    this.runtime = runtime;
+    this.vc = new VectorClock(this.runtime.getReplicaId(), true);
     this.sendSignalingMessage({
       type: "register",
-      name: this.crdtRuntime.getReplicaId(),
+      name: this.runtime.getReplicaId(),
       crdtName: CrdtRuntime.name,
     });
 
@@ -326,16 +318,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     };
   }
 
-  beginBatch(group: string): CausalTimestamp {
-    this.pendingBatches.add(group);
+  beginBatch(): CausalTimestamp {
+    this.isPendingBatch = true;
 
-    // Return the next timestamp for group.
-    let vc = this.vcMap.get(group);
-    if (!vc) {
-      vc = new VectorClock(this.crdtRuntime.getReplicaId(), true);
-      this.vcMap.set(group, vc);
-    }
-    return this.nextTimestamp(vc);
+    // Return the next timestamp.
+    return this.nextTimestamp(this.vc);
   }
 
   /**
@@ -356,18 +343,16 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * @param crdtId the unique ID for each crdt.
    */
   commitBatch(
-    group: string,
     message: Uint8Array,
     firstTimestamp: CausalTimestamp,
     lastTimestamp: CausalTimestamp
   ): void {
-    this.vcMap.set(group, lastTimestamp as VectorClock);
+    this.vc = lastTimestamp as VectorClock;
 
     let myPackage = new myMessage(message, firstTimestamp as VectorClock);
 
     let encoded = Buffer.from(myPackage.serialize()).toString("base64");
     let toSend = JSON.stringify({
-      group: group,
       message: encoded,
     });
 
@@ -377,7 +362,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
       this.dataBuffer.push(toSend);
     }
 
-    this.pendingBatches.delete(group);
+    this.isPendingBatch = false;
 
     // Deliver any messages received in the meantime, which were previously
     // blocked by the pending batch.
@@ -414,41 +399,32 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * The checking order is from the lastest to the oldest.
    * Update the VectorClock entry and MessageBuffer when necessary.
    *
-   * Send the message back to crdtRuntime with corresponding
+   * Send the message back to runtime with corresponding
    * crdtMessageListener.
    */
   checkMessageBuffer(): void {
     let index = this.messageBuffer.length - 1;
 
     while (index >= 0) {
-      let group = this.messageBuffer[index][0];
-
       // Don't deliver any messages to the runtime if there is a pending
       // batch of messages to send.
-      if (this.pendingBatches.has(group)) return;
+      if (this.isPendingBatch) return;
 
-      let curVectorClock = this.messageBuffer[index][2];
+      let curVectorClock = this.messageBuffer[index][1];
 
-      let myVectorClock = this.vcMap.get(group);
-      if (!myVectorClock) {
-        myVectorClock = new VectorClock(this.crdtRuntime.getReplicaId(), true);
-        this.vcMap.set(group, myVectorClock);
-      }
-      if (myVectorClock.isReady(curVectorClock)) {
+      if (this.vc.isReady(curVectorClock)) {
         /**
                   * Send back the received messages to runtime.
 
                   */
-        let lastTimestamp = this.crdtRuntime.receive(
-          ...this.messageBuffer[index]
-        );
-        myVectorClock.mergeSender(lastTimestamp as VectorClock);
+        let lastTimestamp = this.runtime.receive(...this.messageBuffer[index]);
+        this.vc.mergeSender(lastTimestamp as VectorClock);
         this.messageBuffer.splice(index, 1);
         // Set index to the end and try again, in case
         // this makes more messages ready
         index = this.messageBuffer.length - 1;
       } else {
-        if (myVectorClock.isAlreadyReceived(curVectorClock)) {
+        if (this.vc.isAlreadyReceived(curVectorClock)) {
           // Remove the message from the buffer
           this.messageBuffer.splice(index, 1);
           console.log("(already received)");

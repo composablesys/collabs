@@ -466,12 +466,12 @@ function compoCrdt() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
       totalSentBytes = 0;
-      let list = runtime.groupParent("").addChild("", new CrdtTodoList());
+      let list = runtime.registerCrdt("", new CrdtTodoList());
       this.sendNextMessage();
       return list;
     },
     sendNextMessage() {
-      runtime.commitAll();
+      runtime.commitBatch();
       totalSentBytes += generator.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator.lastMessage).byteLength
@@ -552,15 +552,13 @@ function compoJson() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
       totalSentBytes = 0;
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTodoList(list.value as crdts.JsonObject);
     },
     sendNextMessage() {
-      runtime.commitAll();
+      runtime.commitBatch();
       totalSentBytes += generator.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator.lastMessage).byteLength
@@ -645,15 +643,13 @@ function compoJsonText() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
       totalSentBytes = 0;
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTextTodoList(list.value as crdts.JsonObject);
     },
     sendNextMessage() {
-      runtime.commitAll();
+      runtime.commitBatch();
       totalSentBytes += generator.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator.lastMessage).byteLength
@@ -927,7 +923,7 @@ function yjs() {
 //       return new JsonCrdtTodoList(cursor);
 //     },
 //     sendNextMessage() {
-//       runtime.commitAll();
+//       runtime.commitBatch();
 //       totalSentBytes += generator.lastMessage
 //         ? GZIP
 //           ? zlib.gzipSync(generator.lastMessage).byteLength

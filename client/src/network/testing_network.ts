@@ -10,14 +10,11 @@ export class TestingNetwork implements BroadcastNetwork {
   sentBytes = 0;
   receivedBytes = 0;
   constructor(private generator: TestingNetworkGenerator) {}
-  joinGroup(_group: string): void {
-    // Ignored
-  }
-  send(group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
+  send(message: Uint8Array, _timestamp: CausalTimestamp): void {
     this.sentBytes += message.byteLength;
     let queueMap = this.generator.messageQueues.get(this)!;
     for (let queue of queueMap.values()) {
-      queue.push([group, message]);
+      queue.push(message);
     }
     this.generator.lastMessage = message;
   }
@@ -68,10 +65,7 @@ export class TestingNetworkGenerator {
     return new DefaultCausalBroadcastNetwork(network);
   }
   // Maps sender and recipient to an array of queued messages.
-  messageQueues = new Map<
-    TestingNetwork,
-    Map<TestingNetwork, [group: string, message: Uint8Array][]>
-  >();
+  messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
   /**
    * Release all queued messages from sender to the specified recipients.
    * If recipients are not specified, releases them to all
@@ -91,8 +85,8 @@ export class TestingNetworkGenerator {
     for (let recipient of recipients) {
       if (recipient === sender) continue;
       for (let queued of senderMap.get(recipient)!) {
-        recipient.receivedBytes += queued[1].byteLength;
-        recipient.causal.receive(...queued);
+        recipient.receivedBytes += queued.byteLength;
+        recipient.causal.receive(queued);
       }
       senderMap.set(recipient, []);
     }
