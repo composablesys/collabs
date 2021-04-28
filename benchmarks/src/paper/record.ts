@@ -18,6 +18,9 @@ export function record(
   baseValues: number[],
   startingBaseline: number
 ) {
+  // Skip if there were no recorded trials
+  if (getRecordedTrials() === 0) return;
+
   // Output to files
   let headers;
   if (frequency === "whole")
@@ -107,16 +110,24 @@ export function record(
   // TODO: also output raw data in another file
 }
 
-export function setFolder(newFolder: string) {
-  folder = newFolder;
+export function setFolder(theFolder: string) {
+  folder = theFolder;
 }
 
-let isTestRun = false;
-export function setIsTestRun() {
-  isTestRun = true;
+let warmupTrials = 0;
+export function setWarmupTrials(trials: number) {
+  warmupTrials = trials;
 }
-export function getIsTestRun() {
-  return isTestRun;
+export function getWarmupTrials(): number {
+  return warmupTrials;
+}
+
+let recordedTrials = 0;
+export function setRecordedTrials(trials: number) {
+  recordedTrials = trials;
+}
+export function getRecordedTrials(): number {
+  return recordedTrials;
 }
 
 // Helper funcs
