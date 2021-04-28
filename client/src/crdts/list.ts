@@ -1,4 +1,10 @@
-import { CompositeCrdt, Crdt, CrdtRuntime } from "./crdt_core";
+import {
+  CompositeCrdt,
+  Crdt,
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtRuntime,
+} from "./crdt_core";
 import { Resettable } from "./mixins";
 import { DefaultElementSerializer, ElementSerializer } from "./utils";
 import createTree from "functional-red-black-tree";
@@ -249,8 +255,24 @@ export class List<I, C extends Crdt & Resettable>
 //   };
 // }
 
+interface PrimitiveListInsertEvent<I, T> extends CrdtEvent {
+  readonly index: number;
+  readonly seqId: I;
+  readonly value: T;
+}
+
+interface PrimitiveListDeleteEvent<I> extends CrdtEvent {
+  readonly index: number;
+  readonly seqId: I;
+}
+
+interface PrimitiveListEventsRecord<I, T> extends CrdtEventsRecord {
+  Insert: PrimitiveListInsertEvent<I, T>;
+  Delete: PrimitiveListDeleteEvent<I>;
+}
+
 export class PrimitiveList<I extends HasSender, T>
-  extends CompositeCrdt
+  extends CompositeCrdt<PrimitiveListEventsRecord<I, T>>
   implements Resettable {
   private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: PartitionedMap<I, T>;
@@ -273,48 +295,45 @@ export class PrimitiveList<I extends HasSender, T>
     // accordingly, so that its key set always coincides
     // with valueMap's.
     this.valueMap.on("Set", (event) => {
-      // console.log(
-      //   "Set start, " + this.sortedKeys.length + ", " + this.valueMap.size
-      // );
       // Add the key if it is not present (Tree permits
       // multiple instances of the same key, so adding it
       // again if it already exists is not a no-op).
+
+      // TODO: use a library that lets us reduce the number
+      // of map lookups here (from 3 to 1).
       if (!this.sortedKeys.get(event.key)) {
         this.sortedKeys = this.sortedKeys.insert(event.key, true);
+        const index = this.sortedKeys.find(event.key)!.index;
+        this.emit("Insert", {
+          caller: this,
+          timestamp: event.timestamp,
+          index,
+          seqId: event.key,
+          value: event.value,
+        });
       }
+      // TODO: use assertions instead?  Or just remove.  Same in delete.
       if (this.sortedKeys.length !== this.valueMap.size) {
-        // console.log(
-        //   "Set end, " + this.sortedKeys.length + ", " + this.valueMap.size
-        // );
+        throw new Error("List size agreement error");
       }
     });
     this.valueMap.on("Delete", (event) => {
-      // console.log(
-      //   "Delete start, " + this.sortedKeys.length + ", " + this.valueMap.size
-      // );
-      this.sortedKeys = this.sortedKeys.remove(event.key);
-      // if (this.sortedKeys.length !== this.valueMap.size) {
-      //   console.log(
-      //     "Delete end, " + this.sortedKeys.length + ", " + this.valueMap.size
-      //   );
-      //   console.log(
-      //     util.inspect(this.sortedKeys.keys, {
-      //       depth: null,
-      //       maxArrayLength: null,
-      //       maxStringLength: null,
-      //       colors: true,
-      //     })
-      //   );
-      //   console.log(
-      //     util.inspect(event.key, {
-      //       depth: null,
-      //       maxArrayLength: null,
-      //       maxStringLength: null,
-      //       colors: true,
-      //     })
-      //   );
-      //   throw new Error("PrimitiveList: internal lengths disagree");
-      // }
+      // TODO: use a library that lets us reduce the number
+      // of map lookups here (from 2 to 1).
+      const found = this.sortedKeys.find(event.key);
+      if (found) {
+        const index = found.index;
+        this.sortedKeys = this.sortedKeys.remove(event.key);
+        this.emit("Delete", {
+          caller: this,
+          timestamp: event.timestamp,
+          index,
+          seqId: event.key,
+        });
+        if (this.sortedKeys.length !== this.valueMap.size) {
+          throw new Error("List size agreement error");
+        }
+      }
     });
     // TODO: In tests, add assertions checking
     // size equality constantly.
