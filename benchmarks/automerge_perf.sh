@@ -2,8 +2,9 @@
 
 if [ -z "$4" ]
   then
-    echo "Usage: ./automerge_perf.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly]"
+    echo "Usage: ./automerge_perf.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --theirsOnly]"
     echo "If --oursOnly is set, only our library's tests are run."
+    echo "If --theirsOnly is set, only competitors' tests are run."
     exit 1
 fi
 
@@ -16,6 +17,9 @@ fi
 if [ ! -z $5 ] && [ $5 == "--oursOnly" ]
 then
   names=("treedocLww" "treedocPrimitiveLww" "mapLww")
+elif [ ! -z $5 ] && [ $5 == "--theirsOnly" ]
+then
+  names=("yjs" "automerge")
 else
   names=("treedocLww" "treedocPrimitiveLww" "mapLww" "yjs" "automerge")
 fi
