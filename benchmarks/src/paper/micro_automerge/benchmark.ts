@@ -55,7 +55,7 @@ class MicroAutomergeBenchmark {
     measurement: "time" | "memory" | "network",
     frequency: "whole" | "rounds"
   ) {
-    console.log("Starting bench_compare test: " + this.testName);
+    console.log("Starting micro_automerge test: " + this.testName);
 
     let results = new Array<number>(getRecordedTrials());
     let roundResults = new Array<number[]>(getRecordedTrials());
