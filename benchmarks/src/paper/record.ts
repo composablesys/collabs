@@ -24,9 +24,18 @@ export function record(
   // Output to files
   let headers;
   if (frequency === "whole")
-    headers = ["Date", "Name", "Mean", "StdDev", "Count"];
+    headers = ["Date", "Version", "Name", "Mean", "StdDev", "Count"];
   else
-    headers = ["Date", "Name", "Round", "OpsSoFar", "Mean", "StdDev", "Count"];
+    headers = [
+      "Date",
+      "Version",
+      "Name",
+      "Round",
+      "OpsSoFar",
+      "Mean",
+      "StdDev",
+      "Count",
+    ];
   for (let i = 0; i < trials; i++) {
     headers.push("Sample " + i);
   }
@@ -61,6 +70,7 @@ export function record(
       console.log(`Mean: ${mean}\nStdDev: ${stddev}`);
       let data: any = {
         Date: new Date().toDateString(),
+        Version: version,
         Name: name,
         Mean: mean,
         StdDev: stddev,
@@ -86,6 +96,7 @@ export function record(
 
         let data: any = {
           Date: new Date().toDateString(),
+          Version: version,
           Name: name,
           Round: i,
           OpsSoFar: roundOps[i],
@@ -112,6 +123,11 @@ export function record(
 
 export function setFolder(theFolder: string) {
   folder = theFolder;
+}
+
+let version = "";
+export function setVersion(theVersion: string) {
+  version = theVersion;
 }
 
 let warmupTrials = 0;
