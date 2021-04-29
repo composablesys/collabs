@@ -163,7 +163,7 @@ let nextResolve: ((value: number) => void) | undefined = undefined;
 
 function onStats(stats: memwatch.GcStats) {
   if (nextResolve) {
-    console.log(stats);
+    //console.log(stats);
     nextResolve(stats.used_heap_size);
     nextResolve = undefined;
   }
