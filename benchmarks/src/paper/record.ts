@@ -18,12 +18,24 @@ export function record(
   baseValues: number[],
   startingBaseline: number
 ) {
+  // Skip if there were no recorded trials
+  if (getRecordedTrials() === 0) return;
+
   // Output to files
   let headers;
   if (frequency === "whole")
-    headers = ["Date", "Name", "Mean", "StdDev", "Count"];
+    headers = ["Date", "Version", "Name", "Mean", "StdDev", "Count"];
   else
-    headers = ["Date", "Name", "Round", "OpsSoFar", "Mean", "StdDev", "Count"];
+    headers = [
+      "Date",
+      "Version",
+      "Name",
+      "Round",
+      "OpsSoFar",
+      "Mean",
+      "StdDev",
+      "Count",
+    ];
   for (let i = 0; i < trials; i++) {
     headers.push("Sample " + i);
   }
@@ -58,6 +70,7 @@ export function record(
       console.log(`Mean: ${mean}\nStdDev: ${stddev}`);
       let data: any = {
         Date: new Date().toDateString(),
+        Version: version,
         Name: name,
         Mean: mean,
         StdDev: stddev,
@@ -83,6 +96,7 @@ export function record(
 
         let data: any = {
           Date: new Date().toDateString(),
+          Version: version,
           Name: name,
           Round: i,
           OpsSoFar: roundOps[i],
@@ -107,16 +121,29 @@ export function record(
   // TODO: also output raw data in another file
 }
 
-export function setFolder(newFolder: string) {
-  folder = newFolder;
+export function setFolder(theFolder: string) {
+  folder = theFolder;
 }
 
-let isTestRun = false;
-export function setIsTestRun() {
-  isTestRun = true;
+let version = "";
+export function setVersion(theVersion: string) {
+  version = theVersion;
 }
-export function getIsTestRun() {
-  return isTestRun;
+
+let warmupTrials = 0;
+export function setWarmupTrials(trials: number) {
+  warmupTrials = trials;
+}
+export function getWarmupTrials(): number {
+  return warmupTrials;
+}
+
+let recordedTrials = 0;
+export function setRecordedTrials(trials: number) {
+  recordedTrials = trials;
+}
+export function getRecordedTrials(): number {
+  return recordedTrials;
 }
 
 // Helper funcs
@@ -136,7 +163,7 @@ let nextResolve: ((value: number) => void) | undefined = undefined;
 
 function onStats(stats: memwatch.GcStats) {
   if (nextResolve) {
-    console.log(stats);
+    //console.log(stats);
     nextResolve(stats.used_heap_size);
     nextResolve = undefined;
   }

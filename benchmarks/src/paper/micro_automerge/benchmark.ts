@@ -2,15 +2,14 @@ import Automerge from "automerge";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import {
-  getIsTestRun,
+  getRecordedTrials,
+  getWarmupTrials,
   getMemoryUsed,
   randomChar,
   record,
   sleep,
 } from "../record";
 
-const WARMUP = 5;
-const TRIALS = 10;
 const OPS = 200;
 const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
@@ -56,23 +55,21 @@ class MicroAutomergeBenchmark {
     measurement: "time" | "memory" | "network",
     frequency: "whole" | "rounds"
   ) {
-    console.log("Starting bench_compare test: " + this.testName);
+    console.log("Starting micro_automerge test: " + this.testName);
 
-    if (getIsTestRun()) return;
-
-    let results = new Array<number>(TRIALS);
-    let roundResults = new Array<number[]>(TRIALS);
+    let results = new Array<number>(getRecordedTrials());
+    let roundResults = new Array<number[]>(getRecordedTrials());
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
-    let baseMemories = new Array<number>(TRIALS);
+    let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
-      for (let i = 0; i < TRIALS; i++)
+      for (let i = 0; i < getRecordedTrials(); i++)
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     }
 
     let startingBaseline = 0;
     if (measurement === "memory") startingBaseline = await getMemoryUsed();
 
-    for (let trial = -WARMUP; trial < TRIALS; trial++) {
+    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
       // Sleep between trials
       await sleep(1000);
       console.log("Starting trial " + trial);
@@ -189,13 +186,13 @@ class MicroAutomergeBenchmark {
       "micro_automerge/" + measurement,
       this.testName,
       frequency,
-      TRIALS,
+      getRecordedTrials(),
       results,
       roundResults,
       roundOps,
       measurement === "memory"
         ? baseMemories
-        : new Array<number>(TRIALS).fill(0),
+        : new Array<number>(getRecordedTrials()).fill(0),
       startingBaseline
     );
   }
