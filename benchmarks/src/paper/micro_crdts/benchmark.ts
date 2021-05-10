@@ -1,3 +1,4 @@
+import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import { crdts, network } from "compoventuals-client";
 import seedrandom from "seedrandom";
@@ -29,7 +30,8 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
     ops: {
       [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
     },
-    private readonly getState: (crdt: C) => any
+    private readonly getState: (crdt: C) => any,
+    private readonly crdtDestructor?: (crdt: C) => void
   ) {
     // Init ability to choose random ops with given weights
     this.cumulativeWeights = [];
@@ -172,6 +174,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let result0 = this.getState(crdts[0]);
       for (let i = 1; i < USERS; i++) {
         assert.deepStrictEqual(this.getState(crdts[i]), result0);
+      }
+
+      if (this.crdtDestructor !== undefined) {
+        crdts.forEach((crdt) => this.crdtDestructor?.(crdt));
       }
     }
 
@@ -596,6 +602,36 @@ function TreedocPrimitiveListRandomGrow() {
   );
 }
 
+function ITensor(
+  name: "TensorAvg" | "TensorCounter",
+  shape: number[],
+  dtype: tf.NumericDataType,
+  resetFraction: number
+) {
+  return new MicroCrdtsBenchmark<
+    crdts.TensorAverageCrdt | crdts.TensorCounterCrdt
+  >(
+    name,
+    () =>
+      name === "TensorAvg"
+        ? new crdts.TensorAverageCrdt(shape, dtype)
+        : new crdts.TensorCounterCrdt(shape, dtype),
+    {
+      Add: [
+        (crdt, rng) => {
+          const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
+          crdt.add(toAdd);
+          toAdd.dispose();
+        },
+        1 - resetFraction,
+      ],
+      Reset: [(crdt) => crdt.reset(), resetFraction],
+    },
+    (crdt) => tf.tidy(() => crdt.value.arraySync()),
+    (crdt) => crdt.dispose()
+  );
+}
+
 export default async function microCrdts(args: string[]) {
   let benchmark: MicroCrdtsBenchmark<any>;
   switch (args[0]) {
@@ -685,6 +721,36 @@ export default async function microCrdts(args: string[]) {
       break;
     case "TextRandomGrow":
       benchmark = TreedocPrimitiveListRandomGrow();
+      break;
+    case "TensorCounter":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
+      break;
+    case "TensorCounter-1":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
+      break;
+    case "TensorCounter-10":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
+      break;
+    case "TensorCounter-50":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
+      break;
+    case "TensorCounter-100":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
+      break;
+    case "TensorAvg":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
+      break;
+    case "TensorAvg-1":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
+      break;
+    case "TensorAvg-10":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
+      break;
+    case "TensorAvg-50":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
+      break;
+    case "TensorAvg-100":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
       break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC
