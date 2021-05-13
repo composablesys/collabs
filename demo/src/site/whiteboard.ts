@@ -25,35 +25,47 @@ window.onload = function () {
   var clear = <HTMLButtonElement>document.getElementById("clear");
   var board = <HTMLCanvasElement>document.getElementById("board");
   var ctx = board.getContext("2d");
+  let gran = 2;
 
-  let round3 = function(n: number) {
-    return round(n / 3) * 3;
-  }
+  let roundGran = function (n: number): number {
+    return round(n / gran) * gran;
+  };
 
   let interpolate = function (sX: number, sY: number, eX: number, eY: number) {
     // special case - line goes straight up/down
     if (sX == eX) {
       let pts = [];
-      for (let i = round3(min(sY, eY)); i <= round3(max(sY, eY)); i+=3) {
-        pts.push(round3(sX) + ":" + i);
+      for (
+        let i = roundGran(min(sY, eY));
+        i <= roundGran(max(sY, eY));
+        i += gran
+      ) {
+        pts.push(roundGran(sX) + ":" + i);
       }
 
       return pts;
     }
 
     let slope = (eY - sY) / (eX - sX);
-    console.log(slope);
     let pts = [];
     let intercept = sY - slope * sX;
 
     // Depending on slope, iterate by xs or ys
     if (slope <= 1 && slope >= -1) {
-      for (let i = round3(min(sX, eX)); i <= round3(max(sX, eX)); i+=3) {
-        pts.push(i + ":" + round3(slope * i + intercept));
+      for (
+        let i = roundGran(min(sX, eX));
+        i <= roundGran(max(sX, eX));
+        i += gran
+      ) {
+        pts.push(i + ":" + roundGran(slope * i + intercept));
       }
     } else {
-      for (let i = round3(min(sY, eY)); i <= round3(max(sY, eY)); i+=3) {
-        pts.push(round3((i - intercept) / slope) + ":" + i);
+      for (
+        let i = roundGran(min(sY, eY));
+        i <= roundGran(max(sY, eY));
+        i += gran
+      ) {
+        pts.push(roundGran((i - intercept) / slope) + ":" + i);
       }
     }
 
@@ -64,13 +76,13 @@ window.onload = function () {
   clientBoard.on("ValueChange", (event) => {
     var keys = event.key.split(":");
     ctx!.fillStyle = event.value;
-    ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), 3, 3);
+    ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
   });
 
   // Clear points
   clientBoard.on("KeyDelete", (event) => {
     var keys = event.key.split(":");
-    ctx!.clearRect(parseInt(keys[0]), parseInt(keys[1]), 3, 3);
+    ctx!.clearRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
   });
 
   // Mouse Event Handlers
