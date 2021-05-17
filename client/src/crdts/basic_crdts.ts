@@ -167,13 +167,9 @@ export class GCounter
   }
 
   reset() {
-    let pAsIndexSignature: { [key: string]: number } = {};
-    for (let entry of this.state.P.entries()) {
-      pAsIndexSignature[entry[0]] = entry[1];
-    }
-    let message = GCounterMessage.create({
+    const message = GCounterMessage.create({
       reset: {
-        V: pAsIndexSignature,
+        V: Object.fromEntries(this.state.P.entries()),
       },
     });
     super.send(GCounterMessage.encode(message).finish());
