@@ -152,34 +152,35 @@ export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// export async function getMemoryUsed(): Promise<number> {
-//   global.gc();
-//   await sleep(1000); // Sleep a bit to help the GC?
-//   return process.memoryUsage().heapUsed;
-// }
-
-let memListening = false;
-let nextResolve: ((value: number) => void) | undefined = undefined;
-
-function onStats(stats: memwatch.GcStats) {
-  if (nextResolve) {
-    //console.log(stats);
-    nextResolve(stats.used_heap_size);
-    nextResolve = undefined;
-  }
-}
-
-export function getMemoryUsed(): Promise<number> {
-  if (!memListening) {
-    memListening = true;
-    memwatch.on("stats", onStats);
-  }
-  let statsPromise = new Promise<number>((resolve) => {
-    nextResolve = resolve;
-  });
+export async function getMemoryUsed(): Promise<number> {
+  // Force the event loop to turn over fully, so that
+  // all pending "stats" events are dispatched (I'm guessing
+  // during the IO events queue portion of the event loop).
+  // Otherwise the first "stats" event we capture may be
+  // for an old memory measurement.
+  //
+  // Basing this on the description of the event loop here:
+  // https://miro.medium.com/max/2880/1*2yXbhvpf1kj5YT-m_fXgEQ.png
+  // from the article:
+  // https://blog.insiderattack.net/event-loop-and-the-big-picture-nodejs-event-loop-part-1-1cb67a182810
+  //
+  // In my tests, including both statements "await sleep(0);"
+  // and "await new Promise<void>(setImmediate);" works,
+  // regardless of the order they are called in; while including
+  // either statement alone gives stale memory measurements.
+  // Just to be safe, I've included a second "await sleep(0);",
+  // so that the event loop definitely makes a full iteration.
+  await sleep(0);
+  await new Promise<void>(setImmediate);
+  await sleep(0);
   // @ts-ignore types forgot gc
   memwatch.gc();
-  return statsPromise;
+  return new Promise<number>((resolve) => {
+    // @ts-ignore types forgot once
+    memwatch.once("stats", (stats: memwatch.GcStats) => {
+      resolve(stats.used_heap_size);
+    });
+  });
 }
 
 let s = "";
