@@ -168,14 +168,16 @@ export async function getMemoryUsed(): Promise<number> {
   // from the article:
   // https://blog.insiderattack.net/event-loop-and-the-big-picture-nodejs-event-loop-part-1-1cb67a182810
   //
-  // In my tests, including both statements "await sleep(0);"
-  // and "await new Promise<void>(setImmediate);" works,
-  // regardless of the order they are called in; while including
-  // either statement alone gives stale memory measurements.
-  // Just to be safe, I've included a second "await sleep(0);",
-  // so that the event loop definitely makes a full iteration.
+  // Two sleep(0)'s works in my tests so far, while a single
+  // sleep (even for a longer period, e.g., 5 ms) does not.
+  // This suggests that setTimeout calls during the execution
+  // of a previous setTimeout's function are queued for
+  // the next big event loop iteration, instead of being
+  // placed on the current setTimeout queue, although
+  // I haven't read this officially.
+  // It also worked when I tried a mix of a sleep(0) and
+  // a Promise using setImmediate (either order).
   await sleep(0);
-  await new Promise<void>(setImmediate);
   await sleep(0);
   // @ts-ignore types forgot gc
   memwatch.gc();
