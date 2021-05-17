@@ -152,6 +152,10 @@ export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+memwatch.on("stats", (stats: memwatch.GcStats) => {
+  console.log("stats: " + stats.used_heap_size);
+});
+
 export async function getMemoryUsed(): Promise<number> {
   // Force the event loop to turn over fully, so that
   // all pending "stats" events are dispatched (I'm guessing

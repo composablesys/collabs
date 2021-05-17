@@ -45,7 +45,8 @@ export interface INumber extends Crdt<NumberEventsRecord> {
 
 export class NumberBase
   extends SemidirectProduct<NumberState, NumberEventsRecord>
-  implements INumber {
+  implements INumber
+{
   private addCrdt: CounterPureBase;
   private multCrdt: MultRegisterBase;
   constructor(initialValue: number = 0) {
@@ -102,7 +103,8 @@ const AddNumberEvents = makeEventAdder<NumberEventsRecord>();
 
 export class NumberCrdt
   extends AddNumberEvents(ResetWrapClass(NumberBase))
-  implements INumber, Resettable {
+  implements INumber, Resettable
+{
   constructor(initialValue: number = 0) {
     super(initialValue);
     this.original.on("Add", (event) =>
@@ -269,7 +271,8 @@ export class NoopState implements LocallyResettableState {
 
 export class NoopCrdt
   extends PrimitiveCrdt<NoopState>
-  implements Resettable, StrongResettable {
+  implements Resettable, StrongResettable
+{
   constructor() {
     super(NoopState.instance);
   }
@@ -310,7 +313,8 @@ const AddFlagEvents = makeEventAdder<FlagEventsRecord>();
 
 export class EnableWinsFlag
   extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
-  implements IFlag, Resettable {
+  implements IFlag, Resettable
+{
   constructor() {
     super();
     this.on("Reset", (event) => this.emit("Disable", { ...event }));
@@ -346,7 +350,8 @@ export class EnableWinsFlag
 
 export class DisableWinsFlag
   extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
-  implements IFlag, Resettable {
+  implements IFlag, Resettable
+{
   constructor() {
     super();
     this.on("Reset", (event) => this.emit("Enable", { ...event }));
@@ -402,7 +407,8 @@ export interface LazyMapEventsRecord<K, C extends Crdt>
 
 export class LazyMap<K, C extends Crdt>
   extends Crdt<LazyMapEventsRecord<K, C>>
-  implements CrdtParent {
+  implements CrdtParent
+{
   private readonly internalMap: Map<string, C> = new Map();
   private readonly backupMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
@@ -619,7 +625,8 @@ export interface SetEventsRecord<T> extends CrdtEventsRecord {
 
 export class AddWinsSet<T>
   extends CompositeCrdt<SetEventsRecord<T>>
-  implements Resettable {
+  implements Resettable
+{
   private readonly flagMap: LazyMap<T, EnableWinsFlag>;
   /**
    * Add-wins set with elements of type T.
@@ -738,7 +745,8 @@ export interface MapEventsRecord<K, C extends Crdt> extends CrdtEventsRecord {
 
 export class MapCrdt<K, C extends Crdt & Resettable>
   extends CompositeCrdt<MapEventsRecord<K, C>>
-  implements Resettable {
+  implements Resettable
+{
   private readonly keySet: AddWinsSet<K>;
   private readonly valueMap: LazyMap<K, C>;
   /**
@@ -889,7 +897,8 @@ export interface LwwMapEventsRecord<K, V> extends CrdtEventsRecord {
 
 export class LwwMap<K, V>
   extends CompositeCrdt<LwwMapEventsRecord<K, V>>
-  implements Resettable {
+  implements Resettable
+{
   private readonly internalMap: LazyMap<K, LwwRegister<Optional<V>>>;
   /**
    * A map in which the value associated to each key follows

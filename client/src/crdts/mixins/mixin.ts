@@ -88,10 +88,8 @@ export type CrdtMixinWithOptionsAndNewEvents<
   options?: Options
 ) => CrdtConstructor<AddEvents<NewEvents, Input> & Self>;
 
-type AddEvents<
-  NewEvents extends CrdtEventsRecord,
-  C extends Crdt
-> = C extends Crdt<infer OldEvents> ? C & Crdt<OldEvents & NewEvents> : C;
+type AddEvents<NewEvents extends CrdtEventsRecord, C extends Crdt> =
+  C extends Crdt<infer OldEvents> ? C & Crdt<OldEvents & NewEvents> : C;
 
 export function makeEventAdder<AdditionalEvents extends CrdtEventsRecord>(): <
   Instance extends Crdt

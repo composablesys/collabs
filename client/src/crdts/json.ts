@@ -36,7 +36,8 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   constructor() {
     super();
 
-    let keySerializer: ElementSerializer<string> = DefaultElementSerializer.getInstance();
+    let keySerializer: ElementSerializer<string> =
+      DefaultElementSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
       new MapCrdt(() => new MultiValueRegister(), keySerializer, true)

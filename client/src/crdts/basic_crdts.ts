@@ -53,7 +53,8 @@ export interface ICounter extends Crdt<CounterEventsRecord> {
 
 export class CounterPureBase
   extends PrimitiveCrdt<NumberState, CounterEventsRecord>
-  implements ICounter {
+  implements ICounter
+{
   constructor(initialValue: number = 0) {
     super(new NumberState(initialValue));
   }
@@ -102,7 +103,8 @@ const AddCounterEvents = makeEventAdder<CounterEventsRecord>();
  */
 export class CounterPure
   extends AddCounterEvents(ResetWrapClass(CounterPureBase, false, false))
-  implements ICounter, Resettable {
+  implements ICounter, Resettable
+{
   constructor(initialValue = 0) {
     super(initialValue);
     this.original.on("Add", (event) =>
@@ -132,7 +134,8 @@ export class GCounter
     GCounterState,
     CounterEventsRecord & ResettableEventsRecord
   >
-  implements Resettable {
+  implements Resettable
+{
   constructor() {
     super(new GCounterState());
   }
@@ -239,7 +242,8 @@ export class GCounter
 
 export class Counter
   extends CompositeCrdt<CounterEventsRecord & ResettableEventsRecord>
-  implements ICounter, Resettable {
+  implements ICounter, Resettable
+{
   private readonly plus: GCounter;
   private readonly minus: GCounter;
 
@@ -337,7 +341,8 @@ export interface IMultRegister extends Crdt<MultEventsRecord> {
 
 export class MultRegisterBase
   extends PrimitiveCrdt<NumberState, MultEventsRecord>
-  implements IMultRegister {
+  implements IMultRegister
+{
   constructor(readonly initialValue: number = 1) {
     super(new NumberState(initialValue));
   }
@@ -383,7 +388,8 @@ const AddMultEvents = makeEventAdder<MultEventsRecord>();
 
 export class MultRegister
   extends AddMultEvents(ResetWrapClass(MultRegisterBase, false, false))
-  implements IMultRegister, Resettable {
+  implements IMultRegister, Resettable
+{
   constructor(initialValue = 1) {
     super(initialValue);
     this.original.on("Mult", (event) =>
@@ -540,7 +546,8 @@ export class PartitionedMap<K extends HasSender, V>
     Map<string, [value: V, senderCounter: number]>,
     PartitionedMapEventsRecord<K, V>
   >
-  implements Resettable {
+  implements Resettable
+{
   constructor(
     private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
