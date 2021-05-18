@@ -148,7 +148,7 @@ class MicroAutomergeBenchmark {
           }
         }
 
-        if (measurement === "memory") await sleep(0);
+        // if (measurement === "memory") await sleep(0);
       }
 
       // Record result
