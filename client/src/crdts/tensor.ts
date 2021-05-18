@@ -118,7 +118,8 @@ function tensorsEqual<R extends tf.Rank>(
 
 export class TensorGCounterCrdt
   extends PrimitiveCrdt<TensorGCounterState, TensorCounterEventsRecord>
-  implements Resettable {
+  implements Resettable
+{
   constructor(
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
@@ -192,10 +193,7 @@ export class TensorGCounterCrdt
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
+  protected receive(timestamp: CausalTimestamp, message: Uint8Array): void {
     const decoded = proto.TensorGCounterMessage.decode(message);
     switch (decoded.data) {
       case "add":
@@ -267,7 +265,8 @@ export class TensorGCounterCrdt
 
 export class TensorCounterCrdt
   extends CompositeCrdt<TensorCounterEventsRecord>
-  implements Resettable {
+  implements Resettable
+{
   private readonly plus: TensorGCounterCrdt;
   private readonly minus: TensorGCounterCrdt;
 
@@ -328,7 +327,8 @@ export class TensorCounterCrdt
 
 export class TensorAverageCrdt
   extends CompositeCrdt<TensorCounterEventsRecord>
-  implements Resettable {
+  implements Resettable
+{
   private readonly numerator: TensorCounterCrdt;
   private readonly denominator: GCounter;
 
