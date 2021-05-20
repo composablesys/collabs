@@ -1,4 +1,4 @@
-#/usr/bin/sh
+#/usr/bin/bash
 
 if [ -z "$4" ]
   then
