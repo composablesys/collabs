@@ -223,13 +223,13 @@ function treedocLww() {
   );
 }
 
-function treedocPrimitiveLww() {
+function textCrdt() {
   let generator: network.TestingNetworkGenerator | null;
   let runtime: crdts.CrdtRuntime | null;
   let list: crdts.TreedocPrimitiveList<string> | null;
 
   return new AutomergePerfBenchmark(
-    "TreedocPrimitiveList",
+    "TextCrdt",
     (rng) => {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
@@ -417,8 +417,8 @@ export default async function automergePerf(args: string[]) {
     case "treedocLww":
       benchmark = treedocLww();
       break;
-    case "treedocPrimitiveLww":
-      benchmark = treedocPrimitiveLww();
+    case "textCrdt":
+      benchmark = textCrdt();
       break;
     case "mapLww":
       benchmark = mapLww();
