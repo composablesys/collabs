@@ -1,13 +1,13 @@
-#/usr/bin/sh
+#/usr/bin/bash
 
-if [ -z "$1" ]
+if [ -z "$4" ]
   then
-    echo "Usage: ./run_all.sh <outdir>"
-    echo "(or ./run_all.sh --testRun to do a test run)"
+    echo "Usage: ./micro_yjs.sh <out folder> <version> <warmup trials> <recorded trials>"
     exit 1
 fi
 
-if [ $1 == "--testRun" ]; then
+if [ $3 == "0" ] && [ $4 == "0" ]
+then
     echo "test run"
     set -e
 fi
@@ -18,10 +18,7 @@ do
     do
       for name in "Register" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom"
       do
-        for lib in "micro_yjs"
-        do
-            npm start -- $1 $lib $name $measurement $frequency
-        done
+          npm start -- $1 $2 $3 $4 "micro_yjs" $name $measurement $frequency
       done
     done
 done

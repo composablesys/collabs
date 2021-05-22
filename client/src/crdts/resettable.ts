@@ -40,7 +40,7 @@ class ResetComponent<
 > extends PrimitiveCrdt<S> {
   constructor(readonly resetWrapperCrdt: ResetWrapperCrdt<S, StatefulCrdt<S>>) {
     // This state will get overwritten by original's state
-    super((null as unknown) as S);
+    super(null as unknown as S);
   }
 
   resetTarget() {
@@ -82,7 +82,8 @@ export class ResetWrapperCrdt<
     C extends StatefulCrdt<S>
   >
   extends SemidirectProduct<S, ResettableEventsRecord>
-  implements Resettable {
+  implements Resettable
+{
   private resetComponent!: ResetComponent<S>;
   // TODO: make original protected?  Must then also pass to
   // resetComponent.
@@ -210,7 +211,7 @@ export class StrongResetComponent<
     readonly strongResetWrapperCrdt: StrongResetWrapperCrdt<S, StatefulCrdt<S>>
   ) {
     // This state will get overwritten by original's state
-    super((null as unknown) as S);
+    super(null as unknown as S);
   }
 
   strongResetTarget() {
@@ -234,7 +235,8 @@ export class StrongResetWrapperCrdt<
     C extends StatefulCrdt<S>
   >
   extends SemidirectProduct<S, StrongResettableEventsRecord>
-  implements StrongResettable {
+  implements StrongResettable
+{
   private strongResetComponent!: StrongResetComponent<S>;
   /**
    * @param keepOnlyMaximal=false Store only causally maximal

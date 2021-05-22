@@ -199,7 +199,8 @@ export abstract class PrimitiveCrdt<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<S, Events> {
+  implements StatefulCrdt<S, Events>
+{
   readonly state: S;
 
   constructor(state: S) {
@@ -257,7 +258,8 @@ export class CompositeCrdt<
     C extends Crdt = Crdt
   >
   extends Crdt<Events>
-  implements CrdtParent {
+  implements CrdtParent
+{
   private readonly children: Map<string, C> = new Map();
 
   /**

@@ -61,7 +61,8 @@ export interface ISequenceSource<I> extends Crdt, ElementSerializer<I> {
 
 export class List<I, C extends Crdt & Resettable>
   extends CompositeCrdt
-  implements Resettable {
+  implements Resettable
+{
   private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: MapCrdt<I, C>;
   // Note this is a persistent (immutable) data structure.
@@ -273,7 +274,8 @@ interface PrimitiveListEventsRecord<I, T> extends CrdtEventsRecord {
 
 export class PrimitiveList<I extends HasSender, T>
   extends CompositeCrdt<PrimitiveListEventsRecord<I, T>>
-  implements Resettable {
+  implements Resettable
+{
   private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: PartitionedMap<I, T>;
   // Note this is a persistent (immutable) data structure.
@@ -486,7 +488,8 @@ export class TreedocId implements HasSender {
  */
 export class TreedocSource
   extends CompositeCrdt
-  implements ISequenceSource<TreedocId> {
+  implements ISequenceSource<TreedocId>
+{
   compare(a: TreedocId, b: TreedocId): number {
     // Formally, the comparison order is given by a
     // standard tree walk.  The tree's layers alternate

@@ -1,23 +1,31 @@
-import arg from "arg";
 import automergePerf from "./automerge_perf/benchmark";
 import todoList from "./todo_list/benchmark";
-import { setFolder, setIsTestRun } from "./record";
+import {
+  setFolder,
+  setRecordedTrials,
+  setVersion,
+  setWarmupTrials,
+} from "./record";
 import microCrdts from "./micro_crdts/benchmark";
 import microAutomerge from "./micro_automerge/benchmark";
 import microYjs from "./micro_yjs/benchmark";
 
 (async function () {
   function printUsage(exitCode: number) {
-    console.log(`Usage: npm start -- <out folder | --testRun> <major test> <test args...>
+    console.log(`Usage: npm start -- <out folder> <version> <warmup trials> <recorded trials> <major test> <test args...>
+If <recorded trials> is 0, no output is recorded.
+You can set both trial counts to 0 to do a test run (check that test names and args are valid without running the actual experiments).
 `);
     process.exit(exitCode);
   }
 
   let args = process.argv.slice(2);
-  if (args[0] === "--testRun") setIsTestRun();
-  else setFolder(args[0]);
-  let majorTest = args[1];
-  let testArgs = args.slice(2);
+  setFolder(args[0]);
+  setVersion(args[1]);
+  setWarmupTrials(Number.parseInt(args[2]));
+  setRecordedTrials(Number.parseInt(args[3]));
+  let majorTest = args[4];
+  let testArgs = args.slice(5);
 
   switch (majorTest) {
     case "automerge_perf":

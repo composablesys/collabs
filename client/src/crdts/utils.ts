@@ -102,7 +102,7 @@ export class Optional<T> {
 
   private static emptyInstance = new Optional(false, undefined);
   static empty<T>(): Optional<T> {
-    return (Optional.emptyInstance as unknown) as Optional<T>;
+    return Optional.emptyInstance as unknown as Optional<T>;
   }
   static of<T>(value: T): Optional<T> {
     return new Optional(true, value);

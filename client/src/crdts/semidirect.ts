@@ -184,7 +184,8 @@ class SemidirectStateBase<S extends Object> {
 
 class SemidirectStateLocallyResettable<S extends LocallyResettableState>
   extends SemidirectStateBase<S>
-  implements LocallyResettableState {
+  implements LocallyResettableState
+{
   resetLocalState() {
     this.receiptCounter = 0;
     this.history.clear();
@@ -203,7 +204,8 @@ export abstract class SemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>, Events>, CrdtParent {
+  implements StatefulCrdt<SemidirectState<S>, Events>, CrdtParent
+{
   static readonly crdt1Name = "1";
   static readonly crdt2Name = "2";
 

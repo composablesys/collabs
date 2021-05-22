@@ -1,4 +1,5 @@
 import { crdts, network } from "compoventuals-client";
+import { min, max, round } from "mathjs";
 
 /**
  * Get Heroku server host Websocket.
@@ -11,10 +12,11 @@ var HOST = location.origin.replace(/^http/, "ws");
 let client = new crdts.CrdtRuntime(
   new network.DefaultCausalBroadcastNetwork(
     new network.WebSocketNetwork(HOST, "whiteboard")
-  )
+  ),
+  { periodMs: 5000 }
 );
 
-// The key represents a stroke in the form: endX:endY:startX:startY
+// The key represents a point in the form: x:y
 // The value is the color of the stroke.
 let clientBoard: crdts.LwwMap<string, string> = client.registerCrdt(
   "whiteboardId",
@@ -26,40 +28,77 @@ window.onload = function () {
   var clear = <HTMLButtonElement>document.getElementById("clear");
   var board = <HTMLCanvasElement>document.getElementById("board");
   var ctx = board.getContext("2d");
-  ctx!.lineWidth = 5;
+  let gran = 2;
 
-  let keyReactGeneric = function (key: string, value: string) {
-    ctx!.strokeStyle = value;
-    var keys = key.split(":");
-    ctx!.beginPath();
-    ctx!.moveTo(parseInt(keys[0]), parseInt(keys[1]));
-    ctx!.lineTo(parseInt(keys[2]), parseInt(keys[3]));
-    ctx!.stroke();
-    ctx!.closePath();
+  let roundGran = function (n: number): number {
+    return round(n / gran) * gran;
   };
 
-  // clientBoard.on("KeyAdd", (event) => { generics
-  //   keyReactGeneric(event.key, event.value);
-  // });
+  let interpolate = function (sX: number, sY: number, eX: number, eY: number) {
+    // special case - line goes straight up/down
+    if (sX == eX) {
+      let pts = [];
+      for (
+        let i = roundGran(min(sY, eY));
+        i <= roundGran(max(sY, eY));
+        i += gran
+      ) {
+        pts.push(roundGran(sX) + ":" + i);
+      }
 
+      return pts;
+    }
+
+    let slope = (eY - sY) / (eX - sX);
+    let pts = [];
+    let intercept = sY - slope * sX;
+
+    // Depending on slope, iterate by xs or ys
+    if (slope <= 1 && slope >= -1) {
+      for (
+        let i = roundGran(min(sX, eX));
+        i <= roundGran(max(sX, eX));
+        i += gran
+      ) {
+        pts.push(i + ":" + roundGran(slope * i + intercept));
+      }
+    } else {
+      for (
+        let i = roundGran(min(sY, eY));
+        i <= roundGran(max(sY, eY));
+        i += gran
+      ) {
+        pts.push(roundGran((i - intercept) / slope) + ":" + i);
+      }
+    }
+
+    return pts;
+  };
+
+  // Draw points
   clientBoard.on("ValueChange", (event) => {
-    keyReactGeneric(event.key, event.value);
+    var keys = event.key.split(":");
+    ctx!.fillStyle = event.value;
+    ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
+  });
+
+  // Clear points
+  clientBoard.on("KeyDelete", (event) => {
+    var keys = event.key.split(":");
+    ctx!.clearRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
   });
 
   // Mouse Event Handlers
   if (board) {
     var ctx = board.getContext("2d");
+    var color = "black";
 
     var isDown = false;
-    var canvasX, canvasY, prevX: number, prevY: number;
-
-    ctx!.lineWidth = 5;
-    ctx!.strokeStyle = "black";
+    var canvasX: number, canvasY: number, prevX: number, prevY: number;
 
     // Update color selection
     $(colors).on("click", function (e: JQuery.ClickEvent) {
-      console.log(e.target.id);
-      ctx!.strokeStyle = e.target.id;
+      color = e.target.id;
     });
 
     $(clear).on("click", function () {
@@ -70,19 +109,16 @@ window.onload = function () {
     $(board)
       .on("mousedown", function (e: JQuery.MouseDownEvent) {
         isDown = true;
-        canvasX = e.pageX - board.offsetLeft;
-        canvasY = e.pageY - board.offsetTop;
-        prevX = canvasX;
-        prevY = canvasY;
-        var key = prevX + ":" + prevY + ":" + canvasX + ":" + canvasY;
-        clientBoard.set(key, <string>ctx!.strokeStyle);
+        prevX = e.pageX - board.offsetLeft;
+        prevY = e.pageY - board.offsetTop;
       })
       .on("mousemove", function (e: JQuery.MouseMoveEvent) {
         if (isDown !== false) {
           canvasX = e.pageX - board.offsetLeft;
           canvasY = e.pageY - board.offsetTop;
-          var key = prevX + ":" + prevY + ":" + canvasX + ":" + canvasY;
-          clientBoard.set(key, <string>ctx!.strokeStyle);
+          interpolate(prevX, prevY, canvasX, canvasY).forEach(function (pt) {
+            clientBoard.set(pt, color);
+          });
           prevX = canvasX;
           prevY = canvasY;
         }

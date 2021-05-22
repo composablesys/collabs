@@ -2,13 +2,17 @@ import { crdts, network } from "compoventuals-client";
 import { edits, finalText } from "./editing-trace";
 import Automerge from "automerge";
 import * as Y from "yjs";
-import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
+import {
+  getMemoryUsed,
+  record,
+  sleep,
+  getRecordedTrials,
+  getWarmupTrials,
+} from "../record";
 import seedrandom from "seedrandom";
 
 // Based on https://github.com/automerge/automerge-perf/blob/master/edit-by-index/baseline.js
 
-const WARMUP = 5;
-const TRIALS = 10;
 const OPS = edits.length;
 const ROUND_OPS = 25978;
 const SEED = "42";
@@ -31,22 +35,20 @@ class AutomergePerfBenchmark {
   ) {
     console.log("Starting automerge_perf test: " + this.testName);
 
-    if (getIsTestRun()) return;
-
-    let results = new Array<number>(TRIALS);
-    let roundResults = new Array<number[]>(TRIALS);
+    let results = new Array<number>(getRecordedTrials());
+    let roundResults = new Array<number[]>(getRecordedTrials());
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
-    let baseMemories = new Array<number>(TRIALS);
+    let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
-      for (let i = 0; i < TRIALS; i++)
+      for (let i = 0; i < getRecordedTrials(); i++)
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     }
 
     let startingBaseline = 0;
     if (measurement === "memory") startingBaseline = await getMemoryUsed();
 
-    for (let trial = -WARMUP; trial < TRIALS; trial++) {
-      if (trial !== -WARMUP) this.cleanupFun();
+    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
+      if (trial !== -getWarmupTrials()) this.cleanupFun();
 
       // Sleep between trials
       await sleep(1000);
@@ -137,13 +139,13 @@ class AutomergePerfBenchmark {
       "automerge_perf/" + measurement,
       this.testName,
       frequency,
-      TRIALS,
+      getRecordedTrials(),
       results,
       roundResults,
       roundOps,
       measurement === "memory"
         ? baseMemories
-        : new Array<number>(TRIALS).fill(0),
+        : new Array<number>(getRecordedTrials()).fill(0),
       startingBaseline
     );
   }
@@ -219,13 +221,13 @@ function treedocLww() {
   );
 }
 
-function treedocPrimitiveLww() {
+function textCrdt() {
   let generator: network.TestingNetworkGenerator | null;
   let runtime: crdts.CrdtRuntime | null;
   let list: crdts.TreedocPrimitiveList<string> | null;
 
   return new AutomergePerfBenchmark(
-    "TreedocPrimitiveList",
+    "TextCrdt",
     (rng) => {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
@@ -412,8 +414,8 @@ export default async function automergePerf(args: string[]) {
     case "treedocLww":
       benchmark = treedocLww();
       break;
-    case "treedocPrimitiveLww":
-      benchmark = treedocPrimitiveLww();
+    case "textCrdt":
+      benchmark = textCrdt();
       break;
     case "mapLww":
       benchmark = mapLww();

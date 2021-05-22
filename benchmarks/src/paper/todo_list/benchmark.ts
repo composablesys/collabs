@@ -6,13 +6,17 @@ import util from "util";
 import { result10000 } from "./results";
 import { assert } from "chai";
 import zlib from "zlib";
-import { getIsTestRun, getMemoryUsed, record, sleep } from "../record";
+import {
+  getRecordedTrials,
+  getWarmupTrials,
+  getMemoryUsed,
+  record,
+  sleep,
+} from "../record";
 
 const DEBUG = false;
 
 // Experiment params
-const WARMUP = 5;
-const TRIALS = 10;
 const SEED = "42";
 const ROUND_OPS = 1000;
 const OPS = 10000;
@@ -70,22 +74,20 @@ class TodoListBenchmark {
   ) {
     console.log("Starting todo_list test: " + this.testName);
 
-    if (getIsTestRun()) return;
-
-    let results = new Array<number>(TRIALS);
-    let roundResults = new Array<number[]>(TRIALS);
+    let results = new Array<number>(getRecordedTrials());
+    let roundResults = new Array<number[]>(getRecordedTrials());
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
-    let baseMemories = new Array<number>(TRIALS);
+    let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
-      for (let i = 0; i < TRIALS; i++)
+      for (let i = 0; i < getRecordedTrials(); i++)
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     }
 
     let startingBaseline = 0;
     if (measurement === "memory") startingBaseline = await getMemoryUsed();
 
-    for (let trial = -WARMUP; trial < TRIALS; trial++) {
-      if (trial !== -WARMUP) this.testFactory.cleanup();
+    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
+      if (trial !== -getWarmupTrials()) this.testFactory.cleanup();
 
       // Sleep between trials
       await sleep(1000);
@@ -138,7 +140,7 @@ class TodoListBenchmark {
         // Process one edit
         this.randomOp(list);
         this.testFactory.sendNextMessage();
-        // if (measurement === "memory") await sleep(0);
+        //if (measurement === "memory") await sleep(0);
       }
 
       // Record result
@@ -193,13 +195,13 @@ class TodoListBenchmark {
       "todo_list/" + measurement,
       this.testName,
       frequency,
-      TRIALS,
+      getRecordedTrials(),
       results,
       roundResults,
       roundOps,
       measurement === "memory"
         ? baseMemories
-        : new Array<number>(TRIALS).fill(0),
+        : new Array<number>(getRecordedTrials()).fill(0),
       startingBaseline
     );
   }
@@ -369,7 +371,8 @@ function plainJs() {
 function compoCrdt() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
-    implements ITodoList, crdts.Resettable {
+    implements ITodoList, crdts.Resettable
+  {
     private readonly text: crdts.TreedocPrimitiveList<string>;
     private readonly doneCrdt: crdts.EnableWinsFlag;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
@@ -604,12 +607,14 @@ function compoJsonText() {
       }
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>).length;
+      return (
+        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
+      ).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>)
+      return (
+        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
+      )
         .asArray()
         .join("");
     }

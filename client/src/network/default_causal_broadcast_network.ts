@@ -89,14 +89,10 @@ export class myMessage {
    * @returns serialize message
    */
   serialize(): Uint8Array {
-    let vectorMapAsIndexSignature: { [key: string]: number } = {};
-    for (let entry of this.timestamp.vectorMap.entries()) {
-      vectorMapAsIndexSignature[entry[0]] = entry[1];
-    }
-    let message = DefaultCausalBroadcastMessage.create({
+    const message = DefaultCausalBroadcastMessage.create({
       message: this.message,
       sender: this.timestamp.sender,
-      vectorMap: vectorMapAsIndexSignature,
+      vectorMap: Object.fromEntries(this.timestamp.vectorMap.entries()),
     });
     return DefaultCausalBroadcastMessage.encode(message).finish();
   }

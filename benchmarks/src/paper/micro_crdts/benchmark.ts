@@ -1,16 +1,16 @@
+import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import { crdts, network } from "compoventuals-client";
 import seedrandom from "seedrandom";
 import {
-  getIsTestRun,
+  getRecordedTrials,
+  getWarmupTrials,
   getMemoryUsed,
   randomChar,
   record,
   sleep,
 } from "../record";
 
-const WARMUP = 5;
-const TRIALS = 10;
 const OPS = 200;
 const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
@@ -30,7 +30,8 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
     ops: {
       [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
     },
-    private readonly getState: (crdt: C) => any
+    private readonly getState: (crdt: C) => any,
+    private readonly crdtDestructor?: (crdt: C) => void
   ) {
     // Init ability to choose random ops with given weights
     this.cumulativeWeights = [];
@@ -61,21 +62,19 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
   ) {
     console.log("Starting micro_crdts test: " + this.testName);
 
-    if (getIsTestRun()) return;
-
-    let results = new Array<number>(TRIALS);
-    let roundResults = new Array<number[]>(TRIALS);
+    let results = new Array<number>(getRecordedTrials());
+    let roundResults = new Array<number[]>(getRecordedTrials());
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
-    let baseMemories = new Array<number>(TRIALS);
+    let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
-      for (let i = 0; i < TRIALS; i++)
+      for (let i = 0; i < getRecordedTrials(); i++)
         roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     }
 
     let startingBaseline = 0;
     if (measurement === "memory") startingBaseline = await getMemoryUsed();
 
-    for (let trial = -WARMUP; trial < TRIALS; trial++) {
+    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
       // Sleep between trials
       await sleep(1000);
       console.log("Starting trial " + trial);
@@ -176,19 +175,23 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       for (let i = 1; i < USERS; i++) {
         assert.deepStrictEqual(this.getState(crdts[i]), result0);
       }
+
+      if (this.crdtDestructor !== undefined) {
+        crdts.forEach((crdt) => this.crdtDestructor?.(crdt));
+      }
     }
 
     record(
       "micro_crdts/" + measurement,
       this.testName,
       frequency,
-      TRIALS,
+      getRecordedTrials(),
       results,
       roundResults,
       roundOps,
       measurement === "memory"
         ? baseMemories
-        : new Array<number>(TRIALS).fill(0),
+        : new Array<number>(getRecordedTrials()).fill(0),
       startingBaseline
     );
   }
@@ -599,6 +602,36 @@ function TreedocPrimitiveListRandomGrow() {
   );
 }
 
+function ITensor(
+  name: "TensorAvg" | "TensorCounter",
+  shape: number[],
+  dtype: tf.NumericDataType,
+  resetFraction: number
+) {
+  return new MicroCrdtsBenchmark<
+    crdts.TensorAverageCrdt | crdts.TensorCounterCrdt
+  >(
+    name,
+    () =>
+      name === "TensorAvg"
+        ? new crdts.TensorAverageCrdt(shape, dtype)
+        : new crdts.TensorCounterCrdt(shape, dtype),
+    {
+      Add: [
+        (crdt, rng) => {
+          const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
+          crdt.add(toAdd);
+          toAdd.dispose();
+        },
+        1 - resetFraction,
+      ],
+      Reset: [(crdt) => crdt.reset(), resetFraction],
+    },
+    (crdt) => tf.tidy(() => crdt.value.arraySync()),
+    (crdt) => crdt.dispose()
+  );
+}
+
 export default async function microCrdts(args: string[]) {
   let benchmark: MicroCrdtsBenchmark<any>;
   switch (args[0]) {
@@ -688,6 +721,36 @@ export default async function microCrdts(args: string[]) {
       break;
     case "TextRandomGrow":
       benchmark = TreedocPrimitiveListRandomGrow();
+      break;
+    case "TensorCounter":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
+      break;
+    case "TensorCounter-1":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
+      break;
+    case "TensorCounter-10":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
+      break;
+    case "TensorCounter-50":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
+      break;
+    case "TensorCounter-100":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
+      break;
+    case "TensorAvg":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
+      break;
+    case "TensorAvg-1":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
+      break;
+    case "TensorAvg-10":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
+      break;
+    case "TensorAvg-50":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
+      break;
+    case "TensorAvg-100":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
       break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC

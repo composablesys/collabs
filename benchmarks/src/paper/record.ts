@@ -18,12 +18,24 @@ export function record(
   baseValues: number[],
   startingBaseline: number
 ) {
+  // Skip if there were no recorded trials
+  if (getRecordedTrials() === 0) return;
+
   // Output to files
   let headers;
   if (frequency === "whole")
-    headers = ["Date", "Name", "Mean", "StdDev", "Count"];
+    headers = ["Date", "Version", "Name", "Mean", "StdDev", "Count"];
   else
-    headers = ["Date", "Name", "Round", "OpsSoFar", "Mean", "StdDev", "Count"];
+    headers = [
+      "Date",
+      "Version",
+      "Name",
+      "Round",
+      "OpsSoFar",
+      "Mean",
+      "StdDev",
+      "Count",
+    ];
   for (let i = 0; i < trials; i++) {
     headers.push("Sample " + i);
   }
@@ -58,6 +70,7 @@ export function record(
       console.log(`Mean: ${mean}\nStdDev: ${stddev}`);
       let data: any = {
         Date: new Date().toDateString(),
+        Version: version,
         Name: name,
         Mean: mean,
         StdDev: stddev,
@@ -83,6 +96,7 @@ export function record(
 
         let data: any = {
           Date: new Date().toDateString(),
+          Version: version,
           Name: name,
           Round: i,
           OpsSoFar: roundOps[i],
@@ -107,16 +121,29 @@ export function record(
   // TODO: also output raw data in another file
 }
 
-export function setFolder(newFolder: string) {
-  folder = newFolder;
+export function setFolder(theFolder: string) {
+  folder = theFolder;
 }
 
-let isTestRun = false;
-export function setIsTestRun() {
-  isTestRun = true;
+let version = "";
+export function setVersion(theVersion: string) {
+  version = theVersion;
 }
-export function getIsTestRun() {
-  return isTestRun;
+
+let warmupTrials = 0;
+export function setWarmupTrials(trials: number) {
+  warmupTrials = trials;
+}
+export function getWarmupTrials(): number {
+  return warmupTrials;
+}
+
+let recordedTrials = 0;
+export function setRecordedTrials(trials: number) {
+  recordedTrials = trials;
+}
+export function getRecordedTrials(): number {
+  return recordedTrials;
 }
 
 // Helper funcs
@@ -125,34 +152,41 @@ export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// export async function getMemoryUsed(): Promise<number> {
-//   global.gc();
-//   await sleep(1000); // Sleep a bit to help the GC?
-//   return process.memoryUsage().heapUsed;
-// }
+// memwatch.on("stats", (stats: memwatch.GcStats) => {
+//   console.log("stats: " + stats.used_heap_size);
+// });
 
-let memListening = false;
-let nextResolve: ((value: number) => void) | undefined = undefined;
-
-function onStats(stats: memwatch.GcStats) {
-  if (nextResolve) {
-    console.log(stats);
-    nextResolve(stats.used_heap_size);
-    nextResolve = undefined;
-  }
-}
-
-export function getMemoryUsed(): Promise<number> {
-  if (!memListening) {
-    memListening = true;
-    memwatch.on("stats", onStats);
-  }
-  let statsPromise = new Promise<number>((resolve) => {
-    nextResolve = resolve;
-  });
+export async function getMemoryUsed(): Promise<number> {
+  // Force the event loop to turn over fully, so that
+  // all pending "stats" events are dispatched (I'm guessing
+  // during the IO events queue portion of the event loop).
+  // Otherwise the first "stats" event we capture may be
+  // for an old memory measurement.
+  //
+  // Basing this on the description of the event loop here:
+  // https://miro.medium.com/max/2880/1*2yXbhvpf1kj5YT-m_fXgEQ.png
+  // from the article:
+  // https://blog.insiderattack.net/event-loop-and-the-big-picture-nodejs-event-loop-part-1-1cb67a182810
+  //
+  // Two sleep(0)'s works in my tests so far, while a single
+  // sleep (even for a longer period, e.g., 5 ms) does not.
+  // This suggests that setTimeout calls during the execution
+  // of a previous setTimeout's function are queued for
+  // the next big event loop iteration, instead of being
+  // placed on the current setTimeout queue, although
+  // I haven't read this officially.
+  // It also worked when I tried a mix of a sleep(0) and
+  // a Promise using setImmediate (either order).
+  await sleep(0);
+  await sleep(0);
   // @ts-ignore types forgot gc
   memwatch.gc();
-  return statsPromise;
+  return new Promise<number>((resolve) => {
+    // @ts-ignore types forgot once
+    memwatch.once("stats", (stats: memwatch.GcStats) => {
+      resolve(stats.used_heap_size);
+    });
+  });
 }
 
 let s = "";

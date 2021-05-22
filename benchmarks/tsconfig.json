@@ -5,7 +5,12 @@
     "noEmit": false,
     "typeRoots": ["./src/@types"],
     "allowJs": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    /*
+     * Necessary for TensorFlow.js.
+     * See https://www.tensorflow.org/js/tutorials/setup#typescript
+     */
+    "skipLibCheck": true
   },
   "include": ["src"]
 }
