@@ -200,15 +200,13 @@ function treedocLww() {
     () => {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
-      list = runtime
-        .groupParent("")
-        .addChild(
-          "",
-          new crdts.TreedocList<crdts.LwwRegister<string>>(
-            () => new crdts.LwwRegister(""),
-            true
-          )
-        );
+      list = runtime.registerCrdt(
+        "",
+        new crdts.TreedocList<crdts.LwwRegister<string>>(
+          () => new crdts.LwwRegister(""),
+          true
+        )
+      );
     },
     (edit) => {
       if (edit[2] !== undefined) {
@@ -218,7 +216,7 @@ function treedocLww() {
         // Delete character at edit[0]
         list.deleteAt(edit[0]);
       }
-      runtime.commitAll();
+      runtime.commitBatch();
     },
     () => generator.getTotalSentBytes(),
     () =>
@@ -239,9 +237,7 @@ function treedocPrimitiveLww() {
     () => {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual");
-      list = runtime
-        .groupParent("")
-        .addChild("", new crdts.TreedocPrimitiveList<string>());
+      list = runtime.registerCrdt("", new crdts.TreedocPrimitiveList<string>());
     },
     (edit) => {
       if (edit[2] !== undefined) {
@@ -251,7 +247,7 @@ function treedocPrimitiveLww() {
         // Delete character at edit[0]
         list.deleteAt(edit[0]);
       }
-      runtime.commitAll();
+      runtime.commitBatch();
     },
     () => generator.getTotalSentBytes(),
     () => list.asArray().join("")
@@ -292,9 +288,7 @@ function mapLww() {
     () => {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime();
-      list = runtime
-        .groupParent("")
-        .addChild("", new crdts.LwwMap<number, string>());
+      list = runtime.registerCrdt("", new crdts.LwwMap<number, string>());
     },
     (edit) => {
       if (edit[2] !== undefined) {

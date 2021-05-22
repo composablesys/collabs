@@ -9,18 +9,20 @@ const WIN_TEXT = (function () {
 var HOST = location.origin.replace(/^http/, "ws");
 
 const client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST)),
+  new network.DefaultCausalBroadcastNetwork(
+    new network.WebSocketNetwork(HOST, "aspace")
+  ),
   { periodMs: 0 }
 );
-const text = client
-  .groupParent("aspaceGroup")
-  .addChild("text", new crdts.TextCrdt());
-const startTime = client
-  .groupParent("aspaceGroup")
-  .addChild("startTime", new crdts.MultiValueRegister<number>());
-const winElapsedTime = client
-  .groupParent("aspaceGroup")
-  .addChild("winElapsedTime", new crdts.MultiValueRegister<number>());
+const text = client.registerCrdt("text", new crdts.TextCrdt());
+const startTime = client.registerCrdt(
+  "startTime",
+  new crdts.MultiValueRegister<number>()
+);
+const winElapsedTime = client.registerCrdt(
+  "winElapsedTime",
+  new crdts.MultiValueRegister<number>()
+);
 
 const textInput = document.getElementById("textInput") as HTMLInputElement;
 textInput.value = "";

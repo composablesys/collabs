@@ -17,14 +17,23 @@ export class WebSocketNetwork implements BroadcastNetwork {
    *
    * @param webSocketArgs the argument that
    * use to create a new WebSocket connection.
+   * @param group TODO (perhaps instead let multiple groups
+   * use the same WebSocketNetwork?)
    */
-  constructor(webSocketArgs: string) {
+  constructor(webSocketArgs: string, readonly group: string) {
     /**
      * Open WebSocket connection with server.
      * Register EventListener with corresponding event handler.
      */
     this.ws = new ReconnectingWebSocket(webSocketArgs);
     this.ws.addEventListener("message", this.receiveAction);
+
+    // Send a new message with type == "register"
+    let message = JSON.stringify({
+      type: "register",
+      group: group,
+    });
+    this.ws.send(message);
   }
   /**
    * Invoke heartbeat function to keep clients alive.
@@ -51,10 +60,12 @@ export class WebSocketNetwork implements BroadcastNetwork {
     // (requires changing options + server)
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
     let parsed = JSON.parse(message.data) as { group: string; message: string };
-    this.causal.receive(
-      parsed.group,
-      new Uint8Array(Buffer.from(parsed.message, "base64"))
-    );
+    if (parsed.group === this.group) {
+      // It's for us
+      this.causal.receive(
+        new Uint8Array(Buffer.from(parsed.message, "base64"))
+      );
+    }
   };
   /**
    * Register a CausalBroadcastNetwork which implement the interface.
@@ -65,26 +76,14 @@ export class WebSocketNetwork implements BroadcastNetwork {
     this.causal = causal;
   }
   /**
-   * Join the group with unique identifier.
-   * @param group the group name which is uniquely identified.
-   */
-  joinGroup(group: string): void {
-    // Create a new message with type == "register"
-    let message = JSON.stringify({
-      type: "register",
-      group: group,
-    });
-    this.ws.send(message);
-  }
-  /**
    * The actual send function using underlying WebSocket protocol.
    * @param group the unique string identifier of Group.
    * @param message the message with Uint8Array type.
    * @param timestamp the CasualTimestamp.
    */
-  send(group: string, message: Uint8Array, _timestamp: CausalTimestamp): void {
+  send(message: Uint8Array, _timestamp: CausalTimestamp): void {
     let encoded = Buffer.from(message).toString("base64");
-    let toSend = JSON.stringify({ group: group, message: encoded });
+    let toSend = JSON.stringify({ group: this.group, message: encoded });
     // TODO: use Uint8Array directly instead
     // (requires changing options + server)
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead

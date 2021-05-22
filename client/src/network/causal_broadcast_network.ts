@@ -52,35 +52,6 @@ export interface CausalBroadcastNetwork {
    * @param crdtRuntime The CrdtRuntime.
    */
   register(crdtRuntime: CrdtRuntime): void;
-  /**
-   * Called by CrdtRuntime when it is instructed
-   * (TODO: how/where) to join the given group.
-   * When joinGroup(group) is called, this should
-   * asynchronously (i.e., not within this method call,
-   * but later)
-   * deliver all prior messages intended for group
-   * to the CrdtRuntime (as if they had been sent just
-   * now in causal order),
-   * including messages sent by this replica in
-   * previous sessions.  (TODO: make sure that plays nicely
-   * with local ops; or perhaps mandate that replica ids
-   * are unique for each session?  That would also help with
-   * if the same user connects multiple times at once).
-   * (TODO: where to deliver errors)
-   * if there is a problem joining the group, e.g., it
-   * does not exist or this replica does not have permission
-   * to access it.
-   * @param group A "group"
-   * encompasses both a set of replicas (in a way
-   * specific to your application, e.g., they could be
-   * UIDs for group chats or documents on your server)
-   * and a unit
-   * of causal consistency, i.e., messages should
-   * be causally consistent within a group but need
-   * not be across groups.  (TODO: separate out these
-   * concerns?  Perhaps have "document" vs "causalGroup").
-   */
-  joinGroup(group: string): void;
 
   /**
    * Return the timestamp for the next message sent by previous' sender
@@ -98,9 +69,8 @@ export interface CausalBroadcastNetwork {
    * @param  group [description]
    * @return       [description]
    */
-  beginBatch(group: string): CausalTimestamp;
+  beginBatch(): CausalTimestamp;
   commitBatch(
-    group: string,
     message: Uint8Array,
     firstTimestamp: CausalTimestamp,
     lastTimestamp: CausalTimestamp

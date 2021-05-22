@@ -65,7 +65,7 @@ export class CrdtSuite<C extends crdts.Crdt> {
           for (let i = 0; i < users; i++) {
             runtimes[i] = generator.newRuntime();
             crdts[i] = crdtConstructor();
-            runtimes[i].groupParent("").addChild("benchmark", crdts[i]);
+            runtimes[i].registerCrdt("benchmark", crdts[i]);
           }
         };
 

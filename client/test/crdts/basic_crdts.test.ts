@@ -31,12 +31,8 @@ describe("basic_crdts", () => {
     let bobCounter: CounterPureBase;
 
     beforeEach(() => {
-      aliceCounter = alice
-        .groupParent("")
-        .addChild("counterId", new CounterPureBase());
-      bobCounter = bob
-        .groupParent("")
-        .addChild("counterId", new CounterPureBase());
+      aliceCounter = alice.registerCrdt("counterId", new CounterPureBase());
+      bobCounter = bob.registerCrdt("counterId", new CounterPureBase());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -95,8 +91,8 @@ describe("basic_crdts", () => {
     let bobCounter: Counter;
 
     beforeEach(() => {
-      aliceCounter = alice.groupParent("").addChild("counterId", new Counter());
-      bobCounter = bob.groupParent("").addChild("counterId", new Counter());
+      aliceCounter = alice.registerCrdt("counterId", new Counter());
+      bobCounter = bob.registerCrdt("counterId", new Counter());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -296,10 +292,8 @@ describe("basic_crdts", () => {
     let bobRegister: MultRegister;
 
     beforeEach(() => {
-      aliceRegister = alice
-        .groupParent("")
-        .addChild("multId", new MultRegister(2));
-      bobRegister = bob.groupParent("").addChild("multId", new MultRegister(2));
+      aliceRegister = alice.registerCrdt("multId", new MultRegister(2));
+      bobRegister = bob.registerCrdt("multId", new MultRegister(2));
       if (debug) {
         addEventListeners(aliceRegister, "Alice");
         addEventListeners(bobRegister, "Bob");
@@ -369,8 +363,8 @@ describe("basic_crdts", () => {
     let bobGSet: GSet<any>;
 
     beforeEach(() => {
-      aliceGSet = alice.groupParent("").addChild("gsetId", new GSet());
-      bobGSet = bob.groupParent("").addChild("gsetId", new GSet());
+      aliceGSet = alice.registerCrdt("gsetId", new GSet());
+      bobGSet = bob.registerCrdt("gsetId", new GSet());
       if (debug) {
         addEventListeners(aliceGSet, "Alice");
         addEventListeners(bobGSet, "Bob");
@@ -429,10 +423,8 @@ describe("basic_crdts", () => {
     let bobMvr: MultiValueRegister<string>;
 
     beforeEach(() => {
-      aliceMvr = alice
-        .groupParent("")
-        .addChild("mvrId", new MultiValueRegister());
-      bobMvr = bob.groupParent("").addChild("mvrId", new MultiValueRegister());
+      aliceMvr = alice.registerCrdt("mvrId", new MultiValueRegister());
+      bobMvr = bob.registerCrdt("mvrId", new MultiValueRegister());
       if (debug) {
         addEventListeners(aliceMvr, "Alice");
         addEventListeners(bobMvr, "Bob");
@@ -538,12 +530,8 @@ describe("basic_crdts", () => {
     let bobLww: LwwRegister<string>;
 
     beforeEach(() => {
-      aliceLww = alice
-        .groupParent("")
-        .addChild("lwwId", new LwwRegister("initial"));
-      bobLww = bob
-        .groupParent("")
-        .addChild("lwwId", new LwwRegister("initial"));
+      aliceLww = alice.registerCrdt("lwwId", new LwwRegister("initial"));
+      bobLww = bob.registerCrdt("lwwId", new LwwRegister("initial"));
       if (debug) {
         addEventListeners(aliceLww, "Alice");
         addEventListeners(bobLww, "Bob");

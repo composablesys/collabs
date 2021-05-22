@@ -10,15 +10,18 @@ var HOST = location.origin.replace(/^http/, "ws");
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST)),
+  new network.DefaultCausalBroadcastNetwork(
+    new network.WebSocketNetwork(HOST, "whiteboard")
+  ),
   { periodMs: 5000 }
 );
 
 // The key represents a point in the form: x:y
 // The value is the color of the stroke.
-let clientBoard: crdts.LwwMap<string, string> = client
-  .groupParent("whiteboardGroup")
-  .addChild("whiteboardId", new crdts.LwwMap());
+let clientBoard: crdts.LwwMap<string, string> = client.registerCrdt(
+  "whiteboardId",
+  new crdts.LwwMap()
+);
 
 window.onload = function () {
   var colors = document.getElementsByClassName("btn-colors");

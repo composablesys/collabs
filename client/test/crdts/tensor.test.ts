@@ -99,12 +99,14 @@ describe("tensor", () => {
     let bobCounter: TensorGCounterCrdt;
 
     beforeEach(() => {
-      aliceCounter = alice
-        .groupParent("")
-        .addChild("counterId", new TensorGCounterCrdt(shape, "float32"));
-      bobCounter = bob
-        .groupParent("")
-        .addChild("counterId", new TensorGCounterCrdt(shape, "float32"));
+      aliceCounter = alice.registerCrdt(
+        "counterId",
+        new TensorGCounterCrdt(shape, "float32")
+      );
+      bobCounter = bob.registerCrdt(
+        "counterId",
+        new TensorGCounterCrdt(shape, "float32")
+      );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -221,12 +223,14 @@ describe("tensor", () => {
       it("lets concurrent non-uniform adds survive", () => {
         const shape = [2, 2];
         const dtype = "float32";
-        const aliceCounter = alice
-          .groupParent("")
-          .addChild("counterId2", new TensorGCounterCrdt(shape, dtype));
-        const bobCounter = bob
-          .groupParent("")
-          .addChild("counterId2", new TensorGCounterCrdt(shape, dtype));
+        const aliceCounter = alice.registerCrdt(
+          "counterId2",
+          new TensorGCounterCrdt(shape, dtype)
+        );
+        const bobCounter = bob.registerCrdt(
+          "counterId2",
+          new TensorGCounterCrdt(shape, dtype)
+        );
         const identity = tf.eye(shape[0], shape[1], undefined, "float32");
         const tensor1 = identity.mul(2);
         const tensor2 = identity.reverse().mul(3);
@@ -258,12 +262,14 @@ describe("tensor", () => {
     let bobCounter: TensorCounterCrdt;
 
     beforeEach(() => {
-      aliceCounter = alice
-        .groupParent("")
-        .addChild("counterId", new TensorCounterCrdt(shape, "float32"));
-      bobCounter = bob
-        .groupParent("")
-        .addChild("counterId", new TensorCounterCrdt(shape, "float32"));
+      aliceCounter = alice.registerCrdt(
+        "counterId",
+        new TensorCounterCrdt(shape, "float32")
+      );
+      bobCounter = bob.registerCrdt(
+        "counterId",
+        new TensorCounterCrdt(shape, "float32")
+      );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -382,12 +388,14 @@ describe("tensor", () => {
     let bobAvg: TensorAverageCrdt;
 
     beforeEach(() => {
-      aliceAvg = alice
-        .groupParent("")
-        .addChild("avgId", new TensorAverageCrdt(shape, "float32"));
-      bobAvg = bob
-        .groupParent("")
-        .addChild("avgId", new TensorAverageCrdt(shape, "float32"));
+      aliceAvg = alice.registerCrdt(
+        "avgId",
+        new TensorAverageCrdt(shape, "float32")
+      );
+      bobAvg = bob.registerCrdt(
+        "avgId",
+        new TensorAverageCrdt(shape, "float32")
+      );
       if (debug) {
         addEventListeners(aliceAvg, "Alice");
         addEventListeners(bobAvg, "Bob");

@@ -442,7 +442,7 @@ function compoCrdt() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.groupParent("").addChild("", new CrdtTodoList());
+      let list = runtime.registerCrdt("", new CrdtTodoList());
       this.sendNextMessage();
       return list;
     },
@@ -451,7 +451,7 @@ function compoCrdt() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -532,9 +532,7 @@ function compoJson() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTodoList(list.value as crdts.JsonObject);
@@ -544,7 +542,7 @@ function compoJson() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -631,9 +629,7 @@ function compoJsonText() {
       generator = new network.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTextTodoList(list.value as crdts.JsonObject);
@@ -643,7 +639,7 @@ function compoJsonText() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -1043,7 +1039,7 @@ function jsonCrdt() {
       let crdt = new crdts.JsonCrdt();
 
       let cursor = new crdts.JsonCursor(crdt);
-      runtime.groupParent("").addChild("", crdt);
+      runtime.registerCrdt("", crdt);
       this.sendNextMessage();
       cursor.setIsMap("items");
       cursor.setIsList("itemsIds");
@@ -1059,7 +1055,7 @@ function jsonCrdt() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
