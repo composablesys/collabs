@@ -27,6 +27,13 @@ const winElapsedTime = client.registerCrdt(
 const textInput = document.getElementById("textInput") as HTMLInputElement;
 textInput.value = "";
 
+const myCursor = new crdts.Cursor(text, 0);
+function updateCursor() {
+  const index = myCursor.index;
+  textInput.selectionStart = index;
+  textInput.selectionEnd = index;
+}
+
 // Change the text when a key is pressed in textInput
 textInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
@@ -35,31 +42,38 @@ textInput.addEventListener("keydown", (e) => {
     startTime.reset();
     winElapsedTime.reset();
   } else if (textInput.selectionStart !== null) {
+    const index = textInput.selectionStart;
     if (e.key === "Backspace") {
-      if (textInput.selectionStart > 0) {
-        const isAtEnd = textInput.selectionStart === textInput.value.length;
-        text.deleteAt(textInput.selectionStart - 1);
-        if (!isAtEnd) moveCursorLeft();
+      if (index > 0) {
+        text.deleteAt(index - 1);
+        myCursor.index = index - 1;
+        updateCursor();
       }
     } else if (e.key === "Delete") {
-      if (textInput.selectionStart < textInput.value.length) {
-        text.deleteAt(textInput.selectionStart);
+      if (index < textInput.value.length) {
+        text.deleteAt(index);
       }
-    } else if (e.key === "ArrowLeft") moveCursorLeft();
-    else if (e.key === "ArrowRight") moveCursorRight();
-    else if (e.key === "End") {
-      textInput.selectionStart = textInput.value.length;
-      textInput.selectionEnd = textInput.selectionStart;
+    } else if (e.key === "ArrowLeft") {
+      if (index > 0) {
+        myCursor.index = index - 1;
+        updateCursor();
+      }
+    } else if (e.key === "ArrowRight") {
+      if (index < textInput.value.length) {
+        myCursor.index = index + 1;
+        updateCursor();
+      }
+    } else if (e.key === "End") {
+      myCursor.index = textInput.value.length;
+      updateCursor();
     } else if (e.key === "Home") {
-      textInput.selectionStart = 0;
-      textInput.selectionEnd = textInput.selectionStart;
-    } else if (shouldType(e) && textInput.value !== WIN_TEXT) {
-      text.insertAt(textInput.selectionStart, e.key);
-      moveCursorRight();
+      myCursor.index = 0;
+      updateCursor();
+    } else if (shouldType(e)) {
+      text.insertAt(index, e.key);
+      myCursor.index = index + 1;
+      updateCursor();
       if (startTime.valueSet.size === 0) startTime.value = Date.now();
-      if (textInput.value === WIN_TEXT) {
-        winElapsedTime.value = getElapsedTime();
-      }
     }
   }
 
@@ -72,69 +86,35 @@ function shouldType(e: KeyboardEvent): boolean {
   return e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
 }
 
-function moveCursorLeft() {
-  if (textInput.selectionStart !== null) {
-    if (textInput.selectionStart > 0) {
-      textInput.selectionStart--;
-      textInput.selectionEnd = textInput.selectionStart;
-    }
-  }
-}
-
-function moveCursorRight() {
-  if (textInput.selectionStart !== null) {
-    if (textInput.selectionStart < textInput.value.length) {
-      textInput.selectionStart++;
-      textInput.selectionEnd = textInput.selectionStart;
-    }
-  }
-}
-
 // Respond to text changes
 text.on("Change", () => {
-  const oldSelectionStart = textInput.selectionStart;
   textInput.value = text.asArray().join("");
-  textInput.selectionStart = Math.min(
-    textInput.value.length,
-    Math.max(0, oldSelectionStart ?? textInput.value.length)
-  );
-  textInput.selectionEnd = textInput.selectionStart;
-  if (afterChange) {
-    afterChange();
-    afterChange = null;
-  }
-});
-// Move cursor in response to others' text changes.
-// Need to delay this until after the Change event, since
-// the text is not yet edited.
-let afterChange: (() => void) | null = null;
-text.on("Insert", (e) => {
-  if (!e.timestamp.isLocal()) {
-    afterChange = () => {
-      if (
-        textInput.selectionStart !== null &&
-        e.index < textInput.selectionStart
-      )
-        moveCursorRight();
-    };
-  }
-});
-text.on("Delete", (e) => {
-  if (!e.timestamp.isLocal()) {
-    afterChange = () => {
-      if (
-        textInput.selectionStart !== null &&
-        e.index <= textInput.selectionStart
-      )
-        moveCursorLeft();
-    };
-  }
+  updateCursor();
 });
 
 // Display info text (time and win state)
 const display = document.getElementById("display")!;
 setInterval(() => {
-  if (textInput.value === WIN_TEXT && winElapsedTime.valueSet.size > 0) {
+  // Update the win state, if it is inconsistent between
+  // the text and winElapsedTime.
+  if (
+    textInput.value.startsWith(WIN_TEXT) &&
+    winElapsedTime.valueSet.size === 0
+  ) {
+    // Record now as the winning time
+    winElapsedTime.value = getElapsedTime();
+  } else if (
+    !textInput.value.startsWith(WIN_TEXT) &&
+    winElapsedTime.valueSet.size !== 0
+  ) {
+    // Reset the win time
+    winElapsedTime.reset();
+  }
+
+  if (
+    textInput.value.startsWith(WIN_TEXT) &&
+    winElapsedTime.valueSet.size > 0
+  ) {
     // Get the minimum winElapsedTime
     let ans = Number.MAX_VALUE;
     for (let value of winElapsedTime.valueSet.values())

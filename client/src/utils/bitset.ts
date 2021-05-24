@@ -110,10 +110,21 @@ export class BitSet {
   }
 
   equals(other: BitSet) {
+    if (this.length !== other.length) return false;
+    for (let i = 0; i < this.array.length; i++) {
+      if (this.array[i] !== other.array[i]) return false;
+    }
+    return true;
+    /*
+    // Commenting this out because I don't trust the buffer
+    // package's compare method in the browser - it gave
+    // an unexpected TypeError once, and from the source
+    // code, it looks like it might copy the whole input
+    // arrays each time.
     return (
       this.length === other.length &&
       Buffer.compare(this.array, other.array) === 0
-    );
+    );*/
   }
 
   toString(): string {

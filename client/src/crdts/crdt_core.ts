@@ -543,28 +543,25 @@ export class CrdtRuntime {
 
   commitBatch() {
     if (this.pendingBatch === null) return;
+    const batch = this.pendingBatch;
+    // Clear this.pendingBatch now so that this.network is
+    // free to deliver messages (e.g. queued ones) during
+    // this.network.commitBatch at the end of this method.
+    this.pendingBatch = null;
 
     // Serialize the batch and send it over this.network
     let runtimeMessage = CrdtRuntimeMessage.create({
-      pointerParents: this.pendingBatch.pointers.map(
-        (pointer) => pointer.parent
-      ),
-      pointerNames: this.pendingBatch.pointers.map((pointer) => pointer.name),
-      messageSenders: this.pendingBatch.messages.map(
-        (message) => message.sender
-      ),
-      innerMessages: this.pendingBatch.messages.map(
-        (message) => message.innerMessage
-      ),
+      pointerParents: batch.pointers.map((pointer) => pointer.parent),
+      pointerNames: batch.pointers.map((pointer) => pointer.name),
+      messageSenders: batch.messages.map((message) => message.sender),
+      innerMessages: batch.messages.map((message) => message.innerMessage),
     });
     let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
     this.network.commitBatch(
       buffer,
-      this.pendingBatch.firstTimestamp,
-      this.pendingBatch.previousTimestamp
+      batch.firstTimestamp,
+      batch.previousTimestamp
     );
-
-    this.pendingBatch = null;
   }
 
   /**
