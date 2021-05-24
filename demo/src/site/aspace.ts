@@ -11,8 +11,7 @@ var HOST = location.origin.replace(/^http/, "ws");
 const client = new crdts.CrdtRuntime(
   new network.DefaultCausalBroadcastNetwork(
     new network.WebSocketNetwork(HOST, "aspace")
-  ),
-  { periodMs: 0 }
+  )
 );
 const text = client.registerCrdt("text", new crdts.TextCrdt());
 const startTime = client.registerCrdt(

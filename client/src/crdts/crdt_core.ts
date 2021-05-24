@@ -440,7 +440,9 @@ export class CrdtRuntime {
    */
   constructor(
     readonly network: CausalBroadcastNetwork,
-    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate",
+    batchOptions: "immediate" | "manual" | { periodMs: number } = {
+      periodMs: 0,
+    },
     debugReplicaId: string | undefined = undefined
   ) {
     if (debugReplicaId) this.replicaId = debugReplicaId;

@@ -47,8 +47,17 @@ function pseudorandomReplicaId(rng: seedrandom.prng) {
  * when release is called.
  */
 export class TestingNetworkGenerator {
+  /**
+   * [newRuntime description]
+   * @param  batchOptions Note that the default here is
+   * "immediate", unlike CrdtRuntime, where it is {periodMs: 0}.
+   * "immediate" is better for tests, while {periodMs: 0} is
+   * better for real apps.
+   * @param  rng          [description]
+   * @return              [description]
+   */
   newRuntime(
-    batchOptions?: "immediate" | "manual" | { periodMs: number },
+    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate",
     rng: seedrandom.prng | undefined = undefined
   ) {
     let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;

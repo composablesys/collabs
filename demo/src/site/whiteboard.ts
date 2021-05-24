@@ -12,8 +12,7 @@ var HOST = location.origin.replace(/^http/, "ws");
 let client = new crdts.CrdtRuntime(
   new network.DefaultCausalBroadcastNetwork(
     new network.WebSocketNetwork(HOST, "whiteboard")
-  ),
-  { periodMs: 5000 }
+  )
 );
 
 // The key represents a point in the form: x:y
