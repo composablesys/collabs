@@ -12,7 +12,7 @@ const client = new crdts.CrdtRuntime(
   new network.DefaultCausalBroadcastNetwork(
     new network.WebSocketNetwork(HOST, "aspace")
   ),
-  { periodMs: 0 }
+  { periodMs: 5000 }
 );
 const text = client.registerCrdt("text", new crdts.TextCrdt());
 const startTime = client.registerCrdt(
@@ -53,13 +53,10 @@ textInput.addEventListener("keydown", (e) => {
     } else if (e.key === "Home") {
       textInput.selectionStart = 0;
       textInput.selectionEnd = textInput.selectionStart;
-    } else if (shouldType(e) && textInput.value !== WIN_TEXT) {
+    } else if (shouldType(e)) {
       text.insertAt(textInput.selectionStart, e.key);
       moveCursorRight();
       if (startTime.valueSet.size === 0) startTime.value = Date.now();
-      if (textInput.value === WIN_TEXT) {
-        winElapsedTime.value = getElapsedTime();
-      }
     }
   }
 
@@ -99,11 +96,13 @@ text.on("Change", () => {
     Math.max(0, oldSelectionStart ?? textInput.value.length)
   );
   textInput.selectionEnd = textInput.selectionStart;
+
   if (afterChange) {
     afterChange();
     afterChange = null;
   }
 });
+
 // Move cursor in response to others' text changes.
 // Need to delay this until after the Change event, since
 // the text is not yet edited.
@@ -134,7 +133,26 @@ text.on("Delete", (e) => {
 // Display info text (time and win state)
 const display = document.getElementById("display")!;
 setInterval(() => {
-  if (textInput.value === WIN_TEXT && winElapsedTime.valueSet.size > 0) {
+  // Update the win state, if it is inconsistent between
+  // the text and winElapsedTime.
+  if (
+    textInput.value.startsWith(WIN_TEXT) &&
+    winElapsedTime.valueSet.size === 0
+  ) {
+    // Record now as the winning time
+    winElapsedTime.value = getElapsedTime();
+  } else if (
+    !textInput.value.startsWith(WIN_TEXT) &&
+    winElapsedTime.valueSet.size !== 0
+  ) {
+    // Reset the win time
+    winElapsedTime.reset();
+  }
+
+  if (
+    textInput.value.startsWith(WIN_TEXT) &&
+    winElapsedTime.valueSet.size > 0
+  ) {
     // Get the minimum winElapsedTime
     let ans = Number.MAX_VALUE;
     for (let value of winElapsedTime.valueSet.values())
