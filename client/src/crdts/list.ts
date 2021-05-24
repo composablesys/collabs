@@ -329,7 +329,11 @@ export class PrimitiveList<I extends HasSender, T>
       // TODO: use a library that lets us reduce the number
       // of map lookups here (from 2 to 1).
       const found = this.sortedKeys.find(event.key);
-      if (found) {
+      // I think this check should always pass (it never
+      // caused an error when we were accidentally checking
+      // it in a way that always evaluated to true), but
+      // I'll leave it in just in case, since it is free.
+      if (found.valid) {
         const index = found.index;
         this.sortedKeys = this.sortedKeys.remove(event.key);
         this.emit("Delete", {
