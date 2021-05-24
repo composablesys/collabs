@@ -133,6 +133,11 @@ export class List<I, C extends Crdt & Resettable>
     return !(index < 0 || index >= this.length);
   }
 
+  // TODO: hide access if not persistent?
+  idsAsTree(): Tree<I, true> {
+    return this.sortedKeys;
+  }
+
   deleteId(seqId: I) {
     this.valueMap.delete(seqId);
   }
@@ -279,6 +284,7 @@ export class PrimitiveList<I extends HasSender, T>
   private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: PartitionedMap<I, T>;
   // Note this is a persistent (immutable) data structure.
+  // TODO: undefined instead of true?
   private sortedKeys: Tree<I, true>;
   constructor(
     sequenceSource: ISequenceSource<I>,
@@ -371,6 +377,11 @@ export class PrimitiveList<I extends HasSender, T>
     return !(index < 0 || index >= this.length);
   }
 
+  // TODO: hide access if not persistent?
+  idsAsTree(): Tree<I, true> {
+    return this.sortedKeys;
+  }
+
   deleteId(seqId: I) {
     this.valueMap.delete(seqId);
   }
@@ -453,6 +464,46 @@ export class PrimitiveList<I extends HasSender, T>
 
   get length(): number {
     return this.sortedKeys.length;
+  }
+}
+
+// TODO: document, test.
+// Note this is not a CRDT
+// TODO: way to share with others (e.g., putting seqId
+// in a LwwRegister).  Could make this a CRDT for that,
+// but not desired if it's not going to be replicated.
+export class Cursor<I> {
+  private seqId: I | null = null;
+  // TODO: how to make the I type constraint HasSender play
+  // nicely?  I don't want to add it as a class constraint,
+  // since List doesn't require it; but ignoring HasSender
+  // completely causes the constructor signature to complain.
+  constructor(
+    private readonly list: List<I, any> | PrimitiveList<I & HasSender, any>,
+    startIndex: number,
+    private readonly binding: "left" | "right" = "left"
+  ) {
+    this.index = startIndex;
+  }
+
+  set index(index: number) {
+    if (this.binding === "left") {
+      if (index === 0) this.seqId = null;
+      else this.seqId = this.list.idAt(index - 1);
+    } else {
+      if (index === this.list.length) this.seqId = null;
+      else this.seqId = this.list.idAt(index);
+    }
+  }
+
+  get index(): number {
+    if (this.binding === "left") {
+      if (this.seqId === null) return 0;
+      else return this.list.idsAsTree().gt(this.seqId as I & HasSender).index;
+    } else {
+      if (this.seqId === null) return this.list.length;
+      else return this.list.idsAsTree().ge(this.seqId as I & HasSender).index;
+    }
   }
 }
 
