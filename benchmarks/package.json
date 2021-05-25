@@ -32,7 +32,8 @@
     "@types/seedrandom": "^2.4.28",
     "@types/chai": "^4.2.14",
     "@types/airbnb__node-memwatch": "^2.0.0",
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "@types/node": "^15.6.1"
   },
   "scripts": {
     "build": "npm-run-all build:*",
