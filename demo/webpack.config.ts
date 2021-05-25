@@ -8,7 +8,6 @@ const config: webpack.Configuration = {
   entry: {
     counter: "./src/site/counter.ts",
     whiteboard: "./src/site/whiteboard.ts",
-    tests: "./src/site/tests.ts",
     counterwebrtc: "./src/site/counterwebrtc.ts",
     minesweeper: "./src/site/minesweeper.ts",
     aspace: "./src/site/aspace.ts",
@@ -49,7 +48,6 @@ const config: webpack.Configuration = {
         { from: "./src/site/index.html", to: "index.html" },
         { from: "./src/site/counter.html", to: "counter.html" },
         { from: "./src/site/whiteboard.html", to: "whiteboard.html" },
-        { from: "./src/site/tests.html", to: "tests.html" },
         { from: "./src/site/counter_webrtc.html", to: "counter_webrtc.html" },
         { from: "./src/site/minesweeper.html", to: "minesweeper.html" },
         { from: "./src/site/aspace.html", to: "aspace.html" },
