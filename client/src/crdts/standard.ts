@@ -95,7 +95,7 @@ export class NumberBase
   }
 
   get value(): number {
-    return this.state.internalState.value;
+    return this.addCrdt.value;
   }
 }
 

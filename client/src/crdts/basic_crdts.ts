@@ -78,7 +78,13 @@ export class CounterPureBase
   }
 
   get value(): number {
-    return this.state.value;
+    // Although -0 === 0, some notions of equality
+    // (in particular chai's assert.deepStrictEqual)
+    // treat them differently.  This is a hack to prevent
+    // -0 vs 0 from violating EC under this equality def.
+    // It might be related to general floating point
+    // noncommutativity and will go away once we fix that.
+    return this.state.value === -0 ? 0 : this.state.value;
   }
   /**
    * Performs an equivalent add.
@@ -370,7 +376,13 @@ export class MultRegisterBase
   }
 
   get value(): number {
-    return this.state.value;
+    // Although -0 === 0, some notions of equality
+    // (in particular chai's assert.deepStrictEqual)
+    // treat them differently.  This is a hack to prevent
+    // -0 vs 0 from violating EC under this equality def.
+    // It might be related to general floating point
+    // noncommutativity and will go away once we fix that.
+    return this.state.value === -0 ? 0 : this.state.value;
   }
   /**
    * Performs an equivalent mult.
