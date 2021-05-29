@@ -13,7 +13,10 @@ import { Resettable } from "./mixins";
 // https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.collection.d.ts
 // https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.iterable.d.ts
 
-// Opaque collections.  Values obey (any) register semantics, if mutable (only the case for Map values).
+// Opaque collections.  Values obey (any) register semantics, if you set them (only the case for Map values).
+// The values themselves, if objects, should be immutable,
+// unless they're CRDTs (but then consider C-versions, e.g.
+// so you can watch changes).
 // Methods to convert to the original type are not
 // necessary because you can do new Map(map),
 // new Set(), or [...list].
@@ -86,9 +89,11 @@ export interface PSet<T> extends Resettable {
   values(): IterableIterator<T>;
 }
 
-// TODO: same as array, as much as possible, plus move ops.
 // A list of opaque elements, supporting insert, delete,
 // and move, with any semantics.
+// TODO: way to access seqIds (e.g. expose the underlying
+// binary tree).
+// TODO: version of list that maps seqIds to themselves
 export interface PList<T> extends Resettable {
   /** Alias for reset(). */
   clear(): void;
@@ -195,6 +200,11 @@ export interface PList<T> extends Resettable {
 // concurrent ops but don't reset - not GC-able
 // though).
 // TODO: change "value" to "valueCrdt" throughout?
+// TODO: find/indexOf type methods, since you know
+// values are unique?  Can do the same for ordinary types
+// too (return first/arbitrary instance).
+// Likewise, delete(value)/deleteAll(values) methods.
+// Although I suppose you can implement those yourself?
 
 // TODO: same as Map above, but with values controlled
 // by implicitly-initialized Crdt's.  Any semantics.
@@ -285,6 +295,10 @@ export interface CList<C extends Crdt> extends Resettable {
   clear(): void;
   // throws an error if out of bounds
   get(index: number): C;
+  // TODO: create instead of insert?  For consistency
+  // with set.  I find insert more intuitive, although
+  // we would run into trouble if we later wanted
+  // to add it to PList (instead of just having splice).
   insert(index: number): C;
   insertRange(index: number, count: number): C[];
   delete(index: number): void;
