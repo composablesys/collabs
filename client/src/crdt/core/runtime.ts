@@ -67,7 +67,7 @@ function allAscii() {
   return String.fromCharCode(...arr);
 }
 
-export class CrdtRuntime {
+export class Runtime {
   private readonly replicaId: string;
   readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
