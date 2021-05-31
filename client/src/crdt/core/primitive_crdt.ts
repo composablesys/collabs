@@ -1,35 +1,18 @@
 import { CausalTimestamp } from "../../net";
 import { Crdt, CrdtEventsRecord } from "./crdt";
+import { StatefulCrdt } from "./interfaces";
 
 /**
- * Interface describing a Crdt which stores all of its mutable state
- * in a single readonly variable state of type S.
- * Such a Crdt must continue
- * to function after state is mutated or even replaced (ignoring state's
- * readonly property) as if it had changed state itself.
+ * TODO: description, correctness definition (from paper)
  *
- * This interace is used by SemidirectProduct, which composes two
- * StatefulCrdt's of the same type, unifying their states by setting
- * both state variables equal to the same value.
- *
- * @param S the type of state
+ * TODO: type param docstrings
  */
-export interface StatefulCrdt<
-  S extends Object,
-  Events extends CrdtEventsRecord = CrdtEventsRecord
-> extends Crdt<Events> {
-  /**
-   * Not for external use, except by SemidirectProduct.
-   */
-  readonly state: S;
-}
-
 export abstract class PrimitiveCrdt<
     S extends Object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<S, Events>
+  implements StatefulCrdt<S>
 {
   readonly state: S;
 
@@ -47,9 +30,6 @@ export abstract class PrimitiveCrdt<
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    // TODO: use (homebrew?) iterator for targetPath.
-    // Make it easy to copy for multiple uses (copying
-    // index but not the underlying array).
     if (targetPath.length !== 0) {
       // We are not the target
       throw new Error("PrimitiveCrdt received message for child");
@@ -70,8 +50,8 @@ export abstract class PrimitiveCrdt<
   ): void;
 
   getDescendant(targetPath: string[]) {
-    if (targetPath.length === 0) return this;
-    else {
+    if (targetPath.length !== 0) {
+      // We are not the target
       throw new Error(
         "Unknown child: " +
           targetPath[targetPath.length - 1] +
@@ -80,5 +60,6 @@ export abstract class PrimitiveCrdt<
           ", children: [] (PrimitiveCrdt)"
       );
     }
+    return this;
   }
 }

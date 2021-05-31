@@ -9,9 +9,7 @@ const WIN_TEXT = (function () {
 var HOST = location.origin.replace(/^http/, "ws");
 
 const client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    new network.WebSocketNetwork(HOST, "aspace")
-  )
+  new network.WebSocketNetwork(HOST, "aspace")
 );
 const text = client.registerCrdt("text", new crdts.TextCrdt());
 const startTime = client.registerCrdt(

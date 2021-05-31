@@ -9,6 +9,26 @@ import {
   ConstructorArgs,
 } from "./mixins";
 
+// TODO: ResettableCompositeCrdt (implement reset for you)
+
+export interface Resettable {
+  /**
+   * Perform an observed-reset operation on this Crdt.  Actually,
+   * any behavior is acceptable (will not violate eventual
+   * consistency) so long as this method commutes with
+   * concurrent operations and has no effect if timestamp
+   * is prior to the timestamps of all other received messages.
+   * In particular, if you don't want to implement resets, it is okay to
+   * make this method a no-op, so long as users are aware that
+   * reset() will have no effect.
+   */
+  reset(): void;
+}
+
+export interface ResettableEventsRecord extends CrdtEventsRecord {
+  Reset: CrdtEvent;
+}
+
 /**
  * A state for a StatefulCrdt that can be "reset", restoring its
  * state to some fixed reset value (e.g., the initial state).  The reset

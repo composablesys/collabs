@@ -304,6 +304,8 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     return this.runtime;
   }
 
+  readonly isCausalBroadcastNetwork: true = true;
+
   static timestampOf(_message: Uint8Array) {
     // TODO
     throw new Error("Method not implemented.");

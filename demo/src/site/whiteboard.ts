@@ -10,9 +10,7 @@ var HOST = location.origin.replace(/^http/, "ws");
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    new network.WebSocketNetwork(HOST, "whiteboard")
-  )
+  new network.WebSocketNetwork(HOST, "whiteboard")
 );
 
 // The key represents a point in the form: x:y

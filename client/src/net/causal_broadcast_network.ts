@@ -75,4 +75,13 @@ export interface CausalBroadcastNetwork {
     firstTimestamp: CausalTimestamp,
     lastTimestamp: CausalTimestamp
   ): void;
+
+  /** Used for type guard. */
+  readonly isCausalBroadcastNetwork: true;
+}
+
+export function isCausalBroadcastNetwork(
+  network: any
+): network is CausalBroadcastNetwork {
+  return network.isCausalBroadcastNetwork === true;
 }

@@ -154,9 +154,7 @@ function settingsFromInput(): GameSettings {
  */
 let HOST = location.origin.replace(/^http/, "ws");
 let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    new network.WebSocketNetwork(HOST, "minesweeper")
-  )
+  new network.WebSocketNetwork(HOST, "minesweeper")
 );
 let gameSource = client.registerCrdt(
   "gameSource",

@@ -1,23 +1,29 @@
 import cryptoRandomString from "crypto-random-string";
 import { RuntimeMessage } from "../../../generated/proto_compiled";
-import { CausalBroadcastNetwork, CausalTimestamp } from "../../net";
+import {
+  BroadcastNetwork,
+  CausalBroadcastNetwork,
+  CausalTimestamp,
+  DefaultCausalBroadcastNetwork,
+  isCausalBroadcastNetwork,
+} from "../../net";
 import { arrayAsString, stringAsArray } from "../../util/serialization";
 import { CompositeCrdt } from "./composite_crdt";
 import { Crdt } from "./crdt";
 import { CrdtParent } from "./interfaces";
 
-export class RootCrdt extends CompositeCrdt {
+class RootCrdt extends CompositeCrdt {
   private readonly runtimeRoot: Runtime;
-  /**
-   * Private, only for use by Runtime.
-   */
   constructor(runtime: Runtime) {
     super();
     this.runtimeRoot = runtime;
     this.afterInit = true;
   }
 
-  // Expose publicly
+  /**
+   * Exposes CompositeCrdt.addChild publicly for use by
+   * Runtime.
+   */
   public addChild<D extends Crdt>(name: string, child: D): D {
     return super.addChild(name, child);
   }
@@ -30,7 +36,7 @@ export class RootCrdt extends CompositeCrdt {
     return [];
   }
 
-  canGC(): boolean {
+  canGc(): boolean {
     return false;
   }
 
@@ -53,12 +59,16 @@ export class RootCrdt extends CompositeCrdt {
 // TODO: conventions: set listener var instead of this.network.register;
 // onEtc method names instead of receive
 
-// TODO: docs in this file
-
 // Note that pointers stored in pointerByCrdt and messages
 // are one greater than the corresponding index in
 // pointers; 0 denotes the group parent, which is not stored in
 // pointers.
+/**
+ * Note that pointers stored in pointerByCrdt and messages
+ * are one greater than the corresponding index in
+ * pointers; 0 denotes the root, which is not stored in
+ * pointers.
+ */
 interface BatchInfo {
   pointers: { parent: number; name: Uint8Array }[];
   pointerByCrdt: Map<Crdt, number>;
@@ -68,33 +78,39 @@ interface BatchInfo {
 }
 
 const REPLICA_ID_LENGTH = 11;
-const REPLICA_ID_CHARS = allAscii();
-function allAscii() {
+const REPLICA_ID_CHARS = (function () {
   let arr = new Array<number>(128);
   for (let i = 0; i < 128; i++) arr[i] = i;
   return String.fromCharCode(...arr);
-}
+})();
 
+/**
+ * TODO: usage
+ */
 export class Runtime {
-  private readonly replicaId: string;
-  readonly rootCrdt: RootCrdt;
-  private pendingBatch: BatchInfo | null = null;
   private readonly batchType: "immediate" | "manual" | "periodic";
   private readonly batchingPeriodMs: number | undefined;
+  private readonly network: CausalBroadcastNetwork;
+  readonly replicaId: string;
+
+  private readonly rootCrdt: RootCrdt;
+  private pendingBatch: BatchInfo | null = null;
 
   /**
+   * TODO.
    * @param readonlynetwork [description]
    * @param batchOptions    [description]
    * @param debugReplicaId  Set a replicaId explicitly.
-   * Debug use only (e.g. ensuring determinism in tests).
+   * Debug use only (e.g., ensuring determinism in tests).
    */
   constructor(
-    readonly network: CausalBroadcastNetwork,
+    network: BroadcastNetwork | CausalBroadcastNetwork,
     batchOptions: "immediate" | "manual" | { periodMs: number } = {
       periodMs: 0,
     },
     debugReplicaId: string | undefined = undefined
   ) {
+    // Set this.replicaId
     if (debugReplicaId) this.replicaId = debugReplicaId;
     else {
       this.replicaId = cryptoRandomString({
@@ -102,8 +118,16 @@ export class Runtime {
         characters: REPLICA_ID_CHARS,
       });
     }
+    // Set this.network
+    if (isCausalBroadcastNetwork(network)) {
+      this.network = network;
+    } else {
+      this.network = new DefaultCausalBroadcastNetwork(network);
+    }
     this.network.register(this);
+    // Create this.rootCrdt
     this.rootCrdt = new RootCrdt(this);
+    // Process batchOptions
     if (typeof batchOptions === "object") {
       this.batchType = "periodic";
       this.batchingPeriodMs = batchOptions.periodMs;
@@ -114,7 +138,7 @@ export class Runtime {
   }
 
   /**
-   * Alias for this.rootCrdt.addChild.
+   * TODO
    * @param
    * @return
    */
@@ -122,6 +146,12 @@ export class Runtime {
     return this.rootCrdt.addChild(name, child);
   }
 
+  /**
+   * TODO.  Used internally by PrimitiveCrdt, that's about it.
+   * @param  sender  [description]
+   * @param  message [description]
+   * @return         [description]
+   */
   send(sender: Crdt, message: Uint8Array) {
     if (sender.runtime !== this) {
       throw new Error("Runtime.send called on wrong Runtime");
@@ -193,6 +223,11 @@ export class Runtime {
     return newPointer;
   }
 
+  /**
+   * TODO.  Mostly for manual batching, but can be
+   * called whenever if you want immediate sending.
+   * @return [description]
+   */
   commitBatch() {
     if (this.pendingBatch === null) return;
     const batch = this.pendingBatch;
@@ -264,17 +299,12 @@ export class Runtime {
     return timestamp;
   }
 
-  getReplicaId(): string {
-    return this.replicaId;
-  }
-
   /**
    * TODO
    * @param  pathToRoot [description]
    * @return            [description]
    */
   getCrdtByReference(pathToRoot: string[]): Crdt {
-    // TODO: avoid slice?
     return this.rootCrdt.getDescendant(pathToRoot.slice());
   }
 
@@ -286,7 +316,7 @@ export class Runtime {
    */
   getUniqueString() {
     // TODO: shorten?  (base64 instead of base10)
-    return this.getReplicaUniqueNumber() + " " + this.getReplicaId();
+    return this.getReplicaUniqueNumber() + " " + this.replicaId;
   }
 
   /**

@@ -2,23 +2,40 @@ import { CausalTimestamp } from "../../net";
 import { Crdt, CrdtEventsRecord } from "./crdt";
 import { CrdtParent } from "./interfaces";
 
+/**
+ * TODO: usage.
+ *
+ * TODO: type params
+ */
 export class CompositeCrdt<
     Events extends CrdtEventsRecord = CrdtEventsRecord,
     C extends Crdt = Crdt
   >
   extends Crdt<Events>
-  implements CrdtParent
+  implements CrdtParent 
 {
-  private readonly children: Map<string, C> = new Map();
+  /**
+   * The children, keyed by name.
+   *
+   * This map should only be read, not mutated.
+   *
+   * Typically, subclasses should store their
+   * children in their own instance variables,
+   * not use this map to look them up.  This map
+   * is exposed mainly as a convenience for methods that
+   * act on all children in the style of canGc().
+   */
+  protected readonly children: Map<string, C> = new Map();
 
   /**
-   * TODO.  child returned to allow writing e.g.
-   * this.foo = this.addChild("foo", new Counter());
+   * Add child as a child of this Crdt with the given
+   * name.
    *
-   * TODO: pass constructor and params instead, to enforce that the Crdt
-   * is fresh and that we will call init?
+   * TODO: correctness requirements and recommended usage
+   * as this.foo = this.addChild("foo", new ...)
+   * (ref to class doc?).
    *
-   * TODO: instead of passing name, just use 0, 1, 2, ...?
+   * @return child
    */
   protected addChild<D extends C>(name: string, child: D): D {
     if (this.children.has(name)) {
@@ -60,12 +77,11 @@ export class CompositeCrdt<
   ): void {
     if (targetPath.length === 0) {
       // We are the target
-      throw new Error("TODO");
+      throw new Error("CompositeCrdt received message for itself");
     }
 
     let child = this.children.get(targetPath[targetPath.length - 1]);
     if (child === undefined) {
-      // TODO: deliver error somewhere reasonable
       throw new Error(
         "Unknown child: " +
           targetPath[targetPath.length - 1] +
@@ -97,9 +113,12 @@ export class CompositeCrdt<
     return child.getDescendant(targetPath);
   }
 
-  canGC(): boolean {
+  /**
+   * @return true if canGc() returns true on every child
+   */
+  canGc(): boolean {
     for (let child of this.children.values()) {
-      if (!child.canGC()) return false;
+      if (!child.canGc()) return false;
     }
     return true;
   }
