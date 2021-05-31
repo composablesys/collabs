@@ -1,3 +1,6 @@
+import { CausalTimestamp } from "../../net";
+import { Crdt, CrdtEventsRecord } from "./crdt";
+
 /**
  * Interface describing a Crdt which stores all of its mutable state
  * in a single readonly variable state of type S.
@@ -26,7 +29,7 @@ export abstract class PrimitiveCrdt<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<S, Events> 
+  implements StatefulCrdt<S, Events>
 {
   readonly state: S;
 

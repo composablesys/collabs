@@ -1,6 +1,11 @@
 // TODO: in general, don't export state/event record types,
 // except as a static class field?
 
+import { CausalTimestamp } from "../../net";
+import { EventEmitter } from "../../util/event_emitter";
+import { CrdtParent } from "./interfaces";
+import { Runtime } from "./runtime";
+
 /**
  * An event issued when a CRDT is changed by another replica.
  * Crdt's should define events implementing this interface
@@ -34,8 +39,8 @@ export abstract class Crdt<
     "(consider overriding init() and doing this after super.init())";
   protected afterInit = false;
 
-  private runtimePrivate?: CrdtRuntime;
-  get runtime(): CrdtRuntime {
+  private runtimePrivate?: Runtime;
+  get runtime(): Runtime {
     if (this.runtimePrivate === undefined) {
       throw new Error(Crdt.notYetInitMessage);
     }
@@ -66,9 +71,9 @@ export abstract class Crdt<
    * TODO: this should only be called by parent.  Rename to reflect that,
    * and update error message above.
    * @param parentOrRuntime A parent for this Crdt, either another
-   * Crdt, or the CrdtRuntime if this has no Crdt parent.
+   * Crdt, or the Runtime if this has no Crdt parent.
    * Typically parent will be the Crdt containing this
-   * as an instance variable, or the CrdtRuntime if there is
+   * as an instance variable, or the Runtime if there is
    * no such Crdt.  Crdts with the same parent share a common
    * namespace and causal consistency group, and the default
    * reset() behavior is to call reset() on each child.
@@ -77,7 +82,7 @@ export abstract class Crdt<
    * @param name      A name for this Crdt.  All Crdts with the
    * same parent must have distinct names, and the names must
    * be the same for all replicas of a given CRDT, in order
-   * for the CrdtRuntime to route messages to them properly.
+   * for the Runtime to route messages to them properly.
    */
   init(name: string, parent: CrdtParent) {
     if (this.runtimePrivate !== undefined) {

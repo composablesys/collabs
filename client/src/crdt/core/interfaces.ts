@@ -1,9 +1,12 @@
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "./crdt";
+import { Runtime } from "./runtime";
+
 /**
  * TODO.  Should only be implemented by Crdt's
  * (except for the internal RootCrdt).
  */
 export interface CrdtParent extends Crdt {
-  readonly runtime: CrdtRuntime;
+  readonly runtime: Runtime;
   pathToRoot(): string[];
   /**
    * Callback called by a child at the end of init when this is passed

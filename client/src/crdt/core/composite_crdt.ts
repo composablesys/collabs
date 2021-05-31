@@ -1,9 +1,13 @@
+import { CausalTimestamp } from "../../net";
+import { Crdt, CrdtEventsRecord } from "./crdt";
+import { CrdtParent } from "./interfaces";
+
 export class CompositeCrdt<
     Events extends CrdtEventsRecord = CrdtEventsRecord,
     C extends Crdt = Crdt
   >
   extends Crdt<Events>
-  implements CrdtParent 
+  implements CrdtParent
 {
   private readonly children: Map<string, C> = new Map();
 

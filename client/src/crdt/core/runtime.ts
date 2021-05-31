@@ -1,9 +1,17 @@
+import cryptoRandomString from "crypto-random-string";
+import { RuntimeMessage } from "../../../generated/proto_compiled";
+import { CausalBroadcastNetwork, CausalTimestamp } from "../../net";
+import { arrayAsString, stringAsArray } from "../../util/serialization";
+import { CompositeCrdt } from "./composite_crdt";
+import { Crdt } from "./crdt";
+import { CrdtParent } from "./interfaces";
+
 export class RootCrdt extends CompositeCrdt {
-  private readonly runtimeRoot: CrdtRuntime;
+  private readonly runtimeRoot: Runtime;
   /**
-   * Private, only for use by CrdtRuntime.
+   * Private, only for use by Runtime.
    */
-  constructor(runtime: CrdtRuntime) {
+  constructor(runtime: Runtime) {
     super();
     this.runtimeRoot = runtime;
     this.afterInit = true;
@@ -14,7 +22,7 @@ export class RootCrdt extends CompositeCrdt {
     return super.addChild(name, child);
   }
 
-  get runtime(): CrdtRuntime {
+  get runtime(): Runtime {
     return this.runtimeRoot;
   }
 
@@ -116,7 +124,7 @@ export class Runtime {
 
   send(sender: Crdt, message: Uint8Array) {
     if (sender.runtime !== this) {
-      throw new Error("CrdtRuntime.send called on wrong CrdtRuntime");
+      throw new Error("Runtime.send called on wrong Runtime");
     }
     let pathToRoot = sender.pathToRoot();
 
@@ -165,7 +173,7 @@ export class Runtime {
     if (to === this.rootCrdt) return 0;
     else if (to instanceof RootCrdt) {
       throw new Error(
-        "CrdtRuntime.send called on wrong CrdtRuntime (getOrCreatePointer)"
+        "Runtime.send called on wrong Runtime (getOrCreatePointer)"
       );
     }
 
@@ -194,13 +202,13 @@ export class Runtime {
     this.pendingBatch = null;
 
     // Serialize the batch and send it over this.network
-    let runtimeMessage = CrdtRuntimeMessage.create({
+    let runtimeMessage = RuntimeMessage.create({
       pointerParents: batch.pointers.map((pointer) => pointer.parent),
       pointerNames: batch.pointers.map((pointer) => pointer.name),
       messageSenders: batch.messages.map((message) => message.sender),
       innerMessages: batch.messages.map((message) => message.innerMessage),
     });
-    let buffer = CrdtRuntimeMessage.encode(runtimeMessage).finish();
+    let buffer = RuntimeMessage.encode(runtimeMessage).finish();
     this.network.commitBatch(
       buffer,
       batch.firstTimestamp,
@@ -220,11 +228,11 @@ export class Runtime {
     if (this.pendingBatch) {
       // TODO: instead, push the pending batch (if options allow)
       throw new Error(
-        "CrdtRuntime.receive called, but there is a pending send batch"
+        "Runtime.receive called, but there is a pending send batch"
       );
     }
     // TODO: error handling
-    let decoded = CrdtRuntimeMessage.decode(message);
+    let decoded = RuntimeMessage.decode(message);
 
     // Build up the map from pointers to pathToRoot's.
     // Index 0 is for the rootCrdt, whose pathToRoot

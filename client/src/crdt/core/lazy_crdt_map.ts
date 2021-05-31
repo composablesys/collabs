@@ -1,3 +1,14 @@
+import { CausalTimestamp } from "../../net";
+import {
+  arrayAsString,
+  DefaultElementSerializer,
+  ElementSerializer,
+  stringAsArray,
+} from "../../util/serialization";
+import { WeakValueMap } from "../../util/weak_value_map";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "./crdt";
+import { CrdtParent } from "./interfaces";
+
 // TODO: import from map interfaces
 export interface MapEvent<K, V> extends CrdtEvent {
   readonly key: K;
@@ -75,8 +86,7 @@ export class LazyMap<K, C extends Crdt>
    */
   constructor(
     private readonly valueConstructor: (key: K) => C,
-    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
-    private readonly gcValues = false
+    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
     super();
   }

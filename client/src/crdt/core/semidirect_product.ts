@@ -1,7 +1,7 @@
-import { CrdtEventsRecord, StatefulCrdt, CrdtParent } from "./crdt_core";
-import { CausalTimestamp } from "../network";
-import { Crdt } from "./crdt_core";
-import { LocallyResettableState } from "./resettable";
+import { CausalTimestamp } from "../../net";
+import { LocallyResettableState } from "../helper/reset_wrap";
+import { Crdt, CrdtEventsRecord } from "./crdt";
+import { CrdtParent, StatefulCrdt } from "./interfaces";
 
 class StoredMessage {
   constructor(
