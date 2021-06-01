@@ -1,16 +1,26 @@
-// TODO: export this in opts (normal users should use
-// LwwRegister conflicts())
+import { MvrMessage } from "../../../generated/proto_compiled";
+import { CausalTimestamp } from "../../net";
+import {
+  DefaultElementSerializer,
+  ElementSerializer,
+} from "../../util/serialization";
+import { CrdtEvent, CrdtEventsRecord } from "../core/crdt";
+import { PrimitiveCrdt } from "../core/primitive_crdt";
 
-// TODO: just an interface/plain objects
-export class MvrEntry<T> {
-  constructor(
-    readonly value: T,
-    readonly sender: string,
-    readonly counter: number
-  ) {}
+interface MvrEntry<T> {
+  readonly value: T;
+  readonly sender: string;
+  readonly senderCounter: number;
 }
 
+// TODO: also dispatch for reset event?
+// TODO: names
+// TODO: also include meta in valuesRemoved?
+// TODO: only include a value in valuesRemoved if
+// *all* instances were removed
+// TODO: equality semantics for set of values?
 export interface MvrEvent<T> extends CrdtEvent {
+  readonly caller: MultiValueRegister<T>;
   readonly valueAdded: T;
   readonly valuesRemoved: Set<T>;
 }
@@ -20,10 +30,8 @@ export interface MvrEventsRecord<T> extends CrdtEventsRecord {
   Reset: CrdtEvent;
 }
 
-// TODO: initial values?  Or just wait for generic way (runLocally)?
-// TODO: strong reset
 export class MultiValueRegister<T> extends PrimitiveCrdt<
-  Set<MvrEntry<T>>,
+  MvrEntry<T>[],
   MvrEventsRecord<T>
 > {
   /**
@@ -47,12 +55,10 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
   constructor(
     private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super(new Set<MvrEntry<T>>());
+    super([]);
   }
 
-  // TODO: change; auto-generates value getter,
-  // which we don't want
-  set value(value: T) {
+  set(value: T) {
     let message = MvrMessage.create({
       value: this.valueSerializer.serialize(value),
     });
@@ -60,9 +66,33 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     super.send(buffer);
   }
 
+  /**
+   * Return the current set of values, i.e., the
+   * set of non-overwritten values.  This may have
+   * more than one element due to concurrent writes,
+   * or it may have zero elements because the register is
+   * newly initialized or has been reset.
+   *
+   * TODO: deterministic iterator order.  Same for meta.
+   */
+  conflicts(): Set<T> {
+    return new Set(this.state.map((entry) => entry.value));
+  }
+
+  conflictsWithMeta(): Set<{ value: T; sender: string }> {
+    return new Set(
+      this.state.map((entry) => {
+        return {
+          value: entry.value,
+          sender: entry.sender,
+        };
+      })
+    );
+  }
+
   reset() {
     // Only reset if needed
-    if (!this.canGC()) {
+    if (!this.canGc()) {
       let message = MvrMessage.create({
         reset: true,
       }); // no value
@@ -122,27 +152,7 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     }
   }
 
-  /**
-   * Return the current set of values, i.e., the
-   * set of non-overwritten values.  This may have
-   * more than one element due to concurrent writes,
-   * or it may have zero elements because the register is
-   * newly initialized or has been reset.
-   */
-  get valueSet(): Set<T> {
-    // TODO: cache?
-    let values = new Set<T>();
-    for (let entry of this.state) values.add(entry.value);
-    return values;
-  }
-
-  get valueSetWithSenders(): Set<[value: T, sender: string]> {
-    let values = new Set<[T, string]>();
-    for (let entry of this.state) values.add([entry.value, entry.sender]);
-    return values;
-  }
-
-  canGC() {
+  canGc() {
     return this.state.size === 0;
   }
 }
