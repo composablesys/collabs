@@ -1,12 +1,7 @@
 import { NoopCrdt } from "../composers/noop_crdt";
 import { ResetWrapClass } from "../composers/resettable";
-import { Register, RegisterEventsRecord } from "../register/interfaces";
-
-export interface Boolean extends Register<boolean> {
-  // TODO: boolean ops (e.g. xor/and, which form
-  // the boolean ring)?  Toggle?
-  // Mixin to implement them using value-set?
-}
+import { RegisterEventsRecord } from "../register/interfaces";
+import { Boolean } from "./interfaces";
 
 /** Enable-wins flag */
 export class TrueWinsBoolean
@@ -36,7 +31,7 @@ export class TrueWinsBoolean
 /** Disable-wins flag */
 export class FalseWinsBoolean
   extends ResetWrapClass(NoopCrdt, true, false)<RegisterEventsRecord<boolean>>
-  implements Boolean
+  implements Boolean 
 {
   constructor() {
     super();
@@ -57,5 +52,3 @@ export class FalseWinsBoolean
     else this.reset();
   }
 }
-
-// TODO: add-number mod 2 version?  Or ring version?
