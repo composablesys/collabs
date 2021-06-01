@@ -2,92 +2,63 @@
 // default values?; new interfaces (remove IFlag, remove
 // enable/disable names)
 
-export interface FlagEventsRecord extends CrdtEventsRecord {
-  Enable: CrdtEvent;
-  Disable: CrdtEvent;
+import { NoopCrdt } from "../composers/noop_crdt";
+import { ResetWrapClass } from "../composers/resettable";
+import { Register, RegisterEventsRecord } from "../register/interfaces";
+
+export interface Boolean extends Register<boolean> {
+  // TODO: boolean ops (e.g. xor/and, which form
+  // the boolean ring)?  Toggle?
 }
 
-// TODO: remove old boolean return values (everywhere) from receive
-
-export interface IFlag extends Crdt<FlagEventsRecord> {
-  enable(): void;
-  disable(): void;
-  enabled: boolean;
-  value: boolean;
-}
-
-// TODO: makeEventAdder: preserve constructor args
-const AddFlagEvents = makeEventAdder<FlagEventsRecord>();
-
-export class EnableWinsFlag
-  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
-  implements IFlag, Resettable
+/** Enable-wins flag */
+export class TrueWinsBoolean
+  extends ResetWrapClass<RegisterEventsRecord<boolean>>()(NoopCrdt, true, false)
+  implements Boolean
 {
   constructor() {
     super();
-    this.on("Reset", (event) => this.emit("Disable", { ...event }));
+    this.on("Reset", (event) =>
+      this.emit("Set", { ...event, caller: this, value: false })
+    );
     this.original.on("Change", (event) =>
-      this.emit("Enable", { ...event, caller: this })
+      this.emit("Set", { ...event, caller: this, value: true })
     );
   }
 
-  enable() {
-    this.original.noop();
-  }
-  disable() {
-    this.reset();
-  }
-  // strongDisable() {
-  //   this.strongReset();
-  // }
-
-  get enabled(): boolean {
+  get value(): boolean {
     return !this.state.isHistoryEmpty();
   }
-  set enabled(newValue: boolean) {
-    if (newValue) this.enable();
-    else this.disable();
-  }
-  get value() {
-    return this.enabled;
-  }
+
   set value(newValue: boolean) {
-    this.enabled = newValue;
+    if (newValue) this.original.noop();
+    else this.reset();
   }
 }
 
-export class DisableWinsFlag
-  extends AddFlagEvents(ResetWrapClass(NoopCrdt, true, false))
-  implements IFlag, Resettable
+/** Disable-wins flag */
+export class FalseWinsBoolean
+  extends ResetWrapClass<RegisterEventsRecord<boolean>>()(NoopCrdt, true, false)
+  implements Boolean
 {
   constructor() {
     super();
-    this.on("Reset", (event) => this.emit("Enable", { ...event }));
+    this.on("Reset", (event) =>
+      this.emit("Set", { ...event, caller: this, value: true })
+    );
     this.original.on("Change", (event) =>
-      this.emit("Disable", { ...event, caller: this })
+      this.emit("Set", { ...event, caller: this, value: false })
     );
   }
 
-  enable() {
-    this.reset();
-  }
-  disable() {
-    this.original.noop();
-  }
-  // strongDisable() {
-  //   this.strongReset();
-  // }
-  get enabled(): boolean {
+  get value(): boolean {
     return this.state.isHistoryEmpty();
   }
-  set enabled(newValue: boolean) {
-    if (newValue) this.enable();
-    else this.disable();
-  }
-  get value() {
-    return this.enabled;
-  }
+
   set value(newValue: boolean) {
-    this.enabled = newValue;
+    if (!newValue) this.original.noop();
+    else this.reset();
   }
 }
+
+// TODO: add-number mod 2 version?  Or ring version?

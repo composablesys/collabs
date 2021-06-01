@@ -1,7 +1,12 @@
 import { CausalTimestamp } from "../../net";
-import { LocallyResettableState } from "../helper/reset_wrap";
-import { Crdt, CrdtEventsRecord } from "./crdt";
-import { CrdtParent, StatefulCrdt } from "./interfaces";
+import { Crdt, CrdtEventsRecord } from "../core/crdt";
+import { CrdtParent, StatefulCrdt } from "../core/interfaces";
+import { LocallyResettableState } from "./resettable";
+
+// TODO: revise this file.
+// In particular, separate out resettable version?
+// (Currently has weird conditional types.)
+// Better yet, move that to resettable.ts
 
 class StoredMessage {
   constructor(
@@ -204,7 +209,7 @@ export abstract class SemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>, Events>, CrdtParent
+  implements StatefulCrdt<SemidirectState<S>>, CrdtParent
 {
   static readonly crdt1Name = "1";
   static readonly crdt2Name = "2";
@@ -313,7 +318,7 @@ export abstract class SemidirectProduct<
       case SemidirectProduct.crdt2Name:
         targetPath.length--;
         this.state.add(
-          this.runtime.getReplicaId(),
+          this.runtime.replicaId,
           targetPath.slice(),
           timestamp,
           message
@@ -323,7 +328,7 @@ export abstract class SemidirectProduct<
       case SemidirectProduct.crdt1Name:
         targetPath.length--;
         let concurrent = this.state.getConcurrent(
-          this.runtime.getReplicaId(),
+          this.runtime.replicaId,
           timestamp
         );
         let mAct = {
@@ -381,14 +386,14 @@ export abstract class SemidirectProduct<
     return child.getDescendant(targetPath);
   }
 
-  canGC(): boolean {
+  canGc(): boolean {
     // TODO: this may spuriously return false if one of the Crdt's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Crdt's so far
     // (e.g NumberCrdt), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     return (
-      this.state.isHistoryEmpty() && this.crdt1.canGC() && this.crdt2.canGC()
+      this.state.isHistoryEmpty() && this.crdt1.canGc() && this.crdt2.canGc()
     );
   }
 }
