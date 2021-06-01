@@ -1,7 +1,3 @@
-// TODO: better names (include Boolean);
-// default values?; new interfaces (remove IFlag, remove
-// enable/disable names)
-
 import { NoopCrdt } from "../composers/noop_crdt";
 import { ResetWrapClass } from "../composers/resettable";
 import { Register, RegisterEventsRecord } from "../register/interfaces";
@@ -9,11 +5,12 @@ import { Register, RegisterEventsRecord } from "../register/interfaces";
 export interface Boolean extends Register<boolean> {
   // TODO: boolean ops (e.g. xor/and, which form
   // the boolean ring)?  Toggle?
+  // Mixin to implement them using value-set?
 }
 
 /** Enable-wins flag */
 export class TrueWinsBoolean
-  extends ResetWrapClass<RegisterEventsRecord<boolean>>()(NoopCrdt, true, false)
+  extends ResetWrapClass(NoopCrdt, true, false)<RegisterEventsRecord<boolean>>
   implements Boolean
 {
   constructor() {
@@ -38,7 +35,7 @@ export class TrueWinsBoolean
 
 /** Disable-wins flag */
 export class FalseWinsBoolean
-  extends ResetWrapClass<RegisterEventsRecord<boolean>>()(NoopCrdt, true, false)
+  extends ResetWrapClass(NoopCrdt, true, false)<RegisterEventsRecord<boolean>>
   implements Boolean
 {
   constructor() {
