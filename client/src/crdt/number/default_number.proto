@@ -1,0 +1,3 @@
+message DefaultNumberComponentMessage {
+    required double arg = 1;
+}
