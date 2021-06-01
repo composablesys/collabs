@@ -33,7 +33,23 @@ export interface CausalTimestamp {
    * most recent <= message.
    */
   asVectorClock(): Map<string, number>;
-  // TODO: ?
+
+  /**
+   * @return the time this message was generated, as
+   * given by the sender's Date.now().  This is useful
+   * in some forms of conflict resolution (e.g., a
+   * last-writer-wins register).
+   *
+   * Note that if multiple operations
+   * were sent in a single batch, then this gives the time
+   * of the first operation, which may differ substantially
+   * from the time of later operations.  Thus it is mostly
+   * intended for conflict resolution or when batches are
+   * sent relatively quickly; when batches can be long and
+   * precise times are needed, Crdts should send times
+   * manually.
+   */
+  getTime(): number;
 }
 
 /**

@@ -7,31 +7,27 @@ import {
 import { CrdtEvent, CrdtEventsRecord } from "../core/crdt";
 import { PrimitiveCrdt } from "../core/primitive_crdt";
 
-interface MvrEntry<T> {
+export interface MvrMeta<T> {
   readonly value: T;
   readonly sender: string;
   readonly senderCounter: number;
+  readonly time: number;
 }
 
-// TODO: also dispatch for reset event?
-// TODO: names
-// TODO: also include meta in valuesRemoved?
-// TODO: only include a value in valuesRemoved if
-// *all* instances were removed
-// TODO: equality semantics for set of values?
-export interface MvrEvent<T> extends CrdtEvent {
+export interface MvrSetEvent<T> extends CrdtEvent {
   readonly caller: MultiValueRegister<T>;
-  readonly valueAdded: T;
-  readonly valuesRemoved: Set<T>;
+  readonly value: T;
+  readonly valueMeta: MvrMeta<T>;
 }
 
 export interface MvrEventsRecord<T> extends CrdtEventsRecord {
-  Mvr: MvrEvent<T>;
+  Set: MvrSetEvent<T>;
   Reset: CrdtEvent;
 }
 
+// TODO: equality semantics for set of values?
 export class MultiValueRegister<T> extends PrimitiveCrdt<
-  MvrEntry<T>[],
+  MvrMeta<T>[],
   MvrEventsRecord<T>
 > {
   /**
@@ -66,30 +62,6 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     super.send(buffer);
   }
 
-  /**
-   * Return the current set of values, i.e., the
-   * set of non-overwritten values.  This may have
-   * more than one element due to concurrent writes,
-   * or it may have zero elements because the register is
-   * newly initialized or has been reset.
-   *
-   * TODO: deterministic iterator order.  Same for meta.
-   */
-  conflicts(): Set<T> {
-    return new Set(this.state.map((entry) => entry.value));
-  }
-
-  conflictsWithMeta(): Set<{ value: T; sender: string }> {
-    return new Set(
-      this.state.map((entry) => {
-        return {
-          value: entry.value,
-          sender: entry.sender,
-        };
-      })
-    );
-  }
-
   reset() {
     // Only reset if needed
     if (!this.canGc()) {
@@ -101,50 +73,76 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     }
   }
 
+  /**
+   * Return the current set of values, i.e., the
+   * set of non-overwritten values.  This may have
+   * more than one element due to concurrent writes,
+   * or it may have zero elements because the register is
+   * newly initialized or has been reset.
+   *
+   * The returned set's iterator is guaranteed to return
+   * values in the same order on all replicas, namely,
+   * in lexicographic order by sender.  In case a value is
+   * duplicated, it is ordered by its lexicographically
+   * first sender.
+   */
+  conflicts(): Set<T> {
+    return new Set(this.state.map((entry) => entry.value));
+  }
+
+  /**
+   * Return the current set of values with metadata.
+   *
+   * Note that this set may be larger than conflicts(),
+   * since conflicts() does not repeat identical values
+   * while conflictsMeta() does (because they will
+   * have distinct metadata).
+   *
+   * The returned set's iterator is guaranteed to return
+   * values in the same order on all replicas, namely,
+   * in order sorted by sender.
+   */
+  conflictsMeta(): Set<MvrMeta<T>> {
+    return new Set(this.state);
+  }
+
   protected receivePrimitive(
     timestamp: CausalTimestamp,
     message: Uint8Array
-  ): boolean {
+  ): void {
     let decoded = MvrMessage.decode(message);
-    let removed = new Set<T>();
     let vc = timestamp.asVectorClock();
+    let newState = new Array<MvrMeta<T>>();
     for (let entry of this.state) {
       let vcEntry = vc.get(entry.sender);
-      if (vcEntry !== undefined && vcEntry >= entry.counter) {
-        this.state.delete(entry);
-        removed.add(entry.value);
+      if (vcEntry === undefined || vcEntry < entry.senderCounter) {
+        newState.push(entry);
       }
     }
     switch (decoded.data) {
       case "value":
         // Add the new entry
-        let value = this.valueSerializer.deserialize(
+        const value = this.valueSerializer.deserialize(
           decoded.value,
           this.runtime
         );
-        this.state.add(
-          new MvrEntry(
-            value,
-            timestamp.getSender(),
-            timestamp.getSenderCounter()
-          )
-        );
-        if (removed.size === 1 && removed.entries().next().value === value) {
-          return false; // no change to actual value
-        } else {
-          this.emit("Mvr", {
-            caller: this,
-            timestamp,
-            valueAdded: value,
-            valuesRemoved: removed,
-          });
-          return true;
-        }
+        const valueMeta = {
+          value,
+          sender: timestamp.getSender(),
+          senderCounter: timestamp.getSenderCounter(),
+          time: timestamp.getTime(),
+        };
+        newState.push(valueMeta);
+        this.setNewState(newState);
+        this.emit("Set", {
+          caller: this,
+          timestamp,
+          value,
+          valueMeta,
+        });
       case "reset":
+        this.setNewState(newState);
         this.emit("Reset", { caller: this, timestamp });
-        return removed.size === 0;
-      // TODO: also do normal Mvr event?  Would need to make valueAdded
-      // optional.
       default:
         throw new Error(
           "MultiValueRegister: Bad decoded.data: " + decoded.data
@@ -152,7 +150,18 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
     }
   }
 
+  private setNewState(newState: MvrMeta<T>[]): void {
+    // Sort by sender, to make the order deterministic.
+    // Note senders are always all distinct.
+    newState.sort((a, b) => (a.sender < b.sender ? -1 : 1));
+    // Replace this.state with newState
+    // TODO: nest the array in another object, so that
+    // we can directly replace the arrays instead?
+    // May be more efficient.
+    this.state.splice(0, this.state.length, ...newState);
+  }
+
   canGc() {
-    return this.state.size === 0;
+    return this.state.length === 0;
   }
 }
