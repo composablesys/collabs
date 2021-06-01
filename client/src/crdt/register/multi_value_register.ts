@@ -4,7 +4,8 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util/serialization";
-import { CrdtEvent, CrdtEventsRecord } from "../core/crdt";
+import { ResettableEventsRecord } from "../composers/resettable";
+import { CrdtEvent } from "../core/crdt";
 import { PrimitiveCrdt } from "../core/primitive_crdt";
 
 export interface MvrMeta<T> {
@@ -17,12 +18,10 @@ export interface MvrMeta<T> {
 export interface MvrSetEvent<T> extends CrdtEvent {
   readonly caller: MultiValueRegister<T>;
   readonly value: T;
-  readonly valueMeta: MvrMeta<T>;
 }
 
-export interface MvrEventsRecord<T> extends CrdtEventsRecord {
+export interface MvrEventsRecord<T> extends ResettableEventsRecord {
   Set: MvrSetEvent<T>;
-  Reset: CrdtEvent;
 }
 
 // TODO: equality semantics for set of values?
@@ -138,7 +137,6 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
           caller: this,
           timestamp,
           value,
-          valueMeta,
         });
       case "reset":
         this.setNewState(newState);

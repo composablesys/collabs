@@ -8,6 +8,7 @@ import {
   StrongResettable,
   ConstructorArgs,
 } from "./mixins";
+import { CrdtEvent, CrdtEventsRecord } from "../core/crdt";
 
 // TODO: ResettableCompositeCrdt (implement reset for you)
 
@@ -25,6 +26,7 @@ export interface Resettable {
   reset(): void;
 }
 
+// TODO: allow specializing caller type to the actual type?
 export interface ResettableEventsRecord extends CrdtEventsRecord {
   Reset: CrdtEvent;
 }
