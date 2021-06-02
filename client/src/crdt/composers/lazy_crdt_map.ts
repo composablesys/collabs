@@ -5,10 +5,6 @@ import {
   ElementSerializer,
   stringAsArray,
 } from "../../util/serialization";
-import {
-  SerializingMap,
-  SerializingWeakValueMap,
-} from "../../util/serializing_collections";
 import { WeakValueMap } from "../../util/weak_value_map";
 import { Crdt } from "../core/crdt";
 import { CrdtParent } from "../core/interfaces";
@@ -16,9 +12,8 @@ import { CrdtParent } from "../core/interfaces";
 // TODO: events
 
 export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
-  private internalMap!: SerializingMap<K, C>;
-  private backupMap!: SerializingWeakValueMap<K, C>;
-
+  private readonly internalMap: Map<string, C> = new Map();
+  private readonly backupMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
    * Like a CrdtMap but with all keys present, with their values
    * initialized to default values (and possibly GC'd and
@@ -50,36 +45,35 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
     super();
   }
 
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    // TODO: move to constructor; make props readonly,
-    // remove !; don't store keySerializer
-    this.internalMap = new SerializingMap(this.runtime, this.keySerializer);
-    this.backupMap = new SerializingWeakValueMap(
-      this.runtime,
-      this.keySerializer
-    );
+  private keyAsString(key: K) {
+    return arrayAsString(this.keySerializer.serialize(key));
+  }
+  private stringAsKey(str: string) {
+    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
   get(key: K): C {
-    return this.getInternal(key)[0];
+    return this.getInternal(key, this.keyAsString(key))[0];
   }
 
-  private getInternal(key: K): [value: C, nontrivial: boolean] {
-    let value = this.internalMap.get(key);
+  private getInternal(
+    key: K,
+    keyString: string
+  ): [value: C, nontrivial: boolean] {
+    let value = this.internalMap.get(keyString);
     if (value === undefined) {
       // Check the backup map
-      value = this.backupMap.get(key);
+      value = this.backupMap.get(keyString);
       if (value === undefined) {
         // Create it, but only in the backup map,
         // since it is currently GC-able
         value = this.valueConstructor(key);
 
         this.childBeingAdded = value;
-        value.init(this.internalMap.keyAsString(key), this);
+        value.init(keyString, this);
         this.childBeingAdded = undefined;
 
-        this.backupMap.set(key, value);
+        this.backupMap.set(keyString, value);
       }
       return [value, false];
     } else return [value, true];
@@ -102,43 +96,54 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
   ): void {
     // Message for a child
     let keyString = targetPath[targetPath.length - 1];
-    let key = this.internalMap.stringAsKey(keyString);
-    // TODO: here we can optimize the subsequent map calls
-    // by keeping around keyString, like in the pre-cleanup
-    // implementation.  However it makes us deal with
-    // strings more.
-    let [value, nontrivialStart] = this.getInternal(key);
+    let key = this.stringAsKey(keyString);
+    let [value, nontrivialStart] = this.getInternal(key, keyString);
     targetPath.length--;
     value.receive(targetPath, timestamp, message);
 
     // If the value became GC-able, move it to the
     // backup map
     if (nontrivialStart && value.canGc()) {
-      this.internalMap.delete(key);
-      this.backupMap.set(key, value);
+      this.internalMap.delete(keyString);
+      this.backupMap.set(keyString, value);
     }
     // If the value became nontrivial, move it to the
     // main map
     else if (!nontrivialStart && !value.canGc()) {
-      this.backupMap.delete(key);
-      this.internalMap.set(key, value);
+      this.backupMap.delete(keyString);
+      this.internalMap.set(keyString, value);
     }
   }
 
-  /**
-   * TODO: don't mutate directly.
-   *
-   * The nontrivial map entries.
-   */
-  nontrivialMap(): SerializingMap<K, C> {
-    return this.internalMap;
+  nontrivialHas(key: K): boolean {
+    return this.internalMap.has(this.keyAsString(key));
+  }
+
+  *nontrivialKeys(): IterableIterator<K> {
+    for (let str of this.internalMap.keys()) {
+      yield this.stringAsKey(str);
+    }
+  }
+
+  nontrivialValues(): IterableIterator<C> {
+    return this.internalMap.values();
+  }
+
+  *nontrivialEntries(): IterableIterator<[K, C]> {
+    for (let entry of this.internalMap) {
+      yield [this.stringAsKey(entry[0]), entry[1]];
+    }
+  }
+
+  get nontrivialSize(): number {
+    return this.internalMap.size;
   }
 
   getDescendant(targetPath: string[]): Crdt {
     if (targetPath.length === 0) return this;
 
     let keyString = targetPath[targetPath.length - 1];
-    let value = this.getInternal(this.internalMap.stringAsKey(keyString))[0];
+    let value = this.getInternal(this.stringAsKey(keyString), keyString)[0];
     targetPath.length--;
     return value.getDescendant(targetPath);
   }
