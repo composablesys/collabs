@@ -6,8 +6,8 @@ import {
   stringAsArray,
 } from "../../util/serialization";
 import { WeakValueMap } from "../../util/weak_value_map";
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "./crdt";
-import { CrdtParent } from "./interfaces";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core/crdt";
+import { CrdtParent } from "../core/interfaces";
 
 // TODO: import from map interfaces
 export interface MapEvent<K, V> extends CrdtEvent {
@@ -20,16 +20,7 @@ export interface LazyMapEventsRecord<K, C extends Crdt>
   ValueChange: MapEvent<K, C>;
 }
 
-// TODO: rename ValueChange event, because it is not
-// necessarily equal to the child throwing a Change event?
-// Unless we move Change events to Crdt, which seems
-// like a good idea.  I.e. they correspond to message
-// delivery.
-
 // TODO: resettable if C is resettable?
-// TODO: strong resets if C is resettable?
-// TODO: weak value map, to allow GC even when
-// flag is not passed.
 
 export class LazyMap<K, C extends Crdt>
   extends Crdt<LazyMapEventsRecord<K, C>>
@@ -76,13 +67,6 @@ export class LazyMap<K, C extends Crdt>
    * even if they are in different global states.  The
    * easiest way to ensure this is to have the result be
    * a function of the given arguments only.
-   *
-   * @param gcValues If true, value Crdt's that are garbage
-   * collectible (canGC() is true) will occasionally be deleted
-   * from this map's explicit keys to save space, later being
-   * recreated with valueConstructor if necessary.  This is only safe
-   * if value Crdt's and their descendants are never stored by-reference
-   * across event loops.
    */
   constructor(
     private readonly valueConstructor: (key: K) => C,
@@ -234,7 +218,7 @@ export class LazyMap<K, C extends Crdt>
     return this.internalMap.size + this.backupMap.entries().length;
   }
 
-  canGC() {
+  canGc() {
     return this.internalMap.size === 0;
   }
 }
