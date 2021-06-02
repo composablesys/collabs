@@ -9,4 +9,4 @@ export * from "./standard";
 export * from "./mixins";
 export * from "./list";
 export * from "./json_comp";
-export * from "./tensor";
+// export * from "./tensor";
