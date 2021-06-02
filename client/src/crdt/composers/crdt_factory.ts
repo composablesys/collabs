@@ -3,7 +3,7 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util/serialization";
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "./crdt";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core/crdt";
 
 export interface NewCrdtEvent<C extends Crdt> extends CrdtEvent {
   readonly newCrdt: C;
@@ -128,20 +128,7 @@ export class CrdtFactory<TArgs extends any[], C extends Crdt> extends Crdt<
     return child.getDescendant(targetPath);
   }
 
-  canGC(): boolean {
+  canGc(): boolean {
     return this.children.size === 0;
   }
-
-  // /**
-  //  * Constructor args must be serializable with the
-  //  * default serializer (basically BSON).
-  //  *
-  //  * @param  [description]
-  //  * @return          [description]
-  //  */
-  // static for<TArgs extends any[], C extends Crdt>(
-  //   CrdtClass: ConstructorArgs<TArgs, C>
-  // ): CrdtFactory<TArgs, C> {
-  //   return new CrdtFactory((...args: TArgs) => new CrdtClass(...args));
-  // }
 }
