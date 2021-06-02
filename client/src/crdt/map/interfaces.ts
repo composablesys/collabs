@@ -18,6 +18,14 @@
 // necessary because you can do new Map(map),
 // new Set(), or [...list].
 
+// TODO: keyOf, etc. methods from LazyCrdtMap
+// TODO: for Riak semantics: instead of weird set add thing,
+// do (set contains || value is nontrivial).  More efficient,
+// doesn't need runLocally, and semantically more sensible.
+// Could also have a more general containedness condition,
+// although might make more sense implemented by end-users
+// (especially if we add getIgnoreHas or similar).
+
 // A map from keys to opaque values, with (any) register
 // semantics for values.
 export interface PlainMap<K, V> extends Resettable {

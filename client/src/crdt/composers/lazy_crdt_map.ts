@@ -46,7 +46,7 @@ export interface LazyCrdtMapEventsRecord<K, C extends Crdt>
 
 export class LazyCrdtMap<K, C extends Crdt>
   extends Crdt<LazyCrdtMapEventsRecord<K, C>>
-  implements CrdtParent
+  implements CrdtParent 
 {
   private readonly internalMap: Map<string, C> = new Map();
   private readonly backupMap: WeakValueMap<string, C> = new WeakValueMap();
@@ -169,18 +169,19 @@ export class LazyCrdtMap<K, C extends Crdt>
   }
 
   /**
-   * Given a valueCrdt belonging to this LazyCrdtMap,
-   * i.e., an output of this.get(key),
-   * returns key.  Otherwise, throws an error.
-   *
-   * One can check whether valueCrdt was obtained from
-   * this LazyMap by checking whether
-   * valueCrdt.parent === this.
+   * Returns true if crdt is a value Crdt from this
+   * LazyCrdtMap, i.e., an output of this.get.
    */
-  keyOf(valueCrdt: C): K {
-    if (valueCrdt.parent !== this) {
-      throw new Error("LazyCrdtMap.keyOf: valueCrdt.parent is not this");
-    }
+  hasValueCrdt(crdt: C): boolean {
+    return crdt.parent === this;
+  }
+
+  /**
+   * If this.hasValueCrdt(valueCrdt), returns valueCrdt's
+   * key; else returns undefined.
+   */
+  keyOf(valueCrdt: C): K | undefined {
+    if (!this.hasValueCrdt(valueCrdt)) return undefined;
     return this.stringAsKey(valueCrdt.name);
   }
 
