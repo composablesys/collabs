@@ -6,12 +6,48 @@ import {
   stringAsArray,
 } from "../../util/serialization";
 import { WeakValueMap } from "../../util/weak_value_map";
-import { Crdt } from "../core/crdt";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core/crdt";
 import { CrdtParent } from "../core/interfaces";
 
-// TODO: events
+export interface LazyCrdtMapEvent<K, C extends Crdt> extends CrdtEvent {
+  caller: LazyCrdtMap<K, C>;
+  key: K;
+  valueCrdt: C;
+}
 
-export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
+export interface LazyCrdtMapEventsRecord<K, C extends Crdt>
+  extends CrdtEventsRecord {
+  /**
+   * Emitted when a value Crdt is explicitly created.
+   * Listen to this event to register event handlers
+   * on value Crdts.
+   *
+   * Note that this event may be
+   * dispatched multiple times for a given key,
+   * if the previous value Crdt was garbage collected.
+   *
+   * Do not depend on this event to update state
+   * consistently across replicas.  Different replicas
+   * may create, garbage collect, and recreate value
+   * Crdts differently.  The only invariant is that
+   * a Crdt such that canGc() is false, will not be
+   * garbage collected.
+   */
+  NewValueCrdt: LazyCrdtMapEvent<K, C>;
+  /**
+   * Emitted when a value Crdt emits a Change event.
+   *
+   * Listening to this event is more memory efficient
+   * than adding oneself as a Change listener to
+   * every value Crdt.  TODO: remove?
+   */
+  ValueCrdtChange: LazyCrdtMapEvent<K, C>;
+}
+
+export class LazyCrdtMap<K, C extends Crdt>
+  extends Crdt<LazyCrdtMapEventsRecord<K, C>>
+  implements CrdtParent
+{
   private readonly internalMap: Map<string, C> = new Map();
   private readonly backupMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
@@ -52,14 +88,10 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
     return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
-  get(key: K): C {
-    return this.getInternal(key, this.keyAsString(key))[0];
-  }
-
   private getInternal(
     key: K,
     keyString: string
-  ): [value: C, nontrivial: boolean] {
+  ): [value: C, nontrivial: boolean, isNew: boolean] {
     let value = this.internalMap.get(keyString);
     if (value === undefined) {
       // Check the backup map
@@ -74,9 +106,10 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
         this.childBeingAdded = undefined;
 
         this.backupMap.set(keyString, value);
+        return [value, false, true];
       }
-      return [value, false];
-    } else return [value, true];
+      return [value, false, false];
+    } else return [value, true, false];
   }
 
   private childBeingAdded?: C;
@@ -97,7 +130,7 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
     // Message for a child
     let keyString = targetPath[targetPath.length - 1];
     let key = this.stringAsKey(keyString);
-    let [value, nontrivialStart] = this.getInternal(key, keyString);
+    let [value, nontrivialStart, isNew] = this.getInternal(key, keyString);
     targetPath.length--;
     value.receive(targetPath, timestamp, message);
 
@@ -113,6 +146,42 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
       this.backupMap.delete(keyString);
       this.internalMap.set(keyString, value);
     }
+
+    // Dispatch events
+    if (isNew) {
+      this.emit("NewValueCrdt", {
+        caller: this,
+        timestamp,
+        key,
+        valueCrdt: value,
+      });
+    }
+    this.emit("ValueCrdtChange", {
+      caller: this,
+      timestamp,
+      key,
+      valueCrdt: value,
+    });
+  }
+
+  get(key: K): C {
+    return this.getInternal(key, this.keyAsString(key))[0];
+  }
+
+  /**
+   * Given a valueCrdt belonging to this LazyCrdtMap,
+   * i.e., an output of this.get(key),
+   * returns key.  Otherwise, throws an error.
+   *
+   * One can check whether valueCrdt was obtained from
+   * this LazyMap by checking whether
+   * valueCrdt.parent === this.
+   */
+  keyOf(valueCrdt: C): K {
+    if (valueCrdt.parent !== this) {
+      throw new Error("LazyCrdtMap.keyOf: valueCrdt.parent is not this");
+    }
+    return this.stringAsKey(valueCrdt.name);
   }
 
   nontrivialHas(key: K): boolean {
@@ -149,7 +218,7 @@ export class LazyCrdtMap<K, C extends Crdt> extends Crdt implements CrdtParent {
   }
 
   canGc() {
-    /**
+    /*
      * We don't need to check here that the backup
      * map is nonempty (which would be expensive):
      * each value Crdt points to us (due to Crdt.parent),
