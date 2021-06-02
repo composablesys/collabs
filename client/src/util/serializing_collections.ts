@@ -21,11 +21,11 @@ export class SerializingMap<K, V> {
     private readonly keySerializer: ElementSerializer<K>
   ) {}
 
-  private keyAsString(key: K): string {
+  keyAsString(key: K): string {
     return arrayAsString(this.keySerializer.serialize(key));
   }
 
-  private stringAsKey(str: string): K {
+  stringAsKey(str: string): K {
     return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
@@ -69,6 +69,10 @@ export class SerializingMap<K, V> {
       yield [this.stringAsKey(entry[0]), entry[1]];
     }
   }
+
+  get size(): number {
+    return this.internalMap.size;
+  }
 }
 
 /**
@@ -81,11 +85,11 @@ export class SerializingSet<T> {
     private readonly valueSerializer: ElementSerializer<T>
   ) {}
 
-  private valueAsString(value: T): string {
+  valueAsString(value: T): string {
     return arrayAsString(this.valueSerializer.serialize(value));
   }
 
-  private stringAsValue(str: string): T {
+  stringAsValue(str: string): T {
     return this.valueSerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
@@ -126,6 +130,10 @@ export class SerializingSet<T> {
       yield [value, value];
     }
   }
+
+  get size(): number {
+    return this.internalSet.size;
+  }
 }
 
 /**
@@ -138,11 +146,11 @@ export class SerializingWeakValueMap<K, V extends Object> {
     private readonly keySerializer: ElementSerializer<K>
   ) {}
 
-  private keyAsString(key: K): string {
+  keyAsString(key: K): string {
     return arrayAsString(this.keySerializer.serialize(key));
   }
 
-  private stringAsKey(str: string): K {
+  stringAsKey(str: string): K {
     return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
   }
 
