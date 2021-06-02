@@ -7,8 +7,6 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^3.3.0",
-    "@tensorflow/tfjs-node": "^3.3.0",
     "compoventuals-client": "^0.1.0",
     "benchmark": "^2.1.4",
     "clean": "^4.0.2",

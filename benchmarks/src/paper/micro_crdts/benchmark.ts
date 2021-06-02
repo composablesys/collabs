@@ -1,4 +1,3 @@
-import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import { crdts, network } from "compoventuals-client";
 import seedrandom from "seedrandom";
