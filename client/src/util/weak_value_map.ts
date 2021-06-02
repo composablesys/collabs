@@ -6,6 +6,14 @@ export class WeakValueMap<K, V extends Object> {
     this.registry = new FinalizationRegistry((key) => this.checkKey(key));
   }
 
+  clear() {
+    this.internalMap.clear();
+  }
+
+  delete(key: K) {
+    this.internalMap.delete(key);
+  }
+
   get(key: K): V | undefined {
     let value = this.internalMap.get(key);
     if (value === undefined) return undefined;
@@ -19,17 +27,11 @@ export class WeakValueMap<K, V extends Object> {
     this.registry.register(value, key);
   }
 
-  delete(key: K) {
-    this.internalMap.delete(key);
-  }
-
-  entries() {
-    let ans: [key: K, value: V][] = [];
+  *[Symbol.iterator](): IterableIterator<[K, V]> {
     for (let entry of this.internalMap.entries()) {
       let valueDeref = entry[1].deref();
-      if (valueDeref !== undefined) ans.push([entry[0], valueDeref]);
+      if (valueDeref !== undefined) yield [entry[0], valueDeref];
     }
-    return ans;
   }
 
   /**
