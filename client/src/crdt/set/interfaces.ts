@@ -14,11 +14,7 @@ export interface PlainSet<T> extends Crdt, Resettable {
   /** Alias for reset(). */
   clear(): void;
   delete(value: T): boolean;
-  // TODO
-  // forEach(
-  //   callbackfn: (value: T, value2: T, set: Set<T>) => void,
-  //   thisArg?: any
-  // ): void;
+  // TODO: forEach
   has(value: T): boolean;
   readonly size: number;
 

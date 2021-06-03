@@ -5,6 +5,7 @@ import { Resettable } from "../composers/resettable";
 import { Crdt } from "../core/crdt";
 import { AbstractCrdtSet } from "./abstract_sets";
 import { PlainSet } from "./interfaces";
+import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
 
 // TODO: events (from original interface).
 // Note create events won't happen until after an
@@ -39,6 +40,7 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   private readonly lazyMap: LazyCrdtMap<[string, number], C>;
   constructor(valueCrdtConstructor: (creatorReplicaId: string) => C) {
     super();
+    // TODO: optimized key serializer?
     this.lazyMap = this.addChild(
       "lazyMap",
       // TODO: also give counter value?
@@ -84,13 +86,7 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
 }
 
 // TODO: separate version for non-resettable values?
-// TODO: it might be more efficient to store the keys
-// in memberSet instead of the values, since storing
-// the values keeps them alive in memory (not GC'd)
-// even when trivial.  However it might help CPU
-// usage by avoiding thrashing (e.g. when values())
-// is called, and storing values is better for
-// abstraction layering.
+// TODO: optimized serializer for memberSet (just use name)
 export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   protected readonly unmanagedSet: UnmanagedCrdtSet<C>;
   protected readonly memberSet: PlainSet<C>;

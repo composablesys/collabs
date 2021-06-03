@@ -1,6 +1,6 @@
 import { CompositeCrdt } from "../core/composite_crdt";
 import { Crdt, CrdtEventsRecord } from "../core/crdt";
-import { CrdtSet } from "./interfaces";
+import { CrdtSet, PlainSet } from "./interfaces";
 
 // TODO: AbstractPlainSet
 
@@ -21,7 +21,7 @@ export abstract class AbstractCrdtSet<
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>
-  implements CrdtSet<C> 
+  implements CrdtSet<C>
 {
   abstract create(): C;
   abstract restore(valueCrdt: C): this;
@@ -32,6 +32,9 @@ export abstract class AbstractCrdtSet<
   abstract values(): IterableIterator<C>;
   abstract reset(): void;
 
+  /**
+   * Throws an error if !this.owns(valueCrdt).
+   */
   protected checkOwns(valueCrdt: C) {
     if (!this.owns(valueCrdt)) {
       throw new Error("valueCrdt is not owned by this CrdtSet");
@@ -50,6 +53,37 @@ export abstract class AbstractCrdtSet<
     }
   }
   keys(): IterableIterator<C> {
+    return this.values();
+  }
+}
+
+export abstract class AbstractPlainSet<
+    T,
+    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    D extends Crdt = Crdt
+  >
+  extends CompositeCrdt<Events, D>
+  implements PlainSet<T>
+{
+  abstract add(value: T): this;
+  abstract delete(value: T): boolean;
+  abstract has(value: T): boolean;
+  abstract readonly size: number;
+  abstract values(): IterableIterator<T>;
+  abstract reset(): void;
+
+  clear(): void {
+    this.reset();
+  }
+  [Symbol.iterator](): IterableIterator<T> {
+    return this.values();
+  }
+  *entries(): IterableIterator<[T, T]> {
+    for (let value of this.values()) {
+      yield [value, value];
+    }
+  }
+  keys(): IterableIterator<T> {
     return this.values();
   }
 }
