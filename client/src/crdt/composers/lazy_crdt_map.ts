@@ -46,7 +46,7 @@ export interface LazyCrdtMapEventsRecord<K, C extends Crdt>
 
 export class LazyCrdtMap<K, C extends Crdt>
   extends Crdt<LazyCrdtMapEventsRecord<K, C>>
-  implements CrdtParent 
+  implements CrdtParent
 {
   private readonly internalMap: Map<string, C> = new Map();
   private readonly backupMap: WeakValueMap<string, C> = new WeakValueMap();
@@ -169,11 +169,17 @@ export class LazyCrdtMap<K, C extends Crdt>
   }
 
   /**
-   * Returns true if crdt is a value Crdt from this
-   * LazyCrdtMap, i.e., an output of this.get.
+   * Returns true if valueCrdt is owned by this
+   * LazyCrdtMap, i.e., it is an output of this.get.
    */
-  hasValueCrdt(crdt: C): boolean {
-    return crdt.parent === this;
+  owns(valueCrdt: C): boolean {
+    return valueCrdt.parent === this;
+  }
+
+  private checkOwns(valueCrdt: C) {
+    if (!this.owns(valueCrdt)) {
+      throw new Error("valueCrdt is not owned by this LazyCrdtMap");
+    }
   }
 
   /**
@@ -181,12 +187,17 @@ export class LazyCrdtMap<K, C extends Crdt>
    * key; else returns undefined.
    */
   keyOf(valueCrdt: C): K | undefined {
-    if (!this.hasValueCrdt(valueCrdt)) return undefined;
+    if (!this.owns(valueCrdt)) return undefined;
     return this.stringAsKey(valueCrdt.name);
   }
 
   nontrivialHas(key: K): boolean {
     return this.internalMap.has(this.keyAsString(key));
+  }
+
+  nontrivialHasValue(valueCrdt: C): boolean {
+    this.checkOwns(valueCrdt);
+    return !valueCrdt.canGc();
   }
 
   *nontrivialKeys(): IterableIterator<K> {
