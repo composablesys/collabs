@@ -91,27 +91,22 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
 // usage by avoiding thrashing (e.g. when values())
 // is called, and storing values is better for
 // abstraction layering.
-export class ManagedCrdtSet<
-  C extends Crdt & Resettable
-> extends AbstractCrdtSet<C> {
-  private readonly unmanagedSet: UnmanagedCrdtSet<C>;
-  private readonly memberSet: PlainSet<C>;
-  private readonly deleteResets: boolean;
-  private readonly hasNontrivial: boolean;
+export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
+  protected readonly unmanagedSet: UnmanagedCrdtSet<C>;
+  protected readonly memberSet: PlainSet<C>;
+  protected readonly hasNontrivial: boolean;
   // TODO: memberSet must be a new set, we add it as
   // a child.  Once we fix Crdt init, it will be
   // an initializer instead of an actual Crdt.
-  // TODO: make options required?  If you want
-  // default options, you should use a named subclass
-  // that fills them in.  Also for delete to have
-  // the right semantics, can't have
-  // {deleteResets: false, hasNontrivial: true}.
-  // (Actually, it can still be useful if you want
-  // a RiakSet but with a different memberSet.)
+  // TODO: note that delete, clear, reset have the
+  // wrong sequential semantics when hasNontrivial is
+  // true (elements may stay present).  Also
+  // reset doesn't make the state GC-able unless
+  // every element is also GC-able.
   constructor(
     valueCrdtConstructor: (creatorReplicaId: string) => C,
     memberSet: PlainSet<C>,
-    options: { deleteResets?: boolean; hasNontrivial?: boolean } = {}
+    options: { hasNontrivial: boolean }
   ) {
     super();
     this.unmanagedSet = this.addChild(
@@ -119,8 +114,7 @@ export class ManagedCrdtSet<
       new UnmanagedCrdtSet(valueCrdtConstructor)
     );
     this.memberSet = this.addChild("memberSet", memberSet);
-    this.deleteResets = options.deleteResets ?? true;
-    this.hasNontrivial = options.hasNontrivial ?? true;
+    this.hasNontrivial = options.hasNontrivial;
   }
 
   owns(valueCrdt: C): boolean {
@@ -141,7 +135,6 @@ export class ManagedCrdtSet<
 
   delete(valueCrdt: C): boolean {
     const had = this.has(valueCrdt);
-    if (this.deleteResets) valueCrdt.reset();
     this.memberSet.delete(valueCrdt);
     return had;
   }
@@ -175,21 +168,49 @@ export class ManagedCrdtSet<
   }
 
   reset(): void {
-    // TODO: optimize (runLocally version)
-    for (let value of this.unmanagedSet) value.reset();
     this.memberSet.reset();
   }
 }
 
-// TODO: better name?
-// TODO: indicate that this is the default for managed sets
-export class RiakCrdtSet<
+export class ResettingCrdtSet<
   C extends Crdt & Resettable
 > extends ManagedCrdtSet<C> {
+  constructor(
+    valueCrdtConstructor: (creatorReplicaId: string) => C,
+    memberSet: PlainSet<C>,
+    options: { hasNontrivial: boolean }
+  ) {
+    super(valueCrdtConstructor, memberSet, options);
+  }
+
+  delete(valueCrdt: C): boolean {
+    valueCrdt.reset();
+    return super.delete(valueCrdt);
+  }
+
+  reset(): void {
+    for (let value of this.unmanagedSet) value.reset();
+    super.reset();
+  }
+}
+
+// TODO: better name?
+// TODO: indicate that this is the default for CrdtSets
+export class RiakCrdtSet<
+  C extends Crdt & Resettable
+> extends ResettingCrdtSet<C> {
   constructor(valueCrdtConstructor: (creatorReplicaId: string) => C) {
     super(valueCrdtConstructor, new AddWinsPlainSet(), {
-      deleteResets: true,
       hasNontrivial: true,
+    });
+  }
+}
+
+// TODO: better name?
+export class GRiakCrdtSet<C extends Crdt> extends ManagedCrdtSet<C> {
+  constructor(valueCrdtConstructor: (creatorReplicaId: string) => C) {
+    super(valueCrdtConstructor, new GPlainSet(), {
+      hasNontrivial: false,
     });
   }
 }
