@@ -11,7 +11,12 @@ import { Crdt } from "../core/crdt";
 // with any semantics.
 export interface PlainSet<T> extends Crdt, Resettable {
   add(value: T): this;
-  /** Alias for reset(). */
+  /**
+   * Delete every value in this set.
+   *
+   * Note that this may be a different semantics
+   * than reset.
+   */
   clear(): void;
   delete(value: T): boolean;
   // TODO: forEach

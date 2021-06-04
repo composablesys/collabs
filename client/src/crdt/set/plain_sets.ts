@@ -15,11 +15,11 @@ import { PlainSet } from "./interfaces";
 export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
   private readonly booleanMap: LazyCrdtMap<T, Boolean>;
   /**
-   * TODO: trivial (just-initialized) booleans must
-   * default to false, for values() to be correct
-   * (& finite).  Should there be an option to
-   * drop this restriction in return for not calling
-   * values()?
+   * TODO: booleans must start false.  If you want
+   * different behavior, you should wrap around this
+   * set (e.g., negate has to make everything start
+   * in the set, or do something else if you want it
+   * to start containing some elements but not others).
    */
   constructor(
     booleanConstructor: () => Boolean,
@@ -31,35 +31,41 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
       new LazyCrdtMap(booleanConstructor, valueSerializer)
     );
   }
+
   add(value: T): this {
     this.booleanMap.get(value).value = true;
     return this;
   }
+
   delete(value: T): boolean {
     const had = this.has(value);
     this.booleanMap.get(value).value = false;
     return had;
   }
+
+  // Use inherited clear implementation (delete every value)
+
   has(value: T): boolean {
     if (this.booleanMap.nontrivialHas(value)) {
       return this.booleanMap.get(value).value;
     } else return false;
   }
+
   get size(): number {
     // TODO: make run in constant time
     let count = 0;
     for (let _value of this) count++;
     return count;
   }
-  values(): IterableIterator<T> {
-    throw new Error("Method not implemented.");
+
+  *values(): IterableIterator<T> {
+    for (let [key, valueBool] of this.booleanMap.nontrivialEntries()) {
+      if (valueBool.value) yield key;
+    }
   }
+
   reset(): void {
     // TODO: optimize
-    // TODO: this is reset semantics, not set-to-false
-    // semantics.  So it may differ from calling delete
-    // on every value.  In that case (and more generally),
-    // perhaps clear should not be an alias for reset?
     for (let value of this.booleanMap.nontrivialValues()) value.reset();
   }
 }

@@ -2,8 +2,6 @@ import { CompositeCrdt } from "../core/composite_crdt";
 import { Crdt, CrdtEventsRecord } from "../core/crdt";
 import { CrdtSet, PlainSet } from "./interfaces";
 
-// TODO: AbstractPlainSet
-
 /**
  * Convenience abstract class that provides default
  * implementations of CrdtSet methods where possible.
@@ -42,7 +40,7 @@ export abstract class AbstractCrdtSet<
   }
 
   clear(): void {
-    this.reset();
+    for (let value of this) this.delete(value);
   }
   [Symbol.iterator](): IterableIterator<C> {
     return this.values();
@@ -73,7 +71,7 @@ export abstract class AbstractPlainSet<
   abstract reset(): void;
 
   clear(): void {
-    this.reset();
+    for (let value of this) this.delete(value);
   }
   [Symbol.iterator](): IterableIterator<T> {
     return this.values();

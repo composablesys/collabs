@@ -68,6 +68,10 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     throw new Error("Unsupported operation: GCrdtSet.delete");
   }
 
+  clear(): void {
+    throw new Error("Unsupported operation: GCrdtSet.clear");
+  }
+
   has(valueCrdt: C): boolean {
     return this.lazyMap.nontrivialHasValue(valueCrdt);
   }
@@ -135,6 +139,10 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     return had;
   }
 
+  clear(): void {
+    this.memberSet.clear();
+  }
+
   has(valueCrdt: C): boolean {
     this.checkOwns(valueCrdt);
     return (
@@ -182,6 +190,11 @@ export class ResettingCrdtSet<
   delete(valueCrdt: C): boolean {
     valueCrdt.reset();
     return super.delete(valueCrdt);
+  }
+
+  clear(): void {
+    for (let value of this.unmanagedSet) value.reset();
+    super.clear();
   }
 
   reset(): void {
