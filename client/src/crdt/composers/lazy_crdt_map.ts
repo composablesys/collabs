@@ -199,6 +199,10 @@ export class LazyCrdtMap<K, C extends Crdt>
     return !valueCrdt.canGc();
   }
 
+  nontrivialGet(key: K): C | undefined {
+    return this.internalMap.get(this.keyAsString(key));
+  }
+
   *nontrivialKeys(): IterableIterator<K> {
     for (let str of this.internalMap.keys()) {
       yield this.stringAsKey(str);

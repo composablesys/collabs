@@ -38,12 +38,9 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
   }
 
   delete(key: K): boolean {
-    // TODO: is this really an "optimization", due to
-    // the extra cost of serialization?
-    // Perhaps add a nontrivialGet method to LazyCrdtMap,
-    // to combine the has-get check.
-    if (this.has(key)) {
-      this.internalMap.get(key).reset();
+    const valueCrdt = this.internalMap.nontrivialGet(key);
+    if (valueCrdt !== undefined) {
+      valueCrdt.reset();
       return true;
     } else return false;
   }

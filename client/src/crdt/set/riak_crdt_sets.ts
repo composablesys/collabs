@@ -32,6 +32,10 @@ import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
  *
  * delete, clear, reset, and restore are not
  * supported and will throw an error.
+ *
+ * TODO: unify names of UnmanagedCrdtSet & LazyMap?  They are the set/map
+ * versions of similar concepts.
+ * TODO: don't implement the CrdtSet interface, like LazyMap?
  */
 export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   /**
@@ -89,7 +93,6 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   }
 }
 
-// TODO: separate version for non-resettable values?
 // TODO: optimized serializer for memberSet (just use name)
 export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   protected readonly unmanagedSet: UnmanagedCrdtSet<C>;
@@ -106,7 +109,7 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   constructor(
     valueCrdtConstructor: (creatorReplicaId: string) => C,
     memberSet: PlainSet<C>,
-    options: { hasNontrivial: boolean }
+    settings: { hasNontrivial: boolean }
   ) {
     super();
     this.unmanagedSet = this.addChild(
@@ -114,7 +117,7 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
       new UnmanagedCrdtSet(valueCrdtConstructor)
     );
     this.memberSet = this.addChild("memberSet", memberSet);
-    this.hasNontrivial = options.hasNontrivial;
+    this.hasNontrivial = settings.hasNontrivial;
   }
 
   owns(valueCrdt: C): boolean {
@@ -171,6 +174,9 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     }
   }
 
+  /**
+   * TODO: doesn't reset values, so canGc might be false afterwards
+   */
   reset(): void {
     this.memberSet.reset();
   }
@@ -188,17 +194,19 @@ export class ResettingCrdtSet<
   }
 
   delete(valueCrdt: C): boolean {
+    const had = this.has(valueCrdt);
     valueCrdt.reset();
-    return super.delete(valueCrdt);
+    this.memberSet.delete(valueCrdt);
+    return had;
   }
 
   clear(): void {
-    for (let value of this.unmanagedSet) value.reset();
+    for (let valueCrdt of this.unmanagedSet) valueCrdt.reset();
     super.clear();
   }
 
   reset(): void {
-    for (let value of this.unmanagedSet) value.reset();
+    for (let valueCrdt of this.unmanagedSet) valueCrdt.reset();
     super.reset();
   }
 }
