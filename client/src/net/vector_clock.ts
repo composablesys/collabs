@@ -17,15 +17,17 @@ export class VectorClock implements CausalTimestamp {
    */
   vectorMap: Map<string, number>;
   local: boolean;
+  time: number;
 
   /**
    * Initialize the vector with replica's own entry.
    */
-  constructor(sender: string, local: boolean) {
+  constructor(sender: string, local: boolean, time: number) {
     this.sender = sender;
     this.local = local;
     this.vectorMap = new Map();
     this.vectorMap.set(this.sender, 0);
+    this.time = time;
   }
   /**
    * @returns the unique ID for this replica(replicaId).
@@ -48,6 +50,10 @@ export class VectorClock implements CausalTimestamp {
    */
   getSenderCounter(): number {
     return this.vectorMap.get(this.sender)!;
+  }
+
+  getTime(): number {
+    return this.time;
   }
   /**
    * @returns the total number of replicas invovled in this crdts.
@@ -174,7 +180,7 @@ export class VectorClock implements CausalTimestamp {
   }
 
   clone(): VectorClock {
-    let copy = new VectorClock(this.sender, this.local);
+    let copy = new VectorClock(this.sender, this.local, this.time);
     copy.vectorMap = new Map(this.vectorMap);
     return copy;
   }

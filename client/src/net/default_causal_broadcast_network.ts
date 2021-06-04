@@ -4,7 +4,7 @@
 // Also ensure the order of delivery with casuality check.
 
 import { DefaultCausalBroadcastMessage } from "../../generated/proto_compiled";
-import { CrdtRuntime } from "../crdts";
+import { Runtime } from "../crdt/core/runtime";
 import {
   CausalTimestamp,
   CausalBroadcastNetwork,
@@ -93,6 +93,7 @@ export class myMessage {
       message: this.message,
       sender: this.timestamp.sender,
       vectorMap: Object.fromEntries(this.timestamp.vectorMap.entries()),
+      time: this.timestamp.getTime(),
     });
     return DefaultCausalBroadcastMessage.encode(message).finish();
   }
@@ -106,7 +107,11 @@ export class myMessage {
    */
   static deserialize(data: Uint8Array, myReplicaId: string): myMessage {
     let decoded = DefaultCausalBroadcastMessage.decode(data);
-    let vc = new VectorClock(decoded.sender, myReplicaId === decoded.sender);
+    let vc = new VectorClock(
+      decoded.sender,
+      myReplicaId === decoded.sender,
+      decoded.time
+    );
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
     return new myMessage(decoded.message, vc);
   }
@@ -124,9 +129,9 @@ export class myMessage {
  */
 export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   /**
-   * Registered CrdtRuntime.
+   * Registered Runtime.
    */
-  private runtime!: CrdtRuntime;
+  private runtime!: Runtime;
   /**
    * BroadcastNetwork for broadcasting messages.
    */
@@ -167,28 +172,27 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    * @param message
    */
   receive(message: Uint8Array) {
-    let parsed = myMessage.deserialize(
-      message,
-      this.crdtRuntime.getReplicaId()
-    );
+    let parsed = myMessage.deserialize(message, this.crdtRuntime.replicaId);
     this.messageBuffer.push(parsed);
     this.checkMessageBuffer();
   }
   /**
-   * Register CrdtRuntime CasualBroadcastNetwork.
+   * Register Runtime CasualBroadcastNetwork.
    *
    * @param runtime
    */
-  register(runtime: CrdtRuntime): void {
+  register(runtime: Runtime): void {
     this.runtime = runtime;
-    this.vc = new VectorClock(this.runtime.getReplicaId(), true);
+    this.vc = new VectorClock(this.runtime.replicaId, true, -1);
   }
 
   beginBatch(): CausalTimestamp {
     this.isPendingBatch = true;
 
     // Return the next timestamp.
-    return this.nextTimestamp(this.vc);
+    const next = this.nextTimestamp(this.vc) as VectorClock;
+    next.time = Date.now();
+    return next;
   }
   /**
    * Send function on casualbroadcast network layer, which called
@@ -240,7 +244,11 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     // Copy a new vector clock.
     // TODO: can we avoid copying, for efficiency?
     let vc = previous as CausalTimestamp;
-    let vcCopy = new VectorClock(previous.getSender(), previous.isLocal());
+    let vcCopy = new VectorClock(
+      previous.getSender(),
+      previous.isLocal(),
+      previous.getTime()
+    );
     vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock());
 
     // Update the timestamp of this replica with next value.
@@ -300,7 +308,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     }
   }
 
-  get crdtRuntime(): CrdtRuntime {
+  get crdtRuntime(): Runtime {
     return this.runtime;
   }
 

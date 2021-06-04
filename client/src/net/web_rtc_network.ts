@@ -1,5 +1,5 @@
 import { CausalTimestamp, VectorClock, CausalBroadcastNetwork } from ".";
-import { CrdtRuntime } from "../crdts";
+import { Runtime } from "../crdt/core/runtime";
 import { myMessage } from "./default_causal_broadcast_network";
 
 // NOTE: This WebRTC network layer is just a prototype, which only
@@ -27,10 +27,10 @@ import { myMessage } from "./default_causal_broadcast_network";
  */
 export class WebRtcNetwork implements CausalBroadcastNetwork {
   /**
-   * Registered CrdtRuntime.  TODO: rename runtime, for consistency
+   * Registered Runtime.  TODO: rename runtime, for consistency
    * with DefaultCausalBroadcastNetwork
    */
-  runtime!: CrdtRuntime;
+  runtime!: Runtime;
   /**
    * WebSocket for connection to server.
    */
@@ -90,6 +90,8 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.peerRtc.addEventListener("icecandidate", this.handleIceCandidate);
     this.peerRtc.addEventListener("datachannel", this.peerRtcReceiveMessage);
   }
+
+  readonly isCausalBroadcastNetwork: true = true;
   /**
    * Send signal message in JSON format by using WebSocket
    *
@@ -176,7 +178,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // TODO: Complete multiple users connection built.
     let index = 0;
     while (index < users.length) {
-      if (users[index] != this.runtime.getReplicaId()) {
+      if (users[index] != this.runtime.replicaId) {
         this.userName = users[index];
         break;
       }
@@ -190,7 +192,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
         type: "offer",
         name: this.userName,
         offer: offer,
-        requestName: this.runtime.getReplicaId(),
+        requestName: this.runtime.replicaId,
       });
       this.peerRtc.setLocalDescription(offer);
     });
@@ -262,7 +264,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let parsed = JSON.parse(event.data) as { message: string };
     let myPackage = myMessage.deserialize(
       new Uint8Array(Buffer.from(parsed.message, "base64")),
-      this.runtime.getReplicaId()
+      this.runtime.replicaId
     );
     this.messageBuffer.push([myPackage.message, myPackage.timestamp]);
     this.checkMessageBuffer();
@@ -279,14 +281,14 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.dataBuffer = [];
   };
   /**
-   * Implement the function defined in CrdtRuntime interfaces.
+   * Implement the function defined in Runtime interfaces.
    *
    * @returns This replica's id, used by some CRDTs internally
    * (e.g., to generate unique identifiers of the form (replica id, counter)).
    *
    */
   getReplicaId(): any {
-    return this.runtime.getReplicaId();
+    return this.runtime.replicaId;
   }
   /**
    * Register newly created crdt with its ID and corresponding message
@@ -296,13 +298,13 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * @param crdtId the ID of each crdt.
    *
    */
-  register(runtime: CrdtRuntime): void {
+  register(runtime: Runtime): void {
     this.runtime = runtime;
-    this.vc = new VectorClock(this.runtime.getReplicaId(), true);
+    this.vc = new VectorClock(this.runtime.replicaId, true, -1);
     this.sendSignalingMessage({
       type: "register",
-      name: this.runtime.getReplicaId(),
-      crdtName: CrdtRuntime.name,
+      name: this.runtime.replicaId,
+      crdtName: Runtime.name,
     });
 
     console.log("Create dataChannel");
@@ -322,7 +324,9 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.isPendingBatch = true;
 
     // Return the next timestamp.
-    return this.nextTimestamp(this.vc);
+    const next = this.nextTimestamp(this.vc) as VectorClock;
+    next.time = Date.now();
+    return next;
   }
 
   /**
@@ -383,7 +387,11 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // Copy a new vector clock.
     // TODO: can we avoid copying, for efficiency?
     let vc = previous as CausalTimestamp;
-    let vcCopy = new VectorClock(previous.getSender(), previous.isLocal());
+    let vcCopy = new VectorClock(
+      previous.getSender(),
+      previous.isLocal(),
+      previous.getTime()
+    );
     vcCopy.vectorMap = new Map<string, number>(vc.asVectorClock());
 
     // Update the timestamp of this replica with next value.

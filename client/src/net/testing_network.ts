@@ -1,4 +1,4 @@
-import { CrdtRuntime } from "../crdts";
+import { Runtime } from "../crdt/core/runtime";
 import { CausalTimestamp } from "./causal_broadcast_network";
 import {
   BroadcastNetwork,
@@ -23,7 +23,7 @@ export class TestingNetwork implements BroadcastNetwork {
   }
 }
 
-// Copied from CrdtRuntime (TODO: use directly to
+// Copied from Runtime (TODO: use directly to
 // avoid duplication?)
 const REPLICA_ID_LENGTH = 11;
 const REPLICA_ID_CHARS = allAscii();
@@ -42,7 +42,7 @@ function pseudorandomReplicaId(rng: seedrandom.prng) {
 }
 
 /**
- * Creates a collection of CrdtRuntimes linked together
+ * Creates a collection of Runtimes linked together
  * (i.e., in-memory networking) that deliver messages
  * when release is called.
  */
@@ -50,7 +50,7 @@ export class TestingNetworkGenerator {
   /**
    * [newRuntime description]
    * @param  batchOptions Note that the default here is
-   * "immediate", unlike CrdtRuntime, where it is {periodMs: 0}.
+   * "immediate", unlike Runtime, where it is {periodMs: 0}.
    * "immediate" is better for tests, while {periodMs: 0} is
    * better for real apps.
    * @param  rng          [description]
@@ -61,7 +61,7 @@ export class TestingNetworkGenerator {
     rng: seedrandom.prng | undefined = undefined
   ) {
     let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;
-    return new CrdtRuntime(this.newNetwork(), batchOptions, replicaId);
+    return new Runtime(this.newNetwork(), batchOptions, replicaId);
   }
   newNetwork() {
     let network = new TestingNetwork(this);
@@ -81,7 +81,7 @@ export class TestingNetworkGenerator {
    * recipients.  Only recipients that existed at the time
    * of sending will receive a message.
    */
-  release(senderRuntime: CrdtRuntime, ...recipientRuntimes: CrdtRuntime[]) {
+  release(senderRuntime: Runtime, ...recipientRuntimes: Runtime[]) {
     let sender = this.getTestingNetwork(senderRuntime);
     let recipients = recipientRuntimes.map((runtime) =>
       this.getTestingNetwork(runtime)
@@ -105,7 +105,8 @@ export class TestingNetworkGenerator {
       this.release(sender.causal.crdtRuntime);
   }
 
-  getTestingNetwork(runtime: CrdtRuntime) {
+  getTestingNetwork(runtime: Runtime) {
+    // @ts-ignore network is private
     let causal = runtime.network as DefaultCausalBroadcastNetwork;
     return causal.broadcastNetwork as TestingNetwork;
   }
