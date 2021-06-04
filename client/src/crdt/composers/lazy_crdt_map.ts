@@ -183,11 +183,10 @@ export class LazyCrdtMap<K, C extends Crdt>
   }
 
   /**
-   * If this.hasValueCrdt(valueCrdt), returns valueCrdt's
-   * key; else returns undefined.
+   * Returns valueCrdt's key.
    */
-  keyOf(valueCrdt: C): K | undefined {
-    if (!this.owns(valueCrdt)) return undefined;
+  keyOf(valueCrdt: C): K {
+    this.checkOwns(valueCrdt);
     return this.stringAsKey(valueCrdt.name);
   }
 
