@@ -31,7 +31,7 @@ export class TrueWinsBoolean
 /** Disable-wins flag */
 export class FalseWinsBoolean
   extends ResetWrapClass(NoopCrdt, true, false)<RegisterEventsRecord<boolean>>
-  implements Boolean 
+  implements Boolean
 {
   constructor() {
     super();

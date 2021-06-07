@@ -1,3 +1,6 @@
+// TODO
+export interface CrdtList {}
+
 // // A list of opaque elements, supporting insert, delete,
 // // and move, with any semantics.
 // // TODO: way to access seqIds (e.g. expose the underlying
