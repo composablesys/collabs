@@ -1,7 +1,13 @@
-import { Resettable } from "../composers/resettable";
+import { Resettable } from "../helper_crdts/resettable";
 import { Crdt } from "../core/crdt";
 
+// Types based on those for ES6 Maps/Sets/Arrays.
+// https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.collection.d.ts
+// https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.iterable.d.ts
+
 // TODO: deterministic iterator order?
+
+// TODO: events
 
 // A set of opaque elements, supporting add and remove
 // with any semantics.

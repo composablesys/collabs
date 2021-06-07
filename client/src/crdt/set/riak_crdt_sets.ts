@@ -1,7 +1,7 @@
 // TODO: rename (Riak too niche)
 
-import { LazyCrdtMap } from "../composers/lazy_crdt_map";
-import { Resettable } from "../composers/resettable";
+import { LazyCrdtMap } from "../helper_crdts/lazy_crdt_map";
+import { Resettable } from "../helper_crdts/resettable";
 import { Crdt } from "../core/crdt";
 import { AbstractCrdtSet } from "./abstract_sets";
 import { DecoratedCrdtSet } from "./decorated_sets";
@@ -29,7 +29,7 @@ import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
  * The three membership options correspond to
  * ImplicitCrdtSet, ExplicitCrdtSet w/ includeImplicit =
  * false, and ExplicitCrdtSet w/ includeImplicit = true.
- * For those, deletes don't perform a reset; to add that,
+ * For those, deletes don't perform a reset; to change that,
  * input them to ResettingCrdtSet.
  *
  * RiakCrdtSet has "both" membership, and deletes do perform

@@ -4,7 +4,7 @@ import { CrdtSet } from "./interfaces";
 
 // Sets that decorate an existing set, copying its
 // methods.  Override to modify methods.
-// More flexible than subclassing the decorated sets.
+// More flexible/reusable than subclassing the decorated sets.
 
 export class DecoratedCrdtSet<C extends Crdt>
   extends CompositeCrdt

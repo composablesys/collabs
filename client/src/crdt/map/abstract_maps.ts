@@ -66,7 +66,7 @@ export abstract class AbstractPlainMap<
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>
-  implements PlainMap<K, V> 
+  implements PlainMap<K, V>
 {
   abstract delete(key: K): boolean;
   abstract get(key: K): V | undefined;

@@ -1,11 +1,5 @@
-// Types based on those for ES6 Maps/Sets/Arrays.
-// https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.collection.d.ts
-// https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.iterable.d.ts
-
 import { Resettable } from "../composers/resettable";
 import { Crdt } from "../core/crdt";
-
-// TODO: events
 
 // A map from keys to opaque values, with (any) register
 // semantics for values.
@@ -20,8 +14,6 @@ export interface PlainMap<K, V> extends Resettable, Crdt {
   delete(key: K): boolean;
   // TODO: forEach
 
-  // TODO: require sequential semantics, so that set
-  // followed by get! is always safe.
   get(key: K): V | undefined;
   has(key: K): boolean;
   set(key: K, value: V): this;
@@ -46,8 +38,6 @@ export interface PlainMap<K, V> extends Resettable, Crdt {
   values(): IterableIterator<V>;
 }
 
-// TODO: keyOf, etc. methods from LazyCrdtMap
-
 // TODO: same as Map above, but with values controlled
 // by implicitly-initialized Crdt's.  Any semantics.
 export interface CrdtMap<K, C extends Crdt> extends Resettable, Crdt {
@@ -69,10 +59,15 @@ export interface CrdtMap<K, C extends Crdt> extends Resettable, Crdt {
   owns(valueCrdt: C): boolean;
   has(key: K): boolean;
   // TODO: require sequential semantics, so that addKey
-  // followed by get! is always safe.
+  // followed by get! is always safe?
+  // Necessary for some situations, e.g., RegisterPlainMap.
+  // Perhaps put as restrictions there, instead of general
+  // contracts, since they can be rather subtle.
   addKey(key: K): this;
   /**
    * Returns valueCrdt's key.
+   *
+   * Works even if the key is currently not present.
    */
   keyOf(valueCrdt: C): K;
   readonly size: number;
