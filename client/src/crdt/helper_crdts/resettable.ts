@@ -1,7 +1,10 @@
 import { CausalTimestamp } from "../../net";
-import { CrdtEvent, CrdtEventsRecord } from "../core/crdt";
-import { StatefulCrdt } from "../core/interfaces";
-import { PrimitiveCrdt } from "../core/primitive_crdt";
+import {
+  CrdtEvent,
+  CrdtEventsRecord,
+  StatefulCrdt,
+  PrimitiveCrdt,
+} from "../core";
 import { SemidirectProduct } from "./semidirect_product";
 
 // TODO: revise whole file

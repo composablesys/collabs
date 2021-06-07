@@ -1,5 +1,5 @@
-import { Resettable } from "../helper_crdts/resettable";
-import { Crdt } from "../core/crdt";
+import { Resettable } from "../helper_crdts";
+import { Crdt } from "../core";
 
 // Types based on those for ES6 Maps/Sets/Arrays.
 // https://github.com/microsoft/TypeScript/blob/master/src/lib/es2015.collection.d.ts

@@ -1,9 +1,6 @@
 import { CausalTimestamp } from "../../net";
-import {
-  DefaultElementSerializer,
-  ElementSerializer,
-} from "../../util/serialization";
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core/crdt";
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
 export interface NewCrdtEvent<C extends Crdt> extends CrdtEvent {
   readonly newCrdt: C;

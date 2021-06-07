@@ -1,6 +1,10 @@
-import { CausalTimestamp, VectorClock, CausalBroadcastNetwork } from ".";
-import { Runtime } from "../crdt/core/runtime";
+import { Runtime } from "../crdt";
+import {
+  CausalBroadcastNetwork,
+  CausalTimestamp,
+} from "./causal_broadcast_network";
 import { myMessage } from "./default_causal_broadcast_network";
+import { VectorClock } from "./vector_clock";
 
 // NOTE: This WebRTC network layer is just a prototype, which only
 // two users peer-to-peer connection.

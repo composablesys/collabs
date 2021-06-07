@@ -4,7 +4,7 @@
 // Also ensure the order of delivery with casuality check.
 
 import { DefaultCausalBroadcastMessage } from "../../generated/proto_compiled";
-import { Runtime } from "../crdt/core/runtime";
+import { Runtime } from "../crdt";
 import {
   CausalTimestamp,
   CausalBroadcastNetwork,

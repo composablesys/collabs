@@ -1,6 +1,5 @@
 import { serialize, deserialize } from "bson";
-import { Runtime } from "../crdt/core/runtime";
-import { Crdt } from "../crdt/core/crdt";
+import { Runtime, Crdt } from "../crdt/";
 import {
   CrdtReference,
   DefaultSerializerMessage,

@@ -4,11 +4,10 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
   stringAsArray,
-} from "../../util/serialization";
-import { Boolean } from "../boolean/interfaces";
-import { TrueWinsBoolean } from "../boolean/wins_booleans";
-import { LazyCrdtMap } from "../composers/lazy_crdt_map";
-import { PrimitiveCrdt } from "../core/primitive_crdt";
+} from "../../util";
+import { Boolean, TrueWinsBoolean } from "../boolean";
+import { LazyCrdtMap } from "../helper_crdts";
+import { PrimitiveCrdt } from "../core";
 import { AbstractPlainSet } from "./abstract_sets";
 import { PlainSet } from "./interfaces";
 

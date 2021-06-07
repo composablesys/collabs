@@ -1,5 +1,5 @@
-import { Resettable, ResettableEventsRecord } from "../composers/resettable";
-import { Crdt, CrdtEvent } from "../core/crdt";
+import { Resettable, ResettableEventsRecord } from "../helper_crdts";
+import { Crdt, CrdtEvent } from "../core";
 
 export interface RegisterSetEvent<T> extends CrdtEvent {
   readonly caller: Register<T>;

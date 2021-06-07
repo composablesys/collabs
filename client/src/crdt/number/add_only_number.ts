@@ -1,7 +1,6 @@
 import { GAddOnlyNumberMessage } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import { CompositeCrdt } from "../core/composite_crdt";
-import { PrimitiveCrdt } from "../core/primitive_crdt";
+import { CompositeCrdt, PrimitiveCrdt } from "../core";
 import { Number, NumberEventsRecord } from "./interfaces";
 
 class GAddOnlyNumberState {

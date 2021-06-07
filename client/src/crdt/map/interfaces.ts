@@ -1,5 +1,5 @@
-import { Resettable } from "../composers/resettable";
-import { Crdt } from "../core/crdt";
+import { Resettable } from "../helper_crdts";
+import { Crdt } from "../core";
 
 // A map from keys to opaque values, with (any) register
 // semantics for values.

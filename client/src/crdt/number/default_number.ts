@@ -3,9 +3,9 @@ import { CausalTimestamp } from "../../net";
 import {
   LocallyResettableState,
   ResetWrapClass,
-} from "../composers/resettable";
-import { SemidirectProduct } from "../composers/semidirect_product";
-import { PrimitiveCrdt } from "../core/primitive_crdt";
+  SemidirectProduct,
+} from "../helper_crdts";
+import { PrimitiveCrdt } from "../core";
 import { Number, NumberEventsRecord } from "./interfaces";
 
 // TODO: handle floating point non-commutativity

@@ -1,5 +1,5 @@
 import { CausalTimestamp } from "../../net";
-import { PrimitiveCrdt } from "../core/primitive_crdt";
+import { PrimitiveCrdt } from "../core";
 import { LocallyResettableState, Resettable } from "./resettable";
 
 export class NoopState implements LocallyResettableState {

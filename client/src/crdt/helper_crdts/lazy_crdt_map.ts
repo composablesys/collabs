@@ -4,10 +4,9 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
   stringAsArray,
-} from "../../util/serialization";
-import { WeakValueMap } from "../../util/weak_value_map";
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core/crdt";
-import { CrdtParent } from "../core/interfaces";
+  WeakValueMap,
+} from "../../util";
+import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtParent } from "../core";
 
 export interface LazyCrdtMapEvent<K, C extends Crdt> extends CrdtEvent {
   caller: LazyCrdtMap<K, C>;

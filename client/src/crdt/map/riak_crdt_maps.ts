@@ -2,8 +2,7 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util/serialization";
-import { LazyCrdtMap } from "../composers/lazy_crdt_map";
-import { Resettable } from "../composers/resettable";
+import { LazyCrdtMap, Resettable } from "../helper_crdts";
 import { Crdt } from "../core/crdt";
 import { PlainSet } from "../set/interfaces";
 import { AddWinsPlainSet, GPlainSet } from "../set/plain_sets";

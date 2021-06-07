@@ -1,6 +1,5 @@
 import { CausalTimestamp } from "../../net";
-import { Crdt, CrdtEventsRecord } from "../core/crdt";
-import { CrdtParent, StatefulCrdt } from "../core/interfaces";
+import { Crdt, CrdtEventsRecord, CrdtParent, StatefulCrdt } from "../core";
 import { LocallyResettableState } from "./resettable";
 
 // TODO: revise this file.

@@ -1,4 +1,4 @@
-import { Runtime } from "../crdt/core/runtime";
+import { Runtime } from "../crdt";
 import { CausalTimestamp } from "./causal_broadcast_network";
 import {
   BroadcastNetwork,

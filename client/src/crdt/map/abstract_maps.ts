@@ -1,3 +1,6 @@
+import { CompositeCrdt, Crdt, CrdtEventsRecord } from "../core";
+import { CrdtMap, PlainMap } from "./interfaces";
+
 /**
  * Convenience abstract class that provides default
  * implementations of CrdtMap methods where possible.
@@ -9,11 +12,6 @@
  * hard to use even in basic situations, so we instead
  * opt to extend the most common superclass, CompositeCrdt.
  */
-
-import { CompositeCrdt } from "../core/composite_crdt";
-import { Crdt, CrdtEventsRecord } from "../core/crdt";
-import { CrdtMap, PlainMap } from "./interfaces";
-
 export abstract class AbstractCrdtMap<
     K,
     C extends Crdt,

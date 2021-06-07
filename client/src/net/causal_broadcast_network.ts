@@ -1,7 +1,7 @@
 // First attempt at the interface between the runtime
 // (causal broadcast network, etc.) and the Crdts.
 
-import { Runtime } from "../crdt/core/runtime";
+import { Runtime } from "../crdt";
 
 /**
  * Interface describing the causal timestamps that

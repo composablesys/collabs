@@ -1,10 +1,6 @@
-import {
-  DefaultElementSerializer,
-  ElementSerializer,
-} from "../../util/serialization";
-import { LazyCrdtMap } from "../composers/lazy_crdt_map";
-import { LwwRegister } from "../register/aggregate_register";
-import { Register } from "../register/interfaces";
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { LazyCrdtMap } from "../helper_crdts";
+import { Register, LwwRegister } from "../register";
 import { AbstractPlainMap } from "./abstract_maps";
 
 export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {

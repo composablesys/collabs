@@ -7,7 +7,7 @@ import {
   DefaultCausalBroadcastNetwork,
   isCausalBroadcastNetwork,
 } from "../../net";
-import { arrayAsString, stringAsArray } from "../../util/serialization";
+import { arrayAsString, stringAsArray } from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
 import { Crdt } from "./crdt";
 import { CrdtParent } from "./interfaces";

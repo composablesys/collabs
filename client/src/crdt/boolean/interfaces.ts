@@ -1,4 +1,4 @@
-import { Register } from "../register/interfaces";
+import { Register } from "../register";
 
 export interface Boolean extends Register<boolean> {
   // TODO: boolean ops (e.g. xor/and, which form

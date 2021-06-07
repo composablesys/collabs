@@ -1,8 +1,5 @@
-import {
-  DefaultElementSerializer,
-  ElementSerializer,
-} from "../../util/serialization";
-import { CompositeCrdt } from "../core/composite_crdt";
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { CompositeCrdt } from "../core";
 import { Register, RegisterEventsRecord } from "./interfaces";
 import {
   MultiValueRegister,

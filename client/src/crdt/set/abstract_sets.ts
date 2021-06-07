@@ -1,5 +1,4 @@
-import { CompositeCrdt } from "../core/composite_crdt";
-import { Crdt, CrdtEventsRecord } from "../core/crdt";
+import { Crdt, CrdtEventsRecord, CompositeCrdt } from "../core";
 import { CrdtSet, PlainSet } from "./interfaces";
 
 /**

@@ -1,12 +1,11 @@
-// TODO: rename (Riak too niche)
-
-import { LazyCrdtMap } from "../helper_crdts/lazy_crdt_map";
-import { Resettable } from "../helper_crdts/resettable";
-import { Crdt } from "../core/crdt";
+import { LazyCrdtMap, Resettable } from "../helper_crdts";
+import { Crdt } from "../core";
 import { AbstractCrdtSet } from "./abstract_sets";
 import { DecoratedCrdtSet } from "./decorated_sets";
 import { CrdtSet, PlainSet } from "./interfaces";
 import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
+
+// TODO: rename (Riak too niche)
 
 // TODO: events (from original interface).
 // Note create events won't happen until after an

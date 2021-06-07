@@ -1,12 +1,8 @@
 import { MvrMessage } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import {
-  DefaultElementSerializer,
-  ElementSerializer,
-} from "../../util/serialization";
-import { ResettableEventsRecord } from "../composers/resettable";
-import { CrdtEvent } from "../core/crdt";
-import { PrimitiveCrdt } from "../core/primitive_crdt";
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { ResettableEventsRecord } from "../helper_crdts";
+import { CrdtEvent, PrimitiveCrdt } from "../core";
 
 export interface MvrMeta<T> {
   readonly value: T;

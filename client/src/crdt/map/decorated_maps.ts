@@ -1,5 +1,4 @@
-import { CompositeCrdt } from "../core/composite_crdt";
-import { Crdt } from "../core/crdt";
+import { Crdt, CompositeCrdt } from "../core";
 import { CrdtMap } from "./interfaces";
 
 // Maps that decorate an existing map, copying its

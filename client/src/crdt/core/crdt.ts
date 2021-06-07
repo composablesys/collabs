@@ -1,5 +1,5 @@
 import { CausalTimestamp } from "../../net";
-import { EventEmitter } from "../../util/event_emitter";
+import { EventEmitter } from "../../util";
 import { CrdtParent } from "./interfaces";
 import { Runtime } from "./runtime";
 

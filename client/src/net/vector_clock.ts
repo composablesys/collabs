@@ -1,4 +1,4 @@
-import { CausalTimestamp } from ".";
+import { CausalTimestamp } from "./causal_broadcast_network";
 
 // The vector clock designed for CRDT library and casual broadcasting
 // runtime to ensure correct causality.

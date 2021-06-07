@@ -1,5 +1,5 @@
-import { CrdtEvent } from "../core/crdt";
-import { Register, RegisterEventsRecord } from "../register/interfaces";
+import { CrdtEvent } from "../core";
+import { Register, RegisterEventsRecord } from "../register";
 
 export interface NumberAddEvent extends CrdtEvent {
   readonly added: number;

@@ -1,6 +1,5 @@
-import { NoopCrdt } from "../composers/noop_crdt";
-import { ResetWrapClass } from "../composers/resettable";
-import { RegisterEventsRecord } from "../register/interfaces";
+import { NoopCrdt, ResetWrapClass } from "../helper_crdts";
+import { RegisterEventsRecord } from "../register";
 import { Boolean } from "./interfaces";
 
 /** Enable-wins flag */

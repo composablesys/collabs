@@ -1,5 +1,4 @@
-import { CompositeCrdt } from "../core/composite_crdt";
-import { Crdt } from "../core/crdt";
+import { Crdt, CompositeCrdt } from "../core";
 import { CrdtSet } from "./interfaces";
 
 // Sets that decorate an existing set, copying its
