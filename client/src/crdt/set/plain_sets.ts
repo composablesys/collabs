@@ -6,13 +6,13 @@ import {
   stringAsArray,
 } from "../../util";
 import { Boolean, TrueWinsBoolean } from "../boolean";
-import { LazyCrdtMap } from "../helper_crdts";
 import { PrimitiveCrdt } from "../core";
+import { ImplicitCrdtMap } from "../map";
 import { AbstractPlainSet } from "./abstract_sets";
 import { PlainSet } from "./interfaces";
 
 export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
-  private readonly booleanMap: LazyCrdtMap<T, Boolean>;
+  private readonly booleanMap: ImplicitCrdtMap<T, Boolean>;
   /**
    * TODO: booleans must start false.  If you want
    * different behavior, you should wrap around this
@@ -27,7 +27,7 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
     super();
     this.booleanMap = this.addChild(
       "booleanMap",
-      new LazyCrdtMap(booleanConstructor, valueSerializer)
+      new ImplicitCrdtMap(booleanConstructor, valueSerializer)
     );
   }
 
@@ -45,7 +45,7 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
   // Use inherited clear implementation (delete every value)
 
   has(value: T): boolean {
-    if (this.booleanMap.nontrivialHas(value)) {
+    if (this.booleanMap.has(value)) {
       return this.booleanMap.get(value).value;
     } else return false;
   }
@@ -58,14 +58,14 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
   }
 
   *values(): IterableIterator<T> {
-    for (let [key, valueBool] of this.booleanMap.nontrivialEntries()) {
+    for (let [key, valueBool] of this.booleanMap) {
       if (valueBool.value) yield key;
     }
   }
 
   reset(): void {
     // TODO: optimize
-    for (let value of this.booleanMap.nontrivialValues()) value.reset();
+    for (let value of this.booleanMap.values()) value.reset();
   }
 }
 
@@ -74,6 +74,12 @@ export class AddWinsPlainSet<T> extends BooleanPlainSet<T> {
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super(() => new TrueWinsBoolean(), valueSerializer);
+  }
+
+  // Optimize by calling reset instead of deleting
+  // every value separately.
+  clear() {
+    this.reset();
   }
 }
 

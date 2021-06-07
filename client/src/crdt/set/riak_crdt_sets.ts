@@ -1,9 +1,10 @@
-import { LazyCrdtMap, Resettable } from "../helper_crdts";
+import { Resettable } from "../helper_crdts";
 import { Crdt } from "../core";
 import { AbstractCrdtSet } from "./abstract_sets";
 import { DecoratedCrdtSet } from "./decorated_sets";
 import { CrdtSet, PlainSet } from "./interfaces";
 import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
+import { ImplicitCrdtMap } from "../map";
 
 // TODO: rename (Riak too niche)
 
@@ -56,19 +57,19 @@ export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   /**
    * Keyed by: [creator replica id, creator unique number]
    */
-  private readonly lazyMap: LazyCrdtMap<[string, number], C>;
+  private readonly implicitMap: ImplicitCrdtMap<[string, number], C>;
   constructor(valueCrdtConstructor: (creatorReplicaId: string) => C) {
     super();
     // TODO: optimized key serializer?
-    this.lazyMap = this.addChild(
-      "lazyMap",
+    this.implicitMap = this.addChild(
+      "implicitMap",
       // TODO: also give senderCounter value?
-      new LazyCrdtMap((key) => valueCrdtConstructor(key[0]))
+      new ImplicitCrdtMap((key) => valueCrdtConstructor(key[0]))
     );
   }
 
   owns(valueCrdt: C): boolean {
-    return this.lazyMap.owns(valueCrdt);
+    return this.implicitMap.owns(valueCrdt);
   }
 
   create(): C {
@@ -76,7 +77,7 @@ export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
       this.runtime.replicaId,
       this.runtime.getReplicaUniqueNumber(),
     ];
-    return this.lazyMap.get(key);
+    return this.implicitMap.get(key);
   }
 
   restore(_valueCrdt: C): this {
@@ -94,15 +95,15 @@ export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   }
 
   has(valueCrdt: C): boolean {
-    return this.lazyMap.nontrivialHasValue(valueCrdt);
+    return this.implicitMap.hasValue(valueCrdt);
   }
 
   get size(): number {
-    return this.lazyMap.nontrivialSize;
+    return this.implicitMap.size;
   }
 
   values(): IterableIterator<C> {
-    return this.lazyMap.nontrivialValues();
+    return this.implicitMap.values();
   }
 
   reset(): void {

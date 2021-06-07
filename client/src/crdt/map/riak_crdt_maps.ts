@@ -417,7 +417,7 @@ export class RiakCrdtMap<
 
 // TODO: note which methods will throw errors
 // (due to errors from GPlainSet).
-export class GCrdtSet<K, C extends Crdt> extends ExplicitCrdtMap<K, C> {
+export class GCrdtMap<K, C extends Crdt> extends ExplicitCrdtMap<K, C> {
   constructor(valueCrdtConstructor: (key: K) => C) {
     super(valueCrdtConstructor, new GPlainSet(), {
       includeImplicit: false,

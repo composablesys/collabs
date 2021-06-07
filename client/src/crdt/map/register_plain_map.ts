@@ -1,10 +1,10 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { LazyCrdtMap } from "../helper_crdts";
 import { Register, LwwRegister } from "../register";
 import { AbstractPlainMap } from "./abstract_maps";
+import { ImplicitCrdtMap } from "./riak_crdt_maps";
 
 export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
-  private readonly internalMap: LazyCrdtMap<K, Register<V>>;
+  private readonly internalMap: ImplicitCrdtMap<K, Register<V>>;
 
   /**
    * TODO: key presence is determined by value
@@ -29,12 +29,12 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
     super();
     this.internalMap = this.addChild(
       "internalMap",
-      new LazyCrdtMap(registerConstructor, keySerializer)
+      new ImplicitCrdtMap(registerConstructor, keySerializer)
     );
   }
 
   delete(key: K): boolean {
-    const valueCrdt = this.internalMap.nontrivialGet(key);
+    const valueCrdt = this.internalMap.getIfPresent(key);
     if (valueCrdt !== undefined) {
       valueCrdt.reset();
       return true;
@@ -48,7 +48,7 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
   }
 
   has(key: K): boolean {
-    return this.internalMap.nontrivialHas(key);
+    return this.internalMap.has(key);
   }
 
   set(key: K, value: V): this {
@@ -57,18 +57,18 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
   }
 
   get size(): number {
-    return this.internalMap.nontrivialSize;
+    return this.internalMap.size;
   }
 
   *entries(): IterableIterator<[K, V]> {
-    for (let [key, valueCrdt] of this.internalMap.nontrivialEntries()) {
+    for (let [key, valueCrdt] of this.internalMap) {
       yield [key, valueCrdt.value];
     }
   }
 
   reset(): void {
     // TODO: optimize
-    for (let valueCrdt of this.internalMap.nontrivialValues()) {
+    for (let valueCrdt of this.internalMap.values()) {
       valueCrdt.reset();
     }
   }
