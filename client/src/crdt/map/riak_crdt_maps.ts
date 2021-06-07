@@ -248,8 +248,8 @@ export class ImplicitCrdtMap<K, C extends Crdt>
   }
 
   *entries(): IterableIterator<[K, C]> {
-    for (let entry of this.nontrivialMap) {
-      yield [this.stringAsKey(entry[0]), entry[1]];
+    for (let [keyStr, valueCrdt] of this.nontrivialMap) {
+      yield [this.stringAsKey(keyStr), valueCrdt];
     }
   }
 
@@ -406,11 +406,19 @@ export class RiakCrdtMap<
   K,
   C extends Crdt & Resettable
 > extends ResettingCrdtMap<K, C> {
-  constructor(valueCrdtConstructor: (key: K) => C) {
+  constructor(
+    valueCrdtConstructor: (key: K) => C,
+    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+  ) {
     super(
-      new ExplicitCrdtMap(valueCrdtConstructor, new AddWinsPlainSet(), {
-        includeImplicit: true,
-      })
+      new ExplicitCrdtMap(
+        valueCrdtConstructor,
+        new AddWinsPlainSet(),
+        {
+          includeImplicit: true,
+        },
+        keySerializer
+      )
     );
   }
 }
@@ -418,9 +426,17 @@ export class RiakCrdtMap<
 // TODO: note which methods will throw errors
 // (due to errors from GPlainSet).
 export class GCrdtMap<K, C extends Crdt> extends ExplicitCrdtMap<K, C> {
-  constructor(valueCrdtConstructor: (key: K) => C) {
-    super(valueCrdtConstructor, new GPlainSet(), {
-      includeImplicit: false,
-    });
+  constructor(
+    valueCrdtConstructor: (key: K) => C,
+    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+  ) {
+    super(
+      valueCrdtConstructor,
+      new GPlainSet(),
+      {
+        includeImplicit: false,
+      },
+      keySerializer
+    );
   }
 }

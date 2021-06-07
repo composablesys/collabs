@@ -126,8 +126,8 @@ export class GPlainSet<T>
     return this.values();
   }
 
-  entries(): IterableIterator<[T, T]> {
-    throw new Error("Method not implemented.");
+  *entries(): IterableIterator<[T, T]> {
+    for (let value of this.values()) yield [value, value];
   }
 
   keys(): IterableIterator<T> {
