@@ -4,7 +4,8 @@ import { LazyCrdtMap } from "../composers/lazy_crdt_map";
 import { Resettable } from "../composers/resettable";
 import { Crdt } from "../core/crdt";
 import { AbstractCrdtSet } from "./abstract_sets";
-import { PlainSet } from "./interfaces";
+import { DecoratedCrdtSet } from "./decorated_sets";
+import { CrdtSet, PlainSet } from "./interfaces";
 import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
 
 // TODO: events (from original interface).
@@ -14,10 +15,30 @@ import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
 // (need to listen on the managing set for created
 // events, instead of the unmanaged set).
 // Also add events to AbstractCrdtSet as base for Events.
+
 /**
- * A basic CrdtSet that does not explicitly manage
- * membership.  Its main purpose is to create
- * Crdts.
+ * Options for Riak-style CrdtSets:
+ * - Membership:
+ *     - Implicit: contains only nontrivial Crdts (canGc is false))
+ *     - Explicit: determined by a given PlainSet
+ *     - Both: union of implicit and explicit members
+ * - Whether deletes perform a reset (T/F)
+ *
+ * TODO: violations of sequential semantics.
+ *
+ * The three membership options correspond to
+ * ImplicitCrdtSet, ExplicitCrdtSet w/ includeImplicit =
+ * false, and ExplicitCrdtSet w/ includeImplicit = true.
+ * For those, deletes don't perform a reset; to add that,
+ * input them to ResettingCrdtSet.
+ *
+ * RiakCrdtSet has "both" membership, and deletes do perform
+ * a reset.  TODO: discuss GC-able options.
+ */
+
+/**
+ * A basic CrdtSet that implicitly manages membership.
+ * Its main purpose is to create Crdts.
  *
  * For the
  * purpose of values and has, a valueCrdt is considered
@@ -30,14 +51,9 @@ import { AddWinsPlainSet, GPlainSet } from "./plain_sets";
  * ones, and so values() is unable to consistently return
  * all trivial elements.
  *
- * delete, clear, reset, and restore are not
- * supported and will throw an error.
- *
- * TODO: unify names of UnmanagedCrdtSet & LazyMap?  They are the set/map
- * versions of similar concepts.
- * TODO: don't implement the CrdtSet interface, like LazyMap?
+ * delete, clear, reset, and restore have no effect.
  */
-export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
+export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   /**
    * Keyed by: [creator replica id, creator unique number]
    */
@@ -47,7 +63,7 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     // TODO: optimized key serializer?
     this.lazyMap = this.addChild(
       "lazyMap",
-      // TODO: also give counter value?
+      // TODO: also give senderCounter value?
       new LazyCrdtMap((key) => valueCrdtConstructor(key[0]))
     );
   }
@@ -65,15 +81,17 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   }
 
   restore(_valueCrdt: C): this {
-    throw new Error("Unsupported operation: GCrdtSet.restore");
+    // No-op
+    return this;
   }
 
-  delete(_valueCrdt: C): boolean {
-    throw new Error("Unsupported operation: GCrdtSet.delete");
+  delete(valueCrdt: C): boolean {
+    // No-op
+    return this.has(valueCrdt);
   }
 
   clear(): void {
-    throw new Error("Unsupported operation: GCrdtSet.clear");
+    // No-op
   }
 
   has(valueCrdt: C): boolean {
@@ -89,43 +107,43 @@ export class UnmanagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   }
 
   reset(): void {
-    throw new Error("Unsupported operation: GCrdtSet.reset");
+    // No-op
   }
 }
 
 // TODO: optimized serializer for memberSet (just use name)
-export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
-  protected readonly unmanagedSet: UnmanagedCrdtSet<C>;
+export class ExplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
+  protected readonly implicitSet: ImplicitCrdtSet<C>;
   protected readonly memberSet: PlainSet<C>;
-  protected readonly hasNontrivial: boolean;
+  protected readonly includeImplicit: boolean;
   // TODO: memberSet must be a new set, we add it as
   // a child.  Once we fix Crdt init, it will be
   // an initializer instead of an actual Crdt.
   // TODO: note that delete, clear, reset have the
-  // wrong sequential semantics when hasNontrivial is
+  // wrong sequential semantics when includeImplicit is
   // true (elements may stay present).  Also
   // reset doesn't make the state GC-able unless
   // every element is also GC-able.
   constructor(
     valueCrdtConstructor: (creatorReplicaId: string) => C,
     memberSet: PlainSet<C>,
-    settings: { hasNontrivial: boolean }
+    settings: { includeImplicit: boolean }
   ) {
     super();
-    this.unmanagedSet = this.addChild(
-      "unmanagedSet",
-      new UnmanagedCrdtSet(valueCrdtConstructor)
+    this.implicitSet = this.addChild(
+      "implicitSet",
+      new ImplicitCrdtSet(valueCrdtConstructor)
     );
     this.memberSet = this.addChild("memberSet", memberSet);
-    this.hasNontrivial = settings.hasNontrivial;
+    this.includeImplicit = settings.includeImplicit;
   }
 
   owns(valueCrdt: C): boolean {
-    return this.unmanagedSet.owns(valueCrdt);
+    return this.implicitSet.owns(valueCrdt);
   }
 
   create(): C {
-    const created = this.unmanagedSet.create();
+    const created = this.implicitSet.create();
     this.memberSet.add(created);
     return created;
   }
@@ -150,7 +168,7 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     this.checkOwns(valueCrdt);
     return (
       this.memberSet.has(valueCrdt) ||
-      (this.hasNontrivial && !valueCrdt.canGc())
+      (this.includeImplicit && this.implicitSet.has(valueCrdt))
     );
   }
 
@@ -164,10 +182,10 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   *values(): IterableIterator<C> {
     // TODO: can we make the order EC?
     for (let value of this.memberSet) yield value;
-    if (this.hasNontrivial) {
+    if (this.includeImplicit) {
       // TODO: this might get weird if there are
       // concurrent mutations.
-      for (let value of this.unmanagedSet) {
+      for (let value of this.implicitSet) {
         // Only yield it if it has not been yielded already.
         if (!this.memberSet.has(value)) yield value;
       }
@@ -184,29 +202,33 @@ export class ManagedCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
 
 export class ResettingCrdtSet<
   C extends Crdt & Resettable
-> extends ManagedCrdtSet<C> {
-  constructor(
-    valueCrdtConstructor: (creatorReplicaId: string) => C,
-    memberSet: PlainSet<C>,
-    options: { hasNontrivial: boolean }
-  ) {
-    super(valueCrdtConstructor, memberSet, options);
+> extends DecoratedCrdtSet<C> {
+  constructor(set: CrdtSet<C>) {
+    super(set);
   }
 
   delete(valueCrdt: C): boolean {
     const had = this.has(valueCrdt);
     valueCrdt.reset();
-    this.memberSet.delete(valueCrdt);
+    super.delete(valueCrdt);
     return had;
   }
 
   clear(): void {
-    for (let valueCrdt of this.unmanagedSet) valueCrdt.reset();
+    // TODO: efficient for explicit set because this
+    // might create valueCrdts that are explicitly
+    // present but not implicitly present, just
+    // to reset them.  Probably not worth breaking
+    // the decorator abstract to optimize, though,
+    // especially since such reset calls are no-ops,
+    // it is just the cost of creating trivial valueCrdts.
+    // Likewise for reset() below.
+    for (let valueCrdt of this) valueCrdt.reset();
     super.clear();
   }
 
   reset(): void {
-    for (let valueCrdt of this.unmanagedSet) valueCrdt.reset();
+    for (let valueCrdt of this) valueCrdt.reset();
     super.reset();
   }
 }
@@ -217,17 +239,20 @@ export class RiakCrdtSet<
   C extends Crdt & Resettable
 > extends ResettingCrdtSet<C> {
   constructor(valueCrdtConstructor: (creatorReplicaId: string) => C) {
-    super(valueCrdtConstructor, new AddWinsPlainSet(), {
-      hasNontrivial: true,
-    });
+    super(
+      new ExplicitCrdtSet(valueCrdtConstructor, new AddWinsPlainSet(), {
+        includeImplicit: true,
+      })
+    );
   }
 }
 
-// TODO: better name?
-export class GRiakCrdtSet<C extends Crdt> extends ManagedCrdtSet<C> {
+// TODO: note which methods will throw errors
+// (due to errors from GPlainSet).
+export class GCrdtSet<C extends Crdt> extends ExplicitCrdtSet<C> {
   constructor(valueCrdtConstructor: (creatorReplicaId: string) => C) {
     super(valueCrdtConstructor, new GPlainSet(), {
-      hasNontrivial: false,
+      includeImplicit: false,
     });
   }
 }

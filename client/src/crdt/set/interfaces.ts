@@ -14,6 +14,14 @@ export interface PlainSet<T> extends Crdt, Resettable {
    * than reset.
    */
   clear(): void;
+  /**
+   * Returns whether value was present in the set.
+   *
+   * TODO: if delete does nothing (violates sequential
+   * semantics), should this instead return whether
+   * the set changed?  Likewise for deletes in other
+   * interfaces.
+   */
   delete(value: T): boolean;
   // TODO: forEach
   has(value: T): boolean;
