@@ -137,10 +137,6 @@ export class ExplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     this.includeImplicit = settings.includeImplicit;
   }
 
-  owns(valueCrdt: C): boolean {
-    return this.implicitSet.owns(valueCrdt);
-  }
-
   create(): C {
     const created = this.implicitSet.create();
     this.memberSet.add(created);
@@ -153,14 +149,18 @@ export class ExplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     return this;
   }
 
+  clear(): void {
+    this.memberSet.clear();
+  }
+
   delete(valueCrdt: C): boolean {
     const had = this.has(valueCrdt);
     this.memberSet.delete(valueCrdt);
     return had;
   }
 
-  clear(): void {
-    this.memberSet.clear();
+  owns(valueCrdt: C): boolean {
+    return this.implicitSet.owns(valueCrdt);
   }
 
   has(valueCrdt: C): boolean {
@@ -214,7 +214,7 @@ export class ResettingCrdtSet<
   }
 
   clear(): void {
-    // TODO: efficient for explicit set because this
+    // TODO: inefficient for implicit set because this
     // might create valueCrdts that are explicitly
     // present but not implicitly present, just
     // to reset them.  Probably not worth breaking

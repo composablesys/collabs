@@ -5,7 +5,7 @@ import { Crdt } from "../core";
 // semantics for values.
 export interface PlainMap<K, V> extends Resettable, Crdt {
   /**
-   * Delete every value in this set.
+   * Delete every key in this map.
    *
    * Note that this may be a different semantics
    * than reset.
@@ -42,7 +42,7 @@ export interface PlainMap<K, V> extends Resettable, Crdt {
 // by implicitly-initialized Crdt's.  Any semantics.
 export interface CrdtMap<K, C extends Crdt> extends Resettable, Crdt {
   /**
-   * Delete every value in this set.
+   * Delete every key in this map.
    *
    * Note that this may be a different semantics
    * than reset.
@@ -58,6 +58,7 @@ export interface CrdtMap<K, C extends Crdt> extends Resettable, Crdt {
    */
   owns(valueCrdt: C): boolean;
   has(key: K): boolean;
+  hasValue(valueCrdt: C): boolean;
   // TODO: require sequential semantics, so that addKey
   // followed by get! is always safe?
   // Necessary for some situations, e.g., RegisterPlainMap.

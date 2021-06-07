@@ -59,7 +59,12 @@ export interface PlainSet<T> extends Crdt, Resettable {
 export interface CrdtSet<C extends Crdt> extends Crdt, Resettable {
   create(): C;
   restore(valueCrdt: C): this;
-  /** Alias for reset(). */
+  /**
+   * Delete every value in this set.
+   *
+   * Note that this may be a different semantics
+   * than reset.
+   */
   clear(): void;
   delete(valueCrdt: C): boolean;
 

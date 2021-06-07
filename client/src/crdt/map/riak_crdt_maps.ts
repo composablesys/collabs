@@ -1,31 +1,308 @@
 import {
+  arrayAsString,
   DefaultElementSerializer,
   ElementSerializer,
-} from "../../util/serialization";
-import { LazyCrdtMap, Resettable } from "../helper_crdts";
-import { Crdt } from "../core/crdt";
-import { PlainSet } from "../set/interfaces";
-import { AddWinsPlainSet, GPlainSet } from "../set/plain_sets";
+  stringAsArray,
+  WeakValueMap,
+} from "../../util";
+import { Resettable } from "../helper_crdts";
+import { Crdt } from "../core";
+import { AddWinsPlainSet, GPlainSet, PlainSet } from "../set";
 import { AbstractCrdtMap } from "./abstract_maps";
+import { CrdtParent } from "../core";
+import { CausalTimestamp } from "../../net";
+import { CrdtMap } from "./interfaces";
+import { DecoratedCrdtMap } from "./decorated_maps";
 
-export class GeneralCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
-  protected readonly lazyCrdtMap: LazyCrdtMap<K, C>;
+/**
+ * Options for Riak-style CrdtMaps:
+ * - Key membership:
+ *     - Implicit: contains only keys whose valueCrdts are nontrivial (canGc is false))
+ *     - Explicit: determined by a given PlainSet
+ *     - Both: union of implicit and explicit members
+ * - Whether deletes perform a reset on the valueCrdt (T/F)
+ *
+ * TODO: violations of sequential semantics.
+ *
+ * The three membership options correspond to
+ * ImplicitCrdtMap, ExplicitCrdtMap w/ includeImplicit =
+ * false, and ExplicitCrdtMap w/ includeImplicit = true.
+ * For those, deletes don't perform a reset; to change that,
+ * input them to ResettingCrdtMap.
+ *
+ * RiakCrdtMap has "both" membership, and deletes do perform
+ * a reset.  TODO: discuss GC-able options.
+ */
+
+/**
+ * A basic CrdtMap that implicitly manages membership.
+ * Its main purpose is to manage Crdts sorted by key,
+ * in such a way that concurrent operations on the same
+ * key's value are merged.
+ *
+ * For the
+ * purpose of the iterators and has, a key is considered
+ * to be present in the map if its valuCrdt is nontrivial,
+ * specifically, if valueCrdt.canGc() returns false.
+ * Note that this implies that a just-added key may
+ * not be present in the map.  This unusual semantics
+ * is necessary because the map does not necessarily
+ * maintain all elements internally, only the nontrivial
+ * ones, and so the iterators are unable to consistently return
+ * all trivial elements.
+ *
+ * delete, clear, reset, and restore have no effect.
+ */
+export class ImplicitCrdtMap<K, C extends Crdt>
+  extends Crdt
+  implements CrdtMap<K, C>, CrdtParent
+{
+  private readonly nontrivialMap: Map<string, C> = new Map();
+  private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
+  /**
+   * Map keys and their serializer/deserializer are handled as in
+   * GSetCrdt.
+   *
+   * @param valueConstructor A function used to initialize
+   * value Crdts when initKey() or getForce() is called on
+   * their key.  The Crdt must have given the parent and id.
+   * In the simplest usage, this function just calls C's
+   * constructor with the given parent and id, and default
+   * values otherwise (independent of key).
+   * If desired,
+   * the result can instead depend on key (e.g., using
+   * varying subclasses of C, or performing local operations
+   * to drive the Crdt to a desired state depending on K).
+   * However, the result must be identical on all replicas,
+   * even if they are in different global states.  The
+   * easiest way to ensure this is to have the result be
+   * a function of the given arguments only.
+   */
+  constructor(
+    private readonly valueConstructor: (key: K) => C,
+    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+  ) {
+    super();
+  }
+
+  private keyAsString(key: K) {
+    return arrayAsString(this.keySerializer.serialize(key));
+  }
+  private stringAsKey(str: string) {
+    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
+  }
+
+  private getInternal(
+    key: K,
+    keyString: string
+  ): [value: C, nontrivial: boolean, isNew: boolean] {
+    let value = this.nontrivialMap.get(keyString);
+    if (value === undefined) {
+      // Check the backup map
+      value = this.trivialMap.get(keyString);
+      if (value === undefined) {
+        // Create it, but only in the backup map,
+        // since it is currently GC-able
+        value = this.valueConstructor(key);
+
+        this.childBeingAdded = value;
+        value.init(keyString, this);
+        this.childBeingAdded = undefined;
+
+        this.trivialMap.set(keyString, value);
+        return [value, false, true];
+      }
+      return [value, false, false];
+    } else return [value, true, false];
+  }
+
+  private childBeingAdded?: C;
+  onChildInit(child: Crdt) {
+    if (child != this.childBeingAdded) {
+      throw new Error(
+        "this was passed to Crdt.init as parent externally" +
+          " (GMap manages its own children - they are its values)"
+      );
+    }
+  }
+
+  protected receiveInternal(
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
+    // Message for a child
+    let keyString = targetPath[targetPath.length - 1];
+    let key = this.stringAsKey(keyString);
+    let [value, nontrivialStart, isNew] = this.getInternal(key, keyString);
+    targetPath.length--;
+    value.receive(targetPath, timestamp, message);
+
+    // If the value became GC-able, move it to the
+    // backup map
+    if (nontrivialStart && value.canGc()) {
+      this.nontrivialMap.delete(keyString);
+      this.trivialMap.set(keyString, value);
+    }
+    // If the value became nontrivial, move it to the
+    // main map
+    else if (!nontrivialStart && !value.canGc()) {
+      this.trivialMap.delete(keyString);
+      this.nontrivialMap.set(keyString, value);
+    }
+
+    // TODO
+    // // Dispatch events
+    // if (isNew) {
+    //   this.emit("NewValueCrdt", {
+    //     caller: this,
+    //     timestamp,
+    //     key,
+    //     valueCrdt: value,
+    //   });
+    // }
+    // this.emit("ValueCrdtChange", {
+    //   caller: this,
+    //   timestamp,
+    //   key,
+    //   valueCrdt: value,
+    // });
+  }
+
+  getDescendant(targetPath: string[]): Crdt {
+    if (targetPath.length === 0) return this;
+
+    let keyString = targetPath[targetPath.length - 1];
+    let value = this.getInternal(this.stringAsKey(keyString), keyString)[0];
+    targetPath.length--;
+    return value.getDescendant(targetPath);
+  }
+
+  clear(): void {
+    // No-op
+  }
+
+  delete(key: K): boolean {
+    // No-op
+    return this.has(key);
+  }
+
+  /**
+   * TODO: returns the value even if has = false, so
+   * that it's possible to get it, and so that common
+   * get! idioms work.  getIfPresent does the usual
+   * get semantics.  (TODO: Swap these roles?)
+   * @param  key [description]
+   * @return     [description]
+   */
+  get(key: K): C {
+    return this.getInternal(key, this.keyAsString(key))[0];
+  }
+
+  getIfPresent(key: K): C | undefined {
+    return this.nontrivialMap.get(this.keyAsString(key));
+  }
+
+  /**
+   * Returns true if valueCrdt is owned by this
+   * ImplicitCrdtMap, i.e., it is an output of this.get.
+   */
+  owns(valueCrdt: C): boolean {
+    return valueCrdt.parent === this;
+  }
+
+  private checkOwns(valueCrdt: C) {
+    if (!this.owns(valueCrdt)) {
+      throw new Error("valueCrdt is not owned by this ImplicitCrdtMap");
+    }
+  }
+
+  has(key: K): boolean {
+    return this.nontrivialMap.has(this.keyAsString(key));
+  }
+
+  hasValue(valueCrdt: C): boolean {
+    this.checkOwns(valueCrdt);
+    return !valueCrdt.canGc();
+  }
+
+  addKey(_key: K): this {
+    // No-op
+    return this;
+  }
+
+  /**
+   * Returns valueCrdt's key.
+   */
+  keyOf(valueCrdt: C): K {
+    this.checkOwns(valueCrdt);
+    return this.stringAsKey(valueCrdt.name);
+  }
+
+  get size(): number {
+    return this.nontrivialMap.size;
+  }
+
+  [Symbol.iterator](): IterableIterator<[K, C]> {
+    return this.entries();
+  }
+
+  *entries(): IterableIterator<[K, C]> {
+    for (let entry of this.nontrivialMap) {
+      yield [this.stringAsKey(entry[0]), entry[1]];
+    }
+  }
+
+  *keys(): IterableIterator<K> {
+    for (let str of this.nontrivialMap.keys()) {
+      yield this.stringAsKey(str);
+    }
+  }
+
+  values(): IterableIterator<C> {
+    return this.nontrivialMap.values();
+  }
+
+  reset() {
+    // No-op
+  }
+
+  canGc() {
+    /*
+     * We don't need to check here that the backup
+     * map is nonempty (which would be expensive):
+     * each value Crdt points to us (due to Crdt.parent),
+     * so we will only be forgotten by a containing
+     * ImplicitCrdtMap if all of our children have no
+     * references to them, which is equivalent to the
+     * backup map being empty(able).
+     */
+    return this.nontrivialMap.size === 0;
+  }
+}
+
+export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
+  protected readonly implicitMap: ImplicitCrdtMap<K, C>;
   protected readonly keySet: PlainSet<K>;
-  protected readonly hasNontrivial: boolean;
+  protected readonly includeImplicit: boolean;
 
   constructor(
     valueCrdtConstructor: (key: K) => C,
     keySet: PlainSet<K>,
-    settings: { hasNontrivial: boolean },
+    settings: { includeImplicit: boolean },
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
     super();
-    this.lazyCrdtMap = this.addChild(
-      "lazyCrdtMap",
-      new LazyCrdtMap(valueCrdtConstructor, keySerializer)
+    this.implicitMap = this.addChild(
+      "implicitMap",
+      new ImplicitCrdtMap(valueCrdtConstructor, keySerializer)
     );
     this.keySet = this.addChild("keySet", keySet);
-    this.hasNontrivial = settings.hasNontrivial;
+    this.includeImplicit = settings.includeImplicit;
+  }
+
+  clear(): void {
+    this.keySet.clear();
   }
 
   delete(key: K): boolean {
@@ -34,23 +311,19 @@ export class GeneralCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
     return had;
   }
 
-  clear(): void {
-    this.keySet.clear();
-  }
-
   get(key: K): C | undefined {
-    if (this.has(key)) return this.lazyCrdtMap.get(key);
+    if (this.has(key)) return this.implicitMap.get(key);
     else return undefined;
   }
 
   owns(valueCrdt: C): boolean {
-    return this.lazyCrdtMap.owns(valueCrdt);
+    return this.implicitMap.owns(valueCrdt);
   }
 
   has(key: K): boolean {
     return (
       this.keySet.has(key) ||
-      (this.hasNontrivial && this.lazyCrdtMap.nontrivialHas(key))
+      (this.includeImplicit && this.implicitMap.has(key))
     );
   }
 
@@ -60,7 +333,7 @@ export class GeneralCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
   }
 
   keyOf(valueCrdt: C): K {
-    return this.lazyCrdtMap.keyOf(valueCrdt);
+    return this.implicitMap.keyOf(valueCrdt);
   }
 
   get size(): number {
@@ -72,11 +345,11 @@ export class GeneralCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
 
   *entries(): IterableIterator<[K, C]> {
     // TODO: can we make the order EC?
-    for (let key of this.keySet) yield [key, this.lazyCrdtMap.get(key)];
-    if (this.hasNontrivial) {
+    for (let key of this.keySet) yield [key, this.implicitMap.get(key)];
+    if (this.includeImplicit) {
       // TODO: this might get weird if there are
       // concurrent mutations.
-      for (let [key, valueCrdt] of this.lazyCrdtMap.nontrivialEntries()) {
+      for (let [key, valueCrdt] of this.implicitMap) {
         // Only yield it if it has not been yielded already.
         if (!this.keySet.has(key)) yield [key, valueCrdt];
       }
@@ -94,36 +367,35 @@ export class GeneralCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
 export class ResettingCrdtMap<
   K,
   C extends Crdt & Resettable
-> extends GeneralCrdtMap<K, C> {
-  constructor(
-    valueCrdtConstructor: (key: K) => C,
-    keySet: PlainSet<K>,
-    settings: { hasNontrivial: boolean },
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
-  ) {
-    super(valueCrdtConstructor, keySet, settings, keySerializer);
+> extends DecoratedCrdtMap<K, C> {
+  constructor(map: CrdtMap<K, C>) {
+    super(map);
   }
 
   delete(key: K): boolean {
     const had = this.has(key);
-    const valueCrdt = this.lazyCrdtMap.nontrivialGet(key);
+    // TODO: avoid creating the CRDT for implicit map?
+    const valueCrdt = this.map.get(key);
     if (valueCrdt !== undefined) valueCrdt.reset();
-    if (this.lazyCrdtMap.nontrivialHas(key)) {
-      this.lazyCrdtMap.get(key).reset();
-    }
-    this.keySet.delete(key);
+    super.delete(key);
     return had;
   }
 
   clear(): void {
-    for (let valueCrdt of this.lazyCrdtMap.nontrivialValues())
-      valueCrdt.reset();
+    // TODO: inefficient for implicit map because this
+    // might create valueCrdts that are explicitly
+    // present but not implicitly present, just
+    // to reset them.  Probably not worth breaking
+    // the decorator abstract to optimize, though,
+    // especially since such reset calls are no-ops,
+    // it is just the cost of creating trivial valueCrdts.
+    // Likewise for reset() below.
+    for (let valueCrdt of this.values()) valueCrdt.reset();
     super.clear();
   }
 
   reset(): void {
-    for (let valueCrdt of this.lazyCrdtMap.nontrivialValues())
-      valueCrdt.reset();
+    for (let valueCrdt of this.values()) valueCrdt.reset();
     super.reset();
   }
 }
@@ -135,17 +407,20 @@ export class RiakCrdtMap<
   C extends Crdt & Resettable
 > extends ResettingCrdtMap<K, C> {
   constructor(valueCrdtConstructor: (key: K) => C) {
-    super(valueCrdtConstructor, new AddWinsPlainSet(), {
-      hasNontrivial: true,
-    });
+    super(
+      new ExplicitCrdtMap(valueCrdtConstructor, new AddWinsPlainSet(), {
+        includeImplicit: true,
+      })
+    );
   }
 }
 
-// TODO: better name?
-export class GRiakCrdtSet<K, C extends Crdt> extends GeneralCrdtMap<K, C> {
+// TODO: note which methods will throw errors
+// (due to errors from GPlainSet).
+export class GCrdtSet<K, C extends Crdt> extends ExplicitCrdtMap<K, C> {
   constructor(valueCrdtConstructor: (key: K) => C) {
     super(valueCrdtConstructor, new GPlainSet(), {
-      hasNontrivial: false,
+      includeImplicit: false,
     });
   }
 }

@@ -44,6 +44,10 @@ export abstract class AbstractCrdtMap<
     for (let key of this.keys()) this.delete(key);
   }
 
+  hasValue(valueCrdt: C): boolean {
+    return this.has(this.keyOf(valueCrdt));
+  }
+
   [Symbol.iterator](): IterableIterator<[K, C]> {
     return this.entries();
   }

@@ -9,7 +9,7 @@ export class DecoratedCrdtMap<K, C extends Crdt>
   extends CompositeCrdt
   implements CrdtMap<K, C>
 {
-  private readonly map: CrdtMap<K, C>;
+  protected readonly map: CrdtMap<K, C>;
   constructor(map: CrdtMap<K, C>) {
     super();
     this.map = this.addChild("map", map);
@@ -33,6 +33,10 @@ export class DecoratedCrdtMap<K, C extends Crdt>
 
   has(key: K): boolean {
     return this.map.has(key);
+  }
+
+  hasValue(valueCrdt: C): boolean {
+    return this.map.hasValue(valueCrdt);
   }
 
   addKey(key: K): this {

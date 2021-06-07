@@ -7,9 +7,9 @@ import { CrdtSet } from "./interfaces";
 
 export class DecoratedCrdtSet<C extends Crdt>
   extends CompositeCrdt
-  implements CrdtSet<C>
+  implements CrdtSet<C> 
 {
-  private readonly set: CrdtSet<C>;
+  protected readonly set: CrdtSet<C>;
   constructor(set: CrdtSet<C>) {
     super();
     this.set = this.addChild("set", set);
