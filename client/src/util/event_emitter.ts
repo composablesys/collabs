@@ -3,7 +3,7 @@ export interface EventsRecord {
 }
 
 type Unsubscribe = () => void;
-type Handler<T> = (event: T) => void;
+type Handler<T, C> = (event: T, caller: C) => void;
 
 /**
  * Classes extending EventEmitter can emit events, and listeners can await
@@ -20,7 +20,7 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    * Maps event names to registered handlers.
    */
   private readonly handlers: Partial<
-    { [K in keyof Events]: Set<Handler<Events[K]>> }
+    { [K in keyof Events]: Set<Handler<Events[K], this>> }
   > = {};
 
   /**
@@ -31,9 +31,9 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    */
   on<K extends keyof Events>(
     eventName: K,
-    handler: Handler<Events[K]>
+    handler: Handler<Events[K], this>
   ): Unsubscribe {
-    const set: Set<Handler<Events[K]>> = (this.handlers[eventName] =
+    const set: Set<Handler<Events[K], this>> = (this.handlers[eventName] =
       this.handlers[eventName] ?? new Set([handler]));
     set.add(handler);
     return () => set.delete(handler);
@@ -63,7 +63,7 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    */
   protected emit<K extends keyof Events>(eventName: K, event: Events[K]): void {
     for (const handler of this.handlers[eventName] ?? []) {
-      handler(event);
+      handler(event, this);
     }
   }
 }

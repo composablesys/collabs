@@ -15,14 +15,6 @@ import { Runtime } from "./runtime";
  */
 export interface CrdtEvent {
   /**
-   * The Crdt instance that was changed.
-   *
-   * Subinterfaces of CrdtEvent for specific Crdt
-   * types should specialize the type of caller.
-   */
-  readonly caller: Crdt;
-
-  /**
    * The causal timestamp of the change.
    *
    * Note that
@@ -140,7 +132,7 @@ export abstract class Crdt<
     message: Uint8Array
   ) {
     this.receiveInternal(targetPath, timestamp, message);
-    this.emit("Change", { caller: this, timestamp: timestamp });
+    this.emit("Change", { timestamp: timestamp });
   }
 
   /**
