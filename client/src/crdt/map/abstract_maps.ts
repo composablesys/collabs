@@ -1,5 +1,10 @@
 import { CompositeCrdt, Crdt, CrdtEventsRecord } from "../core";
-import { CrdtMap, PlainMap } from "./interfaces";
+import {
+  CrdtMap,
+  CrdtMapEventsRecord,
+  PlainMap,
+  PlainMapEventsRecord,
+} from "./interfaces";
 
 /**
  * Convenience abstract class that provides default
@@ -15,7 +20,7 @@ import { CrdtMap, PlainMap } from "./interfaces";
 export abstract class AbstractCrdtMap<
     K,
     C extends Crdt,
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    Events extends CrdtMapEventsRecord<K, C> = CrdtMapEventsRecord<K, C>,
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>
@@ -64,7 +69,7 @@ export abstract class AbstractCrdtMap<
 export abstract class AbstractPlainMap<
     K,
     V,
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    Events extends PlainMapEventsRecord<K> = PlainMapEventsRecord<K>,
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>

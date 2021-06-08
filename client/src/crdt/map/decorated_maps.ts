@@ -1,18 +1,22 @@
 import { Crdt, CompositeCrdt } from "../core";
-import { CrdtMap } from "./interfaces";
+import { CrdtMap, CrdtMapEventsRecord } from "./interfaces";
 
 // Maps that decorate an existing map, copying its
 // methods.  Override to modify methods.
 // More flexible/reusable than subclassing the decorated maps.
 
 export class DecoratedCrdtMap<K, C extends Crdt>
-  extends CompositeCrdt
+  extends CompositeCrdt<CrdtMapEventsRecord<K, C>>
   implements CrdtMap<K, C>
 {
   protected readonly map: CrdtMap<K, C>;
   constructor(map: CrdtMap<K, C>) {
     super();
     this.map = this.addChild("map", map);
+    // TODO: do this as a loop if TypeScript will allow it
+    this.map.on("KeyAdd", (event) => this.emit("KeyAdd", event));
+    this.map.on("KeyDelete", (event) => this.emit("KeyDelete", event));
+    this.map.on("ValueInit", (event) => this.emit("ValueInit", event));
   }
 
   clear(): void {

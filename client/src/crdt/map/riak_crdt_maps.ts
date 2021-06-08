@@ -11,7 +11,7 @@ import { AddWinsPlainSet, GPlainSet, PlainSet } from "../set";
 import { AbstractCrdtMap } from "./abstract_maps";
 import { CrdtParent } from "../core";
 import { CausalTimestamp } from "../../net";
-import { CrdtMap } from "./interfaces";
+import { CrdtMap, CrdtMapEventsRecord } from "./interfaces";
 import { DecoratedCrdtMap } from "./decorated_maps";
 
 /**
@@ -54,7 +54,7 @@ import { DecoratedCrdtMap } from "./decorated_maps";
  * delete, clear, reset, and restore have no effect.
  */
 export class ImplicitCrdtMap<K, C extends Crdt>
-  extends Crdt
+  extends Crdt<CrdtMapEventsRecord<K, C>>
   implements CrdtMap<K, C>, CrdtParent
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
@@ -143,30 +143,24 @@ export class ImplicitCrdtMap<K, C extends Crdt>
     if (nontrivialStart && value.canGc()) {
       this.nontrivialMap.delete(keyString);
       this.trivialMap.set(keyString, value);
+      this.emit("KeyDelete", { key, timestamp });
     }
     // If the value became nontrivial, move it to the
     // main map
     else if (!nontrivialStart && !value.canGc()) {
       this.trivialMap.delete(keyString);
       this.nontrivialMap.set(keyString, value);
+      this.emit("KeyAdd", { key, timestamp });
     }
 
-    // TODO
-    // // Dispatch events
-    // if (isNew) {
-    //   this.emit("NewValueCrdt", {
-    //     caller: this,
-    //     timestamp,
-    //     key,
-    //     valueCrdt: value,
-    //   });
-    // }
-    // this.emit("ValueCrdtChange", {
-    //   caller: this,
-    //   timestamp,
-    //   key,
-    //   valueCrdt: value,
-    // });
+    // Dispatch ValueInit event
+    if (isNew) {
+      this.emit("ValueInit", {
+        timestamp,
+        key,
+        value,
+      });
+    }
   }
 
   getDescendant(targetPath: string[]): Crdt {
@@ -299,6 +293,40 @@ export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
     );
     this.keySet = this.addChild("keySet", keySet);
     this.includeImplicit = settings.includeImplicit;
+
+    // Events
+    // TODO: optimize to reduce closures?
+    this.implicitMap.on("ValueInit", (event) => {
+      if (this.includeImplicit) {
+        event.value.on("Change", () => {
+          if (this.has(event.key)) {
+            this.emit("KeyAdd", {
+              key: event.key,
+              timestamp: event.timestamp,
+            });
+          } else {
+            this.emit("KeyDelete", {
+              key: event.key,
+              timestamp: event.timestamp,
+            });
+          }
+        });
+      }
+      this.emit("ValueInit", event);
+    });
+    this.keySet.on("Add", (event) =>
+      this.emit("KeyAdd", { key: event.value, timestamp: event.timestamp })
+    );
+    this.keySet.on("Delete", (event) => {
+      // We should check it's really deleted, if includeImplicit
+      // is true.
+      if (!this.includeImplicit || !this.has(event.value)) {
+        this.emit("KeyDelete", {
+          key: event.value,
+          timestamp: event.timestamp,
+        });
+      }
+    });
   }
 
   clear(): void {

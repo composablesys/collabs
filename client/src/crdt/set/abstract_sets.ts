@@ -1,5 +1,10 @@
-import { Crdt, CrdtEventsRecord, CompositeCrdt } from "../core";
-import { CrdtSet, PlainSet } from "./interfaces";
+import { Crdt, CompositeCrdt } from "../core";
+import {
+  CrdtSet,
+  CrdtSetEventsRecord,
+  PlainSet,
+  PlainSetEventsRecord,
+} from "./interfaces";
 
 /**
  * Convenience abstract class that provides default
@@ -14,7 +19,7 @@ import { CrdtSet, PlainSet } from "./interfaces";
  */
 export abstract class AbstractCrdtSet<
     C extends Crdt,
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    Events extends CrdtSetEventsRecord<C> = CrdtSetEventsRecord<C>,
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>
@@ -56,7 +61,7 @@ export abstract class AbstractCrdtSet<
 
 export abstract class AbstractPlainSet<
     T,
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    Events extends PlainSetEventsRecord<T> = PlainSetEventsRecord<T>,
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>

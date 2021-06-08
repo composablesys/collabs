@@ -8,14 +8,6 @@ import { ImplicitCrdtMap } from "../map";
 
 // TODO: rename (Riak too niche)
 
-// TODO: events (from original interface).
-// Note create events won't happen until after an
-// op, due to how LazyMap works; this agrees with the
-// set semantics but may be odd for other sets
-// (need to listen on the managing set for created
-// events, instead of the unmanaged set).
-// Also add events to AbstractCrdtSet as base for Events.
-
 /**
  * Options for Riak-style CrdtSets:
  * - Membership:
@@ -66,6 +58,22 @@ export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
       // TODO: also give senderCounter value?
       new ImplicitCrdtMap((key) => valueCrdtConstructor(key[0]))
     );
+
+    // Events
+    // TODO: optimize to reduce closures?
+    this.implicitMap.on("ValueInit", (event) => {
+      event.value.on("Change", () => {
+        if (this.has(event.value)) {
+          this.emit("Add", { value: event.value, timestamp: event.timestamp });
+        } else {
+          this.emit("Delete", {
+            value: event.value,
+            timestamp: event.timestamp,
+          });
+        }
+      });
+      this.emit("ValueInit", event);
+    });
   }
 
   owns(valueCrdt: C): boolean {
@@ -136,6 +144,37 @@ export class ExplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     );
     this.memberSet = this.addChild("memberSet", memberSet);
     this.includeImplicit = settings.includeImplicit;
+
+    // Events
+    // TODO: optimize to reduce closures?
+    this.implicitSet.on("ValueInit", (event) => {
+      if (this.includeImplicit) {
+        event.value.on("Change", () => {
+          if (this.has(event.value)) {
+            this.emit("Add", {
+              value: event.value,
+              timestamp: event.timestamp,
+            });
+          } else {
+            this.emit("Delete", {
+              value: event.value,
+              timestamp: event.timestamp,
+            });
+          }
+        });
+      }
+      this.emit("ValueInit", event);
+    });
+    this.memberSet.on("Add", (event) =>
+      this.emit("Add", { value: event.value, timestamp: event.timestamp })
+    );
+    this.memberSet.on("Delete", (event) => {
+      // We should check it's really deleted, if includeImplicit
+      // is true.
+      if (!this.includeImplicit || !this.has(event.value)) {
+        this.emit("Delete", { value: event.value, timestamp: event.timestamp });
+      }
+    });
   }
 
   create(): C {
@@ -205,7 +244,6 @@ export class ResettingCrdtSet<
 > extends DecoratedCrdtSet<C> {
   constructor(set: CrdtSet<C>) {
     super(set);
-    let x: C = {} as unknown as C;
   }
 
   delete(valueCrdt: C): boolean {

@@ -9,7 +9,7 @@ import {
 import { PrimitiveCrdt } from "../core";
 import { Register, LwwRegister } from "../register";
 import { AbstractPlainMap } from "./abstract_maps";
-import { PlainMap } from "./interfaces";
+import { PlainMap, PlainMapEventsRecord } from "./interfaces";
 import { ImplicitCrdtMap } from "./riak_crdt_maps";
 
 export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
@@ -40,6 +40,21 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
       "internalMap",
       new ImplicitCrdtMap(registerConstructor, keySerializer)
     );
+
+    // Events
+    // TODO: optimize to reduce closures?
+    this.internalMap.on("ValueInit", (event) => {
+      event.value.on("Change", () => {
+        if (this.has(event.key)) {
+          this.emit("Set", { key: event.key, timestamp: event.timestamp });
+        } else {
+          this.emit("KeyDelete", {
+            key: event.key,
+            timestamp: event.timestamp,
+          });
+        }
+      });
+    });
   }
 
   delete(key: K): boolean {
@@ -102,7 +117,7 @@ export class LwwPlainMap<K, V> extends RegisterPlainMap<K, V> {
  * internally.
  */
 export class SequentialPlainMap<K, V>
-  extends PrimitiveCrdt<Map<string, V>>
+  extends PrimitiveCrdt<Map<string, V>, PlainMapEventsRecord<K>>
   implements PlainMap<K, V>
 {
   constructor(
@@ -157,6 +172,10 @@ export class SequentialPlainMap<K, V>
     message: Uint8Array
   ): void {
     const decoded = SequentialMapMessage.decode(message);
+    // TODO: as an optimization, could deserialize key
+    // only on demand in the events
+    // (use a getter + cache the result)
+    const key = this.keySerializer.deserialize(decoded.key, this.runtime);
     switch (decoded.operation) {
       case SequentialMapMessage.Operation.SET:
         // TODO: best-effort error if it's already set?
@@ -164,15 +183,15 @@ export class SequentialPlainMap<K, V>
           arrayAsString(decoded.key),
           this.valueSerializer.deserialize(decoded.value, this.runtime)
         );
+        this.emit("Set", { key, timestamp });
         break;
       case SequentialMapMessage.Operation.DELETE:
         this.state.delete(arrayAsString(decoded.key));
+        this.emit("KeyDelete", { key, timestamp });
         break;
       default:
         throw new Error("Unknown decoded.operation: " + decoded.operation);
     }
-
-    // TODO: events
   }
 
   get size(): number {

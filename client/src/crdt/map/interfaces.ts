@@ -1,9 +1,29 @@
-import { Resettable } from "../helper_crdts";
-import { Crdt } from "../core";
+import { Resettable, ResettableEventsRecord } from "../helper_crdts";
+import { Crdt, CrdtEvent } from "../core";
+
+export interface MapKeyEvent<K> extends CrdtEvent {
+  key: K;
+}
+
+export interface MapEvent<K, V> extends CrdtEvent {
+  key: K;
+  value: V;
+}
+
+export interface PlainMapEventsRecord<K> extends ResettableEventsRecord {
+  // TODO: also include value?  You can get it from the map
+  // though.
+  Set: MapKeyEvent<K>;
+  KeyDelete: MapKeyEvent<K>;
+}
 
 // A map from keys to opaque values, with (any) register
 // semantics for values.
-export interface PlainMap<K, V> extends Resettable, Crdt {
+export interface PlainMap<
+  K,
+  V,
+  Events extends PlainMapEventsRecord<K> = PlainMapEventsRecord<K>
+> extends Resettable<Events> {
   /**
    * Delete every key in this map.
    *
@@ -38,9 +58,28 @@ export interface PlainMap<K, V> extends Resettable, Crdt {
   values(): IterableIterator<V>;
 }
 
+export interface CrdtMapEventsRecord<K, C extends Crdt>
+  extends ResettableEventsRecord {
+  KeyAdd: MapKeyEvent<K>;
+  KeyDelete: MapKeyEvent<K>;
+  /**
+   * Emitted when a valueCrdt is constructed.
+   * Use this to register event listeners on valueCrdts.
+   * Note that this may be called multiple times for the
+   * same key (if a valueCrdt is GC'd and then
+   * reconstructed), and it may not correspond precisely
+   * to KeyAdd events.
+   */
+  ValueInit: MapEvent<K, C>;
+}
+
 // TODO: same as Map above, but with values controlled
 // by implicitly-initialized Crdt's.  Any semantics.
-export interface CrdtMap<K, C extends Crdt> extends Resettable, Crdt {
+export interface CrdtMap<
+  K,
+  C extends Crdt,
+  Events extends CrdtMapEventsRecord<K, C> = CrdtMapEventsRecord<K, C>
+> extends Resettable<Events> {
   /**
    * Delete every key in this map.
    *

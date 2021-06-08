@@ -1,18 +1,22 @@
 import { Crdt, CompositeCrdt } from "../core";
-import { CrdtSet } from "./interfaces";
+import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
 
 // Sets that decorate an existing set, copying its
 // methods.  Override to modify methods.
 // More flexible/reusable than subclassing the decorated sets.
 
 export class DecoratedCrdtSet<C extends Crdt>
-  extends CompositeCrdt
-  implements CrdtSet<C> 
+  extends CompositeCrdt<CrdtSetEventsRecord<C>>
+  implements CrdtSet<C>
 {
   protected readonly set: CrdtSet<C>;
   constructor(set: CrdtSet<C>) {
     super();
     this.set = this.addChild("set", set);
+    // TODO: do this as a loop if TypeScript will allow it
+    this.set.on("Add", (event) => this.emit("Add", event));
+    this.set.on("Delete", (event) => this.emit("Delete", event));
+    this.set.on("ValueInit", (event) => this.emit("ValueInit", event));
   }
 
   create(): C {

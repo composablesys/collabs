@@ -9,7 +9,7 @@ import { Boolean, TrueWinsBoolean } from "../boolean";
 import { PrimitiveCrdt } from "../core";
 import { ImplicitCrdtMap } from "../map";
 import { AbstractPlainSet } from "./abstract_sets";
-import { PlainSet } from "./interfaces";
+import { PlainSet, PlainSetEventsRecord } from "./interfaces";
 
 export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
   private readonly booleanMap: ImplicitCrdtMap<T, Boolean>;
@@ -29,6 +29,18 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
       "booleanMap",
       new ImplicitCrdtMap(booleanConstructor, valueSerializer)
     );
+
+    // Events
+    // TODO: optimize to reduce closures?
+    this.booleanMap.on("ValueInit", (event) => {
+      event.value.on("Change", () => {
+        if (this.has(event.key)) {
+          this.emit("Add", { value: event.key, timestamp: event.timestamp });
+        } else {
+          this.emit("Delete", { value: event.key, timestamp: event.timestamp });
+        }
+      });
+    });
   }
 
   add(value: T): this {
@@ -83,8 +95,12 @@ export class AddWinsPlainSet<T> extends BooleanPlainSet<T> {
   }
 }
 
+// More generally, SequentialPlainSet, like SequentialMap.
+// Allowed use cases are: unique values; or grow-only.
+// (Perhaps implement GSet as a subclass that makes delete etc. give an error?)
+
 export class GPlainSet<T>
-  extends PrimitiveCrdt<Set<string>>
+  extends PrimitiveCrdt<Set<string>, PlainSetEventsRecord<T>>
   implements PlainSet<T>
 {
   constructor(
@@ -111,7 +127,12 @@ export class GPlainSet<T>
     message: Uint8Array
   ): void {
     this.state.add(arrayAsString(message));
-    // TODO: events
+    this.emit("Add", {
+      // TODO: as an optimization, could deserialize
+      // only on demand (use a getter + cache the result)
+      value: this.valueSerializer.deserialize(message, this.runtime),
+      timestamp,
+    });
   }
 
   has(value: T): boolean {
