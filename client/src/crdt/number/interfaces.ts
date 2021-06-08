@@ -1,5 +1,6 @@
-import { CrdtEvent } from "../core";
-import { Register, RegisterEventsRecord } from "../register";
+import { Crdt, CrdtEvent } from "../core";
+import { ResettableEventsRecord } from "../helper_crdts";
+import { Register } from "../register";
 
 export interface NumberAddEvent extends CrdtEvent {
   readonly added: number;
@@ -9,12 +10,14 @@ export interface NumberMultEvent extends CrdtEvent {
   readonly multed: number;
 }
 
-export interface NumberEventsRecord extends RegisterEventsRecord<number> {
+export interface NumberEventsRecord extends ResettableEventsRecord {
   Add: NumberAddEvent;
   Mult: NumberMultEvent;
 }
 
-export interface Number extends Register<number, NumberEventsRecord> {
+export interface Number<Events extends NumberEventsRecord = NumberEventsRecord>
+  extends Register<number, Events>,
+    Crdt<Events> {
   add(toAdd: number): void;
   mult(toMult: number): void;
   // TODO: min, max?

@@ -205,6 +205,7 @@ export class ResettingCrdtSet<
 > extends DecoratedCrdtSet<C> {
   constructor(set: CrdtSet<C>) {
     super(set);
+    let x: C = {} as unknown as C;
   }
 
   delete(valueCrdt: C): boolean {

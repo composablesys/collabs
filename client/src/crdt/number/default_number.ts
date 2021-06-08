@@ -40,7 +40,6 @@ class AddComponent extends PrimitiveCrdt<
     let decoded = DefaultNumberComponentMessage.decode(message);
     this.state.value += decoded.arg;
     this.emit("Add", {
-      caller: this,
       timestamp,
       added: decoded.arg,
     });
@@ -71,7 +70,6 @@ class MultComponent extends PrimitiveCrdt<
     let decoded = DefaultNumberComponentMessage.decode(message);
     this.state.value *= decoded.arg;
     this.emit("Mult", {
-      caller: this,
       timestamp,
       multed: decoded.arg,
     });
@@ -94,12 +92,8 @@ class DefaultNumberBase extends SemidirectProduct<
     this.addCrdt = new AddComponent(state);
     this.multCrdt = new MultComponent(state);
     super.setup(this.addCrdt, this.multCrdt, state);
-    this.addCrdt.on("Add", (event) =>
-      super.emit("Add", { ...event, caller: this })
-    );
-    this.multCrdt.on("Mult", (event) =>
-      super.emit("Mult", { ...event, caller: this })
-    );
+    this.addCrdt.on("Add", (event) => super.emit("Add", event));
+    this.multCrdt.on("Mult", (event) => super.emit("Mult", event));
   }
 
   protected action(
@@ -148,12 +142,8 @@ export class DefaultNumber
 {
   constructor(initialValue: number = 0) {
     super(initialValue);
-    this.original.on("Add", (event) =>
-      this.emit("Add", { ...event, caller: this })
-    );
-    this.original.on("Mult", (event) =>
-      this.emit("Mult", { ...event, caller: this })
-    );
+    this.original.on("Add", (event) => this.emit("Add", event));
+    this.original.on("Mult", (event) => this.emit("Mult", event));
   }
   add(toAdd: number): void {
     this.original.add(toAdd);

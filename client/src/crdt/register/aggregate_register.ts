@@ -1,38 +1,32 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CompositeCrdt } from "../core";
-import { Register, RegisterEventsRecord } from "./interfaces";
-import {
-  MultiValueRegister,
-  MvrMeta,
-  MvrSetEvent,
-} from "./multi_value_register";
+import { ResettableEventsRecord } from "../helper_crdts";
+import { Register } from "./interfaces";
+import { MultiValueRegister, MvrMeta } from "./multi_value_register";
 
 // TODO: mention as other examples, e.g., a color averager.
 // Demo that on whiteboard?
 
 export abstract class AggregateRegister<T>
-  extends CompositeCrdt<RegisterEventsRecord<T>>
+  extends CompositeCrdt<ResettableEventsRecord>
   implements Register<T>
 {
   private readonly mvr: MultiValueRegister<T>;
-  private cachedValue: T;
+  private cachedValue: T | undefined = undefined;
+  private cacheValid: boolean = false;
   constructor(
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
     this.mvr = this.addChild("mvr", new MultiValueRegister(valueSerializer));
-    this.mvr.on("Set", this.handleMvrEvent.bind(this));
-    // TODO: optimize?
-    this.cachedValue = this.aggregate(new Set());
+    this.mvr.on("Change", this.handleMvrEvent.bind(this));
+    this.mvr.on("Reset", (event) => this.emit("Reset", event));
   }
 
-  private handleMvrEvent(event: MvrSetEvent<T>) {
-    this.cachedValue = this.aggregate(this.mvr.conflictsMeta());
-    this.emit("Set", {
-      caller: this,
-      timestamp: event.timestamp,
-      value: this.cachedValue,
-    });
+  private handleMvrEvent() {
+    this.cacheValid = false;
+    // TODO: is this wise?
+    this.cachedValue = undefined;
   }
 
   set value(newValue: T) {
@@ -40,7 +34,19 @@ export abstract class AggregateRegister<T>
   }
 
   get value(): T {
-    return this.cachedValue;
+    if (!this.cacheValid) {
+      this.cachedValue = this.aggregate(this.mvr.conflictsMeta());
+      this.cacheValid = true;
+    }
+    return this.cachedValue!;
+  }
+
+  conflicts(): Set<T> {
+    return this.mvr.conflicts();
+  }
+
+  conflictsMeta(): Set<MvrMeta<T>> {
+    return this.mvr.conflictsMeta();
   }
 
   reset(): void {

@@ -2,7 +2,7 @@ import { MvrMessage } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { ResettableEventsRecord } from "../helper_crdts";
-import { CrdtEvent, PrimitiveCrdt } from "../core";
+import { PrimitiveCrdt } from "../core";
 
 export interface MvrMeta<T> {
   readonly value: T;
@@ -11,19 +11,10 @@ export interface MvrMeta<T> {
   readonly time: number;
 }
 
-export interface MvrSetEvent<T> extends CrdtEvent {
-  readonly caller: MultiValueRegister<T>;
-  readonly value: T;
-}
-
-export interface MvrEventsRecord<T> extends ResettableEventsRecord {
-  Set: MvrSetEvent<T>;
-}
-
 // TODO: equality semantics for set of values?
 export class MultiValueRegister<T> extends PrimitiveCrdt<
   MvrMeta<T>[],
-  MvrEventsRecord<T>
+  ResettableEventsRecord
 > {
   /**
    * Multi-value register of type T.
@@ -129,14 +120,12 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
         };
         newState.push(valueMeta);
         this.setNewState(newState);
-        this.emit("Set", {
-          caller: this,
-          timestamp,
-          value,
-        });
+      // TODO: emit an event with details about what
+      // changed, in case users want to know more
+      // than just the new value?
       case "reset":
         this.setNewState(newState);
-        this.emit("Reset", { caller: this, timestamp });
+        this.emit("Reset", { timestamp });
       default:
         throw new Error(
           "MultiValueRegister: Bad decoded.data: " + decoded.data

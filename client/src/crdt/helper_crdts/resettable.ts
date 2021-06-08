@@ -4,6 +4,7 @@ import {
   CrdtEventsRecord,
   StatefulCrdt,
   PrimitiveCrdt,
+  Crdt,
 } from "../core";
 import { SemidirectProduct } from "./semidirect_product";
 
@@ -11,7 +12,13 @@ import { SemidirectProduct } from "./semidirect_product";
 
 // TODO: ResettableCompositeCrdt (implement reset for you)
 
-export interface Resettable {
+export interface ResettableEventsRecord extends CrdtEventsRecord {
+  Reset: CrdtEvent;
+}
+
+export interface Resettable<
+  Events extends ResettableEventsRecord = ResettableEventsRecord
+> extends Crdt<Events> {
   /**
    * Perform an observed-reset operation on this Crdt.  Actually,
    * any behavior is acceptable (will not violate eventual
@@ -23,11 +30,6 @@ export interface Resettable {
    * reset() will have no effect.
    */
   reset(): void;
-}
-
-// TODO: allow specializing caller type to the actual type?
-export interface ResettableEventsRecord extends CrdtEventsRecord {
-  Reset: CrdtEvent;
 }
 
 /**
@@ -154,7 +156,6 @@ export class ResetWrapperCrdt<
 
   dispatchResetEvent(timestamp: CausalTimestamp) {
     this.emit("Reset", {
-      caller: this,
       timestamp: timestamp,
     });
   }

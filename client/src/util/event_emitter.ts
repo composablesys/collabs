@@ -18,9 +18,14 @@ type Handler<T, C> = (event: T, caller: C) => void;
 export abstract class EventEmitter<Events extends EventsRecord> {
   /**
    * Maps event names to registered handlers.
+   *
+   * TODO: properly, any should instead be this.  However,
+   * that causes errors when trying to treat a Crdt
+   * subclass as an instance of Crdt, for reasons
+   * that are not clear to me.
    */
   private readonly handlers: Partial<
-    { [K in keyof Events]: Set<Handler<Events[K], this>> }
+    { [K in keyof Events]: Set<Handler<Events[K], any>> }
   > = {};
 
   /**
@@ -33,7 +38,7 @@ export abstract class EventEmitter<Events extends EventsRecord> {
     eventName: K,
     handler: Handler<Events[K], this>
   ): Unsubscribe {
-    const set: Set<Handler<Events[K], this>> = (this.handlers[eventName] =
+    const set: Set<Handler<Events[K], any>> = (this.handlers[eventName] =
       this.handlers[eventName] ?? new Set([handler]));
     set.add(handler);
     return () => set.delete(handler);

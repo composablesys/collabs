@@ -71,7 +71,7 @@ export class CrdtFactory<TArgs extends any[], C extends Crdt> extends Crdt<
       newCrdt.init(name, this);
       this.childBeingAdded = undefined;
 
-      this.emit("NewCrdt", { caller: this, newCrdt, timestamp });
+      this.emit("NewCrdt", { newCrdt, timestamp });
 
       if (timestamp.isLocal()) {
         this.ourCreatedCrdt = newCrdt;

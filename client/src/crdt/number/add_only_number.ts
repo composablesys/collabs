@@ -76,7 +76,6 @@ class GAddOnlyNumber extends PrimitiveCrdt<
         this.state.P.set(keyString, decoded.add!.prNew);
         this.emit("Add", {
           added: decoded.add!.prNew - decoded.add!.prOld,
-          caller: this,
           timestamp,
         });
         break;
@@ -91,7 +90,7 @@ class GAddOnlyNumber extends PrimitiveCrdt<
             }
           }
         }
-        this.emit("Reset", { caller: this, timestamp });
+        this.emit("Reset", { timestamp });
         break;
       default:
         throw new Error("Unknown decoded.data: " + decoded.data);
@@ -125,22 +124,17 @@ export class AddOnlyNumber
     super();
     this.plus = this.addChild("1", new GAddOnlyNumber());
     this.minus = this.addChild("2", new GAddOnlyNumber());
-    this.plus.on("Add", (event) =>
-      this.emit("Add", { ...event, caller: this })
-    );
+    this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       this.emit("Add", {
         added: -event.added,
-        caller: this,
         timestamp: event.timestamp,
       })
     );
     // Dispatch on minus since that is reset last.
     // TODO: that may break with generic CompositeCrdt.
     // How to dispatch reset events for CompositeCrdt in general?
-    this.minus.on("Reset", (event) =>
-      this.emit("Reset", { ...event, caller: this })
-    );
+    this.minus.on("Reset", (event) => this.emit("Reset", event));
   }
 
   add(toAdd: number) {

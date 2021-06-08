@@ -1,20 +1,17 @@
-import { NoopCrdt, ResetWrapClass } from "../helper_crdts";
-import { RegisterEventsRecord } from "../register";
+import {
+  NoopCrdt,
+  ResettableEventsRecord,
+  ResetWrapClass,
+} from "../helper_crdts";
 import { Boolean } from "./interfaces";
 
 /** Enable-wins flag */
 export class TrueWinsBoolean
-  extends ResetWrapClass(NoopCrdt, true, false)<RegisterEventsRecord<boolean>>
+  extends ResetWrapClass(NoopCrdt, true, false)<ResettableEventsRecord>
   implements Boolean
 {
   constructor() {
     super();
-    this.on("Reset", (event) =>
-      this.emit("Set", { ...event, caller: this, value: false })
-    );
-    this.original.on("Change", (event) =>
-      this.emit("Set", { ...event, caller: this, value: true })
-    );
   }
 
   get value(): boolean {
@@ -29,17 +26,11 @@ export class TrueWinsBoolean
 
 /** Disable-wins flag */
 export class FalseWinsBoolean
-  extends ResetWrapClass(NoopCrdt, true, false)<RegisterEventsRecord<boolean>>
+  extends ResetWrapClass(NoopCrdt, true, false)<ResettableEventsRecord>
   implements Boolean
 {
   constructor() {
     super();
-    this.on("Reset", (event) =>
-      this.emit("Set", { ...event, caller: this, value: true })
-    );
-    this.original.on("Change", (event) =>
-      this.emit("Set", { ...event, caller: this, value: false })
-    );
   }
 
   get value(): boolean {
