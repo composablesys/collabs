@@ -19,7 +19,7 @@
   "scripts": {
     "build": "npm-run-all build:*",
     "build:ts": "tsc",
-    "build:docs": "typedoc --out docs index.ts",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "tscw": "tsc --watch",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
