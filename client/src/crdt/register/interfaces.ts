@@ -1,5 +1,4 @@
 import { Resettable, ResettableEventsRecord } from "../helper_crdts";
-import { Crdt, CrdtEventsRecord } from "../core";
 
 // TODO: force events to extend ResettableEventsRecord?
 // This doesn't actually have any effect because implementers

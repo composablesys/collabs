@@ -44,13 +44,13 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
     // Events
     // TODO: optimize to reduce closures?
     this.internalMap.on("ValueInit", (event) => {
-      event.value.on("Change", () => {
-        if (this.has(event.key)) {
-          this.emit("Set", { key: event.key, timestamp: event.timestamp });
+      event.value.on("Change", (event2) => {
+        if (this.internalMap.has(event.key)) {
+          this.emit("Set", { key: event.key, timestamp: event2.timestamp });
         } else {
           this.emit("KeyDelete", {
             key: event.key,
-            timestamp: event.timestamp,
+            timestamp: event2.timestamp,
           });
         }
       });

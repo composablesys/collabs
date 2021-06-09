@@ -33,11 +33,14 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
     // Events
     // TODO: optimize to reduce closures?
     this.booleanMap.on("ValueInit", (event) => {
-      event.value.on("Change", () => {
+      event.value.on("Change", (event2) => {
         if (this.has(event.key)) {
-          this.emit("Add", { value: event.key, timestamp: event.timestamp });
+          this.emit("Add", { value: event.key, timestamp: event2.timestamp });
         } else {
-          this.emit("Delete", { value: event.key, timestamp: event.timestamp });
+          this.emit("Delete", {
+            value: event.key,
+            timestamp: event2.timestamp,
+          });
         }
       });
     });

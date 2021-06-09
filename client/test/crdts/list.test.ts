@@ -1,18 +1,18 @@
 import { assert } from "chai";
 import {
-  CrdtRuntime,
+  Runtime,
   ISequenceSource,
   TreedocSource,
   TreedocId,
-} from "../../src/crdts";
-import { BitSet } from "../../src/utils/bitset";
-import { TestingNetworkGenerator } from "../../src/network";
+  TestingNetworkGenerator,
+} from "../../src";
 import seedrandom from "seedrandom";
+import { BitSet } from "../../src/util/bitset";
 
 describe("list", () => {
   let runtimeGen: TestingNetworkGenerator;
-  let alice: CrdtRuntime;
-  let bob: CrdtRuntime;
+  let alice: Runtime;
+  let bob: Runtime;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe("list", () => {
 
     beforeEach(() => {
       source = alice.registerCrdt("treedocSourceId", new TreedocSource());
-      aliceId = alice.getReplicaId();
+      aliceId = alice.replicaId;
     });
 
     it("compares sample correctly", () => {

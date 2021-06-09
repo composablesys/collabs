@@ -95,7 +95,7 @@ export class ImplicitCrdtMap<K, C extends Crdt>
   private getInternal(
     key: K,
     keyString: string
-  ): [value: C, nontrivial: boolean, isNew: boolean] {
+  ): [value: C, nontrivial: boolean] {
     let value = this.nontrivialMap.get(keyString);
     if (value === undefined) {
       // Check the backup map
@@ -110,10 +110,17 @@ export class ImplicitCrdtMap<K, C extends Crdt>
         this.childBeingAdded = undefined;
 
         this.trivialMap.set(keyString, value);
-        return [value, false, true];
+
+        // Dispatch ValueInit event immediately, so that listeners
+        // can register any messages are received.
+        this.emit("ValueInit", {
+          key,
+          value,
+        });
+        return [value, false];
       }
-      return [value, false, false];
-    } else return [value, true, false];
+      return [value, false];
+    } else return [value, true];
   }
 
   private childBeingAdded?: C;
@@ -126,40 +133,45 @@ export class ImplicitCrdtMap<K, C extends Crdt>
     }
   }
 
+  private inReceiveKeyStr: string | undefined = undefined;
+  private inReceiveValueCrdt: C | undefined = undefined;
+
   protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    // Message for a child
-    let keyString = targetPath[targetPath.length - 1];
-    let key = this.stringAsKey(keyString);
-    let [value, nontrivialStart, isNew] = this.getInternal(key, keyString);
-    targetPath.length--;
-    value.receive(targetPath, timestamp, message);
+    // TODO: like many (?) things, this will break if
+    // a message is received (e.g. due to a local operation)
+    // during one of the event handlers.
+    const keyString = targetPath[targetPath.length - 1];
+    this.inReceiveKeyStr = keyString;
+    try {
+      // Message for a child
+      let key = this.stringAsKey(keyString);
+      let [value, nontrivialStart] = this.getInternal(key, keyString);
+      this.inReceiveValueCrdt = value;
 
-    // If the value became GC-able, move it to the
-    // backup map
-    if (nontrivialStart && value.canGc()) {
-      this.nontrivialMap.delete(keyString);
-      this.trivialMap.set(keyString, value);
-      this.emit("KeyDelete", { key, timestamp });
-    }
-    // If the value became nontrivial, move it to the
-    // main map
-    else if (!nontrivialStart && !value.canGc()) {
-      this.trivialMap.delete(keyString);
-      this.nontrivialMap.set(keyString, value);
-      this.emit("KeyAdd", { key, timestamp });
-    }
+      targetPath.length--;
+      value.receive(targetPath, timestamp, message);
 
-    // Dispatch ValueInit event
-    if (isNew) {
-      this.emit("ValueInit", {
-        timestamp,
-        key,
-        value,
-      });
+      // If the value became GC-able, move it to the
+      // backup map
+      if (nontrivialStart && value.canGc()) {
+        this.nontrivialMap.delete(keyString);
+        this.trivialMap.set(keyString, value);
+        this.emit("KeyDelete", { key, timestamp });
+      }
+      // If the value became nontrivial, move it to the
+      // main map
+      else if (!nontrivialStart && !value.canGc()) {
+        this.trivialMap.delete(keyString);
+        this.nontrivialMap.set(keyString, value);
+        this.emit("KeyAdd", { key, timestamp });
+      }
+    } finally {
+      this.inReceiveKeyStr = undefined;
+      this.inReceiveValueCrdt = undefined;
     }
   }
 
@@ -212,7 +224,13 @@ export class ImplicitCrdtMap<K, C extends Crdt>
   }
 
   has(key: K): boolean {
-    return this.nontrivialMap.has(this.keyAsString(key));
+    const str = this.keyAsString(key);
+    if (this.inReceiveKeyStr === str) {
+      // The state of nontrivialMap cannot be relied
+      // upon, since it hasn't been recalculated yet.
+      // Instead, use canGc directly.
+      return !this.inReceiveValueCrdt!.canGc();
+    } else return this.nontrivialMap.has(str);
   }
 
   hasValue(valueCrdt: C): boolean {
@@ -298,16 +316,16 @@ export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
     // TODO: optimize to reduce closures?
     this.implicitMap.on("ValueInit", (event) => {
       if (this.includeImplicit) {
-        event.value.on("Change", () => {
+        event.value.on("Change", (event2) => {
           if (this.has(event.key)) {
             this.emit("KeyAdd", {
               key: event.key,
-              timestamp: event.timestamp,
+              timestamp: event2.timestamp,
             });
           } else {
             this.emit("KeyDelete", {
               key: event.key,
-              timestamp: event.timestamp,
+              timestamp: event2.timestamp,
             });
           }
         });

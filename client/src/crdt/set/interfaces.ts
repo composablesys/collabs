@@ -60,6 +60,16 @@ export interface PlainSet<
   values(): IterableIterator<T>;
 }
 
+/**
+ * Note that this doesn't extend CrdtEvent, because
+ * values may be initialized independently of
+ * message delivery, in which case there is
+ * no associated timestamp.
+ */
+export interface SetInitEvent<C extends Crdt> {
+  value: C;
+}
+
 // TODO: instead use separate event with name "valueCrdt"
 // instead of value?
 // TODO: Add vs Restore.  Add seems more general - apply
@@ -77,7 +87,7 @@ export interface CrdtSetEventsRecord<C extends Crdt>
    * reconstructed), and it may not correspond precisely
    * to Add events.
    */
-  ValueInit: SetEvent<C>;
+  ValueInit: SetInitEvent<C>;
 }
 
 // Will give each child a unique id.  In Riak semantics,

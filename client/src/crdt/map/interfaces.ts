@@ -58,6 +58,17 @@ export interface PlainMap<
   values(): IterableIterator<V>;
 }
 
+/**
+ * Note that this doesn't extend CrdtEvent, because
+ * values may be initialized independently of
+ * message delivery, in which case there is
+ * no associated timestamp.
+ */
+export interface MapInitEvent<K, C extends Crdt> {
+  key: K;
+  value: C;
+}
+
 export interface CrdtMapEventsRecord<K, C extends Crdt>
   extends ResettableEventsRecord {
   KeyAdd: MapKeyEvent<K>;
@@ -70,7 +81,7 @@ export interface CrdtMapEventsRecord<K, C extends Crdt>
    * reconstructed), and it may not correspond precisely
    * to KeyAdd events.
    */
-  ValueInit: MapEvent<K, C>;
+  ValueInit: MapInitEvent<K, C>;
 }
 
 // TODO: same as Map above, but with values controlled

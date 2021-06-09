@@ -62,13 +62,13 @@ export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     // Events
     // TODO: optimize to reduce closures?
     this.implicitMap.on("ValueInit", (event) => {
-      event.value.on("Change", () => {
+      event.value.on("Change", (event2) => {
         if (this.has(event.value)) {
-          this.emit("Add", { value: event.value, timestamp: event.timestamp });
+          this.emit("Add", { value: event.value, timestamp: event2.timestamp });
         } else {
           this.emit("Delete", {
             value: event.value,
-            timestamp: event.timestamp,
+            timestamp: event2.timestamp,
           });
         }
       });
@@ -149,16 +149,16 @@ export class ExplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     // TODO: optimize to reduce closures?
     this.implicitSet.on("ValueInit", (event) => {
       if (this.includeImplicit) {
-        event.value.on("Change", () => {
+        event.value.on("Change", (event2) => {
           if (this.has(event.value)) {
             this.emit("Add", {
               value: event.value,
-              timestamp: event.timestamp,
+              timestamp: event2.timestamp,
             });
           } else {
             this.emit("Delete", {
               value: event.value,
-              timestamp: event.timestamp,
+              timestamp: event2.timestamp,
             });
           }
         });

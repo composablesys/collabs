@@ -120,12 +120,14 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
         };
         newState.push(valueMeta);
         this.setNewState(newState);
-      // TODO: emit an event with details about what
-      // changed, in case users want to know more
-      // than just the new value?
+        // TODO: emit an event with details about what
+        // changed, in case users want to know more
+        // than just the new value?
+        break;
       case "reset":
         this.setNewState(newState);
         this.emit("Reset", { timestamp });
+        break;
       default:
         throw new Error(
           "MultiValueRegister: Bad decoded.data: " + decoded.data

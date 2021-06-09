@@ -10,7 +10,7 @@ import { Number, NumberEventsRecord } from "./interfaces";
 
 // TODO: handle floating point non-commutativity
 
-class DefaultNumberState implements LocallyResettableState {
+export class DefaultNumberState implements LocallyResettableState {
   value: number;
   constructor(readonly initialValue: number) {
     this.value = initialValue;
@@ -20,7 +20,8 @@ class DefaultNumberState implements LocallyResettableState {
   }
 }
 
-class AddComponent extends PrimitiveCrdt<
+// Exporting just for tests, it's not exported at top-level
+export class AddComponent extends PrimitiveCrdt<
   DefaultNumberState,
   NumberEventsRecord
 > {
@@ -50,7 +51,7 @@ class AddComponent extends PrimitiveCrdt<
   }
 }
 
-class MultComponent extends PrimitiveCrdt<
+export class MultComponent extends PrimitiveCrdt<
   DefaultNumberState,
   NumberEventsRecord
 > {
