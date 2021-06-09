@@ -128,6 +128,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     this.network.register(this);
     // Create this.rootCrdt
     this.rootCrdt = new RootCrdt(this);
+    this.rootCrdt.on("Change", (event) => this.emit("Change", event));
     // Process batchOptions
     if (typeof batchOptions === "object") {
       this.batchType = "periodic";
