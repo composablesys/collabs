@@ -6,13 +6,15 @@ One day, we'll come up with a better name.
 
 ## Building
 
-First, ensure you have npm 7 or higher:
+First, install NodeJs >= 15.6 from [nodejs.org](nodejs.org).
+
+Next, ensure you have npm 7 or higher:
 
 ```bash
 $ npm -v
 ```
 
-If this is not the case, you can update to the latest version using:
+If this is not the case, you can update to the latest version using (may require sudo/root permissions):
 
 ```bash
 $ npm install -g npm@latest

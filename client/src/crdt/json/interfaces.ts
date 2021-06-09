@@ -1,1 +1,2 @@
 // TODO
+export interface IJson {}
