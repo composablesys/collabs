@@ -459,7 +459,7 @@ export class RiakCrdtMap<
     super(
       new ExplicitCrdtMap(
         valueCrdtConstructor,
-        new AddWinsPlainSet(),
+        new AddWinsPlainSet(keySerializer),
         {
           includeImplicit: true,
         },
@@ -478,7 +478,7 @@ export class GCrdtMap<K, C extends Crdt> extends ExplicitCrdtMap<K, C> {
   ) {
     super(
       valueCrdtConstructor,
-      new GPlainSet(),
+      new GPlainSet(keySerializer),
       {
         includeImplicit: false,
       },
