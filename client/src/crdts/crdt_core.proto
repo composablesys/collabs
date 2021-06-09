@@ -1,6 +1,0 @@
-message CrdtRuntimeMessage {
-  repeated uint32 pointerParents = 1 [packed=true];
-  repeated bytes pointerNames = 2;
-  repeated uint32 messageSenders = 3 [packed=true];
-  repeated bytes innerMessages = 4;
-}

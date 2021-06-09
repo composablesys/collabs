@@ -1,0 +1,6 @@
+message MvrMessage {
+    oneof data {
+      bytes value = 1;
+      bool reset = 2;
+    }
+}

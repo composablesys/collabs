@@ -1,0 +1,11 @@
+message CrdtReference {
+    repeated bytes pathToRoot = 1;
+}
+
+message DefaultSerializerMessage {
+  oneof value {
+    bytes bsonValue = 1;
+    CrdtReference crdtValue = 2;
+    bool undefinedValue = 3;
+  }
+}

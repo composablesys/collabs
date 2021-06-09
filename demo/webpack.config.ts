@@ -8,7 +8,7 @@ const config: webpack.Configuration = {
   entry: {
     counter: "./src/site/counter.ts",
     whiteboard: "./src/site/whiteboard.ts",
-    counterwebrtc: "./src/site/counterwebrtc.ts",
+    counter_webrtc: "./src/site/counter_webrtc.ts",
     minesweeper: "./src/site/minesweeper.ts",
     aspace: "./src/site/aspace.ts",
     // TODO: Add more entries as needed for new pages
