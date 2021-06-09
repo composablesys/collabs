@@ -180,4 +180,17 @@ export class GPlainSet<T>
   canGc(): boolean {
     return this.state.size === 0;
   }
+
+  forEach(
+    callbackfn: (value: T, value2: T, set: Set<T>) => void,
+    thisArg?: any
+  ): void {
+    for (let value of this) {
+      callbackfn.call(thisArg, value, value, this);
+    }
+  }
+
+  get [Symbol.toStringTag](): string {
+    return "SequentialPlainSet";
+  }
 }

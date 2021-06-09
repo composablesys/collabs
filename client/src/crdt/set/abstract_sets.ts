@@ -46,14 +46,17 @@ export abstract class AbstractCrdtSet<
   clear(): void {
     for (let value of this) this.delete(value);
   }
+
   [Symbol.iterator](): IterableIterator<C> {
     return this.values();
   }
+
   *entries(): IterableIterator<[C, C]> {
     for (let value of this.values()) {
       yield [value, value];
     }
   }
+
   keys(): IterableIterator<C> {
     return this.values();
   }
@@ -77,15 +80,31 @@ export abstract class AbstractPlainSet<
   clear(): void {
     for (let value of this) this.delete(value);
   }
+
   [Symbol.iterator](): IterableIterator<T> {
     return this.values();
   }
+
   *entries(): IterableIterator<[T, T]> {
     for (let value of this.values()) {
       yield [value, value];
     }
   }
+
   keys(): IterableIterator<T> {
     return this.values();
+  }
+
+  forEach(
+    callbackfn: (value: T, value2: T, set: Set<T>) => void,
+    thisArg?: any
+  ): void {
+    for (let value of this) {
+      callbackfn.call(thisArg, value, value, this);
+    }
+  }
+
+  get [Symbol.toStringTag](): string {
+    return "PlainSet";
   }
 }

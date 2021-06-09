@@ -229,4 +229,17 @@ export class SequentialPlainMap<K, V>
   canGc(): boolean {
     return this.state.size === 0;
   }
+
+  forEach(
+    callbackfn: (value: V, key: K, map: Map<K, V>) => void,
+    thisArg?: any
+  ): void {
+    for (let [key, value] of this) {
+      callbackfn.call(thisArg, value, key, this);
+    }
+  }
+
+  get [Symbol.toStringTag](): string {
+    return "PlainMap";
+  }
 }

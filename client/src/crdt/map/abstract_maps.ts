@@ -1,4 +1,4 @@
-import { CompositeCrdt, Crdt, CrdtEventsRecord } from "../core";
+import { CompositeCrdt, Crdt } from "../core";
 import {
   CrdtMap,
   CrdtMapEventsRecord,
@@ -97,5 +97,18 @@ export abstract class AbstractPlainMap<
 
   *values(): IterableIterator<V> {
     for (let [_, value] of this.entries()) yield value;
+  }
+
+  forEach(
+    callbackfn: (value: V, key: K, map: Map<K, V>) => void,
+    thisArg?: any
+  ): void {
+    for (let [key, value] of this) {
+      callbackfn.call(thisArg, value, key, this);
+    }
+  }
+
+  get [Symbol.toStringTag](): string {
+    return "PlainMap";
   }
 }

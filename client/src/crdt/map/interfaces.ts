@@ -23,7 +23,8 @@ export interface PlainMap<
   K,
   V,
   Events extends PlainMapEventsRecord<K> = PlainMapEventsRecord<K>
-> extends Resettable<Events> {
+> extends Resettable<Events>,
+    Map<K, V> {
   /**
    * Delete every key in this map.
    *

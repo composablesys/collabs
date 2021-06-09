@@ -21,7 +21,8 @@ export interface PlainSetEventsRecord<T> extends ResettableEventsRecord {
 export interface PlainSet<
   T,
   Events extends PlainSetEventsRecord<T> = PlainSetEventsRecord<T>
-> extends Resettable<Events> {
+> extends Resettable<Events>,
+    Set<T> {
   add(value: T): this;
   /**
    * Delete every value in this set.
