@@ -1,4 +1,4 @@
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 
 const WIN_TEXT = (function () {
   let ans = "a";
@@ -8,17 +8,15 @@ const WIN_TEXT = (function () {
 
 var HOST = location.origin.replace(/^http/, "ws");
 
-const client = new crdts.CrdtRuntime(
-  new network.WebSocketNetwork(HOST, "aspace")
-);
+const client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "aspace"));
 const text = client.registerCrdt("text", new crdts.TextCrdt());
 const startTime = client.registerCrdt(
   "startTime",
-  new crdts.MultiValueRegister<number>()
+  new crdts.LwwRegister<number>(0)
 );
 const winElapsedTime = client.registerCrdt(
   "winElapsedTime",
-  new crdts.MultiValueRegister<number>()
+  new crdts.LwwRegister<number>(0)
 );
 
 const textInput = document.getElementById("textInput") as HTMLInputElement;
@@ -70,7 +68,7 @@ textInput.addEventListener("keydown", (e) => {
       text.insertAt(index, e.key);
       myCursor.index = index + 1;
       updateCursor();
-      if (startTime.valueSet.size === 0) startTime.value = Date.now();
+      if (startTime.conflicts().size === 0) startTime.value = Date.now();
     }
   }
 
@@ -96,13 +94,13 @@ setInterval(() => {
   // the text and winElapsedTime.
   if (
     textInput.value.startsWith(WIN_TEXT) &&
-    winElapsedTime.valueSet.size === 0
+    winElapsedTime.conflicts().size === 0
   ) {
     // Record now as the winning time
     winElapsedTime.value = getElapsedTime();
   } else if (
     !textInput.value.startsWith(WIN_TEXT) &&
-    winElapsedTime.valueSet.size !== 0
+    winElapsedTime.conflicts().size !== 0
   ) {
     // Reset the win time
     winElapsedTime.reset();
@@ -110,12 +108,13 @@ setInterval(() => {
 
   if (
     textInput.value.startsWith(WIN_TEXT) &&
-    winElapsedTime.valueSet.size > 0
+    winElapsedTime.conflicts().size > 0
   ) {
     // Get the minimum winElapsedTime
     let ans = Number.MAX_VALUE;
-    for (let value of winElapsedTime.valueSet.values())
+    for (let value of winElapsedTime.conflicts()) {
       ans = Math.min(ans, value);
+    }
     display.innerHTML = (ans / 1000).toFixed(2);
   } else {
     display.innerHTML = (getElapsedTime() / 1000).toFixed(2);
@@ -123,10 +122,10 @@ setInterval(() => {
 }, 10);
 
 function getElapsedTime() {
-  let values = startTime.valueSet;
+  let values = startTime.conflicts();
   if (values.size === 0) return 0;
   // Use the *least* start time
   let start = Number.MAX_VALUE;
-  for (let value of values.values()) start = Math.min(start, value);
+  for (let value of values) start = Math.min(start, value);
   return Date.now() - start;
 }

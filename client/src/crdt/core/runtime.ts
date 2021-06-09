@@ -7,9 +7,9 @@ import {
   DefaultCausalBroadcastNetwork,
   isCausalBroadcastNetwork,
 } from "../../net";
-import { arrayAsString, stringAsArray } from "../../util";
+import { arrayAsString, EventEmitter, stringAsArray } from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
-import { Crdt } from "./crdt";
+import { Crdt, CrdtEventsRecord } from "./crdt";
 import { CrdtParent } from "./interfaces";
 
 class RootCrdt extends CompositeCrdt {
@@ -87,7 +87,7 @@ const REPLICA_ID_CHARS = (function () {
 /**
  * TODO: usage
  */
-export class Runtime {
+export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private readonly batchType: "immediate" | "manual" | "periodic";
   private readonly batchingPeriodMs: number | undefined;
   private readonly network: CausalBroadcastNetwork;
@@ -110,6 +110,7 @@ export class Runtime {
     },
     debugReplicaId: string | undefined = undefined
   ) {
+    super();
     // Set this.replicaId
     if (debugReplicaId) this.replicaId = debugReplicaId;
     else {

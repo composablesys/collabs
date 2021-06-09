@@ -1,10 +1,10 @@
-/* Creating the grid */
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import seedrandom = require("seedrandom");
 
 const board = document.getElementById("board");
 const winText = document.getElementById("winText")!;
 
+/* Creating the grid */
 // TODO: make refresh not destroy board each time?
 // TODO: if game over, say win/lose and display whole board
 function refreshDisplay() {
@@ -153,12 +153,10 @@ function settingsFromInput(): GameSettings {
  * Generate CRDTs' Runtime on each client and create CRDTs
  */
 let HOST = location.origin.replace(/^http/, "ws");
-let client = new crdts.CrdtRuntime(
-  new network.WebSocketNetwork(HOST, "minesweeper")
-);
+let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "minesweeper"));
 let gameSource = client.registerCrdt(
   "gameSource",
-  new crdts.DynamicCrdtSource(
+  new crdts.CrdtFactory(
     (
       width: number,
       height: number,
@@ -180,7 +178,7 @@ let currentState = client.registerCrdt(
   new crdts.LwwRegister<MinesweeperCrdt | GameSettings>(currentSettings.value)
 );
 
-client.rootCrdt.on("Change", invalidate);
+client.on("Change", invalidate);
 
 document.getElementById("newGame")!.onclick = function () {
   currentSettings.value = settingsFromInput();
@@ -213,13 +211,13 @@ enum TileStatus {
 }
 
 class TileCrdt extends crdts.CompositeCrdt {
-  private readonly revealed: crdts.EnableWinsFlag;
+  private readonly revealed: crdts.TrueWinsBoolean;
   private readonly flag: crdts.LwwRegister<FlagStatus>;
   number: number = 0;
 
   constructor(readonly isMine: boolean) {
     super();
-    this.revealed = this.addChild("revealed", new crdts.EnableWinsFlag());
+    this.revealed = this.addChild("revealed", new crdts.TrueWinsBoolean());
     this.flag = this.addChild("flag", new crdts.LwwRegister(FlagStatus.NONE));
   }
 

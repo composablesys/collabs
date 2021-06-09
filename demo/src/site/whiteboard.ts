@@ -1,4 +1,4 @@
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import { min, max, round } from "mathjs";
 
 /**
@@ -9,15 +9,13 @@ var HOST = location.origin.replace(/^http/, "ws");
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
-let client = new crdts.CrdtRuntime(
-  new network.WebSocketNetwork(HOST, "whiteboard")
-);
+let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "whiteboard"));
 
 // The key represents a point in the form: x:y
 // The value is the color of the stroke.
-let clientBoard: crdts.LwwMap<string, string> = client.registerCrdt(
+let clientBoard: crdts.LwwPlainMap<string, string> = client.registerCrdt(
   "whiteboardId",
-  new crdts.LwwMap()
+  new crdts.LwwPlainMap()
 );
 
 window.onload = function () {
@@ -73,9 +71,9 @@ window.onload = function () {
   };
 
   // Draw points
-  clientBoard.on("ValueChange", (event) => {
+  clientBoard.on("Set", (event) => {
     var keys = event.key.split(":");
-    ctx!.fillStyle = event.value;
+    ctx!.fillStyle = clientBoard.get(event.key)!;
     ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
   });
 
