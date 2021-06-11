@@ -296,21 +296,21 @@ export class PrimitiveList<I, T>
     // accordingly, so that its key set always coincides
     // with valueMap's.
     this.valueMap.on("Set", (event) => {
-      // Add the key if it is not present (Tree permits
-      // multiple instances of the same key, so adding it
-      // again if it already exists is not a no-op).
-
-      // TODO: use a library that lets us reduce the number
-      // of map lookups here (from 3 to 1).
-      if (!this.sortedKeys.get(event.key)) {
-        this.sortedKeys = this.sortedKeys.insert(event.key, true);
-        const index = this.sortedKeys.find(event.key)!.index;
-        this.emit("Insert", {
-          timestamp: event.timestamp,
-          index,
-          seqId: event.key,
-        });
-      }
+      // Unlike in List, valueMap will never set
+      // an already-set value, since it is a
+      // SequentialMap and we don't allow editing
+      // values in-place.  So we can trust that
+      // event.key is not already present in sortedKeys.
+      // TODO: use a library that tells us the index on
+      // insertion, so we don't have to do 2 binary
+      // searches.
+      this.sortedKeys = this.sortedKeys.insert(event.key, true);
+      const index = this.sortedKeys.find(event.key)!.index;
+      this.emit("Insert", {
+        timestamp: event.timestamp,
+        index,
+        seqId: event.key,
+      });
       // TODO: use assertions instead?  Or just remove.  Same in delete.
       if (this.sortedKeys.length !== this.valueMap.size) {
         throw new Error("List size agreement error");
@@ -536,7 +536,7 @@ export class TreedocSource
     // standard tree walk.  The tree's layers alternate
     // between "path layers", with edge label given by
     // path.get(i), and "disambiguator layers", with
-    // edge label given by disambiguators.get(first = i).
+    // edge label given by disambiguators.get(first == i).
     // In the case that an id does not have a
     // disambiguator at layer i, it instead implicitly
     // uses a special "bit disambiguator", defined to
@@ -622,63 +622,154 @@ export class TreedocSource
     after: TreedocId | null,
     count: number
   ): TreedocId[] {
+    // Consider the tree model described in compare.
+    // To create between after and before, we first need
+    // to find their lowest common ancestor in the tree.
+    // We then need to extend the path to the common
+    // ancestor with a path that is between before and
+    // after.
+    //
+    // If before is non-null and is not equal to the LCA,
+    // then we can do this by following before for one
+    // more nontrivial edge (nontrivial means that empty
+    // disambiguators don't count),
+    // then using exclusively rightmost edges
+    // (1 bits, and 1 bit disambiguators implied by a
+    // following 1 bit) until
+    // we end up with something greater than before.
+    // (Actually, if after is null, we can skip the first
+    // nontrivial edge and just use rightmost edges.)
+    //
+    // Likewise with before and after switched
+    // (also 1 -> 0).
+    // We use whichever result is shorter.
+    //
+    // Finally, we end with a fresh disambiguator, so
+    // that all insertions are unique.  (TODO: not actually
+    // true until we add counters to disambiguators.)
+
     let path: BitSet;
-    let disambiguators: [index: number, value: string][];
+    let disambiguators: [index: number, value: string][] = [];
 
-    // TODO: depth heuristic from Treedoc paper
-
-    // If they are both null, create the root.
     if (before === null && after === null) {
-      // We make the first bit present so that the root
-      // can have an associated disambiguator.
+      // They are both null, so we can create any identifier.
+      // Since we need to include a disambiguator layer
+      // but a bit layer is always first,
+      // we arbitrarily put 0 in the first bit layer.
       path = new BitSet(1);
-      disambiguators = [];
+    } else if (after === null) {
+      // Use enough 1 bits to make something greater
+      // than before.
+      const end = before!.path.nextNot(true, 0);
+      path = new BitSet(end + 1);
+      path.setToEnd(0, true);
+    } else if (before === null) {
+      // Use enough 0 bits to make something les
+      // than after.
+      const end = after.path.nextNot(false, 0);
+      path = new BitSet(end + 1);
+      path.setToEnd(0, false);
     } else {
-      // If one is the other's descendant, create an inside
-      // child of the descendant.
-      // We count the longer one as a descendant even
-      // if it does not have the shorter one's leaf
-      // disambiguator, since otherwise when we erase
-      // the disambiguator in the created node, we
-      // would end up with a parent of the longer one,
-      // possibly equal to it or on the wrong side.
-      let source: TreedocId;
-      let descendant = this.descendantOrNull(before, after);
-      if (descendant !== null) source = descendant;
-      // If one is null, create an inside child of the
-      // non-null node.
-      else if (before === null) source = after!;
-      else if (after === null) source = before;
-      // Otherwise, they are distinct leaves.
-      // Create an inside child of the node with
-      // fewer disambiguators, breaking ties by
-      // path length.
-      // TODO: instead weight disambiguators heavily?
-      else {
-        if (before.disambiguators.length < after.disambiguators.length) {
-          source = before;
-        } else {
-          source = before.path.length <= after.path.length ? before : after;
-        }
+      // To build the answer, we start by setting
+      // (path, disambiguators) to the LCA, i.e.,
+      // we copy the layers up to but excluding
+      // the first difference.
+      let isBitLayer: boolean;
+      let firstDiff: number;
+      // Find the first layer where they differ
+      const [_, bitFirstDiff] = BitSet.compare(before.path, after.path);
+      const [disFirstDiff, beforeDis, afterDis] = this.diffDisambiguators(
+        before.disambiguators,
+        after.disambiguators
+      );
+      if (bitFirstDiff <= disFirstDiff) {
+        isBitLayer = true;
+        firstDiff = bitFirstDiff;
+      } else {
+        isBitLayer = false;
+        firstDiff = disFirstDiff;
       }
 
-      path = BitSet.copy(source.path, source.path.length + 1);
-      path.set(path.length - 1, source === before);
-      // Keep source's leaf disambiguator if before and after
-      // are mini-siblings, otherwise keep it off
-      // (due to slice ending one index early).
-      if (this.miniSiblings(before, after)) {
-        disambiguators = source!.disambiguators.slice();
-      } else {
-        disambiguators = source!.disambiguators.slice(
-          0,
-          source!.disambiguators.length - 1
+      path = BitSet.copy(before.path, firstDiff + (isBitLayer ? 0 : 1));
+      for (let i = 0; i < before.disambiguators.length; i++) {
+        if (before.disambiguators[i][0] >= firstDiff) break;
+        disambiguators.push(before.disambiguators[i]);
+      }
+
+      // Since both must end with disambiguator layers, one
+      // is a prefix of the other iff the first difference
+      // is the bit layer after the shorter length.
+      let prefix: TreedocId | null;
+      if (isBitLayer && firstDiff === before.path.length) {
+        prefix = before;
+      } else if (isBitLayer && firstDiff === after.path.length) {
+        prefix = after;
+      } else prefix = null;
+
+      // Next, if prefix !== before, one option is to
+      // follow before for one more nontrivial edge, then keep
+      // adding 1 bits until we get something > before.
+      // If prefix !== after, a second option is to follow
+      // after for one more nontrivial edge, then keep adding 0 bits
+      // until we get something < after.
+      // We choose whichever is shorter.
+      // TODO: penalize starting disambiguators?
+      let beforeInfo: [number, boolean, number] | null = null;
+      if (prefix !== before) {
+        beforeInfo = this.bitRange(
+          isBitLayer,
+          firstDiff,
+          beforeDis,
+          before,
+          true
         );
+      }
+      let afterInfo: [number, boolean, number] | null = null;
+      if (prefix !== after) {
+        afterInfo = this.bitRange(
+          isBitLayer,
+          firstDiff,
+          afterDis,
+          after,
+          false
+        );
+      }
+
+      if (
+        beforeInfo !== null &&
+        (afterInfo === null || beforeInfo[2] <= afterInfo[2])
+      ) {
+        // Attach to before.
+        // Copy before's next nontrivial layer
+        // (ref'd by beforeInfo[0], beforeInfo[1]),
+        // then add 1s through beforeInfo[2].
+        path = BitSet.copy(before!.path, beforeInfo[2] + 1);
+        if (beforeInfo[1]) {
+          // The next nontrivial layer is a bit layer
+          path.set(beforeInfo[0], before!.path.get(beforeInfo[0]));
+        } else {
+          // The next nontrivial layer is the disagreeing
+          // disambiguator layer.
+          disambiguators.push([firstDiff, beforeDis!]);
+        }
+        path.setToEnd(beforeInfo[0] + 1, true);
+      } else {
+        // Attach to after.
+        path = BitSet.copy(after!.path, afterInfo![2] + 1);
+        if (afterInfo![1]) {
+          // The next nontrivial layer is a bit layer
+          path.set(afterInfo![0], after!.path.get(afterInfo![0]));
+        } else {
+          // The next nontrivial layer is the disagreeing
+          // disambiguator layer.
+          disambiguators.push([firstDiff, afterDis!]);
+        }
+        path.setToEnd(afterInfo![0] + 1, false);
       }
     }
 
     let depth = Math.ceil(Math.log2(count));
-    // Set new leaf disambiguator
+    // Set new leaf disambiguator.
     // TODO: it would be nicer to set this at
     // path.length - 1, preventing interleaving.
     // However we currently require the leaf to have
@@ -694,89 +785,74 @@ export class TreedocSource
       }
       ans[i] = new TreedocId(iPath, disambiguators);
     }
+
+    // TODO: debug mode only
+    /*// Check between-ness
+    for (let newId of ans) {
+      if (
+        (before !== null && this.compare(before, newId) >= 0) ||
+        (after != null && this.compare(newId, after) >= 0)
+      ) {
+        console.log("Error: newId out of order");
+        console.log(JSON.stringify(this.runtime.replicaId));
+        console.log(before);
+        console.log(newId);
+        console.log(after);
+        if (before !== null) console.log(this.compare(before, newId));
+        if (after !== null) console.log(this.compare(newId, after));
+        if (before !== null && after !== null)
+          console.log(this.compare(before, after));
+        throw new Error("newId out of order");
+      }
+    }*/
+
     return ans;
   }
 
   /**
-   * If one id is a (potential)
-   * strict descendant of the other, return it;
-   * else return null.
-   * @param  before [description]
-   * @param  after  [description]
-   * @return        [description]
+   * Determines how may direction bits you need to make
+   * an id in the desired direction of the given id,
+   * using (isBitLayer, firstDiff) as the LCA layer.
+   * Returns: [next nontrivial edge index, next nontrivial
+   * edge is bit, end index]
    */
-  private descendantOrNull(
-    before: TreedocId | null,
-    after: TreedocId | null
-  ): TreedocId | null {
-    if (before === null || after === null) return null;
-    if (before.path.length === after.path.length) return null;
-    let [shorter, longer] =
-      before.path.length > after.path.length
-        ? [after, before]
-        : [before, after];
-    // Check that they agree on their shared path
-    const [_, diffBit] = BitSet.compare(shorter.path, longer.path);
-    if (diffBit !== Math.min(shorter.path.length, longer.path.length)) {
-      // If they agreed on their shared path, then diffBit would be
-      // the shorter length.
-      return null;
-    }
-    // Check that they agree on their shared disambiguators.
-    for (let d = 0; d < shorter.disambiguators.length - 1; d++) {
-      if (!this.disEqual(shorter.disambiguators[d], longer.disambiguators[d]))
-        return null;
-    }
-    // Special check for the shorter one's leaf disambiguator:
-    // it is okay if the other is not present.
-    // See the discussion at this method's call site.
-    let longerNextDis =
-      longer.disambiguators[shorter.disambiguators.length - 1];
-    if (
-      longerNextDis !== undefined &&
-      longerNextDis[0] <=
-        shorter.disambiguators[shorter.disambiguators.length - 1][0] &&
-      !this.disEqual(
-        longerNextDis,
-        shorter.disambiguators[shorter.disambiguators.length - 1]
-      )
-    ) {
-      return null;
+  private bitRange(
+    isBitLayer: boolean,
+    firstDiff: number,
+    dis: string | undefined,
+    id: TreedocId,
+    direction: boolean
+  ): [number, boolean, number] {
+    // Find before's next
+    // nontrivial edge.
+    let nontrivialIsBit: boolean;
+    let nontrivial: number;
+    if (isBitLayer) {
+      nontrivialIsBit = true;
+      nontrivial = firstDiff;
+    } else if (dis !== undefined) {
+      nontrivialIsBit = false;
+      nontrivial = firstDiff;
+    } else {
+      nontrivialIsBit = true;
+      nontrivial = firstDiff + 1;
     }
 
-    // One is a descendant of the other
-    return longer;
-  }
-
-  /**
-   * @param  source [description]
-   * @param  other  [description]
-   * @return whether they are mini-siblings, i.e., they are
-   * identical except for their leaf disambiguators
-   */
-  private miniSiblings(
-    before: TreedocId | null,
-    after: TreedocId | null
-  ): boolean {
-    if (before === null || after === null) return false;
-    if (!before.path.equals(after.path)) return false;
-    if (before.disambiguators.length !== after.disambiguators.length)
-      return false;
-    // Compare all disambiguators except the last (leaf)
-    for (
-      let disIndex = 0;
-      disIndex < before.disambiguators.length - 1;
-      disIndex++
-    ) {
-      if (
-        !this.disEqual(
-          before.disambiguators[disIndex],
-          after.disambiguators[disIndex]
-        )
-      )
-        return false;
+    // We can stop either at id's next non-1 bit
+    // or after its next nontrivial disambiguator
+    // (starting at layer nontrivial, exclusive).
+    let end = id.path.nextNot(direction, nontrivial + 1);
+    for (let [index] of id.disambiguators) {
+      if (index + 1 >= end) break;
+      if (nontrivialIsBit && index >= nontrivial) {
+        end = index + 1;
+        break;
+      } else if (!nontrivialIsBit && index > nontrivial) {
+        end = index + 1;
+        break;
+      }
     }
-    return true;
+    return [nontrivial, nontrivialIsBit, end];
   }
 
   serialize(value: TreedocId): Uint8Array {
@@ -796,13 +872,6 @@ export class TreedocSource
       disambiguators.push([decoded.disIndices[i], decoded.disValues[i]]);
     }
     return new TreedocId(path, disambiguators);
-  }
-
-  private disEqual(
-    a: [index: number, value: string],
-    b: [index: number, value: string]
-  ): boolean {
-    return a[0] === b[0] && a[1] === b[1];
   }
 }
 
