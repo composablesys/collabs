@@ -156,11 +156,8 @@ describe("list", () => {
         ],
         "01001111000000",
         [[13, "charlie"]],
-        "010011111",
-        [
-          [6, "eve"],
-          [8, aliceId],
-        ]
+        "010011110000000",
+        [[14, aliceId]]
       );
       checkCreatedId(
         "01001111110100",
@@ -187,13 +184,11 @@ describe("list", () => {
         "0100111100",
         [[9, aliceId]]
       );
-      checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "01", [
-        [0, "bob"],
-        [1, aliceId],
+      checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "010", [
+        [2, aliceId],
       ]);
-      checkCreatedId("00", [[1, "bob"]], "0", [[0, "bob"]], "00", [
-        [0, "bob"],
-        [1, aliceId],
+      checkCreatedId("00", [[1, "bob"]], "0", [[0, "bob"]], "001", [
+        [2, aliceId],
       ]);
       checkCreatedId(
         "000000",
@@ -206,11 +201,10 @@ describe("list", () => {
           [3, "bob"],
           [10, "charlie"],
         ],
-        "0000001",
+        "000000100000",
         [
           [3, "bob"],
-          [5, "alice"],
-          [6, aliceId],
+          [11, aliceId],
         ]
       );
     });
@@ -270,17 +264,17 @@ describe("list", () => {
       checkCreatedId(
         "010101",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
         ],
         "010101",
         [
-          [1, "bob"],
-          [5, "dave"],
+          [1, "bobpadd"],
+          [5, "davepad"],
         ],
         "0101011",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
           [6, aliceId],
         ]
@@ -288,35 +282,35 @@ describe("list", () => {
       checkCreatedId(
         "01010111",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
         ],
         "010101",
         [
-          [1, "bob"],
-          [5, "dave"],
+          [1, "bobpadd"],
+          [5, "davepad"],
         ],
         "0101010",
         [
-          [1, "bob"],
-          [5, "dave"],
+          [1, "bobpadd"],
+          [5, "davepad"],
           [6, aliceId],
         ]
       );
       checkCreatedId(
         "01010111",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
         ],
         "010101000",
         [
-          [1, "bob"],
-          [5, "dave"],
+          [1, "bobpadd"],
+          [5, "davepad"],
         ],
         "010101111",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
           [8, aliceId],
         ]

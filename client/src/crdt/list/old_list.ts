@@ -714,7 +714,7 @@ export class TreedocSource
       // until we get something < after.
       // We choose whichever is shorter.
       // TODO: penalize starting disambiguators?
-      let beforeInfo: [number, boolean, number] | null = null;
+      let beforeInfo: [number, boolean, number, number] | null = null;
       if (prefix !== before) {
         beforeInfo = this.bitRange(
           isBitLayer,
@@ -724,7 +724,7 @@ export class TreedocSource
           true
         );
       }
-      let afterInfo: [number, boolean, number] | null = null;
+      let afterInfo: [number, boolean, number, number] | null = null;
       if (prefix !== after) {
         afterInfo = this.bitRange(
           isBitLayer,
@@ -737,7 +737,7 @@ export class TreedocSource
 
       if (
         beforeInfo !== null &&
-        (afterInfo === null || beforeInfo[2] <= afterInfo[2])
+        (afterInfo === null || beforeInfo[3] <= afterInfo[3])
       ) {
         // Attach to before.
         // Copy before's next nontrivial layer
@@ -814,7 +814,7 @@ export class TreedocSource
    * an id in the desired direction of the given id,
    * using (isBitLayer, firstDiff) as the LCA layer.
    * Returns: [next nontrivial edge index, next nontrivial
-   * edge is bit, end index]
+   * edge is bit, end index, score]
    */
   private bitRange(
     isBitLayer: boolean,
@@ -822,7 +822,7 @@ export class TreedocSource
     dis: string | undefined,
     id: TreedocId,
     direction: boolean
-  ): [number, boolean, number] {
+  ): [number, boolean, number, number] {
     // Find before's next
     // nontrivial edge.
     let nontrivialIsBit: boolean;
@@ -852,7 +852,15 @@ export class TreedocSource
         break;
       }
     }
-    return [nontrivial, nontrivialIsBit, end];
+    // Score: if the nontrivial layer would be a
+    // disambiguator layer, count it as a number of bits
+    // equal to the disambiguator's bit length.
+    return [
+      nontrivial,
+      nontrivialIsBit,
+      end,
+      end + (nontrivialIsBit ? 0 : dis!.length * 8),
+    ];
   }
 
   serialize(value: TreedocId): Uint8Array {
