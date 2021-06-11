@@ -8,6 +8,7 @@ import {
 } from "../../src";
 import seedrandom from "seedrandom";
 import { BitSet } from "../../src/util/bitset";
+import util from "util";
 
 describe("list", () => {
   let runtimeGen: TestingNetworkGenerator;
@@ -123,47 +124,126 @@ describe("list", () => {
         };
       });
       let mid = source.createBetween(before, after, expected.length);
-      assert.deepStrictEqual(mid, expectedIds);
+      assert.deepStrictEqual(
+        mid,
+        expectedIds,
+        util.inspect([mid, expectedIds], {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
     }
 
     it("creates expected ids when non-mini-sibling leaves", () => {
       checkCreatedId(null, null, null, null, "0", [[0, aliceId]]);
       checkCreatedId(null, null, "0", [[0, "bob"]], "00", [[1, aliceId]]);
-      checkCreatedId("0", [[0, "bob"]], null, null, "01", [[1, aliceId]]);
+      checkCreatedId("0", [[0, "bob"]], null, null, "1", [[0, aliceId]]);
       checkCreatedId(
         "01001111111111",
         [[13, "bob"]],
         "011010011",
         [[8, "charlie"]],
-        "0110100110",
-        [[9, aliceId]]
+        "0101",
+        [[3, aliceId]]
       );
       checkCreatedId(
-        "01001111111111",
+        "01001111010100",
         [
           [6, "eve"],
           [13, "bob"],
         ],
-        "011010011",
+        "01001111000000",
+        [[13, "charlie"]],
+        "010011111",
         [
-          [7, "dave"],
-          [8, "charlie"],
+          [6, "eve"],
+          [8, aliceId],
+        ]
+      );
+      checkCreatedId(
+        "01001111110100",
+        [
+          [6, "eve"],
+          [13, "bob"],
         ],
-        "0110100110",
+        "01001111010000",
+        [[13, "charlie"]],
+        "0100111100",
+        [[9, aliceId]]
+      );
+      checkCreatedId(
+        "01001111110100",
         [
-          [7, "dave"],
-          [9, aliceId],
+          [6, "eve"],
+          [13, "bob"],
+        ],
+        "01001111000000",
+        [
+          [8, "dave"],
+          [13, "charlie"],
+        ],
+        "0100111100",
+        [[9, aliceId]]
+      );
+      checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "01", [
+        [0, "bob"],
+        [1, aliceId],
+      ]);
+      checkCreatedId("00", [[1, "bob"]], "0", [[0, "bob"]], "00", [
+        [0, "bob"],
+        [1, aliceId],
+      ]);
+      checkCreatedId(
+        "000000",
+        [
+          [3, "bob"],
+          [5, "alice"],
+        ],
+        "00000010000",
+        [
+          [3, "bob"],
+          [10, "charlie"],
+        ],
+        "0000001",
+        [
+          [3, "bob"],
+          [5, "alice"],
+          [6, aliceId],
         ]
       );
     });
 
     it("creates expected ids when descendants", () => {
-      checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "010", [
-        [2, aliceId],
-      ]);
-      checkCreatedId("00", [[1, "bob"]], "0", [[0, "bob"]], "001", [
-        [2, aliceId],
-      ]);
+      checkCreatedId(
+        "0",
+        [[0, "bob"]],
+        "01",
+        [
+          [0, "bob"],
+          [1, "bob"],
+        ],
+        "010",
+        [
+          [0, "bob"],
+          [2, aliceId],
+        ]
+      );
+      checkCreatedId(
+        "00",
+        [
+          [0, "bob"],
+          [1, "bob"],
+        ],
+        "0",
+        [[0, "bob"]],
+        "001",
+        [
+          [0, "bob"],
+          [2, aliceId],
+        ]
+      );
       checkCreatedId(
         "000000",
         [
@@ -181,23 +261,6 @@ describe("list", () => {
         [
           [3, "bob"],
           [5, "alice"],
-          [11, aliceId],
-        ]
-      );
-      checkCreatedId(
-        "000000",
-        [
-          [3, "bob"],
-          [5, "alice"],
-        ],
-        "00000010000",
-        [
-          [3, "bob"],
-          [10, "charlie"],
-        ],
-        "000000100000",
-        [
-          [3, "bob"],
           [11, aliceId],
         ]
       );
@@ -222,6 +285,42 @@ describe("list", () => {
           [6, aliceId],
         ]
       );
+      checkCreatedId(
+        "01010111",
+        [
+          [1, "bob"],
+          [5, "charlie"],
+        ],
+        "010101",
+        [
+          [1, "bob"],
+          [5, "dave"],
+        ],
+        "0101010",
+        [
+          [1, "bob"],
+          [5, "dave"],
+          [6, aliceId],
+        ]
+      );
+      checkCreatedId(
+        "01010111",
+        [
+          [1, "bob"],
+          [5, "charlie"],
+        ],
+        "010101000",
+        [
+          [1, "bob"],
+          [5, "dave"],
+        ],
+        "010101111",
+        [
+          [1, "bob"],
+          [5, "charlie"],
+          [8, aliceId],
+        ]
+      );
     });
 
     it("creates expected ids for bulk insertion", () => {
@@ -230,9 +329,9 @@ describe("list", () => {
         [[13, "bob"]],
         "011010011",
         [[8, "charlie"]],
-        ["011010011000", [[11, aliceId]]],
-        ["011010011001", [[11, aliceId]]],
-        ["011010011010", [[11, aliceId]]]
+        ["010100", [[5, aliceId]]],
+        ["010101", [[5, aliceId]]],
+        ["010110", [[5, aliceId]]]
       );
     });
   });
