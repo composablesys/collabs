@@ -122,7 +122,7 @@ export class BitSet {
     // Taking xor gives us a number with only the differing bits set,
     // and then we just need to count the number of leading zero bits
     // (starting at bit 2^31).
-    const j = this.countLeadingZeroes((a.array[i] ^ b.array[i]) >>> 0);
+    const j = BitSet.countLeadingZeroes((a.array[i] ^ b.array[i]) >>> 0);
 
     // Now we calculate the (absolute) bit index where they
     // first differ.
@@ -217,12 +217,69 @@ export class BitSet {
    * max(index, this.length) is returned.
    */
   nextNot(value: boolean, index: number): number {
-    // TODO: optimize
-    let i;
-    for (i = index; i < this.length; i++) {
-      if (this.get(i) !== value) return i;
+    if (index >= this.length) return index;
+    return value ? this.nextNotTrue(index) : this.nextNotFalse(index);
+  }
+
+  private nextNotFalse(index: number): number {
+    // Simple version:
+    // let i;
+    // for (i = index; i < this.length; i++) {
+    //   if (this.get(i) !== false) return i;
+    // }
+    // return i;
+    if (index % 32 !== 0) {
+      // Check the end of the first uint32
+      const mask = ((1 << (32 - (index % 32))) - 1) >>> 0;
+      const firstMasked = this.array[index >>> 5] & mask;
+      if (firstMasked !== 0) {
+        // The answer is here
+        return index - (index % 32) + BitSet.countLeadingZeroes(firstMasked);
+      }
     }
-    return i;
+    for (let i = Math.ceil(index / 32); i < this.array.length; i++) {
+      if (this.array[i] !== 0) {
+        // The answer is here
+        return (i << 5) + BitSet.countLeadingZeroes(this.array[i]);
+      }
+    }
+    // Note that it safe to consider the last uint32 in
+    // the previous loop, since its extra bits are all 0,
+    // hence won't give a false positive.
+
+    // If we get here, no 1s were found.
+    return this.length;
+  }
+
+  private nextNotTrue(index: number): number {
+    // Simple version:
+    // let i;
+    // for (i = index; i < this.length; i++) {
+    //   if (this.get(i) !== true) return i;
+    // }
+    // return i;
+    if (index % 32 !== 0) {
+      // Check the end of the first uint32
+      const mask = ((1 << (32 - (index % 32))) - 1) >>> 0;
+      const firstMasked = ~this.array[index >>> 5] & mask;
+      if (firstMasked !== 0) {
+        // The answer is here
+        return index - (index % 32) + BitSet.countLeadingZeroes(firstMasked);
+      }
+    }
+    for (let i = Math.ceil(index / 32); i < this.array.length; i++) {
+      if (~this.array[i] !== 0) {
+        // The answer is here
+        return (i << 5) + BitSet.countLeadingZeroes(~this.array[i]);
+      }
+    }
+    // Note that it safe to consider the last uint32 in
+    // the previous loop, since its extra bits are all 0,
+    // hence the first 0 will cause it to return this.length,
+    // the intended answer.
+
+    // If we get here, no 0s were found.
+    return this.length;
   }
 
   /**
