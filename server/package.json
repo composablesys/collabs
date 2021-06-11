@@ -1,9 +1,9 @@
 {
   "name": "compoventuals-server",
   "version": "0.1.0",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
-  "unpkg": "build/index.js",
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "unpkg": "build/src/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
