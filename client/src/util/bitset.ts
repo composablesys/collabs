@@ -1,10 +1,10 @@
+import { BitSetSerialized } from "../../generated/proto_compiled";
+
 export class BitSet {
-  // TODO: use Uint32Array instead if we can serialize
-  // it properly (with consistent endianness)
-  array: Uint8Array;
-  constructor(readonly length: number, array?: Uint8Array) {
+  array: Uint32Array;
+  constructor(readonly length: number, array?: Uint32Array) {
     if (array === undefined) {
-      this.array = new Uint8Array(Math.ceil(length / 8));
+      this.array = new Uint32Array(Math.ceil(length / 32));
     } else this.array = array;
   }
 
@@ -13,6 +13,51 @@ export class BitSet {
     for (let i = 0; i < Math.min(other.array.length, ans.array.length); i++) {
       ans.array[i] = other.array[i];
     }
+    return ans;
+  }
+
+  serialize(): Uint8Array {
+    // Uint32Array stores the bytes of each uint32 in platform endianness
+    // (byte order), so when serializing, we need to be careful to consistently
+    // use big endian.
+    // The end result is that the serialized array's bits are in order from
+    // the root of the tree on down.
+    const bigEndian = new ArrayBuffer(this.array.byteLength);
+    const view = new DataView(bigEndian);
+    for (let i = 0; i < this.array.length; i++) {
+      view.setUint32(i << 2, this.array[i]);
+    }
+    const byteLength = Math.ceil(this.length / 8);
+    let message = BitSetSerialized.create({
+      array: new Uint8Array(bigEndian, 0, byteLength),
+      length: this.length,
+    });
+    return BitSetSerialized.encode(message).finish();
+  }
+
+  static deserialize(serialized: Uint8Array): BitSet {
+    const message = BitSetSerialized.decode(serialized);
+    const ans = new BitSet(message.length);
+    const view = new DataView(
+      message.array.buffer,
+      message.array.byteOffset,
+      message.array.byteLength
+    );
+    for (let i = 0; i < message.array.length >>> 2; i++) {
+      ans.array[i] = view.getUint32(i << 2);
+    }
+    // If the last uint32 is only partially included in
+    // message.array (< 4 bytes were included), we
+    // need to extract it ourselves, since view.getUint32
+    // won't let us read beyond the end of the byte array.
+    for (
+      let i = message.array.length - (message.array.length % 4);
+      i < message.array.length;
+      i++
+    ) {
+      ans.array[i >>> 2] |= message.array[i] << ((3 - (i % 4)) << 3);
+    }
+
     return ans;
   }
 
@@ -34,22 +79,22 @@ export class BitSet {
    */
   static compare(a: BitSet, b: BitSet): [number, number] {
     // Find first byte where they differ
-    let minByteLength = Math.min(a.array.length, b.array.length);
+    let minArrayLength = Math.min(a.array.length, b.array.length);
     let i: number;
-    for (i = 0; i < minByteLength; i++) {
+    for (i = 0; i < minArrayLength; i++) {
       if (a.array[i] != b.array[i]) break;
     }
     // Now i is the first byte where they differ, or
     // the min length if one is a prefix of the other.
-    if (i === minByteLength) {
+    if (i === minArrayLength) {
       // They didn't actually differ; one is a prefix of
       // the other.
       if (a.length === b.length) return [0, a.length];
       let minLength = Math.min(a.length, b.length);
-      if (minLength % 8 === 0) {
-        // The prefix ends on a byte boundary.
+      if (minLength % 32 === 0) {
+        // The prefix ends on an array item boundary.
         // Comparison depends on the next bit
-        // (in the next byte) of the suffix.
+        // (in the next item) of the suffix.
         if (a.length > minLength) return [a.get(minLength) ? 1 : -1, minLength];
         else return [b.get(minLength) ? -1 : 1, minLength];
       } else {
@@ -60,23 +105,58 @@ export class BitSet {
         return [b.length - a.length, minLength];
       }
     }
-    // See which bit within array[i] differs.
-    let j: number;
-    let ai = a.array[i];
-    let bi = b.array[i];
-    // TODO: optimize.
-    for (j = 0; j < 8; j++) {
-      if ((ai & (1 << (7 - j))) !== (bi & (1 << (7 - j)))) break;
-    }
+    // See which bit within array[i] differs, storing it in j.
+    // We want the index of the highest order bit that differs, counting
+    // from the left.  I.e., if they differ in the 2^31 bit, we want j = 0;
+    // if they first differ in the 2^30 bit, we want j = 1; etc.
+    // Taking xor gives us a number with only the differing bits set,
+    // and then we just need to count the number of leading zero bits
+    // (starting at bit 2^31).
+    const j = this.countLeadingZeroes(a.array[i] ^ b.array[i]);
+
     // Now we calculate the (absolute) bit index where they
     // first differ.
     // "Not present" vs present also counts as a difference.
-    let index = Math.min(8 * i + j, a.length, b.length);
+    let index = Math.min(32 * i + j, a.length, b.length);
     // Compare by: 0 < not present < 1.  Represent
     // "not present" with 0.5, 1 with 1 << (7 - j).
     let aBit = index < a.length ? a.getNum(index) : 0.5;
     let bBit = index < b.length ? b.getNum(index) : 0.5;
     return [aBit - bBit, index];
+  }
+
+  /**
+   * Return the number of leading zeroes in x as a uint32.
+   * In C, this is known as the gcc built-in function __builtin_clz.
+   * This implementation is copied from
+   * https://blog.stephencleary.com/2010/10/implementing-gccs-builtin-functions.html
+   * which credits "This uses a binary search (counting down) algorithm from Hacker's Delight."
+   */
+  private static countLeadingZeroes(x: number) {
+    let n = 32;
+    let y = x >>> 16;
+    if (y != 0) {
+      n = n - 16;
+      x = y;
+    }
+    y = x >>> 8;
+    if (y != 0) {
+      n = n - 8;
+      x = y;
+    }
+    y = x >>> 4;
+    if (y != 0) {
+      n = n - 4;
+      x = y;
+    }
+    y = x >>> 2;
+    if (y != 0) {
+      n = n - 2;
+      x = y;
+    }
+    y = x >>> 1;
+    if (y != 0) return n - 2;
+    return n - x;
   }
 
   private checkBounds(index: number) {
@@ -92,16 +172,16 @@ export class BitSet {
 
   set(index: number, value: boolean) {
     this.checkBounds(index);
-    let major = Math.floor(index / 8);
-    let minor = 7 - (index % 8);
+    let major = index >>> 5;
+    let minor = 31 - (index % 32);
     if (value) this.array[major] |= 1 << minor;
     else this.array[major] &= ~(1 << minor);
   }
 
   get(index: number): boolean {
     this.checkBounds(index);
-    let major = Math.floor(index / 8);
-    let minor = 7 - (index % 8);
+    let major = index >>> 5;
+    let minor = 31 - (index % 32);
     return (this.array[major] & (1 << minor)) !== 0;
   }
 

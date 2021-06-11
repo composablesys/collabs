@@ -42,7 +42,7 @@
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
     "tscw": "tsc --project tsconfig.build.json --watch",
-    "start": "node -r dotenv/config --expose-gc --max-old-space-size=3000 build/src/paper/main.js"
+    "start": "node -r dotenv/config --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/paper/main.js"
   },
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"

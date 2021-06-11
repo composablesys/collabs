@@ -716,9 +716,11 @@ export class TreedocSource
         ? [after, before]
         : [before, after];
     // Check that they agree on their shared path
-    // TODO: optimize loop
-    for (let i = 0; i < shorter.path.length; i++) {
-      if (shorter.path.get(i) !== longer.path.get(i)) return null;
+    const [_, diffBit] = BitSet.compare(shorter.path, longer.path);
+    if (diffBit !== Math.min(shorter.path.length, longer.path.length)) {
+      // If they agreed on their shared path, then diffBit would be
+      // the shorter length.
+      return null;
     }
     // Check that they agree on their shared disambiguators.
     for (let d = 0; d < shorter.disambiguators.length - 1; d++) {
@@ -779,8 +781,7 @@ export class TreedocSource
 
   serialize(value: TreedocId): Uint8Array {
     let message = TreedocIdMessage.create({
-      path: value.path.array,
-      pathLength: value.path.length,
+      path: value.path.serialize(),
       disIndices: value.disambiguators.map((elem) => elem[0]),
       disValues: value.disambiguators.map((elem) => elem[1]),
     });
@@ -789,7 +790,7 @@ export class TreedocSource
 
   deserialize(message: Uint8Array, _runtime: Runtime): TreedocId {
     let decoded = TreedocIdMessage.decode(message);
-    let path = new BitSet(decoded.pathLength, decoded.path);
+    let path = BitSet.deserialize(decoded.path);
     let disambiguators: [index: number, value: string][] = [];
     for (let i = 0; i < decoded.disIndices.length; i++) {
       disambiguators.push([decoded.disIndices[i], decoded.disValues[i]]);
