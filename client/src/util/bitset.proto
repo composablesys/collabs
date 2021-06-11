@@ -1,0 +1,4 @@
+message BitSetSerialized {
+  required bytes array = 1;
+  required uint32 length = 2;
+}
