@@ -13,11 +13,9 @@ export class BitSet {
     for (let i = 0; i < Math.min(other.array.length, ans.array.length); i++) {
       ans.array[i] = other.array[i];
     }
-    if (newLength < other.length && newLength % 32 !== 0) {
+    if (newLength < other.length) {
       // Zero out bits in the last uint32 that we don't want
-      const mask = ~((1 << (32 - (newLength % 32))) - 1) >>> 0;
-      ans.array[ans.array.length - 1] =
-        (ans.array[ans.array.length - 1] & mask) >>> 0;
+      ans.setToEndFalse(ans.length);
     }
     return ans;
   }
@@ -244,7 +242,8 @@ export class BitSet {
       }
     }
     // Note that it safe to consider the last uint32 in
-    // the previous loop, since its extra bits are all 0,
+    // the previous loop or the first if-block,
+    // since its extra bits are all 0,
     // hence won't give a false positive.
 
     // If we get here, no 1s were found.
@@ -274,7 +273,8 @@ export class BitSet {
       }
     }
     // Note that it safe to consider the last uint32 in
-    // the previous loop, since its extra bits are all 0,
+    // the previous loop or the first if-block,
+    // since its extra bits are all 0,
     // hence the first 0 will cause it to return this.length,
     // the intended answer.
 
@@ -286,10 +286,52 @@ export class BitSet {
    * Sets indices [startIndex, this.length) to value.
    */
   setToEnd(startIndex: number, value: boolean) {
-    // TODO: optimize
-    for (let i = startIndex; i < this.length; i++) {
-      this.set(i, value);
+    if (value) this.setToEndTrue(startIndex);
+    else this.setToEndFalse(startIndex);
+  }
+
+  /**
+   * In addition to doing setToEnd with value = false,
+   * this also ensures that any bits in the last uint32
+   * after this.length are set to 0.
+   */
+  private setToEndFalse(startIndex: number) {
+    // // Simple version:
+    // for (let i = startIndex; i < this.length; i++) {
+    //   this.set(i, false);
+    // }
+    if (startIndex % 32 !== 0) {
+      // Zero out bits in the first uint32 that we don't want
+      const mask = ~((1 << (32 - (startIndex % 32))) - 1) >>> 0;
+      this.array[startIndex >>> 5] =
+        (this.array[startIndex >>> 5] & mask) >>> 0;
     }
+    for (let i = Math.ceil(startIndex / 32); i < this.array.length; i++) {
+      this.array[i] = 0;
+    }
+    // Note that it is safe to set the last uint32 in
+    // the above loop or the first if-block, since
+    // we want any extra bits to be 0 anyway.
+    // In fact, this behavior is dependended upon by
+    // some internal callers.
+  }
+
+  private setToEndTrue(startIndex: number) {
+    // // Simple version:
+    // for (let i = startIndex; i < this.length; i++) {
+    //   this.set(i, true);
+    // }
+    if (startIndex % 32 !== 0) {
+      // 1-out bits in the first uint32 that we want
+      const mask = ((1 << (32 - (startIndex % 32))) - 1) >>> 0;
+      this.array[startIndex >>> 5] =
+        (this.array[startIndex >>> 5] | mask) >>> 0;
+    }
+    for (let i = Math.ceil(startIndex / 32); i < this.array.length; i++) {
+      this.array[i] = -1 >>> 0;
+    }
+    // Zero out any extra bits that got set to 1 illegally
+    this.setToEndFalse(this.length);
   }
 
   equals(other: BitSet) {
