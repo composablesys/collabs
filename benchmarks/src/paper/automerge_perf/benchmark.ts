@@ -337,6 +337,7 @@ function mapLww() {
         // Delete character at edit[0]
         list!.delete(edit[0]);
       }
+      runtime!.commitBatch();
     },
     () => generator!.getTotalSentBytes()
   );
