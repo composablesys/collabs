@@ -10,7 +10,6 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
-    "bson": "^4.1.0",
     "buffer": "^6.0.3",
     "clean": "^4.0.2",
     "crypto-random-string": "~3.3.1",
@@ -20,7 +19,6 @@
     "reconnecting-websocket": "^4.4.0"
   },
   "devDependencies": {
-    "@types/bson": "^4.0.2",
     "@types/chai": "^4.2.14",
     "@types/functional-red-black-tree": "^1.0.0",
     "@types/mocha": "^8.2.0",
