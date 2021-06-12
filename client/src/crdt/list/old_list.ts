@@ -6,9 +6,12 @@ import {
   Runtime,
 } from "../core";
 import { Resettable } from "../helper_crdts";
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import createTree from "functional-red-black-tree";
-import { Tree } from "functional-red-black-tree";
+import {
+  DefaultElementSerializer,
+  ElementSerializer,
+  createRBTree,
+  RBTree,
+} from "../../util";
 import { RiakCrdtMap, SequentialPlainMap } from "../map";
 import { TreedocIdMessage } from "../../../generated/proto_compiled";
 import { BitSet } from "../../util/bitset";
@@ -65,7 +68,7 @@ export class List<I, C extends Crdt & Resettable>
   private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: RiakCrdtMap<I, C>;
   // Note this is a persistent (immutable) data structure.
-  private sortedKeys: Tree<I, true>;
+  private sortedKeys: RBTree<I, true>;
   constructor(
     sequenceSource: ISequenceSource<I>,
     valueConstructor: (seqId: I) => C
@@ -76,7 +79,7 @@ export class List<I, C extends Crdt & Resettable>
       "2",
       new RiakCrdtMap<I, C>(valueConstructor, this.sequenceSource)
     );
-    this.sortedKeys = createTree(
+    this.sortedKeys = createRBTree(
       this.sequenceSource.compare.bind(sequenceSource)
     );
     // Catch map key events and adjusting sortedKeys
@@ -86,8 +89,15 @@ export class List<I, C extends Crdt & Resettable>
       // Add the key if it is not present (Tree permits
       // multiple instances of the same key, so adding it
       // again if it already exists is not a no-op).
+      // TODO: optimize out this get
       if (!this.sortedKeys.get(event.key)) {
-        this.sortedKeys = this.sortedKeys.insert(event.key, true);
+        let index: number;
+        [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
+        // // TODO: debug mode only
+        // const indexDebug = this.sortedKeys.find(event.key)!.index;
+        // if (index !== indexDebug) {
+        //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
+        // }
       }
     });
     this.valueMap.on("KeyDelete", (event) => {
@@ -128,7 +138,9 @@ export class List<I, C extends Crdt & Resettable>
   }
 
   // TODO: hide access if not persistent?
-  idsAsTree(): Tree<I, true> {
+  // Also given that this is our forked version, not
+  // the importable one.
+  idsAsTree(): RBTree<I, true> {
     return this.sortedKeys;
   }
 
@@ -278,7 +290,7 @@ export class PrimitiveList<I, T>
   private readonly valueMap: SequentialPlainMap<I, T>;
   // Note this is a persistent (immutable) data structure.
   // TODO: undefined instead of true?
-  private sortedKeys: Tree<I, true>;
+  private sortedKeys: RBTree<I, true>;
   constructor(
     sequenceSource: ISequenceSource<I>,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
@@ -289,7 +301,7 @@ export class PrimitiveList<I, T>
       "2",
       new SequentialPlainMap<I, T>(this.sequenceSource, valueSerializer)
     );
-    this.sortedKeys = createTree(
+    this.sortedKeys = createRBTree(
       this.sequenceSource.compare.bind(sequenceSource)
     );
     // Catch map key events and adjusting sortedKeys
@@ -301,11 +313,13 @@ export class PrimitiveList<I, T>
       // SequentialMap and we don't allow editing
       // values in-place.  So we can trust that
       // event.key is not already present in sortedKeys.
-      // TODO: use a library that tells us the index on
-      // insertion, so we don't have to do 2 binary
-      // searches.
-      this.sortedKeys = this.sortedKeys.insert(event.key, true);
-      const index = this.sortedKeys.find(event.key)!.index;
+      let index: number;
+      [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
+      // // TODO: debug mode only
+      // const indexDebug = this.sortedKeys.find(event.key)!.index;
+      // if (index !== indexDebug) {
+      //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
+      // }
       this.emit("Insert", {
         timestamp: event.timestamp,
         index,
@@ -372,7 +386,9 @@ export class PrimitiveList<I, T>
   }
 
   // TODO: hide access if not persistent?
-  idsAsTree(): Tree<I, true> {
+  // Also given that this is our forked version, not
+  // the importable one.
+  idsAsTree(): RBTree<I, true> {
     return this.sortedKeys;
   }
 
