@@ -32,6 +32,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     string,
     TreedocPrimitiveList<string>
   >;
+  private readonly internalNestedKeys: Map<string, Set<string>>;
 
   constructor() {
     super();
@@ -50,6 +51,37 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
         true
       )
     );
+
+    this.internalNestedKeys = new Map();
+
+    this.internalMap.on("KeyAdd", (event) => {
+      let keys = event.key.split(":");
+      keys?.pop();
+      let key = keys.pop() || "";
+      let cursor = keys.join(":");
+      this.addKey(cursor + ":", key);
+    });
+
+    this.internalMap.on("KeyDelete", (event) => {
+      let keys = event.key.split(":");
+      keys?.pop();
+      let key = keys.pop() || "";
+      let cursor = keys.join(":");
+      this.deleteKey(cursor + ":", key);
+    })
+  }
+
+  addKey(cursor: string, key: string) {
+    let keys = this.internalNestedKeys.get(cursor)
+    if (keys !== undefined) {
+      keys.add(key);
+    } else {
+      this.internalNestedKeys.set(cursor, new Set([key]));
+    }
+  }
+
+  deleteKey(cursor: string, key: string) {
+    this.internalNestedKeys.get(cursor)?.delete(key);
   }
 
   set(key: string, val: number | string | boolean | InternalType) {
@@ -90,9 +122,11 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   }
 
   deleteSubKeys(key: string) {
-    for (let anyKey of this.internalMap.keys()) {
-      if (anyKey.substring(0, key.length) == key && anyKey != key) {
-        this.internalMap.delete(anyKey);
+    let nestedKeys = this.internalNestedKeys.get(key);
+    if (nestedKeys !== undefined) {
+      for (let subkey of [...nestedKeys]) {
+        this.deleteKey(key, subkey);
+        this.delete(key + subkey + ":");
       }
     }
   }
@@ -103,15 +137,12 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   }
 
   keys(cursor: string): string[] {
-    let keys = new Set<string>();
-
-    for (let anyKey of this.internalMap.keys()) {
-      if (anyKey.substring(0, cursor.length) == cursor && anyKey != cursor) {
-        keys.add(anyKey.substring(cursor.length).split(":")[0]);
-      }
+    let keys = this.internalNestedKeys.get(cursor);
+    if (keys !== undefined) {
+      return [...keys];
+    } else {
+      return [];
     }
-
-    return [...keys];
   }
 
   values(
@@ -157,7 +188,7 @@ export class JsonCursor {
     if (!internal) internal = new JsonCrdt();
     this.internal = internal;
 
-    if (!cursor) cursor = "";
+    if (!cursor) cursor = ":";
     this.cursor = cursor;
   }
 
@@ -168,18 +199,22 @@ export class JsonCursor {
   }
 
   set(key: string, val: number | string | boolean) {
+    this.internal.addKey(this.cursor, key);
     this.internal.set(this.cursor + key + ":", val);
   }
 
   setIsMap(key: string) {
+    this.internal.addKey(this.cursor, key);
     this.internal.setIsMap(this.cursor + key + ":");
   }
 
   setIsList(key: string) {
+    this.internal.addKey(this.cursor, key);
     this.internal.setIsList(this.cursor + key + ":");
   }
 
   delete(key: string) {
+    this.internal.deleteKey(this.cursor, key);
     this.internal.delete(this.cursor + key + ":");
   }
 
