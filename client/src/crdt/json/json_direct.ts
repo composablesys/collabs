@@ -24,21 +24,23 @@ enum InternalType {
 }
 
 export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
+  // Main map of all items in JSON object
   private readonly internalMap: RiakCrdtMap<
     string,
     MultiValueRegister<number | string | boolean | InternalType>
   >;
+  // Map of all lists in object
   private readonly internalListMap: ImplicitCrdtMap<
     string,
     TreedocPrimitiveList<string>
   >;
+  // Maps keys to set of nested keys
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
   constructor() {
     super();
 
-    let keySerializer: ElementSerializer<string> =
-      DefaultElementSerializer.getInstance();
+    let keySerializer: ElementSerializer<string> = DefaultElementSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
       new RiakCrdtMap(() => new MultiValueRegister(), keySerializer)
@@ -54,6 +56,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
 
     this.internalNestedKeys = new Map();
 
+    // Update internalListMap if any keys are added or deleted
     this.internalMap.on("KeyAdd", (event) => {
       let keys = event.key.split(":");
       keys?.pop();
@@ -68,11 +71,11 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
       let key = keys.pop() || "";
       let cursor = keys.join(":");
       this.deleteKey(cursor + ":", key);
-    })
+    });
   }
 
   addKey(cursor: string, key: string) {
-    let keys = this.internalNestedKeys.get(cursor)
+    let keys = this.internalNestedKeys.get(cursor);
     if (keys !== undefined) {
       keys.add(key);
     } else {

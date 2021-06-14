@@ -371,8 +371,7 @@ function plainJs() {
 function compoCrdt() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
-    implements ITodoList, crdts.Resettable
-  {
+    implements ITodoList, crdts.Resettable {
     private readonly text: crdts.TreedocPrimitiveList<string>;
     private readonly doneCrdt: crdts.TrueWinsBoolean;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
@@ -607,14 +606,12 @@ function compoJsonText() {
       }
     }
     get textSize(): number {
-      return (
-        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
-      ).length;
+      return (this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>).length;
     }
     getText(): string {
-      return (
-        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
-      )
+      return (this.jsonObj.get("text")!
+        .value as crdts.TreedocPrimitiveList<string>)
         .asArray()
         .join("");
     }
