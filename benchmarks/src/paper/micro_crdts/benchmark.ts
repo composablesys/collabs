@@ -1,6 +1,6 @@
-import * as tf from "@tensorflow/tfjs-node";
+// import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import seedrandom from "seedrandom";
 import {
   getRecordedTrials,
@@ -87,13 +87,13 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 
       // Setup
       // TODO: should this be included in memory?
-      let generator = new network.TestingNetworkGenerator();
-      let runtimes: crdts.CrdtRuntime[] = [];
-      let crdts: C[] = [];
+      let generator = new crdts.TestingNetworkGenerator();
+      let runtimes: crdts.Runtime[] = [];
+      let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
         runtimes[i] = generator.newRuntime("manual", rng);
-        crdts[i] = this.crdtConstructor();
-        runtimes[i].groupParent("").addChild("", crdts[i]);
+        crdtList[i] = this.crdtConstructor();
+        runtimes[i].registerCrdt("", crdtList[i]);
       }
 
       if (measurement === "memory") {
@@ -136,8 +136,8 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
         // Each user sends concurrently, then receives
         // each other's messages.
         for (let i = 0; i < USERS; i++) {
-          this.getWeightedRandomOp(rng)(crdts[i], rng);
-          runtimes[i].commitAll();
+          this.getWeightedRandomOp(rng)(crdtList[i], rng);
+          runtimes[i].commitBatch();
         }
         for (let i = 0; i < USERS; i++) generator.release(runtimes[i]);
 
@@ -171,13 +171,13 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
 
       // Check results are all the same
-      let result0 = this.getState(crdts[0]);
+      let result0 = this.getState(crdtList[0]);
       for (let i = 1; i < USERS; i++) {
-        assert.deepStrictEqual(this.getState(crdts[i]), result0);
+        assert.deepStrictEqual(this.getState(crdtList[i]), result0);
       }
 
       if (this.crdtDestructor !== undefined) {
-        crdts.forEach((crdt) => this.crdtDestructor?.(crdt));
+        crdtList.forEach((crdt) => this.crdtDestructor?.(crdt));
       }
     }
 
@@ -234,7 +234,7 @@ function DeepNoopCrdt() {
 
 function ICounter(
   name: string,
-  counter: typeof crdts.Counter | typeof crdts.CounterPure,
+  counter: typeof crdts.AddOnlyNumber,
   resetFraction: number
 ) {
   return new MicroCrdtsBenchmark(
@@ -254,9 +254,9 @@ function ICounter(
 function MultiValueRegister() {
   return new MicroCrdtsBenchmark(
     "MultiValueRegister",
-    () => new crdts.MultiValueRegister<number>(),
+    () => new crdts.LwwRegister<number>(0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
-    (crdt) => crdt.valueSet
+    (crdt) => crdt.conflicts()
   );
 }
 
@@ -272,7 +272,7 @@ function LwwRegister() {
 function NumberCrdt() {
   return new MicroCrdtsBenchmark(
     "NumberCrdt",
-    () => new crdts.NumberCrdt(1),
+    () => new crdts.DefaultNumber(1),
     {
       Add: [(crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)), 0.5],
       Mult: [(crdt, rng) => crdt.mult(Math.floor(8 * rng() - 4) / 2), 0.5],
@@ -284,10 +284,10 @@ function NumberCrdt() {
 function EnableWinsFlag() {
   return new MicroCrdtsBenchmark(
     "EnableWinsFlag",
-    () => new crdts.EnableWinsFlag(),
+    () => new crdts.TrueWinsBoolean(),
     {
-      Enable: [(crdt) => crdt.enable(), 0.5],
-      Disable: [(crdt) => crdt.disable(), 0.5],
+      Enable: [(crdt) => (crdt.value = true), 0.5],
+      Disable: [(crdt) => (crdt.value = false), 0.5],
     },
     (crdt) => crdt.value
   );
@@ -296,7 +296,7 @@ function EnableWinsFlag() {
 function AddWinsSet() {
   return new MicroCrdtsBenchmark(
     "AddWinsSet",
-    () => new crdts.AddWinsSet<number>(),
+    () => new crdts.AddWinsPlainSet<number>(),
     {
       Toggle: [
         (crdt, rng) => {
@@ -307,7 +307,7 @@ function AddWinsSet() {
         1.0,
       ],
     },
-    (crdt) => crdt.value
+    (crdt) => new Set(crdt)
   );
 }
 
@@ -323,7 +323,7 @@ function AddWinsSetRolling() {
     "AddWinsSetRolling",
     () => {
       i = 0;
-      return new crdts.AddWinsSet<number>();
+      return new crdts.AddWinsPlainSet<number>();
     },
     {
       Roll: [
@@ -337,7 +337,7 @@ function AddWinsSetRolling() {
     },
     (crdt) => {
       //console.log("AddWinsSetRolling total elements touched: " + i);
-      return crdt.value;
+      return new Set(crdt);
     }
   );
 }
@@ -348,7 +348,7 @@ function AddWinsSetRollingGrow() {
     "AddWinsSetRollingGrow",
     () => {
       i = 0;
-      return new crdts.AddWinsSet<number>();
+      return new crdts.AddWinsPlainSet<number>();
     },
     {
       Roll: [
@@ -361,7 +361,7 @@ function AddWinsSetRollingGrow() {
     },
     (crdt) => {
       //console.log("AddWinsSetRolling total elements touched: " + i);
-      return crdt.value;
+      return new Set(crdt);
     }
   );
 }
@@ -370,10 +370,9 @@ function MapCrdt() {
   return new MicroCrdtsBenchmark(
     "MapCrdt",
     () =>
-      new crdts.MapCrdt<number, crdts.Counter>(
-        () => new crdts.Counter(),
-        crdts.DefaultElementSerializer.getInstance(),
-        true
+      new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
+        () => new crdts.AddOnlyNumber(),
+        crdts.DefaultElementSerializer.getInstance()
       ),
     {
       Toggle: [
@@ -387,13 +386,13 @@ function MapCrdt() {
       ValueOp: [
         (crdt, rng) => {
           let key = Math.floor(rng() * 100);
-          crdt.getForce(key).add(Math.floor(rng() * 100 - 50));
+          if (!crdt.has(key)) crdt.addKey(key);
+          crdt.get(key)!.add(Math.floor(rng() * 100 - 50));
         },
         0.5,
       ],
     },
-    (crdt) =>
-      new Map([...crdt.value].map((value) => [value[0], value[1].value]))
+    (crdt) => new Map([...crdt].map((value) => [value[0], value[1].value]))
   );
 }
 
@@ -409,17 +408,17 @@ function MapCrdtRolling() {
     "MapCrdtRolling",
     () => {
       i = 0;
-      return new crdts.MapCrdt<number, crdts.Counter>(
-        () => new crdts.Counter(),
-        crdts.DefaultElementSerializer.getInstance(),
-        true
+      return new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
+        () => new crdts.AddOnlyNumber(),
+        crdts.DefaultElementSerializer.getInstance()
       );
     },
     {
       Roll: [
         (crdt, rng) => {
           if (i >= 100) crdt.delete(i - 100);
-          crdt.getForce(i).add(Math.floor(rng() * 100 - 50));
+          if (!crdt.has(i)) crdt.addKey(i);
+          crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
         1.0,
@@ -427,9 +426,7 @@ function MapCrdtRolling() {
     },
     (crdt) => {
       //console.log("MapCrdtRolling total elements touched: " + i);
-      return new Map(
-        [...crdt.value].map((value) => [value[0], value[1].value])
-      );
+      return new Map([...crdt].map((value) => [value[0], value[1].value]));
     }
   );
 }
@@ -440,16 +437,16 @@ function MapCrdtRollingGrow() {
     "MapCrdtRollingGrow",
     () => {
       i = 0;
-      return new crdts.MapCrdt<number, crdts.Counter>(
-        () => new crdts.Counter(),
-        crdts.DefaultElementSerializer.getInstance(),
-        true
+      return new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
+        () => new crdts.AddOnlyNumber(),
+        crdts.DefaultElementSerializer.getInstance()
       );
     },
     {
       Roll: [
         (crdt, rng) => {
-          crdt.getForce(i).add(Math.floor(rng() * 100 - 50));
+          if (!crdt.has(i)) crdt.addKey(i);
+          crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
         1.0,
@@ -457,9 +454,7 @@ function MapCrdtRollingGrow() {
     },
     (crdt) => {
       //console.log("MapCrdtRolling total elements touched: " + i);
-      return new Map(
-        [...crdt.value].map((value) => [value[0], value[1].value])
-      );
+      return new Map([...crdt].map((value) => [value[0], value[1].value]));
     }
   );
 }
@@ -467,7 +462,7 @@ function MapCrdtRollingGrow() {
 function LwwMap() {
   return new MicroCrdtsBenchmark(
     "LwwMap",
-    () => new crdts.LwwMap<number, number>(),
+    () => new crdts.LwwPlainMap<number, number>(),
     {
       Toggle: [
         (crdt, rng) => {
@@ -495,7 +490,7 @@ function LwwMapRolling() {
     "LwwMapRolling",
     () => {
       i = 0;
-      return new crdts.LwwMap<number, number>();
+      return new crdts.LwwPlainMap<number, number>();
     },
     {
       Roll: [
@@ -517,7 +512,7 @@ function LwwMapRollingGrow() {
     "LwwMapRollingGrow",
     () => {
       i = 0;
-      return new crdts.LwwMap<number, number>();
+      return new crdts.LwwPlainMap<number, number>();
     },
     {
       Roll: [
@@ -602,35 +597,35 @@ function TreedocPrimitiveListRandomGrow() {
   );
 }
 
-function ITensor(
-  name: "TensorAvg" | "TensorCounter",
-  shape: number[],
-  dtype: tf.NumericDataType,
-  resetFraction: number
-) {
-  return new MicroCrdtsBenchmark<
-    crdts.TensorAverageCrdt | crdts.TensorCounterCrdt
-  >(
-    name,
-    () =>
-      name === "TensorAvg"
-        ? new crdts.TensorAverageCrdt(shape, dtype)
-        : new crdts.TensorCounterCrdt(shape, dtype),
-    {
-      Add: [
-        (crdt, rng) => {
-          const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
-          crdt.add(toAdd);
-          toAdd.dispose();
-        },
-        1 - resetFraction,
-      ],
-      Reset: [(crdt) => crdt.reset(), resetFraction],
-    },
-    (crdt) => tf.tidy(() => crdt.value.arraySync()),
-    (crdt) => crdt.dispose()
-  );
-}
+// function ITensor(
+//   name: "TensorAvg" | "TensorCounter",
+//   shape: number[],
+//   dtype: tf.NumericDataType,
+//   resetFraction: number
+// ) {
+//   return new MicroCrdtsBenchmark<
+//     crdts.TensorAverageCrdt | crdts.TensorCounterCrdt
+//   >(
+//     name,
+//     () =>
+//       name === "TensorAvg"
+//         ? new crdts.TensorAverageCrdt(shape, dtype)
+//         : new crdts.TensorCounterCrdt(shape, dtype),
+//     {
+//       Add: [
+//         (crdt, rng) => {
+//           const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
+//           crdt.add(toAdd);
+//           toAdd.dispose();
+//         },
+//         1 - resetFraction,
+//       ],
+//       Reset: [(crdt) => crdt.reset(), resetFraction],
+//     },
+//     (crdt) => tf.tidy(() => crdt.value.arraySync()),
+//     (crdt) => crdt.dispose()
+//   );
+// }
 
 export default async function microCrdts(args: string[]) {
   let benchmark: MicroCrdtsBenchmark<any>;
@@ -642,35 +637,35 @@ export default async function microCrdts(args: string[]) {
       benchmark = DeepNoopCrdt();
       break;
     case "Counter":
-      benchmark = ICounter(args[0], crdts.Counter, 0);
+      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0);
       break;
     case "Counter-1":
-      benchmark = ICounter(args[0], crdts.Counter, 0.01);
+      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.01);
       break;
     case "Counter-10":
-      benchmark = ICounter(args[0], crdts.Counter, 0.1);
+      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.1);
       break;
     case "Counter-50":
-      benchmark = ICounter(args[0], crdts.Counter, 0.5);
+      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.5);
       break;
     case "Counter-100":
-      benchmark = ICounter(args[0], crdts.Counter, 1);
+      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 1);
       break;
-    case "CounterPure":
-      benchmark = ICounter(args[0], crdts.CounterPure, 0);
-      break;
-    case "CounterPure-1":
-      benchmark = ICounter(args[0], crdts.CounterPure, 0.01);
-      break;
-    case "CounterPure-10":
-      benchmark = ICounter(args[0], crdts.CounterPure, 0.1);
-      break;
-    case "CounterPure-50":
-      benchmark = ICounter(args[0], crdts.CounterPure, 0.5);
-      break;
-    case "CounterPure-100":
-      benchmark = ICounter(args[0], crdts.CounterPure, 1);
-      break;
+    // case "CounterPure":
+    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0);
+    //   break;
+    // case "CounterPure-1":
+    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.01);
+    //   break;
+    // case "CounterPure-10":
+    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.1);
+    //   break;
+    // case "CounterPure-50":
+    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.5);
+    //   break;
+    // case "CounterPure-100":
+    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 1);
+    //   break;
     case "MultiValueRegister":
       benchmark = MultiValueRegister();
       break;
@@ -722,36 +717,36 @@ export default async function microCrdts(args: string[]) {
     case "TextRandomGrow":
       benchmark = TreedocPrimitiveListRandomGrow();
       break;
-    case "TensorCounter":
-      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
-      break;
-    case "TensorCounter-1":
-      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
-      break;
-    case "TensorCounter-10":
-      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
-      break;
-    case "TensorCounter-50":
-      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
-      break;
-    case "TensorCounter-100":
-      benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
-      break;
-    case "TensorAvg":
-      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
-      break;
-    case "TensorAvg-1":
-      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
-      break;
-    case "TensorAvg-10":
-      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
-      break;
-    case "TensorAvg-50":
-      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
-      break;
-    case "TensorAvg-100":
-      benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
-      break;
+    // case "TensorCounter":
+    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
+    //   break;
+    // case "TensorCounter-1":
+    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
+    //   break;
+    // case "TensorCounter-10":
+    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
+    //   break;
+    // case "TensorCounter-50":
+    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
+    //   break;
+    // case "TensorCounter-100":
+    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
+    //   break;
+    // case "TensorAvg":
+    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
+    //   break;
+    // case "TensorAvg-1":
+    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
+    //   break;
+    // case "TensorAvg-10":
+    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
+    //   break;
+    // case "TensorAvg-50":
+    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
+    //   break;
+    // case "TensorAvg-100":
+    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
+    //   break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC
     default:

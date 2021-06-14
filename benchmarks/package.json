@@ -7,8 +7,6 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^3.3.0",
-    "@tensorflow/tfjs-node": "^3.3.0",
     "compoventuals-client": "^0.1.0",
     "benchmark": "^2.1.4",
     "clean": "^4.0.2",
@@ -32,7 +30,8 @@
     "@types/seedrandom": "^2.4.28",
     "@types/chai": "^4.2.14",
     "@types/airbnb__node-memwatch": "^2.0.0",
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "@types/node": "^15.6.1"
   },
   "scripts": {
     "build": "npm-run-all build:*",
@@ -43,7 +42,7 @@
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
     "tscw": "tsc --project tsconfig.build.json --watch",
-    "start": "node -r dotenv/config --expose-gc --max-old-space-size=3000 build/src/paper/main.js"
+    "start": "node -r dotenv/config --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/paper/main.js"
   },
   "bugs": {
     "url": "https://github.com/composablesys/compoventuals/issues"

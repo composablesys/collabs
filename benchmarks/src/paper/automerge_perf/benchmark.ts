@@ -1,4 +1,4 @@
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import { edits, finalText } from "./editing-trace";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -53,8 +53,6 @@ class AutomergePerfBenchmark {
       // Sleep between trials
       await sleep(1000);
       console.log("Starting trial " + trial);
-
-      let rng = seedrandom(SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -180,24 +178,21 @@ function plainJsArray() {
 }
 
 function treedocLww() {
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let list: crdts.TreedocList<crdts.LwwRegister<string>> | null;
 
   return new AutomergePerfBenchmark(
     "TreedocList<LwwRegister>",
     (rng) => {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime
-        .groupParent("")
-        .addChild(
-          "text",
-          new crdts.TreedocList<crdts.LwwRegister<string>>(
-            () => new crdts.LwwRegister(""),
-            true
-          )
-        );
+      list = runtime.registerCrdt(
+        "text",
+        new crdts.TreedocList<crdts.LwwRegister<string>>(
+          () => new crdts.LwwRegister("")
+        )
+      );
     },
     () => {
       generator = null;
@@ -212,7 +207,7 @@ function treedocLww() {
         // Delete character at edit[0]
         list!.deleteAt(edit[0]);
       }
-      runtime!.commitAll();
+      runtime!.commitBatch();
     },
     () => generator!.getTotalSentBytes(),
     () =>
@@ -223,19 +218,20 @@ function treedocLww() {
   );
 }
 
-function treedocPrimitiveLww() {
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+function textCrdt() {
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let list: crdts.TreedocPrimitiveList<string> | null;
 
   return new AutomergePerfBenchmark(
-    "TreedocPrimitiveList",
+    "TextCrdt",
     (rng) => {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime
-        .groupParent("")
-        .addChild("text", new crdts.TreedocPrimitiveList<string>());
+      list = runtime.registerCrdt(
+        "text",
+        new crdts.TreedocPrimitiveList<string>()
+      );
     },
     () => {
       generator = null;
@@ -250,7 +246,7 @@ function treedocPrimitiveLww() {
         // Delete character at edit[0]
         list!.deleteAt(edit[0]);
       }
-      runtime!.commitAll();
+      runtime!.commitBatch();
     },
     () => generator!.getTotalSentBytes(),
     () => list!.asArray().join("")
@@ -314,18 +310,19 @@ function automerge() {
 // }
 
 function mapLww() {
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
-  let list: crdts.LwwMap<number, string> | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let list: crdts.LwwPlainMap<number, string> | null;
 
   return new AutomergePerfBenchmark(
     "LwwMap",
     (rng) => {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime
-        .groupParent("")
-        .addChild("text", new crdts.LwwMap<number, string>());
+      list = runtime.registerCrdt(
+        "text",
+        new crdts.LwwPlainMap<number, string>()
+      );
     },
     () => {
       generator = null;
@@ -340,6 +337,7 @@ function mapLww() {
         // Delete character at edit[0]
         list!.delete(edit[0]);
       }
+      runtime!.commitBatch();
     },
     () => generator!.getTotalSentBytes()
   );
@@ -417,8 +415,8 @@ export default async function automergePerf(args: string[]) {
     case "treedocLww":
       benchmark = treedocLww();
       break;
-    case "treedocPrimitiveLww":
-      benchmark = treedocPrimitiveLww();
+    case "textCrdt":
+      benchmark = textCrdt();
       break;
     case "mapLww":
       benchmark = mapLww();

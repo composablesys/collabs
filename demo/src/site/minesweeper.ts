@@ -1,10 +1,10 @@
-/* Creating the grid */
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import seedrandom = require("seedrandom");
 
 const board = document.getElementById("board");
 const winText = document.getElementById("winText")!;
 
+/* Creating the grid */
 // TODO: make refresh not destroy board each time?
 // TODO: if game over, say win/lose and display whole board
 function refreshDisplay() {
@@ -153,42 +153,32 @@ function settingsFromInput(): GameSettings {
  * Generate CRDTs' Runtime on each client and create CRDTs
  */
 let HOST = location.origin.replace(/^http/, "ws");
-let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(new network.WebSocketNetwork(HOST)),
-  { periodMs: 0 }
+let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "minesweeper"));
+let gameSource = client.registerCrdt(
+  "gameSource",
+  new crdts.CrdtFactory(
+    (
+      width: number,
+      height: number,
+      fractionMines: number,
+      seed: string,
+      startX: number,
+      startY: number
+    ) => new MinesweeperCrdt(width, height, fractionMines, seed, startX, startY)
+  )
 );
-let gameSource = client
-  .groupParent("minesGroup")
-  .addChild(
-    "gameSource",
-    new crdts.DynamicCrdtSource(
-      (
-        width: number,
-        height: number,
-        fractionMines: number,
-        seed: string,
-        startX: number,
-        startY: number
-      ) =>
-        new MinesweeperCrdt(width, height, fractionMines, seed, startX, startY)
-    )
-  );
-let currentSettings = client
-  .groupParent("minesGroup")
-  .addChild(
-    "currentSettings",
-    new crdts.LwwRegister<GameSettings>(settingsFromInput())
-  );
+let currentSettings = client.registerCrdt(
+  "currentSettings",
+  new crdts.LwwRegister<GameSettings>(settingsFromInput())
+);
 // TODO: FWW instead of LWW?  Also backup to view all games
 // in case of concurrent progress.
-let currentState = client
-  .groupParent("minesGroup")
-  .addChild(
-    "currentState",
-    new crdts.LwwRegister<MinesweeperCrdt | GameSettings>(currentSettings.value)
-  );
+let currentState = client.registerCrdt(
+  "currentState",
+  new crdts.LwwRegister<MinesweeperCrdt | GameSettings>(currentSettings.value)
+);
 
-client.groupParent("minesGroup").on("Change", invalidate);
+client.on("Change", invalidate);
 
 document.getElementById("newGame")!.onclick = function () {
   currentSettings.value = settingsFromInput();
@@ -221,13 +211,13 @@ enum TileStatus {
 }
 
 class TileCrdt extends crdts.CompositeCrdt {
-  private readonly revealed: crdts.EnableWinsFlag;
+  private readonly revealed: crdts.TrueWinsBoolean;
   private readonly flag: crdts.LwwRegister<FlagStatus>;
   number: number = 0;
 
   constructor(readonly isMine: boolean) {
     super();
-    this.revealed = this.addChild("revealed", new crdts.EnableWinsFlag());
+    this.revealed = this.addChild("revealed", new crdts.TrueWinsBoolean());
     this.flag = this.addChild("flag", new crdts.LwwRegister(FlagStatus.NONE));
   }
 

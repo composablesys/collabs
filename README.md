@@ -6,13 +6,15 @@ One day, we'll come up with a better name.
 
 ## Building
 
-First, ensure you have npm 7 or higher:
+First, install NodeJs >= 15.6 from [nodejs.org](nodejs.org).
+
+Next, ensure you have npm 7 or higher:
 
 ```bash
 $ npm -v
 ```
 
-If this is not the case, you can update to the latest version using:
+If this is not the case, you can update to the latest version using (may require sudo/root permissions):
 
 ```bash
 $ npm install -g npm@latest
@@ -44,6 +46,7 @@ TypeDoc documentation is created in the docs/ directory of each subpackage as pa
 ## How to run the local server?
 
 Run the following command under root folder `/compoventuals`, the local server will listen on port `3000`:
+
 ```bash
 $ npm start
 ```
@@ -54,24 +57,26 @@ Access the service via `localhost:3000`, look at the console to see outputs of c
 
 Deploys to https://compoventuals-tests.herokuapp.com/
 
-* The Heroku deployment will be automatically triggered by `git commit` and `git push`.
-* The Heroku server will run `npm install` and `npm build` to build the project, and `npm start` to run it (according to Procfile).
+- The Heroku deployment will be automatically triggered by `git commit` and `git push`.
+- The Heroku server will run `npm install` and `npm build` to build the project, and `npm start` to run it (according to Procfile).
 
 Options for manually deployment:
 
-* Log in your Heroku with CLI tool and verify on browser:
+- Log in your Heroku with CLI tool and verify on browser:
 
 ```
 heroku login
 ```
 
-* Create a heroku project on your machine by running (in the repo's top-level directory):
+- Create a heroku project on your machine by running (in the repo's top-level directory):
+
 ```
 heroku create
 ```
+
 This should also create a git remote repo named `heroku`. See [here](https://devcenter.heroku.com/articles/git#creating-a-heroku-remote) for how to customize or repair this if needed.
 
-* Commit and push the code on Heroku master just like the way you do on Github:
+- Commit and push the code on Heroku master just like the way you do on Github:
 
 ```
 git add ${selected files}
@@ -84,3 +89,5 @@ git push
 
 We recommend setting up "Format on Save" in your editor.
 See [Prettier's editor setup instructions](https://prettier.io/docs/en/editors.html).
+
+If you don't set this, you'll need to run `npm run fix` in the top-level directory before committing and pushing your code to github. Otherwise, the CI will complain that the format is wrong.

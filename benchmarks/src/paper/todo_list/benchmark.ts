@@ -1,4 +1,4 @@
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -140,7 +140,7 @@ class TodoListBenchmark {
         // Process one edit
         this.randomOp(list);
         this.testFactory.sendNextMessage();
-        if (measurement === "memory") await sleep(0);
+        //if (measurement === "memory") await sleep(0);
       }
 
       // Record result
@@ -371,9 +371,10 @@ function plainJs() {
 function compoCrdt() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
-    implements ITodoList, crdts.Resettable {
+    implements ITodoList, crdts.Resettable
+  {
     private readonly text: crdts.TreedocPrimitiveList<string>;
-    private readonly doneCrdt: crdts.EnableWinsFlag;
+    private readonly doneCrdt: crdts.TrueWinsBoolean;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
 
     constructor() {
@@ -382,10 +383,10 @@ function compoCrdt() {
         "text",
         new crdts.TreedocPrimitiveList(crdts.TextSerializer.instance)
       );
-      this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
       this.items = this.addChild(
         "items",
-        new crdts.TreedocList(() => new CrdtTodoList(), true)
+        new crdts.TreedocList(() => new CrdtTodoList())
       );
     }
 
@@ -432,16 +433,16 @@ function compoCrdt() {
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Crdt", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.groupParent("").addChild("", new CrdtTodoList());
+      let list = runtime.registerCrdt("", new CrdtTodoList());
       this.sendNextMessage();
       return list;
     },
@@ -450,7 +451,7 @@ function compoCrdt() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -522,18 +523,16 @@ function compoJson() {
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTodoList(list.value as crdts.JsonObject);
@@ -543,7 +542,7 @@ function compoJson() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -608,29 +607,29 @@ function compoJsonText() {
       }
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>).length;
+      return (
+        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
+      ).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>)
+      return (
+        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
+      )
         .asArray()
         .join("");
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime
-        .groupParent("")
-        .addChild("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTextTodoList(list.value as crdts.JsonObject);
@@ -640,7 +639,7 @@ function compoJsonText() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -942,7 +941,7 @@ function jsonCrdt() {
     constructor(
       private readonly crdt: crdts.JsonCursor,
       private readonly idGen: crdts.TreedocSource,
-      private readonly runtime: crdts.CrdtRuntime
+      private readonly runtime: crdts.Runtime
     ) {
       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
       this.ids = this.crdt.get(
@@ -1027,20 +1026,20 @@ function jsonCrdt() {
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Crdt", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
 
       let crdt = new crdts.JsonCrdt();
 
       let cursor = new crdts.JsonCursor(crdt);
-      runtime.groupParent("").addChild("", crdt);
+      runtime.registerCrdt("", crdt);
       this.sendNextMessage();
       cursor.setIsMap("items");
       cursor.setIsList("itemsIds");
@@ -1056,7 +1055,7 @@ function jsonCrdt() {
       runtime = null;
     },
     sendNextMessage() {
-      runtime!.commitAll();
+      runtime!.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength

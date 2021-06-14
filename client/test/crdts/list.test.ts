@@ -1,18 +1,19 @@
 import { assert } from "chai";
 import {
-  CrdtRuntime,
+  Runtime,
   ISequenceSource,
   TreedocSource,
   TreedocId,
-} from "../../src/crdts";
-import { BitSet } from "../../src/utils/bitset";
-import { TestingNetworkGenerator } from "../../src/network";
+  TestingNetworkGenerator,
+} from "../../src";
 import seedrandom from "seedrandom";
+import { BitSet } from "../../src/util/bitset";
+import util from "util";
 
 describe("list", () => {
   let runtimeGen: TestingNetworkGenerator;
-  let alice: CrdtRuntime;
-  let bob: CrdtRuntime;
+  let alice: Runtime;
+  let bob: Runtime;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
@@ -27,10 +28,8 @@ describe("list", () => {
     let aliceId: string;
 
     beforeEach(() => {
-      source = alice
-        .groupParent("")
-        .addChild("treedocSourceId", new TreedocSource());
-      aliceId = alice.getReplicaId();
+      source = alice.registerCrdt("treedocSourceId", new TreedocSource());
+      aliceId = alice.replicaId;
     });
 
     it("compares sample correctly", () => {
@@ -125,41 +124,66 @@ describe("list", () => {
         };
       });
       let mid = source.createBetween(before, after, expected.length);
-      assert.deepStrictEqual(mid, expectedIds);
+      assert.deepStrictEqual(
+        mid,
+        expectedIds,
+        util.inspect([mid, expectedIds], {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
     }
 
     it("creates expected ids when non-mini-sibling leaves", () => {
       checkCreatedId(null, null, null, null, "0", [[0, aliceId]]);
       checkCreatedId(null, null, "0", [[0, "bob"]], "00", [[1, aliceId]]);
-      checkCreatedId("0", [[0, "bob"]], null, null, "01", [[1, aliceId]]);
+      checkCreatedId("0", [[0, "bob"]], null, null, "1", [[0, aliceId]]);
       checkCreatedId(
         "01001111111111",
         [[13, "bob"]],
         "011010011",
         [[8, "charlie"]],
-        "0110100110",
-        [[9, aliceId]]
+        "0101",
+        [[3, aliceId]]
       );
       checkCreatedId(
-        "01001111111111",
+        "01001111010100",
         [
           [6, "eve"],
           [13, "bob"],
         ],
-        "011010011",
-        [
-          [7, "dave"],
-          [8, "charlie"],
-        ],
-        "0110100110",
-        [
-          [7, "dave"],
-          [9, aliceId],
-        ]
+        "01001111000000",
+        [[13, "charlie"]],
+        "010011110000000",
+        [[14, aliceId]]
       );
-    });
-
-    it("creates expected ids when descendants", () => {
+      checkCreatedId(
+        "01001111110100",
+        [
+          [6, "eve"],
+          [13, "bob"],
+        ],
+        "01001111010000",
+        [[13, "charlie"]],
+        "0100111100",
+        [[9, aliceId]]
+      );
+      checkCreatedId(
+        "01001111110100",
+        [
+          [6, "eve"],
+          [13, "bob"],
+        ],
+        "01001111000000",
+        [
+          [8, "dave"],
+          [13, "charlie"],
+        ],
+        "0100111100",
+        [[9, aliceId]]
+      );
       checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "010", [
         [2, aliceId],
       ]);
@@ -175,15 +199,43 @@ describe("list", () => {
         "00000010000",
         [
           [3, "bob"],
-          [5, "alice"],
           [10, "charlie"],
         ],
         "000000100000",
-
         [
           [3, "bob"],
-          [5, "alice"],
           [11, aliceId],
+        ]
+      );
+    });
+
+    it("creates expected ids when descendants", () => {
+      checkCreatedId(
+        "0",
+        [[0, "bob"]],
+        "01",
+        [
+          [0, "bob"],
+          [1, "bob"],
+        ],
+        "010",
+        [
+          [0, "bob"],
+          [2, aliceId],
+        ]
+      );
+      checkCreatedId(
+        "00",
+        [
+          [0, "bob"],
+          [1, "bob"],
+        ],
+        "0",
+        [[0, "bob"]],
+        "001",
+        [
+          [0, "bob"],
+          [2, aliceId],
         ]
       );
       checkCreatedId(
@@ -195,11 +247,14 @@ describe("list", () => {
         "00000010000",
         [
           [3, "bob"],
+          [5, "alice"],
           [10, "charlie"],
         ],
         "000000100000",
+
         [
           [3, "bob"],
+          [5, "alice"],
           [11, aliceId],
         ]
       );
@@ -209,19 +264,55 @@ describe("list", () => {
       checkCreatedId(
         "010101",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
         ],
         "010101",
         [
-          [1, "bob"],
-          [5, "dave"],
+          [1, "bobpadd"],
+          [5, "davepad"],
         ],
         "0101011",
         [
-          [1, "bob"],
+          [1, "bobpadd"],
           [5, "charlie"],
           [6, aliceId],
+        ]
+      );
+      checkCreatedId(
+        "01010111",
+        [
+          [1, "bobpadd"],
+          [5, "charlie"],
+        ],
+        "010101",
+        [
+          [1, "bobpadd"],
+          [5, "davepad"],
+        ],
+        "0101010",
+        [
+          [1, "bobpadd"],
+          [5, "davepad"],
+          [6, aliceId],
+        ]
+      );
+      checkCreatedId(
+        "01010111",
+        [
+          [1, "bobpadd"],
+          [5, "charlie"],
+        ],
+        "010101000",
+        [
+          [1, "bobpadd"],
+          [5, "davepad"],
+        ],
+        "010101111",
+        [
+          [1, "bobpadd"],
+          [5, "charlie"],
+          [8, aliceId],
         ]
       );
     });
@@ -232,9 +323,9 @@ describe("list", () => {
         [[13, "bob"]],
         "011010011",
         [[8, "charlie"]],
-        ["011010011000", [[11, aliceId]]],
-        ["011010011001", [[11, aliceId]]],
-        ["011010011010", [[11, aliceId]]]
+        ["010100", [[5, aliceId]]],
+        ["010101", [[5, aliceId]]],
+        ["010110", [[5, aliceId]]]
       );
     });
   });
@@ -280,8 +371,8 @@ describe("list", () => {
         }
 
         beforeEach(() => {
-          aliceSource = alice.groupParent("").addChild("sourceId", entry[1]());
-          bobSource = bob.groupParent("").addChild("sourceId", entry[1]());
+          aliceSource = alice.registerCrdt("sourceId", entry[1]());
+          bobSource = bob.registerCrdt("sourceId", entry[1]());
         });
 
         it("works for basic insertion", () => {
