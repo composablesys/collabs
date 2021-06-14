@@ -24,23 +24,21 @@ enum InternalType {
 }
 
 export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
-  // Main map of all items in JSON object
   private readonly internalMap: RiakCrdtMap<
     string,
     MultiValueRegister<number | string | boolean | InternalType>
   >;
-  // Map of all lists in object
   private readonly internalListMap: ImplicitCrdtMap<
     string,
     TreedocPrimitiveList<string>
   >;
-  // Maps keys to set of nested keys
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
   constructor() {
     super();
 
-    let keySerializer: ElementSerializer<string> = DefaultElementSerializer.getInstance();
+    let keySerializer: ElementSerializer<string> =
+      DefaultElementSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
       new RiakCrdtMap(() => new MultiValueRegister(), keySerializer)
