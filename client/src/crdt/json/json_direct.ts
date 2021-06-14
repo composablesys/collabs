@@ -127,7 +127,6 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     let nestedKeys = this.internalNestedKeys.get(key);
     if (nestedKeys !== undefined) {
       for (let subkey of [...nestedKeys]) {
-        this.deleteKey(key, subkey);
         this.delete(key + subkey + ":");
       }
     }
@@ -216,7 +215,6 @@ export class JsonCursor {
   }
 
   delete(key: string) {
-    this.internal.deleteKey(this.cursor, key);
     this.internal.delete(this.cursor + key + ":");
   }
 
