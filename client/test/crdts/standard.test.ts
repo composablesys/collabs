@@ -1299,11 +1299,13 @@ describe("standard", () => {
         // Internally, 'testNested' -> {} is removed
         assert.deepStrictEqual(
           new Set(aliceCursor.keys()),
-          new Set(["testNested", "non-nested"])
+          new Set(["non-nested"])
+          // new Set(["testNested", "non-nested"])
         );
         assert.deepStrictEqual(
           new Set(bobCursor.keys()),
-          new Set(["testNested", "non-nested"])
+          new Set(["non-nested"])
+          // new Set(["testNested", "non-nested"])
         );
       });
     });
