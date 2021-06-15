@@ -28,6 +28,12 @@ import { ImplicitCrdtMap } from "../map";
  * a reset.  TODO: discuss GC-able options.
  */
 
+// TODO (here and YjsCrdtSet): remove creatorReplicaId arg
+// for crdtConstructor?  No clear use case yet, and in
+// principle the creator can do whatever by performing
+// ops an a newly-created Crdt (although these will be
+// lost on reset).
+
 /**
  * A basic CrdtSet that implicitly manages membership.
  * Its main purpose is to create Crdts.

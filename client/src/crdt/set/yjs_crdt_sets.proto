@@ -1,0 +1,6 @@
+message YjsCrdtSetMessage {
+  oneof op {
+    uint32 create = 1;
+    string delete = 2;
+  }
+}
