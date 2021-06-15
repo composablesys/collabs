@@ -1,4 +1,8 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import {
+  DefaultElementSerializer,
+  ElementSerializer,
+  Optional,
+} from "../../util";
 import { CompositeCrdt } from "../core";
 import { ResettableEventsRecord } from "../helper_crdts";
 import { Register } from "./interfaces";
@@ -41,6 +45,13 @@ export abstract class AggregateRegister<T>
     return this.cachedValue!;
   }
 
+  get optionalValue(): Optional<T> {
+    // TODO: use better function than canGc (e.g. size function)
+    // TODO: cache Optional.of?
+    if (this.mvr.canGc()) return Optional.empty();
+    else return Optional.of(this.value);
+  }
+
   conflicts(): Set<T> {
     return this.mvr.conflicts();
   }
@@ -57,6 +68,10 @@ export abstract class AggregateRegister<T>
   protected abstract aggregate(conflictsMeta: Set<MvrMeta<T>>): T;
 }
 
+// TODO: allow initialValue to be omitted if you only
+// plan to consult optionalValue?  That way you don't
+// have to pass a fake initialValue, e.g., (undefined
+// as unknown as T).
 export class LwwRegister<T> extends AggregateRegister<T> {
   constructor(
     private readonly initialValue: T,

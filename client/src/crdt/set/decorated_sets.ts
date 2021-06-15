@@ -5,12 +5,12 @@ import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
 // methods.  Override to modify methods.
 // More flexible/reusable than subclassing the decorated sets.
 
-export class DecoratedCrdtSet<C extends Crdt>
+export class DecoratedCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   extends CompositeCrdt<CrdtSetEventsRecord<C>>
-  implements CrdtSet<C>
+  implements CrdtSet<C, CreateArgs>
 {
-  protected readonly set: CrdtSet<C>;
-  constructor(set: CrdtSet<C>) {
+  protected readonly set: CrdtSet<C, CreateArgs>;
+  constructor(set: CrdtSet<C, CreateArgs>) {
     super();
     this.set = this.addChild("set", set);
     // TODO: do this as a loop if TypeScript will allow it
@@ -19,8 +19,8 @@ export class DecoratedCrdtSet<C extends Crdt>
     this.set.on("ValueInit", (event) => this.emit("ValueInit", event));
   }
 
-  create(): C {
-    return this.set.create();
+  create(...args: CreateArgs): C {
+    return this.set.create(...args);
   }
 
   restore(valueCrdt: C): this {
