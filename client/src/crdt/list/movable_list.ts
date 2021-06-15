@@ -3,6 +3,7 @@ import { CompositeCrdt, Crdt, CrdtEvent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { LwwRegister } from "../register";
 import { AddWinsPlainSet, CrdtSet, ExplicitCrdtSet, RiakCrdtSet } from "../set";
+import { YjsCrdtSet } from "../set/yjs_crdt_set";
 import { ISequenceSource, TreedocId, TreedocSource } from "./old_list";
 
 // TODO: interfaces etc
@@ -256,6 +257,8 @@ export class MovableList<I, C extends Crdt>
   }
 }
 
+// TODO: eliminate dangling methods when not needed?
+
 export class RevivingMovableList<C extends Crdt> extends MovableList<
   TreedocId,
   C
@@ -280,6 +283,19 @@ export class RiakMovableList<C extends Crdt & Resettable> extends MovableList<
     super(
       new TreedocSource(),
       (entryFactory) => new RiakCrdtSet(entryFactory),
+      valueConstructor
+    );
+  }
+}
+
+export class DeletingMovableList<C extends Crdt> extends MovableList<
+  TreedocId,
+  C
+> {
+  constructor(valueConstructor: (creatorReplicaId: string) => C) {
+    super(
+      new TreedocSource(),
+      (entryFactory) => new YjsCrdtSet(entryFactory),
       valueConstructor
     );
   }
