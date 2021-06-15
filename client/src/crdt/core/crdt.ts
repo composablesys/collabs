@@ -1,7 +1,7 @@
 import { CausalTimestamp } from "../../net";
 import { EventEmitter } from "../../util";
 import { CrdtParent } from "./interfaces";
-import { Runtime } from "./runtime";
+import { RootCrdt, Runtime } from "./runtime";
 
 /**
  * An event issued when a Crdt is changed by either
@@ -86,7 +86,15 @@ export abstract class Crdt<
    * Crdt's name.
    */
   pathToRoot(): string[] {
-    return [this.name, ...this.parent.pathToRoot()];
+    let ans = [];
+    for (
+      let current: Crdt = this;
+      (current as RootCrdt).isRootCrdt !== true;
+      current = current.parent
+    ) {
+      ans.push(current.name);
+    }
+    return ans;
   }
 
   /**

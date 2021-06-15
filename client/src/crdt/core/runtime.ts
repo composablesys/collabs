@@ -12,7 +12,8 @@ import { CompositeCrdt } from "./composite_crdt";
 import { Crdt, CrdtEventsRecord } from "./crdt";
 import { CrdtParent } from "./interfaces";
 
-class RootCrdt extends CompositeCrdt {
+export class RootCrdt extends CompositeCrdt {
+  readonly isRootCrdt = true;
   private readonly runtimeRoot: Runtime;
   constructor(runtime: Runtime) {
     super();
@@ -158,7 +159,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     if (sender.runtime !== this) {
       throw new Error("Runtime.send called on wrong Runtime");
     }
-    let pathToRoot = sender.pathToRoot();
 
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
@@ -182,7 +182,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // Deliver to self, synchronously
     // TODO: error handling
-    this.rootCrdt.receive(pathToRoot.slice(), timestamp, message);
+    this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
 
     // Add to the pending batch
     let pointer = this.getOrCreatePointer(sender);
