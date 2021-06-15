@@ -82,6 +82,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   }
 
   deleteKey(cursor: string, key: string) {
+    this.internalNestedKeys.delete(cursor + ":" + key);
     this.internalNestedKeys.get(cursor)?.delete(key);
   }
 
