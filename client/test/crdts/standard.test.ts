@@ -3,7 +3,6 @@ import {
   AddWinsPlainSet,
   Runtime,
   FalseWinsBoolean,
-  CrdtFactory,
   TrueWinsBoolean,
   GPlainSet,
   JsonCrdt,
@@ -17,6 +16,7 @@ import {
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom from "seedrandom";
+import { YjsCrdtSet } from "../../src/crdt/set/yjs_crdt_set";
 
 describe("standard", () => {
   let runtimeGen: TestingNetworkGenerator;
@@ -1309,20 +1309,20 @@ describe("standard", () => {
     });
   });
 
-  describe("CrdtFactory", () => {
-    let aliceSource: CrdtFactory<[], DefaultNumber>;
-    let bobSource: CrdtFactory<[], DefaultNumber>;
+  describe("YjsCrdtSet", () => {
+    let aliceSource: YjsCrdtSet<DefaultNumber>;
+    let bobSource: YjsCrdtSet<DefaultNumber>;
     let aliceRegister: LwwRegister<DefaultNumber | undefined>;
     let bobRegister: LwwRegister<DefaultNumber | undefined>;
 
     beforeEach(() => {
       aliceSource = alice.registerCrdt(
         "source",
-        new CrdtFactory(() => new DefaultNumber())
+        new YjsCrdtSet(() => new DefaultNumber())
       );
       bobSource = bob.registerCrdt(
         "source",
-        new CrdtFactory(() => new DefaultNumber())
+        new YjsCrdtSet(() => new DefaultNumber())
       );
       aliceRegister = alice.registerCrdt(
         "register",
@@ -1335,12 +1335,12 @@ describe("standard", () => {
     });
 
     it("returns new Crdt", () => {
-      let newCrdt = aliceSource.new();
+      let newCrdt = aliceSource.create();
       assert.strictEqual(newCrdt.value, 0);
     });
 
     it("transfers new Crdt via register", () => {
-      aliceRegister.value = aliceSource.new();
+      aliceRegister.value = aliceSource.create();
       aliceRegister.value.add(7);
       assert.strictEqual(aliceRegister.value.value, 7);
 
@@ -1349,8 +1349,8 @@ describe("standard", () => {
     });
 
     it("allows sequential creation", () => {
-      let new1 = aliceSource.new();
-      let new2 = aliceSource.new();
+      let new1 = aliceSource.create();
+      let new2 = aliceSource.create();
       new1.add(7);
       new2.add(-3);
       assert.strictEqual(new1.value, 7);
@@ -1358,8 +1358,8 @@ describe("standard", () => {
     });
 
     it("allows concurrent creation", () => {
-      let new1 = aliceSource.new();
-      let new2 = bobSource.new();
+      let new1 = aliceSource.create();
+      let new2 = bobSource.create();
       new1.add(7);
       new2.add(-3);
       assert.strictEqual(new1.value, 7);
@@ -1378,6 +1378,8 @@ describe("standard", () => {
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
     });
+
+    // TODO: test deletion, freezing, getDescendant
   });
 });
 
