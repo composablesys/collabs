@@ -83,8 +83,9 @@ function refreshDisplay() {
         let settings = state as GameSettings;
         box.addEventListener("click", (event) => {
           if (event.button === 0) {
+            gameSource.clear(); // GC old games
             // Start the game, with this tile safe
-            let newGame = gameSource.new(
+            let newGame = gameSource.create(
               settings.width,
               settings.height,
               settings.fractionMines,
@@ -156,7 +157,7 @@ let HOST = location.origin.replace(/^http/, "ws");
 let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "minesweeper"));
 let gameSource = client.registerCrdt(
   "gameSource",
-  new crdts.CrdtFactory(
+  new crdts.YjsCrdtSet(
     (
       width: number,
       height: number,

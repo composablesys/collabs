@@ -61,9 +61,9 @@ export class MovableList<I, C extends Crdt>
   constructor(
     sequenceSource: ISequenceSource<I>,
     setFactory: <D extends InferResettable<C>>(
-      entryFactory: (creatorReplicaId: string) => D
+      entryFactory: () => D
     ) => CrdtSet<D>,
-    valueConstructor: (creatorReplicaId: string) => C
+    valueConstructor: () => C
   ) {
     super();
     this.sequenceSource = this.addChild("sequenceSource", sequenceSource);
@@ -73,9 +73,9 @@ export class MovableList<I, C extends Crdt>
       "entries",
       // @ts-ignore TypeScript doesn't accept that
       // MovableListEntry extends InferResettable
-      setFactory((creatorReplicaId) => {
+      setFactory(() => {
         return new MovableListEntry(
-          valueConstructor(creatorReplicaId),
+          valueConstructor(),
           this.sequenceSource,
           this.onLocationChange.bind(this)
         );
@@ -263,7 +263,7 @@ export class RevivingMovableList<C extends Crdt> extends MovableList<
   TreedocId,
   C
 > {
-  constructor(valueConstructor: (creatorReplicaId: string) => C) {
+  constructor(valueConstructor: () => C) {
     super(
       new TreedocSource(),
       (entryFactory) =>
@@ -279,7 +279,7 @@ export class RiakMovableList<C extends Crdt & Resettable> extends MovableList<
   TreedocId,
   C
 > {
-  constructor(valueConstructor: (creatorReplicaId: string) => C) {
+  constructor(valueConstructor: () => C) {
     super(
       new TreedocSource(),
       (entryFactory) => new RiakCrdtSet(entryFactory),
@@ -288,11 +288,12 @@ export class RiakMovableList<C extends Crdt & Resettable> extends MovableList<
   }
 }
 
+// TODO: allow args
 export class DeletingMovableList<C extends Crdt> extends MovableList<
   TreedocId,
   C
 > {
-  constructor(valueConstructor: (creatorReplicaId: string) => C) {
+  constructor(valueConstructor: () => C) {
     super(
       new TreedocSource(),
       (entryFactory) => new YjsCrdtSet(entryFactory),

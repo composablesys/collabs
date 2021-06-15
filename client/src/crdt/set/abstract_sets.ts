@@ -19,13 +19,14 @@ import {
  */
 export abstract class AbstractCrdtSet<
     C extends Crdt,
+    CreateArgs extends any[] = [],
     Events extends CrdtSetEventsRecord<C> = CrdtSetEventsRecord<C>,
     D extends Crdt = Crdt
   >
   extends CompositeCrdt<Events, D>
-  implements CrdtSet<C>
+  implements CrdtSet<C, CreateArgs, Events>
 {
-  abstract create(): C;
+  abstract create(...args: CreateArgs): C;
   abstract restore(valueCrdt: C): this;
   abstract delete(valueCrdt: C): boolean;
   abstract owns(valueCrdt: C): boolean;

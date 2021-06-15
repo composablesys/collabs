@@ -3,7 +3,7 @@ import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
   DefaultElementSerializer,
-  stringAsArray,
+  ElementSerializer,
 } from "../../util";
 import { Crdt, CrdtParent } from "../core";
 import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
@@ -21,14 +21,15 @@ import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
  * error, not guaranteed EC.  Use has to check if it's
  * frozen.  Restore not allowed (2P-set semantics).
  */
-export class YjsCrdtSet<C extends Crdt>
+export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   extends Crdt<CrdtSetEventsRecord<C>>
-  implements CrdtSet<C>, CrdtParent
+  implements CrdtSet<C, CreateArgs>, CrdtParent
 {
   // TODO: rename
   private readonly children: Map<string, C> = new Map();
   constructor(
-    private readonly valueCrdtConstructor: (creatorReplicaId: string) => C
+    private readonly valueCrdtConstructor: (...args: CreateArgs) => C,
+    private readonly argsSerializer: ElementSerializer<CreateArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
   }
@@ -56,13 +57,17 @@ export class YjsCrdtSet<C extends Crdt>
       let decoded = YjsCrdtSetMessage.decode(message);
       switch (decoded.op) {
         case "create":
-          const newCrdt = this.valueCrdtConstructor(timestamp.getSender());
+          const args = this.argsSerializer.deserialize(
+            decoded.create!.args,
+            this.runtime
+          );
+          const newCrdt = this.valueCrdtConstructor(...args);
           // Add as child with "[sender, counter]" as id.
           // Similar to CompositeCrdt#addChild.
           let name = arrayAsString(
             YjsCrdtSet.nameSerializer.serialize([
               timestamp.getSender(),
-              decoded.create,
+              decoded.create!.replicaUniqueNumber,
             ])
           );
           if (this.children.has(name)) {
@@ -118,17 +123,15 @@ export class YjsCrdtSet<C extends Crdt>
 
     let child = this.children.get(targetPath[targetPath.length - 1]);
     if (child === undefined) {
+      // TODO: what to do here?
       // Assume it is a deleted (frozen) child.
       // It seems hard to prevent getDescendant calls
       // concurrent to a delete, which we want to return
-      // a frozen Crdt instead of an error.  So, here
-      // we return a fake frozen Crdt, which matches
-      // the expected semantics because has() will be false.
-      const nameDeserialized = YjsCrdtSet.nameSerializer.deserialize(
-        stringAsArray(targetPath[targetPath.length - 1]),
-        this.runtime
-      );
-      return this.valueCrdtConstructor(nameDeserialized[0]);
+      // a frozen Crdt instead of an error.  But we have
+      // no way to construct a default frozen Crdt.
+      // For now we just return null and hope that errors
+      // will propagate if it is used.
+      return null as unknown as Crdt;
     }
     targetPath.length--;
     return child.getDescendant(targetPath);
@@ -138,13 +141,16 @@ export class YjsCrdtSet<C extends Crdt>
     return this.children.size === 0;
   }
 
-  create(): C {
+  create(...args: CreateArgs): C {
     // TODO: replica unique number makes the op non-pure.
     // But using senderCounter would be dangerous if we
     // runLocally, thus reusing timestamps, or if we
     // decide to reuse timestamps for batched messages.
     let message = YjsCrdtSetMessage.create({
-      create: this.runtime.getReplicaUniqueNumber(),
+      create: {
+        replicaUniqueNumber: this.runtime.getReplicaUniqueNumber(),
+        args: this.argsSerializer.serialize(args),
+      },
     });
     this.runtime.send(this, YjsCrdtSetMessage.encode(message).finish());
     let created = this.ourCreatedCrdt;

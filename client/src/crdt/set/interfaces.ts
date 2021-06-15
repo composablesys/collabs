@@ -99,9 +99,10 @@ export interface CrdtSetEventsRecord<C extends Crdt>
 // by this CrdtSet.
 export interface CrdtSet<
   C extends Crdt,
+  CreateArgs extends any[] = [],
   Events extends CrdtSetEventsRecord<C> = CrdtSetEventsRecord<C>
 > extends Resettable<Events> {
-  create(): C;
+  create(...args: CreateArgs): C;
   restore(valueCrdt: C): this;
   /**
    * Delete every value in this set.
