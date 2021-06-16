@@ -1144,7 +1144,7 @@ function jsonCrdt() {
       cursor.setIsList("text");
 
       let idGen = new crdts.TreedocSource();
-      crdt.addExtChild("treedocSource", idGen);
+      idGen.setRuntime(runtime);
       return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
     cleanup() {

@@ -3,6 +3,7 @@ import {
   Crdt,
   CrdtEvent,
   CrdtEventsRecord,
+  CrdtParent,
   Runtime,
 } from "../core";
 import { Resettable } from "../helper_crdts";
@@ -30,7 +31,10 @@ import { BitSet } from "../../util/bitset";
  * replicas if doing so is necessary for ordering,
  * as in TreeDoc).
  */
-export interface ISequenceSource<I> extends Crdt, ElementSerializer<I> {
+export interface ISequenceSource<I> extends ElementSerializer<I> {
+  setRuntime(runtime: Runtime): void;
+  readonly runtime: Runtime;
+
   /**
    * Same semantics as compareFunction supplied to
    * Array.sort: return < 0 if a < b, > 0 if a > b,
@@ -67,16 +71,14 @@ export class List<I, C extends Crdt & Resettable>
   extends CompositeCrdt
   implements Resettable
 {
-  private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: RiakCrdtMap<I, C>;
   // Note this is a persistent (immutable) data structure.
   private sortedKeys: RBTree<I, true>;
   constructor(
-    sequenceSource: ISequenceSource<I>,
+    private readonly sequenceSource: ISequenceSource<I>,
     valueConstructor: (seqId: I) => C
   ) {
     super();
-    this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
       new RiakCrdtMap<I, C>(valueConstructor, this.sequenceSource)
@@ -88,14 +90,19 @@ export class List<I, C extends Crdt & Resettable>
     // accordingly, so that its key set always coincides
     // with valueMap's.
     this.valueMap.on("KeyAdd", (event) => {
-      // Add the key if it is not present.
-      let index: number;
-      [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true, true);
-      // // TODO: debug mode only
-      // const indexDebug = this.sortedKeys.find(event.key)!.index;
-      // if (index !== indexDebug) {
-      //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
-      // }
+      // Add the key if it is not present (Tree permits
+      // multiple instances of the same key, so adding it
+      // again if it already exists is not a no-op).
+      // TODO: optimize out this get
+      if (!this.sortedKeys.get(event.key)) {
+        let index: number;
+        [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
+        // // TODO: debug mode only
+        // const indexDebug = this.sortedKeys.find(event.key)!.index;
+        // if (index !== indexDebug) {
+        //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
+        // }
+      }
     });
     this.valueMap.on("KeyDelete", (event) => {
       this.sortedKeys = this.sortedKeys.remove(event.key);
@@ -103,6 +110,11 @@ export class List<I, C extends Crdt & Resettable>
     // TODO: In tests, add assertions checking
     // size equality constantly.
     // TODO: dispatching events
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    this.sequenceSource.setRuntime(this.runtime);
   }
 
   idAt(index: number): I {
@@ -283,17 +295,15 @@ export class PrimitiveList<I, T>
   extends CompositeCrdt<PrimitiveListEventsRecord<I>>
   implements Resettable
 {
-  private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: SequentialPlainMap<I, T>;
   // Note this is a persistent (immutable) data structure.
   // TODO: undefined instead of true?
   private sortedKeys: RBTree<I, true>;
   constructor(
-    sequenceSource: ISequenceSource<I>,
+    private readonly sequenceSource: ISequenceSource<I>,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
-    this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
       new SequentialPlainMap<I, T>(this.sequenceSource, valueSerializer)
@@ -351,6 +361,11 @@ export class PrimitiveList<I, T>
     // TODO: In tests, add assertions checking
     // size equality constantly.
     // TODO: dispatching events
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    this.sequenceSource.setRuntime(this.runtime);
   }
 
   idAt(index: number): I {
@@ -541,10 +556,12 @@ export class TreedocId {
  * Montreal, Québec, Canada. pp.395-403,
  * 10.1109/ICDCS.2009.20.  inria-00445975
  */
-export class TreedocSource
-  extends CompositeCrdt
-  implements ISequenceSource<TreedocId>
-{
+export class TreedocSource implements ISequenceSource<TreedocId> {
+  runtime!: Runtime;
+  setRuntime(runtime: Runtime) {
+    this.runtime = runtime;
+  }
+
   compare(a: TreedocId, b: TreedocId): number {
     // Formally, the comparison order is given by a
     // standard tree walk.  The tree's layers alternate

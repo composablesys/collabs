@@ -28,7 +28,8 @@ describe("list", () => {
     let aliceId: string;
 
     beforeEach(() => {
-      source = alice.registerCrdt("treedocSourceId", new TreedocSource());
+      source = new TreedocSource();
+      source.setRuntime(alice);
       aliceId = alice.replicaId;
     });
 
@@ -386,8 +387,10 @@ describe("list", () => {
         }
 
         beforeEach(() => {
-          aliceSource = alice.registerCrdt("sourceId", entry[1]());
-          bobSource = bob.registerCrdt("sourceId", entry[1]());
+          aliceSource = new TreedocSource();
+          aliceSource.setRuntime(alice);
+          bobSource = new TreedocSource();
+          bobSource.setRuntime(bob);
         });
 
         it("works for basic insertion", () => {

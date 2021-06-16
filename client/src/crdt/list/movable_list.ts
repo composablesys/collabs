@@ -1,5 +1,5 @@
 import { createRBTree, Optional, RBTree } from "../../util";
-import { CompositeCrdt, Crdt, CrdtEvent } from "../core";
+import { CompositeCrdt, Crdt, CrdtEvent, CrdtParent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { LwwRegister } from "../register";
 import { AddWinsPlainSet, CrdtSet, ExplicitCrdtSet, RiakCrdtSet } from "../set";
@@ -52,21 +52,19 @@ export class MovableList<I, C extends Crdt>
   extends CompositeCrdt
   implements Resettable
 {
-  private readonly sequenceSource: ISequenceSource<I>;
   private readonly entries: CrdtSet<MovableListEntry<I, C>>;
   // Note this is a persistent (immutable) data structure.
   private sortedLocations: RBTree<I, MovableListEntry<I, C>>;
   private danglers: Set<MovableListEntry<I, C>> = new Set();
 
   constructor(
-    sequenceSource: ISequenceSource<I>,
+    private readonly sequenceSource: ISequenceSource<I>,
     setFactory: <D extends InferResettable<C>>(
       entryFactory: () => D
     ) => CrdtSet<D>,
     valueConstructor: () => C
   ) {
     super();
-    this.sequenceSource = this.addChild("sequenceSource", sequenceSource);
     // @ts-ignore TypeScript doesn't accept that
     // MovableListEntry extends InferResettable
     this.entries = this.addChild(
@@ -97,6 +95,11 @@ export class MovableList<I, C extends Crdt>
       this.deleteLocation(event.value, event.value.location.optionalValue);
     });
     // TODO: dispatch events (including on Move)
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    this.sequenceSource.setRuntime(this.runtime);
   }
 
   private onLocationChange(event: CrdtEvent, caller: MovableListEntry<I, C>) {
