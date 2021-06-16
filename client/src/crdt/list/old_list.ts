@@ -531,6 +531,7 @@ export class Cursor<I> {
 // Implementations
 
 interface Disambiguator {
+  readonly index: number;
   readonly sender: string;
   readonly uniqueNumber: number;
 }
@@ -544,7 +545,7 @@ export class TreedocId {
    */
   constructor(
     readonly path: BitSet,
-    readonly disambiguators: readonly [index: number, value: Disambiguator][]
+    readonly disambiguators: readonly Disambiguator[]
   ) {}
 }
 
@@ -631,21 +632,20 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
    * as a difference.
    */
   private diffDisambiguators(
-    a: readonly [index: number, value: Disambiguator][],
-    b: readonly [index: number, value: Disambiguator][]
+    a: readonly Disambiguator[],
+    b: readonly Disambiguator[]
   ): [number, Disambiguator | undefined, Disambiguator | undefined] {
     let i: number;
     for (i = 0; i < Math.min(a.length, b.length); i++) {
-      if (a[i][0] < b[i][0]) return [a[i][0], a[i][1], undefined];
-      if (b[i][0] < a[i][0]) return [b[i][0], undefined, b[i][1]];
+      if (a[i].index < b[i].index) return [a[i].index, a[i], undefined];
+      if (b[i].index < a[i].index) return [b[i].index, undefined, b[i]];
       // Now a[i][0] === b[i][0]
       if (
         !(
-          a[i][1].sender === b[i][1].sender &&
-          a[i][1].uniqueNumber === b[i][1].uniqueNumber
+          a[i].sender === b[i].sender && a[i].uniqueNumber === b[i].uniqueNumber
         )
       )
-        return [a[i][0], a[i][1], b[i][1]];
+        return [a[i].index, a[i], b[i]];
     }
     // At this point, they agree on their prefix,
     // and i = Math.min(a.length, b.length).
@@ -655,8 +655,8 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     }
     // One has an entry at i while the other doesn't.
     // That is the first disagreement.
-    if (i < a.length) return [a[i][0], a[i][1], undefined];
-    else return [b[i][0], undefined, b[i][1]];
+    if (i < a.length) return [a[i].index, a[i], undefined];
+    else return [b[i].index, undefined, b[i]];
   }
 
   createBetween(
@@ -691,7 +691,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     // true until we add counters to disambiguators.)
 
     let path: BitSet;
-    let disambiguators: [index: number, value: Disambiguator][] = [];
+    let disambiguators: Disambiguator[] = [];
     let uniqueNumberSign = 1;
 
     if (before === null && after === null) {
@@ -702,7 +702,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
       path = new BitSet(1);
     } else if (after === null) {
       const lastDis = before!.disambiguators[before!.disambiguators.length - 1];
-      if (lastDis[1].sender === this.runtime.replicaId) {
+      if (lastDis.sender === this.runtime.replicaId) {
         // before is ours; use it again but with
         // the next (larger) uniqueNumber.
         path = BitSet.copy(before!.path, before!.path.length);
@@ -717,7 +717,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
       }
     } else if (before === null) {
       const lastDis = after!.disambiguators[after!.disambiguators.length - 1];
-      if (lastDis[1].sender === this.runtime.replicaId) {
+      if (lastDis.sender === this.runtime.replicaId) {
         // after is ours; use it again but with
         // the next (larger) uniqueNumber, negated so
         // it is before.
@@ -754,9 +754,9 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
       // which has the same author), then reuse the one
       // just with a different number.
       const beforeLastDis =
-        before.disambiguators[before.disambiguators.length - 1][1];
+        before.disambiguators[before.disambiguators.length - 1];
       const afterLastDis =
-        after.disambiguators[after.disambiguators.length - 1][1];
+        after.disambiguators[after.disambiguators.length - 1];
       if (
         beforeLastDis.sender === this.runtime.replicaId &&
         (firstDiff < before.path.length - 1 ||
@@ -794,7 +794,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
         // the first difference.
         path = BitSet.copy(before.path, firstDiff + (isBitLayer ? 0 : 1));
         for (let i = 0; i < before.disambiguators.length; i++) {
-          if (before.disambiguators[i][0] >= firstDiff) break;
+          if (before.disambiguators[i].index >= firstDiff) break;
           disambiguators.push(before.disambiguators[i]);
         }
 
@@ -852,7 +852,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
           } else {
             // The next nontrivial layer is the disagreeing
             // disambiguator layer.
-            disambiguators.push([firstDiff, beforeDis!]);
+            disambiguators.push(beforeDis!);
           }
           path.setToEnd(beforeInfo[0] + 1, true);
         } else {
@@ -864,7 +864,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
           } else {
             // The next nontrivial layer is the disagreeing
             // disambiguator layer.
-            disambiguators.push([firstDiff, afterDis!]);
+            disambiguators.push(afterDis!);
           }
           path.setToEnd(afterInfo![0] + 1, false);
         }
@@ -880,14 +880,12 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
       // is increasing.
       ans[i] = new TreedocId(iPath, [
         ...disambiguators,
-        [
-          path.length - 1,
-          {
-            sender: this.runtime.replicaId,
-            uniqueNumber:
-              uniqueNumberSign * this.runtime.getReplicaUniqueNumber(),
-          },
-        ],
+        {
+          index: path.length - 1,
+          sender: this.runtime.replicaId,
+          uniqueNumber:
+            uniqueNumberSign * this.runtime.getReplicaUniqueNumber(),
+        },
       ]);
     }
     if (uniqueNumberSign === -1) ans.reverse();
@@ -969,7 +967,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     // or after its next nontrivial disambiguator
     // (starting at layer nontrivial, exclusive).
     let end = id.path.nextNot(direction, nontrivial + 1);
-    for (let [index] of id.disambiguators) {
+    for (let { index } of id.disambiguators) {
       if (index + 1 >= end) break;
       if (nontrivialIsBit && index >= nontrivial) {
         end = index + 1;
@@ -996,7 +994,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     // TODO: borrow this map from runtime/cbcast?
     const disSenderIndexMap = new Map<string, number>();
     const disSenders: number[] = [];
-    for (const [_, dis] of value.disambiguators) {
+    for (const dis of value.disambiguators) {
       let index = disSenderIndexMap.get(dis.sender);
       if (index === undefined) {
         index = disSendersIndex.length;
@@ -1007,12 +1005,10 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     }
     let message = TreedocIdMessage.create({
       path: value.path.serialize(),
-      disIndices: value.disambiguators.map((elem) => elem[0]),
+      disIndices: value.disambiguators.map((elem) => elem.index),
       disSendersIndex,
       disSenders,
-      disUniqueNumbers: value.disambiguators.map(
-        (elem) => elem[1].uniqueNumber
-      ),
+      disUniqueNumbers: value.disambiguators.map((elem) => elem.uniqueNumber),
     });
     return TreedocIdMessage.encode(message).finish();
   }
@@ -1020,15 +1016,13 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
   deserialize(message: Uint8Array, _runtime: Runtime): TreedocId {
     let decoded = TreedocIdMessage.decode(message);
     let path = BitSet.deserialize(decoded.path);
-    let disambiguators: [index: number, value: Disambiguator][] = [];
+    let disambiguators: Disambiguator[] = [];
     for (let i = 0; i < decoded.disIndices.length; i++) {
-      disambiguators.push([
-        decoded.disIndices[i],
-        {
-          sender: decoded.disSendersIndex[decoded.disSenders[i]],
-          uniqueNumber: decoded.disUniqueNumbers[i],
-        },
-      ]);
+      disambiguators.push({
+        index: decoded.disIndices[i],
+        sender: decoded.disSendersIndex[decoded.disSenders[i]],
+        uniqueNumber: decoded.disUniqueNumbers[i],
+      });
     }
     return new TreedocId(path, disambiguators);
   }
