@@ -36,20 +36,20 @@ describe("list", () => {
       assert.isAbove(
         source.compare(
           new TreedocId(BitSet.parseBinary("01101100100110110010"), [
-            [0, "alice"],
-            [2, "alice"],
+            [0, { sender: "alice", uniqueNumber: 1 }],
+            [2, { sender: "alice", uniqueNumber: 2 }],
           ]),
           new TreedocId(BitSet.parseBinary("011010"), [
-            [0, "alice"],
-            [2, "alice"],
+            [0, { sender: "alice", uniqueNumber: 1 }],
+            [2, { sender: "alice", uniqueNumber: 2 }],
           ])
         ),
         0
       );
 
       let value = new TreedocId(BitSet.parseBinary("010"), [
-        [0, "d\x19kg#\x0FaG~v%"],
-        [2, "\x07H&\x13$:WYs\x05_"],
+        [0, { sender: "d\x19kg#\x0FaG~v%", uniqueNumber: 7 }],
+        [2, { sender: "\x07H&\x13$:WYs\x05_", uniqueNumber: 13 }],
       ]);
       assert.strictEqual(source.compare(value, value), 0);
     });
@@ -58,12 +58,12 @@ describe("list", () => {
       assert.isAbove(
         source.compare(
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, "bob"],
-            [19, "alice"],
+            [0, { sender: "bob", uniqueNumber: 7 }],
+            [19, { sender: "alice", uniqueNumber: 1 }],
           ]),
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, "alice"],
-            [19, "alice"],
+            [0, { sender: "alice", uniqueNumber: 1 }],
+            [19, { sender: "alice", uniqueNumber: 11 }],
           ])
         ),
         0
@@ -71,14 +71,14 @@ describe("list", () => {
       assert.isAbove(
         source.compare(
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, "alice"],
-            [2, "bob"],
-            [19, "alice"],
+            [0, { sender: "alice", uniqueNumber: 1 }],
+            [2, { sender: "bob", uniqueNumber: 7 }],
+            [19, { sender: "alice", uniqueNumber: 11 }],
           ]),
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, "alice"],
-            [2, "alice"],
-            [19, "alice"],
+            [0, { sender: "alice", uniqueNumber: 1 }],
+            [2, { sender: "alice", uniqueNumber: 5 }],
+            [19, { sender: "alice", uniqueNumber: 11 }],
           ])
         ),
         0
@@ -87,11 +87,11 @@ describe("list", () => {
 
     function checkCreatedId(
       beforePath: string | null,
-      beforeDis: [index: number, value: string][] | null,
+      beforeDis: [index: number, sender: string, uniqueNumber: number][] | null,
       afterPath: string | null,
-      afterDis: [index: number, value: string][] | null,
+      afterDis: [index: number, sender: string, uniqueNumber: number][] | null,
       expectedPath: string,
-      expectedDis: [index: number, value: string][]
+      expectedDis: [index: number, sender: string, uniqueNumber: number][]
     ) {
       checkCreatedIds(beforePath, beforeDis, afterPath, afterDis, [
         expectedPath,
@@ -101,26 +101,41 @@ describe("list", () => {
 
     function checkCreatedIds(
       beforePath: string | null,
-      beforeDis: [index: number, value: string][] | null,
+      beforeDis: [index: number, sender: string, uniqueNumber: number][] | null,
       afterPath: string | null,
-      afterDis: [index: number, value: string][] | null,
+      afterDis: [index: number, sender: string, uniqueNumber: number][] | null,
       ...expected: [
         expectedPath: string,
-        expectedDis: [index: number, value: string][]
+        expectedDis: [index: number, sender: string, uniqueNumber: number][]
       ][]
     ) {
       let before =
         beforePath === null
           ? null
-          : new TreedocId(BitSet.parseBinary(beforePath), beforeDis!);
+          : new TreedocId(
+              BitSet.parseBinary(beforePath),
+              beforeDis!.map((elem) => [
+                elem[0],
+                { sender: elem[1], uniqueNumber: elem[2] },
+              ])
+            );
       let after =
         afterPath === null
           ? null
-          : new TreedocId(BitSet.parseBinary(afterPath), afterDis!);
+          : new TreedocId(
+              BitSet.parseBinary(afterPath),
+              afterDis!.map((elem) => [
+                elem[0],
+                { sender: elem[1], uniqueNumber: elem[2] },
+              ])
+            );
       let expectedIds = expected.map((value) => {
         return {
           path: BitSet.parseBinary(value[0]),
-          disambiguators: value[1],
+          disambiguators: value[1].map((elem) => [
+            elem[0],
+            { sender: elem[1], uniqueNumber: elem[2] },
+          ]) as readonly [number, { sender: string; uniqueNumber: number }][],
         };
       });
       let mid = source.createBetween(before, after, expected.length);
@@ -137,74 +152,74 @@ describe("list", () => {
     }
 
     it("creates expected ids when non-mini-sibling leaves", () => {
-      checkCreatedId(null, null, null, null, "0", [[0, aliceId]]);
-      checkCreatedId(null, null, "0", [[0, "bob"]], "00", [[1, aliceId]]);
-      checkCreatedId("0", [[0, "bob"]], null, null, "1", [[0, aliceId]]);
+      checkCreatedId(null, null, null, null, "0", [[0, aliceId, 0]]);
+      checkCreatedId(null, null, "0", [[0, "bob", 3]], "00", [[1, aliceId, 1]]);
+      checkCreatedId("0", [[0, "bob", 3]], null, null, "1", [[0, aliceId, 2]]);
       checkCreatedId(
         "01001111111111",
-        [[13, "bob"]],
+        [[13, "bob", 7]],
         "011010011",
-        [[8, "charlie"]],
+        [[8, "charlie", 8]],
         "0101",
-        [[3, aliceId]]
+        [[3, aliceId, 3]]
       );
       checkCreatedId(
         "01001111010100",
         [
-          [6, "eve"],
-          [13, "bob"],
+          [6, "eve", 7],
+          [13, "bob", 67],
         ],
         "01001111000000",
-        [[13, "charlie"]],
+        [[13, "charlie", 124]],
         "010011110000000",
-        [[14, aliceId]]
+        [[14, aliceId, 4]]
       );
       checkCreatedId(
         "01001111110100",
         [
-          [6, "eve"],
-          [13, "bob"],
+          [6, "eve", 7],
+          [13, "bob", 67],
         ],
         "01001111010000",
-        [[13, "charlie"]],
+        [[13, "charlie", 124]],
         "0100111100",
-        [[9, aliceId]]
+        [[9, aliceId, 5]]
       );
       checkCreatedId(
         "01001111110100",
         [
-          [6, "eve"],
-          [13, "bob"],
+          [6, "eve", 7],
+          [13, "bob", 67],
         ],
         "01001111000000",
         [
-          [8, "dave"],
-          [13, "charlie"],
+          [8, "dave", 6],
+          [13, "charlie", 3],
         ],
         "0100111100",
-        [[9, aliceId]]
+        [[9, aliceId, 6]]
       );
-      checkCreatedId("0", [[0, "bob"]], "01", [[1, "bob"]], "010", [
-        [2, aliceId],
+      checkCreatedId("0", [[0, "bob", 1]], "01", [[1, "bob", 2]], "010", [
+        [2, aliceId, 7],
       ]);
-      checkCreatedId("00", [[1, "bob"]], "0", [[0, "bob"]], "001", [
-        [2, aliceId],
+      checkCreatedId("00", [[1, "bob", 2]], "0", [[0, "bob", 1]], "001", [
+        [2, aliceId, 8],
       ]);
       checkCreatedId(
         "000000",
         [
-          [3, "bob"],
-          [5, "alice"],
+          [3, "bob", 5],
+          [5, "alice", 6],
         ],
         "00000010000",
         [
-          [3, "bob"],
-          [10, "charlie"],
+          [3, "bob", 5],
+          [10, "charlie", 123],
         ],
         "000000100000",
         [
-          [3, "bob"],
-          [11, aliceId],
+          [3, "bob", 5],
+          [11, aliceId, 9],
         ]
       );
     });
@@ -212,50 +227,50 @@ describe("list", () => {
     it("creates expected ids when descendants", () => {
       checkCreatedId(
         "0",
-        [[0, "bob"]],
+        [[0, "bob", 0]],
         "01",
         [
-          [0, "bob"],
-          [1, "bob"],
+          [0, "bob", 0],
+          [1, "bob", 1],
         ],
         "010",
         [
-          [0, "bob"],
-          [2, aliceId],
+          [0, "bob", 0],
+          [2, aliceId, 0],
         ]
       );
       checkCreatedId(
         "00",
         [
-          [0, "bob"],
-          [1, "bob"],
+          [0, "bob", 0],
+          [1, "bob", 1],
         ],
         "0",
-        [[0, "bob"]],
+        [[0, "bob", 0]],
         "001",
         [
-          [0, "bob"],
-          [2, aliceId],
+          [0, "bob", 0],
+          [2, aliceId, 1],
         ]
       );
       checkCreatedId(
         "000000",
         [
-          [3, "bob"],
-          [5, "alice"],
+          [3, "bob", 0],
+          [5, "alice", 1],
         ],
         "00000010000",
         [
-          [3, "bob"],
-          [5, "alice"],
-          [10, "charlie"],
+          [3, "bob", 0],
+          [5, "alice", 1],
+          [10, "charlie", 567],
         ],
         "000000100000",
 
         [
-          [3, "bob"],
-          [5, "alice"],
-          [11, aliceId],
+          [3, "bob", 0],
+          [5, "alice", 1],
+          [11, aliceId, 2],
         ]
       );
     });
@@ -264,55 +279,55 @@ describe("list", () => {
       checkCreatedId(
         "010101",
         [
-          [1, "bobpadd"],
-          [5, "charlie"],
+          [1, "bobpadd", 1],
+          [5, "charlie", 2],
         ],
         "010101",
         [
-          [1, "bobpadd"],
-          [5, "davepad"],
+          [1, "bobpadd", 1],
+          [5, "davepad", 2],
         ],
         "0101011",
         [
-          [1, "bobpadd"],
-          [5, "charlie"],
-          [6, aliceId],
+          [1, "bobpadd", 1],
+          [5, "charlie", 2],
+          [6, aliceId, 0],
         ]
       );
       checkCreatedId(
         "01010111",
         [
-          [1, "bobpadd"],
-          [5, "charlie"],
+          [1, "bobpadd", 1],
+          [5, "charlie", 2],
         ],
         "010101",
         [
-          [1, "bobpadd"],
-          [5, "davepad"],
+          [1, "bobpadd", 1],
+          [5, "davepad", 6],
         ],
         "0101010",
         [
-          [1, "bobpadd"],
-          [5, "davepad"],
-          [6, aliceId],
+          [1, "bobpadd", 1],
+          [5, "davepad", 6],
+          [6, aliceId, 1],
         ]
       );
       checkCreatedId(
         "01010111",
         [
-          [1, "bobpadd"],
-          [5, "charlie"],
+          [1, "bobpadd", 1],
+          [5, "charlie", 6],
         ],
         "010101000",
         [
-          [1, "bobpadd"],
-          [5, "davepad"],
+          [1, "bobpadd", 1],
+          [5, "davepad", 8],
         ],
         "010101111",
         [
-          [1, "bobpadd"],
-          [5, "charlie"],
-          [8, aliceId],
+          [1, "bobpadd", 1],
+          [5, "charlie", 6],
+          [8, aliceId, 2],
         ]
       );
     });
@@ -320,12 +335,12 @@ describe("list", () => {
     it("creates expected ids for bulk insertion", () => {
       checkCreatedIds(
         "01001111111111",
-        [[13, "bob"]],
+        [[13, "bob", 1]],
         "011010011",
-        [[8, "charlie"]],
-        ["010100", [[5, aliceId]]],
-        ["010101", [[5, aliceId]]],
-        ["010110", [[5, aliceId]]]
+        [[8, "charlie", 1]],
+        ["0101", [[3, aliceId, 0]]],
+        ["0101", [[3, aliceId, 1]]],
+        ["0101", [[3, aliceId, 2]]]
       );
     });
   });
