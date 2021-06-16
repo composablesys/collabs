@@ -88,19 +88,14 @@ export class List<I, C extends Crdt & Resettable>
     // accordingly, so that its key set always coincides
     // with valueMap's.
     this.valueMap.on("KeyAdd", (event) => {
-      // Add the key if it is not present (Tree permits
-      // multiple instances of the same key, so adding it
-      // again if it already exists is not a no-op).
-      // TODO: optimize out this get
-      if (!this.sortedKeys.get(event.key)) {
-        let index: number;
-        [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
-        // // TODO: debug mode only
-        // const indexDebug = this.sortedKeys.find(event.key)!.index;
-        // if (index !== indexDebug) {
-        //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
-        // }
-      }
+      // Add the key if it is not present.
+      let index: number;
+      [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true, true);
+      // // TODO: debug mode only
+      // const indexDebug = this.sortedKeys.find(event.key)!.index;
+      // if (index !== indexDebug) {
+      //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
+      // }
     });
     this.valueMap.on("KeyDelete", (event) => {
       this.sortedKeys = this.sortedKeys.remove(event.key);
