@@ -302,17 +302,27 @@ interface PrimitiveListState<I, T> {
   tree: RBTree<I, T>;
 }
 
-export class PrimitiveList<I, T>
-  extends PrimitiveCrdt<PrimitiveListState<I, T>, PrimitiveListEventsRecord<I>>
+export class TreedocPrimitiveList<T>
+  extends PrimitiveCrdt<
+    PrimitiveListState<TreedocId, T>,
+    PrimitiveListEventsRecord<TreedocId>
+  >
   implements Resettable
 {
-  private readonly sequenceSource: ISequenceSource<I>;
+  private readonly sequenceSource: TreedocSource;
+  private readonly valueSerializer: ElementSerializer<T>;
+  private readonly valueArraySerializer: ElementSerializer<T[]>;
   constructor(
-    sequenceSource: ISequenceSource<I>,
-    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    valueArraySerializer: ElementSerializer<
+      T[]
+    > = DefaultElementSerializer.getInstance()
   ) {
+    const sequenceSource = new TreedocSource();
     super({ tree: createRBTree(sequenceSource.compare.bind(sequenceSource)) });
     this.sequenceSource = sequenceSource;
+    this.valueSerializer = valueSerializer;
+    this.valueArraySerializer = valueArraySerializer;
   }
 
   init(name: string, parent: CrdtParent) {
@@ -320,7 +330,7 @@ export class PrimitiveList<I, T>
     this.sequenceSource.setRuntime(this.runtime);
   }
 
-  idAt(index: number): I {
+  idAt(index: number): TreedocId {
     this.checkIndex(index);
     return this.state.tree.at(index).key!;
   }
@@ -333,7 +343,7 @@ export class PrimitiveList<I, T>
     }
   }
 
-  getId(seqId: I): T | undefined {
+  getId(seqId: TreedocId): T | undefined {
     return this.state.tree.get(seqId);
   }
 
@@ -341,7 +351,7 @@ export class PrimitiveList<I, T>
     return this.getId(this.idAt(index))!;
   }
 
-  hasId(seqId: I): boolean {
+  hasId(seqId: TreedocId): boolean {
     return this.state.tree.get(seqId) !== undefined;
   }
 
@@ -352,11 +362,11 @@ export class PrimitiveList<I, T>
   // TODO: hide access if not persistent?
   // Also given that this is our forked version, not
   // the importable one.
-  idsAsTree(): RBTree<I, T> {
+  idsAsTree(): RBTree<TreedocId, T> {
     return this.state.tree;
   }
 
-  deleteId(seqId: I) {
+  deleteId(seqId: TreedocId) {
     const keySerialized = this.sequenceSource.serialize(seqId);
     const message = PrimitiveListMessage.create({
       operation: PrimitiveListMessage.Operation.DELETE,
@@ -369,11 +379,11 @@ export class PrimitiveList<I, T>
     this.deleteId(this.idAt(index));
   }
 
-  insertAt(index: number, value: T): I {
+  insertAt(index: number, value: T): TreedocId {
     return this.insertAtRange(index, [value])[0];
   }
 
-  insertAtRange(index: number, values: T[]): I[] {
+  insertAtRange(index: number, values: T[]): TreedocId[] {
     if (index < 0 || index > this.length) {
       throw new Error(
         "insertAt index out of range: " +
@@ -407,7 +417,11 @@ export class PrimitiveList<I, T>
   //   return this.insertBetween(before, seqId, count);
   // }
 
-  private insertBetween(before: I | null, after: I | null, values: T[]): I[] {
+  private insertBetween(
+    before: TreedocId | null,
+    after: TreedocId | null,
+    values: T[]
+  ): TreedocId[] {
     let seqIds = this.sequenceSource.createBetween(
       before,
       after,
@@ -473,7 +487,7 @@ export class PrimitiveList<I, T>
     }
   }
 
-  idsAsArray(): I[] {
+  idsAsArray(): TreedocId[] {
     return this.state.tree.keys;
   }
 
@@ -500,7 +514,7 @@ export class PrimitiveList<I, T>
 export class Cursor<I> {
   private seqId: I | null = null;
   constructor(
-    private readonly list: List<I, any> | PrimitiveList<I, any>,
+    private readonly list: List<I, any> | TreedocPrimitiveList<any>,
     startIndex: number,
     private readonly binding: "left" | "right" = "left"
   ) {
@@ -510,9 +524,11 @@ export class Cursor<I> {
   set index(index: number) {
     if (this.binding === "left") {
       if (index === 0) this.seqId = null;
+      // @ts-ignore TODO
       else this.seqId = this.list.idAt(index - 1);
     } else {
       if (index === this.list.length) this.seqId = null;
+      // @ts-ignore TODO
       else this.seqId = this.list.idAt(index);
     }
   }
@@ -520,9 +536,11 @@ export class Cursor<I> {
   get index(): number {
     if (this.binding === "left") {
       if (this.seqId === null) return 0;
+      // @ts-ignore TODO
       else return this.list.idsAsTree().gt(this.seqId).index;
     } else {
       if (this.seqId === null) return this.list.length;
+      // @ts-ignore TODO
       else return this.list.idsAsTree().ge(this.seqId).index;
     }
   }
@@ -1034,14 +1052,6 @@ export class TreedocList<C extends Crdt & Resettable> extends List<
 > {
   constructor(valueConstructor: (seqId: TreedocId) => C) {
     super(new TreedocSource(), valueConstructor);
-  }
-}
-
-export class TreedocPrimitiveList<T> extends PrimitiveList<TreedocId, T> {
-  constructor(
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
-  ) {
-    super(new TreedocSource(), valueSerializer);
   }
 }
 
