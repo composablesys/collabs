@@ -105,9 +105,11 @@ declare namespace createRBTree {
      * Removes the first item with `key` in the tree.
      *
      * @param key The key of the item to remove.
-     * @returns A new tree with the given item removed, if it exists.
+     * @returns [A new tree with the given item removed if it exists,
+     * the former index of the deleted key or null
+     * if it was not present]
      */
-    remove: (key: K) => Tree<K, V>;
+    remove: (key: K) => [Tree<K, V>, deletedIndex: number | null];
 
     /**
      * Retrieves the value associated with `key`.

@@ -24,7 +24,7 @@ import {
 import { BitSet } from "../../util/bitset";
 import { CausalTimestamp } from "../../net";
 // TODO: debug mode only (node only)
-import util from "util";
+// import util from "util";
 
 // TODO: should this have any events?
 
@@ -97,26 +97,23 @@ export class List<I, C extends Crdt & Resettable>
     // accordingly, so that its key set always coincides
     // with valueMap's.
     this.valueMap.on("KeyAdd", (event) => {
-      // Add the key if it is not present (Tree permits
-      // multiple instances of the same key, so adding it
-      // again if it already exists is not a no-op).
-      // TODO: optimize out this get
-      if (!this.sortedKeys.get(event.key)) {
-        let index: number;
-        [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
-        // // TODO: debug mode only
-        // const indexDebug = this.sortedKeys.find(event.key)!.index;
-        // if (index !== indexDebug) {
-        //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
-        // }
-      }
+      // Add the key if it is not present
+      let index: number;
+      [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true, true);
+      // // TODO: debug mode only
+      // const indexDebug = this.sortedKeys.find(event.key)!.index;
+      // if (index !== indexDebug) {
+      //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
+      // }
+      // TODO: event, but only if actually inserted.
+      // Need to add an extra return value to insert.
     });
     this.valueMap.on("KeyDelete", (event) => {
-      this.sortedKeys = this.sortedKeys.remove(event.key);
+      [this.sortedKeys] = this.sortedKeys.remove(event.key);
+      // TODO: event
     });
     // TODO: In tests, add assertions checking
     // size equality constantly.
-    // TODO: dispatching events
   }
 
   init(name: string, parent: CrdtParent) {
@@ -457,9 +454,6 @@ export class TreedocPrimitiveList<T>
     message: Uint8Array
   ): void {
     const decoded = PrimitiveListMessage.decode(message);
-    // TODO: as an optimization, could deserialize key
-    // only on demand in the events
-    // (use a getter + cache the result)
     const seqId = this.sequenceSource.deserialize(decoded.key, this.runtime);
     switch (decoded.operation) {
       case PrimitiveListMessage.Operation.SET:
@@ -486,17 +480,10 @@ export class TreedocPrimitiveList<T>
           this.emit("Insert", { seqId: seqIds[i], index, timestamp });
         }
         break;
-      case PrimitiveListMessage.Operation.DELETE:
-        // TODO: use a library that lets us reduce the number
-        // of map lookups here (from 2 to 1).
-        const found = this.state.tree.find(seqId);
-        // I think this check should always pass (it never
-        // caused an error when we were accidentally checking
-        // it in a way that always evaluated to true), but
-        // I'll leave it in just in case, since it is free.
-        if (found.valid) {
-          const index = found.index;
-          this.state.tree = this.state.tree.remove(seqId);
+      case PrimitiveListMessage.Operation.DELETE: {
+        let index: number | null;
+        [this.state.tree, index] = this.state.tree.remove(seqId);
+        if (index !== null) {
           this.emit("Delete", {
             timestamp,
             index,
@@ -504,6 +491,7 @@ export class TreedocPrimitiveList<T>
           });
         }
         break;
+      }
       default:
         throw new Error("Unknown decoded.operation: " + decoded.operation);
     }

@@ -144,7 +144,7 @@ export class MovableList<I, C extends Crdt>
     deletedSeqId: Optional<I>
   ) {
     if (deletedSeqId.isPresent) {
-      this.sortedLocations = this.sortedLocations.remove(deletedSeqId.get());
+      [this.sortedLocations] = this.sortedLocations.remove(deletedSeqId.get());
     } else {
       this.danglers.delete(value);
     }
