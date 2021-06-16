@@ -221,17 +221,14 @@ function treedocLww() {
 function textCrdt() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
-  let list: crdts.TreedocPrimitiveList<string> | null;
+  let list: crdts.TextCrdt | null;
 
   return new AutomergePerfBenchmark(
     "TextCrdt",
     (rng) => {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt(
-        "text",
-        new crdts.TreedocPrimitiveList<string>()
-      );
+      list = runtime.registerCrdt("text", new crdts.TextCrdt());
     },
     () => {
       generator = null;

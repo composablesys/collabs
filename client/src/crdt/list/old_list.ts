@@ -13,6 +13,7 @@ import {
   ElementSerializer,
   createRBTree,
   RBTree,
+  TextSerializer,
 } from "../../util";
 import { RiakCrdtMap } from "../map";
 import {
@@ -1050,4 +1051,8 @@ export class TreedocPrimitiveList<T> extends PrimitiveList<TreedocId, T> {
   }
 }
 
-export class TextCrdt extends TreedocPrimitiveList<string> {}
+export class TextCrdt extends TreedocPrimitiveList<string> {
+  constructor() {
+    super(TextSerializer.instance);
+  }
+}
