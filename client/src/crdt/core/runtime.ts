@@ -326,7 +326,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * associated with this runtime's replica id
    * once, obtained using a counter.
    */
-  getReplicaUniqueNumber() {
-    return this.idCounter++;
+  getReplicaUniqueNumber(count = 1) {
+    const ans = this.idCounter;
+    this.idCounter += count;
+    return ans;
   }
 }

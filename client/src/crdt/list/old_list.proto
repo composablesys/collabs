@@ -9,7 +9,8 @@ message TreedocIdMessage {
 message PrimitiveListMessage {
   enum Operation {
     SET = 0;
-    DELETE = 1;
+    SET_RANGE = 1;
+    DELETE = 2;
   }
   required Operation operation = 0;
   required bytes key = 1;

@@ -14,6 +14,7 @@ import {
   createRBTree,
   RBTree,
   TextSerializer,
+  TextArraySerializer,
 } from "../../util";
 import { RiakCrdtMap } from "../map";
 import {
@@ -23,7 +24,7 @@ import {
 import { BitSet } from "../../util/bitset";
 import { CausalTimestamp } from "../../net";
 // TODO: debug mode only (node only)
-//import util from "util";
+import util from "util";
 
 // TODO: should this have any events?
 
@@ -379,11 +380,11 @@ export class TreedocPrimitiveList<T>
     this.deleteId(this.idAt(index));
   }
 
-  insertAt(index: number, value: T): TreedocId {
-    return this.insertAtRange(index, [value])[0];
+  insertAt(index: number, value: T) {
+    this.insertAtRange(index, [value]);
   }
 
-  insertAtRange(index: number, values: T[]): TreedocId[] {
+  insertAtRange(index: number, values: T[]) {
     if (index < 0 || index > this.length) {
       throw new Error(
         "insertAt index out of range: " +
@@ -395,7 +396,7 @@ export class TreedocPrimitiveList<T>
     }
     let before = index === 0 ? null : this.idAt(index - 1);
     let after = index === this.length ? null : this.idAt(index);
-    return this.insertBetween(before, after, values);
+    this.insertBetween(before, after, values);
   }
 
   // TODO
@@ -421,21 +422,27 @@ export class TreedocPrimitiveList<T>
     before: TreedocId | null,
     after: TreedocId | null,
     values: T[]
-  ): TreedocId[] {
-    let seqIds = this.sequenceSource.createBetween(
+  ) {
+    let seqId = this.sequenceSource.createBetweenSpecial(
       before,
       after,
       values.length
     );
-    for (let i = 0; i < values.length; i++) {
-      const message = PrimitiveListMessage.create({
+    let message: PrimitiveListMessage;
+    if (values.length === 1) {
+      message = PrimitiveListMessage.create({
         operation: PrimitiveListMessage.Operation.SET,
-        key: this.sequenceSource.serialize(seqIds[i]),
-        value: this.valueSerializer.serialize(values[i]),
+        key: this.sequenceSource.serialize(seqId),
+        value: this.valueSerializer.serialize(values[0]),
       });
-      super.send(PrimitiveListMessage.encode(message).finish());
+    } else {
+      message = PrimitiveListMessage.create({
+        operation: PrimitiveListMessage.Operation.SET_RANGE,
+        key: this.sequenceSource.serialize(seqId),
+        value: this.valueArraySerializer.serialize(values),
+      });
     }
-    return seqIds;
+    super.send(PrimitiveListMessage.encode(message).finish());
   }
 
   reset() {
@@ -463,6 +470,21 @@ export class TreedocPrimitiveList<T>
           this.valueSerializer.deserialize(decoded.value, this.runtime)
         );
         this.emit("Insert", { seqId, index, timestamp });
+        break;
+      case PrimitiveListMessage.Operation.SET_RANGE:
+        const values = this.valueArraySerializer.deserialize(
+          decoded.value,
+          this.runtime
+        );
+        const seqIds = this.sequenceSource.expand(seqId, values.length);
+        for (let i = 0; i < values.length; i++) {
+          let index: number;
+          [this.state.tree, index] = this.state.tree.insert(
+            seqIds[i],
+            values[i]
+          );
+          this.emit("Insert", { seqId: seqIds[i], index, timestamp });
+        }
         break;
       case PrimitiveListMessage.Operation.DELETE:
         // TODO: use a library that lets us reduce the number
@@ -682,6 +704,38 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     after: TreedocId | null,
     count: number
   ): TreedocId[] {
+    return this.expand(this.createBetweenSpecial(before, after, count), count);
+  }
+
+  expand(startingId: TreedocId, count: number): TreedocId[] {
+    let ans = new Array<TreedocId>(count);
+    let uniqueNumber =
+      startingId.disambiguators[startingId.disambiguators.length - 1]
+        .uniqueNumber;
+    let sign = uniqueNumber >= 0 ? 1 : -1;
+    for (let i = 0; i < count; i++) {
+      let iPath = BitSet.copy(startingId.path, startingId.path.length);
+      // Set new leaf disambiguator.
+      // We rely on the fact that getReplicaUniqueNumber
+      // is increasing.
+      let iDisambiguators = startingId.disambiguators.slice();
+      let lastDis =
+        startingId.disambiguators[startingId.disambiguators.length - 1];
+      iDisambiguators[iDisambiguators.length - 1] = {
+        ...lastDis,
+        uniqueNumber: sign * (Math.abs(uniqueNumber) + i),
+      };
+      ans[i] = new TreedocId(iPath, iDisambiguators);
+    }
+    if (sign === -1) ans.reverse();
+    return ans;
+  }
+
+  createBetweenSpecial(
+    before: TreedocId | null,
+    after: TreedocId | null,
+    count: number
+  ): TreedocId {
     // Consider the tree model described in compare.
     // To create between after and before, we first need
     // to find their lowest common ancestor in the tree.
@@ -710,7 +764,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
 
     let path: BitSet;
     let disambiguators: Disambiguator[] = [];
-    let uniqueNumberSign = 1;
+    let uniqueNumberSign: 1 | -1 = 1;
 
     if (before === null && after === null) {
       // They are both null, so we can create any identifier.
@@ -804,7 +858,6 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
         disambiguators = after!.disambiguators.slice(0, -1);
         uniqueNumberSign = -1;
         // Last disambiguator is added at the end
-        // Last disambiguator is added at the end
       } else {
         // To build the answer, we start by setting
         // (path, disambiguators) to the LCA, i.e.,
@@ -889,65 +942,57 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
       }
     }
 
-    // Make count new ids as leaf descendants of path.
-    let ans = new Array<TreedocId>(count);
-    for (let i = 0; i < count; i++) {
-      let iPath = BitSet.copy(path, path.length);
-      // Set new leaf disambiguator.
-      // We rely on the fact that getReplicaUniqueNumber
-      // is increasing.
-      ans[i] = new TreedocId(iPath, [
-        ...disambiguators,
-        {
-          index: path.length - 1,
-          sender: this.runtime.replicaId,
-          uniqueNumber:
-            uniqueNumberSign * this.runtime.getReplicaUniqueNumber(),
-        },
-      ]);
-    }
-    if (uniqueNumberSign === -1) ans.reverse();
+    // Make one new id using path, disambiguators (plus
+    // final disambiguator)
+    let ans = new TreedocId(path, [
+      ...disambiguators,
+      {
+        index: path.length - 1,
+        sender: this.runtime.replicaId,
+        uniqueNumber:
+          uniqueNumberSign * this.runtime.getReplicaUniqueNumber(count),
+      },
+    ]);
 
     // TODO: debug mode only
     // Check between-ness
-    /*for (let newId of ans) {
-      if (
-        (before !== null && this.compare(before, newId) >= 0) ||
-        (after !== null && this.compare(newId, after) >= 0)
-      ) {
-        console.log("Error: newId out of order");
-        console.log(JSON.stringify(this.runtime.replicaId));
-        console.log(
-          util.inspect(before, {
-            depth: null,
-            maxArrayLength: null,
-            maxStringLength: null,
-            colors: true,
-          })
-        );
-        console.log(
-          util.inspect(newId, {
-            depth: null,
-            maxArrayLength: null,
-            maxStringLength: null,
-            colors: true,
-          })
-        );
-        console.log(
-          util.inspect(after, {
-            depth: null,
-            maxArrayLength: null,
-            maxStringLength: null,
-            colors: true,
-          })
-        );
-        if (before !== null) console.log(this.compare(before, newId));
-        if (after !== null) console.log(this.compare(newId, after));
-        if (before !== null && after !== null)
-          console.log(this.compare(before, after));
-        throw new Error("newId out of order");
-      }
-    }*/
+    let newId = ans;
+    if (
+      (before !== null && this.compare(before, newId) >= 0) ||
+      (after !== null && this.compare(newId, after) >= 0)
+    ) {
+      console.log("Error: newId out of order");
+      console.log(JSON.stringify(this.runtime.replicaId));
+      console.log(
+        util.inspect(before, {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+      console.log(
+        util.inspect(newId, {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+      console.log(
+        util.inspect(after, {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+      if (before !== null) console.log(this.compare(before, newId));
+      if (after !== null) console.log(this.compare(newId, after));
+      if (before !== null && after !== null)
+        console.log(this.compare(before, after));
+      throw new Error("newId out of order");
+    }
 
     return ans;
   }
@@ -1057,6 +1102,6 @@ export class TreedocList<C extends Crdt & Resettable> extends List<
 
 export class TextCrdt extends TreedocPrimitiveList<string> {
   constructor() {
-    super(TextSerializer.instance);
+    super(TextSerializer.instance, TextArraySerializer.instance);
   }
 }
