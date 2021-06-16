@@ -956,7 +956,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
 
     // TODO: debug mode only
     // Check between-ness
-    let newId = ans;
+    /*let newId = ans;
     if (
       (before !== null && this.compare(before, newId) >= 0) ||
       (after !== null && this.compare(newId, after) >= 0)
@@ -992,7 +992,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
       if (before !== null && after !== null)
         console.log(this.compare(before, after));
       throw new Error("newId out of order");
-    }
+    }*/
 
     return ans;
   }
