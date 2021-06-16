@@ -115,7 +115,7 @@ declare namespace createRBTree {
      * @param key The key of the item to look up.
      * @returns The value of the first node associated with `key`.
      */
-    get: (key: K) => V | void;
+    get: (key: K) => V | undefined;
   }
 
   /** Iterates through the nodes in a red-black tree. */

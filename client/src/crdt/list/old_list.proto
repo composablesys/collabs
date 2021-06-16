@@ -5,3 +5,13 @@ message TreedocIdMessage {
   repeated uint32 disSenders = 4 [packed=true];
   repeated sint32 disUniqueNumbers = 5 [packed=true];
 }
+
+message PrimitiveListMessage {
+  enum Operation {
+    SET = 0;
+    DELETE = 1;
+  }
+  required Operation operation = 0;
+  required bytes key = 1;
+  optional bytes value = 2;
+}

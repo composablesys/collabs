@@ -545,7 +545,7 @@ proto.get = function (key) {
       n = n.right;
     }
   }
-  return;
+  return undefined;
 };
 
 //Iterator for red black tree

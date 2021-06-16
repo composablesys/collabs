@@ -4,6 +4,7 @@ import {
   CrdtEvent,
   CrdtEventsRecord,
   CrdtParent,
+  PrimitiveCrdt,
   Runtime,
 } from "../core";
 import { Resettable } from "../helper_crdts";
@@ -13,9 +14,13 @@ import {
   createRBTree,
   RBTree,
 } from "../../util";
-import { RiakCrdtMap, SequentialPlainMap } from "../map";
-import { TreedocIdMessage } from "../../../generated/proto_compiled";
+import { RiakCrdtMap } from "../map";
+import {
+  PrimitiveListMessage,
+  TreedocIdMessage,
+} from "../../../generated/proto_compiled";
 import { BitSet } from "../../util/bitset";
+import { CausalTimestamp } from "../../net";
 // TODO: debug mode only (node only)
 //import util from "util";
 
@@ -291,76 +296,22 @@ interface PrimitiveListEventsRecord<I> extends CrdtEventsRecord {
   Delete: PrimitiveListDeleteEvent<I>;
 }
 
+interface PrimitiveListState<I, T> {
+  // Note this is a persistent (immutable) data structure.
+  tree: RBTree<I, T>;
+}
+
 export class PrimitiveList<I, T>
-  extends CompositeCrdt<PrimitiveListEventsRecord<I>>
+  extends PrimitiveCrdt<PrimitiveListState<I, T>, PrimitiveListEventsRecord<I>>
   implements Resettable
 {
-  private readonly valueMap: SequentialPlainMap<I, T>;
-  // Note this is a persistent (immutable) data structure.
-  // TODO: undefined instead of true?
-  private sortedKeys: RBTree<I, true>;
+  private readonly sequenceSource: ISequenceSource<I>;
   constructor(
-    private readonly sequenceSource: ISequenceSource<I>,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    sequenceSource: ISequenceSource<I>,
+    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super();
-    this.valueMap = this.addChild(
-      "2",
-      new SequentialPlainMap<I, T>(this.sequenceSource, valueSerializer)
-    );
-    this.sortedKeys = createRBTree(
-      this.sequenceSource.compare.bind(sequenceSource)
-    );
-    // Catch map key events and adjusting sortedKeys
-    // accordingly, so that its key set always coincides
-    // with valueMap's.
-    this.valueMap.on("Set", (event) => {
-      // Unlike in List, valueMap will never set
-      // an already-set value, since it is a
-      // SequentialMap and we don't allow editing
-      // values in-place.  So we can trust that
-      // event.key is not already present in sortedKeys.
-      let index: number;
-      [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
-      // // TODO: debug mode only
-      // const indexDebug = this.sortedKeys.find(event.key)!.index;
-      // if (index !== indexDebug) {
-      //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
-      // }
-      this.emit("Insert", {
-        timestamp: event.timestamp,
-        index,
-        seqId: event.key,
-      });
-      // TODO: use assertions instead?  Or just remove.  Same in delete.
-      if (this.sortedKeys.length !== this.valueMap.size) {
-        throw new Error("List size agreement error");
-      }
-    });
-    this.valueMap.on("KeyDelete", (event) => {
-      // TODO: use a library that lets us reduce the number
-      // of map lookups here (from 2 to 1).
-      const found = this.sortedKeys.find(event.key);
-      // I think this check should always pass (it never
-      // caused an error when we were accidentally checking
-      // it in a way that always evaluated to true), but
-      // I'll leave it in just in case, since it is free.
-      if (found.valid) {
-        const index = found.index;
-        this.sortedKeys = this.sortedKeys.remove(event.key);
-        this.emit("Delete", {
-          timestamp: event.timestamp,
-          index,
-          seqId: event.key,
-        });
-        if (this.sortedKeys.length !== this.valueMap.size) {
-          throw new Error("List size agreement error");
-        }
-      }
-    });
-    // TODO: In tests, add assertions checking
-    // size equality constantly.
-    // TODO: dispatching events
+    super({ tree: createRBTree(sequenceSource.compare.bind(sequenceSource)) });
+    this.sequenceSource = sequenceSource;
   }
 
   init(name: string, parent: CrdtParent) {
@@ -370,7 +321,7 @@ export class PrimitiveList<I, T>
 
   idAt(index: number): I {
     this.checkIndex(index);
-    return this.sortedKeys.at(index).key!;
+    return this.state.tree.at(index).key!;
   }
 
   private checkIndex(index: number) {
@@ -382,7 +333,7 @@ export class PrimitiveList<I, T>
   }
 
   getId(seqId: I): T | undefined {
-    return this.valueMap.get(seqId);
+    return this.state.tree.get(seqId);
   }
 
   getAt(index: number): T {
@@ -390,7 +341,7 @@ export class PrimitiveList<I, T>
   }
 
   hasId(seqId: I): boolean {
-    return this.valueMap.has(seqId);
+    return this.state.tree.get(seqId) !== undefined;
   }
 
   hasAt(index: number): boolean {
@@ -400,12 +351,17 @@ export class PrimitiveList<I, T>
   // TODO: hide access if not persistent?
   // Also given that this is our forked version, not
   // the importable one.
-  idsAsTree(): RBTree<I, true> {
-    return this.sortedKeys;
+  idsAsTree(): RBTree<I, T> {
+    return this.state.tree;
   }
 
   deleteId(seqId: I) {
-    this.valueMap.delete(seqId);
+    const keySerialized = this.sequenceSource.serialize(seqId);
+    const message = PrimitiveListMessage.create({
+      operation: PrimitiveListMessage.Operation.DELETE,
+      key: keySerialized,
+    });
+    super.send(PrimitiveListMessage.encode(message).finish());
   }
 
   deleteAt(index: number) {
@@ -457,35 +413,81 @@ export class PrimitiveList<I, T>
       values.length
     );
     for (let i = 0; i < values.length; i++) {
-      this.valueMap.set(seqIds[i], values[i]);
+      const message = PrimitiveListMessage.create({
+        operation: PrimitiveListMessage.Operation.SET,
+        key: this.sequenceSource.serialize(seqIds[i]),
+        value: this.valueSerializer.serialize(values[i]),
+      });
+      super.send(PrimitiveListMessage.encode(message).finish());
     }
     return seqIds;
   }
 
   reset() {
-    this.valueMap.reset();
-    // sortedKeys will be reset automatically in response
-    // to map events; no need to reset sequenceSource since
-    // it doesn't have any exposed state.
+    // TODO: optimize
+    for (let seqId of this.state.tree.keys) {
+      this.deleteId(seqId);
+    }
+  }
+
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
+    const decoded = PrimitiveListMessage.decode(message);
+    // TODO: as an optimization, could deserialize key
+    // only on demand in the events
+    // (use a getter + cache the result)
+    const seqId = this.sequenceSource.deserialize(decoded.key, this.runtime);
+    switch (decoded.operation) {
+      case PrimitiveListMessage.Operation.SET:
+        // TODO: best-effort error if it's already set?
+        let index: number;
+        [this.state.tree, index] = this.state.tree.insert(
+          seqId,
+          this.valueSerializer.deserialize(decoded.value, this.runtime)
+        );
+        this.emit("Insert", { seqId, index, timestamp });
+        break;
+      case PrimitiveListMessage.Operation.DELETE:
+        // TODO: use a library that lets us reduce the number
+        // of map lookups here (from 2 to 1).
+        const found = this.state.tree.find(seqId);
+        // I think this check should always pass (it never
+        // caused an error when we were accidentally checking
+        // it in a way that always evaluated to true), but
+        // I'll leave it in just in case, since it is free.
+        if (found.valid) {
+          const index = found.index;
+          this.state.tree = this.state.tree.remove(seqId);
+          this.emit("Delete", {
+            timestamp,
+            index,
+            seqId,
+          });
+        }
+        break;
+      default:
+        throw new Error("Unknown decoded.operation: " + decoded.operation);
+    }
   }
 
   idsAsArray(): I[] {
-    return this.sortedKeys.keys;
+    return this.state.tree.keys;
   }
 
   asArray(): T[] {
-    let keys = this.sortedKeys.keys;
-    let arr = new Array<T>(keys.length);
-    for (let i = 0; i < keys.length; i++) {
-      arr[i] = this.getId(keys[i])!;
-    }
-    return arr;
+    return this.state.tree.values;
   }
 
   // TODO: iterator versions of asArray methods
 
   get length(): number {
-    return this.sortedKeys.length;
+    return this.state.tree.length;
+  }
+
+  canGc(): boolean {
+    return this.length === 0;
   }
 }
 
