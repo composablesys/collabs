@@ -15,6 +15,8 @@ import {
 import { RiakCrdtMap, SequentialPlainMap } from "../map";
 import { TreedocIdMessage } from "../../../generated/proto_compiled";
 import { BitSet } from "../../util/bitset";
+// TODO: debug mode only (node only)
+//import util from "util";
 
 // TODO: should this have any events?
 
@@ -515,6 +517,11 @@ export class Cursor<I> {
 
 // Implementations
 
+interface Disambiguator {
+  readonly sender: string;
+  readonly uniqueNumber: number;
+}
+
 export class TreedocId {
   /**
    * @param path top bit is always 0
@@ -524,12 +531,8 @@ export class TreedocId {
    */
   constructor(
     readonly path: BitSet,
-    readonly disambiguators: [index: number, value: string][]
+    readonly disambiguators: readonly [index: number, value: Disambiguator][]
   ) {}
-
-  get sender(): string {
-    return this.disambiguators[this.disambiguators.length - 1][1];
-  }
 }
 
 /**
@@ -589,7 +592,9 @@ export class TreedocSource
     // 0 < sorted disambiguators < 1.
     if (aDis !== undefined && bDis !== undefined) {
       // Compare by aDis and bDis.  We know they're not equal.
-      return aDis < bDis ? -1 : 1;
+      if (aDis.sender < bDis.sender) return -1;
+      else if (aDis.sender > bDis.sender) return 1;
+      else return aDis.uniqueNumber - bDis.uniqueNumber;
     } else {
       if (aDis === undefined) {
         // 0 < bDis < 1
@@ -611,15 +616,21 @@ export class TreedocSource
    * as a difference.
    */
   private diffDisambiguators(
-    a: [index: number, value: string][],
-    b: [index: number, value: string][]
-  ): [number, string | undefined, string | undefined] {
+    a: readonly [index: number, value: Disambiguator][],
+    b: readonly [index: number, value: Disambiguator][]
+  ): [number, Disambiguator | undefined, Disambiguator | undefined] {
     let i: number;
     for (i = 0; i < Math.min(a.length, b.length); i++) {
       if (a[i][0] < b[i][0]) return [a[i][0], a[i][1], undefined];
       if (b[i][0] < a[i][0]) return [b[i][0], undefined, b[i][1]];
       // Now a[i][0] === b[i][0]
-      if (a[i][1] !== b[i][1]) return [a[i][0], a[i][1], b[i][1]];
+      if (
+        !(
+          a[i][1].sender === b[i][1].sender &&
+          a[i][1].uniqueNumber === b[i][1].uniqueNumber
+        )
+      )
+        return [a[i][0], a[i][1], b[i][1]];
     }
     // At this point, they agree on their prefix,
     // and i = Math.min(a.length, b.length).
@@ -665,7 +676,8 @@ export class TreedocSource
     // true until we add counters to disambiguators.)
 
     let path: BitSet;
-    let disambiguators: [index: number, value: string][] = [];
+    let disambiguators: [index: number, value: Disambiguator][] = [];
+    let uniqueNumberSign = 1;
 
     if (before === null && after === null) {
       // They are both null, so we can create any identifier.
@@ -674,25 +686,41 @@ export class TreedocSource
       // we arbitrarily put 0 in the first bit layer.
       path = new BitSet(1);
     } else if (after === null) {
-      // Use enough 1 bits to make something greater
-      // than before.
-      const end = before!.path.nextNot(true, 0);
-      path = new BitSet(end + 1);
-      path.setToEnd(0, true);
+      const lastDis = before!.disambiguators[before!.disambiguators.length - 1];
+      if (lastDis[1].sender === this.runtime.replicaId) {
+        // before is ours; use it again but with
+        // the next (larger) uniqueNumber.
+        path = BitSet.copy(before!.path, before!.path.length);
+        disambiguators = before!.disambiguators.slice(0, -1);
+        // Last disambiguator is added at the end
+      } else {
+        // Use enough 1 bits to make something greater
+        // than before.
+        const end = before!.path.nextNot(true, 0);
+        path = new BitSet(end + 1);
+        path.setToEnd(0, true);
+      }
     } else if (before === null) {
-      // Use enough 0 bits to make something les
-      // than after.
-      const end = after.path.nextNot(false, 0);
-      path = new BitSet(end + 1);
-      path.setToEnd(0, false);
+      const lastDis = after!.disambiguators[after!.disambiguators.length - 1];
+      if (lastDis[1].sender === this.runtime.replicaId) {
+        // after is ours; use it again but with
+        // the next (larger) uniqueNumber, negated so
+        // it is before.
+        path = BitSet.copy(after!.path, after!.path.length);
+        disambiguators = after!.disambiguators.slice(0, -1);
+        uniqueNumberSign = -1;
+        // Last disambiguator is added at the end
+      } else {
+        // Use enough 0 bits to make something les
+        // than after.
+        const end = after.path.nextNot(false, 0);
+        path = new BitSet(end + 1);
+        path.setToEnd(0, false);
+      }
     } else {
-      // To build the answer, we start by setting
-      // (path, disambiguators) to the LCA, i.e.,
-      // we copy the layers up to but excluding
-      // the first difference.
+      // Find the first layer where they differ
       let isBitLayer: boolean;
       let firstDiff: number;
-      // Find the first layer where they differ
       const [_, bitFirstDiff] = BitSet.compare(before.path, after.path);
       const [disFirstDiff, beforeDis, afterDis] = this.diffDisambiguators(
         before.disambiguators,
@@ -706,114 +734,182 @@ export class TreedocSource
         firstDiff = disFirstDiff;
       }
 
-      path = BitSet.copy(before.path, firstDiff + (isBitLayer ? 0 : 1));
-      for (let i = 0; i < before.disambiguators.length; i++) {
-        if (before.disambiguators[i][0] >= firstDiff) break;
-        disambiguators.push(before.disambiguators[i]);
-      }
-
-      // Since both must end with disambiguator layers, one
-      // is a prefix of the other iff the first difference
-      // is the bit layer after the shorter length.
-      let prefix: TreedocId | null;
-      if (isBitLayer && firstDiff === before.path.length) {
-        prefix = before;
-      } else if (isBitLayer && firstDiff === after.path.length) {
-        prefix = after;
-      } else prefix = null;
-
-      // Next, if prefix !== before, one option is to
-      // follow before for one more nontrivial edge, then keep
-      // adding 1 bits until we get something > before.
-      // If prefix !== after, a second option is to follow
-      // after for one more nontrivial edge, then keep adding 0 bits
-      // until we get something < after.
-      // We choose whichever is shorter.
-      // TODO: penalize starting disambiguators?
-      let beforeInfo: [number, boolean, number, number] | null = null;
-      if (prefix !== before) {
-        beforeInfo = this.bitRange(
-          isBitLayer,
-          firstDiff,
-          beforeDis,
-          before,
-          true
-        );
-      }
-      let afterInfo: [number, boolean, number, number] | null = null;
-      if (prefix !== after) {
-        afterInfo = this.bitRange(
-          isBitLayer,
-          firstDiff,
-          afterDis,
-          after,
-          false
-        );
-      }
-
+      // If one of them by us, and the other is not
+      // (the same up to the first one's last disambiguator
+      // which has the same author), then reuse the one
+      // just with a different number.
+      const beforeLastDis =
+        before.disambiguators[before.disambiguators.length - 1][1];
+      const afterLastDis =
+        after.disambiguators[after.disambiguators.length - 1][1];
       if (
-        beforeInfo !== null &&
-        (afterInfo === null || beforeInfo[3] <= afterInfo[3])
+        beforeLastDis.sender === this.runtime.replicaId &&
+        (firstDiff < before.path.length - 1 ||
+          (firstDiff === before.path.length - 1 && isBitLayer) ||
+          (firstDiff === before.path.length - 1 &&
+            !isBitLayer &&
+            (afterDis === undefined ||
+              afterDis.sender !== this.runtime.replicaId)))
       ) {
-        // Attach to before.
-        // Copy before's next nontrivial layer
-        // (ref'd by beforeInfo[0], beforeInfo[1]),
-        // then add 1s through beforeInfo[2].
-        path = BitSet.copy(before!.path, beforeInfo[2] + 1);
-        if (beforeInfo[1]) {
-          // The next nontrivial layer is a bit layer
-          path.set(beforeInfo[0], before!.path.get(beforeInfo[0]));
-        } else {
-          // The next nontrivial layer is the disagreeing
-          // disambiguator layer.
-          disambiguators.push([firstDiff, beforeDis!]);
-        }
-        path.setToEnd(beforeInfo[0] + 1, true);
+        // use before again but with
+        // the next (larger) uniqueNumber.
+        path = BitSet.copy(before!.path, before!.path.length);
+        disambiguators = before!.disambiguators.slice(0, -1);
+        // Last disambiguator is added at the end
+      } else if (
+        afterLastDis.sender === this.runtime.replicaId &&
+        (firstDiff < after.path.length - 1 ||
+          (firstDiff === after.path.length - 1 && isBitLayer) ||
+          (firstDiff === after.path.length - 1 &&
+            !isBitLayer &&
+            (beforeDis === undefined ||
+              beforeDis.sender !== this.runtime.replicaId)))
+      ) {
+        // use after again but with
+        // the next (larger) uniqueNumber, negated.
+        path = BitSet.copy(after!.path, after!.path.length);
+        disambiguators = after!.disambiguators.slice(0, -1);
+        uniqueNumberSign = -1;
+        // Last disambiguator is added at the end
+        // Last disambiguator is added at the end
       } else {
-        // Attach to after.
-        path = BitSet.copy(after!.path, afterInfo![2] + 1);
-        if (afterInfo![1]) {
-          // The next nontrivial layer is a bit layer
-          path.set(afterInfo![0], after!.path.get(afterInfo![0]));
-        } else {
-          // The next nontrivial layer is the disagreeing
-          // disambiguator layer.
-          disambiguators.push([firstDiff, afterDis!]);
+        // To build the answer, we start by setting
+        // (path, disambiguators) to the LCA, i.e.,
+        // we copy the layers up to but excluding
+        // the first difference.
+        path = BitSet.copy(before.path, firstDiff + (isBitLayer ? 0 : 1));
+        for (let i = 0; i < before.disambiguators.length; i++) {
+          if (before.disambiguators[i][0] >= firstDiff) break;
+          disambiguators.push(before.disambiguators[i]);
         }
-        path.setToEnd(afterInfo![0] + 1, false);
+
+        // Since both must end with disambiguator layers, one
+        // is a prefix of the other iff the first difference
+        // is the bit layer after the shorter length.
+        let prefix: TreedocId | null;
+        if (isBitLayer && firstDiff === before.path.length) {
+          prefix = before;
+        } else if (isBitLayer && firstDiff === after.path.length) {
+          prefix = after;
+        } else prefix = null;
+
+        // Next, if prefix !== before, one option is to
+        // follow before for one more nontrivial edge, then keep
+        // adding 1 bits until we get something > before.
+        // If prefix !== after, a second option is to follow
+        // after for one more nontrivial edge, then keep adding 0 bits
+        // until we get something < after.
+        // We choose whichever is shorter.
+        // TODO: penalize starting disambiguators?
+        let beforeInfo: [number, boolean, number, number] | null = null;
+        if (prefix !== before) {
+          beforeInfo = this.bitRange(
+            isBitLayer,
+            firstDiff,
+            beforeDis,
+            before,
+            true
+          );
+        }
+        let afterInfo: [number, boolean, number, number] | null = null;
+        if (prefix !== after) {
+          afterInfo = this.bitRange(
+            isBitLayer,
+            firstDiff,
+            afterDis,
+            after,
+            false
+          );
+        }
+
+        if (
+          beforeInfo !== null &&
+          (afterInfo === null || beforeInfo[3] <= afterInfo[3])
+        ) {
+          // Attach to before.
+          // Copy before's next nontrivial layer
+          // (ref'd by beforeInfo[0], beforeInfo[1]),
+          // then add 1s through beforeInfo[2].
+          path = BitSet.copy(before!.path, beforeInfo[2] + 1);
+          if (beforeInfo[1]) {
+            // The next nontrivial layer is a bit layer
+            path.set(beforeInfo[0], before!.path.get(beforeInfo[0]));
+          } else {
+            // The next nontrivial layer is the disagreeing
+            // disambiguator layer.
+            disambiguators.push([firstDiff, beforeDis!]);
+          }
+          path.setToEnd(beforeInfo[0] + 1, true);
+        } else {
+          // Attach to after.
+          path = BitSet.copy(after!.path, afterInfo![2] + 1);
+          if (afterInfo![1]) {
+            // The next nontrivial layer is a bit layer
+            path.set(afterInfo![0], after!.path.get(afterInfo![0]));
+          } else {
+            // The next nontrivial layer is the disagreeing
+            // disambiguator layer.
+            disambiguators.push([firstDiff, afterDis!]);
+          }
+          path.setToEnd(afterInfo![0] + 1, false);
+        }
       }
     }
 
-    let depth = Math.ceil(Math.log2(count));
-    // Set new leaf disambiguator.
-    // TODO: it would be nicer to set this at
-    // path.length - 1, preventing interleaving.
-    // However we currently require the leaf to have
-    // a disambiguator.
-    disambiguators.push([path.length + depth - 1, this.runtime.replicaId]);
     // Make count new ids as leaf descendants of path.
     let ans = new Array<TreedocId>(count);
     for (let i = 0; i < count; i++) {
-      let iPath = BitSet.copy(path, path.length + depth);
-      // Set depth next bits as the low depth bits of i
-      for (let d = 0; d < depth; d++) {
-        iPath.set(path.length + d, (i & (1 << (depth - d - 1))) !== 0);
-      }
-      ans[i] = new TreedocId(iPath, disambiguators);
+      let iPath = BitSet.copy(path, path.length);
+      // Set new leaf disambiguator.
+      // We rely on the fact that getReplicaUniqueNumber
+      // is increasing.
+      ans[i] = new TreedocId(iPath, [
+        ...disambiguators,
+        [
+          path.length - 1,
+          {
+            sender: this.runtime.replicaId,
+            uniqueNumber:
+              uniqueNumberSign * this.runtime.getReplicaUniqueNumber(),
+          },
+        ],
+      ]);
     }
+    if (uniqueNumberSign === -1) ans.reverse();
 
     // TODO: debug mode only
-    /*// Check between-ness
-    for (let newId of ans) {
+    // Check between-ness
+    /*for (let newId of ans) {
       if (
         (before !== null && this.compare(before, newId) >= 0) ||
-        (after != null && this.compare(newId, after) >= 0)
+        (after !== null && this.compare(newId, after) >= 0)
       ) {
         console.log("Error: newId out of order");
         console.log(JSON.stringify(this.runtime.replicaId));
-        console.log(before);
-        console.log(newId);
-        console.log(after);
+        console.log(
+          util.inspect(before, {
+            depth: null,
+            maxArrayLength: null,
+            maxStringLength: null,
+            colors: true,
+          })
+        );
+        console.log(
+          util.inspect(newId, {
+            depth: null,
+            maxArrayLength: null,
+            maxStringLength: null,
+            colors: true,
+          })
+        );
+        console.log(
+          util.inspect(after, {
+            depth: null,
+            maxArrayLength: null,
+            maxStringLength: null,
+            colors: true,
+          })
+        );
         if (before !== null) console.log(this.compare(before, newId));
         if (after !== null) console.log(this.compare(newId, after));
         if (before !== null && after !== null)
@@ -835,7 +931,7 @@ export class TreedocSource
   private bitRange(
     isBitLayer: boolean,
     firstDiff: number,
-    dis: string | undefined,
+    dis: Disambiguator | undefined,
     id: TreedocId,
     direction: boolean
   ): [number, boolean, number, number] {
@@ -875,15 +971,33 @@ export class TreedocSource
       nontrivial,
       nontrivialIsBit,
       end,
-      end + (nontrivialIsBit ? 0 : dis!.length * 8),
+      end + (nontrivialIsBit ? 0 : dis!.sender.length * 8),
     ];
   }
 
   serialize(value: TreedocId): Uint8Array {
+    // Compress repeated senders in disambiguators
+    const disSendersIndex: string[] = [];
+    // TODO: borrow this map from runtime/cbcast?
+    const disSenderIndexMap = new Map<string, number>();
+    const disSenders: number[] = [];
+    for (const [_, dis] of value.disambiguators) {
+      let index = disSenderIndexMap.get(dis.sender);
+      if (index === undefined) {
+        index = disSendersIndex.length;
+        disSendersIndex.push(dis.sender);
+        disSenderIndexMap.set(dis.sender, index);
+      }
+      disSenders.push(index);
+    }
     let message = TreedocIdMessage.create({
       path: value.path.serialize(),
       disIndices: value.disambiguators.map((elem) => elem[0]),
-      disValues: value.disambiguators.map((elem) => elem[1]),
+      disSendersIndex,
+      disSenders,
+      disUniqueNumbers: value.disambiguators.map(
+        (elem) => elem[1].uniqueNumber
+      ),
     });
     return TreedocIdMessage.encode(message).finish();
   }
@@ -891,9 +1005,15 @@ export class TreedocSource
   deserialize(message: Uint8Array, _runtime: Runtime): TreedocId {
     let decoded = TreedocIdMessage.decode(message);
     let path = BitSet.deserialize(decoded.path);
-    let disambiguators: [index: number, value: string][] = [];
+    let disambiguators: [index: number, value: Disambiguator][] = [];
     for (let i = 0; i < decoded.disIndices.length; i++) {
-      disambiguators.push([decoded.disIndices[i], decoded.disValues[i]]);
+      disambiguators.push([
+        decoded.disIndices[i],
+        {
+          sender: decoded.disSendersIndex[decoded.disSenders[i]],
+          uniqueNumber: decoded.disUniqueNumbers[i],
+        },
+      ]);
     }
     return new TreedocId(path, disambiguators);
   }
