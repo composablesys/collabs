@@ -16,12 +16,12 @@ fi
 
 if [ ! -z $5 ] && [ $5 == "--oursOnly" ]
 then
-  names=("compoCrdt" "compoJson" "compoJsonText" "compoJsonCrdt")
+  names=("compoCrdt" "compoJson" "compoJsonText" "compoJsonCrdt" "compoMovableCrdt")
 elif [ ! -z $5 ] && [ $5 == "--theirsOnly" ]
 then
   names=("yjs" "automerge" "automergeNoText")
 else
-  names=("compoCrdt" "compoJson" "compoJsonText" "yjs" "automerge" "automergeNoText" "compoJsonCrdt")
+  names=("compoCrdt" "compoJson" "compoJsonText" "yjs" "automerge" "automergeNoText" "compoJsonCrdt" "compoMovableCrdt")
 fi
 
 for frequency in "whole" "rounds"
