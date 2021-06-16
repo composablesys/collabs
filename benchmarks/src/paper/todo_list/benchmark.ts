@@ -373,16 +373,13 @@ function compoCrdt() {
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TreedocPrimitiveList<string>;
+    private readonly text: crdts.TextCrdt;
     private readonly doneCrdt: crdts.TrueWinsBoolean;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild(
-        "text",
-        new crdts.TreedocPrimitiveList(crdts.TextSerializer.instance)
-      );
+      this.text = this.addChild("text", new crdts.TextCrdt());
       this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
       this.items = this.addChild(
         "items",
@@ -470,16 +467,13 @@ function compoMovableCrdt() {
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TreedocPrimitiveList<string>;
+    private readonly text: crdts.TextCrdt;
     private readonly doneCrdt: crdts.TrueWinsBoolean;
     private readonly items: crdts.DeletingMovableList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild(
-        "text",
-        new crdts.TreedocPrimitiveList(crdts.TextSerializer.instance)
-      );
+      this.text = this.addChild("text", new crdts.TextCrdt());
       this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
       this.items = this.addChild(
         "items",
@@ -692,26 +686,20 @@ function compoJsonText() {
     }
 
     insertText(index: number, text: string): void {
-      let textArray = this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>;
+      let textArray = this.jsonObj.get("text")!.value as crdts.TextCrdt;
       textArray.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
-      let textList = this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>;
+      let textList = this.jsonObj.get("text")!.value as crdts.TextCrdt;
       for (let i = 0; i < count; i++) {
         textList.deleteAt(index);
       }
     }
     get textSize(): number {
-      return (
-        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
-      ).length;
+      return (this.jsonObj.get("text")!.value as crdts.TextCrdt).length;
     }
     getText(): string {
-      return (
-        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
-      )
+      return (this.jsonObj.get("text")!.value as crdts.TextCrdt)
         .asArray()
         .join("");
     }
@@ -1144,7 +1132,7 @@ function jsonCrdt() {
       cursor.setIsList("text");
 
       let idGen = new crdts.TreedocSource();
-      crdt.addExtChild("treedocSource", idGen);
+      idGen.setRuntime(runtime);
       return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
     cleanup() {

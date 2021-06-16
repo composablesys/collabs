@@ -23,10 +23,17 @@ declare namespace createRBTree {
      *
      * @param key The key of the item to insert.
      * @param value The value of the item to insert.
+     * @param ignoreExisting = false If true and key is already in
+     * the map, does nothing (even if value is different
+     * than the current value at key).
      * @returns [A new tree with `key` and `value` inserted,
      * the index in that tree where the item was inserted]
      */
-    insert: (key: K, value: V) => [Tree<K, V>, number];
+    insert: (
+      key: K,
+      value: V,
+      ignoreExisting?: boolean
+    ) => [Tree<K, V>, number];
 
     /**
      * Walks a visitor function over the nodes of the tree in order.
@@ -108,7 +115,7 @@ declare namespace createRBTree {
      * @param key The key of the item to look up.
      * @returns The value of the first node associated with `key`.
      */
-    get: (key: K) => V | void;
+    get: (key: K) => V | undefined;
   }
 
   /** Iterates through the nodes in a red-black tree. */

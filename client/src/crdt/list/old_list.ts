@@ -3,6 +3,8 @@ import {
   Crdt,
   CrdtEvent,
   CrdtEventsRecord,
+  CrdtParent,
+  PrimitiveCrdt,
   Runtime,
 } from "../core";
 import { Resettable } from "../helper_crdts";
@@ -11,12 +13,18 @@ import {
   ElementSerializer,
   createRBTree,
   RBTree,
+  TextSerializer,
+  TextArraySerializer,
 } from "../../util";
-import { RiakCrdtMap, SequentialPlainMap } from "../map";
-import { TreedocIdMessage } from "../../../generated/proto_compiled";
+import { RiakCrdtMap } from "../map";
+import {
+  PrimitiveListMessage,
+  TreedocIdMessage,
+} from "../../../generated/proto_compiled";
 import { BitSet } from "../../util/bitset";
+import { CausalTimestamp } from "../../net";
 // TODO: debug mode only (node only)
-//import util from "util";
+import util from "util";
 
 // TODO: should this have any events?
 
@@ -30,7 +38,10 @@ import { BitSet } from "../../util/bitset";
  * replicas if doing so is necessary for ordering,
  * as in TreeDoc).
  */
-export interface ISequenceSource<I> extends Crdt, ElementSerializer<I> {
+export interface ISequenceSource<I> extends ElementSerializer<I> {
+  setRuntime(runtime: Runtime): void;
+  readonly runtime: Runtime;
+
   /**
    * Same semantics as compareFunction supplied to
    * Array.sort: return < 0 if a < b, > 0 if a > b,
@@ -67,16 +78,14 @@ export class List<I, C extends Crdt & Resettable>
   extends CompositeCrdt
   implements Resettable
 {
-  private readonly sequenceSource: ISequenceSource<I>;
   private readonly valueMap: RiakCrdtMap<I, C>;
   // Note this is a persistent (immutable) data structure.
   private sortedKeys: RBTree<I, true>;
   constructor(
-    sequenceSource: ISequenceSource<I>,
+    private readonly sequenceSource: ISequenceSource<I>,
     valueConstructor: (seqId: I) => C
   ) {
     super();
-    this.sequenceSource = this.addChild("1", sequenceSource);
     this.valueMap = this.addChild(
       "2",
       new RiakCrdtMap<I, C>(valueConstructor, this.sequenceSource)
@@ -108,6 +117,11 @@ export class List<I, C extends Crdt & Resettable>
     // TODO: In tests, add assertions checking
     // size equality constantly.
     // TODO: dispatching events
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    this.sequenceSource.setRuntime(this.runtime);
   }
 
   idAt(index: number): I {
@@ -284,83 +298,42 @@ interface PrimitiveListEventsRecord<I> extends CrdtEventsRecord {
   Delete: PrimitiveListDeleteEvent<I>;
 }
 
-export class PrimitiveList<I, T>
-  extends CompositeCrdt<PrimitiveListEventsRecord<I>>
+interface PrimitiveListState<I, T> {
+  // Note this is a persistent (immutable) data structure.
+  tree: RBTree<I, T>;
+}
+
+export class TreedocPrimitiveList<T>
+  extends PrimitiveCrdt<
+    PrimitiveListState<TreedocId, T>,
+    PrimitiveListEventsRecord<TreedocId>
+  >
   implements Resettable
 {
-  private readonly sequenceSource: ISequenceSource<I>;
-  private readonly valueMap: SequentialPlainMap<I, T>;
-  // Note this is a persistent (immutable) data structure.
-  // TODO: undefined instead of true?
-  private sortedKeys: RBTree<I, true>;
+  private readonly sequenceSource: TreedocSource;
+  private readonly valueSerializer: ElementSerializer<T>;
+  private readonly valueArraySerializer: ElementSerializer<T[]>;
   constructor(
-    sequenceSource: ISequenceSource<I>,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    valueArraySerializer: ElementSerializer<
+      T[]
+    > = DefaultElementSerializer.getInstance()
   ) {
-    super();
-    this.sequenceSource = this.addChild("1", sequenceSource);
-    this.valueMap = this.addChild(
-      "2",
-      new SequentialPlainMap<I, T>(this.sequenceSource, valueSerializer)
-    );
-    this.sortedKeys = createRBTree(
-      this.sequenceSource.compare.bind(sequenceSource)
-    );
-    // Catch map key events and adjusting sortedKeys
-    // accordingly, so that its key set always coincides
-    // with valueMap's.
-    this.valueMap.on("Set", (event) => {
-      // Unlike in List, valueMap will never set
-      // an already-set value, since it is a
-      // SequentialMap and we don't allow editing
-      // values in-place.  So we can trust that
-      // event.key is not already present in sortedKeys.
-      let index: number;
-      [this.sortedKeys, index] = this.sortedKeys.insert(event.key, true);
-      // // TODO: debug mode only
-      // const indexDebug = this.sortedKeys.find(event.key)!.index;
-      // if (index !== indexDebug) {
-      //   throw new Error(`index was wrong: ${index}, ${indexDebug}`);
-      // }
-      this.emit("Insert", {
-        timestamp: event.timestamp,
-        index,
-        seqId: event.key,
-      });
-      // TODO: use assertions instead?  Or just remove.  Same in delete.
-      if (this.sortedKeys.length !== this.valueMap.size) {
-        throw new Error("List size agreement error");
-      }
-    });
-    this.valueMap.on("KeyDelete", (event) => {
-      // TODO: use a library that lets us reduce the number
-      // of map lookups here (from 2 to 1).
-      const found = this.sortedKeys.find(event.key);
-      // I think this check should always pass (it never
-      // caused an error when we were accidentally checking
-      // it in a way that always evaluated to true), but
-      // I'll leave it in just in case, since it is free.
-      if (found.valid) {
-        const index = found.index;
-        this.sortedKeys = this.sortedKeys.remove(event.key);
-        this.emit("Delete", {
-          timestamp: event.timestamp,
-          index,
-          seqId: event.key,
-        });
-        if (this.sortedKeys.length !== this.valueMap.size) {
-          throw new Error("List size agreement error");
-        }
-      }
-    });
-    // TODO: In tests, add assertions checking
-    // size equality constantly.
-    // TODO: dispatching events
+    const sequenceSource = new TreedocSource();
+    super({ tree: createRBTree(sequenceSource.compare.bind(sequenceSource)) });
+    this.sequenceSource = sequenceSource;
+    this.valueSerializer = valueSerializer;
+    this.valueArraySerializer = valueArraySerializer;
   }
 
-  idAt(index: number): I {
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    this.sequenceSource.setRuntime(this.runtime);
+  }
+
+  idAt(index: number): TreedocId {
     this.checkIndex(index);
-    return this.sortedKeys.at(index).key!;
+    return this.state.tree.at(index).key!;
   }
 
   private checkIndex(index: number) {
@@ -371,16 +344,16 @@ export class PrimitiveList<I, T>
     }
   }
 
-  getId(seqId: I): T | undefined {
-    return this.valueMap.get(seqId);
+  getId(seqId: TreedocId): T | undefined {
+    return this.state.tree.get(seqId);
   }
 
   getAt(index: number): T {
     return this.getId(this.idAt(index))!;
   }
 
-  hasId(seqId: I): boolean {
-    return this.valueMap.has(seqId);
+  hasId(seqId: TreedocId): boolean {
+    return this.state.tree.get(seqId) !== undefined;
   }
 
   hasAt(index: number): boolean {
@@ -390,23 +363,28 @@ export class PrimitiveList<I, T>
   // TODO: hide access if not persistent?
   // Also given that this is our forked version, not
   // the importable one.
-  idsAsTree(): RBTree<I, true> {
-    return this.sortedKeys;
+  idsAsTree(): RBTree<TreedocId, T> {
+    return this.state.tree;
   }
 
-  deleteId(seqId: I) {
-    this.valueMap.delete(seqId);
+  deleteId(seqId: TreedocId) {
+    const keySerialized = this.sequenceSource.serialize(seqId);
+    const message = PrimitiveListMessage.create({
+      operation: PrimitiveListMessage.Operation.DELETE,
+      key: keySerialized,
+    });
+    super.send(PrimitiveListMessage.encode(message).finish());
   }
 
   deleteAt(index: number) {
     this.deleteId(this.idAt(index));
   }
 
-  insertAt(index: number, value: T): I {
-    return this.insertAtRange(index, [value])[0];
+  insertAt(index: number, value: T) {
+    this.insertAtRange(index, [value]);
   }
 
-  insertAtRange(index: number, values: T[]): I[] {
+  insertAtRange(index: number, values: T[]) {
     if (index < 0 || index > this.length) {
       throw new Error(
         "insertAt index out of range: " +
@@ -418,7 +396,7 @@ export class PrimitiveList<I, T>
     }
     let before = index === 0 ? null : this.idAt(index - 1);
     let after = index === this.length ? null : this.idAt(index);
-    return this.insertBetween(before, after, values);
+    this.insertBetween(before, after, values);
   }
 
   // TODO
@@ -440,42 +418,113 @@ export class PrimitiveList<I, T>
   //   return this.insertBetween(before, seqId, count);
   // }
 
-  private insertBetween(before: I | null, after: I | null, values: T[]): I[] {
-    let seqIds = this.sequenceSource.createBetween(
+  private insertBetween(
+    before: TreedocId | null,
+    after: TreedocId | null,
+    values: T[]
+  ) {
+    let seqId = this.sequenceSource.createBetweenSpecial(
       before,
       after,
       values.length
     );
-    for (let i = 0; i < values.length; i++) {
-      this.valueMap.set(seqIds[i], values[i]);
+    let message: PrimitiveListMessage;
+    if (values.length === 1) {
+      message = PrimitiveListMessage.create({
+        operation: PrimitiveListMessage.Operation.SET,
+        key: this.sequenceSource.serialize(seqId),
+        value: this.valueSerializer.serialize(values[0]),
+      });
+    } else {
+      message = PrimitiveListMessage.create({
+        operation: PrimitiveListMessage.Operation.SET_RANGE,
+        key: this.sequenceSource.serialize(seqId),
+        value: this.valueArraySerializer.serialize(values),
+      });
     }
-    return seqIds;
+    super.send(PrimitiveListMessage.encode(message).finish());
   }
 
   reset() {
-    this.valueMap.reset();
-    // sortedKeys will be reset automatically in response
-    // to map events; no need to reset sequenceSource since
-    // it doesn't have any exposed state.
+    // TODO: optimize
+    for (let seqId of this.state.tree.keys) {
+      this.deleteId(seqId);
+    }
   }
 
-  idsAsArray(): I[] {
-    return this.sortedKeys.keys;
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
+    const decoded = PrimitiveListMessage.decode(message);
+    // TODO: as an optimization, could deserialize key
+    // only on demand in the events
+    // (use a getter + cache the result)
+    const seqId = this.sequenceSource.deserialize(decoded.key, this.runtime);
+    switch (decoded.operation) {
+      case PrimitiveListMessage.Operation.SET:
+        // TODO: best-effort error if it's already set?
+        let index: number;
+        [this.state.tree, index] = this.state.tree.insert(
+          seqId,
+          this.valueSerializer.deserialize(decoded.value, this.runtime)
+        );
+        this.emit("Insert", { seqId, index, timestamp });
+        break;
+      case PrimitiveListMessage.Operation.SET_RANGE:
+        const values = this.valueArraySerializer.deserialize(
+          decoded.value,
+          this.runtime
+        );
+        const seqIds = this.sequenceSource.expand(seqId, values.length);
+        for (let i = 0; i < values.length; i++) {
+          let index: number;
+          [this.state.tree, index] = this.state.tree.insert(
+            seqIds[i],
+            values[i]
+          );
+          this.emit("Insert", { seqId: seqIds[i], index, timestamp });
+        }
+        break;
+      case PrimitiveListMessage.Operation.DELETE:
+        // TODO: use a library that lets us reduce the number
+        // of map lookups here (from 2 to 1).
+        const found = this.state.tree.find(seqId);
+        // I think this check should always pass (it never
+        // caused an error when we were accidentally checking
+        // it in a way that always evaluated to true), but
+        // I'll leave it in just in case, since it is free.
+        if (found.valid) {
+          const index = found.index;
+          this.state.tree = this.state.tree.remove(seqId);
+          this.emit("Delete", {
+            timestamp,
+            index,
+            seqId,
+          });
+        }
+        break;
+      default:
+        throw new Error("Unknown decoded.operation: " + decoded.operation);
+    }
+  }
+
+  idsAsArray(): TreedocId[] {
+    return this.state.tree.keys;
   }
 
   asArray(): T[] {
-    let keys = this.sortedKeys.keys;
-    let arr = new Array<T>(keys.length);
-    for (let i = 0; i < keys.length; i++) {
-      arr[i] = this.getId(keys[i])!;
-    }
-    return arr;
+    return this.state.tree.values;
   }
 
   // TODO: iterator versions of asArray methods
 
   get length(): number {
-    return this.sortedKeys.length;
+    return this.state.tree.length;
+  }
+
+  canGc(): boolean {
+    return this.length === 0;
   }
 }
 
@@ -487,7 +536,7 @@ export class PrimitiveList<I, T>
 export class Cursor<I> {
   private seqId: I | null = null;
   constructor(
-    private readonly list: List<I, any> | PrimitiveList<I, any>,
+    private readonly list: List<I, any> | TreedocPrimitiveList<any>,
     startIndex: number,
     private readonly binding: "left" | "right" = "left"
   ) {
@@ -497,9 +546,11 @@ export class Cursor<I> {
   set index(index: number) {
     if (this.binding === "left") {
       if (index === 0) this.seqId = null;
+      // @ts-ignore TODO
       else this.seqId = this.list.idAt(index - 1);
     } else {
       if (index === this.list.length) this.seqId = null;
+      // @ts-ignore TODO
       else this.seqId = this.list.idAt(index);
     }
   }
@@ -507,9 +558,11 @@ export class Cursor<I> {
   get index(): number {
     if (this.binding === "left") {
       if (this.seqId === null) return 0;
+      // @ts-ignore TODO
       else return this.list.idsAsTree().gt(this.seqId).index;
     } else {
       if (this.seqId === null) return this.list.length;
+      // @ts-ignore TODO
       else return this.list.idsAsTree().ge(this.seqId).index;
     }
   }
@@ -518,6 +571,7 @@ export class Cursor<I> {
 // Implementations
 
 interface Disambiguator {
+  readonly index: number;
   readonly sender: string;
   readonly uniqueNumber: number;
 }
@@ -531,7 +585,7 @@ export class TreedocId {
    */
   constructor(
     readonly path: BitSet,
-    readonly disambiguators: readonly [index: number, value: Disambiguator][]
+    readonly disambiguators: readonly Disambiguator[]
   ) {}
 }
 
@@ -546,10 +600,12 @@ export class TreedocId {
  * Montreal, Québec, Canada. pp.395-403,
  * 10.1109/ICDCS.2009.20.  inria-00445975
  */
-export class TreedocSource
-  extends CompositeCrdt
-  implements ISequenceSource<TreedocId>
-{
+export class TreedocSource implements ISequenceSource<TreedocId> {
+  runtime!: Runtime;
+  setRuntime(runtime: Runtime) {
+    this.runtime = runtime;
+  }
+
   compare(a: TreedocId, b: TreedocId): number {
     // Formally, the comparison order is given by a
     // standard tree walk.  The tree's layers alternate
@@ -616,21 +672,20 @@ export class TreedocSource
    * as a difference.
    */
   private diffDisambiguators(
-    a: readonly [index: number, value: Disambiguator][],
-    b: readonly [index: number, value: Disambiguator][]
+    a: readonly Disambiguator[],
+    b: readonly Disambiguator[]
   ): [number, Disambiguator | undefined, Disambiguator | undefined] {
     let i: number;
     for (i = 0; i < Math.min(a.length, b.length); i++) {
-      if (a[i][0] < b[i][0]) return [a[i][0], a[i][1], undefined];
-      if (b[i][0] < a[i][0]) return [b[i][0], undefined, b[i][1]];
+      if (a[i].index < b[i].index) return [a[i].index, a[i], undefined];
+      if (b[i].index < a[i].index) return [b[i].index, undefined, b[i]];
       // Now a[i][0] === b[i][0]
       if (
         !(
-          a[i][1].sender === b[i][1].sender &&
-          a[i][1].uniqueNumber === b[i][1].uniqueNumber
+          a[i].sender === b[i].sender && a[i].uniqueNumber === b[i].uniqueNumber
         )
       )
-        return [a[i][0], a[i][1], b[i][1]];
+        return [a[i].index, a[i], b[i]];
     }
     // At this point, they agree on their prefix,
     // and i = Math.min(a.length, b.length).
@@ -640,8 +695,8 @@ export class TreedocSource
     }
     // One has an entry at i while the other doesn't.
     // That is the first disagreement.
-    if (i < a.length) return [a[i][0], a[i][1], undefined];
-    else return [b[i][0], undefined, b[i][1]];
+    if (i < a.length) return [a[i].index, a[i], undefined];
+    else return [b[i].index, undefined, b[i]];
   }
 
   createBetween(
@@ -649,6 +704,38 @@ export class TreedocSource
     after: TreedocId | null,
     count: number
   ): TreedocId[] {
+    return this.expand(this.createBetweenSpecial(before, after, count), count);
+  }
+
+  expand(startingId: TreedocId, count: number): TreedocId[] {
+    let ans = new Array<TreedocId>(count);
+    let uniqueNumber =
+      startingId.disambiguators[startingId.disambiguators.length - 1]
+        .uniqueNumber;
+    let sign = uniqueNumber >= 0 ? 1 : -1;
+    for (let i = 0; i < count; i++) {
+      let iPath = BitSet.copy(startingId.path, startingId.path.length);
+      // Set new leaf disambiguator.
+      // We rely on the fact that getReplicaUniqueNumber
+      // is increasing.
+      let iDisambiguators = startingId.disambiguators.slice();
+      let lastDis =
+        startingId.disambiguators[startingId.disambiguators.length - 1];
+      iDisambiguators[iDisambiguators.length - 1] = {
+        ...lastDis,
+        uniqueNumber: sign * (Math.abs(uniqueNumber) + i),
+      };
+      ans[i] = new TreedocId(iPath, iDisambiguators);
+    }
+    if (sign === -1) ans.reverse();
+    return ans;
+  }
+
+  createBetweenSpecial(
+    before: TreedocId | null,
+    after: TreedocId | null,
+    count: number
+  ): TreedocId {
     // Consider the tree model described in compare.
     // To create between after and before, we first need
     // to find their lowest common ancestor in the tree.
@@ -676,8 +763,8 @@ export class TreedocSource
     // true until we add counters to disambiguators.)
 
     let path: BitSet;
-    let disambiguators: [index: number, value: Disambiguator][] = [];
-    let uniqueNumberSign = 1;
+    let disambiguators: Disambiguator[] = [];
+    let uniqueNumberSign: 1 | -1 = 1;
 
     if (before === null && after === null) {
       // They are both null, so we can create any identifier.
@@ -687,7 +774,7 @@ export class TreedocSource
       path = new BitSet(1);
     } else if (after === null) {
       const lastDis = before!.disambiguators[before!.disambiguators.length - 1];
-      if (lastDis[1].sender === this.runtime.replicaId) {
+      if (lastDis.sender === this.runtime.replicaId) {
         // before is ours; use it again but with
         // the next (larger) uniqueNumber.
         path = BitSet.copy(before!.path, before!.path.length);
@@ -702,7 +789,7 @@ export class TreedocSource
       }
     } else if (before === null) {
       const lastDis = after!.disambiguators[after!.disambiguators.length - 1];
-      if (lastDis[1].sender === this.runtime.replicaId) {
+      if (lastDis.sender === this.runtime.replicaId) {
         // after is ours; use it again but with
         // the next (larger) uniqueNumber, negated so
         // it is before.
@@ -739,9 +826,9 @@ export class TreedocSource
       // which has the same author), then reuse the one
       // just with a different number.
       const beforeLastDis =
-        before.disambiguators[before.disambiguators.length - 1][1];
+        before.disambiguators[before.disambiguators.length - 1];
       const afterLastDis =
-        after.disambiguators[after.disambiguators.length - 1][1];
+        after.disambiguators[after.disambiguators.length - 1];
       if (
         beforeLastDis.sender === this.runtime.replicaId &&
         (firstDiff < before.path.length - 1 ||
@@ -771,7 +858,6 @@ export class TreedocSource
         disambiguators = after!.disambiguators.slice(0, -1);
         uniqueNumberSign = -1;
         // Last disambiguator is added at the end
-        // Last disambiguator is added at the end
       } else {
         // To build the answer, we start by setting
         // (path, disambiguators) to the LCA, i.e.,
@@ -779,7 +865,7 @@ export class TreedocSource
         // the first difference.
         path = BitSet.copy(before.path, firstDiff + (isBitLayer ? 0 : 1));
         for (let i = 0; i < before.disambiguators.length; i++) {
-          if (before.disambiguators[i][0] >= firstDiff) break;
+          if (before.disambiguators[i].index >= firstDiff) break;
           disambiguators.push(before.disambiguators[i]);
         }
 
@@ -837,7 +923,7 @@ export class TreedocSource
           } else {
             // The next nontrivial layer is the disagreeing
             // disambiguator layer.
-            disambiguators.push([firstDiff, beforeDis!]);
+            disambiguators.push(beforeDis!);
           }
           path.setToEnd(beforeInfo[0] + 1, true);
         } else {
@@ -849,73 +935,63 @@ export class TreedocSource
           } else {
             // The next nontrivial layer is the disagreeing
             // disambiguator layer.
-            disambiguators.push([firstDiff, afterDis!]);
+            disambiguators.push(afterDis!);
           }
           path.setToEnd(afterInfo![0] + 1, false);
         }
       }
     }
 
-    // Make count new ids as leaf descendants of path.
-    let ans = new Array<TreedocId>(count);
-    for (let i = 0; i < count; i++) {
-      let iPath = BitSet.copy(path, path.length);
-      // Set new leaf disambiguator.
-      // We rely on the fact that getReplicaUniqueNumber
-      // is increasing.
-      ans[i] = new TreedocId(iPath, [
-        ...disambiguators,
-        [
-          path.length - 1,
-          {
-            sender: this.runtime.replicaId,
-            uniqueNumber:
-              uniqueNumberSign * this.runtime.getReplicaUniqueNumber(),
-          },
-        ],
-      ]);
-    }
-    if (uniqueNumberSign === -1) ans.reverse();
+    // Make one new id using path, disambiguators (plus
+    // final disambiguator)
+    let ans = new TreedocId(path, [
+      ...disambiguators,
+      {
+        index: path.length - 1,
+        sender: this.runtime.replicaId,
+        uniqueNumber:
+          uniqueNumberSign * this.runtime.getReplicaUniqueNumber(count),
+      },
+    ]);
 
     // TODO: debug mode only
     // Check between-ness
-    /*for (let newId of ans) {
-      if (
-        (before !== null && this.compare(before, newId) >= 0) ||
-        (after !== null && this.compare(newId, after) >= 0)
-      ) {
-        console.log("Error: newId out of order");
-        console.log(JSON.stringify(this.runtime.replicaId));
-        console.log(
-          util.inspect(before, {
-            depth: null,
-            maxArrayLength: null,
-            maxStringLength: null,
-            colors: true,
-          })
-        );
-        console.log(
-          util.inspect(newId, {
-            depth: null,
-            maxArrayLength: null,
-            maxStringLength: null,
-            colors: true,
-          })
-        );
-        console.log(
-          util.inspect(after, {
-            depth: null,
-            maxArrayLength: null,
-            maxStringLength: null,
-            colors: true,
-          })
-        );
-        if (before !== null) console.log(this.compare(before, newId));
-        if (after !== null) console.log(this.compare(newId, after));
-        if (before !== null && after !== null)
-          console.log(this.compare(before, after));
-        throw new Error("newId out of order");
-      }
+    /*let newId = ans;
+    if (
+      (before !== null && this.compare(before, newId) >= 0) ||
+      (after !== null && this.compare(newId, after) >= 0)
+    ) {
+      console.log("Error: newId out of order");
+      console.log(JSON.stringify(this.runtime.replicaId));
+      console.log(
+        util.inspect(before, {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+      console.log(
+        util.inspect(newId, {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+      console.log(
+        util.inspect(after, {
+          depth: null,
+          maxArrayLength: null,
+          maxStringLength: null,
+          colors: true,
+        })
+      );
+      if (before !== null) console.log(this.compare(before, newId));
+      if (after !== null) console.log(this.compare(newId, after));
+      if (before !== null && after !== null)
+        console.log(this.compare(before, after));
+      throw new Error("newId out of order");
     }*/
 
     return ans;
@@ -954,7 +1030,7 @@ export class TreedocSource
     // or after its next nontrivial disambiguator
     // (starting at layer nontrivial, exclusive).
     let end = id.path.nextNot(direction, nontrivial + 1);
-    for (let [index] of id.disambiguators) {
+    for (let { index } of id.disambiguators) {
       if (index + 1 >= end) break;
       if (nontrivialIsBit && index >= nontrivial) {
         end = index + 1;
@@ -981,7 +1057,7 @@ export class TreedocSource
     // TODO: borrow this map from runtime/cbcast?
     const disSenderIndexMap = new Map<string, number>();
     const disSenders: number[] = [];
-    for (const [_, dis] of value.disambiguators) {
+    for (const dis of value.disambiguators) {
       let index = disSenderIndexMap.get(dis.sender);
       if (index === undefined) {
         index = disSendersIndex.length;
@@ -992,12 +1068,10 @@ export class TreedocSource
     }
     let message = TreedocIdMessage.create({
       path: value.path.serialize(),
-      disIndices: value.disambiguators.map((elem) => elem[0]),
+      disIndices: value.disambiguators.map((elem) => elem.index),
       disSendersIndex,
       disSenders,
-      disUniqueNumbers: value.disambiguators.map(
-        (elem) => elem[1].uniqueNumber
-      ),
+      disUniqueNumbers: value.disambiguators.map((elem) => elem.uniqueNumber),
     });
     return TreedocIdMessage.encode(message).finish();
   }
@@ -1005,15 +1079,13 @@ export class TreedocSource
   deserialize(message: Uint8Array, _runtime: Runtime): TreedocId {
     let decoded = TreedocIdMessage.decode(message);
     let path = BitSet.deserialize(decoded.path);
-    let disambiguators: [index: number, value: Disambiguator][] = [];
+    let disambiguators: Disambiguator[] = [];
     for (let i = 0; i < decoded.disIndices.length; i++) {
-      disambiguators.push([
-        decoded.disIndices[i],
-        {
-          sender: decoded.disSendersIndex[decoded.disSenders[i]],
-          uniqueNumber: decoded.disUniqueNumbers[i],
-        },
-      ]);
+      disambiguators.push({
+        index: decoded.disIndices[i],
+        sender: decoded.disSendersIndex[decoded.disSenders[i]],
+        uniqueNumber: decoded.disUniqueNumbers[i],
+      });
     }
     return new TreedocId(path, disambiguators);
   }
@@ -1028,12 +1100,8 @@ export class TreedocList<C extends Crdt & Resettable> extends List<
   }
 }
 
-export class TreedocPrimitiveList<T> extends PrimitiveList<TreedocId, T> {
-  constructor(
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
-  ) {
-    super(new TreedocSource(), valueSerializer);
+export class TextCrdt extends TreedocPrimitiveList<string> {
+  constructor() {
+    super(TextSerializer.instance, TextArraySerializer.instance);
   }
 }
-
-export class TextCrdt extends TreedocPrimitiveList<string> {}

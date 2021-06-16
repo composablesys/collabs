@@ -28,7 +28,8 @@ describe("list", () => {
     let aliceId: string;
 
     beforeEach(() => {
-      source = alice.registerCrdt("treedocSourceId", new TreedocSource());
+      source = new TreedocSource();
+      source.setRuntime(alice);
       aliceId = alice.replicaId;
     });
 
@@ -36,20 +37,20 @@ describe("list", () => {
       assert.isAbove(
         source.compare(
           new TreedocId(BitSet.parseBinary("01101100100110110010"), [
-            [0, { sender: "alice", uniqueNumber: 1 }],
-            [2, { sender: "alice", uniqueNumber: 2 }],
+            { index: 0, sender: "alice", uniqueNumber: 1 },
+            { index: 2, sender: "alice", uniqueNumber: 2 },
           ]),
           new TreedocId(BitSet.parseBinary("011010"), [
-            [0, { sender: "alice", uniqueNumber: 1 }],
-            [2, { sender: "alice", uniqueNumber: 2 }],
+            { index: 0, sender: "alice", uniqueNumber: 1 },
+            { index: 2, sender: "alice", uniqueNumber: 2 },
           ])
         ),
         0
       );
 
       let value = new TreedocId(BitSet.parseBinary("010"), [
-        [0, { sender: "d\x19kg#\x0FaG~v%", uniqueNumber: 7 }],
-        [2, { sender: "\x07H&\x13$:WYs\x05_", uniqueNumber: 13 }],
+        { index: 0, sender: "d\x19kg#\x0FaG~v%", uniqueNumber: 7 },
+        { index: 2, sender: "\x07H&\x13$:WYs\x05_", uniqueNumber: 13 },
       ]);
       assert.strictEqual(source.compare(value, value), 0);
     });
@@ -58,12 +59,12 @@ describe("list", () => {
       assert.isAbove(
         source.compare(
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, { sender: "bob", uniqueNumber: 7 }],
-            [19, { sender: "alice", uniqueNumber: 1 }],
+            { index: 0, sender: "bob", uniqueNumber: 7 },
+            { index: 19, sender: "alice", uniqueNumber: 1 },
           ]),
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, { sender: "alice", uniqueNumber: 1 }],
-            [19, { sender: "alice", uniqueNumber: 11 }],
+            { index: 0, sender: "alice", uniqueNumber: 1 },
+            { index: 19, sender: "alice", uniqueNumber: 11 },
           ])
         ),
         0
@@ -71,14 +72,14 @@ describe("list", () => {
       assert.isAbove(
         source.compare(
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, { sender: "alice", uniqueNumber: 1 }],
-            [2, { sender: "bob", uniqueNumber: 7 }],
-            [19, { sender: "alice", uniqueNumber: 11 }],
+            { index: 0, sender: "alice", uniqueNumber: 1 },
+            { index: 2, sender: "bob", uniqueNumber: 7 },
+            { index: 19, sender: "alice", uniqueNumber: 11 },
           ]),
           new TreedocId(BitSet.parseBinary("01101000100110110010"), [
-            [0, { sender: "alice", uniqueNumber: 1 }],
-            [2, { sender: "alice", uniqueNumber: 5 }],
-            [19, { sender: "alice", uniqueNumber: 11 }],
+            { index: 0, sender: "alice", uniqueNumber: 1 },
+            { index: 2, sender: "alice", uniqueNumber: 5 },
+            { index: 19, sender: "alice", uniqueNumber: 11 },
           ])
         ),
         0
@@ -114,28 +115,37 @@ describe("list", () => {
           ? null
           : new TreedocId(
               BitSet.parseBinary(beforePath),
-              beforeDis!.map((elem) => [
-                elem[0],
-                { sender: elem[1], uniqueNumber: elem[2] },
-              ])
+              beforeDis!.map((elem) => {
+                return {
+                  index: elem[0],
+                  sender: elem[1],
+                  uniqueNumber: elem[2],
+                };
+              })
             );
       let after =
         afterPath === null
           ? null
           : new TreedocId(
               BitSet.parseBinary(afterPath),
-              afterDis!.map((elem) => [
-                elem[0],
-                { sender: elem[1], uniqueNumber: elem[2] },
-              ])
+              afterDis!.map((elem) => {
+                return {
+                  index: elem[0],
+                  sender: elem[1],
+                  uniqueNumber: elem[2],
+                };
+              })
             );
       let expectedIds = expected.map((value) => {
         return {
           path: BitSet.parseBinary(value[0]),
-          disambiguators: value[1].map((elem) => [
-            elem[0],
-            { sender: elem[1], uniqueNumber: elem[2] },
-          ]) as readonly [number, { sender: string; uniqueNumber: number }][],
+          disambiguators: value[1].map((elem) => {
+            return {
+              index: elem[0],
+              sender: elem[1],
+              uniqueNumber: elem[2],
+            };
+          }),
         };
       });
       let mid = source.createBetween(before, after, expected.length);
@@ -386,8 +396,10 @@ describe("list", () => {
         }
 
         beforeEach(() => {
-          aliceSource = alice.registerCrdt("sourceId", entry[1]());
-          bobSource = bob.registerCrdt("sourceId", entry[1]());
+          aliceSource = new TreedocSource();
+          aliceSource.setRuntime(alice);
+          bobSource = new TreedocSource();
+          bobSource.setRuntime(bob);
         });
 
         it("works for basic insertion", () => {

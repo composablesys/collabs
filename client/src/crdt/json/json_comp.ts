@@ -1,7 +1,7 @@
-import { DefaultElementSerializer, TextSerializer } from "../../util";
+import { DefaultElementSerializer } from "../../util";
 import { CompositeCrdt } from "../core";
 import { Resettable } from "../helper_crdts";
-import { TreedocList, TreedocPrimitiveList } from "../list";
+import { TextCrdt, TreedocList } from "../list";
 import { RiakCrdtMap } from "../map";
 import { LwwRegister } from "../register";
 
@@ -14,7 +14,7 @@ export type JsonValue =
   | null
   | JsonObject
   | JsonArray
-  | TreedocPrimitiveList<string>;
+  | TextCrdt;
 
 export class JsonObject extends CompositeCrdt implements Resettable {
   private readonly internalMap: RiakCrdtMap<string, JsonElement>;
@@ -142,7 +142,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   private register: LwwRegister<JsonValue>;
   private object: JsonObject;
   private array: JsonArray;
-  private text: TreedocPrimitiveList<string>;
+  private text: TextCrdt;
   private makeThisExistent: () => void;
 
   static NewJson(): JsonElement {
@@ -161,10 +161,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
       new JsonObject(() => this.setIsObject())
     );
     this.array = this.addChild("array", new JsonArray(() => this.setIsArray()));
-    this.text = this.addChild(
-      "text",
-      new TreedocPrimitiveList(TextSerializer.instance)
-    );
+    this.text = this.addChild("text", new TextCrdt());
   }
 
   get value(): JsonValue {

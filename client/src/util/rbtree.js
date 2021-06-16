@@ -91,10 +91,10 @@ Object.defineProperty(proto, "length", {
 });
 
 //Insert a new item into the tree
-proto.insert = function (key, value) {
+proto.insert = function (key, value, ignoreExisting) {
+  ignoreExisting = ignoreExisting ?? false;
   var cmp = this._compare;
   let index = 0;
-  // TODO: set index
   //Find point to insert new node at
   var n = this.root;
   var n_stack = [];
@@ -103,6 +103,9 @@ proto.insert = function (key, value) {
     var d = cmp(key, n.key);
     n_stack.push(n);
     d_stack.push(d);
+    if (ignoreExisting && d === 0) {
+      return [this, index];
+    }
     if (d <= 0) {
       n = n.left;
     } else {
@@ -542,7 +545,7 @@ proto.get = function (key) {
       n = n.right;
     }
   }
-  return;
+  return undefined;
 };
 
 //Iterator for red black tree
