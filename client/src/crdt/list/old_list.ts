@@ -19,10 +19,8 @@ import {
 } from "../../util";
 import { RiakCrdtMap } from "../map";
 import {
-  PrimitiveListInsertMessage,
   PrimitiveListMessage,
   TreedocIdMessage,
-  TreedocUid,
 } from "../../../generated/proto_compiled";
 import { BitSet } from "../../util/bitset";
 import { CausalTimestamp } from "../../net";
@@ -301,7 +299,6 @@ interface PrimitiveListEventsRecord<I> extends CrdtEventsRecord {
 interface PrimitiveListState<I, T> {
   // Note this is a persistent (immutable) data structure.
   tree: RBTree<I, T>;
-  idsByUid: Map<string, I>;
 }
 
 export class TreedocPrimitiveList<T>
@@ -323,7 +320,6 @@ export class TreedocPrimitiveList<T>
     const sequenceSource = new TreedocSource();
     super({
       tree: createRBTree(sequenceSource.compare.bind(sequenceSource)),
-      idsByUid: new Map(),
     });
     this.sequenceSource = sequenceSource;
     this.valueSerializer = valueSerializer;
@@ -373,7 +369,9 @@ export class TreedocPrimitiveList<T>
 
   deleteId(seqId: TreedocId) {
     const message = PrimitiveListMessage.create({
-      delete: this.uidOf(seqId),
+      delete: {
+        seqId: this.sequenceSource.serialize(seqId),
+      },
     });
     super.send(PrimitiveListMessage.encode(message).finish());
   }
@@ -475,7 +473,6 @@ export class TreedocPrimitiveList<T>
           seqId,
           this.valueSerializer.deserialize(decoded.insert!.value, this.runtime)
         );
-        this.state.idsByUid.set(this.uidOf(seqId), seqId);
         this.emit("Insert", { seqId, index, timestamp });
         break;
       }
@@ -498,18 +495,18 @@ export class TreedocPrimitiveList<T>
           // TODO: at least compress seqIds when they come
           // from a range?  Easy memory improvement for
           // todo-list.
-          this.state.idsByUid.set(this.uidOf(seqIds[i]), seqIds[i]);
           this.emit("Insert", { seqId: seqIds[i], index, timestamp });
         }
         break;
       }
       case "delete": {
-        const seqId = this.state.idsByUid.get(decoded.delete);
-        if (seqId !== undefined) {
-          this.state.idsByUid.delete(decoded.delete);
-          let index: number | null;
-          [this.state.tree, index] = this.state.tree.remove(seqId);
-          // TODO: assert index is not null
+        const seqId = this.sequenceSource.deserialize(
+          decoded.delete!.seqId,
+          this.runtime
+        );
+        let index: number | null;
+        [this.state.tree, index] = this.state.tree.remove(seqId);
+        if (index !== null) {
           this.emit("Delete", {
             timestamp,
             index: index!,
@@ -521,15 +518,6 @@ export class TreedocPrimitiveList<T>
       default:
         throw new Error("Unknown decoded.op: " + decoded.op);
     }
-  }
-
-  private uidOf(seqId: TreedocId): string {
-    const lastDis = seqId.disambiguators[seqId.disambiguators.length - 1];
-    const message = TreedocUid.create({
-      sender: lastDis.sender,
-      uniqueNumber: lastDis.uniqueNumber,
-    });
-    return arrayAsString(TreedocUid.encode(message).finish());
   }
 
   idsAsArray(): TreedocId[] {

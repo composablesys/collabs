@@ -16,15 +16,14 @@ message PrimitiveListRangeMessage {
   required bytes values = 2;
 }
 
-message TreedocUid {
-  required string sender = 1;
-  required uint32 uniqueNumber = 2;
+message PrimitiveListDeleteMessage {
+  required bytes seqId = 1;
 }
 
 message PrimitiveListMessage {
   oneof op {
     PrimitiveListInsertMessage insert = 1;
     PrimitiveListRangeMessage range = 2;
-    string delete = 3;
+    PrimitiveListDeleteMessage delete = 3;
   }
 }
