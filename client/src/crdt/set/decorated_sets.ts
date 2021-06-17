@@ -12,7 +12,7 @@ export class DecoratedCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   protected readonly set: CrdtSet<C, CreateArgs>;
   constructor(set: CrdtSet<C, CreateArgs>) {
     super();
-    this.set = this.addChild("set", set);
+    this.set = this.addChild("0", set);
     // TODO: do this as a loop if TypeScript will allow it
     this.set.on("Add", (event) => this.emit("Add", event));
     this.set.on("Delete", (event) => this.emit("Delete", event));
