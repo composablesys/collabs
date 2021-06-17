@@ -15,7 +15,6 @@ import {
   RBTree,
   TextSerializer,
   TextArraySerializer,
-  arrayAsString,
 } from "../../util";
 import { RiakCrdtMap } from "../map";
 import {
@@ -370,7 +369,7 @@ export class TreedocPrimitiveList<T>
   deleteId(seqId: TreedocId) {
     const message = PrimitiveListMessage.create({
       delete: {
-        seqId: this.sequenceSource.serialize(seqId),
+        seqIdStart: this.sequenceSource.serialize(seqId),
       },
     });
     super.send(PrimitiveListMessage.encode(message).finish());
@@ -378,6 +377,25 @@ export class TreedocPrimitiveList<T>
 
   deleteAt(index: number) {
     this.deleteId(this.idAt(index));
+  }
+
+  /**
+   * delete [start, end)
+   */
+  deleteAtRange(start: number, end: number) {
+    if (end === start) return;
+    if (end === start + 1) this.deleteAt(start);
+    else {
+      const startId = this.idAt(start);
+      const endId = this.idAt(end - 1);
+      const message = PrimitiveListMessage.create({
+        delete: {
+          seqIdStart: this.sequenceSource.serialize(startId),
+          seqIdEnd: this.sequenceSource.serialize(endId),
+        },
+      });
+      super.send(PrimitiveListMessage.encode(message).finish());
+    }
   }
 
   insertAt(index: number, value: T) {
@@ -468,6 +486,7 @@ export class TreedocPrimitiveList<T>
           decoded.insert!.seqId,
           this.runtime
         );
+        seqId.senderCounter = timestamp.getSenderCounter();
         let index: number;
         [this.state.tree, index] = this.state.tree.insert(
           seqId,
@@ -487,6 +506,7 @@ export class TreedocPrimitiveList<T>
         );
         const seqIds = this.sequenceSource.expand(seqId, values.length);
         for (let i = 0; i < values.length; i++) {
+          seqIds[i].senderCounter = timestamp.getSenderCounter();
           let index: number;
           [this.state.tree, index] = this.state.tree.insert(
             seqIds[i],
@@ -500,18 +520,55 @@ export class TreedocPrimitiveList<T>
         break;
       }
       case "delete": {
-        const seqId = this.sequenceSource.deserialize(
-          decoded.delete!.seqId,
+        const seqIdStart = this.sequenceSource.deserialize(
+          decoded.delete!.seqIdStart,
           this.runtime
         );
-        let index: number | null;
-        [this.state.tree, index] = this.state.tree.remove(seqId);
-        if (index !== null) {
-          this.emit("Delete", {
-            timestamp,
-            index: index!,
-            seqId,
-          });
+        const seqIdEnd =
+          !decoded.delete!.seqIdEnd || decoded.delete!.seqIdEnd.length === 0
+            ? null
+            : this.sequenceSource.deserialize(
+                decoded.delete!.seqIdEnd!,
+                this.runtime
+              );
+        if (seqIdEnd === null) {
+          // Single delete
+          let index: number | null;
+          [this.state.tree, index] = this.state.tree.remove(seqIdStart);
+          if (index !== null) {
+            this.emit("Delete", {
+              timestamp,
+              index,
+              seqId: seqIdStart,
+            });
+          }
+        } else {
+          const iter = this.state.tree.ge(seqIdStart);
+          const vc = timestamp.asVectorClock();
+          const toDelete: TreedocId[] = [];
+          while (
+            iter.key !== undefined &&
+            this.sequenceSource.compare(iter.key, seqIdEnd) <= 0
+          ) {
+            // Check causality
+            const vcEntry = vc.get(iter.key.sender);
+            if (vcEntry !== undefined && vcEntry >= iter.key.senderCounter!) {
+              toDelete.push(iter.key);
+            }
+            iter.next();
+          }
+          // Delete in reverse order, so that indices
+          // are valid both before and at the time of
+          // deletion.
+          for (let i = toDelete.length - 1; i >= 0; i--) {
+            let index: number | null;
+            [this.state.tree, index] = this.state.tree.remove(toDelete[i]);
+            this.emit("Delete", {
+              timestamp,
+              index: index!,
+              seqId: toDelete[i],
+            });
+          }
         }
         break;
       }
@@ -596,8 +653,13 @@ export class TreedocId {
    */
   constructor(
     readonly path: BitSet,
-    readonly disambiguators: readonly Disambiguator[]
+    readonly disambiguators: readonly Disambiguator[],
+    public senderCounter?: number
   ) {}
+
+  get sender(): string {
+    return this.disambiguators[this.disambiguators.length - 1].sender;
+  }
 }
 
 /**
@@ -736,7 +798,7 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
         ...lastDis,
         uniqueNumber: sign * (Math.abs(uniqueNumber) + i),
       };
-      ans[i] = new TreedocId(iPath, iDisambiguators);
+      ans[i] = new TreedocId(iPath, iDisambiguators, startingId.senderCounter);
     }
     if (sign === -1) ans.reverse();
     return ans;

@@ -412,9 +412,7 @@ function compoCrdt() {
       this.text.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
-      for (let i = 0; i < count; i++) {
-        this.text.deleteAt(index);
-      }
+      this.text.deleteAtRange(index, index + count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
@@ -506,9 +504,7 @@ function compoMovableCrdt() {
       this.text.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
-      for (let i = 0; i < count; i++) {
-        this.text.deleteAt(index);
-      }
+      this.text.deleteAtRange(index, index + count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
@@ -691,9 +687,7 @@ function compoJsonText() {
     }
     deleteText(index: number, count: number): void {
       let textList = this.jsonObj.get("text")!.value as crdts.TextCrdt;
-      for (let i = 0; i < count; i++) {
-        textList.deleteAt(index);
-      }
+      textList.deleteAtRange(index, index + count);
     }
     get textSize(): number {
       return (this.jsonObj.get("text")!.value as crdts.TextCrdt).length;
@@ -1099,9 +1093,7 @@ function jsonCrdt() {
       this.text.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
-      for (let i = 0; i < count; i++) {
-        this.text.deleteAt(index);
-      }
+      this.text.deleteAtRange(index, index + count);
     }
     get textSize(): number {
       return this.text.length;

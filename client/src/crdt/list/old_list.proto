@@ -17,7 +17,8 @@ message PrimitiveListRangeMessage {
 }
 
 message PrimitiveListDeleteMessage {
-  required bytes seqId = 1;
+  required bytes seqIdStart = 1;
+  optional bytes seqIdEnd = 2;
 }
 
 message PrimitiveListMessage {
