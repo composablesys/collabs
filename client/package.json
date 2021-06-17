@@ -10,19 +10,15 @@
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
   "dependencies": {
-    "bson": "^4.1.0",
     "buffer": "^6.0.3",
     "clean": "^4.0.2",
     "crypto-random-string": "~3.3.1",
-    "functional-red-black-tree": "^1.0.1",
     "protobufjs": "~6.10.1",
     "ws": "^7.3.1",
     "reconnecting-websocket": "^4.4.0"
   },
   "devDependencies": {
-    "@types/bson": "^4.0.2",
     "@types/chai": "^4.2.14",
-    "@types/functional-red-black-tree": "^1.0.0",
     "@types/mocha": "^8.2.0",
     "@types/seedrandom": "^2.4.28",
     "@types/ws": "^7.2.6",
@@ -37,7 +33,7 @@
     "build": "npm-run-all build:*",
     "build:protobuf": "npm-run-all build:protobuf:prepare build:protobuf:js build:protobuf:ts",
     "build:protobuf:prepare": "mkdirp generated",
-    "build:protobuf:js": "pbjs -t static-module -w commonjs -o generated/proto_compiled.js src/**/*.proto",
+    "build:protobuf:js": "pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc --project tsconfig.build.json",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.build.json",

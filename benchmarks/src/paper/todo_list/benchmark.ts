@@ -1,4 +1,4 @@
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -373,20 +373,17 @@ function compoCrdt() {
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TreedocPrimitiveList<string>;
-    private readonly doneCrdt: crdts.EnableWinsFlag;
+    private readonly text: crdts.TextCrdt;
+    private readonly doneCrdt: crdts.TrueWinsBoolean;
     private readonly items: crdts.TreedocList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild(
-        "text",
-        new crdts.TreedocPrimitiveList(crdts.TextSerializer.instance)
-      );
-      this.doneCrdt = this.addChild("done", new crdts.EnableWinsFlag());
+      this.text = this.addChild("text", new crdts.TextCrdt());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
       this.items = this.addChild(
         "items",
-        new crdts.TreedocList(() => new CrdtTodoList(), true)
+        new crdts.TreedocList(() => new CrdtTodoList())
       );
     }
 
@@ -433,13 +430,107 @@ function compoCrdt() {
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Crdt", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      this.sendNextMessage();
+      return list;
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
+    sendNextMessage() {
+      runtime!.commitBatch();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+  });
+}
+
+function compoMovableCrdt() {
+  class CrdtTodoList
+    extends crdts.CompositeCrdt
+    implements ITodoList, crdts.Resettable
+  {
+    private readonly text: crdts.TextCrdt;
+    private readonly doneCrdt: crdts.TrueWinsBoolean;
+    private readonly items: crdts.DeletingMovableList<CrdtTodoList>;
+
+    constructor() {
+      super();
+      this.text = this.addChild("text", new crdts.TextCrdt());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
+      this.items = this.addChild(
+        "items",
+        new crdts.DeletingMovableList(() => new CrdtTodoList())
+      );
+    }
+
+    addItem(index: number, text: string): void {
+      let item = this.items.insert(index);
+      item.insertText(0, text);
+    }
+    deleteItem(index: number): void {
+      this.items.delete(index);
+    }
+    getItem(index: number): CrdtTodoList {
+      return this.items.at(index);
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    set done(done: boolean) {
+      this.doneCrdt.value = done;
+    }
+    get done(): boolean {
+      return this.doneCrdt.value;
+    }
+
+    insertText(index: number, text: string): void {
+      this.text.insertAtRange(index, [...text]);
+    }
+    deleteText(index: number, count: number): void {
+      for (let i = 0; i < count; i++) {
+        this.text.deleteAt(index);
+      }
+    }
+    get textSize(): number {
+      return this.text.length; // Assumes all text registers are one char
+    }
+    getText(): string {
+      return this.text.asArray().join("");
+    }
+
+    reset() {
+      this.text.reset();
+      this.doneCrdt.reset();
+      this.items.reset();
+    }
+  }
+
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Movable Crdt", {
+    newTodoList(rng: seedrandom.prng) {
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", new CrdtTodoList());
@@ -523,13 +614,13 @@ function compoJson() {
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
@@ -595,38 +686,32 @@ function compoJsonText() {
     }
 
     insertText(index: number, text: string): void {
-      let textArray = this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>;
+      let textArray = this.jsonObj.get("text")!.value as crdts.TextCrdt;
       textArray.insertAtRange(index, [...text]);
     }
     deleteText(index: number, count: number): void {
-      let textList = this.jsonObj.get("text")!
-        .value as crdts.TreedocPrimitiveList<string>;
+      let textList = this.jsonObj.get("text")!.value as crdts.TextCrdt;
       for (let i = 0; i < count; i++) {
         textList.deleteAt(index);
       }
     }
     get textSize(): number {
-      return (
-        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
-      ).length;
+      return (this.jsonObj.get("text")!.value as crdts.TextCrdt).length;
     }
     getText(): string {
-      return (
-        this.jsonObj.get("text")!.value as crdts.TreedocPrimitiveList<string>
-      )
+      return (this.jsonObj.get("text")!.value as crdts.TextCrdt)
         .asArray()
         .join("");
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
@@ -941,7 +1026,7 @@ function jsonCrdt() {
     constructor(
       private readonly crdt: crdts.JsonCursor,
       private readonly idGen: crdts.TreedocSource,
-      private readonly runtime: crdts.CrdtRuntime
+      private readonly runtime: crdts.Runtime
     ) {
       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
       this.ids = this.crdt.get(
@@ -1026,13 +1111,13 @@ function jsonCrdt() {
     }
   }
 
-  let generator: network.TestingNetworkGenerator | null;
-  let runtime: crdts.CrdtRuntime | null;
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Crdt", {
     newTodoList(rng: seedrandom.prng) {
-      generator = new network.TestingNetworkGenerator();
+      generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
 
@@ -1047,7 +1132,7 @@ function jsonCrdt() {
       cursor.setIsList("text");
 
       let idGen = new crdts.TreedocSource();
-      crdt.addExtChild("treedocSource", idGen);
+      idGen.setRuntime(runtime);
       return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
     cleanup() {
@@ -1079,6 +1164,9 @@ export default async function todoList(args: string[]) {
       break;
     case "compoCrdt":
       benchmark = compoCrdt();
+      break;
+    case "compoMovableCrdt":
+      benchmark = compoMovableCrdt();
       break;
     case "compoJson":
       benchmark = compoJson();

@@ -1,0 +1,24 @@
+message CrdtReference {
+    repeated bytes pathToRoot = 1;
+}
+
+message ArrayMessage {
+    repeated bytes elements = 1;
+}
+
+message ObjectMessage {
+    map<string, bytes> properties = 1;
+}
+
+message DefaultSerializerMessage {
+    oneof value {
+        string stringValue = 1;
+        double numberValue = 2;
+        bool booleanValue = 3;
+        bool undefinedValue = 4;
+        bool nullValue = 5;
+        CrdtReference crdtValue = 6;
+        ArrayMessage arrayValue = 7;
+        ObjectMessage objectValue = 8;
+    }
+}

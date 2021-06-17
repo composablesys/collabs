@@ -1,5 +1,4 @@
-// require('../test/test'); // run test.ts
-import { crdts, network } from "compoventuals-client";
+import * as crdts from "compoventuals-client";
 
 /**
  * Get Heroku server host Websocket.
@@ -9,12 +8,8 @@ var HOST = location.origin.replace(/^http/, "ws");
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
-let client = new crdts.CrdtRuntime(
-  new network.DefaultCausalBroadcastNetwork(
-    new network.WebSocketNetwork(HOST, "counter")
-  )
-);
-let clientCounter = client.registerCrdt("counter", new crdts.Counter());
+let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "counter"));
+let clientCounter = client.registerCrdt("counter", new crdts.AddOnlyNumber());
 
 /* HTML variables */
 var counter = document.getElementById("counter");

@@ -1,0 +1,11 @@
+message YjsCrdtSetCreateMessage {
+  required uint32 replicaUniqueNumber = 1;
+  required bytes args = 2;
+}
+
+message YjsCrdtSetMessage {
+  oneof op {
+    YjsCrdtSetCreateMessage create = 1;
+    string delete = 2;
+  }
+}
