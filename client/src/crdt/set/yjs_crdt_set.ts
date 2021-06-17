@@ -206,6 +206,30 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   }
 
   /**
+   * Returns a short unique identifier for valueCrdt
+   * which can be passed to getByUid to retrieve
+   * valueCrdt later.
+   * @param  valueCrdt [description]
+   * @return           [description]
+   */
+  uidOf(valueCrdt: C): string {
+    this.checkOwns(valueCrdt);
+    return valueCrdt.name;
+  }
+
+  /**
+   * Returns the valueCrdt with the given uid, obtained
+   * from uidOf.  If valueCrdt has been deleted, returns
+   * undefined.
+   *
+   * @param  uid [description]
+   * @return     [description]
+   */
+  getByUid(uid: string): C | undefined {
+    return this.children.get(uid);
+  }
+
+  /**
    * Throws an error if !this.owns(valueCrdt).
    */
   protected checkOwns(valueCrdt: C) {
