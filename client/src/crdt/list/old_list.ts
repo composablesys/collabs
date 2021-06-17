@@ -295,19 +295,42 @@ interface PrimitiveListEventsRecord<I> extends CrdtEventsRecord {
   Delete: PrimitiveListDeleteEvent<I>;
 }
 
-interface PrimitiveListState<I, T> {
+class TreedocIdWrapper {
+  constructor(
+    readonly serialized: Uint8Array,
+    readonly senderCounter?: number
+  ) {}
+
+  id(parent: TreedocPrimitiveList<any>) {
+    const ans = parent.sequenceSource.deserialize(
+      this.serialized,
+      parent.runtime
+    );
+    ans.senderCounter = this.senderCounter;
+    return ans;
+  }
+
+  static of(id: TreedocId, parent: TreedocPrimitiveList<any>) {
+    return new TreedocIdWrapper(
+      parent.sequenceSource.serialize(id),
+      id.senderCounter
+    );
+  }
+}
+
+interface PrimitiveListState<T> {
   // Note this is a persistent (immutable) data structure.
-  tree: RBTree<I, T>;
+  tree: RBTree<TreedocIdWrapper, T>;
 }
 
 export class TreedocPrimitiveList<T>
   extends PrimitiveCrdt<
-    PrimitiveListState<TreedocId, T>,
+    PrimitiveListState<T>,
     PrimitiveListEventsRecord<TreedocId>
   >
   implements Resettable
 {
-  private readonly sequenceSource: TreedocSource;
+  readonly sequenceSource: TreedocSource;
   private readonly valueSerializer: ElementSerializer<T>;
   private readonly valueArraySerializer: ElementSerializer<T[]>;
   constructor(
@@ -318,11 +341,16 @@ export class TreedocPrimitiveList<T>
   ) {
     const sequenceSource = new TreedocSource();
     super({
-      tree: createRBTree(sequenceSource.compare.bind(sequenceSource)),
+      tree: null as unknown as RBTree<TreedocIdWrapper, T>,
     });
+    this.state.tree = createRBTree(this.compare.bind(this));
     this.sequenceSource = sequenceSource;
     this.valueSerializer = valueSerializer;
     this.valueArraySerializer = valueArraySerializer;
+  }
+
+  private compare(a: TreedocIdWrapper, b: TreedocIdWrapper): number {
+    return this.sequenceSource.compare(a.id(this), b.id(this));
   }
 
   init(name: string, parent: CrdtParent) {
@@ -330,7 +358,7 @@ export class TreedocPrimitiveList<T>
     this.sequenceSource.setRuntime(this.runtime);
   }
 
-  idAt(index: number): TreedocId {
+  idAt(index: number): TreedocIdWrapper {
     this.checkIndex(index);
     return this.state.tree.at(index).key!;
   }
@@ -343,7 +371,7 @@ export class TreedocPrimitiveList<T>
     }
   }
 
-  getId(seqId: TreedocId): T | undefined {
+  getId(seqId: TreedocIdWrapper): T | undefined {
     return this.state.tree.get(seqId);
   }
 
@@ -351,7 +379,7 @@ export class TreedocPrimitiveList<T>
     return this.getId(this.idAt(index))!;
   }
 
-  hasId(seqId: TreedocId): boolean {
+  hasId(seqId: TreedocIdWrapper): boolean {
     return this.state.tree.get(seqId) !== undefined;
   }
 
@@ -362,14 +390,14 @@ export class TreedocPrimitiveList<T>
   // TODO: hide access if not persistent?
   // Also given that this is our forked version, not
   // the importable one.
-  idsAsTree(): RBTree<TreedocId, T> {
+  idsAsTree(): RBTree<TreedocIdWrapper, T> {
     return this.state.tree;
   }
 
-  deleteId(seqId: TreedocId) {
+  deleteId(seqId: TreedocIdWrapper) {
     const message = PrimitiveListMessage.create({
       delete: {
-        seqIdStart: this.sequenceSource.serialize(seqId),
+        seqIdStart: seqId.serialized,
       },
     });
     super.send(PrimitiveListMessage.encode(message).finish());
@@ -390,8 +418,8 @@ export class TreedocPrimitiveList<T>
       const endId = this.idAt(end - 1);
       const message = PrimitiveListMessage.create({
         delete: {
-          seqIdStart: this.sequenceSource.serialize(startId),
-          seqIdEnd: this.sequenceSource.serialize(endId),
+          seqIdStart: startId.serialized,
+          seqIdEnd: endId.serialized,
         },
       });
       super.send(PrimitiveListMessage.encode(message).finish());
@@ -437,13 +465,13 @@ export class TreedocPrimitiveList<T>
   // }
 
   private insertBetween(
-    before: TreedocId | null,
-    after: TreedocId | null,
+    before: TreedocIdWrapper | null,
+    after: TreedocIdWrapper | null,
     values: T[]
   ) {
     let seqId = this.sequenceSource.createBetweenSpecial(
-      before,
-      after,
+      before === null ? null : before.id(this),
+      after === null ? null : after.id(this),
       values.length
     );
     let message: PrimitiveListMessage;
@@ -488,7 +516,7 @@ export class TreedocPrimitiveList<T>
         seqId.senderCounter = timestamp.getSenderCounter();
         let index: number;
         [this.state.tree, index] = this.state.tree.insert(
-          seqId,
+          TreedocIdWrapper.of(seqId, this),
           this.valueSerializer.deserialize(decoded.insert!.value, this.runtime)
         );
         this.emit("Insert", { seqId, index, timestamp });
@@ -508,7 +536,7 @@ export class TreedocPrimitiveList<T>
           seqIds[i].senderCounter = timestamp.getSenderCounter();
           let index: number;
           [this.state.tree, index] = this.state.tree.insert(
-            seqIds[i],
+            TreedocIdWrapper.of(seqIds[i], this),
             values[i]
           );
           // TODO: at least compress seqIds when they come
@@ -526,14 +554,13 @@ export class TreedocPrimitiveList<T>
         const seqIdEnd =
           !decoded.delete!.seqIdEnd || decoded.delete!.seqIdEnd.length === 0
             ? null
-            : this.sequenceSource.deserialize(
-                decoded.delete!.seqIdEnd!,
-                this.runtime
-              );
+            : new TreedocIdWrapper(decoded.delete!.seqIdEnd!);
         if (seqIdEnd === null) {
           // Single delete
           let index: number | null;
-          [this.state.tree, index] = this.state.tree.remove(seqIdStart);
+          [this.state.tree, index] = this.state.tree.remove(
+            new TreedocIdWrapper(decoded.delete!.seqIdStart)
+          );
           if (index !== null) {
             this.emit("Delete", {
               timestamp,
@@ -542,17 +569,20 @@ export class TreedocPrimitiveList<T>
             });
           }
         } else {
-          const iter = this.state.tree.ge(seqIdStart);
+          const iter = this.state.tree.ge(
+            new TreedocIdWrapper(decoded.delete!.seqIdStart)
+          );
           const vc = timestamp.asVectorClock();
-          const toDelete: TreedocId[] = [];
+          const toDelete: [TreedocId, TreedocIdWrapper][] = [];
           while (
             iter.key !== undefined &&
-            this.sequenceSource.compare(iter.key, seqIdEnd) <= 0
+            this.compare(iter.key, seqIdEnd) <= 0
           ) {
             // Check causality
-            const vcEntry = vc.get(iter.key.sender);
-            if (vcEntry !== undefined && vcEntry >= iter.key.senderCounter!) {
-              toDelete.push(iter.key);
+            const id = iter.key.id(this);
+            const vcEntry = vc.get(id.sender);
+            if (vcEntry !== undefined && vcEntry >= id.senderCounter!) {
+              toDelete.push([id, iter.key]);
             }
             iter.next();
           }
@@ -561,11 +591,11 @@ export class TreedocPrimitiveList<T>
           // deletion.
           for (let i = toDelete.length - 1; i >= 0; i--) {
             let index: number | null;
-            [this.state.tree, index] = this.state.tree.remove(toDelete[i]);
+            [this.state.tree, index] = this.state.tree.remove(toDelete[i][1]);
             this.emit("Delete", {
               timestamp,
               index: index!,
-              seqId: toDelete[i],
+              seqId: toDelete[i][0],
             });
           }
         }
@@ -576,7 +606,7 @@ export class TreedocPrimitiveList<T>
     }
   }
 
-  idsAsArray(): TreedocId[] {
+  idsAsArray(): TreedocIdWrapper[] {
     return this.state.tree.keys;
   }
 
