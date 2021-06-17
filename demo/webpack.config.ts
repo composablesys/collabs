@@ -11,6 +11,8 @@ const config: webpack.Configuration = {
     counterwebrtc: "./src/site/counterwebrtc.ts",
     minesweeper: "./src/site/minesweeper.ts",
     aspace: "./src/site/aspace.ts",
+    variablecounter: "./src/site/variablecounter.ts",
+    text: "./src/site/text.ts",
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -51,6 +53,8 @@ const config: webpack.Configuration = {
         { from: "./src/site/counter_webrtc.html", to: "counter_webrtc.html" },
         { from: "./src/site/minesweeper.html", to: "minesweeper.html" },
         { from: "./src/site/aspace.html", to: "aspace.html" },
+        { from: "./src/site/variablecounter.html", to: "variablecounter.html" },
+        { from: "./src/site/text.html", to: "text.html" },
         // TODO: Add more entries as needed for new pages
       ],
     }),
