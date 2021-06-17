@@ -15,6 +15,8 @@ import {
   RBTree,
   TextSerializer,
   TextArraySerializer,
+  WeakValueMap,
+  arrayAsString,
 } from "../../util";
 import { RiakCrdtMap } from "../map";
 import {
@@ -296,35 +298,61 @@ interface PrimitiveListEventsRecord<I> extends CrdtEventsRecord {
 }
 
 class TreedocIdWrapper {
-  private cached: WeakRef<TreedocId> | undefined = undefined;
-  constructor(
-    readonly serialized: Uint8Array,
-    readonly senderCounter?: number
-  ) {}
+  readonly anchor: TreedocId;
+  readonly sender: string;
+  readonly uniqueNumber: number;
+  readonly senderCounter: number | undefined;
 
-  id(parent: TreedocPrimitiveList<any>) {
-    if (this.cached !== undefined) {
-      const deref = this.cached.deref();
-      if (deref !== undefined) {
-        return deref;
-      }
-    }
-    const ans = parent.sequenceSource.deserialize(
-      this.serialized,
-      parent.runtime
+  constructor(id: TreedocId, parent: TreedocPrimitiveList<any>) {
+    // anchor is same as id but without last disambiguator
+    const anchorTemp = new TreedocId(id.path, id.disambiguators.slice(0, -1));
+    // Get anchor from parent's cache
+    // If anchor had a uid (e.g. tree style text crdt),
+    // we could use that instead of serializing.
+    const anchorKey = arrayAsString(
+      parent.sequenceSource.serialize(anchorTemp)
     );
-    ans.senderCounter = this.senderCounter;
-    this.cached = new WeakRef(ans);
+    let anchor = parent.anchorCache.get(anchorKey);
+    if (anchor === undefined) {
+      anchor = anchorTemp;
+      parent.anchorCache.set(anchorKey, anchor);
+    }
+    this.anchor = anchor;
+
+    const lastDis = id.disambiguators[id.disambiguators.length - 1];
+    this.sender = lastDis.sender;
+    this.uniqueNumber = lastDis.uniqueNumber;
+    this.senderCounter = id.senderCounter;
+  }
+
+  id(_parent: TreedocPrimitiveList<any>) {
+    const ans = new TreedocId(
+      this.anchor.path,
+      [
+        ...this.anchor.disambiguators,
+        {
+          sender: this.sender,
+          uniqueNumber: this.uniqueNumber,
+          index: this.anchor.path.length - 1,
+        },
+      ],
+      this.senderCounter
+    );
     return ans;
   }
 
-  static of(id: TreedocId, parent: TreedocPrimitiveList<any>) {
-    const ans = new TreedocIdWrapper(
-      parent.sequenceSource.serialize(id),
-      id.senderCounter
+  serialize(parent: TreedocPrimitiveList<any>): Uint8Array {
+    return parent.sequenceSource.serialize(this.id(parent));
+  }
+
+  static deserialize(
+    serialized: Uint8Array,
+    parent: TreedocPrimitiveList<any>
+  ): TreedocIdWrapper {
+    return new TreedocIdWrapper(
+      parent.sequenceSource.deserialize(serialized, parent.runtime),
+      parent
     );
-    ans.cached = new WeakRef(id);
-    return ans;
   }
 }
 
@@ -341,6 +369,8 @@ export class TreedocPrimitiveList<T>
   implements Resettable
 {
   readonly sequenceSource: TreedocSource;
+  // Indexed by serialized string
+  readonly anchorCache: WeakValueMap<string, TreedocId>;
   private readonly valueSerializer: ElementSerializer<T>;
   private readonly valueArraySerializer: ElementSerializer<T[]>;
   constructor(
@@ -355,11 +385,13 @@ export class TreedocPrimitiveList<T>
     });
     this.state.tree = createRBTree(this.compare.bind(this));
     this.sequenceSource = sequenceSource;
+    this.anchorCache = new WeakValueMap();
     this.valueSerializer = valueSerializer;
     this.valueArraySerializer = valueArraySerializer;
   }
 
   private compare(a: TreedocIdWrapper, b: TreedocIdWrapper): number {
+    // TODO: optimize?
     return this.sequenceSource.compare(a.id(this), b.id(this));
   }
 
@@ -407,7 +439,7 @@ export class TreedocPrimitiveList<T>
   deleteId(seqId: TreedocIdWrapper) {
     const message = PrimitiveListMessage.create({
       delete: {
-        seqIdStart: seqId.serialized,
+        seqIdStart: seqId.serialize(this),
       },
     });
     super.send(PrimitiveListMessage.encode(message).finish());
@@ -428,8 +460,8 @@ export class TreedocPrimitiveList<T>
       const endId = this.idAt(end - 1);
       const message = PrimitiveListMessage.create({
         delete: {
-          seqIdStart: startId.serialized,
-          seqIdEnd: endId.serialized,
+          seqIdStart: startId.serialize(this),
+          seqIdEnd: endId.serialize(this),
         },
       });
       super.send(PrimitiveListMessage.encode(message).finish());
@@ -526,7 +558,7 @@ export class TreedocPrimitiveList<T>
         seqId.senderCounter = timestamp.getSenderCounter();
         let index: number;
         [this.state.tree, index] = this.state.tree.insert(
-          TreedocIdWrapper.of(seqId, this),
+          new TreedocIdWrapper(seqId, this),
           this.valueSerializer.deserialize(decoded.insert!.value, this.runtime)
         );
         this.emit("Insert", { seqId, index, timestamp });
@@ -546,7 +578,7 @@ export class TreedocPrimitiveList<T>
           seqIds[i].senderCounter = timestamp.getSenderCounter();
           let index: number;
           [this.state.tree, index] = this.state.tree.insert(
-            TreedocIdWrapper.of(seqIds[i], this),
+            new TreedocIdWrapper(seqIds[i], this),
             values[i]
           );
           // TODO: at least compress seqIds when they come
@@ -564,12 +596,12 @@ export class TreedocPrimitiveList<T>
         const seqIdEnd =
           !decoded.delete!.seqIdEnd || decoded.delete!.seqIdEnd.length === 0
             ? null
-            : new TreedocIdWrapper(decoded.delete!.seqIdEnd!);
+            : TreedocIdWrapper.deserialize(decoded.delete!.seqIdEnd!, this);
         if (seqIdEnd === null) {
           // Single delete
           let index: number | null;
           [this.state.tree, index] = this.state.tree.remove(
-            new TreedocIdWrapper(decoded.delete!.seqIdStart)
+            TreedocIdWrapper.deserialize(decoded.delete!.seqIdStart, this)
           );
           if (index !== null) {
             this.emit("Delete", {
@@ -580,7 +612,7 @@ export class TreedocPrimitiveList<T>
           }
         } else {
           const iter = this.state.tree.ge(
-            new TreedocIdWrapper(decoded.delete!.seqIdStart)
+            TreedocIdWrapper.deserialize(decoded.delete!.seqIdStart, this)
           );
           const vc = timestamp.asVectorClock();
           const toDelete: [TreedocId, TreedocIdWrapper][] = [];
