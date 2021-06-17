@@ -468,10 +468,9 @@ export class TreedocPrimitiveList<T>
   }
 
   reset() {
-    // TODO: optimize
-    for (let seqId of this.state.tree.keys) {
-      this.deleteId(seqId);
-    }
+    // TODO: allow using nulls
+    // Or, have special reset message
+    this.deleteAtRange(0, this.length);
   }
 
   protected receivePrimitive(
