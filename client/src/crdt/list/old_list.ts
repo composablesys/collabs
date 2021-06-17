@@ -296,25 +296,35 @@ interface PrimitiveListEventsRecord<I> extends CrdtEventsRecord {
 }
 
 class TreedocIdWrapper {
+  private cached: WeakRef<TreedocId> | undefined = undefined;
   constructor(
     readonly serialized: Uint8Array,
     readonly senderCounter?: number
   ) {}
 
   id(parent: TreedocPrimitiveList<any>) {
+    if (this.cached !== undefined) {
+      const deref = this.cached.deref();
+      if (deref !== undefined) {
+        return deref;
+      }
+    }
     const ans = parent.sequenceSource.deserialize(
       this.serialized,
       parent.runtime
     );
     ans.senderCounter = this.senderCounter;
+    this.cached = new WeakRef(ans);
     return ans;
   }
 
   static of(id: TreedocId, parent: TreedocPrimitiveList<any>) {
-    return new TreedocIdWrapper(
+    const ans = new TreedocIdWrapper(
       parent.sequenceSource.serialize(id),
       id.senderCounter
     );
+    ans.cached = new WeakRef(id);
+    return ans;
   }
 }
 
