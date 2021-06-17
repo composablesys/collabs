@@ -60,7 +60,7 @@ export class ImplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
     super();
     // TODO: optimized key serializer?
     this.implicitMap = this.addChild(
-      "0",
+      "",
       // TODO: also give senderCounter value?
       new ImplicitCrdtMap((key) => valueCrdtConstructor(key[0]))
     );
@@ -145,10 +145,10 @@ export class ExplicitCrdtSet<C extends Crdt> extends AbstractCrdtSet<C> {
   ) {
     super();
     this.implicitSet = this.addChild(
-      "0",
+      "",
       new ImplicitCrdtSet(valueCrdtConstructor)
     );
-    this.memberSet = this.addChild("1", memberSet);
+    this.memberSet = this.addChild("0", memberSet);
     this.includeImplicit = settings.includeImplicit;
 
     // Events

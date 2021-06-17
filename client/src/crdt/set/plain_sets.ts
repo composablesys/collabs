@@ -26,7 +26,7 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
   ) {
     super();
     this.booleanMap = this.addChild(
-      "0",
+      "",
       new ImplicitCrdtMap(booleanConstructor, valueSerializer)
     );
 

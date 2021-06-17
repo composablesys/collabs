@@ -87,7 +87,7 @@ export class List<I, C extends Crdt & Resettable>
   ) {
     super();
     this.valueMap = this.addChild(
-      "0",
+      "",
       new RiakCrdtMap<I, C>(valueConstructor, this.sequenceSource)
     );
     this.sortedKeys = createRBTree(

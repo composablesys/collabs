@@ -37,7 +37,7 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
   ) {
     super();
     this.internalMap = this.addChild(
-      "0",
+      "",
       new ImplicitCrdtMap(registerConstructor, keySerializer)
     );
 

@@ -122,8 +122,8 @@ export class AddOnlyNumber
 
   constructor(readonly initialValue: number = 0) {
     super();
-    this.plus = this.addChild("0", new GAddOnlyNumber());
-    this.minus = this.addChild("1", new GAddOnlyNumber());
+    this.plus = this.addChild("", new GAddOnlyNumber());
+    this.minus = this.addChild("0", new GAddOnlyNumber());
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       this.emit("Add", {

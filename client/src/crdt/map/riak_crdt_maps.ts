@@ -306,10 +306,10 @@ export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
   ) {
     super();
     this.implicitMap = this.addChild(
-      "0",
+      "",
       new ImplicitCrdtMap(valueCrdtConstructor, keySerializer)
     );
-    this.keySet = this.addChild("1", keySet);
+    this.keySet = this.addChild("0", keySet);
     this.includeImplicit = settings.includeImplicit;
 
     // Events
