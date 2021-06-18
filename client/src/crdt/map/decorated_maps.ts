@@ -12,7 +12,7 @@ export class DecoratedCrdtMap<K, C extends Crdt>
   protected readonly map: CrdtMap<K, C>;
   constructor(map: CrdtMap<K, C>) {
     super();
-    this.map = this.addChild("map", map);
+    this.map = this.addChild("", map);
     // TODO: do this as a loop if TypeScript will allow it
     this.map.on("KeyAdd", (event) => this.emit("KeyAdd", event));
     this.map.on("KeyDelete", (event) => this.emit("KeyDelete", event));

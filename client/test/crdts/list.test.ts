@@ -136,18 +136,19 @@ describe("list", () => {
                 };
               })
             );
-      let expectedIds = expected.map((value) => {
-        return {
-          path: BitSet.parseBinary(value[0]),
-          disambiguators: value[1].map((elem) => {
-            return {
-              index: elem[0],
-              sender: elem[1],
-              uniqueNumber: elem[2],
-            };
-          }),
-        };
-      });
+      let expectedIds = expected.map(
+        (value) =>
+          new TreedocId(
+            BitSet.parseBinary(value[0]),
+            value[1].map((elem) => {
+              return {
+                index: elem[0],
+                sender: elem[1],
+                uniqueNumber: elem[2],
+              };
+            })
+          )
+      );
       let mid = source.createBetween(before, after, expected.length);
       assert.deepStrictEqual(
         mid,
