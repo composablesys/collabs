@@ -89,10 +89,13 @@ export class myMessage {
    * @returns serialize message
    */
   serialize(): Uint8Array {
+    const vectorMap = Object.fromEntries(this.timestamp.vectorMap);
+    delete vectorMap[this.timestamp.sender];
     const message = DefaultCausalBroadcastMessage.create({
       message: this.message,
       sender: this.timestamp.sender,
-      vectorMap: Object.fromEntries(this.timestamp.vectorMap.entries()),
+      senderCounter: this.timestamp.getSenderCounter(),
+      vectorMap,
       time: this.timestamp.getTime(),
     });
     return DefaultCausalBroadcastMessage.encode(message).finish();
@@ -113,6 +116,7 @@ export class myMessage {
       decoded.time
     );
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
+    vc.vectorMap.set(decoded.sender, decoded.senderCounter);
     return new myMessage(decoded.message, vc);
   }
 }

@@ -22,7 +22,7 @@ export abstract class AggregateRegister<T>
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
-    this.mvr = this.addChild("mvr", new MultiValueRegister(valueSerializer));
+    this.mvr = this.addChild("", new MultiValueRegister(valueSerializer));
     this.mvr.on("Change", this.handleMvrEvent.bind(this));
     this.mvr.on("Reset", (event) => this.emit("Reset", event));
   }

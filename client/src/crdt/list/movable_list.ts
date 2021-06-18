@@ -22,9 +22,9 @@ class MovableListEntry<I, C extends Crdt>
     readonly onMove: (event: CrdtEvent, caller: MovableListEntry<I, C>) => void
   ) {
     super();
-    this.content = this.addChild("content", content);
+    this.content = this.addChild("", content);
     this.location = this.addChild(
-      "location",
+      "0",
       new LwwRegister<I>(undefined as unknown as I, sequenceSource)
     );
     this.location.on("Change", this.onLocationChange.bind(this));
@@ -68,7 +68,7 @@ export class MovableList<I, C extends Crdt>
     // @ts-ignore TypeScript doesn't accept that
     // MovableListEntry extends InferResettable
     this.entries = this.addChild(
-      "entries",
+      "",
       // @ts-ignore TypeScript doesn't accept that
       // MovableListEntry extends InferResettable
       setFactory(() => {
@@ -144,7 +144,7 @@ export class MovableList<I, C extends Crdt>
     deletedSeqId: Optional<I>
   ) {
     if (deletedSeqId.isPresent) {
-      this.sortedLocations = this.sortedLocations.remove(deletedSeqId.get());
+      [this.sortedLocations] = this.sortedLocations.remove(deletedSeqId.get());
     } else {
       this.danglers.delete(value);
     }
