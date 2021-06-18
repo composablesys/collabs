@@ -383,16 +383,13 @@ export class TreedocPrimitiveList<T>
     super({
       tree: null as unknown as RBTree<TreedocIdWrapper, T>,
     });
-    this.state.tree = createRBTree(this.compare.bind(this));
+    this.state.tree = createRBTree(
+      sequenceSource.compareWrappers.bind(sequenceSource)
+    );
     this.sequenceSource = sequenceSource;
     this.anchorCache = new WeakValueMap();
     this.valueSerializer = valueSerializer;
     this.valueArraySerializer = valueArraySerializer;
-  }
-
-  private compare(a: TreedocIdWrapper, b: TreedocIdWrapper): number {
-    // TODO: optimize?
-    return this.sequenceSource.compare(a.id(this), b.id(this));
   }
 
   init(name: string, parent: CrdtParent) {
@@ -573,6 +570,8 @@ export class TreedocPrimitiveList<T>
           decoded.range!.values,
           this.runtime
         );
+        // TODO: exploit the fact that they all have the
+        // same anchor.
         const seqIds = this.sequenceSource.expand(seqId, values.length);
         for (let i = 0; i < values.length; i++) {
           seqIds[i].senderCounter = timestamp.getSenderCounter();
@@ -618,7 +617,7 @@ export class TreedocPrimitiveList<T>
           const toDelete: [TreedocId, TreedocIdWrapper][] = [];
           while (
             iter.key !== undefined &&
-            this.compare(iter.key, seqIdEnd) <= 0
+            this.sequenceSource.compareWrappers(iter.key, seqIdEnd) <= 0
           ) {
             // Check causality
             const id = iter.key.id(this);
@@ -841,6 +840,83 @@ export class TreedocSource implements ISequenceSource<TreedocId> {
     // That is the first disagreement.
     if (i < a.length) return [a[i].index, a[i], undefined];
     else return [b[i].index, undefined, b[i]];
+  }
+
+  compareWrappers(a: TreedocIdWrapper, b: TreedocIdWrapper): number {
+    // We start by finding the first difference between
+    // either path or disambiguators.
+    // 1. path
+    let [pathCompare, pathIndex] = BitSet.compare(a.anchor.path, b.anchor.path);
+    // 2. disambiguators
+    let [disIndex, aDis, bDis] = this.diffDisambiguatorsWrappers(
+      a.anchor.disambiguators,
+      {
+        sender: a.sender,
+        uniqueNumber: a.uniqueNumber,
+        index: a.anchor.path.length - 1,
+      },
+      b.anchor.disambiguators,
+      {
+        sender: b.sender,
+        uniqueNumber: b.uniqueNumber,
+        index: b.anchor.path.length - 1,
+      }
+    );
+
+    // The path level at depth i is above the disambiguator
+    // level at depth i.  So if pathIndex <= disIndex,
+    // compare by path.
+    if (pathIndex <= disIndex) return pathCompare;
+
+    // Now disIndex < pathIndex has the first difference.
+    // If a node has no disambiguator at disIndex, use
+    // its next path bit as its disambiguator,
+    // following the rule
+    // 0 < sorted disambiguators < 1.
+    if (aDis !== undefined && bDis !== undefined) {
+      // Compare by aDis and bDis.  We know they're not equal.
+      if (aDis.sender < bDis.sender) return -1;
+      else if (aDis.sender > bDis.sender) return 1;
+      else return aDis.uniqueNumber - bDis.uniqueNumber;
+    } else {
+      if (aDis === undefined) {
+        // 0 < bDis < 1
+        return a.anchor.path.get(disIndex + 1) ? 1 : -1;
+      } else {
+        // 0 < aDis < 1
+        return b.anchor.path.get(disIndex + 1) ? -1 : 1;
+      }
+    }
+  }
+
+  private diffDisambiguatorsWrappers(
+    a: readonly Disambiguator[],
+    lastA: Disambiguator,
+    b: readonly Disambiguator[],
+    lastB: Disambiguator
+  ): [number, Disambiguator | undefined, Disambiguator | undefined] {
+    let i: number;
+    for (i = 0; i < Math.min(a.length + 1, b.length + 1); i++) {
+      let ai = i === a.length ? lastA : a[i];
+      let bi = i === b.length ? lastB : b[i];
+      if (ai.index < bi.index) return [ai.index, ai, undefined];
+      if (bi.index < ai.index) return [bi.index, undefined, bi];
+      // Now ai[0] === bi[0]
+      if (!(ai.sender === bi.sender && ai.uniqueNumber === bi.uniqueNumber))
+        return [ai.index, ai, bi];
+    }
+    // At this point, they agree on their prefix,
+    // and i = Math.min(a.length + 1, b.length + 1).
+    let ai = i === a.length ? lastA : a[i];
+    let bi = i === b.length ? lastB : b[i];
+    if (a.length === b.length) {
+      // Identical
+      return [Number.MAX_VALUE, undefined, undefined];
+    }
+    // One has an entry at i while the other doesn't.
+    // That is the first disagreement.
+    if (i < a.length + 1) return [ai.index, ai, undefined];
+    else return [bi.index, undefined, bi];
   }
 
   createBetween(
