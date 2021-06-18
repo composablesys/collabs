@@ -20,6 +20,13 @@ import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
  * no longer receives ops, doing ops locally causes an
  * error, not guaranteed EC.  Use has to check if it's
  * frozen.  Restore not allowed (2P-set semantics).
+ *
+ * TODO: in given constructor/its init function,
+ * be careful not to use replica-specific info
+ * (replicaId, runtime.getReplicaUniqueNumber()) -
+ * it won't be consistent on different replicas.
+ * If you need these, you must pass them yourself as
+ * constructor args.
  */
 export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   extends Crdt<CrdtSetEventsRecord<C>>
@@ -27,11 +34,41 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
 {
   // TODO: rename
   private readonly children: Map<string, C> = new Map();
+  private initialValues: C[] | undefined;
+  // TODO: for initialValues: give directly, or give args?
   constructor(
     private readonly valueCrdtConstructor: (...args: CreateArgs) => C,
+    initialValues: C[] = [],
     private readonly argsSerializer: ElementSerializer<CreateArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
+    this.initialValues = initialValues;
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    // Construct the initial values
+    for (let i = 0; i < this.initialValues!.length; i++) {
+      const newCrdt = this.initialValues![i];
+      // Add as child with "["INIT", -i]" as id.
+      // Similar to CompositeCrdt#addChild.
+      let name = arrayAsString(
+        YjsCrdtSet.nameSerializer.serialize(["INIT", -i])
+      );
+      if (this.children.has(name)) {
+        throw new Error(
+          '(initial value) Duplicate newCrdt name: "' + name + '"'
+        );
+      }
+      this.children.set(name, newCrdt);
+      this.childBeingAdded = newCrdt;
+      newCrdt.init(name, this);
+      this.childBeingAdded = undefined;
+
+      // TODO: is this needed?
+      this.emit("ValueInit", { value: newCrdt });
+    }
+    delete this.initialValues;
   }
 
   private childBeingAdded?: C;
