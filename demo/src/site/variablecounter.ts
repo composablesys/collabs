@@ -1,14 +1,14 @@
-import { crdts, network } from 'compoventuals-client';
+import * as crdts from 'compoventuals-client';
 
 const HOST = location.origin.replace(/^http/, 'ws');
 
-let client = new crdts.CrdtRuntime(
-    new network.DefaultCausalBroadcastNetwork(
-        new network.WebSocketNetwork(HOST, "variable_counter")
+let client = new crdts.Runtime(
+    new crdts.DefaultCausalBroadcastNetwork(
+        new crdts.WebSocketNetwork(HOST, "variable_counter")
     )
 );
 
-let clientCounter = client.registerCrdt("variable_counter", new crdts.Counter());
+let clientCounter = client.registerCrdt("variable_counter", new crdts.AddOnlyNumber());
 
 const counter = document.getElementById("variable_counter");
 

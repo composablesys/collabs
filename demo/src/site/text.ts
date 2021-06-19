@@ -1,14 +1,15 @@
-import { crdts, network } from 'compoventuals-client';
+import { Runtime, DefaultCausalBroadcastNetwork, WebSocketNetwork } from 'compoventuals-client';
 import {YataLinear} from "./yata";
 import * as Q from 'quill';
 import Quill, {DeltaOperation} from "quill";
 
 const HOST = location.origin.replace(/^http/, 'ws');
 
-let client = new crdts.CrdtRuntime(
-    new network.DefaultCausalBroadcastNetwork(
-        new network.WebSocketNetwork(HOST, "variable_counter")
+let client = new Runtime(
+    new DefaultCausalBroadcastNetwork(
+        new WebSocketNetwork(HOST, "variable_counter")
     )
+    // , {periodMs: 5000}
 );
 
 let clientText = client.registerCrdt("text", new YataLinear<string>(''));
@@ -38,10 +39,18 @@ quill.on('text-change', function(delta, oldDelta, source) {
     if (source === "user") {
         const idxObj = getIdx(delta);
         if (idxObj.insert) {
-            clientText.insertByIdx(client.getReplicaId(), client.getReplicaUniqueNumber(), idxObj.idx, idxObj.insert);
+            clientText.insertByIdx(client.replicaId, idxObj.idx, idxObj.insert);
         } else if (idxObj.delete) {
             clientText.deleteByIdx(idxObj.idx);
         }
+    }
+});
+
+// let idRightOfCursor = clientText.END;
+
+quill.on('selection-change', function(range, oldRange, source) {
+    if (source === 'user') {
+        // idRightOfCursor = clientText.getIdAtIdx(range.index);
     }
 })
 
@@ -57,15 +66,36 @@ quill.on('text-change', function(delta, oldDelta, source) {
 //     )
 // };
 
-const updateText = () => {
-    console.log(clientText.toArray());
-    document.getElementById('text')!.innerHTML = clientText.toArray().join('');
-}
+// const updateText = () => {
+//     console.log(clientText.toArray());
+//     document.getElementById('text')!.innerHTML = clientText.toArray().join('');
+// }
 
-clientText.on("Change", (_) => {
-    updateText();
-    quill.setText(clientText.toArray().join(''));
-    quill.focus();
-    // quill.setSelection(0,1, "user");
-    quill.setSelection({index: clientText.getCursorIdx(), length:0})
+clientText.opMap.on("Add", (_) => {
+    console.log("Add event!")
+    const rightId = _.value.rightId;
+    const leftId = _.value.leftId;
+    const id = clientText.opMap.uidOf(_.value);
+    clientText.op(rightId).leftId = id;
+    clientText.op(leftId).rightId = id;
+})
+
+clientText.on("Change", (e) => {
+    console.log("Change event!", e);
+    const str = clientText.toArray().join('');
+    quill.insertText(0, str, "api");
+    quill.deleteText(str.length, quill.getLength() - 1);
+
+    // const len = quill.getLength();
+    // console.log("quill length is", len);
+    // console.log("str length is", str.length);
+    // console.log("About to set selection to correspond with id:", idRightOfCursor);
+    // quill.setSelection({index: clientText.getIdxOfId(idRightOfCursor), length: 0});
+    // quill.setSelection(range);
+
+
+    // // quill.focus();
+    // // quill.setSelection(0,1, "user");
+    // console.log("cursor idx", clientText.getCursorIdx());
+    // quill.setSelection({index: clientText.getCursorIdx(), length:0})
 });
