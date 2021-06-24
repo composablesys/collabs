@@ -11,14 +11,14 @@ export interface MapEvent<K, V> extends CrdtEvent {
 }
 
 export interface PlainMapEventsRecord<K> extends ResettableEventsRecord {
-  // TODO: also include value?  You can get it from the map
-  // though.
   Set: MapKeyEvent<K>;
   KeyDelete: MapKeyEvent<K>;
 }
 
-// A map from keys to opaque values, with (any) register
-// semantics for values.
+/**
+ * A map from keys to opaque values, with (any) register
+ * semantics for values.
+ */
 export interface PlainMap<
   K,
   V,
@@ -33,12 +33,15 @@ export interface PlainMap<
    */
   clear(): void;
   delete(key: K): boolean;
-  // TODO: forEach
-
   get(key: K): V | undefined;
   has(key: K): boolean;
   set(key: K, value: V): this;
   readonly size: number;
+
+  forEach(
+    callbackfn: (value: V, key: K, map: this) => void,
+    thisArg?: any
+  ): void;
 
   /** Returns an iterable of entries in the map. */
   [Symbol.iterator](): IterableIterator<[K, V]>;
@@ -57,6 +60,8 @@ export interface PlainMap<
    * Returns an iterable of values in the map
    */
   values(): IterableIterator<V>;
+
+  readonly [Symbol.toStringTag]: string;
 }
 
 /**
@@ -85,8 +90,23 @@ export interface CrdtMapEventsRecord<K, C extends Crdt>
   ValueInit: MapInitEvent<K, C>;
 }
 
-// TODO: same as Map above, but with values controlled
-// by implicitly-initialized Crdt's.  Any semantics.
+/**
+ * A map from keys K to value Crdts of type C, representing a map from keys K to
+ * mutable values of the type represented by C.
+ *
+ * Value Crdts created externally cannot be set in
+ * a CrdtMap; instead, their key must be made present
+ * in the map using addKey (possibly on another replica),
+ * then they must be obtained by calling get(key),
+ * after which they can be mutated into
+ * the desired state.  All methods except owns throw an error if
+ * called with a value Crdt that is not owned by this CrdtSet,
+ * i.e., it resulted from a create operation on this.
+ *
+ * Keys can still be deleted and added.  That affects
+ * their membership in the map, as indicated by has() and
+ * the iterators, but their valueCrdts will always remain owned by this map.
+ */
 export interface CrdtMap<
   K,
   C extends Crdt,
@@ -102,19 +122,18 @@ export interface CrdtMap<
   delete(key: K): boolean;
   // TODO: forEach
 
+  /**
+   * Returns the value Crdt for the given key, or
+   * undefined if key is not present.
+   */
   get(key: K): C | undefined;
   /**
    * Returns true if valueCrdt is owned by this CrdtMap,
-   * i.e., it is one of this map's value Crdt.s
+   * i.e., it is one of this map's value Crdts.
    */
   owns(valueCrdt: C): boolean;
   has(key: K): boolean;
   hasValue(valueCrdt: C): boolean;
-  // TODO: require sequential semantics, so that addKey
-  // followed by get! is always safe?
-  // Necessary for some situations, e.g., RegisterPlainMap.
-  // Perhaps put as restrictions there, instead of general
-  // contracts, since they can be rather subtle.
   addKey(key: K): this;
   /**
    * Returns valueCrdt's key.
