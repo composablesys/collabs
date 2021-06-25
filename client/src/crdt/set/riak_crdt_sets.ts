@@ -16,8 +16,6 @@ import { ImplicitCrdtMap } from "../map";
  *     - Both: union of implicit and explicit members
  * - Whether deletes perform a reset (T/F)
  *
- * TODO: violations of sequential semantics.
- *
  * The three membership options correspond to
  * ImplicitCrdtSet, ExplicitCrdtSet w/ includeImplicit =
  * false, and ExplicitCrdtSet w/ includeImplicit = true.
@@ -25,14 +23,8 @@ import { ImplicitCrdtMap } from "../map";
  * input them to ResettingCrdtSet.
  *
  * RiakCrdtSet has "both" membership, and deletes do perform
- * a reset.  TODO: discuss GC-able options.
+ * a reset.
  */
-
-// TODO (here and YjsCrdtSet): remove creatorReplicaId arg
-// for crdtConstructor?  No clear use case yet, and in
-// principle the creator can do whatever by performing
-// ops an a newly-created Crdt (although these will be
-// lost on reset).
 
 /**
  * A basic CrdtSet that implicitly manages membership.
