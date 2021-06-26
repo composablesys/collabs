@@ -1,51 +1,60 @@
 import * as crdts from "compoventuals-client";
+import { WidgetApi, IWidgetApiRequest } from "matrix-widget-api";
 
-/**
- * Get Heroku server host Websocket.
- */
-var HOST = location.origin.replace(/^http/, "ws");
+const info = document.getElementById("info")!;
 
-/**
- * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
- */
-let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "counter"));
-let clientCounter = client.registerCrdt("counter", new crdts.AddOnlyNumber());
+const qs = parseFragment();
+const widgetId = assertParam(qs, "widgetId");
+// const userId = assertParam(qs, "userId");
 
-/* HTML variables */
-var counter = document.getElementById("counter");
+const api = new WidgetApi(widgetId);
 
-/* Customize the event listener for CRDT as refresh the value */
-clientCounter.on("Change", (_) => {
-  counter!.innerHTML = clientCounter.value.toString();
+api.requestCapabilityToSendEvent("com.example.my_action");
+// api.requestCapabilityToSendMessage("m.text");
+
+api.requestCapabilityToReceiveEvent("com.example.my_action");
+// api.requestCapabilityToReceiveMessage("m.text");
+
+api.on("action:send_event", (ev: CustomEvent<IWidgetApiRequest>) => {
+  ev.preventDefault(); // we're handling it, so stop the widget API from doing something.
+  api.transport.reply(ev.detail, {}); // ack
+  const mxEvent = ev.detail.data;
+  if (mxEvent.type === "com.example.my_action") {
+    info.innerHTML = JSON.stringify(mxEvent.content);
+    // if (mxEvent.sender === userId) return;
+  }
 });
 
-/* Customize onclick() function of increment button with CRDT operation */
-document.getElementById("increment")!.onclick = function () {
-  console.log("clicked increment");
-  clientCounter.add(100);
-  counter!.innerHTML = clientCounter.value.toString();
-};
+let counter = 0;
+api.on("ready", () => {
+  info.innerHTML = "ready";
+  const testButton = document.getElementById("test")!;
+  testButton.onclick = () => {
+    api.sendRoomEvent("com.example.my_action", {
+      hello: "world",
+      counter,
+    });
+    counter++;
+  };
+});
 
-/* Customize onclick() function of decrement button with CRDT operation */
-document.getElementById("decrement")!.onclick = function () {
-  console.log("clicked decrement");
-  clientCounter.add(-100);
-  counter!.innerHTML = clientCounter.value.toString();
-};
+// This has to be done after api.on("ready", ...),
+// otherwise it throws an error.
+info.innerHTML = "starting";
+api.start();
 
-document.getElementById("reset")!.onclick = function () {
-  console.log("clicked reset");
-  clientCounter.reset();
-  counter!.innerHTML = clientCounter.value.toString();
-};
+// From https://github.com/matrix-org/matrix-widget-api/blob/master/examples/widget/utils.js
+function parseFragment() {
+  const fragmentString = window.location.toString() || "?";
+  info.innerHTML = fragmentString;
+  return new URLSearchParams(
+    fragmentString.substring(Math.max(fragmentString.indexOf("?"), 0))
+  );
+}
 
-// document.getElementById("strongReset")!.onclick = function () {
-//   console.log("clicked strongReset");
-//   clientCounter.strongReset();
-//   counter!.innerHTML = clientCounter.value.toString();
-// };
-
-// /* Customize onclick() function of sync to synchronize the value */
-// document.getElementById("sync")!.onclick = function() {
-//     counter!.innerHTML = clientCounter.value.toString();
-// }
+function assertParam(fragment: URLSearchParams, name: string) {
+  const val = fragment.get(name);
+  if (!val)
+    throw new Error(`${name} is not present in URL - cannot load widget`);
+  return val;
+}
