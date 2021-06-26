@@ -53,6 +53,14 @@ $ npm start
 
 Access the service via `localhost:3000`, look at the console to see outputs of current deployment.
 
+If you need to connect using https due to browser restrictions, instead run
+
+```bash
+$ npm start https
+```
+
+Then access the service via `https://localhost:3000/`, accept the self-signed certificate warning, and continue as usual.
+
 ## How to build on Heroku?
 
 Deploys to https://compoventuals-tests.herokuapp.com/
