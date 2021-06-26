@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      .cell {
+        border: 1px solid black;
+        height: 2em;
+        width: 2em;
+        line-height: 1em;
+      }
+      input[type="number"] {
+        width: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <table id="board"></table>
+    <h3 id="winText"></h3>
+
+    <button id="newGame">New Game</button>
+    <br />
+    <table>
+      <tr>
+        <td>Width:</td>
+        <td>
+          <input
+            type="number"
+            id="width"
+            name="Width"
+            min="1"
+            max="100"
+            value="10"
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>Height:</td>
+        <td>
+          <input
+            type="number"
+            id="height"
+            name="Height"
+            min="1"
+            max="100"
+            value="10"
+          />
+        </td>
+      </tr>
+      <tr>
+        <td>% Mines:</td>
+        <td>
+          <input
+            type="number"
+            id="percentMines"
+            name="% Mines"
+            min="0"
+            max="100"
+            value="15"
+          />
+        </td>
+      </tr>
+    </table>
+
+    <script src="minesweeper.js"></script>
+  </body>
+</html>
