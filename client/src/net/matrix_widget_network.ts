@@ -1,4 +1,8 @@
-import { WidgetApi, IWidgetApiRequest } from "matrix-widget-api";
+import {
+  WidgetApi,
+  IWidgetApiRequest,
+  IWidgetApiRequestData,
+} from "matrix-widget-api";
 import {
   BroadcastNetwork,
   DefaultCausalBroadcastNetwork,
@@ -38,29 +42,43 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
     api.requestCapabilityToSendEvent("crdts.message");
     api.requestCapabilityToReceiveEvent("crdts.message");
     api.on("action:send_event", (ev: CustomEvent<IWidgetApiRequest>) => {
-      // TODO: will this prevent multiple widgets from
-      // listening to the same type of events?
-      ev.preventDefault(); // we're handling it, so stop the widget API from doing something.
-      api.transport.reply(ev.detail, {}); // ack
       const mxEvent = ev.detail.data;
       if (mxEvent.type === "crdts.message") {
-        const ourEvent = mxEvent.content as NetworkEvent;
-        const network = this.networksByName.get(ourEvent.name ?? "");
-        if (network === undefined) {
-          // TODO
-          throw new Error("Unknown network name: " + (ourEvent.name ?? ""));
+        if (this.receive(mxEvent)) {
+          ev.preventDefault(); // we're handling it, so stop the widget API from doing something.
+          api.transport.reply(ev.detail, {}); // ack
         }
-        network.receive(ourEvent);
       }
     });
     // This has to be called before api.start(), otherwise
     // start throws an error
     api.on("ready", () => {
       // TODO: queue messages until ready?
+      // Replay any messages we missed
+      // TODO: how to do more than 25?
+      api.readRoomEvents("crdts.message", 25).then((events: any) => {
+        const eventsTyped = events as IWidgetApiRequestData[];
+        eventsTyped.forEach(this.receive, this);
+      });
     });
     api.start();
 
     this.widgetApiInternal = api;
+  }
+
+  /**
+   * @return true if we handled the event
+   */
+  private static receive(mxEvent: IWidgetApiRequestData): boolean {
+    const ourEvent = mxEvent.content as NetworkEvent;
+    if (ourEvent.id !== this.widgetId) return false;
+    const network = this.networksByName.get(ourEvent.name ?? "");
+    if (network === undefined) {
+      // TODO
+      throw new Error("Unknown network name: " + (ourEvent.name ?? ""));
+    }
+    network.receive(ourEvent);
+    return true;
   }
 
   static get isWidgetApiAvailable(): boolean {
