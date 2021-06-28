@@ -12,6 +12,7 @@ const config: webpack.Configuration = {
     counter_webrtc: "./src/site/counter_webrtc.ts",
     minesweeper: "./src/site/minesweeper.ts",
     "matrix/widget_test": "./src/site/matrix/widget_test.ts",
+    "matrix/whiteboard": "./src/site/matrix/whiteboard.ts",
     "matrix/minesweeper": "./src/site/matrix/minesweeper.ts",
     // TODO: Add more entries as needed for new pages
   },
@@ -56,6 +57,10 @@ const config: webpack.Configuration = {
         {
           from: "./src/site/matrix/widget_test.html",
           to: "matrix/widget_test.html",
+        },
+        {
+          from: "./src/site/matrix/whiteboard.html",
+          to: "matrix/whiteboard.html",
         },
         {
           from: "./src/site/matrix/minesweeper.html",

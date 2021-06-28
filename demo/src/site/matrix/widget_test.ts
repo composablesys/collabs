@@ -1,4 +1,3 @@
-import * as crdts from "compoventuals-client";
 import { WidgetApi, IWidgetApiRequest } from "matrix-widget-api";
 
 const info = document.getElementById("info")!;
