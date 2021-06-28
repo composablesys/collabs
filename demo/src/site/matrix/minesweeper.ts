@@ -153,7 +153,9 @@ function settingsFromInput(): GameSettings {
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs
  */
-let client = new crdts.Runtime(new crdts.MatrixWidgetNetwork());
+let client = new crdts.Runtime(
+  new crdts.MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.minesweeper")
+);
 let gameSource = client.registerCrdt(
   "gameSource",
   new crdts.YjsCrdtSet(

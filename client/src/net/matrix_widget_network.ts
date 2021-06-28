@@ -9,89 +9,135 @@ import {
 } from "./default_causal_broadcast_network";
 import { CausalTimestamp } from "./causal_broadcast_network";
 
+// TODO: size limits:
+// https://matrix.org/docs/spec/client_server/r0.6.1#size-limits
+
+// TODO: use widgetId (or abbreviation stored in a state key)
+// as part of the eventType?  May make searching old events
+// more efficient, since we would only be asking for the ones
+// we actually want.
+
 interface NetworkEvent {
-  id: string;
+  widgetId: string;
   msg: string;
-  name?: string;
 }
 
 export class MatrixWidgetNetwork implements BroadcastNetwork {
-  private static widgetApiInternal: WidgetApi | undefined = undefined;
+  private readonly api: WidgetApi;
+  private causal!: DefaultCausalBroadcastNetwork;
 
-  static get widgetApi(): WidgetApi {
-    if (this.widgetApiInternal === undefined) {
-      this.initializeWidgetApi();
-    }
-    return this.widgetApiInternal!;
+  private isReady = false;
+  private queued: NetworkEvent[] | undefined = [];
+
+  /**
+   * [constructor description]
+   * @param eventType The type of Matrix room events
+   * to be sent by this network.  Per the Matrix spec
+   * (https://matrix.org/docs/spec/client_server/r0.6.1#room-event-fields),
+   * this SHOULD be namespaced similar to Java package
+   * naming conventions e.g. 'com.example.subdomain.event.type', so that different
+   * programs use different eventTypes.
+   * Also, if multiple MatrixWidgetNetworks appear in the
+   * same webpage, they MUST use different eventTypes, or
+   * else they will receive each other's messages.
+   * Note that the user will be prompted to approve
+   * the widget's use of this eventType, so it should
+   * be comprehensible to end-users.
+   */
+  constructor(private readonly eventType: string) {
+    this.api = new WidgetApi(MatrixWidgetNetwork.widgetId);
+    this.initializeWidgetApi();
   }
 
-  private static widgetIdInternal: string | undefined = undefined;
-  static get widgetId(): string {
-    if (this.widgetIdInternal === undefined) {
-      const qs = this.parseFragment();
-      this.widgetIdInternal = this.assertParam(qs, "widgetId");
-    }
-    return this.widgetIdInternal;
-  }
-
-  private static networksByName = new Map<string, MatrixWidgetNetwork>();
-
-  static initializeWidgetApi(): void {
-    const api = new WidgetApi(this.widgetId);
-
-    api.requestCapabilityToSendEvent("crdts.message");
-    api.requestCapabilityToReceiveEvent("crdts.message");
-    api.on("action:send_event", (ev: CustomEvent<IWidgetApiRequest>) => {
+  private initializeWidgetApi(): void {
+    this.api.requestCapabilityToSendEvent(this.eventType);
+    this.api.requestCapabilityToReceiveEvent(this.eventType);
+    this.api.on("action:send_event", (ev: CustomEvent<IWidgetApiRequest>) => {
       const mxEvent = ev.detail.data;
-      if (mxEvent.type === "crdts.message") {
+      if (mxEvent.type === this.eventType) {
         if (this.receive(mxEvent)) {
           ev.preventDefault(); // we're handling it, so stop the widget API from doing something.
-          api.transport.reply(ev.detail, {}); // ack
+          this.api.transport.reply(ev.detail, {}); // ack
         }
       }
     });
-    // This has to be called before api.start(), otherwise
+    // This has to be called before this.api.start(), otherwise
     // start throws an error
-    api.on("ready", () => {
-      // TODO: queue messages until ready?
+    this.api.on("ready", () => {
       // Replay any messages we missed
       // TODO: how to do more than 25?
-      api.readRoomEvents("crdts.message", 25).then((events: any) => {
+      this.api.readRoomEvents(this.eventType, 25).then((events: any) => {
         const eventsTyped = events as IWidgetApiRequestData[];
         eventsTyped.forEach(this.receive, this);
       });
+      // Allow sending messages
+      this.isReady = true;
+      // Send queued messages
+      if (this.queued !== undefined) {
+        this.queued.forEach((event) =>
+          this.api.sendRoomEvent(this.eventType, event)
+        );
+        this.queued = undefined;
+      }
     });
-    api.start();
-
-    this.widgetApiInternal = api;
+    this.api.start();
   }
-
   /**
    * @return true if we handled the event
    */
-  private static receive(mxEvent: IWidgetApiRequestData): boolean {
+  private receive(mxEvent: IWidgetApiRequestData): boolean {
     const ourEvent = mxEvent.content as NetworkEvent;
-    if (ourEvent.id !== this.widgetId) return false;
-    const network = this.networksByName.get(ourEvent.name ?? "");
-    if (network === undefined) {
-      // TODO
-      throw new Error("Unknown network name: " + (ourEvent.name ?? ""));
-    }
-    network.receive(ourEvent);
+    if (ourEvent.widgetId !== MatrixWidgetNetwork.widgetId) return false;
+    this.causal.receive(new Uint8Array(Buffer.from(ourEvent.msg, "base64")));
     return true;
   }
 
-  static get isWidgetApiAvailable(): boolean {
+  register(causal: DefaultCausalBroadcastNetwork): void {
+    this.causal = causal;
+  }
+
+  send(
+    message: Uint8Array,
+    _firstTimestamp: CausalTimestamp,
+    _lastTimestamp: CausalTimestamp
+  ): void {
+    const encoded = Buffer.from(message).toString("base64");
+    const event: NetworkEvent = {
+      widgetId: MatrixWidgetNetwork.widgetId,
+      msg: encoded,
+    };
+    if (this.isReady) {
+      this.api.sendRoomEvent(this.eventType, event);
+    } else {
+      // Queue the message for later
+      this.queued!.push(event);
+    }
+  }
+
+  static isWidgetApiAvailable(): boolean {
     try {
-      // TODO: supress warning
-      const _ = this.widgetApi;
+      void this.widgetId;
       return true;
     } catch (e) {
       return false;
     }
   }
 
+  private static widgetIdInternal: string | undefined = undefined;
+
+  static get widgetId(): string {
+    if (this.widgetIdInternal === undefined) {
+      this.widgetIdInternal = this.findWidgetId();
+    }
+    return this.widgetIdInternal;
+  }
+
   // From https://github.com/matrix-org/matrix-widget-api/blob/master/examples/widget/utils.js
+  private static findWidgetId(): string {
+    const qs = this.parseFragment();
+    return this.assertParam(qs, "widgetId");
+  }
+
   private static parseFragment() {
     const fragmentString = window.location.toString() || "?";
     return new URLSearchParams(
@@ -107,34 +153,5 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
       throw new Error(`${name} is not present in URL - cannot load widget`);
     }
     return val;
-  }
-
-  private causal!: DefaultCausalBroadcastNetwork;
-
-  constructor(private readonly name: string = "") {
-    MatrixWidgetNetwork.initializeWidgetApi();
-    MatrixWidgetNetwork.networksByName.set(name, this);
-  }
-
-  register(causal: DefaultCausalBroadcastNetwork): void {
-    this.causal = causal;
-  }
-
-  send(
-    message: Uint8Array,
-    _firstTimestamp: CausalTimestamp,
-    _lastTimestamp: CausalTimestamp
-  ): void {
-    const encoded = Buffer.from(message).toString("base64");
-    const event: NetworkEvent = {
-      id: MatrixWidgetNetwork.widgetId,
-      msg: encoded,
-    };
-    if (this.name !== "") event.name = this.name;
-    MatrixWidgetNetwork.widgetApi.sendRoomEvent("crdts.message", event);
-  }
-
-  private receive(event: NetworkEvent) {
-    this.causal.receive(new Uint8Array(Buffer.from(event.msg, "base64")));
   }
 }

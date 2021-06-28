@@ -90,7 +90,6 @@ This should also create a git remote repo named `heroku`. See [here](https://dev
 git add ${selected files}
 git commit -m ${commit messages}
 git push heroku master
-git push
 ```
 
 ## Development
