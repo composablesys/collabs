@@ -101,8 +101,11 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
 
   private static assertParam(fragment: URLSearchParams, name: string) {
     const val = fragment.get(name);
-    if (!val)
+    if (!val) {
+      console.log(`${name} is not present in URL - cannot load widget`);
+      console.log(`URL: ${window.location.toString()}`);
       throw new Error(`${name} is not present in URL - cannot load widget`);
+    }
     return val;
   }
 
