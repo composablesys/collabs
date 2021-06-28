@@ -12,17 +12,14 @@ import { CausalTimestamp } from "./causal_broadcast_network";
 // TODO: size limits:
 // https://matrix.org/docs/spec/client_server/r0.6.1#size-limits
 
-// TODO: use widgetId (or abbreviation stored in a state key)
-// as part of the eventType?  May make searching old events
-// more efficient, since we would only be asking for the ones
-// we actually want.
+// TODO: reasonable error if lacking capabilities
 
 interface NetworkEvent {
-  widgetId: string;
   msg: string;
 }
 
 export class MatrixWidgetNetwork implements BroadcastNetwork {
+  private readonly eventType: string;
   private readonly api: WidgetApi;
   private causal!: DefaultCausalBroadcastNetwork;
 
@@ -31,34 +28,41 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
 
   /**
    * [constructor description]
-   * @param eventType The type of Matrix room events
+   * @param rootEventType The root type of Matrix room events
    * to be sent by this network.  Per the Matrix spec
    * (https://matrix.org/docs/spec/client_server/r0.6.1#room-event-fields),
    * this SHOULD be namespaced similar to Java package
    * naming conventions e.g. 'com.example.subdomain.event.type', so that different
    * programs use different eventTypes.
    * Also, if multiple MatrixWidgetNetworks appear in the
-   * same webpage, they MUST use different eventTypes, or
+   * same webpage, they MUST use different rootEventTypes, or
    * else they will receive each other's messages.
    * Note that the user will be prompted to approve
-   * the widget's use of this eventType, so it should
+   * the widget's use of this rootEventType, so it should
    * be comprehensible to end-users.
+   * The actual event type used is <rootEventType>.<widgetId>.
    */
-  constructor(private readonly eventType: string) {
+  constructor(rootEventType: string) {
+    this.eventType = `${rootEventType}.${MatrixWidgetNetwork.widgetId}`;
     this.api = new WidgetApi(MatrixWidgetNetwork.widgetId);
-    this.initializeWidgetApi();
+    this.initializeWidgetApi(rootEventType);
   }
 
-  private initializeWidgetApi(): void {
+  private initializeWidgetApi(rootEventType: string): void {
+    // Would like this to work, since it gives a sensible
+    // message to the client, and is more likely to somdeay
+    // allow the user to add the same widget twice without
+    // getting a permissions request the second time.
+    // this.api.requestCapabilityToSendEvent(rootEventType);
+    // this.api.requestCapabilityToReceiveEvent(rootEventType);
     this.api.requestCapabilityToSendEvent(this.eventType);
     this.api.requestCapabilityToReceiveEvent(this.eventType);
     this.api.on("action:send_event", (ev: CustomEvent<IWidgetApiRequest>) => {
       const mxEvent = ev.detail.data;
       if (mxEvent.type === this.eventType) {
-        if (this.receive(mxEvent)) {
-          ev.preventDefault(); // we're handling it, so stop the widget API from doing something.
-          this.api.transport.reply(ev.detail, {}); // ack
-        }
+        this.receive(mxEvent);
+        ev.preventDefault(); // we're handling it, so stop the widget API from doing something.
+        this.api.transport.reply(ev.detail, {}); // ack
       }
     });
     // This has to be called before this.api.start(), otherwise
@@ -85,11 +89,9 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
   /**
    * @return true if we handled the event
    */
-  private receive(mxEvent: IWidgetApiRequestData): boolean {
+  private receive(mxEvent: IWidgetApiRequestData) {
     const ourEvent = mxEvent.content as NetworkEvent;
-    if (ourEvent.widgetId !== MatrixWidgetNetwork.widgetId) return false;
     this.causal.receive(new Uint8Array(Buffer.from(ourEvent.msg, "base64")));
-    return true;
   }
 
   register(causal: DefaultCausalBroadcastNetwork): void {
@@ -103,7 +105,6 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
   ): void {
     const encoded = Buffer.from(message).toString("base64");
     const event: NetworkEvent = {
-      widgetId: MatrixWidgetNetwork.widgetId,
       msg: encoded,
     };
     if (this.isReady) {
