@@ -3,6 +3,14 @@
 // Definitions by: Campbell Wass <https://github.com/CamWass>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
 
+/**
+ * Forked from DefinitelyTyped, which is MIT licensed.
+ * See above comment for source.
+ *
+ * We (Compoventuals) modified this file to match our
+ * changes to rbtree.js.
+ */
+
 declare namespace createRBTree {
   /** Represents a functional red-black tree. */
   interface Tree<K, V> {

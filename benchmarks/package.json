@@ -2,10 +2,19 @@
   "name": "compoventuals-benchmarks",
   "version": "0.1.0",
   "description": "CRDTs designed compositionally (benchmarks)",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
+  "keywords": [
+    "crdts"
+  ],
   "dependencies": {
     "compoventuals-client": "^0.1.0",
     "benchmark": "^2.1.4",
@@ -43,14 +52,5 @@
     "fix:format": "prettier --write .",
     "tscw": "tsc --project tsconfig.build.json --watch",
     "start": "node -r dotenv/config --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/paper/main.js"
-  },
-  "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
-  },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
-  "keywords": [
-    "crdts"
-  ],
-  "author": "Heather Miller",
-  "license": "ISC"
+  }
 }
