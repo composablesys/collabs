@@ -149,6 +149,10 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    */
   private readonly messageBuffer: myMessage[] = [];
   /**
+   * The first index to check for readiness in the buffer.
+   */
+  private bufferCheckIndex = 0;
+  /**
    * Whether there is a  pending send batch
    * (begun but not committed).  Don't
    * deliver received messages until after commitBatch
@@ -280,7 +284,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
 
     let index = this.messageBuffer.length - 1;
 
-    while (index >= 0) {
+    while (index >= this.bufferCheckIndex) {
       let curVectorClock = this.messageBuffer[index].timestamp;
 
       if (this.vc.isReady(curVectorClock)) {
@@ -292,9 +296,12 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
           curVectorClock
         );
         this.vc.mergeSender(lastTimestamp as VectorClock);
+        // TODO: something more efficient?  (Costly array
+        // deletions).
         this.messageBuffer.splice(index, 1);
         // Set index to the end and try again, in case
         // this makes more messages ready
+        this.bufferCheckIndex = 0;
         index = this.messageBuffer.length - 1;
       } else {
         console.log(
@@ -310,6 +317,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         console.log(curVectorClock.toString());
       }
     }
+    this.bufferCheckIndex = this.messageBuffer.length;
   }
 
   get crdtRuntime(): Runtime {
