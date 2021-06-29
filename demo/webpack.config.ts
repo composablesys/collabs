@@ -15,6 +15,7 @@ const config: webpack.Configuration = {
     "matrix/widget_test": "./src/site/matrix/widget_test.ts",
     "matrix/whiteboard": "./src/site/matrix/whiteboard.ts",
     "matrix/minesweeper": "./src/site/matrix/minesweeper.ts",
+    "matrix/plaintext": "./src/site/matrix/plaintext.ts",
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -67,6 +68,10 @@ const config: webpack.Configuration = {
         {
           from: "./src/site/matrix/minesweeper.html",
           to: "matrix/minesweeper.html",
+        },
+        {
+          from: "./src/site/matrix/plaintext.html",
+          to: "matrix/plaintext.html",
         },
         // TODO: Add more entries as needed for new pages
       ],
