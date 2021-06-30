@@ -1,57 +1,32 @@
 import * as crdts from 'compoventuals-client';
-import {Crdt, CrdtEvent, CrdtEventsRecord, PrimitiveCrdt, ResettableEventsRecord} from "compoventuals-client";
+import {
+    CrdtEvent,
+    CrdtEventsRecord, MapKeyEvent,
+    SetEvent
+} from "compoventuals-client";
 
-class YataLinearOp<T> extends crdts.CompositeCrdt {
-    readonly _creatorId: string;
-    readonly _originId: string;
-    public _leftId: string;
-    public _rightId: string;
+class YataOp<T> extends crdts.CompositeCrdt {
+    readonly creatorId: string;
+    readonly originId: string;
+    public leftId: string;
+    public rightId: string;
     readonly _deleted: crdts.LwwRegister<boolean>;
-    readonly _content: T;
-    readonly _pos: number;
+    readonly content: T;
+    readonly pos: number;
     readonly attributes: crdts.LwwPlainMap<string, any>;
-    private readonly attributesArg?: IterableIterator<[string, any]> | [string, any][];
-
-    get rightId (): string {
-        return this._rightId;
-    }
-
-    set rightId (id: string) {
-        this._rightId = id;
-    }
-
-    get leftId (): string {
-        return this._leftId;
-    }
-
-    set leftId (id: string) {
-        this._leftId = id;
-    }
+    public locallyDeleted: boolean;
+    public attributesArg?: [string, any][];
 
     delete (): void {
+        // console.log("YataOp.delete");
+        this.locallyDeleted = true;
         this._deleted.value = true;
-    }
-
-    get creatorId ():string {
-        return this._creatorId;
-    }
-
-    get originId ():string {
-        return this._originId;
     }
 
     get deleted (): boolean {
         return this._deleted.value;
     }
 
-    get content (): T {
-        return this._content;
-    }
-
-    get pos (): number {
-        return this._pos;
-    }
-    
     constructor (
         creatorId: string,
         originId: string,
@@ -62,13 +37,14 @@ class YataLinearOp<T> extends crdts.CompositeCrdt {
         attributes?: [string, any][],
     ) {
         super();
-        this._creatorId = creatorId;
-        this._originId = originId;
-        this._leftId = leftId;
-        this._rightId = rightId;
+        this.creatorId = creatorId;
+        this.originId = originId;
+        this.leftId = leftId;
+        this.rightId = rightId;
         this._deleted = this.addChild("deleted", new crdts.LwwRegister(false));
-        this._content = content;
-        this._pos = pos;
+        this.locallyDeleted = false;
+        this.content = content;
+        this.pos = pos;
         this.attributes = this.addChild("attributes",
             new crdts.LwwPlainMap());
         if (attributes) {
@@ -78,28 +54,109 @@ class YataLinearOp<T> extends crdts.CompositeCrdt {
 
     init(name: string, parent: crdts.CrdtParent) {
         super.init(name, parent);
-        for (let entry in this.attributesArg) {
-            this.attributes.set(entry[0], entry[1]);
-        }
+        // if (this.attributesArg && this.creatorId === this.runtime.replicaId) {
+        //     for (let entry of this.attributesArg) {
+        //         this.attributes.set(entry[0], entry[1]);
+        //     }
+        //     this.attributesArg = undefined;
+        // }
+        // if (this.creatorId === this.runtime.replicaId) {
+        //     const formats:Record<string, any> = {};
+        //     const it = this.attributes.entries();
+        //     let result = it.next();
+        //     while (!result.done) {
+        //         formats[result.value[0] as string] = result.value[1];
+        //         result = it.next();
+        //     }
+        //     console.log(formats);
+        // }
     }
 }
 
-export class YataLinear<T> extends crdts.CompositeCrdt {
+interface YataEvent extends CrdtEvent {
+    uid: string;
+    idx: number;
+    isLocal: boolean;
+}
+
+export interface YataInsertEvent<T> extends YataEvent {
+    newOp: YataOp<T>;
+}
+
+export interface YataDeleteEvent<T> extends YataEvent {}
+
+export interface YataFormatExistingEvent<T> extends YataEvent {
+    key: string;
+    value: any;
+}
+
+interface YataEventsRecord<T> extends CrdtEventsRecord {
+    Insert: YataInsertEvent<T>;
+    Delete: YataDeleteEvent<T>;
+    FormatExisting: YataFormatExistingEvent<T>;
+}
+
+export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
     private start: string = '';
     private end: string = '';
     readonly defaultContent: T;
-    public opMap: crdts.YjsCrdtSet<YataLinearOp<T>, [string, string, string, T, [string, any][]?]>;
-    private idRightOfCursor: string = '';
-    private startOp: YataLinearOp<T>;
-    private endOp: YataLinearOp<T>;
+    public opMap: crdts.YjsCrdtSet<YataOp<T>, [string, string, string, T, [string, any][]?]>;
+    private startOp: YataOp<T>;
+    private endOp: YataOp<T>;
+    protected lastEventType?: string;
+    protected lastEventSender?: string;
+    protected lastEventTime?: number;
+
+    deletedChangeEventHandler = (yata: YataLinear<T>, uid: string) => ({timestamp}:CrdtEvent) => {
+        if (!yata.op(uid).locallyDeleted) {
+            yata.emit("Delete", {
+                uid,
+                idx: yata.getIdxOfId(uid) + 1,
+                isLocal: timestamp.getSender() === yata.runtime.replicaId,
+                timestamp
+            })
+        }
+    }
+
+    attributesSetEventHandler = (yata: YataLinear<T>, uid: string) => ({key, timestamp}:MapKeyEvent<string>) => {
+        if (!yata.op(uid).deleted) {
+            yata.emit("FormatExisting", {
+                uid,
+                idx: yata.getIdxOfId(uid),
+                isLocal: timestamp.getSender() === yata.runtime.replicaId,
+                key,
+                value: yata.op(uid).attributes.get(key),
+                timestamp
+            })
+        }
+    }
+
+    opMapAddEventHandler = (yata: YataLinear<T>) => ({value: newOp, timestamp}:SetEvent<YataOp<T>>) => {
+        // Link YataLinearOp list
+        const uid = yata.opMap.uidOf(newOp);
+        yata.op(newOp.rightId).leftId = uid;
+        yata.op(newOp.leftId).rightId = uid;
+        // Register event handler for YataOp.deleted "change" event
+        newOp._deleted.on("Change", yata.deletedChangeEventHandler(yata, uid));
+        // Register event handler for YataOp.attributes "set" event
+        newOp.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
+        const isLocal = timestamp.getSender() === yata.runtime.replicaId;
+        yata.emit("Insert", {
+            uid,
+            idx: yata.getIdxOfId(uid),
+            newOp,
+            timestamp,
+            isLocal
+        })
+    };
 
     constructor (
         defaultContent: T
     ) {
         super();
         this.defaultContent = defaultContent
-        this.startOp = new YataLinearOp('', '', '', '', defaultContent, 0);
-        this.endOp = new YataLinearOp('', '', '', '', defaultContent, 1);
+        this.startOp = new YataOp('', '', '', '', defaultContent, 0);
+        this.endOp = new YataOp('', '', '', '', defaultContent, 1);
         this.opMap = this.addChild(
             "nodeMap",
             new crdts.YjsCrdtSet((
@@ -112,7 +169,6 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
                 const originId = leftIntent;
                 let leftId = leftIntent;
                 while (this.op(leftId).rightId !== rightIntent) {
-                    console.log("wat dis? left id is", leftId);
                     const o_id = this.op(leftId).rightId;
                     const o = this.op(this.op(leftId).rightId);
                     const i_origin = this.op(originId);
@@ -124,37 +180,29 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
                         (o.originId !== originId
                             || o.creatorId < replicaId)
                     ) {
-                        console.log("Compare leftId:", leftId, "and o_id:", o_id);
                         leftId = o_id;
                     } else {
-                        console.log("i_origin.pos =", i_origin.pos, "o_origin.pos", o_origin.pos);
                         if (i_origin.pos >= o_origin.pos) {
                             break;
                         }
                     }
                 }
                 const rightId = this.op(leftId).rightId;
-                // const id = ????
-                // this.op(leftId).rightId = id;
-                // this.op(rightId).leftId = id;
                 const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
-                // const finalAttrEntries = attributeEntries ? attributeEntries : Array.from(this.op(leftId).attributes.entries());
-                // return new YataLinearOp<T>(replicaId, originId, leftId, rightId, content, pos);
-                return new YataLinearOp<T>(replicaId, originId, leftId, rightId, content, pos, attributeEntries);
+                return new YataOp<T>(replicaId, originId, leftId, rightId, content, pos, attributeEntries);
             }, [
                 this.startOp,
                 this.endOp
             ]));
+        this.opMap.on("Add", this.opMapAddEventHandler(this));
     }
 
     init(name: string, parent: crdts.CrdtParent) {
         super.init(name, parent);
         this.START = this.opMap.uidOf(this.startOp);
         this.END = this.opMap.uidOf(this.endOp);
-        console.log(`START: ${this.START} | END: ${this.END}`);
         this.opMap.getByUid(this.START)!.rightId = this.END;
         this.opMap.getByUid(this.END)!.leftId = this.START;
-        this.idRightOfCursor = this.END;
     }
 
     private insert (
@@ -173,14 +221,8 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
 
     private changeAttributes (id: string, attributes: Record<string, any>): void {
         for (const attr in attributes) {
-            console.log("About to change", attr, "to", attributes[attr]);
             this.op(id).attributes.set(attr, attributes[attr]);
         }
-        // let entry = attributes.next();
-        // while (!entry.done) {
-        //     this.op(id).attributes[entry[0]].value = entry[1].value;
-        //     entry = attributes.next();
-        // }
     }
 
     private toArrayNode (nodeId: string): {content:T, attributes: Record<string, any>}[] {
@@ -188,10 +230,16 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
         if (node.pos === 0) return [];
         const arr = this.toArrayNode(node.leftId);
         if (!node.deleted) {
-            console.log("toArrayNode", node.content, Object.fromEntries(node.attributes.entries()));
+            const formats:Record<string, any> = {};
+            const it = node.attributes.entries();
+            let result = it.next();
+            while (!result.done) {
+                formats[result.value[0] as string] = result.value[1];
+                result = it.next();
+            }
             arr.push({
                 content: node.content,
-                attributes: Object.fromEntries(node.attributes.entries())
+                attributes: formats
             });
         }
         return arr;
@@ -208,10 +256,11 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
     }
 
     toIdArray (): string[] {
-        return this.toIdArrayNode(this.START);
+        const arr = this.toIdArrayNode(this.START);
+        return arr;
     }
 
-    op(id:string): YataLinearOp<T> {
+    op(id:string): YataOp<T> {
         const yataOp =  this.opMap.getByUid(id);
         if (!yataOp) {
             throw new Error(`There is no Yata operation with id ${id}`);
@@ -245,40 +294,40 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
 
     insertByIdx (
         replicaId: string,
-        replicaUniqueNumber: number,
         idx: number,
         content: T,
         attributeObj?: Record<string, any>
     ): void {
         let idLeftOfCursor = this.getIdAtIdx(idx - 1);
-        this.insert(
+        const uid = this.insert(
             replicaId,
             idLeftOfCursor,
             this.op(idLeftOfCursor).rightId,
-            content,
-            attributeObj ? Object.entries(attributeObj) : undefined
+            content
         );
+        if (attributeObj) {
+            this.changeAttributes(uid, attributeObj);
+        }
     }
 
     deleteByIdx (
-        replicaId: string,
-        replicaUniqueNumber: number,
         idx: number,
         len: number,
     ): void {
+        // console.log("YataLinear.deleteByIdx");
         const id1 = this.getIdAtIdx(idx);
         const id2 = this.getIdAtIdx(idx + len);
         let id = id1;
         while (id !== id2) {
-            this.delete(id);
+            if (!this.op(id).deleted) {
+                console.log("deleting id", [id])
+                this.delete(id);
+            }
             id = this.op(id).rightId;
         }
-        this.delete(id);
     }
 
     changeAttributeByIdx(
-        replicaId: string,
-        replicaUniqueNumber: number,
         idx: number,
         len: number,
         attributes: Record<string, any>
@@ -288,7 +337,9 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
         const id2 = this.getIdAtIdx(idx + len);
         let id = id1;
         while (id !== id2) {
-            this.changeAttributes(id, attributes);
+            if (!this.op(id).deleted) {
+                this.changeAttributes(id, attributes);
+            }
             id = this.op(id).rightId;
         }
     };
@@ -300,7 +351,3 @@ export class YataLinear<T> extends crdts.CompositeCrdt {
         return 1 + prev;
     }
 }
-
-// TODO:
-//  1. Link text-change event with attribute changes. DONE
-//  2. Make a toArray function that also includes attributes

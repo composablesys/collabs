@@ -1,5 +1,5 @@
 import { Runtime, DefaultCausalBroadcastNetwork, WebSocketNetwork } from 'compoventuals-client';
-import {YataLinear} from "./yata";
+import {YataDeleteEvent, YataFormatExistingEvent, YataInsertEvent, YataLinear} from "./yata";
 import * as Q from 'quill';
 import Quill, {DeltaOperation} from "quill";
 
@@ -46,15 +46,44 @@ quill.on("text-change", (delta, oldDelta, source) => {
         }
         // Deletion (can be many characters)
         else if (op.delete) {
-            clientText.deleteByIdx(
-                client.replicaId, client.getReplicaUniqueNumber(), op.idx, op.delete);
+            clientText.deleteByIdx(op.idx, op.delete);
         }
         // Formatting (can be many characters)
         else if (op.attributes && op.retain) {
-            clientText.changeAttributeByIdx(
-                client.replicaId, client.getReplicaUniqueNumber(), op.idx, op.retain, op.attributes);
+            clientText.changeAttributeByIdx(op.idx, op.retain, op.attributes);
         }
     }
+})
+
+let Delta = Quill.import("delta");
+
+clientText.on("Insert", ({idx, timestamp, isLocal, newOp, uid}: YataInsertEvent<string>) => {
+    if (!isLocal) {
+        const formats:Record<string, any> = {};
+        const it = newOp.attributes.entries();
+        let result = it.next();
+        while (!result.done) {
+            formats[result.value[0] as string] = result.value[1];
+            result = it.next();
+        }
+        quill.updateContents(
+            new Delta().retain(idx).insert(newOp.content, formats)
+        );
+    }
+});
+
+clientText.on("Delete", ({idx, uid, isLocal, timestamp}: YataDeleteEvent<string>) => {
+    if (!isLocal) {
+        quill.updateContents(
+            new Delta().retain(idx).delete(1)
+        )
+    }
+});
+
+clientText.on("FormatExisting", ({idx, uid, key, value, isLocal, timestamp}: YataFormatExistingEvent<string>) => {
+    quill.updateContents(
+        new Delta().retain(idx).retain(1, {[key]: value})
+    )
 })
 
 // const getIdx = (delta: IDelta): {idx: number, insert?: any, delete?: any, attributes?: Record<string, any>, retain?: any} => {
