@@ -252,7 +252,7 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
 
     private toIdArrayNode (nodeId: string): string[] {
         const node = this.op(nodeId)
-        if (node.pos === 1) return [this.END];
+        if (node.pos === Number.MAX_VALUE) return [this.END];
         const array = this.toIdArrayNode(node.rightId)
         if (!node.deleted) {
             array.unshift(nodeId);
