@@ -95,22 +95,17 @@ export class CompositeCrdt<
     child.receive(targetPath, timestamp, message);
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
-    let child = this.children.get(targetPath[targetPath.length - 1]);
+  getChild(name: string): Crdt {
+    const child = this.children.get(name);
     if (child === undefined) {
       throw new Error(
         "Unknown child: " +
-          targetPath[targetPath.length - 1] +
-          " in: " +
-          JSON.stringify(targetPath) +
+          name +
           ", children: " +
           JSON.stringify([...this.children.keys()])
       );
     }
-    targetPath.length--;
-    return child.getDescendant(targetPath);
+    return child;
   }
 
   /**

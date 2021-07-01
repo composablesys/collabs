@@ -159,10 +159,8 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
     }
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
-    let child = this.children.get(targetPath[targetPath.length - 1]);
+  getChild(name: string): Crdt {
+    const child = this.children.get(name);
     if (child === undefined) {
       // TODO: what to do here?
       // Assume it is a deleted (frozen) child.
@@ -174,8 +172,7 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
       // will propagate if it is used.
       return null as unknown as Crdt;
     }
-    targetPath.length--;
-    return child.getDescendant(targetPath);
+    return child;
   }
 
   canGc(): boolean {

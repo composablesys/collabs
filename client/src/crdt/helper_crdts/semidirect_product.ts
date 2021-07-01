@@ -362,27 +362,15 @@ export abstract class SemidirectProduct<
     }
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
-    let child: Crdt;
-    switch (targetPath[0]) {
+  getChild(name: string): Crdt {
+    switch (name) {
       case SemidirectProduct.crdt1Name:
-        child = this.crdt1;
-        break;
+        return this.crdt1;
       case SemidirectProduct.crdt2Name:
-        child = this.crdt2;
-        break;
+        return this.crdt2;
       default:
-        throw new Error(
-          "Unknown child: " +
-            targetPath[targetPath.length - 1] +
-            " in SemidirectProduct: " +
-            JSON.stringify(targetPath)
-        );
+        throw new Error("Unknown child: " + name + " in SemidirectProduct");
     }
-    targetPath.length--;
-    return child.getDescendant(targetPath);
   }
 
   canGc(): boolean {

@@ -307,7 +307,11 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @return            [description]
    */
   getCrdtByReference(pathToRoot: string[]): Crdt {
-    return this.rootCrdt.getDescendant(pathToRoot.slice());
+    let currentCrdt: Crdt = this.rootCrdt;
+    for (let i = pathToRoot.length - 1; i >= 0; i--) {
+      currentCrdt = currentCrdt.getChild(pathToRoot[i]);
+    }
+    return currentCrdt;
   }
 
   private idCounter = 0;

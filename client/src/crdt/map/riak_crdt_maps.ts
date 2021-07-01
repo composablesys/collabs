@@ -175,13 +175,8 @@ export class ImplicitCrdtMap<K, C extends Crdt>
     }
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
-    let keyString = targetPath[targetPath.length - 1];
-    let value = this.getInternal(this.stringAsKey(keyString), keyString)[0];
-    targetPath.length--;
-    return value.getDescendant(targetPath);
+  getChild(name: string): Crdt {
+    return this.getInternal(this.stringAsKey(name), name)[0];
   }
 
   clear(): void {

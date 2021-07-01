@@ -163,13 +163,13 @@ export abstract class Crdt<
   // index but not the underlying array).
 
   /**
-   * Returns the given descendant of this Crdt.
+   * Returns the given child of this Crdt.
+   * Only for use by Runtime; all others use
+   * Runtime.getCrdtByRer
    *
-   * @param targetPath the target Crdt's id followed by
-   * the ids of its ancestors in ascending order,
-   * stopping at this Crdt (exclusive).
+   * @param name the child's name
    */
-  abstract getDescendant(targetPath: string[]): Crdt;
+  abstract getChild(name: string): Crdt;
 
   /**
    * If this Crdt is in its initial, post-constructor state, then

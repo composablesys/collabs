@@ -49,17 +49,9 @@ export abstract class PrimitiveCrdt<
     message: Uint8Array
   ): void;
 
-  getDescendant(targetPath: string[]) {
-    if (targetPath.length !== 0) {
-      // We are not the target
-      throw new Error(
-        "Unknown child: " +
-          targetPath[targetPath.length - 1] +
-          " in: " +
-          JSON.stringify(targetPath) +
-          ", children: [] (PrimitiveCrdt)"
-      );
-    }
-    return this;
+  getChild(name: string): Crdt {
+    throw new Error(
+      "Unknown child: " + name + ", children: [] (PrimitiveCrdt)"
+    );
   }
 }
