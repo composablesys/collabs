@@ -43,7 +43,6 @@ const getRelevantDeltaOperations = (delta: IDelta): {
 
 quill.on("text-change", (delta, oldDelta, source) => {
     if (source === "user") {
-        console.log(delta);
         getRelevantDeltaOperations(delta).forEach(op => {
             // Insertion (always one character)
             if (op.insert) {
@@ -55,7 +54,6 @@ quill.on("text-change", (delta, oldDelta, source) => {
             }
             // Formatting (can be many characters)
             else if (op.attributes && op.retain) {
-                console.log("text change attribute", op.attributes);
                 clientText.changeAttributeByIdx(op.idx, op.retain, op.attributes);
             }
         });
