@@ -141,9 +141,9 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
         super();
         this.defaultContent = defaultContent;
         this.startOp = new YataOp('', '', '', '', defaultContent, 0);
-        this.endOp = new YataOp('', '', '', '', defaultContent, 1);
-        this.initialContentOps = initialContents.map(c =>
-            new YataOp('', '', '', '', c, 1 / (initialContents.length + 1)));
+        this.endOp = new YataOp('', '', '', '', defaultContent, Number.MAX_VALUE);
+        this.initialContentOps = initialContents.map((c, idx) =>
+            new YataOp('', '', '', '', c, (idx + 1) * Number.MAX_VALUE / (initialContents.length + 1)));
         this.opMap = this.addChild(
             "nodeMap",
             new crdts.YjsCrdtSet((
