@@ -26,7 +26,11 @@ import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
  * (replicaId, runtime.getReplicaUniqueNumber()) -
  * it won't be consistent on different replicas.
  * If you need these, you must pass them yourself as
- * constructor args.
+ * constructor args.  Likewise, if you are passed in a
+ * reference to another Crdt, don't use its state to
+ * set other parts of your own state; any such state
+ * must instead be passed as a separate non-Crdt
+ * constructor arg.
  */
 export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   extends Crdt<CrdtSetEventsRecord<C>>

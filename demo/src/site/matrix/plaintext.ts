@@ -16,8 +16,11 @@ const myStartCursor = new crdts.Cursor(text, 0);
 const myEndCursor = new crdts.Cursor(text, 0);
 function updateSelection() {
   // Need to do this on a delay because the event doesn't
-  // due its default action (updating the handler) until
+  // do its default action (updating the handler) until
   // after the event handlers.
+  // TODO: use a Promise instead of setTimeout, to make
+  // sure this happens before the next CRDT message
+  // messes things up?
   setTimeout(() => {
     myStartCursor.index = textarea.selectionStart;
     myEndCursor.index = textarea.selectionEnd;
