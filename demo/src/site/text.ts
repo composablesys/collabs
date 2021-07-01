@@ -1,6 +1,5 @@
 import { Runtime, DefaultCausalBroadcastNetwork, WebSocketNetwork } from 'compoventuals-client';
 import {YataDeleteEvent, YataFormatExistingEvent, YataInsertEvent, YataLinear} from "./yata";
-import * as Q from 'quill';
 import Quill, {DeltaOperation} from "quill";
 
 const HOST = location.origin.replace(/^http/, 'ws');
@@ -12,7 +11,7 @@ let client = new Runtime(
     , {periodMs: 5000}
 );
 
-let clientText = client.registerCrdt("text", new YataLinear<string>(''));
+let clientText = client.registerCrdt("text", new YataLinear<string>('', ['\n']));
 
 // const Quill: any = Q;
 var quill = new Quill('#editor', {
@@ -28,12 +27,16 @@ const getRelevantDeltaOperations = (delta: IDelta): {
     const relevantOps = [];
     let idx = 0;
     for (let op of delta.ops) {
-        if (op.retain && !op.attributes) {
-            idx += op.retain;
-        } else {
+        if (!op.retain || op.attributes) {
             relevantOps.push({idx, ...op});
-            idx += op.retain ?? op.delete ?? op.insert.length;
         }
+        idx += op.retain ?? op.delete ?? op.insert.length;
+        // if (op.retain && !op.attributes) {
+        //     idx += op.retain;
+        // } else {
+        //     relevantOps.push({idx, ...op});
+        //     idx += op.retain ?? op.delete ?? op.insert.length;
+        // }
     }
     return relevantOps;
 }
@@ -52,6 +55,7 @@ quill.on("text-change", (delta, oldDelta, source) => {
             }
             // Formatting (can be many characters)
             else if (op.attributes && op.retain) {
+                console.log("text change attribute", op.attributes);
                 clientText.changeAttributeByIdx(op.idx, op.retain, op.attributes);
             }
         });

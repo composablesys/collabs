@@ -55,7 +55,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         if (value === null) {
           message = { nullValue: true };
         }
-        if (value instanceof Crdt) {
+        else if (value instanceof Crdt) {
           // TODO: require to be in the same group.
           // How to enforce?
           message = {
