@@ -5,7 +5,7 @@ import {
   CausalBroadcastNetwork,
   CausalTimestamp,
   DefaultCausalBroadcastNetwork,
-  isCausalBroadcastNetwork,
+  isCausalBroadcastNetwork, VectorClock,
 } from "../../net";
 import { arrayAsString, EventEmitter, stringAsArray } from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
@@ -96,6 +96,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
+  private _local = false;
+  private previousTime = 0;
 
   /**
    * TODO.
@@ -162,42 +164,57 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
-    let newBatch: boolean;
-    if (this.pendingBatch === null) {
-      newBatch = true;
-      timestamp = this.network.beginBatch();
-      this.pendingBatch = {
-        pointers: [],
-        pointerByCrdt: new Map(),
-        messages: [],
-        firstTimestamp: timestamp,
-        previousTimestamp: timestamp,
-      };
-    } else {
-      newBatch = false;
-      timestamp = this.network.nextTimestamp(
-        this.pendingBatch.previousTimestamp
+    if (this._local) {
+      timestamp = new VectorClock(
+        this.replicaId,
+        true,
+        this.previousTime
       );
+
+      // Deliver to self, synchronously
+      // TODO: error handling
+      this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+    } else {
+      let newBatch: boolean;
+      if (this.pendingBatch === null) {
+        newBatch = true;
+        timestamp = this.network.beginBatch();
+        this.pendingBatch = {
+          pointers: [],
+          pointerByCrdt: new Map(),
+          messages: [],
+          firstTimestamp: timestamp,
+          previousTimestamp: timestamp,
+        };
+      } else {
+        newBatch = false;
+        timestamp = this.network.nextTimestamp(
+          this.pendingBatch.previousTimestamp
+        );
+      }
+
+      // Deliver to self, synchronously
+      // TODO: error handling
+      this.previousTime = timestamp.getTime();
+      this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+
+
+      // Add to the pending batch
+      let pointer = this.getOrCreatePointer(sender);
+      this.pendingBatch.messages.push({
+        sender: pointer,
+        innerMessage: message,
+      });
+      this.pendingBatch.previousTimestamp = timestamp;
+
+      if (this.batchType === "immediate") {
+        // Send immediately
+        this.commitBatch();
+      } else if (newBatch && this.batchType === "periodic") {
+        setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
+      }
     }
 
-    // Deliver to self, synchronously
-    // TODO: error handling
-    this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
-
-    // Add to the pending batch
-    let pointer = this.getOrCreatePointer(sender);
-    this.pendingBatch.messages.push({
-      sender: pointer,
-      innerMessage: message,
-    });
-    this.pendingBatch.previousTimestamp = timestamp;
-
-    if (this.batchType === "immediate") {
-      // Send immediately
-      this.commitBatch();
-    } else if (newBatch && this.batchType === "periodic") {
-      setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
-    }
   }
 
   private getOrCreatePointer(to: Crdt | RootCrdt): number {
@@ -330,5 +347,13 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     const ans = this.idCounter;
     this.idCounter += count;
     return ans;
+  }
+
+  localOnly() {
+    this._local = true;
+  }
+
+  notLocalOnly() {
+    this._local = false;
   }
 }

@@ -1,9 +1,14 @@
 import * as crdts from 'compoventuals-client';
 import {
+    CausalTimestamp,
     CrdtEvent,
     CrdtEventsRecord, MapKeyEvent,
-    SetEvent
+    SetEvent, YjsCrdtSet, DefaultElementSerializer, arrayAsString, PrimitiveCrdt
 } from "compoventuals-client";
+import {
+    YjsCrdtSetMessage
+} from "compoventuals-client/generated/proto_compiled";
+// import {DefaultElementSerializer} from "compoventuals-client/src";
 
 export class YataOp<T> extends crdts.CompositeCrdt {
     readonly creatorId: string;
@@ -15,7 +20,10 @@ export class YataOp<T> extends crdts.CompositeCrdt {
     readonly pos: number;
     readonly attributes: crdts.LwwPlainMap<string, any>;
     public locallyDeleted: boolean;
-    public attributesArg?: [string, any][];
+    public leftAttributesAtInput: Record<string, any>;
+    public attributesArg: [string, any][];
+    static readonly attributesMapCrdtName = "attributes";
+    static readonly deletedFlagCrdtName = "deleted";
 
     delete (): void {
         this.locallyDeleted = true;
@@ -33,26 +41,31 @@ export class YataOp<T> extends crdts.CompositeCrdt {
         rightId: string,
         content: T,
         pos: number,
-        attributes?: [string, any][],
+        leftAttributesAtInput: Record<string, any>,
+        attributes: [string, any][] = [],
     ) {
         super();
         this.creatorId = creatorId;
         this.originId = originId;
         this.leftId = leftId;
         this.rightId = rightId;
-        this._deleted = this.addChild("deleted", new crdts.LwwRegister(false));
+        this._deleted = this.addChild(YataOp.deletedFlagCrdtName, new crdts.LwwRegister(false));
         this.locallyDeleted = false;
         this.content = content;
         this.pos = pos;
-        this.attributes = this.addChild("attributes",
-            new crdts.LwwPlainMap());
-        if (attributes) {
-            this.attributesArg = attributes;
-        }
+        this.attributes = this.addChild(YataOp.attributesMapCrdtName,
+            new crdts.LwwPlainMap(undefined, undefined));
+        this.attributesArg = attributes;
+        this.leftAttributesAtInput = leftAttributesAtInput;
     }
 
     init(name: string, parent: crdts.CrdtParent) {
         super.init(name, parent);
+        this.runtime.localOnly();
+        for (const [key, value] of this.attributesArg) {
+            this.attributes.set(key, value);
+        }
+        this.runtime.notLocalOnly();
     }
 }
 
@@ -79,11 +92,11 @@ interface YataEventsRecord<T> extends CrdtEventsRecord {
     FormatExisting: YataFormatExistingEvent<T>;
 }
 
-export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
+export class YataLinear<T> extends crdts.SemidirectProductRev<YataEventsRecord<T>> {
     private start: string = '';
     private end: string = '';
     readonly defaultContent: T;
-    public opMap: crdts.YjsCrdtSet<YataOp<T>, [string, string, string, T, [string, any][]?]>;
+    public opMap: crdts.YjsCrdtSet<YataOp<T>, [string, string, string, T, Record<string, any>, Record<string, any>?]>;
     private startOp: YataOp<T>;
     private endOp: YataOp<T>;
     readonly initialContentOps: YataOp<T>[];
@@ -140,10 +153,10 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
     ) {
         super();
         this.defaultContent = defaultContent;
-        this.startOp = new YataOp('', '', '', '', defaultContent, 0);
-        this.endOp = new YataOp('', '', '', '', defaultContent, Number.MAX_VALUE);
+        this.startOp = new YataOp('', '', '', '', defaultContent, 0, []);
+        this.endOp = new YataOp('', '', '', '', defaultContent, Number.MAX_VALUE, []);
         this.initialContentOps = initialContents.map((c, idx) =>
-            new YataOp('', '', '', '', c, (idx + 1) * Number.MAX_VALUE / (initialContents.length + 1)));
+            new YataOp('', '', '', '', c, (idx + 1) * Number.MAX_VALUE / (initialContents.length + 1), []));
         this.opMap = this.addChild(
             "nodeMap",
             new crdts.YjsCrdtSet((
@@ -151,7 +164,8 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
                 leftIntent: string,
                 rightIntent: string,
                 content: T,
-                attributeEntries?: [string, any][]
+                leftAttributesMapAtInput: Record<string, any>,
+                attributesMap: Record<string, any> = {}
             ) => {
                 const originId = leftIntent;
                 let leftId = leftIntent;
@@ -176,13 +190,20 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
                 }
                 const rightId = this.op(leftId).rightId;
                 const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
-                return new YataOp<T>(replicaId, originId, leftId, rightId, content, pos, attributeEntries);
+                const leftAttributesEntriesAtCreate = [...this.op(leftId).attributes.entries()];
+                for (const [key, value] of leftAttributesEntriesAtCreate) {
+                    if (attributesMap[key] !== value && attributesMap[key] === leftAttributesMapAtInput[key]) {
+                        attributesMap[key] = value;
+                    }
+                }
+                return new YataOp<T>(replicaId, originId, leftId, rightId, content, pos, leftAttributesMapAtInput, Object.entries(attributesMap));
             }, [
                 this.startOp,
                 this.endOp,
                 ...this.initialContentOps
             ]));
         this.opMap.on("Add", this.opMapAddEventHandler(this));
+        this.setupHistory(true);
     }
 
     init(name: string, parent: crdts.CrdtParent) {
@@ -210,14 +231,64 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
         this.initialContentOps.forEach(op => addInitialContentOpEventHandlers(this)(op, uidOfFn(op)));
     }
 
+    protected m1Criteria(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): boolean {
+        if (targetPath[targetPath.length - 3] === YataOp.attributesMapCrdtName) {
+            console.log("Attribute change message", targetPath);
+            console.log(this.op(targetPath[4]));
+            return true;
+        }
+        return false;
+    }
+
+    protected m2Criteria(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): boolean {
+        // return targetPath[targetPath.length - 3] !== YataOp.attributesMapCrdtName
+        //   && targetPath[targetPath.length - 3] !== YataOp.deletedFlagCrdtName;
+
+        if (targetPath[targetPath.length - 3] !== YataOp.attributesMapCrdtName
+          && targetPath[targetPath.length - 3] !== YataOp.deletedFlagCrdtName) {
+            console.log("Insertion message", targetPath);
+            return true;
+        }
+        return false;
+    }
+
+    protected action(m2TargetPath: string[], m2Timestamp: CausalTimestamp | null, m2Message: Uint8Array, m1TargetPath: string[], m1Timestamp: CausalTimestamp, m1Message: Uint8Array): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
+        console.log("ACTION!");
+        // m1: attribute change
+        // m2: insertion
+        // TODO:
+        //  1. Check if insertion is adjacent to attribute change
+        //  2. If it is, then this.receive an attribute change message to the inserted character
+        const uidOfFormattedOp = m1TargetPath[m1TargetPath.length - 1] // This is the uid of the op.
+        let m2Decoded = YjsCrdtSetMessage.decode(m2Message);
+        const uidOfInsertion = arrayAsString(DefaultElementSerializer.getInstance<[string, number]>().serialize([
+            m2Timestamp!.getSender(),
+            m2Decoded.create!.replicaUniqueNumber,
+        ]));
+        // Assumptions:
+        //  1. the formatted operation had been previously inserted because it just has to be.
+        //  2. the m2's found here had effected the local crdt state.
+        if (this.op(uidOfFormattedOp)!.rightId === uidOfInsertion) {
+            const m1TargetPathReplay = m1TargetPath.slice().concat(["nodeMap"]);
+            const attrName = m1TargetPathReplay[1].substring(2);
+            // Check if the value of this attribute in this insertion is the same as the one to its left at write time.
+            if (this.op(uidOfInsertion).attributes.get(attrName) === this.op(uidOfInsertion).leftAttributesAtInput[attrName]) {
+                m1TargetPathReplay[m1TargetPathReplay.length - 2] = uidOfInsertion;
+                this.receive(m1TargetPathReplay, m1Timestamp, m1Message);
+            }
+        }
+        return { m1TargetPath, m1Message};
+    }
+
     private insert (
         replicaId: string,
         leftIntent: string,
         rightIntent: string,
         content: T,
-        attributeEntries?: [string, any][]
+        leftAttributeEntries: Record<string, any>,
+        attributeEntries?: Record<string, any>
     ): string {
-        return this.opMap.uidOf(this.opMap.create(replicaId, leftIntent, rightIntent, content, attributeEntries));
+        return this.opMap.uidOf(this.opMap.create(replicaId, leftIntent, rightIntent, content, leftAttributeEntries, attributeEntries));
     }
 
     private delete (id: string): void {
@@ -308,11 +379,13 @@ export class YataLinear<T> extends crdts.CompositeCrdt<YataEventsRecord<T>> {
             replicaId,
             idLeftOfCursor,
             this.op(idLeftOfCursor).rightId,
-            content
+            content,
+            Object.fromEntries([...this.op(idLeftOfCursor).attributes.entries()]),
+            attributeObj
         );
-        if (attributeObj) {
-            this.changeAttributes(uid, attributeObj);
-        }
+        // if (attributeObj) {
+        //     this.changeAttributes(uid, attributeObj);
+        // }
     }
 
     deleteByIdx (
