@@ -1,4 +1,4 @@
-import { MvrMessage } from "../../../generated/proto_compiled";
+import { MvrMessage, MvrSave } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { ResettableEventsRecord } from "../helper_crdts";
@@ -148,5 +148,31 @@ export class MultiValueRegister<T> extends PrimitiveCrdt<
 
   canGc() {
     return this.state.length === 0;
+  }
+
+  savePrimitive(): Uint8Array {
+    const message = MvrSave.create({
+      elements: this.state.map((entry) => {
+        return {
+          value: this.valueSerializer.serialize(entry.value),
+          sender: entry.sender,
+          senderCounter: entry.senderCounter,
+          time: entry.time,
+        };
+      }),
+    });
+    return MvrSave.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    const message = MvrSave.decode(saveData);
+    for (let element of message.elements) {
+      this.state.push({
+        value: this.valueSerializer.deserialize(element.value, this.runtime),
+        sender: element.sender,
+        senderCounter: element.senderCounter,
+        time: element.time,
+      });
+    }
   }
 }

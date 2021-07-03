@@ -117,4 +117,20 @@ export class CompositeCrdt<
     }
     return true;
   }
+
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
+    return [this.saveComposite(), this.children];
+  }
+
+  saveComposite(): Uint8Array {
+    return new Uint8Array();
+  }
+
+  load(saveData: Uint8Array) {
+    this.loadComposite(saveData);
+  }
+
+  loadComposite(saveData: Uint8Array) {}
+
+  // You can also choose to override postLoad().
 }

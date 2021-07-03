@@ -7,7 +7,12 @@ import {
   DefaultCausalBroadcastNetwork,
   isCausalBroadcastNetwork,
 } from "../../net";
-import { arrayAsString, EventEmitter, stringAsArray } from "../../util";
+import {
+  arrayAsString,
+  ElementSerializer,
+  EventEmitter,
+  stringAsArray,
+} from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
 import { Crdt, CrdtEventsRecord } from "./crdt";
 import { CrdtParent } from "./interfaces";
@@ -312,6 +317,10 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       currentCrdt = currentCrdt.getChild(pathToRoot[i]);
     }
     return currentCrdt;
+  }
+
+  get timestampSerializer(): ElementSerializer<CausalTimestamp> {
+    return this.network;
   }
 
   private idCounter = 0;

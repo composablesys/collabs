@@ -324,6 +324,15 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     return this.runtime;
   }
 
+  serialize(value: CausalTimestamp): Uint8Array {
+    // TODO: make reasonable (don't use myMessage)
+    return new myMessage(new Uint8Array(), value as VectorClock).serialize();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): CausalTimestamp {
+    return myMessage.deserialize(message, runtime.replicaId).timestamp;
+  }
+
   readonly isCausalBroadcastNetwork: true = true;
 
   static timestampOf(_message: Uint8Array) {

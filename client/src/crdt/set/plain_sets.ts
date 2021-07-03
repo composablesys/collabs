@@ -1,3 +1,4 @@
+import { GPlainSetSave } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
@@ -179,6 +180,22 @@ export class GPlainSet<T>
 
   canGc(): boolean {
     return this.state.size === 0;
+  }
+
+  savePrimitive(): Uint8Array {
+    // TODO: elements as repeated string instead of
+    // repeated bytes?  Only if guaranteed to be UTF-8.
+    const message = GPlainSetSave.create({
+      elements: [...this.state].map((value) => stringAsArray(value)),
+    });
+    return GPlainSetSave.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    const message = GPlainSetSave.decode(saveData);
+    for (let element of message.elements) {
+      this.state.add(arrayAsString(element));
+    }
   }
 
   forEach(

@@ -29,4 +29,10 @@ export class NoopCrdt extends PrimitiveCrdt<NoopState> implements Resettable {
   canGc() {
     return true;
   }
+
+  savePrimitive(): Uint8Array {
+    return new Uint8Array();
+  }
+
+  loadPrimitive(_saveData: Uint8Array) {}
 }

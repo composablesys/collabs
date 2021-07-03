@@ -2,6 +2,7 @@
 // (causal broadcast network, etc.) and the Crdts.
 
 import { Runtime } from "../crdt";
+import { ElementSerializer } from "../util";
 
 /**
  * Interface describing the causal timestamps that
@@ -59,7 +60,8 @@ export interface CausalTimestamp {
  * replicas, reliably, in causal order, and
  * tagged with causal timestamps.
  */
-export interface CausalBroadcastNetwork {
+export interface CausalBroadcastNetwork
+  extends ElementSerializer<CausalTimestamp> {
   /**
    * Registers the given Runtime to receive messages
    * from other replicas.  Such messages should be delivered

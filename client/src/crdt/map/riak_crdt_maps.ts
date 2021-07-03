@@ -286,6 +286,12 @@ export class ImplicitCrdtMap<K, C extends Crdt>
      */
     return this.nontrivialMap.size === 0;
   }
+
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
+    return [new Uint8Array(), this.nontrivialMap];
+  }
+
+  load(_saveData: Uint8Array) {}
 }
 
 export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {

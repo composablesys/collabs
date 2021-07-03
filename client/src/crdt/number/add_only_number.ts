@@ -1,4 +1,7 @@
-import { GAddOnlyNumberMessage } from "../../../generated/proto_compiled";
+import {
+  GAddOnlyNumberMessage,
+  GAddOnlyNumberSave,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import { CompositeCrdt, PrimitiveCrdt } from "../core";
 import { Number, NumberEventsRecord } from "./interfaces";
@@ -110,6 +113,24 @@ class GAddOnlyNumber extends PrimitiveCrdt<
 
   canGc() {
     return this.state.P.size === 0 && this.state.N.size === 0;
+  }
+
+  savePrimitive(): Uint8Array {
+    const message = GAddOnlyNumberSave.create({
+      P: Object.fromEntries(this.state.P.entries()),
+      N: Object.fromEntries(this.state.N.entries()),
+    });
+    return GAddOnlyNumberSave.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    const message = GAddOnlyNumberSave.decode(saveData);
+    for (const [key, value] of Object.entries(message.P)) {
+      this.state.P.set(key, value);
+    }
+    for (const [key, value] of Object.entries(message.N)) {
+      this.state.N.set(key, value);
+    }
   }
 }
 

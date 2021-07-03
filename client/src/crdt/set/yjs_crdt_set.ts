@@ -1,4 +1,7 @@
-import { YjsCrdtSetMessage } from "../../../generated/proto_compiled";
+import {
+  YjsCrdtSetMessage,
+  YjsCrdtSetSave,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
@@ -38,6 +41,7 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
 {
   // TODO: rename
   private readonly children: Map<string, C> = new Map();
+  private readonly constructorArgs: Map<string, Uint8Array> = new Map();
   private initialValues: C[] | undefined;
   // TODO: for initialValues: give directly, or give args?
   constructor(
@@ -69,6 +73,10 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
       newCrdt.init(name, this);
       this.childBeingAdded = undefined;
 
+      // Initial values are not added to this.constructorArgs,
+      // since they are passed to the constructor, hence
+      // do not need to be saved.
+
       // TODO: is this needed?
       this.emit("ValueInit", { value: newCrdt });
     }
@@ -98,26 +106,13 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
       let decoded = YjsCrdtSetMessage.decode(message);
       switch (decoded.op) {
         case "create":
-          const args = this.argsSerializer.deserialize(
-            decoded.create!.args,
-            this.runtime
-          );
-          const newCrdt = this.valueCrdtConstructor(...args);
-          // Add as child with "[sender, counter]" as id.
-          // Similar to CompositeCrdt#addChild.
-          let name = arrayAsString(
+          const name = arrayAsString(
             YjsCrdtSet.nameSerializer.serialize([
               timestamp.getSender(),
               decoded.create!.replicaUniqueNumber,
             ])
           );
-          if (this.children.has(name)) {
-            throw new Error('Duplicate newCrdt name: "' + name + '"');
-          }
-          this.children.set(name, newCrdt);
-          this.childBeingAdded = newCrdt;
-          newCrdt.init(name, this);
-          this.childBeingAdded = undefined;
+          const newCrdt = this.receiveCreate(name, decoded.create!.args);
 
           this.emit("ValueInit", { value: newCrdt });
           this.emit("Add", { value: newCrdt, timestamp });
@@ -130,6 +125,7 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
           const valueCrdt = this.children.get(decoded.delete);
           if (valueCrdt !== undefined) {
             this.children.delete(decoded.delete);
+            this.constructorArgs.delete(decoded.delete);
             this.emit("Delete", { value: valueCrdt, timestamp });
           }
           break;
@@ -157,6 +153,25 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
       targetPath.length--;
       child.receive(targetPath, timestamp, message);
     }
+  }
+
+  private receiveCreate(name: string, serializedArgs: Uint8Array): C {
+    const args = this.argsSerializer.deserialize(serializedArgs, this.runtime);
+    const newCrdt = this.valueCrdtConstructor(...args);
+    // Add as child with "[sender, counter]" as id.
+    // Similar to CompositeCrdt#addChild.
+    if (this.children.has(name)) {
+      throw new Error('Duplicate newCrdt name: "' + name + '"');
+    }
+    this.children.set(name, newCrdt);
+    this.childBeingAdded = newCrdt;
+    newCrdt.init(name, this);
+    this.childBeingAdded = undefined;
+
+    // Record args for later save calls
+    this.constructorArgs.set(name, serializedArgs);
+
+    return newCrdt;
   }
 
   getChild(name: string): Crdt {
@@ -288,5 +303,31 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
 
   keys(): IterableIterator<C> {
     return this.values();
+  }
+
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
+    const saveMessage = YjsCrdtSetSave.create({
+      constructorArgs: [...this.constructorArgs].map(([name, args]) => {
+        return {
+          name,
+          args,
+        };
+      }),
+    });
+    return [YjsCrdtSetSave.encode(saveMessage).finish(), this.children];
+  }
+
+  load(saveData: Uint8Array) {
+    const saveMessage = YjsCrdtSetSave.decode(saveData);
+    // Construct the children in the order given in
+    // saveMessage, which is the same as the order they
+    // were created on this replica.  That means that
+    // if deserializing the createArgs causes getChild
+    // to be called on this, that child will have
+    // already been initialized, so the call will
+    // succeed uneventfully.
+    for (const { name, args } of saveMessage.constructorArgs) {
+      this.receiveCreate(name, args);
+    }
   }
 }
