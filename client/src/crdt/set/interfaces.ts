@@ -1,25 +1,97 @@
 import { Resettable, ResettableEventsRecord } from "../helper_crdts";
-import { Crdt, CrdtEvent } from "../core";
+import { CrdtEvent } from "../core";
 
 export interface SetEvent<T> extends CrdtEvent {
   value: T;
 }
 
-export interface PlainSetEventsRecord<T> extends ResettableEventsRecord {
+/**
+ * Note that this doesn't extend CrdtEvent, because
+ * values may be initialized independently of
+ * operations/message delivery, in which case there is
+ * no associated timestamp.
+ */
+export interface SetInitEvent<T> {
+  value: T;
+}
+
+export interface CSetEventsRecord<T> extends ResettableEventsRecord {
   Add: SetEvent<T>;
   Delete: SetEvent<T>;
+  /**
+   * TODO: should this be included by default, or just
+   * added by implementations for which it makes sense
+   * (currently just CrdtSet-like implementations)?
+   *
+   * Emitted when a value is constructed.
+   * Use this when values are objects and you need to
+   * do something with the objects themselves, not just
+   * an equal copy.  E.g., registering event listeners
+   * on Crdt values.
+   *
+   * Note that this may be called multiple times for the
+   * same value (if a value is GC'd and then
+   * reconstructed), it may not correspond precisely
+   * to Add events, and it may be called independently of
+   * operations/message delivery.
+   */
+  ValueInit: SetInitEvent<T>;
 }
 
 /**
- * A set of plain values of type T, supporting add and
+ * A set of values of type T, supporting add and
  * delete with any semantics.
+ *
+ * Initially, values must be added using the add method.
+ * This method inputs AddArgs and sends them to every
+ * replica in serialized form; every replica then uses
+ * them to contruct the actual added value of type T,
+ * e.g., using a user-supplied callback in the constructor.
+ * Added values can later be deleted and restored, changing
+ * their presence in the set, using any semantics to
+ * resolve conflicts.
  */
-export interface PlainSet<
+export interface CSet<
   T,
-  Events extends PlainSetEventsRecord<T> = PlainSetEventsRecord<T>
-> extends Resettable<Events>,
-    Set<T> {
-  add(value: T): this;
+  AddArgs extends any[] = [],
+  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+> extends Resettable<Events> {
+  /**
+   * Sends args to every replica in serialized form.
+   * Every replica then uses
+   * them to contruct the actual added value of type T,
+   *
+   * If you want to make a value of type T present in the set
+   * after it has been deleted, instead use restore.
+   *
+   * @return the added value
+   */
+  add(...args: AddArgs): T;
+
+  /**
+   * Makes the given value present in the set.
+   *
+   * This method can be used to restore deleted elements, but
+   * it cannot add new elements to the set.
+   */
+  restore(value: T): this;
+
+  /**
+   * Returns whether value was deleted.  May be false either
+   * because value was not present, or because the semantics
+   * did not delete value.
+   */
+  delete(value: T): boolean;
+
+  has(value: T): boolean;
+
+  // TODO: include owns?
+  // /**
+  //  * Returns true if valueCrdt is owned by this CrdtSet,
+  //  * i.e., it resulted from a create operation on this.
+  //  */
+  // owns(valueCrdt: C): boolean;
+
   /**
    * Delete every value in this set.
    *
@@ -27,25 +99,27 @@ export interface PlainSet<
    * than reset.
    */
   clear(): void;
-  /**
-   * Returns whether value was deleted.  May be false either
-   * because value was not present, or because the semantics
-   * did not delete value.
-   */
-  delete(value: T): boolean;
-  has(value: T): boolean;
+
   readonly size: number;
+
+  // TODO: of the remaining methods/properties, only
+  // values() is really necessary.  The rest
+  // (forEach, entries, keys, Symbol.iterator) are just
+  // included for consistency with the native JS Set.
 
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
     thisArg?: any
   ): void;
+
   /** Iterates over values in the set.  Order is not eventually consistent. */
   [Symbol.iterator](): IterableIterator<T>;
+
   /**
    * Returns an iterable of [v,v] pairs for every value `v` in the set. Order is not eventually consistent.
    */
   entries(): IterableIterator<[T, T]>;
+
   /**
    * Despite its name, returns an iterable of the values in the set. Order is not eventually consistent.
    */
@@ -55,103 +129,46 @@ export interface PlainSet<
    * Returns an iterable of values in the set. Order is not eventually consistent.
    */
   values(): IterableIterator<T>;
-
-  readonly [Symbol.toStringTag]: string;
 }
 
-/**
- * Note that this doesn't extend CrdtEvent, because
- * values may be initialized independently of
- * operations/message delivery, in which case there is
- * no associated timestamp.
- */
-export interface SetInitEvent<C extends Crdt> {
-  value: C;
-}
-
-export interface CrdtSetEventsRecord<C extends Crdt>
-  extends ResettableEventsRecord {
-  Add: SetEvent<C>;
-  Delete: SetEvent<C>;
-  /**
-   * Emitted when a valueCrdt is constructed.
-   * Use this to register event listeners on valueCrdts.
-   * Note that this may be called multiple times for the
-   * same key (if a valueCrdt is GC'd and then
-   * reconstructed), it may not correspond precisely
-   * to Add events, and it may be called independently of
-   * operations/message delivery.
-   */
-  ValueInit: SetInitEvent<C>;
-}
-
-/**
- * A set of value Crdts of type C, representing a set of
- * mutable values of the type represented by C.
- *
- * Value Crdts created externally cannot be added to
- * a CrdtSet; instead, they must be created (on some replica)
- * by calling create, after which they can be mutated into
- * the desired state.  All methods except owns throw an error if
- * called with a value Crdt that is not owned by this CrdtSet,
- * i.e., it resulted from a create operation on this.
- *
- * Value Crdts can still be deleted and restored.  That affects
- * their membership in the set, as indicated by has() and
- * the iterators, but they will always remain owned by this set.
- */
-export interface CrdtSet<
-  C extends Crdt,
-  CreateArgs extends any[] = [],
-  Events extends CrdtSetEventsRecord<C> = CrdtSetEventsRecord<C>
-> extends Resettable<Events> {
-  /**
-   * Create a new value Crdt and add it to the set.
-   * Typically, this will call a user-supplied
-   * valueCrdtConstructor with the given args.
-   *
-   * @return the created value Crdt
-   */
-  create(...args: CreateArgs): C;
-  /**
-   * Makes the given valueCrdt present in the set.
-   *
-   * This method can be used to restore deleted elements, but
-   * it cannot add new elements to the set.
-   */
-  restore(valueCrdt: C): this;
-  /**
-   * Delete every value in this set.
-   *
-   * Note that this may be a different semantics
-   * than reset.
-   */
-  clear(): void;
-  delete(valueCrdt: C): boolean;
-
-  // TODO: forEach (w/ or w/o concurrently added)
-
-  /**
-   * Returns true if valueCrdt is owned by this CrdtSet,
-   * i.e., it resulted from a create operation on this.
-   */
-  owns(valueCrdt: C): boolean;
-  has(valueCrdt: C): boolean;
-  readonly size: number;
-
-  /** Iterates over value Crdts in the set.  Order is not eventually consistent. */
-  [Symbol.iterator](): IterableIterator<C>;
-  /**
-   * Returns an iterable of [c,c] pairs for every value Crdt `c` in the set. Order is not eventually consistent.
-   */
-  entries(): IterableIterator<[C, C]>;
-  /**
-   * Despite its name, returns an iterable of the value Crdts in the set. Order is not eventually consistent.
-   */
-  keys(): IterableIterator<C>;
-
-  /**
-   * Returns an iterable of value Crdts in the set. Order is not eventually consistent.
-   */
-  values(): IterableIterator<C>;
-}
+// In terms of this interface, the old PlainSet interface is
+// approximately as follows:
+//     interface PlainSet<T> extends CSet<T, [T]> {}
+// The only difference is CSet's extra "restore" method,
+// which I expect PlainSet-like implementations to treat
+// the same as add.
+//
+// The old CrdtSet interface is approximately as follows:
+//     interface CrdtSet<C extends Crdt, AddArgs extends any[]> extends CSet<C, AddArgs>
+// The only differences are that CSet has "add" instead of
+// "create", and that CSet omits the "owns" method,
+// which I expect CrdtSet-like implementations to add back
+// anyway.
+//
+// The difference between "PlainSets" and "CrdtSets" then
+// becomes internal, instead of appearing in the interface.
+// In particular:
+// - CrdtSet-like implementations will take a valueConstructor
+// callback as a constructor argument, with type
+// (...args: AddArgs) => T.  PlainSet-like implementations
+// will take no such argument, instead using AddArgs
+// (of type [T]) directly to get the added value.
+// - CrdtSet-like implementations with Crdt value types will
+// make created values be their children, in the runtime
+// Crdt tree.
+//   - In the future, this will be accomplished by
+// giving a special parameter to the valueConstructor that
+// can be passed to the Crdt's own constructor, which
+// registers the value as the CSet's child.  So from the user's
+// perspective, the key difference is that CrdtSet-like
+// implementations will give you this special parameter
+// as an argument to valueConstructor, in addition to AddArgs,
+// which makes it possible for valueConstructor to construct
+// new Crdt's.
+//   - In principle, we could have CSet implementations which
+// take nontrivial AddArgs instead of just adding T and which treat all
+// added values as unique (like a CrdtSet), but which don't
+// assume that T extends Crdt and don't make created values
+// be their children (like a PlainSet).  Not sure what the
+// use case for that would be, though, except possibly as
+// a building block for true CrdtSets.
