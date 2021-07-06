@@ -1,5 +1,9 @@
 import cryptoRandomString from "crypto-random-string";
-import { RuntimeMessage } from "../../../generated/proto_compiled";
+import {
+  IRuntimeOneSave,
+  RuntimeMessage,
+  RuntimeSave,
+} from "../../../generated/proto_compiled";
 import {
   BroadcastNetwork,
   CausalBroadcastNetwork,
@@ -343,5 +347,60 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     const ans = this.idCounter;
     this.idCounter += count;
     return ans;
+  }
+
+  /**
+   * TODO: usage / restrictions.
+   *
+   * TODO: future work: thread friendly (option to sleep/yield
+   * occasionally, blocking messages while doing so);
+   * incremental saving (use the needsSaving flags to
+   * only update saved parts in some big map, e.g.,
+   * for local storage), if needed for large programs.
+   * @return [description]
+   */
+  save(): Uint8Array {
+    const saves: IRuntimeOneSave[] = [];
+    this.saveRecursive(this.rootCrdt, 0, saves);
+    const message = RuntimeSave.create({ saves });
+    return RuntimeSave.encode(message).finish();
+  }
+
+  /**
+   * Save crdt and all of its descendants, appending the
+   * results to saves.
+   * @param  crdt  [description]
+   * @param  saves [description]
+   * @return       [description]
+   */
+  private saveRecursive(
+    crdt: Crdt,
+    parentPointer: number,
+    saves: IRuntimeOneSave[]
+  ) {
+    const [saveData, children] = crdt.save();
+    const crdtPointer = saveData.length + 1;
+    saves.push({ parentPointer, name: stringAsArray(crdt.name), saveData });
+    // Recurse
+    for (let child of children.values()) {
+      this.saveRecursive(child, crdtPointer, saves);
+    }
+  }
+
+  /**
+   * TODO: usage / restrictions.
+   *
+   * TODO: future work: thread friendly (option to sleep/yield
+   * occasionally, blocking messages while doing so;
+   * also tell caller not to read anything until done);
+   * does incremental loading (only changed Crdts) make sense?
+   * @param  saveData [description]
+   */
+  load(saveData: Uint8Array) {
+    const message = RuntimeSave.decode(saveData);
+    // We need to store enough info that getCrdtByReference
+    // can load a Crdt before calling getChild on it, even if
+    // that happens during loading of
+    // another Crdt.
   }
 }

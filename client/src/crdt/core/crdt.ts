@@ -191,6 +191,12 @@ export abstract class Crdt<
    * Returns whether this Crdt needs saving, specifically,
    * whether any messages have been received (including
    * for descendants) since the last call to this method.
+   *
+   * TODO: allow overriding if you know better?  Or, option
+   * for save to return null for saveData if only children
+   * need to be updated?  E.g. if you change a single attribute
+   * in a YjsCrdtSet rich text.  Although usually you'd be
+   * changing characters, so this is moot.
    */
   getAndResetNeedsSaving(): boolean {
     const ans = this.needsSaving;
