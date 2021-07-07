@@ -356,4 +356,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   notLocalOnly() {
     this._local = false;
   }
+
+  get isLocal () {
+    return this._local;
+  }
 }

@@ -138,13 +138,15 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<YataEventsRecord<T
         // Register event handler for YataOp.attributes "set" event
         newOp.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
         const isLocal = timestamp.getSender() === yata.runtime.replicaId;
-        yata.emit("Insert", {
+        const insertEvent = {
             uid,
             idx: yata.getIdxOfId(uid),
             newOp,
             timestamp,
             isLocal
-        })
+        };
+        yata.emit("Insert", insertEvent)
+        yata.trackM2Event(timestamp, "Insert", insertEvent);
     };
 
     constructor (
@@ -233,8 +235,6 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<YataEventsRecord<T
 
     protected m1Criteria(targetPath: string[], timestamp: CausalTimestamp, message: Uint8Array): boolean {
         if (targetPath[targetPath.length - 3] === YataOp.attributesMapCrdtName) {
-            console.log("Attribute change message", targetPath);
-            console.log(this.op(targetPath[4]));
             return true;
         }
         return false;
@@ -246,25 +246,24 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<YataEventsRecord<T
 
         if (targetPath[targetPath.length - 3] !== YataOp.attributesMapCrdtName
           && targetPath[targetPath.length - 3] !== YataOp.deletedFlagCrdtName) {
-            console.log("Insertion message", targetPath);
             return true;
         }
         return false;
     }
 
-    protected action(m2TargetPath: string[], m2Timestamp: CausalTimestamp | null, m2Message: Uint8Array, m1TargetPath: string[], m1Timestamp: CausalTimestamp, m1Message: Uint8Array): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-        console.log("ACTION!");
+    protected action(m2TargetPath: string[], m2Timestamp: CausalTimestamp, m2Message: Uint8Array, m2TrackedEvents: [string, any][], m1TargetPath: string[], m1Timestamp: CausalTimestamp, m1Message: Uint8Array): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
         // m1: attribute change
         // m2: insertion
-        // TODO:
-        //  1. Check if insertion is adjacent to attribute change
-        //  2. If it is, then this.receive an attribute change message to the inserted character
+        // 1. Check if insertion is adjacent to attribute change
+        // 2. If it is, then this.receive an attribute change message to the inserted character
         const uidOfFormattedOp = m1TargetPath[m1TargetPath.length - 1] // This is the uid of the op.
-        let m2Decoded = YjsCrdtSetMessage.decode(m2Message);
-        const uidOfInsertion = arrayAsString(DefaultElementSerializer.getInstance<[string, number]>().serialize([
-            m2Timestamp!.getSender(),
-            m2Decoded.create!.replicaUniqueNumber,
-        ]));
+        let m2Insertion: YataInsertEvent<string>;
+        for (let event of m2TrackedEvents) {
+            if (event[0] === "Insert") {
+                m2Insertion = event[1] as YataInsertEvent<string>;
+            }
+        }
+        const uidOfInsertion = m2Insertion!.uid;
         // Assumptions:
         //  1. the formatted operation had been previously inserted because it just has to be.
         //  2. the m2's found here had effected the local crdt state.
