@@ -5,7 +5,8 @@ import {
   CausalBroadcastNetwork,
   CausalTimestamp,
   DefaultCausalBroadcastNetwork,
-  isCausalBroadcastNetwork, VectorClock,
+  isCausalBroadcastNetwork,
+  VectorClock,
 } from "../../net";
 import { arrayAsString, EventEmitter, stringAsArray } from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
@@ -165,11 +166,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
     if (this._local) {
-      timestamp = new VectorClock(
-        this.replicaId,
-        true,
-        this.previousTime
-      );
+      timestamp = new VectorClock(this.replicaId, true, this.previousTime);
 
       // Deliver to self, synchronously
       // TODO: error handling
@@ -198,7 +195,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       this.previousTime = timestamp.getTime();
       this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
 
-
       // Add to the pending batch
       let pointer = this.getOrCreatePointer(sender);
       this.pendingBatch.messages.push({
@@ -214,7 +210,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
       }
     }
-
   }
 
   private getOrCreatePointer(to: Crdt | RootCrdt): number {
@@ -357,7 +352,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     this._local = false;
   }
 
-  get isLocal () {
+  get isLocal() {
     return this._local;
   }
 }

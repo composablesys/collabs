@@ -1,5 +1,12 @@
 import { CausalTimestamp } from "../../net";
-import {CompositeCrdt, Crdt, CrdtEvent, CrdtEventsRecord, CrdtParent, StatefulCrdt} from "../core";
+import {
+  CompositeCrdt,
+  Crdt,
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtParent,
+  StatefulCrdt,
+} from "../core";
 import { LocallyResettableState } from "./resettable";
 
 // TODO: revise this file.
@@ -9,19 +16,16 @@ import { LocallyResettableState } from "./resettable";
 
 class StoredMessage {
   constructor(
-      readonly senderCounter: number,
-      readonly receiptCounter: number,
-      readonly targetPath: string[],
-      readonly timestamp: CausalTimestamp | null,
-      readonly message: Uint8Array
+    readonly senderCounter: number,
+    readonly receiptCounter: number,
+    readonly targetPath: string[],
+    readonly timestamp: CausalTimestamp | null,
+    readonly message: Uint8Array
   ) {}
 }
 
 export class StoredMessageEvent {
-  constructor(
-    readonly eventName: string,
-    readonly event: any,
-  ) {}
+  constructor(readonly eventName: string, readonly event: any) {}
 }
 
 // TODO: future opts: indexed messages; setting the history
@@ -41,8 +45,7 @@ export class StoredMessageEvent {
 // TODO: In runtime, add an untrackMessageEvents() method that removes `${timestamp.getSender()}{timestamp.asVectorClock().get(timestamp.getSender())}` from the mapping.
 // TODO: In Crdt's omit, call addMessageEventIfTracked()
 
-class SemidirectHistory<Events extends CrdtEventsRecord>
-{
+class SemidirectHistory<Events extends CrdtEventsRecord> {
   protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
@@ -53,19 +56,19 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
   protected history: Map<string, Array<StoredMessage>> = new Map();
   protected messageEvents: Map<string, Array<StoredMessageEvent>> = new Map();
   constructor(
-      private readonly historyTimestamps: boolean,
-      private readonly historyDiscard1Dominated: boolean,
-      private readonly historyDiscard2Dominated: boolean
+    private readonly historyTimestamps: boolean,
+    private readonly historyDiscard1Dominated: boolean,
+    private readonly historyDiscard2Dominated: boolean
   ) {}
   /**
    * Add message to the history with the given timestamp.
    * replicaId is our replica id.
    */
   add(
-      replicaId: string,
-      targetPath: string[],
-      timestamp: CausalTimestamp,
-      message: Uint8Array
+    replicaId: string,
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
   ) {
     if (this.historyDiscard2Dominated) {
       this.processTimestamp(replicaId, timestamp, false, true);
@@ -76,16 +79,19 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
       this.history.set(timestamp.getSender(), senderHistory);
     }
     senderHistory.push(
-        new StoredMessage(
-            timestamp.getSenderCounter(),
-            this.receiptCounter,
-            targetPath,
-            this.historyTimestamps ? timestamp : null,
-            message
-        )
+      new StoredMessage(
+        timestamp.getSenderCounter(),
+        this.receiptCounter,
+        targetPath,
+        this.historyTimestamps ? timestamp : null,
+        message
+      )
     );
     // Start tracking message events
-    this.messageEvents.set(`${timestamp.getSender()}${timestamp.getSenderCounter()}`, []);
+    this.messageEvents.set(
+      `${timestamp.getSender()}${timestamp.getSenderCounter()}`,
+      []
+    );
     this.receiptCounter++;
   }
 
@@ -99,10 +105,10 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
    */
   getConcurrent(replicaId: string, timestamp: CausalTimestamp) {
     return this.processTimestamp(
-        replicaId,
-        timestamp,
-        true,
-        this.historyDiscard1Dominated
+      replicaId,
+      timestamp,
+      true,
+      this.historyDiscard1Dominated
     );
   }
 
@@ -119,17 +125,19 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
    * this method.)
    */
   private processTimestamp(
-      replicaId: string,
-      timestamp: CausalTimestamp,
-      returnConcurrent: boolean,
-      discardDominated: boolean
+    replicaId: string,
+    timestamp: CausalTimestamp,
+    returnConcurrent: boolean,
+    discardDominated: boolean
   ) {
     if (replicaId === timestamp.getSender()) {
       if (discardDominated) {
         for (let historyEntry of this.history.entries()) {
           for (let message of historyEntry[1]) {
             // Stop tracking message events
-            this.messageEvents.delete(`${message.timestamp!.getSender()}${message.timestamp!.getSenderCounter()}`);
+            this.messageEvents.delete(
+              `${message.timestamp!.getSender()}${message.timestamp!.getSenderCounter()}`
+            );
           }
         }
         // Nothing's concurrent, so clear everything
@@ -148,8 +156,8 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
         let concurrentIndexStart = SemidirectHistory.indexAfter(
-            senderHistory,
-            vcEntry
+          senderHistory,
+          vcEntry
         );
         if (returnConcurrent) {
           for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
@@ -159,7 +167,11 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
         if (discardDominated) {
           for (let i = 0; i < concurrentIndexStart; i++) {
             // Stop tracking message events
-            this.messageEvents.delete(`${senderHistory[i].timestamp!.getSender()}${senderHistory[i].timestamp!.getSenderCounter()}`);
+            this.messageEvents.delete(
+              `${senderHistory[i].timestamp!.getSender()}${senderHistory[
+                i
+              ].timestamp!.getSenderCounter()}`
+            );
           }
           // Keep only the messages with index
           // >= concurrentIndexStart
@@ -199,8 +211,8 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
    * value.
    */
   private static indexAfter(
-      sparseArray: Array<StoredMessage>,
-      value: number
+    sparseArray: Array<StoredMessage>,
+    value: number
   ): number {
     // TODO: binary search when sparseArray is large
     // Note that there may be duplicate timestamps.
@@ -214,13 +226,21 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
   }
 
   addMessageEvent(timestamp: CausalTimestamp, eventName: string, event: any) {
-    if (this.messageEvents.has(`${timestamp.getSender()}${timestamp.getSenderCounter()}`)) {
-      this.messageEvents.get(`${timestamp.getSender()}${timestamp.getSenderCounter()}`)!
+    if (
+      this.messageEvents.has(
+        `${timestamp.getSender()}${timestamp.getSenderCounter()}`
+      )
+    ) {
+      this.messageEvents
+        .get(`${timestamp.getSender()}${timestamp.getSenderCounter()}`)!
         .push(new StoredMessageEvent(eventName, event));
     }
   }
 
-  getMessageEvents(sender: string, senderCounter: number): StoredMessageEvent[] | null {
+  getMessageEvents(
+    sender: string,
+    senderCounter: number
+  ): StoredMessageEvent[] | null {
     if (this.messageEvents.has(`${sender}${senderCounter}`)) {
       return this.messageEvents.get(`${sender}${senderCounter}`)!;
     }
@@ -248,32 +268,30 @@ class SemidirectHistory<Events extends CrdtEventsRecord>
 export abstract class SemidirectProductRev<
     Events extends CrdtEventsRecord = CrdtEventsRecord,
     C extends Crdt = Crdt
-    >
-    extends CompositeCrdt<Events, C>
-    implements CrdtParent
+  >
+  extends CompositeCrdt<Events, C>
+  implements CrdtParent
 {
-  protected history = new SemidirectHistory(
-    false,
-    false,
-    false
-  );
+  protected history = new SemidirectHistory(false, false, false);
   private receivedMessages = false;
 
   protected setupHistory(
-      historyTimestamps: boolean = false,
-      historyDiscard1Dominated: boolean = false,
-      historyDiscard2Dominated: boolean = false,
+    historyTimestamps: boolean = false,
+    historyDiscard1Dominated: boolean = false,
+    historyDiscard2Dominated: boolean = false
   ) {
     if (this.receivedMessages) {
-      throw new Error("Tried to set up after messages have been received. " +
-          "Make sure that this method is called in the constructor.");
+      throw new Error(
+        "Tried to set up after messages have been received. " +
+          "Make sure that this method is called in the constructor."
+      );
     }
     this.history = new SemidirectHistory(
-        historyTimestamps,
-        historyDiscard1Dominated,
-        historyDiscard2Dominated
+      historyTimestamps,
+      historyDiscard1Dominated,
+      historyDiscard2Dominated
     );
-  };
+  }
 
   protected trackM2Event(
     timestamp: CausalTimestamp,
@@ -284,17 +302,17 @@ export abstract class SemidirectProductRev<
   }
 
   protected m1Criteria(
-      targetPath: string[],
-      timestamp: CausalTimestamp,
-      message: Uint8Array
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
   ) {
     return false;
   }
 
   protected m2Criteria(
-      targetPath: string[],
-      timestamp: CausalTimestamp,
-      message: Uint8Array
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
   ) {
     return false;
   }
@@ -309,21 +327,21 @@ export abstract class SemidirectProductRev<
    * @return              [description]
    */
   protected action(
-      m2TargetPath: string[],
-      m2Timestamp: CausalTimestamp | null,
-      m2Message: Uint8Array,
-      m2TrackedEvents: [string, any][],
-      m1TargetPath: string[],
-      m1Timestamp: CausalTimestamp,
-      m1Message: Uint8Array
+    m2TargetPath: string[],
+    m2Timestamp: CausalTimestamp | null,
+    m2Message: Uint8Array,
+    m2TrackedEvents: [string, any][],
+    m1TargetPath: string[],
+    m1Timestamp: CausalTimestamp,
+    m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    return { m1TargetPath, m1Message}
-  };
+    return { m1TargetPath, m1Message };
+  }
 
   protected receiveInternal(
-      targetPath: string[],
-      timestamp: CausalTimestamp,
-      message: Uint8Array
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
   ) {
     this.receivedMessages = this.receivedMessages || true;
     if (targetPath.length === 0) {
@@ -335,11 +353,11 @@ export abstract class SemidirectProductRev<
     if (child === undefined) {
       throw new Error(
         "Unknown child: " +
-        targetPath[targetPath.length - 1] +
-        " in: " +
-        JSON.stringify(targetPath) +
-        ", children: " +
-        JSON.stringify([...this.children.keys()])
+          targetPath[targetPath.length - 1] +
+          " in: " +
+          JSON.stringify(targetPath) +
+          ", children: " +
+          JSON.stringify([...this.children.keys()])
       );
     }
     switch (true) {
@@ -348,22 +366,24 @@ export abstract class SemidirectProductRev<
       // a modified m1, which is then relayed locally. Thus, the semidirect product may need to locally resend some
       // form of m1 to modify m1 properly, while there should be no need to resend m2.
       // TODO: Work on this argument more.
-      case this.m2Criteria(targetPath, timestamp, message) && !this.runtime.isLocal:
+      case this.m2Criteria(targetPath, timestamp, message) &&
+        !this.runtime.isLocal:
         targetPath.length--;
         this.history.add(
-            this.runtime.replicaId,
-            targetPath.slice(),
-            timestamp,
-            message
+          this.runtime.replicaId,
+          targetPath.slice(),
+          timestamp,
+          message
         );
         child.receive(targetPath, timestamp, message);
         break;
 
-      case this.m1Criteria(targetPath, timestamp, message) && !this.runtime.isLocal:
+      case this.m1Criteria(targetPath, timestamp, message) &&
+        !this.runtime.isLocal:
         targetPath.length--;
         let concurrent = this.history.getConcurrent(
-            this.runtime.replicaId,
-            timestamp
+          this.runtime.replicaId,
+          timestamp
         );
         let mAct = {
           m1TargetPath: targetPath,
@@ -374,13 +394,18 @@ export abstract class SemidirectProductRev<
           // deserializing each time?  Like
           // with ResetComponent.
           let mActOrNull = this.action(
-              concurrent[i][1].targetPath,
-              concurrent[i][1].timestamp,
-              concurrent[i][1].message,
-              this.history.getMessageEvents(concurrent[i][0], concurrent[i][1].senderCounter)!.map(({eventName, event}) => [eventName, event]),
-              mAct.m1TargetPath,
-              timestamp,
-              mAct.m1Message
+            concurrent[i][1].targetPath,
+            concurrent[i][1].timestamp,
+            concurrent[i][1].message,
+            this.history
+              .getMessageEvents(
+                concurrent[i][0],
+                concurrent[i][1].senderCounter
+              )!
+              .map(({ eventName, event }) => [eventName, event]),
+            mAct.m1TargetPath,
+            timestamp,
+            mAct.m1Message
           );
           if (mActOrNull === null) return;
           else mAct = mActOrNull;
@@ -399,8 +424,6 @@ export abstract class SemidirectProductRev<
     // the semidirect initial state.  Although, for our Crdt's so far
     // (e.g NumberCrdt), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
-    return (
-        this.history.isHistoryEmpty() && super.canGc()
-    );
+    return this.history.isHistoryEmpty() && super.canGc();
   }
 }
