@@ -87,6 +87,31 @@ interface BatchInfo {
   previousTimestamp: CausalTimestamp;
 }
 
+/**
+ * Ids are as in the RuntimeOneSave message's parentPointer
+ * field: 1 + the Crdt's index in RuntimeSave.saves.
+ */
+class LoadHelper {
+  /**
+   * Only contains saves for Crdts that have not yet been
+   * loaded.  That way you can tell if a Crdt is
+   * already loaded or not.
+   *
+   * Specifically, an entry is deleted in loadOneIfNeeded
+   * just before calling crdt.load.
+   */
+  savesById: Map<number, Uint8Array> = new Map();
+  childrenById: Map<number, Map<string, number>> = new Map();
+  /**
+   * Filled in only as Crdts are loaded (complement of savesById).
+   */
+  crdtsById: Map<number, Crdt> = new Map();
+  /**
+   * Filled in only as Crdts are loaded (complement of savesById).
+   */
+  idsByCrdt: Map<Crdt, number> = new Map();
+}
+
 const REPLICA_ID_LENGTH = 11;
 const REPLICA_ID_CHARS = (function () {
   let arr = new Array<number>(128);
@@ -318,6 +343,11 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   getCrdtByReference(pathToRoot: string[]): Crdt {
     let currentCrdt: Crdt = this.rootCrdt;
     for (let i = pathToRoot.length - 1; i >= 0; i--) {
+      if (this.loadHelper !== undefined) {
+        // Ensure currentCrdt is loaded before asking it
+        // for a child.
+        this.loadOneIfNeeded(currentCrdt);
+      }
       currentCrdt = currentCrdt.getChild(pathToRoot[i]);
     }
     return currentCrdt;
@@ -360,9 +390,23 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @return [description]
    */
   save(): Uint8Array {
+    // Commit the current batch, so we don't have to
+    // save batch-related state.  This also attempts
+    // to push changes to other users, which is good
+    // when saving happens just before exiting.
+    // TODO: potential downside: network may follow up
+    // the end of the batch by delivering queued messages,
+    // causing the state to be not quite what the user
+    // expected to save.
+    this.commitBatch();
+
     const saves: IRuntimeOneSave[] = [];
+    // Note this makes rootCrdt the first element in saves
     this.saveRecursive(this.rootCrdt, 0, saves);
-    const message = RuntimeSave.create({ saves });
+    const message = RuntimeSave.create({
+      saves,
+      networkSave: this.network.save(),
+    });
     return RuntimeSave.encode(message).finish();
   }
 
@@ -387,6 +431,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
   }
 
+  private loadHelper?: LoadHelper;
+
   /**
    * TODO: usage / restrictions.
    *
@@ -397,10 +443,82 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @param  saveData [description]
    */
   load(saveData: Uint8Array) {
-    const message = RuntimeSave.decode(saveData);
-    // We need to store enough info that getCrdtByReference
-    // can load a Crdt before calling getChild on it, even if
-    // that happens during loading of
-    // another Crdt.
+    try {
+      this.loadHelper = new LoadHelper();
+      const message = RuntimeSave.decode(saveData);
+      this.network.load(message.networkSave);
+      // We need to pre-load enough info that getCrdtByReference
+      // can load a Crdt before calling getChild on it, even if
+      // that happens during loading of
+      // another Crdt.
+      for (let i = 0; i < message.saves.length; i++) {
+        const oneSave = message.saves[i];
+        const id = i + 1;
+        this.loadHelper.savesById.set(id, oneSave.saveData);
+        this.loadHelper.childrenById.set(id, new Map());
+        if (i !== 0) {
+          // It's not rootCrdt, hence has a parent
+          this.loadHelper.childrenById
+            .get(oneSave.parentPointer)!
+            .set(arrayAsString(oneSave.name), id);
+        }
+      }
+      // Load the root
+      this.loadOneIfNeeded(this.rootCrdt, 1);
+      // Load the rest depth-first
+      this.loadDescendants(this.rootCrdt, 1);
+    } finally {
+      delete this.loadHelper;
+    }
+  }
+
+  /**
+   * Provide crdt's id if known (optimization; necessary for root),
+   * else we will look it up for you.
+   */
+  private loadOneIfNeeded(crdt: Crdt, id?: number) {
+    if (id === undefined) {
+      // Look it up ourselves
+      const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent)!;
+      const parentChildren = this.loadHelper!.childrenById.get(parentId)!;
+      id = parentChildren.get(crdt.name)!;
+    }
+    const saveData = this.loadHelper!.savesById.get(id);
+    // Only load if needed
+    if (saveData !== undefined) {
+      // Mark it as already loaded/in-progress by deleting the save.
+      // We do this before loading in case crdt.load causes
+      // loadOneIfNeeded(crdt) to be called again, which can
+      // happen if crdt's state contains a reference to one
+      // of its descendants.  This way, the second call to
+      // loadOneIfNeeded will do nothing.
+      this.loadHelper!.savesById.delete(id);
+      this.loadHelper!.crdtsById.set(id, crdt);
+      this.loadHelper!.idsByCrdt.set(crdt, id);
+      crdt.load(saveData);
+    }
+  }
+
+  private loadDescendants(crdt: Crdt, id: number) {
+    const children = this.loadHelper!.childrenById.get(id)!;
+    // Load the children recursively
+    for (const [name, childId] of children) {
+      const child = crdt.getChild(name);
+      this.loadOneIfNeeded(child, childId);
+      // Note when getCrdtByReference loads a Crdt, it doesn't
+      // also load all descendants, so we need to do this even
+      // if child is already loaded.  It is safe if some
+      // or all of them are loaded, though, due to the
+      // "if needed" part of loadOneIfNeeded.
+      // Because we need to recurse here even if child has
+      // already been loaded, it would be incorrect for
+      // loadOneIfNeeded to delete its crdt from the
+      // parent's child list, since that would prevent
+      // the crdt from being visited in this iterator.
+      this.loadDescendants(child, childId);
+    }
+    // TODO: would splitting this up into two loops be better?
+    // (Depth-first search where you visit all of a node's
+    // children before recursing.)
   }
 }

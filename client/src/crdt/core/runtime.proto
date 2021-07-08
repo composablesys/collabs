@@ -13,5 +13,7 @@ message RuntimeOneSave {
 }
 
 message RuntimeSave {
+  // rootCrdt is the first element, with id 1
   repeated RuntimeOneSave saves = 1;
+  required bytes networkSave = 2;
 }

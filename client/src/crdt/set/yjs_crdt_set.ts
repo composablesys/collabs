@@ -307,6 +307,8 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
 
   save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
     const saveMessage = YjsCrdtSetSave.create({
+      // Note this will be in insertion order because
+      // Map iterators run in insertion order.
       constructorArgs: [...this.constructorArgs].map(([name, args]) => {
         return {
           name,
@@ -321,7 +323,8 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
     const saveMessage = YjsCrdtSetSave.decode(saveData);
     // Construct the children in the order given in
     // saveMessage, which is the same as the order they
-    // were created on this replica.  That means that
+    // were created on the saved replica, since Map
+    // iterators run in insertion order.  That means that
     // if deserializing the createArgs causes getChild
     // to be called on this, that child will have
     // already been initialized, so the call will

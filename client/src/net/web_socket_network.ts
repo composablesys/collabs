@@ -89,4 +89,16 @@ export class WebSocketNetwork implements BroadcastNetwork {
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
     this.ws.send(toSend);
   }
+
+  save(): Uint8Array {
+    // TODO: save the max contiguous number (according to server order)
+    // of a message we've already received/sent.
+    // Then instead of requesting all old messages on startup,
+    // only request ones greater than that number.
+    return new Uint8Array();
+  }
+
+  load(saveData: Uint8Array) {
+    // TODO: see save()
+  }
 }
