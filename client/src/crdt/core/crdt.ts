@@ -118,7 +118,7 @@ export abstract class Crdt<
     this.afterInit = true;
   }
 
-  private needsSaving = false;
+  // private needsSaving = false;
   /**
    * Callback used by this Crdt's CrdtParent to deliver
    * a message, possibly for one of this Crdt's descendants.
@@ -141,7 +141,7 @@ export abstract class Crdt<
     message: Uint8Array
   ) {
     this.receiveInternal(targetPath, timestamp, message);
-    this.needsSaving = true;
+    // this.needsSaving = true;
     this.emit("Change", { timestamp: timestamp });
   }
 
@@ -185,27 +185,30 @@ export abstract class Crdt<
    */
   abstract canGc(): boolean;
 
-  /**
-   * Only for use by Runtime.
-   *
-   * Returns whether this Crdt needs saving, specifically,
-   * whether any messages have been received (including
-   * for descendants) since the last call to this method.
-   *
-   * TODO: allow overriding if you know better?  Or, option
-   * for save to return null for saveData if only children
-   * need to be updated?  E.g. if you change a single attribute
-   * in a YjsCrdtSet rich text.  Although usually you'd be
-   * changing characters, so this is moot.
-   */
-  getAndResetNeedsSaving(): boolean {
-    const ans = this.needsSaving;
-    this.needsSaving = false;
-    return ans;
-  }
+  // /**
+  //  * Only for use by Runtime.
+  //  *
+  //  * Returns whether this Crdt needs saving, specifically,
+  //  * whether any messages have been received (including
+  //  * for descendants) since the last call to this method.
+  //  *
+  //  * TODO: allow overriding if you know better?  Or, option
+  //  * for save to return null for saveData if only children
+  //  * need to be updated?  E.g. if you change a single attribute
+  //  * in a YjsCrdtSet rich text.  Although usually you'd be
+  //  * changing characters, so this is moot.
+  //  */
+  // getAndResetNeedsSaving(): boolean {
+  //   const ans = this.needsSaving;
+  //   this.needsSaving = false;
+  //   return ans;
+  // }
 
   /**
    * Only for use by Runtime.
+   *
+   * Must have no side-effects, and be able to be called
+   * multiple times.
    *
    * saveData: a serialization of this Crdt's
    * own internal state that is not set in the
@@ -221,8 +224,7 @@ export abstract class Crdt<
    * children: a map from name to child for this Crdt's
    * nontrivial children.  This must include all children
    * for which canGc() is false, and may safely contain
-   * more.  These children will be saved recursively
-   * if needed (according to getAndResetNeedsSaving).
+   * more.  These children will be saved recursively.
    */
   abstract save(): [saveData: Uint8Array, children: Map<string, Crdt>];
 
@@ -251,19 +253,39 @@ export abstract class Crdt<
    * descendants' state, which you can initialize in
    * postLoad().
    *
-   * TODO: note why circular dependencies are impossible;
-   * advice for long linear chains due to constructor
-   * args as Crdt refs (try to init children in
-   * receipt/causal order if this is possible).  Actually
-   * that should be mandatory so that getChild calls
-   * during load will always succeed (see comment in
-   * YjsCrdtSet.load).
+   * This instance is guaranteed to have been initialized identically
+   * to the saved instance, i.e., they have the same
+   * constructor args, but not otherwise modified before
+   * load is called.  In particular, this instance may
+   * have an initial value set in the constructor; make sure
+   * you account for this (e.g., in a set with initial
+   * elements, be careful not to duplicate those elements
+   * during loading, if the saved state also contained those
+   * elements).
    *
-   * TODO: note that your replicaId will be different
-   * from the saver's.
+   * In general, load will be called on a replica with a
+   * different replicaId than the saving replica.  Also,
+   * the same state may be loaded by different replicas
+   * concurrently.  So make sure to account for this.
    *
-   * TODO: don't forget to setup any state needed for
-   * future save() calls.
+   * Events should not be dispatched, since there is no
+   * associated timestamp.  An exception is events that are
+   * already not associated with timestamps, like CrdtSet
+   * ValueInit events.  This means that you cannot depend
+   * on events from children to help initialize your own
+   * state (e.g., to setup cached views of child state);
+   * instead, you must set that state in postLoad or load.
+   *
+   * getChild may be called on this Crdt after it is loaded
+   * but before its children are loaded.  If this.load might
+   * cause this.getChild to be called (e.g., because you
+   * deserialize a reference to one of your descendants),
+   * you must ensure that this.getChild succeeds.  Typically,
+   * you can accomplish this by initializing children in
+   * the same order as they were initialized in the saved
+   * state, since one child's constructor can only have
+   * received references to prior children (see YjsCrdtSet
+   * for an example).
    */
   abstract load(saveData: Uint8Array): void;
 

@@ -11,13 +11,6 @@ import {
 import { Crdt, CrdtParent } from "../core";
 import { CrdtSet, CrdtSetEventsRecord } from "./interfaces";
 
-// TODO: rename (odd to reference Yjs)
-
-// TODO: allow args in create?
-// Niche use case since you can just
-// use CRDT ops a new value to do what you want, and
-// requires adding an extra TArgs type param to the
-// CrdtSet interface (since create() uses it).
 /**
  * TODO: when you delete a Crdt, it is "frozen" -
  * no longer receives ops, doing ops locally causes an

@@ -130,6 +130,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
+  private loadAllowed = true;
 
   /**
    * TODO.
@@ -190,6 +191,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @return         [description]
    */
   send(sender: Crdt, message: Uint8Array) {
+    this.loadAllowed = false;
+
     if (sender.runtime !== this) {
       throw new Error("Runtime.send called on wrong Runtime");
     }
@@ -296,6 +299,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ): CausalTimestamp {
+    this.loadAllowed = false;
+
     if (this.pendingBatch) {
       // TODO: instead, push the pending batch (if options allow)
       throw new Error(
@@ -380,7 +385,10 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   }
 
   /**
-   * TODO: usage / restrictions.
+   * Save the entire runtime state in serialized form.
+   * The saved state can then be passed to load on
+   * a Runtime constructed in the same way, to load the
+   * saved state.
    *
    * TODO: future work: thread friendly (option to sleep/yield
    * occasionally, blocking messages while doing so);
@@ -435,7 +443,14 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private loadHelper?: LoadHelper;
 
   /**
-   * TODO: usage / restrictions.
+   * Load the saved state output from Runtime.save.
+   *
+   * The program must be initialized (i.e., registering top-level
+   * Crdts) exactly as in the program that was saved, then
+   * load must be called before you perform any operations
+   * or receive any messages.  I.e., you should use the
+   * same program to load as you used to save, and call
+   * load between its setup and when anything happens.
    *
    * TODO: future work: thread friendly (option to sleep/yield
    * occasionally, blocking messages while doing so;
@@ -444,6 +459,11 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @param  saveData [description]
    */
   load(saveData: Uint8Array) {
+    if (!this.loadAllowed) {
+      throw new Error(
+        "Cannot load: a message has already been sent or received"
+      );
+    }
     try {
       this.loadHelper = new LoadHelper();
       const message = RuntimeSave.decode(saveData);
