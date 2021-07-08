@@ -360,12 +360,12 @@ class TreedocIdWrapper {
 
   static deserialize(
     serialized: Uint8Array,
-    parent: TreedocPrimitiveList<any>
+    parent: TreedocPrimitiveList<any>,
+    senderCounter?: number
   ): TreedocIdWrapper {
-    return new TreedocIdWrapper(
-      parent.sequenceSource.deserialize(serialized, parent.runtime),
-      parent
-    );
+    const seqId = parent.sequenceSource.deserialize(serialized, parent.runtime);
+    seqId.senderCounter = senderCounter;
+    return new TreedocIdWrapper(seqId, parent);
   }
 }
 
@@ -686,6 +686,7 @@ export class TreedocPrimitiveList<T>
     this.state.tree.forEach((seqId, value) => {
       entries.push({
         seqId: seqId.serialize(this),
+        senderCounter: seqId.senderCounter!,
         value: this.valueSerializer.serialize(value),
       });
     });
@@ -702,7 +703,7 @@ export class TreedocPrimitiveList<T>
     const message = PrimitiveListSave.decode(saveData);
     for (let entry of message.entries) {
       this.state.tree = this.state.tree.insert(
-        TreedocIdWrapper.deserialize(entry.seqId, this),
+        TreedocIdWrapper.deserialize(entry.seqId, this, entry.senderCounter),
         this.valueSerializer.deserialize(entry.value, this.runtime)
       )[0];
     }

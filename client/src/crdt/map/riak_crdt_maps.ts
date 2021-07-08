@@ -109,7 +109,17 @@ export class ImplicitCrdtMap<K, C extends Crdt>
         value.init(keyString, this);
         this.childBeingAdded = undefined;
 
-        this.trivialMap.set(keyString, value);
+        if (this.inLoad) {
+          // We can assume value will be nontrivial once
+          // it is recursively loaded, since save only
+          // returns the nontrivial children.
+          this.nontrivialMap.set(keyString, value);
+        } else {
+          // The value starts trivial; if it becomes nontrivial
+          // due to a message, receiveInternal will move
+          // it to nontrivialMap.
+          this.trivialMap.set(keyString, value);
+        }
 
         // Dispatch ValueInit event immediately, so that listeners
         // can register any messages are received.
@@ -291,7 +301,14 @@ export class ImplicitCrdtMap<K, C extends Crdt>
     return [new Uint8Array(), this.nontrivialMap];
   }
 
-  load(_saveData: Uint8Array) {}
+  private inLoad?: true;
+  load(_saveData: Uint8Array) {
+    this.inLoad = true;
+  }
+
+  postLoad() {
+    delete this.inLoad;
+  }
 }
 
 export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {

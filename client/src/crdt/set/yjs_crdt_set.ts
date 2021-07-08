@@ -114,7 +114,6 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
           );
           const newCrdt = this.receiveCreate(name, decoded.create!.args);
 
-          this.emit("ValueInit", { value: newCrdt });
           this.emit("Add", { value: newCrdt, timestamp });
 
           if (timestamp.isLocal()) {
@@ -170,6 +169,11 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
 
     // Record args for later save calls
     this.constructorArgs.set(name, serializedArgs);
+
+    // Emit this even during loading, since the user may
+    // need to add event listeners, and it is not associated
+    // to a timestamp anyway.
+    this.emit("ValueInit", { value: newCrdt });
 
     return newCrdt;
   }

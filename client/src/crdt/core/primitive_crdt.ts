@@ -12,7 +12,7 @@ export abstract class PrimitiveCrdt<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<S> 
+  implements StatefulCrdt<S>
 {
   readonly state: S;
 

@@ -423,8 +423,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     saves: IRuntimeOneSave[]
   ) {
     const [saveData, children] = crdt.save();
-    const crdtPointer = saveData.length + 1;
-    saves.push({ parentPointer, name: stringAsArray(crdt.name), saveData });
+    const crdtPointer = saves.length + 1;
+    const name = crdt === this.rootCrdt ? "" : crdt.name;
+    saves.push({ parentPointer, name: stringAsArray(name), saveData });
     // Recurse
     for (let child of children.values()) {
       this.saveRecursive(child, crdtPointer, saves);
@@ -479,9 +480,12 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private loadOneIfNeeded(crdt: Crdt, id?: number) {
     if (id === undefined) {
       // Look it up ourselves
-      const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent)!;
-      const parentChildren = this.loadHelper!.childrenById.get(parentId)!;
-      id = parentChildren.get(crdt.name)!;
+      if (crdt === this.rootCrdt) id = 1;
+      else {
+        const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent)!;
+        const parentChildren = this.loadHelper!.childrenById.get(parentId)!;
+        id = parentChildren.get(crdt.name)!;
+      }
     }
     const saveData = this.loadHelper!.savesById.get(id);
     // Only load if needed
@@ -517,8 +521,11 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       // the crdt from being visited in this iterator.
       this.loadDescendants(child, childId);
     }
-    // TODO: would splitting this up into two loops be better?
+    // TODO: would splitting the above into two loops be better?
     // (Depth-first search where you visit all of a node's
     // children before recursing.)
+
+    // Post load (signal that all descendants are loaded)
+    crdt.postLoad();
   }
 }
