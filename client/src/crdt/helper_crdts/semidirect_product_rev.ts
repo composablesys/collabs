@@ -302,6 +302,7 @@ export abstract class SemidirectProductRev<
   }
 
   protected m1Criteria(
+    // TODO: make abstract
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -310,6 +311,7 @@ export abstract class SemidirectProductRev<
   }
 
   protected m2Criteria(
+    // TODO: make abstract
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -327,6 +329,7 @@ export abstract class SemidirectProductRev<
    * @return              [description]
    */
   protected action(
+    // TODO: make abstract
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
@@ -366,8 +369,8 @@ export abstract class SemidirectProductRev<
       // a modified m1, which is then relayed locally. Thus, the semidirect product may need to locally resend some
       // form of m1 to modify m1 properly, while there should be no need to resend m2.
       // TODO: Work on this argument more.
-      case this.m2Criteria(targetPath, timestamp, message) &&
-        !this.runtime.isLocal:
+      case this.m2Criteria(targetPath, timestamp, message):
+        console.log(timestamp);
         targetPath.length--;
         this.history.add(
           this.runtime.replicaId,
@@ -378,8 +381,14 @@ export abstract class SemidirectProductRev<
         child.receive(targetPath, timestamp, message);
         break;
 
-      case this.m1Criteria(targetPath, timestamp, message) &&
-        !this.runtime.isLocal:
+      case this.m1Criteria(targetPath, timestamp, message):
+        // &&
+        // !this.runtime.isLocal:
+        if (this.runtime.isLocalSideEffect) {
+          console.log("local!", timestamp);
+        } else {
+          console.log("not local!", timestamp);
+        }
         targetPath.length--;
         let concurrent = this.history.getConcurrent(
           this.runtime.replicaId,

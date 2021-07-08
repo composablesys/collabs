@@ -97,8 +97,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
-  private _local = false;
-  private previousTime = 0;
+  private _sideEffect = false;
+  // private previousTimeStamp: CausalTimestamp;
+  private previousReceivedTimeStamp: CausalTimestamp;
 
   /**
    * TODO.
@@ -141,6 +142,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       this.batchType = batchOptions;
       this.batchingPeriodMs = undefined;
     }
+    // this.previousTimeStamp = new VectorClock(this.replicaId, true, 1);
+    this.previousReceivedTimeStamp = new VectorClock(this.replicaId, true, 1);
   }
 
   /**
@@ -165,8 +168,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
-    if (this._local) {
-      timestamp = new VectorClock(this.replicaId, true, this.previousTime);
+    if (this._sideEffect) {
+      timestamp = this.previousReceivedTimeStamp;
 
       // Deliver to self, synchronously
       // TODO: error handling
@@ -190,9 +193,10 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         );
       }
 
+      console.log("broadcasting", timestamp);
       // Deliver to self, synchronously
       // TODO: error handling
-      this.previousTime = timestamp.getTime();
+      this.previousReceivedTimeStamp = timestamp;
       this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
 
       // Add to the pending batch
@@ -300,6 +304,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
         let pathToRoot = pathToRoots[decoded.messageSenders[i]];
+        this.previousReceivedTimeStamp = timestamp;
         this.rootCrdt.receive(
           pathToRoot.slice(),
           timestamp,
@@ -344,15 +349,17 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     return ans;
   }
 
-  localOnly() {
-    this._local = true;
+  startLocalSideEffect() {
+    this._sideEffect = true;
   }
 
-  notLocalOnly() {
-    this._local = false;
+  endLocalSideEffect() {
+    this._sideEffect = false;
   }
 
-  get isLocal() {
-    return this._local;
+  get isLocalSideEffect() {
+    return this._sideEffect;
   }
 }
+
+// TODO: localOnlySideEffect

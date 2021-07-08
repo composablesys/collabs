@@ -59,7 +59,5 @@
   },
   "homepage": "https://github.com/composablesys/compoventuals#readme",
   "dependencies": {
-    "@types/quill": "^2.0.8",
-    "quill": "^1.3.6"
   }
 }
