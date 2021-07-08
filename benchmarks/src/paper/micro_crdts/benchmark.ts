@@ -11,6 +11,8 @@ import {
   sleep,
 } from "../record";
 
+const DEBUG = false;
+
 const OPS = 200;
 const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
@@ -57,18 +59,24 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
   }
 
   async run(
-    measurement: "time" | "memory" | "network",
+    measurement: "time" | "memory" | "network" | "save",
     frequency: "whole" | "rounds"
   ) {
     console.log("Starting micro_crdts test: " + this.testName);
 
-    let results = new Array<number>(getRecordedTrials());
-    let roundResults = new Array<number[]>(getRecordedTrials());
+    let results = new Array<{ [measurement: string]: number }>(
+      getRecordedTrials()
+    );
+    let roundResults = new Array<{ [measurement: string]: number }[]>(
+      getRecordedTrials()
+    );
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
       for (let i = 0; i < getRecordedTrials(); i++)
-        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+        roundResults[i] = new Array<{ [measurement: string]: number }>(
+          Math.ceil(OPS / ROUND_OPS)
+        );
     }
 
     let startingBaseline = 0;
@@ -80,6 +88,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       console.log("Starting trial " + trial);
 
       let rng = seedrandom(SEED);
+      const replicaIdRng = seedrandom(SEED + SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -91,7 +100,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let runtimes: crdts.Runtime[] = [];
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
-        runtimes[i] = generator.newRuntime("manual", rng);
+        runtimes[i] = generator.newRuntime("manual", replicaIdRng);
         crdtList[i] = this.crdtConstructor();
         runtimes[i].registerCrdt("", crdtList[i]);
       }
@@ -114,18 +123,57 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
-          let ans = -1;
+          let ans: { [measurement: string]: number } = {};
           switch (measurement) {
             case "time":
-              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
+              ans[measurement] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
               break;
             case "memory":
               // Don't count the last message in TestingNetwork
               generator.lastMessage = undefined;
-              ans = await getMemoryUsed();
+              ans[measurement] = await getMemoryUsed();
               break;
             case "network":
-              ans = generator.getTotalSentBytes() - startSentBytes;
+              ans[measurement] = generator.getTotalSentBytes() - startSentBytes;
+              break;
+            case "save":
+              // Just save and load user 0
+              let beforeSave: Object;
+              if (DEBUG) beforeSave = this.getState(crdtList[0]);
+              const saveStartTime = process.hrtime.bigint();
+              const saveData = runtimes[0].save();
+              const saveTime = new Number(
+                process.hrtime.bigint() - saveStartTime!
+              ).valueOf();
+              if (this.crdtDestructor !== undefined) {
+                this.crdtDestructor(crdtList[0]);
+              }
+              // Create a new runtime etc. for user 0, then load
+              const loadStartTime = process.hrtime.bigint();
+              runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+              crdtList[0] = this.crdtConstructor();
+              runtimes[0].registerCrdt("", crdtList[0]);
+              runtimes[0].load(saveData);
+              const loadTime = new Number(
+                process.hrtime.bigint() - loadStartTime!
+              ).valueOf();
+              // Record
+              ans = {
+                saveTime,
+                saveSize: saveData.byteLength,
+                loadTime,
+              };
+              if (DEBUG) {
+                const afterSave = this.getState(crdtList[0]);
+                assert.deepStrictEqual(
+                  beforeSave!,
+                  afterSave,
+                  "afterSave did not equal beforeSave"
+                );
+              }
+              break;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -145,18 +193,49 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
 
       // Record result
-      let result = -1;
+      // TODO: de-duplicate code (shared with rounds measurements)
+      let result: { [measurement: string]: number } = {};
       switch (measurement) {
         case "time":
-          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          result[measurement] = new Number(
+            process.hrtime.bigint() - startTime!
+          ).valueOf();
           break;
         case "memory":
           // Don't count the last message in TestingNetwork
           generator.lastMessage = undefined;
-          result = await getMemoryUsed();
+          result[measurement] = await getMemoryUsed();
           break;
         case "network":
-          result = generator.getTotalSentBytes() - startSentBytes;
+          result[measurement] = generator.getTotalSentBytes() - startSentBytes;
+          break;
+        case "save":
+          // Just save and load user 0
+          const saveStartTime = process.hrtime.bigint();
+          const saveData = runtimes[0].save();
+          const saveTime = new Number(
+            process.hrtime.bigint() - saveStartTime!
+          ).valueOf();
+          if (this.crdtDestructor !== undefined) {
+            this.crdtDestructor(crdtList[0]);
+          }
+          crdtList[0] = undefined as unknown as C;
+          // Create a new runtime etc. for user 0, then load
+          const loadStartTime = process.hrtime.bigint();
+          runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+          crdtList[0] = this.crdtConstructor();
+          runtimes[0].registerCrdt("", crdtList[0]);
+          runtimes[0].load(saveData);
+          const loadTime = new Number(
+            process.hrtime.bigint() - loadStartTime!
+          ).valueOf();
+          // Record
+          result = {
+            saveTime,
+            saveSize: saveData.byteLength,
+            loadTime,
+          };
+          break;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -181,19 +260,31 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
     }
 
-    record(
-      "micro_crdts/" + measurement,
-      this.testName,
-      frequency,
-      getRecordedTrials(),
-      results,
-      roundResults,
-      roundOps,
-      measurement === "memory"
-        ? baseMemories
-        : new Array<number>(getRecordedTrials()).fill(0),
-      startingBaseline
-    );
+    let toRecord: string[];
+    switch (measurement) {
+      case "save":
+        toRecord = ["saveTime", "loadTime", "saveSize"];
+        break;
+      default:
+        toRecord = [measurement];
+    }
+    for (const oneRecord of toRecord) {
+      record(
+        "micro_crdts/" + oneRecord,
+        this.testName,
+        frequency,
+        getRecordedTrials(),
+        results.map((result) => result[oneRecord]),
+        roundResults.map((trialResult) =>
+          trialResult.map((result) => result[oneRecord])
+        ),
+        roundOps,
+        oneRecord === "memory"
+          ? baseMemories
+          : new Array<number>(getRecordedTrials()).fill(0),
+        startingBaseline
+      );
+    }
   }
 }
 
@@ -752,7 +843,14 @@ export default async function microCrdts(args: string[]) {
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
-  if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
+  if (
+    !(
+      args[1] === "time" ||
+      args[1] === "memory" ||
+      args[1] === "network" ||
+      args[1] === "save"
+    )
+  ) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
   if (!(args[2] === "whole" || args[2] === "rounds")) {
