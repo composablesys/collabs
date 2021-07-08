@@ -17,16 +17,24 @@ const OPS = edits.length;
 const ROUND_OPS = 25978;
 const SEED = "42";
 
+interface ITestFactory {
+  setup(rng: seedrandom.prng): void;
+  /**
+   * Free old state so that it can be GC'd.
+   */
+  cleanup(): void;
+  processEdit(edit: [number, number, string | undefined]): void;
+  /**
+   * Reset this on each call to setup()
+   */
+  getSentBytes(): number;
+  getFinalText(): string | undefined;
+}
+
 class AutomergePerfBenchmark {
   constructor(
     private readonly testName: string,
-    private readonly setupFun: (rng: seedrandom.prng) => void,
-    private readonly cleanupFun: () => void,
-    private readonly processEdit: (
-      edit: [number, number, string | undefined]
-    ) => void,
-    private readonly getSentBytes: () => number,
-    private readonly getFinalText?: () => string
+    private readonly testFactory: ITestFactory
   ) {}
 
   async run(
@@ -48,7 +56,7 @@ class AutomergePerfBenchmark {
     if (measurement === "memory") startingBaseline = await getMemoryUsed();
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      if (trial !== -getWarmupTrials()) this.cleanupFun();
+      if (trial !== -getWarmupTrials()) this.testFactory.cleanup();
 
       // Sleep between trials
       await sleep(1000);
@@ -64,14 +72,14 @@ class AutomergePerfBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      this.setupFun(seedrandom(SEED));
+      this.testFactory.setup(seedrandom(SEED));
 
       switch (measurement) {
         case "time":
           startTime = process.hrtime.bigint();
           break;
         case "network":
-          startSentBytes = this.getSentBytes();
+          startSentBytes = this.testFactory.getSentBytes();
       }
 
       let round = 0;
@@ -88,7 +96,7 @@ class AutomergePerfBenchmark {
               ans = await getMemoryUsed();
               break;
             case "network":
-              ans = this.getSentBytes() - startSentBytes;
+              ans = this.testFactory.getSentBytes() - startSentBytes;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -96,7 +104,7 @@ class AutomergePerfBenchmark {
         }
 
         // Process one edit
-        this.processEdit(edits[op]);
+        this.testFactory.processEdit(edits[op]);
         // if (measurement === "memory") await sleep(0);
       }
 
@@ -110,7 +118,7 @@ class AutomergePerfBenchmark {
           result = await getMemoryUsed();
           break;
         case "network":
-          result = this.getSentBytes() - startSentBytes;
+          result = this.testFactory.getSentBytes() - startSentBytes;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -124,11 +132,11 @@ class AutomergePerfBenchmark {
         }
       }
 
-      if (this.getFinalText) {
+      let textResult = this.testFactory.getFinalText();
+      if (textResult !== undefined) {
         // Check result
-        let result = this.getFinalText();
-        if (result != finalText) {
-          throw new Error("result does not equal final text");
+        if (textResult != finalText) {
+          throw new Error("textResult does not equal final text");
         }
       }
     }
@@ -151,30 +159,25 @@ class AutomergePerfBenchmark {
 
 // TODO: record document size over time, to plot memory against
 
-function trivial() {
-  return new AutomergePerfBenchmark(
-    "Trivial",
-    () => {},
-    () => {},
-    () => {},
-    () => 0
-  );
-}
-
 function plainJsArray() {
   let chars: string[];
-  return new AutomergePerfBenchmark(
-    "Plain JS array",
-    () => {
+  return new AutomergePerfBenchmark("Plain JS array", {
+    setup() {
       chars = [];
     },
-    () => {
+    cleanup() {
       chars = [];
     },
-    (edit) => chars.splice(...(edit as [number, number, string])),
-    () => 0,
-    () => chars.join("")
-  );
+    processEdit(edit: [number, number, string | undefined]) {
+      chars.splice(...(edit as [number, number, string]));
+    },
+    getSentBytes() {
+      return 0;
+    },
+    getFinalText() {
+      return chars.join("");
+    },
+  });
 }
 
 function treedocLww() {
@@ -182,9 +185,8 @@ function treedocLww() {
   let runtime: crdts.Runtime | null;
   let list: crdts.TreedocList<crdts.LwwRegister<string>> | null;
 
-  return new AutomergePerfBenchmark(
-    "TreedocList<LwwRegister>",
-    (rng) => {
+  return new AutomergePerfBenchmark("TreedocList<LwwRegister>", {
+    setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt(
@@ -194,12 +196,12 @@ function treedocLww() {
         )
       );
     },
-    () => {
+    cleanup() {
       generator = null;
       runtime = null;
       list = null;
     },
-    (edit) => {
+    processEdit(edit: [number, number, string | undefined]) {
       if (edit[2] !== undefined) {
         // Insert edit[2] at edit[0]
         list!.insertAt(edit[0])[1].value = edit[2];
@@ -209,13 +211,16 @@ function treedocLww() {
       }
       runtime!.commitBatch();
     },
-    () => generator!.getTotalSentBytes(),
-    () =>
-      list!
+    getSentBytes() {
+      return generator!.getTotalSentBytes();
+    },
+    getFinalText() {
+      return list!
         .asArray()
         .map((lww) => lww.value)
-        .join("")
-  );
+        .join("");
+    },
+  });
 }
 
 function textCrdt() {
@@ -223,19 +228,18 @@ function textCrdt() {
   let runtime: crdts.Runtime | null;
   let list: crdts.TextCrdt | null;
 
-  return new AutomergePerfBenchmark(
-    "TextCrdt",
-    (rng) => {
+  return new AutomergePerfBenchmark("TextCrdt", {
+    setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt("text", new crdts.TextCrdt());
     },
-    () => {
+    cleanup() {
       generator = null;
       runtime = null;
       list = null;
     },
-    (edit) => {
+    processEdit(edit: [number, number, string | undefined]) {
       if (edit[2] !== undefined) {
         // Insert edit[2] at edit[0]
         list!.insertAt(edit[0], edit[2]);
@@ -245,25 +249,28 @@ function textCrdt() {
       }
       runtime!.commitBatch();
     },
-    () => generator!.getTotalSentBytes(),
-    () => list!.asArray().join("")
-  );
+    getSentBytes() {
+      return generator!.getTotalSentBytes();
+    },
+    getFinalText() {
+      return list!.asArray().join("");
+    },
+  });
 }
 
 function automerge() {
   let state: { text: Automerge.Text } | null;
   let totalSentBytes: number;
 
-  return new AutomergePerfBenchmark(
-    "Automerge",
-    () => {
+  return new AutomergePerfBenchmark("Automerge", {
+    setup() {
       state = Automerge.from({ text: new Automerge.Text() });
       totalSentBytes = 0;
     },
-    () => {
+    cleanup() {
       state = null;
     },
-    (edit) => {
+    processEdit(edit: [number, number, string | undefined]) {
       let newState = Automerge.change(state!, (doc) => {
         if (edit[1] > 0) doc.text.deleteAt!(edit[0], edit[1]);
         if (edit.length > 2) doc.text.insertAt!(edit[0], edit[2]!);
@@ -272,9 +279,13 @@ function automerge() {
       totalSentBytes += message.length;
       state = newState;
     },
-    () => totalSentBytes,
-    () => state!.text.join("") // TODO: use toString() instead?
-  );
+    getSentBytes() {
+      return totalSentBytes;
+    },
+    getFinalText() {
+      return state!.text.join(""); // TODO: use toString() instead?
+    },
+  });
 }
 
 // function automergeNoText() {
@@ -311,9 +322,8 @@ function mapLww() {
   let runtime: crdts.Runtime | null;
   let list: crdts.LwwPlainMap<number, string> | null;
 
-  return new AutomergePerfBenchmark(
-    "LwwMap",
-    (rng) => {
+  return new AutomergePerfBenchmark("LwwMap", {
+    setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt(
@@ -321,12 +331,12 @@ function mapLww() {
         new crdts.LwwPlainMap<number, string>()
       );
     },
-    () => {
+    cleanup() {
       generator = null;
       runtime = null;
       list = null;
     },
-    (edit) => {
+    processEdit(edit: [number, number, string | undefined]) {
       if (edit[2] !== undefined) {
         // Insert edit[2] at edit[0]
         list!.set(edit[0], edit[2]);
@@ -336,27 +346,31 @@ function mapLww() {
       }
       runtime!.commitBatch();
     },
-    () => generator!.getTotalSentBytes()
-  );
+    getSentBytes() {
+      return generator!.getTotalSentBytes();
+    },
+    getFinalText() {
+      return undefined;
+    },
+  });
 }
 
 function yjs() {
   let doc: Y.Doc | null;
   let totalSentBytes: number;
 
-  return new AutomergePerfBenchmark(
-    "Yjs",
-    () => {
+  return new AutomergePerfBenchmark("Yjs", {
+    setup() {
       doc = new Y.Doc();
       totalSentBytes = 0;
       doc.on("update", (update: any) => {
         totalSentBytes += update.byteLength;
       });
     },
-    () => {
+    cleanup() {
       doc = null;
     },
-    (edit) => {
+    processEdit(edit: [number, number, string | undefined]) {
       doc!.transact(() => {
         if (edit[2] !== undefined) {
           doc!.getText("text").insert(edit[0], edit[2]);
@@ -365,9 +379,13 @@ function yjs() {
         }
       });
     },
-    () => totalSentBytes,
-    () => doc!.getText("text").toString()
-  );
+    getSentBytes() {
+      return totalSentBytes;
+    },
+    getFinalText() {
+      return doc!.getText("text").toString();
+    },
+  });
 }
 
 // Removed; according to dmonad benchmarks, takes 20,000 seconds!
@@ -403,9 +421,6 @@ function yjs() {
 export default async function automergePerf(args: string[]) {
   let benchmark: AutomergePerfBenchmark;
   switch (args[0]) {
-    case "trivial":
-      benchmark = trivial();
-      break;
     case "plainJsArray":
       benchmark = plainJsArray();
       break;
