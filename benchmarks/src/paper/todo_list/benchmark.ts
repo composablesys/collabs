@@ -60,7 +60,7 @@ interface ITestFactory {
   getSentBytes(): number;
   /**
    * Save the current state as saveData.  Also return
-   * the length of this saveData in bytes.
+   * the length of the saveData in bytes.
    *
    * Load will be called soon after save.
    *
@@ -277,7 +277,7 @@ class TodoListBenchmark {
     let toRecord: string[];
     switch (measurement) {
       case "save":
-        toRecord = ["saveTime", "saveSize", "loadTime"];
+        toRecord = ["saveTime", "loadTime", "saveSize"];
         break;
       default:
         toRecord = [measurement];
@@ -540,7 +540,7 @@ function compoCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -569,7 +569,7 @@ function compoCrdt() {
       const saveData = runtime!.save();
       return [saveData, saveData.byteLength];
     },
-    load(saveData: Uint8Array, rng: seedrandom.prng) {
+    load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
@@ -646,7 +646,7 @@ function compoMovableCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Movable Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -675,7 +675,7 @@ function compoMovableCrdt() {
       const saveData = runtime!.save();
       return [saveData, saveData.byteLength];
     },
-    load(saveData: Uint8Array, rng: seedrandom.prng) {
+    load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
@@ -750,7 +750,7 @@ function compoJson() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -779,7 +779,7 @@ function compoJson() {
       const saveData = runtime!.save();
       return [saveData, saveData.byteLength];
     },
-    load(saveData: Uint8Array, rng: seedrandom.prng) {
+    load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
@@ -852,7 +852,7 @@ function compoJsonText() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -881,7 +881,7 @@ function compoJsonText() {
       const saveData = runtime!.save();
       return [saveData, saveData.byteLength];
     },
-    load(saveData: Uint8Array, rng: seedrandom.prng) {
+    load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
@@ -1207,11 +1207,8 @@ function yjs() {
     },
     load(saveData: Uint8Array) {
       // Proceed like newTodoList, but without doing any
-      // operations.
+      // operations or recording sent bytes.
       topDoc = new Y.Doc();
-      topDoc.on("update", (update: any) => {
-        totalSentBytes += update.byteLength;
-      });
       Y.applyUpdate(topDoc, saveData);
       return new YjsTodoList(topDoc.getMap());
     },
@@ -1314,7 +1311,7 @@ function jsonCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -1353,7 +1350,7 @@ function jsonCrdt() {
       const saveData = runtime!.save();
       return [saveData, saveData.byteLength];
     },
-    load(saveData: Uint8Array, rng: seedrandom.prng) {
+    load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
