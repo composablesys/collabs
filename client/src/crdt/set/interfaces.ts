@@ -1,7 +1,6 @@
-import { Resettable, ResettableEventsRecord } from "../helper_crdts";
-import { CrdtEvent } from "../core";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface SetEvent<T> extends CrdtEvent {
+export interface CSetEvent<T> extends CrdtEvent {
   value: T;
 }
 
@@ -11,13 +10,13 @@ export interface SetEvent<T> extends CrdtEvent {
  * operations/message delivery, in which case there is
  * no associated timestamp.
  */
-export interface SetInitEvent<T> {
+export interface CSetInitEvent<T> {
   value: T;
 }
 
-export interface CSetEventsRecord<T> extends ResettableEventsRecord {
-  Add: SetEvent<T>;
-  Delete: SetEvent<T>;
+export interface CSetEventsRecord<T> extends CrdtEventsRecord {
+  Add: CSetEvent<T>;
+  Delete: CSetEvent<T>;
   /**
    * TODO: should this be included by default, or just
    * added by implementations for which it makes sense
@@ -35,7 +34,7 @@ export interface CSetEventsRecord<T> extends ResettableEventsRecord {
    * to Add events, and it may be called independently of
    * operations/message delivery.
    */
-  ValueInit: SetInitEvent<T>;
+  ValueInit: CSetInitEvent<T>;
 }
 
 /**
@@ -47,34 +46,24 @@ export interface CSetEventsRecord<T> extends ResettableEventsRecord {
  * replica in serialized form; every replica then uses
  * them to contruct the actual added value of type T,
  * e.g., using a user-supplied callback in the constructor.
- * Added values can later be deleted and restored, changing
+ * Added values can later be deleted and (in some implementations)
+ * restored, changing
  * their presence in the set, using any semantics to
  * resolve conflicts.
  */
 export interface CSet<
   T,
-  AddArgs extends any[] = [],
+  AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
-> extends Resettable<Events> {
+> extends Crdt<Events> {
   /**
    * Sends args to every replica in serialized form.
    * Every replica then uses
-   * them to contruct the actual added value of type T,
-   *
-   * If you want to make a value of type T present in the set
-   * after it has been deleted, instead use restore.
+   * them to contruct the actual added value of type T.
    *
    * @return the added value
    */
   add(...args: AddArgs): T;
-
-  /**
-   * Makes the given value present in the set.
-   *
-   * This method can be used to restore deleted elements, but
-   * it cannot add new elements to the set.
-   */
-  restore(value: T): this;
 
   /**
    * Returns whether value was deleted.  May be false either
@@ -85,27 +74,12 @@ export interface CSet<
 
   has(value: T): boolean;
 
-  // TODO: include owns?
-  // /**
-  //  * Returns true if valueCrdt is owned by this CrdtSet,
-  //  * i.e., it resulted from a create operation on this.
-  //  */
-  // owns(valueCrdt: C): boolean;
-
   /**
    * Delete every value in this set.
-   *
-   * Note that this may be a different semantics
-   * than reset.
    */
   clear(): void;
 
   readonly size: number;
-
-  // TODO: of the remaining methods/properties, only
-  // values() is really necessary.  The rest
-  // (forEach, entries, keys, Symbol.iterator) are just
-  // included for consistency with the native JS Set.
 
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
@@ -116,19 +90,40 @@ export interface CSet<
   [Symbol.iterator](): IterableIterator<T>;
 
   /**
-   * Returns an iterable of [v,v] pairs for every value `v` in the set. Order is not eventually consistent.
-   */
-  entries(): IterableIterator<[T, T]>;
-
-  /**
-   * Despite its name, returns an iterable of the values in the set. Order is not eventually consistent.
-   */
-  keys(): IterableIterator<T>;
-
-  /**
-   * Returns an iterable of values in the set. Order is not eventually consistent.
+   * Returns an iterable of values in the set. Order is not guaranteed to be
+   * eventually consistent.
+   * (TODO: if we can make it eventually consistent in our implementations,
+   * mandate it?  Or just state it for those implementations?)
    */
   values(): IterableIterator<T>;
+
+  // entries() and keys() are excluded because they are redundant and don't
+  // seem useful, even though they are included in the ES6 Set class.
+  // /**
+  //  * Returns an iterable of [v,v] pairs for every value `v` in the set. Order is not eventually consistent.
+  //  */
+  // entries(): IterableIterator<[T, T]>;
+  //
+  // /**
+  //  * Despite its name, returns an iterable of the values in the set. Order is not eventually consistent.
+  //  */
+  // keys(): IterableIterator<T>;
+
+  // TODO: only include in implementations where it makes sense (Riak-style)
+  // /**
+  //  * Makes the given value present in the set.
+  //  *
+  //  * This method can be used to restore deleted elements, but
+  //  * it cannot add new elements to the set.
+  //  */
+  // restore(value: T): this;
+
+  // TODO: only include in implementations where it makes sense
+  // /**
+  //  * Returns true if value is owned by this Crdt,
+  //  * i.e., it resulted from an add operation on this.
+  //  */
+  // owns(value: T): boolean;
 }
 
 // In terms of this interface, the old PlainSet interface is
