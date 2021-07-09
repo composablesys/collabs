@@ -14,6 +14,11 @@ class MovableListEntry<I, C extends Crdt>
 {
   readonly content: C;
   readonly location: LwwRegister<I>;
+  /**
+   * Stores location.optionalValue so that we can
+   * look up the previous value during this.onLocationChange.
+   * TODO: instead make this part of the Lww event?
+   */
   cachedLocation: Optional<I>;
 
   constructor(
@@ -40,6 +45,10 @@ class MovableListEntry<I, C extends Crdt>
     (this.content as unknown as Resettable).reset();
     this.location.reset();
   }
+
+  postLoad() {
+    this.cachedLocation = this.location.optionalValue;
+  }
 }
 
 export type InferResettable<C extends Crdt> = Crdt &
@@ -54,6 +63,9 @@ export class MovableList<I, C extends Crdt>
 {
   private readonly entries: CrdtSet<MovableListEntry<I, C>>;
   // Note this is a persistent (immutable) data structure.
+  // TODO: loading sortedLocations and danglers.  Also check entries' cachedLocations are
+  // okay being postLoaded.  (Are cachedLocations even
+  // needed?  Since Lww caches answers internally anyway.)
   private sortedLocations: RBTree<I, MovableListEntry<I, C>>;
   private danglers: Set<MovableListEntry<I, C>> = new Set();
 
@@ -256,6 +268,21 @@ export class MovableList<I, C extends Crdt>
   *danglingValues(): IterableIterator<C> {
     for (let entry of this.danglers) {
       yield entry.content;
+    }
+  }
+
+  postLoad() {
+    // Set sortedLocations and danglers from entries.
+    for (const entry of this.entries) {
+      const optionalSeqId = entry.location.optionalValue;
+      if (optionalSeqId.isPresent) {
+        this.sortedLocations = this.sortedLocations.insert(
+          optionalSeqId.get(),
+          entry
+        )[0];
+      } else {
+        this.danglers.add(entry);
+      }
     }
   }
 }

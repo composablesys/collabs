@@ -20,7 +20,9 @@ import {
 } from "../../util";
 import { RiakCrdtMap } from "../map";
 import {
+  IPrimitiveListEntrySave,
   PrimitiveListMessage,
+  PrimitiveListSave,
   TreedocIdMessage,
 } from "../../../generated/proto_compiled";
 import { BitSet } from "../../util/bitset";
@@ -82,6 +84,7 @@ export class List<I, C extends Crdt & Resettable>
 {
   private readonly valueMap: RiakCrdtMap<I, C>;
   // Note this is a persistent (immutable) data structure.
+  // TODO: loading
   private sortedKeys: RBTree<I, true>;
   constructor(
     private readonly sequenceSource: ISequenceSource<I>,
@@ -243,6 +246,16 @@ export class List<I, C extends Crdt & Resettable>
   get length(): number {
     return this.sortedKeys.length;
   }
+
+  postLoad() {
+    // Create sortedKeys as a sorted view of valueMap.keys().
+    // TODO: would be nice to build the whole tree at
+    // once, instead of one element at a time.  O(n)
+    // instead of O(n*log(n)).
+    for (const seqId of this.valueMap.keys()) {
+      this.sortedKeys = this.sortedKeys.insert(seqId, true)[0];
+    }
+  }
 }
 
 // /**
@@ -347,12 +360,12 @@ class TreedocIdWrapper {
 
   static deserialize(
     serialized: Uint8Array,
-    parent: TreedocPrimitiveList<any>
+    parent: TreedocPrimitiveList<any>,
+    senderCounter?: number
   ): TreedocIdWrapper {
-    return new TreedocIdWrapper(
-      parent.sequenceSource.deserialize(serialized, parent.runtime),
-      parent
-    );
+    const seqId = parent.sequenceSource.deserialize(serialized, parent.runtime);
+    seqId.senderCounter = senderCounter;
+    return new TreedocIdWrapper(seqId, parent);
   }
 }
 
@@ -663,6 +676,37 @@ export class TreedocPrimitiveList<T>
 
   canGc(): boolean {
     return this.length === 0;
+  }
+
+  savePrimitive(): Uint8Array {
+    // TODO: use anchor deduplication in saved state, like
+    // in memory.
+    // TODO: use valueArraySerializer?
+    const entries: IPrimitiveListEntrySave[] = [];
+    this.state.tree.forEach((seqId, value) => {
+      entries.push({
+        seqId: seqId.serialize(this),
+        senderCounter: seqId.senderCounter!,
+        value: this.valueSerializer.serialize(value),
+      });
+    });
+    const message = PrimitiveListSave.create({
+      entries,
+    });
+    return PrimitiveListSave.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    // TODO: would be nice to build the whole tree at
+    // once, instead of one element at a time.  O(n)
+    // instead of O(n*log(n)).
+    const message = PrimitiveListSave.decode(saveData);
+    for (let entry of message.entries) {
+      this.state.tree = this.state.tree.insert(
+        TreedocIdWrapper.deserialize(entry.seqId, this, entry.senderCounter),
+        this.valueSerializer.deserialize(entry.value, this.runtime)
+      )[0];
+    }
   }
 }
 

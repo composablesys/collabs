@@ -20,7 +20,7 @@ names=("compoCrdt" "compoJsonText" "compoJsonCrdt" "compoMovableCrdt")
 
 for frequency in "whole" "rounds"
 do
-    for measurement in "time" "network" "memory"
+    for measurement in "time" "network" "memory" "save"
     do
       for name in ${names[*]}
       do
@@ -34,7 +34,7 @@ names=("textCrdt")
 
 for frequency in "whole" "rounds"
 do
-    for measurement in "time" "network" "memory"
+    for measurement in "time" "network" "memory" "save"
     do
       for name in ${names[*]}
       do

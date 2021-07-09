@@ -1,7 +1,17 @@
 message DefaultCausalBroadcastMessage {
-    required bytes message = 1;
-    required string sender = 2;
-    required uint32 senderCounter = 3;
-    map<string, uint32> vectorMap = 4;
-    required double time = 5;
+  required bytes message = 1;
+  required string sender = 2;
+  required uint32 senderCounter = 3;
+  map<string, uint32> vectorMap = 4;
+  required double time = 5;
+}
+
+message DefaultCausalBroadcastSave {
+  // Unlike in messages, this includes the saving replica's
+  // entry directly, since the loader will be a different
+  // replica anyway.
+  map<string, uint32> vectorMap = 1;
+  repeated bytes messageBuffer = 2;
+  required uint32 bufferCheckIndex = 3;
+  required bytes broadcastNetworkSave = 4;
 }

@@ -15,6 +15,7 @@ message GAddOnlyNumberMessage {
     }
 }
 
-message MultRegisterMessage {
-    required double toMult = 1;
+message GAddOnlyNumberSave {
+  map<string, double> P = 1;
+  map<string, double> N = 2;
 }

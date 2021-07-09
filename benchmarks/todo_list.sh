@@ -26,11 +26,16 @@ fi
 
 for frequency in "whole" "rounds"
 do
-    for measurement in "time" "network" "memory"
+    for measurement in "time" "network" "memory" "save"
     do
       for name in ${names[*]}
       do
-          npm start -- $1 $2 $3 $4 "todo_list" $name $measurement $frequency
+          if [ $frequency == "rounds" ] && [ $measurement == "save" ] && [ $name == "compoJson" ]
+          then
+            echo "Skipping todo_list compoJson save rounds"
+          else
+            npm start -- $1 $2 $3 $4 "todo_list" $name $measurement $frequency
+          fi
       done
     done
 done

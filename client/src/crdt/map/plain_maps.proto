@@ -7,3 +7,12 @@ message SequentialMapMessage {
   required bytes key = 1;
   optional bytes value = 2;
 }
+
+message SequentialMapEntry {
+  required bytes key = 1;
+  required bytes value = 2;
+}
+
+message SequentialMapSave {
+  repeated SequentialMapEntry entries = 1;
+}

@@ -58,6 +58,28 @@ interface ITestFactory {
    * Reset this on each call to newTodoList()
    */
   getSentBytes(): number;
+  /**
+   * Save the current state as saveData.  Also return
+   * the length of the saveData in bytes.
+   *
+   * Load will be called soon after save.
+   *
+   * This will be timed, so don't do excessive extra work
+   * that wouldn't be part of normal saving.
+   */
+  save(): [saveData: any, byteLength: number];
+  /**
+   * Like newTodoList, but also load the state from
+   * saveData.  In particular, use a new replica id
+   * (rng is provided for this).
+   *
+   * This will be timed, so don't do excessive extra work
+   * that wouldn't be part of normal loading.
+   *
+   * Don't worry about resetting getSentBytes since it
+   * won't be measured anyway.
+   */
+  load(saveData: any, rng: seedrandom.prng): ITodoList;
 }
 
 class TodoListBenchmark {
@@ -69,18 +91,24 @@ class TodoListBenchmark {
   private rng!: seedrandom.prng;
 
   async run(
-    measurement: "time" | "memory" | "network",
+    measurement: "time" | "memory" | "network" | "save",
     frequency: "whole" | "rounds"
   ) {
     console.log("Starting todo_list test: " + this.testName);
 
-    let results = new Array<number>(getRecordedTrials());
-    let roundResults = new Array<number[]>(getRecordedTrials());
+    let results = new Array<{ [measurement: string]: number }>(
+      getRecordedTrials()
+    );
+    let roundResults = new Array<{ [measurement: string]: number }[]>(
+      getRecordedTrials()
+    );
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
       for (let i = 0; i < getRecordedTrials(); i++)
-        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+        roundResults[i] = new Array<{ [measurement: string]: number }>(
+          Math.ceil(OPS / ROUND_OPS)
+        );
     }
 
     let startingBaseline = 0;
@@ -94,6 +122,7 @@ class TodoListBenchmark {
       console.log("Starting trial " + trial);
 
       this.rng = seedrandom(SEED);
+      const replicaIdRng = seedrandom(SEED + SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -105,7 +134,7 @@ class TodoListBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      let list = this.testFactory.newTodoList(seedrandom(SEED));
+      let list = this.testFactory.newTodoList(replicaIdRng);
 
       switch (measurement) {
         case "time":
@@ -120,17 +149,48 @@ class TodoListBenchmark {
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
-          let ans = -1;
+          let ans: { [measurement: string]: number } = {};
           switch (measurement) {
             case "time":
-              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
-
+              ans[measurement] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
               break;
             case "memory":
-              ans = await getMemoryUsed();
+              ans[measurement] = await getMemoryUsed();
               break;
             case "network":
-              ans = this.testFactory.getSentBytes() - startSentBytes;
+              ans[measurement] =
+                this.testFactory.getSentBytes() - startSentBytes;
+              break;
+            case "save":
+              let beforeSave: Object;
+              if (DEBUG) beforeSave = this.toObject(list, true);
+              const saveStartTime = process.hrtime.bigint();
+              const [saveData, saveSize] = this.testFactory.save();
+              const saveTime = new Number(
+                process.hrtime.bigint() - saveStartTime!
+              ).valueOf();
+              this.testFactory.cleanup();
+              const loadStartTime = process.hrtime.bigint();
+              list = this.testFactory.load(saveData, replicaIdRng);
+              const loadTime = new Number(
+                process.hrtime.bigint() - loadStartTime!
+              ).valueOf();
+              ans = {
+                saveTime,
+                saveSize,
+                loadTime,
+              };
+              if (DEBUG) {
+                const afterSave = this.toObject(list, true);
+                assert.deepStrictEqual(
+                  beforeSave!,
+                  afterSave,
+                  "afterSave did not equal beforeSave"
+                );
+              }
+              break;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -144,16 +204,39 @@ class TodoListBenchmark {
       }
 
       // Record result
-      let result = -1;
+      // TODO: de-duplicate code (shared with rounds measurements)
+      let result: { [measurement: string]: number } = {};
       switch (measurement) {
         case "time":
-          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          result[measurement] = new Number(
+            process.hrtime.bigint() - startTime!
+          ).valueOf();
           break;
         case "memory":
-          result = await getMemoryUsed();
+          result[measurement] = await getMemoryUsed();
           break;
         case "network":
-          result = this.testFactory.getSentBytes() - startSentBytes;
+          result[measurement] =
+            this.testFactory.getSentBytes() - startSentBytes;
+          break;
+        case "save":
+          const saveStartTime = process.hrtime.bigint();
+          const [saveData, saveSize] = this.testFactory.save();
+          const saveTime = new Number(
+            process.hrtime.bigint() - saveStartTime!
+          ).valueOf();
+          this.testFactory.cleanup();
+          const loadStartTime = process.hrtime.bigint();
+          list = this.testFactory.load(saveData, replicaIdRng);
+          const loadTime = new Number(
+            process.hrtime.bigint() - loadStartTime!
+          ).valueOf();
+          result = {
+            saveTime,
+            saveSize,
+            loadTime,
+          };
+          break;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -191,19 +274,31 @@ class TodoListBenchmark {
       );
     }
 
-    record(
-      "todo_list/" + measurement,
-      this.testName,
-      frequency,
-      getRecordedTrials(),
-      results,
-      roundResults,
-      roundOps,
-      measurement === "memory"
-        ? baseMemories
-        : new Array<number>(getRecordedTrials()).fill(0),
-      startingBaseline
-    );
+    let toRecord: string[];
+    switch (measurement) {
+      case "save":
+        toRecord = ["saveTime", "loadTime", "saveSize"];
+        break;
+      default:
+        toRecord = [measurement];
+    }
+    for (const oneRecord of toRecord) {
+      record(
+        "todo_list/" + oneRecord,
+        this.testName,
+        frequency,
+        getRecordedTrials(),
+        results.map((result) => result[oneRecord]),
+        roundResults.map((trialResult) =>
+          trialResult.map((result) => result[oneRecord])
+        ),
+        roundOps,
+        oneRecord === "memory"
+          ? baseMemories
+          : new Array<number>(getRecordedTrials()).fill(0),
+        startingBaseline
+      );
+    }
   }
 
   private choice(options: number) {
@@ -356,14 +451,26 @@ function plainJs() {
     }
   }
 
+  let topList: PlainJsTodoList;
   return new TodoListBenchmark("Plain JS array", {
     newTodoList() {
-      return new PlainJsTodoList("");
+      topList = new PlainJsTodoList("");
+      return topList;
     },
     cleanup() {},
     sendNextMessage() {},
     getSentBytes() {
       return 0;
+    },
+    save() {
+      const saveData = JSON.stringify(topList!);
+      return [saveData, saveData.length];
+    },
+    load(saveData: string) {
+      // TODO: it's actually not the class itself, just
+      // an identical plain Object.
+      topList = JSON.parse(saveData) as PlainJsTodoList;
+      return topList;
     },
   });
 }
@@ -433,11 +540,12 @@ function compoCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
     },
@@ -456,6 +564,19 @@ function compoCrdt() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
     },
   });
 }
@@ -525,11 +646,12 @@ function compoMovableCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Movable Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
     },
@@ -548,6 +670,19 @@ function compoMovableCrdt() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
     },
   });
 }
@@ -615,7 +750,7 @@ function compoJson() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -639,6 +774,19 @@ function compoJson() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      runtime.load(saveData);
+      return new JsonTodoList(list.value as crdts.JsonObject);
     },
   });
 }
@@ -704,7 +852,7 @@ function compoJsonText() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -728,6 +876,19 @@ function compoJsonText() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      runtime.load(saveData);
+      return new JsonTextTodoList(list.value as crdts.JsonObject);
     },
   });
 }
@@ -808,6 +969,9 @@ function automerge() {
 
   return new TodoListBenchmark("Automerge", {
     newTodoList() {
+      // TODO: use rng'd actorId (input as second argument
+      // to from and load), in same format as Automerge
+      // uses internally.
       theDoc = Automerge.from({
         items: [],
       });
@@ -829,6 +993,19 @@ function automerge() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      // TODO: Readme says this is a Uint8Array, but
+      // TypeScript says it is a string.  Not a problem,
+      // but we should make sure length accurately gives
+      // the byte length, not the uint16 length.
+      const saveData = Automerge.save(theDoc!);
+      return [saveData, saveData.length];
+    },
+    load(saveData: string) {
+      theDoc = Automerge.load(saveData);
+      lastDoc = theDoc;
+      return new AutomergeTodoList([]);
     },
   });
 }
@@ -929,6 +1106,19 @@ function automergeNoText() {
     getSentBytes() {
       return totalSentBytes;
     },
+    save() {
+      // TODO: Readme says this is a Uint8Array, but
+      // TypeScript says it is a string.  Not a problem,
+      // but we should make sure length accurately gives
+      // the byte length, not the uint16 length.
+      const saveData = Automerge.save(theDoc!);
+      return [saveData, saveData.length];
+    },
+    load(saveData: string) {
+      theDoc = Automerge.load(saveData);
+      lastDoc = theDoc;
+      return new AutomergeTodoList([]);
+    },
   });
 }
 
@@ -1008,6 +1198,19 @@ function yjs() {
     sendNextMessage() {},
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      // TODO: also try encodeStateAsUpdateV2 and applyUpdateV2,
+      // use whichever is better.
+      const saveData = Y.encodeStateAsUpdate(topDoc!);
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array) {
+      // Proceed like newTodoList, but without doing any
+      // operations or recording sent bytes.
+      topDoc = new Y.Doc();
+      Y.applyUpdate(topDoc, saveData);
+      return new YjsTodoList(topDoc.getMap());
     },
   });
 }
@@ -1108,7 +1311,7 @@ function jsonCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -1142,6 +1345,28 @@ function jsonCrdt() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+
+      let crdt = new crdts.JsonCrdt();
+
+      let cursor = new crdts.JsonCursor(crdt);
+      runtime.registerCrdt("", crdt);
+
+      let idGen = new crdts.TreedocSource();
+      idGen.setRuntime(runtime);
+
+      runtime.load(saveData);
+
+      return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
   });
 }
@@ -1181,7 +1406,14 @@ export default async function todoList(args: string[]) {
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
-  if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
+  if (
+    !(
+      args[1] === "time" ||
+      args[1] === "memory" ||
+      args[1] === "network" ||
+      args[1] === "save"
+    )
+  ) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
   if (!(args[2] === "whole" || args[2] === "rounds")) {

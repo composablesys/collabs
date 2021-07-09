@@ -3,7 +3,10 @@
 //
 // Also ensure the order of delivery with casuality check.
 
-import { DefaultCausalBroadcastMessage } from "../../generated/proto_compiled";
+import {
+  DefaultCausalBroadcastMessage,
+  DefaultCausalBroadcastSave,
+} from "../../generated/proto_compiled";
 import { Runtime } from "../crdt";
 import {
   CausalTimestamp,
@@ -60,6 +63,26 @@ export interface BroadcastNetwork {
     firstTimestamp: CausalTimestamp,
     lastTimestamp: CausalTimestamp
   ): void;
+
+  /**
+   * Save any current state if desired, for passing
+   * to load on a future newly initialized instance.
+   *
+   * The only requirement is that a loaded copy must
+   * eventually deliver any messages that were not already
+   * delivered by the saved instance.  It is okay to deliver
+   * more (the likely behavior if you save no state), but
+   * inefficient.
+   *
+   * TODO: need to prevent loading all messages after
+   * construction but before loading (the current behavior
+   * of WebSocketNetwork), iff it's going to be loaded.
+   *
+   * @return [description]
+   */
+  save(): Uint8Array;
+
+  load(saveData: Uint8Array): void;
 }
 
 /**
@@ -147,7 +170,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   /**
    * Message buffer to store received message to ensure casual delivery.
    */
-  private readonly messageBuffer: myMessage[] = [];
+  private messageBuffer: myMessage[] = [];
   /**
    * The first index to check for readiness in the buffer.
    */
@@ -322,6 +345,37 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
 
   get crdtRuntime(): Runtime {
     return this.runtime;
+  }
+
+  serialize(value: CausalTimestamp): Uint8Array {
+    // TODO: make reasonable (don't use myMessage)
+    return new myMessage(new Uint8Array(), value as VectorClock).serialize();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): CausalTimestamp {
+    return myMessage.deserialize(message, runtime.replicaId).timestamp;
+  }
+
+  save(): Uint8Array {
+    const message = DefaultCausalBroadcastSave.create({
+      vectorMap: Object.fromEntries(this.vc.vectorMap),
+      messageBuffer: this.messageBuffer.map((value) => value.serialize()),
+      bufferCheckIndex: this.bufferCheckIndex,
+      broadcastNetworkSave: this.broadcastNetwork.save(),
+    });
+    return DefaultCausalBroadcastSave.encode(message).finish();
+  }
+
+  load(saveData: Uint8Array) {
+    const message = DefaultCausalBroadcastSave.decode(saveData);
+    for (let entry of Object.entries(message.vectorMap)) {
+      this.vc.vectorMap.set(...entry);
+    }
+    this.messageBuffer = message.messageBuffer.map((serialized) =>
+      myMessage.deserialize(serialized, this.runtime.replicaId)
+    );
+    this.bufferCheckIndex = message.bufferCheckIndex;
+    this.broadcastNetwork.load(message.broadcastNetworkSave);
   }
 
   readonly isCausalBroadcastNetwork: true = true;
