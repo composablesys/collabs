@@ -131,6 +131,8 @@ export interface CSeq<
    */
   clear(): void;
 
+  // Aliases
+  readonly size: number;
   readonly length: number;
 
   /** Returns an iterable of values in the sequence, in sequence order. */
