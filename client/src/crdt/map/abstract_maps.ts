@@ -100,7 +100,7 @@ export abstract class AbstractPlainMap<
   }
 
   forEach(
-    callbackfn: (value: V, key: K, map: Map<K, V>) => void,
+    callbackfn: (value: V, key: K, map: this) => void,
     thisArg?: any
   ): void {
     for (let [key, value] of this) {

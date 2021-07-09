@@ -97,7 +97,7 @@ export abstract class AbstractPlainSet<
   }
 
   forEach(
-    callbackfn: (value: T, value2: T, set: Set<T>) => void,
+    callbackfn: (value: T, value2: T, set: this) => void,
     thisArg?: any
   ): void {
     for (let value of this) {

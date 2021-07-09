@@ -6,10 +6,16 @@ module.exports = createRBTree;
  * Forked from the npm module functional-red-black-tree
  * https://www.npmjs.com/package/functional-red-black-tree
  * https://github.com/mikolalysenko/functional-red-black-tree
- * which is MIT licensed.  TODO: credit original authors.
+ * which is MIT licensed.  Copyright (c) 2013 Mikola Lysenko
  *
- * We modify insert so that it also returns the index
- * of the inserted element.
+ * We (Compoventuals) modified this file as follows:
+ * - modify insert so that it also
+ * returns the index of the inserted element
+ * - add ignoreExisting parameter to insert (the original
+ * library behaves as if this is always false)
+ * - modify remove so that it also returns the old index
+ * of the removed element
+ * - explicitly return undefined instead of void from get
  */
 
 var RED = 0;

@@ -1,13 +1,23 @@
 {
   "name": "compoventuals-server",
   "version": "0.1.0",
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
-  "unpkg": "build/src/index.js",
+  "description": "CRDTs designed compositionally (simple server implementations)",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
+  "keywords": [
+    "crdts"
+  ],
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "unpkg": "build/src/index.js",
   "dependencies": {
     "clean": "^4.0.2",
     "ws": "^7.3.1"
@@ -30,15 +40,5 @@
   },
   "files": [
     "/build"
-  ],
-  "description": "CRDTs designed compositionally (server library)",
-  "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
-  },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
-  "keywords": [
-    "crdts"
-  ],
-  "author": "Heather Miller",
-  "license": "ISC"
+  ]
 }

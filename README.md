@@ -2,7 +2,7 @@
 
 One day, we'll come up with a better name.
 
-(Template based on [ts-demo-webpack](https://github.com/rauschma/ts-demo-webpack))
+**Under development - don't use for anything critical; API may change at any time!**
 
 ## Building
 
@@ -53,6 +53,14 @@ $ npm start
 
 Access the service via `localhost:3000`, look at the console to see outputs of current deployment.
 
+If you need to connect using https due to browser restrictions (e.g. for Matrix widgets), instead run
+
+```bash
+$ npm start https
+```
+
+Then access the service via `https://localhost:3000/`, accept the self-signed certificate warning, and continue as usual. Of course, don't use this https setup for anything serious, since the server key is public.
+
 ## How to build on Heroku?
 
 Deploys to https://compoventuals-tests.herokuapp.com/
@@ -60,7 +68,7 @@ Deploys to https://compoventuals-tests.herokuapp.com/
 - The Heroku deployment will be automatically triggered by `git commit` and `git push`.
 - The Heroku server will run `npm install` and `npm build` to build the project, and `npm start` to run it (according to Procfile).
 
-Options for manually deployment:
+Options for manual deployment:
 
 - Log in your Heroku with CLI tool and verify on browser:
 
@@ -82,7 +90,6 @@ This should also create a git remote repo named `heroku`. See [here](https://dev
 git add ${selected files}
 git commit -m ${commit messages}
 git push heroku master
-git push
 ```
 
 ## Development
@@ -91,3 +98,9 @@ We recommend setting up "Format on Save" in your editor.
 See [Prettier's editor setup instructions](https://prettier.io/docs/en/editors.html).
 
 If you don't set this, you'll need to run `npm run fix` in the top-level directory before committing and pushing your code to github. Otherwise, the CI will complain that the format is wrong.
+
+## License
+
+Licensed under Apache 2.0.
+
+Created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at [CMU's Composable Systems Lab](https://www.composablesystems.org/).

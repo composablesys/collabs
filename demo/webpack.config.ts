@@ -8,11 +8,17 @@ const config: webpack.Configuration = {
   entry: {
     counter: "./src/site/counter.ts",
     whiteboard: "./src/site/whiteboard.ts",
+    aspace: "./src/site/aspace.ts",
     counter_webrtc: "./src/site/counter_webrtc.ts",
     minesweeper: "./src/site/minesweeper.ts",
     aspace: "./src/site/aspace.ts",
     variablecounter: "./src/site/variablecounter.ts",
     text: "./src/site/text.ts",
+    plaintext: "./src/site/plaintext.ts",
+    "matrix/widget_test": "./src/site/matrix/widget_test.ts",
+    "matrix/whiteboard": "./src/site/matrix/whiteboard.ts",
+    "matrix/minesweeper": "./src/site/matrix/minesweeper.ts",
+    "matrix/plaintext": "./src/site/matrix/plaintext.ts",
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -55,6 +61,23 @@ const config: webpack.Configuration = {
         { from: "./src/site/aspace.html", to: "aspace.html" },
         { from: "./src/site/variablecounter.html", to: "variablecounter.html" },
         { from: "./src/site/text.html", to: "text.html" },
+        { from: "./src/site/plaintext.html", to: "plaintext.html" },
+        {
+          from: "./src/site/matrix/widget_test.html",
+          to: "matrix/widget_test.html",
+        },
+        {
+          from: "./src/site/matrix/whiteboard.html",
+          to: "matrix/whiteboard.html",
+        },
+        {
+          from: "./src/site/matrix/minesweeper.html",
+          to: "matrix/minesweeper.html",
+        },
+        {
+          from: "./src/site/matrix/plaintext.html",
+          to: "matrix/plaintext.html",
+        },
         // TODO: Add more entries as needed for new pages
       ],
     }),

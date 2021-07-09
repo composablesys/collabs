@@ -2,17 +2,27 @@
   "name": "compoventuals-client",
   "version": "0.1.0",
   "description": "CRDTs designed compositionally (client library)",
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
-  "unpkg": "build/src/index.js",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
+  "keywords": [
+    "crdts"
+  ],
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "unpkg": "build/src/index.js",
   "dependencies": {
     "buffer": "^6.0.3",
     "clean": "^4.0.2",
     "crypto-random-string": "~3.3.1",
+    "matrix-widget-api": "^0.1.0-beta.15",
     "protobufjs": "~6.10.1",
     "ws": "^7.3.1",
     "reconnecting-websocket": "^4.4.0"
@@ -49,17 +59,8 @@
   "files": [
     "/build"
   ],
-  "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
-  },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
   "directories": {
     "lib": "src",
     "test": "test"
-  },
-  "keywords": [
-    "crdts"
-  ],
-  "author": "Heather Miller",
-  "license": "ISC"
+  }
 }

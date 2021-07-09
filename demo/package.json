@@ -1,10 +1,20 @@
 {
   "name": "compoventuals-demo",
   "version": "0.1.0",
+  "description": "CRDTs designed compositionally (demo webapps)",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/compoventuals.git"
   },
+  "keywords": [
+    "crdts"
+  ],
   "dependencies": {
     "@types/quill": "^2.0.8",
     "quill": "^1.3.6",
@@ -12,6 +22,7 @@
     "compoventuals-server": "^0.1.0",
     "clean": "^4.0.2",
     "express": "^4.17.1",
+    "matrix-widget-api": "^0.1.0-beta.15",
     "ws": "^7.3.1"
   },
   "devDependencies": {
@@ -44,17 +55,7 @@
   "files": [
     "/build"
   ],
-  "description": "Demo of compoventuals capabilities",
-  "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
-  },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
   "directories": {
     "test": "test"
-  },
-  "keywords": [
-    "crdts"
-  ],
-  "author": "Heather Miller",
-  "license": "ISC"
+  }
 }
