@@ -6,6 +6,7 @@ import {
   CausalTimestamp,
   DefaultCausalBroadcastNetwork,
   isCausalBroadcastNetwork,
+  VectorClock,
 } from "../../net";
 import { arrayAsString, EventEmitter, stringAsArray } from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
@@ -96,6 +97,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
+  private _sideEffect = false;
+  // private previousTimeStamp: CausalTimestamp;
+  private previousReceivedTimeStamp: CausalTimestamp;
 
   /**
    * TODO.
@@ -138,6 +142,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       this.batchType = batchOptions;
       this.batchingPeriodMs = undefined;
     }
+    // this.previousTimeStamp = new VectorClock(this.replicaId, true, 1);
+    this.previousReceivedTimeStamp = new VectorClock(this.replicaId, true, 1);
   }
 
   /**
@@ -162,41 +168,51 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
-    let newBatch: boolean;
-    if (this.pendingBatch === null) {
-      newBatch = true;
-      timestamp = this.network.beginBatch();
-      this.pendingBatch = {
-        pointers: [],
-        pointerByCrdt: new Map(),
-        messages: [],
-        firstTimestamp: timestamp,
-        previousTimestamp: timestamp,
-      };
+    if (this._sideEffect) {
+      timestamp = this.previousReceivedTimeStamp;
+
+      // Deliver to self, synchronously
+      // TODO: error handling
+      this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
     } else {
-      newBatch = false;
-      timestamp = this.network.nextTimestamp(
-        this.pendingBatch.previousTimestamp
-      );
-    }
+      let newBatch: boolean;
+      if (this.pendingBatch === null) {
+        newBatch = true;
+        timestamp = this.network.beginBatch();
+        this.pendingBatch = {
+          pointers: [],
+          pointerByCrdt: new Map(),
+          messages: [],
+          firstTimestamp: timestamp,
+          previousTimestamp: timestamp,
+        };
+      } else {
+        newBatch = false;
+        timestamp = this.network.nextTimestamp(
+          this.pendingBatch.previousTimestamp
+        );
+      }
 
-    // Deliver to self, synchronously
-    // TODO: error handling
-    this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+      console.log("broadcasting", timestamp);
+      // Deliver to self, synchronously
+      // TODO: error handling
+      this.previousReceivedTimeStamp = timestamp;
+      this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
 
-    // Add to the pending batch
-    let pointer = this.getOrCreatePointer(sender);
-    this.pendingBatch.messages.push({
-      sender: pointer,
-      innerMessage: message,
-    });
-    this.pendingBatch.previousTimestamp = timestamp;
+      // Add to the pending batch
+      let pointer = this.getOrCreatePointer(sender);
+      this.pendingBatch.messages.push({
+        sender: pointer,
+        innerMessage: message,
+      });
+      this.pendingBatch.previousTimestamp = timestamp;
 
-    if (this.batchType === "immediate") {
-      // Send immediately
-      this.commitBatch();
-    } else if (newBatch && this.batchType === "periodic") {
-      setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
+      if (this.batchType === "immediate") {
+        // Send immediately
+        this.commitBatch();
+      } else if (newBatch && this.batchType === "periodic") {
+        setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
+      }
     }
   }
 
@@ -288,6 +304,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
         let pathToRoot = pathToRoots[decoded.messageSenders[i]];
+        this.previousReceivedTimeStamp = timestamp;
         this.rootCrdt.receive(
           pathToRoot.slice(),
           timestamp,
@@ -331,4 +348,18 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     this.idCounter += count;
     return ans;
   }
+
+  startLocalSideEffect() {
+    this._sideEffect = true;
+  }
+
+  endLocalSideEffect() {
+    this._sideEffect = false;
+  }
+
+  get isLocalSideEffect() {
+    return this._sideEffect;
+  }
 }
+
+// TODO: localOnlySideEffect
