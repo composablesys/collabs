@@ -452,6 +452,11 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * same program to load as you used to save, and call
    * load between its setup and when anything happens.
    *
+   * Note that events are generally not triggered during
+   * loading, so if you usually rely on events to create
+   * a view of the application state, you must manually
+   * create that view once after load.
+   *
    * TODO: future work: thread friendly (option to sleep/yield
    * occasionally, blocking messages while doing so;
    * also tell caller not to read anything until done);
