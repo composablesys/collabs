@@ -2,7 +2,8 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src/server",
-    "outDir": "build/server"
+    "outDir": "build/server",
+    "esModuleInterop": true
   },
   "include": ["src/server", "tsconfig.server.json"],
   "references": [{ "path": "../server/tsconfig.json" }]
