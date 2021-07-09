@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": "src/server",
     "outDir": "build/server",
-    "esModuleInterop": true,
+    "esModuleInterop": true
   },
   "include": ["src/server", "tsconfig.server.json"],
   "references": [{ "path": "../server/tsconfig.json" }]

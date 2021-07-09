@@ -323,8 +323,8 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     // Assumptions:
     //  1. the formatted operation had been previously inserted because it just has to be.
     //  2. the m2's found here had effected the local crdt state
-     if (this.op(uidOfInsertion)!.originId === uidOfFormattedOp) {
-    // if (this.op(uidOfFormattedOp)!.rightId === uidOfInsertion) {
+    if (this.op(uidOfInsertion)!.originId === uidOfFormattedOp) {
+      // if (this.op(uidOfFormattedOp)!.rightId === uidOfInsertion) {
       const m1TargetPathReplay = m1TargetPath.slice().concat(["nodeMap"]);
       const attrName = m1TargetPathReplay[1].substring(2);
       // Check if the value of this attribute in this insertion is the same as the one to its left at write time.

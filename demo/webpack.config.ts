@@ -11,7 +11,6 @@ const config: webpack.Configuration = {
     aspace: "./src/site/aspace.ts",
     counter_webrtc: "./src/site/counter_webrtc.ts",
     minesweeper: "./src/site/minesweeper.ts",
-    aspace: "./src/site/aspace.ts",
     variablecounter: "./src/site/variablecounter.ts",
     text: "./src/site/text.ts",
     plaintext: "./src/site/plaintext.ts",
