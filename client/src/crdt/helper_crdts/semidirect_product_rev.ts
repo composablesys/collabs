@@ -1,3 +1,7 @@
+import {
+  ISemidirectProductRevSenderHistory,
+  SemidirectProductRevSave,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
   CompositeCrdt,
@@ -5,6 +9,7 @@ import {
   CrdtEvent,
   CrdtEventsRecord,
   CrdtParent,
+  Runtime,
   StatefulCrdt,
 } from "../core";
 import { LocallyResettableState } from "./resettable";
@@ -246,6 +251,76 @@ class SemidirectHistory<Events extends CrdtEventsRecord> {
     }
     return null;
   }
+
+  save(runtime: Runtime, subclassSave: Uint8Array): Uint8Array {
+    const historySave: {
+      [sender: string]: ISemidirectProductRevSenderHistory;
+    } = {};
+    for (const [sender, messages] of this.history) {
+      historySave[sender] = {
+        messages: messages.map((message) => {
+          return {
+            senderCounter: message.senderCounter,
+            receiptCounter: message.receiptCounter,
+            targetPath: message.targetPath,
+            timestamp: this.historyTimestamps
+              ? runtime.timestampSerializer.serialize(message.timestamp!)
+              : null,
+            message: message.message,
+          };
+        }),
+      };
+    }
+    const messageEventsSave: { [id: string]: string } = {};
+    for (const [id, event] of this.messageEvents) {
+      // TODO: intelligent way to serialize events.
+      // In particular, this will do silly things to
+      // timestamp.
+      messageEventsSave[id] = JSON.stringify(event);
+    }
+    const saveMessage = SemidirectProductRevSave.create({
+      receiptCounter: this.receiptCounter,
+      history: historySave,
+      messageEvents: messageEventsSave,
+      subclassSave,
+    });
+    return SemidirectProductRevSave.encode(saveMessage).finish();
+  }
+
+  /**
+   * [load description]
+   * @param  saveData [description]
+   * @param  runtime  [description]
+   * @return subclassSave
+   */
+  load(saveData: Uint8Array, runtime: Runtime): Uint8Array {
+    const saveMessage = SemidirectProductRevSave.decode(saveData);
+    this.receiptCounter = saveMessage.receiptCounter;
+    for (const [sender, messages] of Object.entries(saveMessage.history)) {
+      this.history.set(
+        sender,
+        messages.messages!.map(
+          (message) =>
+            new StoredMessage(
+              message.senderCounter,
+              message.receiptCounter,
+              message.targetPath!,
+              this.historyTimestamps
+                ? runtime.timestampSerializer.deserialize(
+                    message.timestamp!,
+                    runtime
+                  )
+                : null,
+              message.message
+            )
+        )
+      );
+    }
+    for (const [id, eventSave] of Object.entries(saveMessage.messageEvents)) {
+      this.messageEvents.set(id, JSON.parse(eventSave));
+    }
+    return saveMessage.subclassSave;
+  }
 }
 
 // class SemidirectStateLocallyResettable<S extends LocallyResettableState>
@@ -434,5 +509,29 @@ export abstract class SemidirectProductRev<
     // (e.g NumberCrdt), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     return this.history.isHistoryEmpty() && super.canGc();
+  }
+
+  protected saveComposite(): Uint8Array {
+    return this.history.save(this.runtime, this.saveSemidirectProductRev());
+  }
+
+  /**
+   * Override to return your own saveData, which will
+   * be passed to loadSemidirectProductRev during this.load,
+   * after loading the semidirect product state.
+   */
+  protected saveSemidirectProductRev(): Uint8Array {
+    return new Uint8Array();
+  }
+
+  protected loadSemidirectProductRev(saveData: Uint8Array) {}
+
+  // TODO: the children loading their own states (both
+  // of them, in arbitrary order) must correctly set
+  // this.internalState, whatever it is.
+  // Need option to do custom loading if that's not the
+  // case.
+  protected loadComposite(saveData: Uint8Array) {
+    this.loadSemidirectProductRev(this.history.load(saveData, this.runtime));
   }
 }

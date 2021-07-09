@@ -515,6 +515,10 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
   }
 
+  get isInLoad(): boolean {
+    return this.loadHelper !== undefined;
+  }
+
   /**
    * Provide crdt's id if known (optimization; necessary for root),
    * else we will look it up for you.

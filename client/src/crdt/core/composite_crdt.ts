@@ -12,7 +12,7 @@ export class CompositeCrdt<
     C extends Crdt = Crdt
   >
   extends Crdt<Events>
-  implements CrdtParent
+  implements CrdtParent 
 {
   /**
    * The children, keyed by name.
@@ -122,7 +122,13 @@ export class CompositeCrdt<
     return [this.saveComposite(), this.children];
   }
 
-  saveComposite(): Uint8Array {
+  /**
+   * Override to save extra state, which is passed
+   * to loadComposite during load after the children
+   * are initialized.
+   * @return [description]
+   */
+  protected saveComposite(): Uint8Array {
     return new Uint8Array();
   }
 
@@ -130,7 +136,14 @@ export class CompositeCrdt<
     this.loadComposite(saveData);
   }
 
-  loadComposite(saveData: Uint8Array) {}
+  /**
+   * Note this is called after the children are initialized
+   * but before they are loaded.
+   *
+   * @param  saveData the output of saveComposite() on
+   * a previous saved instance
+   */
+  protected loadComposite(saveData: Uint8Array) {}
 
   // You can also choose to override postLoad().
 }

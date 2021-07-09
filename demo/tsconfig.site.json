@@ -7,6 +7,6 @@
     "declaration": false,
     "esModuleInterop": true
   },
-  "include": ["src/site", "tsconfig.site.json"],
+  "include": ["src/site", "generated/site", "tsconfig.site.json"],
   "references": [{ "path": "../client/tsconfig.build.json" }]
 }

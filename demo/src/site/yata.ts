@@ -1,17 +1,23 @@
 import * as crdts from "compoventuals-client";
+import { YataSave } from "../../generated/site/proto_compiled";
 
 export class YataOp<T> extends crdts.CompositeCrdt {
   readonly creatorId: string;
+  // TODO: readonly (broken only by initial values)
   public originId: string;
+  // TODO: leftId, rightId need saving
   public leftId: string;
   public rightId: string;
   readonly _deleted: crdts.LwwRegister<boolean>;
   readonly content: T;
   readonly pos: number;
   readonly attributes: crdts.LwwPlainMap<string, any>;
+  // Doesn't need saving because it is only used on the
+  // deleting replica, and any loading replica will
+  // necessarily not be the deleter.
   public locallyDeleted: boolean;
-  public leftAttributesAtInput: Record<string, any>;
-  public attributesArg: [string, any][];
+  public readonly leftAttributesAtInput: Record<string, any>;
+  public readonly attributesArg: [string, any][];
   static readonly attributesMapCrdtName = "attributes";
   static readonly deletedFlagCrdtName = "deleted";
 
@@ -56,11 +62,16 @@ export class YataOp<T> extends crdts.CompositeCrdt {
 
   init(name: string, parent: crdts.CrdtParent) {
     super.init(name, parent);
-    this.runtime.startLocalSideEffect();
-    for (const [key, value] of this.attributesArg) {
-      this.attributes.set(key, value);
+    if (!this.runtime.isInLoad) {
+      this.runtime.startLocalSideEffect();
+      for (const [key, value] of this.attributesArg) {
+        this.attributes.set(key, value);
+      }
+      this.runtime.endLocalSideEffect();
     }
-    this.runtime.endLocalSideEffect();
+    // If we are being loaded, we don't need to set
+    // the attributes; instead, this.attributes will
+    // remember their saved value.
   }
 }
 
@@ -93,12 +104,12 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
   private start: string = "";
   private end: string = "";
   readonly defaultContent: T;
-  public opMap: crdts.YjsCrdtSet<
+  public readonly opMap: crdts.YjsCrdtSet<
     YataOp<T>,
     [string, string, string, T, Record<string, any>, Record<string, any>?]
   >;
-  private startOp: YataOp<T>;
-  private endOp: YataOp<T>;
+  private readonly startOp: YataOp<T>;
+  private readonly endOp: YataOp<T>;
   readonly initialContentOps: YataOp<T>[];
   protected lastEventType?: string;
   protected lastEventSender?: string;
@@ -497,5 +508,39 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
   toOpArray(): YataOp<T>[] {
     const getOpFn = (id: string) => this.op(id);
     return this.toIdArray().map(getOpFn);
+  }
+
+  protected saveSemidirectProductRev(): Uint8Array {
+    // Note we also include deleted ids.
+    const idArray: string[] = [];
+    let op = this.START;
+    while (true) {
+      idArray.push(op);
+      if (op === this.END) break;
+      else op = this.opMap.getByUid(op)!.rightId;
+    }
+    const saveData = YataSave.create({
+      idArray,
+    });
+    return YataSave.encode(saveData).finish();
+  }
+
+  private saveData?: Uint8Array;
+  protected loadSemidirectProductRev(saveData: Uint8Array) {
+    // Need to wait until postLoad, after opMap is loaded,
+    // before loading.
+    this.saveData = saveData;
+  }
+
+  postLoad() {
+    // Set leftId, rightId's based on saved order.
+    const message = YataSave.decode(this.saveData!);
+    delete this.saveData;
+    for (let i = 0; i < message.idArray.length - 1; i++) {
+      const left = message.idArray[i];
+      const right = message.idArray[i + 1];
+      this.opMap.getByUid(left)!.rightId = right;
+      this.opMap.getByUid(right)!.leftId = left;
+    }
   }
 }

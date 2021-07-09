@@ -6,4 +6,5 @@ docs
 .vscode/
 .idea/
 client/generated
+demo/generated
 *.tsbuildinfo
