@@ -62,16 +62,14 @@ export class YataOp<T> extends crdts.CompositeCrdt {
 
   init(name: string, parent: crdts.CrdtParent) {
     super.init(name, parent);
-    if (!this.runtime.isInLoad) {
-      this.runtime.startLocalSideEffect();
+  }
+
+  initAttributes(timestamp: crdts.CausalTimestamp) {
+    this.runtime.runLocally(timestamp, () => {
       for (const [key, value] of this.attributesArg) {
         this.attributes.set(key, value);
       }
-      this.runtime.endLocalSideEffect();
-    }
-    // If we are being loaded, we don't need to set
-    // the attributes; instead, this.attributes will
-    // remember their saved value.
+    });
   }
 }
 
@@ -150,6 +148,8 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
       const uid = yata.opMap.uidOf(newOp);
       yata.op(newOp.rightId).leftId = uid;
       yata.op(newOp.leftId).rightId = uid;
+      // Copy initial attributes to the attributes map
+      newOp.initAttributes(timestamp);
       // Register event handler for YataOp.deleted "change" event
       newOp._deleted.on("Change", yata.deletedChangeEventHandler(yata, uid));
       // Register event handler for YataOp.attributes "set" event

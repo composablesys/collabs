@@ -12,7 +12,7 @@ export class CompositeCrdt<
     C extends Crdt = Crdt
   >
   extends Crdt<Events>
-  implements CrdtParent 
+  implements CrdtParent
 {
   /**
    * The children, keyed by name.

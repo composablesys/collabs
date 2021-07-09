@@ -132,9 +132,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
   private loadAllowed = true;
-  private _sideEffect = false;
-  // private previousTimeStamp: CausalTimestamp;
-  private previousReceivedTimeStamp: CausalTimestamp;
 
   /**
    * TODO.
@@ -177,8 +174,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       this.batchType = batchOptions;
       this.batchingPeriodMs = undefined;
     }
-    // this.previousTimeStamp = new VectorClock(this.replicaId, true, 1);
-    this.previousReceivedTimeStamp = new VectorClock(this.replicaId, true, 1);
   }
 
   /**
@@ -203,53 +198,55 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       throw new Error("Runtime.send called on wrong Runtime");
     }
 
+    if (this.inRunLocally) {
+      // Deliver immediately back to ourselves
+      this.rootCrdt.receive(
+        sender.pathToRoot(),
+        this.currentlyProcessedTimestamp!,
+        message
+      );
+      return;
+    }
+
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
-    if (this._sideEffect) {
-      timestamp = this.previousReceivedTimeStamp;
-
-      // Deliver to self, synchronously
-      // TODO: error handling
-      this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+    let newBatch: boolean;
+    if (this.pendingBatch === null) {
+      newBatch = true;
+      timestamp = this.network.beginBatch();
+      this.pendingBatch = {
+        pointers: [],
+        pointerByCrdt: new Map(),
+        messages: [],
+        firstTimestamp: timestamp,
+        previousTimestamp: timestamp,
+      };
     } else {
-      let newBatch: boolean;
-      if (this.pendingBatch === null) {
-        newBatch = true;
-        timestamp = this.network.beginBatch();
-        this.pendingBatch = {
-          pointers: [],
-          pointerByCrdt: new Map(),
-          messages: [],
-          firstTimestamp: timestamp,
-          previousTimestamp: timestamp,
-        };
-      } else {
-        newBatch = false;
-        timestamp = this.network.nextTimestamp(
-          this.pendingBatch.previousTimestamp
-        );
-      }
+      newBatch = false;
+      timestamp = this.network.nextTimestamp(
+        this.pendingBatch.previousTimestamp
+      );
+    }
 
-      console.log("broadcasting", timestamp);
-      // Deliver to self, synchronously
-      // TODO: error handling
-      this.previousReceivedTimeStamp = timestamp;
-      this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+    // Deliver to self, synchronously
+    // TODO: error handling
+    this.currentlyProcessedTimestamp = timestamp;
+    this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+    this.currentlyProcessedTimestamp = undefined;
 
-      // Add to the pending batch
-      let pointer = this.getOrCreatePointer(sender);
-      this.pendingBatch.messages.push({
-        sender: pointer,
-        innerMessage: message,
-      });
-      this.pendingBatch.previousTimestamp = timestamp;
+    // Add to the pending batch
+    let pointer = this.getOrCreatePointer(sender);
+    this.pendingBatch.messages.push({
+      sender: pointer,
+      innerMessage: message,
+    });
+    this.pendingBatch.previousTimestamp = timestamp;
 
-      if (this.batchType === "immediate") {
-        // Send immediately
-        this.commitBatch();
-      } else if (newBatch && this.batchType === "periodic") {
-        setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
-      }
+    if (this.batchType === "immediate") {
+      // Send immediately
+      this.commitBatch();
+    } else if (newBatch && this.batchType === "periodic") {
+      setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
     }
   }
 
@@ -342,8 +339,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     for (let i = 0; i < decoded.messageSenders.length; i++) {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
+        this.currentlyProcessedTimestamp = timestamp;
         let pathToRoot = pathToRoots[decoded.messageSenders[i]];
-        this.previousReceivedTimeStamp = timestamp;
         this.rootCrdt.receive(
           pathToRoot.slice(),
           timestamp,
@@ -352,6 +349,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       } catch (e) {
         // TODO: handle gracefully
         throw e;
+      } finally {
+        this.currentlyProcessedTimestamp = undefined;
       }
     }
     return timestamp;
@@ -575,17 +574,32 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     crdt.postLoad();
   }
 
-  startLocalSideEffect() {
-    this._sideEffect = true;
+  private inRunLocally = false;
+  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
+  /**
+   * TODOs: generally check this makes sense;
+   * harden against repeated timestamps;
+   * sample ops; currently not discoverable;
+   *
+   * timestamp is just here to force you to use
+   * this only when processing a raw message.
+   * It's only used for bug-catching (compared to
+   * the real timestamp).
+   */
+  runLocally(timestamp: CausalTimestamp, doPureOps: () => void) {
+    if (timestamp !== this.currentlyProcessedTimestamp) {
+      throw new Error(
+        "Wrong timestamp passed to runLocally;" +
+          " it must be from a current receive... call"
+      );
+    }
+    let oldInRunLocally = this.inRunLocally;
+    this.inRunLocally = true;
+    doPureOps();
+    this.inRunLocally = oldInRunLocally;
   }
 
-  endLocalSideEffect() {
-    this._sideEffect = false;
-  }
-
-  get isLocalSideEffect() {
-    return this._sideEffect;
+  get isInRunLocally(): boolean {
+    return this.inRunLocally;
   }
 }
-
-// TODO: localOnlySideEffect

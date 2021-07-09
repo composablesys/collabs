@@ -459,7 +459,7 @@ export abstract class SemidirectProductRev<
       case this.m1Criteria(targetPath, timestamp, message):
         // &&
         // !this.runtime.isLocal:
-        if (this.runtime.isLocalSideEffect) {
+        if (this.runtime.isInRunLocally) {
           console.log("local!", timestamp);
         } else {
           console.log("not local!", timestamp);
