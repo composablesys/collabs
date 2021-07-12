@@ -701,12 +701,22 @@ export class TreedocPrimitiveList<T>
     // once, instead of one element at a time.  O(n)
     // instead of O(n*log(n)).
     const message = PrimitiveListSave.decode(saveData);
+    // Since the saved entries are in sorted order, we
+    // don't need to do any comparisons to build the tree.
+    // TODO: instead of this hack, build the tree directly.
+    // For building the tree, we set the tree's _compare
+    // equal to one that always says the inserted value
+    // is greater than a current value, without actually
+    // checking.
+    (this.state.tree as any)._compare = () => 1;
     for (let entry of message.entries) {
       this.state.tree = this.state.tree.insert(
         TreedocIdWrapper.deserialize(entry.seqId, this, entry.senderCounter),
         this.valueSerializer.deserialize(entry.value, this.runtime)
       )[0];
     }
+    (this.state.tree as any)._compare =
+      this.sequenceSource.compareWrappers.bind(this.sequenceSource);
   }
 }
 
