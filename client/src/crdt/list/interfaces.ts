@@ -1,6 +1,6 @@
 import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface CSeqIndexEvent extends CrdtEvent {
+export interface CListEvent extends CrdtEvent {
   index: number;
 }
 
@@ -10,18 +10,18 @@ export interface CSeqIndexEvent extends CrdtEvent {
  * message delivery, in which case there is
  * no associated timestamp.
  */
-export interface CSeqInitEvent<T> {
+export interface CListInitEvent<T> {
   index: number;
   value: T;
 }
 
-export interface CSeqEventsRecord<T> extends CrdtEventsRecord {
-  Insert: CSeqIndexEvent;
+export interface CListEventsRecord<T> extends CrdtEventsRecord {
+  Insert: CListEvent;
   /**
    * Index gives the former index (immediately before
    * deleting).
    */
-  Delete: CSeqIndexEvent;
+  Delete: CListEvent;
   /**
    * TODO: should this be included by default, or just
    * added by implementations for which it makes sense
@@ -39,49 +39,57 @@ export interface CSeqEventsRecord<T> extends CrdtEventsRecord {
    * to Add events, and it may be called independently of
    * operations/message delivery.
    */
-  ValueInit: CSeqInitEvent<T>;
+  ValueInit: CListInitEvent<T>;
 }
 
 /**
- * A sequence of plain values of type T, supporting insert and
+ * A list of values of type T, supporting insert and
  * delete with any semantics.
  *
  * Initially, values must be added using the insert method
- * (TODO: or its aliases?).
- * This method inputs InsertArgs and sends them to every
+ * or its aliases.
+ * Those methods input InsertArgs and send them to every
  * replica in serialized form; every replica then uses
- * them to contruct the actual added value of type T,
+ * them to contruct the actual value of type T,
  * e.g., using a user-supplied callback in the constructor.
- * Added values can later be deleted and (in some implementations)
+ * Values can later be deleted and (in some implementations)
  * restored, changing
- * their presence in the sequence, using any semantics to
+ * their presence in the list, using any semantics to
  * resolve conflicts.
  *
- * TODO: document exceptions (range errors)
+ * Unless otherwise documented, all methods throw an error
+ * if provided with an index that is out-of-bounds, i.e., not
+ * in [0, this.length).  insert is a notable exception, since
+ * it accepts an index of this.length, corresponding to
+ * insertion at the end of the list (push).
  */
-export interface CSeq<
+export interface CList<
   T,
   InsertArgs extends any[],
-  Events extends CSeqEventsRecord<T> = CSeqEventsRecord<T>
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>
 > extends Crdt<Events> {
-  // TODO: Args type name.  Perhaps unified CreateArgs for
-  // all collections?
-
   /**
-   * Insert value at the given index.  The value currently
+   * Sends args to every replica in serialized form.
+   * Every replica then uses
+   * them to contruct the actual inserted value of type T.
+   *
+   * The value currently
    * at index and all later values are shifted one
    * to the right.
    *
    * index can be in the range [0, this.length]; this.length
-   * appends it to the end of the sequence.
+   * appends it to the end of the list.
    *
+   * @param index the insertion index
    * @return the inserted value
    */
   insert(index: number, ...args: InsertArgs): T;
 
-  // Omitting since it needs to have different arguments
+  // TODO: Omitting since it needs to have different arguments
   // on different implementations (list of elements vs
-  // list of args arrays vs count).
+  // list of args arrays vs count).  But it would be
+  // nice if each implementation had this (or "concat").
+  // Same for splice.
   // /**
   //  * Insert values starting at the given index.
   //  * Afterwards, values[0] will be at startIndex, values[1]
@@ -96,22 +104,13 @@ export interface CSeq<
    *
    * count is optional and defaults to 1, i.e., delete(index)
    * just deletes the value at index.
-   *
-   * TODO: the closest JS analog, Array.splice, calls
-   * the params "start" and "deleteCount" instead.  But
-   * I like "index" and "count" better.
-   *
-   * TODO: return the deleted value(s)?  Might reduce efficiency,
-   * and users can always work around it (get then delete).
-   * Also necessitates splitting this into delete and
-   * deleteRange (different return values).
    */
   delete(index: number, count?: number): void;
 
   // TODO: equivalents/aliases to insert/delete?
   // Array includes a bunch:
   // - push (insert at end) -> my favorite
-  // - pop (delete at end) -> also potentially useful (typing seq.length - 1 all the time is annoying)
+  // - pop (delete at end) -> also potentially useful (typing list.length - 1 all the time is annoying)
   // - unshift (insert at front) -> just use insert(0)
   // - shift (delete at end) -> just use delete(0)
   // - splice (bulk insert and bulk delete at once, or one or the other) -> who's idea was this?
@@ -119,7 +118,7 @@ export interface CSeq<
   /**
    * Return the value at index.  If index is out of bounds,
    * an error is thrown; this differs from an ordinary Array,
-   * which would instead return undefined.  (TODO: is this wise?)
+   * which would instead return undefined.
    */
   get(index: number): T;
 
@@ -127,29 +126,9 @@ export interface CSeq<
   // useful and constant-time for CrdtLists).
 
   /**
-   * Delete every element in this sequence.
+   * Delete every element in this list.
    */
   clear(): void;
-
-  // Aliases
-  readonly size: number;
-  readonly length: number;
-
-  /** Returns an iterable of values in the sequence, in sequence order. */
-  [Symbol.iterator](): IterableIterator<T>;
-  /** Returns an iterable of [index, value] pairs for every value in the sequence, in sequence order.
-   */
-  entries(): IterableIterator<[number, T]>;
-
-  /** Returns an iterable of values in the sequence, in sequence order. */
-  values(): IterableIterator<T>;
-
-  /**
-   * Returns an iterable of indices in the sequence, in order.
-   */
-  keys(): IterableIterator<number>;
-
-  // TODO: slice
 
   // Omitting set and move since they are not the
   // minimum possible; implementations can add them back
@@ -157,16 +136,327 @@ export interface CSeq<
   // /**
   //  * Sets index to the given value.  index must be in bounds
   //  * (between [0, this.length)); if you want to set a value
-  //  * after the current end of the seq, using insert instead.
+  //  * after the current end of the list, use insert instead.
   //  */
   // set(index: number, value: T): this;
+
+  // Convenience mutators
+  /**
+   * Deletes the last element and returns that element.
+   */
+  pop(): T;
+
+  /**
+   * Inserts a value at the end of the list, constructed
+   * using the given InsertArgs.  Equivalent to
+   * this.insert(this.length, ...args).
+   *
+   * TODO: range version?  (Array accepts any number of args)
+   *
+   * @return the inserted value
+   */
+  push(...args: InsertArgs): T;
+
+  /**
+   * Deletes the first element and returns that element.
+   */
+  shift(): T;
+
+  /**
+   * Inserts a value at the start of the list, constructed
+   * using the given InsertArgs.  Equivalent to
+   * this.insert(0, ...args).
+   *
+   * TODO: range version?  (Array accepts any number of args)
+   *
+   * @return the inserted value
+   */
+  unshift(...args: InsertArgs): T;
+
+  /**
+   * Alias for length.
+   */
+  readonly size: number;
+  /**
+   * The length of the list.
+   */
+  readonly length: number;
+
+  /** Returns an iterable of values in the list, in list order. */
+  [Symbol.iterator](): IterableIterator<T>;
+  /** Returns an iterable of [index, value] pairs for every value in the list, in list order.
+   */
+  entries(): IterableIterator<[number, T]>;
+
+  /** Returns an iterable of values in the list, in list order. */
+  values(): IterableIterator<T>;
+
+  // keys() is excluded because it doesn't
+  // seem useful, even though it is included in the ES6 Set class.
+  // keys(): IterableIterator<number>;
+
+  // Convenience accessors.
+  // TODO: when they are O(n), implement by just making
+  // an array and calling its method (e.g. join)?
+  // Another trick is to look for polyfills (e.g. on the MDN
+  // Array docs) and copy those.  That can help to catch
+  // some the subtleties of the semantics (e.g., some uses
+  // a C-style for-loop instead of an iterator, which makes
+  // a difference if you delete/insert stuff during the callback func).
+
+  /**
+   * Returns the value of the first element in the list where predicate is true, and undefined
+   * otherwise.
+   * @param predicate find calls predicate once for each element of the list, in ascending
+   * order, until it finds one where predicate returns true. If such an element is found, find
+   * immediately returns that element value. Otherwise, find returns undefined.
+   * @param thisArg If provided, it will be used as the this value for each invocation of
+   * predicate. If it is not provided, undefined is used instead.
+   */
+  find<S extends T>(
+    predicate: (this: void, value: T, index: number, obj: this) => value is S,
+    thisArg?: any
+  ): S | undefined;
+  find(
+    predicate: (value: T, index: number, obj: this) => unknown,
+    thisArg?: any
+  ): T | undefined;
+
+  /**
+   * Returns the index of the first element in the list where predicate is true, and -1
+   * otherwise.
+   * @param predicate find calls predicate once for each element of the list, in ascending
+   * order, until it finds one where predicate returns true. If such an element is found,
+   * findIndex immediately returns that element index. Otherwise, findIndex returns -1.
+   * @param thisArg If provided, it will be used as the this value for each invocation of
+   * predicate. If it is not provided, undefined is used instead.
+   */
+  findIndex(
+    predicate: (value: T, index: number, obj: T[]) => unknown,
+    thisArg?: any
+  ): number;
+
+  /**
+   * Calls a defined callback function on each element of this list. Then, flattens the result into
+   * a new array.
+   * This is identical to a map followed by flat with depth 1.
+   *
+   * @param callback A function that accepts up to three arguments. The flatMap method calls the
+   * callback function one time for each element in this list.
+   * @param thisArg An object to which the this keyword can refer in the callback function. If
+   * thisArg is omitted, undefined is used as the this value.
+   */
+  flatMap<U, This = undefined>(
+    callback: (
+      this: This,
+      value: T,
+      index: number,
+      array: this
+    ) => U | ReadonlyArray<U>,
+    thisArg?: This
+  ): U[];
+
+  /**
+   * Returns a new array with all sub-array elements concatenated into it recursively up to the
+   * specified depth.
+   *
+   * @param depth The maximum recursion depth
+   */
+  flat<A, D extends number = 1>(this: A, depth?: D): FlatArray<A, D>[];
+
+  /**
+   * Determines whether this list includes a certain element, returning true or false as appropriate.
+   *
+   * TODO: "has" alias? (like CSet)
+   * TODO: some implementations should override this
+   * (CrdtList-like). Note fromIndex.
+   * @param searchElement The element to search for.
+   * @param fromIndex The position in this list at which to
+   * begin searching for searchElement.  The first element
+   * to be searched is found at fromIndex for positive
+   * values of fromIndex, or at arr.length + fromIndex for
+   * negative values of fromIndex (using the absolute
+   * value of fromIndex as the number of elements from
+   * the end of the list at which to start the
+   * search).  Defaults to 0.
+   */
+  includes(searchElement: T, fromIndex?: number): boolean;
+  /**
+   * Returns the index of the first occurrence of a value in this list, or -1 if it is not present.
+   * @param searchElement The value to locate in this list.
+   * @param fromIndex The index to start the search at. If the index is greater than or equal to the list's length, -1 is returned, which means the list will not be searched. If the provided index value is a negative number, it is taken as the offset from the end of the list. Note: if the provided index is negative, the list is still searched from front to back. If the provided index is 0, then the whole list will be searched. Default: 0 (entire list is searched).
+   */
+  indexOf(searchElement: T, fromIndex?: number): number;
+  /**
+   * Returns the index of the last occurrence of a specified value in this list, or -1 if it is not present.
+   * @param searchElement The value to locate in the list.
+   * @param fromIndex The index at which to start searching backwards. Defaults to the list's length minus one (arr.length - 1), i.e. the whole list will be searched. If the index is greater than or equal to the length of the list, the whole list will be searched. If negative, it is taken as the offset from the end of the list. Note that even when the index is negative, the list is still searched from back to front. If the calculated index is less than 0, -1 is returned, i.e. the list will not be searched.
+   */
+  lastIndexOf(searchElement: T, fromIndex?: number): number;
+  // TODO: don't think is type-safe, since insert might still
+  // try to insert things of type T but not type S.
+  // /**
+  //  * Determines whether all the members of this list satisfy the specified test.
+  //  * @param predicate A function that accepts up to three arguments. The every method calls
+  //  * the predicate function for each element in the list until the predicate returns a value
+  //  * which is coercible to the Boolean value false, or until the end of the list.
+  //  * @param thisArg An object to which the this keyword can refer in the predicate function.
+  //  * If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // every<S extends T>(
+  //   predicate: (value: T, index: number, list: this) => value is S,
+  //   thisArg?: any
+  // ): this is S[];
+  /**
+   * Determines whether all the members of this list satisfy the specified test.
+   * @param predicate A function that accepts up to three arguments. The every method calls
+   * the predicate function for each element in the list until the predicate returns a value
+   * which is coercible to the Boolean value false, or until the end of the list.
+   * @param thisArg An object to which the this keyword can refer in the predicate function.
+   * If thisArg is omitted, undefined is used as the this value.
+   */
+  every(
+    predicate: (value: T, index: number, list: this) => unknown,
+    thisArg?: any
+  ): boolean;
+  /**
+   * Determines whether the specified callback function returns true for any element of this list.
+   * @param predicate A function that accepts up to three arguments. The some method calls
+   * the predicate function for each element in the list until the predicate returns a value
+   * which is coercible to the Boolean value true, or until the end of the list.
+   * @param thisArg An object to which the this keyword can refer in the predicate function.
+   * If thisArg is omitted, undefined is used as the this value.
+   */
+  some(
+    predicate: (value: T, index: number, list: this) => unknown,
+    thisArg?: any
+  ): boolean;
+  /**
+   * Performs the specified action for each element in this list.
+   * @param callbackfn  A function that accepts up to three arguments. forEach calls the callbackfn function one time for each element in the list.
+   * @param thisArg  An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
+   */
+  forEach(
+    callbackfn: (value: T, index: number, list: this) => void,
+    thisArg?: any
+  ): void;
+  /**
+   * Calls a defined callback function on each element of this list, and returns an array that contains the results.
+   * @param callbackfn A function that accepts up to three arguments. The map method calls the callbackfn function one time for each element in the list.
+   * @param thisArg An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
+   */
+  map<U>(
+    callbackfn: (value: T, index: number, list: this) => U,
+    thisArg?: any
+  ): U[];
+  /**
+   * Returns the elements of this list that meet the condition specified in a callback function.
+   * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the list.
+   * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+   */
+  filter<S extends T>(
+    predicate: (value: T, index: number, list: this) => value is S,
+    thisArg?: any
+  ): S[];
+  /**
+   * Returns the elements of this list that meet the condition specified in a callback function.
+   * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the list.
+   * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+   */
+  filter(
+    predicate: (value: T, index: number, list: this) => unknown,
+    thisArg?: any
+  ): T[];
+  /**
+   * Adds all the elements of this list into a string, separated by the specified separator string.
+   * @param separator A string used to separate one element of the list from the next in the resulting string. If omitted, the list elements are separated with a comma.
+   */
+  join(separator?: string): string;
+  /**
+   * Calls the specified callback function for all the elements in this list. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+   * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the list.
+   * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of a list value.
+   */
+  reduce(
+    callbackfn: (
+      previousValue: T,
+      currentValue: T,
+      currentIndex: number,
+      list: this
+    ) => T
+  ): T;
+  reduce(
+    callbackfn: (
+      previousValue: T,
+      currentValue: T,
+      currentIndex: number,
+      list: this
+    ) => T,
+    initialValue: T
+  ): T;
+  /**
+   * Calls the specified callback function for all the elements in this list. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+   * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the list.
+   * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of this list value.
+   */
+  reduce<U>(
+    callbackfn: (
+      previousValue: U,
+      currentValue: T,
+      currentIndex: number,
+      list: this
+    ) => U,
+    initialValue: U
+  ): U;
+  /**
+   * Calls the specified callback function for all the elements in this list, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+   * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the list.
+   * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of this list value.
+   */
+  reduceRight(
+    callbackfn: (
+      previousValue: T,
+      currentValue: T,
+      currentIndex: number,
+      list: this
+    ) => T
+  ): T;
+  reduceRight(
+    callbackfn: (
+      previousValue: T,
+      currentValue: T,
+      currentIndex: number,
+      list: this
+    ) => T,
+    initialValue: T
+  ): T;
+  /**
+   * Calls the specified callback function for all the elements in this list, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+   * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the list.
+   * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of this list value.
+   */
+  reduceRight<U>(
+    callbackfn: (
+      previousValue: U,
+      currentValue: T,
+      currentIndex: number,
+      list: this
+    ) => U,
+    initialValue: U
+  ): U;
+  /**
+   * Returns a copy of a section of this list, as an array.
+   * For both start and end, a negative index can be used to indicate an offset from the end of the list.
+   * For example, -2 refers to the second to last element of the list.
+   * @param start The beginning index of the specified portion of the list.
+   * If start is undefined, then the slice begins at index 0.
+   * @param end The end index of the specified portion of the list. This is exclusive of the element at the index 'end'.
+   * If end is undefined, then the slice extends to the end of the list.
+   */
+  slice(start?: number, end?: number): T[];
 }
 
-// TODO: should move have its own interface?  It's fairly
-// common and comes with an event, which I'd like to only
-// have to define once.
-
-export interface SeqMoveEvent extends CrdtEvent {
+export interface ListMoveEvent extends CrdtEvent {
   /**
    * The index where the moved element started
    * on this replica.  In general, except on the
@@ -184,19 +474,19 @@ export interface SeqMoveEvent extends CrdtEvent {
   newIndex: number;
 }
 
-export interface CMovableSeqEventsRecord<T> extends CSeqEventsRecord<T> {
+export interface CMovableListEventsRecord<T> extends CListEventsRecord<T> {
   /**
    * Emitted when a move (TODO: or moveRange?) operation
    * moves a value.
    */
-  Move: SeqMoveEvent;
+  Move: ListMoveEvent;
 }
 
-export interface CMovableSeq<
+export interface CMovableList<
   T,
   InsertArgs extends any[],
-  Events extends CSeqEventsRecord<T> = CSeqEventsRecord<T>
-> extends CSeq<T, InsertArgs, Events> {
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+> extends CList<T, InsertArgs, Events> {
   /**
    * Move the value at fromIndex to toIndex.
    * Concurrent moves of the same value will move the
@@ -207,6 +497,8 @@ export interface CMovableSeq<
    * and follows the same rules as insertion indices.
    * So the element will end up at toIndex - 1 if fromIndex < toIndex,
    * else toIndex.
+   *
+   * TODO: copyWithin (existing Array analog)?
    */
   move(fromIndex: number, toIndex: number): void;
 
