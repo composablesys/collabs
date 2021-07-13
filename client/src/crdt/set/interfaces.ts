@@ -69,6 +69,11 @@ export interface CSet<
    * Returns whether value was deleted.  May be false either
    * because value was not present, or because the semantics
    * did not delete value.
+   *
+   * TODO: for this and other collections: leave out the return value?
+   * You can just check with has, and it might cost effort.
+   * Anyway, it is not consistent with JS collections, which
+   * return the value itself (?).
    */
   delete(value: T): boolean;
 

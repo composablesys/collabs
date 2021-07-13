@@ -456,6 +456,10 @@ export interface CList<
   slice(start?: number, end?: number): T[];
 }
 
+// TODO: possibly remove this special Move interface.
+// More of a niche/feature method, like set(index, value),
+// which won't usually need its own interface.  Can still
+// have a common event that's shared.
 export interface ListMoveEvent extends CrdtEvent {
   /**
    * The index where the moved element started
@@ -498,7 +502,9 @@ export interface CMovableList<
    * So the element will end up at toIndex - 1 if fromIndex < toIndex,
    * else toIndex.
    *
-   * TODO: copyWithin (existing Array analog)?
+   * TODO: copyWithin (existing Array analog)?  Note that is
+   * ranged by default, which makes sense (no need for
+   * two methods when you can just have count default to 1).
    */
   move(fromIndex: number, toIndex: number): void;
 
