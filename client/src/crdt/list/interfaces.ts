@@ -89,7 +89,7 @@ export interface CList<
   // on different implementations (list of elements vs
   // list of args arrays vs count).  But it would be
   // nice if each implementation had this (or "concat").
-  // Same for splice.
+  // Same for splice.  Also fill-like methods?
   // /**
   //  * Insert values starting at the given index.
   //  * Afterwards, values[0] will be at startIndex, values[1]
@@ -191,6 +191,19 @@ export interface CList<
   // Note some implementations should override includes,
   // indexOf, etc., since they can do those methods in O(1)
   // time.
+
+  /**
+   * Combines two or more CLists or other array-like objects.
+   * This method returns a new array without modifying any existing lists or arrays.
+   * @param items Additional arrays and/or items to add to the end of the array.
+   */
+  concat(...items: ConcatArray<T>[]): T[];
+  /**
+   * Combines two or more CLists or other array-like objects.
+   * This method returns a new array without modifying any existing lists or arrays.
+   * @param items Additional arrays and/or items to add to the end of the array.
+   */
+  concat(...items: (T | ConcatArray<T>)[]): T[];
 
   /**
    * Returns the value of the first element in the list where predicate is true, and undefined
