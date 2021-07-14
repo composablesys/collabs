@@ -46,7 +46,7 @@ export interface CListEventsRecord<T> extends CrdtEventsRecord {
  * A list of values of type T, supporting insert and
  * delete with any semantics.
  *
- * Initially, values must be added using the insert method
+ * Initially, values must be created using the insert method
  * or its aliases.
  * Those methods input InsertArgs and send them to every
  * replica in serialized form; every replica then uses
@@ -85,7 +85,7 @@ export interface CList<
    */
   insert(index: number, ...args: InsertArgs): T;
 
-  // TODO: Omitting since it needs to have different arguments
+  // Omitting since it needs to have different arguments
   // on different implementations (list of elements vs
   // list of args arrays vs count).  But it would be
   // nice if each implementation had this (or "concat").
@@ -107,23 +107,12 @@ export interface CList<
    */
   delete(index: number, count?: number): void;
 
-  // TODO: equivalents/aliases to insert/delete?
-  // Array includes a bunch:
-  // - push (insert at end) -> my favorite
-  // - pop (delete at end) -> also potentially useful (typing list.length - 1 all the time is annoying)
-  // - unshift (insert at front) -> just use insert(0)
-  // - shift (delete at end) -> just use delete(0)
-  // - splice (bulk insert and bulk delete at once, or one or the other) -> who's idea was this?
-
   /**
    * Return the value at index.  If index is out of bounds,
    * an error is thrown; this differs from an ordinary Array,
    * which would instead return undefined.
    */
   get(index: number): T;
-
-  // TODO: indexOf?  has?  (linear time for PlainLists;
-  // useful and constant-time for CrdtLists).
 
   /**
    * Delete every element in this list.
@@ -151,8 +140,6 @@ export interface CList<
    * using the given InsertArgs.  Equivalent to
    * this.insert(this.length, ...args).
    *
-   * TODO: range version?  (Array accepts any number of args)
-   *
    * @return the inserted value
    */
   push(...args: InsertArgs): T;
@@ -166,8 +153,6 @@ export interface CList<
    * Inserts a value at the start of the list, constructed
    * using the given InsertArgs.  Equivalent to
    * this.insert(0, ...args).
-   *
-   * TODO: range version?  (Array accepts any number of args)
    *
    * @return the inserted value
    */
@@ -196,13 +181,16 @@ export interface CList<
   // keys(): IterableIterator<number>;
 
   // Convenience accessors.
-  // TODO: when they are O(n), implement by just making
+  // When they are O(n), maybe implement by just making
   // an array and calling its method (e.g. join)?
   // Another trick is to look for polyfills (e.g. on the MDN
   // Array docs) and copy those.  That can help to catch
   // some the subtleties of the semantics (e.g., some uses
   // a C-style for-loop instead of an iterator, which makes
   // a difference if you delete/insert stuff during the callback func).
+  // Note some implementations should override includes,
+  // indexOf, etc., since they can do those methods in O(1)
+  // time.
 
   /**
    * Returns the value of the first element in the list where predicate is true, and undefined
@@ -267,9 +255,6 @@ export interface CList<
   /**
    * Determines whether this list includes a certain element, returning true or false as appropriate.
    *
-   * TODO: "has" alias? (like CSet)
-   * TODO: some implementations should override this
-   * (CrdtList-like). Note fromIndex.
    * @param searchElement The element to search for.
    * @param fromIndex The position in this list at which to
    * begin searching for searchElement.  The first element
@@ -293,7 +278,8 @@ export interface CList<
    * @param fromIndex The index at which to start searching backwards. Defaults to the list's length minus one (arr.length - 1), i.e. the whole list will be searched. If the index is greater than or equal to the length of the list, the whole list will be searched. If negative, it is taken as the offset from the end of the list. Note that even when the index is negative, the list is still searched from back to front. If the calculated index is less than 0, -1 is returned, i.e. the list will not be searched.
    */
   lastIndexOf(searchElement: T, fromIndex?: number): number;
-  // TODO: don't think is type-safe, since insert might still
+  // Omitting this version because it is not type-safe,
+  // since insert might still
   // try to insert things of type T but not type S.
   // /**
   //  * Determines whether all the members of this list satisfy the specified test.
@@ -456,57 +442,65 @@ export interface CList<
   slice(start?: number, end?: number): T[];
 }
 
-// TODO: possibly remove this special Move interface.
+// TODO: removing this special Move interface for now.
 // More of a niche/feature method, like set(index, value),
 // which won't usually need its own interface.  Can still
 // have a common event that's shared.
-export interface ListMoveEvent extends CrdtEvent {
-  /**
-   * The index where the moved element started
-   * on this replica.  In general, except on the
-   * sending replica, this can be different from fromIndex.
-   */
-  oldIndex: number;
-  /**
-   * The index where the moved element ended (is currently).
-   * Might not equal toIndex even on the sender,
-   * in case fromIndex < toIndex (then it is toIndex - 1).
-   * TODO: during a bulk move, can we guarantee this index
-   * is the final destination, or will it only hold until
-   * the next entry is moved?
-   */
-  newIndex: number;
-}
-
-export interface CMovableListEventsRecord<T> extends CListEventsRecord<T> {
-  /**
-   * Emitted when a move (TODO: or moveRange?) operation
-   * moves a value.
-   */
-  Move: ListMoveEvent;
-}
-
-export interface CMovableList<
-  T,
-  InsertArgs extends any[],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
-> extends CList<T, InsertArgs, Events> {
-  /**
-   * Move the value at fromIndex to toIndex.
-   * Concurrent moves of the same value will move the
-   * value to a single destination chosen
-   * by some arbitration rule.
-   *
-   * toIndex is evaluated before removing fromIndex
-   * and follows the same rules as insertion indices.
-   * So the element will end up at toIndex - 1 if fromIndex < toIndex,
-   * else toIndex.
-   *
-   * TODO: copyWithin (existing Array analog)?  Note that is
-   * ranged by default, which makes sense (no need for
-   * two methods when you can just have count default to 1).
-   */
-  move(fromIndex: number, toIndex: number): void;
-
-  // TODO: moveRange?
-}
+// If it seems easier to do so after considering the
+// implementations, I'll add it back.
+// TODO: change event to give you args you need to do an
+// equivalent Array.copyWithin call?  In particular, allow bulk
+// moves as single event (although implementations can
+// choose to do it as series of single move events instead).
+// Actually, copyWithin isn't a "move", it's just a copy
+// (not cut).  Make clear the difference.
+// export interface ListMoveEvent extends CrdtEvent {
+//   /**
+//    * The index where the moved element started
+//    * on this replica.  In general, except on the
+//    * sending replica, this can be different from fromIndex.
+//    */
+//   oldIndex: number;
+//   /**
+//    * The index where the moved element ended (is currently).
+//    * Might not equal toIndex even on the sender,
+//    * in case fromIndex < toIndex (then it is toIndex - 1).
+//    * TODO: during a bulk move, can we guarantee this index
+//    * is the final destination, or will it only hold until
+//    * the next entry is moved?
+//    */
+//   newIndex: number;
+// }
+//
+// export interface CMovableListEventsRecord<T> extends CListEventsRecord<T> {
+//   /**
+//    * Emitted when a move (TODO: or moveRange?) operation
+//    * moves a value.
+//    */
+//   Move: ListMoveEvent;
+// }
+//
+// export interface CMovableList<
+//   T,
+//   InsertArgs extends any[],
+//   Events extends CListEventsRecord<T> = CListEventsRecord<T>
+// > extends CList<T, InsertArgs, Events> {
+//   /**
+//    * Move the value at fromIndex to toIndex.
+//    * Concurrent moves of the same value will move the
+//    * value to a single destination chosen
+//    * by some arbitration rule.
+//    *
+//    * toIndex is evaluated before removing fromIndex
+//    * and follows the same rules as insertion indices.
+//    * So the element will end up at toIndex - 1 if fromIndex < toIndex,
+//    * else toIndex.
+//    *
+//    * TODO: copyWithin (existing Array analog)?  Note that is
+//    * ranged by default, which makes sense (no need for
+//    * two methods when you can just have count default to 1).
+//    */
+//   move(fromIndex: number, toIndex: number): void;
+//
+//   // TODO: moveRange?
+// }

@@ -114,7 +114,7 @@ export interface CSet<
   //  */
   // keys(): IterableIterator<T>;
 
-  // TODO: only include in implementations where it makes sense (Riak-style)
+  // Only include this in implementations where it makes sense.
   // /**
   //  * Makes the given value present in the set.
   //  *
@@ -122,13 +122,6 @@ export interface CSet<
   //  * it cannot add new elements to the set.
   //  */
   // restore(value: T): this;
-
-  // TODO: only include in implementations where it makes sense
-  // /**
-  //  * Returns true if value is owned by this Crdt,
-  //  * i.e., it resulted from an add operation on this.
-  //  */
-  // owns(value: T): boolean;
 }
 
 // In terms of this interface, the old PlainSet interface is

@@ -42,10 +42,10 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
  * A map from keys K to values V, supporting set and
  * delete with any semantics.
  *
- * Initially, values must be added using the set method.
+ * Initially, values must be created using the set method.
  * This method inputs SetArgs and sends them to every
  * replica in serialized form; every replica then uses
- * them to contruct the actual added value of type V,
+ * them to contruct the actual set value of type V,
  * e.g., using a user-supplied callback in the constructor.
  * Set keys can later be deleted and (in some implementations)
  * restored, changing
@@ -77,12 +77,17 @@ export interface CMap<
 
   /**
    * Returns the value associated to key, or undefined if
-   * there is none.
+   * key is not present.
    */
   get(key: K): V | undefined;
 
   /**
-   * Delete every key in this map.
+   * Returns whether key is present in the map.
+   */
+  has(key: K): boolean;
+
+  /**
+   * Deletes every key in this map.
    */
   clear(): void;
 
@@ -111,6 +116,16 @@ export interface CMap<
    */
   values(): IterableIterator<V>;
 
-  // TODO: keyOf method (like Array indexOf), especially
-  // since it is O(1) in some implementations.
+  /**
+   * Returns the key of some occurrence of a value in this map, or undefined if it is not present.
+   * TODO: can we enforce search start and order like
+   * for indexOf?  In case you want to get all keys for
+   * a value (although in that case you can just loop over
+   * it yourself, or convert to an array and then use Array.find).
+   * This method is really just targetted
+   * at the implementations with unique values, for which this
+   * operation is O(1), so should it be included (TODO)?
+   * @param searchElement The value to locate in this map.
+   */
+  keyOf(searchElement: V): K | undefined;
 }
