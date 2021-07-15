@@ -30,6 +30,15 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
    * reconstructed), it may not correspond precisely
    * to Add events, and it may be called independently of
    * operations/message delivery.
+   *
+   * If you are maintaining a view of a map by tracking Set/Delete
+   * events, you don't need to worry about ValueInit events.
+   * Specifically, you don't have to worry that one of the
+   * values in your view might be GC'd and replaced with
+   * a different but equivalent value.  This is because
+   * implementations
+   * will use WeakRefs to ensure that only reference-free
+   * values are GC'd.
    */
   ValueInit: CMapInitEvent<K, V>;
 }
@@ -43,8 +52,8 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
  * replica in serialized form; every replica then uses
  * them to contruct the actual set value of type V,
  * e.g., using a user-supplied callback in the constructor.
- * Set keys can later be deleted and (in some implementations)
- * restored, changing
+ * Set keys can later be deleted (and in some implementations,
+ * restored), changing
  * their presence in the map, using any semantics to
  * resolve conflicts.
  */
@@ -58,7 +67,7 @@ export interface CMap<
    * Sends args to every replica in serialized form.
    * Every replica then uses
    * them to contruct the actual set value of type V,
-   * which is set as the value at key
+   * which is set as the value at key.
    *
    * @return the set value
    */
@@ -129,7 +138,7 @@ export interface CMap<
   values(): IterableIterator<V>;
 
   /**
-   * Returns the key of some occurrence of a value in this map, or undefined if it is not present.
+   * Returns the key of some occurrence of a value in this map, or undefined if the value is not present.
    *
    * @param searchElement The value to locate in this map.
    */

@@ -34,6 +34,15 @@ export interface CListEventsRecord<T> extends CrdtEventsRecord {
    * reconstructed), it may not correspond precisely
    * to Add events, and it may be called independently of
    * operations/message delivery.
+   *
+   * If you are maintaining a view of a list by tracking Insert/Delete
+   * events, you don't need to worry about ValueInit events.
+   * Specifically, you don't have to worry that one of the
+   * values in your view might be GC'd and replaced with
+   * a different but equivalent value.  This is because
+   * implementations
+   * will use WeakRefs to ensure that only reference-free
+   * values are GC'd.
    */
   ValueInit: CListInitEvent<T>;
 }
@@ -48,16 +57,9 @@ export interface CListEventsRecord<T> extends CrdtEventsRecord {
  * replica in serialized form; every replica then uses
  * them to contruct the actual value of type T,
  * e.g., using a user-supplied callback in the constructor.
- * Values can later be deleted and (in some implementations)
- * restored, changing
+ * Values can later be deleted (and in some implementations, restored), changing
  * their presence in the list, using any semantics to
  * resolve conflicts.
- *
- * Unless otherwise documented, all methods throw an error
- * if provided with an index that is out-of-bounds, i.e., not
- * in [0, this.length).  insert is a notable exception, since
- * it accepts an index of this.length, corresponding to
- * insertion at the end of the list (push).
  */
 export interface CList<
   T,
@@ -74,25 +76,13 @@ export interface CList<
    * to the right.
    *
    * index can be in the range [0, this.length]; this.length
-   * appends it to the end of the list.
+   * appends it to the end of the list.  If index is out
+   * of range, an error is thrown.
    *
    * @param index the insertion index
    * @return the inserted value
    */
   insert(index: number, ...args: InsertArgs): T;
-
-  // Omitting since it needs to have different arguments
-  // on different implementations (list of elements vs
-  // list of args arrays vs count).  But it would be
-  // nice if each implementation had this, as well as
-  // push, unshift, and splice versions.
-  // Also fill-like methods?
-  // /**
-  //  * Insert values starting at the given index.
-  //  * Afterwards, values[0] will be at startIndex, values[1]
-  //  * will be at startIndex + 1, etc.
-  //  */
-  // insertRange(startIndex: number, ...values: T[]): this;
 
   /**
    * Deletes count values starting at index (inclusive).
@@ -105,26 +95,37 @@ export interface CList<
   delete(index: number, count?: number): void;
 
   /**
-   * Return the value at index.  If index is out of bounds,
+   * Returns the value at index.  If index is out of bounds,
    * an error is thrown; this differs from an ordinary Array,
    * which would instead return undefined.
    */
   get(index: number): T;
 
   /**
-   * Delete every element in this list.
+   * Deletes every index in this list.
    */
   clear(): void;
 
-  // Omitting set and move since they are not the
-  // minimum possible; implementations can add them back
-  // as needed.
-  // /**
-  //  * Sets index to the given value.  index must be in bounds
-  //  * (between [0, this.length)); if you want to set a value
-  //  * after the current end of the list, use insert instead.
-  //  */
-  // set(index: number, value: T): this;
+  /**
+   * Alias for length.
+   */
+  readonly size: number;
+  /**
+   * The length of the list.
+   */
+  readonly length: number;
+
+  /** Returns an iterable of values in the list, in list order. */
+  [Symbol.iterator](): IterableIterator<T>;
+  /** Returns an iterable of [index, value] pairs for every value in the list, in list order.
+   */
+  entries(): IterableIterator<[number, T]>;
+
+  /** Returns an iterable of values in the list, in list order. */
+  values(): IterableIterator<T>;
+
+  // Excluding keys() since it doesn't seem useful.
+  // keys(): IterableIterator<number>
 
   // Convenience mutators
   /**
@@ -155,36 +156,16 @@ export interface CList<
    */
   unshift(...args: InsertArgs): T;
 
-  /**
-   * Alias for length.
-   */
-  readonly size: number;
-  /**
-   * The length of the list.
-   */
-  readonly length: number;
-
-  /** Returns an iterable of values in the list, in list order. */
-  [Symbol.iterator](): IterableIterator<T>;
-  /** Returns an iterable of [index, value] pairs for every value in the list, in list order.
-   */
-  entries(): IterableIterator<[number, T]>;
-
-  /** Returns an iterable of values in the list, in list order. */
-  values(): IterableIterator<T>;
-
-  // keys() is excluded because it doesn't
-  // seem useful, even though it is included in the ES6 Set class.
-  // keys(): IterableIterator<number>;
-
   // Convenience accessors.
   // When they are O(n), maybe implement by just making
   // an array and calling its method (e.g. join)?
   // Another trick is to look for polyfills (e.g. on the MDN
   // Array docs) and copy those.  That can help to catch
-  // some the subtleties of the semantics (e.g., some uses
+  // some the subtleties of the semantics (e.g., some use
   // a C-style for-loop instead of an iterator, which makes
-  // a difference if you delete/insert stuff during the callback func).
+  // a difference if you delete/insert stuff during the callback func; although we could ignore
+  // that if it is annoying/weird and it gives O(log n)
+  // efficiency instead of O(n)).
   // Note some implementations should override includes,
   // indexOf, etc., since they can do those methods in O(1)
   // time.
@@ -230,7 +211,7 @@ export interface CList<
    * predicate. If it is not provided, undefined is used instead.
    */
   findIndex(
-    predicate: (value: T, index: number, obj: T[]) => unknown,
+    predicate: (value: T, index: number, obj: this) => unknown,
     thisArg?: any
   ): number;
 
@@ -451,60 +432,3 @@ export interface CList<
    */
   slice(start?: number, end?: number): T[];
 }
-
-// TODO: revise, maybe move elsewhere.
-// export interface ListMoveEvent extends CrdtEvent {
-//   // TODO: make clear exactly how to simulate the op
-//   // locally.  I.e., give equivalent sequential ops
-//   // (insert, delete).  Might be clearest if the args
-//   // do end up being the same as the original args on the
-//   // sending replica.
-//   /**
-//    * The index where the moved element started
-//    * on this replica.  In general, except on the
-//    * sending replica, this can be different from fromIndex.
-//    */
-//   startIndex: number;
-//   /**
-//    * The index where the moved element ended (is currently).
-//    * Might not equal toIndex even on the sender,
-//    * in case fromIndex < toIndex (then it is toIndex - 1).
-//    * TODO: during a bulk move, can we guarantee this index
-//    * is the final destination, or will it only hold until
-//    * the next entry is moved?
-//    */
-//   endIndex: number;
-//   count: number;
-// }
-//
-// export interface MovableCListEventsRecord<T> extends CListEventsRecord<T> {
-//   /**
-//    * Emitted when a move operation
-//    * moves a value or range of values.
-//    */
-//   Move: ListMoveEvent;
-// }
-//
-// export interface MovableCList<
-//   T,
-//   InsertArgs extends any[],
-//   Events extends CListEventsRecord<T> = CListEventsRecord<T>
-// > extends CList<T, InsertArgs, Events> {
-//   /**
-//    * Move count values starting at fromIndex to toIndex.
-//    * Concurrent moves of the same value will move the
-//    * value to a single destination chosen
-//    * by some arbitration rule.
-//    *
-//    * toIndex is evaluated before removing fromIndex
-//    * and follows the same rules as insertion indices.
-//    * So the element will end up at toIndex - 1 if fromIndex < toIndex,
-//    * else toIndex.
-//    *
-//    * count defaults to one (move a single element).
-//    */
-//   move(fromIndex: number, toIndex: number, count?: number): void;
-// }
-
-// TODO: analogous SettableCList interface + event, if
-// set appears as an operation in more than one implementation?

@@ -4,8 +4,9 @@ export interface CBoolean extends CRegister<boolean> {
   /**
    * Toggle the value, i.e., negate it.
    *
-   * This is sequentially equivalent to setting
-   * this.value = !this.value, but implementations may
+   * When all operations happen sequentially, toggle
+   * is equivalent to setting
+   * this.value = !this.value.  However, implementations may
    * choose a different semantics in the face of conflicts
    * (e.g., two concurrent toggles could cancel out).
    */

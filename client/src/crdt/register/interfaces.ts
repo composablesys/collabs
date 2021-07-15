@@ -12,9 +12,11 @@ import { Crdt, CrdtEventsRecord } from "../core";
  * themselves plain values, without circular references.
  *
  * Other values might not serialize correctly, or might
- * remain unchanged on other replicas when mutated locally
- * (e.g., if a non-Crdt object's fields are mutated),
- * causing different replicas to see different values.
+ * not be eventually consistent.  In particular, if the
+ * value is a non-Crdt object and you mutate it on one
+ * replica, those mutations won't show up on other
+ * replicas - they have no way of knowing about the
+ * mutations.
  *
  * There are no CRegister-specific events; instead, listen
  * on the generic Change event and use this.value to read
