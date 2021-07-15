@@ -10,9 +10,15 @@ export interface NumberMultEvent extends CrdtEvent {
   readonly multed: number;
 }
 
+export interface NumberCompEvent extends CrdtEvent {
+  readonly compared: number;
+}
+
 export interface NumberEventsRecord extends ResettableEventsRecord {
   Add: NumberAddEvent;
   Mult: NumberMultEvent;
+  Min: NumberCompEvent;
+  Max: NumberCompEvent;
 }
 
 export interface Number<Events extends NumberEventsRecord = NumberEventsRecord>
@@ -27,4 +33,14 @@ export interface Number<Events extends NumberEventsRecord = NumberEventsRecord>
    * Multiplies the value by toMult.
    */
   mult(toMult: number): void;
+
+  /**
+   * Returns the minimum of value and toComp
+   */
+  min?(toComp: number): void;
+
+  /**
+   * Returns the maximum of value and toComp
+   */
+  max?(toComp: number): void;
 }

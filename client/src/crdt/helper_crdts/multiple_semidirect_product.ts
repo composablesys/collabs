@@ -109,8 +109,12 @@ class MultipleSemidirectStateBase<S extends Object> {
       }
     }
     if (returnConcurrent) {
-      // Sort the concurrent messages in receipt order.
-      concurrent.sort((a, b) => a.receiptCounter - b.receiptCounter);
+      // Sort concurrent messages by arbitration order then by receipt order.
+      concurrent.sort((a, b) => {
+        if (a.arbIndex == b.arbIndex)
+          return a.receiptCounter - b.receiptCounter;
+        else return a.arbIndex - b.arbIndex;
+      });
       // Strip away everything except the messages.
       return concurrent;
     } else return [];
@@ -214,6 +218,7 @@ export abstract class MultipleSemidirectProduct<
    * @param  m2TargetPath [description]
    * @param  m2Timestamp  [description]
    * @param  m2Message    [description]
+   * @param  m2Index      [description]
    * @param  m1TargetPath [description]
    * @param  m1Timestamp  [description]
    * @param  m1Message    [description]
@@ -223,6 +228,7 @@ export abstract class MultipleSemidirectProduct<
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
+    m2Index: number,
     m1TargetPath: string[],
     m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
@@ -264,6 +270,7 @@ export abstract class MultipleSemidirectProduct<
     }
   }
 
+  // TODO: add this.state.add (line 319 of original)
   protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
@@ -275,35 +282,48 @@ export abstract class MultipleSemidirectProduct<
 
     let idx: number;
     if (
-      targetPath[0].substr(0, 4) == "crdt" &&
-      (idx = parseInt(targetPath[0].substr(4))) !== NaN
+      targetPath[targetPath.length - 1].substr(0, 4) == "crdt" &&
+      (idx = parseInt(targetPath[targetPath.length - 1].substr(4))) !== NaN
     ) {
+      targetPath.length--;
       let crdt = this.crdts[idx];
-      let concurrent = this.state.getConcurrent(
-        this.runtime.replicaId,
-        timestamp,
-        idx
-      );
-
-      let mAct = {
-        m1TargetPath: targetPath,
-        m1Message: message,
-      };
-      for (let i = 0; i < concurrent.length; i++) {
-        let mActOrNull = this.action(
-          concurrent[i].targetPath,
-          concurrent[i].timestamp,
-          concurrent[i].message,
-          mAct.m1TargetPath,
+      if (idx != 1) {
+        this.state.add(
+          this.runtime.replicaId,
+          targetPath.slice(),
           timestamp,
-          mAct.m1Message
+          message,
+          idx
+        );
+        crdt.receive(targetPath, timestamp, message);
+      } else {
+        let concurrent = this.state.getConcurrent(
+          this.runtime.replicaId,
+          timestamp,
+          idx
         );
 
-        if (mActOrNull == null) return;
-        else mAct = mActOrNull;
-      }
+        let mAct = {
+          m1TargetPath: targetPath,
+          m1Message: message,
+        };
+        for (let i = 0; i < concurrent.length; i++) {
+          let mActOrNull = this.action(
+            concurrent[i].targetPath,
+            concurrent[i].timestamp,
+            concurrent[i].message,
+            concurrent[i].arbIndex,
+            mAct.m1TargetPath,
+            timestamp,
+            mAct.m1Message
+          );
 
-      crdt.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
+          if (mActOrNull == null) return;
+          else mAct = mActOrNull;
+        }
+
+        crdt.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
+      }
     } else {
       throw new Error(
         "Unknown SemidirectProduct child: " +
@@ -312,8 +332,6 @@ export abstract class MultipleSemidirectProduct<
           JSON.stringify(targetPath)
       );
     }
-
-    targetPath.length--;
   }
 
   getDescendant(targetPath: string[]): Crdt {

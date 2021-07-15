@@ -11,6 +11,7 @@ import {
   LwwRegister,
   RiakCrdtMap,
   DefaultNumber,
+  MultiNumber,
   TestingNetworkGenerator,
   MapKeyEvent,
 } from "../../src";
@@ -226,6 +227,7 @@ describe("standard", () => {
           `${name}: ${event.timestamp.getSender()} multed ${event.multed}`
         )
       );
+
       number.on("Reset", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
@@ -380,6 +382,155 @@ describe("standard", () => {
       // runtimeGen.releaseAll();
       // assert.strictEqual(aliceNumber.value, 0);
       // assert.strictEqual(bobNumber.value, 0);
+    });
+  });
+
+  describe("Multiple Ops Number", () => {
+    let aliceNumber: MultiNumber;
+    let bobNumber: MultiNumber;
+
+    beforeEach(() => init(0));
+
+    function init(initialValue: number, name = "numberId"): void {
+      aliceNumber = alice.registerCrdt(name, new MultiNumber(initialValue));
+      bobNumber = bob.registerCrdt(name, new MultiNumber(initialValue));
+      if (debug) {
+        addEventListeners(aliceNumber, "Alice");
+        addEventListeners(bobNumber, "Bob");
+      }
+    }
+
+    function addEventListeners(number: MultiNumber, name: string): void {
+      number.on("Add", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} added ${event.added}`
+        )
+      );
+
+      number.on("Mult", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} multed ${event.multed}`
+        )
+      );
+
+      number.on("Min", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} minned ${event.compared}`
+        )
+      );
+
+      number.on("Max", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} maxed ${event.compared}`
+        )
+      );
+
+      number.on("Reset", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
+        )
+      );
+    }
+
+    it("is initially 0", () => {
+      assert.strictEqual(aliceNumber.value, 0);
+      assert.strictEqual(bobNumber.value, 0);
+    });
+
+    describe("add", () => {
+      it("works with non-concurrent updates", () => {
+        aliceNumber.add(3);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 3);
+        assert.strictEqual(bobNumber.value, 3);
+
+        bobNumber.add(-4);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, -1);
+        assert.strictEqual(bobNumber.value, -1);
+      });
+
+      it("works with concurrent updates", () => {
+        aliceNumber.add(3);
+        bobNumber.add(-4);
+        assert.strictEqual(aliceNumber.value, 3);
+        assert.strictEqual(bobNumber.value, -4);
+
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, -1);
+        assert.strictEqual(bobNumber.value, -1);
+      });
+    });
+
+    describe("multiple ops", () => {
+      it("works with non-concurrent updates", () => {
+        aliceNumber.add(3);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 3);
+        assert.strictEqual(bobNumber.value, 3);
+
+        bobNumber.mult(-4);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, -12);
+        assert.strictEqual(bobNumber.value, -12);
+
+        aliceNumber.min(10);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, -12);
+        assert.strictEqual(bobNumber.value, -12);
+
+        aliceNumber.max(-5);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, -5);
+        assert.strictEqual(bobNumber.value, -5);
+      });
+
+      it("works with concurrent updates", () => {
+        aliceNumber.add(2);
+        assert.strictEqual(aliceNumber.value, 2);
+        assert.strictEqual(bobNumber.value, 0);
+
+        bobNumber.add(1);
+        bobNumber.mult(5);
+        assert.strictEqual(aliceNumber.value, 2);
+        assert.strictEqual(bobNumber.value, 5);
+
+        // Arbitration order places multiplication last
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 15);
+        assert.strictEqual(bobNumber.value, 15);
+      });
+    });
+
+    describe("reset", () => {
+      it("resets to the initial value", () => {
+        aliceNumber.add(1);
+        aliceNumber.reset();
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 0);
+        assert.strictEqual(bobNumber.value, 0);
+      });
+
+      it("works with non-concurrent updates", () => {
+        aliceNumber.add(3);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 3);
+        assert.strictEqual(bobNumber.value, 3);
+
+        aliceNumber.reset();
+        aliceNumber.add(11);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 11);
+        assert.strictEqual(bobNumber.value, 11);
+      });
+
+      it("lets concurrent adds survive", () => {
+        aliceNumber.reset();
+        bobNumber.add(10);
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 10);
+        assert.strictEqual(bobNumber.value, 10);
+      });
     });
   });
 
