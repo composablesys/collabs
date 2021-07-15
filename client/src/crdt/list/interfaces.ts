@@ -23,10 +23,6 @@ export interface CListEventsRecord<T> extends CrdtEventsRecord {
    */
   Delete: CListEvent;
   /**
-   * TODO: should this be included by default, or just
-   * added by implementations for which it makes sense
-   * (currently just CrdtList-like implementations)?
-   *
    * Emitted when a value is constructed.
    * Use this when values are objects and you need to
    * do something with the objects themselves, not just
@@ -88,8 +84,9 @@ export interface CList<
   // Omitting since it needs to have different arguments
   // on different implementations (list of elements vs
   // list of args arrays vs count).  But it would be
-  // nice if each implementation had this (or "concat").
-  // Same for splice.  Also fill-like methods?
+  // nice if each implementation had this, as well as
+  // push, unshift, and splice versions.
+  // Also fill-like methods?
   // /**
   //  * Insert values starting at the given index.
   //  * Afterwards, values[0] will be at startIndex, values[1]
@@ -455,25 +452,19 @@ export interface CList<
   slice(start?: number, end?: number): T[];
 }
 
-// TODO: removing this special Move interface for now.
-// More of a niche/feature method, like set(index, value),
-// which won't usually need its own interface.  Can still
-// have a common event that's shared.
-// If it seems easier to do so after considering the
-// implementations, I'll add it back.
-// TODO: change event to give you args you need to do an
-// equivalent Array.copyWithin call?  In particular, allow bulk
-// moves as single event (although implementations can
-// choose to do it as series of single move events instead).
-// Actually, copyWithin isn't a "move", it's just a copy
-// (not cut).  Make clear the difference.
+// TODO: revise, maybe move elsewhere.
 // export interface ListMoveEvent extends CrdtEvent {
+//   // TODO: make clear exactly how to simulate the op
+//   // locally.  I.e., give equivalent sequential ops
+//   // (insert, delete).  Might be clearest if the args
+//   // do end up being the same as the original args on the
+//   // sending replica.
 //   /**
 //    * The index where the moved element started
 //    * on this replica.  In general, except on the
 //    * sending replica, this can be different from fromIndex.
 //    */
-//   oldIndex: number;
+//   startIndex: number;
 //   /**
 //    * The index where the moved element ended (is currently).
 //    * Might not equal toIndex even on the sender,
@@ -482,24 +473,25 @@ export interface CList<
 //    * is the final destination, or will it only hold until
 //    * the next entry is moved?
 //    */
-//   newIndex: number;
+//   endIndex: number;
+//   count: number;
 // }
 //
-// export interface CMovableListEventsRecord<T> extends CListEventsRecord<T> {
+// export interface MovableCListEventsRecord<T> extends CListEventsRecord<T> {
 //   /**
-//    * Emitted when a move (TODO: or moveRange?) operation
-//    * moves a value.
+//    * Emitted when a move operation
+//    * moves a value or range of values.
 //    */
 //   Move: ListMoveEvent;
 // }
 //
-// export interface CMovableList<
+// export interface MovableCList<
 //   T,
 //   InsertArgs extends any[],
 //   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 // > extends CList<T, InsertArgs, Events> {
 //   /**
-//    * Move the value at fromIndex to toIndex.
+//    * Move count values starting at fromIndex to toIndex.
 //    * Concurrent moves of the same value will move the
 //    * value to a single destination chosen
 //    * by some arbitration rule.
@@ -509,11 +501,10 @@ export interface CList<
 //    * So the element will end up at toIndex - 1 if fromIndex < toIndex,
 //    * else toIndex.
 //    *
-//    * TODO: copyWithin (existing Array analog)?  Note that is
-//    * ranged by default, which makes sense (no need for
-//    * two methods when you can just have count default to 1).
+//    * count defaults to one (move a single element).
 //    */
-//   move(fromIndex: number, toIndex: number): void;
-//
-//   // TODO: moveRange?
+//   move(fromIndex: number, toIndex: number, count?: number): void;
 // }
+
+// TODO: analogous SettableCList interface + event, if
+// set appears as an operation in more than one implementation?

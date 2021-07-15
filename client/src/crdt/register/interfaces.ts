@@ -1,4 +1,4 @@
-import { Resettable, ResettableEventsRecord } from "../helper_crdts";
+import { Crdt, CrdtEventsRecord } from "../core";
 
 /**
  * An opaque register of type T.  Any semantics can
@@ -15,11 +15,15 @@ import { Resettable, ResettableEventsRecord } from "../helper_crdts";
  * remain unchanged on other replicas when mutated locally
  * (e.g., if a non-Crdt object's fields are mutated),
  * causing different replicas to see different values.
+ *
+ * There are no CRegister-specific events; instead, listen
+ * on the generic Change event and use this.value to read
+ * the changed value, if needed.
  */
-export interface Register<
+export interface CRegister<
   T,
-  Events extends ResettableEventsRecord = ResettableEventsRecord
-> extends Resettable<Events> {
+  Events extends CrdtEventsRecord = CrdtEventsRecord
+> extends Crdt<Events> {
   /**
    * The register's value, which can be set and get.
    */

@@ -18,10 +18,6 @@ export interface CSetEventsRecord<T> extends CrdtEventsRecord {
   Add: CSetEvent<T>;
   Delete: CSetEvent<T>;
   /**
-   * TODO: should this be included by default, or just
-   * added by implementations for which it makes sense
-   * (currently just CrdtSet-like implementations)?
-   *
    * Emitted when a value is constructed.
    * Use this when values are objects and you need to
    * do something with the objects themselves, not just
@@ -33,6 +29,13 @@ export interface CSetEventsRecord<T> extends CrdtEventsRecord {
    * reconstructed), it may not correspond precisely
    * to Add events, and it may be called independently of
    * operations/message delivery.
+   *
+   * TODO: make clear (and mandate, for implementations) that
+   * if you are maintaining a view of a set using add/delete
+   * events, you don't have to worry about GC replacing one
+   * of your view elements with a different one: implementations
+   * will use WeakRefs to ensure that only reference-free
+   * values are GC'd.
    */
   ValueInit: CSetInitEvent<T>;
 }
@@ -66,16 +69,10 @@ export interface CSet<
   add(...args: AddArgs): T;
 
   /**
-   * Returns whether value was deleted.  May be false either
-   * because value was not present, or because the semantics
-   * did not delete value.
-   *
-   * TODO: for this and other collections: leave out the return value?
-   * You can just check with has, and it might cost effort.
-   * Anyway, it is not consistent with JS collections, which
-   * return the value itself (?).
+   * Deletes the given value, making it no longer present
+   * in this set.
    */
-  delete(value: T): boolean;
+  delete(value: T): void;
 
   has(value: T): boolean;
 
@@ -91,14 +88,26 @@ export interface CSet<
     thisArg?: any
   ): void;
 
-  /** Iterates over values in the set.  Order is not eventually consistent. */
+  /**
+   * Iterates over values in the set.
+   *
+   * The iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
+   *
+   * TODO: when implementations do guarantee an order (e.g.
+   * local view of add order), guarantee it?  Such a view
+   * could be useful in some implementations, e.g., a chat
+   * log where you want to display messages in the order
+   * they were locally received.  Need to make sure the
+   * order is preserved in save data.
+   */
   [Symbol.iterator](): IterableIterator<T>;
 
   /**
-   * Returns an iterable of values in the set. Order is not guaranteed to be
-   * eventually consistent.
-   * (TODO: if we can make it eventually consistent in our implementations,
-   * mandate it?  Or just state it for those implementations?)
+   * Returns an iterable of values in the set.
+   *
+   * The iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   values(): IterableIterator<T>;
 

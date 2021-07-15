@@ -19,10 +19,6 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
   Set: CMapEvent<K>;
   Delete: CMapEvent<K>;
   /**
-   * TODO: should this be included by default, or just
-   * added by implementations for which it makes sense
-   * (currently just CrdtSet-like implementations)?
-   *
    * Emitted when a value is constructed.
    * Use this when values are objects and you need to
    * do something with the objects themselves, not just
@@ -69,11 +65,10 @@ export interface CMap<
   set(key: K, ...args: SetArgs): V;
 
   /**
-   * Returns whether key was deleted.  May be false either
-   * because value was not present, or because the semantics
-   * did not delete value.
+   * Deletes the given key, making it no longer present
+   * in this map.
    */
-  delete(key: K): boolean;
+  delete(key: K): void;
 
   /**
    * Returns the value associated to key, or undefined if
@@ -98,33 +93,44 @@ export interface CMap<
     thisArg?: any
   ): void;
 
-  /** Returns an iterable of entries in the map. */
+  /**
+   * Returns an iterable of entries in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
+   */
   [Symbol.iterator](): IterableIterator<[K, V]>;
 
   /**
    * Returns an iterable of key, value pairs for every entry in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   entries(): IterableIterator<[K, V]>;
 
   /**
-   * Returns an iterable of keys in the map
+   * Returns an iterable of keys in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   keys(): IterableIterator<K>;
 
   /**
-   * Returns an iterable of values in the map
+   * Returns an iterable of values in the map.
+   *
+   * The iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   values(): IterableIterator<V>;
 
   /**
    * Returns the key of some occurrence of a value in this map, or undefined if it is not present.
-   * TODO: can we enforce search start and order like
-   * for indexOf?  In case you want to get all keys for
-   * a value (although in that case you can just loop over
-   * it yourself, or convert to an array and then use Array.find).
-   * This method is really just targetted
-   * at the implementations with unique values, for which this
-   * operation is O(1), so should it be included (TODO)?
+   *
    * @param searchElement The value to locate in this map.
    */
   keyOf(searchElement: V): K | undefined;
