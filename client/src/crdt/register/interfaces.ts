@@ -4,19 +4,11 @@ import { Crdt, CrdtEventsRecord } from "../core";
  * An opaque register of type T.  Any semantics can
  * be used to resolve conflicts between concurrent writes.
  *
- * In general, values must be "serializable plain values".
- * This means that they can be:
- * - A primitive value
- * - A reference to a Crdt belonging to the same Runtime
- * - Or, an immutable object whose instance fields are
- * themselves plain values, without circular references.
- *
- * Other values might not serialize correctly, or might
- * not be eventually consistent.  In particular, if the
- * value is a non-Crdt object and you mutate it on one
- * replica, those mutations won't show up on other
- * replicas - they have no way of knowing about the
- * mutations.
+ * The value is set using the set method.
+ * This method inputs SetArgs and sends them to every
+ * replica in serialized form; every replica then uses
+ * them to contruct the actual added value of type T,
+ * e.g., using a user-supplied callback in the constructor.
  *
  * There are no CRegister-specific events; instead, listen
  * on the generic Change event and use this.value to read
@@ -24,10 +16,28 @@ import { Crdt, CrdtEventsRecord } from "../core";
  */
 export interface CRegister<
   T,
+  SetArgs extends any[],
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends Crdt<Events> {
   /**
-   * The register's value, which can be set and get.
+   * Sends args to every replica in serialized form.
+   * Every replica then uses
+   * them to contruct the actual set value of type T.
    */
-  value: T;
+  set(...args: SetArgs): void;
+
+  /**
+   * Returns the current value.
+   */
+  get(): T;
+
+  /**
+   * this.value is an alias for this.get().
+   *
+   * Implementations in which set takes the actual set
+   * value of type T (i.e., SetArgs = [T]) should make
+   * value writable, so that this.value = x is an alias
+   * for this.set(x).
+   */
+  readonly value: T;
 }
