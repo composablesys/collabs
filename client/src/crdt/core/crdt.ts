@@ -118,6 +118,7 @@ export abstract class Crdt<
     this.afterInit = true;
   }
 
+  // private needsSaving = false;
   /**
    * Callback used by this Crdt's CrdtParent to deliver
    * a message, possibly for one of this Crdt's descendants.
@@ -140,6 +141,7 @@ export abstract class Crdt<
     message: Uint8Array
   ) {
     this.receiveInternal(targetPath, timestamp, message);
+    // this.needsSaving = true;
     this.emit("Change", { timestamp: timestamp });
   }
 
@@ -163,13 +165,13 @@ export abstract class Crdt<
   // index but not the underlying array).
 
   /**
-   * Returns the given descendant of this Crdt.
+   * Returns the given child of this Crdt.
+   * Only for use by Runtime; all others use
+   * Runtime.getCrdtByRer
    *
-   * @param targetPath the target Crdt's id followed by
-   * the ids of its ancestors in ascending order,
-   * stopping at this Crdt (exclusive).
+   * @param name the child's name
    */
-  abstract getDescendant(targetPath: string[]): Crdt;
+  abstract getChild(name: string): Crdt;
 
   /**
    * If this Crdt is in its initial, post-constructor state, then
@@ -182,4 +184,123 @@ export abstract class Crdt<
    * the state space of many Crdt collections.
    */
   abstract canGc(): boolean;
+
+  // /**
+  //  * Only for use by Runtime.
+  //  *
+  //  * Returns whether this Crdt needs saving, specifically,
+  //  * whether any messages have been received (including
+  //  * for descendants) since the last call to this method.
+  //  *
+  //  * TODO: allow overriding if you know better?  Or, option
+  //  * for save to return null for saveData if only children
+  //  * need to be updated?  E.g. if you change a single attribute
+  //  * in a YjsCrdtSet rich text.  Although usually you'd be
+  //  * changing characters, so this is moot.
+  //  */
+  // getAndResetNeedsSaving(): boolean {
+  //   const ans = this.needsSaving;
+  //   this.needsSaving = false;
+  //   return ans;
+  // }
+
+  /**
+   * Only for use by Runtime.
+   *
+   * Must have no side-effects, and be able to be called
+   * multiple times.
+   *
+   * saveData: a serialization of this Crdt's
+   * own internal state that is not set in the
+   * constructor, sufficient to reconstruct the
+   * state after initializing this Crdt with the same
+   * constructor arguments and then calling
+   * this.load(saveData).  This should not include
+   * saveData for children (their save methods will
+   * be called separately), but should be sufficient
+   * to initialize the children (i.e., construct them,
+   * without loading them) in this.load(saveData).
+   *
+   * children: a map from name to child for this Crdt's
+   * nontrivial children.  This must include all children
+   * for which canGc() is false, and may safely contain
+   * more.  These children will be saved recursively.
+   */
+  abstract save(): [saveData: Uint8Array, children: Map<string, Crdt>];
+
+  /**
+   * Only for use by Runtime.
+   *
+   * Reconstruct the saved state recorded in saveData,
+   * which comes from an output of save().
+   * This includes setting all non-child state not set in
+   * the constructor, and initializing (constructing but
+   * not loading)
+   * all nontrivial children (it is also safe to constuct
+   * trivial children).  The children will then be loaded
+   * recursively.
+   *
+   * During loading, you must not reference the state
+   * of any Crdt, although you may call
+   * Runtime.getCrdtByReference (e.g., by deserializing
+   * Crdt references).  This is because other Crdts may
+   * not have been loaded before this one (however,
+   * they are at least initialized (constructed) if
+   * demanded by Runtime.getCrdtByReference).
+   * If you depend on other Crdt's state to set your own
+   * state, you must store it in your own saveData.  An
+   * exception is your state that is a function of
+   * descendants' state, which you can initialize in
+   * postLoad().
+   *
+   * This instance is guaranteed to have been initialized identically
+   * to the saved instance, i.e., they have the same
+   * constructor args, but not otherwise modified before
+   * load is called.  In particular, this instance may
+   * have an initial value set in the constructor; make sure
+   * you account for this (e.g., in a set with initial
+   * elements, be careful not to duplicate those elements
+   * during loading, if the saved state also contained those
+   * elements).
+   *
+   * In general, load will be called on a replica with a
+   * different replicaId than the saving replica.  Also,
+   * the same state may be loaded by different replicas
+   * concurrently.  So make sure to account for this.
+   *
+   * Events should not be dispatched, since there is no
+   * associated timestamp.  An exception is events that are
+   * already not associated with timestamps, like CrdtSet
+   * ValueInit events.  This means that you cannot depend
+   * on events from children to help initialize your own
+   * state (e.g., to setup cached views of child state);
+   * instead, you must set that state in postLoad or load.
+   *
+   * getChild may be called on this Crdt after it is loaded
+   * but before its children are loaded.  If this.load might
+   * cause this.getChild to be called (e.g., because you
+   * deserialize a reference to one of your descendants),
+   * you must ensure that this.getChild succeeds.  Typically,
+   * you can accomplish this by initializing children in
+   * the same order as they were initialized in the saved
+   * state, since one child's constructor can only have
+   * received references to prior children (see YjsCrdtSet
+   * for an example).
+   */
+  abstract load(saveData: Uint8Array): void;
+
+  /**
+   * Only for use by Runtime.
+   *
+   * Override to initialize some state after load is called
+   * on this and all of its descendants have
+   * been loaded.  During this method, it is safe to
+   * set your state that is a function of descendant's
+   * state (e.g., a sorted view
+   * of a descendant collection's values that you cache
+   * for efficiency).  This method is provided as an
+   * optimization; it is always safe to instead
+   * store your state in saveData and load it in load().
+   */
+  postLoad(): void {}
 }

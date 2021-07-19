@@ -14,7 +14,7 @@ fi
 
 for frequency in "whole" "rounds"
 do
-    for measurement in "time" "network" "memory"
+    for measurement in "time" "network" "memory" "save"
     do
       for name in "NoopCrdt" "DeepNoopCrdt" "Counter" "Counter-1" "Counter-10" "Counter-50" "Counter-100" "MultiValueRegister" "Register" "NumberCrdt" "EnableWinsFlag" "AddWinsSet" "AddWinsSetRolling" "AddWinsSetRollingGrow" "MapCrdt" "MapCrdtRolling" "MapCrdtRollingGrow" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom" "LwwMapRollingGrow" "TextLtrGrow" "TextRandomGrow"
       do

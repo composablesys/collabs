@@ -1,13 +1,23 @@
 import cryptoRandomString from "crypto-random-string";
-import { RuntimeMessage } from "../../../generated/proto_compiled";
+import {
+  IRuntimeOneSave,
+  RuntimeMessage,
+  RuntimeSave,
+} from "../../../generated/proto_compiled";
 import {
   BroadcastNetwork,
   CausalBroadcastNetwork,
   CausalTimestamp,
   DefaultCausalBroadcastNetwork,
   isCausalBroadcastNetwork,
+  VectorClock,
 } from "../../net";
-import { arrayAsString, EventEmitter, stringAsArray } from "../../util";
+import {
+  arrayAsString,
+  ElementSerializer,
+  EventEmitter,
+  stringAsArray,
+} from "../../util";
 import { CompositeCrdt } from "./composite_crdt";
 import { Crdt, CrdtEventsRecord } from "./crdt";
 import { CrdtParent } from "./interfaces";
@@ -78,6 +88,31 @@ interface BatchInfo {
   previousTimestamp: CausalTimestamp;
 }
 
+/**
+ * Ids are as in the RuntimeOneSave message's parentPointer
+ * field: 1 + the Crdt's index in RuntimeSave.saves.
+ */
+class LoadHelper {
+  /**
+   * Only contains saves for Crdts that have not yet been
+   * loaded.  That way you can tell if a Crdt is
+   * already loaded or not.
+   *
+   * Specifically, an entry is deleted in loadOneIfNeeded
+   * just before calling crdt.load.
+   */
+  savesById: Map<number, Uint8Array> = new Map();
+  childrenById: Map<number, Map<string, number>> = new Map();
+  /**
+   * Filled in only as Crdts are loaded (complement of savesById).
+   */
+  crdtsById: Map<number, Crdt> = new Map();
+  /**
+   * Filled in only as Crdts are loaded (complement of savesById).
+   */
+  idsByCrdt: Map<Crdt, number> = new Map();
+}
+
 const REPLICA_ID_LENGTH = 11;
 const REPLICA_ID_CHARS = (function () {
   let arr = new Array<number>(128);
@@ -96,6 +131,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
+  private loadAllowed = true;
 
   /**
    * TODO.
@@ -156,8 +192,20 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @return         [description]
    */
   send(sender: Crdt, message: Uint8Array) {
+    this.loadAllowed = false;
+
     if (sender.runtime !== this) {
       throw new Error("Runtime.send called on wrong Runtime");
+    }
+
+    if (this.inRunLocally) {
+      // Deliver immediately back to ourselves
+      this.rootCrdt.receive(
+        sender.pathToRoot(),
+        this.currentlyProcessedTimestamp!,
+        message
+      );
+      return;
     }
 
     // TODO: reuse batchInfo, to avoid object creation?
@@ -182,7 +230,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // Deliver to self, synchronously
     // TODO: error handling
+    this.currentlyProcessedTimestamp = timestamp;
     this.rootCrdt.receive(sender.pathToRoot(), timestamp, message);
+    this.currentlyProcessedTimestamp = undefined;
 
     // Add to the pending batch
     let pointer = this.getOrCreatePointer(sender);
@@ -262,6 +312,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ): CausalTimestamp {
+    this.loadAllowed = false;
+
     if (this.pendingBatch) {
       // TODO: instead, push the pending batch (if options allow)
       throw new Error(
@@ -287,6 +339,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     for (let i = 0; i < decoded.messageSenders.length; i++) {
       if (i !== 0) timestamp = this.network.nextTimestamp(timestamp);
       try {
+        this.currentlyProcessedTimestamp = timestamp;
         let pathToRoot = pathToRoots[decoded.messageSenders[i]];
         this.rootCrdt.receive(
           pathToRoot.slice(),
@@ -296,6 +349,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       } catch (e) {
         // TODO: handle gracefully
         throw e;
+      } finally {
+        this.currentlyProcessedTimestamp = undefined;
       }
     }
     return timestamp;
@@ -307,7 +362,20 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @return            [description]
    */
   getCrdtByReference(pathToRoot: string[]): Crdt {
-    return this.rootCrdt.getDescendant(pathToRoot.slice());
+    let currentCrdt: Crdt = this.rootCrdt;
+    for (let i = pathToRoot.length - 1; i >= 0; i--) {
+      if (this.loadHelper !== undefined) {
+        // Ensure currentCrdt is loaded before asking it
+        // for a child.
+        this.loadOneIfNeeded(currentCrdt);
+      }
+      currentCrdt = currentCrdt.getChild(pathToRoot[i]);
+    }
+    return currentCrdt;
+  }
+
+  get timestampSerializer(): ElementSerializer<CausalTimestamp> {
+    return this.network;
   }
 
   private idCounter = 0;
@@ -330,5 +398,208 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     const ans = this.idCounter;
     this.idCounter += count;
     return ans;
+  }
+
+  /**
+   * Save the entire runtime state in serialized form.
+   * The saved state can then be passed to load on
+   * a Runtime constructed in the same way, to load the
+   * saved state.
+   *
+   * TODO: future work: thread friendly (option to sleep/yield
+   * occasionally, blocking messages while doing so);
+   * incremental saving (use the needsSaving flags to
+   * only update saved parts in some big map, e.g.,
+   * for local storage), if needed for large programs.
+   * @return [description]
+   */
+  save(): Uint8Array {
+    // Commit the current batch, so we don't have to
+    // save batch-related state.  This also attempts
+    // to push changes to other users, which is good
+    // when saving happens just before exiting.
+    // TODO: potential downside: network may follow up
+    // the end of the batch by delivering queued messages,
+    // causing the state to be not quite what the user
+    // expected to save.
+    this.commitBatch();
+
+    const saves: IRuntimeOneSave[] = [];
+    // Note this makes rootCrdt the first element in saves
+    this.saveRecursive(this.rootCrdt, 0, saves);
+    const message = RuntimeSave.create({
+      saves,
+      networkSave: this.network.save(),
+    });
+    return RuntimeSave.encode(message).finish();
+  }
+
+  /**
+   * Save crdt and all of its descendants, appending the
+   * results to saves.
+   * @param  crdt  [description]
+   * @param  saves [description]
+   * @return       [description]
+   */
+  private saveRecursive(
+    crdt: Crdt,
+    parentPointer: number,
+    saves: IRuntimeOneSave[]
+  ) {
+    const [saveData, children] = crdt.save();
+    const crdtPointer = saves.length + 1;
+    const name = crdt === this.rootCrdt ? "" : crdt.name;
+    saves.push({ parentPointer, name: stringAsArray(name), saveData });
+    // Recurse
+    for (let child of children.values()) {
+      this.saveRecursive(child, crdtPointer, saves);
+    }
+  }
+
+  private loadHelper?: LoadHelper;
+
+  /**
+   * Load the saved state output from Runtime.save.
+   *
+   * The program must be initialized (i.e., registering top-level
+   * Crdts) exactly as in the program that was saved, then
+   * load must be called before you perform any operations
+   * or receive any messages.  I.e., you should use the
+   * same program to load as you used to save, and call
+   * load between its setup and when anything happens.
+   *
+   * Note that events are generally not triggered during
+   * loading, so if you usually rely on events to create
+   * a view of the application state, you must manually
+   * create that view once after load.
+   *
+   * TODO: future work: thread friendly (option to sleep/yield
+   * occasionally, blocking messages while doing so;
+   * also tell caller not to read anything until done);
+   * does incremental loading (only changed Crdts) make sense?
+   * @param  saveData [description]
+   */
+  load(saveData: Uint8Array) {
+    if (!this.loadAllowed) {
+      throw new Error(
+        "Cannot load: a message has already been sent or received"
+      );
+    }
+    try {
+      this.loadHelper = new LoadHelper();
+      const message = RuntimeSave.decode(saveData);
+      this.network.load(message.networkSave);
+      // We need to pre-load enough info that getCrdtByReference
+      // can load a Crdt before calling getChild on it, even if
+      // that happens during loading of
+      // another Crdt.
+      for (let i = 0; i < message.saves.length; i++) {
+        const oneSave = message.saves[i];
+        const id = i + 1;
+        this.loadHelper.savesById.set(id, oneSave.saveData);
+        this.loadHelper.childrenById.set(id, new Map());
+        if (i !== 0) {
+          // It's not rootCrdt, hence has a parent
+          this.loadHelper.childrenById
+            .get(oneSave.parentPointer)!
+            .set(arrayAsString(oneSave.name), id);
+        }
+      }
+      // Load the root
+      this.loadOneIfNeeded(this.rootCrdt, 1);
+      // Load the rest depth-first
+      this.loadDescendants(this.rootCrdt, 1);
+    } finally {
+      delete this.loadHelper;
+    }
+  }
+
+  get isInLoad(): boolean {
+    return this.loadHelper !== undefined;
+  }
+
+  /**
+   * Provide crdt's id if known (optimization; necessary for root),
+   * else we will look it up for you.
+   */
+  private loadOneIfNeeded(crdt: Crdt, id?: number) {
+    if (id === undefined) {
+      // Look it up ourselves
+      if (crdt === this.rootCrdt) id = 1;
+      else {
+        const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent)!;
+        const parentChildren = this.loadHelper!.childrenById.get(parentId)!;
+        id = parentChildren.get(crdt.name)!;
+      }
+    }
+    const saveData = this.loadHelper!.savesById.get(id);
+    // Only load if needed
+    if (saveData !== undefined) {
+      // Mark it as already loaded/in-progress by deleting the save.
+      // We do this before loading in case crdt.load causes
+      // loadOneIfNeeded(crdt) to be called again, which can
+      // happen if crdt's state contains a reference to one
+      // of its descendants.  This way, the second call to
+      // loadOneIfNeeded will do nothing.
+      this.loadHelper!.savesById.delete(id);
+      this.loadHelper!.crdtsById.set(id, crdt);
+      this.loadHelper!.idsByCrdt.set(crdt, id);
+      crdt.load(saveData);
+    }
+  }
+
+  private loadDescendants(crdt: Crdt, id: number) {
+    const children = this.loadHelper!.childrenById.get(id)!;
+    // Load the children recursively
+    for (const [name, childId] of children) {
+      const child = crdt.getChild(name);
+      this.loadOneIfNeeded(child, childId);
+      // Note when getCrdtByReference loads a Crdt, it doesn't
+      // also load all descendants, so we need to do this even
+      // if child is already loaded.  It is safe if some
+      // or all of them are loaded, though, due to the
+      // "if needed" part of loadOneIfNeeded.
+      // Because we need to recurse here even if child has
+      // already been loaded, it would be incorrect for
+      // loadOneIfNeeded to delete its crdt from the
+      // parent's child list, since that would prevent
+      // the crdt from being visited in this iterator.
+      this.loadDescendants(child, childId);
+    }
+    // TODO: would splitting the above into two loops be better?
+    // (Depth-first search where you visit all of a node's
+    // children before recursing.)
+
+    // Post load (signal that all descendants are loaded)
+    crdt.postLoad();
+  }
+
+  private inRunLocally = false;
+  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
+  /**
+   * TODOs: generally check this makes sense;
+   * harden against repeated timestamps;
+   * sample ops; currently not discoverable;
+   *
+   * timestamp is just here to force you to use
+   * this only when processing a raw message.
+   * It's only used for bug-catching (compared to
+   * the real timestamp).
+   */
+  runLocally(timestamp: CausalTimestamp, doPureOps: () => void) {
+    if (timestamp !== this.currentlyProcessedTimestamp) {
+      throw new Error(
+        "Wrong timestamp passed to runLocally;" +
+          " it must be from a current receive... call"
+      );
+    }
+    let oldInRunLocally = this.inRunLocally;
+    this.inRunLocally = true;
+    doPureOps();
+    this.inRunLocally = oldInRunLocally;
+  }
+
+  get isInRunLocally(): boolean {
+    return this.inRunLocally;
   }
 }

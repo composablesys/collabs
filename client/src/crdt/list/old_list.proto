@@ -28,3 +28,13 @@ message PrimitiveListMessage {
     PrimitiveListDeleteMessage delete = 3;
   }
 }
+
+message PrimitiveListEntrySave {
+  required bytes seqId = 1;
+  required uint32 senderCounter = 2;
+  required bytes value = 3;
+}
+
+message PrimitiveListSave {
+  repeated PrimitiveListEntrySave entries = 1;
+}

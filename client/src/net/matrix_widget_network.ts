@@ -115,6 +115,17 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
     }
   }
 
+  save(): Uint8Array {
+    // TODO: save a summary of the max messages received.
+    // Then instead of requesting all old messages on startup,
+    // only request ones greater than that number.
+    return new Uint8Array();
+  }
+
+  load(saveData: Uint8Array) {
+    // TODO: see save()
+  }
+
   static isWidgetApiAvailable(): boolean {
     try {
       void this.widgetId;

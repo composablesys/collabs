@@ -1,10 +1,12 @@
 import {
-  ISemidirectProductSenderHistory,
-  SemidirectProductSave,
+  ISemidirectProductRevSenderHistory,
+  SemidirectProductRevSave,
 } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
+  CompositeCrdt,
   Crdt,
+  CrdtEvent,
   CrdtEventsRecord,
   CrdtParent,
   Runtime,
@@ -27,6 +29,10 @@ class StoredMessage {
   ) {}
 }
 
+export class StoredMessageEvent {
+  constructor(readonly eventName: string, readonly event: any) {}
+}
+
 // TODO: future opts: indexed messages; setting the history
 // to a subset; causal stability.
 // TODO: for this to work, replicaId's must be comparable according
@@ -36,7 +42,15 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-class SemidirectStateBase<S extends Object> {
+
+// TODO: In runtime, store a mapping from `${timestamp.getSender()}{timestamp.asVectorClock().get(timestamp.getSender())}` to the events triggered by the message.
+// TODO: In runtime, add a getMessageEvents() method that retrieves the list of events from mapping.get(`${timestamp.getSender()}{timestamp.asVectorClock().get(timestamp.getSender())}`)
+// TODO: In runtime, add an addMessageEventIfTracked() method that does mapping.get(`${timestamp.getSender()}{timestamp.asVectorClock().get(timestamp.getSender())}`).push(event) if the mapping has the key.
+// TODO: In runtime, add a trackMessageEvents() method that adds `${timestamp.getSender()}{timestamp.asVectorClock().get(timestamp.getSender())}`: [] to the mapping.
+// TODO: In runtime, add an untrackMessageEvents() method that removes `${timestamp.getSender()}{timestamp.asVectorClock().get(timestamp.getSender())}` from the mapping.
+// TODO: In Crdt's omit, call addMessageEventIfTracked()
+
+class SemidirectHistory<Events extends CrdtEventsRecord> {
   protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
@@ -45,7 +59,7 @@ class SemidirectStateBase<S extends Object> {
    * all Crdts with a given root.
    */
   protected history: Map<string, Array<StoredMessage>> = new Map();
-  public internalState!: S;
+  protected messageEvents: Map<string, Array<StoredMessageEvent>> = new Map();
   constructor(
     private readonly historyTimestamps: boolean,
     private readonly historyDiscard1Dominated: boolean,
@@ -77,6 +91,11 @@ class SemidirectStateBase<S extends Object> {
         this.historyTimestamps ? timestamp : null,
         message
       )
+    );
+    // Start tracking message events
+    this.messageEvents.set(
+      `${timestamp.getSender()}${timestamp.getSenderCounter()}`,
+      []
     );
     this.receiptCounter++;
   }
@@ -118,6 +137,14 @@ class SemidirectStateBase<S extends Object> {
   ) {
     if (replicaId === timestamp.getSender()) {
       if (discardDominated) {
+        for (let historyEntry of this.history.entries()) {
+          for (let message of historyEntry[1]) {
+            // Stop tracking message events
+            this.messageEvents.delete(
+              `${message.timestamp!.getSender()}${message.timestamp!.getSenderCounter()}`
+            );
+          }
+        }
         // Nothing's concurrent, so clear everything
         this.history.clear();
       }
@@ -126,23 +153,31 @@ class SemidirectStateBase<S extends Object> {
     // Gather up the concurrent messages.  These are all
     // messages by each replicaId with sender counter
     // greater than timestamp.asVectorClock().get(replicaId).
-    let concurrent: Array<StoredMessage> = [];
+    let concurrent: Array<[string, StoredMessage]> = [];
     let vc = timestamp.asVectorClock();
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = SemidirectStateBase.indexAfter(
+        let concurrentIndexStart = SemidirectHistory.indexAfter(
           senderHistory,
           vcEntry
         );
         if (returnConcurrent) {
           for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
-            concurrent.push(senderHistory[i]);
+            concurrent.push([historyEntry[0], senderHistory[i]]);
           }
         }
         if (discardDominated) {
+          for (let i = 0; i < concurrentIndexStart; i++) {
+            // Stop tracking message events
+            this.messageEvents.delete(
+              `${senderHistory[i].timestamp!.getSender()}${senderHistory[
+                i
+              ].timestamp!.getSenderCounter()}`
+            );
+          }
           // Keep only the messages with index
           // >= concurrentIndexStart
           senderHistory.splice(0, concurrentIndexStart);
@@ -154,7 +189,7 @@ class SemidirectStateBase<S extends Object> {
     }
     if (returnConcurrent) {
       // Sort the concurrent messages in receipt order.
-      concurrent.sort((a, b) => a.receiptCounter - b.receiptCounter);
+      concurrent.sort((a, b) => a[1].receiptCounter - b[1].receiptCounter);
       // Strip away everything except the messages.
       return concurrent;
     } else return [];
@@ -195,9 +230,32 @@ class SemidirectStateBase<S extends Object> {
     return sparseArray.length;
   }
 
-  save(runtime: Runtime): Uint8Array {
-    const historySave: { [sender: string]: ISemidirectProductSenderHistory } =
-      {};
+  addMessageEvent(timestamp: CausalTimestamp, eventName: string, event: any) {
+    if (
+      this.messageEvents.has(
+        `${timestamp.getSender()}${timestamp.getSenderCounter()}`
+      )
+    ) {
+      this.messageEvents
+        .get(`${timestamp.getSender()}${timestamp.getSenderCounter()}`)!
+        .push(new StoredMessageEvent(eventName, event));
+    }
+  }
+
+  getMessageEvents(
+    sender: string,
+    senderCounter: number
+  ): StoredMessageEvent[] | null {
+    if (this.messageEvents.has(`${sender}${senderCounter}`)) {
+      return this.messageEvents.get(`${sender}${senderCounter}`)!;
+    }
+    return null;
+  }
+
+  save(runtime: Runtime, subclassSave: Uint8Array): Uint8Array {
+    const historySave: {
+      [sender: string]: ISemidirectProductRevSenderHistory;
+    } = {};
     for (const [sender, messages] of this.history) {
       historySave[sender] = {
         messages: messages.map((message) => {
@@ -213,15 +271,30 @@ class SemidirectStateBase<S extends Object> {
         }),
       };
     }
-    const saveMessage = SemidirectProductSave.create({
+    const messageEventsSave: { [id: string]: string } = {};
+    for (const [id, event] of this.messageEvents) {
+      // TODO: intelligent way to serialize events.
+      // In particular, this will do silly things to
+      // timestamp.
+      messageEventsSave[id] = JSON.stringify(event);
+    }
+    const saveMessage = SemidirectProductRevSave.create({
       receiptCounter: this.receiptCounter,
       history: historySave,
+      messageEvents: messageEventsSave,
+      subclassSave,
     });
-    return SemidirectProductSave.encode(saveMessage).finish();
+    return SemidirectProductRevSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array, runtime: Runtime) {
-    const saveMessage = SemidirectProductSave.decode(saveData);
+  /**
+   * [load description]
+   * @param  saveData [description]
+   * @param  runtime  [description]
+   * @return subclassSave
+   */
+  load(saveData: Uint8Array, runtime: Runtime): Uint8Array {
+    const saveMessage = SemidirectProductRevSave.decode(saveData);
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {
       this.history.set(
@@ -243,62 +316,83 @@ class SemidirectStateBase<S extends Object> {
         )
       );
     }
+    for (const [id, eventSave] of Object.entries(saveMessage.messageEvents)) {
+      this.messageEvents.set(id, JSON.parse(eventSave));
+    }
+    return saveMessage.subclassSave;
   }
 }
 
-class SemidirectStateLocallyResettable<S extends LocallyResettableState>
-  extends SemidirectStateBase<S>
-  implements LocallyResettableState
-{
-  resetLocalState() {
-    this.receiptCounter = 0;
-    this.history.clear();
-    this.internalState.resetLocalState();
-  }
-}
+// class SemidirectStateLocallyResettable<S extends LocallyResettableState>
+//     extends SemidirectStateBase<S>
+//     implements LocallyResettableState
+// {
+//   resetLocalState() {
+//     this.receiptCounter = 0;
+//     this.history.clear();
+//     this.internalState.resetLocalState();
+//   }
+// }
 
 // TODO: instead of subclass, have interface for all-but-reset part of
 // SemidirectState, then have just one class including reset?
-export type SemidirectState<S> = S extends LocallyResettableState
-  ? SemidirectStateBase<S> & LocallyResettableState
-  : SemidirectStateBase<S>;
+// export type SemidirectState<S> = S extends LocallyResettableState
+//     ? SemidirectStateBase<S> & LocallyResettableState
+//     : SemidirectStateBase<S>;
 
-export abstract class SemidirectProduct<
-    S extends Object,
-    Events extends CrdtEventsRecord = CrdtEventsRecord
+export abstract class SemidirectProductRev<
+    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    C extends Crdt = Crdt
   >
-  extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>>, CrdtParent
+  extends CompositeCrdt<Events, C>
+  implements CrdtParent
 {
-  static readonly crdt1Name = "1";
-  static readonly crdt2Name = "2";
+  protected history = new SemidirectHistory(false, false, false);
+  private receivedMessages = false;
 
-  readonly state: SemidirectState<S>;
-  /**
-   * TODO
-   * @param historyTimestamps=false        [description]
-   * @param historyDiscard1Dominated=false [description]
-   * @param historyDiscard2Dominated=false [description]
-   */
-  constructor(
-    historyTimestamps = false,
-    historyDiscard1Dominated = false,
-    historyDiscard2Dominated = false
+  protected setupHistory(
+    historyTimestamps: boolean = false,
+    historyDiscard1Dominated: boolean = false,
+    historyDiscard2Dominated: boolean = false
   ) {
-    super();
-    // Types are hacked a bit here to make implementation simpler
-    this.state = new SemidirectStateLocallyResettable<
-      S & LocallyResettableState
-    >(
+    if (this.receivedMessages) {
+      throw new Error(
+        "Tried to set up after messages have been received. " +
+          "Make sure that this method is called in the constructor."
+      );
+    }
+    this.history = new SemidirectHistory(
       historyTimestamps,
       historyDiscard1Dominated,
       historyDiscard2Dominated
-    ) as SemidirectState<S>;
+    );
   }
 
-  protected crdt1!: StatefulCrdt<S>;
-  protected crdt2!: StatefulCrdt<S>;
+  protected trackM2Event(
+    timestamp: CausalTimestamp,
+    eventName: string,
+    event: any
+  ) {
+    this.history.addMessageEvent(timestamp, eventName, event);
+  }
 
+  protected m1Criteria(
+    // TODO: make abstract
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ) {
+    return false;
+  }
+
+  protected m2Criteria(
+    // TODO: make abstract
+    targetPath: string[],
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ) {
+    return false;
+  }
   /**
    * TODO
    * @param  m2TargetPath [description]
@@ -309,84 +403,69 @@ export abstract class SemidirectProduct<
    * @param  m1Message    [description]
    * @return              [description]
    */
-  protected abstract action(
+  protected action(
+    // TODO: make abstract
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
     m2Message: Uint8Array,
+    m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
     m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
-  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
-
-  // TODO: move setup into constructor?  Then we don't have to worry about
-  // it being called after init.  But then it's annoying to pass
-  // this to the children (as is one in ResetWrapperCrdt).
-  protected setup(
-    crdt1: StatefulCrdt<S>,
-    crdt2: StatefulCrdt<S>,
-    initialState: S
-  ) {
-    this.state.internalState = initialState;
-    this.crdt1 = crdt1;
-    this.crdt2 = crdt2;
-    // @ts-ignore Ignore readonly
-    crdt1.state = initialState;
-    // @ts-ignore Ignore readonly
-    crdt2.state = initialState;
-    if (this.afterInit) this.initChildren();
+  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
+    return { m1TargetPath, m1Message };
   }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    if (this.crdt1 !== undefined) {
-      // setup has already been called
-      this.initChildren();
-    }
-  }
-
-  private initChildren() {
-    this.childBeingAdded = this.crdt1;
-    this.crdt1.init(SemidirectProduct.crdt1Name, this);
-    this.childBeingAdded = this.crdt2;
-    this.crdt2.init(SemidirectProduct.crdt2Name, this);
-    this.childBeingAdded = undefined;
-  }
-
-  private childBeingAdded?: Crdt;
-  onChildInit(child: Crdt) {
-    if (child != this.childBeingAdded) {
-      throw new Error(
-        "this was passed to Crdt.init as parent externally" +
-          " (use this.setup instead)"
-      );
-    }
-  }
-
-  // TODO: errors if setup is not called exactly once?
 
   protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
   ) {
+    this.receivedMessages = this.receivedMessages || true;
     if (targetPath.length === 0) {
       // We are the target
-      throw new Error("TODO");
+      throw new Error("SemidirectProduct received message for itself");
     }
-    switch (targetPath[targetPath.length - 1]) {
-      case SemidirectProduct.crdt2Name:
+
+    let child = this.children.get(targetPath[targetPath.length - 1]);
+    if (child === undefined) {
+      throw new Error(
+        "Unknown child: " +
+          targetPath[targetPath.length - 1] +
+          " in: " +
+          JSON.stringify(targetPath) +
+          ", children: " +
+          JSON.stringify([...this.children.keys()])
+      );
+    }
+    switch (true) {
+      // m2 cannot be local only. Mainly so that it doesn't break because local messages have a weird vectorMap.
+      // But also at the same time, the idea behind semi direct products is that concurrent m2's act on m1 to produce
+      // a modified m1, which is then relayed locally. Thus, the semidirect product may need to locally resend some
+      // form of m1 to modify m1 properly, while there should be no need to resend m2.
+      // TODO: Work on this argument more.
+      case this.m2Criteria(targetPath, timestamp, message):
+        console.log(timestamp);
         targetPath.length--;
-        this.state.add(
+        this.history.add(
           this.runtime.replicaId,
           targetPath.slice(),
           timestamp,
           message
         );
-        this.crdt2.receive(targetPath, timestamp, message);
+        child.receive(targetPath, timestamp, message);
         break;
-      case SemidirectProduct.crdt1Name:
+
+      case this.m1Criteria(targetPath, timestamp, message):
+        // &&
+        // !this.runtime.isLocal:
+        if (this.runtime.isInRunLocally) {
+          console.log("local!", timestamp);
+        } else {
+          console.log("not local!", timestamp);
+        }
         targetPath.length--;
-        let concurrent = this.state.getConcurrent(
+        let concurrent = this.history.getConcurrent(
           this.runtime.replicaId,
           timestamp
         );
@@ -399,9 +478,15 @@ export abstract class SemidirectProduct<
           // deserializing each time?  Like
           // with ResetComponent.
           let mActOrNull = this.action(
-            concurrent[i].targetPath,
-            concurrent[i].timestamp,
-            concurrent[i].message,
+            concurrent[i][1].targetPath,
+            concurrent[i][1].timestamp,
+            concurrent[i][1].message,
+            this.history
+              .getMessageEvents(
+                concurrent[i][0],
+                concurrent[i][1].senderCounter
+              )!
+              .map(({ eventName, event }) => [eventName, event]),
             mAct.m1TargetPath,
             timestamp,
             mAct.m1Message
@@ -409,27 +494,11 @@ export abstract class SemidirectProduct<
           if (mActOrNull === null) return;
           else mAct = mActOrNull;
         }
-        this.crdt1.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
+        child.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
         break;
       default:
-        // TODO: deliver error somewhere reasonable
-        throw new Error(
-          "Unknown SemidirectProduct child: " +
-            targetPath[targetPath.length - 1] +
-            " in: " +
-            JSON.stringify(targetPath)
-        );
-    }
-  }
-
-  getChild(name: string): Crdt {
-    switch (name) {
-      case SemidirectProduct.crdt1Name:
-        return this.crdt1;
-      case SemidirectProduct.crdt2Name:
-        return this.crdt2;
-      default:
-        throw new Error("Unknown child: " + name + " in SemidirectProduct");
+        targetPath.length--;
+        child.receive(targetPath, timestamp, message);
     }
   }
 
@@ -439,27 +508,30 @@ export abstract class SemidirectProduct<
     // the semidirect initial state.  Although, for our Crdt's so far
     // (e.g NumberCrdt), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
-    return (
-      this.state.isHistoryEmpty() && this.crdt1.canGc() && this.crdt2.canGc()
-    );
+    return this.history.isHistoryEmpty() && super.canGc();
   }
 
-  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
-    return [
-      this.state.save(this.runtime),
-      new Map([
-        [SemidirectProduct.crdt1Name, this.crdt1],
-        [SemidirectProduct.crdt2Name, this.crdt2],
-      ]),
-    ];
+  protected saveComposite(): Uint8Array {
+    return this.history.save(this.runtime, this.saveSemidirectProductRev());
   }
+
+  /**
+   * Override to return your own saveData, which will
+   * be passed to loadSemidirectProductRev during this.load,
+   * after loading the semidirect product state.
+   */
+  protected saveSemidirectProductRev(): Uint8Array {
+    return new Uint8Array();
+  }
+
+  protected loadSemidirectProductRev(saveData: Uint8Array) {}
 
   // TODO: the children loading their own states (both
   // of them, in arbitrary order) must correctly set
   // this.internalState, whatever it is.
   // Need option to do custom loading if that's not the
   // case.
-  load(saveData: Uint8Array) {
-    this.state.load(saveData, this.runtime);
+  protected loadComposite(saveData: Uint8Array) {
+    this.loadSemidirectProductRev(this.history.load(saveData, this.runtime));
   }
 }

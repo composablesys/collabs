@@ -21,6 +21,16 @@ export class TestingNetwork implements BroadcastNetwork {
   register(causal: DefaultCausalBroadcastNetwork): void {
     this.causal = causal;
   }
+  /**
+   * Not implemented (returns empty array).
+   */
+  save() {
+    return new Uint8Array();
+  }
+  /**
+   * Not implemented (no-op).
+   */
+  load(_saveData: Uint8Array) {}
 }
 
 // Copied from Runtime (TODO: use directly to

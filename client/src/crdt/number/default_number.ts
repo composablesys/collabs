@@ -49,6 +49,17 @@ export class AddComponent extends PrimitiveCrdt<
   canGc() {
     return this.state.value === this.state.initialValue;
   }
+
+  savePrimitive(): Uint8Array {
+    let message = DefaultNumberComponentMessage.create({
+      arg: this.state.value,
+    });
+    return DefaultNumberComponentMessage.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    this.state.value = DefaultNumberComponentMessage.decode(saveData).arg;
+  }
 }
 
 export class MultComponent extends PrimitiveCrdt<
@@ -79,6 +90,16 @@ export class MultComponent extends PrimitiveCrdt<
   canGc() {
     return this.state.value === this.state.initialValue;
   }
+
+  // TODO: need to copy these from AddComponent if you
+  // intend to use MultComponent outside DefaultNumber.
+  // In DefaultNumber, it is okay to do nothing because
+  // AddComponent will deserialize the state for you.
+  savePrimitive(): Uint8Array {
+    return new Uint8Array();
+  }
+
+  loadPrimitive(_saveData: Uint8Array) {}
 }
 
 class DefaultNumberBase extends SemidirectProduct<

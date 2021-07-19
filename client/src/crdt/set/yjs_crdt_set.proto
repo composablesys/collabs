@@ -9,3 +9,13 @@ message YjsCrdtSetMessage {
     string delete = 2;
   }
 }
+
+message YjsCrdtSetArgs {
+  required string name = 1;
+  required bytes args = 2;
+}
+
+message YjsCrdtSetSave {
+  // In order by time created on this replica.
+  repeated YjsCrdtSetArgs constructorArgs = 1;
+}

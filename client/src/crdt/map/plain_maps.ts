@@ -1,4 +1,7 @@
-import { SequentialMapMessage } from "../../../generated/proto_compiled";
+import {
+  SequentialMapMessage,
+  SequentialMapSave,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
@@ -228,6 +231,30 @@ export class SequentialPlainMap<K, V>
 
   canGc(): boolean {
     return this.state.size === 0;
+  }
+
+  savePrimitive(): Uint8Array {
+    // TODO: entries as map<string, bytes> instead?
+    // Only if keys are guaranteed to be UTF-8.
+    const message = SequentialMapSave.create({
+      entries: [...this.state].map(([key, value]) => {
+        return {
+          key: stringAsArray(key),
+          value: this.valueSerializer.serialize(value),
+        };
+      }),
+    });
+    return SequentialMapSave.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    const message = SequentialMapSave.decode(saveData);
+    for (let entry of message.entries) {
+      this.state.set(
+        arrayAsString(entry.key),
+        this.valueSerializer.deserialize(entry.value, this.runtime)
+      );
+    }
   }
 
   forEach(

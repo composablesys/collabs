@@ -95,22 +95,17 @@ export class CompositeCrdt<
     child.receive(targetPath, timestamp, message);
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
-    let child = this.children.get(targetPath[targetPath.length - 1]);
+  getChild(name: string): Crdt {
+    const child = this.children.get(name);
     if (child === undefined) {
       throw new Error(
         "Unknown child: " +
-          targetPath[targetPath.length - 1] +
-          " in: " +
-          JSON.stringify(targetPath) +
+          name +
           ", children: " +
           JSON.stringify([...this.children.keys()])
       );
     }
-    targetPath.length--;
-    return child.getDescendant(targetPath);
+    return child;
   }
 
   /**
@@ -122,4 +117,33 @@ export class CompositeCrdt<
     }
     return true;
   }
+
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
+    return [this.saveComposite(), this.children];
+  }
+
+  /**
+   * Override to save extra state, which is passed
+   * to loadComposite during load after the children
+   * are initialized.
+   * @return [description]
+   */
+  protected saveComposite(): Uint8Array {
+    return new Uint8Array();
+  }
+
+  load(saveData: Uint8Array) {
+    this.loadComposite(saveData);
+  }
+
+  /**
+   * Note this is called after the children are initialized
+   * but before they are loaded.
+   *
+   * @param  saveData the output of saveComposite() on
+   * a previous saved instance
+   */
+  protected loadComposite(saveData: Uint8Array) {}
+
+  // You can also choose to override postLoad().
 }
