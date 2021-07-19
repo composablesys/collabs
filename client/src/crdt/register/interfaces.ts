@@ -28,11 +28,6 @@ export interface CRegister<
 
   /**
    * Returns the current value.
-   */
-  get(): T;
-
-  /**
-   * this.value is an alias for this.get().
    *
    * Implementations in which set takes the actual set
    * value of type T (i.e., SetArgs = [T]) should make
