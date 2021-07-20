@@ -63,7 +63,7 @@ export interface CListEventsRecord<T> extends CrdtEventsRecord {
  */
 export interface CList<
   T,
-  InsertArgs extends any[],
+  InsertArgs extends any[] = [T],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 > extends Crdt<Events> {
   /**

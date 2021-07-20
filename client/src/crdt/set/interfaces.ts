@@ -58,7 +58,7 @@ export interface CSetEventsRecord<T> extends CrdtEventsRecord {
  */
 export interface CSet<
   T,
-  AddArgs extends any[],
+  AddArgs extends any[] = [T],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 > extends Crdt<Events> {
   /**

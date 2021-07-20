@@ -60,7 +60,7 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
 export interface CMap<
   K,
   V,
-  SetArgs extends any[],
+  SetArgs extends any[] = [V],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 > extends Crdt<Events> {
   /**
