@@ -1,4 +1,4 @@
-import { Crdt } from "../core";
+import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
 import { CSet, CSetEventsRecord } from "./interfaces";
 
 // TODO: do we need to include Events parameter here?
@@ -32,14 +32,22 @@ export declare abstract class AbstractCSet<
   [Symbol.iterator](): IterableIterator<T>;
 }
 
-// export type AbstractCBoolean = DeclareAbstractCBoolean;
-
 /**
  * This mixin adds default implementations of CSet
  * methods to an arbitrary Crdt base class.
  * You may override the default implementations.
  *
  * Implemented methods: clear, forEach, Symbol.iterator
+ *
+ * Due to limitations of TypeScript, this version of the
+ * function sets all of Base's generic type parameters to their
+ * base type constraint (e.g., {} if they are unconstrained).
+ * If you want to override this, you must make an unsafe
+ * cast to the intended constructor type, as demonstrated
+ * by AbstractCSetCompositeCrdt and AbstractCSetPrimitiveCrdt.
+ *
+ * TODO: such types become unsafe if Base's constructor
+ * signature changes; how can we catch that?
  */
 export function MakeAbstractCSet<
   TBase extends abstract new (...args: any[]) => Crdt
@@ -90,3 +98,22 @@ export function MakeAbstractCSet<
   }
   return Mixin as any;
 }
+
+export const AbstractCSetCompositeCrdt = MakeAbstractCSet(
+  CompositeCrdt
+) as abstract new <
+  T,
+  AddArgs extends any[],
+  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+>() => AbstractCSet<T, AddArgs, Events> & CompositeCrdt<Events>;
+
+export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
+  PrimitiveCrdt
+) as abstract new <
+  S extends Object,
+  T,
+  AddArgs extends any[],
+  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+>(
+  state: S
+) => AbstractCSet<T, AddArgs, Events> & PrimitiveCrdt<S, Events>;

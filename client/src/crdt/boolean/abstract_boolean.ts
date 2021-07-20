@@ -3,7 +3,7 @@ import { CBoolean } from "./interfaces";
 
 export declare abstract class AbstractCBoolean
   extends Crdt
-  implements CBoolean
+  implements CBoolean 
 {
   abstract value: boolean;
 
@@ -16,8 +16,6 @@ export declare abstract class AbstractCBoolean
   false(): void;
   set(value: boolean): void;
 }
-
-// export type AbstractCBoolean = DeclareAbstractCBoolean;
 
 /**
  * This mixin adds default implementations of CBoolean
