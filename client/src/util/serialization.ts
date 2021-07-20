@@ -157,6 +157,25 @@ export class TextArraySerializer implements ElementSerializer<string[]> {
   static instance = new TextArraySerializer();
 }
 
+export class SingletonSerializer<T> implements ElementSerializer<[T]> {
+  private constructor(private readonly valueSerializer: ElementSerializer<T>) {}
+
+  serialize(value: [T]): Uint8Array {
+    return this.valueSerializer.serialize(value[0]);
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): [T] {
+    return [this.valueSerializer.deserialize(message, runtime)];
+  }
+
+  static of<T>(valueSerializer: ElementSerializer<T>): ElementSerializer<[T]> {
+    // TODO: check this is reasonable
+    if (valueSerializer === DefaultElementSerializer.getInstance())
+      return DefaultElementSerializer.getInstance();
+    else return new SingletonSerializer(valueSerializer);
+  }
+}
+
 // TODO: use these in networks
 const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {

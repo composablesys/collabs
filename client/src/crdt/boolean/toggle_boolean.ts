@@ -10,14 +10,14 @@ export class ToggleCBoolean
   extends MakeAbstractCBoolean(PrimitiveCrdt)<{
     value: boolean;
   }>
-  implements CBoolean 
+  implements CBoolean
 {
   constructor(private readonly initialValue = false) {
     super({ value: initialValue });
   }
 
-  set value(newValue: boolean) {
-    if (newValue !== this.value) this.toggle();
+  set value(value: boolean) {
+    if (value !== this.value) this.toggle();
   }
 
   get value(): boolean {

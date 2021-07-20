@@ -1,0 +1,17 @@
+message AggregateCRegisterMessage {
+    oneof data {
+      bytes setArgs = 1;
+      bool reset = 2;
+    }
+}
+
+message AggregateCRegisterMetaSave {
+  required bytes setArgs = 1;
+  required string sender = 2;
+  required uint32 senderCounter = 3;
+  required double time = 4;
+}
+
+message AggregateCRegisterSave {
+  repeated AggregateCRegisterMetaSave elements = 1;
+}

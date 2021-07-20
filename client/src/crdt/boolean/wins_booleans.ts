@@ -22,8 +22,8 @@ export class TrueWinsCBoolean
     return !this.state.isHistoryEmpty();
   }
 
-  set value(newValue: boolean) {
-    if (newValue) this.original.noop();
+  set value(value: boolean) {
+    if (value) this.original.noop();
     else this.reset();
   }
 }
@@ -43,8 +43,8 @@ export class FalseWinsCBoolean
     return this.state.isHistoryEmpty();
   }
 
-  set value(newValue: boolean) {
-    if (!newValue) this.original.noop();
+  set value(value: boolean) {
+    if (!value) this.original.noop();
     else this.reset();
   }
 }

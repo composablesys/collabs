@@ -16,7 +16,7 @@ import { Crdt, CrdtEventsRecord } from "../core";
  */
 export interface CRegister<
   T,
-  SetArgs extends any[],
+  SetArgs extends any[] = [T],
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends Crdt<Events> {
   /**
