@@ -1,6 +1,6 @@
 import { CRegister } from "../register";
 
-export interface CBoolean extends CRegister<boolean> {
+export interface CBoolean extends CRegister<boolean, [boolean]> {
   /**
    * Toggle the value, i.e., negate it.
    *
@@ -13,12 +13,14 @@ export interface CBoolean extends CRegister<boolean> {
   toggle(): void;
 
   /**
-   * Alias for this.value = true.
+   * Alias for this.set(true).
    */
   true(): void;
 
   /**
-   * Alias for this.value = false.
+   * Alias for this.set(false).
    */
   false(): void;
+
+  value: boolean;
 }

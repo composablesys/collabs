@@ -1,14 +1,18 @@
 import {
   NoopCrdt,
+  Resettable,
   ResettableEventsRecord,
   ResetWrapClass,
 } from "../helper_crdts";
-import { Boolean } from "./interfaces";
+import { MakeAbstractCBoolean } from "./abstract_boolean";
+import { CBoolean } from "./interfaces";
 
 /** Enable-wins flag */
-export class TrueWinsBoolean
-  extends ResetWrapClass(NoopCrdt, true, false)<ResettableEventsRecord>
-  implements Boolean
+export class TrueWinsCBoolean
+  extends MakeAbstractCBoolean(
+    ResetWrapClass(NoopCrdt, true, false)
+  )<ResettableEventsRecord>
+  implements CBoolean, Resettable
 {
   constructor() {
     super();
@@ -25,9 +29,11 @@ export class TrueWinsBoolean
 }
 
 /** Disable-wins flag */
-export class FalseWinsBoolean
-  extends ResetWrapClass(NoopCrdt, true, false)<ResettableEventsRecord>
-  implements Boolean
+export class FalseWinsCBoolean
+  extends MakeAbstractCBoolean(
+    ResetWrapClass(NoopCrdt, true, false)
+  )<ResettableEventsRecord>
+  implements CBoolean, Resettable
 {
   constructor() {
     super();
