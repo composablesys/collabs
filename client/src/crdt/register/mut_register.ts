@@ -4,7 +4,7 @@ import {
   Optional,
 } from "../../util";
 import { CompositeCrdt, Crdt } from "../core";
-import { Resettable } from "../helper_crdts";
+import { Resettable, ResettableEventsRecord } from "../helper_crdts";
 import { YjsCrdtSet } from "../set";
 import { CRegister } from "./interfaces";
 import { FwwCRegister, LwwCRegister } from "./wins_registers";
@@ -14,7 +14,7 @@ import { FwwCRegister, LwwCRegister } from "./wins_registers";
 // Perhaps this is an argument for a Set: CrdtEvent in general?
 
 export class MutCRegister<C extends Crdt, SetArgs extends any[]>
-  extends CompositeCrdt
+  extends CompositeCrdt<ResettableEventsRecord>
   implements CRegister<Optional<C>, SetArgs>, Resettable
 {
   private readonly crdtFactory: YjsCrdtSet<C, SetArgs>;
@@ -48,6 +48,9 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
         );
         break;
     }
+    this.register.on("Reset", (event) => {
+      this.emit("Reset", event);
+    });
   }
 
   set(...args: SetArgs): void {

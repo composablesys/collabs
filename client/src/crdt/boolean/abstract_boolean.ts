@@ -6,6 +6,7 @@ export declare abstract class AbstractCBoolean
   implements CBoolean
 {
   abstract value: boolean;
+
   /**
    * Override this if you want a semantic different from
    * this.value = !this.value.
@@ -28,7 +29,7 @@ export declare abstract class AbstractCBoolean
 export function MakeAbstractCBoolean<
   TBase extends abstract new (...args: any[]) => Crdt
 >(Base: TBase): TBase & (abstract new (...args: any[]) => AbstractCBoolean) {
-  abstract class Mixin extends Base implements AbstractCBoolean, CBoolean {
+  abstract class Mixin extends Base implements AbstractCBoolean {
     constructor(...args: any[]) {
       super(...args);
     }

@@ -6,14 +6,18 @@ import {
   ElementSerializer,
   stringAsArray,
 } from "../../util";
-import { Boolean, TrueWinsBoolean } from "../boolean";
-import { PrimitiveCrdt } from "../core";
+import { CBoolean, TrueWinsCBoolean } from "../boolean";
+import { CompositeCrdt, PrimitiveCrdt } from "../core";
 import { ImplicitCrdtMap } from "../map";
-import { AbstractPlainSet } from "./abstract_sets";
-import { PlainSet, PlainSetEventsRecord } from "./interfaces";
+import { AbstractCSet, MakeAbstractCSet } from "./abstract_set";
+import { CSet, CSetEventsRecord } from "./interfaces";
 
-export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
-  private readonly booleanMap: ImplicitCrdtMap<T, Boolean>;
+export class Test<T> extends MakeAbstractCSet(PrimitiveCrdt<Set<any>>)<T, [T]> {
+
+}
+
+export class BooleanCSet<T> extends MakeAbstractCSet(CompositeCrdt)<T, [T]> {
+  private readonly booleanMap: ImplicitCrdtMap<T, CBoolean>;
   /**
    * TODO: booleans must start false.  If you want
    * different behavior, you should wrap around this
@@ -22,7 +26,7 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
    * to start containing some elements but not others).
    */
   constructor(
-    booleanConstructor: () => Boolean,
+    booleanConstructor: () => CBoolean,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
@@ -47,9 +51,9 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
     });
   }
 
-  add(value: T): this {
+  add(value: T): T {
     this.booleanMap.get(value).value = true;
-    return this;
+    return value;
   }
 
   delete(value: T): boolean {
@@ -78,14 +82,12 @@ export class BooleanPlainSet<T> extends AbstractPlainSet<T> {
       if (valueBool.value) yield key;
     }
   }
-
-  reset(): void {
-    // TODO: optimize
-    for (let value of this.booleanMap.values()) value.reset();
-  }
 }
 
-export class AddWinsPlainSet<T> extends BooleanPlainSet<T> {
+export class AddWinsPlainSet<T>
+  extends BooleanPlainSet<T>
+  implements Resettable
+{
   constructor(
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {

@@ -1,3 +1,4 @@
+import { CrdtEventsRecord } from "../core";
 import { CRegister } from "../register";
 
 export interface CBoolean extends CRegister<boolean, [boolean]> {

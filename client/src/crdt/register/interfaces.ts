@@ -1,4 +1,4 @@
-import { Crdt, CrdtEventsRecord } from "../core";
+import { Crdt } from "../core";
 
 /**
  * An opaque register of type T.  Any semantics can
@@ -14,11 +14,7 @@ import { Crdt, CrdtEventsRecord } from "../core";
  * on the generic Change event and use this.value to read
  * the changed value, if needed.
  */
-export interface CRegister<
-  T,
-  SetArgs extends any[] = [T],
-  Events extends CrdtEventsRecord = CrdtEventsRecord
-> extends Crdt<Events> {
+export interface CRegister<T, SetArgs extends any[] = [T]> extends Crdt {
   /**
    * Sends args to every replica in serialized form.
    * Every replica then uses
