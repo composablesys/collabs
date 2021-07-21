@@ -176,6 +176,25 @@ export class SingletonSerializer<T> implements ElementSerializer<[T]> {
   }
 }
 
+/**
+ * Serializes strings using stringAsArray.  This is necessary
+ * for strings that have been created from byte arrays using
+ * arrayAsString, since those might not be UTF-8.
+ */
+export class StringAsArraySerializer implements ElementSerializer<string> {
+  private constructor() {}
+
+  serialize(value: string): Uint8Array {
+    return stringAsArray(value);
+  }
+
+  deserialize(message: Uint8Array, _runtime: Runtime): string {
+    return arrayAsString(message);
+  }
+
+  static instance = new StringAsArraySerializer();
+}
+
 // TODO: use these in networks
 const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {
