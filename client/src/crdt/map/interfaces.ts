@@ -16,6 +16,14 @@ export interface CMapInitEvent<K, V> {
 }
 
 export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
+  /**
+   * TODO: in MutCMap's, this is also emitted when
+   * a previously-existing value's key is restored,
+   * even if the value object remained the same.
+   * It is NOT emitted each time the value mutates
+   * internally (for that, add your own event listeners
+   * in ValueInit).
+   */
   Set: CMapEvent<K>;
   Delete: CMapEvent<K>;
   /**

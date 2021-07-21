@@ -13,6 +13,15 @@ import { SemidirectProduct } from "./semidirect_product";
 // TODO: ResettableCompositeCrdt (implement reset for you)
 
 export interface ResettableEventsRecord extends CrdtEventsRecord {
+  /**
+   * TODO: after this event the state is not necessarily
+   * fully reset (initial state), the event just means
+   * that it's been observed-reset.
+   *
+   * TODO: perhaps deprecate this in favor of type-specific
+   * events.  Otherwise, maintaining views would be difficult.
+   * Besides, we are often not dispatching Reset events anyway.
+   */
   Reset: CrdtEvent;
 }
 

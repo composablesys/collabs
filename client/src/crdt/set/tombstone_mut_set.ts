@@ -83,6 +83,11 @@ export class TombstoneMutCSet<
         });
       });
     }
+
+    // Events
+    this.members.on("Add", (event) => this.emit("Add", event));
+    this.members.on("Delete", (event) => this.emit("Delete", event));
+    this.mutSet.on("ValueInit", (event) => this.emit("ValueInit", event));
   }
 
   add(...args: AddArgs): C {
@@ -92,11 +97,18 @@ export class TombstoneMutCSet<
   }
 
   restore(value: C) {
+    if (!this.owns(value)) {
+      throw new Error("this.owns(value) is false");
+    }
     this.members.add(value);
   }
 
   delete(value: C) {
     this.members.delete(value);
+  }
+
+  owns(value: C) {
+    return this.mutSet.owns(value);
   }
 
   has(value: C) {
