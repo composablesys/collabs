@@ -117,3 +117,9 @@ export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
 >(
   state: S
 ) => AbstractCSet<T, AddArgs, Events> & PrimitiveCrdt<S, Events>;
+
+export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
+  T,
+  AddArgs extends any[],
+  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+>() => AbstractCSet<T, AddArgs, Events> & Crdt<Events>;
