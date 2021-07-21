@@ -1,18 +1,10 @@
 import {
-  SequentialMapMessage,
-  SequentialMapSave,
-} from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
-import {
-  arrayAsString,
   byteArrayEquals,
   DefaultElementSerializer,
   ElementSerializer,
-  stringAsArray,
 } from "../../util";
-import { PrimitiveCrdt } from "../core";
 import { Resettable } from "../helper_crdts";
-import { CRegister, LwwCRegister } from "../register";
+import { AggregateCRegisterMeta, CRegister, LwwCRegister } from "../register";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { ImplicitCrdtMap } from "./riak_crdt_maps";
 
@@ -20,7 +12,7 @@ export class RegisterCMap<K, V, SetArgs extends any[]>
   extends AbstractCMapCompositeCrdt<K, V, SetArgs>
   implements Resettable
 {
-  private readonly internalMap: ImplicitCrdtMap<
+  protected readonly internalMap: ImplicitCrdtMap<
     K,
     CRegister<V, SetArgs> & Resettable
   >;
@@ -117,6 +109,38 @@ export class LwwCMap<K, V> extends RegisterCMap<K, V, [V]> {
       () => new LwwCRegister(undefined as unknown as V, valueSerializer),
       keySerializer
     );
+  }
+
+  /**
+   * Return the current conflicting values at key, i.e., the
+   * non-overwritten values.  This may have
+   * more than one element due to concurrent writes.
+   * If key is not present, returns undefined.
+   *
+   * The array is guaranteed to contain
+   * values in the same order on all replicas, namely,
+   * in lexicographic order by sender.
+   */
+  getConflicts(key: K): V[] | undefined {
+    const valueCrdt = this.internalMap.getIfPresent(key) as
+      | LwwCRegister<V>
+      | undefined;
+    return valueCrdt === undefined ? undefined : valueCrdt.conflicts();
+  }
+
+  /**
+   * Return the current conflicting values with metadata.
+   * If key is not present, returns undefined.
+   *
+   * The array is guaranteed to contain
+   * values in the same order on all replicas, namely,
+   * in lexicographic order by sender.
+   */
+  getConflictsMeta(key: K): AggregateCRegisterMeta<V>[] | undefined {
+    const valueCrdt = this.internalMap.getIfPresent(key) as
+      | LwwCRegister<V>
+      | undefined;
+    return valueCrdt === undefined ? undefined : valueCrdt.conflictsMeta();
   }
 
   /**
