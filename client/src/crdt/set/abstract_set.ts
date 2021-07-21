@@ -44,7 +44,8 @@ export declare abstract class AbstractCSet<
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCSetCompositeCrdt and AbstractCSetPrimitiveCrdt.
+ * by AbstractCSetPrimitiveCrdt and the other examples
+ * in this file.
  *
  * TODO: such types become unsafe if Base's constructor
  * signature changes; how can we catch that?
@@ -87,6 +88,12 @@ export function MakeAbstractCSet<
       callbackfn: (value: T, value2: T, set: this) => void,
       thisArg?: any
     ): void {
+      // TODO: this might not give the exact same semantics
+      // as Set if callbackfn modifies this during the
+      // loop.  (Given that Array.forEach has a rather
+      // funky polyfill on MDN, I expect Set.forEach is
+      // similarly funky.)  Although users probably shouldn't
+      // be doing that anyway.
       for (let value of this) {
         callbackfn.call(thisArg, value, value, this);
       }

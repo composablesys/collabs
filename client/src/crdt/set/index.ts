@@ -1,6 +1,5 @@
 export * from "./abstract_set";
 export * from "./add_wins_set";
-export * from "./decorated_set";
 export * from "./deleting_mut_set";
 export * from "./grow_only_set";
 export * from "./interfaces";

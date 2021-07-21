@@ -1,3 +1,7 @@
+import {
+  IMapMutCSetKeyMessage,
+  MapMutCSetKeyMessage,
+} from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt, Runtime } from "../core";
 import { Resettable } from "../helper_crdts";
@@ -13,14 +17,31 @@ class MapMutCSetSerializer<AddArgs extends any[]>
   serialize(
     value: [sender: string, uniqueNumber: number, args: AddArgs]
   ): Uint8Array {
-    // TODO
+    const iMessage: IMapMutCSetKeyMessage = {
+      sender: value[0],
+      uniqueNumber: value[1],
+    };
+    if (value[2].length !== 0) {
+      iMessage.args = this.argsSerializer.serialize(value[2]);
+    }
+    const message = MapMutCSetKeyMessage.create(iMessage);
+    return MapMutCSetKeyMessage.encode(message).finish();
   }
 
   deserialize(
     message: Uint8Array,
     runtime: Runtime
   ): [sender: string, uniqueNumber: number, args: AddArgs] {
-    // TODO
+    const decoded = MapMutCSetKeyMessage.decode(message);
+    // If args is not set, then use [].
+    // According to https://github.com/protobufjs/protobuf.js/issues/728#issuecomment-289234674
+    // (possibly outdated) and some forum posts,
+    // the proper way to check if
+    // an optional field is set is to use hasOwnProperty.
+    const args = decoded.hasOwnProperty("args")
+      ? this.argsSerializer.deserialize(decoded.args, runtime)
+      : ([] as unknown as AddArgs);
+    return [decoded.sender, decoded.uniqueNumber, args];
   }
 }
 

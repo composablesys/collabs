@@ -195,6 +195,17 @@ export class StringAsArraySerializer implements ElementSerializer<string> {
   static instance = new StringAsArraySerializer();
 }
 
+/**
+ * Compares two Uint8Array's for equality.
+ */
+export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
+  if (one.length !== two.length) return false;
+  for (let i = 0; i < one.length; i++) {
+    if (one[i] !== two[i]) return false;
+  }
+  return true;
+}
+
 const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);

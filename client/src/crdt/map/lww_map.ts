@@ -5,29 +5,27 @@ import {
 import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
+  byteArrayEquals,
   DefaultElementSerializer,
   ElementSerializer,
   stringAsArray,
 } from "../../util";
 import { PrimitiveCrdt } from "../core";
-import { Register, LwwRegister } from "../register";
-import { AbstractPlainMap } from "./abstract_maps";
-import { PlainMap, PlainMapEventsRecord } from "./interfaces";
+import { Resettable } from "../helper_crdts";
+import { CRegister, LwwCRegister } from "../register";
+import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { ImplicitCrdtMap } from "./riak_crdt_maps";
 
-export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
-  private readonly internalMap: ImplicitCrdtMap<K, Register<V>>;
+export class RegisterCMap<K, V, SetArgs extends any[]>
+  extends AbstractCMapCompositeCrdt<K, V, SetArgs>
+  implements Resettable
+{
+  private readonly internalMap: ImplicitCrdtMap<
+    K,
+    CRegister<V, SetArgs> & Resettable
+  >;
 
   /**
-   * TODO: key presence is determined by value
-   * triviality (canGc).  Delete calls reset.
-   * So make sure these behave normally on Register!
-   * (Should we add a more general implementation that uses
-   * an arbitrary PlainSet for key presence?  Or a version
-   * that uses set-to-undefined for key deletion, in case you
-   * want Lww deletion semantics?  I guess the user can do
-   * that themselves though.)
-   *
    * TODO: the initial value of the register will never
    * be inspected, so feel free to use undefined, even
    * if it is not of type V, with an unsafe type cast,
@@ -35,7 +33,7 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
    * of type V.
    */
   constructor(
-    registerConstructor: (key: K) => Register<V>,
+    registerConstructor: (key: K) => CRegister<V, SetArgs> & Resettable,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
     super();
@@ -47,11 +45,11 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
     // Events
     // TODO: optimize to reduce closures?
     this.internalMap.on("ValueInit", (event) => {
-      event.value.on("Change", (event2) => {
+      event.value.on("Set", (event2) => {
         if (this.internalMap.has(event.key)) {
           this.emit("Set", { key: event.key, timestamp: event2.timestamp });
         } else {
-          this.emit("KeyDelete", {
+          this.emit("Delete", {
             key: event.key,
             timestamp: event2.timestamp,
           });
@@ -60,12 +58,17 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
     });
   }
 
-  delete(key: K): boolean {
+  set(key: K, ...args: SetArgs): V {
+    const register = this.internalMap.get(key);
+    register.set(...args);
+    return register.value;
+  }
+
+  delete(key: K): void {
     const valueCrdt = this.internalMap.getIfPresent(key);
     if (valueCrdt !== undefined) {
       valueCrdt.reset();
-      return true;
-    } else return false;
+    }
   }
 
   get(key: K): V | undefined {
@@ -78,11 +81,6 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
     return this.internalMap.has(key);
   }
 
-  set(key: K, value: V): this {
-    this.internalMap.get(key).value = value;
-    return this;
-  }
-
   get size(): number {
     return this.internalMap.size;
   }
@@ -93,23 +91,45 @@ export class RegisterPlainMap<K, V> extends AbstractPlainMap<K, V> {
     }
   }
 
-  reset(): void {
-    // TODO: optimize
+  // Use default keyOf with === comparisons.
+  // In case SetArgs = [V], you should override keyOf
+  // to use serialization equality.
+
+  clear(): void {
+    // Slightly more efficient than deleting every value?
     for (let valueCrdt of this.internalMap.values()) {
       valueCrdt.reset();
     }
   }
+
+  reset(): void {
+    // Clear indeed has observed-reset semantics.
+    this.clear();
+  }
 }
 
-export class LwwPlainMap<K, V> extends RegisterPlainMap<K, V> {
+export class LwwCMap<K, V> extends RegisterCMap<K, V, [V]> {
   constructor(
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
-    valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
+    private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
   ) {
     super(
-      () => new LwwRegister(undefined as unknown as V, valueSerializer),
+      () => new LwwCRegister(undefined as unknown as V, valueSerializer),
       keySerializer
     );
+  }
+
+  /**
+   * TODO: still O(n), but uses serialization equality
+   * instead of ===.
+   */
+  keyOf(searchElement: V): K | undefined {
+    const searchSerialized = this.valueSerializer.serialize(searchElement);
+    for (const [key, value] of this) {
+      const valueSerialized = this.valueSerializer.serialize(value);
+      if (byteArrayEquals(searchSerialized, valueSerialized)) return key;
+    }
+    return undefined;
   }
 }
 

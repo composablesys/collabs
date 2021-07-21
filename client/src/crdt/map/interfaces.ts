@@ -147,6 +147,8 @@ export interface CMap<
 
   /**
    * Returns the key of some occurrence of a value in this map, or undefined if the value is not present.
+   * The equality semantics for comparing values is
+   * implementation-dependent.
    *
    * @param searchElement The value to locate in this map.
    */
