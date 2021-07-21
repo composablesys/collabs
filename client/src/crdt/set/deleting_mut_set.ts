@@ -30,9 +30,9 @@ import { AbstractCSetCrdt } from "./abstract_set";
  * must instead be passed as a separate non-Crdt
  * constructor arg.
  */
-export class DeletingMutCSet<C extends Crdt, AddArgs extends any[] = []>
+export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements Resettable, CrdtParent
+  implements Resettable, CrdtParent 
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
@@ -259,6 +259,16 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[] = []>
    * Returns a short unique identifier for value
    * which can be passed to getById to retrieve
    * value later.
+   *
+   * TODO: should this be included?  In principle you can
+   * always just use the Crdts themselves and let them
+   * be serialized in long-form; this is just an opt,
+   * which could in theory be supplanted by serialization/
+   * batching opts.  Including for now since Geordie is
+   * using it, however, I will leave it out of related classes.
+   *
+   * TODO: rename getId.
+   *
    * @param  value [description]
    * @return           [description]
    * @throws if !this.owns(value)

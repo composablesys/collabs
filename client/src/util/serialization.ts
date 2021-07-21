@@ -195,7 +195,6 @@ export class StringAsArraySerializer implements ElementSerializer<string> {
   static instance = new StringAsArraySerializer();
 }
 
-// TODO: use these in networks
 const ENCODING: "latin1" = "latin1";
 export function arrayAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);
