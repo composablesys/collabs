@@ -3,13 +3,20 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util";
+import { CrdtEvent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { AggregateCRegisterMeta, CRegister, LwwCRegister } from "../register";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { CMapEventsRecord } from "./interfaces";
 import { ImplicitCrdtMap } from "./riak_crdt_maps";
 
-export class RegisterCMap<K, V, SetArgs extends any[]>
-  extends AbstractCMapCompositeCrdt<K, V, SetArgs>
+export class RegisterCMap<
+    K,
+    V,
+    SetArgs extends any[],
+    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+  >
+  extends AbstractCMapCompositeCrdt<K, V, SetArgs, Events>
   implements Resettable
 {
   protected readonly internalMap: ImplicitCrdtMap<
@@ -100,7 +107,21 @@ export class RegisterCMap<K, V, SetArgs extends any[]>
   }
 }
 
-export class LwwCMap<K, V> extends RegisterCMap<K, V, [V]> {
+export interface LwwCMapEvent<K, V> extends CrdtEvent {
+  key: K;
+  value: V;
+}
+
+export interface LwwCMapEventsRecord<K, V> extends CMapEventsRecord<K, V> {
+  Receive: LwwCMapEvent<K, V>;
+}
+
+export class LwwCMap<K, V> extends RegisterCMap<
+  K,
+  V,
+  [V],
+  LwwCMapEventsRecord<K, V>
+> {
   constructor(
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
@@ -109,6 +130,17 @@ export class LwwCMap<K, V> extends RegisterCMap<K, V, [V]> {
       () => new LwwCRegister(undefined as unknown as V, valueSerializer),
       keySerializer
     );
+
+    // Extra event: Receive
+    this.internalMap.on("ValueInit", (event) => {
+      (event.value as LwwCRegister<V>).on("Receive", (event2) => {
+        this.emit("Receive", {
+          key: event.key,
+          value: event2.value,
+          timestamp: event2.timestamp,
+        });
+      });
+    });
   }
 
   /**

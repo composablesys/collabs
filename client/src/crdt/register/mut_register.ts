@@ -48,6 +48,8 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
         );
         break;
     }
+
+    // TODO: events.  Including ValueInit?
     this.register.on("Reset", (event) => {
       this.emit("Reset", event);
     });

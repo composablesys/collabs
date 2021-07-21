@@ -9,7 +9,7 @@ import {
   Optional,
   SingletonSerializer,
 } from "../../util";
-import { PrimitiveCrdt } from "../core";
+import { CrdtEvent, PrimitiveCrdt } from "../core";
 import { ResettableEventsRecord } from "../helper_crdts";
 import { CRegister } from "./interfaces";
 
@@ -48,8 +48,25 @@ export class AggregateCRegisterMeta<T> {
   }
 }
 
+export interface AggregateCRegisterReceiveEvent<T> extends CrdtEvent {
+  value: T;
+}
+
+export interface AggregateCRegisterEventsRecord<T>
+  extends ResettableEventsRecord {
+  /**
+   * Emitted whenever a value is received from another
+   * replica, even if it does not become the actual
+   * value.
+   */
+  Receive: AggregateCRegisterReceiveEvent<T>;
+}
+
 export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
-  extends PrimitiveCrdt<AggregateCRegisterMeta<T>[], ResettableEventsRecord>
+  extends PrimitiveCrdt<
+    AggregateCRegisterMeta<T>[],
+    AggregateCRegisterEventsRecord<T>
+  >
   implements CRegister<T, SetArgs>
 {
   private cachedValue: T | undefined = undefined;
@@ -106,6 +123,16 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
         );
         newState.push(valueMeta);
         this.setNewState(newState);
+        // TODO: way to avoid double deserialization (
+        // if preserveReferences is false) / possible
+        // too early or unneeded deserialization?
+        // Also, if we're going to construct it right
+        // away anyway, it is probably more efficient
+        // to cache the value (treat preserveReferences
+        // as true always).
+        // One option would be to avoid emitting this if
+        // you know there are no listeners
+        this.emit("Receive", { value: valueMeta.value, timestamp });
         break;
       case "reset":
         this.setNewState(newState);
