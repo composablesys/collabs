@@ -56,7 +56,7 @@ export class TombstoneMutCSet<
     if (concurrentOpRestores) {
       // Every operation on a value makes it present in
       // this.members.  Specifically, we make it as if there
-      // is a this.members.add(value) operation accompanying
+      // is a this.restore(value) operation accompanying
       // every operation on value.
       this.mutSet.on("ValueInit", (event) => {
         const value = event.value;
