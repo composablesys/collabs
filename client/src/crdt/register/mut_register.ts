@@ -117,19 +117,17 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
    * setExisting on different conflicting values, the
    * winning value will still be usable as a Crdt.
    * Existing values will instead be deleted on the next
-   * call to set or reset, in which case they will
-   * be deleted and made unusable even if they no
-   * longer appear in conflicts().
+   * call to set or reset.
    *
    * @param  value [description]
    * @return       [description]
    * @throws if value is not owned by this register or
    * it has been deleted (made unusable), due to a causally
-   * greater call to delete or set (but not setExisting).
+   * greater call to set or reset (but not setExisting).
    */
   setExisting(value: C) {
     if (!this.isUsable(value)) {
-      throw new Error("value has already been deleted or is not owned by us");
+      throw new Error("value is not usable");
     }
     // TypeScript doesn't understand that value is of type
     // C, not an arbitrary T, due to the union type
