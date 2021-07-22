@@ -5,6 +5,7 @@ import {
 } from "../../util";
 import { CrdtEvent } from "../core";
 import { AggregateCRegisterMeta, LwwCRegister } from "../register";
+import { DecoratedCMap } from "./decorated_map";
 import { CMapEventsRecord } from "./interfaces";
 import { RegisterCMap } from "./register_map";
 
@@ -17,11 +18,11 @@ export interface LwwCMapEventsRecord<K, V> extends CMapEventsRecord<K, V> {
   Receive: LwwCMapEvent<K, V>;
 }
 
-export class LwwCMap<K, V> extends RegisterCMap<
+export class LwwCMap<K, V> extends DecoratedCMap<
   K,
   V,
   [V],
-  LwwCRegister<V>,
+  RegisterCMap<K, V, [V], LwwCRegister<V>>,
   LwwCMapEventsRecord<K, V>
 > {
   constructor(
@@ -29,12 +30,14 @@ export class LwwCMap<K, V> extends RegisterCMap<
     private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
   ) {
     super(
-      () => new LwwCRegister(undefined as unknown as V, valueSerializer),
-      keySerializer
+      new RegisterCMap(
+        () => new LwwCRegister(undefined as unknown as V, valueSerializer),
+        keySerializer
+      )
     );
 
     // Extra event: Receive
-    this.internalMap.on("ValueInit", (event) => {
+    this.map.internalMap.on("ValueInit", (event) => {
       event.value.on("Receive", (event2) => {
         this.emit("Receive", {
           key: event.key,
@@ -56,7 +59,7 @@ export class LwwCMap<K, V> extends RegisterCMap<
    * in lexicographic order by sender.
    */
   getConflicts(key: K): V[] | undefined {
-    const valueCrdt = this.internalMap.getIfPresent(key);
+    const valueCrdt = this.map.internalMap.getIfPresent(key);
     return valueCrdt === undefined ? undefined : valueCrdt.conflicts();
   }
 
@@ -69,7 +72,7 @@ export class LwwCMap<K, V> extends RegisterCMap<
    * in lexicographic order by sender.
    */
   getConflictsMeta(key: K): AggregateCRegisterMeta<V>[] | undefined {
-    const valueCrdt = this.internalMap.getIfPresent(key);
+    const valueCrdt = this.map.internalMap.getIfPresent(key);
     return valueCrdt === undefined ? undefined : valueCrdt.conflictsMeta();
   }
 

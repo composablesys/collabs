@@ -15,7 +15,7 @@ export class RegisterCMap<
   extends AbstractCMapCompositeCrdt<K, V, SetArgs, Events>
   implements Resettable
 {
-  protected readonly internalMap: ImplicitCrdtMap<K, Reg>;
+  readonly internalMap: ImplicitCrdtMap<K, Reg>;
 
   /**
    * TODO: the initial value of the register will never

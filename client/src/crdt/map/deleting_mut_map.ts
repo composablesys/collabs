@@ -1,10 +1,11 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
-import { AggregateCRegisterMeta } from "../register";
+import { AggregateCRegisterMeta, MutCRegister } from "../register";
 import { DeletingMutCSet, DeletingMutCSetValueSerializer } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
+import { RegisterCMap } from "./register_map";
 
 // TODO: note that ValueInit events are emitted for all
 // values, even ones that never show up locally due to
@@ -12,7 +13,7 @@ import { LwwCMap } from "./lww_map";
 // TOOD: FWW option for internal map?  (Using constructor
 // arg, like in MutCRegister.)
 export class DeletingMutCMap<K, C extends Crdt, SetArgs extends any[]>
-  extends AbstractCMapCompositeCrdt<K, C, SetArgs>
+  extends RegisterCMap<K, C, SetArgs, MutCRegister<C, SetArgs>>
   implements Resettable
 {
   private valueFactory: DeletingMutCSet<C, SetArgs>;
