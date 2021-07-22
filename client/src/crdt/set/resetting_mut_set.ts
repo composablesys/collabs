@@ -45,16 +45,14 @@ class MapMutCSetSerializer<AddArgs extends any[]>
   }
 }
 
+/**
+ * TODO: Caution that each message contains the whole args, so
+ * make them small (ideally []) or use a different set.
+ **/
 export class MapMutCSet<
   C extends Crdt,
   AddArgs extends any[]
 > extends AbstractCSetCompositeCrdt<C, AddArgs> {
-  // TODO: use a MutCMap, where the
-  // keys are id (like in other sets) + serialized args.
-  // Caution that each message contains the whole args, so
-  // make them small (ideally []) or use a different set.
-  // Choose keySerializer so that it is no larger than current
-  // keys when args is [].
   protected map: CMap<
     [sender: string, uniqueNumber: number, args: AddArgs],
     C,
@@ -79,14 +77,14 @@ export class MapMutCSet<
       mapValueConstructor: (key: K) => C,
       keySerializer: ElementSerializer<K>
     ) => CMap<K, C, []>,
-    valueConstructor: (sender: string, ...args: AddArgs) => C,
+    valueConstructor: (...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
     this.map = this.addChild(
       "",
       mapCallback(
-        ([sender, _, args]) => valueConstructor(sender, ...args),
+        (key) => valueConstructor(...key[2]),
         new MapMutCSetSerializer(argsSerializer)
       )
     );
@@ -140,12 +138,16 @@ export class MapMutCSet<
   }
 }
 
+/**
+ * TODO: Caution that each message contains the whole args, so
+ * make them small (ideally []) or use a different set.
+ **/
 export class ResettingMutCSet<
   C extends Crdt & Resettable,
   AddArgs extends any[]
 > extends MapMutCSet<C, AddArgs> {
   constructor(
-    private readonly valueConstructor: (sender: string, ...args: AddArgs) => C,
+    private readonly valueConstructor: (...args: AddArgs) => C,
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(

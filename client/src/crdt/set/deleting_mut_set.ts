@@ -9,7 +9,7 @@ import {
   ElementSerializer,
   stringAsArray,
 } from "../../util";
-import { Crdt, CrdtParent } from "../core";
+import { Crdt, CrdtParent, Runtime } from "../core";
 import { Resettable } from "../helper_crdts";
 import { AbstractCSetCrdt } from "./abstract_set";
 
@@ -32,7 +32,7 @@ import { AbstractCSetCrdt } from "./abstract_set";
  */
 export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements Resettable, CrdtParent 
+  implements Resettable, CrdtParent
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
@@ -40,7 +40,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   private initialValuesArgs?: AddArgs[];
 
   constructor(
-    private readonly valueConstructor: (sender: string, ...args: AddArgs) => C,
+    private readonly valueConstructor: (...args: AddArgs) => C,
     initialValuesArgs: AddArgs[] = [],
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
@@ -60,13 +60,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       const name = arrayAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", i])
       );
-      this.receiveCreate(
-        name,
-        "INIT",
-        this.argsSerializer.serialize(args),
-        args,
-        true
-      );
+      this.receiveCreate(name, this.argsSerializer.serialize(args), args, true);
     }
     delete this.initialValuesArgs;
   }
@@ -100,11 +94,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
               decoded.add!.replicaUniqueNumber,
             ])
           );
-          const newValue = this.receiveCreate(
-            timestamp.getSender(),
-            name,
-            decoded.add!.args
-          );
+          const newValue = this.receiveCreate(name, decoded.add!.args);
 
           this.emit("Add", { value: newValue, timestamp });
 
@@ -148,7 +138,6 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
 
   private receiveCreate(
     name: string,
-    sender: string,
     serializedArgs: Uint8Array,
     args: AddArgs | undefined = undefined,
     isInitialValue = false
@@ -156,7 +145,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     if (args === undefined) {
       args = this.argsSerializer.deserialize(serializedArgs, this.runtime);
     }
-    const newValue = this.valueConstructor(sender, ...args);
+    const newValue = this.valueConstructor(...args);
     // Add as child with "[sender, counter]" as id.
     // Similar to CompositeCrdt#addChild.
     if (this.children.has(name)) {
@@ -317,11 +306,27 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     // already been initialized, so the call will
     // succeed uneventfully.
     for (const { name, args } of saveMessage.constructorArgs) {
-      const sender = DeletingMutCSet.nameSerializer.deserialize(
-        name,
-        this.runtime
-      )[0];
-      this.receiveCreate(arrayAsString(name), sender, args);
+      this.receiveCreate(arrayAsString(name), args);
     }
+  }
+}
+
+/**
+ * Serializer for values in a DeletingMutCSet.
+ *
+ * It optimizes value serialization by using the set's ids instead of
+ * the full pathToRoot (as DefaultElementSerializer would do).
+ */
+export class DeletingMutCSetValueSerializer<C extends Crdt>
+  implements ElementSerializer<C>
+{
+  constructor(private readonly mutSet: DeletingMutCSet<C, any>) {}
+
+  serialize(value: C): Uint8Array {
+    return stringAsArray(this.mutSet.idOf(value));
+  }
+
+  deserialize(message: Uint8Array, _runtime: Runtime): C {
+    return this.mutSet.getById(arrayAsString(message))!;
   }
 }

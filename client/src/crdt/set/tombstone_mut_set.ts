@@ -1,33 +1,17 @@
-import {
-  arrayAsString,
-  DefaultElementSerializer,
-  ElementSerializer,
-  stringAsArray,
-} from "../../util";
-import { Crdt, Runtime } from "../core";
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { Crdt } from "../core";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
-import { DeletingMutCSet } from "./deleting_mut_set";
+import {
+  DeletingMutCSet,
+  DeletingMutCSetValueSerializer,
+} from "./deleting_mut_set";
 
 // TODO: generalized set version (not just AddWinsSet)?
 // Tricky because of custom serializer.
 // Would that work with concurrentOpRestores?  (Should be
 // eventually consistent, but won't be exactly the intended
 // semantics.)
-
-class TombstoneMutCSetSerializer<C extends Crdt>
-  implements ElementSerializer<C>
-{
-  constructor(private readonly mutSet: DeletingMutCSet<C, any>) {}
-
-  serialize(value: C): Uint8Array {
-    return stringAsArray(this.mutSet.idOf(value));
-  }
-
-  deserialize(message: Uint8Array, _runtime: Runtime): C {
-    return this.mutSet.getById(arrayAsString(message))!;
-  }
-}
 
 /**
  * TODO: tombstones, so uses ever-growing memory.  Use
@@ -53,7 +37,7 @@ export class TombstoneMutCSet<
    * their concurrent work undoes the deletion.  Defaults to false.
    */
   constructor(
-    valueConstructor: (sender: string, ...args: AddArgs) => C,
+    valueConstructor: (...args: AddArgs) => C,
     concurrentOpRestores = false,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
@@ -66,7 +50,7 @@ export class TombstoneMutCSet<
     // of full pathToRoot's, for network efficiency.
     this.members = this.addChild(
       "0",
-      new AddWinsCSet(new TombstoneMutCSetSerializer(this.mutSet))
+      new AddWinsCSet(new DeletingMutCSetValueSerializer(this.mutSet))
     );
 
     if (concurrentOpRestores) {
@@ -127,7 +111,9 @@ export class TombstoneMutCSet<
     return this.mutSet.values();
   }
 
-  get sizeIncludeTombstones(): number {
-    return this.mutSet.size;
-  }
+  // TODO: doesn't seem useful, and it is not yet
+  // present on TombstoneMutMap.
+  // get sizeIncludeTombstones(): number {
+  //   return this.mutSet.size;
+  // }
 }
