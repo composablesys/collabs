@@ -5,7 +5,8 @@ import {
 } from "../../util";
 import { CompositeCrdt, Crdt } from "../core";
 import { Resettable, ResettableEventsRecord } from "../helper_crdts";
-import { YjsCrdtSet } from "../set";
+import { DeletingMutCSet } from "../set";
+import { AggregateCRegisterMeta } from "./aggregate_register";
 import { CRegister } from "./interfaces";
 import { FwwCRegister, LwwCRegister } from "./wins_registers";
 
@@ -17,7 +18,7 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
   extends CompositeCrdt<ResettableEventsRecord>
   implements CRegister<Optional<C>, SetArgs>, Resettable
 {
-  private readonly crdtFactory: YjsCrdtSet<C, SetArgs>;
+  private readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
   private readonly register: FwwCRegister<C> | LwwCRegister<C>;
 
   constructor(
@@ -28,7 +29,7 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
     super();
     this.crdtFactory = this.addChild(
       "",
-      new YjsCrdtSet(valueConstructor, [], argsSerializer)
+      new DeletingMutCSet(valueConstructor, [], argsSerializer)
     );
     // TODO: use optimized serializer (just Set id, not full
     // pathToRoot).
@@ -58,12 +59,20 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
   set(...args: SetArgs): void {
     this.crdtFactory.clear();
     // TypeScript doesn't understand that value is of type
-    // C, not an arbitrary T
-    (this.register.value as C) = this.crdtFactory.create(...args);
+    // C, not an arbitrary T, due to the union type
+    (this.register.value as C) = this.crdtFactory.add(...args);
   }
 
   get value(): Optional<C> {
     return this.register.optionalValue;
+  }
+
+  conflicts(): C[] {
+    return this.register.conflicts();
+  }
+
+  conflictsMeta(): AggregateCRegisterMeta<C>[] {
+    return this.register.conflictsMeta();
   }
 
   reset() {

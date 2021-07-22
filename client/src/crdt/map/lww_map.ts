@@ -37,7 +37,7 @@ export class LwwCMap<K, V> extends DecoratedCMap<
     );
 
     // Extra event: Receive
-    this.map.internalMap.on("ValueInit", (event) => {
+    this.internalMap.internalMap.on("ValueInit", (event) => {
       event.value.on("Receive", (event2) => {
         this.emit("Receive", {
           key: event.key,
@@ -59,7 +59,7 @@ export class LwwCMap<K, V> extends DecoratedCMap<
    * in lexicographic order by sender.
    */
   getConflicts(key: K): V[] | undefined {
-    const valueCrdt = this.map.internalMap.getIfPresent(key);
+    const valueCrdt = this.internalMap.internalMap.getIfPresent(key);
     return valueCrdt === undefined ? undefined : valueCrdt.conflicts();
   }
 
@@ -72,7 +72,7 @@ export class LwwCMap<K, V> extends DecoratedCMap<
    * in lexicographic order by sender.
    */
   getConflictsMeta(key: K): AggregateCRegisterMeta<V>[] | undefined {
-    const valueCrdt = this.map.internalMap.getIfPresent(key);
+    const valueCrdt = this.internalMap.internalMap.getIfPresent(key);
     return valueCrdt === undefined ? undefined : valueCrdt.conflictsMeta();
   }
 

@@ -9,10 +9,9 @@ export class RegisterCMap<
     K,
     V,
     SetArgs extends any[],
-    Reg extends CRegister<V, SetArgs> & Resettable,
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+    Reg extends CRegister<V, SetArgs> & Resettable
   >
-  extends AbstractCMapCompositeCrdt<K, V, SetArgs, Events>
+  extends AbstractCMapCompositeCrdt<K, V, SetArgs, CMapEventsRecord<K, V>>
   implements Resettable
 {
   readonly internalMap: ImplicitCrdtMap<K, Reg>;

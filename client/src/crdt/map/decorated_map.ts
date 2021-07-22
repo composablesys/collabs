@@ -11,65 +11,68 @@ export class DecoratedCMap<
   extends CompositeCrdt<Events>
   implements CMap<K, V, SetArgs, Events>
 {
-  protected readonly map: InnerMap;
+  protected readonly internalMap: InnerMap;
 
   constructor(map: InnerMap) {
     super();
-    this.map = this.addChild("", map);
+    this.internalMap = this.addChild("", map);
 
-    this.map.on("Set", (event) => this.emit("Set", event));
-    this.map.on("Delete", (event) => this.emit("Delete", event));
-    this.map.on("ValueInit", (event) => this.emit("ValueInit", event));
+    this.internalMap.on("Set", (event) => this.emit("Set", event));
+    this.internalMap.on("Delete", (event) => this.emit("Delete", event));
+    this.internalMap.on("ValueInit", (event) => this.emit("ValueInit", event));
   }
 
   set(key: K, ...args: SetArgs): V {
-    return this.map.set(key, ...args);
+    return this.internalMap.set(key, ...args);
   }
 
   delete(key: K): void {
-    this.map.delete(key);
+    this.internalMap.delete(key);
   }
 
   get(key: K): V | undefined {
-    return this.map.get(key);
+    return this.internalMap.get(key);
   }
 
   has(key: K): boolean {
-    return this.map.has(key);
+    return this.internalMap.has(key);
   }
 
   clear(): void {
-    this.map.clear();
+    this.internalMap.clear();
   }
 
   get size(): number {
-    return this.map.size;
+    return this.internalMap.size;
   }
 
   forEach(
     callbackfn: (value: V, key: K, map: this) => void,
     thisArg?: any
   ): void {
-    this.map.forEach((value, key) => callbackfn(value, key, this), thisArg);
+    this.internalMap.forEach(
+      (value, key) => callbackfn(value, key, this),
+      thisArg
+    );
   }
 
   entries(): IterableIterator<[K, V]> {
-    return this.map.entries();
+    return this.internalMap.entries();
   }
 
   keys(): IterableIterator<K> {
-    return this.map.keys();
+    return this.internalMap.keys();
   }
 
   values(): IterableIterator<V> {
-    return this.map.values();
+    return this.internalMap.values();
   }
 
   keyOf(searchElement: V): K | undefined {
-    return this.map.keyOf(searchElement);
+    return this.internalMap.keyOf(searchElement);
   }
 
   [Symbol.iterator](): IterableIterator<[K, V]> {
-    return this.map[Symbol.iterator]();
+    return this.internalMap[Symbol.iterator]();
   }
 }
