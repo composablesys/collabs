@@ -5,6 +5,7 @@ import {
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
   ObjectMessage,
+  PairSerializerMessage,
 } from "../../generated/proto_compiled";
 
 /**
@@ -204,6 +205,29 @@ export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
     if (one[i] !== two[i]) return false;
   }
   return true;
+}
+
+export class PairSerializer<T, U> implements ElementSerializer<[T, U]> {
+  constructor(
+    private readonly oneSerializer: ElementSerializer<T>,
+    private readonly twoSerializer: ElementSerializer<U>
+  ) {}
+
+  serialize(value: [T, U]): Uint8Array {
+    const message = PairSerializerMessage.create({
+      one: this.oneSerializer.serialize(value[0]),
+      two: this.twoSerializer.serialize(value[1]),
+    });
+    return PairSerializerMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): [T, U] {
+    const decoded = PairSerializerMessage.decode(message);
+    return [
+      this.oneSerializer.deserialize(decoded.one, runtime),
+      this.twoSerializer.deserialize(decoded.two, runtime),
+    ];
+  }
 }
 
 const ENCODING: "latin1" = "latin1";

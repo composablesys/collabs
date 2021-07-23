@@ -4,6 +4,7 @@ import {
   ElementSerializer,
 } from "../../util";
 import { CrdtEvent } from "../core";
+import { Resettable } from "../helper_crdts";
 import { AggregateCRegisterMeta, LwwCRegister } from "../register";
 import { DecoratedCMap } from "./decorated_map";
 import { CMapEventsRecord } from "./interfaces";
@@ -18,13 +19,16 @@ export interface LwwCMapEventsRecord<K, V> extends CMapEventsRecord<K, V> {
   Receive: LwwCMapEvent<K, V>;
 }
 
-export class LwwCMap<K, V> extends DecoratedCMap<
-  K,
-  V,
-  [V],
-  RegisterCMap<K, V, [V], LwwCRegister<V>>,
-  LwwCMapEventsRecord<K, V>
-> {
+export class LwwCMap<K, V>
+  extends DecoratedCMap<
+    K,
+    V,
+    [V],
+    RegisterCMap<K, V, [V], LwwCRegister<V>>,
+    LwwCMapEventsRecord<K, V>
+  >
+  implements Resettable
+{
   constructor(
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
@@ -46,6 +50,10 @@ export class LwwCMap<K, V> extends DecoratedCMap<
         });
       });
     });
+  }
+
+  reset() {
+    this.internalMap.reset();
   }
 
   /**

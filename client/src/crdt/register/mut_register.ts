@@ -1,32 +1,80 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt } from "../core";
+import {
+  ElementSerializer,
+  DefaultElementSerializer,
+  Optional,
+} from "../../util";
+import { CompositeCrdt, Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
-import { TombstoneMutCRegister } from "./tombstone_mut_register";
+import { DeletingMutCSet, DeletingMutCSetValueSerializer } from "../set";
+import { AggregateCRegisterMeta } from "./aggregate_register";
+import { CRegister } from "./interfaces";
+import { FwwCRegister, LwwCRegister } from "./wins_registers";
 
 // TODO: events: default change events will be odd because
 // you'll see intermediate states if you listen to all that.
 // Perhaps this is an argument for a Set: CrdtEvent in general?
 
-export class DeletingMutCRegister<C extends Crdt, SetArgs extends any[]>
-  extends TombstoneMutCRegister<C, SetArgs>
-  implements Resettable
+export class MutCRegister<C extends Crdt, SetArgs extends any[]>
+  extends CompositeCrdt
+  implements CRegister<Optional<C>, SetArgs>, Resettable
 {
+  protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
+  protected readonly register: FwwCRegister<C> | LwwCRegister<C>;
+
   constructor(
     valueConstructor: (...args: SetArgs) => C,
     writerWinsRule: "first" | "last" = "last",
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super(valueConstructor, writerWinsRule, false, argsSerializer);
+    super();
+    this.crdtFactory = this.addChild(
+      "",
+      new DeletingMutCSet(valueConstructor, [], argsSerializer)
+    );
+    // Initial value hacking is okay since we only ever
+    // consult optionalValue.
+    const serializer = new DeletingMutCSetValueSerializer(this.crdtFactory);
+    switch (writerWinsRule) {
+      case "first":
+        this.register = this.addChild(
+          "0",
+          new FwwCRegister<C>(undefined as unknown as C, serializer)
+        );
+        break;
+      case "last":
+        this.register = this.addChild(
+          "0",
+          new LwwCRegister<C>(undefined as unknown as C, serializer)
+        );
+        break;
+    }
 
     // TODO: events.  Including ValueInit, restore?
   }
 
   set(...args: SetArgs): void {
     this.crdtFactory.clear();
-    super.set(...args);
+    // TypeScript doesn't understand that value is of type
+    // C, not an arbitrary T, due to the union type
+    (this.register.value as C) = this.crdtFactory.add(...args);
   }
 
-  // Override just so we can edit the docstring
+  get value(): Optional<C> {
+    return this.register.optionalValue;
+  }
+
+  conflicts(): C[] {
+    return this.register.conflicts();
+  }
+
+  conflictsMeta(): AggregateCRegisterMeta<C>[] {
+    return this.register.conflictsMeta();
+  }
+
+  owns(value: C): boolean {
+    return this.crdtFactory.owns(value);
+  }
+
   /**
    * Returns whether the given value is owned by
    * this register and still usable, i.e.,
@@ -45,7 +93,10 @@ export class DeletingMutCRegister<C extends Crdt, SetArgs extends any[]>
     return this.crdtFactory.has(value);
   }
 
-  // Override just so we can edit the docstring
+  usableValues(): IterableIterator<C> {
+    return this.crdtFactory.values();
+  }
+
   /**
    * Restores this.value to a previous value.  The value
    * must be usable, i.e., this.isUsable(value).
@@ -80,6 +131,11 @@ export class DeletingMutCRegister<C extends Crdt, SetArgs extends any[]>
     // TypeScript doesn't understand that value is of type
     // C, not an arbitrary T, due to the union type
     (this.register.value as C) = value;
+  }
+
+  clear() {
+    this.crdtFactory.clear();
+    this.register.reset();
   }
 
   reset() {

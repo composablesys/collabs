@@ -22,3 +22,8 @@ message DefaultSerializerMessage {
         ObjectMessage objectValue = 8;
     }
 }
+
+message PairSerializerMessage {
+  required bytes one = 1;
+  required bytes two = 2;
+}
