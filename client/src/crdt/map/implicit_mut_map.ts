@@ -297,4 +297,9 @@ export class ResettingImplicitMutCMap<
   clear() {
     for (const value of this.values()) value.reset();
   }
+
+  reset() {
+    // Clear is an observed-reset
+    this.clear();
+  }
 }

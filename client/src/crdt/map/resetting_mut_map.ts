@@ -1,193 +1,81 @@
-export class ExplicitCrdtMap<K, C extends Crdt> extends AbstractCrdtMap<K, C> {
-  protected readonly implicitMap: ImplicitCrdtMap<K, C>;
-  protected readonly keySet: PlainSet<K>;
-  protected readonly includeImplicit: boolean;
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { Crdt } from "../core";
+import { Resettable } from "../helper_crdts";
+import { AddWinsCSet } from "../set";
+import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { ResettingImplicitMutCMap } from "./implicit_mut_map";
+
+// TODO: version with arbitrary keySet, but still resetting
+// (so it can be memory safe if the keySet is)?
+// Like ExplicitCrdtMap from before, but always Resetting.
+export class ResettingMutCMap<K, C extends Crdt & Resettable>
+  extends AbstractCMapCompositeCrdt<K, C, []>
+  implements Resettable
+{
+  private readonly internalMap: ResettingImplicitMutCMap<K, C>;
+  private readonly keySet: AddWinsCSet<K>;
 
   constructor(
-    valueCrdtConstructor: (key: K) => C,
-    keySet: PlainSet<K>,
-    settings: { includeImplicit: boolean },
+    valueConstructor: (key: K) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
     super();
-    this.implicitMap = this.addChild(
+
+    this.internalMap = this.addChild(
       "",
-      new ImplicitCrdtMap(valueCrdtConstructor, keySerializer)
+      new ResettingImplicitMutCMap(valueConstructor, keySerializer)
     );
-    this.keySet = this.addChild("0", keySet);
-    this.includeImplicit = settings.includeImplicit;
+    this.keySet = this.addChild("0", new AddWinsCSet(keySerializer));
 
-    // Events
-    // TODO: optimize to reduce closures?
-    this.implicitMap.on("ValueInit", (event) => {
-      if (this.includeImplicit) {
-        event.value.on("Change", (event2) => {
-          if (this.has(event.key)) {
-            this.emit("KeyAdd", {
-              key: event.key,
-              timestamp: event2.timestamp,
-            });
-          } else {
-            this.emit("KeyDelete", {
-              key: event.key,
-              timestamp: event2.timestamp,
-            });
-          }
-        });
-      }
-      this.emit("ValueInit", event);
-    });
-    this.keySet.on("Add", (event) =>
-      this.emit("KeyAdd", { key: event.value, timestamp: event.timestamp })
-    );
-    this.keySet.on("Delete", (event) => {
-      // We should check it's really deleted, if includeImplicit
-      // is true.
-      if (!this.includeImplicit || !this.has(event.value)) {
-        this.emit("KeyDelete", {
-          key: event.value,
-          timestamp: event.timestamp,
-        });
-      }
-    });
+    // TODO: events, see original?
   }
 
-  clear(): void {
-    this.keySet.clear();
+  set(key: K): C {
+    this.keySet.add(key);
+    return this.internalMap.set(key);
   }
 
-  delete(key: K): boolean {
-    const had = this.has(key);
+  delete(key: K): void {
     this.keySet.delete(key);
-    return had;
+    this.internalMap.delete(key);
   }
 
   get(key: K): C | undefined {
-    if (this.has(key)) return this.implicitMap.get(key);
+    if (this.has(key)) return this.internalMap.get(key);
     else return undefined;
   }
 
-  owns(valueCrdt: C): boolean {
-    return this.implicitMap.owns(valueCrdt);
-  }
-
   has(key: K): boolean {
-    return (
-      this.keySet.has(key) ||
-      (this.includeImplicit && this.implicitMap.has(key))
-    );
-  }
-
-  addKey(key: K): this {
-    this.keySet.add(key);
-    return this;
-  }
-
-  keyOf(valueCrdt: C): K {
-    return this.implicitMap.keyOf(valueCrdt);
+    return this.keySet.has(key) || this.internalMap.has(key);
   }
 
   get size(): number {
-    // TODO: make run in constant time
+    // TODO: optimize
     let count = 0;
-    for (let _value of this) count++;
+    for (const _ of this.values()) count++;
     return count;
   }
 
   *entries(): IterableIterator<[K, C]> {
-    // TODO: can we make the order EC?
-    for (let key of this.keySet) yield [key, this.implicitMap.get(key)];
-    if (this.includeImplicit) {
-      // TODO: this might get weird if there are
-      // concurrent mutations.
-      for (let [key, valueCrdt] of this.implicitMap) {
-        // Only yield it if it has not been yielded already.
-        if (!this.keySet.has(key)) yield [key, valueCrdt];
+    // TODO: could get weird if there is concurrent modification
+    for (const entry of this.internalMap.entries()) yield entry;
+    for (const key of this.keySet) {
+      // Skip already yielded ones
+      if (!this.internalMap.has(key)) {
+        yield [key, this.internalMap.get(key)];
       }
     }
   }
 
-  /**
-   * TODO: doesn't reset values, so canGc might be false afterwards
-   */
-  reset(): void {
+  clear() {
+    // Someday this may be more efficient than deleting
+    // every element
+    this.keySet.clear();
+    this.internalMap.clear();
+  }
+
+  reset() {
     this.keySet.reset();
-  }
-}
-
-export class ResettingCrdtMap<
-  K,
-  C extends Crdt & Resettable
-> extends DecoratedCrdtMap<K, C> {
-  constructor(map: CrdtMap<K, C>) {
-    super(map);
-  }
-
-  delete(key: K): boolean {
-    const had = this.has(key);
-    // TODO: avoid creating the CRDT for implicit map?
-    const valueCrdt = this.map.get(key);
-    if (valueCrdt !== undefined) valueCrdt.reset();
-    super.delete(key);
-    return had;
-  }
-
-  clear(): void {
-    // TODO: inefficient for implicit map because this
-    // might create valueCrdts that are explicitly
-    // present but not implicitly present, just
-    // to reset them.  Probably not worth breaking
-    // the decorator abstract to optimize, though,
-    // especially since such reset calls are no-ops,
-    // it is just the cost of creating trivial valueCrdts.
-    // Likewise for reset() below.
-    for (let valueCrdt of this.values()) valueCrdt.reset();
-    super.clear();
-  }
-
-  reset(): void {
-    for (let valueCrdt of this.values()) valueCrdt.reset();
-    super.reset();
-  }
-}
-
-// TODO: better name?
-// TODO: indicate that this is the default for CrdtMaps
-export class RiakCrdtMap<
-  K,
-  C extends Crdt & Resettable
-> extends ResettingCrdtMap<K, C> {
-  constructor(
-    valueCrdtConstructor: (key: K) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
-  ) {
-    super(
-      new ExplicitCrdtMap(
-        valueCrdtConstructor,
-        new AddWinsPlainSet(keySerializer),
-        {
-          includeImplicit: true,
-        },
-        keySerializer
-      )
-    );
-  }
-}
-
-// TODO: note which methods will throw errors
-// (due to errors from GPlainSet).
-export class GCrdtMap<K, C extends Crdt> extends ExplicitCrdtMap<K, C> {
-  constructor(
-    valueCrdtConstructor: (key: K) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
-  ) {
-    super(
-      valueCrdtConstructor,
-      new GPlainSet(keySerializer),
-      {
-        includeImplicit: false,
-      },
-      keySerializer
-    );
+    this.internalMap.reset();
   }
 }
