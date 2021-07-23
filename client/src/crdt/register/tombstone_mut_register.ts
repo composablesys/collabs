@@ -18,7 +18,7 @@ import { FwwCRegister, LwwCRegister } from "./wins_registers";
  */
 export class TombstoneMutCRegister<C extends Crdt, SetArgs extends any[]>
   extends CompositeCrdt
-  implements CRegister<Optional<C>, SetArgs> 
+  implements CRegister<Optional<C>, SetArgs>
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
   protected readonly register: FwwCRegister<C> | LwwCRegister<C>;
@@ -143,5 +143,10 @@ export class TombstoneMutCRegister<C extends Crdt, SetArgs extends any[]>
     // TypeScript doesn't understand that value is of type
     // C, not an arbitrary T, due to the union type
     (this.register.value as C) = value;
+  }
+
+  clear() {
+    // Don't reset the set, to keep tombstones
+    this.register.reset();
   }
 }
