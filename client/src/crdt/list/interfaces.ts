@@ -235,13 +235,15 @@ export interface CList<
     thisArg?: This
   ): U[];
 
+  // TODO: modified this type by replacing A with T[],
+  // does that make sense?
   /**
    * Returns a new array with all sub-array elements concatenated into it recursively up to the
    * specified depth.
    *
    * @param depth The maximum recursion depth
    */
-  flat<A, D extends number = 1>(this: A, depth?: D): FlatArray<A, D>[];
+  flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[];
 
   /**
    * Determines whether this list includes a certain element, returning true or false as appropriate.
@@ -362,15 +364,6 @@ export interface CList<
       list: this
     ) => T
   ): T;
-  reduce(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T,
-    initialValue: T
-  ): T;
   /**
    * Calls the specified callback function for all the elements in this list. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
    * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the list.
@@ -397,15 +390,6 @@ export interface CList<
       currentIndex: number,
       list: this
     ) => T
-  ): T;
-  reduceRight(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T,
-    initialValue: T
   ): T;
   /**
    * Calls the specified callback function for all the elements in this list, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
