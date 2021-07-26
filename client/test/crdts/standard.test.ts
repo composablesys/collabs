@@ -499,6 +499,16 @@ describe("standard", () => {
         runtimeGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 15);
         assert.strictEqual(bobNumber.value, 15);
+
+        aliceNumber.min(1);
+        bobNumber.mult(5);
+        assert.strictEqual(aliceNumber.value, 1);
+        assert.strictEqual(bobNumber.value, 75);
+
+        // Arbitration order places multiplication last
+        runtimeGen.releaseAll();
+        assert.strictEqual(aliceNumber.value, 5);
+        assert.strictEqual(bobNumber.value, 5);
       });
     });
 

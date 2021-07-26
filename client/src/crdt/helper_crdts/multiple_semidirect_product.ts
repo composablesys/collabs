@@ -158,9 +158,9 @@ class MultipleSemidirectStateBase<S extends Object> {
     value: number
   ): number {
     // binary search when sparseArray is large
-    if (sparseArray.length > 100) {
-      return this.binSearch(sparseArray, value, 0, sparseArray.length);
-    }
+    // if (sparseArray.length > 100) {
+    //   return this.binSearch(sparseArray, value, 0, sparseArray.length);
+    // }
 
     // Note that there may be duplicate timestamps.
     // So it would be inappropriate to find an entry whose
@@ -170,6 +170,21 @@ class MultipleSemidirectStateBase<S extends Object> {
       if (sparseArray[i].senderCounter > value) return i;
     }
     return sparseArray.length;
+  }
+
+  getLowerHistory(
+    idx: number
+  ): StoredMessage[] {
+    let hist : StoredMessage[] = [];
+    this.history.forEach((messages, sender) => {
+      messages.forEach((msg) => {
+        if (msg.arbIndex < idx) {
+          hist.push(msg);
+        }
+      })
+    })
+
+    return hist;
   }
 }
 
@@ -270,7 +285,9 @@ export abstract class MultipleSemidirectProduct<
     }
   }
 
-  // TODO: add this.state.add (line 319 of original)
+  // The resulting message mact is then applied to σ and added to the history. 
+  // It also acts on all messages in the history with lower arbitration order, 
+  // regardless ofwhether they are concurrent or not.
   protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
@@ -287,43 +304,67 @@ export abstract class MultipleSemidirectProduct<
     ) {
       targetPath.length--;
       let crdt = this.crdts[idx];
-      if (idx != 1) {
-        this.state.add(
-          this.runtime.replicaId,
-          targetPath.slice(),
+
+      // Act on all concurrent messages
+      let concurrent = this.state.getConcurrent(
+        this.runtime.replicaId,
+        timestamp,
+        idx
+      );
+
+      let mAct = {
+        m1TargetPath: targetPath,
+        m1Message: message,
+      };
+      for (let i = 0; i < concurrent.length; i++) {
+        let mActOrNull = this.action(
+          concurrent[i].targetPath,
+          concurrent[i].timestamp,
+          concurrent[i].message,
+          concurrent[i].arbIndex,
+          mAct.m1TargetPath,
           timestamp,
-          message,
-          idx
-        );
-        crdt.receive(targetPath, timestamp, message);
-      } else {
-        let concurrent = this.state.getConcurrent(
-          this.runtime.replicaId,
-          timestamp,
-          idx
+          mAct.m1Message
         );
 
-        let mAct = {
-          m1TargetPath: targetPath,
-          m1Message: message,
-        };
-        for (let i = 0; i < concurrent.length; i++) {
-          let mActOrNull = this.action(
-            concurrent[i].targetPath,
-            concurrent[i].timestamp,
-            concurrent[i].message,
-            concurrent[i].arbIndex,
-            mAct.m1TargetPath,
-            timestamp,
-            mAct.m1Message
-          );
-
-          if (mActOrNull == null) return;
-          else mAct = mActOrNull;
-        }
-
-        crdt.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
+        if (mActOrNull == null) return;
+        else mAct = mActOrNull;
       }
+
+      // mAct should act on all messages in history w/ lower order
+      let hist = this.state.getLowerHistory(idx);
+      hist.forEach((msg) => {
+        if (msg.timestamp) {
+          let acted = this.action(
+              mAct.m1TargetPath,
+              timestamp,
+              mAct.m1Message,
+              idx,
+              msg.targetPath,
+              msg.timestamp,
+              msg.message
+            );
+            
+          if (acted) {
+            this.state.add(this.runtime.replicaId,
+              msg.targetPath,
+              msg.timestamp,
+              acted?.m1Message,
+              msg.arbIndex);
+            }
+          }
+        });
+        
+      // add mAct to state and history
+      this.state.add(
+        this.runtime.replicaId,
+        targetPath.slice(),
+        timestamp,
+        mAct.m1Message,
+        idx
+      );
+
+      crdt.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
     } else {
       throw new Error(
         "Unknown SemidirectProduct child: " +
