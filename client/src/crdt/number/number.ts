@@ -3,8 +3,6 @@ import { CausalTimestamp } from "../../net";
 import { SemidirectProduct } from "../helper_crdts";
 import { CrdtEvent, CrdtEventsRecord, PrimitiveCrdt } from "../core";
 
-// TODO: handle floating point non-commutativity
-
 export interface CNumberEvent extends CrdtEvent {
   readonly arg: number;
 }
@@ -103,6 +101,11 @@ export class MultComponent extends PrimitiveCrdt<
   loadPrimitive(_saveData: Uint8Array) {}
 }
 
+/**
+ * Warning: eventual consistency is not guaranteed due
+ * to floating-point rounding errors, which can violate
+ * associativity, commutativity, or distributivity.
+ */
 export class CNumber extends SemidirectProduct<
   CNumberState,
   CNumberEventsRecord
