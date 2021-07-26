@@ -5,7 +5,7 @@ import {
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt, Runtime } from "../core";
 import { Resettable } from "../helper_crdts";
-import { CMap } from "../map";
+import { CMap, ResettingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
 class MapMutCSetSerializer<AddArgs extends any[]>
@@ -46,8 +46,11 @@ class MapMutCSetSerializer<AddArgs extends any[]>
 }
 
 /**
- * TODO: Caution that each message contains the whole args, so
- * make them small (ideally []) or use a different set.
+ * TODO: Caution that each key contains the whole args, so
+ * make sure that is okay for map performance.
+ *
+ * TODO: is this necessary, or should we skip right to
+ * ResettingMutCSet?
  **/
 export class MapMutCSet<
   C extends Crdt,
@@ -147,8 +150,8 @@ export class ResettingMutCSet<
   AddArgs extends any[]
 > extends MapMutCSet<C, AddArgs> {
   constructor(
-    private readonly valueConstructor: (...args: AddArgs) => C,
-    private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
+    valueConstructor: (...args: AddArgs) => C,
+    argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
       (mapValueConstructor, keySerializer) =>
@@ -159,13 +162,23 @@ export class ResettingMutCSet<
   }
 
   owns(value: C): boolean {
-    return (this.map as ResettingMutCMap<C, AddArgs>).owns(value);
+    return (
+      this.map as ResettingMutCMap<
+        [sender: string, uniqueNumber: number, args: AddArgs],
+        C
+      >
+    ).owns(value);
   }
 
   restore(value: C): void {
     if (!this.owns(value)) {
       throw new Error("this.owns(value) is false");
     }
-    (this.map as ResettingMutCMap<C, AddArgs>).restore(this.map.keyOf(value)!);
+    (
+      this.map as ResettingMutCMap<
+        [sender: string, uniqueNumber: number, args: AddArgs],
+        C
+      >
+    ).restore(this.map.keyOf(value)!);
   }
 }

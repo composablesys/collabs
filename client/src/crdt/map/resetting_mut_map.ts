@@ -49,6 +49,18 @@ export class ResettingMutCMap<K, C extends Crdt & Resettable>
     return this.keySet.has(key) || this.internalMap.has(key);
   }
 
+  owns(value: C): boolean {
+    return this.internalMap.owns(value);
+  }
+
+  restore(key: K): void {
+    this.keySet.add(key);
+  }
+
+  keyOf(value: C): K | undefined {
+    return this.internalMap.keyOf(value);
+  }
+
   get size(): number {
     // TODO: optimize
     let count = 0;
