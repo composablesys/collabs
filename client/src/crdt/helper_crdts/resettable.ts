@@ -1,42 +1,17 @@
 import { CausalTimestamp } from "../../net";
-import {
-  CrdtEvent,
-  CrdtEventsRecord,
-  StatefulCrdt,
-  PrimitiveCrdt,
-  Crdt,
-} from "../core";
+import { StatefulCrdt, PrimitiveCrdt, Crdt } from "../core";
 import { SemidirectProduct } from "./semidirect_product";
 
 // TODO: revise whole file
 
 // TODO: ResettableCompositeCrdt (implement reset for you)
 
-export interface ResettableEventsRecord extends CrdtEventsRecord {
+export interface Resettable extends Crdt {
   /**
-   * TODO: after this event the state is not necessarily
-   * fully reset (initial state), the event just means
-   * that it's been observed-reset.
-   *
-   * TODO: perhaps deprecate this in favor of type-specific
-   * events.  Otherwise, maintaining views would be difficult.
-   * Besides, we are often not dispatching Reset events anyway.
-   */
-  Reset: CrdtEvent;
-}
-
-export interface Resettable<
-  Events extends ResettableEventsRecord = ResettableEventsRecord
-> extends Crdt<Events> {
-  /**
-   * Perform an observed-reset operation on this Crdt.  Actually,
-   * any behavior is acceptable (will not violate eventual
-   * consistency) so long as this method commutes with
-   * concurrent operations and has no effect if timestamp
-   * is prior to the timestamps of all other received messages.
-   * In particular, if you don't want to implement resets, it is okay to
-   * make this method a no-op, so long as users are aware that
-   * reset() will have no effect.
+   * Perform an observed-reset operation on this Crdt.
+   * The semantics MUST be precisely an observed-reset.
+   * If all of a Crdt's operations have been reset by
+   * such operations, it MUST have canGc() = true.
    */
   reset(): void;
 }
