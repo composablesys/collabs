@@ -15,6 +15,9 @@ import { Runtime } from "../core";
 // is small: it is just an int comparison, not a full loc
 // comparison.
 
+// TODO: errors on out-of-bounds indices (so users don't
+// each have to do that themselves).
+
 /**
  * TODO: ops can assume causal order.
  *
@@ -136,10 +139,16 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
 
   readonly length: number;
 
-  // indexOf(loc: L): number;
+  indexOf(loc: L): number;
 
   values(): IterableIterator<T>;
 
+  locs(): IterableIterator<L>;
+
+  /**
+   * This should be guarded against mutation
+   * @return [description]
+   */
   valuesArray(): T[];
 
   canGc(): boolean;

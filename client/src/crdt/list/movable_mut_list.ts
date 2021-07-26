@@ -34,25 +34,28 @@ export interface WithIds<T> {
 export class MovableMutCList<
     C extends Crdt,
     InsertArgs extends any[],
-    I = TreedocLoc
+    I,
+    S extends CSet<MovableMutCListEntry<C, I>, [I, InsertArgs]> &
+      WithIds<MovableMutCListEntry<C, I>>
   >
   extends AbstractCListCompositeCrdt<C, InsertArgs>
-  implements MovableCList<C, InsertArgs> 
+  implements MovableCList<C, InsertArgs>
 {
-  protected readonly set: CSet<MovableMutCListEntry<C, I>, [I, InsertArgs]> &
-    WithIds<MovableMutCListEntry<C, I>>;
+  protected readonly set: S;
 
   constructor(
-    setCallback: <D extends Crdt, U extends any[]>(
-      setValueConstructor: (...setArgs: U) => D,
-      setArgsSerializer: ElementSerializer<U>
-    ) => CSet<D, U> & WithIds<D>,
-    valueConstructor: (...args: InsertArgs) => C,
-    argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance(),
+    setCallback: (
+      setValueConstructor: (
+        ...setArgs: [I, InsertArgs]
+      ) => MovableMutCListEntry<C, I>,
+      setArgsSerializer: ElementSerializer<[I, InsertArgs]>
+    ) => S,
     private readonly denseLocalList: DenseLocalList<
       I,
       MovableMutCListEntry<C, I>
-    > = new TreedocDenseLocalList()
+    >,
+    valueConstructor: (...args: InsertArgs) => C,
+    argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
 
@@ -122,7 +125,30 @@ export class MovableMutCList<
     return this.set.size;
   }
 
-  // TODO: optimized methods (see AbstractCList)
+  indexOf(searchElement: C, fromIndex = 0): number {
+    // TODO: unsafe parent access
+    if (this.set.has(searchElement.parent as MovableMutCListEntry<C, I>)) {
+      const loc = (searchElement.parent as MovableMutCListEntry<C, I>).loc
+        .value;
+      const index = this.denseLocalList.indexOf(loc);
+      if (fromIndex < 0) fromIndex += this.length;
+      if (index >= fromIndex) return index;
+    }
+    return -1;
+  }
+
+  lastIndexOf(searchElement: C, fromIndex = this.length - 1): number {
+    const index = this.indexOf(searchElement);
+    if (index !== -1) {
+      if (fromIndex < 0) fromIndex += this.length;
+      if (index <= fromIndex) return index;
+    }
+    return -1;
+  }
+
+  includes(searchElement: C, fromIndex = 0): boolean {
+    return this.indexOf(searchElement, fromIndex) !== -1;
+  }
 
   canGc(): boolean {
     // Even if the set is trivial, denseLocalList might
@@ -132,6 +158,12 @@ export class MovableMutCList<
 
   saveComposite(): Uint8Array {
     // Save denseLocalList.
+    // TODO: in principle saving the ids shouldn't be
+    // necessary, which would let us get rid of WithIds
+    // interface.  Instead, in postLoad, we can make
+    // a map from locs to entries, then use that in the
+    // get-by-index func (adding the loc as an argument
+    // in addition to the index).
     const ids = new Array<Uint8Array>(this.length);
     let i = 0;
     for (const entry of this.denseLocalList.values()) {
@@ -161,5 +193,3 @@ export class MovableMutCList<
     );
   }
 }
-
-// TODO: Resettable if Set is Resettable

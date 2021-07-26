@@ -158,6 +158,13 @@ export class PrimitiveCList<T, I = TreedocLoc>
     return this.state.length;
   }
 
+  slice(start?: number, end?: number): T[] {
+    // Optimize common case (slice())
+    if (start === undefined && end === undefined) {
+      return this.state.valuesArray();
+    } else return super.slice(start, end);
+  }
+
   // TODO: overrides for optimization (e.g. slice)
   // TODO: bulk methods (e.g. push) - should be able to
   // override method, since interface is technically
