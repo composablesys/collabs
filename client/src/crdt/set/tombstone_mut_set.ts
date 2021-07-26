@@ -111,6 +111,40 @@ export class TombstoneMutCSet<
     return this.mutSet.values();
   }
 
+  /**
+   * Returns a short unique identifier for value
+   * which can be passed to getById to retrieve
+   * value later.
+   *
+   * TODO: should this be included?  In principle you can
+   * always just use the Crdts themselves and let them
+   * be serialized in long-form; this is just an opt,
+   * which could in theory be supplanted by serialization/
+   * batching opts.  Including for now since Geordie is
+   * using it, however, I will leave it out of related classes.
+   *
+   * TODO: rename getId.
+   *
+   * @param  value [description]
+   * @return           [description]
+   * @throws if !this.owns(value)
+   */
+  idOf(value: C): string {
+    return this.mutSet.idOf(value);
+  }
+
+  /**
+   * Returns the value with the given uid, obtained
+   * from idOf.  If value has been deleted, returns
+   * undefined.
+   *
+   * @param  uid [description]
+   * @return     [description]
+   */
+  getById(id: string): C | undefined {
+    return this.mutSet.getById(id);
+  }
+
   // TODO: doesn't seem useful, and it is not yet
   // present on TombstoneMutMap.
   // get sizeIncludeTombstones(): number {

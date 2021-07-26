@@ -88,8 +88,8 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * from another replica), it may already be present,
    * or it may have previously been present but been
    * deleted.  The value associated to loc will always
-   * be the same, so if loc is already present, it is
-   * safe to do nothing.
+   * be the same (up to replacement after GC), so if loc
+   * is already present, it is safe to do nothing.
    *
    * @return the index of loc at the end of the method
    */
@@ -158,7 +158,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * saved loc array.  TODO: ArrayLike instead of values
    * (equally flexible and accomodates strings)?
    * Or, explicit undefined option for all-undefined
-   * values?
+   * values?  (Actually, looks like we don't need undefined version?)
    */
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void;
 }

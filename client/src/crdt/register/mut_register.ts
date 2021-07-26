@@ -19,6 +19,8 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
   implements CRegister<Optional<C>, SetArgs>, Resettable
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
+  // TODO: use custom interface description CRegister +
+  // conflicts etc. methods, instead of this union type?
   protected readonly register: FwwCRegister<C> | LwwCRegister<C>;
 
   constructor(

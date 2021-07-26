@@ -10,7 +10,7 @@ export declare abstract class AbstractCList<
     Events extends CListEventsRecord<T> = CListEventsRecord<T>
   >
   extends Crdt<Events>
-  implements CList<T, InsertArgs, Events>
+  implements CList<T, InsertArgs, Events> 
 {
   abstract insert(index: number, ...args: InsertArgs): T;
   abstract delete(index: number, count?: number): void;
@@ -39,6 +39,9 @@ export declare abstract class AbstractCList<
   // TODO: advice for range versions of mutators
   // TODO: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
+  // TODO: optimize includes, indexOf, lastIndexOf if you know how to get
+  // the index of an element immediately.
+  // TODO: optimize join for TextCrdt (in particular, join('')).
 
   // Convenience accessors
   concat(...items: ConcatArray<T>[]): T[];

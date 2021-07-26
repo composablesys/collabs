@@ -7,6 +7,7 @@ import {
 } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { CrdtParent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { AbstractCListPrimitiveCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
@@ -14,7 +15,7 @@ import { DenseLocalList } from "./dense_local_list";
 // TODO: specialize to default DenseLocalList.
 // Perhaps default I, and have a default constructor param
 // with unsafe typing?
-export class PrimitiveCList<T, I>
+export class PrimitiveCList<T, I = TreedocLoc>
   extends AbstractCListPrimitiveCrdt<DenseLocalList<I, T>, T, [T]>
   implements Resettable
 {
@@ -23,9 +24,14 @@ export class PrimitiveCList<T, I>
     private readonly valueArraySerializer: ElementSerializer<
       T[]
     > = DefaultElementSerializer.getInstance(),
-    denseLocalList: DenseLocalList<I, T> = new TreedocDenseLocalList<T>()
+    denseLocalList: DenseLocalList<I, T> = new TreedocDenseLocalList()
   ) {
     super(denseLocalList);
+  }
+
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    this.state.setRuntime(this.runtime);
   }
 
   // TODO: bounds checking.  Or should that be part of

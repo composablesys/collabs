@@ -1,0 +1,4 @@
+message MovableMutCListSave {
+  required bytes locs = 1;
+  repeated bytes ids = 2;
+}
