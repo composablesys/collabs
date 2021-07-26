@@ -2,13 +2,22 @@ import { Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
 import { ResettingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";
+import {
+  TreedocDenseLocalList,
+  TreedocLocWrapper,
+} from "./treedoc_dense_local_list";
 
 export class ResettingMutCList<C extends Crdt & Resettable>
-  extends CListFromMap<C, [], TreedocLoc, ResettingMutCMap<TreedocLoc, C>>
+  extends CListFromMap<
+    C,
+    [],
+    TreedocLocWrapper,
+    ResettingMutCMap<TreedocLocWrapper, C>
+  >
   implements Resettable
 {
-  constructor(valueConstructor: (loc: TreedocLoc) => C) {
-    const denseLocalList = new TreedocDenseLocalList();
+  constructor(valueConstructor: (loc: TreedocLocWrapper) => C) {
+    const denseLocalList = new TreedocDenseLocalList<undefined>();
     super(
       new ResettingMutCMap(valueConstructor, denseLocalList),
       denseLocalList
@@ -40,7 +49,7 @@ export class ResettingMutCList<C extends Crdt & Resettable>
     // TODO: unsafe parent access
     const loc = this.internalMap.keyOf(searchElement);
     if (loc !== undefined) {
-      const index = this.denseLocalList.indexOf(loc);
+      const index = this.denseLocalList.indexOf(loc)!;
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }

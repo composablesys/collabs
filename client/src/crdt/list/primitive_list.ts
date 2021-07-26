@@ -11,11 +11,15 @@ import { CrdtParent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { AbstractCListPrimitiveCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
+import {
+  TreedocDenseLocalList,
+  TreedocLocWrapper,
+} from "./treedoc_dense_local_list";
 
 // TODO: specialize to default DenseLocalList.
 // Perhaps default I, and have a default constructor param
 // with unsafe typing?
-export class PrimitiveCList<T, I = TreedocLoc>
+export class PrimitiveCList<T, I = TreedocLocWrapper>
   extends AbstractCListPrimitiveCrdt<DenseLocalList<I, T>, T, [T]>
   implements Resettable
 {
@@ -24,7 +28,10 @@ export class PrimitiveCList<T, I = TreedocLoc>
     private readonly valueArraySerializer: ElementSerializer<
       T[]
     > = DefaultElementSerializer.getInstance(),
-    denseLocalList: DenseLocalList<I, T> = new TreedocDenseLocalList()
+    denseLocalList: DenseLocalList<
+      I,
+      T
+    > = new TreedocDenseLocalList() as unknown as DenseLocalList<I, T>
   ) {
     super(denseLocalList);
   }
@@ -136,7 +143,7 @@ export class PrimitiveCList<T, I = TreedocLoc>
           if (ret !== undefined) {
             this.emit("Delete", {
               timestamp,
-              index: ret[0],
+              index: ret,
             });
           }
         }

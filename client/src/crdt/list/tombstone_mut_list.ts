@@ -1,8 +1,11 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt } from "../core";
 import { TombstoneMutCSet } from "../set";
-import { DenseLocalList } from "./dense_local_list";
 import { MovableMutCList, MovableMutCListEntry } from "./movable_mut_list";
+import {
+  TreedocDenseLocalList,
+  TreedocLocWrapper,
+} from "./treedoc_dense_local_list";
 
 // TODO: reset.  It only actually works if DenseLocalList
 // has no tombstones.  Perhaps this is a reason to just
@@ -24,10 +27,10 @@ export class TombstoneMutCList<
 > extends MovableMutCList<
   C,
   InsertArgs,
-  TreedocLoc,
+  TreedocLocWrapper,
   TombstoneMutCSet<
-    MovableMutCListEntry<C, TreedocLoc>,
-    [TreedocLoc, InsertArgs]
+    MovableMutCListEntry<C, TreedocLocWrapper>,
+    [TreedocLocWrapper, InsertArgs]
   >
 > {
   constructor(
@@ -52,13 +55,17 @@ export class TombstoneMutCList<
     // TODO: might throw error due to double-parent.
     // Should change both owns methods to guard against this
     // (return false on rootCrdt).
-    return this.set.owns(value.parent as MovableMutCListEntry<C, TreedocLoc>);
+    return this.set.owns(
+      value.parent as MovableMutCListEntry<C, TreedocLocWrapper>
+    );
   }
 
   restore(value: C): void {
     if (!this.owns(value)) {
       throw new Error("this.owns(value) is false");
     }
-    this.set.restore(value.parent as MovableMutCListEntry<C, TreedocLoc>);
+    this.set.restore(
+      value.parent as MovableMutCListEntry<C, TreedocLocWrapper>
+    );
   }
 }

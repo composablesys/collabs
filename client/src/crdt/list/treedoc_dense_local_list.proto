@@ -1,0 +1,7 @@
+message TreedocLocMessage {
+  required bytes path = 1;
+  repeated uint32 disIndices = 2 [packed=true];
+  repeated string disSendersIndex = 3;
+  repeated uint32 disSenders = 4 [packed=true];
+  repeated sint32 disUniqueNumbers = 5 [packed=true];
+}

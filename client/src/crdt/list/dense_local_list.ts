@@ -102,10 +102,10 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * TODO: loc might already be deleted.
    *
    * @param  loc [description]
-   * @return    [previous index of deleted value, deleted
-   * value] or undefined if loc was not present  (TODO: is value needed?)
+   * @return    previous index of deleted value,
+   * or undefined if loc was not present
    */
-  delete(loc: L): [index: number, value: T] | undefined;
+  delete(loc: L): number | undefined;
 
   /**
    * Delete all locs in the range [startLoc, endLoc] that are causally
@@ -139,7 +139,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
 
   readonly length: number;
 
-  indexOf(loc: L): number;
+  indexOf(loc: L): number | undefined;
 
   values(): IterableIterator<T>;
 
