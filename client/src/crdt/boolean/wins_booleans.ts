@@ -1,9 +1,5 @@
-import {
-  NoopCrdt,
-  Resettable,
-  ResettableEventsRecord,
-  ResetWrapClass,
-} from "../helper_crdts";
+import { NoopCrdt, Resettable, ResetWrapClass } from "../helper_crdts";
+import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";
 
@@ -11,11 +7,13 @@ import { CBoolean } from "./interfaces";
 export class TrueWinsCBoolean
   extends MakeAbstractCBoolean(
     ResetWrapClass(NoopCrdt, true, false)
-  )<ResettableEventsRecord>
+  )<CRegisterEventsRecord>
   implements CBoolean, Resettable
 {
   constructor() {
     super();
+    // TODO: better events (will be easier with reimplementation)
+    this.on("Change", (event) => this.emit("Set", event));
   }
 
   get value(): boolean {
@@ -32,7 +30,7 @@ export class TrueWinsCBoolean
 export class FalseWinsCBoolean
   extends MakeAbstractCBoolean(
     ResetWrapClass(NoopCrdt, true, false)
-  )<ResettableEventsRecord>
+  )<CRegisterEventsRecord>
   implements CBoolean, Resettable
 {
   constructor() {

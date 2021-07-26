@@ -35,6 +35,17 @@ export interface CrdtEvent {
  * CrdtEvent.
  */
 export interface CrdtEventsRecord {
+  /**
+   * Emitted every time a Crdt changes (or may have
+   * changed).  Specifically, it is emitted every time
+   * a Crdt receives a message, at the end of message processing.
+   *
+   * This event should generally not be listened on.
+   * Logical operations may be composed of multiple messages,
+   * each of which emits a Change event, so when early
+   * Change events are emitted, the Crdt may be in
+   * a nonsensical, transient internal state.
+   */
   Change: CrdtEvent;
 }
 

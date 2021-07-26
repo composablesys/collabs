@@ -1,15 +1,16 @@
 import { CausalTimestamp } from "../../net";
 import { PrimitiveCrdt } from "../core";
+import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";
 
-// TODO: Resettable version?  Might need CCounter construction.
-// TODO: custom Toggle event?
-
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCrdt)<{
-    value: boolean;
-  }>
+  extends MakeAbstractCBoolean(PrimitiveCrdt)<
+    {
+      value: boolean;
+    },
+    CRegisterEventsRecord
+  >
   implements CBoolean
 {
   constructor(private readonly initialValue = false) {
@@ -29,12 +30,13 @@ export class ToggleCBoolean
   }
 
   protected receivePrimitive(
-    _timestamp: CausalTimestamp,
+    timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
     this.state.value = !this.state.value;
+    this.emit("Set", { timestamp });
   }
 
   protected savePrimitive(): Uint8Array {
