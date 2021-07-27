@@ -13,6 +13,7 @@ import {
   StatefulCrdt,
 } from "../core";
 import { LocallyResettableState } from "./resettable";
+import {DefaultElementSerializer, ElementSerializer} from "../../util";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?
@@ -74,7 +75,7 @@ class SemidirectHistory<Events extends CrdtEventsRecord> {
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
-  ) {
+  ): string {
     if (this.historyDiscard2Dominated) {
       this.processTimestamp(replicaId, timestamp, false, true);
     }
@@ -92,12 +93,16 @@ class SemidirectHistory<Events extends CrdtEventsRecord> {
         message
       )
     );
+    
+    const m2Id = `${timestamp.getSender()}${timestamp.getSenderCounter()}`;
+    
     // Start tracking message events
     this.messageEvents.set(
       `${timestamp.getSender()}${timestamp.getSenderCounter()}`,
       []
     );
     this.receiptCounter++;
+    return m2Id;
   }
 
   /**
@@ -230,14 +235,12 @@ class SemidirectHistory<Events extends CrdtEventsRecord> {
     return sparseArray.length;
   }
 
-  addMessageEvent(timestamp: CausalTimestamp, eventName: string, event: any) {
+  addMessageEvent(messageId: string, eventName: string, event: any) {
     if (
-      this.messageEvents.has(
-        `${timestamp.getSender()}${timestamp.getSenderCounter()}`
-      )
+      this.messageEvents.has(messageId)
     ) {
       this.messageEvents
-        .get(`${timestamp.getSender()}${timestamp.getSenderCounter()}`)!
+        .get(messageId)!
         .push(new StoredMessageEvent(eventName, event));
     }
   }
@@ -323,33 +326,52 @@ class SemidirectHistory<Events extends CrdtEventsRecord> {
   }
 }
 
-// class SemidirectStateLocallyResettable<S extends LocallyResettableState>
-//     extends SemidirectStateBase<S>
-//     implements LocallyResettableState
-// {
-//   resetLocalState() {
-//     this.receiptCounter = 0;
-//     this.history.clear();
-//     this.internalState.resetLocalState();
-//   }
-// }
+export type m1Start<m1ArgsT> = {
+  m: 1;
+  isStart: true;
+  args: m1ArgsT;
+}
 
-// TODO: instead of subclass, have interface for all-but-reset part of
-// SemidirectState, then have just one class including reset?
-// export type SemidirectState<S> = S extends LocallyResettableState
-//     ? SemidirectStateBase<S> & LocallyResettableState
-//     : SemidirectStateBase<S>;
+export type m2Start<m2ArgsT> = {
+  m: 2;
+  isStart: true;
+  args: m2ArgsT;
+}
+
+export type SemidirectMessage<m1ArgsT, m2ArgsT> =
+  m1Start<m1ArgsT>
+  | m2Start<m2ArgsT>
+  | {
+    m: 1 | 2;
+    isStart: false;
+    args: null
+  }
 
 export abstract class SemidirectProductRev<
     Events extends CrdtEventsRecord = CrdtEventsRecord,
-    C extends Crdt = Crdt
+    C extends Crdt = Crdt,
+    m1Args extends Array<any> = [],
+    m2Args extends Array<any> = []
   >
   extends CompositeCrdt<Events, C>
   implements CrdtParent
 {
   protected history = new SemidirectHistory(false, false, false);
   private receivedMessages = false;
-
+  private isM1 = false;
+  private isM2 = false;
+  private m2Id = '';
+  private propagateM1 = true;
+  protected m1Fn?: (...fnArgs: m1Args) => any;
+  private messageValueSerializer: ElementSerializer<SemidirectMessage<m1Args, m2Args>> = DefaultElementSerializer.getInstance();
+  
+  init(name: string, parent: CrdtParent) {
+    super.init(name, parent);
+    if (this.m1Fn === undefined) {
+      throw new Error("m1Fn is not defined");
+    }
+  }
+  
   protected setupHistory(
     historyTimestamps: boolean = false,
     historyDiscard1Dominated: boolean = false,
@@ -369,30 +391,59 @@ export abstract class SemidirectProductRev<
   }
 
   protected trackM2Event(
-    timestamp: CausalTimestamp,
     eventName: string,
     event: any
   ) {
-    this.history.addMessageEvent(timestamp, eventName, event);
+    this.history.addMessageEvent(this.m2Id, eventName, event);
   }
-
-  protected m1Criteria(
-    // TODO: make abstract
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ) {
-    return false;
+  
+  private send(message: Uint8Array) {
+    this.runtime.send(this, message);
   }
-
-  protected m2Criteria(
-    // TODO: make abstract
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ) {
-    return false;
+  
+  private markM1Start(args: m1Args) {
+    this.send(this.messageValueSerializer.serialize({m: 1, isStart: true, args}));
   }
+  
+  private markM1End() {
+    this.send(this.messageValueSerializer.serialize({m: 1, isStart: false, args: null}));
+  }
+  
+  private markM2Start(args: m2Args) {
+    this.send(this.messageValueSerializer.serialize({m: 2, isStart: true, args}));
+  }
+  
+  private markM2End() {
+    this.send(this.messageValueSerializer.serialize({m: 2, isStart: false, args: null}));
+  }
+  
+  // protected registerM1<T>(m1Fn: (...fnArgs: m1Args) => T) {
+  //   this.m1Fn = m1Fn;
+  // }
+  
+  protected runM1<T>(args: m1Args): T {
+    this.markM1Start(args);
+    const toReturn = this.m1Fn!(...args);
+    this.markM1End();
+    return toReturn;
+  }
+  
+  // TODO: Make abstract m1 and m2 functions instead? How can we register on the getGo?
+  // protected wrapM1<T>(args: m1Args, m1Fn: (...fnArgs: m1Args) => T): T {
+  //   this.m1Fn = m1Fn;
+  //   this.markM1Start(args);
+  //   const toReturn = m1Fn(...args);
+  //   this.markM1End();
+  //   return toReturn;
+  // }
+  
+  protected wrapM2<T>(args: m2Args, m2Fn: (...fnArgs: m2Args) => T): T {
+    this.markM2Start(args);
+    const toReturn = m2Fn(...args);
+    this.markM2End();
+    return toReturn;
+  }
+  
   /**
    * TODO
    * @param  m2TargetPath [description]
@@ -407,12 +458,12 @@ export abstract class SemidirectProductRev<
     // TODO: make abstract
     m2TargetPath: string[],
     m2Timestamp: CausalTimestamp | null,
-    m2Message: Uint8Array,
+    m2Message: m2Start<m2Args>,
     m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
     m1Timestamp: CausalTimestamp,
-    m1Message: Uint8Array
-  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
+    m1Message: m1Start<m1Args>
+  ): { m1TargetPath: string[]; m1Message: m1Start<m1Args> } | null {
     return { m1TargetPath, m1Message };
   }
 
@@ -421,11 +472,86 @@ export abstract class SemidirectProductRev<
     timestamp: CausalTimestamp,
     message: Uint8Array
   ) {
+    console.log("timestamp", timestamp);
+    console.log("message", message);
     this.receivedMessages = this.receivedMessages || true;
     if (targetPath.length === 0) {
       // We are the target
-      throw new Error("SemidirectProduct received message for itself");
+      // throw new Error("SemidirectProduct received message for itself");
+      const semidirectMessage = this.messageValueSerializer.deserialize(message, this.runtime);
+      console.log("Should have received a semidirect message", semidirectMessage);
+      switch (true) {
+        case semidirectMessage.m === 1 && semidirectMessage.isStart:
+          console.log("case 1")
+          this.isM1 = true;
+          let concurrent = this.history.getConcurrent(
+            this.runtime.replicaId,
+            timestamp
+          );
+          console.log("concurrent", concurrent);
+          if (concurrent.length === 0) {
+            return;
+          } else {
+            let mAct = {
+              m1TargetPath: targetPath,
+              m1Message: semidirectMessage,
+            };
+            for (let i = 0; i < concurrent.length; i++) {
+              // TODO: can we avoid serializing and
+              // deserializing each time?  Like
+              // with ResetComponent.
+              let mActOrNull = this.action(
+                concurrent[i][1].targetPath,
+                concurrent[i][1].timestamp,
+                this.messageValueSerializer.deserialize(concurrent[i][1].message, this.runtime) as m2Start<m2Args>,
+                this.history
+                  .getMessageEvents(
+                    concurrent[i][0],
+                    concurrent[i][1].senderCounter
+                  )!
+                  .map(({ eventName, event }) => [eventName, event]),
+                mAct.m1TargetPath,
+                timestamp,
+                mAct.m1Message as m1Start<m1Args>
+              );
+              if (mActOrNull === null) return;
+              else mAct = mActOrNull;
+            }
+            this.runtime.runLocally(timestamp, () => {
+              console.log("should run locally with the following m1:", mAct.m1Message)
+              this.m1Fn!(...((mAct.m1Message as m1Start<m1Args>).args));
+            })
+            this.propagateM1 = false;
+          }
+          return;
+        case semidirectMessage.m === 1 && !semidirectMessage.isStart:
+          console.log("case 2")
+          this.isM1 = false;
+          this.propagateM1 = true;
+          return;
+        case semidirectMessage.m === 2 && semidirectMessage.isStart:
+          console.log("case 3")
+          this.isM2 = true;
+          this.m2Id = this.history.add(
+            this.runtime.replicaId,
+            targetPath.slice(),
+            timestamp,
+            message
+          );
+          return;
+        case semidirectMessage.m === 2 && !semidirectMessage.isStart:
+          console.log("case 4")
+          this.isM2 = false;
+          return;
+        default:
+          console.log("somehow got to default");
+          console.log(semidirectMessage);
+          return;
+          // break;
+      }
     }
+    
+    console.log(targetPath);
 
     let child = this.children.get(targetPath[targetPath.length - 1]);
     if (child === undefined) {
@@ -438,68 +564,68 @@ export abstract class SemidirectProductRev<
           JSON.stringify([...this.children.keys()])
       );
     }
-    switch (true) {
-      // m2 cannot be local only. Mainly so that it doesn't break because local messages have a weird vectorMap.
-      // But also at the same time, the idea behind semi direct products is that concurrent m2's act on m1 to produce
-      // a modified m1, which is then relayed locally. Thus, the semidirect product may need to locally resend some
-      // form of m1 to modify m1 properly, while there should be no need to resend m2.
-      // TODO: Work on this argument more.
-      case this.m2Criteria(targetPath, timestamp, message):
-        console.log(timestamp);
-        targetPath.length--;
-        this.history.add(
-          this.runtime.replicaId,
-          targetPath.slice(),
-          timestamp,
-          message
-        );
-        child.receive(targetPath, timestamp, message);
-        break;
-
-      case this.m1Criteria(targetPath, timestamp, message):
-        // &&
-        // !this.runtime.isLocal:
-        if (this.runtime.isInRunLocally) {
-          console.log("local!", timestamp);
-        } else {
-          console.log("not local!", timestamp);
-        }
-        targetPath.length--;
-        let concurrent = this.history.getConcurrent(
-          this.runtime.replicaId,
-          timestamp
-        );
-        let mAct = {
-          m1TargetPath: targetPath,
-          m1Message: message,
-        };
-        for (let i = 0; i < concurrent.length; i++) {
-          // TODO: can we avoid serializing and
-          // deserializing each time?  Like
-          // with ResetComponent.
-          let mActOrNull = this.action(
-            concurrent[i][1].targetPath,
-            concurrent[i][1].timestamp,
-            concurrent[i][1].message,
-            this.history
-              .getMessageEvents(
-                concurrent[i][0],
-                concurrent[i][1].senderCounter
-              )!
-              .map(({ eventName, event }) => [eventName, event]),
-            mAct.m1TargetPath,
-            timestamp,
-            mAct.m1Message
-          );
-          if (mActOrNull === null) return;
-          else mAct = mActOrNull;
-        }
-        child.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
-        break;
-      default:
-        targetPath.length--;
-        child.receive(targetPath, timestamp, message);
+    
+    if (this.isM1 && !this.propagateM1) {
+      return;
     }
+    targetPath.length--;
+    child.receive(targetPath, timestamp, message);
+    
+    // switch (true) {
+    //   // m2 cannot be local only. Mainly so that it doesn't break because local messages have a weird vectorMap.
+    //   // But also at the same time, the idea behind semi direct products is that concurrent m2's act on m1 to produce
+    //   // a modified m1, which is then relayed locally. Thus, the semidirect product may need to locally resend some
+    //   // form of m1 to modify m1 properly, while there should be no need to resend m2.
+    //   // TODO: Work on this argument more.
+    //   case this.m2Criteria(targetPath, timestamp, message):
+    //     console.log(timestamp);
+    //     targetPath.length--;
+    //     // this.history.add( // Commented because we have the m2 wrapper
+    //     //   this.runtime.replicaId,
+    //     //   targetPath.slice(),
+    //     //   timestamp,
+    //     //   message
+    //     // );
+    //     child.receive(targetPath, timestamp, message);
+    //     break;
+    //
+    //   case this.m1Criteria(targetPath, timestamp, message):
+    //     targetPath.length--;
+    //     let concurrent = this.history.getConcurrent(
+    //       this.runtime.replicaId,
+    //       timestamp
+    //     );
+    //     let mAct = {
+    //       m1TargetPath: targetPath,
+    //       m1Message: message,
+    //     };
+    //     for (let i = 0; i < concurrent.length; i++) {
+    //       // TODO: can we avoid serializing and
+    //       // deserializing each time?  Like
+    //       // with ResetComponent.
+    //       let mActOrNull = this.action(
+    //         concurrent[i][1].targetPath,
+    //         concurrent[i][1].timestamp,
+    //         concurrent[i][1].message as SemidirectMessage<m2Args>,
+    //         this.history
+    //           .getMessageEvents(
+    //             concurrent[i][0],
+    //             concurrent[i][1].senderCounter
+    //           )!
+    //           .map(({ eventName, event }) => [eventName, event]),
+    //         mAct.m1TargetPath,
+    //         timestamp,
+    //         mAct.m1Message
+    //       );
+    //       if (mActOrNull === null) return;
+    //       else mAct = mActOrNull;
+    //     }
+    //     child.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
+    //     break;
+    //   default:
+    //     targetPath.length--;
+    //     child.receive(targetPath, timestamp, message);
+    // }
   }
 
   canGc(): boolean {
