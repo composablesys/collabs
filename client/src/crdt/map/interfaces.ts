@@ -4,18 +4,7 @@ export interface CMapEvent<K> extends CrdtEvent {
   key: K;
 }
 
-/**
- * Note that this doesn't extend CrdtEvent, because
- * values may be initialized independently of
- * operations/message delivery, in which case there is
- * no associated timestamp.
- */
-export interface CMapInitEvent<K, V> {
-  key: K;
-  value: V;
-}
-
-export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
+export interface CMapEventsRecord<K> extends CrdtEventsRecord {
   /**
    * TODO: in MutCMap's, this is also emitted when
    * a previously-existing value's key is restored,
@@ -26,29 +15,6 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
    */
   Set: CMapEvent<K>;
   Delete: CMapEvent<K>;
-  /**
-   * Emitted when a value is constructed.
-   * Use this when values are objects and you need to
-   * do something with the objects themselves, not just
-   * an equal copy.  E.g., registering event listeners
-   * on Crdt values.
-   *
-   * Note that this may be called multiple times for the
-   * same value (if a value is GC'd and then
-   * reconstructed), it may not correspond precisely
-   * to Add events, and it may be called independently of
-   * operations/message delivery.
-   *
-   * If you are maintaining a view of a map by tracking Set/Delete
-   * events, you don't need to worry about ValueInit events.
-   * Specifically, you don't have to worry that one of the
-   * values in your view might be GC'd and replaced with
-   * a different but equivalent value.  This is because
-   * implementations
-   * will use WeakRefs to ensure that only reference-free
-   * values are GC'd.
-   */
-  ValueInit: CMapInitEvent<K, V>;
 }
 
 /**
@@ -69,7 +35,7 @@ export interface CMap<
   K,
   V,
   SetArgs extends any[] = [V],
-  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+  Events extends CMapEventsRecord<K> = CMapEventsRecord<K>
 > extends Crdt<Events> {
   /**
    * Sends args to every replica in serialized form.

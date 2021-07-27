@@ -4,47 +4,13 @@ export interface CListEvent extends CrdtEvent {
   index: number;
 }
 
-/**
- * Note that this doesn't extend CrdtEvent, because
- * values may be initialized independently of
- * message delivery, in which case there is
- * no associated timestamp.
- */
-export interface CListInitEvent<T> {
-  index: number;
-  value: T;
-}
-
-export interface CListEventsRecord<T> extends CrdtEventsRecord {
+export interface CListEventsRecord extends CrdtEventsRecord {
   Insert: CListEvent;
   /**
    * Index gives the former index (immediately before
    * deleting).
    */
   Delete: CListEvent;
-  /**
-   * Emitted when a value is constructed.
-   * Use this when values are objects and you need to
-   * do something with the objects themselves, not just
-   * an equal copy.  E.g., registering event listeners
-   * on Crdt values.
-   *
-   * Note that this may be called multiple times for the
-   * same value (if a value is GC'd and then
-   * reconstructed), it may not correspond precisely
-   * to Add events, and it may be called independently of
-   * operations/message delivery.
-   *
-   * If you are maintaining a view of a list by tracking Insert/Delete
-   * events, you don't need to worry about ValueInit events.
-   * Specifically, you don't have to worry that one of the
-   * values in your view might be GC'd and replaced with
-   * a different but equivalent value.  This is because
-   * implementations
-   * will use WeakRefs to ensure that only reference-free
-   * values are GC'd.
-   */
-  ValueInit: CListInitEvent<T>;
 }
 
 /**
@@ -64,7 +30,7 @@ export interface CListEventsRecord<T> extends CrdtEventsRecord {
 export interface CList<
   T,
   InsertArgs extends any[] = [T],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+  Events extends CListEventsRecord = CListEventsRecord
 > extends Crdt<Events> {
   /**
    * Sends args to every replica in serialized form.
