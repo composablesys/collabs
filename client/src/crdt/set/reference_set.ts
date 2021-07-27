@@ -5,12 +5,12 @@ import {
   WeakValueMap,
 } from "../../util";
 import { Resettable } from "../helper_crdts";
-import { LwwPlainMap } from "../map";
+import { LwwCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
 export class ReferenceCSet<T extends object, AddArgs extends any[]>
   extends AbstractCSetCompositeCrdt<T, AddArgs>
-  implements Resettable 
+  implements Resettable
 {
   // This is also used to determine membership.
   // Using LWW for the values is overkill since we know
@@ -19,7 +19,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
   // and it is only a minor performance/memory penalty
   // (none in the common case where there are no concurrent
   // restores of the same value).
-  private readonly argsById: LwwPlainMap<string, AddArgs>;
+  private readonly argsById: LwwCMap<string, AddArgs>;
   // This is a view of argsById, with the actual value
   // (as originally constructed, to preserve references)
   // as the value.
@@ -67,7 +67,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
   // (https://262.ecma-international.org/6.0/#sec-weakmap-objects)
   private static readonly metaByValue: WeakMap<
     object,
-    [id: string, args: any[], instance: ReferenceCSet<any, any[]>]
+    [id: string, args: any[], instance: ReferenceCSet<any, any>]
   > = new WeakMap();
 
   constructor(
@@ -77,7 +77,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
     super();
     this.argsById = this.addChild(
       "",
-      new LwwPlainMap(StringAsArraySerializer.instance, argsSerializer)
+      new LwwCMap(StringAsArraySerializer.instance, argsSerializer)
     );
     this.argsById.on("Set", (event) => {
       if (!this.valuesById.has(event.key)) {
@@ -109,12 +109,6 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
     const args = this.argsById.get(id)!;
     const value = this.valueConstructor(...args);
     ReferenceCSet.metaByValue.set(value, [id, args, this]);
-    // TODO: this will happen before the value is actually
-    // added.  So you shouldn't use it to interact with the
-    // set right away (and besides, that could lead to
-    // nested ops).  Need to warn about this in the CSet
-    // docs, since it's a general property of ValueInit events.
-    this.emit("ValueInit", { value });
     return value;
   }
 

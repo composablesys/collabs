@@ -1,14 +1,20 @@
 import { Optional } from "../../util/optional";
 import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface CMapEvent<K, V> extends CrdtEvent {
+export interface CMapSetEvent<K, V> extends CrdtEvent {
   key: K;
   /**
-   * Present if there was value set previously (e.g.
-   * for Delete, or for Set when there was already
-   * a value set).
+   * Present if there was value set previously.
    */
   previousValue: Optional<V>;
+}
+
+export interface CMapDeleteEvent<K, V> extends CrdtEvent {
+  key: K;
+  /**
+   * The previously set value.
+   */
+  deletedValue: V;
 }
 
 export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
@@ -22,8 +28,8 @@ export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
    * internally (for that, add your own event listeners
    * in the valueConstructor).
    */
-  Set: CMapEvent<K, V>;
-  Delete: CMapEvent<K, V>;
+  Set: CMapSetEvent<K, V>;
+  Delete: CMapDeleteEvent<K, V>;
 }
 
 /**

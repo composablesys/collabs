@@ -1,4 +1,4 @@
-message MapMutCSetKeyMessage {
+message MutCSetFromMapKeyMessage {
   required string sender = 1;
   required uint32 uniqueNumber = 2;
   optional bytes args = 3;

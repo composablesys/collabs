@@ -161,11 +161,6 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     newValue.init(name, this);
     this.childBeingAdded = undefined;
 
-    // Emit this even during loading, since the user may
-    // need to add event listeners, and it is not associated
-    // to a timestamp anyway.
-    this.emit("ValueInit", { value: newValue });
-
     return newValue;
   }
 
@@ -232,8 +227,6 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     return this.children.size;
   }
 
-  // TODO: optimize clear
-
   reset(): void {
     // This is semantically an observed-reset: it removes
     // all causally prior add operations from the history.
@@ -249,14 +242,10 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
    * which can be passed to getById to retrieve
    * value later.
    *
-   * TODO: should this be included?  In principle you can
-   * always just use the Crdts themselves and let them
-   * be serialized in long-form; this is just an opt,
-   * which could in theory be supplanted by serialization/
-   * batching opts.  Including for now since Geordie is
-   * using it, however, I will leave it out of related classes.
-   *
-   * TODO: rename getId.
+   * Although identifier has type
+   * string, it is properly a byte array, not
+   * necessarily valid UTF-8.  So it should be serialized
+   * as a byte array (using stringAsArray), not a string.
    *
    * @param  value [description]
    * @return           [description]
@@ -279,6 +268,24 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
    */
   getById(id: string): C | undefined {
     return this.children.get(id);
+  }
+
+  /**
+   * Optimized serializer for values in this set.
+   *
+   * It optimizes value serialization by using the set's ids instead of
+   * the full pathToRoot (as DefaultElementSerializer would do).
+   */
+  valueSerializer(): ElementSerializer<C> {
+    const set = this;
+    return {
+      serialize(value: C): Uint8Array {
+        return stringAsArray(set.idOf(value));
+      },
+      deserialize(message: Uint8Array, _runtime: Runtime): C {
+        return set.getById(arrayAsString(message))!;
+      },
+    };
   }
 
   save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
@@ -308,25 +315,5 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     for (const { name, args } of saveMessage.constructorArgs) {
       this.receiveCreate(arrayAsString(name), args);
     }
-  }
-}
-
-/**
- * Serializer for values in a DeletingMutCSet.
- *
- * It optimizes value serialization by using the set's ids instead of
- * the full pathToRoot (as DefaultElementSerializer would do).
- */
-export class DeletingMutCSetValueSerializer<C extends Crdt>
-  implements ElementSerializer<C>
-{
-  constructor(private readonly mutSet: DeletingMutCSet<C, any>) {}
-
-  serialize(value: C): Uint8Array {
-    return stringAsArray(this.mutSet.idOf(value));
-  }
-
-  deserialize(message: Uint8Array, _runtime: Runtime): C {
-    return this.mutSet.getById(arrayAsString(message))!;
   }
 }

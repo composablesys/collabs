@@ -2,19 +2,10 @@ import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt } from "../core";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
-import {
-  DeletingMutCSet,
-  DeletingMutCSetValueSerializer,
-} from "./deleting_mut_set";
-
-// TODO: generalized set version (not just AddWinsSet)?
-// Tricky because of custom serializer.
-// Would that work with concurrentOpRestores?  (Should be
-// eventually consistent, but won't be exactly the intended
-// semantics.)
+import { DeletingMutCSet } from "./deleting_mut_set";
 
 /**
- * TODO: tombstones, so uses ever-growing memory.  Use
+ * Warning: tombstones, so uses ever-growing memory.  Use
  * with caution (e.g. only if it is itself in a
  * DeletingMut collection and will be deleted later).
  * Discuss alternatives.
@@ -42,36 +33,36 @@ export class TombstoneMutCSet<
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
+
+    let internalValueConstructor: (...args: AddArgs) => C;
+    if (concurrentOpRestores) {
+      internalValueConstructor = (...args) => {
+        const value = valueConstructor(...args);
+        value.on("Change", (event) => {
+          this.runtime.runLocally(event.timestamp, () => {
+            this.members.add(value);
+          });
+        });
+        return value;
+      };
+    } else {
+      internalValueConstructor = valueConstructor;
+    }
+
     this.mutSet = this.addChild(
       "",
-      new DeletingMutCSet(valueConstructor, undefined, argsSerializer)
+      new DeletingMutCSet(internalValueConstructor, undefined, argsSerializer)
     );
     // Use a custom serializer that uses mutSet's ids instead
     // of full pathToRoot's, for network efficiency.
     this.members = this.addChild(
       "0",
-      new AddWinsCSet(new DeletingMutCSetValueSerializer(this.mutSet))
+      new AddWinsCSet(this.mutSet.valueSerializer())
     );
-
-    if (concurrentOpRestores) {
-      // Every operation on a value makes it present in
-      // this.members.  Specifically, we make it as if there
-      // is a this.restore(value) operation accompanying
-      // every operation on value.
-      this.mutSet.on("ValueInit", (event) => {
-        const value = event.value;
-        value.on("Change", (event2) => {
-          this.runtime.runLocally(event2.timestamp, () => {
-            this.members.add(value);
-          });
-        });
-      });
-    }
 
     // Events
     this.members.on("Add", (event) => this.emit("Add", event));
     this.members.on("Delete", (event) => this.emit("Delete", event));
-    this.mutSet.on("ValueInit", (event) => this.emit("ValueInit", event));
   }
 
   add(...args: AddArgs): C {
@@ -107,23 +98,10 @@ export class TombstoneMutCSet<
     return this.members.size;
   }
 
-  valuesIncludeTombstones() {
-    return this.mutSet.values();
-  }
-
   /**
    * Returns a short unique identifier for value
    * which can be passed to getById to retrieve
    * value later.
-   *
-   * TODO: should this be included?  In principle you can
-   * always just use the Crdts themselves and let them
-   * be serialized in long-form; this is just an opt,
-   * which could in theory be supplanted by serialization/
-   * batching opts.  Including for now since Geordie is
-   * using it, however, I will leave it out of related classes.
-   *
-   * TODO: rename getId.
    *
    * @param  value [description]
    * @return           [description]
@@ -145,9 +123,13 @@ export class TombstoneMutCSet<
     return this.mutSet.getById(id);
   }
 
-  // TODO: doesn't seem useful, and it is not yet
-  // present on TombstoneMutMap.
-  // get sizeIncludeTombstones(): number {
-  //   return this.mutSet.size;
-  // }
+  /**
+   * Optimized serializer for values in this set.
+   *
+   * It optimizes value serialization by using the set's ids instead of
+   * the full pathToRoot (as DefaultElementSerializer would do).
+   */
+  valueSerializer(): ElementSerializer<C> {
+    return this.mutSet.valueSerializer();
+  }
 }

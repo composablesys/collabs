@@ -1,16 +1,9 @@
 import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
 import { CSet, CSetEventsRecord } from "./interfaces";
 
-// TODO: do we need to include Events parameter here?
-// (Check by seeing if we can extend this class and add
-// non-CSet events to it.)
-export declare abstract class AbstractCSet<
-    T,
-    AddArgs extends any[],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
-  >
-  extends Crdt<Events>
-  implements CSet<T, AddArgs, Events>
+export declare abstract class AbstractCSet<T, AddArgs extends any[]>
+  extends Crdt
+  implements CSet<T, AddArgs>
 {
   abstract add(...args: AddArgs): T;
   abstract delete(value: T): void;
@@ -54,21 +47,13 @@ export function MakeAbstractCSet<
   TBase extends abstract new (...args: any[]) => Crdt
 >(
   Base: TBase
-): abstract new <
-  T,
-  AddArgs extends any[],
-  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->(
+): abstract new <T, AddArgs extends any[]>(
   ...args: ConstructorParameters<TBase>
-) => AbstractCSet<T, AddArgs, Events> & InstanceType<TBase> {
+) => AbstractCSet<T, AddArgs> & InstanceType<TBase> {
   // @ts-ignore generics in mixins are not supported
-  abstract class Mixin<
-      T,
-      AddArgs extends any[],
-      Events extends CSetEventsRecord<T>
-    >
+  abstract class Mixin<T, AddArgs extends any[]>
     extends Base
-    implements AbstractCSet<T, AddArgs, Events>
+    implements AbstractCSet<T, AddArgs>
   {
     constructor(...args: any[]) {
       super(...args);
@@ -112,7 +97,7 @@ export const AbstractCSetCompositeCrdt = MakeAbstractCSet(
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->() => AbstractCSet<T, AddArgs, Events> & CompositeCrdt<Events>;
+>() => AbstractCSet<T, AddArgs> & CompositeCrdt<Events>;
 
 export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
   PrimitiveCrdt
@@ -123,10 +108,10 @@ export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
   state: S
-) => AbstractCSet<T, AddArgs, Events> & PrimitiveCrdt<S, Events>;
+) => AbstractCSet<T, AddArgs> & PrimitiveCrdt<S, Events>;
 
 export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->() => AbstractCSet<T, AddArgs, Events> & Crdt<Events>;
+>() => AbstractCSet<T, AddArgs> & Crdt<Events>;

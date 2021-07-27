@@ -1,14 +1,15 @@
 import {
-  IMapMutCSetKeyMessage,
-  MapMutCSetKeyMessage,
+  IMutCSetFromMapKeyMessage,
+  MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt, Runtime } from "../core";
 import { Resettable } from "../helper_crdts";
 import { CMap, ResettingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { CSetEventsRecord } from "./interfaces";
 
-class MapMutCSetSerializer<AddArgs extends any[]>
+class MutCSetFromMapSerializer<AddArgs extends any[]>
   implements
     ElementSerializer<[sender: string, uniqueNumber: number, args: AddArgs]>
 {
@@ -17,22 +18,22 @@ class MapMutCSetSerializer<AddArgs extends any[]>
   serialize(
     value: [sender: string, uniqueNumber: number, args: AddArgs]
   ): Uint8Array {
-    const iMessage: IMapMutCSetKeyMessage = {
+    const iMessage: IMutCSetFromMapKeyMessage = {
       sender: value[0],
       uniqueNumber: value[1],
     };
     if (value[2].length !== 0) {
       iMessage.args = this.argsSerializer.serialize(value[2]);
     }
-    const message = MapMutCSetKeyMessage.create(iMessage);
-    return MapMutCSetKeyMessage.encode(message).finish();
+    const message = MutCSetFromMapKeyMessage.create(iMessage);
+    return MutCSetFromMapKeyMessage.encode(message).finish();
   }
 
   deserialize(
     message: Uint8Array,
     runtime: Runtime
   ): [sender: string, uniqueNumber: number, args: AddArgs] {
-    const decoded = MapMutCSetKeyMessage.decode(message);
+    const decoded = MutCSetFromMapKeyMessage.decode(message);
     // If args is not set, then use [].
     // According to https://github.com/protobufjs/protobuf.js/issues/728#issuecomment-289234674
     // (possibly outdated) and some forum posts,
@@ -46,21 +47,18 @@ class MapMutCSetSerializer<AddArgs extends any[]>
 }
 
 /**
- * TODO: Caution that each key contains the whole args, so
- * make sure that is okay for map performance.
- *
- * TODO: is this necessary, or should we skip right to
- * ResettingMutCSet?
+ * Caution: each key contains the whole args, so
+ * make sure that is okay for map performance (e.g.
+ * if every map message includes the key, you should
+ * be okay with sending the key on every message).
  **/
-export class MapMutCSet<
+export class MutCSetFromMap<
   C extends Crdt,
-  AddArgs extends any[]
-> extends AbstractCSetCompositeCrdt<C, AddArgs> {
-  protected map: CMap<
-    [sender: string, uniqueNumber: number, args: AddArgs],
-    C,
-    []
-  >;
+  AddArgs extends any[],
+  M extends CMap<[sender: string, uniqueNumber: number, args: AddArgs], C, []>,
+  Events extends CSetEventsRecord<C> = CSetEventsRecord<C>
+> extends AbstractCSetCompositeCrdt<C, AddArgs, Events> {
+  protected map: M;
 
   /**
    * mapCallback is called once to construct the internal
@@ -68,18 +66,22 @@ export class MapMutCSet<
    * the usual CMap constructor arguments
    * (valueConstructor and keySerializer).
    *
-   * TODO: note argsSerializer isn't used if the arg is
+   * The Map should implement keyOf in constant or
+   * log time, since it is called as part of has and delete.
+   *
+   * Note: argsSerializer isn't used if the arg is
    * a 0-length Array (e.g., when AddArgs = []); we instead
    * use an optimized marker that gets deserialized to [].
-   *
-   * TODO: the Map should implement keyOf in constant or
-   * log time, since it is called as part of has and delete.
    */
   constructor(
-    mapCallback: <K>(
-      mapValueConstructor: (key: K) => C,
-      keySerializer: ElementSerializer<K>
-    ) => CMap<K, C, []>,
+    mapCallback: (
+      mapValueConstructor: (
+        key: [sender: string, uniqueNumber: number, args: AddArgs]
+      ) => C,
+      keySerializer: ElementSerializer<
+        [sender: string, uniqueNumber: number, args: AddArgs]
+      >
+    ) => M,
     valueConstructor: (...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
@@ -88,27 +90,20 @@ export class MapMutCSet<
       "",
       mapCallback(
         (key) => valueConstructor(...key[2]),
-        new MapMutCSetSerializer(argsSerializer)
+        new MutCSetFromMapSerializer(argsSerializer)
       )
     );
 
     // Events
-    this.map.on("ValueInit", (event) => {
-      this.emit("ValueInit", {
-        value: event.value,
-      });
-    });
     this.map.on("Set", (event) => {
       this.emit("Add", {
-        // TODO: avoid get here if no one's going to use it?
-        // (value as getter with cache)
         value: this.map.get(event.key)!,
         timestamp: event.timestamp,
       });
     });
     this.map.on("Delete", (event) => {
       this.emit("Delete", {
-        value: event.value,
+        value: event.deletedValue,
         timestamp: event.timestamp,
       });
     });
@@ -142,13 +137,17 @@ export class MapMutCSet<
 }
 
 /**
- * TODO: Caution that each message contains the whole args, so
+ * Caution: each message contains the whole args, so
  * make them small (ideally []) or use a different set.
  **/
 export class ResettingMutCSet<
   C extends Crdt & Resettable,
   AddArgs extends any[]
-> extends MapMutCSet<C, AddArgs> {
+> extends MutCSetFromMap<
+  C,
+  AddArgs,
+  ResettingMutCMap<[sender: string, uniqueNumber: number, args: AddArgs], C>
+> {
   constructor(
     valueConstructor: (...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
@@ -162,23 +161,14 @@ export class ResettingMutCSet<
   }
 
   owns(value: C): boolean {
-    return (
-      this.map as ResettingMutCMap<
-        [sender: string, uniqueNumber: number, args: AddArgs],
-        C
-      >
-    ).owns(value);
+    return this.map.owns(value);
   }
 
   restore(value: C): void {
-    if (!this.owns(value)) {
+    const key = this.map.keyOf(value);
+    if (key === undefined) {
       throw new Error("this.owns(value) is false");
     }
-    (
-      this.map as ResettingMutCMap<
-        [sender: string, uniqueNumber: number, args: AddArgs],
-        C
-      >
-    ).restore(this.map.keyOf(value)!);
+    this.map.restore(key);
   }
 }

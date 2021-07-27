@@ -1,17 +1,9 @@
 import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
 import { CMap, CMapEventsRecord } from "./interfaces";
 
-// TODO: do we need to include Events parameter here?
-// (Check by seeing if we can extend this class and add
-// non-CMap events to it.)
-export declare abstract class AbstractCMap<
-    K,
-    V,
-    SetArgs extends any[],
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
-  >
-  extends Crdt<Events>
-  implements CMap<K, V, SetArgs, Events>
+export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
+  extends Crdt
+  implements CMap<K, V, SetArgs>
 {
   abstract set(key: K, ...args: SetArgs): V;
   abstract delete(key: K): void;
@@ -68,23 +60,13 @@ export function MakeAbstractCMap<
   TBase extends abstract new (...args: any[]) => Crdt
 >(
   Base: TBase
-): abstract new <
-  K,
-  V,
-  SetArgs extends any[],
-  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->(
+): abstract new <K, V, SetArgs extends any[]>(
   ...args: ConstructorParameters<TBase>
-) => AbstractCMap<K, V, SetArgs, Events> & InstanceType<TBase> {
+) => AbstractCMap<K, V, SetArgs> & InstanceType<TBase> {
   // @ts-ignore generics in mixins are not supported
-  abstract class Mixin<
-      K,
-      V,
-      SetArgs extends any[],
-      Events extends CMapEventsRecord<K, V>
-    >
+  abstract class Mixin<K, V, SetArgs extends any[]>
     extends Base
-    implements AbstractCMap<K, V, SetArgs, Events>
+    implements AbstractCMap<K, V, SetArgs>
   {
     constructor(...args: any[]) {
       super(...args);
@@ -151,7 +133,7 @@ export const AbstractCMapCompositeCrdt = MakeAbstractCMap(
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->() => AbstractCMap<K, V, SetArgs, Events> & CompositeCrdt<Events>;
+>() => AbstractCMap<K, V, SetArgs> & CompositeCrdt<Events>;
 
 export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
   PrimitiveCrdt
@@ -163,11 +145,11 @@ export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
   state: S
-) => AbstractCMap<K, V, SetArgs, Events> & PrimitiveCrdt<S, Events>;
+) => AbstractCMap<K, V, SetArgs> & PrimitiveCrdt<S, Events>;
 
 export const AbstractCMapCrdt = MakeAbstractCMap(Crdt) as abstract new <
   K,
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->() => AbstractCMap<K, V, SetArgs, Events> & Crdt<Events>;
+>() => AbstractCMap<K, V, SetArgs> & Crdt<Events>;

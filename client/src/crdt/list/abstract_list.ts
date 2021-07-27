@@ -4,13 +4,9 @@ import { CList, CListEventsRecord } from "./interfaces";
 // TODO: do we need to include Events parameter here?
 // (Check by seeing if we can extend this class and add
 // non-CList events to it.)
-export declare abstract class AbstractCList<
-    T,
-    InsertArgs extends any[],
-    Events extends CListEventsRecord<T> = CListEventsRecord<T>
-  >
-  extends Crdt<Events>
-  implements CList<T, InsertArgs, Events> 
+export declare abstract class AbstractCList<T, InsertArgs extends any[]>
+  extends Crdt
+  implements CList<T, InsertArgs>
 {
   abstract insert(index: number, ...args: InsertArgs): T;
   abstract delete(index: number, count?: number): void;
@@ -155,21 +151,13 @@ export function MakeAbstractCList<
   TBase extends abstract new (...args: any[]) => Crdt
 >(
   Base: TBase
-): abstract new <
-  T,
-  InsertArgs extends any[],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
->(
+): abstract new <T, InsertArgs extends any[]>(
   ...args: ConstructorParameters<TBase>
-) => AbstractCList<T, InsertArgs, Events> & InstanceType<TBase> {
+) => AbstractCList<T, InsertArgs> & InstanceType<TBase> {
   // @ts-ignore generics in mixins are not supported
-  abstract class Mixin<
-      T,
-      InsertArgs extends any[],
-      Events extends CListEventsRecord<T>
-    >
+  abstract class Mixin<T, InsertArgs extends any[]>
     extends Base
-    implements AbstractCList<T, InsertArgs, Events>
+    implements AbstractCList<T, InsertArgs>
   {
     constructor(...args: any[]) {
       super(...args);
@@ -496,7 +484,7 @@ export const AbstractCListCompositeCrdt = MakeAbstractCList(
   T,
   InsertArgs extends any[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
->() => AbstractCList<T, InsertArgs, Events> & CompositeCrdt<Events>;
+>() => AbstractCList<T, InsertArgs> & CompositeCrdt<Events>;
 
 export const AbstractCListPrimitiveCrdt = MakeAbstractCList(
   PrimitiveCrdt
@@ -507,10 +495,10 @@ export const AbstractCListPrimitiveCrdt = MakeAbstractCList(
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
   state: S
-) => AbstractCList<T, InsertArgs, Events> & PrimitiveCrdt<S, Events>;
+) => AbstractCList<T, InsertArgs> & PrimitiveCrdt<S, Events>;
 
 export const AbstractCListCrdt = MakeAbstractCList(Crdt) as abstract new <
   T,
   InsertArgs extends any[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
->() => AbstractCList<T, InsertArgs, Events> & Crdt<Events>;
+>() => AbstractCList<T, InsertArgs> & Crdt<Events>;
