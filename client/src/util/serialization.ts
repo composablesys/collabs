@@ -169,11 +169,18 @@ export class SingletonSerializer<T> implements ElementSerializer<[T]> {
     return [this.valueSerializer.deserialize(message, runtime)];
   }
 
+  private static cache: WeakMap<
+    ElementSerializer<any>,
+    SingletonSerializer<any>
+  > = new WeakMap();
+
   static of<T>(valueSerializer: ElementSerializer<T>): ElementSerializer<[T]> {
-    // TODO: check this is reasonable
-    if (valueSerializer === DefaultElementSerializer.getInstance())
-      return DefaultElementSerializer.getInstance();
-    else return new SingletonSerializer(valueSerializer);
+    let existing = this.cache.get(valueSerializer);
+    if (existing === undefined) {
+      existing = new SingletonSerializer(valueSerializer);
+      this.cache.set(valueSerializer, existing);
+    }
+    return existing;
   }
 }
 

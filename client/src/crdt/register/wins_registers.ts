@@ -1,4 +1,8 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import {
+  DefaultElementSerializer,
+  ElementSerializer,
+  Optional,
+} from "../../util";
 import {
   AggregateArgsCRegister,
   AggregateCRegister,
@@ -47,6 +51,10 @@ export class LwwArgsCRegister<
 > extends AggregateArgsCRegister<T, SetArgs> {
   /**
    * TODO: initialValue, or initialArgs?
+   *
+   * TODO: option to not have an initial value,
+   * get value() returns an error if it's not set
+   * (you're supposed to use optionalValue).
    */
   constructor(
     valueConstructor: (...args: SetArgs) => T,
@@ -59,6 +67,13 @@ export class LwwArgsCRegister<
 
   protected aggregate(conflictsMeta: AggregateCRegisterMeta<T>[]) {
     return lwwAggregate(conflictsMeta, this.initialValue);
+  }
+
+  // TODO: move to Lww/Fww only (doesn't seem generally
+  // useful).
+  get optionalValue(): Optional<T> {
+    if (this.state.length === 0) return Optional.empty();
+    else return Optional.of(this.value);
   }
 }
 
@@ -110,5 +125,12 @@ export class FwwArgsCRegister<
 
   protected aggregate(conflictsMeta: AggregateCRegisterMeta<T>[]) {
     return fwwAggregate(conflictsMeta, this.initialValue);
+  }
+
+  // TODO: move to Lww/Fww only (doesn't seem generally
+  // useful).
+  get optionalValue(): Optional<T> {
+    if (this.state.length === 0) return Optional.empty();
+    else return Optional.of(this.value);
   }
 }

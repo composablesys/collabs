@@ -1,99 +1,69 @@
 import {
-  AggregateCRegisterMessage,
-  AggregateCRegisterSave,
+  AggregateArgsCRegisterMessage,
+  AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
   DefaultElementSerializer,
   ElementSerializer,
-  Optional,
   SingletonSerializer,
 } from "../../util";
-import { CrdtEvent, PrimitiveCrdt } from "../core";
-import { ResettableEventsRecord } from "../helper_crdts";
-import { CRegister } from "./interfaces";
+import { PrimitiveCrdt } from "../core";
+import { CRegister, CRegisterEventsRecord } from "./interfaces";
 
-// TODO: mention as other examples, e.g., a color averager.
-// Demo that on whiteboard?
+export interface CRegisterEntryMeta<T> {
+  readonly value: T;
+  readonly sender: string;
+  readonly senderCounter: number;
+  readonly time: number;
+}
 
-export class AggregateCRegisterMeta<T> {
-  private cachedValue?: T;
+class AggregateArgsCRegisterEntry<T> implements CRegisterEntryMeta<T> {
   constructor(
-    readonly argsSerialized: Uint8Array,
+    readonly value: T,
     readonly sender: string,
     readonly senderCounter: number,
     readonly time: number,
-    private readonly parent: AggregateArgsCRegister<T, any>
+    readonly argsSerialized: Uint8Array
   ) {}
-
-  get value(): T {
-    if (this.parent.preserveReferences) {
-      if (this.cachedValue === undefined) {
-        this.cachedValue = this.parent.valueConstructor(
-          ...this.parent.argsSerializer.deserialize(
-            this.argsSerialized,
-            this.parent.runtime
-          )
-        );
-      }
-      return this.cachedValue;
-    } else {
-      return this.parent.valueConstructor(
-        ...this.parent.argsSerializer.deserialize(
-          this.argsSerialized,
-          this.parent.runtime
-        )
-      );
-    }
-  }
 }
 
-export interface AggregateCRegisterReceiveEvent<T> extends CrdtEvent {
-  value: T;
-}
-
-export interface AggregateCRegisterEventsRecord<T>
-  extends ResettableEventsRecord {
-  /**
-   * Emitted whenever a value is received from another
-   * replica, even if it does not become the actual
-   * value.
-   */
-  Receive: AggregateCRegisterReceiveEvent<T>;
-}
-
+/**
+ * TODO: mention a color averager as an advanced example.
+ * Demo on whiteboard?
+ */
 export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
   extends PrimitiveCrdt<
-    AggregateCRegisterMeta<T>[],
-    AggregateCRegisterEventsRecord<T>
+    { entries: AggregateArgsCRegisterEntry<T>[] },
+    CRegisterEventsRecord
   >
   implements CRegister<T, SetArgs>
 {
   private cachedValue: T | undefined = undefined;
   private cacheValid: boolean = false;
+
   constructor(
     readonly valueConstructor: (...args: SetArgs) => T,
-    readonly argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance(),
-    readonly preserveReferences = false
+    readonly argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super([]);
+    super({ entries: [] });
   }
 
   set(...args: SetArgs) {
-    let message = AggregateCRegisterMessage.create({
+    let message = AggregateArgsCRegisterMessage.create({
       setArgs: this.argsSerializer.serialize(args),
     });
-    let buffer = AggregateCRegisterMessage.encode(message).finish();
+    let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
     super.send(buffer);
   }
 
   reset() {
     // Only reset if needed
     if (!this.canGc()) {
-      let message = AggregateCRegisterMessage.create({
+      let message = AggregateArgsCRegisterMessage.create({
         reset: true,
       }); // no value
-      let buffer = AggregateCRegisterMessage.encode(message).finish();
+      let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
       super.send(buffer);
     }
   }
@@ -102,10 +72,10 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    let decoded = AggregateCRegisterMessage.decode(message);
+    let decoded = AggregateArgsCRegisterMessage.decode(message);
     let vc = timestamp.asVectorClock();
-    let newState = new Array<AggregateCRegisterMeta<T>>();
-    for (let entry of this.state) {
+    let newState = new Array<AggregateArgsCRegisterEntry<T>>();
+    for (let entry of this.state.entries) {
       let vcEntry = vc.get(entry.sender);
       if (vcEntry === undefined || vcEntry < entry.senderCounter) {
         newState.push(entry);
@@ -114,48 +84,41 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
     switch (decoded.data) {
       case "setArgs":
         // Add the new entry
-        const valueMeta = new AggregateCRegisterMeta(
-          decoded.setArgs,
+        const entry = new AggregateArgsCRegisterEntry(
+          this.constructValue(decoded.setArgs),
           timestamp.getSender(),
           timestamp.getSenderCounter(),
           timestamp.getTime(),
-          this
+          decoded.setArgs
         );
-        newState.push(valueMeta);
-        this.setNewState(newState);
-        // TODO: way to avoid double deserialization (
-        // if preserveReferences is false) / possible
-        // too early or unneeded deserialization?
-        // Also, if we're going to construct it right
-        // away anyway, it is probably more efficient
-        // to cache the value (treat preserveReferences
-        // as true always).
-        // One option would be to avoid emitting this if
-        // you know there are no listeners
-        this.emit("Receive", { value: valueMeta.value, timestamp });
+        newState.push(entry);
         break;
       case "reset":
-        this.setNewState(newState);
-        this.emit("Reset", { timestamp });
+        // Add nothing new to newState
         break;
       default:
         throw new Error(
           "AggregateCRegister: Bad decoded.data: " + decoded.data
         );
     }
+    this.setNewState(newState);
+    this.emit("Set", { timestamp });
     this.cacheValid = false;
     this.cachedValue = undefined;
   }
 
-  private setNewState(newState: AggregateCRegisterMeta<T>[]): void {
+  private constructValue(argsSerialized: Uint8Array): T {
+    return this.valueConstructor(
+      ...this.argsSerializer.deserialize(argsSerialized, this.parent.runtime)
+    );
+  }
+
+  private setNewState(newState: AggregateArgsCRegisterEntry<T>[]): void {
     // Sort by sender, to make the order deterministic.
     // Note senders are always all distinct.
     newState.sort((a, b) => (a.sender < b.sender ? -1 : 1));
     // Replace this.state with newState
-    // TODO: nest the array in another object, so that
-    // we can directly replace the arrays instead?
-    // May be more efficient.
-    this.state.splice(0, this.state.length, ...newState);
+    this.state.entries = newState;
   }
 
   get value(): T {
@@ -164,11 +127,6 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
       this.cacheValid = true;
     }
     return this.cachedValue!;
-  }
-
-  get optionalValue(): Optional<T> {
-    if (this.state.length === 0) return Optional.empty();
-    else return Optional.of(this.value);
   }
 
   /**
@@ -183,7 +141,7 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
    * in lexicographic order by sender.
    */
   conflicts(): T[] {
-    return this.state.map((entry) => entry.value);
+    return this.state.entries.map((entry) => entry.value);
   }
 
   /**
@@ -193,18 +151,18 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
    * values in the same order on all replicas, namely,
    * in lexicographic order by sender.
    */
-  conflictsMeta(): AggregateCRegisterMeta<T>[] {
+  conflictsMeta(): CRegisterEntryMeta<T>[] {
     // Defensive copy
-    return this.state.slice();
+    return this.state.entries.slice();
   }
 
   canGc(): boolean {
-    return this.state.length === 0;
+    return this.state.entries.length === 0;
   }
 
   savePrimitive(): Uint8Array {
-    const message = AggregateCRegisterSave.create({
-      elements: this.state.map((entry) => {
+    const message = AggregateArgsCRegisterSave.create({
+      entries: this.state.entries.map((entry) => {
         return {
           setArgs: entry.argsSerialized,
           sender: entry.sender,
@@ -213,19 +171,19 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
         };
       }),
     });
-    return AggregateCRegisterSave.encode(message).finish();
+    return AggregateArgsCRegisterSave.encode(message).finish();
   }
 
   loadPrimitive(saveData: Uint8Array) {
-    const message = AggregateCRegisterSave.decode(saveData);
-    for (let element of message.elements) {
-      this.state.push(
-        new AggregateCRegisterMeta(
-          element.setArgs,
+    const message = AggregateArgsCRegisterSave.decode(saveData);
+    for (let element of message.entries) {
+      this.state.entries.push(
+        new AggregateArgsCRegisterEntry(
+          this.constructValue(element.setArgs),
           element.sender,
           element.senderCounter,
           element.time,
-          this
+          element.setArgs
         )
       );
     }
@@ -236,28 +194,23 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
    *
    * Note that conflictsMeta might be empty (initial/reset
    * state).  Order is eventually consistent, so it is okay
-   * to depend on it.
+   * to depend on the order.
+   *
    * @param  conflictsMeta [description]
    * @return               [description]
    */
-  protected abstract aggregate(conflictsMeta: AggregateCRegisterMeta<T>[]): T;
+  protected abstract aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): T;
 }
 
 export abstract class AggregateCRegister<T> extends AggregateArgsCRegister<
   T,
   [T]
 > {
-  // TODO: can we optimize the serializers (creating only
-  // one per LwwMap, say) when they're not the default?
   constructor(
     readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
     readonly preserveReferences = false
   ) {
-    super(
-      (value) => value,
-      SingletonSerializer.of(valueSerializer),
-      preserveReferences
-    );
+    super((value) => value, SingletonSerializer.of(valueSerializer));
   }
 
   set value(value: T) {

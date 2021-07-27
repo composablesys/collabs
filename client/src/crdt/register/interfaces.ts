@@ -2,10 +2,10 @@ import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
 export interface CRegisterEventsRecord extends CrdtEventsRecord {
   /**
-   * Emitted whenever the value is set (or changed,
-   * in general).
+   * Emitted whenever the value is set or otherwise
+   * changed.
    *
-   * Listening on this event is preferable to listening
+   * You should listen on this event instead of
    * on Change events, since a logical Set event may
    * emit multiple Change events, with all but the last
    * corresponding to a transient internal state.
