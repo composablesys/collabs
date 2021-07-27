@@ -5,15 +5,26 @@ import { CBoolean } from "./interfaces";
 
 /** Enable-wins flag */
 export class TrueWinsCBoolean
-  extends MakeAbstractCBoolean(
-    ResetWrapClass(NoopCrdt, true, false)
-  )<CRegisterEventsRecord>
+  extends MakeAbstractCBoolean(ResetWrapClass(NoopCrdt, true, false))<
+    CRegisterEventsRecord<boolean>
+  >
   implements CBoolean, Resettable
 {
+  private previousValue = false;
+
   constructor() {
     super();
-    // TODO: better events (will be easier with reimplementation)
-    this.on("Change", (event) => this.emit("Set", event));
+    // Events
+    this.on("Change", (event) => {
+      if (this.previousValue !== this.value) {
+        // It did indeed change.
+        this.previousValue = this.value;
+        this.emit("Set", {
+          timestamp: event.timestamp,
+          previousValue: !this.value,
+        });
+      }
+    });
   }
 
   get value(): boolean {
@@ -24,17 +35,34 @@ export class TrueWinsCBoolean
     if (value) this.original.noop();
     else this.reset();
   }
+
+  postLoad() {
+    this.previousValue = this.value;
+  }
 }
 
 /** Disable-wins flag */
 export class FalseWinsCBoolean
-  extends MakeAbstractCBoolean(
-    ResetWrapClass(NoopCrdt, true, false)
-  )<CRegisterEventsRecord>
+  extends MakeAbstractCBoolean(ResetWrapClass(NoopCrdt, true, false))<
+    CRegisterEventsRecord<boolean>
+  >
   implements CBoolean, Resettable
 {
+  private previousValue = true;
+
   constructor() {
     super();
+    // Events
+    this.on("Change", (event) => {
+      if (this.previousValue !== this.value) {
+        // It did indeed change.
+        this.previousValue = this.value;
+        this.emit("Set", {
+          timestamp: event.timestamp,
+          previousValue: !this.value,
+        });
+      }
+    });
   }
 
   get value(): boolean {
@@ -44,5 +72,9 @@ export class FalseWinsCBoolean
   set value(value: boolean) {
     if (!value) this.original.noop();
     else this.reset();
+  }
+
+  postLoad() {
+    this.previousValue = this.value;
   }
 }

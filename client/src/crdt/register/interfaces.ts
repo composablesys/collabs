@@ -1,6 +1,11 @@
+import { Optional } from "../../util/optional";
 import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface CRegisterEventsRecord extends CrdtEventsRecord {
+export interface CRegisterEvent<T> extends CrdtEvent {
+  previousValue: T;
+}
+
+export interface CRegisterEventsRecord<T> extends CrdtEventsRecord {
   /**
    * Emitted whenever the value is set or otherwise
    * changed.
@@ -10,7 +15,7 @@ export interface CRegisterEventsRecord extends CrdtEventsRecord {
    * emit multiple Change events, with all but the last
    * corresponding to a transient internal state.
    */
-  Set: CrdtEvent;
+  Set: CRegisterEvent<T>;
 }
 
 /**
@@ -30,7 +35,7 @@ export interface CRegisterEventsRecord extends CrdtEventsRecord {
 export interface CRegister<
   T,
   SetArgs extends any[] = [T],
-  Events extends CRegisterEventsRecord = CRegisterEventsRecord
+  Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
 > extends Crdt<Events> {
   /**
    * Sends args to every replica in serialized form.
@@ -48,4 +53,33 @@ export interface CRegister<
    * for this.set(x).
    */
   readonly value: T;
+}
+
+export interface OptionalCRegisterEvent<T> extends CRegisterEvent<T> {
+  previousOptionalValue: Optional<T>;
+}
+
+export interface OptionalCRegisterEventsRecord<T>
+  extends CRegisterEventsRecord<T> {
+  OptionalSet: OptionalCRegisterEvent<T>;
+}
+
+/**
+ * An extension of CRegister<T, SetArgs> in which the
+ * value may be "unset", throwing an error.
+ * E.g., in some implementations,
+ * when the register is first initialized, throwing
+ * an error is more
+ * reasonable than trying to come up with an
+ * initial value.  optionalValue can be used to query
+ * the value safely.  Likewise, in the Set event,
+ * previousOptionalValue can be used to query the
+ * previousValue safely.
+ */
+export interface OptionalCRegister<
+  T,
+  SetArgs extends any[] = [T],
+  Events extends OptionalCRegisterEventsRecord<T> = OptionalCRegisterEventsRecord<T>
+> extends CRegister<T, SetArgs, Events> {
+  readonly optionalValue: Optional<T>;
 }

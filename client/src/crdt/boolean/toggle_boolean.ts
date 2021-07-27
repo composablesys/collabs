@@ -9,7 +9,7 @@ export class ToggleCBoolean
     {
       value: boolean;
     },
-    CRegisterEventsRecord
+    CRegisterEventsRecord<boolean>
   >
   implements CBoolean
 {
@@ -36,7 +36,7 @@ export class ToggleCBoolean
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
     this.state.value = !this.state.value;
-    this.emit("Set", { timestamp });
+    this.emit("Set", { timestamp, previousValue: !this.state.value });
   }
 
   protected savePrimitive(): Uint8Array {
