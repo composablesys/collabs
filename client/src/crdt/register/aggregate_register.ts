@@ -122,6 +122,13 @@ export abstract class AggregateArgsCRegister<T, SetArgs extends any[]>
   }
 
   get value(): T {
+    // Note: it is important for LwwCRegister that we don't
+    // call aggregate until a call to value(), so that if
+    // LwwCRegister chooses to
+    // throw an error in the initial state, it will only
+    // be thrown during value.  If we remove this caching,
+    // LwwCRegister will need to throw no error in aggregate
+    // and instead override value() to throw an error.
     if (!this.cacheValid) {
       this.cachedValue = this.aggregate(this.conflictsMeta());
       this.cacheValid = true;
