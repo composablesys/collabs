@@ -15,6 +15,7 @@ import { Resettable } from "../helper_crdts";
 
 export interface CCounterEvent extends CrdtEvent {
   readonly arg: number;
+  readonly previousValue: number;
 }
 
 export interface CCounterEventsRecord extends CrdtEventsRecord {
@@ -101,6 +102,7 @@ export class GrowOnlyCCounter
     message: Uint8Array
   ): void {
     let decoded = GrowOnlyCCounterMessage.decode(message);
+    const previousValue = this.value;
     switch (decoded.data) {
       case "add":
         const m = this.state.M.get(timestamp.getSender());
@@ -121,10 +123,10 @@ export class GrowOnlyCCounter
         this.emit("Add", {
           arg: decoded.add!.toAdd,
           timestamp,
+          previousValue,
         });
         break;
       case "reset":
-        const startingValue = this.value;
         for (let vEntry of Object.entries(decoded.reset!.V!)) {
           const m = this.state.M.get(vEntry[0]);
           if (m !== undefined && m[2] === vEntry[1].idCounter) {
@@ -147,7 +149,11 @@ export class GrowOnlyCCounter
             (this.valueInternal + m[0] - m[1]) % GrowOnlyCCounter.MODULUS;
         }
 
-        this.emit("Reset", { arg: this.value - startingValue, timestamp });
+        this.emit("Reset", {
+          arg: this.value - previousValue,
+          timestamp,
+          previousValue,
+        });
         break;
       default:
         throw new Error("Unknown decoded.data: " + decoded.data);
@@ -185,7 +191,7 @@ export class GrowOnlyCCounter
 
 export class CCounter
   extends CompositeCrdt<CCounterEventsRecord>
-  implements Resettable 
+  implements Resettable
 {
   /**
    * To prevent overflow into unsafe integers, whose
@@ -211,10 +217,7 @@ export class CCounter
     this.minus = this.addChild("0", new GrowOnlyCCounter());
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
-      this.emit("Add", {
-        arg: -event.arg,
-        timestamp: event.timestamp,
-      })
+      this.emit("Add", { ...event, arg: -event.arg })
     );
     this.plus.on("Reset", (event) => {
       // We don't know the full arg until after minus
@@ -223,11 +226,11 @@ export class CCounter
     });
     this.minus.on("Reset", (event) => {
       this.emit("Reset", {
+        ...event,
         // Subtraction without modulo is okay because each
         // value is in the range [0, MODULUS), so the
         // difference is in the safe range (-MODULUS, MODULUS).
         arg: this.plusResetArg! - event.arg,
-        timestamp: event.timestamp,
       });
       delete this.plusResetArg;
     });

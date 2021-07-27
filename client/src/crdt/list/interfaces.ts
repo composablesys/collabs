@@ -1,16 +1,22 @@
+import { Optional } from "../../util";
 import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface CListEvent extends CrdtEvent {
+export interface CListEvent<T> extends CrdtEvent {
   index: number;
+  /**
+   * Present if there was value set previously (e.g.
+   * for Delete).
+   */
+  previousValue: Optional<T>;
 }
 
-export interface CListEventsRecord extends CrdtEventsRecord {
-  Insert: CListEvent;
+export interface CListEventsRecord<T> extends CrdtEventsRecord {
+  Insert: CListEvent<T>;
   /**
    * Index gives the former index (immediately before
    * deleting).
    */
-  Delete: CListEvent;
+  Delete: CListEvent<T>;
 }
 
 /**
@@ -30,7 +36,7 @@ export interface CListEventsRecord extends CrdtEventsRecord {
 export interface CList<
   T,
   InsertArgs extends any[] = [T],
-  Events extends CListEventsRecord = CListEventsRecord
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>
 > extends Crdt<Events> {
   /**
    * Sends args to every replica in serialized form.

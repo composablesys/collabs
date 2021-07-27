@@ -1,20 +1,29 @@
+import { Optional } from "../../util/optional";
 import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface CMapEvent<K> extends CrdtEvent {
+export interface CMapEvent<K, V> extends CrdtEvent {
   key: K;
+  /**
+   * Present if there was value set previously (e.g.
+   * for Delete, or for Set when there was already
+   * a value set).
+   */
+  previousValue: Optional<V>;
 }
 
-export interface CMapEventsRecord<K> extends CrdtEventsRecord {
+export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
   /**
-   * TODO: in MutCMap's, this is also emitted when
+   * TODO: in MutCMap's, this is emitted not just
+   * when the value is set (including if already
+   * set and maybe changed) but also when
    * a previously-existing value's key is restored,
    * even if the value object remained the same.
    * It is NOT emitted each time the value mutates
    * internally (for that, add your own event listeners
-   * in ValueInit).
+   * in the valueConstructor).
    */
-  Set: CMapEvent<K>;
-  Delete: CMapEvent<K>;
+  Set: CMapEvent<K, V>;
+  Delete: CMapEvent<K, V>;
 }
 
 /**
@@ -35,7 +44,7 @@ export interface CMap<
   K,
   V,
   SetArgs extends any[] = [V],
-  Events extends CMapEventsRecord<K> = CMapEventsRecord<K>
+  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 > extends Crdt<Events> {
   /**
    * Sends args to every replica in serialized form.

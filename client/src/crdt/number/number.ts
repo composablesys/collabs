@@ -5,6 +5,7 @@ import { CrdtEvent, CrdtEventsRecord, PrimitiveCrdt } from "../core";
 
 export interface CNumberEvent extends CrdtEvent {
   readonly arg: number;
+  readonly previousValue: number;
 }
 
 export interface CNumberEventsRecord extends CrdtEventsRecord {
@@ -39,10 +40,12 @@ export class AddComponent extends PrimitiveCrdt<
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = CNumberComponentMessage.decode(message);
+    const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
       timestamp,
       arg: decoded.arg,
+      previousValue,
     });
   }
 
@@ -81,10 +84,12 @@ export class MultComponent extends PrimitiveCrdt<
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
     let decoded = CNumberComponentMessage.decode(message);
+    const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
       timestamp,
       arg: decoded.arg,
+      previousValue,
     });
   }
 
