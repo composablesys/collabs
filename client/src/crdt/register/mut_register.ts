@@ -6,26 +6,32 @@ import {
 import { CompositeCrdt, Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
 import { DeletingMutCSet, DeletingMutCSetValueSerializer } from "../set";
-import { AggregateCRegisterMeta } from "./aggregate_register";
-import { CRegister } from "./interfaces";
-import { FwwCRegister, LwwCRegister } from "./wins_registers";
+import { CRegisterEntryMeta } from "./aggregate_register";
+import { CRegister, CRegisterEventsRecord } from "./interfaces";
+import { LwwCRegister } from "./wins_registers";
 
-// TODO: events: default change events will be odd because
-// you'll see intermediate states if you listen to all that.
-// Perhaps this is an argument for a Set: CrdtEvent in general?
-
-export class MutCRegister<C extends Crdt, SetArgs extends any[]>
-  extends CompositeCrdt
-  implements CRegister<Optional<C>, SetArgs>, Resettable
+export class MutCRegisterFromRegister<
+    C extends Crdt,
+    SetArgs extends any[],
+    R extends CRegister<C>
+  >
+  extends CompositeCrdt<CRegisterEventsRecord>
+  implements CRegister<C, SetArgs>
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
-  // TODO: use custom interface description CRegister +
-  // conflicts etc. methods, instead of this union type?
-  protected readonly register: FwwCRegister<C> | LwwCRegister<C>;
+  protected readonly register: R;
 
+  /**
+   * Note initial value behavior (including possibly
+   * throwing errors on get value() in the initial state)
+   * depends on that of the register returned by
+   * registerCallback.
+   *
+   * @param registerCallback [description]
+   */
   constructor(
+    registerCallback: (valueSerializer: ElementSerializer<C>) => R,
     valueConstructor: (...args: SetArgs) => C,
-    writerWinsRule: "first" | "last" = "last",
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
@@ -33,44 +39,22 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
       "",
       new DeletingMutCSet(valueConstructor, [], argsSerializer)
     );
-    // Initial value hacking is okay since we only ever
-    // consult optionalValue.
-    const serializer = new DeletingMutCSetValueSerializer(this.crdtFactory);
-    switch (writerWinsRule) {
-      case "first":
-        this.register = this.addChild(
-          "0",
-          new FwwCRegister<C>(undefined as unknown as C, serializer)
-        );
-        break;
-      case "last":
-        this.register = this.addChild(
-          "0",
-          new LwwCRegister<C>(undefined as unknown as C, serializer)
-        );
-        break;
-    }
+    this.register = this.addChild(
+      "0",
+      registerCallback(new DeletingMutCSetValueSerializer(this.crdtFactory))
+    );
 
-    // TODO: events.  Including ValueInit, restore?
+    // Events
+    this.register.on("Set", (event) => this.emit("Set", event));
   }
 
   set(...args: SetArgs): void {
     this.crdtFactory.clear();
-    // TypeScript doesn't understand that value is of type
-    // C, not an arbitrary T, due to the union type
-    (this.register.value as C) = this.crdtFactory.add(...args);
+    this.register.set(this.crdtFactory.add(...args));
   }
 
-  get value(): Optional<C> {
-    return this.register.optionalValue;
-  }
-
-  conflicts(): C[] {
-    return this.register.conflicts();
-  }
-
-  conflictsMeta(): AggregateCRegisterMeta<C>[] {
-    return this.register.conflictsMeta();
+  get value(): C {
+    return this.register.value;
   }
 
   owns(value: C): boolean {
@@ -93,10 +77,6 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
    */
   isUsable(value: C): boolean {
     return this.crdtFactory.has(value);
-  }
-
-  usableValues(): IterableIterator<C> {
-    return this.crdtFactory.values();
   }
 
   /**
@@ -130,14 +110,40 @@ export class MutCRegister<C extends Crdt, SetArgs extends any[]>
     if (!this.isUsable(value)) {
       throw new Error("value is not usable");
     }
-    // TypeScript doesn't understand that value is of type
-    // C, not an arbitrary T, due to the union type
-    (this.register.value as C) = value;
+    this.register.set(value);
+  }
+}
+
+/**
+ * TODO: initial value (including after reset) throws
+ * an error; optionalValue is the safe way to access it.
+ */
+export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
+  extends MutCRegisterFromRegister<C, SetArgs, LwwCRegister<C>>
+  implements Resettable
+{
+  constructor(
+    valueConstructor: (...args: SetArgs) => C,
+    argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
+  ) {
+    super(
+      (registerValueSerializer) =>
+        new LwwCRegister({ error: true }, registerValueSerializer),
+      valueConstructor,
+      argsSerializer
+    );
   }
 
-  clear() {
-    this.crdtFactory.clear();
-    this.register.reset();
+  get optionalValue(): Optional<C> {
+    return this.register.optionalValue;
+  }
+
+  conflicts(): C[] {
+    return this.register.conflicts();
+  }
+
+  conflictsMeta(): CRegisterEntryMeta<C>[] {
+    return this.register.conflictsMeta();
   }
 
   reset() {
