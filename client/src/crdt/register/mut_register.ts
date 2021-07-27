@@ -7,15 +7,21 @@ import { CompositeCrdt, Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
 import { DeletingMutCSet, DeletingMutCSetValueSerializer } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
-import { CRegister, CRegisterEventsRecord } from "./interfaces";
+import {
+  CRegister,
+  CRegisterEventsRecord,
+  OptionalCRegister,
+  OptionalCRegisterEventsRecord,
+} from "./interfaces";
 import { LwwCRegister } from "./wins_registers";
 
 export class MutCRegisterFromRegister<
     C extends Crdt,
     SetArgs extends any[],
-    R extends CRegister<C>
+    R extends CRegister<C>,
+    Events extends CRegisterEventsRecord<C> = CRegisterEventsRecord<C>
   >
-  extends CompositeCrdt<CRegisterEventsRecord>
+  extends CompositeCrdt<Events>
   implements CRegister<C, SetArgs>
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
@@ -115,12 +121,18 @@ export class MutCRegisterFromRegister<
 }
 
 /**
- * TODO: initial value (including after reset) throws
+ * Initial value (including after reset) throws
  * an error; optionalValue is the safe way to access it.
+ * Sim for SetOptional event and its previousOptionalValue.
  */
 export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
-  extends MutCRegisterFromRegister<C, SetArgs, LwwCRegister<C>>
-  implements Resettable
+  extends MutCRegisterFromRegister<
+    C,
+    SetArgs,
+    LwwCRegister<C>,
+    OptionalCRegisterEventsRecord<C>
+  >
+  implements OptionalCRegister<C, SetArgs>, Resettable
 {
   constructor(
     valueConstructor: (...args: SetArgs) => C,
@@ -132,6 +144,9 @@ export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
       valueConstructor,
       argsSerializer
     );
+
+    // Events
+    this.register.on("OptionalSet", (event) => this.emit("OptionalSet", event));
   }
 
   get optionalValue(): Optional<C> {
