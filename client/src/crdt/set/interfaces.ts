@@ -4,42 +4,9 @@ export interface CSetEvent<T> extends CrdtEvent {
   value: T;
 }
 
-/**
- * Note that this doesn't extend CrdtEvent, because
- * values may be initialized independently of
- * operations/message delivery, in which case there is
- * no associated timestamp.
- */
-export interface CSetInitEvent<T> {
-  value: T;
-}
-
 export interface CSetEventsRecord<T> extends CrdtEventsRecord {
   Add: CSetEvent<T>;
   Delete: CSetEvent<T>;
-  /**
-   * Emitted when a value is constructed.
-   * Use this when values are objects and you need to
-   * do something with the objects themselves, not just
-   * an equal copy.  E.g., registering event listeners
-   * on Crdt values.
-   *
-   * Note that this may be emitted multiple times for the
-   * same value (if a value is GC'd and then
-   * reconstructed), it may not correspond precisely
-   * to Add events, and it may be called independently of
-   * operations/message delivery.
-   *
-   * If you are maintaining a view of a set by tracking Add/Delete
-   * events, you don't need to worry about ValueInit events.
-   * Specifically, you don't have to worry that one of the
-   * values in your view might be GC'd and replaced with
-   * a different but equivalent value.  This is because
-   * implementations
-   * will use WeakRefs to ensure that only reference-free
-   * values are GC'd.
-   */
-  ValueInit: CSetInitEvent<T>;
 }
 
 /**
@@ -91,7 +58,7 @@ export interface CSet<
   ): void;
 
   /**
-   * Iterates over values in the set.
+   * Returns an iterable of values in the set.
    *
    * The iteration order is NOT eventually consistent, i.e.,
    * it may differ on replicas with the same state.

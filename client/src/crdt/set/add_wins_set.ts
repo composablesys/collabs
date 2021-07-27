@@ -1,49 +1,58 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../helper_crdts";
-import { ImplicitCrdtMap } from "../map";
+import { GrowOnlyImplicitMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
-// TODO: check event types once ImplicitCrdtMap is rewritten
-export class BooleanCSet<T> extends AbstractCSetCompositeCrdt<T, [T]> {
-  private readonly booleanMap: ImplicitCrdtMap<T, CBoolean>;
+export class CSetFromBoolean<
+  T,
+  B extends CBoolean
+> extends AbstractCSetCompositeCrdt<T, [T]> {
+  private readonly booleanMap: GrowOnlyImplicitMutCMap<T, B>;
+  // View of the set size, cached for efficiency.
+  private cachedSize = 0;
   /**
-   * TODO: booleans must start false.  If you want
+   * Booleans must start false.  If you want
    * different behavior, you should wrap around this
    * set (e.g., negate has to make everything start
    * in the set, or do something else if you want it
    * to start containing some elements but not others).
    */
   constructor(
-    booleanConstructor: () => CBoolean,
+    private readonly booleanConstructor: () => B,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
     this.booleanMap = this.addChild(
       "",
-      new ImplicitCrdtMap(booleanConstructor, valueSerializer)
+      new GrowOnlyImplicitMutCMap(
+        this.internalBooleanConstructor.bind(this),
+        valueSerializer
+      )
     );
+    // Events emitters are setup by internalBooleanConstructor
+  }
 
-    // Events
-    // TODO: optimize to reduce closures?
-    this.booleanMap.on("ValueInit", (event) => {
-      event.value.on("Change", (event2) => {
-        if (this.has(event.key)) {
-          this.emit("Add", { value: event.key, timestamp: event2.timestamp });
-        } else {
-          this.emit("Delete", {
-            value: event.key,
-            timestamp: event2.timestamp,
-          });
-        }
-      });
+  private internalBooleanConstructor(key: T): B {
+    const bool = this.booleanConstructor();
+    // Add event listeners
+    bool.on("Set", (event) => {
+      if (!event.previousValue && bool.value) {
+        this.cachedSize++;
+        this.emit("Add", { value: key, timestamp: event.timestamp });
+      } else if (event.previousValue && !bool.value) {
+        this.cachedSize--;
+        this.emit("Delete", {
+          value: key,
+          timestamp: event.timestamp,
+        });
+      }
     });
+    return bool;
   }
 
   add(value: T): T {
     this.booleanMap.get(value).value = true;
-    // TODO: return clone instead, to emphasize that it's
-    // a clone in general?
     return value;
   }
 
@@ -51,29 +60,39 @@ export class BooleanCSet<T> extends AbstractCSetCompositeCrdt<T, [T]> {
     this.booleanMap.get(value).value = false;
   }
 
-  // Use inherited clear implementation (delete every value)
+  // Use inherited clear implementation (delete every value).
 
   has(value: T): boolean {
-    if (this.booleanMap.has(value)) {
-      return this.booleanMap.get(value).value;
-    } else return false;
+    const bool = this.booleanMap.getIfPresent(value);
+    return bool === undefined ? false : bool.value;
   }
 
   get size(): number {
-    // TODO: make run in constant time
-    let count = 0;
-    for (let _value of this) count++;
-    return count;
+    return this.cachedSize;
   }
 
   *values(): IterableIterator<T> {
-    for (let [key, valueBool] of this.booleanMap) {
+    for (const [key, valueBool] of this.booleanMap) {
       if (valueBool.value) yield key;
+    }
+  }
+
+  postLoad() {
+    // Set this.cachedSize as a view of the set's size.
+    // TODO: would it be better to just save the size?
+    // It is only a few bytes of save space, vs this extra
+    // linear scan, although we already pay the linear time
+    // cost when loading booleanMap anyway.
+    for (const value of this.booleanMap.values()) {
+      if (value.value) this.cachedSize++;
     }
   }
 }
 
-export class AddWinsCSet<T> extends BooleanCSet<T> implements Resettable {
+export class AddWinsCSet<T>
+  extends CSetFromBoolean<T, TrueWinsCBoolean>
+  implements Resettable
+{
   constructor(
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {

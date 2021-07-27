@@ -30,7 +30,7 @@ import { AbstractCMap } from "./abstract_map";
  * delete and clear throw errors.  set has no effect, just
  * returning a value by calling get.
  */
-export class ImplicitMutCMap<K, C extends Crdt>
+export class GrowOnlyImplicitMutCMap<K, C extends Crdt>
   extends AbstractCMap<K, C, []>
   implements CrdtParent
 {
@@ -279,10 +279,10 @@ export class ImplicitMutCMap<K, C extends Crdt>
  * ResettingMutCMap construction, then we can instead just
  * move the resetting into that class.
  */
-export class ResettingImplicitMutCMap<
+export class ImplicitMutCMap<
   K,
   C extends Crdt & Resettable
-> extends ImplicitMutCMap<K, C> {
+> extends GrowOnlyImplicitMutCMap<K, C> {
   constructor(
     valueConstructor: (key: K) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
