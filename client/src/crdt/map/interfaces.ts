@@ -4,7 +4,7 @@ import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 export interface CMapSetEvent<K, V> extends CrdtEvent {
   key: K;
   /**
-   * Present if there was value set previously.
+   * Present if there was a value set previously at key.
    */
   previousValue: Optional<V>;
 }
@@ -12,21 +12,21 @@ export interface CMapSetEvent<K, V> extends CrdtEvent {
 export interface CMapDeleteEvent<K, V> extends CrdtEvent {
   key: K;
   /**
-   * The previously set value.
+   * The previously set value at key.
    */
   deletedValue: V;
 }
 
 export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
   /**
-   * TODO: in MutCMap's, this is emitted not just
+   * This is emitted not just
    * when the value is set (including if already
    * set and maybe changed) but also when
    * a previously-existing value's key is restored,
    * even if the value object remained the same.
    * It is NOT emitted each time the value mutates
-   * internally (for that, add your own event listeners
-   * in the valueConstructor).
+   * internally, in MutCMaps; for that, add your own event listeners
+   * in the valueConstructor.
    */
   Set: CMapSetEvent<K, V>;
   Delete: CMapDeleteEvent<K, V>;
