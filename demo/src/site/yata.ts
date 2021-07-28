@@ -1,6 +1,6 @@
 import * as crdts from "compoventuals-client";
 import { YataSave } from "../../generated/site/proto_compiled";
-import {Crdt} from "compoventuals-client";
+import { Crdt } from "compoventuals-client";
 
 export class YataOp<T> extends crdts.CompositeCrdt {
   readonly creatorId: string;
@@ -97,14 +97,14 @@ interface YataEventsRecord<T> extends crdts.CrdtEventsRecord {
   FormatExisting: YataFormatExistingEvent<T>;
 }
 
-type m1Args = [string[], Record<string, any>];
-type m2Args = [];
+type m1Args = [ids: string[], attributes: Record<string, any>];
+type m2Args<T> = [replicaId: string, leftIntent: string, rightIntent: string, content: T, originAttributeEntries: Record<string, any>, attributeEntries?: Record<string, any>];
 
 export class YataLinear<T> extends crdts.SemidirectProductRev<
   YataEventsRecord<T>,
   Crdt,
   m1Args,
-  m2Args
+  m2Args<T>
 > {
   private start: string = "";
   private end: string = "";
@@ -175,14 +175,6 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
 
   constructor(defaultContent: T, initialContents: T[]) {
     super();
-    this.m1Fn = (_id, _attributes) => {
-      for (const __id of _id) {
-        console.log("m1.id:", __id);
-        for (const attr in _attributes) {
-          this.op(__id).attributes.set(attr, _attributes[attr]);
-        }
-      }
-    };
     this.defaultContent = defaultContent;
     this.startOp = new YataOp("", "", "", "", defaultContent, 0, []);
     this.endOp = new YataOp(
@@ -299,25 +291,27 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
   protected action(
     m2TargetPath: string[],
     m2Timestamp: crdts.CausalTimestamp | null,
-    m2Message: crdts.m2Start<m2Args>,
+    m2Message: crdts.m2Start<m2Args<T>>,
     m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
     m1Timestamp: crdts.CausalTimestamp,
     m1Message: crdts.m1Start<m1Args>
   ) {
+    // The contents of this method does not include anything defined in a lower level class.
     let newM1 = m1Message;
-    const uidsOfFormattedOp = m1Message.args[0]; // This is the uid of the op.
     let m2Insertion: YataInsertEvent<string>;
-    for (let event of m2TrackedEvents) {
-      if (event[0] === "Insert") {
-        m2Insertion = event[1] as YataInsertEvent<string>;
+    for (let [name, event] of m2TrackedEvents) {
+      if (name === "Insert") {
+        m2Insertion = event as YataInsertEvent<string>;
       }
     }
     const uidOfInsertion = m2Insertion!.uid;
-    if (uidsOfFormattedOp.includes(this.op(uidOfInsertion)!.originId)) {
+    if (m1Message.args[0].includes(this.op(uidOfInsertion)!.originId)) {
       for (const pair of Object.entries(m1Message.args[1])) {
-        if (this.op(uidOfInsertion).attributes.get(pair[0]) ===
-        this.op(uidOfInsertion).originAttributesAtInput[pair[0]]) {
+        if (
+          this.op(uidOfInsertion).attributes.get(pair[0]) ===
+          this.op(uidOfInsertion).originAttributesAtInput[pair[0]]
+        ) {
           newM1.args[0] = newM1.args[0].concat([uidOfInsertion]);
         }
       }
@@ -325,32 +319,31 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     return { m1TargetPath, m1Message: newM1 };
   }
 
-  private insert(
-    replicaId: string,
-    leftIntent: string,
-    rightIntent: string,
-    content: T,
-    originAttributeEntries: Record<string, any>,
-    attributeEntries?: Record<string, any>
-  ): string {
-    return this.wrapM2<string>([], () => this.opMap.uidOf(
-      this.opMap.create(
-        replicaId,
-        leftIntent,
-        rightIntent,
-        content,
-        originAttributeEntries,
-        attributeEntries
-      )
-    ));
-  }
-
   private delete(id: string): void {
     this.op(id).delete();
   }
 
+  m1(ids: string[], attributes: Record<string, any>) {
+    for (const __id of ids) {
+      console.log("m1.id:", __id);
+      for (const attr in attributes) {
+        this.op(__id).attributes.set(attr, attributes[attr]);
+      }
+    }
+  }
+  
+  m2(...args: m2Args<T>): string {
+    return this.opMap.uidOf(
+      this.opMap.create(...args)
+    )
+  }
+
+  private insert(...args: m2Args<T>): string {
+    return this.m2(...args)
+  }
+  
   private changeAttributes(id: string, attributes: Record<string, any>): void {
-    this.runM1<void>([[id], attributes]);
+    this.m1([id], attributes);
   }
 
   // TODO: Make iterative instead of recursive
@@ -435,7 +428,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
       idLeftOfCursor,
       this.op(idLeftOfCursor).rightId,
       content,
-      Object.fromEntries([...this.op(idLeftOfCursor).attributes.entries()]),
+      Object.fromEntries([...this.op(idLeftOfCursor).attributes.entries()])!,
       attributeObj
     );
     // if (attributeObj) {

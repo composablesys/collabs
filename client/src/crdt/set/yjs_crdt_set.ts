@@ -90,7 +90,7 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
     DefaultElementSerializer.getInstance<[string, number]>();
 
   private ourCreatedCrdt: C | undefined = undefined;
-  protected receiveInternal(
+  protected receiveInternal( // TODO: Previous version does not support runLocally()
     targetPath: string[],
     timestamp: CausalTimestamp,
     message: Uint8Array
@@ -109,7 +109,7 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
 
           this.emit("Add", { value: newCrdt, timestamp });
 
-          if (timestamp.isLocal()) {
+          if (timestamp.isLocal() || this.runtime.isInRunLocally) { // Giving support for runLocally
             this.ourCreatedCrdt = newCrdt;
           }
           break;
