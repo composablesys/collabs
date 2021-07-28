@@ -119,6 +119,14 @@ export class PrimitiveCListFromDenseLocalList<
     }
   }
 
+  /**
+   * Note: event will show as varying bulk deletes,
+   * since the deleted values may not be contiguous anymore
+   * on other replicas.
+   *
+   * @param index   [description]
+   * @param count=1 [description]
+   */
   delete(index: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error("invalid count: " + count);

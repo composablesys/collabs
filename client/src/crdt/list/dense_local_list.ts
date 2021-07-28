@@ -40,7 +40,9 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * (but you may modify internal state, e.g., to make sure
    * the locs are not created again later).  The message
    * will be input to receiveNewLocs on all replicas,
-   * immediately on this replica.
+   * immediately on this replica.  The new locations must
+   * be unique, even in comparison to deleted values, because
+   * those deleted values may be reused.
    *
    * @param  index [description]
    * @param  count [description]
@@ -79,6 +81,9 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * will later be sent to all replicas (including this
    * one) by the caller and then passed to this.set,
    * instead of using prepareNewLocs / receiveNewLocs.
+   * The new locations must
+   * be unique, even in comparison to deleted values, because
+   * those deleted values may be reused.
    *
    * @param  index [description]
    * @param  count [description]

@@ -398,3 +398,35 @@ export interface CList<
    */
   slice(start?: number, end?: number): T[];
 }
+
+export interface MovableCListMoveEvent extends CrdtEvent {
+  startIndex: number;
+  count: number;
+  resultingStartIndex: number;
+}
+
+export interface MovableCListEventsRecord<T> extends CListEventsRecord<T> {
+  Move: MovableCListMoveEvent;
+}
+
+export interface MovableCList<
+  T,
+  InsertArgs extends any[] = [T],
+  Events extends MovableCListEventsRecord<T> = MovableCListEventsRecord<T>
+> extends CList<T, InsertArgs, Events> {
+  /**
+   * Move count values starting at startIndex
+   * so the end up as if they were just inserted
+   * at insertionIndex.
+   *
+   * @param  startIndex            [description]
+   * @param  insertionIndex [description]
+   * @param  count                 default 1
+   * @return the resulting start index, where the value at
+   * startIndex ended up.  This is different from
+   * insertionIndex when startIndex < insertionIndex,
+   * since moving the values out of their old locations
+   * causes all later values to be shifted left.
+   */
+  move(startIndex: number, insertionIndex: number, count?: number): number;
+}
