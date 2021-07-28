@@ -2,21 +2,23 @@ import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
 export interface CListInsertEvent extends CrdtEvent {
   /**
-   * The index of the newly inserted value.
+   * The index of the first newly inserted value.
    */
-  index: number;
+  startIndex: number;
+  count: number;
 }
 
 export interface CListDeleteEvent<T> extends CrdtEvent {
   /**
    * The former index (immediately before
-   * deleting).
+   * deleting) of the first newly deleted value
    */
-  index: number;
+  startIndex: number;
+  count: number;
   /**
-   * The previously set value at index.
+   * The previously set values at startIndex...(startIndex + count - 1).
    */
-  deletedValue: T;
+  deletedValues: T[];
 }
 
 export interface CListEventsRecord<T> extends CrdtEventsRecord {
@@ -62,14 +64,17 @@ export interface CList<
   insert(index: number, ...args: InsertArgs): T;
 
   /**
-   * Deletes count values starting at index (inclusive).
+   * Deletes count values starting at startIndex (inclusive).
    * All later values are
    * shifted count to the left.
    *
    * count is optional and defaults to 1, i.e., delete(index)
    * just deletes the value at index.
+   *
+   * @throws if count < 0 or is not an integer, or
+   * index + count >= this.length.
    */
-  delete(index: number, count?: number): void;
+  delete(startIndex: number, count?: number): void;
 
   /**
    * Returns the value at index.  If index is out of bounds,

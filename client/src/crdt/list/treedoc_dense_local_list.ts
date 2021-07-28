@@ -172,22 +172,17 @@ export class TreedocDenseLocalList<T>
     return index;
   }
 
-  delete(loc: TreedocLocWrapper): number | undefined {
-    let index: number | null;
-    [this.tree, index] = this.tree.remove(loc);
-    // TODO: change return value to undefined for not-found
-    // values instead of null, so this can just be "return index".
-    if (index !== null) {
-      // TODO: get value from remove (is this actually used?)
-      return index;
-    } else return undefined;
+  delete(loc: TreedocLocWrapper): [index: number, deletedValue: T] | undefined {
+    let ret: [number, T] | undefined;
+    [this.tree, ret] = this.tree.remove(loc);
+    return ret;
   }
 
   deleteRange(
     startLoc: TreedocLocWrapper,
     endLoc: TreedocLocWrapper,
     timestamp: CausalTimestamp,
-    ondelete: (index: number) => void
+    ondelete: (startIndex: number, count: number, deletedValues: T[]) => void
   ): void {
     const iter = this.tree.ge(startLoc);
     const vc = timestamp.asVectorClock();
@@ -210,9 +205,12 @@ export class TreedocDenseLocalList<T>
     // are valid both before and at the time of
     // deletion.
     for (let i = toDelete.length - 1; i >= 0; i--) {
-      let index: number | null;
-      [this.tree, index] = this.tree.remove(toDelete[i]);
-      ondelete(index!);
+      let ret: [number, T] | undefined;
+      [this.tree, ret] = this.tree.remove(toDelete[i]);
+      // TODO: bulk calls to ondelete, for efficiency.
+      // Also can we make that work with string?  (Use
+      // ArrayLike instead of array for deletedValues?)
+      ondelete(ret![0], 1, [ret![1]]);
     }
   }
 
@@ -268,11 +266,11 @@ export class TreedocDenseLocalList<T>
   }
 
   saveLocs(): Uint8Array {
-    throw new Error("Method not implemented.");
+    // TODO
   }
 
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void {
-    throw new Error("Method not implemented.");
+    // TODO
   }
 
   // Sequence stuff
@@ -389,14 +387,6 @@ export class TreedocDenseLocalList<T>
     // That is the first disagreement.
     if (i < a.length + 1) return [ai.index, ai, undefined];
     else return [bi.index, undefined, bi];
-  }
-
-  private createBetween(
-    before: TreedocLoc | null,
-    after: TreedocLoc | null,
-    count: number
-  ): TreedocLoc[] {
-    return this.expand(this.createBetweenSpecial(before, after, count), count);
   }
 
   private expand(startingId: TreedocLoc, count: number): TreedocLoc[] {

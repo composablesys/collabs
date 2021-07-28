@@ -6,7 +6,7 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   implements CList<T, InsertArgs>
 {
   abstract insert(index: number, ...args: InsertArgs): T;
-  abstract delete(index: number, count?: number): void;
+  abstract delete(startIndex: number, count?: number): void;
   abstract get(index: number): T;
   abstract values(): IterableIterator<T>;
   abstract readonly length: number;
@@ -161,7 +161,7 @@ export function MakeAbstractCList<
     }
 
     abstract insert(index: number, ...args: InsertArgs): T;
-    abstract delete(index: number, count?: number): void;
+    abstract delete(startIndex: number, count?: number): void;
     abstract get(index: number): T;
     abstract values(): IterableIterator<T>;
     abstract readonly length: number;

@@ -1,8 +1,13 @@
+message PrimitiveCListValueArrayMessage {
+  repeated bytes values = 1;
+}
+
 message PrimitiveCListInsertMessage {
   required bytes locMessage = 1;
   oneof type {
     bytes value = 2;
     bytes values = 3;
+    PrimitiveCListValueArrayMessage valuesArray = 4;
   }
 }
 
@@ -20,5 +25,8 @@ message PrimitiveCListMessage {
 
 message PrimitiveCListSave {
   required bytes locs = 1;
-  required bytes values = 2;
+  oneof valueType {
+    bytes values = 2;
+    PrimitiveCListValueArrayMessage valuesArray = 3;
+  }
 }

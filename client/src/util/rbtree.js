@@ -531,9 +531,9 @@ proto.find = function (key) {
 proto.remove = function (key) {
   var iter = this.find(key);
   if (iter) {
-    return [iter.remove(), iter.index];
+    return [iter.remove(), iter.index, iter.value];
   }
-  return [this, null];
+  return [this, undefined];
 };
 
 //Returns the item at `key`

@@ -1,6 +1,7 @@
 import {
   IPrimitiveCListDeleteMessage,
   IPrimitiveCListInsertMessage,
+  IPrimitiveCListSave,
   PrimitiveCListInsertMessage,
   PrimitiveCListMessage,
   PrimitiveCListSave,
@@ -16,22 +17,25 @@ import {
   TreedocLocWrapper,
 } from "./treedoc_dense_local_list";
 
-// TODO: specialize to default DenseLocalList.
-// Perhaps default I, and have a default constructor param
-// with unsafe typing?
-export class PrimitiveCList<T, I = TreedocLocWrapper>
-  extends AbstractCListPrimitiveCrdt<DenseLocalList<I, T>, T, [T]>
-  implements Resettable
-{
+export class PrimitiveCListFromDenseLocalList<
+  T,
+  L,
+  D extends DenseLocalList<L, T>
+> extends AbstractCListPrimitiveCrdt<D, T, [T]> {
+  /**
+   * @param denseLocalList                   [description]
+   * @param valueSerializer [description]
+   * @param valueArraySerializer (optional) optimized
+   * serializer for arrays of values during range ops.
+   * If undefined, then valueSerializer is used on each
+   * value instead.
+   */
   constructor(
-    private readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
-    private readonly valueArraySerializer: ElementSerializer<
-      T[]
-    > = DefaultElementSerializer.getInstance(),
-    denseLocalList: DenseLocalList<
-      I,
-      T
-    > = new TreedocDenseLocalList() as unknown as DenseLocalList<I, T>
+    denseLocalList: D,
+    protected readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    protected readonly valueArraySerializer:
+      | ElementSerializer<T[]>
+      | undefined = undefined
   ) {
     super(denseLocalList);
   }
@@ -41,34 +45,85 @@ export class PrimitiveCList<T, I = TreedocLocWrapper>
     this.state.setRuntime(this.runtime);
   }
 
-  // TODO: bounds checking.  Or should that be part of
-  // DenseLocalList?
-
   /**
+   * At least one value must be provided.  (TODO: we
+   * could mandate this with types by having an extra
+   * value param first, but then you can't use ...
+   * to input the values.)
    * @return the first value
    * @param  index          [description]
    * @param  value          [description]
    * @param  ...extraValues [description]
    * @return                [description]
    */
-  insert(index: number, value: T, ...extraValues: T[]): T {
-    const locMessage = this.state.prepareNewLocs(index, 1 + extraValues.length);
+  insert(index: number, ...values: T[]): T {
+    if (values.length === 0) {
+      throw new Error("At least one value must be provided");
+    }
+
+    const locMessage = this.state.prepareNewLocs(index, values.length);
     const imessage: IPrimitiveCListInsertMessage = { locMessage };
-    if (extraValues.length === 0) {
-      imessage.value = this.valueSerializer.serialize(value);
+    if (values.length === 1) {
+      imessage.value = this.valueSerializer.serialize(values[0]);
+    } else if (this.valueArraySerializer !== undefined) {
+      imessage.values = this.valueArraySerializer.serialize(values);
     } else {
-      imessage.values = this.valueArraySerializer.serialize([
-        value,
-        ...extraValues,
-      ]);
+      imessage.valuesArray = {
+        values: values.map((oneValue) =>
+          this.valueSerializer.serialize(oneValue)
+        ),
+      };
     }
     const message = PrimitiveCListMessage.create({ insert: imessage });
     this.send(PrimitiveCListMessage.encode(message).finish());
-    return value;
+    return values[0];
+  }
+
+  // Override alias insert methods so we can accept
+  // bulk values.
+  /**
+   * [push description]
+   *
+   * At least one value must be provided.
+   *
+   * @param  value          [description]
+   * @param  ...extraValues [description]
+   * @return the first value
+   */
+  push(...values: T[]): T {
+    return this.insert(this.length, ...values);
+  }
+
+  /**
+   * [push description]
+   *
+   * At least one value must be provided.
+   *
+   * @param  value          [description]
+   * @param  ...extraValues [description]
+   * @return the first value
+   */
+  unshift(...values: T[]): T {
+    return this.insert(0, ...values);
+  }
+
+  splice(startIndex: number, deleteCount?: number, ...values: T[]): void {
+    // Sanitize deleteCount
+    if (deleteCount === undefined || deleteCount > this.length - startIndex)
+      deleteCount = this.length - startIndex;
+    else if (deleteCount < 0) deleteCount = 0;
+    // Delete then insert
+    this.delete(startIndex, deleteCount);
+    if (values.length > 0) {
+      this.insert(startIndex, ...values);
+    }
   }
 
   delete(index: number, count = 1): void {
-    if (count < 1) throw new Error("count < 1");
+    if (count < 0 || !Number.isInteger(count)) {
+      throw new Error("invalid count: " + count);
+    }
+    if (count === 0) return;
     const imessage: IPrimitiveCListDeleteMessage = {
       startLoc: this.state.serialize(this.state.getLoc(index)),
     };
@@ -76,12 +131,13 @@ export class PrimitiveCList<T, I = TreedocLocWrapper>
       imessage.endLoc = this.state.serialize(
         this.state.getLoc(index + count - 1)
       );
-    }
+    } // Else count === 1.
     const message = PrimitiveCListMessage.create({ delete: imessage });
     this.send(PrimitiveCListMessage.encode(message).finish());
   }
 
-  reset() {
+  clear() {
+    // TODO: optimize (own message)
     this.delete(0, this.length);
   }
 
@@ -101,9 +157,14 @@ export class PrimitiveCList<T, I = TreedocLocWrapper>
             ];
             break;
           case "values":
-            values = this.valueArraySerializer.deserialize(
+            values = this.valueArraySerializer!.deserialize(
               insert.values,
               this.runtime
+            );
+            break;
+          case "valuesArray":
+            values = insert.valuesArray!.values!.map((oneValue) =>
+              this.valueSerializer.deserialize(oneValue, this.runtime)
             );
             break;
           default:
@@ -114,14 +175,12 @@ export class PrimitiveCList<T, I = TreedocLocWrapper>
           timestamp,
           values
         );
-        // TODO: need to do a single bulk event, since
-        // otherwise the state will be ahead
-        for (let i = 0; i < values.length; i++) {
-          this.emit("Insert", {
-            index: index + 1,
-            timestamp,
-          });
-        }
+        // Event
+        this.emit("Insert", {
+          startIndex: index,
+          count: values.length,
+          timestamp,
+        });
         break;
       case "delete":
         const startLoc = this.state.deserialize(
@@ -134,16 +193,28 @@ export class PrimitiveCList<T, I = TreedocLocWrapper>
             decoded.delete!.endLoc!,
             this.runtime
           );
-          this.state.deleteRange(startLoc, endLoc, timestamp, (index) => {
-            this.emit("Delete", { index, timestamp });
-          });
+          this.state.deleteRange(
+            startLoc,
+            endLoc,
+            timestamp,
+            (startIndex, count, deletedValues) => {
+              this.emit("Delete", {
+                startIndex,
+                count,
+                deletedValues,
+                timestamp,
+              });
+            }
+          );
         } else {
           // Single delete
           const ret = this.state.delete(startLoc);
           if (ret !== undefined) {
             this.emit("Delete", {
+              startIndex: ret[0],
+              count: 1,
+              deletedValues: [ret[1]],
               timestamp,
-              index: ret,
             });
           }
         }
@@ -172,29 +243,64 @@ export class PrimitiveCList<T, I = TreedocLocWrapper>
     } else return super.slice(start, end);
   }
 
-  // TODO: overrides for optimization (e.g. slice)
-  // TODO: bulk methods (e.g. push) - should be able to
-  // override method, since interface is technically
-  // compatible.
-
   canGc(): boolean {
     return this.state.canGc();
   }
 
   protected savePrimitive(): Uint8Array {
-    const message = PrimitiveCListSave.create({
-      locs: this.state.saveLocs(),
-      values: this.valueArraySerializer.serialize(this.state.valuesArray()),
-    });
+    const imessage: IPrimitiveCListSave = { locs: this.state.saveLocs() };
+    if (this.valueArraySerializer !== undefined) {
+      imessage.values = this.valueArraySerializer.serialize(
+        this.state.valuesArray()
+      );
+    } else {
+      imessage.valuesArray = {
+        values: this.state
+          .valuesArray()
+          .map((oneValue) => this.valueSerializer.serialize(oneValue)),
+      };
+    }
+    const message = PrimitiveCListSave.create(imessage);
     return PrimitiveCListSave.encode(message).finish();
   }
 
   protected loadPrimitive(saveData: Uint8Array): void {
     const decoded = PrimitiveCListSave.decode(saveData);
-    const values = this.valueArraySerializer.deserialize(
-      decoded.values,
-      this.runtime
-    );
-    this.state.loadLocs(decoded.locs, (index) => values[index]);
+    if (this.valueArraySerializer !== undefined) {
+      const values = this.valueArraySerializer.deserialize(
+        decoded.values,
+        this.runtime
+      );
+      this.state.loadLocs(decoded.locs, (index) => values[index]);
+    } else {
+      this.state.loadLocs(decoded.locs, (index) =>
+        this.valueSerializer.deserialize(
+          decoded.valuesArray!.values![index],
+          this.runtime
+        )
+      );
+    }
+  }
+}
+
+export class PrimitiveCList<T>
+  extends PrimitiveCListFromDenseLocalList<
+    T,
+    TreedocLocWrapper,
+    TreedocDenseLocalList<T>
+  >
+  implements Resettable
+{
+  constructor(
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    valueArraySerializer: ElementSerializer<T[]> | undefined = undefined
+  ) {
+    super(new TreedocDenseLocalList(), valueSerializer, valueArraySerializer);
+  }
+
+  reset() {
+    // Since TreedocDenseLocalList has no tombstones,
+    // clear is an observed-reset.
+    this.clear();
   }
 }

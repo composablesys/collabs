@@ -102,10 +102,11 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * TODO: loc might already be deleted.
    *
    * @param  loc [description]
-   * @return    previous index of deleted value,
+   * @return    [previous index of deleted value,
+   * deleted value],
    * or undefined if loc was not present
    */
-  delete(loc: L): number | undefined;
+  delete(loc: L): [index: number, deletedValue: T] | undefined;
 
   /**
    * Delete all locs in the range [startLoc, endLoc] that are causally
@@ -114,18 +115,20 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * @param  startLoc  [description]
    * @param  endLoc    [description]
    * @param  timestamp [description]
-   * @param  ondelete  called with the deletion index each time an index
-   * is deleted
+   * @param  ondelete  called with the deletion range and
+   * deleted values each
+   * time a contiguous range is deleted, relative to the
+   * state just before that range's deletion (so accounting
+   * for the fact that previously deleted ranges are deleted)
    * @return           [description]
    */
   deleteRange(
     startLoc: L,
     endLoc: L,
     timestamp: CausalTimestamp,
-    ondelete: (index: number) => void
+    ondelete: (startIndex: number, count: number, deletedValues: T[]) => void
   ): void;
 
-  // TODO: causal bulk-delete ability
   // TODO: sending shorter locs on deletion
   // TODO: in MutCList's, make sure storing a bunch
   // of locs in our own data structure doesn't increase
