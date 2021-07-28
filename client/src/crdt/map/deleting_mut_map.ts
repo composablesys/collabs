@@ -22,6 +22,10 @@ export class DeletingMutCMap<K, C extends Crdt, SetArgs extends any[]>
     );
   }
 
+  owns(value: C): boolean {
+    return this.valueSet.owns(value);
+  }
+
   reset() {
     // This should be equivalent to clear, but just in case...
     this.map.reset();

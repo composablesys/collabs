@@ -26,6 +26,10 @@ export class ResettingMutCMap<
     );
   }
 
+  owns(value: C): boolean {
+    return this.valueSet.owns(value);
+  }
+
   reset() {
     // This should be equivalent to clear, but just in case...
     this.map.reset();
