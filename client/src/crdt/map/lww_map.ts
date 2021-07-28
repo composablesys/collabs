@@ -69,10 +69,7 @@ export class CMapFromRegister<
   }
 
   delete(key: K): void {
-    const valueCrdt = this.internalMap.getIfPresent(key);
-    if (valueCrdt !== undefined) {
-      valueCrdt.reset();
-    }
+    this.internalMap.delete(key);
   }
 
   get(key: K): V | undefined {
@@ -98,11 +95,13 @@ export class CMapFromRegister<
   // In case SetArgs = [V], you should override keyOf
   // to use serialization equality.
 
-  // Use inherited clear implementation.
+  clear(): void {
+    this.internalMap.clear();
+  }
 
   reset(): void {
-    // Clear indeed has observed-reset semantics.
-    this.clear();
+    // This should be equivalent to clear.
+    this.internalMap.reset();
   }
 }
 
