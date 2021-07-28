@@ -1,9 +1,6 @@
 import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
 import { CList, CListEventsRecord } from "./interfaces";
 
-// TODO: do we need to include Events parameter here?
-// (Check by seeing if we can extend this class and add
-// non-CList events to it.)
 export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   extends Crdt
   implements CList<T, InsertArgs>

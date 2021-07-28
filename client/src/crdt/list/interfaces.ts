@@ -1,22 +1,27 @@
-import { Optional } from "../../util";
 import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
 
-export interface CListEvent<T> extends CrdtEvent {
+export interface CListInsertEvent extends CrdtEvent {
+  /**
+   * The index of the newly inserted value.
+   */
+  index: number;
+}
+
+export interface CListDeleteEvent<T> extends CrdtEvent {
+  /**
+   * The former index (immediately before
+   * deleting).
+   */
   index: number;
   /**
-   * Present if there was value set previously (e.g.
-   * for Delete).
+   * The previously set value at index.
    */
-  previousValue: Optional<T>;
+  deletedValue: T;
 }
 
 export interface CListEventsRecord<T> extends CrdtEventsRecord {
-  Insert: CListEvent<T>;
-  /**
-   * Index gives the former index (immediately before
-   * deleting).
-   */
-  Delete: CListEvent<T>;
+  Insert: CListInsertEvent;
+  Delete: CListDeleteEvent<T>;
 }
 
 /**
