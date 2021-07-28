@@ -6,27 +6,43 @@ import { DenseLocalList } from "./dense_local_list";
 export class CListFromMap<
   T,
   InsertArgs extends any[],
-  I,
-  M extends CMap<I, T, InsertArgs>
+  L,
+  M extends CMap<L, T, InsertArgs>
 > extends AbstractCListCompositeCrdt<T, InsertArgs> {
   protected readonly internalMap: M;
 
   constructor(
     map: M,
-    protected readonly denseLocalList: DenseLocalList<I, undefined>
+    protected readonly denseLocalList: DenseLocalList<L, undefined>
   ) {
     super();
 
     this.internalMap = this.addChild("", map);
 
+    // Maintain denseLocalList as a view of map's keys.
+    // Also emit events.
     this.internalMap.on("Set", (event) => {
-      this.denseLocalList.set(event.key, undefined);
+      if (!event.previousValue.isPresent) {
+        // We do this here and not in the valueConstructor
+        // because denseLocalList is a view of the map keys
+        // only.
+        const startIndex = this.denseLocalList.set(event.key, undefined);
+        this.emit("Insert", {
+          startIndex,
+          count: 1,
+          timestamp: event.timestamp,
+        });
+      }
     });
     this.internalMap.on("Delete", (event) => {
-      this.denseLocalList.delete(event.key);
+      const startIndex = this.denseLocalList.delete(event.key)![0];
+      this.emit("Delete", {
+        startIndex,
+        count: 1,
+        deletedValues: [event.deletedValue],
+        timestamp: event.timestamp,
+      });
     });
-
-    // TODO: events
   }
 
   init(name: string, parent: CrdtParent) {
@@ -39,11 +55,23 @@ export class CListFromMap<
     return this.internalMap.set(loc, ...args);
   }
 
-  delete(index: number, count = 1): void {
-    // Note that the index to delete is a moving target.
-    // TODO: this assumes set deletion works sequentially.
+  delete(startIndex: number, count = 1): void {
+    if (count < 0 || !Number.isInteger(count)) {
+      throw new Error("invalid count: " + count);
+    }
+    if (startIndex + count >= this.length) {
+      throw new Error(
+        "startIndex + count out of range: " + (startIndex + count)
+      );
+    }
+    // Get the locs to delete.
+    const toDelete = new Array<L>(count);
     for (let i = 0; i < count; i++) {
-      this.internalMap.delete(this.denseLocalList.getLoc(index));
+      toDelete[i] = this.denseLocalList.getLoc(startIndex + i);
+    }
+    // Delete them.
+    for (const value of toDelete) {
+      this.internalMap.delete(value);
     }
   }
 
