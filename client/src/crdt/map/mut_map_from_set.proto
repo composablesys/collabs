@@ -1,4 +1,4 @@
-message DeletingMutCMapSave {
+message MutCMapFromSetSave {
   // Arrays are in sync
   repeated bytes keys = 1;
   repeated bytes ids = 2;

@@ -7,11 +7,7 @@ import {
   stringAsArray,
 } from "../../util";
 import { Crdt } from "../core";
-import {
-  AddWinsCSet,
-  DeletingMutCSet,
-  DeletingMutCSetValueSerializer,
-} from "../set";
+import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
 
@@ -72,10 +68,7 @@ export class TombstoneMutCMap<
     );
     this.map = this.addChild(
       "0",
-      new LwwCMap(
-        keySerializer,
-        new DeletingMutCSetValueSerializer(this.crdtFactory)
-      )
+      new LwwCMap(keySerializer, this.crdtFactory.valueSerializer())
     );
     this.keySet = this.addChild("1", new AddWinsCSet(keySerializer));
 

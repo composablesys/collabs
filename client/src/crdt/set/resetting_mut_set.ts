@@ -2,10 +2,15 @@ import {
   IMutCSetFromMapKeyMessage,
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import {
+  arrayAsString,
+  DefaultElementSerializer,
+  ElementSerializer,
+  stringAsArray,
+} from "../../util";
 import { Crdt, Runtime } from "../core";
 import { Resettable } from "../helper_crdts";
-import { CMap, ResettingMutCMap } from "../map";
+import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { CSetEventsRecord } from "./interfaces";
 
@@ -141,20 +146,23 @@ export class MutCSetFromMap<
  * make them small (ideally []) or use a different set.
  **/
 export class ResettingMutCSet<
-  C extends Crdt & Resettable,
-  AddArgs extends any[]
-> extends MutCSetFromMap<
-  C,
-  AddArgs,
-  ResettingMutCMap<[sender: string, uniqueNumber: number, args: AddArgs], C>
-> {
+    C extends Crdt & Resettable,
+    AddArgs extends any[]
+  >
+  extends MutCSetFromMap<
+    C,
+    AddArgs,
+    MergingMutCMap<[sender: string, uniqueNumber: number, args: AddArgs], C>
+  >
+  implements Resettable
+{
   constructor(
     valueConstructor: (...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
       (mapValueConstructor, keySerializer) =>
-        new ResettingMutCMap(mapValueConstructor, keySerializer),
+        new MergingMutCMap(mapValueConstructor, keySerializer),
       valueConstructor,
       argsSerializer
     );
@@ -170,5 +178,28 @@ export class ResettingMutCSet<
       throw new Error("this.owns(value) is false");
     }
     this.map.restore(key);
+  }
+
+  reset(): void {
+    this.map.reset();
+  }
+
+  // TODO: here or superclass?
+  /**
+   * Optimized serializer for values in this set.
+   *
+   * It optimizes value serialization by using the set's ids instead of
+   * the full pathToRoot (as DefaultElementSerializer would do).
+   */
+  valueSerializer(): ElementSerializer<C> {
+    const set = this;
+    return {
+      serialize(value: C): Uint8Array {
+        return stringAsArray(set.idOf(value));
+      },
+      deserialize(message: Uint8Array, _runtime: Runtime): C {
+        return set.getById(arrayAsString(message))!;
+      },
+    };
   }
 }
