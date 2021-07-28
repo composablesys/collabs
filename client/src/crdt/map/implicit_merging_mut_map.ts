@@ -3,12 +3,13 @@ import {
   arrayAsString,
   DefaultElementSerializer,
   ElementSerializer,
+  Optional,
   stringAsArray,
   WeakValueMap,
 } from "../../util";
 import { Crdt, CrdtParent } from "../core";
 import { Resettable } from "../helper_crdts";
-import { AbstractCMap } from "./abstract_map";
+import { AbstractCMapCrdt } from "./abstract_map";
 
 /**
  * A basic CrdtMap that implicitly manages membership.
@@ -27,12 +28,13 @@ import { AbstractCMap } from "./abstract_map";
  * ones, and so the iterators are unable to consistently return
  * all trivial elements.
  *
- * delete and clear throw errors.  set has no effect, just
+ * delete and clear throw errors (grow-only semantics).
+ * set has no effect, just
  * returning a value by calling get.
  */
-export class GrowOnlyImplicitMutCMap<K, C extends Crdt>
-  extends AbstractCMap<K, C, []>
-  implements CrdtParent
+export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
+  extends AbstractCMapCrdt<K, C, []>
+  implements CrdtParent 
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
@@ -95,12 +97,6 @@ export class GrowOnlyImplicitMutCMap<K, C extends Crdt>
           this.trivialMap.set(keyString, value);
         }
 
-        // Dispatch ValueInit event immediately, so that listeners
-        // can register any messages are received.
-        this.emit("ValueInit", {
-          key,
-          value,
-        });
         return [value, false];
       }
       return [value, false];
@@ -144,14 +140,20 @@ export class GrowOnlyImplicitMutCMap<K, C extends Crdt>
       if (nontrivialStart && value.canGc()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
-        this.emit("Delete", { key, timestamp });
+        this.emit("Delete", { key, deletedValue: value, timestamp });
       }
       // If the value became nontrivial, move it to the
       // main map
       else if (!nontrivialStart && !value.canGc()) {
         this.trivialMap.delete(keyString);
         this.nontrivialMap.set(keyString, value);
-        this.emit("Set", { key, timestamp });
+        this.emit("Set", {
+          key,
+          // Empty to emphasize that the previous value was
+          // not present.
+          previousValue: Optional.empty<C>(),
+          timestamp,
+        });
       }
     } finally {
       this.inReceiveKeyStr = undefined;
@@ -183,10 +185,10 @@ export class GrowOnlyImplicitMutCMap<K, C extends Crdt>
   }
 
   /**
-   * TODO: returns the value even if has = false, so
+   * Note: returns the value even if has = false, so
    * that it's possible to get it, and so that common
    * get! idioms work.  getIfPresent does the usual
-   * get semantics.  (TODO: Swap these roles?)
+   * get semantics.
    * @param  key [description]
    * @return     [description]
    */
@@ -271,18 +273,32 @@ export class GrowOnlyImplicitMutCMap<K, C extends Crdt>
 }
 
 /**
- * TODO: like ImplicitMutCMap except deletes reset
- * (and clear deletes all as usual).  So delete and
- * reset have the expected sequential semantics.
+ * A basic CrdtMap that implicitly manages membership.
+ * Its main purpose is to manage Crdts sorted by key,
+ * in such a way that concurrent operations on the same
+ * key's value are merged.
  *
- * TODO: is this class needed?  If it's just used in the
- * ResettingMutCMap construction, then we can instead just
- * move the resetting into that class.
+ * For the
+ * purpose of the iterators and has, a key is considered
+ * to be present in the map if its valuCrdt is nontrivial,
+ * specifically, if valueCrdt.canGc() returns false.
+ * Note that this implies that a just-added key may
+ * not be present in the map.  This unusual semantics
+ * is necessary because the map does not necessarily
+ * maintain all elements internally, only the nontrivial
+ * ones, and so the iterators are unable to consistently return
+ * all trivial elements.
+ *
+ * delete and clear reset the affected values, making
+ * them no longer present, as one would expect.
+ *
+ * set has no effect, just
+ * returning a value by calling get.
  */
-export class ImplicitMutCMap<
+export class ImplicitMergingMutCMap<
   K,
   C extends Crdt & Resettable
-> extends GrowOnlyImplicitMutCMap<K, C> {
+> extends GrowOnlyImplicitMergingMutCMap<K, C> {
   constructor(
     valueConstructor: (key: K) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()

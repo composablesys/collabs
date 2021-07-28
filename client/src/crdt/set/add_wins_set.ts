@@ -1,14 +1,14 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../helper_crdts";
-import { GrowOnlyImplicitMutCMap } from "../map";
+import { GrowOnlyImplicitMergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
 export class CSetFromBoolean<
   T,
   B extends CBoolean
 > extends AbstractCSetCompositeCrdt<T, [T]> {
-  private readonly booleanMap: GrowOnlyImplicitMutCMap<T, B>;
+  private readonly booleanMap: GrowOnlyImplicitMergingMutCMap<T, B>;
   // View of the set size, cached for efficiency.
   private cachedSize = 0;
   /**
@@ -25,7 +25,7 @@ export class CSetFromBoolean<
     super();
     this.booleanMap = this.addChild(
       "",
-      new GrowOnlyImplicitMutCMap(
+      new GrowOnlyImplicitMergingMutCMap(
         this.internalBooleanConstructor.bind(this),
         valueSerializer
       )
@@ -83,6 +83,7 @@ export class CSetFromBoolean<
     // It is only a few bytes of save space, vs this extra
     // linear scan, although we already pay the linear time
     // cost when loading booleanMap anyway.
+    // Same for MergingMutCMap.
     for (const value of this.booleanMap.values()) {
       if (value.value) this.cachedSize++;
     }

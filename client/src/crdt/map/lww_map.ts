@@ -10,7 +10,7 @@ import {
   OptionalCRegister,
 } from "../register";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
-import { ImplicitMutCMap } from "./implicit_mut_map";
+import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { CMapEventsRecord } from "./interfaces";
 
 export class CMapFromRegister<
@@ -22,7 +22,7 @@ export class CMapFromRegister<
   extends AbstractCMapCompositeCrdt<K, V, SetArgs, CMapEventsRecord<K, V>>
   implements Resettable
 {
-  protected readonly internalMap: ImplicitMutCMap<K, R>;
+  protected readonly internalMap: ImplicitMergingMutCMap<K, R>;
 
   constructor(
     private readonly registerConstructor: (key: K) => R,
@@ -31,7 +31,7 @@ export class CMapFromRegister<
     super();
     this.internalMap = this.addChild(
       "",
-      new ImplicitMutCMap(
+      new ImplicitMergingMutCMap(
         this.internalRegisterConstructor.bind(this),
         keySerializer
       )
