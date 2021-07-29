@@ -8,4 +8,7 @@ export * from "./primitive_list";
 export * from "./resetting_mut_list";
 export * from "./tombstone_mut_list";
 export * from "./text";
-export * from "./treedoc_dense_local_list";
+export {
+  TreedocLocWrapper,
+  TreedocDenseLocalList,
+} from "./treedoc_dense_local_list";
