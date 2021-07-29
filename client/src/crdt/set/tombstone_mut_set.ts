@@ -24,38 +24,16 @@ export class TombstoneMutCSet<
   /**
    * [constructor description]
    * @param valueConstructor [description]
-   * @param concurrentOpRestores if true, then when an
-   * operation is performed on a value concurrent to its
-   * deletion, the value is automatically restored.  This may
-   * match user expectations in some scenarios, e.g., if
-   * one user is working on something while another deletes it,
-   * their concurrent work undoes the deletion.  Defaults to false.
    */
   constructor(
     valueConstructor: (...args: AddArgs) => C,
-    concurrentOpRestores = false,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
 
-    let internalValueConstructor: (...args: AddArgs) => C;
-    if (concurrentOpRestores) {
-      internalValueConstructor = (...args) => {
-        const value = valueConstructor(...args);
-        value.on("Change", (event) => {
-          this.runtime.runLocally(event.timestamp, () => {
-            this.members.add(value);
-          });
-        });
-        return value;
-      };
-    } else {
-      internalValueConstructor = valueConstructor;
-    }
-
     this.mutSet = this.addChild(
       "",
-      new DeletingMutCSet(internalValueConstructor, undefined, argsSerializer)
+      new DeletingMutCSet(valueConstructor, undefined, argsSerializer)
     );
     // Use a custom serializer that uses mutSet's ids instead
     // of full pathToRoot's, for network efficiency.

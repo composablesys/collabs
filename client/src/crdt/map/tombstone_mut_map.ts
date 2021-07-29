@@ -11,8 +11,6 @@ import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
 
-// TODO: concurrentOpRestores?  (key or value?)
-
 /**
  * TODO: warning: tombstones.  Benefit is that you can
  * restoreKey, and you can always restoreValue (always
@@ -35,7 +33,6 @@ export class TombstoneMutCMap<
   // first/last option, to make this easy.
   constructor(
     valueConstructor: (key: K, ...args: SetArgs) => C,
-    concurrentOpRestores = false,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
@@ -48,14 +45,6 @@ export class TombstoneMutCMap<
           const value = valueConstructor(key, ...args);
           // Cache
           this.keyByValue.set(value, key);
-          if (concurrentOpRestores) {
-            // Any operation on value does a restoreKey
-            value.on("Change", (event) => {
-              this.runtime.runLocally(event.timestamp, () => {
-                this.keySet.add(key);
-              });
-            });
-          }
           return value;
         },
         undefined,
