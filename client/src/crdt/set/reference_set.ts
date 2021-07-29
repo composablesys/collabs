@@ -8,8 +8,6 @@ import { Resettable } from "../helper_crdts";
 import { LwwCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
-// TODO: generic version (any CMap).
-
 export class ReferenceCSet<T extends object, AddArgs extends any[]>
   extends AbstractCSetCompositeCrdt<T, AddArgs>
   implements Resettable
@@ -18,9 +16,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
   // Using LWW for the values is overkill since we know
   // they will always be the same for a given key, but
   // this is easier than implementing a custom map,
-  // and it is only a minor performance/memory penalty
-  // (none in the common case where there are no concurrent
-  // restores of the same value).
+  // and it is only a minor performance/memory penalty.
   private readonly argsById: LwwCMap<string, AddArgs>;
   // This is a view of argsById, with the actual value
   // (as originally constructed, to preserve references)
@@ -133,6 +129,31 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
   has(value: T): boolean {
     const id = ReferenceCSet.metaByValue.get(value)![0];
     return this.valuesById.has(id);
+  }
+
+  owns(value: T): boolean {
+    const meta = ReferenceCSet.metaByValue.get(value);
+    if (meta === undefined) return false;
+    const id = meta[0];
+    return (
+      this.valuesById.get(id) === value ||
+      this.backupValuesById.get(id) === value
+    );
+  }
+
+  restore(value: T): void {
+    const meta = ReferenceCSet.metaByValue.get(value);
+    if (meta !== undefined) {
+      const id = meta[0];
+      if (
+        this.backupValuesById.get(id) === value ||
+        this.valuesById.get(id) === value
+      ) {
+        // value is ours
+        const args = meta[1] as AddArgs;
+        this.argsById.set(id, args);
+      }
+    }
   }
 
   values(): IterableIterator<T> {
