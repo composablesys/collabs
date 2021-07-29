@@ -96,17 +96,18 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
           );
           const newValue = this.receiveCreate(name, decoded.add!.args);
 
-          this.emit("Add", { value: newValue, timestamp });
-
           if (timestamp.isLocal()) {
             this.ourCreatedValue = newValue;
           }
+
+          this.emit("Add", { value: newValue, timestamp });
           break;
         case "delete":
           const child = this.children.get(decoded.delete);
           if (child !== undefined) {
             this.children.delete(decoded.delete);
             this.constructorArgs.delete(decoded.delete);
+
             this.emit("Delete", { value: child, timestamp });
           }
           break;

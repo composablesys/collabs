@@ -47,6 +47,9 @@ export class MutCMapFromSet<
     );
 
     // Events
+    // Note that for the state to be reasonable during
+    // these event handlers, it is necessary that
+    // operations always do the this.map operation last.
     this.map.on("Set", (event) => this.emit("Set", event));
     this.map.on("Delete", (event) => this.emit("Delete", event));
   }

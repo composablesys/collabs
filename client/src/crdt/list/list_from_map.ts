@@ -20,10 +20,14 @@ export class CListFromMap<
     // Maintain denseLocalList as a view of map's keys.
     // Also emit events.
     this.internalMap.on("Set", (event) => {
+      // Reasonable CMap's will only dispatch Set when
+      // the value is set the first time (since it's only
+      // set once), but just in case, we check that the Set
+      // event really is for a new key.
       if (!event.previousValue.isPresent) {
         // We do this here and not in the valueConstructor
         // because denseLocalList is a view of the map keys
-        // only.
+        // only, we don't care if values are refreshed by GC.
         const startIndex = this.denseLocalList.set(event.key, undefined);
         this.emit("Insert", {
           startIndex,

@@ -34,7 +34,7 @@ import { AbstractCMapCrdt } from "./abstract_map";
  */
 export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
   extends AbstractCMapCrdt<K, C, []>
-  implements CrdtParent 
+  implements CrdtParent
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
@@ -121,9 +121,6 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
-    // TODO: like many (?) things, this will break if
-    // a message is received (e.g. due to a local operation)
-    // during one of the event handlers.
     const keyString = targetPath[targetPath.length - 1];
     this.inReceiveKeyStr = keyString;
     try {
@@ -154,6 +151,14 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
           previousValue: Optional.empty<C>(),
           timestamp,
         });
+        // We won't dispatch Set events when the value
+        // is not new because there can only ever be one
+        // value at a given key, due to Merging semantics.
+        // An exception is replacement due to GC-ing, but
+        // we consider such values "the same"; if users care
+        // about the distinction (e.g. because they need
+        // to register event handlers), they should do so
+        // in valueConstructor, not on Set events.
       }
     } finally {
       this.inReceiveKeyStr = undefined;

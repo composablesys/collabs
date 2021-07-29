@@ -100,10 +100,12 @@ export class MutCSetFromMap<
 
     // Events
     this.map.on("Set", (event) => {
-      this.emit("Add", {
-        value: this.map.get(event.key)!,
-        timestamp: event.timestamp,
-      });
+      if (!event.previousValue.isPresent) {
+        this.emit("Add", {
+          value: this.map.get(event.key)!,
+          timestamp: event.timestamp,
+        });
+      }
     });
     this.map.on("Delete", (event) => {
       this.emit("Delete", {

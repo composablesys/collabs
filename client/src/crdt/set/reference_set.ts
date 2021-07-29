@@ -8,6 +8,8 @@ import { Resettable } from "../helper_crdts";
 import { LwwCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
+// TODO: generic version (any CMap).
+
 export class ReferenceCSet<T extends object, AddArgs extends any[]>
   extends AbstractCSetCompositeCrdt<T, AddArgs>
   implements Resettable
@@ -79,8 +81,10 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
       "",
       new LwwCMap(StringAsArraySerializer.instance, argsSerializer)
     );
+
+    // Events and maintaining caches
     this.argsById.on("Set", (event) => {
-      if (!this.valuesById.has(event.key)) {
+      if (!event.previousValue.isPresent) {
         // See if we have the value already, else create it
         let value = this.backupValuesById.get(event.key);
         if (value === undefined) {
@@ -93,8 +97,10 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
       }
     });
     this.argsById.on("Delete", (event) => {
-      const value = this.valuesById.get(event.key);
-      if (value === undefined) return;
+      const value = this.valuesById.get(event.key)!;
+      // value definitely exists because Delete events
+      // are only emitted when the value was just deleted
+      // (used to be present).
       this.valuesById.delete(event.key);
       this.backupValuesById.set(event.key, value);
       this.emit("Delete", { value, timestamp: event.timestamp });

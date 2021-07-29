@@ -191,7 +191,7 @@ export class GrowOnlyCCounter
 
 export class CCounter
   extends CompositeCrdt<CCounterEventsRecord>
-  implements Resettable
+  implements Resettable 
 {
   /**
    * To prevent overflow into unsafe integers, whose
@@ -211,31 +211,45 @@ export class CCounter
   private readonly plus: GrowOnlyCCounter;
   private readonly minus: GrowOnlyCCounter;
 
+  private plusResetEvent?: CCounterEvent;
+
   constructor() {
     super();
     this.plus = this.addChild("", new GrowOnlyCCounter());
     this.minus = this.addChild("0", new GrowOnlyCCounter());
-    this.plus.on("Add", (event) => this.emit("Add", event));
-    this.minus.on("Add", (event) =>
-      this.emit("Add", { ...event, arg: -event.arg })
-    );
+
+    // Events
+    this.plus.on("Add", (event) => {
+      this.emit("Add", {
+        arg: event.arg,
+        previousValue: event.previousValue - this.minus.value,
+        timestamp: event.timestamp,
+      });
+    });
+    this.minus.on("Add", (event) => {
+      this.emit("Add", {
+        arg: -event.arg,
+        previousValue: this.plus.value - event.previousValue,
+        timestamp: event.timestamp,
+      });
+    });
     this.plus.on("Reset", (event) => {
-      // We don't know the full arg until after minus
-      // is also reset, so we store plus's arg until then.
-      this.plusResetArg = event.arg;
+      // We don't know the full arg & previousValue until after minus
+      // is also reset, so we store plus's event until then.
+      this.plusResetEvent = event;
     });
     this.minus.on("Reset", (event) => {
       this.emit("Reset", {
-        ...event,
         // Subtraction without modulo is okay because each
         // value is in the range [0, MODULUS), so the
         // difference is in the safe range (-MODULUS, MODULUS).
-        arg: this.plusResetArg! - event.arg,
+        arg: this.plusResetEvent!.arg - event.arg,
+        previousValue: this.plusResetEvent!.previousValue - event.previousValue,
+        timestamp: event.timestamp,
       });
-      delete this.plusResetArg;
+      delete this.plusResetEvent;
     });
   }
-  private plusResetArg?: number;
 
   add(toAdd: number) {
     if (toAdd > 0) this.plus.add(toAdd);

@@ -47,10 +47,17 @@ export class MovableMutCListFromSet<
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCompositeCrdt<C, InsertArgs, Events>
-  implements MovableCList<C, InsertArgs>
+  implements MovableCList<C, InsertArgs> 
 {
   protected readonly set: SetT;
 
+  /**
+   * registerConstructor should make sure that the
+   * register's initial value is initialValue, without
+   * dispatching a Set event (i.e., pass it in RegT's
+   * constructor, not as an operation, which wouldn't
+   * make sense anyway).
+   */
   constructor(
     setCallback: (
       setValueConstructor: (
@@ -81,6 +88,11 @@ export class MovableMutCListFromSet<
           // of the currently set locations, mapping to
           // the corresponding entry.
           // Also dispatch our own events.
+          // Note that move is the only time register.set
+          // is called; setting the initial state is done
+          // in the registerConstructor, not as a
+          // register.set operation, so it will not emit
+          // a Set event.
           const startIndex = this.denseLocalList.delete(
             event.previousValue
           )![0];

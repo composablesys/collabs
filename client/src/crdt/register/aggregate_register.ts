@@ -80,6 +80,9 @@ export abstract class AggregateArgsCRegister<
     timestamp: CausalTimestamp,
     message: Uint8Array
   ): void {
+    // Get previousValue now
+    const previousValue = this.value;
+
     let decoded = AggregateArgsCRegisterMessage.decode(message);
     let vc = timestamp.asVectorClock();
     let newState = new Array<AggregateArgsCRegisterEntry<S>>();
@@ -110,9 +113,10 @@ export abstract class AggregateArgsCRegister<
         );
     }
     this.setNewState(newState);
-    this.emit("Set", { timestamp, previousValue: this.value });
     this.cacheValid = false;
     this.cachedValue = undefined;
+
+    this.emit("Set", { timestamp, previousValue });
   }
 
   private constructValue(argsSerialized: Uint8Array): S {

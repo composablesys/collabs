@@ -5,7 +5,16 @@ export interface CSetEvent<T> extends CrdtEvent {
 }
 
 export interface CSetEventsRecord<T> extends CrdtEventsRecord {
+  /**
+   * Only emit when the value is actually new
+   * (was not previously present).
+   */
   Add: CSetEvent<T>;
+  /**
+   * Only emit when the value is actually gotten
+   * rid of
+   * (was previously present).
+   */
   Delete: CSetEvent<T>;
 }
 

@@ -45,6 +45,14 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
           });
         }
       }
+      // We won't dispatch Set events when the value
+      // is not new because there can only ever be one
+      // value at a given key, due to Merging semantics.
+      // An exception is replacement due to GC-ing, but
+      // we consider such values "the same"; if users care
+      // about the distinction (e.g. because they need
+      // to register event handlers), they should do so
+      // in valueConstructor, not on Set events.
     });
     this.keySet.on("Add", (event) => {
       // Sets only dispatch Add events for values that

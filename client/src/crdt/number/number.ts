@@ -123,6 +123,8 @@ export class CNumber extends SemidirectProduct<
     this.addCrdt = new AddComponent(state);
     this.multCrdt = new MultComponent(state);
     super.setup(this.addCrdt, this.multCrdt, state);
+
+    // Events
     this.addCrdt.on("Add", (event) => super.emit("Add", event));
     this.multCrdt.on("Mult", (event) => super.emit("Mult", event));
   }

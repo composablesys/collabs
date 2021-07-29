@@ -50,14 +50,16 @@ export class CMapFromRegister<
     const register = this.registerConstructor(key);
     register.on("Set", (event) => {
       if (register.value.isPresent) {
-        // The value was set, not deleted.
+        // The value was set (possibly overwriting a
+        // a previously set value), not deleted.
         this.emit("Set", {
           key,
           previousValue: event.previousValue,
           timestamp: event.timestamp,
         });
-      } else {
-        // The value was deleted.
+      } else if (event.previousValue.isPresent && !register.value.isPresent) {
+        // The value was deleted, deleting a previously
+        // set value.
         this.emit("Delete", {
           key,
           deletedValue: event.previousValue.get(),
