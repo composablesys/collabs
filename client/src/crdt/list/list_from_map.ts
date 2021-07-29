@@ -7,14 +7,12 @@ export class CListFromMap<
   T,
   InsertArgs extends any[],
   L,
-  M extends CMap<L, T, InsertArgs>
+  MapT extends CMap<L, T, InsertArgs>,
+  DenseT extends DenseLocalList<L, undefined>
 > extends AbstractCListCompositeCrdt<T, InsertArgs> {
-  protected readonly internalMap: M;
+  protected readonly internalMap: MapT;
 
-  constructor(
-    map: M,
-    protected readonly denseLocalList: DenseLocalList<L, undefined>
-  ) {
+  constructor(map: MapT, protected readonly denseLocalList: DenseT) {
     super();
 
     this.internalMap = this.addChild("", map);
@@ -87,6 +85,12 @@ export class CListFromMap<
 
   get length(): number {
     return this.denseLocalList.length;
+  }
+
+  canGc(): boolean {
+    // Even if the map is trivial, denseLocalList might
+    // have tombstones, so we need to check for it here.
+    return super.canGc() && this.denseLocalList.canGc();
   }
 
   saveComposite(): Uint8Array {

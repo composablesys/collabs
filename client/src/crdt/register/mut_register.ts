@@ -14,14 +14,14 @@ export class MutCRegisterFromRegister<
     C extends Crdt,
     SetArgs extends any[],
     Value,
-    R extends CRegister<Value, [C]>,
+    RegT extends CRegister<Value, [C]>,
     Events extends CRegisterEventsRecord<Value> = CRegisterEventsRecord<Value>
   >
   extends CompositeCrdt<Events>
   implements CRegister<Value, SetArgs>
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
-  protected readonly register: R;
+  protected readonly register: RegT;
 
   /**
    * Note initial value behavior
@@ -31,7 +31,7 @@ export class MutCRegisterFromRegister<
    * @param registerCallback [description]
    */
   constructor(
-    registerCallback: (valueSerializer: ElementSerializer<C>) => R,
+    registerCallback: (valueSerializer: ElementSerializer<C>) => RegT,
     valueConstructor: (...args: SetArgs) => C,
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {

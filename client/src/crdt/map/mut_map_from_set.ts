@@ -15,11 +15,11 @@ export class MutCMapFromSet<
   K,
   C extends Crdt,
   SetArgs extends any[],
-  S extends CSet<C, [K, SetArgs]> & {
+  SetT extends CSet<C, [K, SetArgs]> & {
     valueSerializer(): ElementSerializer<C>;
   }
 > extends AbstractCMapCompositeCrdt<K, C, SetArgs> {
-  protected readonly valueSet: S;
+  protected readonly valueSet: SetT;
   protected readonly valueSetSerializer: ElementSerializer<C>;
   protected readonly map: LwwCMap<K, C>;
 
@@ -29,7 +29,7 @@ export class MutCMapFromSet<
     setCallback: (
       setValueConstructor: (key: K, args: SetArgs) => C,
       setArgsSerializer: ElementSerializer<[K, SetArgs]>
-    ) => S,
+    ) => SetT,
     valueConstructor: (key: K, ...args: SetArgs) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()

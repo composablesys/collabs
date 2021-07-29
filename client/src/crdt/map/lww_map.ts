@@ -18,12 +18,12 @@ export class CMapFromRegister<
     K,
     V,
     SetArgs extends any[],
-    R extends CRegister<Optional<V>, SetArgs> & Resettable
+    RegT extends CRegister<Optional<V>, SetArgs> & Resettable
   >
   extends AbstractCMapCompositeCrdt<K, V, SetArgs, CMapEventsRecord<K, V>>
   implements Resettable
 {
-  protected readonly internalMap: ImplicitMergingMutCMap<K, R>;
+  protected readonly internalMap: ImplicitMergingMutCMap<K, RegT>;
 
   /**
    * register is assumed to have value Optional.empty()
@@ -31,7 +31,7 @@ export class CMapFromRegister<
    * value must be present right after a set() call.
    */
   constructor(
-    private readonly registerConstructor: (key: K) => R,
+    protected readonly registerConstructor: (key: K) => RegT,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
     super();
@@ -46,7 +46,7 @@ export class CMapFromRegister<
     // Events emitters are added in internalRegisterConstructor.
   }
 
-  private internalRegisterConstructor(key: K): R {
+  private internalRegisterConstructor(key: K): RegT {
     const register = this.registerConstructor(key);
     register.on("Set", (event) => {
       if (register.value.isPresent) {

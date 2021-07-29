@@ -12,7 +12,8 @@ export class ResettingMutCList<C extends Crdt & Resettable>
     C,
     [],
     TreedocLocWrapper,
-    MergingMutCMap<TreedocLocWrapper, C>
+    MergingMutCMap<TreedocLocWrapper, C>,
+    TreedocDenseLocalList<undefined>
   >
   implements Resettable
 {

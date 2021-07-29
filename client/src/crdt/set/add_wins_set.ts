@@ -6,9 +6,9 @@ import { AbstractCSetCompositeCrdt } from "./abstract_set";
 
 export class CSetFromBoolean<
   T,
-  B extends CBoolean
+  BoolT extends CBoolean
 > extends AbstractCSetCompositeCrdt<T, [T]> {
-  private readonly booleanMap: GrowOnlyImplicitMergingMutCMap<T, B>;
+  protected readonly booleanMap: GrowOnlyImplicitMergingMutCMap<T, BoolT>;
   // View of the set size, cached for efficiency.
   private cachedSize = 0;
   /**
@@ -19,7 +19,7 @@ export class CSetFromBoolean<
    * to start containing some elements but not others).
    */
   constructor(
-    private readonly booleanConstructor: () => B,
+    protected readonly booleanConstructor: () => BoolT,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
     super();
@@ -33,7 +33,7 @@ export class CSetFromBoolean<
     // Events emitters are setup by internalBooleanConstructor
   }
 
-  private internalBooleanConstructor(key: T): B {
+  private internalBooleanConstructor(key: T): BoolT {
     const bool = this.booleanConstructor();
     // Add event listeners
     bool.on("Set", (event) => {

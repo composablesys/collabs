@@ -41,28 +41,28 @@ export class MovableMutCListFromSet<
     C extends Crdt,
     InsertArgs extends any[],
     L,
-    R extends CRegister<L>,
-    S extends CSet<MovableMutCListEntry<C, L, R>, [L, InsertArgs]>,
-    D extends DenseLocalList<L, MovableMutCListEntry<C, L, R>>,
+    RegT extends CRegister<L>,
+    SetT extends CSet<MovableMutCListEntry<C, L, RegT>, [L, InsertArgs]>,
+    DenseT extends DenseLocalList<L, MovableMutCListEntry<C, L, RegT>>,
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCompositeCrdt<C, InsertArgs, Events>
   implements MovableCList<C, InsertArgs>
 {
-  protected readonly set: S;
+  protected readonly set: SetT;
 
   constructor(
     setCallback: (
       setValueConstructor: (
         ...setArgs: [L, InsertArgs]
-      ) => MovableMutCListEntry<C, L, R>,
+      ) => MovableMutCListEntry<C, L, RegT>,
       setArgsSerializer: ElementSerializer<[L, InsertArgs]>
-    ) => S,
+    ) => SetT,
     registerConstructor: (
       initialValue: L,
       registerSerializer: ElementSerializer<L>
-    ) => R,
-    protected readonly denseLocalList: D,
+    ) => RegT,
+    protected readonly denseLocalList: DenseT,
     valueConstructor: (...args: InsertArgs) => C,
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
@@ -72,7 +72,7 @@ export class MovableMutCListFromSet<
       "",
       setCallback((loc, args) => {
         const register = registerConstructor(loc, denseLocalList);
-        const entry = new MovableMutCListEntry<C, L, R>(
+        const entry = new MovableMutCListEntry<C, L, RegT>(
           valueConstructor(...args),
           register
         );
@@ -160,7 +160,7 @@ export class MovableMutCListFromSet<
       );
     }
     // Get the values to delete.
-    const toDelete = new Array<MovableMutCListEntry<C, L, R>>(count);
+    const toDelete = new Array<MovableMutCListEntry<C, L, RegT>>(count);
     for (let i = 0; i < count; i++) {
       toDelete[i] = this.denseLocalList.get(startIndex + i);
     }
@@ -182,7 +182,7 @@ export class MovableMutCListFromSet<
     // Locations to insert at.
     const locs = this.denseLocalList.createNewLocs(insertionIndex, count);
     // Values to move.
-    const toMove = new Array<MovableMutCListEntry<C, L, R>>(count);
+    const toMove = new Array<MovableMutCListEntry<C, L, RegT>>(count);
     for (let i = 0; i < count; i++) {
       toMove[i] = this.denseLocalList.get(startIndex + i);
     }
@@ -210,8 +210,10 @@ export class MovableMutCListFromSet<
 
   indexOf(searchElement: C, fromIndex = 0): number {
     // TODO: unsafe parent access
-    if (this.set.has(searchElement.parent as MovableMutCListEntry<C, L, R>)) {
-      const loc = (searchElement.parent as MovableMutCListEntry<C, L, R>).loc
+    if (
+      this.set.has(searchElement.parent as MovableMutCListEntry<C, L, RegT>)
+    ) {
+      const loc = (searchElement.parent as MovableMutCListEntry<C, L, RegT>).loc
         .value;
       const index = this.denseLocalList.indexOf(loc)!;
       if (fromIndex < 0) fromIndex += this.length;

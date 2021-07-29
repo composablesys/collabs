@@ -20,8 +20,8 @@ import {
 export class PrimitiveCListFromDenseLocalList<
   T,
   L,
-  D extends DenseLocalList<L, T>
-> extends AbstractCListPrimitiveCrdt<D, T, [T]> {
+  DenseT extends DenseLocalList<L, T>
+> extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
   /**
    * @param denseLocalList                   [description]
    * @param valueSerializer [description]
@@ -31,7 +31,7 @@ export class PrimitiveCListFromDenseLocalList<
    * value instead.
    */
   constructor(
-    denseLocalList: D,
+    denseLocalList: DenseT,
     protected readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
     protected readonly valueArraySerializer:
       | ElementSerializer<T[]>
@@ -127,17 +127,17 @@ export class PrimitiveCListFromDenseLocalList<
    * @param index   [description]
    * @param count=1 [description]
    */
-  delete(index: number, count = 1): void {
+  delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error("invalid count: " + count);
     }
     if (count === 0) return;
     const imessage: IPrimitiveCListDeleteMessage = {
-      startLoc: this.state.serialize(this.state.getLoc(index)),
+      startLoc: this.state.serialize(this.state.getLoc(startIndex)),
     };
     if (count > 1) {
       imessage.endLoc = this.state.serialize(
-        this.state.getLoc(index + count - 1)
+        this.state.getLoc(startIndex + count - 1)
       );
     } // Else count === 1.
     const message = PrimitiveCListMessage.create({ delete: imessage });

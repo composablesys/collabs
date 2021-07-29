@@ -60,10 +60,14 @@ class MutCSetFromMapSerializer<AddArgs extends any[]>
 export class MutCSetFromMap<
   C extends Crdt,
   AddArgs extends any[],
-  M extends CMap<[sender: string, uniqueNumber: number, args: AddArgs], C, []>,
+  MapT extends CMap<
+    [sender: string, uniqueNumber: number, args: AddArgs],
+    C,
+    []
+  >,
   Events extends CSetEventsRecord<C> = CSetEventsRecord<C>
 > extends AbstractCSetCompositeCrdt<C, AddArgs, Events> {
-  protected map: M;
+  protected map: MapT;
 
   /**
    * mapCallback is called once to construct the internal
@@ -86,7 +90,7 @@ export class MutCSetFromMap<
       keySerializer: ElementSerializer<
         [sender: string, uniqueNumber: number, args: AddArgs]
       >
-    ) => M,
+    ) => MapT,
     valueConstructor: (...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
