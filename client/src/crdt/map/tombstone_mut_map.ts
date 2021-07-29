@@ -220,4 +220,8 @@ export class TombstoneMutCMap<
     }
     this.keySet.add(key);
   }
+
+  // No need to save/load keyByValue, since it will
+  // automatically be filled in during valueConstructor
+  // calls.
 }

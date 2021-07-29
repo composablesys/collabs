@@ -5,3 +5,7 @@ message TreedocLocMessage {
   repeated uint32 disSenders = 4 [packed=true];
   repeated sint32 disUniqueNumbers = 5 [packed=true];
 }
+
+message TreedocDenseLocalListSave {
+  repeated bytes locs = 1;
+}

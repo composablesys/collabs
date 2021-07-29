@@ -1,4 +1,7 @@
-import { TreedocLocMessage } from "../../../generated/proto_compiled";
+import {
+  TreedocDenseLocalListSave,
+  TreedocLocMessage,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import { arrayAsString, createRBTree, RBTree, WeakValueMap } from "../../util";
 import { BitSet } from "../../util/bitset";
@@ -266,11 +269,31 @@ export class TreedocDenseLocalList<T>
   }
 
   saveLocs(): Uint8Array {
-    // TODO
+    const locs: Uint8Array[] = [];
+    this.tree.forEach((loc) => {
+      locs.push(this.serialize(loc));
+    });
+    const message = TreedocDenseLocalListSave.create({ locs });
+    return TreedocDenseLocalListSave.encode(message).finish();
   }
 
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void {
-    // TODO
+    const message = TreedocDenseLocalListSave.decode(saveData);
+    // Since the saved entries are in sorted order, we
+    // don't need to do any comparisons to build the tree.
+    // For building the tree, we set the tree's _compare
+    // equal to one that always says the inserted value
+    // is greater than a current value, without actually
+    // checking.
+    (this.tree as any)._compare = () => 1;
+    for (let i = 0; i < message.locs.length; i++) {
+      const loc = message.locs[i];
+      this.tree = this.tree.insert(
+        this.deserialize(loc, this.runtime),
+        values(i)
+      )[0];
+    }
+    (this.tree as any)._compare = this.compareWrappers.bind(this);
   }
 
   // Sequence stuff

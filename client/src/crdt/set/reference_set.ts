@@ -91,16 +91,16 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
           value = this.createValue(event.key);
         } else {
           this.backupValuesById.delete(event.key);
+          this.valuesById.set(event.key, value);
         }
-        this.valuesById.set(event.key, value);
         this.emit("Add", { value, timestamp: event.timestamp });
       }
     });
     this.argsById.on("Delete", (event) => {
-      const value = this.valuesById.get(event.key)!;
       // value definitely exists because Delete events
       // are only emitted when the value was just deleted
       // (used to be present).
+      const value = this.valuesById.get(event.key)!;
       this.valuesById.delete(event.key);
       this.backupValuesById.set(event.key, value);
       this.emit("Delete", { value, timestamp: event.timestamp });
@@ -115,6 +115,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
     const args = this.argsById.get(id)!;
     const value = this.valueConstructor(...args);
     ReferenceCSet.metaByValue.set(value, [id, args, this]);
+    this.valuesById.set(id, value);
     return value;
   }
 

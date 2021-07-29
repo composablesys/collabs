@@ -33,7 +33,7 @@ export class TombstoneMutCList<
   ) {
     super(
       (setValueConstructor, setArgsSerializer) =>
-        new TombstoneMutCSet(setValueConstructor, undefined, setArgsSerializer),
+        new TombstoneMutCSet(setValueConstructor, setArgsSerializer),
       (initialValue, registerSerializer) =>
         new LwwCRegister(initialValue, registerSerializer),
       new TreedocDenseLocalList(),
