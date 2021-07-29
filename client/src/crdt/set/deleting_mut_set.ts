@@ -32,7 +32,7 @@ import { AbstractCSetCrdt } from "./abstract_set";
  */
 export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements Resettable, CrdtParent
+  implements Resettable, CrdtParent 
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
@@ -247,6 +247,11 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
    * necessarily valid UTF-8.  So it should be serialized
    * as a byte array (using stringAsArray), not a string.
    *
+   * TODO: remove in favor of BaseSerializer(this)?
+   * Although then if you need strings like in YATA,
+   * you end up redundantly converting the string names
+   * to arrays and back.
+   *
    * @param  value [description]
    * @return           [description]
    * @throws if !this.owns(value)
@@ -268,24 +273,6 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
    */
   getById(id: string): C | undefined {
     return this.children.get(id);
-  }
-
-  /**
-   * Optimized serializer for values in this set.
-   *
-   * It optimizes value serialization by using the set's ids instead of
-   * the full pathToRoot (as DefaultElementSerializer would do).
-   */
-  valueSerializer(): ElementSerializer<C> {
-    const set = this;
-    return {
-      serialize(value: C): Uint8Array {
-        return stringAsArray(set.idOf(value));
-      },
-      deserialize(message: Uint8Array, _runtime: Runtime): C {
-        return set.getById(arrayAsString(message))!;
-      },
-    };
   }
 
   save(): [saveData: Uint8Array, children: Map<string, Crdt>] {

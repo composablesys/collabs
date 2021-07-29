@@ -2,6 +2,7 @@ import {
   ElementSerializer,
   DefaultElementSerializer,
   Optional,
+  CrdtSerializer,
 } from "../../util";
 import { CompositeCrdt, Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
@@ -42,7 +43,7 @@ export class MutCRegisterFromRegister<
     );
     this.register = this.addChild(
       "0",
-      registerCallback(this.crdtFactory.valueSerializer())
+      registerCallback(new CrdtSerializer(this.crdtFactory))
     );
 
     // Events

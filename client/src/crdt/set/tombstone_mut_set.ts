@@ -1,4 +1,8 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import {
+  CrdtSerializer,
+  DefaultElementSerializer,
+  ElementSerializer,
+} from "../../util";
 import { Crdt } from "../core";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
@@ -57,7 +61,7 @@ export class TombstoneMutCSet<
     // of full pathToRoot's, for network efficiency.
     this.members = this.addChild(
       "0",
-      new AddWinsCSet(this.mutSet.valueSerializer())
+      new AddWinsCSet(new CrdtSerializer(this.mutSet))
     );
 
     // Events
@@ -96,40 +100,5 @@ export class TombstoneMutCSet<
 
   get size(): number {
     return this.members.size;
-  }
-
-  /**
-   * Returns a short unique identifier for value
-   * which can be passed to getById to retrieve
-   * value later.
-   *
-   * @param  value [description]
-   * @return           [description]
-   * @throws if !this.owns(value)
-   */
-  idOf(value: C): string {
-    return this.mutSet.idOf(value);
-  }
-
-  /**
-   * Returns the value with the given uid, obtained
-   * from idOf.  If value has been deleted, returns
-   * undefined.
-   *
-   * @param  uid [description]
-   * @return     [description]
-   */
-  getById(id: string): C | undefined {
-    return this.mutSet.getById(id);
-  }
-
-  /**
-   * Optimized serializer for values in this set.
-   *
-   * It optimizes value serialization by using the set's ids instead of
-   * the full pathToRoot (as DefaultElementSerializer would do).
-   */
-  valueSerializer(): ElementSerializer<C> {
-    return this.mutSet.valueSerializer();
   }
 }

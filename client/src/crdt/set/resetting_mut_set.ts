@@ -2,12 +2,7 @@ import {
   IMutCSetFromMapKeyMessage,
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
-import {
-  arrayAsString,
-  DefaultElementSerializer,
-  ElementSerializer,
-  stringAsArray,
-} from "../../util";
+import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt, Runtime } from "../core";
 import { Resettable } from "../helper_crdts";
 import { CMap, MergingMutCMap } from "../map";
@@ -186,24 +181,5 @@ export class ResettingMutCSet<
 
   reset(): void {
     this.map.reset();
-  }
-
-  // TODO: here or superclass?
-  /**
-   * Optimized serializer for values in this set.
-   *
-   * It optimizes value serialization by using the set's ids instead of
-   * the full pathToRoot (as DefaultElementSerializer would do).
-   */
-  valueSerializer(): ElementSerializer<C> {
-    const set = this;
-    return {
-      serialize(value: C): Uint8Array {
-        return stringAsArray(set.idOf(value));
-      },
-      deserialize(message: Uint8Array, _runtime: Runtime): C {
-        return set.getById(arrayAsString(message))!;
-      },
-    };
   }
 }

@@ -1,4 +1,5 @@
 import {
+  CrdtSerializer,
   DefaultElementSerializer,
   ElementSerializer,
   PairSerializer,
@@ -15,9 +16,7 @@ export class MutCMapFromSet<
   K,
   C extends Crdt,
   SetArgs extends any[],
-  SetT extends CSet<C, [K, SetArgs]> & {
-    valueSerializer(): ElementSerializer<C>;
-  }
+  SetT extends CSet<C, [K, SetArgs]>
 > extends AbstractCMapCompositeCrdt<K, C, SetArgs> {
   protected readonly valueSet: SetT;
   protected readonly valueSetSerializer: ElementSerializer<C>;
@@ -42,7 +41,7 @@ export class MutCMapFromSet<
         return valueConstructor(key, ...args);
       }, new PairSerializer(keySerializer, argsSerializer))
     );
-    this.valueSetSerializer = this.valueSet.valueSerializer();
+    this.valueSetSerializer = new CrdtSerializer(this.valueSet);
     this.map = this.addChild(
       "0",
       new LwwCMap(keySerializer, this.valueSetSerializer)

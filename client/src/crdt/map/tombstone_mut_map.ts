@@ -1,4 +1,5 @@
 import {
+  CrdtSerializer,
   DefaultElementSerializer,
   ElementSerializer,
   PairSerializer,
@@ -61,7 +62,7 @@ export class TombstoneMutCMap<
     );
     this.map = this.addChild(
       "0",
-      new LwwCMap(keySerializer, this.valueSet.valueSerializer())
+      new LwwCMap(keySerializer, new CrdtSerializer(this.valueSet))
     );
     this.keySet = this.addChild("1", new AddWinsCSet(keySerializer));
 

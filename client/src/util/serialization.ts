@@ -7,6 +7,7 @@ import {
   ObjectMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
+import { RootCrdt } from "../crdt/core/runtime";
 
 /**
  * A serializer for elements (keys, values, etc.) in Crdt collections,
@@ -56,11 +57,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         if (value === null) {
           message = { nullValue: true };
         } else if (value instanceof Crdt) {
-          // TODO: require to be in the same group.
-          // How to enforce?
           message = {
             crdtValue: CrdtReference.create({
-              pathToRoot: value.pathToRoot().map(stringAsArray),
+              pathToBase: value.pathToRoot().map(stringAsArray),
             }),
           };
         } else if (value instanceof Array) {
@@ -109,7 +108,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         break;
       case "crdtValue":
         ans = runtime.getCrdtByReference(
-          decoded.crdtValue!.pathToRoot!.map(arrayAsString)
+          decoded.crdtValue!.pathToBase!.map(arrayAsString)
         );
         break;
       case "arrayValue":
@@ -234,6 +233,50 @@ export class PairSerializer<T, U> implements ElementSerializer<[T, U]> {
       this.oneSerializer.deserialize(decoded.one, runtime),
       this.twoSerializer.deserialize(decoded.two, runtime),
     ];
+  }
+}
+
+/**
+ * Serializes Crdts using their path to a specified
+ * base Crdt (default the root), which must be an
+ * ancestor of all serialized Crdts.
+ *
+ * This is more efficient than using DefaultSerializer
+ * when base is not the root.  It is more efficient
+ * the closer the serialized values are to base within
+ * the Crdt hierarchy, and best when base is their parent.
+ */
+export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
+  /**
+   * [constructor description]
+   * @param base if omitted, uses the rootCrdt
+   */
+  constructor(private readonly base?: Crdt) {}
+
+  serialize(value: C): Uint8Array {
+    let pathToBase = [];
+    for (
+      let current: Crdt = value;
+      !(
+        current === this.base ||
+        (this.base === undefined && (current as RootCrdt).isRootCrdt)
+      );
+      current = current.parent
+    ) {
+      pathToBase.push(current.name);
+    }
+    const message = CrdtReference.create({
+      pathToBase: pathToBase.map(stringAsArray),
+    });
+    return CrdtReference.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): C {
+    const decoded = CrdtReference.decode(message);
+    return runtime.getCrdtByReference(
+      decoded.pathToBase!.map(arrayAsString),
+      this.base
+    ) as C;
   }
 }
 

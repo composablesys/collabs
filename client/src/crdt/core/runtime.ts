@@ -10,7 +10,6 @@ import {
   CausalTimestamp,
   DefaultCausalBroadcastNetwork,
   isCausalBroadcastNetwork,
-  VectorClock,
 } from "../../net";
 import {
   arrayAsString,
@@ -361,8 +360,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @param  pathToRoot [description]
    * @return            [description]
    */
-  getCrdtByReference(pathToRoot: string[]): Crdt {
-    let currentCrdt: Crdt = this.rootCrdt;
+  getCrdtByReference(pathToRoot: string[], base: Crdt = this.rootCrdt): Crdt {
+    let currentCrdt = base;
     for (let i = pathToRoot.length - 1; i >= 0; i--) {
       if (this.loadHelper !== undefined) {
         // Ensure currentCrdt is loaded before asking it

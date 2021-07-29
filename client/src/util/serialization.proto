@@ -1,5 +1,5 @@
 message CrdtReference {
-    repeated bytes pathToRoot = 1;
+    repeated bytes pathToBase = 1;
 }
 
 message ArrayMessage {
