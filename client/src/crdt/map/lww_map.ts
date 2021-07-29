@@ -2,12 +2,13 @@ import {
   byteArrayEquals,
   DefaultElementSerializer,
   ElementSerializer,
+  Optional,
 } from "../../util";
 import { Resettable } from "../helper_crdts";
 import {
+  CRegister,
   CRegisterEntryMeta,
-  LwwCRegister,
-  OptionalCRegister,
+  OptionalLwwCRegister,
 } from "../register";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
@@ -17,13 +18,18 @@ export class CMapFromRegister<
     K,
     V,
     SetArgs extends any[],
-    R extends OptionalCRegister<V, SetArgs> & Resettable
+    R extends CRegister<Optional<V>, SetArgs> & Resettable
   >
   extends AbstractCMapCompositeCrdt<K, V, SetArgs, CMapEventsRecord<K, V>>
   implements Resettable
 {
   protected readonly internalMap: ImplicitMergingMutCMap<K, R>;
 
+  /**
+   * register is assumed to have value Optional.empty()
+   * iff it is in the initial/reset state.  In particular,
+   * value must be present right after a set() call.
+   */
   constructor(
     private readonly registerConstructor: (key: K) => R,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
@@ -42,19 +48,19 @@ export class CMapFromRegister<
 
   private internalRegisterConstructor(key: K): R {
     const register = this.registerConstructor(key);
-    register.on("OptionalSet", (event) => {
-      if (register.optionalValue.isPresent) {
+    register.on("Set", (event) => {
+      if (register.value.isPresent) {
         // The value was set, not deleted.
         this.emit("Set", {
           key,
-          previousValue: event.previousOptionalValue,
+          previousValue: event.previousValue,
           timestamp: event.timestamp,
         });
       } else {
         // The value was deleted.
         this.emit("Delete", {
           key,
-          deletedValue: event.previousValue,
+          deletedValue: event.previousValue.get(),
           timestamp: event.timestamp,
         });
       }
@@ -65,7 +71,8 @@ export class CMapFromRegister<
   set(key: K, ...args: SetArgs): V {
     const register = this.internalMap.get(key);
     register.set(...args);
-    return register.value;
+    // The register has just been set, so its value is present.
+    return register.value.get();
   }
 
   delete(key: K): void {
@@ -74,7 +81,7 @@ export class CMapFromRegister<
 
   get(key: K): V | undefined {
     const register = this.internalMap.getIfPresent(key);
-    return register === undefined ? undefined : register.value;
+    return register === undefined ? undefined : register.value.get();
   }
 
   has(key: K): boolean {
@@ -87,7 +94,7 @@ export class CMapFromRegister<
 
   *entries(): IterableIterator<[K, V]> {
     for (let [key, valueCrdt] of this.internalMap) {
-      yield [key, valueCrdt.value];
+      yield [key, valueCrdt.value.get()];
     }
   }
 
@@ -109,16 +116,13 @@ export class LwwCMap<K, V> extends CMapFromRegister<
   K,
   V,
   [V],
-  LwwCRegister<V>
+  OptionalLwwCRegister<V>
 > {
   constructor(
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
   ) {
-    super(
-      () => new LwwCRegister({ error: true }, valueSerializer),
-      keySerializer
-    );
+    super(() => new OptionalLwwCRegister(valueSerializer), keySerializer);
   }
 
   /**

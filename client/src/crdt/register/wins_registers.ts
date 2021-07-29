@@ -1,26 +1,92 @@
 import {
+  DefaultElementSerializer,
+  ElementSerializer,
+  Optional,
+  SingletonSerializer,
+} from "../../util";
+import {
+  AggregateArgsCRegister,
+  AggregateCRegister,
   CRegisterEntryMeta,
-  OptionalAggregateCRegister,
 } from "./aggregate_register";
 
-export class LwwCRegister<T> extends OptionalAggregateCRegister<T> {
-  protected aggregateNotInitial(conflictsMeta: CRegisterEntryMeta<T>[]) {
+export class LwwCRegister<T> extends AggregateCRegister<T> {
+  /**
+   * If you don't have an initialValue, consider
+   * OptionalLwwCRegister<T>.
+   */
+  constructor(
+    private readonly initialValue: T,
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super(valueSerializer);
+  }
+
+  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
+    if (conflictsMeta.length === 0) return this.initialValue;
+    else return LwwCRegister.aggregateNonempty(conflictsMeta);
+  }
+
+  /**
+   * Does the LWW aggregation function for
+   * conflictsMeta, which must be non-empty.
+   * This is static and exposed publicly so that it
+   * can be reused in other classes.
+   *
+   * @param  conflictsMeta [description]
+   * @return                                [description]
+   * @throws if conflictsMeta.length === 0
+   */
+  static aggregateNonempty<T>(conflictsMeta: CRegisterEntryMeta<T>[]): T {
+    if (conflictsMeta.length === 0) {
+      throw new Error("conflictsMeta is empty");
+    }
     // Return the value with the largest timestamp.
     // Ties broken arbitrarily (last in iteration order).
     let bestValue: T;
     let bestTime = Number.NEGATIVE_INFINITY;
-    for (let meta of conflictsMeta.values()) {
+    for (const meta of conflictsMeta.values()) {
       if (meta.time >= bestTime) {
         bestValue = meta.value;
         bestTime = meta.time;
       }
     }
+    // Guaranteed to have been set because conflictsMeta.length >= 1.
     return bestValue!;
   }
 }
 
-export class FwwCRegister<T> extends OptionalAggregateCRegister<T> {
-  protected aggregateNotInitial(conflictsMeta: CRegisterEntryMeta<T>[]) {
+export class FwwCRegister<T> extends AggregateCRegister<T> {
+  /**
+   * If you don't have an initialValue, consider
+   * OptionalFwwCRegister<T>.
+   */
+  constructor(
+    private readonly initialValue: T,
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super(valueSerializer);
+  }
+
+  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
+    if (conflictsMeta.length === 0) return this.initialValue;
+    else return FwwCRegister.aggregateNonempty(conflictsMeta);
+  }
+
+  /**
+   * Does the FWW aggregation function for
+   * conflictsMeta, which must be non-empty.
+   * This is static and exposed publicly so that it
+   * can be reused in other classes.
+   *
+   * @param  conflictsMeta [description]
+   * @return                                [description]
+   * @throws if conflictsMeta.length === 0
+   */
+  static aggregateNonempty<T>(conflictsMeta: CRegisterEntryMeta<T>[]): T {
+    if (conflictsMeta.length === 0) {
+      throw new Error("conflictsMeta is empty");
+    }
     // Return the value with the smallest timestamp.
     // Ties broken arbitrarily (first in iteration order).
     let bestValue: T;
@@ -31,6 +97,53 @@ export class FwwCRegister<T> extends OptionalAggregateCRegister<T> {
         bestTime = meta.time;
       }
     }
+    // Guaranteed to have been set because conflictsMeta.length >= 1.
     return bestValue!;
+  }
+}
+
+/**
+ * Like LwwCRegister, but doesn't need an initialValue
+ * for when the value is initialized / reset;
+ * instead, it returns an empty Optional<T> in that
+ * situation.
+ */
+export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
+  Optional<T>,
+  [T],
+  T
+> {
+  constructor(
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super((value) => value, SingletonSerializer.of(valueSerializer));
+  }
+
+  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
+    if (conflictsMeta.length === 0) return Optional.empty();
+    else return Optional.of(LwwCRegister.aggregateNonempty(conflictsMeta));
+  }
+}
+
+/**
+ * Like FwwCRegister, but doesn't need an initialValue
+ * for when the value is initialized / reset;
+ * instead, it returns an empty Optional<T> in that
+ * situation.
+ */
+export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
+  Optional<T>,
+  [T],
+  T
+> {
+  constructor(
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ) {
+    super((value) => value, SingletonSerializer.of(valueSerializer));
+  }
+
+  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
+    if (conflictsMeta.length === 0) return Optional.empty();
+    else return Optional.of(FwwCRegister.aggregateNonempty(conflictsMeta));
   }
 }

@@ -7,29 +7,24 @@ import { CompositeCrdt, Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
-import {
-  CRegister,
-  CRegisterEventsRecord,
-  OptionalCRegister,
-  OptionalCRegisterEventsRecord,
-} from "./interfaces";
-import { LwwCRegister } from "./wins_registers";
+import { CRegister, CRegisterEventsRecord } from "./interfaces";
+import { OptionalLwwCRegister } from "./wins_registers";
 
 export class MutCRegisterFromRegister<
     C extends Crdt,
     SetArgs extends any[],
-    R extends CRegister<C>,
-    Events extends CRegisterEventsRecord<C> = CRegisterEventsRecord<C>
+    Value,
+    R extends CRegister<Value, [C]>,
+    Events extends CRegisterEventsRecord<Value> = CRegisterEventsRecord<Value>
   >
   extends CompositeCrdt<Events>
-  implements CRegister<C, SetArgs>
+  implements CRegister<Value, SetArgs> 
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
   protected readonly register: R;
 
   /**
-   * Note initial value behavior (including possibly
-   * throwing errors on get value() in the initial state)
+   * Note initial value behavior
    * depends on that of the register returned by
    * registerCallback.
    *
@@ -59,7 +54,7 @@ export class MutCRegisterFromRegister<
     this.register.set(this.crdtFactory.add(...args));
   }
 
-  get value(): C {
+  get value(): Value {
     return this.register.value;
   }
 
@@ -68,19 +63,14 @@ export class MutCRegisterFromRegister<
   }
 }
 
-/**
- * Initial value (including after reset) throws
- * an error; optionalValue is the safe way to access it.
- * Sim for SetOptional event and its previousOptionalValue.
- */
 export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
   extends MutCRegisterFromRegister<
     C,
     SetArgs,
-    LwwCRegister<C>,
-    OptionalCRegisterEventsRecord<C>
+    Optional<C>,
+    OptionalLwwCRegister<C>
   >
-  implements OptionalCRegister<C, SetArgs>, Resettable
+  implements Resettable
 {
   constructor(
     valueConstructor: (...args: SetArgs) => C,
@@ -88,17 +78,10 @@ export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
   ) {
     super(
       (registerValueSerializer) =>
-        new LwwCRegister({ error: true }, registerValueSerializer),
+        new OptionalLwwCRegister(registerValueSerializer),
       valueConstructor,
       argsSerializer
     );
-
-    // Events
-    this.register.on("OptionalSet", (event) => this.emit("OptionalSet", event));
-  }
-
-  get optionalValue(): Optional<C> {
-    return this.register.optionalValue;
   }
 
   conflicts(): C[] {

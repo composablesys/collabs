@@ -34,7 +34,7 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
       >
     >
   >
-  implements Resettable 
+  implements Resettable
 {
   constructor(
     valueConstructor: (...args: InsertArgs) => C,
@@ -44,7 +44,7 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
       (setValueConstructor, setArgsSerializer) =>
         new DeletingMutCSet(setValueConstructor, undefined, setArgsSerializer),
       (initialValue, registerSerializer) =>
-        new LwwCRegister({ value: initialValue }, registerSerializer),
+        new LwwCRegister(initialValue, registerSerializer),
       new TreedocDenseLocalList(),
       valueConstructor,
       argsSerializer
