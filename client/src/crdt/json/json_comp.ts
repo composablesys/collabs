@@ -1,9 +1,9 @@
 import { DefaultElementSerializer } from "../../util";
 import { CompositeCrdt } from "../core";
 import { Resettable } from "../helper_crdts";
-import { TextCrdt, TreedocList } from "../list";
-import { RiakCrdtMap } from "../map";
-import { LwwRegister } from "../register";
+import { CText, ResettingMutCList } from "../list";
+import { MergingMutCMap } from "../map";
+import { LwwCRegister } from "../register";
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
 
@@ -14,10 +14,10 @@ export type JsonValue =
   | null
   | JsonObject
   | JsonArray
-  | TextCrdt;
+  | CText;
 
 export class JsonObject extends CompositeCrdt implements Resettable {
-  private readonly internalMap: RiakCrdtMap<string, JsonElement>;
+  private readonly internalMap: MergingMutCMap<string, JsonElement>;
   /**
    * Internal use only
    */
@@ -25,11 +25,11 @@ export class JsonObject extends CompositeCrdt implements Resettable {
     super();
     // Note that adding the key explicitly is redundant, since a value
     // only ever calls makeThisExistent as part of an operation, and
-    // that operation suffices to revive its map key, due to RiakCrdtMap's
+    // that operation suffices to revive its map key, due to MergingMutCMap's
     // semantics.
     this.internalMap = this.addChild(
       "nestedMap",
-      new RiakCrdtMap(
+      new MergingMutCMap(
         () => new JsonElement(makeThisExistent),
         DefaultElementSerializer.getInstance()
       )
@@ -42,7 +42,7 @@ export class JsonObject extends CompositeCrdt implements Resettable {
 
   addKey(key: string): void {
     this.makeThisExistent();
-    this.internalMap.addKey(key);
+    this.internalMap.set(key);
   }
 
   has(key: string): boolean {
@@ -84,35 +84,37 @@ export class JsonObject extends CompositeCrdt implements Resettable {
 }
 
 export class JsonArray extends CompositeCrdt implements Resettable {
-  private readonly internalList: TreedocList<JsonElement>;
+  private readonly internalList: ResettingMutCList<JsonElement>;
   constructor(private readonly makeThisExistent: () => void) {
     super();
     this.internalList = this.addChild(
       "nestedMap",
-      new TreedocList(() => new JsonElement(makeThisExistent))
+      new ResettingMutCList(() => new JsonElement(makeThisExistent))
     );
   }
 
   insert(index: number): JsonElement {
     this.makeThisExistent();
-    return this.internalList.insertAt(index)[1];
+    return this.internalList.insert(index);
   }
 
   insertRange(index: number, count: number): JsonElement[] {
     this.makeThisExistent();
-    return this.internalList
-      .insertAtRange(index, count)
-      .map((value) => value[1]);
+    const elements = new Array<JsonElement>(count);
+    for (let i = 0; i < count; i++) {
+      elements[i] = this.internalList.insert(index);
+    }
+    return elements;
   }
 
   delete(index: number): void {
     // TODO: comment for now because it seems to make semantic sense.
     // this.makeThisExistent();
-    this.internalList.deleteAt(index);
+    this.internalList.delete(index);
   }
 
   get(index: number): JsonElement {
-    return this.internalList.getAt(index);
+    return this.internalList.get(index);
   }
 
   reset(): void {
@@ -126,7 +128,7 @@ export class JsonArray extends CompositeCrdt implements Resettable {
   }
 
   asArray(): JsonElement[] {
-    return this.internalList.asArray();
+    return this.internalList.slice();
   }
 }
 
@@ -139,10 +141,10 @@ export class TextWrapper {
 // sub-reset, each causing a call up the whole chain.
 
 export class JsonElement extends CompositeCrdt implements Resettable {
-  private register: LwwRegister<JsonValue>;
+  private register: LwwCRegister<JsonValue>;
   private object: JsonObject;
   private array: JsonArray;
-  private text: TextCrdt;
+  private text: CText;
   private makeThisExistent: () => void;
 
   static NewJson(): JsonElement {
@@ -155,13 +157,16 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   constructor(makeThisExistent: () => void) {
     super();
     this.makeThisExistent = makeThisExistent;
-    this.register = this.addChild("register", new LwwRegister<JsonValue>(null));
+    this.register = this.addChild(
+      "register",
+      new LwwCRegister<JsonValue>(null)
+    );
     this.object = this.addChild(
       "object",
       new JsonObject(() => this.setIsObject())
     );
     this.array = this.addChild("array", new JsonArray(() => this.setIsArray()));
-    this.text = this.addChild("text", new TextCrdt());
+    this.text = this.addChild("text", new CText());
   }
 
   get value(): JsonValue {
@@ -245,7 +250,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
         }
         return ansList;
       case this.text:
-        return new TextWrapper(this.text.asArray().join(""));
+        return new TextWrapper(this.text.join(""));
       default:
         return this.value;
     }
@@ -268,7 +273,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
         if (value === null) this.setPrimitive(null);
         else if (value instanceof TextWrapper) {
           this.setIsText();
-          this.text.insertAtRange(0, [...value.text]);
+          if (value.text.length > 0) this.text.insert(0, ...value.text);
         } else if (Array.isArray(value)) {
           this.setIsArray();
           this.array.insertRange(0, value.length);
