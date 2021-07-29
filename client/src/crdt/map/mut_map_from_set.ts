@@ -5,6 +5,7 @@ import {
   PairSerializer,
 } from "../../util";
 import { Crdt } from "../core";
+import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
@@ -19,7 +20,6 @@ export class MutCMapFromSet<
   SetT extends CSet<C, [K, SetArgs]>
 > extends AbstractCMapCompositeCrdt<K, C, SetArgs> {
   protected readonly valueSet: SetT;
-  protected readonly valueSetSerializer: ElementSerializer<C>;
   protected readonly map: LwwCMap<K, C>;
 
   // TODO: FWW option?  (Like in MutCRegister.)
@@ -41,10 +41,9 @@ export class MutCMapFromSet<
         return valueConstructor(key, ...args);
       }, new PairSerializer(keySerializer, argsSerializer))
     );
-    this.valueSetSerializer = new CrdtSerializer(this.valueSet);
     this.map = this.addChild(
       "0",
-      new LwwCMap(keySerializer, this.valueSetSerializer)
+      new LwwCMap(keySerializer, new CrdtSerializer(this.valueSet))
     );
 
     // Events
@@ -74,6 +73,14 @@ export class MutCMapFromSet<
 
   get(key: K): C | undefined {
     return this.map.get(key);
+  }
+
+  getConflicts(key: K): C[] {
+    return this.map.getConflicts(key);
+  }
+
+  getConflictsMeta(key: K): CRegisterEntryMeta<C>[] {
+    return this.map.getConflictsMeta(key);
   }
 
   has(key: K): boolean {

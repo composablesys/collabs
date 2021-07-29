@@ -5,6 +5,7 @@ import {
   PairSerializer,
 } from "../../util";
 import { Crdt } from "../core";
+import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
@@ -85,6 +86,14 @@ export class TombstoneMutCMap<
   get(key: K): C | undefined {
     if (this.has(key)) return this.map.get(key);
     else return undefined;
+  }
+
+  getConflicts(key: K): C[] {
+    return this.map.getConflicts(key);
+  }
+
+  getConflictsMeta(key: K): CRegisterEntryMeta<C>[] {
+    return this.map.getConflictsMeta(key);
   }
 
   has(key: K): boolean {

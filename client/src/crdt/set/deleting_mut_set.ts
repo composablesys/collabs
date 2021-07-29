@@ -9,7 +9,7 @@ import {
   ElementSerializer,
   stringAsArray,
 } from "../../util";
-import { Crdt, CrdtParent, Runtime } from "../core";
+import { Crdt, CrdtParent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { AbstractCSetCrdt } from "./abstract_set";
 
@@ -32,7 +32,7 @@ import { AbstractCSetCrdt } from "./abstract_set";
  */
 export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements Resettable, CrdtParent 
+  implements Resettable, CrdtParent
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
