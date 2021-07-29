@@ -56,15 +56,16 @@ export abstract class AggregateArgsCRegister<
     super({ entries: [] });
   }
 
-  set(...args: SetArgs) {
+  set(...args: SetArgs): T {
     let message = AggregateArgsCRegisterMessage.create({
       setArgs: this.argsSerializer.serialize(args),
     });
     let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
     super.send(buffer);
+    return this.value;
   }
 
-  reset() {
+  reset(): void {
     // Only reset if needed
     if (!this.canGc()) {
       let message = AggregateArgsCRegisterMessage.create({

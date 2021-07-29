@@ -3,7 +3,7 @@ import { CBoolean } from "./interfaces";
 
 export declare abstract class AbstractCBoolean
   extends Crdt
-  implements CBoolean 
+  implements CBoolean
 {
   abstract value: boolean;
 
@@ -14,7 +14,7 @@ export declare abstract class AbstractCBoolean
   toggle(): void;
   true(): void;
   false(): void;
-  set(value: boolean): void;
+  set(value: boolean): boolean;
 }
 
 /**
@@ -46,55 +46,10 @@ export function MakeAbstractCBoolean<
       this.value = false;
     }
 
-    set(value: boolean): void {
+    set(value: boolean): boolean {
       this.value = value;
+      return this.value;
     }
   }
   return Mixin;
 }
-
-// Testing
-// class Test1 extends MakeAbstractCBoolean(CompositeCrdt)<CNumberEventsRecord> {
-//   constructor() {
-//     super();
-//     this.addChild("test", new CompositeCrdt());
-//     // this.emit("Add", /* properly extends CNumberEvent */);
-//   }
-//   value = true;
-// }
-//
-// const x = new Test1();
-// x.toggle();
-// const z: CBoolean = x;
-//
-// class Test2 extends MakeAbstractCBoolean(PrimitiveCrdt)<number> {
-//   protected receivePrimitive(
-//     timestamp: CausalTimestamp,
-//     message: Uint8Array
-//   ): void {
-//     throw new Error("Method not implemented.");
-//   }
-//   protected savePrimitive(): Uint8Array {
-//     throw new Error("Method not implemented.");
-//   }
-//   protected loadPrimitive(saveData: Uint8Array): void {
-//     throw new Error("Method not implemented.");
-//   }
-//   canGc(): boolean {
-//     throw new Error("Method not implemented.");
-//   }
-//   value = true;
-// }
-//
-// const y: CBoolean = new Test2(7);
-//
-// // Properly angry that Object does not extend Crdt
-// export class TestBase extends MakeAbstractCBoolean(Object) {}
-//
-// export class TestOverride extends MakeAbstractCBoolean(CompositeCrdt) {
-//   toggle() {
-//     this.value = false;
-//   }
-//
-//   value = true;
-// }

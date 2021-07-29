@@ -18,7 +18,7 @@ export class MutCRegisterFromRegister<
     Events extends CRegisterEventsRecord<Value> = CRegisterEventsRecord<Value>
   >
   extends CompositeCrdt<Events>
-  implements CRegister<Value, SetArgs> 
+  implements CRegister<Value, SetArgs>
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
   protected readonly register: R;
@@ -49,9 +49,9 @@ export class MutCRegisterFromRegister<
     this.register.on("Set", (event) => this.emit("Set", event));
   }
 
-  set(...args: SetArgs): void {
+  set(...args: SetArgs): Value {
     this.crdtFactory.clear();
-    this.register.set(this.crdtFactory.add(...args));
+    return this.register.set(this.crdtFactory.add(...args));
   }
 
   get value(): Value {

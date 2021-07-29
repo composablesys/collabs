@@ -40,8 +40,10 @@ export interface CRegister<
    * Sends args to every replica in serialized form.
    * Every replica then uses
    * them to contruct the actual set value of type T.
+   *
+   * @return the set value
    */
-  set(...args: SetArgs): void;
+  set(...args: SetArgs): T;
 
   /**
    * Returns the current value.

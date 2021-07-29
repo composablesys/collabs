@@ -70,9 +70,8 @@ export class CMapFromRegister<
 
   set(key: K, ...args: SetArgs): V {
     const register = this.internalMap.get(key);
-    register.set(...args);
-    // The register has just been set, so its value is present.
-    return register.value.get();
+    // After setting, the register's value is present.
+    return register.set(...args).get();
   }
 
   delete(key: K): void {
