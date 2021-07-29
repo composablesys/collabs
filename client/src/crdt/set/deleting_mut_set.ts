@@ -9,17 +9,79 @@ import {
   ElementSerializer,
   stringAsArray,
 } from "../../util";
-import { Crdt, CrdtParent } from "../core";
+import { Crdt, CrdtEventsRecord, CrdtParent } from "../core";
 import { Resettable } from "../helper_crdts";
 import { AbstractCSetCrdt } from "./abstract_set";
 
+class FakeDeletedCrdt extends Crdt {
+  private constructor() {
+    super();
+  }
+
+  protected receiveInternal(
+    _targetPath: string[],
+    _timestamp: CausalTimestamp,
+    _message: Uint8Array
+  ): void {
+    throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
+  }
+  getChild(_name: string): Crdt<CrdtEventsRecord> {
+    throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
+  }
+  canGc(): boolean {
+    throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
+  }
+  save(): [
+    saveData: Uint8Array,
+    children: Map<string, Crdt<CrdtEventsRecord>>
+  ] {
+    throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
+  }
+  load(_saveData: Uint8Array): void {
+    throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
+  }
+
+  /**
+   * Used in getChild when the requested Crdt is deleted/
+   * frozen.  See the comment there.
+   */
+  static of(name: string, parent: CrdtParent): FakeDeletedCrdt {
+    const fakeDeletedCrdt = new FakeDeletedCrdt();
+    fakeDeletedCrdt.init(name, parent);
+    return new Proxy(fakeDeletedCrdt, {
+      get: function (target, p) {
+        if (p in target) {
+          // Do the behavior defined by FakeDeletedCrdt.
+          return (target as any)[p];
+        } else {
+          throw new Error(
+            "Crdt has been deleted from DeletingMutCSet and is frozen"
+          );
+        }
+      },
+
+      set: function (target, p, value) {
+        if (p in target) {
+          // Do the behavior defined by FakeDeletedCrdt.
+          (target as any)[p] = value;
+          return true;
+        } else {
+          throw new Error(
+            "Crdt has been deleted from DeletingMutCSet and is frozen"
+          );
+        }
+      },
+    });
+  }
+}
+
 /**
- * TODO: when you delete a Crdt, it is "frozen" -
+ * Warning: when you delete a Crdt, it is "frozen" -
  * no longer receives ops, doing ops locally causes an
  * error, not guaranteed EC.  Use has to check if it's
  * frozen.  Restore not allowed (2P-set semantics).
  *
- * TODO: in given constructor/its init function,
+ * Warning: in given constructor/its init function,
  * be careful not to use replica-specific info
  * (replicaId, runtime.getReplicaUniqueNumber()) -
  * it won't be consistent on different replicas.
@@ -54,9 +116,9 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     // Create the initial values from initialValuesArgs
     for (let i = 0; i < this.initialValuesArgs!.length; i++) {
       const args = this.initialValuesArgs![i];
-      // TODO: what name to use?  ""?  Regardless, should
-      // make it a constant on Runtime, to prevent magic
-      // strings.
+      // Using name "INIT" is a hack; need to figure out
+      // a proper way to do this when implementing
+      // initial values generally.
       const name = arrayAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", i])
       );
@@ -168,16 +230,19 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   getChild(name: string): Crdt {
     const child = this.children.get(name);
     if (child === undefined) {
-      // TODO: what to do here?
       // Assume it is a deleted (frozen) child.
       // It seems hard to prevent getDescendant calls
-      // concurrent to a delete, which we want to return
-      // a frozen Crdt instead of an error.  But we have
-      // no way to construct a default frozen Crdt.
-      // For now we just return null and hope that errors
-      // will propagate if it is used.
-      // Perhaps return a proxy that gives errors on every call?
-      return null as unknown as Crdt;
+      // concurrent to a delete (e.g. due to an operation
+      // putting a Crdt into a register concurrent to a
+      // delete), which we want to return
+      // a frozen Crdt instead of an immediate error.
+      // For now, we return a Proxy that throws an error when
+      // you do anything with it except the predefined
+      // Crdt operations (name, runtime, parent); these
+      // are defined properly in case the Crdt gets
+      // re-serialized (e.g. during saving of whatever
+      // holds a reference to it).
+      return FakeDeletedCrdt.of(name, this);
     }
     return child;
   }

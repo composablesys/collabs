@@ -52,9 +52,6 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
  * cast to the intended constructor type, as demonstrated
  * by AbstractCMapPrimitiveCrdt and the other examples
  * in this file.
- *
- * TODO: such types become unsafe if Base's constructor
- * signature changes; how can we catch that?
  */
 export function MakeAbstractCMap<
   TBase extends abstract new (...args: any[]) => Crdt

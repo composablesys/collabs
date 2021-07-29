@@ -8,7 +8,21 @@ import { Crdt } from "../core";
 import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
-import { LwwCMap } from "./lww_map";
+import { CMap } from "./interfaces";
+
+export interface ConflictsCMap<K, C> extends CMap<K, C> {
+  /**
+   * Return the causally maximal concurrent values set
+   * for key.
+   */
+  getConflicts(key: K): C[];
+
+  /**
+   * Return the causally maximal concurrent values set
+   * for key, with metadata.
+   */
+  getConflictsMeta(key: K): CRegisterEntryMeta<C>[];
+}
 
 /**
  * The set is used as a source of Crdts for values.
@@ -17,18 +31,21 @@ export class MutCMapFromSet<
   K,
   C extends Crdt,
   SetArgs extends any[],
-  SetT extends CSet<C, [K, SetArgs]>
+  SetT extends CSet<C, [K, SetArgs]>,
+  MapT extends ConflictsCMap<K, C>
 > extends AbstractCMapCompositeCrdt<K, C, SetArgs> {
   protected readonly valueSet: SetT;
-  protected readonly map: LwwCMap<K, C>;
+  protected readonly map: MapT;
 
-  // TODO: FWW option?  (Like in MutCRegister.)
-  // Generic map?  (Then move conflicts etc. to the subclass)
   constructor(
     setCallback: (
       setValueConstructor: (key: K, args: SetArgs) => C,
       setArgsSerializer: ElementSerializer<[K, SetArgs]>
     ) => SetT,
+    mapCallback: (
+      mapKeySerializer: ElementSerializer<K>,
+      mapValueSerializer: ElementSerializer<C>
+    ) => MapT,
     valueConstructor: (key: K, ...args: SetArgs) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
@@ -43,7 +60,7 @@ export class MutCMapFromSet<
     );
     this.map = this.addChild(
       "0",
-      new LwwCMap(keySerializer, new CrdtSerializer(this.valueSet))
+      mapCallback(keySerializer, new CrdtSerializer(this.valueSet))
     );
 
     // Events

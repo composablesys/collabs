@@ -145,7 +145,6 @@ export class PrimitiveCListFromDenseLocalList<
   }
 
   clear() {
-    // TODO: optimize (own message)
     this.delete(0, this.length);
   }
 

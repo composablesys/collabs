@@ -170,7 +170,6 @@ export class TreedocDenseLocalList<T>
 
   set(loc: TreedocLocWrapper, value: T): number {
     let index: number;
-    // TODO: will index be accurate if loc already exists?
     [this.tree, index] = this.tree.insert(loc, value, true);
     return index;
   }
@@ -211,8 +210,8 @@ export class TreedocDenseLocalList<T>
       let ret: [number, T] | undefined;
       [this.tree, ret] = this.tree.remove(toDelete[i]);
       // TODO: bulk calls to ondelete, for efficiency.
-      // Also can we make that work with string?  (Use
-      // ArrayLike instead of array for deletedValues?)
+      // Also can we make that work with string?
+      // (Use array | string for deletedValues?)
       ondelete(ret![0], 1, [ret![1]]);
     }
   }
@@ -260,7 +259,6 @@ export class TreedocDenseLocalList<T>
   }
 
   valuesArray(): T[] {
-    // TODO: is this safe to modify?
     return this.tree.values;
   }
 
@@ -464,8 +462,7 @@ export class TreedocDenseLocalList<T>
     // We use whichever result is shorter.
     //
     // Finally, we end with a fresh disambiguator, so
-    // that all insertions are unique.  (TODO: not actually
-    // true until we add counters to disambiguators.)
+    // that all insertions are unique.
 
     let path: BitSet;
     let disambiguators: Disambiguator[] = [];

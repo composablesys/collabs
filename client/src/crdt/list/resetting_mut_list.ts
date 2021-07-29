@@ -27,9 +27,6 @@ export class ResettingMutCList<C extends Crdt & Resettable>
   }
 
   owns(value: C): boolean {
-    // TODO: might throw error due to double-parent.
-    // Should change both owns methods to guard against this
-    // (return false on rootCrdt).
     return this.internalMap.owns(value);
   }
 
@@ -42,7 +39,6 @@ export class ResettingMutCList<C extends Crdt & Resettable>
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
-    // TODO: unsafe parent access
     const loc = this.internalMap.keyOf(searchElement);
     if (loc !== undefined) {
       const index = this.denseLocalList.indexOf(loc)!;

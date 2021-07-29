@@ -140,9 +140,6 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
  * cast to the intended constructor type, as demonstrated
  * by AbstractCListPrimitiveCrdt and the other examples
  * in this file.
- *
- * TODO: such types become unsafe if Base's constructor
- * signature changes; how can we catch that?
  */
 export function MakeAbstractCList<
   TBase extends abstract new (...args: any[]) => Crdt

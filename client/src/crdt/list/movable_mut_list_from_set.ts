@@ -4,6 +4,7 @@ import {
   PairSerializer,
 } from "../../util";
 import { CompositeCrdt, Crdt, CrdtParent } from "../core";
+import { RootCrdt } from "../core/runtime";
 import { CRegister } from "../register";
 import { CSet } from "../set";
 import { AbstractCListCompositeCrdt } from "./abstract_list";
@@ -47,7 +48,7 @@ export class MovableMutCListFromSet<
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCompositeCrdt<C, InsertArgs, Events>
-  implements MovableCList<C, InsertArgs> 
+  implements MovableCList<C, InsertArgs>
 {
   protected readonly set: SetT;
 
@@ -221,7 +222,10 @@ export class MovableMutCListFromSet<
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
-    // TODO: unsafe parent access
+    // Avoid errors from searchElement.parent in case it
+    // is the root.
+    if ((searchElement as Crdt as RootCrdt).isRootCrdt) return -1;
+
     if (
       this.set.has(searchElement.parent as MovableMutCListEntry<C, L, RegT>)
     ) {
@@ -255,7 +259,6 @@ export class MovableMutCListFromSet<
 
   postLoad() {
     // Fill in denseLocalList, which starts empty.
-    // TODO: optimize?
     for (const value of this.set) {
       this.denseLocalList.set(value.loc.value, value);
     }

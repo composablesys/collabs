@@ -12,9 +12,8 @@ import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
 
 /**
- * TODO: warning: tombstones.  Benefit is that you can
- * restoreKey, and you can always restoreValue (always
- * usable).
+ * Warning: tombstones.  Benefit is that you can
+ * restoreKey and restoreValue.
  */
 export class TombstoneMutCMap<
   K,
@@ -28,9 +27,6 @@ export class TombstoneMutCMap<
   // necessary for restoreValue calls.
   private readonly keyByValue: WeakMap<C, K> = new WeakMap();
 
-  // TODO: FWW option?  (Like in MutCRegister.)
-  // Perhaps have LwwMap be a generic "WW" map with a
-  // first/last option, to make this easy.
   constructor(
     valueConstructor: (key: K, ...args: SetArgs) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),

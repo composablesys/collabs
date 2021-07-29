@@ -39,9 +39,6 @@ export declare abstract class AbstractCSet<T, AddArgs extends any[]>
  * cast to the intended constructor type, as demonstrated
  * by AbstractCSetPrimitiveCrdt and the other examples
  * in this file.
- *
- * TODO: such types become unsafe if Base's constructor
- * signature changes; how can we catch that?
  */
 export function MakeAbstractCSet<
   TBase extends abstract new (...args: any[]) => Crdt

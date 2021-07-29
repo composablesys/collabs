@@ -2,6 +2,7 @@ import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt } from "../core";
 import { Resettable } from "../helper_crdts";
 import { ResettingMutCSet } from "../set";
+import { LwwCMap } from "./lww_map";
 import { MutCMapFromSet } from "./mut_map_from_set";
 
 export class ResettingMutCMap<
@@ -9,7 +10,13 @@ export class ResettingMutCMap<
     C extends Crdt & Resettable,
     SetArgs extends any[]
   >
-  extends MutCMapFromSet<K, C, SetArgs, ResettingMutCSet<C, [K, SetArgs]>>
+  extends MutCMapFromSet<
+    K,
+    C,
+    SetArgs,
+    ResettingMutCSet<C, [K, SetArgs]>,
+    LwwCMap<K, C>
+  >
   implements Resettable
 {
   constructor(
@@ -20,6 +27,8 @@ export class ResettingMutCMap<
     super(
       (setValueConstructor, setArgsSerializer) =>
         new ResettingMutCSet(setValueConstructor, setArgsSerializer),
+      (mapKeySerializer, mapValueSerializer) =>
+        new LwwCMap(mapKeySerializer, mapValueSerializer),
       valueConstructor,
       keySerializer,
       argsSerializer

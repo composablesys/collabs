@@ -1,5 +1,6 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt } from "../core";
+import { RootCrdt } from "../core/runtime";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
@@ -43,9 +44,10 @@ export class TombstoneMutCList<
   }
 
   owns(value: C): boolean {
-    // TODO: might throw error due to double-parent.
-    // Should change both owns methods to guard against this
-    // (return false on rootCrdt).
+    // Avoid errors from value.parent in case it
+    // is the root.
+    if ((value as Crdt as RootCrdt).isRootCrdt) return false;
+
     return this.set.owns(
       value.parent as MovableMutCListEntry<
         C,

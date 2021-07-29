@@ -4,29 +4,17 @@ import { Runtime } from "../core";
 
 // TODO: stuff for cursors (exposing raw locs)
 
-// TODO: perhaps instead of trying to optimize each function
-// that iterates over a portion of the list, we can
-// optimize get() for sequential accesses, by caching a
-// tree iterator for the previous access, and using it
-// if the next access is +/-1 from the previous one,
-// to get access in O(1) time instead of O(log n).
-// Although, really this shouldn't be a problem in general
-// because even though it is O(log n), the constant factor
-// is small: it is just an int comparison, not a full loc
-// comparison.
-
-// TODO: errors on out-of-bounds indices (so users don't
-// each have to do that themselves).
-
 /**
- * TODO: ops can assume causal order.
+ * Ops can assume causal order.
  *
- * L for "location", abbr. "loc".  TODO: pos?  Sounds more
- * standard but the plural is awkward.
+ * L for "location", abbr. "loc".
+ *
+ * Methods should throw errors on out-of-bounds
+ * index accesses.
  */
 export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   /**
-   * TODO: needs to called exactly once, before using.
+   * Needs to called exactly once, before using.
    * Can we move this to the constructor instead?
    * deserialize will use this Runtime automatically,
    * ignoring its argument.
@@ -104,7 +92,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   set(loc: L, value: T): number;
 
   /**
-   * TODO: loc might already be deleted.
+   * loc might already be deleted.
    *
    * @param  loc [description]
    * @return    [previous index of deleted value,
@@ -133,13 +121,6 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
     timestamp: CausalTimestamp,
     ondelete: (startIndex: number, count: number, deletedValues: T[]) => void
   ): void;
-
-  // TODO: sending shorter locs on deletion
-  // TODO: in MutCList's, make sure storing a bunch
-  // of locs in our own data structure doesn't increase
-  // memory usage too much.  (Might end up doing this as
-  // well in PrimitiveCList, so that we can store a map
-  // from ids to locs, for delete messages).
 
   get(index: number): T;
 
@@ -172,10 +153,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * Load the locs specified by saveData (from saveLocs)
    * and the values specified by the values callback,
    * which represents an array of the same length as the
-   * saved loc array.  TODO: ArrayLike instead of values
-   * (equally flexible and accomodates strings)?
-   * Or, explicit undefined option for all-undefined
-   * values?  (Actually, looks like we don't need undefined version?)
+   * saved loc array.
    */
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void;
 }

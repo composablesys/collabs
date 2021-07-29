@@ -29,8 +29,8 @@ class AggregateArgsCRegisterEntry<S> implements CRegisterEntryMeta<S> {
 }
 
 /**
- * TODO: mention a color averager as an advanced example.
- * Demo on whiteboard?
+ * Mention a color averager as an advanced example,
+ * link to demo.
  *
  * S is the type of conflicting values that get aggregated
  * to type T.  Usually S = T, but OptionalLwwCRegister
@@ -44,7 +44,7 @@ export abstract class AggregateArgsCRegister<
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
   extends PrimitiveCrdt<{ entries: AggregateArgsCRegisterEntry<S>[] }, Events>
-  implements CRegister<T, SetArgs>
+  implements CRegister<T, SetArgs> 
 {
   private cachedValue: T | undefined = undefined;
   private cacheValid: boolean = false;
@@ -202,7 +202,8 @@ export abstract class AggregateArgsCRegister<
   }
 
   /**
-   * TODO.
+   * Aggregate the current conflicting (causally maximal)
+   * values, with metadata, returning the actual value.
    *
    * Note that conflictsMeta might be empty (initial/reset
    * state).  Order is eventually consistent, so it is okay

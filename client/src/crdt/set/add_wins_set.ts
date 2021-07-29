@@ -79,11 +79,6 @@ export class CSetFromBoolean<
 
   postLoad() {
     // Set this.cachedSize as a view of the set's size.
-    // TODO: would it be better to just save the size?
-    // It is only a few bytes of save space, vs this extra
-    // linear scan, although we already pay the linear time
-    // cost when loading booleanMap anyway.
-    // Same for MergingMutCMap.
     for (const value of this.booleanMap.values()) {
       if (value.value) this.cachedSize++;
     }
