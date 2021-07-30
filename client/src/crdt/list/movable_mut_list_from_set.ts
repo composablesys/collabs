@@ -167,11 +167,6 @@ export class MovableMutCListFromSet<
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error("invalid count: " + count);
     }
-    if (startIndex + count >= this.length) {
-      throw new Error(
-        "startIndex + count out of range: " + (startIndex + count)
-      );
-    }
     // Get the values to delete.
     const toDelete = new Array<MovableMutCListEntry<C, L, RegT>>(count);
     for (let i = 0; i < count; i++) {

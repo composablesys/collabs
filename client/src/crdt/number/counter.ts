@@ -140,14 +140,7 @@ export class GrowOnlyCCounter
           }
         }
         // Update the cached value.
-        this.valueInternal = 0;
-        for (const m of this.state.M.values()) {
-          // Since m[1] <= m[0], m[0] - m[1] is within
-          // the safe range, so we don't need an extra
-          // modulo for it.
-          this.valueInternal =
-            (this.valueInternal + m[0] - m[1]) % GrowOnlyCCounter.MODULUS;
-        }
+        this.computeValue();
 
         this.emit("Reset", {
           arg: this.value - previousValue,
@@ -157,6 +150,20 @@ export class GrowOnlyCCounter
         break;
       default:
         throw new Error("Unknown decoded.data: " + decoded.data);
+    }
+  }
+
+  /**
+   * Set this.valueInternal directly from this.state.
+   */
+  private computeValue(): void {
+    this.valueInternal = 0;
+    for (const m of this.state.M.values()) {
+      // Since m[1] <= m[0], m[0] - m[1] is within
+      // the safe range, so we don't need an extra
+      // modulo for it.
+      this.valueInternal =
+        (this.valueInternal + m[0] - m[1]) % GrowOnlyCCounter.MODULUS;
     }
   }
 
@@ -186,6 +193,8 @@ export class GrowOnlyCCounter
     for (const [replicaId, m] of Object.entries(message.M)) {
       this.state.M.set(replicaId, [m.p, m.n, m.idCounter]);
     }
+    // Set the cached value.
+    this.computeValue();
   }
 }
 

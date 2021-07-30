@@ -61,11 +61,6 @@ export class CListFromMap<
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error("invalid count: " + count);
     }
-    if (startIndex + count >= this.length) {
-      throw new Error(
-        "startIndex + count out of range: " + (startIndex + count)
-      );
-    }
     // Get the locs to delete.
     const toDelete = new Array<L>(count);
     for (let i = 0; i < count; i++) {

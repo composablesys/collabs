@@ -51,7 +51,11 @@ export interface CRegister<
    * Implementations in which set takes the actual set
    * value of type T (i.e., SetArgs = [T]) should make
    * value writable, so that this.value = x is an alias
-   * for this.set(x).
+   * for this.set(x).  Note that if you add this setter
+   * in a subclass of a class defining the getter, you
+   * must also define the getter as "return super.value",
+   * or else the setter will cover it up, causing the getter
+   * to always return undefined.
    */
   readonly value: T;
 }

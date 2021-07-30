@@ -206,8 +206,10 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
     if (this.inReceiveKeyStr === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
-      // Instead, use the valueCrdt directly.
-      return this.inReceiveValueCrdt!;
+      // Instead, use canGc directly.
+      if (!this.inReceiveValueCrdt!.canGc()) {
+        return this.inReceiveValueCrdt!;
+      } else return undefined;
     }
     return this.nontrivialMap.get(this.keyAsString(key));
   }

@@ -4,6 +4,7 @@ message TreedocLocMessage {
   repeated string disSendersIndex = 3;
   repeated uint32 disSenders = 4 [packed=true];
   repeated sint32 disUniqueNumbers = 5 [packed=true];
+  optional int32 senderCounter = 6 [default = -1];
 }
 
 message TreedocDenseLocalListSave {

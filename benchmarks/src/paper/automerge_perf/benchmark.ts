@@ -318,7 +318,7 @@ function treedocLww() {
     processEdit(edit) {
       if (edit[2] !== undefined) {
         // Insert edit[2] at edit[0]
-        list!.insert(edit[0])[1].value = edit[2];
+        list!.insert(edit[0]).value = edit[2];
       } else {
         // Delete character at edit[0]
         list!.delete(edit[0]);

@@ -390,8 +390,12 @@ describe("list", () => {
           to: TreedocDenseLocalList<any>,
           seqIds: TreedocLoc[]
         ): TreedocLoc[] {
-          return seqIds.map((value) =>
-            to.deserializeInternal(from.serializeInternal(value), to.runtime)
+          return seqIds.map(
+            (value) =>
+              to.deserializeInternal(
+                from.serializeInternal(value, value.senderCounter ?? -1),
+                to.runtime
+              )[0]
           );
         }
 

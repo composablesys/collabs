@@ -225,9 +225,14 @@ export function MakeAbstractCList<
 
       // Use a proxy to define [index] accessors
       return new Proxy(this, {
-        get: function (target, prop) {
-          if (prop === "length") return target.length;
-          else return target.get(Number(prop));
+        get: function (target, p) {
+          if (p === "length") return target.length;
+          else return target.get(Number.parseInt(p as string));
+        },
+        has(_target, _p) {
+          // Let the Array methods know that we do indeed
+          // have properties for all of the indices.
+          return true;
         },
       }) as unknown as {
         readonly length: number;
