@@ -1,14 +1,13 @@
 import { assert } from "chai";
 import {
   Runtime,
-  ISequenceSource,
-  TreedocSource,
-  TreedocId,
+  TreedocDenseLocalList,
   TestingNetworkGenerator,
 } from "../../src";
 import seedrandom from "seedrandom";
 import { BitSet } from "../../src/util/bitset";
 import util from "util";
+import { TreedocLoc } from "../../src/crdt/list/treedoc_dense_local_list";
 
 describe("list", () => {
   let runtimeGen: TestingNetworkGenerator;
@@ -23,12 +22,12 @@ describe("list", () => {
     bob = runtimeGen.newRuntime("immediate", rng);
   });
 
-  describe("TreedocSource", () => {
-    let source: TreedocSource;
+  describe("TreedocDenseLocalList", () => {
+    let source: TreedocDenseLocalList<any>;
     let aliceId: string;
 
     beforeEach(() => {
-      source = new TreedocSource();
+      source = new TreedocDenseLocalList();
       source.setRuntime(alice);
       aliceId = alice.replicaId;
     });
@@ -36,11 +35,11 @@ describe("list", () => {
     it("compares sample correctly", () => {
       assert.isAbove(
         source.compare(
-          new TreedocId(BitSet.parseBinary("01101100100110110010"), [
+          new TreedocLoc(BitSet.parseBinary("01101100100110110010"), [
             { index: 0, sender: "alice", uniqueNumber: 1 },
             { index: 2, sender: "alice", uniqueNumber: 2 },
           ]),
-          new TreedocId(BitSet.parseBinary("011010"), [
+          new TreedocLoc(BitSet.parseBinary("011010"), [
             { index: 0, sender: "alice", uniqueNumber: 1 },
             { index: 2, sender: "alice", uniqueNumber: 2 },
           ])
@@ -48,7 +47,7 @@ describe("list", () => {
         0
       );
 
-      let value = new TreedocId(BitSet.parseBinary("010"), [
+      let value = new TreedocLoc(BitSet.parseBinary("010"), [
         { index: 0, sender: "d\x19kg#\x0FaG~v%", uniqueNumber: 7 },
         { index: 2, sender: "\x07H&\x13$:WYs\x05_", uniqueNumber: 13 },
       ]);
@@ -58,11 +57,11 @@ describe("list", () => {
     it("breaks ties by disambiguators", () => {
       assert.isAbove(
         source.compare(
-          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+          new TreedocLoc(BitSet.parseBinary("01101000100110110010"), [
             { index: 0, sender: "bob", uniqueNumber: 7 },
             { index: 19, sender: "alice", uniqueNumber: 1 },
           ]),
-          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+          new TreedocLoc(BitSet.parseBinary("01101000100110110010"), [
             { index: 0, sender: "alice", uniqueNumber: 1 },
             { index: 19, sender: "alice", uniqueNumber: 11 },
           ])
@@ -71,12 +70,12 @@ describe("list", () => {
       );
       assert.isAbove(
         source.compare(
-          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+          new TreedocLoc(BitSet.parseBinary("01101000100110110010"), [
             { index: 0, sender: "alice", uniqueNumber: 1 },
             { index: 2, sender: "bob", uniqueNumber: 7 },
             { index: 19, sender: "alice", uniqueNumber: 11 },
           ]),
-          new TreedocId(BitSet.parseBinary("01101000100110110010"), [
+          new TreedocLoc(BitSet.parseBinary("01101000100110110010"), [
             { index: 0, sender: "alice", uniqueNumber: 1 },
             { index: 2, sender: "alice", uniqueNumber: 5 },
             { index: 19, sender: "alice", uniqueNumber: 11 },
@@ -113,7 +112,7 @@ describe("list", () => {
       let before =
         beforePath === null
           ? null
-          : new TreedocId(
+          : new TreedocLoc(
               BitSet.parseBinary(beforePath),
               beforeDis!.map((elem) => {
                 return {
@@ -126,7 +125,7 @@ describe("list", () => {
       let after =
         afterPath === null
           ? null
-          : new TreedocId(
+          : new TreedocLoc(
               BitSet.parseBinary(afterPath),
               afterDis!.map((elem) => {
                 return {
@@ -138,7 +137,7 @@ describe("list", () => {
             );
       let expectedIds = expected.map(
         (value) =>
-          new TreedocId(
+          new TreedocLoc(
             BitSet.parseBinary(value[0]),
             value[1].map((elem) => {
               return {
@@ -356,16 +355,16 @@ describe("list", () => {
     });
   });
 
-  describe("ISequenceSource generic tests", () => {
+  describe("TreedocDenseLocalList generic tests", () => {
     const sequenceSources = {
-      TreedocSource: () => new TreedocSource(),
+      TreedocDenseLocalList: () => new TreedocDenseLocalList(),
     };
     for (let entry of Object.entries(sequenceSources)) {
       describe(entry[0], () => {
-        let aliceSource: ISequenceSource<any>;
-        let bobSource: ISequenceSource<any>;
+        let aliceSource: TreedocDenseLocalList<any>;
+        let bobSource: TreedocDenseLocalList<any>;
 
-        function checkOrder(source: ISequenceSource<any>, seqIds: any[]) {
+        function checkOrder(source: TreedocDenseLocalList<any>, seqIds: any[]) {
           for (let i = 0; i < seqIds.length; i++) {
             if (seqIds[i] === null) continue;
             for (let j = 0; j < seqIds.length; j++) {
@@ -387,19 +386,23 @@ describe("list", () => {
         }
 
         function transfer(
-          from: ISequenceSource<any>,
-          to: ISequenceSource<any>,
-          seqIds: any[]
-        ) {
-          return seqIds.map((value) =>
-            to.deserialize(from.serialize(value), to.runtime)
+          from: TreedocDenseLocalList<any>,
+          to: TreedocDenseLocalList<any>,
+          seqIds: TreedocLoc[]
+        ): TreedocLoc[] {
+          return seqIds.map(
+            (value) =>
+              to.deserializeInternal(
+                from.serializeInternal(value, value.senderCounter ?? -1),
+                to.runtime
+              )[0]
           );
         }
 
         beforeEach(() => {
-          aliceSource = new TreedocSource();
+          aliceSource = new TreedocDenseLocalList();
           aliceSource.setRuntime(alice);
-          bobSource = new TreedocSource();
+          bobSource = new TreedocDenseLocalList();
           bobSource.setRuntime(bob);
         });
 

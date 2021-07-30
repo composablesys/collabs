@@ -480,29 +480,29 @@ function compoCrdt() {
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TextCrdt;
-    private readonly doneCrdt: crdts.TrueWinsBoolean;
-    private readonly items: crdts.TreedocList<CrdtTodoList>;
+    private readonly text: crdts.CText;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: crdts.ResettingMutCList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild("text", new crdts.TextCrdt());
-      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
+      this.text = this.addChild("text", new crdts.CText());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
       this.items = this.addChild(
         "items",
-        new crdts.TreedocList(() => new CrdtTodoList())
+        new crdts.ResettingMutCList(() => new CrdtTodoList())
       );
     }
 
     addItem(index: number, text: string): void {
-      let item = this.items.insertAt(index)[1];
+      let item = this.items.insert(index);
       item.insertText(0, text);
     }
     deleteItem(index: number): void {
-      this.items.deleteAt(index);
+      this.items.delete(index);
     }
     getItem(index: number): CrdtTodoList {
-      return this.items.getAt(index);
+      return this.items.get(index);
     }
     get itemsSize(): number {
       return this.items.length;
@@ -516,16 +516,16 @@ function compoCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
+      this.text.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      this.text.deleteAtRange(index, index + count);
+      this.text.delete(index, count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
     }
     getText(): string {
-      return this.text.asArray().join("");
+      return this.text.join("");
     }
 
     reset() {
@@ -586,17 +586,17 @@ function compoMovableCrdt() {
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TextCrdt;
-    private readonly doneCrdt: crdts.TrueWinsBoolean;
-    private readonly items: crdts.DeletingMovableList<CrdtTodoList>;
+    private readonly text: crdts.CText;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: crdts.DeletingMutCList<CrdtTodoList, []>;
 
     constructor() {
       super();
-      this.text = this.addChild("text", new crdts.TextCrdt());
-      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
+      this.text = this.addChild("text", new crdts.CText());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
       this.items = this.addChild(
         "items",
-        new crdts.DeletingMovableList(() => new CrdtTodoList())
+        new crdts.DeletingMutCList(() => new CrdtTodoList())
       );
     }
 
@@ -608,7 +608,7 @@ function compoMovableCrdt() {
       this.items.delete(index);
     }
     getItem(index: number): CrdtTodoList {
-      return this.items.at(index);
+      return this.items.get(index);
     }
     get itemsSize(): number {
       return this.items.length;
@@ -622,16 +622,16 @@ function compoMovableCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
+      this.text.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      this.text.deleteAtRange(index, index + count);
+      this.text.delete(index, count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
     }
     getText(): string {
-      return this.text.asArray().join("");
+      return this.text.join("");
     }
 
     reset() {
@@ -830,20 +830,18 @@ function compoJsonText() {
     }
 
     insertText(index: number, text: string): void {
-      let textArray = this.jsonObj.get("text")!.value as crdts.TextCrdt;
-      textArray.insertAtRange(index, [...text]);
+      let textArray = this.jsonObj.get("text")!.value as crdts.CText;
+      textArray.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      let textList = this.jsonObj.get("text")!.value as crdts.TextCrdt;
-      textList.deleteAtRange(index, index + count);
+      let textList = this.jsonObj.get("text")!.value as crdts.CText;
+      textList.delete(index, count);
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!.value as crdts.TextCrdt).length;
+      return (this.jsonObj.get("text")!.value as crdts.CText).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!.value as crdts.TextCrdt)
-        .asArray()
-        .join("");
+      return (this.jsonObj.get("text")!.value as crdts.CText).join("");
     }
   }
 
@@ -1218,40 +1216,40 @@ function yjs() {
 function jsonCrdt() {
   class JsonCrdtTodoList implements ITodoList {
     private readonly items: crdts.JsonCursor;
-    private readonly ids: crdts.TreedocPrimitiveList<string>;
-    private readonly text: crdts.TreedocPrimitiveList<string>;
+    private readonly ids: crdts.PrimitiveCList<string>;
+    private readonly text: crdts.PrimitiveCList<string>;
     constructor(
       private readonly crdt: crdts.JsonCursor,
-      private readonly idGen: crdts.TreedocSource,
+      private readonly idGen: crdts.TreedocDenseLocalList<undefined>,
       private readonly runtime: crdts.Runtime
     ) {
       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
-      this.ids = this.crdt.get(
-        "itemsIds"
-      )[0] as crdts.TreedocPrimitiveList<string>;
-      this.text = this.crdt.get(
-        "text"
-      )[0] as crdts.TreedocPrimitiveList<string>;
+      this.ids = this.crdt.get("itemsIds")[0] as crdts.PrimitiveCList<string>;
+      this.text = this.crdt.get("text")[0] as crdts.PrimitiveCList<string>;
     }
     addItem(index: number, text: string): void {
       // Generate new id for this index
-      let startId: null | crdts.TreedocId = null;
-      let endId: null | crdts.TreedocId = null;
+      // let startId: null | crdts.TreedocLoc = null;
+      // let endId: null | crdts.TreedocLoc = null;
+      let startId: any = null;
+      let endId: any = null;
       if (index < this.ids.length) {
-        endId = this.idGen.deserialize(
-          crdts.stringAsArray(this.ids.getAt(index)),
+        endId = this.idGen.deserializeInternal(
+          crdts.stringAsArray(this.ids.get(index)),
           this.runtime
-        );
+        )[0];
       }
       if (index > 0) {
-        startId = this.idGen.deserialize(
-          crdts.stringAsArray(this.ids.getAt(index - 1)),
+        startId = this.idGen.deserializeInternal(
+          crdts.stringAsArray(this.ids.get(index - 1)),
           this.runtime
-        );
+        )[0];
       }
-      let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
-      let key: string = crdts.arrayAsString(this.idGen.serialize(id));
-      this.ids.insertAt(index, key);
+      let id = this.idGen.createBetween(startId, endId, 1)[0];
+      let key: string = crdts.arrayAsString(
+        this.idGen.serializeInternal(id, -1)
+      );
+      this.ids.insert(index, key);
 
       // Update Json Crdt with new item
       this.items.setIsMap(key);
@@ -1262,18 +1260,16 @@ function jsonCrdt() {
       newItem.setIsList("text");
 
       // Update text item
-      let textItem = newItem.get(
-        "text"
-      )[0] as crdts.TreedocPrimitiveList<string>;
-      textItem.insertAtRange(0, [...text]);
+      let textItem = newItem.get("text")[0] as crdts.PrimitiveCList<string>;
+      textItem.insert(0, ...text);
     }
     deleteItem(index: number): void {
-      let id: string = this.ids.getAt(index);
-      this.ids.deleteAt(index);
+      let id: string = this.ids.get(index);
+      this.ids.delete(index);
       this.items.delete(id);
     }
     getItem(index: number): ITodoList {
-      let id: string = this.ids.getAt(index);
+      let id: string = this.ids.get(index);
       return new JsonCrdtTodoList(
         this.items.get(id)[0] as crdts.JsonCursor,
         this.idGen,
@@ -1293,16 +1289,16 @@ function jsonCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
+      this.text.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      this.text.deleteAtRange(index, index + count);
+      this.text.delete(index, count);
     }
     get textSize(): number {
       return this.text.length;
     }
     getText(): string {
-      return this.text.asArray().join("");
+      return this.text.join("");
     }
   }
 
@@ -1326,7 +1322,7 @@ function jsonCrdt() {
       cursor.set("done", false);
       cursor.setIsList("text");
 
-      let idGen = new crdts.TreedocSource();
+      let idGen = new crdts.TreedocDenseLocalList<undefined>();
       idGen.setRuntime(runtime);
       return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
@@ -1361,7 +1357,7 @@ function jsonCrdt() {
       let cursor = new crdts.JsonCursor(crdt);
       runtime.registerCrdt("", crdt);
 
-      let idGen = new crdts.TreedocSource();
+      let idGen = new crdts.TreedocDenseLocalList<undefined>();
       idGen.setRuntime(runtime);
 
       runtime.load(saveData);

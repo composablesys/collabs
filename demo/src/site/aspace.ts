@@ -9,20 +9,20 @@ const WIN_TEXT = (function () {
 var HOST = location.origin.replace(/^http/, "ws");
 
 const client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "aspace"));
-const text = client.registerCrdt("text", new crdts.TextCrdt());
+const text = client.registerCrdt("text", new crdts.CText());
 const startTime = client.registerCrdt(
   "startTime",
-  new crdts.LwwRegister<number>(0)
+  new crdts.LwwCRegister<number>(0)
 );
 const winElapsedTime = client.registerCrdt(
   "winElapsedTime",
-  new crdts.LwwRegister<number>(0)
+  new crdts.LwwCRegister<number>(0)
 );
 
 const textInput = document.getElementById("textInput") as HTMLInputElement;
 textInput.value = "";
 
-const myCursor = new crdts.Cursor(text, 0);
+const myCursor = text.newCursor(0);
 function updateCursor() {
   const index = myCursor.index;
   textInput.selectionStart = index;
@@ -40,13 +40,13 @@ textInput.addEventListener("keydown", (e) => {
     const index = textInput.selectionStart;
     if (e.key === "Backspace") {
       if (index > 0) {
-        text.deleteAt(index - 1);
+        text.delete(index - 1);
         myCursor.index = index - 1;
         updateCursor();
       }
     } else if (e.key === "Delete") {
       if (index < textInput.value.length) {
-        text.deleteAt(index);
+        text.delete(index);
       }
     } else if (e.key === "ArrowLeft") {
       if (index > 0) {
@@ -65,10 +65,10 @@ textInput.addEventListener("keydown", (e) => {
       myCursor.index = 0;
       updateCursor();
     } else if (shouldType(e)) {
-      text.insertAt(index, e.key);
+      text.insert(index, e.key);
       myCursor.index = index + 1;
       updateCursor();
-      if (startTime.conflicts().size === 0) startTime.value = Date.now();
+      if (startTime.conflicts().length === 0) startTime.value = Date.now();
     }
   }
 
@@ -83,7 +83,7 @@ function shouldType(e: KeyboardEvent): boolean {
 
 // Respond to text changes
 text.on("Change", () => {
-  textInput.value = text.asArray().join("");
+  textInput.value = text.join("");
   updateCursor();
 });
 
@@ -94,13 +94,13 @@ setInterval(() => {
   // the text and winElapsedTime.
   if (
     textInput.value.startsWith(WIN_TEXT) &&
-    winElapsedTime.conflicts().size === 0
+    winElapsedTime.conflicts().length === 0
   ) {
     // Record now as the winning time
     winElapsedTime.value = getElapsedTime();
   } else if (
     !textInput.value.startsWith(WIN_TEXT) &&
-    winElapsedTime.conflicts().size !== 0
+    winElapsedTime.conflicts().length !== 0
   ) {
     // Reset the win time
     winElapsedTime.reset();
@@ -108,7 +108,7 @@ setInterval(() => {
 
   if (
     textInput.value.startsWith(WIN_TEXT) &&
-    winElapsedTime.conflicts().size > 0
+    winElapsedTime.conflicts().length > 0
   ) {
     // Get the minimum winElapsedTime
     let ans = Number.MAX_VALUE;
@@ -123,7 +123,7 @@ setInterval(() => {
 
 function getElapsedTime() {
   let values = startTime.conflicts();
-  if (values.size === 0) return 0;
+  if (values.length === 0) return 0;
   // Use the *least* start time
   let start = Number.MAX_VALUE;
   for (let value of values) start = Math.min(start, value);

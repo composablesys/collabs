@@ -1,41 +1,113 @@
-import { Resettable, ResettableEventsRecord } from "../helper_crdts";
-import { Crdt, CrdtEvent } from "../core";
+/**
+ * Some methods in CMap are copied or modified from methods on
+ * JavaScript's Map class, in which case their
+ * type annotations and docstrings are copied or modified from
+ * those used in TypeScript, found in various files in
+ * https://github.com/microsoft/TypeScript/tree/main/src/lib
+ * Material from TypeScript
+ * bears the following copyright notice:
+ *
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0
 
-export interface MapKeyEvent<K> extends CrdtEvent {
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+MERCHANTABLITY OR NON-INFRINGEMENT.
+
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
+***************************************************************************** */
+
+import { Optional } from "../../util/optional";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
+
+export interface CMapSetEvent<K, V> extends CrdtEvent {
   key: K;
+  /**
+   * Present if there was a value set previously at key.
+   */
+  previousValue: Optional<V>;
 }
 
-export interface MapEvent<K, V> extends CrdtEvent {
+export interface CMapDeleteEvent<K, V> extends CrdtEvent {
   key: K;
-  value: V;
+  /**
+   * The previously set value at key.
+   */
+  deletedValue: V;
 }
 
-export interface PlainMapEventsRecord<K> extends ResettableEventsRecord {
-  Set: MapKeyEvent<K>;
-  KeyDelete: MapKeyEvent<K>;
+export interface CMapEventsRecord<K, V> extends CrdtEventsRecord {
+  /**
+   * This is emitted not just
+   * when the value is set (including if already
+   * set and maybe changed) but also when
+   * a previously-existing value's key is restored,
+   * even if the value object remained the same.
+   * It is NOT emitted each time the value mutates
+   * internally, in MutCMaps; for that, add your own event listeners
+   * in the valueConstructor.
+   */
+  Set: CMapSetEvent<K, V>;
+  Delete: CMapDeleteEvent<K, V>;
 }
 
 /**
- * A map from keys to opaque values, with (any) register
- * semantics for values.
+ * A map from keys K to values V, supporting set and
+ * delete with any semantics.
+ *
+ * Initially, values must be created using the set method.
+ * This method inputs SetArgs and sends them to every
+ * replica in serialized form; every replica then uses
+ * them to contruct the actual set value of type V,
+ * e.g., using a user-supplied callback in the constructor.
+ * Set keys can later be deleted (and in some implementations,
+ * restored), changing
+ * their presence in the map, using any semantics to
+ * resolve conflicts.
  */
-export interface PlainMap<
+export interface CMap<
   K,
   V,
-  Events extends PlainMapEventsRecord<K> = PlainMapEventsRecord<K>
-> extends Resettable<Events>,
-    Map<K, V> {
+  SetArgs extends any[] = [V],
+  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+> extends Crdt<Events> {
   /**
-   * Delete every key in this map.
+   * Sends args to every replica in serialized form.
+   * Every replica then uses
+   * them to contruct the actual set value of type V,
+   * which is set as the value at key.
    *
-   * Note that this may be a different semantics
-   * than reset.
+   * @return the set value
+   */
+  set(key: K, ...args: SetArgs): V;
+
+  /**
+   * Deletes the given key, making it no longer present
+   * in this map.
+   */
+  delete(key: K): void;
+
+  /**
+   * Returns the value associated to key, or undefined if
+   * key is not present.
+   */
+  get(key: K): V | undefined;
+
+  /**
+   * Returns whether key is present in the map.
+   */
+  has(key: K): boolean;
+
+  /**
+   * Deletes every key in this map.
    */
   clear(): void;
-  delete(key: K): boolean;
-  get(key: K): V | undefined;
-  has(key: K): boolean;
-  set(key: K, value: V): this;
+
   readonly size: number;
 
   forEach(
@@ -43,121 +115,47 @@ export interface PlainMap<
     thisArg?: any
   ): void;
 
-  /** Returns an iterable of entries in the map. */
+  /**
+   * Returns an iterable of entries in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
+   */
   [Symbol.iterator](): IterableIterator<[K, V]>;
 
   /**
    * Returns an iterable of key, value pairs for every entry in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   entries(): IterableIterator<[K, V]>;
 
   /**
-   * Returns an iterable of keys in the map
+   * Returns an iterable of keys in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   keys(): IterableIterator<K>;
 
   /**
-   * Returns an iterable of values in the map
+   * Returns an iterable of values in the map.
+   *
+   * The iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   values(): IterableIterator<V>;
 
-  readonly [Symbol.toStringTag]: string;
-}
-
-/**
- * Note that this doesn't extend CrdtEvent, because
- * values may be initialized independently of
- * message delivery, in which case there is
- * no associated timestamp.
- */
-export interface MapInitEvent<K, C extends Crdt> {
-  key: K;
-  value: C;
-}
-
-export interface CrdtMapEventsRecord<K, C extends Crdt>
-  extends ResettableEventsRecord {
-  KeyAdd: MapKeyEvent<K>;
-  KeyDelete: MapKeyEvent<K>;
   /**
-   * Emitted when a valueCrdt is constructed.
-   * Use this to register event listeners on valueCrdts.
-   * Note that this may be called multiple times for the
-   * same key (if a valueCrdt is GC'd and then
-   * reconstructed), and it may not correspond precisely
-   * to KeyAdd events.
-   */
-  ValueInit: MapInitEvent<K, C>;
-}
-
-/**
- * A map from keys K to value Crdts of type C, representing a map from keys K to
- * mutable values of the type represented by C.
- *
- * Value Crdts created externally cannot be set in
- * a CrdtMap; instead, their key must be made present
- * in the map using addKey (possibly on another replica),
- * then they must be obtained by calling get(key),
- * after which they can be mutated into
- * the desired state.  All methods except owns throw an error if
- * called with a value Crdt that is not owned by this CrdtSet,
- * i.e., it resulted from a create operation on this.
- *
- * Keys can still be deleted and added.  That affects
- * their membership in the map, as indicated by has() and
- * the iterators, but their valueCrdts will always remain owned by this map.
- */
-export interface CrdtMap<
-  K,
-  C extends Crdt,
-  Events extends CrdtMapEventsRecord<K, C> = CrdtMapEventsRecord<K, C>
-> extends Resettable<Events> {
-  /**
-   * Delete every key in this map.
+   * Returns the key of some occurrence of a value in this map, or undefined if the value is not present.
+   * The equality semantics for comparing values is
+   * implementation-dependent.
    *
-   * Note that this may be a different semantics
-   * than reset.
+   * @param searchElement The value to locate in this map.
    */
-  clear(): void;
-  delete(key: K): boolean;
-  // TODO: forEach
-
-  /**
-   * Returns the value Crdt for the given key, or
-   * undefined if key is not present.
-   */
-  get(key: K): C | undefined;
-  /**
-   * Returns true if valueCrdt is owned by this CrdtMap,
-   * i.e., it is one of this map's value Crdts.
-   */
-  owns(valueCrdt: C): boolean;
-  has(key: K): boolean;
-  hasValue(valueCrdt: C): boolean;
-  addKey(key: K): this;
-  /**
-   * Returns valueCrdt's key.
-   *
-   * Works even if the key is currently not present.
-   */
-  keyOf(valueCrdt: C): K;
-  readonly size: number;
-
-  /** Returns an iterable of entries in the map. */
-  [Symbol.iterator](): IterableIterator<[K, C]>;
-
-  /**
-   * Returns an iterable of key, value Crdts pairs for every entry in the map.
-   */
-  entries(): IterableIterator<[K, C]>;
-
-  /**
-   * Returns an iterable of keys in the map
-   */
-  keys(): IterableIterator<K>;
-
-  /**
-   * Returns an iterable of value Crdts in the map
-   */
-  values(): IterableIterator<C>;
+  keyOf(searchElement: V): K | undefined;
 }

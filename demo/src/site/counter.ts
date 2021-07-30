@@ -9,7 +9,7 @@ var HOST = location.origin.replace(/^http/, "ws");
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
 let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "counter"));
-let clientCounter = client.registerCrdt("counter", new crdts.AddOnlyNumber());
+let clientCounter = client.registerCrdt("counter", new crdts.CCounter());
 
 /* HTML variables */
 var counter = document.getElementById("counter");

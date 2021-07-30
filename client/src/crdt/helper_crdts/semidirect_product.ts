@@ -250,10 +250,10 @@ class SemidirectStateLocallyResettable<S extends LocallyResettableState>
   extends SemidirectStateBase<S>
   implements LocallyResettableState
 {
-  resetLocalState() {
+  resetLocalState(timestamp: CausalTimestamp) {
     this.receiptCounter = 0;
     this.history.clear();
-    this.internalState.resetLocalState();
+    this.internalState.resetLocalState(timestamp);
   }
 }
 

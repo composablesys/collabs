@@ -1,27 +1,61 @@
-import { Resettable, ResettableEventsRecord } from "../helper_crdts";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
+
+export interface CRegisterEvent<T> extends CrdtEvent {
+  previousValue: T;
+}
+
+export interface CRegisterEventsRecord<T> extends CrdtEventsRecord {
+  /**
+   * Emitted whenever the value is set or otherwise
+   * changed.
+   *
+   * You should listen on this event instead of
+   * on Change events, since a logical Set event may
+   * emit multiple Change events, with all but the last
+   * corresponding to a transient internal state.
+   */
+  Set: CRegisterEvent<T>;
+}
 
 /**
  * An opaque register of type T.  Any semantics can
  * be used to resolve conflicts between concurrent writes.
  *
- * In general, values must be "serializable plain values".
- * This means that they can be:
- * - A primitive value
- * - A reference to a Crdt belonging to the same Runtime
- * - Or, an immutable object whose instance fields are
- * themselves plain values, without circular references.
+ * The value is set using the set method.
+ * This method inputs SetArgs and sends them to every
+ * replica in serialized form; every replica then uses
+ * them to contruct the actual added value of type T,
+ * e.g., using a user-supplied callback in the constructor.
  *
- * Other values might not serialize correctly, or might
- * remain unchanged on other replicas when mutated locally
- * (e.g., if a non-Crdt object's fields are mutated),
- * causing different replicas to see different values.
+ * There are no CRegister-specific events; instead, listen
+ * on the generic Change event and use this.value to read
+ * the changed value, if needed.
  */
-export interface Register<
+export interface CRegister<
   T,
-  Events extends ResettableEventsRecord = ResettableEventsRecord
-> extends Resettable<Events> {
+  SetArgs extends any[] = [T],
+  Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
+> extends Crdt<Events> {
   /**
-   * The register's value, which can be set and get.
+   * Sends args to every replica in serialized form.
+   * Every replica then uses
+   * them to contruct the actual set value of type T.
+   *
+   * @return the set value
    */
-  value: T;
+  set(...args: SetArgs): T;
+
+  /**
+   * Returns the current value.
+   *
+   * Implementations in which set takes the actual set
+   * value of type T (i.e., SetArgs = [T]) should make
+   * value writable, so that this.value = x is an alias
+   * for this.set(x).  Note that if you add this setter
+   * in a subclass of a class defining the getter, you
+   * must also define the getter as "return super.value",
+   * or else the setter will cover it up, causing the getter
+   * to always return undefined.
+   */
+  readonly value: T;
 }

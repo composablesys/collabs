@@ -1,22 +1,23 @@
 import { assert } from "chai";
 import {
-  AddWinsPlainSet,
+  AddWinsCSet,
   Runtime,
-  FalseWinsBoolean,
-  TrueWinsBoolean,
-  GPlainSet,
+  FalseWinsCBoolean,
+  TrueWinsCBoolean,
   JsonCrdt,
   JsonCursor,
-  LwwPlainMap,
-  LwwRegister,
-  RiakCrdtMap,
-  DefaultNumber,
+  LwwCMap,
+  LwwCRegister,
+  MergingMutCMap,
+  CNumber,
   TestingNetworkGenerator,
-  MapKeyEvent,
+  DeletingMutCSet,
+  CMapDeleteEvent,
+  CMapSetEvent,
+  CCounter,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom from "seedrandom";
-import { YjsCrdtSet } from "../../src/crdt/set/yjs_crdt_set";
 
 describe("standard", () => {
   let runtimeGen: TestingNetworkGenerator;
@@ -31,20 +32,20 @@ describe("standard", () => {
     bob = runtimeGen.newRuntime("immediate", rng);
   });
 
-  describe("TrueWinsBoolean", () => {
-    let aliceFlag: TrueWinsBoolean;
-    let bobFlag: TrueWinsBoolean;
+  describe("TrueWinsCBoolean", () => {
+    let aliceFlag: TrueWinsCBoolean;
+    let bobFlag: TrueWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCrdt("ewFlagId", new TrueWinsBoolean());
-      bobFlag = bob.registerCrdt("ewFlagId", new TrueWinsBoolean());
+      aliceFlag = alice.registerCrdt("ewFlagId", new TrueWinsCBoolean());
+      bobFlag = bob.registerCrdt("ewFlagId", new TrueWinsCBoolean());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
       }
     });
 
-    function addEventListeners(flag: TrueWinsBoolean, name: string): void {
+    function addEventListeners(flag: TrueWinsCBoolean, name: string): void {
       flag.on("Change", (event, caller) => {
         if (caller.value) {
           console.log(`${name}: ${event.timestamp.getSender()} enabled`);
@@ -118,20 +119,20 @@ describe("standard", () => {
     });
   });
 
-  describe("FalseWinsBoolean", () => {
-    let aliceFlag: FalseWinsBoolean;
-    let bobFlag: FalseWinsBoolean;
+  describe("FalseWinsCBoolean", () => {
+    let aliceFlag: FalseWinsCBoolean;
+    let bobFlag: FalseWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCrdt("dwFlagId", new FalseWinsBoolean());
-      bobFlag = bob.registerCrdt("dwFlagId", new FalseWinsBoolean());
+      aliceFlag = alice.registerCrdt("dwFlagId", new FalseWinsCBoolean());
+      bobFlag = bob.registerCrdt("dwFlagId", new FalseWinsCBoolean());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
       }
     });
 
-    function addEventListeners(flag: FalseWinsBoolean, name: string): void {
+    function addEventListeners(flag: FalseWinsCBoolean, name: string): void {
       flag.on("Change", (event, caller) => {
         if (caller.value) {
           console.log(`${name}: ${event.timestamp.getSender()} enabled`);
@@ -200,37 +201,37 @@ describe("standard", () => {
   });
 
   describe("Number", () => {
-    let aliceNumber: DefaultNumber;
-    let bobNumber: DefaultNumber;
+    let aliceNumber: CNumber;
+    let bobNumber: CNumber;
 
     beforeEach(() => init(0));
 
     function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCrdt(name, new DefaultNumber(initialValue));
-      bobNumber = bob.registerCrdt(name, new DefaultNumber(initialValue));
+      aliceNumber = alice.registerCrdt(name, new CNumber(initialValue));
+      bobNumber = bob.registerCrdt(name, new CNumber(initialValue));
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
       }
     }
 
-    function addEventListeners(number: DefaultNumber, name: string): void {
+    function addEventListeners(number: CNumber, name: string): void {
       number.on("Add", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.added}`
+          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
         )
       );
 
       number.on("Mult", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.multed}`
+          `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
         )
       );
-      number.on("Reset", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
-        )
-      );
+      // number.on("Reset", (event) =>
+      //   console.log(
+      //     `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
+      //   )
+      // );
     }
 
     it("is initially 0", () => {
@@ -314,36 +315,36 @@ describe("standard", () => {
       });
     });
 
-    describe("reset", () => {
-      it("resets to the initial value", () => {
-        aliceNumber.add(1);
-        aliceNumber.reset();
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 0);
-        assert.strictEqual(bobNumber.value, 0);
-      });
-
-      it("works with non-concurrent updates", () => {
-        aliceNumber.add(3);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 3);
-
-        aliceNumber.reset();
-        aliceNumber.add(11);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 11);
-        assert.strictEqual(bobNumber.value, 11);
-      });
-
-      it("lets concurrent adds survive", () => {
-        aliceNumber.reset();
-        bobNumber.add(10);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 10);
-        assert.strictEqual(bobNumber.value, 10);
-      });
-    });
+    // describe("reset", () => {
+    //   it("resets to the initial value", () => {
+    //     aliceNumber.add(1);
+    //     aliceNumber.reset();
+    //     runtimeGen.releaseAll();
+    //     assert.strictEqual(aliceNumber.value, 0);
+    //     assert.strictEqual(bobNumber.value, 0);
+    //   });
+    //
+    //   it("works with non-concurrent updates", () => {
+    //     aliceNumber.add(3);
+    //     runtimeGen.releaseAll();
+    //     assert.strictEqual(aliceNumber.value, 3);
+    //     assert.strictEqual(bobNumber.value, 3);
+    //
+    //     aliceNumber.reset();
+    //     aliceNumber.add(11);
+    //     runtimeGen.releaseAll();
+    //     assert.strictEqual(aliceNumber.value, 11);
+    //     assert.strictEqual(bobNumber.value, 11);
+    //   });
+    //
+    //   it("lets concurrent adds survive", () => {
+    //     aliceNumber.reset();
+    //     bobNumber.add(10);
+    //     runtimeGen.releaseAll();
+    //     assert.strictEqual(aliceNumber.value, 10);
+    //     assert.strictEqual(bobNumber.value, 10);
+    //   });
+    // });
 
     describe("strongReset", () => {
       it.skip("works with non-concurrent updates", () => {
@@ -367,39 +368,36 @@ describe("standard", () => {
       });
     });
 
-    it("works with lots of concurrency", () => {
-      aliceNumber.add(3);
-      bobNumber.add(7);
-      aliceNumber.reset();
-      runtimeGen.release(bob);
-      assert.strictEqual(aliceNumber.value, 7);
-      assert.strictEqual(bobNumber.value, 7);
-
-      // TODO
-      // bobNumber.strongReset();
-      // runtimeGen.releaseAll();
-      // assert.strictEqual(aliceNumber.value, 0);
-      // assert.strictEqual(bobNumber.value, 0);
-    });
+    // it("works with lots of concurrency", () => {
+    //   aliceNumber.add(3);
+    //   bobNumber.add(7);
+    //   aliceNumber.reset();
+    //   runtimeGen.release(bob);
+    //   assert.strictEqual(aliceNumber.value, 7);
+    //   assert.strictEqual(bobNumber.value, 7);
+    //
+    //   // TODO
+    //   // bobNumber.strongReset();
+    //   // runtimeGen.releaseAll();
+    //   // assert.strictEqual(aliceNumber.value, 0);
+    //   // assert.strictEqual(bobNumber.value, 0);
+    // });
   });
 
-  describe("AddWinsPlainSet", () => {
-    let aliceSet: AddWinsPlainSet<string>;
-    let bobSet: AddWinsPlainSet<string>;
+  describe("AddWinsCSet", () => {
+    let aliceSet: AddWinsCSet<string>;
+    let bobSet: AddWinsCSet<string>;
 
     beforeEach(() => {
-      aliceSet = alice.registerCrdt("awSetId", new AddWinsPlainSet());
-      bobSet = bob.registerCrdt("awSetId", new AddWinsPlainSet());
+      aliceSet = alice.registerCrdt("awSetId", new AddWinsCSet());
+      bobSet = bob.registerCrdt("awSetId", new AddWinsCSet());
       if (debug) {
         addEventListeners(aliceSet, "Alice");
         addEventListeners(bobSet, "Bob");
       }
     });
 
-    function addEventListeners(
-      set: AddWinsPlainSet<string>,
-      name: string
-    ): void {
+    function addEventListeners(set: AddWinsCSet<string>, name: string): void {
       set.on("Add", (event) =>
         console.log(
           `${name}: ${event.timestamp.getSender()} added ${event.value}`
@@ -597,14 +595,17 @@ describe("standard", () => {
     });
   });
 
-  describe("RiakCrdtMap", () => {
-    let aliceMap: RiakCrdtMap<string, DefaultNumber>;
-    let bobMap: RiakCrdtMap<string, DefaultNumber>;
+  describe("MergingMutCMap", () => {
+    let aliceMap: MergingMutCMap<string, CCounter>;
+    let bobMap: MergingMutCMap<string, CCounter>;
 
     beforeEach(() => {
-      const valueConstructor = () => new DefaultNumber();
-      aliceMap = alice.registerCrdt("map", new RiakCrdtMap(valueConstructor));
-      bobMap = bob.registerCrdt("map", new RiakCrdtMap(valueConstructor));
+      const valueConstructor = () => new CCounter();
+      aliceMap = alice.registerCrdt(
+        "map",
+        new MergingMutCMap(valueConstructor)
+      );
+      bobMap = bob.registerCrdt("map", new MergingMutCMap(valueConstructor));
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -612,7 +613,7 @@ describe("standard", () => {
     });
 
     function addEventListeners<K, V extends Object | null>(
-      map: RiakCrdtMap<any, any>,
+      map: MergingMutCMap<any, any>,
       name: string
     ): void {
       // TODO: add listeners once map supports them.
@@ -623,9 +624,9 @@ describe("standard", () => {
       assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
     });
 
-    describe("addKey", () => {
+    describe("set", () => {
       it("works with non-concurrent updates", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["test"]));
@@ -634,7 +635,7 @@ describe("standard", () => {
 
     describe("has", () => {
       it("returns true if the key is in the map", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         assert.isTrue(aliceMap.has("test"));
         assert.isFalse(bobMap.has("test"));
 
@@ -644,7 +645,7 @@ describe("standard", () => {
       });
 
       it("returns false if the key is not in the map", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         assert.isFalse(aliceMap.has("not in map"));
         assert.isFalse(bobMap.has("not in map"));
 
@@ -656,7 +657,7 @@ describe("standard", () => {
 
     describe("get", () => {
       it("returns the value if the key is in the map", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         runtimeGen.releaseAll();
         const aliceTest = aliceMap.get("test")!;
         const bobTest = bobMap.get("test")!;
@@ -667,7 +668,7 @@ describe("standard", () => {
       });
 
       it("returns undefined if the key is not in the map", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         runtimeGen.releaseAll();
         const aliceTest = aliceMap.get("not in map");
         const bobTest = bobMap.get("not in map");
@@ -676,7 +677,7 @@ describe("standard", () => {
       });
 
       it("returns a CRDT that can be modified", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         runtimeGen.releaseAll();
         const aliceTest = aliceMap.get("test")!;
         const bobTest = bobMap.get("test")!;
@@ -690,7 +691,7 @@ describe("standard", () => {
 
     describe("delete", () => {
       it("deletes existing elements", () => {
-        bobMap.addKey("test");
+        bobMap.set("test");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
 
@@ -712,7 +713,7 @@ describe("standard", () => {
       });
 
       it("lets concurrent value operation survive", () => {
-        aliceMap.addKey("register");
+        aliceMap.set("register");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
@@ -734,11 +735,11 @@ describe("standard", () => {
     });
 
     describe("reset", () => {
-      let aliceRegister: DefaultNumber;
-      let bobRegister: DefaultNumber;
+      let aliceRegister: CCounter;
+      let bobRegister: CCounter;
 
       beforeEach(() => {
-        aliceMap.addKey("register");
+        aliceMap.set("register");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
@@ -778,14 +779,14 @@ describe("standard", () => {
 
     describe("value CRDT", () => {
       it("can be used as values in other CRDTs", () => {
-        aliceMap.addKey("test");
+        aliceMap.set("test");
         let aliceCounter = aliceMap.get("test")!;
-        bobMap.addKey("test");
+        bobMap.set("test");
         let bobCounter = bobMap.get("test")!;
         runtimeGen.releaseAll();
 
-        let aliceSet = alice.registerCrdt("valueSet", new GPlainSet());
-        let bobSet = bob.registerCrdt("valueSet", new GPlainSet());
+        let aliceSet = alice.registerCrdt("valueSet", new AddWinsCSet());
+        let bobSet = bob.registerCrdt("valueSet", new AddWinsCSet());
 
         aliceSet.add(aliceCounter);
         assert.strictEqual(aliceSet.has(aliceCounter), true);
@@ -822,13 +823,13 @@ describe("standard", () => {
   //   });
   // });
 
-  describe("LwwPlainMap", () => {
-    let aliceMap: LwwPlainMap<string, number>;
-    let bobMap: LwwPlainMap<string, number>;
+  describe("LwwCMap", () => {
+    let aliceMap: LwwCMap<string, number>;
+    let bobMap: LwwCMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.registerCrdt("lwwMap", new LwwPlainMap());
-      bobMap = bob.registerCrdt("lwwMap", new LwwPlainMap());
+      aliceMap = alice.registerCrdt("lwwMap", new LwwCMap());
+      bobMap = bob.registerCrdt("lwwMap", new LwwCMap());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -836,7 +837,7 @@ describe("standard", () => {
     });
 
     function addEventListeners<K, V extends Object | null>(
-      map: LwwPlainMap<any, any>,
+      map: LwwCMap<any, any>,
       name: string
     ): void {
       // TODO: add listeners
@@ -851,7 +852,7 @@ describe("standard", () => {
       assert.deepStrictEqual(new Set(bobMap.entries()), new Set([]));
     });
 
-    describe("addKey", () => {
+    describe("set", () => {
       it("works with non-concurrent updates", () => {
         aliceMap.set("test", 7);
         runtimeGen.releaseAll();
@@ -883,18 +884,18 @@ describe("standard", () => {
         // aliceMap.on("KeyAdd", checkKeyAdd);
         // bobMap.on("KeyAdd", checkKeyAdd);
         function checkValueChange(
-          event: MapKeyEvent<string>,
-          caller: LwwPlainMap<string, number>
+          event: CMapSetEvent<string, number>,
+          caller: LwwCMap<string, number>
         ) {
           assert.strictEqual(event.key, "test");
           assert.strictEqual(caller.get(event.key), 7);
         }
         aliceMap.on("Set", checkValueChange);
         bobMap.on("Set", checkValueChange);
-        aliceMap.on("KeyDelete", () =>
+        aliceMap.on("Delete", () =>
           assert.fail("Did not expect KeyDelete event from Alice")
         );
-        bobMap.on("KeyDelete", () => {
+        bobMap.on("Delete", () => {
           assert.fail("Did not expect KeyDelete event from Bob");
         });
 
@@ -1002,18 +1003,18 @@ describe("standard", () => {
         runtimeGen.releaseAll();
 
         const promise = Promise.all([
-          aliceMap.nextEvent("KeyDelete"),
-          bobMap.nextEvent("KeyDelete"),
+          aliceMap.nextEvent("Delete"),
+          bobMap.nextEvent("Delete"),
         ]);
-        function checkKeyDelete(event: MapKeyEvent<string>) {
+        function checkKeyDelete(event: CMapDeleteEvent<string, number>) {
           assert.strictEqual(event.key, "test");
           // TODO: this depends on the value getting through,
           // but it isn't set until after the add.
           // Will work once events are async.
           //assert.strictEqual(event.value, 7);
         }
-        aliceMap.on("KeyDelete", checkKeyDelete);
-        bobMap.on("KeyDelete", checkKeyDelete);
+        aliceMap.on("Delete", checkKeyDelete);
+        bobMap.on("Delete", checkKeyDelete);
         aliceMap.on("Set", () =>
           assert.fail("Did not expect Set event from Alice")
         );
@@ -1311,38 +1312,38 @@ describe("standard", () => {
     });
   });
 
-  describe("YjsCrdtSet", () => {
-    let aliceSource: YjsCrdtSet<DefaultNumber>;
-    let bobSource: YjsCrdtSet<DefaultNumber>;
-    let aliceRegister: LwwRegister<DefaultNumber | undefined>;
-    let bobRegister: LwwRegister<DefaultNumber | undefined>;
+  describe("DeletingMutCSet", () => {
+    let aliceSource: DeletingMutCSet<CNumber, []>;
+    let bobSource: DeletingMutCSet<CNumber, []>;
+    let aliceRegister: LwwCRegister<CNumber | undefined>;
+    let bobRegister: LwwCRegister<CNumber | undefined>;
 
     beforeEach(() => {
       aliceSource = alice.registerCrdt(
         "source",
-        new YjsCrdtSet(() => new DefaultNumber())
+        new DeletingMutCSet(() => new CNumber())
       );
       bobSource = bob.registerCrdt(
         "source",
-        new YjsCrdtSet(() => new DefaultNumber())
+        new DeletingMutCSet(() => new CNumber())
       );
       aliceRegister = alice.registerCrdt(
         "register",
-        new LwwRegister<DefaultNumber | undefined>(undefined)
+        new LwwCRegister<CNumber | undefined>(undefined)
       );
       bobRegister = bob.registerCrdt(
         "register",
-        new LwwRegister<DefaultNumber | undefined>(undefined)
+        new LwwCRegister<CNumber | undefined>(undefined)
       );
     });
 
     it("returns new Crdt", () => {
-      let newCrdt = aliceSource.create();
+      let newCrdt = aliceSource.add();
       assert.strictEqual(newCrdt.value, 0);
     });
 
     it("transfers new Crdt via register", () => {
-      aliceRegister.value = aliceSource.create();
+      aliceRegister.value = aliceSource.add();
       aliceRegister.value.add(7);
       assert.strictEqual(aliceRegister.value.value, 7);
 
@@ -1351,8 +1352,8 @@ describe("standard", () => {
     });
 
     it("allows sequential creation", () => {
-      let new1 = aliceSource.create();
-      let new2 = aliceSource.create();
+      let new1 = aliceSource.add();
+      let new2 = aliceSource.add();
       new1.add(7);
       new2.add(-3);
       assert.strictEqual(new1.value, 7);
@@ -1360,8 +1361,8 @@ describe("standard", () => {
     });
 
     it("allows concurrent creation", () => {
-      let new1 = aliceSource.create();
-      let new2 = bobSource.create();
+      let new1 = aliceSource.add();
+      let new2 = bobSource.add();
       new1.add(7);
       new2.add(-3);
       assert.strictEqual(new1.value, 7);

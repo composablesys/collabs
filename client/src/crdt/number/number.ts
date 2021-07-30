@@ -1,48 +1,51 @@
-import { DefaultNumberComponentMessage } from "../../../generated/proto_compiled";
+import { CNumberComponentMessage } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import {
-  LocallyResettableState,
-  ResetWrapClass,
-  SemidirectProduct,
-} from "../helper_crdts";
-import { PrimitiveCrdt } from "../core";
-import { Number, NumberEventsRecord } from "./interfaces";
+import { SemidirectProduct } from "../helper_crdts";
+import { CrdtEvent, CrdtEventsRecord, PrimitiveCrdt } from "../core";
 
-// TODO: handle floating point non-commutativity
+export interface CNumberEvent extends CrdtEvent {
+  readonly arg: number;
+  readonly previousValue: number;
+}
 
-export class DefaultNumberState implements LocallyResettableState {
+export interface CNumberEventsRecord extends CrdtEventsRecord {
+  Add: CNumberEvent;
+  Mult: CNumberEvent;
+}
+
+// Exporting just for tests, it's not exported at top-level
+export class CNumberState {
   value: number;
   constructor(readonly initialValue: number) {
     this.value = initialValue;
-  }
-  resetLocalState(): void {
-    this.value = this.initialValue;
   }
 }
 
 // Exporting just for tests, it's not exported at top-level
 export class AddComponent extends PrimitiveCrdt<
-  DefaultNumberState,
-  NumberEventsRecord
+  CNumberState,
+  CNumberEventsRecord
 > {
-  constructor(initialState: DefaultNumberState) {
+  constructor(initialState: CNumberState) {
     super(initialState);
   }
 
   add(toAdd: number) {
     if (toAdd !== 0) {
-      let message = DefaultNumberComponentMessage.create({ arg: toAdd });
-      let buffer = DefaultNumberComponentMessage.encode(message).finish();
+      let message = CNumberComponentMessage.create({ arg: toAdd });
+      let buffer = CNumberComponentMessage.encode(message).finish();
       super.send(buffer);
     }
   }
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = DefaultNumberComponentMessage.decode(message);
+    let decoded = CNumberComponentMessage.decode(message);
+    const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
       timestamp,
-      added: decoded.arg,
+      arg: decoded.arg,
+      previousValue,
     });
   }
 
@@ -51,39 +54,42 @@ export class AddComponent extends PrimitiveCrdt<
   }
 
   savePrimitive(): Uint8Array {
-    let message = DefaultNumberComponentMessage.create({
+    let message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
-    return DefaultNumberComponentMessage.encode(message).finish();
+    return CNumberComponentMessage.encode(message).finish();
   }
 
   loadPrimitive(saveData: Uint8Array) {
-    this.state.value = DefaultNumberComponentMessage.decode(saveData).arg;
+    this.state.value = CNumberComponentMessage.decode(saveData).arg;
   }
 }
 
+// Exporting just for tests, it's not exported at top-level
 export class MultComponent extends PrimitiveCrdt<
-  DefaultNumberState,
-  NumberEventsRecord
+  CNumberState,
+  CNumberEventsRecord
 > {
-  constructor(initialState: DefaultNumberState) {
+  constructor(initialState: CNumberState) {
     super(initialState);
   }
 
   mult(toMult: number) {
     if (toMult !== 1) {
-      let message = DefaultNumberComponentMessage.create({ arg: toMult });
-      let buffer = DefaultNumberComponentMessage.encode(message).finish();
+      let message = CNumberComponentMessage.create({ arg: toMult });
+      let buffer = CNumberComponentMessage.encode(message).finish();
       super.send(buffer);
     }
   }
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = DefaultNumberComponentMessage.decode(message);
+    let decoded = CNumberComponentMessage.decode(message);
+    const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
       timestamp,
-      multed: decoded.arg,
+      arg: decoded.arg,
+      previousValue,
     });
   }
 
@@ -91,9 +97,7 @@ export class MultComponent extends PrimitiveCrdt<
     return this.state.value === this.state.initialValue;
   }
 
-  // TODO: need to copy these from AddComponent if you
-  // intend to use MultComponent outside DefaultNumber.
-  // In DefaultNumber, it is okay to do nothing because
+  // It is okay to do nothing because in CNumber,
   // AddComponent will deserialize the state for you.
   savePrimitive(): Uint8Array {
     return new Uint8Array();
@@ -102,18 +106,25 @@ export class MultComponent extends PrimitiveCrdt<
   loadPrimitive(_saveData: Uint8Array) {}
 }
 
-class DefaultNumberBase extends SemidirectProduct<
-  DefaultNumberState,
-  NumberEventsRecord
+/**
+ * Warning: eventual consistency is not guaranteed due
+ * to floating-point rounding errors, which can violate
+ * associativity, commutativity, or distributivity.
+ */
+export class CNumber extends SemidirectProduct<
+  CNumberState,
+  CNumberEventsRecord
 > {
   private addCrdt: AddComponent;
   private multCrdt: MultComponent;
   constructor(initialValue: number = 0) {
     super(false);
-    const state = new DefaultNumberState(initialValue);
+    const state = new CNumberState(initialValue);
     this.addCrdt = new AddComponent(state);
     this.multCrdt = new MultComponent(state);
     super.setup(this.addCrdt, this.multCrdt, state);
+
+    // Events
     this.addCrdt.on("Add", (event) => super.emit("Add", event));
     this.multCrdt.on("Mult", (event) => super.emit("Mult", event));
   }
@@ -126,14 +137,14 @@ class DefaultNumberBase extends SemidirectProduct<
     _m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    let m2Decoded = DefaultNumberComponentMessage.decode(m2Message);
-    let m1Decoded = DefaultNumberComponentMessage.decode(m1Message);
-    let acted = DefaultNumberComponentMessage.create({
+    let m2Decoded = CNumberComponentMessage.decode(m2Message);
+    let m1Decoded = CNumberComponentMessage.decode(m1Message);
+    let acted = CNumberComponentMessage.create({
       arg: m2Decoded.arg * m1Decoded.arg,
     });
     return {
       m1TargetPath: [],
-      m1Message: DefaultNumberComponentMessage.encode(acted).finish(),
+      m1Message: CNumberComponentMessage.encode(acted).finish(),
     };
   }
 
@@ -151,31 +162,9 @@ class DefaultNumberBase extends SemidirectProduct<
     // treat them differently.  This is a hack to prevent
     // -0 vs 0 from violating EC under this equality def.
     // It might be related to general floating point
-    // noncommutativity and will go away once we fix that.
+    // noncommutativity and may go away once we fix that.
     return this.state.internalState.value === -0
       ? 0
       : this.state.internalState.value;
-  }
-}
-
-export class DefaultNumber
-  extends ResetWrapClass(DefaultNumberBase)<NumberEventsRecord>
-  implements Number
-{
-  constructor(initialValue: number = 0) {
-    super(initialValue);
-    this.original.on("Add", (event) => this.emit("Add", event));
-    this.original.on("Mult", (event) => this.emit("Mult", event));
-  }
-  add(toAdd: number): void {
-    this.original.add(toAdd);
-  }
-
-  mult(toMult: number) {
-    this.original.mult(toMult);
-  }
-
-  get value(): number {
-    return this.original.value;
   }
 }

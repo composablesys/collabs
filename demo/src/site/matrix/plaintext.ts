@@ -5,22 +5,19 @@ const client = new crdts.Runtime(
   { periodMs: 300 }
 );
 
-const text = client.registerCrdt("text", new crdts.TextCrdt());
+const text = client.registerCrdt("text", new crdts.CText());
 
 const textarea = document.getElementById("textarea") as HTMLTextAreaElement;
 textarea.value = "";
 
 // TODO: shared cursors
 
-const myStartCursor = new crdts.Cursor(text, 0);
-const myEndCursor = new crdts.Cursor(text, 0);
+const myStartCursor = text.newCursor(0);
+const myEndCursor = text.newCursor(0);
 function updateSelection() {
   // Need to do this on a delay because the event doesn't
-  // do its default action (updating the handler) until
+  // due its default action (updating the handler) until
   // after the event handlers.
-  // TODO: use a Promise instead of setTimeout, to make
-  // sure this happens before the next CRDT message
-  // messes things up?
   setTimeout(() => {
     myStartCursor.index = textarea.selectionStart;
     myEndCursor.index = textarea.selectionEnd;
@@ -44,18 +41,18 @@ textarea.addEventListener("keydown", (e) => {
   const endIndex = myEndCursor.index;
   if (e.key === "Backspace") {
     if (endIndex > startIndex) {
-      text.deleteAtRange(startIndex, endIndex);
+      text.delete(startIndex, endIndex - startIndex + 1);
       myEndCursor.index = startIndex;
     } else if (endIndex === startIndex && startIndex > 0) {
-      text.deleteAt(startIndex - 1);
+      text.delete(startIndex - 1);
       myStartCursor.index = startIndex - 1;
     }
   } else if (e.key === "Delete") {
     if (endIndex > startIndex) {
-      text.deleteAtRange(startIndex, endIndex);
+      text.delete(startIndex, endIndex - startIndex + 1);
       myEndCursor.index = startIndex;
     } else if (endIndex === startIndex && startIndex < textarea.value.length) {
-      text.deleteAt(startIndex);
+      text.delete(startIndex);
     }
   } else if (e.key === "Enter") {
     type("\n", startIndex, endIndex);
@@ -82,9 +79,9 @@ textarea.addEventListener("keydown", (e) => {
 function type(str: string, startIndex: number, endIndex: number) {
   if (startIndex < endIndex) {
     // Delete current selection
-    text.deleteAtRange(startIndex, endIndex);
+    text.delete(startIndex, endIndex - startIndex + 1);
   }
-  text.insertAtRange(startIndex, [...str]);
+  text.insert(startIndex, ...str);
   myStartCursor.index = startIndex + str.length;
   myEndCursor.index = startIndex + str.length;
 }
@@ -108,7 +105,7 @@ textarea.addEventListener("cut", () => {
   if (startIndex < endIndex) {
     const selected = textarea.value.slice(startIndex, endIndex);
     navigator.clipboard.writeText(selected);
-    text.deleteAtRange(startIndex, endIndex);
+    text.delete(startIndex, endIndex - startIndex + 1);
   }
 });
 
@@ -123,6 +120,6 @@ textarea.addEventListener("drop", (e) => {
 
 // Display text changes
 text.on("Change", () => {
-  textarea.value = text.asArray().join("");
+  textarea.value = text.join("");
   updateCursor();
 });

@@ -12,6 +12,24 @@ import { RootCrdt, Runtime } from "./runtime";
  * Crdts should define events implementing this interface
  * and pass those to registered listeners when the Crdt's
  * state is changed.
+ *
+ * General advice:
+ * - Events should be sufficient to maintain a view of
+ * the state.  But, it is recommended to omit info
+ * that the user can get from the Crdt during the event
+ * listener (e.g., in CMap, events provide key but not value,
+ * since the listener can get the value themselves.)
+ * - Give the previous value, if it cannot be determined
+ * otherwise (e.g. from the remaining state).  That is useful
+ * for some views that only account for part of the state,
+ * e.g., the size of a CMap.
+ * - Don't dispatch events redundantly if there is no way
+ * to tell whether they are redundant.  E.g., in CSet, only
+ * dispatch Add if the value went from (not present) to (present);
+ * don't dispatch it if the value was already present.
+ * That is useful
+ * for some views that only account for part of the state,
+ * e.g., the size of a CSet.
  */
 export interface CrdtEvent {
   /**
@@ -35,6 +53,17 @@ export interface CrdtEvent {
  * CrdtEvent.
  */
 export interface CrdtEventsRecord {
+  /**
+   * Emitted every time a Crdt changes (or may have
+   * changed).  Specifically, it is emitted every time
+   * a Crdt receives a message, at the end of message processing.
+   *
+   * This event should generally not be listened on.
+   * Logical operations may be composed of multiple messages,
+   * each of which emits a Change event, so when early
+   * Change events are emitted, the Crdt may be in
+   * a nonsensical, transient internal state.
+   */
   Change: CrdtEvent;
 }
 

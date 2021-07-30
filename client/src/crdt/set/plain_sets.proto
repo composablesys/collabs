@@ -1,3 +1,0 @@
-message GPlainSetSave {
-  repeated bytes elements = 1;
-}

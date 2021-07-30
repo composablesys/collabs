@@ -1,33 +1,17 @@
 import { CausalTimestamp } from "../../net";
-import {
-  CrdtEvent,
-  CrdtEventsRecord,
-  StatefulCrdt,
-  PrimitiveCrdt,
-  Crdt,
-} from "../core";
+import { StatefulCrdt, PrimitiveCrdt, Crdt, CrdtEventsRecord } from "../core";
 import { SemidirectProduct } from "./semidirect_product";
 
 // TODO: revise whole file
 
 // TODO: ResettableCompositeCrdt (implement reset for you)
 
-export interface ResettableEventsRecord extends CrdtEventsRecord {
-  Reset: CrdtEvent;
-}
-
-export interface Resettable<
-  Events extends ResettableEventsRecord = ResettableEventsRecord
-> extends Crdt<Events> {
+export interface Resettable extends Crdt {
   /**
-   * Perform an observed-reset operation on this Crdt.  Actually,
-   * any behavior is acceptable (will not violate eventual
-   * consistency) so long as this method commutes with
-   * concurrent operations and has no effect if timestamp
-   * is prior to the timestamps of all other received messages.
-   * In particular, if you don't want to implement resets, it is okay to
-   * make this method a no-op, so long as users are aware that
-   * reset() will have no effect.
+   * Perform an observed-reset operation on this Crdt.
+   * The semantics MUST be precisely an observed-reset.
+   * If all of a Crdt's operations have been reset by
+   * such operations, it MUST have canGc() = true.
    */
   reset(): void;
 }
@@ -44,11 +28,14 @@ export interface LocallyResettableState {
    * Crdt's constructor arguments, not on the history of Crdt operations
    * or calls to this method.  Typically this will restore the state
    * to its initial value set in the Crdt constructor.
+   * This method should also dispatch events describing
+   * the changes leading to the new state, using the
+   * given timestamp.
    *
    * This method is used by the resetting Crdt constructions to perform local,
    * sequential (non-Crdt) reset operations.
    */
-  resetLocalState(): void;
+  resetLocalState(timestamp: CausalTimestamp): void;
 }
 
 class ResetComponentMessage extends Uint8Array {
@@ -76,8 +63,7 @@ class ResetComponent<
   ) {
     if (message.length !== 0)
       throw new Error("Unexcepted nontrivial message for ResetComponent");
-    this.resetWrapperCrdt.original.state.resetLocalState();
-    this.resetWrapperCrdt.dispatchResetEvent(timestamp);
+    this.resetWrapperCrdt.original.state.resetLocalState(timestamp);
     if ("isResetComponentMessage" in message) {
       // Replay message.replay
       for (let toReplay of message.replay) {
@@ -109,7 +95,7 @@ class ResetComponent<
 export class ResetWrapperCrdt<
     S extends LocallyResettableState,
     C extends StatefulCrdt<S>,
-    Events extends ResettableEventsRecord = ResettableEventsRecord
+    Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends SemidirectProduct<S, Events>
   implements Resettable
@@ -160,12 +146,6 @@ export class ResetWrapperCrdt<
     return { m1TargetPath, m1Message };
   }
 
-  dispatchResetEvent(timestamp: CausalTimestamp) {
-    this.emit("Reset", {
-      timestamp: timestamp,
-    });
-  }
-
   reset() {
     this.resetComponent.resetTarget();
   }
@@ -184,11 +164,13 @@ export function ResetWrapClass<
   Base: new (...args: Args) => C,
   keepOnlyMaximal = false,
   keepTimestamps = true
-): new <Events extends ResettableEventsRecord>(
-  ...args: Args
-) => ResetWrapperCrdt<S, C, Events> {
+): new <Events extends CrdtEventsRecord>(...args: Args) => ResetWrapperCrdt<
+  S,
+  C,
+  Events
+> {
   return class ResetWrapped<
-    Events extends ResettableEventsRecord
+    Events extends CrdtEventsRecord
   > extends ResetWrapperCrdt<S, C, Events> {
     constructor(...args: Args) {
       let original = new Base(...args);

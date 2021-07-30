@@ -297,7 +297,7 @@ function plainJsArray() {
 function treedocLww() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
-  let list: crdts.TreedocList<crdts.LwwRegister<string>> | null;
+  let list: crdts.ResettingMutCList<crdts.LwwCRegister<string>> | null;
 
   return new AutomergePerfBenchmark("TreedocList<LwwRegister>", {
     setup(rng) {
@@ -305,8 +305,8 @@ function treedocLww() {
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt(
         "text",
-        new crdts.TreedocList<crdts.LwwRegister<string>>(
-          () => new crdts.LwwRegister("")
+        new crdts.ResettingMutCList<crdts.LwwCRegister<string>>(
+          () => new crdts.LwwCRegister("")
         )
       );
     },
@@ -318,10 +318,10 @@ function treedocLww() {
     processEdit(edit) {
       if (edit[2] !== undefined) {
         // Insert edit[2] at edit[0]
-        list!.insertAt(edit[0])[1].value = edit[2];
+        list!.insert(edit[0]).value = edit[2];
       } else {
         // Delete character at edit[0]
-        list!.deleteAt(edit[0]);
+        list!.delete(edit[0]);
       }
       runtime!.commitBatch();
     },
@@ -329,10 +329,7 @@ function treedocLww() {
       return generator!.getTotalSentBytes();
     },
     getText() {
-      return list!
-        .asArray()
-        .map((lww) => lww.value)
-        .join("");
+      return list!.map((lww) => lww.value).join("");
     },
     save() {
       const saveData = runtime!.save();
@@ -343,8 +340,8 @@ function treedocLww() {
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt(
         "text",
-        new crdts.TreedocList<crdts.LwwRegister<string>>(
-          () => new crdts.LwwRegister("")
+        new crdts.ResettingMutCList<crdts.LwwCRegister<string>>(
+          () => new crdts.LwwCRegister("")
         )
       );
       runtime.load(saveData);
@@ -355,13 +352,13 @@ function treedocLww() {
 function textCrdt() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
-  let list: crdts.TextCrdt | null;
+  let list: crdts.CText | null;
 
   return new AutomergePerfBenchmark("TextCrdt", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt("text", new crdts.TextCrdt());
+      list = runtime.registerCrdt("text", new crdts.CText());
     },
     cleanup() {
       generator = null;
@@ -371,10 +368,10 @@ function textCrdt() {
     processEdit(edit) {
       if (edit[2] !== undefined) {
         // Insert edit[2] at edit[0]
-        list!.insertAt(edit[0], edit[2]);
+        list!.insert(edit[0], edit[2]);
       } else {
         // Delete character at edit[0]
-        list!.deleteAt(edit[0]);
+        list!.delete(edit[0]);
       }
       runtime!.commitBatch();
     },
@@ -382,7 +379,7 @@ function textCrdt() {
       return generator!.getTotalSentBytes();
     },
     getText() {
-      return list!.asArray().join("");
+      return list!.join("");
     },
     save() {
       const saveData = runtime!.save();
@@ -391,7 +388,7 @@ function textCrdt() {
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt("text", new crdts.TextCrdt());
+      list = runtime.registerCrdt("text", new crdts.CText());
       runtime.load(saveData);
     },
   });
@@ -470,16 +467,13 @@ function automerge() {
 function mapLww() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
-  let list: crdts.LwwPlainMap<number, string> | null;
+  let list: crdts.LwwCMap<number, string> | null;
 
   return new AutomergePerfBenchmark("LwwMap", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt(
-        "text",
-        new crdts.LwwPlainMap<number, string>()
-      );
+      list = runtime.registerCrdt("text", new crdts.LwwCMap<number, string>());
     },
     cleanup() {
       generator = null;
@@ -509,10 +503,7 @@ function mapLww() {
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt(
-        "text",
-        new crdts.LwwPlainMap<number, string>()
-      );
+      list = runtime.registerCrdt("text", new crdts.LwwCMap<number, string>());
       runtime.load(saveData);
     },
   });

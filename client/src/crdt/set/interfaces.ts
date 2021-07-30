@@ -1,157 +1,129 @@
-import { Resettable, ResettableEventsRecord } from "../helper_crdts";
-import { Crdt, CrdtEvent } from "../core";
+/**
+ * Some methods in CSet are copied or modified from methods on
+ * JavaScript's Set class, in which case their
+ * type annotations and docstrings are copied or modified from
+ * those used in TypeScript, found in various files in
+ * https://github.com/microsoft/TypeScript/tree/main/src/lib
+ * Material from TypeScript
+ * bears the following copyright notice:
+ *
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0
 
-export interface SetEvent<T> extends CrdtEvent {
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+MERCHANTABLITY OR NON-INFRINGEMENT.
+
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
+***************************************************************************** */
+
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
+
+export interface CSetEvent<T> extends CrdtEvent {
   value: T;
 }
 
-export interface PlainSetEventsRecord<T> extends ResettableEventsRecord {
-  Add: SetEvent<T>;
-  Delete: SetEvent<T>;
+export interface CSetEventsRecord<T> extends CrdtEventsRecord {
+  /**
+   * Only emit when the value is actually new
+   * (was not previously present).
+   */
+  Add: CSetEvent<T>;
+  /**
+   * Only emit when the value is actually gotten
+   * rid of
+   * (was previously present).
+   */
+  Delete: CSetEvent<T>;
 }
 
 /**
- * A set of plain values of type T, supporting add and
+ * A set of values of type T, supporting add and
  * delete with any semantics.
+ *
+ * Initially, values must be added using the add method.
+ * This method inputs AddArgs and sends them to every
+ * replica in serialized form; every replica then uses
+ * them to contruct the actual added value of type T,
+ * e.g., using a user-supplied callback in the constructor.
+ * Added values can later be deleted (and in some implementations,
+ * restored), changing
+ * their presence in the set, using any semantics to
+ * resolve conflicts.
  */
-export interface PlainSet<
+export interface CSet<
   T,
-  Events extends PlainSetEventsRecord<T> = PlainSetEventsRecord<T>
-> extends Resettable<Events>,
-    Set<T> {
-  add(value: T): this;
+  AddArgs extends any[] = [T],
+  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+> extends Crdt<Events> {
   /**
-   * Delete every value in this set.
+   * Sends args to every replica in serialized form.
+   * Every replica then uses
+   * them to contruct the actual added value of type T.
    *
-   * Note that this may be a different semantics
-   * than reset.
+   * @return the added value
+   */
+  add(...args: AddArgs): T;
+
+  /**
+   * Deletes the given value, making it no longer present
+   * in this set.
+   */
+  delete(value: T): void;
+
+  has(value: T): boolean;
+
+  /**
+   * Deletes every value in this set.
    */
   clear(): void;
-  /**
-   * Returns whether value was deleted.  May be false either
-   * because value was not present, or because the semantics
-   * did not delete value.
-   */
-  delete(value: T): boolean;
-  has(value: T): boolean;
+
   readonly size: number;
 
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
     thisArg?: any
   ): void;
-  /** Iterates over values in the set.  Order is not eventually consistent. */
-  [Symbol.iterator](): IterableIterator<T>;
-  /**
-   * Returns an iterable of [v,v] pairs for every value `v` in the set. Order is not eventually consistent.
-   */
-  entries(): IterableIterator<[T, T]>;
-  /**
-   * Despite its name, returns an iterable of the values in the set. Order is not eventually consistent.
-   */
-  keys(): IterableIterator<T>;
 
   /**
-   * Returns an iterable of values in the set. Order is not eventually consistent.
+   * Returns an iterable of values in the set.
+   *
+   * The iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
+   */
+  [Symbol.iterator](): IterableIterator<T>;
+
+  /**
+   * Returns an iterable of values in the set.
+   *
+   * The iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
    */
   values(): IterableIterator<T>;
 
-  readonly [Symbol.toStringTag]: string;
-}
+  // entries() and keys() are excluded because they are redundant and don't
+  // seem useful, even though they are included in the ES6 Set class.
+  // /**
+  //  * Returns an iterable of [v,v] pairs for every value `v` in the set. Order is not eventually consistent.
+  //  */
+  // entries(): IterableIterator<[T, T]>;
+  //
+  // /**
+  //  * Despite its name, returns an iterable of the values in the set. Order is not eventually consistent.
+  //  */
+  // keys(): IterableIterator<T>;
 
-/**
- * Note that this doesn't extend CrdtEvent, because
- * values may be initialized independently of
- * operations/message delivery, in which case there is
- * no associated timestamp.
- */
-export interface SetInitEvent<C extends Crdt> {
-  value: C;
-}
-
-export interface CrdtSetEventsRecord<C extends Crdt>
-  extends ResettableEventsRecord {
-  Add: SetEvent<C>;
-  Delete: SetEvent<C>;
-  /**
-   * Emitted when a valueCrdt is constructed.
-   * Use this to register event listeners on valueCrdts.
-   * Note that this may be called multiple times for the
-   * same key (if a valueCrdt is GC'd and then
-   * reconstructed), it may not correspond precisely
-   * to Add events, and it may be called independently of
-   * operations/message delivery.
-   */
-  ValueInit: SetInitEvent<C>;
-}
-
-/**
- * A set of value Crdts of type C, representing a set of
- * mutable values of the type represented by C.
- *
- * Value Crdts created externally cannot be added to
- * a CrdtSet; instead, they must be created (on some replica)
- * by calling create, after which they can be mutated into
- * the desired state.  All methods except owns throw an error if
- * called with a value Crdt that is not owned by this CrdtSet,
- * i.e., it resulted from a create operation on this.
- *
- * Value Crdts can still be deleted and restored.  That affects
- * their membership in the set, as indicated by has() and
- * the iterators, but they will always remain owned by this set.
- */
-export interface CrdtSet<
-  C extends Crdt,
-  CreateArgs extends any[] = [],
-  Events extends CrdtSetEventsRecord<C> = CrdtSetEventsRecord<C>
-> extends Resettable<Events> {
-  /**
-   * Create a new value Crdt and add it to the set.
-   * Typically, this will call a user-supplied
-   * valueCrdtConstructor with the given args.
-   *
-   * @return the created value Crdt
-   */
-  create(...args: CreateArgs): C;
-  /**
-   * Makes the given valueCrdt present in the set.
-   *
-   * This method can be used to restore deleted elements, but
-   * it cannot add new elements to the set.
-   */
-  restore(valueCrdt: C): this;
-  /**
-   * Delete every value in this set.
-   *
-   * Note that this may be a different semantics
-   * than reset.
-   */
-  clear(): void;
-  delete(valueCrdt: C): boolean;
-
-  // TODO: forEach (w/ or w/o concurrently added)
-
-  /**
-   * Returns true if valueCrdt is owned by this CrdtSet,
-   * i.e., it resulted from a create operation on this.
-   */
-  owns(valueCrdt: C): boolean;
-  has(valueCrdt: C): boolean;
-  readonly size: number;
-
-  /** Iterates over value Crdts in the set.  Order is not eventually consistent. */
-  [Symbol.iterator](): IterableIterator<C>;
-  /**
-   * Returns an iterable of [c,c] pairs for every value Crdt `c` in the set. Order is not eventually consistent.
-   */
-  entries(): IterableIterator<[C, C]>;
-  /**
-   * Despite its name, returns an iterable of the value Crdts in the set. Order is not eventually consistent.
-   */
-  keys(): IterableIterator<C>;
-
-  /**
-   * Returns an iterable of value Crdts in the set. Order is not eventually consistent.
-   */
-  values(): IterableIterator<C>;
+  // Only include this in implementations where it makes sense.
+  // /**
+  //  * Makes the given value present in the set.
+  //  *
+  //  * This method can be used to restore deleted elements, but
+  //  * it cannot add new elements to the set.
+  //  */
+  // restore(value: T): this;
 }

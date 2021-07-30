@@ -1,6 +1,6 @@
 export class WeakValueMap<K, V extends Object> {
   private readonly internalMap = new Map<K, WeakRef<V>>();
-  private readonly registry: FinalizationRegistry;
+  private readonly registry: FinalizationRegistry<K>;
 
   constructor() {
     this.registry = new FinalizationRegistry((key) => this.checkKey(key));

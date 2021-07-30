@@ -1,9 +1,6 @@
 import * as crdts from "compoventuals-client";
 import { min, max, round } from "mathjs";
 
-/**
- * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
- */
 let client = new crdts.Runtime(
   new crdts.MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.whiteboard"),
   {
@@ -13,9 +10,9 @@ let client = new crdts.Runtime(
 
 // The key represents a point in the form: x:y
 // The value is the color of the stroke.
-let clientBoard: crdts.LwwPlainMap<string, string> = client.registerCrdt(
+let clientBoard: crdts.LwwCMap<string, string> = client.registerCrdt(
   "whiteboardId",
-  new crdts.LwwPlainMap()
+  new crdts.LwwCMap()
 );
 
 window.onload = function () {
@@ -78,7 +75,7 @@ window.onload = function () {
   });
 
   // Clear points
-  clientBoard.on("KeyDelete", (event) => {
+  clientBoard.on("Delete", (event) => {
     var keys = event.key.split(":");
     ctx!.clearRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
   });
