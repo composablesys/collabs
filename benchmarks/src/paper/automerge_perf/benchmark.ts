@@ -299,7 +299,7 @@ function treedocLww() {
   let runtime: crdts.Runtime | null;
   let list: crdts.ResettingMutCList<crdts.LwwCRegister<string>> | null;
 
-  return new AutomergePerfBenchmark("ResettingMutCList<LwwCRegister>", {
+  return new AutomergePerfBenchmark("TreedocList<LwwRegister>", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
@@ -354,7 +354,7 @@ function textCrdt() {
   let runtime: crdts.Runtime | null;
   let list: crdts.CText | null;
 
-  return new AutomergePerfBenchmark("CText", {
+  return new AutomergePerfBenchmark("TextCrdt", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
