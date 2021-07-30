@@ -10,7 +10,7 @@ let client = new crdts.Runtime(
 
 let clientCounter = client.registerCrdt(
   "variable_counter",
-  new crdts.AddOnlyNumber()
+  new crdts.CCounter()
 );
 
 const counter = document.getElementById("variable_counter");

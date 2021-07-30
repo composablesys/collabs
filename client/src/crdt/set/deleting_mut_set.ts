@@ -99,21 +99,24 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
-  private initialValuesArgs?: AddArgs[];
+  /*private initialValuesArgs?: AddArgs[];*/
+  private initialValues?: C[];
 
   constructor(
     private readonly valueConstructor: (...args: AddArgs) => C,
-    initialValuesArgs: AddArgs[] = [],
+    /*initialValuesArgs: AddArgs[] = [],*/
+    initialValues: C[] = [],
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super();
-    this.initialValuesArgs = initialValuesArgs;
+    /*this.initialValuesArgs = initialValuesArgs;*/
+    this.initialValues = initialValues;
   }
 
   init(name: string, parent: CrdtParent) {
     super.init(name, parent);
 
-    // Create the initial values from initialValuesArgs
+    /*// Create the initial values from initialValuesArgs
     for (let i = 0; i < this.initialValuesArgs!.length; i++) {
       const args = this.initialValuesArgs![i];
       // Using name "INIT" is a hack; need to figure out
@@ -124,7 +127,30 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       );
       this.receiveCreate(name, this.argsSerializer.serialize(args), args, true);
     }
-    delete this.initialValuesArgs;
+    delete this.initialValuesArgs;*/
+    // Construct the initial values
+    for (let i = 0; i < this.initialValues!.length; i++) {
+      const newCrdt = this.initialValues![i];
+      // Add as child with "["INIT", -i]" as id.
+      // Similar to CompositeCrdt#addChild.
+      let name = arrayAsString(
+        DeletingMutCSet.nameSerializer.serialize(["INIT", -i])
+      );
+      if (this.children.has(name)) {
+        throw new Error(
+          '(initial value) Duplicate newCrdt name: "' + name + '"'
+        );
+      }
+      this.children.set(name, newCrdt);
+      this.childBeingAdded = newCrdt;
+      newCrdt.init(name, this);
+      this.childBeingAdded = undefined;
+
+      // Initial values are not added to this.constructorArgs,
+      // since they are passed to the constructor, hence
+      // do not need to be saved.
+    }
+    delete this.initialValues;
   }
 
   private childBeingAdded?: C;

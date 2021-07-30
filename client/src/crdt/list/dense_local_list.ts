@@ -156,4 +156,8 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * saved loc array.
    */
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void;
+
+  // TODO: refactor together with Cursor.
+  leftIndex(loc: L): number;
+  rightIndex(loc: L): number;
 }

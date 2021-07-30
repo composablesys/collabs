@@ -17,6 +17,15 @@ import {
   TreedocLocWrapper,
 } from "./treedoc_dense_local_list";
 
+// TODO: document, test.
+// Note this is not a CRDT
+// TODO: way to share with others (e.g., putting seqId
+// in a LwwRegister).  Could make this a CRDT for that,
+// but not desired if it's not going to be replicated.
+export interface Cursor {
+  index: number;
+}
+
 export class PrimitiveCListFromDenseLocalList<
   T,
   L,
@@ -287,6 +296,34 @@ export class PrimitiveCListFromDenseLocalList<
         )
       );
     }
+  }
+
+  newCursor(startIndex: number, binding: "left" | "right" = "left"): Cursor {
+    const outerThis = this;
+    let loc: L | null = null;
+    const cursor = {
+      set index(index: number) {
+        if (binding === "left") {
+          if (index === 0) loc = null;
+          else loc = outerThis.state.getLoc(index - 1);
+        } else {
+          if (index === outerThis.length) loc = null;
+          else loc = outerThis.state.getLoc(index);
+        }
+      },
+
+      get index(): number {
+        if (binding === "left") {
+          if (loc === null) return 0;
+          else return outerThis.state.leftIndex(loc);
+        } else {
+          if (loc === null) return outerThis.length;
+          else return outerThis.state.rightIndex(loc);
+        }
+      },
+    };
+    cursor.index = startIndex;
+    return cursor;
   }
 }
 

@@ -83,16 +83,17 @@ function refreshDisplay() {
         let settings = state as GameSettings;
         box.addEventListener("click", (event) => {
           if (event.button === 0) {
-            gameSource.clear(); // GC old games
             // Start the game, with this tile safe
-            let newGame = gameSource.create(
-              settings.width,
-              settings.height,
-              settings.fractionMines,
-              Math.random() + "",
-              x,
-              y
-            );
+            let newGame = currentGame
+              .set(
+                settings.width,
+                settings.height,
+                settings.fractionMines,
+                Math.random() + "",
+                x,
+                y
+              )
+              .get();
             currentState.value = newGame;
             newGame.leftClick(x, y);
           }
@@ -155,9 +156,9 @@ function settingsFromInput(): GameSettings {
  */
 let HOST = location.origin.replace(/^http/, "ws");
 let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "minesweeper"));
-let gameSource = client.registerCrdt(
-  "gameSource",
-  new crdts.YjsCrdtSet(
+let currentGame = client.registerCrdt(
+  "currentGame",
+  new crdts.LwwMutCRegister(
     (
       width: number,
       height: number,
@@ -170,13 +171,13 @@ let gameSource = client.registerCrdt(
 );
 let currentSettings = client.registerCrdt(
   "currentSettings",
-  new crdts.LwwRegister<GameSettings>(settingsFromInput())
+  new crdts.LwwCRegister<GameSettings>(settingsFromInput())
 );
 // TODO: FWW instead of LWW?  Also backup to view all games
 // in case of concurrent progress.
 let currentState = client.registerCrdt(
   "currentState",
-  new crdts.LwwRegister<MinesweeperCrdt | GameSettings>(currentSettings.value)
+  new crdts.LwwCRegister<MinesweeperCrdt | GameSettings>(currentSettings.value)
 );
 
 client.on("Change", invalidate);
@@ -212,14 +213,17 @@ enum TileStatus {
 }
 
 class TileCrdt extends crdts.CompositeCrdt {
-  private readonly revealed: crdts.TrueWinsBoolean;
-  private readonly flag: crdts.LwwRegister<FlagStatus>;
+  private readonly revealed: crdts.TrueWinsCBoolean;
+  private readonly flag: crdts.LwwCRegister<FlagStatus>;
   number: number = 0;
 
   constructor(readonly isMine: boolean) {
     super();
-    this.revealed = this.addChild("revealed", new crdts.TrueWinsBoolean());
-    this.flag = this.addChild("flag", new crdts.LwwRegister(FlagStatus.NONE));
+    this.revealed = this.addChild("revealed", new crdts.TrueWinsCBoolean());
+    this.flag = this.addChild(
+      "flag",
+      new crdts.LwwCRegister<FlagStatus>(FlagStatus.NONE)
+    );
   }
 
   reveal() {

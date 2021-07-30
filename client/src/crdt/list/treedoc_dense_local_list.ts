@@ -319,6 +319,14 @@ export class TreedocDenseLocalList<T>
     (this.tree as any)._compare = this.compareWrappers.bind(this);
   }
 
+  leftIndex(loc: TreedocLocWrapper): number {
+    return this.tree.gt(loc).index;
+  }
+
+  rightIndex(loc: TreedocLocWrapper): number {
+    return this.tree.ge(loc).index;
+  }
+
   // Sequence stuff
 
   // TODO: remove this once the tests no longer need it.
