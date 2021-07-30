@@ -95,6 +95,19 @@ export class AddWinsCSet<T>
     super(() => new TrueWinsCBoolean(), valueSerializer);
   }
 
+  delete(value: T): void {
+    // Optimize to avoid creating the value if it's
+    // not present, in which case deleting is a
+    // no-op.
+    // Note that we don't do this in the superclass,
+    // even though then we are also guaranteed that the
+    // value is false, because it is not necessarily a
+    // no-op for arbitrary CBoolean's
+    // (may still change the internal state).
+    const boolean = this.booleanMap.getIfPresent(value);
+    if (boolean !== undefined) boolean.value = false;
+  }
+
   reset() {
     // For TrueWinsCBoolean, we know that setting to
     // false is an observed-reset.  So clear, which
