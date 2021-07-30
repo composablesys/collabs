@@ -142,24 +142,27 @@ export class TreedocDenseLocalList<T>
     message: Uint8Array,
     timestamp: CausalTimestamp,
     values: ArrayLike<T>
-  ): number {
+  ): [number, TreedocLocWrapper[]] {
     const [loc] = this.deserializeInternal(message, this.runtime);
     let index: number;
     // TODO: exploit the fact that they all have the
     // same anchor.
     const locs = this.expand(loc, values.length);
+    const locWrappers = new Array<TreedocLocWrapper>(values.length);
     for (let i = 0; i < values.length; i++) {
       let indexI: number;
-      [this.tree, indexI] = this.tree.insert(
-        new TreedocLocWrapper(locs[i], this, timestamp.getSenderCounter()),
-        values[i]
+      locWrappers[i] = new TreedocLocWrapper(
+        locs[i],
+        this,
+        timestamp.getSenderCounter()
       );
+      [this.tree, indexI] = this.tree.insert(locWrappers[i], values[i]);
       if (i === 0) index = indexI;
       // TODO: at least compress locs when they come
       // from a range?  Easy memory improvement for
       // todo-list.
     }
-    return index!;
+    return [index!, locWrappers];
   }
 
   /**
@@ -209,7 +212,11 @@ export class TreedocDenseLocalList<T>
     startLoc: TreedocLocWrapper,
     endLoc: TreedocLocWrapper,
     timestamp: CausalTimestamp,
-    ondelete: (startIndex: number, count: number, deletedValues: T[]) => void
+    ondelete: (
+      startIndex: number,
+      deletedLocs: TreedocLocWrapper[],
+      deletedValues: T[]
+    ) => void
   ): void {
     const iter = this.tree.ge(startLoc);
     const vc = timestamp.asVectorClock();
@@ -237,7 +244,7 @@ export class TreedocDenseLocalList<T>
       // TODO: bulk calls to ondelete, for efficiency.
       // Also can we make that work with string?
       // (Use array | string for deletedValues?)
-      ondelete(ret![0], 1, [ret![1]]);
+      ondelete(ret![0], [toDelete[i]], [ret![1]]);
     }
   }
 
@@ -266,8 +273,8 @@ export class TreedocDenseLocalList<T>
       const iter = this.tree.begin;
       yield iter.value!;
       while (iter.hasNext) {
-        yield iter.value!;
         iter.next();
+        yield iter.value!;
       }
     }
   }
@@ -277,14 +284,18 @@ export class TreedocDenseLocalList<T>
       const iter = this.tree.begin;
       yield iter.key!;
       while (iter.hasNext) {
-        yield iter.key!;
         iter.next();
+        yield iter.key!;
       }
     }
   }
 
   valuesArray(): T[] {
     return this.tree.values;
+  }
+
+  idOf(loc: TreedocLocWrapper): [sender: string, uniqueNumber: number] {
+    return [loc.sender, loc.uniqueNumber];
   }
 
   canGc(): boolean {

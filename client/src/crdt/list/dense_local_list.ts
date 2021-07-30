@@ -58,7 +58,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
     message: Uint8Array,
     timestamp: CausalTimestamp,
     values: ArrayLike<T>
-  ): number;
+  ): [index: number, locs: L[]];
 
   /**
    * Create and return count new locs, inserted starting
@@ -119,7 +119,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
     startLoc: L,
     endLoc: L,
     timestamp: CausalTimestamp,
-    ondelete: (startIndex: number, count: number, deletedValues: T[]) => void
+    ondelete: (startIndex: number, deletedLocs: L[], deletedValues: T[]) => void
   ): void;
 
   get(index: number): T;
@@ -139,6 +139,19 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * @return [description]
    */
   valuesArray(): T[];
+
+  /**
+   * uniqueNumber must be an int.  Ideally nonnegative
+   * (and then change PrimitiveList's protobuf encoding
+   * from sint to uint),
+   * but for now we don't require this because
+   * Treedoc can give negative values.
+   *
+   * Must work on (just) deleted locs.
+   * @param  loc [description]
+   * @return     [description]
+   */
+  idOf(loc: L): [sender: string, uniqueNumber: number];
 
   canGc(): boolean;
 

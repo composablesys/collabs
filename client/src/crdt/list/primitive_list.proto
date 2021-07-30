@@ -12,14 +12,20 @@ message PrimitiveCListInsertMessage {
 }
 
 message PrimitiveCListDeleteMessage {
+  required string sender = 1;
+  required sint32 uniqueNumber = 2;
+}
+
+message PrimitiveCListDeleteRangeMessage {
   required bytes startLoc = 1;
-  optional bytes endLoc = 2;
+  required bytes endLoc = 2;
 }
 
 message PrimitiveCListMessage {
   oneof op {
     PrimitiveCListInsertMessage insert = 1;
     PrimitiveCListDeleteMessage delete = 2;
+    PrimitiveCListDeleteRangeMessage deleteRange = 3;
   }
 }
 

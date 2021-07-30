@@ -1,5 +1,4 @@
 import {
-  IPrimitiveCListDeleteMessage,
   IPrimitiveCListInsertMessage,
   IPrimitiveCListSave,
   PrimitiveCListInsertMessage,
@@ -31,6 +30,12 @@ export class PrimitiveCListFromDenseLocalList<
   L,
   DenseT extends DenseLocalList<L, T>
 > extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
+  /**
+   * Maps from ids to locs.  Used for single-element
+   * deletions.
+   */
+  private readonly locsById: Map<string, Map<number, L>> = new Map();
+
   /**
    * @param denseLocalList                   [description]
    * @param valueSerializer [description]
@@ -141,16 +146,26 @@ export class PrimitiveCListFromDenseLocalList<
       throw new Error("invalid count: " + count);
     }
     if (count === 0) return;
-    const imessage: IPrimitiveCListDeleteMessage = {
-      startLoc: this.state.serialize(this.state.getLoc(startIndex)),
-    };
-    if (count > 1) {
-      imessage.endLoc = this.state.serialize(
-        this.state.getLoc(startIndex + count - 1)
-      );
-    } // Else count === 1.
-    const message = PrimitiveCListMessage.create({ delete: imessage });
-    this.send(PrimitiveCListMessage.encode(message).finish());
+    if (count === 1) {
+      const id = this.state.idOf(this.state.getLoc(startIndex));
+      const message = PrimitiveCListMessage.create({
+        delete: {
+          sender: id[0],
+          uniqueNumber: id[1],
+        },
+      });
+      this.send(PrimitiveCListMessage.encode(message).finish());
+    } else {
+      const message = PrimitiveCListMessage.create({
+        deleteRange: {
+          startLoc: this.state.serialize(this.state.getLoc(startIndex)),
+          endLoc: this.state.serialize(
+            this.state.getLoc(startIndex + count - 1)
+          ),
+        },
+      });
+      this.send(PrimitiveCListMessage.encode(message).finish());
+    }
   }
 
   clear() {
@@ -186,11 +201,23 @@ export class PrimitiveCListFromDenseLocalList<
           default:
             throw new Error("Unrecognized insert.type: " + insert.type);
         }
-        const index = this.state.receiveNewLocs(
+        const [index, locs] = this.state.receiveNewLocs(
           insert.locMessage,
           timestamp,
           values
         );
+        // Cache locs by id.
+        let senderLocsById = this.locsById.get(timestamp.getSender());
+        if (senderLocsById === undefined) {
+          senderLocsById = new Map();
+          this.locsById.set(timestamp.getSender(), senderLocsById);
+        }
+        for (const loc of locs) {
+          if (this.state.idOf(loc)[0] !== timestamp.getSender()) {
+            throw new Error("Bad sender id");
+          }
+          senderLocsById.set(this.state.idOf(loc)[1], loc);
+        }
         // Event
         this.emit("Insert", {
           startIndex: index,
@@ -199,41 +226,55 @@ export class PrimitiveCListFromDenseLocalList<
         });
         break;
       case "delete":
+        // Single delete, using id.
+        const toDelete = this.locsById
+          .get(decoded.delete!.sender)
+          ?.get(decoded.delete!.uniqueNumber);
+        if (toDelete !== undefined) {
+          const ret = this.state.delete(toDelete);
+          // Update locsById.
+          this.locsById
+            .get(decoded.delete!.sender)!
+            .delete(decoded.delete!.uniqueNumber);
+          // Event
+          this.emit("Delete", {
+            startIndex: ret![0],
+            count: 1,
+            deletedValues: [ret![1]],
+            timestamp,
+          });
+        } // Else already deleted
+        break;
+      case "deleteRange":
+        // Range delete, using start & end locs
         const startLoc = this.state.deserialize(
-          decoded.delete!.startLoc,
+          decoded.deleteRange!.startLoc,
           this.runtime
         );
-        if (decoded.delete!.hasOwnProperty("endLoc")) {
-          // Range delete
-          const endLoc = this.state.deserialize(
-            decoded.delete!.endLoc!,
-            this.runtime
-          );
-          this.state.deleteRange(
-            startLoc,
-            endLoc,
-            timestamp,
-            (startIndex, count, deletedValues) => {
-              this.emit("Delete", {
-                startIndex,
-                count,
-                deletedValues,
-                timestamp,
-              });
+        const endLoc = this.state.deserialize(
+          decoded.deleteRange!.endLoc!,
+          this.runtime
+        );
+        this.state.deleteRange(
+          startLoc,
+          endLoc,
+          timestamp,
+          (startIndex, deletedLocs, deletedValues) => {
+            // Update locsById.
+            for (const deletedLoc of deletedLocs) {
+              // deletedLoc must still exist.
+              const id = this.state.idOf(deletedLoc);
+              this.locsById.get(id[0])!.delete(id[1]);
             }
-          );
-        } else {
-          // Single delete
-          const ret = this.state.delete(startLoc);
-          if (ret !== undefined) {
+            // Event
             this.emit("Delete", {
-              startIndex: ret[0],
-              count: 1,
-              deletedValues: [ret[1]],
+              startIndex,
+              count: deletedLocs.length,
+              deletedValues,
               timestamp,
             });
           }
-        }
+        );
         break;
       default:
         throw new Error("Unrecognized decoded.op: " + decoded.op);
@@ -295,6 +336,16 @@ export class PrimitiveCListFromDenseLocalList<
           this.runtime
         )
       );
+    }
+    // Load this.locsById.
+    for (const loc of this.state.locs()) {
+      const id = this.state.idOf(loc);
+      let senderLocsById = this.locsById.get(id[0]);
+      if (senderLocsById === undefined) {
+        senderLocsById = new Map();
+        this.locsById.set(id[0], senderLocsById);
+      }
+      senderLocsById.set(id[1], loc);
     }
   }
 
