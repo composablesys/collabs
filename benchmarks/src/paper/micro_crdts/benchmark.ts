@@ -325,7 +325,7 @@ function DeepNoopCrdt() {
 
 function ICounter(
   name: string,
-  counter: typeof crdts.AddOnlyNumber,
+  counter: typeof crdts.CCounter,
   resetFraction: number
 ) {
   return new MicroCrdtsBenchmark(
@@ -345,16 +345,16 @@ function ICounter(
 function MultiValueRegister() {
   return new MicroCrdtsBenchmark(
     "MultiValueRegister",
-    () => new crdts.LwwRegister<number>(0),
+    () => new crdts.LwwCRegister<number>(0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.conflicts()
   );
 }
 
-function LwwRegister() {
+function LwwCRegister() {
   return new MicroCrdtsBenchmark(
     "Register",
-    () => new crdts.LwwRegister<number>(0),
+    () => new crdts.LwwCRegister<number>(0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.value
   );
@@ -363,7 +363,7 @@ function LwwRegister() {
 function NumberCrdt() {
   return new MicroCrdtsBenchmark(
     "NumberCrdt",
-    () => new crdts.DefaultNumber(1),
+    () => new crdts.CNumber(1),
     {
       Add: [(crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)), 0.5],
       Mult: [(crdt, rng) => crdt.mult(Math.floor(8 * rng() - 4) / 2), 0.5],
@@ -375,7 +375,7 @@ function NumberCrdt() {
 function EnableWinsFlag() {
   return new MicroCrdtsBenchmark(
     "EnableWinsFlag",
-    () => new crdts.TrueWinsBoolean(),
+    () => new crdts.TrueWinsCBoolean(),
     {
       Enable: [(crdt) => (crdt.value = true), 0.5],
       Disable: [(crdt) => (crdt.value = false), 0.5],
@@ -387,7 +387,7 @@ function EnableWinsFlag() {
 function AddWinsSet() {
   return new MicroCrdtsBenchmark(
     "AddWinsSet",
-    () => new crdts.AddWinsPlainSet<number>(),
+    () => new crdts.AddWinsCSet<number>(),
     {
       Toggle: [
         (crdt, rng) => {
@@ -414,7 +414,7 @@ function AddWinsSetRolling() {
     "AddWinsSetRolling",
     () => {
       i = 0;
-      return new crdts.AddWinsPlainSet<number>();
+      return new crdts.AddWinsCSet<number>();
     },
     {
       Roll: [
@@ -439,7 +439,7 @@ function AddWinsSetRollingGrow() {
     "AddWinsSetRollingGrow",
     () => {
       i = 0;
-      return new crdts.AddWinsPlainSet<number>();
+      return new crdts.AddWinsCSet<number>();
     },
     {
       Roll: [
@@ -461,8 +461,8 @@ function MapCrdt() {
   return new MicroCrdtsBenchmark(
     "MapCrdt",
     () =>
-      new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
-        () => new crdts.AddOnlyNumber(),
+      new crdts.MergingMutCMap<number, crdts.CCounter>(
+        () => new crdts.CCounter(),
         crdts.DefaultElementSerializer.getInstance()
       ),
     {
@@ -470,14 +470,14 @@ function MapCrdt() {
         (crdt, rng) => {
           let key = Math.floor(rng() * 100);
           if (crdt.has(key)) crdt.delete(key);
-          else crdt.addKey(key);
+          else crdt.set(key);
         },
         0.5,
       ],
       ValueOp: [
         (crdt, rng) => {
           let key = Math.floor(rng() * 100);
-          if (!crdt.has(key)) crdt.addKey(key);
+          if (!crdt.has(key)) crdt.set(key);
           crdt.get(key)!.add(Math.floor(rng() * 100 - 50));
         },
         0.5,
@@ -499,8 +499,8 @@ function MapCrdtRolling() {
     "MapCrdtRolling",
     () => {
       i = 0;
-      return new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
-        () => new crdts.AddOnlyNumber(),
+      return new crdts.MergingMutCMap<number, crdts.CCounter>(
+        () => new crdts.CCounter(),
         crdts.DefaultElementSerializer.getInstance()
       );
     },
@@ -508,7 +508,7 @@ function MapCrdtRolling() {
       Roll: [
         (crdt, rng) => {
           if (i >= 100) crdt.delete(i - 100);
-          if (!crdt.has(i)) crdt.addKey(i);
+          if (!crdt.has(i)) crdt.set(i);
           crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
@@ -528,15 +528,15 @@ function MapCrdtRollingGrow() {
     "MapCrdtRollingGrow",
     () => {
       i = 0;
-      return new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
-        () => new crdts.AddOnlyNumber(),
+      return new crdts.MergingMutCMap<number, crdts.CCounter>(
+        () => new crdts.CCounter(),
         crdts.DefaultElementSerializer.getInstance()
       );
     },
     {
       Roll: [
         (crdt, rng) => {
-          if (!crdt.has(i)) crdt.addKey(i);
+          if (!crdt.has(i)) crdt.set(i);
           crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
@@ -553,7 +553,7 @@ function MapCrdtRollingGrow() {
 function LwwMap() {
   return new MicroCrdtsBenchmark(
     "LwwMap",
-    () => new crdts.LwwPlainMap<number, number>(),
+    () => new crdts.LwwCMap<number, number>(),
     {
       Toggle: [
         (crdt, rng) => {
@@ -581,7 +581,7 @@ function LwwMapRolling() {
     "LwwMapRolling",
     () => {
       i = 0;
-      return new crdts.LwwPlainMap<number, number>();
+      return new crdts.LwwCMap<number, number>();
     },
     {
       Roll: [
@@ -603,7 +603,7 @@ function LwwMapRollingGrow() {
     "LwwMapRollingGrow",
     () => {
       i = 0;
-      return new crdts.LwwPlainMap<number, number>();
+      return new crdts.LwwCMap<number, number>();
     },
     {
       Roll: [
@@ -618,73 +618,70 @@ function LwwMapRollingGrow() {
   );
 }
 
-function TreedocPrimitiveListLtr() {
+function PrimitiveCListLtr() {
   return new MicroCrdtsBenchmark(
     "TextLtr",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
-          else crdt.insertAt(crdt.length, randomChar(rng));
+          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
+          else crdt.insert(crdt.length, randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
-function TreedocPrimitiveListLtrGrow() {
+function PrimitiveCListLtrGrow() {
   return new MicroCrdtsBenchmark(
     "TextLtrGrow",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          crdt.insertAt(crdt.length, randomChar(rng));
+          crdt.insert(crdt.length, randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
-function TreedocPrimitiveListRandom() {
+function PrimitiveCListRandom() {
   return new MicroCrdtsBenchmark(
     "TextRandom",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
+          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
           else
-            crdt.insertAt(
-              Math.floor(rng() * (crdt.length + 1)),
-              randomChar(rng)
-            );
+            crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
-function TreedocPrimitiveListRandomGrow() {
+function PrimitiveCListRandomGrow() {
   return new MicroCrdtsBenchmark(
     "TextRandomGrow",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          crdt.insertAt(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
+          crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
@@ -728,40 +725,40 @@ export default async function microCrdts(args: string[]) {
       benchmark = DeepNoopCrdt();
       break;
     case "Counter":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0);
+      benchmark = ICounter(args[0], crdts.CCounter, 0);
       break;
     case "Counter-1":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.01);
+      benchmark = ICounter(args[0], crdts.CCounter, 0.01);
       break;
     case "Counter-10":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.1);
+      benchmark = ICounter(args[0], crdts.CCounter, 0.1);
       break;
     case "Counter-50":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.5);
+      benchmark = ICounter(args[0], crdts.CCounter, 0.5);
       break;
     case "Counter-100":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 1);
+      benchmark = ICounter(args[0], crdts.CCounter, 1);
       break;
     // case "CounterPure":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0);
     //   break;
     // case "CounterPure-1":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.01);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.01);
     //   break;
     // case "CounterPure-10":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.1);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.1);
     //   break;
     // case "CounterPure-50":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.5);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.5);
     //   break;
     // case "CounterPure-100":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 1);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 1);
     //   break;
     case "MultiValueRegister":
       benchmark = MultiValueRegister();
       break;
     case "Register":
-      benchmark = LwwRegister();
+      benchmark = LwwCRegister();
       break;
     case "NumberCrdt":
       benchmark = NumberCrdt();
@@ -794,19 +791,19 @@ export default async function microCrdts(args: string[]) {
       benchmark = LwwMapRolling();
       break;
     case "TextLtr":
-      benchmark = TreedocPrimitiveListLtr();
+      benchmark = PrimitiveCListLtr();
       break;
     case "TextRandom":
-      benchmark = TreedocPrimitiveListRandom();
+      benchmark = PrimitiveCListRandom();
       break;
     case "LwwMapRollingGrow":
       benchmark = LwwMapRollingGrow();
       break;
     case "TextLtrGrow":
-      benchmark = TreedocPrimitiveListLtrGrow();
+      benchmark = PrimitiveCListLtrGrow();
       break;
     case "TextRandomGrow":
-      benchmark = TreedocPrimitiveListRandomGrow();
+      benchmark = PrimitiveCListRandomGrow();
       break;
     // case "TensorCounter":
     //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
