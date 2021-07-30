@@ -1,80 +1,127 @@
-import { NoopCrdt, Resettable, ResetWrapClass } from "../helper_crdts";
+import { WinsCBooleanSave } from "../../../generated/proto_compiled";
+import { CausalTimestamp } from "../../net";
+import { CompositeCrdt, PrimitiveCrdt } from "../core";
+import { Resettable } from "../helper_crdts";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
-import { CBoolean } from "./interfaces";
 
-/** Enable-wins flag */
+interface WinsCBooleanEntry {
+  readonly sender: string;
+  readonly senderCounter: number;
+}
+
 export class TrueWinsCBoolean
-  extends MakeAbstractCBoolean(ResetWrapClass(NoopCrdt, true, false))<
+  extends MakeAbstractCBoolean(PrimitiveCrdt)<
+    WinsCBooleanEntry[],
     CRegisterEventsRecord<boolean>
   >
-  implements CBoolean, Resettable
+  implements Resettable
 {
-  private previousValue = false;
-
   constructor() {
-    super();
-    // Events
-    this.on("Change", (event) => {
-      if (this.previousValue !== this.value) {
-        // It did indeed change.
-        this.previousValue = this.value;
-        this.emit("Set", {
-          timestamp: event.timestamp,
-          previousValue: !this.value,
-        });
-      }
-    });
-  }
-
-  get value(): boolean {
-    return !this.state.isHistoryEmpty();
+    super([]);
   }
 
   set value(value: boolean) {
-    if (value) this.original.noop();
-    else this.reset();
+    // Length 0 for true, length 1 for false.
+    // We send redundantly for true because it can still
+    // change the state (add another entry), but not for
+    // false, because in that case setting to false
+    // does nothing.
+    if (value) this.send(new Uint8Array());
+    else if (this.value) this.send(new Uint8Array(1));
   }
 
-  postLoad() {
-    this.previousValue = this.value;
+  get value(): boolean {
+    return this.state.length !== 0;
+  }
+
+  protected receivePrimitive(
+    timestamp: CausalTimestamp,
+    message: Uint8Array
+  ): void {
+    const previousValue = this.value;
+
+    const newState: WinsCBooleanEntry[] = [];
+    let vc = timestamp.asVectorClock();
+    for (const entry of this.state) {
+      let vcEntry = vc.get(entry.sender);
+      if (vcEntry === undefined || vcEntry < entry.senderCounter) {
+        newState.push(entry);
+      }
+    }
+
+    if (message.length === 0) {
+      // It's setting to true, add a new entry.
+      newState.push({
+        sender: timestamp.getSender(),
+        senderCounter: timestamp.getSenderCounter(),
+      });
+    }
+
+    this.state.splice(0, this.state.length, ...newState);
+
+    // Event
+    if (this.value !== previousValue) {
+      this.emit("Set", { previousValue, timestamp });
+    }
+  }
+
+  canGc(): boolean {
+    return this.state.length === 0;
+  }
+
+  reset() {
+    // Setting to false is an observed-reset.
+    this.value = false;
+  }
+
+  protected savePrimitive(): Uint8Array {
+    const message = WinsCBooleanSave.create({
+      senders: this.state.map((entry) => entry.sender),
+      senderCounters: this.state.map((entry) => entry.senderCounter),
+    });
+    return WinsCBooleanSave.encode(message).finish();
+  }
+
+  protected loadPrimitive(saveData: Uint8Array): void {
+    const decoded = WinsCBooleanSave.decode(saveData);
+    for (let i = 0; i < decoded.senders.length; i++) {
+      this.state.push({
+        sender: decoded.senders[i],
+        senderCounter: decoded.senderCounters[i],
+      });
+    }
   }
 }
 
-/** Disable-wins flag */
 export class FalseWinsCBoolean
-  extends MakeAbstractCBoolean(ResetWrapClass(NoopCrdt, true, false))<
-    CRegisterEventsRecord<boolean>
-  >
-  implements CBoolean, Resettable
+  extends MakeAbstractCBoolean(CompositeCrdt)<CRegisterEventsRecord<boolean>>
+  implements Resettable
 {
-  private previousValue = true;
+  private readonly negated: TrueWinsCBoolean;
 
   constructor() {
     super();
-    // Events
-    this.on("Change", (event) => {
-      if (this.previousValue !== this.value) {
-        // It did indeed change.
-        this.previousValue = this.value;
-        this.emit("Set", {
-          timestamp: event.timestamp,
-          previousValue: !this.value,
-        });
-      }
-    });
-  }
+    this.negated = this.addChild("", new TrueWinsCBoolean());
 
-  get value(): boolean {
-    return this.state.isHistoryEmpty();
+    // Events
+    this.negated.on("Set", (event) =>
+      this.emit("Set", {
+        previousValue: !event.previousValue,
+        timestamp: event.timestamp,
+      })
+    );
   }
 
   set value(value: boolean) {
-    if (!value) this.original.noop();
-    else this.reset();
+    this.negated.value = !value;
   }
 
-  postLoad() {
-    this.previousValue = this.value;
+  get value(): boolean {
+    return !this.negated.value;
+  }
+
+  reset(): void {
+    this.negated.reset();
   }
 }

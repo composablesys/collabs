@@ -91,10 +91,10 @@ describe("standard", () => {
     });
 
     describe("enable", () => {
-      it("emits a Change event", async () => {
+      it("emits a Set event", async () => {
         const promise = Promise.all([
-          aliceFlag.nextEvent("Change"),
-          bobFlag.nextEvent("Change"),
+          aliceFlag.nextEvent("Set"),
+          bobFlag.nextEvent("Set"),
         ]);
 
         aliceFlag.value = true;
@@ -105,10 +105,13 @@ describe("standard", () => {
     });
 
     describe("disable", () => {
-      it("emits a Change event", async () => {
+      it("emits a Set event", async () => {
+        aliceFlag.value = true;
+        runtimeGen.releaseAll();
+
         const promise = Promise.all([
-          aliceFlag.nextEvent("Change"),
-          bobFlag.nextEvent("Change"),
+          aliceFlag.nextEvent("Set"),
+          bobFlag.nextEvent("Set"),
         ]);
 
         aliceFlag.value = false;
@@ -172,10 +175,13 @@ describe("standard", () => {
     });
 
     describe("enable", () => {
-      it("emits a Change event", async () => {
+      it("emits a Set event", async () => {
+        aliceFlag.value = false;
+        runtimeGen.releaseAll();
+
         const promise = Promise.all([
-          aliceFlag.nextEvent("Change"),
-          bobFlag.nextEvent("Change"),
+          aliceFlag.nextEvent("Set"),
+          bobFlag.nextEvent("Set"),
         ]);
 
         aliceFlag.value = true;
@@ -186,10 +192,10 @@ describe("standard", () => {
     });
 
     describe("disable", () => {
-      it("emits a Change event", async () => {
+      it("emits a Set event", async () => {
         const promise = Promise.all([
-          aliceFlag.nextEvent("Change"),
-          bobFlag.nextEvent("Change"),
+          aliceFlag.nextEvent("Set"),
+          bobFlag.nextEvent("Set"),
         ]);
 
         aliceFlag.value = false;
