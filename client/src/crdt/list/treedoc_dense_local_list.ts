@@ -91,7 +91,7 @@ export class TreedocLocWrapper {
 }
 
 export class TreedocDenseLocalList<T>
-  implements DenseLocalList<TreedocLocWrapper, T> 
+  implements DenseLocalList<TreedocLocWrapper, T>
 {
   runtime!: Runtime;
   private tree: RBTree<TreedocLocWrapper, T>;

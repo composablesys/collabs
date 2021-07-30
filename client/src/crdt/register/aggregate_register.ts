@@ -44,7 +44,7 @@ export abstract class AggregateArgsCRegister<
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
   extends PrimitiveCrdt<{ entries: AggregateArgsCRegisterEntry<S>[] }, Events>
-  implements CRegister<T, SetArgs> 
+  implements CRegister<T, SetArgs>
 {
   private cachedValue: T | undefined = undefined;
   private cacheValid: boolean = false;
@@ -231,5 +231,11 @@ export abstract class AggregateCRegister<
 
   set value(value: T) {
     this.set(value);
+  }
+
+  // Since we have a setter, we need to have a getter as
+  // well, else it will default to returning undefined.
+  get value(): T {
+    return super.value;
   }
 }

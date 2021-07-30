@@ -89,7 +89,7 @@ export class GrowOnlyCCounter
   reset() {
     const V: { [id: string]: IGrowOnlyCCounterResetEntry } = {};
     for (let [replicaId, m] of this.state.M) {
-      V[replicaId] = { v: m[1], idCounter: m[2] };
+      V[replicaId] = { v: m[0], idCounter: m[2] };
     }
     const message = GrowOnlyCCounterMessage.create({
       reset: { V },
@@ -107,7 +107,6 @@ export class GrowOnlyCCounter
       case "add":
         const m = this.state.M.get(timestamp.getSender());
         if (m === undefined) {
-          // We are guaranteed m[2] === decoded.add!.idCounter.
           this.state.M.set(timestamp.getSender(), [
             (decoded.add!.prOld + decoded.add!.toAdd) %
               GrowOnlyCCounter.MODULUS,
@@ -115,6 +114,7 @@ export class GrowOnlyCCounter
             decoded.add!.idCounter,
           ]);
         } else {
+          // We are guaranteed m[2] === decoded.add!.idCounter.
           m[0] = (m[0] + decoded.add!.toAdd) % GrowOnlyCCounter.MODULUS;
         }
         // Update the cached value.
@@ -191,7 +191,7 @@ export class GrowOnlyCCounter
 
 export class CCounter
   extends CompositeCrdt<CCounterEventsRecord>
-  implements Resettable 
+  implements Resettable
 {
   /**
    * To prevent overflow into unsafe integers, whose

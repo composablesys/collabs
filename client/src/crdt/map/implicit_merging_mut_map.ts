@@ -202,6 +202,13 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
   }
 
   getIfPresent(key: K): C | undefined {
+    const str = this.keyAsString(key);
+    if (this.inReceiveKeyStr === str) {
+      // The state of nontrivialMap cannot be relied
+      // upon, since it hasn't been recalculated yet.
+      // Instead, use the valueCrdt directly.
+      return this.inReceiveValueCrdt!;
+    }
     return this.nontrivialMap.get(this.keyAsString(key));
   }
 
