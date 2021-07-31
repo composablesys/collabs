@@ -209,8 +209,8 @@ export class TreedocDenseLocalList<T>
   }
 
   deleteRange(
-    startLoc: TreedocLocWrapper,
-    endLoc: TreedocLocWrapper,
+    startLoc: TreedocLocWrapper | undefined,
+    endLoc: TreedocLocWrapper | undefined,
     timestamp: CausalTimestamp,
     ondelete: (
       startIndex: number,
@@ -218,12 +218,13 @@ export class TreedocDenseLocalList<T>
       deletedValues: T[]
     ) => void
   ): void {
-    const iter = this.tree.ge(startLoc);
+    const iter =
+      startLoc === undefined ? this.tree.begin : this.tree.ge(startLoc);
     const vc = timestamp.asVectorClock();
     const toDelete: TreedocLocWrapper[] = [];
     while (
       iter.key !== undefined &&
-      this.compareWrappers(iter.key, endLoc) <= 0
+      (endLoc === undefined || this.compareWrappers(iter.key, endLoc) <= 0)
     ) {
       // Check causality
       const vcEntry = vc.get(iter.key.sender);

@@ -105,6 +105,9 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * Delete all locs in the range [startLoc, endLoc] that are causally
    * <= timestamp.  Note that startLoc and endLoc may have been deleted
    * already.
+   *
+   * undefined loc means to use that end of the range.
+   *
    * @param  startLoc  [description]
    * @param  endLoc    [description]
    * @param  timestamp [description]
@@ -116,8 +119,8 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * @return           [description]
    */
   deleteRange(
-    startLoc: L,
-    endLoc: L,
+    startLoc: L | undefined,
+    endLoc: L | undefined,
     timestamp: CausalTimestamp,
     ondelete: (startIndex: number, deletedLocs: L[], deletedValues: T[]) => void
   ): void;

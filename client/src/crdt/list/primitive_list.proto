@@ -17,8 +17,9 @@ message PrimitiveCListDeleteMessage {
 }
 
 message PrimitiveCListDeleteRangeMessage {
-  required bytes startLoc = 1;
-  required bytes endLoc = 2;
+  // Unset start/end mean to go to the list start/end
+  optional bytes startLoc = 1;
+  optional bytes endLoc = 2;
 }
 
 message PrimitiveCListMessage {
