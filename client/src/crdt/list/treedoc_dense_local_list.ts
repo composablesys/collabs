@@ -332,16 +332,57 @@ export class TreedocDenseLocalList<T>
   }
 
   saveLocs(): Uint8Array {
+    const anchors: Uint8Array[] = [];
+    const indexByAnchor = new Map<TreedocLoc, number>();
+    const senders: string[] = [];
+    const indexBySender = new Map<string, number>();
+
+    const anchorIndices = new Array<number>(this.length);
+    const senderIndices = new Array<number>(this.length);
+    const senderCounters = new Array<number>(this.length);
+    const uniqueNumbers = new Array<number>(this.length);
+
+    let i = 0;
+    this.tree.forEach((loc) => {
+      let anchorIndex = indexByAnchor.get(loc.anchor);
+      if (anchorIndex === undefined) {
+        anchorIndex = anchors.length;
+        indexByAnchor.set(loc.anchor, anchorIndex);
+        anchors.push(this.serializeInternal(loc.anchor, -1));
+      }
+      anchorIndices[i] = anchorIndex;
+
+      let senderIndex = indexBySender.get(loc.sender);
+      if (senderIndex === undefined) {
+        senderIndex = senders.length;
+        indexBySender.set(loc.sender, senderIndex);
+        senders.push(loc.sender);
+      }
+      senderIndices[i] = senderIndex;
+
+      senderCounters[i] = loc.senderCounter;
+      uniqueNumbers[i] = loc.uniqueNumber;
+
+      i++;
+    });
+
     const locs: Uint8Array[] = [];
     this.tree.forEach((loc) => {
       locs.push(this.serialize(loc));
     });
-    const message = TreedocDenseLocalListSave.create({ locs });
+    const message = TreedocDenseLocalListSave.create({
+      anchors,
+      senders,
+      anchorIndices,
+      senderIndices,
+      senderCounters,
+      uniqueNumbers,
+    });
     return TreedocDenseLocalListSave.encode(message).finish();
   }
 
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void {
-    const message = TreedocDenseLocalListSave.decode(saveData);
+    const decoded = TreedocDenseLocalListSave.decode(saveData);
     // Since the saved entries are in sorted order, we
     // don't need to do any comparisons to build the tree.
     // For building the tree, we set the tree's _compare
@@ -349,12 +390,25 @@ export class TreedocDenseLocalList<T>
     // is greater than a current value, without actually
     // checking.
     (this.tree as any)._compare = () => 1;
-    for (let i = 0; i < message.locs.length; i++) {
-      const loc = message.locs[i];
-      this.tree = this.tree.insert(
-        this.deserialize(loc, this.runtime),
-        values(i)
+    // Decode anchors and place in anchorCache.
+    const anchors = new Array<TreedocLoc>(decoded.anchors.length);
+    for (let j = 0; j < anchors.length; j++) {
+      anchors[j] = this.deserializeInternal(
+        decoded.anchors[j],
+        this.runtime
       )[0];
+      this.anchorCache.set(arrayAsString(decoded.anchors[j]), anchors[j]);
+    }
+    for (let i = 0; i < decoded.anchorIndices.length; i++) {
+      // Deserialize the i-th loc.
+      const loc = new TreedocLocWrapper(
+        anchors[decoded.anchorIndices[i]],
+        decoded.senders[decoded.senderIndices[i]],
+        decoded.senderCounters[i],
+        decoded.uniqueNumbers[i]
+      );
+      // Insert into tree.
+      this.tree = this.tree.insert(loc, values(i))[0];
     }
     (this.tree as any)._compare = this.compareWrappers.bind(this);
   }
