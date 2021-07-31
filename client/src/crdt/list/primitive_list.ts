@@ -1,4 +1,5 @@
 import {
+  IPrimitiveCListDeleteRangeMessage,
   IPrimitiveCListInsertMessage,
   IPrimitiveCListSave,
   PrimitiveCListInsertMessage,
@@ -156,20 +157,25 @@ export class PrimitiveCListFromDenseLocalList<
       });
       this.send(PrimitiveCListMessage.encode(message).finish());
     } else {
+      const imessage: IPrimitiveCListDeleteRangeMessage = {};
+      if (startIndex !== 0) {
+        imessage.startLoc = this.state.serialize(this.state.getLoc(startIndex));
+      }
+      if (startIndex + count !== this.length) {
+        imessage.endLoc = this.state.serialize(
+          this.state.getLoc(startIndex + count - 1)
+        );
+      }
       const message = PrimitiveCListMessage.create({
-        deleteRange: {
-          startLoc: this.state.serialize(this.state.getLoc(startIndex)),
-          endLoc: this.state.serialize(
-            this.state.getLoc(startIndex + count - 1)
-          ),
-        },
+        deleteRange: imessage,
       });
       this.send(PrimitiveCListMessage.encode(message).finish());
     }
   }
 
   clear() {
-    this.delete(0, this.length);
+    const message = PrimitiveCListMessage.create({ deleteRange: {} });
+    this.send(PrimitiveCListMessage.encode(message).finish());
   }
 
   protected receivePrimitive(
@@ -247,14 +253,19 @@ export class PrimitiveCListFromDenseLocalList<
         break;
       case "deleteRange":
         // Range delete, using start & end locs
-        const startLoc = this.state.deserialize(
-          decoded.deleteRange!.startLoc,
-          this.runtime
-        );
-        const endLoc = this.state.deserialize(
-          decoded.deleteRange!.endLoc!,
-          this.runtime
-        );
+        let startLoc: L | undefined, endLoc: L | undefined;
+        if (decoded.deleteRange!.hasOwnProperty("startLoc")) {
+          startLoc = this.state.deserialize(
+            decoded.deleteRange!.startLoc!,
+            this.runtime
+          );
+        } else startLoc = undefined;
+        if (decoded.deleteRange!.hasOwnProperty("endLoc")) {
+          endLoc = this.state.deserialize(
+            decoded.deleteRange!.endLoc!,
+            this.runtime
+          );
+        } else endLoc = undefined;
         this.state.deleteRange(
           startLoc,
           endLoc,
