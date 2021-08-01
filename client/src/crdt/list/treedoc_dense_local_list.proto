@@ -7,6 +7,23 @@ message TreedocLocMessage {
   optional int32 senderCounter = 6 [default = -1];
 }
 
+message TreedocLocWrapperMessage {
+  required bytes anchor = 1;
+  required string sender = 2;
+  optional int32 senderCounter = 3 [default = -1];
+  required sint32 uniqueNumber = 4;
+}
+
 message TreedocDenseLocalListSave {
-  repeated bytes locs = 1;
+  repeated bytes anchors = 1;
+  repeated string senders = 2;
+  // The next 4 array fields are in sync, with the i-th
+  // entries identifying the i-th TreedocLocWrapper.
+  // Index into anchors field:
+  repeated uint32 anchorIndices = 3 [packed=true];
+  // Index into senders field:
+  repeated uint32 senderIndices = 4 [packed=true];
+  // TODO: inefficient encoding due to optional (-1) senderCounters.
+  repeated sint32 senderCounters = 5 [packed=true];
+  repeated sint32 uniqueNumbers = 6 [packed=true];
 }
