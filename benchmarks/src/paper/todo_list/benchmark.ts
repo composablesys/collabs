@@ -1237,18 +1237,16 @@ function jsonCrdt() {
         endId = this.idGen.deserializeInternal(
           crdts.stringAsArray(this.ids.get(index)),
           this.runtime
-        )[0];
+        );
       }
       if (index > 0) {
         startId = this.idGen.deserializeInternal(
           crdts.stringAsArray(this.ids.get(index - 1)),
           this.runtime
-        )[0];
+        );
       }
       let id = this.idGen.createBetween(startId, endId, 1)[0];
-      let key: string = crdts.arrayAsString(
-        this.idGen.serializeInternal(id, -1)
-      );
+      let key: string = crdts.arrayAsString(this.idGen.serializeInternal(id));
       this.ids.insert(index, key);
 
       // Update Json Crdt with new item

@@ -28,7 +28,7 @@ export interface Cursor {
 
 export class PrimitiveCListFromDenseLocalList<
   T,
-  L,
+  L extends object,
   DenseT extends DenseLocalList<L, T>
 > extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
   /**
@@ -36,6 +36,9 @@ export class PrimitiveCListFromDenseLocalList<
    * deletions.
    */
   private readonly locsById: Map<string, Map<number, L>> = new Map();
+  // TODO: make senderCounters optional?  (Only needed
+  // if you will do deleteRange, and take up space.)
+  private readonly senderCounters = new WeakMap<L, number>();
 
   /**
    * @param denseLocalList                   [description]
@@ -212,17 +215,15 @@ export class PrimitiveCListFromDenseLocalList<
           timestamp,
           values
         );
-        // Cache locs by id.
+        // Cache locs by id and store senderCounters.
         let senderLocsById = this.locsById.get(timestamp.getSender());
         if (senderLocsById === undefined) {
           senderLocsById = new Map();
           this.locsById.set(timestamp.getSender(), senderLocsById);
         }
         for (const loc of locs) {
-          if (this.state.idOf(loc)[0] !== timestamp.getSender()) {
-            throw new Error("Bad sender id");
-          }
           senderLocsById.set(this.state.idOf(loc)[1], loc);
+          this.senderCounters.set(loc, timestamp.getSenderCounter());
         }
         // Event
         this.emit("Insert", {
@@ -231,7 +232,7 @@ export class PrimitiveCListFromDenseLocalList<
           timestamp,
         });
         break;
-      case "delete":
+      case "delete": {
         // Single delete, using id.
         const toDelete = this.locsById
           .get(decoded.delete!.sender)
@@ -251,42 +252,71 @@ export class PrimitiveCListFromDenseLocalList<
           });
         } // Else already deleted
         break;
-      case "deleteRange":
+      }
+      case "deleteRange": {
         // Range delete, using start & end locs
-        let startLoc: L | undefined, endLoc: L | undefined;
-        if (decoded.deleteRange!.hasOwnProperty("startLoc")) {
-          startLoc = this.state.deserialize(
-            decoded.deleteRange!.startLoc!,
-            this.runtime
-          );
-        } else startLoc = undefined;
-        if (decoded.deleteRange!.hasOwnProperty("endLoc")) {
-          endLoc = this.state.deserialize(
-            decoded.deleteRange!.endLoc!,
-            this.runtime
-          );
-        } else endLoc = undefined;
-        this.state.deleteRange(
-          startLoc,
-          endLoc,
-          timestamp,
-          (startIndex, deletedLocs, deletedValues) => {
-            // Update locsById.
-            for (const deletedLoc of deletedLocs) {
-              // deletedLoc must still exist.
-              const id = this.state.idOf(deletedLoc);
-              this.locsById.get(id[0])!.delete(id[1]);
-            }
-            // Event
-            this.emit("Delete", {
-              startIndex,
-              count: deletedLocs.length,
-              deletedValues,
-              timestamp,
-            });
+        // TODO: use internal iterator instead (O(1) instead
+        // of O(log n) to get next).  Perhaps expose slice
+        // or forEach functionality on partial ranges.
+        // Can also optimize by giving the startLoc instead
+        // of startIndex.  Also, can use RBTree's iter.remove
+        // method to remove elements without doing an
+        // extra O(log n) remove each (which is most of
+        // the current cost).
+        const startIndex = decoded.deleteRange!.hasOwnProperty("startLoc")
+          ? this.state.rightIndex(
+              this.state.deserialize(
+                decoded.deleteRange!.startLoc!,
+                this.runtime
+              )
+            )
+          : 0;
+        // TODO: leftIndex name is improper
+        const endIndex = decoded.deleteRange!.hasOwnProperty("endLoc")
+          ? this.state.leftIndex(
+              this.state.deserialize(decoded.deleteRange!.endLoc!, this.runtime)
+            ) - 1
+          : this.length - 1;
+
+        const vc = timestamp.asVectorClock();
+        const toDelete: L[] = [];
+        for (let i = startIndex; i <= endIndex; i++) {
+          const loc = this.state.getLoc(i);
+          // Check causality
+          const vcEntry = vc.get(this.state.idOf(loc)[0]);
+          if (
+            vcEntry !== undefined &&
+            vcEntry >= this.senderCounters.get(loc)!
+          ) {
+            // Store for later instead of deleting
+            // immediately, so that indices don't move on
+            // us unexpectedly.
+            toDelete.push(loc);
           }
-        );
+        }
+        // Delete in reverse order, so that indices
+        // are valid both before and at the time of
+        // deletion.  This isn't necessary but may
+        // avoid confusion.
+        for (let i = toDelete.length - 1; i >= 0; i--) {
+          const ret = this.state.delete(toDelete[i])!;
+          // Delete from locsById, senderCounters.
+          const id = this.state.idOf(toDelete[i]);
+          this.locsById.get(id[0])!.delete(id[1]);
+          this.senderCounters.delete(toDelete[i]);
+          // Event
+          // TODO: bulk events, for efficiency.
+          // Also can we make that work with string?
+          // (Use array | string for deletedValues?)
+          this.emit("Delete", {
+            startIndex: ret[0],
+            count: 1,
+            deletedValues: [ret[1]],
+            timestamp,
+          });
+        }
         break;
+      }
       default:
         throw new Error("Unrecognized decoded.op: " + decoded.op);
     }
@@ -316,7 +346,16 @@ export class PrimitiveCListFromDenseLocalList<
   }
 
   protected savePrimitive(): Uint8Array {
-    const imessage: IPrimitiveCListSave = { locs: this.state.saveLocs() };
+    const senderCounters = new Array<number>(this.state.length);
+    let i = 0;
+    for (const loc of this.state.locs()) {
+      senderCounters[i] = this.senderCounters.get(loc)!;
+      i++;
+    }
+    const imessage: IPrimitiveCListSave = {
+      locs: this.state.saveLocs(),
+      senderCounters,
+    };
     if (this.valueArraySerializer !== undefined) {
       imessage.values = this.valueArraySerializer.serialize(
         this.state.valuesArray()
@@ -348,7 +387,8 @@ export class PrimitiveCListFromDenseLocalList<
         )
       );
     }
-    // Load this.locsById.
+    // Load this.locsById, senderCounters.
+    let i = 0;
     for (const loc of this.state.locs()) {
       const id = this.state.idOf(loc);
       let senderLocsById = this.locsById.get(id[0]);
@@ -357,6 +397,8 @@ export class PrimitiveCListFromDenseLocalList<
         this.locsById.set(id[0], senderLocsById);
       }
       senderLocsById.set(id[1], loc);
+      this.senderCounters.set(loc, decoded.senderCounters[i]);
+      i++;
     }
   }
 

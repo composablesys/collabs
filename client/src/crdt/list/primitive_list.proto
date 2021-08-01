@@ -32,8 +32,9 @@ message PrimitiveCListMessage {
 
 message PrimitiveCListSave {
   required bytes locs = 1;
+  repeated uint32 senderCounters = 2 [packed=true];
   oneof valueType {
-    bytes values = 2;
-    PrimitiveCListValueArrayMessage valuesArray = 3;
+    bytes values = 3;
+    PrimitiveCListValueArrayMessage valuesArray = 4;
   }
 }

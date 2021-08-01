@@ -25,8 +25,7 @@ export class TreedocLoc {
    */
   constructor(
     readonly path: BitSet,
-    readonly disambiguators: readonly Disambiguator[],
-    public senderCounter?: number
+    readonly disambiguators: readonly Disambiguator[]
   ) {}
 
   get sender(): string {
@@ -41,32 +40,23 @@ export class TreedocLocWrapper {
    * anchor must already be in the anchorCache.
    * In general it will not be a proper TreedocLoc
    * (doesn't have a disambiguator in the last layer).
-   * anchors always have undefined senderCounter.
    */
   constructor(
     readonly anchor: TreedocLoc,
     readonly sender: string,
-    readonly senderCounter: number,
     readonly uniqueNumber: number
   ) {}
 
   /**
    * Internal use by TreedocDenseLocalList only.
-   *
-   * id's senderCounter is ignored in favor of the
-   * given senderCounter.
    */
-  static from(
-    id: TreedocLoc,
-    parent: TreedocDenseLocalList<any>,
-    senderCounter: number
-  ) {
+  static from(id: TreedocLoc, parent: TreedocDenseLocalList<any>) {
     // anchor is same as id but without last disambiguator
     const anchorTemp = new TreedocLoc(id.path, id.disambiguators.slice(0, -1));
     // Get anchor from parent's cache
     // If anchor had a uid (e.g. tree style text crdt),
     // we could use that instead of serializing.
-    const anchorKey = arrayAsString(parent.serializeInternal(anchorTemp, -1));
+    const anchorKey = arrayAsString(parent.serializeInternal(anchorTemp));
     let anchor = parent.anchorCache.get(anchorKey);
     if (anchor === undefined) {
       anchor = anchorTemp;
@@ -75,27 +65,18 @@ export class TreedocLocWrapper {
 
     const lastDis = id.disambiguators[id.disambiguators.length - 1];
 
-    return new TreedocLocWrapper(
-      anchor,
-      lastDis.sender,
-      senderCounter,
-      lastDis.uniqueNumber
-    );
+    return new TreedocLocWrapper(anchor, lastDis.sender, lastDis.uniqueNumber);
   }
 
   id(_parent: TreedocDenseLocalList<any>) {
-    const ans = new TreedocLoc(
-      this.anchor.path,
-      [
-        ...this.anchor.disambiguators,
-        {
-          sender: this.sender,
-          uniqueNumber: this.uniqueNumber,
-          index: this.anchor.path.length - 1,
-        },
-      ],
-      this.senderCounter
-    );
+    const ans = new TreedocLoc(this.anchor.path, [
+      ...this.anchor.disambiguators,
+      {
+        sender: this.sender,
+        uniqueNumber: this.uniqueNumber,
+        index: this.anchor.path.length - 1,
+      },
+    ]);
     return ans;
   }
 
@@ -103,9 +84,8 @@ export class TreedocLocWrapper {
     // TODO: serializeInternal: return message instead of
     // bytes?  To avoid copying the byte array here.
     const message = TreedocLocWrapperMessage.create({
-      anchor: parent.serializeInternal(this.anchor, -1),
+      anchor: parent.serializeInternal(this.anchor),
       sender: this.sender,
-      senderCounter: this.senderCounter === -1 ? undefined : this.senderCounter,
       uniqueNumber: this.uniqueNumber,
     });
     return TreedocLocWrapperMessage.encode(message).finish();
@@ -119,15 +99,10 @@ export class TreedocLocWrapper {
     const anchorKey = arrayAsString(decoded.anchor);
     let anchor = parent.anchorCache.get(anchorKey);
     if (anchor === undefined) {
-      anchor = parent.deserializeInternal(decoded.anchor, parent.runtime)[0];
+      anchor = parent.deserializeInternal(decoded.anchor, parent.runtime);
       parent.anchorCache.set(anchorKey, anchor);
     }
-    return new TreedocLocWrapper(
-      anchor,
-      decoded.sender,
-      decoded.senderCounter,
-      decoded.uniqueNumber
-    );
+    return new TreedocLocWrapper(anchor, decoded.sender, decoded.uniqueNumber);
   }
 }
 
@@ -169,21 +144,17 @@ export class TreedocDenseLocalList<T>
       after === null ? null : after.id(this),
       count
     );
-    return this.serializeInternal(loc, -1);
+    return this.serializeInternal(loc);
   }
 
   receiveNewLocs(
     message: Uint8Array,
-    timestamp: CausalTimestamp,
+    _timestamp: CausalTimestamp,
     values: ArrayLike<T>
   ): [number, TreedocLocWrapper[]] {
-    const [loc] = this.deserializeInternal(message, this.runtime);
+    const loc = this.deserializeInternal(message, this.runtime);
     let index: number;
-    const locWrappers = this.expand(
-      loc,
-      values.length,
-      timestamp.getSenderCounter()
-    );
+    const locWrappers = this.expand(loc, values.length);
     for (let i = 0; i < values.length; i++) {
       let indexI: number;
       [this.tree, indexI] = this.tree.insert(locWrappers[i], values[i]);
@@ -195,24 +166,6 @@ export class TreedocDenseLocalList<T>
     return [index!, locWrappers];
   }
 
-  /**
-   * TODO: locs created in this way cannot be used
-   * with deleteRange because they don't have
-   * senderCounters (hence causality info) (actually,
-   * it's just set to -1).
-   * Perhaps that should be factored out of here and
-   * instead done in PrimitiveCrdt, together with
-   * delete id caching?  In principle deleteRange could
-   * be used with ListFromMap if you also allow
-   * runLocally (send the range of locs to delete,
-   * then runLocally to delete each value that is
-   * indeed causally deleted); not with Movable
-   * ones though.
-   *
-   * @param  index [description]
-   * @param  count [description]
-   * @return       [description]
-   */
   createNewLocs(index: number, count: number): TreedocLocWrapper[] {
     const before = index === 0 ? null : this.getWrapper(index - 1);
     const after = index === this.length ? null : this.getWrapper(index);
@@ -221,7 +174,7 @@ export class TreedocDenseLocalList<T>
       after === null ? null : after.id(this),
       count
     );
-    return this.expand(firstLoc, count, -1);
+    return this.expand(firstLoc, count);
   }
 
   set(loc: TreedocLocWrapper, value: T): number {
@@ -234,47 +187,6 @@ export class TreedocDenseLocalList<T>
     let ret: [number, T] | undefined;
     [this.tree, ret] = this.tree.remove(loc);
     return ret;
-  }
-
-  deleteRange(
-    startLoc: TreedocLocWrapper | undefined,
-    endLoc: TreedocLocWrapper | undefined,
-    timestamp: CausalTimestamp,
-    ondelete: (
-      startIndex: number,
-      deletedLocs: TreedocLocWrapper[],
-      deletedValues: T[]
-    ) => void
-  ): void {
-    const iter =
-      startLoc === undefined ? this.tree.begin : this.tree.ge(startLoc);
-    const vc = timestamp.asVectorClock();
-    const toDelete: TreedocLocWrapper[] = [];
-    while (
-      iter.key !== undefined &&
-      (endLoc === undefined || this.compareWrappers(iter.key, endLoc) <= 0)
-    ) {
-      // Check causality
-      const vcEntry = vc.get(iter.key.sender);
-      if (vcEntry !== undefined && vcEntry >= iter.key.senderCounter!) {
-        // Store for later instead of deleting immediately,
-        // since I doubt iterators can handle concurrent
-        // deletions.
-        toDelete.push(iter.key);
-      }
-      iter.next();
-    }
-    // Delete in reverse order, so that indices
-    // are valid both before and at the time of
-    // deletion.
-    for (let i = toDelete.length - 1; i >= 0; i--) {
-      let ret: [number, T] | undefined;
-      [this.tree, ret] = this.tree.remove(toDelete[i]);
-      // TODO: bulk calls to ondelete, for efficiency.
-      // Also can we make that work with string?
-      // (Use array | string for deletedValues?)
-      ondelete(ret![0], [toDelete[i]], [ret![1]]);
-    }
   }
 
   get(index: number): T {
@@ -339,7 +251,6 @@ export class TreedocDenseLocalList<T>
 
     const anchorIndices = new Array<number>(this.length);
     const senderIndices = new Array<number>(this.length);
-    const senderCounters = new Array<number>(this.length);
     const uniqueNumbers = new Array<number>(this.length);
 
     let i = 0;
@@ -348,7 +259,7 @@ export class TreedocDenseLocalList<T>
       if (anchorIndex === undefined) {
         anchorIndex = anchors.length;
         indexByAnchor.set(loc.anchor, anchorIndex);
-        anchors.push(this.serializeInternal(loc.anchor, -1));
+        anchors.push(this.serializeInternal(loc.anchor));
       }
       anchorIndices[i] = anchorIndex;
 
@@ -360,7 +271,6 @@ export class TreedocDenseLocalList<T>
       }
       senderIndices[i] = senderIndex;
 
-      senderCounters[i] = loc.senderCounter;
       uniqueNumbers[i] = loc.uniqueNumber;
 
       i++;
@@ -375,7 +285,6 @@ export class TreedocDenseLocalList<T>
       senders,
       anchorIndices,
       senderIndices,
-      senderCounters,
       uniqueNumbers,
     });
     return TreedocDenseLocalListSave.encode(message).finish();
@@ -393,10 +302,7 @@ export class TreedocDenseLocalList<T>
     // Decode anchors and place in anchorCache.
     const anchors = new Array<TreedocLoc>(decoded.anchors.length);
     for (let j = 0; j < anchors.length; j++) {
-      anchors[j] = this.deserializeInternal(
-        decoded.anchors[j],
-        this.runtime
-      )[0];
+      anchors[j] = this.deserializeInternal(decoded.anchors[j], this.runtime);
       this.anchorCache.set(arrayAsString(decoded.anchors[j]), anchors[j]);
     }
     for (let i = 0; i < decoded.anchorIndices.length; i++) {
@@ -404,7 +310,6 @@ export class TreedocDenseLocalList<T>
       const loc = new TreedocLocWrapper(
         anchors[decoded.anchorIndices[i]],
         decoded.senders[decoded.senderIndices[i]],
-        decoded.senderCounters[i],
         decoded.uniqueNumbers[i]
       );
       // Insert into tree.
@@ -625,31 +530,27 @@ export class TreedocDenseLocalList<T>
         ...lastDis,
         uniqueNumber: sign * (Math.abs(uniqueNumber) + i),
       };
-      ans[i] = new TreedocLoc(iPath, iDisambiguators, startingId.senderCounter);
+      ans[i] = new TreedocLoc(iPath, iDisambiguators);
     }
     if (sign === -1) ans.reverse();
     return ans;
   }
 
-  private expand(
-    startingId: TreedocLoc,
-    count: number,
-    senderCounter: number
-  ): TreedocLocWrapper[] {
+  private expand(startingId: TreedocLoc, count: number): TreedocLocWrapper[] {
     let ans = new Array<TreedocLocWrapper>(count);
     let uniqueNumber =
       startingId.disambiguators[startingId.disambiguators.length - 1]
         .uniqueNumber;
-    ans[0] = TreedocLocWrapper.from(startingId, this, senderCounter);
+    ans[0] = TreedocLocWrapper.from(startingId, this);
     let sign = uniqueNumber >= 0 ? 1 : -1;
     for (let i = 1; i < count; i++) {
       ans[i] = new TreedocLocWrapper(
         ans[0].anchor,
         ans[0].sender,
-        senderCounter,
         sign * (Math.abs(uniqueNumber) + i)
       );
     }
+    // TODO: do this directly (reversing is O(n) cost)
     if (sign === -1) ans.reverse();
     return ans;
   }
@@ -977,7 +878,7 @@ export class TreedocDenseLocalList<T>
    * Note: works with non-proper TreedocLocs (last layer
    * is not a disambiguator layer).
    */
-  serializeInternal(value: TreedocLoc, senderCounter: number): Uint8Array {
+  serializeInternal(value: TreedocLoc): Uint8Array {
     // Compress repeated senders in disambiguators
     const disSendersIndex: string[] = [];
     // TODO: borrow this map from runtime/cbcast?
@@ -998,7 +899,6 @@ export class TreedocDenseLocalList<T>
       disSendersIndex,
       disSenders,
       disUniqueNumbers: value.disambiguators.map((elem) => elem.uniqueNumber),
-      senderCounter: senderCounter === -1 ? undefined : senderCounter,
     });
     return TreedocLocMessage.encode(message).finish();
   }
@@ -1007,10 +907,7 @@ export class TreedocDenseLocalList<T>
    * Note: works with non-proper TreedocLocs (last layer
    * is not a disambiguator layer).
    */
-  deserializeInternal(
-    message: Uint8Array,
-    _runtime: Runtime
-  ): [loc: TreedocLoc, senderCounter: number] {
+  deserializeInternal(message: Uint8Array, _runtime: Runtime): TreedocLoc {
     let decoded = TreedocLocMessage.decode(message);
     let path = BitSet.deserialize(decoded.path);
     let disambiguators: Disambiguator[] = [];
@@ -1021,7 +918,7 @@ export class TreedocDenseLocalList<T>
         uniqueNumber: decoded.disUniqueNumbers[i],
       });
     }
-    return [new TreedocLoc(path, disambiguators), decoded.senderCounter];
+    return new TreedocLoc(path, disambiguators);
   }
 
   serialize(value: TreedocLocWrapper): Uint8Array {
