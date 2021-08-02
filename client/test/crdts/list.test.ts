@@ -3,6 +3,7 @@ import {
   Runtime,
   TreedocDenseLocalList,
   TestingNetworkGenerator,
+  RgaDenseLocalList,
 } from "../../src";
 import seedrandom from "seedrandom";
 import { BitSet } from "../../src/util/bitset";
@@ -358,6 +359,7 @@ describe("list", () => {
   describe("TreedocDenseLocalList generic tests", () => {
     const sequenceSources = {
       TreedocDenseLocalList: () => new TreedocDenseLocalList(),
+      RgaDenseLocalList: () => new RgaDenseLocalList(),
     };
     for (let entry of Object.entries(sequenceSources)) {
       describe(entry[0], () => {

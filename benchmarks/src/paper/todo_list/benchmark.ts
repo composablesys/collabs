@@ -687,6 +687,164 @@ function compoMovableCrdt() {
   });
 }
 
+class DeletingMutCListRga<
+  C extends crdts.Crdt,
+  InsertArgs extends any[]
+> extends crdts.MovableMutCListFromSet<
+  C,
+  InsertArgs,
+  crdts.RgaLoc,
+  crdts.LwwCRegister<crdts.RgaLoc>,
+  crdts.DeletingMutCSet<
+    crdts.MovableMutCListEntry<
+      C,
+      crdts.RgaLoc,
+      crdts.LwwCRegister<crdts.RgaLoc>
+    >,
+    [crdts.RgaLoc, InsertArgs]
+  >,
+  crdts.RgaDenseLocalList<
+    crdts.MovableMutCListEntry<
+      C,
+      crdts.RgaLoc,
+      crdts.LwwCRegister<crdts.RgaLoc>
+    >
+  >
+> {
+  constructor(
+    valueConstructor: (...args: InsertArgs) => C,
+    argsSerializer: crdts.ElementSerializer<InsertArgs> = crdts.DefaultElementSerializer.getInstance()
+  ) {
+    super(
+      (setValueConstructor, setArgsSerializer) =>
+        new crdts.DeletingMutCSet(
+          setValueConstructor,
+          undefined,
+          setArgsSerializer
+        ),
+      (initialValue, registerSerializer) =>
+        new crdts.LwwCRegister(initialValue, registerSerializer),
+      new crdts.RgaDenseLocalList(),
+      valueConstructor,
+      argsSerializer
+    );
+  }
+}
+
+function compoMovableCrdtRga() {
+  class CrdtTodoList
+    extends crdts.CompositeCrdt
+    implements ITodoList, crdts.Resettable
+  {
+    private readonly text: crdts.CList<string>;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: crdts.CList<CrdtTodoList, []>;
+
+    constructor() {
+      super();
+      this.text = this.addChild(
+        "text",
+        new crdts.PrimitiveCListFromDenseLocalList(
+          new crdts.RgaDenseLocalList<string>(),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
+      );
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
+      this.items = this.addChild(
+        "items",
+        new DeletingMutCListRga(() => new CrdtTodoList())
+      );
+    }
+
+    addItem(index: number, text: string): void {
+      let item = this.items.insert(index);
+      item.insertText(0, text);
+    }
+    deleteItem(index: number): void {
+      this.items.delete(index);
+    }
+    getItem(index: number): CrdtTodoList {
+      return this.items.get(index);
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    set done(done: boolean) {
+      this.doneCrdt.value = done;
+    }
+    get done(): boolean {
+      return this.doneCrdt.value;
+    }
+
+    insertText(index: number, text: string): void {
+      // @ts-ignore TODO: remove this once RGA text is typed properly
+      this.text.insert(index, ...text);
+    }
+    deleteText(index: number, count: number): void {
+      this.text.delete(index, count);
+    }
+    get textSize(): number {
+      return this.text.length; // Assumes all text registers are one char
+    }
+    getText(): string {
+      return this.text.join("");
+    }
+
+    reset() {
+      this.text.clear();
+      this.doneCrdt.reset();
+      this.items.clear();
+    }
+  }
+
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Movable Crdt RGA", {
+    newTodoList(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
+      this.sendNextMessage();
+      return list;
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
+    sendNextMessage() {
+      runtime!.commitBatch();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
+    },
+  });
+}
+
 function compoJson() {
   class JsonTodoList implements ITodoList {
     constructor(private readonly jsonObj: crdts.JsonObject) {}
@@ -1378,6 +1536,9 @@ export default async function todoList(args: string[]) {
       break;
     case "compoMovableCrdt":
       benchmark = compoMovableCrdt();
+      break;
+    case "compoMovableCrdtRga":
+      benchmark = compoMovableCrdtRga();
       break;
     case "compoJson":
       benchmark = compoJson();
