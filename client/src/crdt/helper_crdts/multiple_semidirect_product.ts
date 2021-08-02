@@ -23,7 +23,6 @@ class StoredMessage {
 
 class MultipleSemidirectStateBase<S extends Object> {
   protected receiptCounter = 0;
-  // H maps sender -> history of messages from that replica
   // H maps i (arb index) -> history of messages from that CRDT
   protected history: Map<number, Array<StoredMessage>> = new Map();
   public internalState!: S;
@@ -203,6 +202,7 @@ class MultipleSemidirectStateBase<S extends Object> {
     value: number
   ): number {
     // binary search when sparseArray is large
+    // TODO: binsearch is not tested
     // if (sparseArray.length > 100) {
     //   return this.binSearch(sparseArray, value, 0, sparseArray.length);
     // }
