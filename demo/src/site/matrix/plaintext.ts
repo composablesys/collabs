@@ -41,7 +41,7 @@ textarea.addEventListener("keydown", (e) => {
   const endIndex = myEndCursor.index;
   if (e.key === "Backspace") {
     if (endIndex > startIndex) {
-      text.delete(startIndex, endIndex - startIndex + 1);
+      text.delete(startIndex, endIndex - startIndex);
       myEndCursor.index = startIndex;
     } else if (endIndex === startIndex && startIndex > 0) {
       text.delete(startIndex - 1);
@@ -49,7 +49,7 @@ textarea.addEventListener("keydown", (e) => {
     }
   } else if (e.key === "Delete") {
     if (endIndex > startIndex) {
-      text.delete(startIndex, endIndex - startIndex + 1);
+      text.delete(startIndex, endIndex - startIndex);
       myEndCursor.index = startIndex;
     } else if (endIndex === startIndex && startIndex < textarea.value.length) {
       text.delete(startIndex);
@@ -79,7 +79,7 @@ textarea.addEventListener("keydown", (e) => {
 function type(str: string, startIndex: number, endIndex: number) {
   if (startIndex < endIndex) {
     // Delete current selection
-    text.delete(startIndex, endIndex - startIndex + 1);
+    text.delete(startIndex, endIndex - startIndex);
   }
   text.insert(startIndex, ...str);
   myStartCursor.index = startIndex + str.length;
@@ -105,7 +105,7 @@ textarea.addEventListener("cut", () => {
   if (startIndex < endIndex) {
     const selected = textarea.value.slice(startIndex, endIndex);
     navigator.clipboard.writeText(selected);
-    text.delete(startIndex, endIndex - startIndex + 1);
+    text.delete(startIndex, endIndex - startIndex);
   }
 });
 
