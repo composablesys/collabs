@@ -371,10 +371,10 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     // Make a map from locs to their indices.
     const indexByLoc = new Map<RgaLoc, number>();
     let j = 0;
-    for (const loc of this.locs()) {
+    this.tree.forEach((loc) => {
       indexByLoc.set(loc, j);
       j++;
-    }
+    });
     // Serialize all locs in order, with extra locs
     // (ancestors that are not part of the current key set)
     // appended to the end as needed.
@@ -387,10 +387,10 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       length: this.tree.length,
     };
     let i = 0;
-    for (const loc of this.locs()) {
+    this.tree.forEach((loc) => {
       this.saveOneLoc(i, loc, imessage, indexByLoc, indexBySender);
       i++;
-    }
+    });
     // Serialize imessage.
     const message = RgaDenseLocalListSave.create(imessage);
     return RgaDenseLocalListSave.encode(message).finish();

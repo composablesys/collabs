@@ -176,6 +176,18 @@ class AutomergePerfBenchmark {
         // if (measurement === "memory") await sleep(0);
       }
 
+      // TODO: remove
+      // console.log("saving repeatedly");
+      // while (true) {
+      //   this.testFactory.save();
+      // }
+      // const textStartTime = process.hrtime.bigint();
+      // const text = this.testFactory.getText();
+      // const textTime = new Number(
+      //   process.hrtime.bigint() - textStartTime!
+      // ).valueOf();
+      // console.log("getText() time: " + textTime);
+
       // Record result
       // TODO: de-duplicate code (shared with rounds measurements)
       let result: { [measurement: string]: number } = {};
