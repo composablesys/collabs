@@ -231,6 +231,10 @@ export class TreedocDenseLocalList<T>
     }
   }
 
+  forEach(callbackfn: (loc: TreedocLocWrapper, value: T) => void) {
+    this.tree.forEach(callbackfn);
+  }
+
   valuesArray(): T[] {
     return this.tree.values;
   }

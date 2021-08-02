@@ -181,6 +181,7 @@ class AutomergePerfBenchmark {
       // while (true) {
       //   this.testFactory.save();
       // }
+
       // const textStartTime = process.hrtime.bigint();
       // const text = this.testFactory.getText();
       // const textTime = new Number(

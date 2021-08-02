@@ -348,10 +348,10 @@ export class PrimitiveCListFromDenseLocalList<
   protected savePrimitive(): Uint8Array {
     const senderCounters = new Array<number>(this.state.length);
     let i = 0;
-    for (const loc of this.state.locs()) {
+    this.state.forEach((loc) => {
       senderCounters[i] = this.senderCounters.get(loc)!;
       i++;
-    }
+    });
     const imessage: IPrimitiveCListSave = {
       locs: this.state.saveLocs(),
       senderCounters,

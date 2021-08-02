@@ -129,6 +129,10 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     }
   }
 
+  forEach(callbackfn: (loc: RgaLoc, value: T) => void) {
+    this.tree.forEach(callbackfn);
+  }
+
   valuesArray(): T[] {
     return this.tree.values;
   }

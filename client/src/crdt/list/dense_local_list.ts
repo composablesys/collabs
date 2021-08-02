@@ -114,6 +114,15 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   locs(): IterableIterator<L>;
 
   /**
+   * TODO: backwards from map for efficiency with
+   * rbtree; perhaps modify rbtree to reverse the
+   * key/value order.
+   * @param  callbackfn [description]
+   * @return            [description]
+   */
+  forEach(callbackfn: (loc: L, value: T) => void): void;
+
+  /**
    * This should be guarded against mutation
    * @return [description]
    */
