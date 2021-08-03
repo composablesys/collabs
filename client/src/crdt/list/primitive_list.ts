@@ -33,9 +33,21 @@ export class PrimitiveCListFromDenseLocalList<
 > extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
-  // TODO: does this need to be weak?  I think we manage
-  // it explicitly already?  Do whichever is more efficient.
-  private readonly senderCounters = new WeakMap<L, number>();
+  // TODO: use uniqueNumbers (from ids) instead of
+  // senderCounters?  (Send maximum abs value of a uniqueNumber
+  // present in the deleted range for each user; compare
+  // to those instead of senderCounters in deleteRange;
+  // get rid of this map).  Would reduce memory by 4MB,
+  // save size by 200-300KB, save & load time, and
+  // need for causality, at the expense of larger
+  // deleteRange messages (since we are not piggy-backing
+  // on the CausalTimestamp), especially in bulk messages.
+  // TODO: try putting this in the values instead of its
+  // own map.
+  /**
+   * keys are precisely the locs in the list.
+   */
+  private readonly senderCounters = new Map<L, number>();
 
   /**
    * @param denseLocalList                   [description]
@@ -230,12 +242,14 @@ export class PrimitiveCListFromDenseLocalList<
           decoded.delete!.uniqueNumber
         );
         if (toDelete !== undefined) {
-          const ret = this.state.delete(toDelete);
+          const ret = this.state.delete(toDelete)!;
+          // Delete from senderCounters.
+          this.senderCounters.delete(toDelete);
           // Event
           this.emit("Delete", {
-            startIndex: ret![0],
+            startIndex: ret[0],
             count: 1,
-            deletedValues: [ret![1]],
+            deletedValues: [ret[1]],
             timestamp,
           });
         } // Else already deleted
@@ -332,15 +346,15 @@ export class PrimitiveCListFromDenseLocalList<
   }
 
   protected savePrimitive(): Uint8Array {
-    const senderCounters = new Array<number>(this.state.length);
+    const senderCountersSave = new Array<number>(this.state.length);
     let i = 0;
     this.state.forEach((loc) => {
-      senderCounters[i] = this.senderCounters.get(loc)!;
+      senderCountersSave[i] = this.senderCounters.get(loc)!;
       i++;
     });
     const imessage: IPrimitiveCListSave = {
       locs: this.state.saveLocs(),
-      senderCounters,
+      senderCounters: senderCountersSave,
     };
     if (this.valueArraySerializer !== undefined) {
       imessage.values = this.valueArraySerializer.serialize(
