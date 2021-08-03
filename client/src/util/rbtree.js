@@ -110,7 +110,7 @@ proto.insert = function (key, value, ignoreExisting) {
     n_stack.push(n);
     d_stack.push(d);
     if (ignoreExisting && d === 0) {
-      return [this, index];
+      return [this, index, false];
     }
     if (d <= 0) {
       n = n.left;
@@ -279,7 +279,7 @@ proto.insert = function (key, value, ignoreExisting) {
   }
   //Return new tree
   n_stack[0]._color = BLACK;
-  return [new RedBlackTree(cmp, n_stack[0]), index];
+  return [new RedBlackTree(cmp, n_stack[0]), index, true];
 };
 
 //Visit all nodes inorder

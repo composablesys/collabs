@@ -41,6 +41,16 @@ export class WeakValueMap<K, V extends Object> {
     this.registry.register(value, key);
   }
 
+  /**
+   * The size of this WeakValueMap's internal map.
+   * This is only an upper bound on the actual size
+   * (number of present key/value pairs), since it may
+   * count values that have been GC'd.
+   */
+  get internalSize(): number {
+    return this.internalMap.size;
+  }
+
   *[Symbol.iterator](): IterableIterator<[K, V]> {
     for (let entry of this.internalMap.entries()) {
       let valueDeref = entry[1].deref();

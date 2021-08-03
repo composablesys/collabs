@@ -34,9 +34,15 @@ export interface Tree<K, V> {
    * the map, does nothing (even if value is different
    * than the current value at key).
    * @returns [A new tree with `key` and `value` inserted,
-   * the index in that tree where the item was inserted]
+   * the index in that tree where the item was inserted
+   * (or where it is, if it already existed and
+   * ignoreExisting), whether the key was inserted]
    */
-  insert: (key: K, value: V, ignoreExisting?: boolean) => [Tree<K, V>, number];
+  insert: (
+    key: K,
+    value: V,
+    ignoreExisting?: boolean
+  ) => [Tree<K, V>, number, boolean];
 
   /**
    * Walks a visitor function over the nodes of the tree in order.
