@@ -581,6 +581,158 @@ function compoCrdt() {
   });
 }
 
+class CTextRga
+  extends crdts.PrimitiveCListFromDenseLocalList<
+    string,
+    crdts.RgaLoc,
+    crdts.RgaDenseLocalList<string>
+  >
+  implements crdts.Resettable
+{
+  constructor() {
+    super(
+      new crdts.RgaDenseLocalList<string>(),
+      crdts.TextSerializer.instance,
+      crdts.TextArraySerializer.instance
+    );
+  }
+
+  reset() {
+    // Since RgaDenseLocalList has no tombstones,
+    // clear is an observed-reset.
+    this.clear();
+  }
+}
+
+class ResettingMutCListRga<C extends crdts.Crdt & crdts.Resettable>
+  extends crdts.CListFromMap<
+    C,
+    [],
+    crdts.RgaLoc,
+    crdts.MergingMutCMap<crdts.RgaLoc, C>,
+    crdts.RgaDenseLocalList<undefined>
+  >
+  implements crdts.Resettable
+{
+  constructor(valueConstructor: (loc: crdts.RgaLoc) => C) {
+    const denseLocalList = new crdts.RgaDenseLocalList<undefined>();
+    super(
+      new crdts.MergingMutCMap(valueConstructor, denseLocalList),
+      denseLocalList
+    );
+  }
+
+  reset(): void {
+    this.internalMap.reset();
+  }
+}
+
+function compoCrdtRga() {
+  class CrdtTodoList
+    extends crdts.CompositeCrdt
+    implements ITodoList, crdts.Resettable
+  {
+    private readonly text: CTextRga;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: ResettingMutCListRga<CrdtTodoList>;
+
+    constructor() {
+      super();
+      this.text = this.addChild("text", new CTextRga());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
+      this.items = this.addChild(
+        "items",
+        new ResettingMutCListRga(() => new CrdtTodoList())
+      );
+    }
+
+    addItem(index: number, text: string): void {
+      let item = this.items.insert(index);
+      item.insertText(0, text);
+    }
+    deleteItem(index: number): void {
+      this.items.delete(index);
+    }
+    getItem(index: number): CrdtTodoList {
+      return this.items.get(index);
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    set done(done: boolean) {
+      this.doneCrdt.value = done;
+    }
+    get done(): boolean {
+      return this.doneCrdt.value;
+    }
+
+    insertText(index: number, text: string): void {
+      this.text.insert(index, ...text);
+    }
+    deleteText(index: number, count: number): void {
+      this.text.delete(index, count);
+    }
+    get textSize(): number {
+      return this.text.length; // Assumes all text registers are one char
+    }
+    getText(): string {
+      return this.text.join("");
+    }
+
+    reset() {
+      this.text.reset();
+      this.doneCrdt.reset();
+      this.items.reset();
+    }
+  }
+
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Crdt RGA", {
+    newTodoList(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
+      this.sendNextMessage();
+      return list;
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
+    sendNextMessage() {
+      runtime!.commitBatch();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
+    },
+  });
+}
+
 function compoMovableCrdt() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
@@ -1533,6 +1685,9 @@ export default async function todoList(args: string[]) {
       break;
     case "compoCrdt":
       benchmark = compoCrdt();
+      break;
+    case "compoCrdtRga":
+      benchmark = compoCrdtRga();
       break;
     case "compoMovableCrdt":
       benchmark = compoMovableCrdt();
