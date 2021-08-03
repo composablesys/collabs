@@ -166,8 +166,6 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   // RGA specific methods
 
-  // TODO: in PrimitiveCList, use this in place of
-  // PrimitiveCList's copy.
   /**
    * Maps from sender & uniqueCounter to RgaLoc.
    * locsById contains precisely the locs currently
@@ -237,6 +235,10 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     this.backupLocsById.delete(sender);
   };
 
+  getLocById(sender: string, uniqueNumber: number): RgaLoc | undefined {
+    return this.locsById.get(sender)?.get(uniqueNumber);
+  }
+
   /**
    * Returns the Loc with the given id if it already
    * exists in memory (in particular, if it is present
@@ -245,7 +247,10 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
    * @param  uniqueNumber [description]
    * @return              [description]
    */
-  private getLocById(sender: string, uniqueNumber: number): RgaLoc | undefined {
+  private getLocByIdIncludeBackup(
+    sender: string,
+    uniqueNumber: number
+  ): RgaLoc | undefined {
     const mainAns = this.locsById.get(sender)?.get(uniqueNumber);
     if (mainAns !== undefined) return mainAns;
     else {
@@ -521,7 +526,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   private loadOneLoc(index: number, decoded: RgaDenseLocalListSave): RgaLoc {
     // See if loc is already constructed.
-    const existingLoc = this.getLocById(
+    const existingLoc = this.getLocByIdIncludeBackup(
       decoded.senders[decoded.senderIndices[index]],
       decoded.uniqueNumbers[index]
     );
@@ -534,7 +539,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       parent = undefined;
     } else {
       const parentIndex = decoded.parents[index] - 1;
-      parent = this.getLocById(
+      parent = this.getLocByIdIncludeBackup(
         decoded.senders[decoded.senderIndices[parentIndex]],
         decoded.uniqueNumbers[parentIndex]
       );
@@ -600,7 +605,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     let existing: RgaLoc | undefined = undefined;
     // Find the lowest ancestor that we already have.
     for (i = 0; i < decoded.senderIndices.length; i++) {
-      existing = this.getLocById(
+      existing = this.getLocByIdIncludeBackup(
         decoded.senders[decoded.senderIndices[i]],
         decoded.uniqueNumbers[i]
       );

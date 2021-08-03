@@ -164,6 +164,7 @@ export class TreedocDenseLocalList<T>
     for (let i = 0; i < values.length; i++) {
       let indexI: number;
       [this.tree, indexI] = this.tree.insert(locWrappers[i], values[i]);
+      this.storeLoc(locWrappers[i]);
       if (i === 0) index = indexI;
       // TODO: at least compress locs when they come
       // from a range?  Easy memory improvement for
@@ -185,13 +186,16 @@ export class TreedocDenseLocalList<T>
 
   set(loc: TreedocLocWrapper, value: T): number {
     let index: number;
-    [this.tree, index] = this.tree.insert(loc, value, true);
+    let inserted: boolean;
+    [this.tree, index, inserted] = this.tree.insert(loc, value, true);
+    if (inserted) this.storeLoc(loc);
     return index;
   }
 
   delete(loc: TreedocLocWrapper): [index: number, deletedValue: T] | undefined {
     let ret: [number, T] | undefined;
     [this.tree, ret] = this.tree.remove(loc);
+    if (ret !== undefined) this.unstoreLoc(loc);
     return ret;
   }
 
@@ -247,6 +251,40 @@ export class TreedocDenseLocalList<T>
 
   idOf(loc: TreedocLocWrapper): [sender: string, uniqueNumber: number] {
     return [loc.sender, loc.uniqueNumber];
+  }
+
+  // TODO: should avoid doing this if it's not going to
+  // be used (MutCLists).  But it doesn't matter since
+  // we plan to delete this implementation anyway.
+  private readonly locsById: Map<string, Map<number, TreedocLocWrapper>> =
+    new Map();
+  private storeLoc(loc: TreedocLocWrapper): void {
+    let senderMap = this.locsById.get(loc.sender);
+    if (senderMap === undefined) {
+      senderMap = new Map();
+      // senderMap = new WeakValueMap();
+      // senderMap.onempty = this.senderMapOndelete;
+      // senderMap.onemptyHeldValue = loc.sender;
+      this.locsById.set(loc.sender, senderMap);
+    }
+    senderMap.set(loc.uniqueNumber, loc);
+  }
+
+  private unstoreLoc(loc: TreedocLocWrapper): void {
+    let senderMap = this.locsById.get(loc.sender);
+    if (senderMap !== undefined) {
+      senderMap.delete(loc.uniqueNumber);
+      if (senderMap.size === 0) {
+        this.locsById.delete(loc.sender);
+      }
+    }
+  }
+
+  getLocById(
+    sender: string,
+    uniqueNumber: number
+  ): TreedocLocWrapper | undefined {
+    return this.locsById.get(sender)?.get(uniqueNumber);
   }
 
   canGc(): boolean {
@@ -310,12 +348,15 @@ export class TreedocDenseLocalList<T>
     }
     this.tree = fillRBTree(
       this.compareWrappers.bind(this),
-      (i) =>
-        new TreedocLocWrapper(
+      (i) => {
+        const loc = new TreedocLocWrapper(
           anchors[decoded.anchorIndices[i]],
           decoded.senders[decoded.senderIndices[i]],
           decoded.uniqueNumbers[i]
-        ),
+        );
+        this.storeLoc(loc);
+        return loc;
+      },
       values,
       decoded.anchorIndices.length
     );

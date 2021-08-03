@@ -31,13 +31,10 @@ export class PrimitiveCListFromDenseLocalList<
   L extends object,
   DenseT extends DenseLocalList<L, T>
 > extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
-  /**
-   * Maps from ids to locs.  Used for single-element
-   * deletions.
-   */
-  private readonly locsById: Map<string, Map<number, L>> = new Map();
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
+  // TODO: does this need to be weak?  I think we manage
+  // it explicitly already?  Do whichever is more efficient.
   private readonly senderCounters = new WeakMap<L, number>();
 
   /**
@@ -215,14 +212,8 @@ export class PrimitiveCListFromDenseLocalList<
           timestamp,
           values
         );
-        // Cache locs by id and store senderCounters.
-        let senderLocsById = this.locsById.get(timestamp.getSender());
-        if (senderLocsById === undefined) {
-          senderLocsById = new Map();
-          this.locsById.set(timestamp.getSender(), senderLocsById);
-        }
+        // Store senderCounters.
         for (const loc of locs) {
-          senderLocsById.set(this.state.idOf(loc)[1], loc);
           this.senderCounters.set(loc, timestamp.getSenderCounter());
         }
         // Event
@@ -234,15 +225,12 @@ export class PrimitiveCListFromDenseLocalList<
         break;
       case "delete": {
         // Single delete, using id.
-        const toDelete = this.locsById
-          .get(decoded.delete!.sender)
-          ?.get(decoded.delete!.uniqueNumber);
+        const toDelete = this.state.getLocById(
+          decoded.delete!.sender,
+          decoded.delete!.uniqueNumber
+        );
         if (toDelete !== undefined) {
           const ret = this.state.delete(toDelete);
-          // Update locsById.
-          this.locsById
-            .get(decoded.delete!.sender)!
-            .delete(decoded.delete!.uniqueNumber);
           // Event
           this.emit("Delete", {
             startIndex: ret![0],
@@ -300,9 +288,7 @@ export class PrimitiveCListFromDenseLocalList<
         // avoid confusion.
         for (let i = toDelete.length - 1; i >= 0; i--) {
           const ret = this.state.delete(toDelete[i])!;
-          // Delete from locsById, senderCounters.
-          const id = this.state.idOf(toDelete[i]);
-          this.locsById.get(id[0])!.delete(id[1]);
+          // Delete from senderCounters.
           this.senderCounters.delete(toDelete[i]);
           // Event
           // TODO: bulk events, for efficiency.
@@ -387,16 +373,9 @@ export class PrimitiveCListFromDenseLocalList<
         )
       );
     }
-    // Load this.locsById, senderCounters.
+    // Load this.senderCounters.
     let i = 0;
     this.state.forEach((loc) => {
-      const id = this.state.idOf(loc);
-      let senderLocsById = this.locsById.get(id[0]);
-      if (senderLocsById === undefined) {
-        senderLocsById = new Map();
-        this.locsById.set(id[0], senderLocsById);
-      }
-      senderLocsById.set(id[1], loc);
       this.senderCounters.set(loc, decoded.senderCounters[i]);
       i++;
     });
