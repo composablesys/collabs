@@ -389,7 +389,7 @@ export class PrimitiveCListFromDenseLocalList<
     }
     // Load this.locsById, senderCounters.
     let i = 0;
-    for (const loc of this.state.locs()) {
+    this.state.forEach((loc) => {
       const id = this.state.idOf(loc);
       let senderLocsById = this.locsById.get(id[0]);
       if (senderLocsById === undefined) {
@@ -399,7 +399,18 @@ export class PrimitiveCListFromDenseLocalList<
       senderLocsById.set(id[1], loc);
       this.senderCounters.set(loc, decoded.senderCounters[i]);
       i++;
-    }
+    });
+    // for (const loc of this.state.locs()) {
+    //   const id = this.state.idOf(loc);
+    //   let senderLocsById = this.locsById.get(id[0]);
+    //   if (senderLocsById === undefined) {
+    //     senderLocsById = new Map();
+    //     this.locsById.set(id[0], senderLocsById);
+    //   }
+    //   senderLocsById.set(id[1], loc);
+    //   this.senderCounters.set(loc, decoded.senderCounters[i]);
+    //   i++;
+    // }
   }
 
   newCursor(startIndex: number, binding: "left" | "right" = "left"): Cursor {

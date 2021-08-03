@@ -213,6 +213,14 @@ class AutomergePerfBenchmark {
           ).valueOf();
           this.testFactory.cleanup();
           const loadStartTime = process.hrtime.bigint();
+
+          // TODO: remove
+          // console.log("Loading repeatedly");
+          // while (true) {
+          //   this.testFactory.cleanup();
+          //   this.testFactory.load(saveData, replicaIdRng);
+          // }
+
           this.testFactory.load(saveData, replicaIdRng);
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!

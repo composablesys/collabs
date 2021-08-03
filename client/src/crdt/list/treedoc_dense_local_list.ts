@@ -4,7 +4,13 @@ import {
   TreedocLocWrapperMessage,
 } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import { arrayAsString, createRBTree, RBTree, WeakValueMap } from "../../util";
+import {
+  arrayAsString,
+  createRBTree,
+  fillRBTree,
+  RBTree,
+  WeakValueMap,
+} from "../../util";
 import { BitSet } from "../../util/bitset";
 import { Runtime } from "../core";
 import { DenseLocalList } from "./dense_local_list";
@@ -296,30 +302,23 @@ export class TreedocDenseLocalList<T>
 
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void {
     const decoded = TreedocDenseLocalListSave.decode(saveData);
-    // Since the saved entries are in sorted order, we
-    // don't need to do any comparisons to build the tree.
-    // For building the tree, we set the tree's _compare
-    // equal to one that always says the inserted value
-    // is greater than a current value, without actually
-    // checking.
-    (this.tree as any)._compare = () => 1;
     // Decode anchors and place in anchorCache.
     const anchors = new Array<TreedocLoc>(decoded.anchors.length);
     for (let j = 0; j < anchors.length; j++) {
       anchors[j] = this.deserializeInternal(decoded.anchors[j], this.runtime);
       this.anchorCache.set(arrayAsString(decoded.anchors[j]), anchors[j]);
     }
-    for (let i = 0; i < decoded.anchorIndices.length; i++) {
-      // Deserialize the i-th loc.
-      const loc = new TreedocLocWrapper(
-        anchors[decoded.anchorIndices[i]],
-        decoded.senders[decoded.senderIndices[i]],
-        decoded.uniqueNumbers[i]
-      );
-      // Insert into tree.
-      this.tree = this.tree.insert(loc, values(i))[0];
-    }
-    (this.tree as any)._compare = this.compareWrappers.bind(this);
+    this.tree = fillRBTree(
+      this.compareWrappers.bind(this),
+      (i) =>
+        new TreedocLocWrapper(
+          anchors[decoded.anchorIndices[i]],
+          decoded.senders[decoded.senderIndices[i]],
+          decoded.uniqueNumbers[i]
+        ),
+      values,
+      decoded.anchorIndices.length
+    );
   }
 
   leftIndex(loc: TreedocLocWrapper): number {

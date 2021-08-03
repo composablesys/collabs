@@ -6,7 +6,7 @@ import {
   RgaLocMessage,
 } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import { createRBTree, RBTree, WeakValueMap } from "../../util";
+import { createRBTree, fillRBTree, RBTree, WeakValueMap } from "../../util";
 import { Runtime } from "../core";
 import { DenseLocalList } from "./dense_local_list";
 
@@ -447,19 +447,15 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void {
     const decoded = RgaDenseLocalListSave.decode(saveData);
     // Since the saved entries are in sorted order, we
-    // don't need to do any comparisons to build the tree.
-    // For building the tree, we set the tree's _compare
-    // equal to one that always says the inserted value
-    // is greater than a current value, without actually
-    // checking.
-    (this.tree as any)._compare = () => 1;
+    // can fill the tree directly.
     // Decode locs, putting the first decoded.length of
     // them into the tree in order.
-    for (let i = 0; i < decoded.length; i++) {
-      const loc = this.loadOneLoc(i, decoded);
-      this.tree = this.tree.insert(loc, values(i))[0];
-    }
-    (this.tree as any)._compare = this.compare.bind(this);
+    this.tree = fillRBTree(
+      this.compare.bind(this),
+      (index) => this.loadOneLoc(index, decoded),
+      values,
+      decoded.length
+    );
   }
 
   private loadOneLoc(index: number, decoded: RgaDenseLocalListSave): RgaLoc {
