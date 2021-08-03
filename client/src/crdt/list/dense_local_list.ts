@@ -101,30 +101,6 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    */
   delete(loc: L): [index: number, deletedValue: T] | undefined;
 
-  /**
-   * Delete all locs in the range [startLoc, endLoc] that are causally
-   * <= timestamp.  Note that startLoc and endLoc may have been deleted
-   * already.
-   *
-   * undefined loc means to use that end of the range.
-   *
-   * @param  startLoc  [description]
-   * @param  endLoc    [description]
-   * @param  timestamp [description]
-   * @param  ondelete  called with the deletion range and
-   * deleted values each
-   * time a contiguous range is deleted, relative to the
-   * state just before that range's deletion (so accounting
-   * for the fact that previously deleted ranges are deleted)
-   * @return           [description]
-   */
-  deleteRange(
-    startLoc: L | undefined,
-    endLoc: L | undefined,
-    timestamp: CausalTimestamp,
-    ondelete: (startIndex: number, deletedLocs: L[], deletedValues: T[]) => void
-  ): void;
-
   get(index: number): T;
 
   getLoc(index: number): L;
@@ -136,6 +112,15 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   values(): IterableIterator<T>;
 
   locs(): IterableIterator<L>;
+
+  /**
+   * TODO: backwards from map for efficiency with
+   * rbtree; perhaps modify rbtree to reverse the
+   * key/value order.
+   * @param  callbackfn [description]
+   * @return            [description]
+   */
+  forEach(callbackfn: (loc: L, value: T) => void): void;
 
   /**
    * This should be guarded against mutation
@@ -174,6 +159,12 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   loadLocs(saveData: Uint8Array, values: (index: number) => T): void;
 
   // TODO: refactor together with Cursor.
+  // Perhaps just leftIndexOf, rightIndexOf, going
+  // along with indexOf?
+  // Also: leftIndex is wrong name because it is only the
+  // left index once you take Cursor's subtraction into
+  // account (perhaps subtract one in the answer and add one
+  // in Cursor?).
   leftIndex(loc: L): number;
   rightIndex(loc: L): number;
 }

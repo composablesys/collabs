@@ -4,14 +4,12 @@ message TreedocLocMessage {
   repeated string disSendersIndex = 3;
   repeated uint32 disSenders = 4 [packed=true];
   repeated sint32 disUniqueNumbers = 5 [packed=true];
-  optional int32 senderCounter = 6 [default = -1];
 }
 
 message TreedocLocWrapperMessage {
   required bytes anchor = 1;
   required string sender = 2;
-  optional int32 senderCounter = 3 [default = -1];
-  required sint32 uniqueNumber = 4;
+  required sint32 uniqueNumber = 3;
 }
 
 message TreedocDenseLocalListSave {
@@ -23,7 +21,5 @@ message TreedocDenseLocalListSave {
   repeated uint32 anchorIndices = 3 [packed=true];
   // Index into senders field:
   repeated uint32 senderIndices = 4 [packed=true];
-  // TODO: inefficient encoding due to optional (-1) senderCounters.
-  repeated sint32 senderCounters = 5 [packed=true];
-  repeated sint32 uniqueNumbers = 6 [packed=true];
+  repeated sint32 uniqueNumbers = 5 [packed=true];
 }

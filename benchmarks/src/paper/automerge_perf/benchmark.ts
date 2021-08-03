@@ -120,7 +120,7 @@ class AutomergePerfBenchmark {
 
       let round = 0;
       let op: number;
-      for (op = 0; op < edits.length; op++) {
+      for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
           let ans: { [measurement: string]: number } = {};
@@ -176,6 +176,19 @@ class AutomergePerfBenchmark {
         // if (measurement === "memory") await sleep(0);
       }
 
+      // TODO: remove
+      // console.log("saving repeatedly");
+      // while (true) {
+      //   this.testFactory.save();
+      // }
+
+      // const textStartTime = process.hrtime.bigint();
+      // const text = this.testFactory.getText();
+      // const textTime = new Number(
+      //   process.hrtime.bigint() - textStartTime!
+      // ).valueOf();
+      // console.log("getText() time: " + textTime);
+
       // Record result
       // TODO: de-duplicate code (shared with rounds measurements)
       let result: { [measurement: string]: number } = {};
@@ -200,6 +213,14 @@ class AutomergePerfBenchmark {
           ).valueOf();
           this.testFactory.cleanup();
           const loadStartTime = process.hrtime.bigint();
+
+          // TODO: remove
+          // console.log("Loading repeatedly");
+          // while (true) {
+          //   this.testFactory.cleanup();
+          //   this.testFactory.load(saveData, replicaIdRng);
+          // }
+
           this.testFactory.load(saveData, replicaIdRng);
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
@@ -349,6 +370,79 @@ function treedocLww() {
   });
 }
 
+class ResettingMutCListRga<
+  C extends crdts.Crdt & crdts.Resettable
+> extends crdts.CListFromMap<
+  C,
+  [],
+  crdts.RgaLoc,
+  crdts.MergingMutCMap<crdts.RgaLoc, C>,
+  crdts.RgaDenseLocalList<undefined>
+> {
+  constructor(valueConstructor: (loc: crdts.RgaLoc) => C) {
+    const denseLocalList = new crdts.RgaDenseLocalList<undefined>();
+    super(
+      new crdts.MergingMutCMap(valueConstructor, denseLocalList),
+      denseLocalList
+    );
+  }
+}
+
+function rgaLww() {
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let list: ResettingMutCListRga<crdts.LwwCRegister<string>> | null;
+
+  return new AutomergePerfBenchmark("RGA LWW", {
+    setup(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      list = runtime.registerCrdt(
+        "text",
+        new ResettingMutCListRga<crdts.LwwCRegister<string>>(
+          () => new crdts.LwwCRegister("")
+        )
+      );
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+      list = null;
+    },
+    processEdit(edit) {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list!.insert(edit[0]).value = edit[2];
+      } else {
+        // Delete character at edit[0]
+        list!.delete(edit[0]);
+      }
+      runtime!.commitBatch();
+    },
+    getSentBytes() {
+      return generator!.getTotalSentBytes();
+    },
+    getText() {
+      return list!.map((lww) => lww.value).join("");
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      list = runtime.registerCrdt(
+        "text",
+        new ResettingMutCListRga<crdts.LwwCRegister<string>>(
+          () => new crdts.LwwCRegister("")
+        )
+      );
+      runtime.load(saveData);
+    },
+  });
+}
+
 function textCrdt() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
@@ -389,6 +483,65 @@ function textCrdt() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt("text", new crdts.CText());
+      runtime.load(saveData);
+    },
+  });
+}
+
+function rga() {
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let list: crdts.CList<string> | null;
+
+  return new AutomergePerfBenchmark("RGA", {
+    setup(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      list = runtime.registerCrdt(
+        "text",
+        new crdts.PrimitiveCListFromDenseLocalList(
+          new crdts.RgaDenseLocalList<string>(),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
+      );
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+      list = null;
+    },
+    processEdit(edit) {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list!.insert(edit[0], edit[2]);
+      } else {
+        // Delete character at edit[0]
+        list!.delete(edit[0]);
+      }
+      runtime!.commitBatch();
+    },
+    getSentBytes() {
+      return generator!.getTotalSentBytes();
+    },
+    getText() {
+      return list!.join("");
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      list = runtime.registerCrdt(
+        "text",
+        new crdts.PrimitiveCListFromDenseLocalList(
+          new crdts.RgaDenseLocalList<string>(),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
+      );
       runtime.load(saveData);
     },
   });
@@ -593,8 +746,14 @@ export default async function automergePerf(args: string[]) {
     case "treedocLww":
       benchmark = treedocLww();
       break;
+    case "rgaLww":
+      benchmark = rgaLww();
+      break;
     case "textCrdt":
       benchmark = textCrdt();
+      break;
+    case "rga":
+      benchmark = rga();
       break;
     case "mapLww":
       benchmark = mapLww();
