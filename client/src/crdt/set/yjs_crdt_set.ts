@@ -190,6 +190,27 @@ export class YjsCrdtSet<C extends Crdt, CreateArgs extends any[] = []>
   canGc(): boolean {
     return this.children.size === 0;
   }
+  
+  pureCreate(uniqueNumber: number, ...args: CreateArgs): C {
+    // TODO: replica unique number makes the op non-pure.
+    // But using senderCounter would be dangerous if we
+    // runLocally, thus reusing timestamps, or if we
+    // decide to reuse timestamps for batched messages.
+    let message = YjsCrdtSetMessage.create({
+      create: {
+        replicaUniqueNumber: uniqueNumber,
+        args: this.argsSerializer.serialize(args),
+      },
+    });
+    this.runtime.send(this, YjsCrdtSetMessage.encode(message).finish());
+    let created = this.ourCreatedCrdt;
+    if (created === undefined) {
+      // TODO: use assertion instead
+      throw new Error("Bug: created was undefined");
+    }
+    this.ourCreatedCrdt = undefined;
+    return created;
+  }
 
   create(...args: CreateArgs): C {
     // TODO: replica unique number makes the op non-pure.
