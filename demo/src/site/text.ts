@@ -63,7 +63,7 @@ quill.on("text-change", (delta, oldDelta, source) => {
   if (source === "user") {
     console.log(getRelevantDeltaOperations(delta));
     getRelevantDeltaOperations(delta).forEach((op) => {
-      console.log("op:", op)
+      console.log("op:", op);
       // Insertion (always one character)
       if (op.insert) {
         for (let i = 0; i < op.insert.length; i++) {
