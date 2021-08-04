@@ -184,7 +184,8 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
           );
           const newValue = this.receiveCreate(name, decoded.add!.args);
 
-          if (timestamp.isLocal()) {
+          if (timestamp.isLocal() || this.runtime.isInRunLocally) {
+            // Giving support for runLocally
             this.ourCreatedValue = newValue;
           }
 
@@ -281,6 +282,20 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     let message = DeletingMutCSetMessage.create({
       add: {
         replicaUniqueNumber: this.runtime.getReplicaUniqueNumber(),
+        args: this.argsSerializer.serialize(args),
+      },
+    });
+    this.runtime.send(this, DeletingMutCSetMessage.encode(message).finish());
+    let created = this.ourCreatedValue;
+    delete this.ourCreatedValue;
+    return created!;
+  }
+
+  // TODO
+  pureAdd(uniqueNumber: number, ...args: AddArgs): C {
+    let message = DeletingMutCSetMessage.create({
+      add: {
+        replicaUniqueNumber: uniqueNumber,
         args: this.argsSerializer.serialize(args),
       },
     });

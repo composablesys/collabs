@@ -1,5 +1,6 @@
 import * as crdts from "compoventuals-client";
 import { YataSave } from "../../generated/site/proto_compiled";
+import { Crdt } from "compoventuals-client";
 
 export class YataOp<T> extends crdts.CompositeCrdt {
   readonly creatorId: string;
@@ -16,10 +17,16 @@ export class YataOp<T> extends crdts.CompositeCrdt {
   // deleting replica, and any loading replica will
   // necessarily not be the deleter.
   public locallyDeleted: boolean;
-  public readonly leftAttributesAtInput: Record<string, any>;
+  public readonly originAttributesAtInput: Record<string, any>;
   public readonly attributesArg: [string, any][];
   static readonly attributesMapCrdtName = "attributes";
   static readonly deletedFlagCrdtName = "deleted";
+
+  sameFormatAsPrev(attrName: string) {
+    return (
+      this.attributes.get(attrName) === this.originAttributesAtInput[attrName]
+    );
+  }
 
   delete(): void {
     this.locallyDeleted = true;
@@ -37,7 +44,7 @@ export class YataOp<T> extends crdts.CompositeCrdt {
     rightId: string,
     content: T,
     pos: number,
-    leftAttributesAtInput: Record<string, any>,
+    originAttributesAtInput: Record<string, any>,
     attributes: [string, any][] = []
   ) {
     super();
@@ -57,7 +64,7 @@ export class YataOp<T> extends crdts.CompositeCrdt {
       new crdts.LwwCMap(undefined, undefined)
     );
     this.attributesArg = attributes;
-    this.leftAttributesAtInput = leftAttributesAtInput;
+    this.originAttributesAtInput = originAttributesAtInput;
   }
 
   init(name: string, parent: crdts.CrdtParent) {
@@ -96,8 +103,22 @@ interface YataEventsRecord<T> extends crdts.CrdtEventsRecord {
   FormatExisting: YataFormatExistingEvent<T>;
 }
 
+type m1Args = [ids: string[], attributes: Record<string, any>];
+type m2Args<T> = [
+  uniqueNumber: number,
+  replicaId: string,
+  leftIntent: string,
+  rightIntent: string,
+  content: T,
+  originAttributeEntries: Record<string, any>,
+  attributeEntries?: Record<string, any>
+];
+
 export class YataLinear<T> extends crdts.SemidirectProductRev<
-  YataEventsRecord<T>
+  YataEventsRecord<T>,
+  Crdt,
+  m1Args,
+  m2Args<T>
 > {
   private start: string = "";
   private end: string = "";
@@ -163,7 +184,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
         isLocal,
       };
       yata.emit("Insert", insertEvent);
-      yata.trackM2Event(timestamp, "Insert", insertEvent);
+      yata.trackM2Event("Insert", insertEvent);
     };
 
   constructor(defaultContent: T, initialContents: T[]) {
@@ -199,7 +220,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
           leftIntent: string,
           rightIntent: string,
           content: T,
-          leftAttributesMapAtInput: Record<string, any>,
+          originAttributesMapAtInput: Record<string, any>,
           attributesMap: Record<string, any> = {}
         ) => {
           const originId = leftIntent;
@@ -223,13 +244,13 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
           const rightId = this.op(leftId).rightId;
           // TODO: Replace this with a binary tree (rbtree)
           const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
-          const leftAttributesEntriesAtCreate = [
-            ...this.op(leftId).attributes.entries(),
+          const originAttributesEntriesAtCreate = [
+            ...this.op(originId).attributes.entries(),
           ];
-          for (const [key, value] of leftAttributesEntriesAtCreate) {
+          for (const [key, value] of originAttributesEntriesAtCreate) {
             if (
               attributesMap[key] !== value &&
-              attributesMap[key] === leftAttributesMapAtInput[key]
+              attributesMap[key] === originAttributesMapAtInput[key]
             ) {
               attributesMap[key] = value;
             }
@@ -241,7 +262,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
             rightId,
             content,
             pos,
-            leftAttributesMapAtInput,
+            originAttributesMapAtInput,
             Object.entries(attributesMap)
           );
         },
@@ -281,73 +302,49 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     );
   }
 
-  protected m1Criteria(
-    targetPath: string[],
-    timestamp: crdts.CausalTimestamp,
-    message: Uint8Array
-  ): boolean {
-    if (targetPath[targetPath.length - 3] === YataOp.attributesMapCrdtName) {
-      return true;
-    }
-    return false;
+  private delete(id: string): void {
+    this.op(id).delete();
   }
 
-  protected m2Criteria(
-    targetPath: string[],
-    timestamp: crdts.CausalTimestamp,
-    message: Uint8Array
-  ): boolean {
-    // return targetPath[targetPath.length - 3] !== YataOp.attributesMapCrdtName
-    //   && targetPath[targetPath.length - 3] !== YataOp.deletedFlagCrdtName;
-
-    if (
-      targetPath[targetPath.length - 3] !== YataOp.attributesMapCrdtName &&
-      targetPath[targetPath.length - 3] !== YataOp.deletedFlagCrdtName
-    ) {
-      return true;
+  m1(ids: string[], attributes: Record<string, any>) {
+    // Formatting operation
+    for (const id of ids) {
+      for (const attr in attributes) {
+        this.op(id).attributes.set(attr, attributes[attr]);
+      }
     }
-    return false;
+  }
+
+  m2(...args: m2Args<T>): void {
+    // Insertion operation
+    this.opMap.pureAdd(...args);
   }
 
   protected action(
     m2TargetPath: string[],
-    m2Timestamp: crdts.CausalTimestamp,
-    m2Message: Uint8Array,
+    m2Timestamp: crdts.CausalTimestamp | null,
+    m2Message: crdts.m2Start<m2Args<T>>, // User-defined
     m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
     m1Timestamp: crdts.CausalTimestamp,
-    m1Message: Uint8Array
-  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    console.log(m2TrackedEvents);
-    // m1: attribute change
-    // m2: insertion
-    // 1. Check if insertion is adjacent to attribute change
-    // 2. If it is, then this.receive an attribute change message to the inserted character
-    const idOfFormattedOp = m1TargetPath[m1TargetPath.length - 1]; // This is the uid of the op.
-    let m2Insertion: YataInsertEvent<string>;
-    for (let event of m2TrackedEvents) {
-      if (event[0] === "Insert") {
-        m2Insertion = event[1] as YataInsertEvent<string>;
+    m1Message: crdts.m1Start<m1Args> // User-defined
+  ) {
+    // Conflict resolution function
+    let newM1 = m1Message;
+    for (let [name, event] of m2TrackedEvents) {
+      if (name === "Insert") {
+        const insertion = (event as YataInsertEvent<string>).newOp;
+        const insertionUid = (event as YataInsertEvent<string>).uid;
+        if (m1Message.args[0].includes(insertion.originId)) {
+          for (const [attrName, _] of Object.entries(m1Message.args[1])) {
+            if (insertion.sameFormatAsPrev(attrName)) {
+              newM1.args[0] = newM1.args[0].concat([insertionUid]);
+            }
+          }
+        }
       }
     }
-    const idOfInsertion = m2Insertion!.uid;
-    // Assumptions:
-    //  1. the formatted operation had been previously inserted because it just has to be.
-    //  2. the m2's found here had effected the local crdt state
-    if (this.op(idOfInsertion)!.originId === idOfFormattedOp) {
-      // if (this.op(idOfFormattedOp)!.rightId === idOfInsertion) {
-      const m1TargetPathReplay = m1TargetPath.slice().concat(["nodeMap"]);
-      const attrName = m1TargetPathReplay[1].substring(2);
-      // Check if the value of this attribute in this insertion is the same as the one to its left at write time.
-      if (
-        this.op(idOfInsertion).attributes.get(attrName) ===
-        this.op(idOfInsertion).leftAttributesAtInput[attrName]
-      ) {
-        m1TargetPathReplay[m1TargetPathReplay.length - 2] = idOfInsertion;
-        this.receive(m1TargetPathReplay, m1Timestamp, m1Message);
-      }
-    }
-    return { m1TargetPath, m1Message };
+    return { m1TargetPath, m1Message: newM1 };
   }
 
   private insert(
@@ -355,29 +352,22 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     leftIntent: string,
     rightIntent: string,
     content: T,
-    leftAttributeEntries: Record<string, any>,
+    originAttributeEntries: Record<string, any>,
     attributeEntries?: Record<string, any>
-  ): string {
-    return this.opMap.idOf(
-      this.opMap.add(
-        replicaId,
-        leftIntent,
-        rightIntent,
-        content,
-        leftAttributeEntries,
-        attributeEntries
-      )
+  ): void {
+    this.m2(
+      this.runtime.getReplicaUniqueNumber(),
+      replicaId,
+      leftIntent,
+      rightIntent,
+      content,
+      originAttributeEntries,
+      attributeEntries
     );
   }
 
-  private delete(id: string): void {
-    this.op(id).delete();
-  }
-
   private changeAttributes(id: string, attributes: Record<string, any>): void {
-    for (const attr in attributes) {
-      this.op(id).attributes.set(attr, attributes[attr]);
-    }
+    this.m1([id], attributes);
   }
 
   // TODO: Make iterative instead of recursive
@@ -457,12 +447,14 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     attributeObj?: Record<string, any>
   ): void {
     let idLeftOfCursor = this.getIdAtIdx(idx - 1); // TODO: Optimize idx to id conversion with a binary tree (rbtree)
-    const uid = this.insert(
+    console.log("idx:", idx);
+    console.log("idLeftOfCursor:", idLeftOfCursor);
+    this.insert(
       replicaId,
       idLeftOfCursor,
       this.op(idLeftOfCursor).rightId,
       content,
-      Object.fromEntries([...this.op(idLeftOfCursor).attributes.entries()]),
+      Object.fromEntries([...this.op(idLeftOfCursor).attributes.entries()])!,
       attributeObj
     );
     // if (attributeObj) {

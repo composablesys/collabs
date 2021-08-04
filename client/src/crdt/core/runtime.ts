@@ -585,7 +585,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * It's only used for bug-catching (compared to
    * the real timestamp).
    */
-  runLocally(timestamp: CausalTimestamp, doPureOps: () => void) {
+  runLocally<T>(timestamp: CausalTimestamp, doPureOps: () => T): T {
     if (timestamp !== this.currentlyProcessedTimestamp) {
       throw new Error(
         "Wrong timestamp passed to runLocally;" +
@@ -594,8 +594,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
     let oldInRunLocally = this.inRunLocally;
     this.inRunLocally = true;
-    doPureOps();
+    const toReturn = doPureOps();
     this.inRunLocally = oldInRunLocally;
+    return toReturn;
   }
 
   get isInRunLocally(): boolean {

@@ -61,18 +61,23 @@ const getRelevantDeltaOperations = (
 
 quill.on("text-change", (delta, oldDelta, source) => {
   if (source === "user") {
+    console.log(getRelevantDeltaOperations(delta));
     getRelevantDeltaOperations(delta).forEach((op) => {
+      console.log("op:", op)
       // Insertion (always one character)
       if (op.insert) {
-        clientText.insertByIdx(
-          client.replicaId,
-          op.idx,
-          op.insert,
-          op.attributes
-        );
+        for (let i = 0; i < op.insert.length; i++) {
+          clientText.insertByIdx(
+            client.replicaId,
+            op.idx + i,
+            op.insert[i],
+            op.attributes
+          );
+        }
       }
       // Deletion (can be many characters)
       else if (op.delete) {
+        console.log("deleting", op.delete, "characters");
         clientText.deleteByIdx(op.idx, op.delete);
       }
       // Formatting (can be many characters)
