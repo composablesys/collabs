@@ -176,7 +176,7 @@ class AutomergePerfBenchmark {
         // if (measurement === "memory") await sleep(0);
       }
 
-      // TODO: remove
+      // // For profiling save times:
       // console.log("saving repeatedly");
       // while (true) {
       //   this.testFactory.save();
@@ -214,7 +214,7 @@ class AutomergePerfBenchmark {
           this.testFactory.cleanup();
           const loadStartTime = process.hrtime.bigint();
 
-          // TODO: remove
+          // // For profiling load times:
           // console.log("Loading repeatedly");
           // while (true) {
           //   this.testFactory.cleanup();

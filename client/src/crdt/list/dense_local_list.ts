@@ -141,6 +141,15 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    */
   idOf(loc: L): [sender: string, uniqueNumber: number];
 
+  /**
+   * Returns the Loc with the given id if it is present
+   * in the list, else retuns undefined.
+   * @param  sender       [description]
+   * @param  uniqueNumber [description]
+   * @return              [description]
+   */
+  getLocById(sender: string, uniqueNumber: number): L | undefined;
+
   canGc(): boolean;
 
   /**

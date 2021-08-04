@@ -31,14 +31,23 @@ export class PrimitiveCListFromDenseLocalList<
   L extends object,
   DenseT extends DenseLocalList<L, T>
 > extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
-  /**
-   * Maps from ids to locs.  Used for single-element
-   * deletions.
-   */
-  private readonly locsById: Map<string, Map<number, L>> = new Map();
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
-  private readonly senderCounters = new WeakMap<L, number>();
+  // TODO: use uniqueNumbers (from ids) instead of
+  // senderCounters?  (Send maximum abs value of a uniqueNumber
+  // present in the deleted range for each user; compare
+  // to those instead of senderCounters in deleteRange;
+  // get rid of this map).  Would reduce memory by 4MB,
+  // save size by 200-300KB, save & load time, and
+  // need for causality, at the expense of larger
+  // deleteRange messages (since we are not piggy-backing
+  // on the CausalTimestamp), especially in bulk messages.
+  // TODO: try putting this in the values instead of its
+  // own map.
+  /**
+   * keys are precisely the locs in the list.
+   */
+  private readonly senderCounters = new Map<L, number>();
 
   /**
    * @param denseLocalList                   [description]
@@ -215,14 +224,8 @@ export class PrimitiveCListFromDenseLocalList<
           timestamp,
           values
         );
-        // Cache locs by id and store senderCounters.
-        let senderLocsById = this.locsById.get(timestamp.getSender());
-        if (senderLocsById === undefined) {
-          senderLocsById = new Map();
-          this.locsById.set(timestamp.getSender(), senderLocsById);
-        }
+        // Store senderCounters.
         for (const loc of locs) {
-          senderLocsById.set(this.state.idOf(loc)[1], loc);
           this.senderCounters.set(loc, timestamp.getSenderCounter());
         }
         // Event
@@ -234,20 +237,19 @@ export class PrimitiveCListFromDenseLocalList<
         break;
       case "delete": {
         // Single delete, using id.
-        const toDelete = this.locsById
-          .get(decoded.delete!.sender)
-          ?.get(decoded.delete!.uniqueNumber);
+        const toDelete = this.state.getLocById(
+          decoded.delete!.sender,
+          decoded.delete!.uniqueNumber
+        );
         if (toDelete !== undefined) {
-          const ret = this.state.delete(toDelete);
-          // Update locsById.
-          this.locsById
-            .get(decoded.delete!.sender)!
-            .delete(decoded.delete!.uniqueNumber);
+          const ret = this.state.delete(toDelete)!;
+          // Delete from senderCounters.
+          this.senderCounters.delete(toDelete);
           // Event
           this.emit("Delete", {
-            startIndex: ret![0],
+            startIndex: ret[0],
             count: 1,
-            deletedValues: [ret![1]],
+            deletedValues: [ret[1]],
             timestamp,
           });
         } // Else already deleted
@@ -300,9 +302,7 @@ export class PrimitiveCListFromDenseLocalList<
         // avoid confusion.
         for (let i = toDelete.length - 1; i >= 0; i--) {
           const ret = this.state.delete(toDelete[i])!;
-          // Delete from locsById, senderCounters.
-          const id = this.state.idOf(toDelete[i]);
-          this.locsById.get(id[0])!.delete(id[1]);
+          // Delete from senderCounters.
           this.senderCounters.delete(toDelete[i]);
           // Event
           // TODO: bulk events, for efficiency.
@@ -346,15 +346,15 @@ export class PrimitiveCListFromDenseLocalList<
   }
 
   protected savePrimitive(): Uint8Array {
-    const senderCounters = new Array<number>(this.state.length);
+    const senderCountersSave = new Array<number>(this.state.length);
     let i = 0;
     this.state.forEach((loc) => {
-      senderCounters[i] = this.senderCounters.get(loc)!;
+      senderCountersSave[i] = this.senderCounters.get(loc)!;
       i++;
     });
     const imessage: IPrimitiveCListSave = {
       locs: this.state.saveLocs(),
-      senderCounters,
+      senderCounters: senderCountersSave,
     };
     if (this.valueArraySerializer !== undefined) {
       imessage.values = this.valueArraySerializer.serialize(
@@ -387,16 +387,9 @@ export class PrimitiveCListFromDenseLocalList<
         )
       );
     }
-    // Load this.locsById, senderCounters.
+    // Load this.senderCounters.
     let i = 0;
     this.state.forEach((loc) => {
-      const id = this.state.idOf(loc);
-      let senderLocsById = this.locsById.get(id[0]);
-      if (senderLocsById === undefined) {
-        senderLocsById = new Map();
-        this.locsById.set(id[0], senderLocsById);
-      }
-      senderLocsById.set(id[1], loc);
       this.senderCounters.set(loc, decoded.senderCounters[i]);
       i++;
     });

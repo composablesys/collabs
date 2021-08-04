@@ -32,11 +32,9 @@ export class RgaLoc {
   constructor(
     readonly parent: RgaLoc | undefined,
     readonly sender: string,
-    readonly uniqueNumber: number,
-    denseLocalList: RgaDenseLocalList<any>
+    readonly uniqueNumber: number
   ) {
     this.depth = parent == undefined ? 0 : parent.depth + 1;
-    denseLocalList.storeNewLoc(this);
   }
 
   toString(): string {
@@ -77,13 +75,24 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   set(loc: RgaLoc, value: T): number {
     let index: number;
-    [this.tree, index] = this.tree.insert(loc, value, true);
+    let inserted: boolean;
+    [this.tree, index, inserted] = this.tree.insert(loc, value, true);
+    if (inserted) {
+      // Move from backup to main store
+      this.unstoreBackupLoc(loc);
+      this.storeLoc(loc);
+    }
     return index;
   }
 
   delete(loc: RgaLoc): [index: number, deletedValue: T] | undefined {
     let ret: [number, T] | undefined;
     [this.tree, ret] = this.tree.remove(loc);
+    if (ret !== undefined) {
+      // Move from main to backup store
+      this.unstoreLoc(loc);
+      this.storeBackupLoc(loc);
+    }
     return ret;
   }
 
@@ -157,31 +166,63 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   // RGA specific methods
 
-  // TODO: in PrimitiveCList, use this in place of
-  // PrimitiveCList's copy.
   /**
    * Maps from sender & uniqueCounter to RgaLoc.
-   *
-   * Inner WeakValueMaps + onempty are used to ensure
-   * that no-longer-referenced locs are cleared
-   * from locsById, as are empty inner WeakValueMaps.
+   * locsById contains precisely the locs currently
+   * present in this.locs(), while backupLocById
+   * contains any others that have not yet been GC'd.
+   * In backupLocsById, inner WeakValueMaps +
+   * onempty are used to ensure
+   * that no-longer-referenced locs are deleted,
+   * as are empty inner WeakValueMaps.
    */
-  private readonly locsById = new Map<string, WeakValueMap<number, RgaLoc>>();
-  /**
-   * Internal use by RgaLoc's constructor only.
-   *
-   * TODO: can we make this not public but still accessible
-   * by RgaLoc?
-   */
-  storeNewLoc(loc: RgaLoc): void {
+  private readonly locsById = new Map<string, Map<number, RgaLoc>>();
+  private readonly backupLocsById = new Map<
+    string,
+    WeakValueMap<number, RgaLoc>
+  >();
+
+  private storeLoc(loc: RgaLoc): void {
     let senderMap = this.locsById.get(loc.sender);
+    if (senderMap === undefined) {
+      senderMap = new Map();
+      // senderMap = new WeakValueMap();
+      // senderMap.onempty = this.senderMapOndelete;
+      // senderMap.onemptyHeldValue = loc.sender;
+      this.locsById.set(loc.sender, senderMap);
+    }
+    senderMap.set(loc.uniqueNumber, loc);
+  }
+
+  private unstoreLoc(loc: RgaLoc): void {
+    let senderMap = this.locsById.get(loc.sender);
+    if (senderMap !== undefined) {
+      senderMap.delete(loc.uniqueNumber);
+      if (senderMap.size === 0) {
+        this.locsById.delete(loc.sender);
+      }
+    }
+  }
+
+  private storeBackupLoc(loc: RgaLoc): void {
+    let senderMap = this.backupLocsById.get(loc.sender);
     if (senderMap === undefined) {
       senderMap = new WeakValueMap();
       senderMap.onempty = this.senderMapOndelete;
       senderMap.onemptyHeldValue = loc.sender;
-      this.locsById.set(loc.sender, senderMap);
+      this.backupLocsById.set(loc.sender, senderMap);
     }
     senderMap.set(loc.uniqueNumber, loc);
+  }
+
+  private unstoreBackupLoc(loc: RgaLoc): void {
+    let senderMap = this.backupLocsById.get(loc.sender);
+    if (senderMap !== undefined) {
+      senderMap.delete(loc.uniqueNumber);
+      if (senderMap.internalSize === 0) {
+        this.backupLocsById.delete(loc.sender);
+      }
+    }
   }
 
   /**
@@ -191,11 +232,31 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     _caller: WeakValueMap<number, RgaLoc>,
     sender: string
   ) => {
-    this.locsById.delete(sender);
+    this.backupLocsById.delete(sender);
   };
 
-  private getLocById(sender: string, uniqueNumber: number): RgaLoc | undefined {
+  getLocById(sender: string, uniqueNumber: number): RgaLoc | undefined {
     return this.locsById.get(sender)?.get(uniqueNumber);
+  }
+
+  /**
+   * Returns the Loc with the given id if it already
+   * exists in memory (in particular, if it is present
+   * in the list).
+   * @param  sender       [description]
+   * @param  uniqueNumber [description]
+   * @return              [description]
+   */
+  private getLocByIdIncludeBackup(
+    sender: string,
+    uniqueNumber: number
+  ): RgaLoc | undefined {
+    const mainAns = this.locsById.get(sender)?.get(uniqueNumber);
+    if (mainAns !== undefined) return mainAns;
+    else {
+      // Try the backup map
+      return this.backupLocsById.get(sender)?.get(uniqueNumber);
+    }
   }
 
   prepareNewLocs(index: number, count: number): Uint8Array {
@@ -224,10 +285,12 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       parent,
       timestamp.getSender(),
       decoded.uniqueNumberStart,
-      values.length
+      values.length,
+      true
     );
 
-    // Insert locs & values.
+    // Insert locs & values.  Note they have already
+    // been stored by expandNewLocArgs.
     let index: number;
     for (let i = 0; i < values.length; i++) {
       let indexI: number;
@@ -243,7 +306,8 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       parent,
       this.runtime.replicaId,
       uniqueNumberStart,
-      count
+      count,
+      false
     );
   }
 
@@ -342,17 +406,22 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   /**
    * See getNewLocArgs.  Results are in order from
    * left to right.
+   *
    * @param  parent            [description]
    * @param  sender            [description]
    * @param  uniqueNumberStart [description]
    * @param  count             [description]
+   * @param  arePresent whether the locs will be immediately
+   * inserted as keys, in which case they will be passed
+   * to storeLoc, else to storeBackupLoc
    * @return                   [description]
    */
   private expandNewLocArgs(
     parent: RgaLoc | undefined,
     sender: string,
     uniqueNumberStart: number,
-    count: number
+    count: number,
+    arePresent: boolean
   ): RgaLoc[] {
     const sign = Math.sign(uniqueNumberStart);
     const ans = new Array<RgaLoc>(count);
@@ -361,12 +430,9 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       // increase in magnitude.  So when it is positive,
       // we create locs left to right, else right to left.
       const index = sign === 1 ? i : count - i - 1;
-      ans[index] = new RgaLoc(
-        parent,
-        sender,
-        uniqueNumberStart + sign * i,
-        this
-      );
+      ans[index] = new RgaLoc(parent, sender, uniqueNumberStart + sign * i);
+      if (arePresent) this.storeLoc(ans[index]);
+      else this.storeBackupLoc(ans[index]);
     }
     return ans;
   }
@@ -460,7 +526,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   private loadOneLoc(index: number, decoded: RgaDenseLocalListSave): RgaLoc {
     // See if loc is already constructed.
-    const existingLoc = this.getLocById(
+    const existingLoc = this.getLocByIdIncludeBackup(
       decoded.senders[decoded.senderIndices[index]],
       decoded.uniqueNumbers[index]
     );
@@ -473,23 +539,24 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       parent = undefined;
     } else {
       const parentIndex = decoded.parents[index] - 1;
-      parent = this.getLocById(
+      parent = this.getLocByIdIncludeBackup(
         decoded.senders[decoded.senderIndices[parentIndex]],
         decoded.uniqueNumbers[parentIndex]
       );
       if (parent === undefined) {
-        // Need to load it first.  Note constructing it is
-        // enough to place it in the stored loc cache, for
-        // future getLocById lookups.
+        // Need to load it first.
         parent = this.loadOneLoc(parentIndex, decoded);
       }
     }
-    return new RgaLoc(
+    // Construct and store a new loc.
+    const newLoc = new RgaLoc(
       parent,
       decoded.senders[decoded.senderIndices[index]],
-      decoded.uniqueNumbers[index],
-      this
+      decoded.uniqueNumbers[index]
     );
+    if (index < decoded.length) this.storeLoc(newLoc);
+    else this.storeBackupLoc(newLoc);
+    return newLoc;
   }
 
   serialize(value: RgaLoc): Uint8Array {
@@ -538,7 +605,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     let existing: RgaLoc | undefined = undefined;
     // Find the lowest ancestor that we already have.
     for (i = 0; i < decoded.senderIndices.length; i++) {
-      existing = this.getLocById(
+      existing = this.getLocByIdIncludeBackup(
         decoded.senders[decoded.senderIndices[i]],
         decoded.uniqueNumbers[i]
       );
@@ -551,9 +618,12 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       currentLoc = new RgaLoc(
         currentLoc,
         decoded.senders[decoded.senderIndices[j]],
-        decoded.uniqueNumbers[j],
-        this
+        decoded.uniqueNumbers[j]
       );
+      // Store in the backup map, since the fact that it
+      // did not exist means it is not currently a key
+      // in this.tree.
+      this.storeBackupLoc(currentLoc);
     }
     return currentLoc!;
   }

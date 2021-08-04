@@ -136,7 +136,7 @@ export class myMessage {
     let vc = new VectorClock(
       decoded.sender,
       myReplicaId === decoded.sender,
-      decoded.time
+      decoded.time as number
     );
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
     vc.vectorMap.set(decoded.sender, decoded.senderCounter);
