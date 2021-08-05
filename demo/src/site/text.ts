@@ -16,8 +16,7 @@ const HOST = location.origin.replace(/^http/, "ws");
 let client = new Runtime(
   new DefaultCausalBroadcastNetwork(
     new WebSocketNetwork(HOST, "variable_counter")
-  ),
-  { periodMs: 5000 }
+  )
 );
 
 let clientText = client.registerCrdt(
