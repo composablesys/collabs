@@ -77,6 +77,7 @@ const config: webpack.Configuration = {
           from: "./src/site/matrix/plaintext.html",
           to: "matrix/plaintext.html",
         },
+        { from: "./src/site/reset.html", to: "reset.html" },
         // TODO: Add more entries as needed for new pages
       ],
     }),
