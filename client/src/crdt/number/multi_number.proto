@@ -1,0 +1,3 @@
+message MNumberComponentMessage {
+    required double arg = 1;
+}
