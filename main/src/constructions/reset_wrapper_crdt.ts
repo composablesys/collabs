@@ -2,19 +2,9 @@ import { CausalTimestamp } from "../../net";
 import { StatefulCrdt, PrimitiveCrdt, Crdt, CrdtEventsRecord } from "../core";
 import { SemidirectProduct } from "./semidirect_product";
 
-// TODO: revise whole file
+// TODO: revise whole file (probably just remove)
 
 // TODO: ResettableCompositeCrdt (implement reset for you)
-
-export interface Resettable extends Crdt {
-  /**
-   * Perform an observed-reset operation on this Crdt.
-   * The semantics MUST be precisely an observed-reset.
-   * If all of a Crdt's operations have been reset by
-   * such operations, it MUST have canGc() = true.
-   */
-  reset(): void;
-}
 
 /**
  * A state for a StatefulCrdt that can be "reset", restoring its
