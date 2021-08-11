@@ -3,7 +3,6 @@ import {
   TreedocLocMessage,
   TreedocLocWrapperMessage,
 } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
   createRBTree,
@@ -12,7 +11,7 @@ import {
   WeakValueMap,
 } from "../../util";
 import { BitSet } from "../../util/bitset";
-import { Runtime } from "../core";
+import { CausalTimestamp, Runtime } from "../../core";
 import { DenseLocalList } from "./dense_local_list";
 
 interface Disambiguator {

@@ -22,7 +22,7 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../../core";
 
 export interface CListInsertEvent extends CrdtEvent {
   /**

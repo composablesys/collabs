@@ -3,13 +3,14 @@ import {
   ElementSerializer,
   PairSerializer,
 } from "../../util";
-import { CompositeCrdt, Crdt, CrdtParent } from "../core";
-import { RootCrdt } from "../core/runtime";
+import { Crdt, CrdtParent } from "../../core";
 import { CRegister } from "../register";
 import { CSet } from "../set";
 import { AbstractCListCompositeCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { MovableCList, MovableCListEventsRecord } from "./interfaces";
+import { CompositeCrdt } from "../../constructions";
+import { RootCrdt } from "../../core/runtime";
 
 export class MovableMutCListEntry<
   C extends Crdt,

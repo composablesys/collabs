@@ -1,4 +1,5 @@
-import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
+import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { Crdt } from "../../core";
 import { CMap, CMapEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>

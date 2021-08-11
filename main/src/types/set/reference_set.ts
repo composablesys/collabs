@@ -1,10 +1,10 @@
+import { Resettable } from "../../abilities";
 import {
   DefaultElementSerializer,
   ElementSerializer,
   StringAsArraySerializer,
   WeakValueMap,
 } from "../../util";
-import { Resettable } from "../helper_crdts";
 import { LwwCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 

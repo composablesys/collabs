@@ -1,4 +1,4 @@
-import { Crdt } from "../core";
+import { Crdt } from "../../core";
 import { CBoolean } from "./interfaces";
 
 export declare abstract class AbstractCBoolean

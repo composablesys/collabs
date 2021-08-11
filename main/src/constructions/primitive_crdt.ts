@@ -1,5 +1,4 @@
-import { CausalTimestamp } from "../../net";
-import { Crdt, CrdtEventsRecord } from "./crdt";
+import { Crdt, CrdtEventsRecord, CausalTimestamp } from "../core";
 
 /**
  * TODO: description, correctness definition (from paper)

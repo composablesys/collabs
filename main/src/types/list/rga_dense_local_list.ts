@@ -5,9 +5,8 @@ import {
   RgaDenseLocalListSave,
   RgaLocMessage,
 } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
 import { createRBTree, fillRBTree, RBTree, WeakValueMap } from "../../util";
-import { Runtime } from "../core";
+import { CausalTimestamp, Runtime } from "../../core";
 import { DenseLocalList } from "./dense_local_list";
 
 // TODO: helper that uses an RBTree and implements everything

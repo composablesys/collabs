@@ -4,7 +4,7 @@ import {
   ElementSerializer,
   Optional,
 } from "../../util";
-import { Resettable } from "../helper_crdts";
+import { Resettable } from "../../abilities";
 import {
   CRegister,
   CRegisterEntryMeta,

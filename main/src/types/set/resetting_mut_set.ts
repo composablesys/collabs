@@ -3,8 +3,8 @@ import {
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt, Runtime } from "../core";
-import { Resettable } from "../helper_crdts";
+import { Crdt, Runtime } from "../../core";
+import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { CSetEventsRecord } from "./interfaces";

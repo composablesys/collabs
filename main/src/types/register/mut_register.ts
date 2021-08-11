@@ -1,11 +1,12 @@
+import { Resettable } from "../../abilities";
+import { CompositeCrdt } from "../../constructions";
+import { Crdt } from "../../core";
 import {
   ElementSerializer,
   DefaultElementSerializer,
   Optional,
   CrdtSerializer,
 } from "../../util";
-import { CompositeCrdt, Crdt } from "../core";
-import { Resettable } from "../helper_crdts";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";

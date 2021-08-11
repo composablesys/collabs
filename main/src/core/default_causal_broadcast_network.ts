@@ -7,7 +7,7 @@ import {
   DefaultCausalBroadcastMessage,
   DefaultCausalBroadcastSave,
 } from "../../generated/proto_compiled";
-import { Runtime } from "../crdt";
+import { Runtime } from "./runtime";
 import {
   CausalTimestamp,
   CausalBroadcastNetwork,

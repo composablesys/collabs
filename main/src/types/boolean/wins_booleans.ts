@@ -1,7 +1,7 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
-import { CompositeCrdt, PrimitiveCrdt } from "../core";
-import { Resettable } from "../helper_crdts";
+import { Resettable } from "../../abilities";
+import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CausalTimestamp } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 

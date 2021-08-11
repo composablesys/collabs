@@ -1,6 +1,6 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt } from "../core";
-import { Resettable } from "../helper_crdts";
+import { Crdt } from "../../core";
+import { Resettable } from "../../abilities";
 import { ResettingMutCSet } from "../set";
 import { LwwCMap } from "./lww_map";
 import { MutCMapFromSet } from "./mut_map_from_set";

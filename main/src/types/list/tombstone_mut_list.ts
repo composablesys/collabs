@@ -1,6 +1,5 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt } from "../core";
-import { RootCrdt } from "../core/runtime";
+import { Crdt } from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
@@ -11,6 +10,7 @@ import {
   TreedocDenseLocalList,
   TreedocLocWrapper,
 } from "./treedoc_dense_local_list";
+import { RootCrdt } from "../../core/runtime";
 
 export class TombstoneMutCList<
   C extends Crdt,

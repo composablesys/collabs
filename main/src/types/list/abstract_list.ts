@@ -1,4 +1,5 @@
-import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
+import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { Crdt } from "../../core";
 import { CList, CListEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCList<T, InsertArgs extends any[]>

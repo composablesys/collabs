@@ -1,6 +1,7 @@
-import { CausalTimestamp } from "../../net";
-import { StatefulCrdt, PrimitiveCrdt, Crdt, CrdtEventsRecord } from "../core";
-import { SemidirectProduct } from "./semidirect_product";
+import { Resettable } from "../abilities";
+import { CausalTimestamp, CrdtEventsRecord } from "../core";
+import { PrimitiveCrdt } from "./primitive_crdt";
+import { SemidirectProduct, StatefulCrdt } from "./semidirect_product";
 
 // TODO: revise whole file (probably just remove)
 
@@ -35,12 +36,15 @@ class ResetComponentMessage extends Uint8Array {
   outOfOrderMessage: Uint8Array | null = null;
 }
 
-class ResetComponent<
-  S extends LocallyResettableState
-> extends PrimitiveCrdt<S> {
+class ResetComponent<S extends LocallyResettableState>
+  extends PrimitiveCrdt
+  implements StatefulCrdt<S>
+{
+  // This state will get overwritten by original's state
+  readonly state!: S;
+
   constructor(readonly resetWrapperCrdt: ResetWrapperCrdt<S, StatefulCrdt<S>>) {
-    // This state will get overwritten by original's state
-    super(null as unknown as S);
+    super();
   }
 
   resetTarget() {

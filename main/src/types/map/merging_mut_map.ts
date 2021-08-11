@@ -3,8 +3,8 @@ import {
   ElementSerializer,
   Optional,
 } from "../../util";
-import { Crdt } from "../core";
-import { Resettable } from "../helper_crdts";
+import { Crdt } from "../../core";
+import { Resettable } from "../../abilities";
 import { AddWinsCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";

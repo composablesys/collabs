@@ -1,6 +1,5 @@
-import { CausalTimestamp } from "../../net";
 import { ElementSerializer } from "../../util";
-import { Runtime } from "../core";
+import { CausalTimestamp, Runtime } from "../../core";
 
 // TODO: stuff for cursors (exposing raw locs)
 

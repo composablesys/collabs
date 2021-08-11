@@ -2,16 +2,20 @@ import {
   DeletingMutCSetMessage,
   DeletingMutCSetSave,
 } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
   DefaultElementSerializer,
   ElementSerializer,
   stringAsArray,
 } from "../../util";
-import { Crdt, CrdtEventsRecord, CrdtParent } from "../core";
-import { Resettable } from "../helper_crdts";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventsRecord,
+  CrdtParent,
+} from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
+import { Resettable } from "../../abilities";
 
 class FakeDeletedCrdt extends Crdt {
   private constructor() {

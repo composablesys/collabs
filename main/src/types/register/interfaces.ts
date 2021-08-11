@@ -1,4 +1,4 @@
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../../core";
 
 export interface CRegisterEvent<T> extends CrdtEvent {
   previousValue: T;

@@ -5,7 +5,7 @@ import {
   Optional,
   PairSerializer,
 } from "../../util";
-import { Crdt } from "../core";
+import { Crdt } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";

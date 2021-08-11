@@ -12,7 +12,7 @@ import {
   AddComponent,
   CNumberState,
   MultComponent,
-} from "../../src/crdt/number/number";
+} from "../../src/types/number/number";
 
 describe("basic_crdts", () => {
   let runtimeGen: TestingNetworkGenerator;

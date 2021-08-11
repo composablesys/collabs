@@ -1,5 +1,5 @@
-import { CausalTimestamp } from "../../net";
-import { PrimitiveCrdt } from "../core";
+import { PrimitiveCrdt } from "../../constructions";
+import { CausalTimestamp } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";

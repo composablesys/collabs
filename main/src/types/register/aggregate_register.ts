@@ -2,13 +2,13 @@ import {
   AggregateArgsCRegisterMessage,
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
+import { PrimitiveCrdt } from "../../constructions";
+import { CausalTimestamp } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
   SingletonSerializer,
 } from "../../util";
-import { PrimitiveCrdt } from "../core";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";
 
 export interface CRegisterEntryMeta<S> {

@@ -3,7 +3,7 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util";
-import { Crdt } from "../core";
+import { Crdt } from "../../core";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";

@@ -1,9 +1,9 @@
-import { Runtime } from "../crdt";
-import { CausalTimestamp } from "./causal_broadcast_network";
 import {
   BroadcastNetwork,
+  CausalTimestamp,
   DefaultCausalBroadcastNetwork,
-} from "./default_causal_broadcast_network";
+  Runtime,
+} from "../core";
 
 export class TestingNetwork implements BroadcastNetwork {
   causal!: DefaultCausalBroadcastNetwork;

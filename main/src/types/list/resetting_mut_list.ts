@@ -1,5 +1,5 @@
-import { Crdt } from "../core";
-import { Resettable } from "../helper_crdts";
+import { Resettable } from "../../abilities";
+import { Crdt } from "../../core";
 import { MergingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";
 import {

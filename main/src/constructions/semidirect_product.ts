@@ -1,10 +1,15 @@
 import {
   ISemidirectProductSenderHistory,
   SemidirectProductSave,
-} from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
-import { Crdt, CrdtEventsRecord, CrdtParent, Runtime } from "../core";
-import { LocallyResettableState } from "./resettable";
+} from "../../generated/proto_compiled";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventsRecord,
+  CrdtParent,
+  Runtime,
+} from "../core";
+import { LocallyResettableState } from "./reset_wrapper_crdt";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?

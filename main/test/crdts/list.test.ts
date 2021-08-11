@@ -8,7 +8,7 @@ import {
 import seedrandom from "seedrandom";
 import { BitSet } from "../../src/util/bitset";
 import util from "util";
-import { TreedocLoc } from "../../src/crdt/list/treedoc_dense_local_list";
+import { TreedocLoc } from "../../src/types/list/treedoc_dense_local_list";
 
 describe("list", () => {
   let runtimeGen: TestingNetworkGenerator;

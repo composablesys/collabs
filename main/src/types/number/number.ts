@@ -1,8 +1,10 @@
 import { CNumberComponentMessage } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
-import { SemidirectProduct } from "../helper_crdts";
-import { CrdtEvent, CrdtEventsRecord, PrimitiveCrdt } from "../core";
-import { StatefulCrdt } from "../../constructions";
+import { CausalTimestamp, CrdtEvent, CrdtEventsRecord } from "../../core";
+import {
+  PrimitiveCrdt,
+  SemidirectProduct,
+  StatefulCrdt,
+} from "../../constructions";
 
 export interface CNumberEvent extends CrdtEvent {
   readonly arg: number;

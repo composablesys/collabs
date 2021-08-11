@@ -1,5 +1,5 @@
-import { CausalTimestamp } from "../../net";
-import { EventEmitter } from "../../util";
+import { EventEmitter } from "../util";
+import { CausalTimestamp } from "./causal_broadcast_network";
 import { RootCrdt, Runtime } from "./runtime";
 
 /**

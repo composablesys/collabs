@@ -1,4 +1,3 @@
-import { CausalTimestamp } from "../../net";
 import {
   arrayAsString,
   DefaultElementSerializer,
@@ -7,8 +6,8 @@ import {
   stringAsArray,
   WeakValueMap,
 } from "../../util";
-import { Crdt, CrdtParent } from "../core";
-import { Resettable } from "../helper_crdts";
+import { CausalTimestamp, Crdt, CrdtParent } from "../../core";
+import { Resettable } from "../../abilities";
 import { AbstractCMapCrdt } from "./abstract_map";
 
 /**

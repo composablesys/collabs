@@ -4,14 +4,9 @@ import {
   IGrowOnlyCCounterResetEntry,
   IGrowOnlyCCounterSaveEntry,
 } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
-import {
-  CompositeCrdt,
-  CrdtEvent,
-  CrdtEventsRecord,
-  PrimitiveCrdt,
-} from "../core";
-import { Resettable } from "../helper_crdts";
+import { Resettable } from "../../abilities";
+import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CausalTimestamp, CrdtEvent, CrdtEventsRecord } from "../../core";
 
 export interface CCounterEvent extends CrdtEvent {
   readonly arg: number;
@@ -28,10 +23,8 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
   Reset: CCounterEvent;
 }
 
-class GrowOnlyCCounterState {}
-
 export class GrowOnlyCCounter
-  extends PrimitiveCrdt<GrowOnlyCCounterState, CCounterEventsRecord>
+  extends PrimitiveCrdt<CCounterEventsRecord>
   implements Resettable
 {
   /**
@@ -50,10 +43,6 @@ export class GrowOnlyCCounter
    * The current value, cached for efficiency.
    */
   private valueInternal = 0;
-
-  constructor() {
-    super(new GrowOnlyCCounterState());
-  }
 
   add(toAdd: number) {
     if (toAdd === 0) return;

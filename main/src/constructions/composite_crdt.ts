@@ -1,6 +1,4 @@
-import { CausalTimestamp } from "../../net";
-import { Crdt, CrdtEventsRecord } from "./crdt";
-import { CrdtParent } from "./interfaces";
+import { Crdt, CrdtEventsRecord, CrdtParent, CausalTimestamp } from "../core";
 
 /**
  * TODO: usage.

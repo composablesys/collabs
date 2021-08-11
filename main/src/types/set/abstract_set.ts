@@ -1,4 +1,5 @@
-import { CompositeCrdt, Crdt, PrimitiveCrdt } from "../core";
+import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { Crdt } from "../../core";
 import { CSet, CSetEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCSet<T, AddArgs extends any[]>

@@ -6,16 +6,15 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { CrdtParent } from "../core";
-import { Resettable } from "../helper_crdts";
+import { CausalTimestamp, CrdtParent } from "../../core";
 import { AbstractCListPrimitiveCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import {
   TreedocDenseLocalList,
   TreedocLocWrapper,
 } from "./treedoc_dense_local_list";
+import { Resettable } from "../../abilities";
 
 // TODO: document, test.
 // Note this is not a CRDT
@@ -30,7 +29,7 @@ export class PrimitiveCListFromDenseLocalList<
   T,
   L extends object,
   DenseT extends DenseLocalList<L, T>
-> extends AbstractCListPrimitiveCrdt<DenseT, [T]> {
+> extends AbstractCListPrimitiveCrdt<T, [T]> {
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
   // TODO: use uniqueNumbers (from ids) instead of
@@ -420,20 +419,20 @@ export class PrimitiveCListFromDenseLocalList<
       set index(index: number) {
         if (binding === "left") {
           if (index === 0) loc = null;
-          else loc = outerThis.state.getLoc(index - 1);
+          else loc = outerThis.denseLocalList.getLoc(index - 1);
         } else {
           if (index === outerThis.length) loc = null;
-          else loc = outerThis.state.getLoc(index);
+          else loc = outerThis.denseLocalList.getLoc(index);
         }
       },
 
       get index(): number {
         if (binding === "left") {
           if (loc === null) return 0;
-          else return outerThis.state.leftIndex(loc);
+          else return outerThis.denseLocalList.leftIndex(loc);
         } else {
           if (loc === null) return outerThis.length;
-          else return outerThis.state.rightIndex(loc);
+          else return outerThis.denseLocalList.rightIndex(loc);
         }
       },
     };

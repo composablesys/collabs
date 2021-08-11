@@ -1,19 +1,16 @@
 import {
   ISemidirectProductRevSenderHistory,
   SemidirectProductRevSave,
-} from "../../../generated/proto_compiled";
-import { CausalTimestamp } from "../../net";
+} from "../../generated/proto_compiled";
 import {
-  CompositeCrdt,
+  CausalTimestamp,
   Crdt,
-  CrdtEvent,
   CrdtEventsRecord,
   CrdtParent,
   Runtime,
-  StatefulCrdt,
 } from "../core";
-import { LocallyResettableState } from "./resettable";
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { DefaultElementSerializer, ElementSerializer } from "../util";
+import { CompositeCrdt } from "./composite_crdt";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?

@@ -1,6 +1,6 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CBoolean, TrueWinsCBoolean } from "../boolean";
-import { Resettable } from "../helper_crdts";
+import { Resettable } from "../../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 

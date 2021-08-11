@@ -1,4 +1,4 @@
-import { Runtime, Crdt } from "../crdt/";
+import { Runtime, Crdt } from "../core/";
 import {
   ArrayMessage,
   CrdtReference,
@@ -7,7 +7,7 @@ import {
   ObjectMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { RootCrdt } from "../crdt/core/runtime";
+import { RootCrdt } from "../core/runtime";
 
 /**
  * A serializer for elements (keys, values, etc.) in Crdt collections,

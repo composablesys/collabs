@@ -1,7 +1,7 @@
 // First attempt at the interface between the runtime
 // (causal broadcast network, etc.) and the Crdts.
 
-import { Runtime } from "../crdt";
+import { Runtime } from "./runtime";
 import { ElementSerializer } from "../util";
 
 /**

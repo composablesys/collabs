@@ -23,7 +23,7 @@ and limitations under the License.
 ***************************************************************************** */
 
 import { Optional } from "../../util/optional";
-import { Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
+import { Crdt, CrdtEvent, CrdtEventsRecord } from "../../core";
 
 export interface CMapSetEvent<K, V> extends CrdtEvent {
   key: K;

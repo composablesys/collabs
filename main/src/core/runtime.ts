@@ -3,23 +3,24 @@ import {
   IRuntimeOneSave,
   RuntimeMessage,
   RuntimeSave,
-} from "../../../generated/proto_compiled";
-import {
-  BroadcastNetwork,
-  CausalBroadcastNetwork,
-  CausalTimestamp,
-  DefaultCausalBroadcastNetwork,
-  isCausalBroadcastNetwork,
-} from "../../net";
+} from "../../generated/proto_compiled";
 import {
   arrayAsString,
   ElementSerializer,
   EventEmitter,
   stringAsArray,
-} from "../../util";
-import { CompositeCrdt } from "./composite_crdt";
-import { Crdt, CrdtEventsRecord } from "./crdt";
-import { CrdtParent } from "./interfaces";
+} from "../util";
+import { CompositeCrdt } from "../constructions";
+import { Crdt, CrdtEventsRecord, CrdtParent } from "./crdt";
+import {
+  CausalBroadcastNetwork,
+  CausalTimestamp,
+  isCausalBroadcastNetwork,
+} from "./causal_broadcast_network";
+import {
+  BroadcastNetwork,
+  DefaultCausalBroadcastNetwork,
+} from "./default_causal_broadcast_network";
 
 export class RootCrdt extends CompositeCrdt {
   readonly isRootCrdt = true;
