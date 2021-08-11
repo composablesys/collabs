@@ -28,10 +28,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
   Reset: CCounterEvent;
 }
 
-class GrowOnlyCCounterState {
-  // M entry format: [p, n, idCounter]
-  M = new Map<string, [number, number, number]>();
-}
+class GrowOnlyCCounterState {}
 
 export class GrowOnlyCCounter
   extends PrimitiveCrdt<GrowOnlyCCounterState, CCounterEventsRecord>
@@ -47,6 +44,11 @@ export class GrowOnlyCCounter
    */
   static readonly MODULUS = (Number.MAX_SAFE_INTEGER - 1) / 2;
 
+  // M entry format: [p, n, idCounter]
+  private readonly M = new Map<string, [number, number, number]>();
+  /**
+   * The current value, cached for efficiency.
+   */
   private valueInternal = 0;
 
   constructor() {
@@ -68,7 +70,7 @@ export class GrowOnlyCCounter
 
     toAdd %= GrowOnlyCCounter.MODULUS;
 
-    const m = this.state.M.get(this.runtime.replicaId);
+    const m = this.M.get(this.runtime.replicaId);
     const idCounter =
       m === undefined ? this.runtime.getReplicaUniqueNumber() : m[2];
     const prOld = m === undefined ? 0 : m[0];
@@ -88,7 +90,7 @@ export class GrowOnlyCCounter
 
   reset() {
     const V: { [id: string]: IGrowOnlyCCounterResetEntry } = {};
-    for (let [replicaId, m] of this.state.M) {
+    for (let [replicaId, m] of this.M) {
       V[replicaId] = { v: m[0], idCounter: m[2] };
     }
     const message = GrowOnlyCCounterMessage.create({
@@ -105,9 +107,9 @@ export class GrowOnlyCCounter
     const previousValue = this.value;
     switch (decoded.data) {
       case "add":
-        const m = this.state.M.get(timestamp.getSender());
+        const m = this.M.get(timestamp.getSender());
         if (m === undefined) {
-          this.state.M.set(timestamp.getSender(), [
+          this.M.set(timestamp.getSender(), [
             (decoded.add!.prOld + decoded.add!.toAdd) %
               GrowOnlyCCounter.MODULUS,
             decoded.add!.prOld,
@@ -128,14 +130,14 @@ export class GrowOnlyCCounter
         break;
       case "reset":
         for (let vEntry of Object.entries(decoded.reset!.V!)) {
-          const m = this.state.M.get(vEntry[0]);
+          const m = this.M.get(vEntry[0]);
           if (m !== undefined && m[2] === vEntry[1].idCounter) {
             m[1] = Math.max(m[1], vEntry[1].v);
             // 0 vs -0 issue should be impossible because
             // we only ever deal with >= 0 numbers, so
             // -0 shouldn't be possible.
             if (m[0] === m[1]) {
-              this.state.M.delete(vEntry[0]);
+              this.M.delete(vEntry[0]);
             }
           }
         }
@@ -158,7 +160,7 @@ export class GrowOnlyCCounter
    */
   private computeValue(): void {
     this.valueInternal = 0;
-    for (const m of this.state.M.values()) {
+    for (const m of this.M.values()) {
       // Since m[1] <= m[0], m[0] - m[1] is within
       // the safe range, so we don't need an extra
       // modulo for it.
@@ -172,12 +174,12 @@ export class GrowOnlyCCounter
   }
 
   canGc() {
-    return this.state.M.size === 0;
+    return this.M.size === 0;
   }
 
   savePrimitive(): Uint8Array {
     const mMessage: { [replicaId: string]: IGrowOnlyCCounterSaveEntry } = {};
-    for (const [replicaId, m] of this.state.M) {
+    for (const [replicaId, m] of this.M) {
       mMessage[replicaId] = {
         p: m[0],
         n: m[1],
@@ -191,7 +193,7 @@ export class GrowOnlyCCounter
   loadPrimitive(saveData: Uint8Array) {
     const message = GrowOnlyCCounterSave.decode(saveData);
     for (const [replicaId, m] of Object.entries(message.M)) {
-      this.state.M.set(replicaId, [m.p, m.n, m.idCounter]);
+      this.M.set(replicaId, [m.p, m.n, m.idCounter]);
     }
     // Set the cached value.
     this.computeValue();

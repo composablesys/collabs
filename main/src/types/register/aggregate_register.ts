@@ -43,9 +43,10 @@ export abstract class AggregateArgsCRegister<
     S = T,
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
-  extends PrimitiveCrdt<{ entries: AggregateArgsCRegisterEntry<S>[] }, Events>
+  extends PrimitiveCrdt<Events>
   implements CRegister<T, SetArgs>
 {
+  protected entries: AggregateArgsCRegisterEntry<S>[] = [];
   private cachedValue: T | undefined = undefined;
   private cacheValid: boolean = false;
 
@@ -53,7 +54,7 @@ export abstract class AggregateArgsCRegister<
     readonly valueConstructor: (...args: SetArgs) => S,
     readonly argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super({ entries: [] });
+    super();
   }
 
   set(...args: SetArgs): T {
@@ -86,7 +87,7 @@ export abstract class AggregateArgsCRegister<
     let decoded = AggregateArgsCRegisterMessage.decode(message);
     let vc = timestamp.asVectorClock();
     let newState = new Array<AggregateArgsCRegisterEntry<S>>();
-    for (let entry of this.state.entries) {
+    for (let entry of this.entries) {
       let vcEntry = vc.get(entry.sender);
       if (vcEntry === undefined || vcEntry < entry.senderCounter) {
         newState.push(entry);
@@ -130,7 +131,7 @@ export abstract class AggregateArgsCRegister<
     // Note senders are always all distinct.
     newState.sort((a, b) => (a.sender < b.sender ? -1 : 1));
     // Replace this.state with newState
-    this.state.entries = newState;
+    this.entries = newState;
   }
 
   get value(): T {
@@ -153,7 +154,7 @@ export abstract class AggregateArgsCRegister<
    * in lexicographic order by sender.
    */
   conflicts(): S[] {
-    return this.state.entries.map((entry) => entry.value);
+    return this.entries.map((entry) => entry.value);
   }
 
   /**
@@ -165,16 +166,16 @@ export abstract class AggregateArgsCRegister<
    */
   conflictsMeta(): CRegisterEntryMeta<S>[] {
     // Defensive copy
-    return this.state.entries.slice();
+    return this.entries.slice();
   }
 
   canGc(): boolean {
-    return this.state.entries.length === 0;
+    return this.entries.length === 0;
   }
 
   savePrimitive(): Uint8Array {
     const message = AggregateArgsCRegisterSave.create({
-      entries: this.state.entries.map((entry) => {
+      entries: this.entries.map((entry) => {
         return {
           setArgs: entry.argsSerialized,
           sender: entry.sender,
@@ -189,7 +190,7 @@ export abstract class AggregateArgsCRegister<
   loadPrimitive(saveData: Uint8Array) {
     const message = AggregateArgsCRegisterSave.decode(saveData);
     for (let element of message.entries) {
-      this.state.entries.push(
+      this.entries.push(
         new AggregateArgsCRegisterEntry(
           this.constructValue(element.setArgs),
           element.sender,

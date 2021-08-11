@@ -5,24 +5,22 @@ import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";
 
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCrdt)<
-    {
-      value: boolean;
-    },
-    CRegisterEventsRecord<boolean>
-  >
+  extends MakeAbstractCBoolean(PrimitiveCrdt)<CRegisterEventsRecord<boolean>>
   implements CBoolean
 {
+  private valueInternal: boolean;
+
   constructor(private readonly initialValue = false) {
-    super({ value: initialValue });
+    super();
+    this.valueInternal = initialValue;
   }
 
   set value(value: boolean) {
-    if (value !== this.value) this.toggle();
+    if (value !== this.valueInternal) this.toggle();
   }
 
   get value(): boolean {
-    return this.state.value;
+    return this.valueInternal;
   }
 
   toggle() {
@@ -35,21 +33,21 @@ export class ToggleCBoolean
   ): void {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
-    this.state.value = !this.state.value;
-    this.emit("Set", { timestamp, previousValue: !this.state.value });
+    this.valueInternal = !this.valueInternal;
+    this.emit("Set", { timestamp, previousValue: !this.valueInternal });
   }
 
   protected savePrimitive(): Uint8Array {
     // Length 0 for false, 1 for true
-    if (this.value) return new Uint8Array();
+    if (this.valueInternal) return new Uint8Array();
     else return new Uint8Array(1);
   }
 
   protected loadPrimitive(saveData: Uint8Array): void {
-    this.value = saveData.length !== 0;
+    this.valueInternal = saveData.length !== 0;
   }
 
   canGc(): boolean {
-    return this.value === this.initialValue;
+    return this.valueInternal === this.initialValue;
   }
 }

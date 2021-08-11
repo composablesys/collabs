@@ -30,7 +30,7 @@ export class PrimitiveCListFromDenseLocalList<
   T,
   L extends object,
   DenseT extends DenseLocalList<L, T>
-> extends AbstractCListPrimitiveCrdt<DenseT, T, [T]> {
+> extends AbstractCListPrimitiveCrdt<DenseT, [T]> {
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
   // TODO: use uniqueNumbers (from ids) instead of
@@ -47,7 +47,7 @@ export class PrimitiveCListFromDenseLocalList<
   /**
    * keys are precisely the locs in the list.
    */
-  private readonly senderCounters = new Map<L, number>();
+  protected readonly senderCounters = new Map<L, number>();
 
   /**
    * @param denseLocalList                   [description]
@@ -58,18 +58,18 @@ export class PrimitiveCListFromDenseLocalList<
    * value instead.
    */
   constructor(
-    denseLocalList: DenseT,
+    protected readonly denseLocalList: DenseT,
     protected readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
     protected readonly valueArraySerializer:
       | ElementSerializer<T[]>
       | undefined = undefined
   ) {
-    super(denseLocalList);
+    super();
   }
 
   init(name: string, parent: CrdtParent) {
     super.init(name, parent);
-    this.state.setRuntime(this.runtime);
+    this.denseLocalList.setRuntime(this.runtime);
   }
 
   /**
@@ -88,7 +88,7 @@ export class PrimitiveCListFromDenseLocalList<
       throw new Error("At least one value must be provided");
     }
 
-    const locMessage = this.state.prepareNewLocs(index, values.length);
+    const locMessage = this.denseLocalList.prepareNewLocs(index, values.length);
     const imessage: IPrimitiveCListInsertMessage = { locMessage };
     if (values.length === 1) {
       imessage.value = this.valueSerializer.serialize(values[0]);
@@ -160,7 +160,9 @@ export class PrimitiveCListFromDenseLocalList<
     }
     if (count === 0) return;
     if (count === 1) {
-      const id = this.state.idOf(this.state.getLoc(startIndex));
+      const id = this.denseLocalList.idOf(
+        this.denseLocalList.getLoc(startIndex)
+      );
       const message = PrimitiveCListMessage.create({
         delete: {
           sender: id[0],
@@ -171,11 +173,13 @@ export class PrimitiveCListFromDenseLocalList<
     } else {
       const imessage: IPrimitiveCListDeleteRangeMessage = {};
       if (startIndex !== 0) {
-        imessage.startLoc = this.state.serialize(this.state.getLoc(startIndex));
+        imessage.startLoc = this.denseLocalList.serialize(
+          this.denseLocalList.getLoc(startIndex)
+        );
       }
       if (startIndex + count !== this.length) {
-        imessage.endLoc = this.state.serialize(
-          this.state.getLoc(startIndex + count - 1)
+        imessage.endLoc = this.denseLocalList.serialize(
+          this.denseLocalList.getLoc(startIndex + count - 1)
         );
       }
       const message = PrimitiveCListMessage.create({
@@ -219,7 +223,7 @@ export class PrimitiveCListFromDenseLocalList<
           default:
             throw new Error("Unrecognized insert.type: " + insert.type);
         }
-        const [index, locs] = this.state.receiveNewLocs(
+        const [index, locs] = this.denseLocalList.receiveNewLocs(
           insert.locMessage,
           timestamp,
           values
@@ -237,12 +241,12 @@ export class PrimitiveCListFromDenseLocalList<
         break;
       case "delete": {
         // Single delete, using id.
-        const toDelete = this.state.getLocById(
+        const toDelete = this.denseLocalList.getLocById(
           decoded.delete!.sender,
           decoded.delete!.uniqueNumber
         );
         if (toDelete !== undefined) {
-          const ret = this.state.delete(toDelete)!;
+          const ret = this.denseLocalList.delete(toDelete)!;
           // Delete from senderCounters.
           this.senderCounters.delete(toDelete);
           // Event
@@ -266,8 +270,8 @@ export class PrimitiveCListFromDenseLocalList<
         // extra O(log n) remove each (which is most of
         // the current cost).
         const startIndex = decoded.deleteRange!.hasOwnProperty("startLoc")
-          ? this.state.rightIndex(
-              this.state.deserialize(
+          ? this.denseLocalList.rightIndex(
+              this.denseLocalList.deserialize(
                 decoded.deleteRange!.startLoc!,
                 this.runtime
               )
@@ -275,17 +279,20 @@ export class PrimitiveCListFromDenseLocalList<
           : 0;
         // TODO: leftIndex name is improper
         const endIndex = decoded.deleteRange!.hasOwnProperty("endLoc")
-          ? this.state.leftIndex(
-              this.state.deserialize(decoded.deleteRange!.endLoc!, this.runtime)
+          ? this.denseLocalList.leftIndex(
+              this.denseLocalList.deserialize(
+                decoded.deleteRange!.endLoc!,
+                this.runtime
+              )
             ) - 1
           : this.length - 1;
 
         const vc = timestamp.asVectorClock();
         const toDelete: L[] = [];
         for (let i = startIndex; i <= endIndex; i++) {
-          const loc = this.state.getLoc(i);
+          const loc = this.denseLocalList.getLoc(i);
           // Check causality
-          const vcEntry = vc.get(this.state.idOf(loc)[0]);
+          const vcEntry = vc.get(this.denseLocalList.idOf(loc)[0]);
           if (
             vcEntry !== undefined &&
             vcEntry >= this.senderCounters.get(loc)!
@@ -301,7 +308,7 @@ export class PrimitiveCListFromDenseLocalList<
         // deletion.  This isn't necessary but may
         // avoid confusion.
         for (let i = toDelete.length - 1; i >= 0; i--) {
-          const ret = this.state.delete(toDelete[i])!;
+          const ret = this.denseLocalList.delete(toDelete[i])!;
           // Delete from senderCounters.
           this.senderCounters.delete(toDelete[i]);
           // Event
@@ -323,46 +330,46 @@ export class PrimitiveCListFromDenseLocalList<
   }
 
   get(index: number): T {
-    return this.state.get(index);
+    return this.denseLocalList.get(index);
   }
 
   values(): IterableIterator<T> {
-    return this.state.values();
+    return this.denseLocalList.values();
   }
 
   get length(): number {
-    return this.state.length;
+    return this.denseLocalList.length;
   }
 
   slice(start?: number, end?: number): T[] {
     // Optimize common case (slice())
     if (start === undefined && end === undefined) {
-      return this.state.valuesArray();
+      return this.denseLocalList.valuesArray();
     } else return super.slice(start, end);
   }
 
   canGc(): boolean {
-    return this.state.canGc();
+    return this.denseLocalList.canGc();
   }
 
   protected savePrimitive(): Uint8Array {
-    const senderCountersSave = new Array<number>(this.state.length);
+    const senderCountersSave = new Array<number>(this.denseLocalList.length);
     let i = 0;
-    this.state.forEach((loc) => {
+    this.denseLocalList.forEach((loc) => {
       senderCountersSave[i] = this.senderCounters.get(loc)!;
       i++;
     });
     const imessage: IPrimitiveCListSave = {
-      locs: this.state.saveLocs(),
+      locs: this.denseLocalList.saveLocs(),
       senderCounters: senderCountersSave,
     };
     if (this.valueArraySerializer !== undefined) {
       imessage.values = this.valueArraySerializer.serialize(
-        this.state.valuesArray()
+        this.denseLocalList.valuesArray()
       );
     } else {
       imessage.valuesArray = {
-        values: this.state
+        values: this.denseLocalList
           .valuesArray()
           .map((oneValue) => this.valueSerializer.serialize(oneValue)),
       };
@@ -378,9 +385,9 @@ export class PrimitiveCListFromDenseLocalList<
         decoded.values,
         this.runtime
       );
-      this.state.loadLocs(decoded.locs, (index) => values[index]);
+      this.denseLocalList.loadLocs(decoded.locs, (index) => values[index]);
     } else {
-      this.state.loadLocs(decoded.locs, (index) =>
+      this.denseLocalList.loadLocs(decoded.locs, (index) =>
         this.valueSerializer.deserialize(
           decoded.valuesArray!.values![index],
           this.runtime
@@ -389,12 +396,12 @@ export class PrimitiveCListFromDenseLocalList<
     }
     // Load this.senderCounters.
     let i = 0;
-    this.state.forEach((loc) => {
+    this.denseLocalList.forEach((loc) => {
       this.senderCounters.set(loc, decoded.senderCounters[i]);
       i++;
     });
-    // for (const loc of this.state.locs()) {
-    //   const id = this.state.idOf(loc);
+    // for (const loc of this.denseLocalList.locs()) {
+    //   const id = this.denseLocalList.idOf(loc);
     //   let senderLocsById = this.locsById.get(id[0]);
     //   if (senderLocsById === undefined) {
     //     senderLocsById = new Map();

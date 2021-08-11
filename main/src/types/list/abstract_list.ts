@@ -488,13 +488,10 @@ export const AbstractCListCompositeCrdt = MakeAbstractCList(
 export const AbstractCListPrimitiveCrdt = MakeAbstractCList(
   PrimitiveCrdt
 ) as abstract new <
-  S extends Object,
   T,
   InsertArgs extends any[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
->(
-  state: S
-) => AbstractCList<T, InsertArgs> & PrimitiveCrdt<S, Events>;
+>() => AbstractCList<T, InsertArgs> & PrimitiveCrdt<Events>;
 
 export const AbstractCListCrdt = MakeAbstractCList(Crdt) as abstract new <
   T,

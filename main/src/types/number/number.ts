@@ -2,6 +2,7 @@ import { CNumberComponentMessage } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import { SemidirectProduct } from "../helper_crdts";
 import { CrdtEvent, CrdtEventsRecord, PrimitiveCrdt } from "../core";
+import { StatefulCrdt } from "../../constructions";
 
 export interface CNumberEvent extends CrdtEvent {
   readonly arg: number;
@@ -22,12 +23,14 @@ export class CNumberState {
 }
 
 // Exporting just for tests, it's not exported at top-level
-export class AddComponent extends PrimitiveCrdt<
-  CNumberState,
-  CNumberEventsRecord
-> {
+export class AddComponent
+  extends PrimitiveCrdt<CNumberEventsRecord>
+  implements StatefulCrdt<CNumberState>
+{
+  readonly state: CNumberState;
   constructor(initialState: CNumberState) {
-    super(initialState);
+    super();
+    this.state = initialState;
   }
 
   add(toAdd: number) {
@@ -66,12 +69,14 @@ export class AddComponent extends PrimitiveCrdt<
 }
 
 // Exporting just for tests, it's not exported at top-level
-export class MultComponent extends PrimitiveCrdt<
-  CNumberState,
-  CNumberEventsRecord
-> {
+export class MultComponent
+  extends PrimitiveCrdt<CNumberEventsRecord>
+  implements StatefulCrdt<CNumberState>
+{
+  readonly state: CNumberState;
   constructor(initialState: CNumberState) {
-    super(initialState);
+    super();
+    this.state = initialState;
   }
 
   mult(toMult: number) {

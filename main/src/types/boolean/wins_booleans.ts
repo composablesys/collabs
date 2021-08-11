@@ -11,15 +11,10 @@ interface WinsCBooleanEntry {
 }
 
 export class TrueWinsCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCrdt)<
-    WinsCBooleanEntry[],
-    CRegisterEventsRecord<boolean>
-  >
+  extends MakeAbstractCBoolean(PrimitiveCrdt)<CRegisterEventsRecord<boolean>>
   implements Resettable
 {
-  constructor() {
-    super([]);
-  }
+  private entries: WinsCBooleanEntry[] = [];
 
   set value(value: boolean) {
     // Length 0 for true, length 1 for false.
@@ -32,7 +27,7 @@ export class TrueWinsCBoolean
   }
 
   get value(): boolean {
-    return this.state.length !== 0;
+    return this.entries.length !== 0;
   }
 
   protected receivePrimitive(
@@ -41,24 +36,24 @@ export class TrueWinsCBoolean
   ): void {
     const previousValue = this.value;
 
-    const newState: WinsCBooleanEntry[] = [];
+    const newEntries: WinsCBooleanEntry[] = [];
     let vc = timestamp.asVectorClock();
-    for (const entry of this.state) {
+    for (const entry of this.entries) {
       let vcEntry = vc.get(entry.sender);
       if (vcEntry === undefined || vcEntry < entry.senderCounter) {
-        newState.push(entry);
+        newEntries.push(entry);
       }
     }
 
     if (message.length === 0) {
       // It's setting to true, add a new entry.
-      newState.push({
+      newEntries.push({
         sender: timestamp.getSender(),
         senderCounter: timestamp.getSenderCounter(),
       });
     }
 
-    this.state.splice(0, this.state.length, ...newState);
+    this.entries = newEntries;
 
     // Event
     if (this.value !== previousValue) {
@@ -67,7 +62,7 @@ export class TrueWinsCBoolean
   }
 
   canGc(): boolean {
-    return this.state.length === 0;
+    return this.entries.length === 0;
   }
 
   reset() {
@@ -77,8 +72,8 @@ export class TrueWinsCBoolean
 
   protected savePrimitive(): Uint8Array {
     const message = WinsCBooleanSave.create({
-      senders: this.state.map((entry) => entry.sender),
-      senderCounters: this.state.map((entry) => entry.senderCounter),
+      senders: this.entries.map((entry) => entry.sender),
+      senderCounters: this.entries.map((entry) => entry.senderCounter),
     });
     return WinsCBooleanSave.encode(message).finish();
   }
@@ -86,7 +81,7 @@ export class TrueWinsCBoolean
   protected loadPrimitive(saveData: Uint8Array): void {
     const decoded = WinsCBooleanSave.decode(saveData);
     for (let i = 0; i < decoded.senders.length; i++) {
-      this.state.push({
+      this.entries.push({
         sender: decoded.senders[i],
         senderCounter: decoded.senderCounters[i],
       });

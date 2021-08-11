@@ -1,7 +1,25 @@
 import { CausalTimestamp } from "../../net";
 import { EventEmitter } from "../../util";
-import { CrdtParent } from "./interfaces";
 import { RootCrdt, Runtime } from "./runtime";
+
+/**
+ * A Crdt that can be a parent to other Crdts.
+ *
+ * In addition to implementing this interface,
+ * Crdt parents are responsible for calling
+ * Crdt.init(name, this) on each child Crdt immediately
+ * after the child is constructed,
+ * where name is the child Crdt's name.
+ */
+export interface CrdtParent extends Crdt {
+  /**
+   * Callback called by a child at the end of init when this is passed
+   * to init as parent.  It should throw an error if this is not the
+   * object calling init.
+   * @param child the child Crdt on which init was called with this as parent
+   */
+  onChildInit(child: Crdt): void;
+}
 
 /**
  * An event issued when a Crdt is changed by either

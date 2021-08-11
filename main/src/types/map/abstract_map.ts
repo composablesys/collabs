@@ -135,14 +135,11 @@ export const AbstractCMapCompositeCrdt = MakeAbstractCMap(
 export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
   PrimitiveCrdt
 ) as abstract new <
-  S extends Object,
   K,
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->(
-  state: S
-) => AbstractCMap<K, V, SetArgs> & PrimitiveCrdt<S, Events>;
+>() => AbstractCMap<K, V, SetArgs> & PrimitiveCrdt<Events>;
 
 export const AbstractCMapCrdt = MakeAbstractCMap(Crdt) as abstract new <
   K,

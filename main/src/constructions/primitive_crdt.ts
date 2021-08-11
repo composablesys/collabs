@@ -1,6 +1,5 @@
 import { CausalTimestamp } from "../../net";
 import { Crdt, CrdtEventsRecord } from "./crdt";
-import { StatefulCrdt } from "./interfaces";
 
 /**
  * TODO: description, correctness definition (from paper)
@@ -8,19 +7,8 @@ import { StatefulCrdt } from "./interfaces";
  * TODO: type param docstrings
  */
 export abstract class PrimitiveCrdt<
-    S extends Object,
-    Events extends CrdtEventsRecord = CrdtEventsRecord
-  >
-  extends Crdt<Events>
-  implements StatefulCrdt<S>
-{
-  readonly state: S;
-
-  constructor(state: S) {
-    super();
-    this.state = state;
-  }
-
+  Events extends CrdtEventsRecord = CrdtEventsRecord
+> extends Crdt<Events> {
   protected send(message: Uint8Array) {
     this.runtime.send(this, message);
   }

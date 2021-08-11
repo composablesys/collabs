@@ -99,13 +99,10 @@ export const AbstractCSetCompositeCrdt = MakeAbstractCSet(
 export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
   PrimitiveCrdt
 ) as abstract new <
-  S extends Object,
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->(
-  state: S
-) => AbstractCSet<T, AddArgs> & PrimitiveCrdt<S, Events>;
+>() => AbstractCSet<T, AddArgs> & PrimitiveCrdt<Events>;
 
 export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
   T,

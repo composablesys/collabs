@@ -3,13 +3,7 @@ import {
   SemidirectProductSave,
 } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import {
-  Crdt,
-  CrdtEventsRecord,
-  CrdtParent,
-  Runtime,
-  StatefulCrdt,
-} from "../core";
+import { Crdt, CrdtEventsRecord, CrdtParent, Runtime } from "../core";
 import { LocallyResettableState } from "./resettable";
 
 // TODO: revise this file.
@@ -262,6 +256,33 @@ class SemidirectStateLocallyResettable<S extends LocallyResettableState>
 export type SemidirectState<S> = S extends LocallyResettableState
   ? SemidirectStateBase<S> & LocallyResettableState
   : SemidirectStateBase<S>;
+
+/**
+ * Interface describing a Crdt which stores all of its mutable state
+ * in a single readonly variable state of type S.
+ *
+ * Such a Crdt must continue
+ * to function after state is mutated or even replaced (ignoring state's
+ * readonly property) as if it had changed state itself.
+ *
+ * This interace is used by SemidirectProduct, which composes two
+ * StatefulCrdt's of the same type, unifying their states by setting
+ * both state variables equal to the same value.  Note that
+ * SemidirectProduct ignores the readonly property during
+ * init, possibly overwriting state with a different instance
+ * of S.
+ *
+ * @param S the state type.  S is forced to extend Object
+ * because state is meant to be mutated in-place, since
+ * it is readonly.  Immutable primitive types (e.g., number)
+ * should be wrapped in an object.
+ */
+export interface StatefulCrdt<S extends Object> extends Crdt {
+  /**
+   * Not for use outside of this (treat as protected).
+   */
+  readonly state: S;
+}
 
 export abstract class SemidirectProduct<
     S extends Object,
