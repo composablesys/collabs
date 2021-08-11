@@ -1,5 +1,15 @@
+import {
+  IMultiSemidirectProductSenderHistory,
+  MultiSemidirectProductSave,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import { Crdt, CrdtEventsRecord, CrdtParent, StatefulCrdt } from "../core";
+import {
+  Crdt,
+  CrdtEventsRecord,
+  CrdtParent,
+  Runtime,
+  StatefulCrdt,
+} from "../core";
 import { LocallyResettableState } from "./resettable";
 
 class StoredMessage {
@@ -216,16 +226,71 @@ class MultipleSemidirectStateBase<S extends Object> {
     }
     return sparseArray.length;
   }
+
+  save(runtime: Runtime): Uint8Array {
+    const historySave: {
+      [sender: string]: IMultiSemidirectProductSenderHistory;
+    } = {};
+    for (const [arbId, messages] of this.history) {
+      historySave[arbId] = {
+        messages: messages.map((message) => {
+          return {
+            sender: message.sender,
+            senderCounter: message.senderCounter,
+            receiptCounter: message.receiptCounter,
+            targetPath: message.targetPath,
+            timestamp: this.historyTimestamps
+              ? runtime.timestampSerializer.serialize(message.timestamp!)
+              : null,
+            arbIndex: message.arbIndex,
+            message: message.message,
+          };
+        }),
+      };
+    }
+    const saveMessage = MultiSemidirectProductSave.create({
+      receiptCounter: this.receiptCounter,
+      history: historySave,
+    });
+    return MultiSemidirectProductSave.encode(saveMessage).finish();
+  }
+
+  load(saveData: Uint8Array, runtime: Runtime) {
+    const saveMessage = MultiSemidirectProductSave.decode(saveData);
+    this.receiptCounter = saveMessage.receiptCounter;
+    for (const [arbId, messages] of Object.entries(saveMessage.history)) {
+      this.history.set(
+        parseInt(arbId),
+        messages.messages!.map(
+          (message) =>
+            new StoredMessage(
+              message.sender,
+              message.senderCounter,
+              message.receiptCounter,
+              message.targetPath!,
+              this.historyTimestamps
+                ? runtime.timestampSerializer.deserialize(
+                    message.timestamp!,
+                    runtime
+                  )
+                : null,
+              message.arbIndex,
+              message.message
+            )
+        )
+      );
+    }
+  }
 }
 
 class MultipleSemidirectStateLocallyResettable<S extends LocallyResettableState>
   extends MultipleSemidirectStateBase<S>
   implements LocallyResettableState
 {
-  resetLocalState() {
+  resetLocalState(timestamp: CausalTimestamp) {
     this.receiptCounter = 0;
     this.history.clear();
-    this.internalState.resetLocalState();
+    this.internalState.resetLocalState(timestamp);
   }
 }
 
@@ -399,28 +464,19 @@ export abstract class MultipleSemidirectProduct<
     }
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
+  getChild(name: string): Crdt {
     let idx: number;
-    let child: Crdt;
     if (
-      targetPath[0].substr(0, 4) == "crdt" &&
-      (idx = parseInt(targetPath[0].substr(4))) !== NaN
+      name.substr(0, 4) == "crdt" &&
+      (idx = parseInt(name.substr(4))) !== NaN
     ) {
-      let idx = parseInt(targetPath[0].substr(4));
-      child = this.crdts[idx];
+      let idx = parseInt(name.substr(4));
+      return this.crdts[idx];
     } else {
       throw new Error(
-        "Unknown child: " +
-          targetPath[targetPath.length - 1] +
-          " in SemidirectProduct: " +
-          JSON.stringify(targetPath)
+        "Unknown child: " + name + " in MultipleSemidirectProduct: "
       );
     }
-
-    targetPath.length--;
-    return child.getDescendant(targetPath);
   }
 
   canGc(): boolean {
@@ -435,5 +491,23 @@ export abstract class MultipleSemidirectProduct<
     });
 
     return this.state.isHistoryEmpty() && crdtsCanGc;
+  }
+
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
+    let crdts: [string, Crdt<CrdtEventsRecord>][] = [];
+    for (let i = 0; i < this.crdts.length; i++) {
+      crdts.push(["crdt" + i.toString(), this.crdts[i]]);
+    }
+
+    return [this.state.save(this.runtime), new Map(crdts)];
+  }
+
+  // TODO: the children loading their own states (both
+  // of them, in arbitrary order) must correctly set
+  // this.internalState, whatever it is.
+  // Need option to do custom loading if that's not the
+  // case.
+  load(saveData: Uint8Array) {
+    this.state.load(saveData, this.runtime);
   }
 }

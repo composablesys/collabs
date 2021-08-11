@@ -1,5 +1,5 @@
 message CrdtReference {
-    repeated bytes pathToRoot = 1;
+    repeated bytes pathToBase = 1;
 }
 
 message ArrayMessage {
@@ -21,4 +21,9 @@ message DefaultSerializerMessage {
         ArrayMessage arrayValue = 7;
         ObjectMessage objectValue = 8;
     }
+}
+
+message PairSerializerMessage {
+  required bytes one = 1;
+  required bytes two = 2;
 }

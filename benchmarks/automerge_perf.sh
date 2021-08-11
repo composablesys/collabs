@@ -16,21 +16,26 @@ fi
 
 if [ ! -z $5 ] && [ $5 == "--oursOnly" ]
 then
-  names=("treedocLww" "textCrdt" "mapLww")
+  names=("treedocLww" "textCrdt" "mapLww" "rgaLww" "rga")
 elif [ ! -z $5 ] && [ $5 == "--theirsOnly" ]
 then
   names=("yjs" "automerge")
 else
-  names=("treedocLww" "textCrdt" "mapLww" "yjs" "automerge")
+  names=("treedocLww" "textCrdt" "mapLww" "rgaLww" "rga" "yjs" "automerge")
 fi
 
 for frequency in "whole" "rounds"
 do
-    for measurement in "time" "network" "memory"
+    for measurement in "time" "network" "memory" "save"
     do
       for name in ${names[*]}
       do
-          npm start -- $1 $2 $3 $4 "automerge_perf" $name $measurement $frequency
+          if [ $frequency == "rounds" ] && [ $measurement == "save" ] && [ $name == "treedocLww" ]
+          then
+            echo "Skipping automerge_perf treedocLww save rounds"
+          else
+            npm start -- $1 $2 $3 $4 "automerge_perf" $name $measurement $frequency
+          fi
       done
     done
 done

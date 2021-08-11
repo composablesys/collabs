@@ -1,9 +1,0 @@
-message SequentialMapMessage {
-  enum Operation {
-    SET = 0;
-    DELETE = 1;
-  }
-  required Operation operation = 0;
-  required bytes key = 1;
-  optional bytes value = 2;
-}

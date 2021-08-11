@@ -17,7 +17,9 @@ function sendWebRtcSignalMessage(connection: any, message: any) {
  * This CRDT server will broadcast all messages that a client
  * WebSocket broadcasting to every other connected WebSocket clients, excluding itself.
  */
-export function startServer(webSocketArgs: WebSocket.ServerOptions) {
+export function startServer(webSocketArgs: WebSocket.ServerOptions): {
+  reset(): void;
+} {
   /**
    * Initialize the WebSocket server instance variables.
    */
@@ -246,4 +248,10 @@ export function startServer(webSocketArgs: WebSocket.ServerOptions) {
   wss.on("close", function close() {
     clearInterval(interval);
   });
+
+  return {
+    reset() {
+      groupHistory.clear();
+    },
+  };
 }

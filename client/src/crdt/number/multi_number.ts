@@ -1,16 +1,34 @@
-import { DefaultNumberComponentMessage } from "../../../generated/proto_compiled";
+import { MNumberComponentMessage } from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
 import {
   LocallyResettableState,
   ResetWrapClass,
   MultipleSemidirectProduct,
 } from "../helper_crdts";
-import { PrimitiveCrdt } from "../core";
-import { Number, NumberEventsRecord } from "./interfaces";
+import { CrdtEvent, CrdtEventsRecord, PrimitiveCrdt } from "../core";
 
 // TODO: handle floating point non-commutativity
 
-export class MultiNumberState implements LocallyResettableState {
+export interface MNumberAddEvent extends CrdtEvent {
+  readonly added: number;
+}
+
+export interface MNumberMultEvent extends CrdtEvent {
+  readonly multed: number;
+}
+
+export interface MNumberCompEvent extends CrdtEvent {
+  readonly compared: number;
+}
+
+export interface MNumberEventsRecord extends CrdtEventsRecord {
+  Add: MNumberAddEvent;
+  Mult: MNumberMultEvent;
+  Min: MNumberCompEvent;
+  Max: MNumberCompEvent;
+}
+
+export class MNumberState implements LocallyResettableState {
   value: number;
   constructor(readonly initialValue: number) {
     this.value = initialValue;
@@ -22,23 +40,23 @@ export class MultiNumberState implements LocallyResettableState {
 
 // Exporting just for tests, it's not exported at top-level
 export class AddComponent extends PrimitiveCrdt<
-  MultiNumberState,
-  NumberEventsRecord
+  MNumberState,
+  MNumberEventsRecord
 > {
-  constructor(initialState: MultiNumberState) {
+  constructor(initialState: MNumberState) {
     super(initialState);
   }
 
   add(toAdd: number) {
     if (toAdd !== 0) {
-      let message = DefaultNumberComponentMessage.create({ arg: toAdd });
-      let buffer = DefaultNumberComponentMessage.encode(message).finish();
+      let message = MNumberComponentMessage.create({ arg: toAdd });
+      let buffer = MNumberComponentMessage.encode(message).finish();
       super.send(buffer);
     }
   }
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = DefaultNumberComponentMessage.decode(message);
+    let decoded = MNumberComponentMessage.decode(message);
     this.state.value += decoded.arg;
     this.emit("Add", {
       timestamp,
@@ -49,26 +67,37 @@ export class AddComponent extends PrimitiveCrdt<
   canGc() {
     return this.state.value === this.state.initialValue;
   }
+
+  savePrimitive(): Uint8Array {
+    let message = MNumberComponentMessage.create({
+      arg: this.state.value,
+    });
+    return MNumberComponentMessage.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    this.state.value = MNumberComponentMessage.decode(saveData).arg;
+  }
 }
 
 export class MultComponent extends PrimitiveCrdt<
-  MultiNumberState,
-  NumberEventsRecord
+  MNumberState,
+  MNumberEventsRecord
 > {
-  constructor(initialState: MultiNumberState) {
+  constructor(initialState: MNumberState) {
     super(initialState);
   }
 
   mult(toMult: number) {
     if (toMult !== 1) {
-      let message = DefaultNumberComponentMessage.create({ arg: toMult });
-      let buffer = DefaultNumberComponentMessage.encode(message).finish();
+      let message = MNumberComponentMessage.create({ arg: toMult });
+      let buffer = MNumberComponentMessage.encode(message).finish();
       super.send(buffer);
     }
   }
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = DefaultNumberComponentMessage.decode(message);
+    let decoded = MNumberComponentMessage.decode(message);
     this.state.value *= decoded.arg;
     this.emit("Mult", {
       timestamp,
@@ -79,24 +108,35 @@ export class MultComponent extends PrimitiveCrdt<
   canGc() {
     return this.state.value === this.state.initialValue;
   }
+
+  savePrimitive(): Uint8Array {
+    let message = MNumberComponentMessage.create({
+      arg: this.state.value,
+    });
+    return MNumberComponentMessage.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    this.state.value = MNumberComponentMessage.decode(saveData).arg;
+  }
 }
 
 export class MinComponent extends PrimitiveCrdt<
-  MultiNumberState,
-  NumberEventsRecord
+  MNumberState,
+  MNumberEventsRecord
 > {
-  constructor(initialState: MultiNumberState) {
+  constructor(initialState: MNumberState) {
     super(initialState);
   }
 
   min(toComp: number) {
-    let message = DefaultNumberComponentMessage.create({ arg: toComp });
-    let buffer = DefaultNumberComponentMessage.encode(message).finish();
+    let message = MNumberComponentMessage.create({ arg: toComp });
+    let buffer = MNumberComponentMessage.encode(message).finish();
     super.send(buffer);
   }
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = DefaultNumberComponentMessage.decode(message);
+    let decoded = MNumberComponentMessage.decode(message);
     this.state.value = Math.min(this.state.value, decoded.arg);
     this.emit("Min", {
       timestamp,
@@ -107,24 +147,35 @@ export class MinComponent extends PrimitiveCrdt<
   canGc() {
     return this.state.value === this.state.initialValue;
   }
+
+  savePrimitive(): Uint8Array {
+    let message = MNumberComponentMessage.create({
+      arg: this.state.value,
+    });
+    return MNumberComponentMessage.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    this.state.value = MNumberComponentMessage.decode(saveData).arg;
+  }
 }
 
 export class MaxComponent extends PrimitiveCrdt<
-  MultiNumberState,
-  NumberEventsRecord
+  MNumberState,
+  MNumberEventsRecord
 > {
-  constructor(initialState: MultiNumberState) {
+  constructor(initialState: MNumberState) {
     super(initialState);
   }
 
   max(toComp: number) {
-    let message = DefaultNumberComponentMessage.create({ arg: toComp });
-    let buffer = DefaultNumberComponentMessage.encode(message).finish();
+    let message = MNumberComponentMessage.create({ arg: toComp });
+    let buffer = MNumberComponentMessage.encode(message).finish();
     super.send(buffer);
   }
 
   protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
-    let decoded = DefaultNumberComponentMessage.decode(message);
+    let decoded = MNumberComponentMessage.decode(message);
     this.state.value = Math.max(this.state.value, decoded.arg);
     this.emit("Max", {
       timestamp,
@@ -135,11 +186,22 @@ export class MaxComponent extends PrimitiveCrdt<
   canGc() {
     return this.state.value === this.state.initialValue;
   }
+
+  savePrimitive(): Uint8Array {
+    let message = MNumberComponentMessage.create({
+      arg: this.state.value,
+    });
+    return MNumberComponentMessage.encode(message).finish();
+  }
+
+  loadPrimitive(saveData: Uint8Array) {
+    this.state.value = MNumberComponentMessage.decode(saveData).arg;
+  }
 }
 
-class MultiNumberBase extends MultipleSemidirectProduct<
-  MultiNumberState,
-  NumberEventsRecord
+export class MNumber extends MultipleSemidirectProduct<
+  MNumberState,
+  MNumberEventsRecord
 > {
   private minCrdt: MinComponent;
   private maxCrdt: MaxComponent;
@@ -147,7 +209,7 @@ class MultiNumberBase extends MultipleSemidirectProduct<
   private multCrdt: MultComponent;
   constructor(initialValue: number = 0) {
     super(false);
-    const state = new MultiNumberState(initialValue);
+    const state = new MNumberState(initialValue);
     this.addCrdt = new AddComponent(state);
     this.multCrdt = new MultComponent(state);
     this.minCrdt = new MinComponent(state);
@@ -178,8 +240,8 @@ class MultiNumberBase extends MultipleSemidirectProduct<
     _m1Timestamp: CausalTimestamp,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    let m2Decoded = DefaultNumberComponentMessage.decode(m2Message);
-    let m1Decoded = DefaultNumberComponentMessage.decode(m1Message);
+    let m2Decoded = MNumberComponentMessage.decode(m2Message);
+    let m1Decoded = MNumberComponentMessage.decode(m1Message);
     var actedArg: number;
     switch (m2Index) {
       case 3:
@@ -194,13 +256,13 @@ class MultiNumberBase extends MultipleSemidirectProduct<
       default:
         actedArg = m1Decoded.arg;
     }
-    let acted = DefaultNumberComponentMessage.create({
+    let acted = MNumberComponentMessage.create({
       arg: actedArg,
     });
 
     return {
       m1TargetPath: [],
-      m1Message: DefaultNumberComponentMessage.encode(acted).finish(),
+      m1Message: MNumberComponentMessage.encode(acted).finish(),
     };
   }
 
@@ -230,37 +292,5 @@ class MultiNumberBase extends MultipleSemidirectProduct<
     return this.state.internalState.value === -0
       ? 0
       : this.state.internalState.value;
-  }
-}
-
-export class MultiNumber
-  extends ResetWrapClass(MultiNumberBase)<NumberEventsRecord>
-  implements Number
-{
-  constructor(initialValue: number = 0) {
-    super(initialValue);
-    this.original.on("Add", (event) => this.emit("Add", event));
-    this.original.on("Mult", (event) => this.emit("Mult", event));
-    this.original.on("Min", (event) => this.emit("Min", event));
-    this.original.on("Max", (event) => this.emit("Max", event));
-  }
-  add(toAdd: number): void {
-    this.original.add(toAdd);
-  }
-
-  mult(toMult: number) {
-    this.original.mult(toMult);
-  }
-
-  min(toComp: number) {
-    this.original.min(toComp);
-  }
-
-  max(toComp: number) {
-    this.original.max(toComp);
-  }
-
-  get value(): number {
-    return this.original.value;
   }
 }

@@ -1,0 +1,25 @@
+message TreedocLocMessage {
+  required bytes path = 1;
+  repeated uint32 disIndices = 2 [packed=true];
+  repeated string disSendersIndex = 3;
+  repeated uint32 disSenders = 4 [packed=true];
+  repeated sint32 disUniqueNumbers = 5 [packed=true];
+}
+
+message TreedocLocWrapperMessage {
+  required bytes anchor = 1;
+  required string sender = 2;
+  required sint32 uniqueNumber = 3;
+}
+
+message TreedocDenseLocalListSave {
+  repeated bytes anchors = 1;
+  repeated string senders = 2;
+  // The next 4 array fields are in sync, with the i-th
+  // entries identifying the i-th TreedocLocWrapper.
+  // Index into anchors field:
+  repeated uint32 anchorIndices = 3 [packed=true];
+  // Index into senders field:
+  repeated uint32 senderIndices = 4 [packed=true];
+  repeated sint32 uniqueNumbers = 5 [packed=true];
+}

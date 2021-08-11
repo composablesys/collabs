@@ -11,6 +11,8 @@ import {
   sleep,
 } from "../record";
 
+const DEBUG = false;
+
 const OPS = 200;
 const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
@@ -57,18 +59,24 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
   }
 
   async run(
-    measurement: "time" | "memory" | "network",
+    measurement: "time" | "memory" | "network" | "save",
     frequency: "whole" | "rounds"
   ) {
     console.log("Starting micro_crdts test: " + this.testName);
 
-    let results = new Array<number>(getRecordedTrials());
-    let roundResults = new Array<number[]>(getRecordedTrials());
+    let results = new Array<{ [measurement: string]: number }>(
+      getRecordedTrials()
+    );
+    let roundResults = new Array<{ [measurement: string]: number }[]>(
+      getRecordedTrials()
+    );
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
       for (let i = 0; i < getRecordedTrials(); i++)
-        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+        roundResults[i] = new Array<{ [measurement: string]: number }>(
+          Math.ceil(OPS / ROUND_OPS)
+        );
     }
 
     let startingBaseline = 0;
@@ -80,6 +88,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       console.log("Starting trial " + trial);
 
       let rng = seedrandom(SEED);
+      const replicaIdRng = seedrandom(SEED + SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -91,7 +100,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let runtimes: crdts.Runtime[] = [];
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
-        runtimes[i] = generator.newRuntime("manual", rng);
+        runtimes[i] = generator.newRuntime("manual", replicaIdRng);
         crdtList[i] = this.crdtConstructor();
         runtimes[i].registerCrdt("", crdtList[i]);
       }
@@ -114,18 +123,57 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
-          let ans = -1;
+          let ans: { [measurement: string]: number } = {};
           switch (measurement) {
             case "time":
-              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
+              ans[measurement] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
               break;
             case "memory":
               // Don't count the last message in TestingNetwork
               generator.lastMessage = undefined;
-              ans = await getMemoryUsed();
+              ans[measurement] = await getMemoryUsed();
               break;
             case "network":
-              ans = generator.getTotalSentBytes() - startSentBytes;
+              ans[measurement] = generator.getTotalSentBytes() - startSentBytes;
+              break;
+            case "save":
+              // Just save and load user 0
+              let beforeSave: Object;
+              if (DEBUG) beforeSave = this.getState(crdtList[0]);
+              const saveStartTime = process.hrtime.bigint();
+              const saveData = runtimes[0].save();
+              const saveTime = new Number(
+                process.hrtime.bigint() - saveStartTime!
+              ).valueOf();
+              if (this.crdtDestructor !== undefined) {
+                this.crdtDestructor(crdtList[0]);
+              }
+              // Create a new runtime etc. for user 0, then load
+              const loadStartTime = process.hrtime.bigint();
+              runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+              crdtList[0] = this.crdtConstructor();
+              runtimes[0].registerCrdt("", crdtList[0]);
+              runtimes[0].load(saveData);
+              const loadTime = new Number(
+                process.hrtime.bigint() - loadStartTime!
+              ).valueOf();
+              // Record
+              ans = {
+                saveTime,
+                saveSize: saveData.byteLength,
+                loadTime,
+              };
+              if (DEBUG) {
+                const afterSave = this.getState(crdtList[0]);
+                assert.deepStrictEqual(
+                  beforeSave!,
+                  afterSave,
+                  "afterSave did not equal beforeSave"
+                );
+              }
+              break;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -145,18 +193,49 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
 
       // Record result
-      let result = -1;
+      // TODO: de-duplicate code (shared with rounds measurements)
+      let result: { [measurement: string]: number } = {};
       switch (measurement) {
         case "time":
-          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          result[measurement] = new Number(
+            process.hrtime.bigint() - startTime!
+          ).valueOf();
           break;
         case "memory":
           // Don't count the last message in TestingNetwork
           generator.lastMessage = undefined;
-          result = await getMemoryUsed();
+          result[measurement] = await getMemoryUsed();
           break;
         case "network":
-          result = generator.getTotalSentBytes() - startSentBytes;
+          result[measurement] = generator.getTotalSentBytes() - startSentBytes;
+          break;
+        case "save":
+          // Just save and load user 0
+          const saveStartTime = process.hrtime.bigint();
+          const saveData = runtimes[0].save();
+          const saveTime = new Number(
+            process.hrtime.bigint() - saveStartTime!
+          ).valueOf();
+          if (this.crdtDestructor !== undefined) {
+            this.crdtDestructor(crdtList[0]);
+          }
+          crdtList[0] = undefined as unknown as C;
+          // Create a new runtime etc. for user 0, then load
+          const loadStartTime = process.hrtime.bigint();
+          runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+          crdtList[0] = this.crdtConstructor();
+          runtimes[0].registerCrdt("", crdtList[0]);
+          runtimes[0].load(saveData);
+          const loadTime = new Number(
+            process.hrtime.bigint() - loadStartTime!
+          ).valueOf();
+          // Record
+          result = {
+            saveTime,
+            saveSize: saveData.byteLength,
+            loadTime,
+          };
+          break;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -181,19 +260,31 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
     }
 
-    record(
-      "micro_crdts/" + measurement,
-      this.testName,
-      frequency,
-      getRecordedTrials(),
-      results,
-      roundResults,
-      roundOps,
-      measurement === "memory"
-        ? baseMemories
-        : new Array<number>(getRecordedTrials()).fill(0),
-      startingBaseline
-    );
+    let toRecord: string[];
+    switch (measurement) {
+      case "save":
+        toRecord = ["saveTime", "loadTime", "saveSize"];
+        break;
+      default:
+        toRecord = [measurement];
+    }
+    for (const oneRecord of toRecord) {
+      record(
+        "micro_crdts/" + oneRecord,
+        this.testName,
+        frequency,
+        getRecordedTrials(),
+        results.map((result) => result[oneRecord]),
+        roundResults.map((trialResult) =>
+          trialResult.map((result) => result[oneRecord])
+        ),
+        roundOps,
+        oneRecord === "memory"
+          ? baseMemories
+          : new Array<number>(getRecordedTrials()).fill(0),
+        startingBaseline
+      );
+    }
   }
 }
 
@@ -234,7 +325,7 @@ function DeepNoopCrdt() {
 
 function ICounter(
   name: string,
-  counter: typeof crdts.AddOnlyNumber,
+  counter: typeof crdts.CCounter,
   resetFraction: number
 ) {
   return new MicroCrdtsBenchmark(
@@ -254,16 +345,16 @@ function ICounter(
 function MultiValueRegister() {
   return new MicroCrdtsBenchmark(
     "MultiValueRegister",
-    () => new crdts.LwwRegister<number>(0),
+    () => new crdts.LwwCRegister<number>(0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.conflicts()
   );
 }
 
-function LwwRegister() {
+function LwwCRegister() {
   return new MicroCrdtsBenchmark(
     "Register",
-    () => new crdts.LwwRegister<number>(0),
+    () => new crdts.LwwCRegister<number>(0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.value
   );
@@ -272,7 +363,7 @@ function LwwRegister() {
 function NumberCrdt() {
   return new MicroCrdtsBenchmark(
     "NumberCrdt",
-    () => new crdts.DefaultNumber(1),
+    () => new crdts.CNumber(1),
     {
       Add: [(crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)), 0.5],
       Mult: [(crdt, rng) => crdt.mult(Math.floor(8 * rng() - 4) / 2), 0.5],
@@ -284,7 +375,7 @@ function NumberCrdt() {
 function EnableWinsFlag() {
   return new MicroCrdtsBenchmark(
     "EnableWinsFlag",
-    () => new crdts.TrueWinsBoolean(),
+    () => new crdts.TrueWinsCBoolean(),
     {
       Enable: [(crdt) => (crdt.value = true), 0.5],
       Disable: [(crdt) => (crdt.value = false), 0.5],
@@ -296,7 +387,7 @@ function EnableWinsFlag() {
 function AddWinsSet() {
   return new MicroCrdtsBenchmark(
     "AddWinsSet",
-    () => new crdts.AddWinsPlainSet<number>(),
+    () => new crdts.AddWinsCSet<number>(),
     {
       Toggle: [
         (crdt, rng) => {
@@ -323,7 +414,7 @@ function AddWinsSetRolling() {
     "AddWinsSetRolling",
     () => {
       i = 0;
-      return new crdts.AddWinsPlainSet<number>();
+      return new crdts.AddWinsCSet<number>();
     },
     {
       Roll: [
@@ -348,7 +439,7 @@ function AddWinsSetRollingGrow() {
     "AddWinsSetRollingGrow",
     () => {
       i = 0;
-      return new crdts.AddWinsPlainSet<number>();
+      return new crdts.AddWinsCSet<number>();
     },
     {
       Roll: [
@@ -370,8 +461,8 @@ function MapCrdt() {
   return new MicroCrdtsBenchmark(
     "MapCrdt",
     () =>
-      new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
-        () => new crdts.AddOnlyNumber(),
+      new crdts.MergingMutCMap<number, crdts.CCounter>(
+        () => new crdts.CCounter(),
         crdts.DefaultElementSerializer.getInstance()
       ),
     {
@@ -379,14 +470,14 @@ function MapCrdt() {
         (crdt, rng) => {
           let key = Math.floor(rng() * 100);
           if (crdt.has(key)) crdt.delete(key);
-          else crdt.addKey(key);
+          else crdt.set(key);
         },
         0.5,
       ],
       ValueOp: [
         (crdt, rng) => {
           let key = Math.floor(rng() * 100);
-          if (!crdt.has(key)) crdt.addKey(key);
+          if (!crdt.has(key)) crdt.set(key);
           crdt.get(key)!.add(Math.floor(rng() * 100 - 50));
         },
         0.5,
@@ -408,8 +499,8 @@ function MapCrdtRolling() {
     "MapCrdtRolling",
     () => {
       i = 0;
-      return new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
-        () => new crdts.AddOnlyNumber(),
+      return new crdts.MergingMutCMap<number, crdts.CCounter>(
+        () => new crdts.CCounter(),
         crdts.DefaultElementSerializer.getInstance()
       );
     },
@@ -417,7 +508,7 @@ function MapCrdtRolling() {
       Roll: [
         (crdt, rng) => {
           if (i >= 100) crdt.delete(i - 100);
-          if (!crdt.has(i)) crdt.addKey(i);
+          if (!crdt.has(i)) crdt.set(i);
           crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
@@ -437,15 +528,15 @@ function MapCrdtRollingGrow() {
     "MapCrdtRollingGrow",
     () => {
       i = 0;
-      return new crdts.RiakCrdtMap<number, crdts.AddOnlyNumber>(
-        () => new crdts.AddOnlyNumber(),
+      return new crdts.MergingMutCMap<number, crdts.CCounter>(
+        () => new crdts.CCounter(),
         crdts.DefaultElementSerializer.getInstance()
       );
     },
     {
       Roll: [
         (crdt, rng) => {
-          if (!crdt.has(i)) crdt.addKey(i);
+          if (!crdt.has(i)) crdt.set(i);
           crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
@@ -462,7 +553,7 @@ function MapCrdtRollingGrow() {
 function LwwMap() {
   return new MicroCrdtsBenchmark(
     "LwwMap",
-    () => new crdts.LwwPlainMap<number, number>(),
+    () => new crdts.LwwCMap<number, number>(),
     {
       Toggle: [
         (crdt, rng) => {
@@ -490,7 +581,7 @@ function LwwMapRolling() {
     "LwwMapRolling",
     () => {
       i = 0;
-      return new crdts.LwwPlainMap<number, number>();
+      return new crdts.LwwCMap<number, number>();
     },
     {
       Roll: [
@@ -512,7 +603,7 @@ function LwwMapRollingGrow() {
     "LwwMapRollingGrow",
     () => {
       i = 0;
-      return new crdts.LwwPlainMap<number, number>();
+      return new crdts.LwwCMap<number, number>();
     },
     {
       Roll: [
@@ -527,73 +618,145 @@ function LwwMapRollingGrow() {
   );
 }
 
-function TreedocPrimitiveListLtr() {
+function PrimitiveCListLtr() {
   return new MicroCrdtsBenchmark(
     "TextLtr",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
-          else crdt.insertAt(crdt.length, randomChar(rng));
+          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
+          else crdt.insert(crdt.length, randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
-function TreedocPrimitiveListLtrGrow() {
+function PrimitiveCListLtrGrow() {
   return new MicroCrdtsBenchmark(
     "TextLtrGrow",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          crdt.insertAt(crdt.length, randomChar(rng));
+          crdt.insert(crdt.length, randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
-function TreedocPrimitiveListRandom() {
+function PrimitiveCListRandom() {
   return new MicroCrdtsBenchmark(
     "TextRandom",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          if (crdt.length > 100) crdt.deleteAt(Math.floor(rng() * 100));
+          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
           else
-            crdt.insertAt(
-              Math.floor(rng() * (crdt.length + 1)),
-              randomChar(rng)
-            );
+            crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
   );
 }
 
-function TreedocPrimitiveListRandomGrow() {
+function PrimitiveCListRandomGrow() {
   return new MicroCrdtsBenchmark(
     "TextRandomGrow",
-    () => new crdts.TreedocPrimitiveList<string>(),
+    () => new crdts.PrimitiveCList<string>(),
     {
       Op: [
         (crdt, rng) => {
-          crdt.insertAt(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
+          crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.asArray()
+    (crdt) => crdt.slice()
+  );
+}
+
+function rgaCrdtConstructor() {
+  return new crdts.PrimitiveCListFromDenseLocalList(
+    new crdts.RgaDenseLocalList<string>(),
+    crdts.TextSerializer.instance,
+    crdts.TextArraySerializer.instance
+  );
+}
+
+function RgaLtr() {
+  return new MicroCrdtsBenchmark(
+    "RgaLtr",
+    rgaCrdtConstructor,
+    {
+      Op: [
+        (crdt, rng) => {
+          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
+          else crdt.insert(crdt.length, randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (crdt) => crdt.slice()
+  );
+}
+
+function RgaLtrGrow() {
+  return new MicroCrdtsBenchmark(
+    "RgaLtrGrow",
+    rgaCrdtConstructor,
+    {
+      Op: [
+        (crdt, rng) => {
+          crdt.insert(crdt.length, randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (crdt) => crdt.slice()
+  );
+}
+
+function RgaRandom() {
+  return new MicroCrdtsBenchmark(
+    "RgaRandom",
+    rgaCrdtConstructor,
+    {
+      Op: [
+        (crdt, rng) => {
+          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
+          else
+            crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (crdt) => crdt.slice()
+  );
+}
+
+function RgaRandomGrow() {
+  return new MicroCrdtsBenchmark(
+    "RgaRandomGrow",
+    rgaCrdtConstructor,
+    {
+      Op: [
+        (crdt, rng) => {
+          crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
+        },
+        1.0,
+      ],
+    },
+    (crdt) => crdt.slice()
   );
 }
 
@@ -637,40 +800,40 @@ export default async function microCrdts(args: string[]) {
       benchmark = DeepNoopCrdt();
       break;
     case "Counter":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0);
+      benchmark = ICounter(args[0], crdts.CCounter, 0);
       break;
     case "Counter-1":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.01);
+      benchmark = ICounter(args[0], crdts.CCounter, 0.01);
       break;
     case "Counter-10":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.1);
+      benchmark = ICounter(args[0], crdts.CCounter, 0.1);
       break;
     case "Counter-50":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 0.5);
+      benchmark = ICounter(args[0], crdts.CCounter, 0.5);
       break;
     case "Counter-100":
-      benchmark = ICounter(args[0], crdts.AddOnlyNumber, 1);
+      benchmark = ICounter(args[0], crdts.CCounter, 1);
       break;
     // case "CounterPure":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0);
     //   break;
     // case "CounterPure-1":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.01);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.01);
     //   break;
     // case "CounterPure-10":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.1);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.1);
     //   break;
     // case "CounterPure-50":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 0.5);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.5);
     //   break;
     // case "CounterPure-100":
-    //   benchmark = ICounter(args[0], crdts.AddOnlyNumberPure, 1);
+    //   benchmark = ICounter(args[0], crdts.CCounterPure, 1);
     //   break;
     case "MultiValueRegister":
       benchmark = MultiValueRegister();
       break;
     case "Register":
-      benchmark = LwwRegister();
+      benchmark = LwwCRegister();
       break;
     case "NumberCrdt":
       benchmark = NumberCrdt();
@@ -702,20 +865,32 @@ export default async function microCrdts(args: string[]) {
     case "LwwMapRolling":
       benchmark = LwwMapRolling();
       break;
-    case "TextLtr":
-      benchmark = TreedocPrimitiveListLtr();
-      break;
-    case "TextRandom":
-      benchmark = TreedocPrimitiveListRandom();
-      break;
     case "LwwMapRollingGrow":
       benchmark = LwwMapRollingGrow();
       break;
+    case "TextLtr":
+      benchmark = PrimitiveCListLtr();
+      break;
+    case "TextRandom":
+      benchmark = PrimitiveCListRandom();
+      break;
     case "TextLtrGrow":
-      benchmark = TreedocPrimitiveListLtrGrow();
+      benchmark = PrimitiveCListLtrGrow();
       break;
     case "TextRandomGrow":
-      benchmark = TreedocPrimitiveListRandomGrow();
+      benchmark = PrimitiveCListRandomGrow();
+      break;
+    case "RgaLtr":
+      benchmark = RgaLtr();
+      break;
+    case "RgaRandom":
+      benchmark = RgaRandom();
+      break;
+    case "RgaLtrGrow":
+      benchmark = RgaLtrGrow();
+      break;
+    case "RgaRandomGrow":
+      benchmark = RgaRandomGrow();
       break;
     // case "TensorCounter":
     //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
@@ -752,7 +927,14 @@ export default async function microCrdts(args: string[]) {
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
-  if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
+  if (
+    !(
+      args[1] === "time" ||
+      args[1] === "memory" ||
+      args[1] === "network" ||
+      args[1] === "save"
+    )
+  ) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
   if (!(args[2] === "whole" || args[2] === "rounds")) {

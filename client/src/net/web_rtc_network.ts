@@ -445,4 +445,22 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
       }
     }
   }
+
+  serialize(value: CausalTimestamp): Uint8Array {
+    // TODO: make reasonable (don't use myMessage)
+    return new myMessage(new Uint8Array(), value as VectorClock).serialize();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): CausalTimestamp {
+    return myMessage.deserialize(message, runtime.replicaId).timestamp;
+  }
+
+  save(): Uint8Array {
+    // TODO
+    return new Uint8Array();
+  }
+
+  load(saveData: Uint8Array) {
+    // TODO
+  }
 }

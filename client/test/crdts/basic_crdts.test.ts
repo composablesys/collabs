@@ -1,19 +1,18 @@
 import { assert } from "chai";
 import { debug } from "../debug";
 import {
-  AddOnlyNumber,
-  GPlainSet,
-  LwwRegister,
+  CCounter,
+  LwwCRegister,
+  OptionalLwwCRegister,
   Runtime,
   TestingNetworkGenerator,
 } from "../../src";
 import seedrandom from "seedrandom";
 import {
   AddComponent,
-  DefaultNumberState,
+  CNumberState,
   MultComponent,
-} from "../../src/crdt/number/default_number";
-import { MultiValueRegister } from "../../src/crdt/register/multi_value_register";
+} from "../../src/crdt/number/number";
 
 describe("basic_crdts", () => {
   let runtimeGen: TestingNetworkGenerator;
@@ -35,11 +34,11 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCrdt(
         "counterId",
-        new AddComponent(new DefaultNumberState(0))
+        new AddComponent(new CNumberState(0))
       );
       bobCounter = bob.registerCrdt(
         "counterId",
-        new AddComponent(new DefaultNumberState(0))
+        new AddComponent(new CNumberState(0))
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -50,7 +49,7 @@ describe("basic_crdts", () => {
     function addEventListeners(counter: AddComponent, name: string): void {
       counter.on("Add", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.added}`
+          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
         )
       );
     }
@@ -94,23 +93,23 @@ describe("basic_crdts", () => {
     });
   });
 
-  describe("AddOnlyNumber", () => {
-    let aliceCounter: AddOnlyNumber;
-    let bobCounter: AddOnlyNumber;
+  describe("CCounter", () => {
+    let aliceCounter: CCounter;
+    let bobCounter: CCounter;
 
     beforeEach(() => {
-      aliceCounter = alice.registerCrdt("counterId", new AddOnlyNumber());
-      bobCounter = bob.registerCrdt("counterId", new AddOnlyNumber());
+      aliceCounter = alice.registerCrdt("counterId", new CCounter());
+      bobCounter = bob.registerCrdt("counterId", new CCounter());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
       }
     });
 
-    function addEventListeners(counter: AddOnlyNumber, name: string): void {
+    function addEventListeners(counter: CCounter, name: string): void {
       counter.on("Add", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.added}`
+          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
         )
       );
       counter.on("Reset", (event) =>
@@ -302,11 +301,11 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceRegister = alice.registerCrdt(
         "multId",
-        new MultComponent(new DefaultNumberState(2))
+        new MultComponent(new CNumberState(2))
       );
       bobRegister = bob.registerCrdt(
         "multId",
-        new MultComponent(new DefaultNumberState(2))
+        new MultComponent(new CNumberState(2))
       );
       if (debug) {
         addEventListeners(aliceRegister, "Alice");
@@ -317,7 +316,7 @@ describe("basic_crdts", () => {
     function addEventListeners(register: MultComponent, name: string): void {
       register.on("Mult", (event) =>
         console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.multed}`
+          `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
         )
       );
     }
@@ -362,86 +361,86 @@ describe("basic_crdts", () => {
       it("lets concurrent mults survive");
     });
   });
+  //
+  // describe("GPlainSet", () => {
+  //   let aliceGPlainSet: GPlainSet<any>;
+  //   let bobGPlainSet: GPlainSet<any>;
+  //
+  //   beforeEach(() => {
+  //     aliceGPlainSet = alice.registerCrdt("gsetId", new GPlainSet());
+  //     bobGPlainSet = bob.registerCrdt("gsetId", new GPlainSet());
+  //     if (debug) {
+  //       addEventListeners(aliceGPlainSet, "Alice");
+  //       addEventListeners(bobGPlainSet, "Bob");
+  //     }
+  //   });
+  //
+  //   function addEventListeners<T>(gSet: GPlainSet<T>, name: string): void {
+  //     gSet.on("Add", (event) =>
+  //       console.log(
+  //         `${name}: ${event.timestamp.getSender()} added ${event.value}`
+  //       )
+  //     );
+  //   }
+  //
+  //   it("is initially empty", () => {
+  //     assert.isEmpty(new Set(aliceGPlainSet));
+  //     assert.isEmpty(new Set(bobGPlainSet));
+  //   });
+  //
+  //   describe("add", () => {
+  //     it("works with non-concurrent updates", () => {
+  //       aliceGPlainSet.add("element");
+  //       runtimeGen.releaseAll();
+  //       assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["element"]));
+  //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element"]));
+  //
+  //       bobGPlainSet.add(7);
+  //       runtimeGen.releaseAll();
+  //       assert.deepStrictEqual(
+  //         new Set(aliceGPlainSet),
+  //         new Set(["element", 7])
+  //       );
+  //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element", 7]));
+  //
+  //       aliceGPlainSet.add(7);
+  //       runtimeGen.releaseAll();
+  //       assert.deepStrictEqual(
+  //         new Set(aliceGPlainSet),
+  //         new Set(["element", 7])
+  //       );
+  //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element", 7]));
+  //     });
+  //
+  //     it("works with concurrent updates", () => {
+  //       aliceGPlainSet.add("first");
+  //       assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["first"]));
+  //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set());
+  //
+  //       bobGPlainSet.add("second");
+  //       assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["first"]));
+  //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["second"]));
+  //
+  //       runtimeGen.releaseAll();
+  //       assert.deepStrictEqual(
+  //         new Set(aliceGPlainSet),
+  //         new Set(["first", "second"])
+  //       );
+  //       assert.deepStrictEqual(
+  //         new Set(bobGPlainSet),
+  //         new Set(["first", "second"])
+  //       );
+  //     });
+  //   });
+  // });
 
-  describe("GPlainSet", () => {
-    let aliceGPlainSet: GPlainSet<any>;
-    let bobGPlainSet: GPlainSet<any>;
+  describe("OptionalLwwCRegister", () => {
+    let aliceMvr: OptionalLwwCRegister<string>;
+    let bobMvr: OptionalLwwCRegister<string>;
 
     beforeEach(() => {
-      aliceGPlainSet = alice.registerCrdt("gsetId", new GPlainSet());
-      bobGPlainSet = bob.registerCrdt("gsetId", new GPlainSet());
-      if (debug) {
-        addEventListeners(aliceGPlainSet, "Alice");
-        addEventListeners(bobGPlainSet, "Bob");
-      }
-    });
-
-    function addEventListeners<T>(gSet: GPlainSet<T>, name: string): void {
-      gSet.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.value}`
-        )
-      );
-    }
-
-    it("is initially empty", () => {
-      assert.isEmpty(new Set(aliceGPlainSet));
-      assert.isEmpty(new Set(bobGPlainSet));
-    });
-
-    describe("add", () => {
-      it("works with non-concurrent updates", () => {
-        aliceGPlainSet.add("element");
-        runtimeGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["element"]));
-        assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element"]));
-
-        bobGPlainSet.add(7);
-        runtimeGen.releaseAll();
-        assert.deepStrictEqual(
-          new Set(aliceGPlainSet),
-          new Set(["element", 7])
-        );
-        assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element", 7]));
-
-        aliceGPlainSet.add(7);
-        runtimeGen.releaseAll();
-        assert.deepStrictEqual(
-          new Set(aliceGPlainSet),
-          new Set(["element", 7])
-        );
-        assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element", 7]));
-      });
-
-      it("works with concurrent updates", () => {
-        aliceGPlainSet.add("first");
-        assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["first"]));
-        assert.deepStrictEqual(new Set(bobGPlainSet), new Set());
-
-        bobGPlainSet.add("second");
-        assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["first"]));
-        assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["second"]));
-
-        runtimeGen.releaseAll();
-        assert.deepStrictEqual(
-          new Set(aliceGPlainSet),
-          new Set(["first", "second"])
-        );
-        assert.deepStrictEqual(
-          new Set(bobGPlainSet),
-          new Set(["first", "second"])
-        );
-      });
-    });
-  });
-
-  describe("MultiValueRegister", () => {
-    let aliceMvr: MultiValueRegister<string>;
-    let bobMvr: MultiValueRegister<string>;
-
-    beforeEach(() => {
-      aliceMvr = alice.registerCrdt("mvrId", new MultiValueRegister());
-      bobMvr = bob.registerCrdt("mvrId", new MultiValueRegister());
+      aliceMvr = alice.registerCrdt("mvrId", new OptionalLwwCRegister());
+      bobMvr = bob.registerCrdt("mvrId", new OptionalLwwCRegister());
       if (debug) {
         addEventListeners(aliceMvr, "Alice");
         addEventListeners(bobMvr, "Bob");
@@ -449,7 +448,7 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners<T>(
-      mvr: MultiValueRegister<T>,
+      mvr: OptionalLwwCRegister<T>,
       name: string
     ): void {
       mvr.on("Change", (event) =>
@@ -458,26 +457,38 @@ describe("basic_crdts", () => {
     }
 
     it("initially is empty", () => {
-      assert.deepStrictEqual(aliceMvr.conflicts(), new Set([]));
-      assert.deepStrictEqual(bobMvr.conflicts(), new Set([]));
+      assert.deepStrictEqual(new Set(aliceMvr.conflicts()), new Set([]));
+      assert.deepStrictEqual(new Set(bobMvr.conflicts()), new Set([]));
     });
 
     describe("setter", () => {
       it("works with non-concurrent updates", () => {
         aliceMvr.set("second");
         runtimeGen.releaseAll();
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set(["second"]));
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["second"]));
+        assert.deepStrictEqual(
+          new Set(aliceMvr.conflicts()),
+          new Set(["second"])
+        );
+        assert.deepStrictEqual(
+          new Set(bobMvr.conflicts()),
+          new Set(["second"])
+        );
 
         aliceMvr.set("third");
         runtimeGen.releaseAll();
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set(["third"]));
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["third"]));
+        assert.deepStrictEqual(
+          new Set(aliceMvr.conflicts()),
+          new Set(["third"])
+        );
+        assert.deepStrictEqual(new Set(bobMvr.conflicts()), new Set(["third"]));
 
         bobMvr.set("bob's");
         runtimeGen.releaseAll();
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set(["bob's"]));
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["bob's"]));
+        assert.deepStrictEqual(
+          new Set(aliceMvr.conflicts()),
+          new Set(["bob's"])
+        );
+        assert.deepStrictEqual(new Set(bobMvr.conflicts()), new Set(["bob's"]));
       });
 
       it("works with concurrent updates", () => {
@@ -485,22 +496,31 @@ describe("basic_crdts", () => {
         bobMvr.set("concB");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(
-          aliceMvr.conflicts(),
+          new Set(aliceMvr.conflicts()),
           new Set(["concA", "concB"])
         );
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["concB", "concA"]));
+        assert.deepStrictEqual(
+          new Set(bobMvr.conflicts()),
+          new Set(["concB", "concA"])
+        );
 
         aliceMvr.set("concA2");
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set(["concA2"]));
+        assert.deepStrictEqual(
+          new Set(aliceMvr.conflicts()),
+          new Set(["concA2"])
+        );
         bobMvr.set("concB2");
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["concB2"]));
+        assert.deepStrictEqual(
+          new Set(bobMvr.conflicts()),
+          new Set(["concB2"])
+        );
         runtimeGen.releaseAll();
         assert.deepStrictEqual(
-          aliceMvr.conflicts(),
+          new Set(aliceMvr.conflicts()),
           new Set(["concA2", "concB2"])
         );
         assert.deepStrictEqual(
-          bobMvr.conflicts(),
+          new Set(bobMvr.conflicts()),
           new Set(["concB2", "concA2"])
         );
       });
@@ -509,8 +529,14 @@ describe("basic_crdts", () => {
         aliceMvr.set("redundant");
         bobMvr.set("redundant");
         runtimeGen.releaseAll();
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set(["redundant"]));
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["redundant"]));
+        assert.deepStrictEqual(
+          new Set(aliceMvr.conflicts()),
+          new Set(["redundant"])
+        );
+        assert.deepStrictEqual(
+          new Set(bobMvr.conflicts()),
+          new Set(["redundant"])
+        );
       });
 
       it("keeps overwrites of redundant writes", () => {
@@ -519,11 +545,11 @@ describe("basic_crdts", () => {
         aliceMvr.set("overwrite");
         runtimeGen.releaseAll();
         assert.deepStrictEqual(
-          aliceMvr.conflicts(),
+          new Set(aliceMvr.conflicts()),
           new Set(["redundant", "overwrite"])
         );
         assert.deepStrictEqual(
-          bobMvr.conflicts(),
+          new Set(bobMvr.conflicts()),
           new Set(["redundant", "overwrite"])
         );
       });
@@ -532,12 +558,15 @@ describe("basic_crdts", () => {
     describe("reset", () => {
       it("works with concurrent updates", () => {
         aliceMvr.reset();
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set([]));
+        assert.deepStrictEqual(new Set(aliceMvr.conflicts()), new Set([]));
 
         bobMvr.set("conc");
         runtimeGen.releaseAll();
-        assert.deepStrictEqual(aliceMvr.conflicts(), new Set(["conc"]));
-        assert.deepStrictEqual(bobMvr.conflicts(), new Set(["conc"]));
+        assert.deepStrictEqual(
+          new Set(aliceMvr.conflicts()),
+          new Set(["conc"])
+        );
+        assert.deepStrictEqual(new Set(bobMvr.conflicts()), new Set(["conc"]));
       });
 
       // TODO
@@ -546,20 +575,20 @@ describe("basic_crdts", () => {
     });
   });
 
-  describe("LwwRegister", () => {
-    let aliceLww: LwwRegister<string>;
-    let bobLww: LwwRegister<string>;
+  describe("LwwCRegister", () => {
+    let aliceLww: LwwCRegister<string>;
+    let bobLww: LwwCRegister<string>;
 
     beforeEach(() => {
-      aliceLww = alice.registerCrdt("lwwId", new LwwRegister("initial"));
-      bobLww = bob.registerCrdt("lwwId", new LwwRegister("initial"));
+      aliceLww = alice.registerCrdt("lwwId", new LwwCRegister("initial"));
+      bobLww = bob.registerCrdt("lwwId", new LwwCRegister("initial"));
       if (debug) {
         addEventListeners(aliceLww, "Alice");
         addEventListeners(bobLww, "Bob");
       }
     });
 
-    function addEventListeners<T>(lww: LwwRegister<T>, name: string): void {
+    function addEventListeners<T>(lww: LwwCRegister<T>, name: string): void {
       // TODO
       // lww.on("Lww", (event) =>
       //   console.log(

@@ -1,5 +1,15 @@
+import {
+  ISemidirectProductSenderHistory,
+  SemidirectProductSave,
+} from "../../../generated/proto_compiled";
 import { CausalTimestamp } from "../../net";
-import { Crdt, CrdtEventsRecord, CrdtParent, StatefulCrdt } from "../core";
+import {
+  Crdt,
+  CrdtEventsRecord,
+  CrdtParent,
+  Runtime,
+  StatefulCrdt,
+} from "../core";
 import { LocallyResettableState } from "./resettable";
 
 // TODO: revise this file.
@@ -184,16 +194,66 @@ class SemidirectStateBase<S extends Object> {
     }
     return sparseArray.length;
   }
+
+  save(runtime: Runtime): Uint8Array {
+    const historySave: { [sender: string]: ISemidirectProductSenderHistory } =
+      {};
+    for (const [sender, messages] of this.history) {
+      historySave[sender] = {
+        messages: messages.map((message) => {
+          return {
+            senderCounter: message.senderCounter,
+            receiptCounter: message.receiptCounter,
+            targetPath: message.targetPath,
+            timestamp: this.historyTimestamps
+              ? runtime.timestampSerializer.serialize(message.timestamp!)
+              : null,
+            message: message.message,
+          };
+        }),
+      };
+    }
+    const saveMessage = SemidirectProductSave.create({
+      receiptCounter: this.receiptCounter,
+      history: historySave,
+    });
+    return SemidirectProductSave.encode(saveMessage).finish();
+  }
+
+  load(saveData: Uint8Array, runtime: Runtime) {
+    const saveMessage = SemidirectProductSave.decode(saveData);
+    this.receiptCounter = saveMessage.receiptCounter;
+    for (const [sender, messages] of Object.entries(saveMessage.history)) {
+      this.history.set(
+        sender,
+        messages.messages!.map(
+          (message) =>
+            new StoredMessage(
+              message.senderCounter,
+              message.receiptCounter,
+              message.targetPath!,
+              this.historyTimestamps
+                ? runtime.timestampSerializer.deserialize(
+                    message.timestamp!,
+                    runtime
+                  )
+                : null,
+              message.message
+            )
+        )
+      );
+    }
+  }
 }
 
 class SemidirectStateLocallyResettable<S extends LocallyResettableState>
   extends SemidirectStateBase<S>
   implements LocallyResettableState
 {
-  resetLocalState() {
+  resetLocalState(timestamp: CausalTimestamp) {
     this.receiptCounter = 0;
     this.history.clear();
-    this.internalState.resetLocalState();
+    this.internalState.resetLocalState(timestamp);
   }
 }
 
@@ -362,27 +422,15 @@ export abstract class SemidirectProduct<
     }
   }
 
-  getDescendant(targetPath: string[]): Crdt {
-    if (targetPath.length === 0) return this;
-
-    let child: Crdt;
-    switch (targetPath[0]) {
+  getChild(name: string): Crdt {
+    switch (name) {
       case SemidirectProduct.crdt1Name:
-        child = this.crdt1;
-        break;
+        return this.crdt1;
       case SemidirectProduct.crdt2Name:
-        child = this.crdt2;
-        break;
+        return this.crdt2;
       default:
-        throw new Error(
-          "Unknown child: " +
-            targetPath[targetPath.length - 1] +
-            " in SemidirectProduct: " +
-            JSON.stringify(targetPath)
-        );
+        throw new Error("Unknown child: " + name + " in SemidirectProduct");
     }
-    targetPath.length--;
-    return child.getDescendant(targetPath);
   }
 
   canGc(): boolean {
@@ -394,5 +442,24 @@ export abstract class SemidirectProduct<
     return (
       this.state.isHistoryEmpty() && this.crdt1.canGc() && this.crdt2.canGc()
     );
+  }
+
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
+    return [
+      this.state.save(this.runtime),
+      new Map([
+        [SemidirectProduct.crdt1Name, this.crdt1],
+        [SemidirectProduct.crdt2Name, this.crdt2],
+      ]),
+    ];
+  }
+
+  // TODO: the children loading their own states (both
+  // of them, in arbitrary order) must correctly set
+  // this.internalState, whatever it is.
+  // Need option to do custom loading if that's not the
+  // case.
+  load(saveData: Uint8Array) {
+    this.state.load(saveData, this.runtime);
   }
 }

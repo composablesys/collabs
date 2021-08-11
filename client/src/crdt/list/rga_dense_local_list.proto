@@ -1,0 +1,27 @@
+message RgaLocMessage {
+  repeated string senders = 1;
+  // The next two fields are in sync and given the
+  // sender & uniqueNumber fields of the RgaLoc's
+  // on the serialized locs path, from loc
+  // to the root.
+  repeated uint32 senderIndices = 2 [packed=true];
+  repeated sint32 uniqueNumbers = 3 [packed=true];
+}
+
+message RgaDenseLocalListPrepareMessage {
+  // Not set iff parent is undefined.
+  optional RgaLocMessage parent = 1;
+  required sint32 uniqueNumberStart = 2;
+}
+
+message RgaDenseLocalListSave {
+  repeated string senders = 1;
+  // These arrays are in sync and describe the
+  // locs in order.
+  // Index of parent in the synced arrays, plus 1
+  // (0 is for undefined parent).
+  repeated uint32 parents = 2 [packed=true];
+  repeated uint32 senderIndices = 3 [packed=true];
+  repeated sint32 uniqueNumbers = 4 [packed=true];
+  required uint32 length = 5;
+}

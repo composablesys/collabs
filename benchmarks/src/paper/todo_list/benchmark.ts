@@ -58,6 +58,28 @@ interface ITestFactory {
    * Reset this on each call to newTodoList()
    */
   getSentBytes(): number;
+  /**
+   * Save the current state as saveData.  Also return
+   * the length of the saveData in bytes.
+   *
+   * Load will be called soon after save.
+   *
+   * This will be timed, so don't do excessive extra work
+   * that wouldn't be part of normal saving.
+   */
+  save(): [saveData: any, byteLength: number];
+  /**
+   * Like newTodoList, but also load the state from
+   * saveData.  In particular, use a new replica id
+   * (rng is provided for this).
+   *
+   * This will be timed, so don't do excessive extra work
+   * that wouldn't be part of normal loading.
+   *
+   * Don't worry about resetting getSentBytes since it
+   * won't be measured anyway.
+   */
+  load(saveData: any, rng: seedrandom.prng): ITodoList;
 }
 
 class TodoListBenchmark {
@@ -69,18 +91,24 @@ class TodoListBenchmark {
   private rng!: seedrandom.prng;
 
   async run(
-    measurement: "time" | "memory" | "network",
+    measurement: "time" | "memory" | "network" | "save",
     frequency: "whole" | "rounds"
   ) {
     console.log("Starting todo_list test: " + this.testName);
 
-    let results = new Array<number>(getRecordedTrials());
-    let roundResults = new Array<number[]>(getRecordedTrials());
+    let results = new Array<{ [measurement: string]: number }>(
+      getRecordedTrials()
+    );
+    let roundResults = new Array<{ [measurement: string]: number }[]>(
+      getRecordedTrials()
+    );
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
       for (let i = 0; i < getRecordedTrials(); i++)
-        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+        roundResults[i] = new Array<{ [measurement: string]: number }>(
+          Math.ceil(OPS / ROUND_OPS)
+        );
     }
 
     let startingBaseline = 0;
@@ -94,6 +122,7 @@ class TodoListBenchmark {
       console.log("Starting trial " + trial);
 
       this.rng = seedrandom(SEED);
+      const replicaIdRng = seedrandom(SEED + SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -105,7 +134,7 @@ class TodoListBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      let list = this.testFactory.newTodoList(seedrandom(SEED));
+      let list = this.testFactory.newTodoList(replicaIdRng);
 
       switch (measurement) {
         case "time":
@@ -120,17 +149,48 @@ class TodoListBenchmark {
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
-          let ans = -1;
+          let ans: { [measurement: string]: number } = {};
           switch (measurement) {
             case "time":
-              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
-
+              ans[measurement] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
               break;
             case "memory":
-              ans = await getMemoryUsed();
+              ans[measurement] = await getMemoryUsed();
               break;
             case "network":
-              ans = this.testFactory.getSentBytes() - startSentBytes;
+              ans[measurement] =
+                this.testFactory.getSentBytes() - startSentBytes;
+              break;
+            case "save":
+              let beforeSave: Object;
+              if (DEBUG) beforeSave = this.toObject(list, true);
+              const saveStartTime = process.hrtime.bigint();
+              const [saveData, saveSize] = this.testFactory.save();
+              const saveTime = new Number(
+                process.hrtime.bigint() - saveStartTime!
+              ).valueOf();
+              this.testFactory.cleanup();
+              const loadStartTime = process.hrtime.bigint();
+              list = this.testFactory.load(saveData, replicaIdRng);
+              const loadTime = new Number(
+                process.hrtime.bigint() - loadStartTime!
+              ).valueOf();
+              ans = {
+                saveTime,
+                saveSize,
+                loadTime,
+              };
+              if (DEBUG) {
+                const afterSave = this.toObject(list, true);
+                assert.deepStrictEqual(
+                  beforeSave!,
+                  afterSave,
+                  "afterSave did not equal beforeSave"
+                );
+              }
+              break;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -144,16 +204,39 @@ class TodoListBenchmark {
       }
 
       // Record result
-      let result = -1;
+      // TODO: de-duplicate code (shared with rounds measurements)
+      let result: { [measurement: string]: number } = {};
       switch (measurement) {
         case "time":
-          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          result[measurement] = new Number(
+            process.hrtime.bigint() - startTime!
+          ).valueOf();
           break;
         case "memory":
-          result = await getMemoryUsed();
+          result[measurement] = await getMemoryUsed();
           break;
         case "network":
-          result = this.testFactory.getSentBytes() - startSentBytes;
+          result[measurement] =
+            this.testFactory.getSentBytes() - startSentBytes;
+          break;
+        case "save":
+          const saveStartTime = process.hrtime.bigint();
+          const [saveData, saveSize] = this.testFactory.save();
+          const saveTime = new Number(
+            process.hrtime.bigint() - saveStartTime!
+          ).valueOf();
+          this.testFactory.cleanup();
+          const loadStartTime = process.hrtime.bigint();
+          list = this.testFactory.load(saveData, replicaIdRng);
+          const loadTime = new Number(
+            process.hrtime.bigint() - loadStartTime!
+          ).valueOf();
+          result = {
+            saveTime,
+            saveSize,
+            loadTime,
+          };
+          break;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -191,19 +274,31 @@ class TodoListBenchmark {
       );
     }
 
-    record(
-      "todo_list/" + measurement,
-      this.testName,
-      frequency,
-      getRecordedTrials(),
-      results,
-      roundResults,
-      roundOps,
-      measurement === "memory"
-        ? baseMemories
-        : new Array<number>(getRecordedTrials()).fill(0),
-      startingBaseline
-    );
+    let toRecord: string[];
+    switch (measurement) {
+      case "save":
+        toRecord = ["saveTime", "loadTime", "saveSize"];
+        break;
+      default:
+        toRecord = [measurement];
+    }
+    for (const oneRecord of toRecord) {
+      record(
+        "todo_list/" + oneRecord,
+        this.testName,
+        frequency,
+        getRecordedTrials(),
+        results.map((result) => result[oneRecord]),
+        roundResults.map((trialResult) =>
+          trialResult.map((result) => result[oneRecord])
+        ),
+        roundOps,
+        oneRecord === "memory"
+          ? baseMemories
+          : new Array<number>(getRecordedTrials()).fill(0),
+        startingBaseline
+      );
+    }
   }
 
   private choice(options: number) {
@@ -356,14 +451,26 @@ function plainJs() {
     }
   }
 
+  let topList: PlainJsTodoList;
   return new TodoListBenchmark("Plain JS array", {
     newTodoList() {
-      return new PlainJsTodoList("");
+      topList = new PlainJsTodoList("");
+      return topList;
     },
     cleanup() {},
     sendNextMessage() {},
     getSentBytes() {
       return 0;
+    },
+    save() {
+      const saveData = JSON.stringify(topList!);
+      return [saveData, saveData.length];
+    },
+    load(saveData: string) {
+      // TODO: it's actually not the class itself, just
+      // an identical plain Object.
+      topList = JSON.parse(saveData) as PlainJsTodoList;
+      return topList;
     },
   });
 }
@@ -373,29 +480,29 @@ function compoCrdt() {
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TextCrdt;
-    private readonly doneCrdt: crdts.TrueWinsBoolean;
-    private readonly items: crdts.TreedocList<CrdtTodoList>;
+    private readonly text: crdts.CText;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: crdts.ResettingMutCList<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild("text", new crdts.TextCrdt());
-      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
+      this.text = this.addChild("text", new crdts.CText());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
       this.items = this.addChild(
         "items",
-        new crdts.TreedocList(() => new CrdtTodoList())
+        new crdts.ResettingMutCList(() => new CrdtTodoList())
       );
     }
 
     addItem(index: number, text: string): void {
-      let item = this.items.insertAt(index)[1];
+      let item = this.items.insert(index);
       item.insertText(0, text);
     }
     deleteItem(index: number): void {
-      this.items.deleteAt(index);
+      this.items.delete(index);
     }
     getItem(index: number): CrdtTodoList {
-      return this.items.getAt(index);
+      return this.items.get(index);
     }
     get itemsSize(): number {
       return this.items.length;
@@ -409,16 +516,16 @@ function compoCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
+      this.text.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      this.text.deleteAtRange(index, index + count);
+      this.text.delete(index, count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
     }
     getText(): string {
-      return this.text.asArray().join("");
+      return this.text.join("");
     }
 
     reset() {
@@ -433,11 +540,12 @@ function compoCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
     },
@@ -457,25 +565,84 @@ function compoCrdt() {
     getSentBytes() {
       return totalSentBytes;
     },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
+    },
   });
 }
 
-function compoMovableCrdt() {
+class CTextRga
+  extends crdts.PrimitiveCListFromDenseLocalList<
+    string,
+    crdts.RgaLoc,
+    crdts.RgaDenseLocalList<string>
+  >
+  implements crdts.Resettable
+{
+  constructor() {
+    super(
+      new crdts.RgaDenseLocalList<string>(),
+      crdts.TextSerializer.instance,
+      crdts.TextArraySerializer.instance
+    );
+  }
+
+  reset() {
+    // Since RgaDenseLocalList has no tombstones,
+    // clear is an observed-reset.
+    this.clear();
+  }
+}
+
+class ResettingMutCListRga<C extends crdts.Crdt & crdts.Resettable>
+  extends crdts.CListFromMap<
+    C,
+    [],
+    crdts.RgaLoc,
+    crdts.MergingMutCMap<crdts.RgaLoc, C>,
+    crdts.RgaDenseLocalList<undefined>
+  >
+  implements crdts.Resettable
+{
+  constructor(valueConstructor: (loc: crdts.RgaLoc) => C) {
+    const denseLocalList = new crdts.RgaDenseLocalList<undefined>();
+    super(
+      new crdts.MergingMutCMap(valueConstructor, denseLocalList),
+      denseLocalList
+    );
+  }
+
+  reset(): void {
+    this.internalMap.reset();
+  }
+}
+
+function compoCrdtRga() {
   class CrdtTodoList
     extends crdts.CompositeCrdt
     implements ITodoList, crdts.Resettable
   {
-    private readonly text: crdts.TextCrdt;
-    private readonly doneCrdt: crdts.TrueWinsBoolean;
-    private readonly items: crdts.DeletingMovableList<CrdtTodoList>;
+    private readonly text: CTextRga;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: ResettingMutCListRga<CrdtTodoList>;
 
     constructor() {
       super();
-      this.text = this.addChild("text", new crdts.TextCrdt());
-      this.doneCrdt = this.addChild("done", new crdts.TrueWinsBoolean());
+      this.text = this.addChild("text", new CTextRga());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
       this.items = this.addChild(
         "items",
-        new crdts.DeletingMovableList(() => new CrdtTodoList())
+        new ResettingMutCListRga(() => new CrdtTodoList())
       );
     }
 
@@ -487,7 +654,7 @@ function compoMovableCrdt() {
       this.items.delete(index);
     }
     getItem(index: number): CrdtTodoList {
-      return this.items.at(index);
+      return this.items.get(index);
     }
     get itemsSize(): number {
       return this.items.length;
@@ -501,16 +668,122 @@ function compoMovableCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
+      this.text.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      this.text.deleteAtRange(index, index + count);
+      this.text.delete(index, count);
     }
     get textSize(): number {
       return this.text.length; // Assumes all text registers are one char
     }
     getText(): string {
-      return this.text.asArray().join("");
+      return this.text.join("");
+    }
+
+    reset() {
+      this.text.reset();
+      this.doneCrdt.reset();
+      this.items.reset();
+    }
+  }
+
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Crdt RGA", {
+    newTodoList(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
+      this.sendNextMessage();
+      return list;
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
+    sendNextMessage() {
+      runtime!.commitBatch();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
+    },
+  });
+}
+
+function compoMovableCrdt() {
+  class CrdtTodoList
+    extends crdts.CompositeCrdt
+    implements ITodoList, crdts.Resettable
+  {
+    private readonly text: crdts.CText;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: crdts.DeletingMutCList<CrdtTodoList, []>;
+
+    constructor() {
+      super();
+      this.text = this.addChild("text", new crdts.CText());
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
+      this.items = this.addChild(
+        "items",
+        new crdts.DeletingMutCList(() => new CrdtTodoList())
+      );
+    }
+
+    addItem(index: number, text: string): void {
+      let item = this.items.insert(index);
+      item.insertText(0, text);
+    }
+    deleteItem(index: number): void {
+      this.items.delete(index);
+    }
+    getItem(index: number): CrdtTodoList {
+      return this.items.get(index);
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    set done(done: boolean) {
+      this.doneCrdt.value = done;
+    }
+    get done(): boolean {
+      return this.doneCrdt.value;
+    }
+
+    insertText(index: number, text: string): void {
+      this.text.insert(index, ...text);
+    }
+    deleteText(index: number, count: number): void {
+      this.text.delete(index, count);
+    }
+    get textSize(): number {
+      return this.text.length; // Assumes all text registers are one char
+    }
+    getText(): string {
+      return this.text.join("");
     }
 
     reset() {
@@ -525,11 +798,12 @@ function compoMovableCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Movable Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
     },
@@ -548,6 +822,177 @@ function compoMovableCrdt() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
+    },
+  });
+}
+
+class DeletingMutCListRga<
+  C extends crdts.Crdt,
+  InsertArgs extends any[]
+> extends crdts.MovableMutCListFromSet<
+  C,
+  InsertArgs,
+  crdts.RgaLoc,
+  crdts.LwwCRegister<crdts.RgaLoc>,
+  crdts.DeletingMutCSet<
+    crdts.MovableMutCListEntry<
+      C,
+      crdts.RgaLoc,
+      crdts.LwwCRegister<crdts.RgaLoc>
+    >,
+    [crdts.RgaLoc, InsertArgs]
+  >,
+  crdts.RgaDenseLocalList<
+    crdts.MovableMutCListEntry<
+      C,
+      crdts.RgaLoc,
+      crdts.LwwCRegister<crdts.RgaLoc>
+    >
+  >
+> {
+  constructor(
+    valueConstructor: (...args: InsertArgs) => C,
+    argsSerializer: crdts.ElementSerializer<InsertArgs> = crdts.DefaultElementSerializer.getInstance()
+  ) {
+    super(
+      (setValueConstructor, setArgsSerializer) =>
+        new crdts.DeletingMutCSet(
+          setValueConstructor,
+          undefined,
+          setArgsSerializer
+        ),
+      (initialValue, registerSerializer) =>
+        new crdts.LwwCRegister(initialValue, registerSerializer),
+      new crdts.RgaDenseLocalList(),
+      valueConstructor,
+      argsSerializer
+    );
+  }
+}
+
+function compoMovableCrdtRga() {
+  class CrdtTodoList
+    extends crdts.CompositeCrdt
+    implements ITodoList, crdts.Resettable
+  {
+    private readonly text: crdts.CList<string>;
+    private readonly doneCrdt: crdts.TrueWinsCBoolean;
+    private readonly items: crdts.CList<CrdtTodoList, []>;
+
+    constructor() {
+      super();
+      this.text = this.addChild(
+        "text",
+        new crdts.PrimitiveCListFromDenseLocalList(
+          new crdts.RgaDenseLocalList<string>(),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
+      );
+      this.doneCrdt = this.addChild("done", new crdts.TrueWinsCBoolean());
+      this.items = this.addChild(
+        "items",
+        new DeletingMutCListRga(() => new CrdtTodoList())
+      );
+    }
+
+    addItem(index: number, text: string): void {
+      let item = this.items.insert(index);
+      item.insertText(0, text);
+    }
+    deleteItem(index: number): void {
+      this.items.delete(index);
+    }
+    getItem(index: number): CrdtTodoList {
+      return this.items.get(index);
+    }
+    get itemsSize(): number {
+      return this.items.length;
+    }
+
+    set done(done: boolean) {
+      this.doneCrdt.value = done;
+    }
+    get done(): boolean {
+      return this.doneCrdt.value;
+    }
+
+    insertText(index: number, text: string): void {
+      // @ts-ignore TODO: remove this once RGA text is typed properly
+      this.text.insert(index, ...text);
+    }
+    deleteText(index: number, count: number): void {
+      this.text.delete(index, count);
+    }
+    get textSize(): number {
+      return this.text.length; // Assumes all text registers are one char
+    }
+    getText(): string {
+      return this.text.join("");
+    }
+
+    reset() {
+      this.text.clear();
+      this.doneCrdt.reset();
+      this.items.clear();
+    }
+  }
+
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let totalSentBytes: number;
+
+  return new TodoListBenchmark("Compo Movable Crdt RGA", {
+    newTodoList(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      totalSentBytes = 0;
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      // TODO: this seems unnecessary
+      this.sendNextMessage();
+      return list;
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+    },
+    sendNextMessage() {
+      runtime!.commitBatch();
+      totalSentBytes += generator!.lastMessage
+        ? GZIP
+          ? zlib.gzipSync(generator!.lastMessage).byteLength
+          : generator!.lastMessage.byteLength
+        : 0;
+      generator!.lastMessage = undefined;
+    },
+    getSentBytes() {
+      return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", new CrdtTodoList());
+      runtime.load(saveData);
+      return list;
     },
   });
 }
@@ -615,7 +1060,7 @@ function compoJson() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -639,6 +1084,19 @@ function compoJson() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      runtime.load(saveData);
+      return new JsonTodoList(list.value as crdts.JsonObject);
     },
   });
 }
@@ -682,20 +1140,18 @@ function compoJsonText() {
     }
 
     insertText(index: number, text: string): void {
-      let textArray = this.jsonObj.get("text")!.value as crdts.TextCrdt;
-      textArray.insertAtRange(index, [...text]);
+      let textArray = this.jsonObj.get("text")!.value as crdts.CText;
+      textArray.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      let textList = this.jsonObj.get("text")!.value as crdts.TextCrdt;
-      textList.deleteAtRange(index, index + count);
+      let textList = this.jsonObj.get("text")!.value as crdts.CText;
+      textList.delete(index, count);
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!.value as crdts.TextCrdt).length;
+      return (this.jsonObj.get("text")!.value as crdts.CText).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!.value as crdts.TextCrdt)
-        .asArray()
-        .join("");
+      return (this.jsonObj.get("text")!.value as crdts.CText).join("");
     }
   }
 
@@ -704,7 +1160,7 @@ function compoJsonText() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -728,6 +1184,19 @@ function compoJsonText() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      runtime.load(saveData);
+      return new JsonTextTodoList(list.value as crdts.JsonObject);
     },
   });
 }
@@ -808,6 +1277,9 @@ function automerge() {
 
   return new TodoListBenchmark("Automerge", {
     newTodoList() {
+      // TODO: use rng'd actorId (input as second argument
+      // to from and load), in same format as Automerge
+      // uses internally.
       theDoc = Automerge.from({
         items: [],
       });
@@ -829,6 +1301,19 @@ function automerge() {
     },
     getSentBytes() {
       return totalSentBytes;
+    },
+    save() {
+      // TODO: Readme says this is a Uint8Array, but
+      // TypeScript says it is a string.  Not a problem,
+      // but we should make sure length accurately gives
+      // the byte length, not the uint16 length.
+      const saveData = Automerge.save(theDoc!);
+      return [saveData, saveData.length];
+    },
+    load(saveData: string) {
+      theDoc = Automerge.load(saveData);
+      lastDoc = theDoc;
+      return new AutomergeTodoList([]);
     },
   });
 }
@@ -929,6 +1414,19 @@ function automergeNoText() {
     getSentBytes() {
       return totalSentBytes;
     },
+    save() {
+      // TODO: Readme says this is a Uint8Array, but
+      // TypeScript says it is a string.  Not a problem,
+      // but we should make sure length accurately gives
+      // the byte length, not the uint16 length.
+      const saveData = Automerge.save(theDoc!);
+      return [saveData, saveData.length];
+    },
+    load(saveData: string) {
+      theDoc = Automerge.load(saveData);
+      lastDoc = theDoc;
+      return new AutomergeTodoList([]);
+    },
   });
 }
 
@@ -1009,46 +1507,57 @@ function yjs() {
     getSentBytes() {
       return totalSentBytes;
     },
+    save() {
+      // TODO: also try encodeStateAsUpdateV2 and applyUpdateV2,
+      // use whichever is better.
+      const saveData = Y.encodeStateAsUpdate(topDoc!);
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array) {
+      // Proceed like newTodoList, but without doing any
+      // operations or recording sent bytes.
+      topDoc = new Y.Doc();
+      Y.applyUpdate(topDoc, saveData);
+      return new YjsTodoList(topDoc.getMap());
+    },
   });
 }
 
 function jsonCrdt() {
   class JsonCrdtTodoList implements ITodoList {
     private readonly items: crdts.JsonCursor;
-    private readonly ids: crdts.TreedocPrimitiveList<string>;
-    private readonly text: crdts.TreedocPrimitiveList<string>;
+    private readonly ids: crdts.PrimitiveCList<string>;
+    private readonly text: crdts.PrimitiveCList<string>;
     constructor(
       private readonly crdt: crdts.JsonCursor,
-      private readonly idGen: crdts.TreedocSource,
+      private readonly idGen: crdts.TreedocDenseLocalList<undefined>,
       private readonly runtime: crdts.Runtime
     ) {
       this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
-      this.ids = this.crdt.get(
-        "itemsIds"
-      )[0] as crdts.TreedocPrimitiveList<string>;
-      this.text = this.crdt.get(
-        "text"
-      )[0] as crdts.TreedocPrimitiveList<string>;
+      this.ids = this.crdt.get("itemsIds")[0] as crdts.PrimitiveCList<string>;
+      this.text = this.crdt.get("text")[0] as crdts.PrimitiveCList<string>;
     }
     addItem(index: number, text: string): void {
       // Generate new id for this index
-      let startId: null | crdts.TreedocId = null;
-      let endId: null | crdts.TreedocId = null;
+      // let startId: null | crdts.TreedocLoc = null;
+      // let endId: null | crdts.TreedocLoc = null;
+      let startId: any = null;
+      let endId: any = null;
       if (index < this.ids.length) {
-        endId = this.idGen.deserialize(
-          crdts.stringAsArray(this.ids.getAt(index)),
+        endId = this.idGen.deserializeInternal(
+          crdts.stringAsArray(this.ids.get(index)),
           this.runtime
         );
       }
       if (index > 0) {
-        startId = this.idGen.deserialize(
-          crdts.stringAsArray(this.ids.getAt(index - 1)),
+        startId = this.idGen.deserializeInternal(
+          crdts.stringAsArray(this.ids.get(index - 1)),
           this.runtime
         );
       }
-      let id: crdts.TreedocId = this.idGen.createBetween(startId, endId, 1)[0];
-      let key: string = crdts.arrayAsString(this.idGen.serialize(id));
-      this.ids.insertAt(index, key);
+      let id = this.idGen.createBetween(startId, endId, 1)[0];
+      let key: string = crdts.arrayAsString(this.idGen.serializeInternal(id));
+      this.ids.insert(index, key);
 
       // Update Json Crdt with new item
       this.items.setIsMap(key);
@@ -1059,18 +1568,16 @@ function jsonCrdt() {
       newItem.setIsList("text");
 
       // Update text item
-      let textItem = newItem.get(
-        "text"
-      )[0] as crdts.TreedocPrimitiveList<string>;
-      textItem.insertAtRange(0, [...text]);
+      let textItem = newItem.get("text")[0] as crdts.PrimitiveCList<string>;
+      textItem.insert(0, ...text);
     }
     deleteItem(index: number): void {
-      let id: string = this.ids.getAt(index);
-      this.ids.deleteAt(index);
+      let id: string = this.ids.get(index);
+      this.ids.delete(index);
       this.items.delete(id);
     }
     getItem(index: number): ITodoList {
-      let id: string = this.ids.getAt(index);
+      let id: string = this.ids.get(index);
       return new JsonCrdtTodoList(
         this.items.get(id)[0] as crdts.JsonCursor,
         this.idGen,
@@ -1090,16 +1597,16 @@ function jsonCrdt() {
     }
 
     insertText(index: number, text: string): void {
-      this.text.insertAtRange(index, [...text]);
+      this.text.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      this.text.deleteAtRange(index, index + count);
+      this.text.delete(index, count);
     }
     get textSize(): number {
       return this.text.length;
     }
     getText(): string {
-      return this.text.asArray().join("");
+      return this.text.join("");
     }
   }
 
@@ -1108,7 +1615,7 @@ function jsonCrdt() {
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Crdt", {
-    newTodoList(rng: seedrandom.prng) {
+    newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
@@ -1123,7 +1630,7 @@ function jsonCrdt() {
       cursor.set("done", false);
       cursor.setIsList("text");
 
-      let idGen = new crdts.TreedocSource();
+      let idGen = new crdts.TreedocDenseLocalList<undefined>();
       idGen.setRuntime(runtime);
       return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
@@ -1143,6 +1650,28 @@ function jsonCrdt() {
     getSentBytes() {
       return totalSentBytes;
     },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      // Proceed like newTodoList, but without doing any
+      // operations.
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime("manual", rng);
+
+      let crdt = new crdts.JsonCrdt();
+
+      let cursor = new crdts.JsonCursor(crdt);
+      runtime.registerCrdt("", crdt);
+
+      let idGen = new crdts.TreedocDenseLocalList<undefined>();
+      idGen.setRuntime(runtime);
+
+      runtime.load(saveData);
+
+      return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
+    },
   });
 }
 
@@ -1157,8 +1686,14 @@ export default async function todoList(args: string[]) {
     case "compoCrdt":
       benchmark = compoCrdt();
       break;
+    case "compoCrdtRga":
+      benchmark = compoCrdtRga();
+      break;
     case "compoMovableCrdt":
       benchmark = compoMovableCrdt();
+      break;
+    case "compoMovableCrdtRga":
+      benchmark = compoMovableCrdtRga();
       break;
     case "compoJson":
       benchmark = compoJson();
@@ -1181,7 +1716,14 @@ export default async function todoList(args: string[]) {
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
-  if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
+  if (
+    !(
+      args[1] === "time" ||
+      args[1] === "memory" ||
+      args[1] === "network" ||
+      args[1] === "save"
+    )
+  ) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
   if (!(args[2] === "whole" || args[2] === "rounds")) {

@@ -52,18 +52,24 @@ class MicroAutomergeBenchmark {
   }
 
   async run(
-    measurement: "time" | "memory" | "network",
+    measurement: "time" | "memory" | "network" | "save",
     frequency: "whole" | "rounds"
   ) {
     console.log("Starting micro_automerge test: " + this.testName);
 
-    let results = new Array<number>(getRecordedTrials());
-    let roundResults = new Array<number[]>(getRecordedTrials());
+    let results = new Array<{ [measurement: string]: number }>(
+      getRecordedTrials()
+    );
+    let roundResults = new Array<{ [measurement: string]: number }[]>(
+      getRecordedTrials()
+    );
     let roundOps = new Array<number>(Math.ceil(OPS / ROUND_OPS));
     let baseMemories = new Array<number>(getRecordedTrials());
     if (frequency === "rounds") {
       for (let i = 0; i < getRecordedTrials(); i++)
-        roundResults[i] = new Array<number>(Math.ceil(OPS / ROUND_OPS));
+        roundResults[i] = new Array<{ [measurement: string]: number }>(
+          Math.ceil(OPS / ROUND_OPS)
+        );
     }
 
     let startingBaseline = 0;
@@ -107,16 +113,40 @@ class MicroAutomergeBenchmark {
       for (op = 0; op < OPS; op++) {
         if (frequency === "rounds" && op !== 0 && op % ROUND_OPS === 0) {
           // Record result
-          let ans = -1;
+          let ans: { [measurement: string]: number } = {};
           switch (measurement) {
             case "time":
-              ans = new Number(process.hrtime.bigint() - startTime!).valueOf();
+              ans[measurement] = new Number(
+                process.hrtime.bigint() - startTime!
+              ).valueOf();
               break;
             case "memory":
-              ans = await getMemoryUsed();
+              ans[measurement] = await getMemoryUsed();
               break;
             case "network":
-              ans = totalSentBytes - startSentBytes;
+              ans[measurement] = totalSentBytes - startSentBytes;
+              break;
+            case "save":
+              // Just save and load user 0
+              const saveStartTime = process.hrtime.bigint();
+              const saveData = Automerge.save(automerges[0]);
+              const saveTime = new Number(
+                process.hrtime.bigint() - saveStartTime!
+              ).valueOf();
+              automerges[0] = undefined;
+              // Create a new Automerge doc for user 0, then load
+              const loadStartTime = process.hrtime.bigint();
+              automerges[0] = Automerge.load(saveData);
+              const loadTime = new Number(
+                process.hrtime.bigint() - loadStartTime!
+              ).valueOf();
+              // Record
+              ans = {
+                saveTime,
+                saveSize: saveData.length,
+                loadTime,
+              };
+              break;
           }
           if (trial >= 0) roundResults[trial][round] = ans;
           roundOps[round] = op;
@@ -152,16 +182,41 @@ class MicroAutomergeBenchmark {
       }
 
       // Record result
-      let result = -1;
+      // TODO: de-duplicate code (shared with rounds measurements)
+      let result: { [measurement: string]: number } = {};
       switch (measurement) {
         case "time":
-          result = new Number(process.hrtime.bigint() - startTime!).valueOf();
+          result[measurement] = new Number(
+            process.hrtime.bigint() - startTime!
+          ).valueOf();
           break;
         case "memory":
-          result = await getMemoryUsed();
+          result[measurement] = await getMemoryUsed();
           break;
         case "network":
-          result = totalSentBytes - startSentBytes;
+          result[measurement] = totalSentBytes - startSentBytes;
+          break;
+        case "save":
+          // Just save and load user 0
+          const saveStartTime = process.hrtime.bigint();
+          const saveData = Automerge.save(automerges[0]);
+          const saveTime = new Number(
+            process.hrtime.bigint() - saveStartTime!
+          ).valueOf();
+          automerges[0] = undefined;
+          // Create a new runtime etc. for user 0, then load
+          const loadStartTime = process.hrtime.bigint();
+          automerges[0] = Automerge.load(saveData);
+          const loadTime = new Number(
+            process.hrtime.bigint() - loadStartTime!
+          ).valueOf();
+          // Record
+          result = {
+            saveTime,
+            saveSize: saveData.length,
+            loadTime,
+          };
+          break;
       }
       if (trial >= 0) {
         switch (frequency) {
@@ -182,19 +237,31 @@ class MicroAutomergeBenchmark {
       }
     }
 
-    record(
-      "micro_automerge/" + measurement,
-      this.testName,
-      frequency,
-      getRecordedTrials(),
-      results,
-      roundResults,
-      roundOps,
-      measurement === "memory"
-        ? baseMemories
-        : new Array<number>(getRecordedTrials()).fill(0),
-      startingBaseline
-    );
+    let toRecord: string[];
+    switch (measurement) {
+      case "save":
+        toRecord = ["saveTime", "loadTime", "saveSize"];
+        break;
+      default:
+        toRecord = [measurement];
+    }
+    for (const oneRecord of toRecord) {
+      record(
+        "micro_automerge/" + oneRecord,
+        this.testName,
+        frequency,
+        getRecordedTrials(),
+        results.map((result) => result[oneRecord]),
+        roundResults.map((trialResult) =>
+          trialResult.map((result) => result[oneRecord])
+        ),
+        roundOps,
+        oneRecord === "memory"
+          ? baseMemories
+          : new Array<number>(getRecordedTrials()).fill(0),
+        startingBaseline
+      );
+    }
   }
 }
 
@@ -371,7 +438,14 @@ export default async function microAutomerge(args: string[]) {
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
-  if (!(args[1] === "time" || args[1] === "memory" || args[1] === "network")) {
+  if (
+    !(
+      args[1] === "time" ||
+      args[1] === "memory" ||
+      args[1] === "network" ||
+      args[1] === "save"
+    )
+  ) {
     throw new Error("Unrecognized metric arg: " + args[1]);
   }
   if (!(args[2] === "whole" || args[2] === "rounds")) {

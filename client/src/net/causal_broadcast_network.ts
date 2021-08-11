@@ -2,6 +2,7 @@
 // (causal broadcast network, etc.) and the Crdts.
 
 import { Runtime } from "../crdt";
+import { ElementSerializer } from "../util";
 
 /**
  * Interface describing the causal timestamps that
@@ -59,7 +60,8 @@ export interface CausalTimestamp {
  * replicas, reliably, in causal order, and
  * tagged with causal timestamps.
  */
-export interface CausalBroadcastNetwork {
+export interface CausalBroadcastNetwork
+  extends ElementSerializer<CausalTimestamp> {
   /**
    * Registers the given Runtime to receive messages
    * from other replicas.  Such messages should be delivered
@@ -91,6 +93,33 @@ export interface CausalBroadcastNetwork {
     firstTimestamp: CausalTimestamp,
     lastTimestamp: CausalTimestamp
   ): void;
+
+  /**
+   * Serialize this CausalBroadcastNetwork.  The
+   * returned saveData may later be passed to load
+   * on a newly initialized instance of the same class.
+   * The loaded instance must then deliver to the runtime
+   * precisely any messages that were not delivered before
+   * saving.  So you should track your current position in
+   * the causal order, plus any queued messages.
+   *
+   * Note that load will be called on a replica
+   * with a different replicaId than this one, and that
+   * it may be called on multiple replicas concurrently,
+   * so the state must be forkable without breaking causal
+   * ordering.
+   *
+   * save will never be called when a batch is in progress.
+   * @return saveData
+   */
+  save(): Uint8Array;
+
+  /**
+   * See this.save.
+   * @param saveData an output of save from a previous
+   * instance of this class
+   */
+  load(saveData: Uint8Array): void;
 
   /** Used for type guard. */
   readonly isCausalBroadcastNetwork: true;

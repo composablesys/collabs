@@ -1,6 +1,6 @@
 "use strict";
 
-module.exports = createRBTree;
+module.exports = { createRBTree, fillRBTree };
 
 /**
  * Forked from the npm module functional-red-black-tree
@@ -110,7 +110,7 @@ proto.insert = function (key, value, ignoreExisting) {
     n_stack.push(n);
     d_stack.push(d);
     if (ignoreExisting && d === 0) {
-      return [this, index];
+      return [this, index, false];
     }
     if (d <= 0) {
       n = n.left;
@@ -279,7 +279,7 @@ proto.insert = function (key, value, ignoreExisting) {
   }
   //Return new tree
   n_stack[0]._color = BLACK;
-  return [new RedBlackTree(cmp, n_stack[0]), index];
+  return [new RedBlackTree(cmp, n_stack[0]), index, true];
 };
 
 //Visit all nodes inorder
@@ -531,9 +531,9 @@ proto.find = function (key) {
 proto.remove = function (key) {
   var iter = this.find(key);
   if (iter) {
-    return [iter.remove(), iter.index];
+    return [iter.remove(), iter.index, iter.value];
   }
-  return [this, null];
+  return [this, undefined];
 };
 
 //Returns the item at `key`
@@ -1107,4 +1107,69 @@ function defaultCompare(a, b) {
 //Build a tree
 function createRBTree(compare) {
   return new RedBlackTree(compare || defaultCompare, null);
+}
+
+// keys, values are functions from i to the thing.
+// They will called in order, once on each i.
+function fillRBTree(compare, keys, values, length) {
+  if (length === 0) return createRBTree(compare);
+  // Construct a balanced binary tree that is all
+  // black except for any leaves whose path is one
+  // longer than the minimum path length, due to
+  // non-perfectness.
+  // Note that internal nodes also have a key/value.
+  // Compute number of nodes not in the row of
+  // dangling (red) leaves, i.e., the last partially
+  // full row (if there is such a row).
+  // It is given by 2^floor(log_2(len + 1)) - 1.
+  const minDepth = Math.floor(Math.log2(length + 1));
+  const nonDanglers = (1 << minDepth) - 1;
+  return new RedBlackTree(
+    compare || defaultCompare,
+    fillNode(keys, values, length, nonDanglers, 0, 0)
+  );
+}
+
+// label is defined by labelling the tree 0, 1, 2, ...
+// starting from the root, going first across each
+// row to the right and then proceeding to the next row.
+// leftCount is the number of nodes to the left of this
+// one not counting its own left descendants.
+function fillNode(keys, values, length, nonDanglers, label, leftCount) {
+  const leftLabel = (label << 1) + 1;
+  if (leftLabel >= length) {
+    // No left child, hence a leaf.
+    // Make it red if it dangles, else black.
+    return new RBNode(
+      label >= nonDanglers ? RED : BLACK,
+      keys(leftCount),
+      values(leftCount),
+      null,
+      null,
+      1
+    );
+  } else {
+    const left = fillNode(
+      keys,
+      values,
+      length,
+      nonDanglers,
+      leftLabel,
+      leftCount
+    );
+    const index = leftCount + left._count;
+    const rightLabel = leftLabel + 1;
+    const right =
+      rightLabel >= length
+        ? null
+        : fillNode(keys, values, length, nonDanglers, rightLabel, index + 1);
+    return new RBNode(
+      BLACK,
+      keys(index),
+      values(index),
+      left,
+      right,
+      left._count + (right ? right._count : 0) + 1
+    );
+  }
 }

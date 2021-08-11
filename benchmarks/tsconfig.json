@@ -2,9 +2,7 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "build",
-    "noEmit": false,
     "allowJs": true,
-    "noImplicitAny": false,
     /*
      * Necessary for TensorFlow.js.
      * See https://www.tensorflow.org/js/tutorials/setup#typescript

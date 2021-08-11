@@ -14,7 +14,7 @@ fi
 
 for frequency in "whole" "rounds"
 do
-    for measurement in "time" "network" "memory"
+    for measurement in "time" "network" "memory" "save"
     do
       for name in "Register" "LwwMap" "LwwMapRolling" "TextLtr" "TextRandom"
       do

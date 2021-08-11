@@ -8,7 +8,12 @@ const PORT = process.env.PORT || 3000;
 const INDEX = "/index.html";
 const ROOT = __dirname + "/../site";
 
-const app = express().use((req, res) => res.sendFile(req.path, { root: ROOT }));
+const app = express().use((req, res) => {
+  if (req.path === "/reset.html") {
+    resetMessageHistory();
+  }
+  res.sendFile(req.path, { root: ROOT });
+});
 
 let server;
 let args = process.argv.slice(2);
@@ -25,4 +30,7 @@ if (args[0] === "https") {
 
 // Initialize the WebSocket server instance.
 //const wss = new WebSocket.Server({ port: 8080 });
-startServer({ server });
+const { reset } = startServer({ server });
+function resetMessageHistory() {
+  reset();
+}

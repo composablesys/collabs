@@ -4,3 +4,16 @@ message RuntimeMessage {
   repeated uint32 messageSenders = 3 [packed=true];
   repeated bytes innerMessages = 4;
 }
+
+message RuntimeOneSave {
+  // Index of the parent in saves plus 1 (0 if this is root)
+  required uint32 parentPointer = 1;
+  required bytes name = 2;
+  required bytes saveData = 3;
+}
+
+message RuntimeSave {
+  // rootCrdt is the first element, with id 1
+  repeated RuntimeOneSave saves = 1;
+  required bytes networkSave = 2;
+}

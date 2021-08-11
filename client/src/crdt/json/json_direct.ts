@@ -4,9 +4,9 @@ import {
   TextSerializer,
 } from "../../util";
 import { CompositeCrdt, Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
-import { TreedocPrimitiveList } from "../list";
-import { ImplicitCrdtMap, RiakCrdtMap } from "../map";
-import { MultiValueRegister } from "../register/multi_value_register";
+import { PrimitiveCList } from "../list";
+import { ImplicitMergingMutCMap, MergingMutCMap } from "../map";
+import { OptionalLwwCRegister } from "../register";
 
 export interface JsonEvent extends CrdtEvent {
   readonly key: string;
@@ -24,13 +24,13 @@ enum InternalType {
 }
 
 export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
-  private readonly internalMap: RiakCrdtMap<
+  private readonly internalMap: MergingMutCMap<
     string,
-    MultiValueRegister<number | string | boolean | InternalType>
+    OptionalLwwCRegister<number | string | boolean | InternalType>
   >;
-  private readonly internalListMap: ImplicitCrdtMap<
+  private readonly ImplicitMergingMutCMap: ImplicitMergingMutCMap<
     string,
-    TreedocPrimitiveList<string>
+    PrimitiveCList<string>
   >;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
@@ -41,29 +41,31 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
       DefaultElementSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
-      new RiakCrdtMap(() => new MultiValueRegister(), keySerializer)
+      new MergingMutCMap(() => new OptionalLwwCRegister(), keySerializer)
     );
 
-    this.internalListMap = this.addChild(
-      "internalListMap",
-      new ImplicitCrdtMap(
-        () => new TreedocPrimitiveList(TextSerializer.instance),
+    this.ImplicitMergingMutCMap = this.addChild(
+      "ImplicitMergingMutCMap",
+      new ImplicitMergingMutCMap(
+        () => new PrimitiveCList(TextSerializer.instance),
         keySerializer
       )
     );
 
     this.internalNestedKeys = new Map();
 
-    // Update internalListMap if any keys are added or deleted
-    this.internalMap.on("KeyAdd", (event) => {
-      let keys = event.key.split(":");
-      keys?.pop();
-      let key = keys.pop() || "";
-      let cursor = keys.join(":");
-      this.addKey(cursor + ":", key);
+    // Update ImplicitMergingMutCMap if any keys are added or deleted
+    this.internalMap.on("Set", (event) => {
+      if (!event.previousValue.isPresent) {
+        let keys = event.key.split(":");
+        keys?.pop();
+        let key = keys.pop() || "";
+        let cursor = keys.join(":");
+        this.addKey(cursor + ":", key);
+      }
     });
 
-    this.internalMap.on("KeyDelete", (event) => {
+    this.internalMap.on("Delete", (event) => {
       let keys = event.key.split(":");
       keys?.pop();
       let key = keys.pop() || "";
@@ -90,17 +92,17 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     // Reset an existing map or list
     this.deleteSubKeys(key);
     if (val === InternalType.List) {
-      this.internalListMap.get(key).reset();
+      this.ImplicitMergingMutCMap.delete(key);
     }
 
-    if (!this.internalMap.has(key)) this.internalMap.addKey(key);
+    if (!this.internalMap.has(key)) this.internalMap.set(key);
     let mvr = this.internalMap.get(key)!;
     mvr.set(val);
   }
 
   get(
     key: string
-  ): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+  ): (number | string | boolean | PrimitiveCList<string> | JsonCursor)[] {
     let vals: any[] = [];
     let mvr = this.internalMap.get(key);
     if (mvr) {
@@ -111,7 +113,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
             break;
 
           case InternalType.List:
-            vals.push(this.internalListMap.get(key));
+            vals.push(this.ImplicitMergingMutCMap.get(key));
             break;
 
           default:
@@ -149,12 +151,12 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
 
   values(
     cursor: string
-  ): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+  ): (number | string | boolean | PrimitiveCList<string> | JsonCursor)[] {
     let vals: (
       | number
       | string
       | boolean
-      | TreedocPrimitiveList<string>
+      | PrimitiveCList<string>
       | JsonCursor
     )[] = [];
 
@@ -196,7 +198,7 @@ export class JsonCursor {
 
   get(
     key: string
-  ): (number | string | boolean | TreedocPrimitiveList<string> | JsonCursor)[] {
+  ): (number | string | boolean | PrimitiveCList<string> | JsonCursor)[] {
     return this.internal.get(this.cursor + key + ":");
   }
 
@@ -227,7 +229,7 @@ export class JsonCursor {
     | number
     | string
     | boolean
-    | TreedocPrimitiveList<string>
+    | PrimitiveCList<string>
     | JsonCursor
   )[] {
     return this.internal.values(this.cursor);

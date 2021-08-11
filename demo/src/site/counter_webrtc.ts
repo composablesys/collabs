@@ -10,7 +10,7 @@ var HOST = location.origin.replace(/^http/, "ws");
  */
 
 let client = new crdts.Runtime(new crdts.WebRtcNetwork(HOST));
-let clientCounter = client.registerCrdt("counter", new crdts.AddOnlyNumber());
+let clientCounter = client.registerCrdt("counter", new crdts.CCounter());
 
 /* HTML variables */
 var counter = document.getElementById("counter");
