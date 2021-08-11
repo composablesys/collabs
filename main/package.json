@@ -1,7 +1,7 @@
 {
-  "name": "compoventuals-client",
+  "name": "compoventuals",
   "version": "0.1.0",
-  "description": "CRDTs designed compositionally (client library)",
+  "description": "CRDTs designed compositionally (main library)",
   "author": "Compoventuals contributors",
   "license": "Apache-2.0",
   "bugs": {
@@ -20,23 +20,17 @@
   "unpkg": "build/src/index.js",
   "dependencies": {
     "buffer": "^6.0.3",
-    "clean": "^4.0.2",
     "crypto-random-string": "~3.3.1",
-    "matrix-widget-api": "^0.1.0-beta.15",
     "protobufjs": "~6.10.1",
-    "ws": "^7.4.6",
-    "reconnecting-websocket": "^4.4.0"
+    "seedrandom": "^3.0.5",
+    "@types/seedrandom": "^2.4.28"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.2.0",
-    "@types/seedrandom": "^2.4.28",
-    "@types/ws": "^7.2.6",
     "chai": "^4.2.0",
-    "dotenv": "^8.2.0",
     "mkdirp": "^1.0.4",
     "mocha": "^8.2.1",
-    "seedrandom": "^3.0.5",
     "tslib": "^2.0.1"
   },
   "scripts": {

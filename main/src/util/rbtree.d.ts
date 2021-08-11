@@ -201,11 +201,11 @@ export interface Node<K, V> {
 }
 
 export function fillRBTree<K, V>(
-  compare?: (key1: K, key2: K) => number,
+  compare: (key1: K, key2: K) => number,
   keys: (index: number) => K,
   values: (index: number) => V,
   length: number
-);
+): Tree<K, V>;
 
 /**
  * Creates an empty red-black tree.
@@ -216,4 +216,4 @@ export function fillRBTree<K, V>(
 // tslint:disable-next-line:no-unnecessary-generics
 export function createRBTree<K, V>(
   compare?: (key1: K, key2: K) => number
-): createRBTree.Tree<K, V>;
+): Tree<K, V>;
