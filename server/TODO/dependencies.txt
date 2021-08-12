@@ -1,3 +1,0 @@
-
-"ws": "^7.4.6",
-"reconnecting-websocket": "^4.4.0"
