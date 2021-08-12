@@ -1,5 +1,5 @@
 {
-  "name": "compoventuals",
+  "name": "compoventuals-metapackage",
   "version": "0.1.0",
   "description": "CRDTs designed compositionally (meta-package)",
   "author": "Compoventuals contributors",

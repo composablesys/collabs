@@ -1,0 +1,52 @@
+{
+  "name": "compoventuals-json",
+  "version": "0.1.0",
+  "description": "CRDTs designed compositionally (JSON datatype)",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "unpkg": "build/src/index.js",
+  "dependencies": {
+    "compoventuals": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.14",
+    "@types/mocha": "^8.2.0",
+    "chai": "^4.2.0",
+    "mkdirp": "^1.0.4",
+    "mocha": "^8.2.1",
+    "tslib": "^2.0.1"
+  },
+  "scripts": {
+    "build": "npm-run-all build:*",
+    "build:ts": "tsc --project tsconfig.build.json",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.build.json",
+    "clean": "rimraf build docs",
+    "test": "npm-run-all test:*",
+    "test:unit": "mocha",
+    "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
+    "tscw": "tsc --project tsconfig.build.json --watch"
+  },
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  }
+}

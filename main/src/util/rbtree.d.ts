@@ -12,9 +12,9 @@
  */
 
 /** Represents a functional red-black tree. */
-export interface Tree<K, V> {
+export interface RBTree<K, V> {
   /** Returns the root node of the tree. */
-  root: Node<K, V>;
+  root: RBNode<K, V>;
 
   /** A sorted array of all keys in the tree. */
   readonly keys: K[];
@@ -42,7 +42,7 @@ export interface Tree<K, V> {
     key: K,
     value: V,
     ignoreExisting?: boolean
-  ) => [Tree<K, V>, number, boolean];
+  ) => [RBTree<K, V>, number, boolean];
 
   /**
    * Walks a visitor function over the nodes of the tree in order.
@@ -60,10 +60,10 @@ export interface Tree<K, V> {
   };
 
   /** An iterator pointing to the first element in the tree. */
-  readonly begin: Iterator<K, V>;
+  readonly begin: RBIterator<K, V>;
 
   /** An iterator pointing to the last element in the tree. */
-  readonly end: Iterator<K, V>;
+  readonly end: RBIterator<K, V>;
 
   /**
    * Finds an iterator starting at the given element.
@@ -71,7 +71,7 @@ export interface Tree<K, V> {
    * @param position The index at which the iterator gets created.
    * @returns An iterator starting at `position`.
    */
-  at: (idx: number) => Iterator<K, V>;
+  at: (idx: number) => RBIterator<K, V>;
 
   /**
    * Finds the first item in the tree whose key is >= `key`.
@@ -79,7 +79,7 @@ export interface Tree<K, V> {
    * @param key The key to search for.
    * @returns An iterator at the given element.
    */
-  ge: (key: K) => Iterator<K, V>;
+  ge: (key: K) => RBIterator<K, V>;
 
   /**
    * Finds the first item in the tree whose key is > `key`.
@@ -87,7 +87,7 @@ export interface Tree<K, V> {
    * @param key The key to search for.
    * @returns An iterator at the given element.
    */
-  gt: (key: K) => Iterator<K, V>;
+  gt: (key: K) => RBIterator<K, V>;
 
   /**
    * Finds the last item in the tree whose key is < `key`.
@@ -95,7 +95,7 @@ export interface Tree<K, V> {
    * @param key The key to search for.
    * @returns An iterator at the given element.
    */
-  lt: (key: K) => Iterator<K, V>;
+  lt: (key: K) => RBIterator<K, V>;
 
   /**
    * Finds the last item in the tree whose key is <= `key`.
@@ -103,12 +103,12 @@ export interface Tree<K, V> {
    * @param key The key to search for.
    * @returns An iterator at the given element.
    */
-  le: (key: K) => Iterator<K, V>;
+  le: (key: K) => RBIterator<K, V>;
 
   /**
    * @returns An iterator pointing to the first item in the tree with `key`, otherwise null.
    */
-  find: (key: K) => Iterator<K, V>;
+  find: (key: K) => RBIterator<K, V>;
 
   /**
    * Removes the first item with `key` in the tree.
@@ -121,7 +121,7 @@ export interface Tree<K, V> {
    */
   remove: (
     key: K
-  ) => [Tree<K, V>, [deletedIndex: number, deletedValue: V] | undefined];
+  ) => [RBTree<K, V>, [deletedIndex: number, deletedValue: V] | undefined];
 
   /**
    * Retrieves the value associated with `key`.
@@ -133,9 +133,9 @@ export interface Tree<K, V> {
 }
 
 /** Iterates through the nodes in a red-black tree. */
-export interface Iterator<K, V> {
+export interface RBIterator<K, V> {
   /** The tree associated with the iterator. */
-  tree: Tree<K, V>;
+  tree: RBTree<K, V>;
 
   /** Checks if the iterator is valid. */
   readonly valid: boolean;
@@ -144,17 +144,17 @@ export interface Iterator<K, V> {
    * The value of the node at the iterator's current position, or null if the
    * iterator is invalid.
    */
-  readonly node: Node<K, V> | null;
+  readonly node: RBNode<K, V> | null;
 
   /** Makes a copy of the iterator. */
-  clone: () => Iterator<K, V>;
+  clone: () => RBIterator<K, V>;
 
   /**
    * Removes the iterator's current item form the tree.
    *
    * @returns A new binary search tree with the item removed.
    */
-  remove: () => Tree<K, V>;
+  remove: () => RBTree<K, V>;
 
   /** The key of the iterator's current item. */
   readonly key?: K;
@@ -176,7 +176,7 @@ export interface Iterator<K, V> {
    *
    * @returns A new binary search tree with the corresponding node updated.
    */
-  update: (value: V) => Tree<K, V>;
+  update: (value: V) => RBTree<K, V>;
 
   /** Moves the iterator backward one element. */
   prev: () => void;
@@ -186,7 +186,7 @@ export interface Iterator<K, V> {
 }
 
 /** Represents a node in a red-black tree. */
-export interface Node<K, V> {
+export interface RBNode<K, V> {
   /** The key associated with the node. */
   key: K;
 
@@ -194,10 +194,10 @@ export interface Node<K, V> {
   value: V;
 
   /** The left subtree of the node. */
-  left: Tree<K, V>;
+  left: RBTree<K, V>;
 
   /** The right subtree of the node. */
-  right: Tree<K, V>;
+  right: RBTree<K, V>;
 }
 
 export function fillRBTree<K, V>(
@@ -205,7 +205,7 @@ export function fillRBTree<K, V>(
   keys: (index: number) => K,
   values: (index: number) => V,
   length: number
-): Tree<K, V>;
+): RBTree<K, V>;
 
 /**
  * Creates an empty red-black tree.
@@ -216,4 +216,4 @@ export function fillRBTree<K, V>(
 // tslint:disable-next-line:no-unnecessary-generics
 export function createRBTree<K, V>(
   compare?: (key1: K, key2: K) => number
-): Tree<K, V>;
+): RBTree<K, V>;

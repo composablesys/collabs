@@ -1,4 +1,21 @@
+import { assert } from "chai";
+import { JsonCrdt, JsonCursor } from "../src/json_opt";
+import { Runtime, TestingNetworkGenerator } from "compoventuals";
+import seedrandom from "seedrandom";
+
 describe("JsonCrdt", () => {
+  let runtimeGen: TestingNetworkGenerator;
+  let alice: Runtime;
+  let bob: Runtime;
+  let rng: seedrandom.prng;
+
+  beforeEach(() => {
+    rng = seedrandom("42");
+    runtimeGen = new TestingNetworkGenerator();
+    alice = runtimeGen.newRuntime("immediate", rng);
+    bob = runtimeGen.newRuntime("immediate", rng);
+  });
+
   let aliceJson: JsonCrdt;
   let aliceCursor: JsonCursor;
   let bobJson: JsonCrdt;

@@ -1,12 +1,16 @@
 import {
+  CompositeCrdt,
+  Crdt,
+  CrdtEvent,
+  CrdtEventsRecord,
   DefaultElementSerializer,
   ElementSerializer,
+  ImplicitMergingMutCMap,
+  MergingMutCMap,
+  OptionalLwwCRegister,
+  PrimitiveCList,
   TextSerializer,
-} from "../../util";
-import { CompositeCrdt, Crdt, CrdtEvent, CrdtEventsRecord } from "../core";
-import { PrimitiveCList } from "../list";
-import { ImplicitMergingMutCMap, MergingMutCMap } from "../map";
-import { OptionalLwwCRegister } from "../register";
+} from "compoventuals";
 
 export interface JsonEvent extends CrdtEvent {
   readonly key: string;

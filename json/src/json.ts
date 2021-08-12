@@ -1,9 +1,12 @@
-import { DefaultElementSerializer } from "../../util";
-import { CompositeCrdt } from "../core";
-import { Resettable } from "../helper_crdts";
-import { CText, ResettingMutCList } from "../list";
-import { MergingMutCMap } from "../map";
-import { LwwCRegister } from "../register";
+import {
+  CompositeCrdt,
+  CText,
+  DefaultElementSerializer,
+  LwwCRegister,
+  MergingMutCMap,
+  Resettable,
+  ResettingMutCList,
+} from "compoventuals";
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
 
