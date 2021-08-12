@@ -1,7 +1,7 @@
 {
-  "name": "compoventuals-json",
+  "name": "compoventuals-matrix-widget",
   "version": "0.1.0",
-  "description": "CRDTs designed compositionally (JSON datatype)",
+  "description": "CRDTs designed compositionally (Matrix widget network)",
   "author": "Compoventuals contributors",
   "license": "Apache-2.0",
   "bugs": {
@@ -19,13 +19,10 @@
   "types": "build/src/index.d.ts",
   "unpkg": "build/src/index.js",
   "dependencies": {
-    "compoventuals": "^0.1.0"
+    "compoventuals": "^0.1.0",
+    "matrix-widget-api": "^0.1.0-beta.15"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.14",
-    "@types/mocha": "^8.2.0",
-    "chai": "^4.2.0",
-    "mocha": "^8.2.1",
     "tslib": "^2.0.1"
   },
   "scripts": {
@@ -34,7 +31,6 @@
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.build.json",
     "clean": "rimraf build docs",
     "test": "npm-run-all test:*",
-    "test:unit": "mocha",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",

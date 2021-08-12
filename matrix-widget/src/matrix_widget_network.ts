@@ -5,9 +5,9 @@ import {
 } from "matrix-widget-api";
 import {
   BroadcastNetwork,
+  CausalTimestamp,
   DefaultCausalBroadcastNetwork,
-} from "./default_causal_broadcast_network";
-import { CausalTimestamp } from "./causal_broadcast_network";
+} from "compoventuals";
 
 // TODO: size limits:
 // https://matrix.org/docs/spec/client_server/r0.6.1#size-limits

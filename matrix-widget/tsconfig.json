@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    /*
+     * We do not want to emit for tests. This is overridden in
+     * tsconfig.build.json, so that we can emit for src.
+     */
+    "noEmit": true
+  },
+  "include": ["src", "test"]
+}

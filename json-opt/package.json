@@ -26,7 +26,6 @@
     "@types/mocha": "^8.2.0",
     "@types/seedrandom": "^2.4.28",
     "chai": "^4.2.0",
-    "mkdirp": "^1.0.4",
     "mocha": "^8.2.1",
     "seedrandom": "^3.0.5",
     "tslib": "^2.0.1"

@@ -1,2 +1,0 @@
-
-"matrix-widget-api": "^0.1.0-beta.15",
