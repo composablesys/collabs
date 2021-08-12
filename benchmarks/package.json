@@ -16,7 +16,9 @@
     "crdts"
   ],
   "dependencies": {
-    "compoventuals-client": "^0.1.0",
+    "compoventuals": "^0.1.0",
+    "compoventuals-json": "^0.1.0",
+    "compoventuals-json-opt": "^0.1.0",
     "benchmark": "^2.1.4",
     "clean": "^4.0.2",
     "mathjs": "^9.2.0",
@@ -27,8 +29,6 @@
     "automerge": "^0.14.2",
     "yjs": "^13.5.3",
     "chai": "^4.2.0",
-    "delta-crdts": "^0.10.3",
-    "delta-crdts-msgpack-codec": "^0.2.0",
     "@airbnb/node-memwatch": "^2.0.0"
   },
   "devDependencies": {

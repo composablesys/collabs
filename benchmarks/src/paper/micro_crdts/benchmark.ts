@@ -1,6 +1,6 @@
 // import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
 import seedrandom from "seedrandom";
 import {
   getRecordedTrials,
@@ -288,10 +288,32 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
   }
 }
 
+/**
+ * A trivial Crdt that does nothing except send
+ * empty messages.  Used for baseline measurements.
+ */
+class NoopCrdtClass extends crdts.PrimitiveCrdt {
+  noop() {
+    super.send(new Uint8Array());
+  }
+
+  receivePrimitive() {}
+
+  savePrimitive() {
+    return new Uint8Array();
+  }
+
+  loadPrimitive() {}
+
+  canGc() {
+    return true;
+  }
+}
+
 function NoopCrdt() {
   return new MicroCrdtsBenchmark(
     "NoopCrdt",
-    () => new crdts.NoopCrdt(),
+    () => new NoopCrdtClass(),
     { Noop: [(crdt) => crdt.noop(), 1] },
     () => null
   );
@@ -300,12 +322,12 @@ function NoopCrdt() {
 function DeepNoopCrdt() {
   class DeepNoopCrdt extends crdts.CompositeCrdt {
     readonly child: crdts.Crdt;
-    readonly noop: crdts.NoopCrdt;
+    readonly noop: NoopCrdtClass;
     constructor(index: number) {
       super();
       if (index === 0) {
-        this.child = this.addChild("child " + index, new crdts.NoopCrdt());
-        this.noop = this.child as crdts.NoopCrdt;
+        this.child = this.addChild("child " + index, new NoopCrdtClass());
+        this.noop = this.child as NoopCrdtClass;
       } else {
         this.child = this.addChild(
           "child " + index,

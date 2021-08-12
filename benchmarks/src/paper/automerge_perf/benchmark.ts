@@ -1,4 +1,4 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
 import { edits, finalText } from "./editing-trace";
 import Automerge from "automerge";
 import * as Y from "yjs";

@@ -26,6 +26,9 @@
   },
   "workspaces": [
     "main",
+    "json",
+    "json-opt",
+    "matrix-widget",
     "server",
     "demo",
     "benchmarks"
