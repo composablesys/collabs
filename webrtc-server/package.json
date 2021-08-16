@@ -1,0 +1,46 @@
+{
+  "name": "compoventuals-webrtc-server",
+  "version": "0.1.0",
+  "description": "CRDTs designed compositionally (WebRTC network signalling server)",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "unpkg": "build/src/index.js",
+  "dependencies": {
+    "ws": "^7.4.6",
+    "@types/ws": "^7.2.6"
+  },
+  "devDependencies": {
+    "tslib": "^2.0.1"
+  },
+  "scripts": {
+    "build": "npm-run-all build:*",
+    "build:ts": "tsc",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
+    "tscw": "tsc --watch",
+    "test": "npm-run-all test:*",
+    "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
+    "clean": "rimraf build docs"
+  },
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src"
+  }
+}

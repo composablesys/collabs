@@ -1,0 +1,7 @@
+message WebRtcNetworkMessage {
+  required bytes message = 1;
+  required string sender = 2;
+  required uint32 senderCounter = 3;
+  map<string, uint32> vectorMap = 4;
+  required uint64 time = 5;
+}

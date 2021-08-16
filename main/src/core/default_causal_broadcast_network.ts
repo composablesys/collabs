@@ -89,7 +89,7 @@ export interface BroadcastNetwork {
  * Customized message event that travel through
  * casualbroadcast network.
  */
-export class myMessage {
+class myMessage {
   /**
    * Crdt update message.
    */

@@ -32,6 +32,8 @@
     "main",
     "matrix-widget",
     "tensor-average",
+    "webrtc-client",
+    "webrtc-server",
     "ws-client",
     "ws-server"
   ],
