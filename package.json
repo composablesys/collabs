@@ -25,14 +25,15 @@
     "typescript": "^4.3.5"
   },
   "workspaces": [
-    "main",
+    "benchmarks",
+    "demo",
     "json",
     "json-opt",
-    "tensor-average",
+    "main",
     "matrix-widget",
-    "server",
-    "demo",
-    "benchmarks"
+    "tensor-average",
+    "ws-client",
+    "ws-server"
   ],
   "scripts": {
     "start": "npm start --prefix demo",
