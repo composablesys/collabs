@@ -1,7 +1,8 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 
 const client = new crdts.Runtime(
-  new crdts.MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.plaintext"),
+  new MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.plaintext"),
   { periodMs: 300 }
 );
 

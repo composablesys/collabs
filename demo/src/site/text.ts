@@ -1,8 +1,5 @@
-import {
-  Runtime,
-  DefaultCausalBroadcastNetwork,
-  WebSocketNetwork,
-} from "compoventuals-client";
+import { Runtime, DefaultCausalBroadcastNetwork } from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 import {
   YataDeleteEvent,
   YataFormatExistingEvent,

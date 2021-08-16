@@ -1,12 +1,11 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src/site",
     /* We don't need to generate declarations or be imported */
     "composite": false,
     "declaration": false,
-    "esModuleInterop": true
+    /* Include generated .js files in compilation run */
+    "allowJs": true
   },
-  "include": ["src/site", "generated/site", "tsconfig.site.json"],
-  "references": [{ "path": "../client/tsconfig.build.json" }]
+  "include": ["src/site", "generated/site"]
 }

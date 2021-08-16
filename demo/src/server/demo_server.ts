@@ -1,4 +1,5 @@
-import { startServer } from "compoventuals-server";
+import { startWebSocketServer } from "compoventuals-ws-server";
+import { startWebRtcServer } from "compoventuals-webrtc-server";
 import express from "express";
 import fs from "fs";
 import https from "https";
@@ -30,7 +31,8 @@ if (args[0] === "https") {
 
 // Initialize the WebSocket server instance.
 //const wss = new WebSocket.Server({ port: 8080 });
-const { reset } = startServer({ server });
+const { reset } = startWebSocketServer({ server });
 function resetMessageHistory() {
   reset();
 }
+startWebRtcServer({ server });

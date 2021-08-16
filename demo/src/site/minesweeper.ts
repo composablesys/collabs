@@ -1,4 +1,5 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 import seedrandom = require("seedrandom");
 
 const board = document.getElementById("board");
@@ -155,7 +156,7 @@ function settingsFromInput(): GameSettings {
  * Generate CRDTs' Runtime on each client and create CRDTs
  */
 let HOST = location.origin.replace(/^http/, "ws");
-let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "minesweeper"));
+let client = new crdts.Runtime(new WebSocketNetwork(HOST, "minesweeper"));
 let currentGame = client.registerCrdt(
   "currentGame",
   new crdts.LwwMutCRegister(

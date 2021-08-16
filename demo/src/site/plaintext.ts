@@ -1,10 +1,10 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 
 var HOST = location.origin.replace(/^http/, "ws");
-const client = new crdts.Runtime(
-  new crdts.WebSocketNetwork(HOST, "plaintext"),
-  { periodMs: 200 }
-);
+const client = new crdts.Runtime(new WebSocketNetwork(HOST, "plaintext"), {
+  periodMs: 200,
+});
 
 const text = client.registerCrdt("text", new crdts.CText());
 

@@ -1,6 +1,5 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
 import { YataSave } from "../../generated/site/proto_compiled";
-import { Crdt } from "compoventuals-client";
 
 export class YataOp<T> extends crdts.CompositeCrdt {
   readonly creatorId: string;
@@ -116,7 +115,7 @@ type m2Args<T> = [
 
 export class YataLinear<T> extends crdts.SemidirectProductRev<
   YataEventsRecord<T>,
-  Crdt,
+  crdts.Crdt,
   m1Args,
   m2Args<T>
 > {

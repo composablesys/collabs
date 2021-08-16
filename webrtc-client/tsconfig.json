@@ -2,7 +2,9 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "build",
-    "noEmit": false
+    "noEmit": false,
+    /* Include generated .js files in compilation run */
+    "allowJs": true
   },
   "include": ["src", "generated"]
 }

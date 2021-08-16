@@ -1,4 +1,5 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 
 const WIN_TEXT = (function () {
   let ans = "a";
@@ -8,7 +9,7 @@ const WIN_TEXT = (function () {
 
 var HOST = location.origin.replace(/^http/, "ws");
 
-const client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "aspace"));
+const client = new crdts.Runtime(new WebSocketNetwork(HOST, "aspace"));
 const text = client.registerCrdt("text", new crdts.CText());
 const startTime = client.registerCrdt(
   "startTime",

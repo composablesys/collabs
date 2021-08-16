@@ -1,4 +1,5 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 import { min, max, round } from "mathjs";
 
 /**
@@ -9,7 +10,7 @@ var HOST = location.origin.replace(/^http/, "ws");
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
  */
-let client = new crdts.Runtime(new crdts.WebSocketNetwork(HOST, "whiteboard"));
+let client = new crdts.Runtime(new WebSocketNetwork(HOST, "whiteboard"));
 
 // The key represents a point in the form: x:y
 // The value is the color of the stroke.

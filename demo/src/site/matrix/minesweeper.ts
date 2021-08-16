@@ -1,4 +1,5 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 import seedrandom = require("seedrandom");
 
 const board = document.getElementById("board");
@@ -155,7 +156,7 @@ function settingsFromInput(): GameSettings {
  * Generate CRDTs' Runtime on each client and create CRDTs
  */
 let client = new crdts.Runtime(
-  new crdts.MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.minesweeper")
+  new MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.minesweeper")
 );
 let currentGame = client.registerCrdt(
   "currentGame",

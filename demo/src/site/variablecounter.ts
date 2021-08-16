@@ -1,10 +1,11 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 
 const HOST = location.origin.replace(/^http/, "ws");
 
 let client = new crdts.Runtime(
   new crdts.DefaultCausalBroadcastNetwork(
-    new crdts.WebSocketNetwork(HOST, "variable_counter")
+    new WebSocketNetwork(HOST, "variable_counter")
   )
 );
 

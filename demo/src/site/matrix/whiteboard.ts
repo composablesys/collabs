@@ -1,8 +1,9 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 import { min, max, round } from "mathjs";
 
 let client = new crdts.Runtime(
-  new crdts.MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.whiteboard"),
+  new MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.whiteboard"),
   {
     periodMs: 300,
   }
