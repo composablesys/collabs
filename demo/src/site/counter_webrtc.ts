@@ -4,7 +4,11 @@ import { WebRtcNetwork } from "compoventuals-webrtc-client";
 /**
  * Get Heroku server host Websocket.
  */
-var HOST = location.origin.replace(/^http/, "ws");
+// var HOST = location.origin.replace(/^http/, "ws");
+const url = new URL(location.origin);
+url.protocol = "ws";
+url.port = "" + (parseInt(url.port) + 1);
+const HOST = url.toString();
 
 /**
  * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).

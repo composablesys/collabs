@@ -5,7 +5,7 @@ import fs from "fs";
 import https from "https";
 
 // Express server based on https://devcenter.heroku.com/articles/node-websockets
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const INDEX = "/index.html";
 const ROOT = __dirname + "/../site";
 
@@ -35,4 +35,4 @@ const { reset } = startWebSocketServer({ server });
 function resetMessageHistory() {
   reset();
 }
-startWebRtcServer({ server });
+startWebRtcServer({ port: PORT + 1 });
