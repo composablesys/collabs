@@ -33,8 +33,8 @@
   },
   "scripts": {
     "build": "npm-run-all build:*",
-    "build:ts": "tsc --project tsconfig.build.json",
-    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.build.json",
+    "build:ts": "tsc --project tsconfig.json",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",

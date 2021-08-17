@@ -2,6 +2,7 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "build",
+    /* Include automerge_perf benchmark js file. */
     "allowJs": true,
     /* We don't need to generate declarations or be imported */
     "composite": false,
