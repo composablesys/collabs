@@ -1,8 +1,34 @@
 {
-  "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    /* Use . as rootDir so build contains a nested src folder.
+     * This keeps things consistent across different projects,
+     * some of which have a "generated" folder (thus causing
+     * Typescript to set rootDir = . by default) while
+     * others don't.
+     */
+    "rootDir": ".",
     "outDir": "build",
-    "noEmit": false
+    "target": "es6",
+    /* Specify lib manually so we can exclude DOM. */
+    "lib": ["es6"],
+    /* Enable strict type checking. */
+    "strict": true,
+    /* The workspace structure causes tsc to check all
+     * projects in node_modules during compilation, including
+     * one tfjs dependency (webgl pinned version) that has
+     * a bug.  So while we are using workspaces, we need
+     * to skipLibChecks.
+     */
+    "skipLibCheck": true,
+    "module": "commonjs",
+    /* Enable interop with dependencies using different module systems. */
+    "esModuleInterop": true,
+    /* Emit .d.ts files. */
+    "declaration": true,
+    /* Emit sourcemap files. */
+    "sourceMap": true,
+    /* Use tslib to reduce generated js file sizes. */
+    "importHelpers": true
   },
   "include": ["src"]
 }
