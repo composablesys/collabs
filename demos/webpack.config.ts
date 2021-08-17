@@ -23,7 +23,7 @@ const config: webpack.Configuration = {
   output: {
     path: path.resolve(__dirname, "build/site"),
     filename: "[name].js",
-    library: "compoventuals-demo",
+    library: "compoventuals-demos",
     libraryTarget: "window", // this needs to be changed
     libraryExport: "default",
   },

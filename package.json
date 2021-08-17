@@ -30,10 +30,10 @@
     "webrtc-server",
     "matrix-widget",
     "benchmarks",
-    "demo"
+    "demos"
   ],
   "scripts": {
-    "start": "npm start --prefix demo",
+    "start": "npm start --prefix demos",
     "build": "./foreach-workspace.sh \"npm run build --prefix\"",
     "test": "./foreach-workspace.sh \"npm run test --prefix\"",
     "fix": "./foreach-workspace.sh \"npm run fix --prefix\"",
