@@ -23,19 +23,24 @@
     "matrix-widget-api": "^0.1.0-beta.15"
   },
   "devDependencies": {
-    "tslib": "^2.0.1"
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.3.5",
+    "tslib": "^2.0.1",
+    "typedoc": "^0.21.4",
+    "pkg-ok": "^2.3.1",
+    "prettier": "^2.2.1",
+    "rimraf": "^2.7.1"
   },
   "scripts": {
     "build": "npm-run-all build:*",
     "build:ts": "tsc --project tsconfig.build.json",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.build.json",
-    "clean": "rimraf build docs",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "tscw": "tsc --project tsconfig.build.json --watch"
+    "clean": "rimraf build docs"
   },
   "files": [
     "/build"

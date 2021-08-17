@@ -3,6 +3,9 @@
   "compilerOptions": {
     "outDir": "build",
     "allowJs": true,
+    /* We don't need to generate declarations or be imported */
+    "composite": false,
+    "declaration": false,
     /*
      * Necessary for TensorFlow.js.
      * See https://www.tensorflow.org/js/tutorials/setup#typescript

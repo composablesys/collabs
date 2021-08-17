@@ -30,21 +30,28 @@
     "ws": "^7.4.6"
   },
   "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "mkdirp": "^1.0.4",
+    "typescript": "^4.3.5",
+    "tslib": "^2.0.1",
+    "copy-webpack-plugin": "^6.4.1",
     "@types/copy-webpack-plugin": "^6.4.0",
+    "terser-webpack-plugin": "^3.1.0",
+    "ts-loader": "^7.0.5",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.11",
+    "pkg-ok": "^2.3.1",
+    "prettier": "^2.2.1",
+    "rimraf": "^2.7.1",
     "@types/express": "^4.17.7",
     "@types/jquery": "^3.5.5",
     "@types/uuid": "^3.4.0",
     "@types/webpack": "^4.41.26",
     "@types/webpack-env": "^1.15.2",
-    "@types/ws": "^7.2.6",
-    "copy-webpack-plugin": "^6.4.1",
-    "terser-webpack-plugin": "^3.1.0",
-    "ts-loader": "^7.0.5",
-    "tslib": "^2.0.1",
-    "webpack": "^4.44.1",
-    "webpack-cli": "^3.3.11"
+    "@types/ws": "^7.2.6"
   },
   "scripts": {
+    "start": "node build/server/demo_server.js",
     "build": "npm-run-all build:*",
     "build:site": "npm-run-all build:site:*",
     "build:site:protobuf": "npm-run-all build:site:protobuf:prepare build:site:protobuf:js build:site:protobuf:ts",
@@ -58,8 +65,6 @@
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "wpw": "webpack --watch",
-    "start": "node build/server/demo_server.js",
     "clean": "rimraf build generated"
   },
   "files": [
