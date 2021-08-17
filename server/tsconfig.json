@@ -1,8 +1,0 @@
-{
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "build",
-    "noEmit": false
-  },
-  "include": ["src"]
-}

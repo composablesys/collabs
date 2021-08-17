@@ -1,6 +1,10 @@
-// import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import * as tf from "@tensorflow/tfjs-node";
+import {
+  TensorAverageCrdt,
+  TensorCounterCrdt,
+} from "compoventuals-tensor-average";
 import seedrandom from "seedrandom";
 import {
   getRecordedTrials,
@@ -288,10 +292,32 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
   }
 }
 
+/**
+ * A trivial Crdt that does nothing except send
+ * empty messages.  Used for baseline measurements.
+ */
+class NoopCrdtClass extends crdts.PrimitiveCrdt {
+  noop() {
+    super.send(new Uint8Array());
+  }
+
+  receivePrimitive() {}
+
+  savePrimitive() {
+    return new Uint8Array();
+  }
+
+  loadPrimitive() {}
+
+  canGc() {
+    return true;
+  }
+}
+
 function NoopCrdt() {
   return new MicroCrdtsBenchmark(
     "NoopCrdt",
-    () => new crdts.NoopCrdt(),
+    () => new NoopCrdtClass(),
     { Noop: [(crdt) => crdt.noop(), 1] },
     () => null
   );
@@ -300,12 +326,12 @@ function NoopCrdt() {
 function DeepNoopCrdt() {
   class DeepNoopCrdt extends crdts.CompositeCrdt {
     readonly child: crdts.Crdt;
-    readonly noop: crdts.NoopCrdt;
+    readonly noop: NoopCrdtClass;
     constructor(index: number) {
       super();
       if (index === 0) {
-        this.child = this.addChild("child " + index, new crdts.NoopCrdt());
-        this.noop = this.child as crdts.NoopCrdt;
+        this.child = this.addChild("child " + index, new NoopCrdtClass());
+        this.noop = this.child as NoopCrdtClass;
       } else {
         this.child = this.addChild(
           "child " + index,
@@ -760,35 +786,33 @@ function RgaRandomGrow() {
   );
 }
 
-// function ITensor(
-//   name: "TensorAvg" | "TensorCounter",
-//   shape: number[],
-//   dtype: tf.NumericDataType,
-//   resetFraction: number
-// ) {
-//   return new MicroCrdtsBenchmark<
-//     crdts.TensorAverageCrdt | crdts.TensorCounterCrdt
-//   >(
-//     name,
-//     () =>
-//       name === "TensorAvg"
-//         ? new crdts.TensorAverageCrdt(shape, dtype)
-//         : new crdts.TensorCounterCrdt(shape, dtype),
-//     {
-//       Add: [
-//         (crdt, rng) => {
-//           const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
-//           crdt.add(toAdd);
-//           toAdd.dispose();
-//         },
-//         1 - resetFraction,
-//       ],
-//       Reset: [(crdt) => crdt.reset(), resetFraction],
-//     },
-//     (crdt) => tf.tidy(() => crdt.value.arraySync()),
-//     (crdt) => crdt.dispose()
-//   );
-// }
+function ITensor(
+  name: "TensorAvg" | "TensorCounter",
+  shape: number[],
+  dtype: tf.NumericDataType,
+  resetFraction: number
+) {
+  return new MicroCrdtsBenchmark<TensorAverageCrdt | TensorCounterCrdt>(
+    name,
+    () =>
+      name === "TensorAvg"
+        ? new TensorAverageCrdt(shape, dtype)
+        : new TensorCounterCrdt(shape, dtype),
+    {
+      Add: [
+        (crdt, rng) => {
+          const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
+          crdt.add(toAdd);
+          toAdd.dispose();
+        },
+        1 - resetFraction,
+      ],
+      Reset: [(crdt) => crdt.reset(), resetFraction],
+    },
+    (crdt) => tf.tidy(() => crdt.value.arraySync()),
+    (crdt) => crdt.dispose()
+  );
+}
 
 export default async function microCrdts(args: string[]) {
   let benchmark: MicroCrdtsBenchmark<any>;
@@ -892,36 +916,36 @@ export default async function microCrdts(args: string[]) {
     case "RgaRandomGrow":
       benchmark = RgaRandomGrow();
       break;
-    // case "TensorCounter":
-    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
-    //   break;
-    // case "TensorCounter-1":
-    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
-    //   break;
-    // case "TensorCounter-10":
-    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
-    //   break;
-    // case "TensorCounter-50":
-    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
-    //   break;
-    // case "TensorCounter-100":
-    //   benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
-    //   break;
-    // case "TensorAvg":
-    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
-    //   break;
-    // case "TensorAvg-1":
-    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
-    //   break;
-    // case "TensorAvg-10":
-    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
-    //   break;
-    // case "TensorAvg-50":
-    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
-    //   break;
-    // case "TensorAvg-100":
-    //   benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
-    //   break;
+    case "TensorCounter":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);
+      break;
+    case "TensorCounter-1":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.01);
+      break;
+    case "TensorCounter-10":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.1);
+      break;
+    case "TensorCounter-50":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 0.5);
+      break;
+    case "TensorCounter-100":
+      benchmark = ITensor("TensorCounter", [2, 2], "int32", 1);
+      break;
+    case "TensorAvg":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0);
+      break;
+    case "TensorAvg-1":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.01);
+      break;
+    case "TensorAvg-10":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.1);
+      break;
+    case "TensorAvg-50":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 0.5);
+      break;
+    case "TensorAvg-100":
+      benchmark = ITensor("TensorAvg", [2, 2], "int32", 1);
+      break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC
     default:

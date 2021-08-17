@@ -1,5 +1,5 @@
 {
-  "name": "compoventuals",
+  "name": "compoventuals-metapackage",
   "version": "0.1.0",
   "description": "CRDTs designed compositionally (meta-package)",
   "author": "Compoventuals contributors",
@@ -16,44 +16,29 @@
     "crdts"
   ],
   "devDependencies": {
-    "@types/jquery": "^3.5.5",
-    "npm-run-all": "^4.1.5",
-    "pkg-ok": "^2.3.1",
-    "prettier": "^2.2.1",
-    "rimraf": "^2.7.1",
-    "ts-node": "^10.1.0",
-    "typedoc": "^0.21.4",
-    "typescript": "^4.3.5"
+    "rimraf": "^2.7.1"
   },
+  "comment": "workspaces must be in build order, and workspace names must not include spaces or otherwise fail to be proper bash args",
   "workspaces": [
-    "client",
-    "server",
-    "demo",
-    "benchmarks"
+    "main",
+    "json",
+    "json-opt",
+    "tensor-average",
+    "ws-client",
+    "ws-server",
+    "webrtc-client",
+    "webrtc-server",
+    "matrix-widget",
+    "benchmarks",
+    "demos"
   ],
   "scripts": {
-    "start": "npm start --prefix demo",
-    "build": "npm-run-all build:*",
-    "build:client": "npm run build --prefix client",
-    "build:server": "npm run build --prefix server",
-    "build:demo": "npm run build --prefix demo",
-    "build:benchmarks": "npm run build --prefix benchmarks",
-    "test": "npm-run-all test:*",
-    "test:client": "npm run test --prefix client",
-    "test:server": "npm run test --prefix server",
-    "test:demo": "npm run test --prefix demo",
-    "test:benchmarks": "npm run test --prefix benchmarks",
-    "fix": "npm-run-all --parallel fix:*",
-    "fix:client": "npm run fix --prefix client",
-    "fix:server": "npm run fix --prefix server",
-    "fix:demo": "npm run fix --prefix demo",
-    "fix:benchmarks": "npm run fix --prefix benchmarks",
-    "clean": "npm-run-all --parallel clean:*",
-    "clean:client": "npm run clean --prefix client",
-    "clean:server": "npm run clean --prefix server",
-    "clean:demo": "npm run clean --prefix demo",
-    "clean:benchmarks": "npm run clean --prefix benchmarks",
-    "reset": "rimraf package-lock.json node_modules client/package-lock.json client/node_modules server/package-lock.json server/node_modules demo/package-lock.json demo/node_modules benchmarks/package-lock.json benchmarks/node_modules"
+    "start": "npm start --prefix demos",
+    "build": "./foreach-workspace.sh \"npm run build --prefix\"",
+    "test": "./foreach-workspace.sh \"npm run test --prefix\"",
+    "fix": "./foreach-workspace.sh \"npm run fix --prefix\"",
+    "clean": "./foreach-workspace.sh \"npm run clean --prefix\"",
+    "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
   },
   "engines": {
     "node": "15.6"

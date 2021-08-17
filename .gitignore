@@ -3,8 +3,7 @@ node_modules
 build
 dist
 docs
+generated
 .vscode/
 .idea/
-client/generated
-demo/generated
 *.tsbuildinfo

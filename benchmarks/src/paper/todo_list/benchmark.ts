@@ -1,4 +1,11 @@
-import * as crdts from "compoventuals-client";
+import * as crdts from "compoventuals";
+import {
+  JsonElement,
+  JsonArray,
+  JsonObject,
+  TextWrapper,
+} from "compoventuals-json";
+import { JsonCrdt, JsonCursor } from "compoventuals-json-opt";
 import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -999,11 +1006,9 @@ function compoMovableCrdtRga() {
 
 function compoJson() {
   class JsonTodoList implements ITodoList {
-    constructor(private readonly jsonObj: crdts.JsonObject) {}
+    constructor(private readonly jsonObj: JsonObject) {}
     addItem(index: number, text: string): void {
-      let item = (this.jsonObj.get("items")!.value as crdts.JsonArray).insert(
-        index
-      );
+      let item = (this.jsonObj.get("items")!.value as JsonArray).insert(index);
       item.setOrdinaryJS({
         items: [],
         done: false,
@@ -1011,16 +1016,16 @@ function compoJson() {
       });
     }
     deleteItem(index: number): void {
-      (this.jsonObj.get("items")!.value as crdts.JsonArray).delete(index);
+      (this.jsonObj.get("items")!.value as JsonArray).delete(index);
     }
     getItem(index: number): ITodoList {
       return new JsonTodoList(
-        (this.jsonObj.get("items")!.value as crdts.JsonArray).get(index)!
-          .value as crdts.JsonObject
+        (this.jsonObj.get("items")!.value as JsonArray).get(index)!
+          .value as JsonObject
       );
     }
     get itemsSize(): number {
-      return (this.jsonObj.get("items")!.value as crdts.JsonArray).length;
+      return (this.jsonObj.get("items")!.value as JsonArray).length;
     }
 
     get done(): boolean {
@@ -1033,22 +1038,22 @@ function compoJson() {
 
     insertText(index: number, text: string): void {
       // TODO: use bulk ops
-      let textArray = this.jsonObj.get("text")!.value as crdts.JsonArray;
+      let textArray = this.jsonObj.get("text")!.value as JsonArray;
       for (let i = 0; i < text.length; i++) {
         textArray.insert(index + i).setPrimitive(text[i]);
       }
     }
     deleteText(index: number, count: number): void {
-      let textArray = this.jsonObj.get("text")!.value as crdts.JsonArray;
+      let textArray = this.jsonObj.get("text")!.value as JsonArray;
       for (let i = 0; i < count; i++) {
         textArray.delete(index);
       }
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!.value as crdts.JsonArray).length;
+      return (this.jsonObj.get("text")!.value as JsonArray).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!.value as crdts.JsonArray)
+      return (this.jsonObj.get("text")!.value as JsonArray)
         .asArray()
         .map((element) => element.value)
         .join("");
@@ -1064,10 +1069,10 @@ function compoJson() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
-      return new JsonTodoList(list.value as crdts.JsonObject);
+      return new JsonTodoList(list.value as JsonObject);
     },
     cleanup() {
       generator = null;
@@ -1094,9 +1099,9 @@ function compoJson() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", JsonElement.NewJson());
       runtime.load(saveData);
-      return new JsonTodoList(list.value as crdts.JsonObject);
+      return new JsonTodoList(list.value as JsonObject);
     },
   });
 }
@@ -1107,28 +1112,26 @@ function compoJson() {
  */
 function compoJsonText() {
   class JsonTextTodoList implements ITodoList {
-    constructor(private readonly jsonObj: crdts.JsonObject) {}
+    constructor(private readonly jsonObj: JsonObject) {}
     addItem(index: number, text: string): void {
-      let item = (this.jsonObj.get("items")!.value as crdts.JsonArray).insert(
-        index
-      );
+      let item = (this.jsonObj.get("items")!.value as JsonArray).insert(index);
       item.setOrdinaryJS({
         items: [],
         done: false,
-        text: new crdts.TextWrapper(text),
+        text: new TextWrapper(text),
       });
     }
     deleteItem(index: number): void {
-      (this.jsonObj.get("items")!.value as crdts.JsonArray).delete(index);
+      (this.jsonObj.get("items")!.value as JsonArray).delete(index);
     }
     getItem(index: number): ITodoList {
       return new JsonTextTodoList(
-        (this.jsonObj.get("items")!.value as crdts.JsonArray).get(index)!
-          .value as crdts.JsonObject
+        (this.jsonObj.get("items")!.value as JsonArray).get(index)!
+          .value as JsonObject
       );
     }
     get itemsSize(): number {
-      return (this.jsonObj.get("items")!.value as crdts.JsonArray).length;
+      return (this.jsonObj.get("items")!.value as JsonArray).length;
     }
 
     get done(): boolean {
@@ -1164,10 +1167,10 @@ function compoJsonText() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", JsonElement.NewJson());
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
-      return new JsonTextTodoList(list.value as crdts.JsonObject);
+      return new JsonTextTodoList(list.value as JsonObject);
     },
     cleanup() {
       generator = null;
@@ -1194,9 +1197,9 @@ function compoJsonText() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerCrdt("", crdts.JsonElement.NewJson());
+      let list = runtime.registerCrdt("", JsonElement.NewJson());
       runtime.load(saveData);
-      return new JsonTextTodoList(list.value as crdts.JsonObject);
+      return new JsonTextTodoList(list.value as JsonObject);
     },
   });
 }
@@ -1525,15 +1528,15 @@ function yjs() {
 
 function jsonCrdt() {
   class JsonCrdtTodoList implements ITodoList {
-    private readonly items: crdts.JsonCursor;
+    private readonly items: JsonCursor;
     private readonly ids: crdts.PrimitiveCList<string>;
     private readonly text: crdts.PrimitiveCList<string>;
     constructor(
-      private readonly crdt: crdts.JsonCursor,
+      private readonly crdt: JsonCursor,
       private readonly idGen: crdts.TreedocDenseLocalList<undefined>,
       private readonly runtime: crdts.Runtime
     ) {
-      this.items = this.crdt.get("items")[0] as crdts.JsonCursor;
+      this.items = this.crdt.get("items")[0] as JsonCursor;
       this.ids = this.crdt.get("itemsIds")[0] as crdts.PrimitiveCList<string>;
       this.text = this.crdt.get("text")[0] as crdts.PrimitiveCList<string>;
     }
@@ -1561,7 +1564,7 @@ function jsonCrdt() {
 
       // Update Json Crdt with new item
       this.items.setIsMap(key);
-      let newItem = this.items.get(key)[0] as crdts.JsonCursor;
+      let newItem = this.items.get(key)[0] as JsonCursor;
       newItem.setIsMap("items");
       newItem.setIsList("itemsIds");
       newItem.set("done", false);
@@ -1579,7 +1582,7 @@ function jsonCrdt() {
     getItem(index: number): ITodoList {
       let id: string = this.ids.get(index);
       return new JsonCrdtTodoList(
-        this.items.get(id)[0] as crdts.JsonCursor,
+        this.items.get(id)[0] as JsonCursor,
         this.idGen,
         this.runtime
       );
@@ -1620,9 +1623,9 @@ function jsonCrdt() {
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
 
-      let crdt = new crdts.JsonCrdt();
+      let crdt = new JsonCrdt();
 
-      let cursor = new crdts.JsonCursor(crdt);
+      let cursor = new JsonCursor(crdt);
       runtime.registerCrdt("", crdt);
       this.sendNextMessage();
       cursor.setIsMap("items");
@@ -1660,9 +1663,9 @@ function jsonCrdt() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
 
-      let crdt = new crdts.JsonCrdt();
+      let crdt = new JsonCrdt();
 
-      let cursor = new crdts.JsonCursor(crdt);
+      let cursor = new JsonCursor(crdt);
       runtime.registerCrdt("", crdt);
 
       let idGen = new crdts.TreedocDenseLocalList<undefined>();
