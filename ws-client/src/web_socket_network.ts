@@ -1,12 +1,8 @@
-import {
-  BroadcastNetwork,
-  CausalTimestamp,
-  DefaultCausalBroadcastNetwork,
-} from "compoventuals";
+import { BroadcastNetwork } from "compoventuals";
 import ReconnectingWebSocket from "reconnecting-websocket";
 
 export class WebSocketNetwork implements BroadcastNetwork {
-  causal!: DefaultCausalBroadcastNetwork;
+  onReceive!: (message: Uint8Array) => void;
   /**
    * WebSocket for connection to server.
    */
@@ -62,26 +58,15 @@ export class WebSocketNetwork implements BroadcastNetwork {
     let parsed = JSON.parse(message.data) as { group: string; message: string };
     if (parsed.group === this.group) {
       // It's for us
-      this.causal.receive(
-        new Uint8Array(Buffer.from(parsed.message, "base64"))
-      );
+      this.onReceive(new Uint8Array(Buffer.from(parsed.message, "base64")));
     }
   };
-  /**
-   * Register a CausalBroadcastNetwork which implement the interface.
-   * Use DefaultCausalBroadcastNetwork is needed.
-   * @param causal the underlying CausalBroadcastNetwork.
-   */
-  register(causal: DefaultCausalBroadcastNetwork): void {
-    this.causal = causal;
-  }
   /**
    * The actual send function using underlying WebSocket protocol.
    * @param group the unique string identifier of Group.
    * @param message the message with Uint8Array type.
-   * @param timestamp the CasualTimestamp.
    */
-  send(message: Uint8Array, _timestamp: CausalTimestamp): void {
+  send(message: Uint8Array): void {
     let encoded = Buffer.from(message).toString("base64");
     let toSend = JSON.stringify({ group: this.group, message: encoded });
     // TODO: use Uint8Array directly instead

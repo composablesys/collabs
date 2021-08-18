@@ -1,67 +1,54 @@
-import * as crdts from "compoventuals";
 import { WebSocketNetwork } from "compoventuals-ws-client";
 
-// Test Container, modified from counter demo.
-const testContainer: crdts.ContainerSource = {
-  attachNewContainer(domParent, crdtParentHook) {
-    // Counter HTML.
-    domParent.innerHTML = `
-    <!-- HTML page variables and buttons -->
-    <p id="counter">0</p>
-    <button id="increment">💯️</button>
-    <button id="decrement">-💯️</button>
-    <br />
-    <button id="reset">Reset</button>
-    `;
-
-    // Counter JS
-    let clientCounter = crdtParentHook(new crdts.CCounter());
-
-    /* HTML variables */
-    // Note that here we use domParent instead of document,
-    // to get Shadow DOM scoping.
-    var counter = domParent.getElementById("counter");
-
-    /* Customize the event listener for CRDT as refresh the value */
-    clientCounter.on("Change", (_) => {
-      counter!.innerHTML = clientCounter.value.toString();
-    });
-
-    /* Customize onclick() function of increment button with CRDT operation */
-    domParent.getElementById("increment")!.onclick = function () {
-      console.log("clicked increment");
-      clientCounter.add(100);
-      counter!.innerHTML = clientCounter.value.toString();
-    };
-
-    /* Customize onclick() function of decrement button with CRDT operation */
-    domParent.getElementById("decrement")!.onclick = function () {
-      console.log("clicked decrement");
-      clientCounter.add(-100);
-      counter!.innerHTML = clientCounter.value.toString();
-    };
-
-    domParent.getElementById("reset")!.onclick = function () {
-      console.log("clicked reset");
-      clientCounter.reset();
-      counter!.innerHTML = clientCounter.value.toString();
-    };
-  },
-};
-
-// Actual hosting stuff
-// TODO: permissionless iframe (no communication except
-// what we allow).  Although some of this code (e.g. Shadow
-// DOM) stuff should remain on the permissionless side.
-// TODO: dynamic loading.
-// TODO: test with multiple instances.
-
-const topDiv = document.getElementById("topDiv")!;
-const shadowRoot = topDiv.attachShadow({ mode: "open" });
+// TODO: load/save of BroadcastNetwork.  Not automatically
+// managed by Runtime.  We could either let load/save
+// pass across the iframe and back (seems convoluted and
+// would require async load/save), or have this host
+// do so as part of its own load/save functions (preferred).
 
 const HOST = location.origin.replace(/^http/, "ws");
-const client = new crdts.Runtime(new WebSocketNetwork(HOST, "container"));
+const network = new WebSocketNetwork(HOST, "container");
 
-testContainer.attachNewContainer(shadowRoot, (topLevelCrdt) =>
-  client.registerCrdt("container", topLevelCrdt)
+// Pipe network through the IFrame
+const iframe = document.getElementById("iframe")! as HTMLIFrameElement;
+const iframeWindow = iframe.contentWindow!;
+
+// The IFrame takes some time to load, until when it will
+// not be listening for messages.  So we need to queue
+// received messages until it signals that it is ready.
+let iframeLoadQueue: Uint8Array[] | undefined = []; // undefined iff already loaded
+network.onReceive = (message) => {
+  if (iframeLoadQueue === undefined) {
+    // TODO: insecure targetOrigin
+    iframeWindow.postMessage({ message }, "*");
+  } else {
+    // Queue until load event
+    iframeLoadQueue.push(message);
+  }
+};
+window.addEventListener(
+  "message",
+  (event) => {
+    if (event.source !== iframeWindow) return;
+    switch (event.data.type as "onready" | "message") {
+      case "onready":
+        // Dispatch queued messages.
+        // In theory we could listen for iframe's "load" event instead,
+        // but there is the danger that the iframe could load
+        // before we can add our event listener, in which
+        // case we will never know that it's ready.
+        // Known workarounds (https://stackoverflow.com/a/36155560)
+        // appear more complicated than just using postMessage.
+        for (const message of iframeLoadQueue!) {
+          // TODO: insecure targetOrigin
+          iframeWindow.postMessage({ message }, "*");
+        }
+        iframeLoadQueue = undefined;
+        break;
+      case "message":
+        network.send(event.data.message);
+        break;
+    }
+  },
+  false
 );

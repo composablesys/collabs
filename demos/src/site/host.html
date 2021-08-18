@@ -3,12 +3,29 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <style type="text/css">
+      // Settings to make iframe fill the screen.
+      // From https://www.geeksforgeeks.org/how-to-set-fullscreen-iframe/
+      html {
+        overflow: auto;
+      }
 
-    <style>
-      .topDiv {
-        // From https://developers.google.com/web/fundamentals/web-components/shadowdom#containment
-        display: block; // div style
-        contain: content; // Optimization
+      html,
+      body,
+      div,
+      iframe {
+        margin: 0px;
+        padding: 0px;
+        height: 100%;
+        border: none;
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        border: none;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
     </style>
 
@@ -16,7 +33,11 @@
   </head>
 
   <body>
-    <div id="topDiv" class="topDiv"></div>
+    <iframe
+      id="iframe"
+      title="Container Host IFrame"
+      src="host_iframe.html"
+    ></iframe>
 
     <script src="host.js"></script>
   </body>

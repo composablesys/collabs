@@ -1,25 +1,21 @@
 import {
   BroadcastNetwork,
-  CausalTimestamp,
   DefaultCausalBroadcastNetwork,
   Runtime,
 } from "../core";
 
 export class TestingNetwork implements BroadcastNetwork {
-  causal!: DefaultCausalBroadcastNetwork;
   sentBytes = 0;
   receivedBytes = 0;
+  onReceive!: (message: Uint8Array) => void;
   constructor(private generator: TestingNetworkGenerator) {}
-  send(message: Uint8Array, _timestamp: CausalTimestamp): void {
+  send(message: Uint8Array): void {
     this.sentBytes += message.byteLength;
     let queueMap = this.generator.messageQueues.get(this)!;
     for (let queue of queueMap.values()) {
       queue.push(message);
     }
     this.generator.lastMessage = message;
-  }
-  register(causal: DefaultCausalBroadcastNetwork): void {
-    this.causal = causal;
   }
   /**
    * Not implemented (returns empty array).
@@ -105,14 +101,13 @@ export class TestingNetworkGenerator {
       if (recipient === sender) continue;
       for (let queued of senderMap.get(recipient)!) {
         recipient.receivedBytes += queued.byteLength;
-        recipient.causal.receive(queued);
+        recipient.onReceive!(queued);
       }
       senderMap.set(recipient, []);
     }
   }
   releaseAll() {
-    for (let sender of this.messageQueues.keys())
-      this.release(sender.causal.crdtRuntime);
+    for (let sender of this.messageQueues.keys()) this.releaseByNetwork(sender);
   }
 
   getTestingNetwork(runtime: Runtime) {

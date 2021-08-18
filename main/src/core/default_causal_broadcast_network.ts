@@ -25,14 +25,11 @@ import { VectorClock } from "./vector_clock";
  */
 export interface BroadcastNetwork {
   /**
-   * Registers the given DefaultCausalBroadcastNetwork
-   * to receive messages
-   * from other replicas.  Such messages should be delivered
-   * to runtime.receive.  This method will be
-   * called exactly once, before any other methods.
-   * @param causal The DefaultCausalBroadcastNetwork.
+   * Variable set by the using network (either a
+   * DefaultCausalBroadcastNetwork or a chained
+   * BroadcastNetwork).
    */
-  register(causal: DefaultCausalBroadcastNetwork): void;
+  onReceive: (message: Uint8Array) => void;
   /**
    * Used by DefaultCausalBroadcastNetwork
    * to send a broadcast message. This message should be
@@ -51,18 +48,8 @@ export interface BroadcastNetwork {
    * @param group An identifier for the group that
    * this message should be broadcast to (see joinGroup).
    * @param message The message to send
-   * @param firstTimestamp The CausalTimestamp of the first CRDT message
-   * inluded in message (which may be a batch of messages),
-   * for information purposes only.
-   * @param lastTimestamp The CausalTimestamp of the last CRDT message
-   * inluded in message (which may be a batch of messages),
-   * for information purposes only.
    */
-  send(
-    message: Uint8Array,
-    firstTimestamp: CausalTimestamp,
-    lastTimestamp: CausalTimestamp
-  ): void;
+  send(message: Uint8Array): void;
 
   /**
    * Save any current state if desired, for passing
@@ -193,7 +180,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
      * Register EventListener with corresponding event handler.
      */
     this.broadcastNetwork = broadcastNetwork;
-    this.broadcastNetwork.register(this);
+    this.broadcastNetwork.onReceive = this.receive.bind(this);
   }
   /**
    * Parse JSON format data back into myMessage type.
@@ -258,11 +245,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
 
     // Send the message
     let myPackage = new myMessage(message, firstTimestamp as VectorClock);
-    this.broadcastNetwork.send(
-      myPackage.serialize(),
-      firstTimestamp,
-      lastTimestamp
-    );
+    this.broadcastNetwork.send(myPackage.serialize());
 
     this.isPendingBatch = false;
 
