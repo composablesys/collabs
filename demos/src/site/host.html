@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <style>
+      .topDiv {
+        // From https://developers.google.com/web/fundamentals/web-components/shadowdom#containment
+        display: block; // div style
+        contain: content; // Optimization
+      }
+    </style>
+
+    <title>Container Host</title>
+  </head>
+
+  <body>
+    <div id="topDiv" class="topDiv"></div>
+
+    <script src="host.js"></script>
+  </body>
+</html>

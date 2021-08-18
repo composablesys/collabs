@@ -2,6 +2,9 @@ import * as path from "path";
 import * as webpack from "webpack";
 import CopyWebpackPlugin from "copy-webpack-plugin";
 
+// TODO: automatically create the Config from a list of
+// projects, to reduce duplication.
+
 const config: webpack.Configuration = {
   mode: "development",
   devtool: "inline-source-map",
@@ -14,6 +17,7 @@ const config: webpack.Configuration = {
     variablecounter: "./src/site/variablecounter.ts",
     text: "./src/site/text.ts",
     plaintext: "./src/site/plaintext.ts",
+    host: "./src/site/host.ts",
     "matrix/widget_test": "./src/site/matrix/widget_test.ts",
     "matrix/whiteboard": "./src/site/matrix/whiteboard.ts",
     "matrix/minesweeper": "./src/site/matrix/minesweeper.ts",
@@ -61,6 +65,7 @@ const config: webpack.Configuration = {
         { from: "./src/site/variablecounter.html", to: "variablecounter.html" },
         { from: "./src/site/text.html", to: "text.html" },
         { from: "./src/site/plaintext.html", to: "plaintext.html" },
+        { from: "./src/site/host.html", to: "host.html" },
         {
           from: "./src/site/matrix/widget_test.html",
           to: "matrix/widget_test.html",
