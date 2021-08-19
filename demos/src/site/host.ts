@@ -73,7 +73,7 @@ window.addEventListener(
 const loadContainerSourcePromise = new Promise<string>((resolve) => {
   // TODO: this will be blocked by CORS if it's not a file
   // on the same server.
-  $.ajax({ url: CONTAINER_SOURCE_FILE, success: resolve });
+  $.ajax({ url: CONTAINER_SOURCE_FILE, dataType: "text", success: resolve });
 });
 // Listen for the IFrame's readyForContainer message.
 const readyForContainerPromise = new Promise<void>((resolve) => {

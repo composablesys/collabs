@@ -65,10 +65,17 @@ function containerSourceListener(event: MessageEvent<any>) {
   // node (default for commonJS but not for es2020) to
   // fix compile errors.
   import(/* webpackIgnore: true */ importUrl).then((imported) => {
+    // TODO: we would prefer to do it this way and use
+    // output.libraryTarget: "module" in webpack.config.ts,
+    // but the feature is still in dev and broken last
+    // time I tried it.
+    // const containerSource = imported.default;
     const containerSource = (window as any)[event.data.windowPropName];
     (window as any)[event.data.windowPropName] = undefined;
     if (!crdts.isContainerSource(containerSource)) {
-      throw new Error("module.default is not a ContainerSource");
+      throw new Error(
+        "obtained value is not a ContainerSource: " + containerSource
+      );
     }
     // Use containerSource.
     containerSource.attachNewContainer(shadowRoot, (topLevelCrdt) =>

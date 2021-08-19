@@ -30,7 +30,7 @@ const config: webpack.Configuration = {
     path: path.resolve(__dirname, "build/site"),
     filename: "[name].js",
     library: "compoventuals-demos",
-    libraryTarget: "window", // this needs to be changed
+    libraryTarget: "window",
     libraryExport: "default",
   },
   resolve: {
@@ -54,12 +54,6 @@ const config: webpack.Configuration = {
         commonjsMagicComments: true,
       },
     },
-    // // Don't let the dynamic import in host_iframe.ts scare
-    // // webpack into bundling every file just in case;
-    // // instead, we will manually add entrypoints for each
-    // // file that could be loaded this way.
-    // exprContextRegExp: /$^/,
-    // exprContextCritical: false,
   },
   //   optimization: {
   //     minimize: true,

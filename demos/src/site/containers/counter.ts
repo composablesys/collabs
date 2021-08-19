@@ -1,5 +1,4 @@
 import * as crdts from "compoventuals";
-import { WebSocketNetwork } from "compoventuals-ws-client";
 
 // Test Container, modified from counter demo.
 const testContainer: crdts.ContainerSource = {
