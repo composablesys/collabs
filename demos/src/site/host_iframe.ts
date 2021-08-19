@@ -58,15 +58,13 @@ function containerSourceListener(event: MessageEvent<any>) {
   // it into a __webpack_require, which is incorrect: it should
   // be compiled as-is.
   // From https://github.com/webpack/webpack/issues/4175#issuecomment-770769441
-  // import(/* webpackIgnore: true */ importUrl).then((module) => {
-  // Actually, that's not working either (it converts import
-  // to require).  So for now I will use this eval hack.
-  // TODO: to use import, the bundled container needs to
-  // be an ES module (use standard export).  This corresponds
-  // to Webpack output.libraryTarget = "module".  However
-  // that is in dev and didn't work when I tried it last
-  // (08/2021), so for now we will use this window hack.
-  eval("import(importUrl)").then((imported: any) => {
+  // Also note that in our tsconfig, we had to change the
+  // module to es2020 (first version supporting dynamic
+  // imports) or else TypeScript will try to convert it to
+  // require().  Then we had to change moduleResolution to
+  // node (default for commonJS but not for es2020) to
+  // fix compile errors.
+  import(/* webpackIgnore: true */ importUrl).then((imported) => {
     const containerSource = (window as any)[event.data.windowPropName];
     (window as any)[event.data.windowPropName] = undefined;
     if (!crdts.isContainerSource(containerSource)) {

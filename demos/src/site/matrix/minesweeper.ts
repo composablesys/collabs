@@ -1,6 +1,6 @@
 import * as crdts from "compoventuals";
 import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
-import seedrandom = require("seedrandom");
+import seedrandom from "seedrandom";
 
 const board = document.getElementById("board");
 const winText = document.getElementById("winText")!;

@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
-    "target": "es2019",
+    /* ES2020 needed for dynamic imports (else they get converted
+     * to require()).
+     */
+    "target": "es2020",
+    "module": "es2020",
+    "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
     /* The workspace structure causes tsc to check all
@@ -10,7 +15,6 @@
      * to skipLibChecks.
      */
     "skipLibCheck": true,
-    "module": "commonjs",
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Include generated .js files in compilation run */
