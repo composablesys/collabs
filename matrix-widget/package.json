@@ -49,8 +49,5 @@
   "directories": {
     "lib": "src",
     "test": "test"
-  },
-  "browser": {
-    "crypto": false
   }
 }
