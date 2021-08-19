@@ -19,6 +19,7 @@
   "types": "build/src/index.d.ts",
   "unpkg": "build/src/index.js",
   "dependencies": {
+    "buffer": "^6.0.3",
     "compoventuals": "^0.1.0",
     "ws": "^7.4.6",
     "@types/ws": "^7.2.6",

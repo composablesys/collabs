@@ -19,6 +19,7 @@
   "types": "build/src/index.d.ts",
   "unpkg": "build/src/index.js",
   "dependencies": {
+    "buffer": "^6.0.3",
     "compoventuals": "^0.1.0",
     "protobufjs": "~6.10.1",
     "ws": "^7.4.6",

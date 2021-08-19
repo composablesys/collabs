@@ -1,5 +1,6 @@
 import { BroadcastNetwork } from "compoventuals";
 import ReconnectingWebSocket from "reconnecting-websocket";
+import { Buffer } from "buffer";
 
 export class WebSocketNetwork implements BroadcastNetwork {
   onReceive!: (message: Uint8Array) => void;

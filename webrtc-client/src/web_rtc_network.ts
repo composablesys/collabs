@@ -5,6 +5,7 @@ import {
   VectorClock,
 } from "compoventuals";
 import { WebRtcNetworkMessage } from "../generated/proto_compiled";
+import { Buffer } from "buffer";
 
 // NOTE: This WebRTC network layer is just a prototype, which only
 // two users peer-to-peer connection.

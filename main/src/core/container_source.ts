@@ -36,4 +36,11 @@ export interface ContainerSource {
     domParent: ShadowRoot,
     crdtParentHook: <C extends Crdt>(topLevelCrdt: C) => C
   ): void;
+
+  isContainerSource: true;
+}
+
+export function isContainerSource(obj: any): obj is ContainerSource {
+  if (typeof obj !== "object") return false;
+  return (obj as ContainerSource).isContainerSource === true;
 }

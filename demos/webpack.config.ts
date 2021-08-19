@@ -23,6 +23,7 @@ const config: webpack.Configuration = {
     "matrix/whiteboard": "./src/site/matrix/whiteboard.ts",
     "matrix/minesweeper": "./src/site/matrix/minesweeper.ts",
     "matrix/plaintext": "./src/site/matrix/plaintext.ts",
+    "containers/counter": "./src/site/containers/counter.ts",
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -47,6 +48,18 @@ const config: webpack.Configuration = {
         },
       },
     ],
+    parser: {
+      javascript: {
+        // Required for dynamic import statements.
+        commonjsMagicComments: true,
+      },
+    },
+    // // Don't let the dynamic import in host_iframe.ts scare
+    // // webpack into bundling every file just in case;
+    // // instead, we will manually add entrypoints for each
+    // // file that could be loaded this way.
+    // exprContextRegExp: /$^/,
+    // exprContextCritical: false,
   },
   //   optimization: {
   //     minimize: true,

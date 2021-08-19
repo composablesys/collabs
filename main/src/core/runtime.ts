@@ -1,4 +1,3 @@
-import cryptoRandomString from "crypto-random-string";
 import {
   IRuntimeOneSave,
   RuntimeMessage,
@@ -114,11 +113,33 @@ class LoadHelper {
 }
 
 const REPLICA_ID_LENGTH = 11;
-const REPLICA_ID_CHARS = (function () {
-  let arr = new Array<number>(128);
-  for (let i = 0; i < 128; i++) arr[i] = i;
+
+// TODO: put somewhere reasonable
+function randomReplicaId(): string {
+  // Here we exploit the fact that 128 divides 256.
+  // This would be biased if that were not the case.
+  const arr = new Array<number>(REPLICA_ID_LENGTH);
+  let randomValues = new Uint8Array(REPLICA_ID_LENGTH);
+  if (typeof window === "undefined") {
+    // Use Node crypto library.
+    // We use eval("require") to prevent Webpack from attempting
+    // to bundle the crypto module and complaining.
+    // In theory we should also be able to do this by
+    // adding "browser": {"crypto": false} to package.json,
+    // but that is not working.
+    // See https://github.com/webpack/webpack/issues/8826
+    const crypto = eval("require")("crypto");
+    const randomBuffer = crypto.randomBytes(REPLICA_ID_LENGTH);
+    randomValues = new Uint8Array(randomBuffer);
+  } else {
+    // Use browser crypto library
+    window.crypto.getRandomValues(randomValues);
+  }
+  for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
+    arr[i] = randomValues[i] % 128;
+  }
   return String.fromCharCode(...arr);
-})();
+}
 
 /**
  * TODO: usage
@@ -151,10 +172,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     // Set this.replicaId
     if (debugReplicaId) this.replicaId = debugReplicaId;
     else {
-      this.replicaId = cryptoRandomString({
-        length: REPLICA_ID_LENGTH,
-        characters: REPLICA_ID_CHARS,
-      });
+      this.replicaId = randomReplicaId();
     }
     // Set this.network
     if (isCausalBroadcastNetwork(network)) {

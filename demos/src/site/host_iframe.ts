@@ -1,54 +1,5 @@
 import * as crdts from "compoventuals";
 
-// Test Container, modified from counter demo.
-const testContainer: crdts.ContainerSource = {
-  attachNewContainer(domParent, crdtParentHook) {
-    // Counter HTML.
-    domParent.innerHTML = `
-    <!-- HTML page variables and buttons -->
-    <p id="counter">0</p>
-    <button id="increment">💯️</button>
-    <button id="decrement">-💯️</button>
-    <br />
-    <button id="reset">Reset</button>
-    `;
-
-    // Counter JS
-    let clientCounter = crdtParentHook(new crdts.CCounter());
-
-    /* HTML variables */
-    // Note that here we use domParent instead of document,
-    // to get Shadow DOM scoping.
-    var counter = domParent.getElementById("counter");
-
-    /* Customize the event listener for CRDT as refresh the value */
-    clientCounter.on("Change", (_) => {
-      counter!.innerHTML = clientCounter.value.toString();
-    });
-
-    /* Customize onclick() function of increment button with CRDT operation */
-    domParent.getElementById("increment")!.onclick = function () {
-      console.log("clicked increment");
-      clientCounter.add(100);
-      counter!.innerHTML = clientCounter.value.toString();
-    };
-
-    /* Customize onclick() function of decrement button with CRDT operation */
-    domParent.getElementById("decrement")!.onclick = function () {
-      console.log("clicked decrement");
-      clientCounter.add(-100);
-      counter!.innerHTML = clientCounter.value.toString();
-    };
-
-    domParent.getElementById("reset")!.onclick = function () {
-      console.log("clicked reset");
-      clientCounter.reset();
-      counter!.innerHTML = clientCounter.value.toString();
-    };
-  },
-};
-
-// Actual hosting stuff
 // TODO: permissionless iframe (no communication except
 // what we allow).  Although some of this code (e.g. Shadow
 // DOM) stuff should remain on the permissionless side.
@@ -67,14 +18,11 @@ class HostIframeNetwork implements crdts.BroadcastNetwork {
       "message",
       (event) => {
         if (event.source !== window.parent) return;
+        if (event.data.type !== "message") return;
         this.onReceive(event.data.message);
       },
       false
     );
-    // Let the host know that we are now listening for
-    // messages.
-    // TODO: insecure targetOrigin
-    window.parent.postMessage({ type: "onready" }, "*");
   }
 
   send(message: Uint8Array): void {
@@ -95,6 +43,44 @@ const shadowRoot = topDiv.attachShadow({ mode: "open" });
 
 const client = new crdts.Runtime(new HostIframeNetwork());
 
-testContainer.attachNewContainer(shadowRoot, (topLevelCrdt) =>
-  client.registerCrdt("container", topLevelCrdt)
-);
+// We first listen for the ContainerSource string.
+function containerSourceListener(event: MessageEvent<any>) {
+  if (event.source !== window.parent) return;
+  if (event.data.type !== "containerSource") return;
+  window.removeEventListener("message", containerSourceListener);
+  const containerSourceJs = event.data.containerSourceJs as string;
+  // Dynamically import the javascript.
+  // Based on https://stackoverflow.com/a/57255653
+  const importUrl =
+    "data:text/javascript;base64," +
+    btoa(unescape(encodeURIComponent(containerSourceJs)));
+  // We need this webpackIgnore magic comment or else webpack
+  // will try to do its thing to the import statement, compiling
+  // it into a __webpack_require, which is incorrect: it should
+  // be compiled as-is.
+  // From https://github.com/webpack/webpack/issues/4175#issuecomment-770769441
+  // import(/* webpackIgnore: true */ importUrl).then((module) => {
+  // Actually, that's not working either (it converts import
+  // to require).  So for now I will use this eval hack.
+  // TODO: do this the proper way / provide intended final
+  // name (on window) as a string.
+  eval("import(importUrl)").then((imported: any) => {
+    const containerSource = (window as any)["compoventuals-demos"];
+    if (!crdts.isContainerSource(containerSource)) {
+      throw new Error("module.default is not a ContainerSource");
+    }
+    // Use containerSource.
+    containerSource.attachNewContainer(shadowRoot, (topLevelCrdt) =>
+      client.registerCrdt("container", topLevelCrdt)
+    );
+    // Now we are ready to receive Crdt messages.
+    // TODO: insecure targetOrigin
+    window.parent.postMessage({ type: "readyForMessages" }, "*");
+  });
+}
+window.addEventListener("message", containerSourceListener, false);
+
+// Let the host know that we are now listening for
+// the container.
+// TODO: insecure targetOrigin
+window.parent.postMessage({ type: "readyForContainer" }, "*");

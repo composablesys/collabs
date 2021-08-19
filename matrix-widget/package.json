@@ -19,6 +19,7 @@
   "types": "build/src/index.d.ts",
   "unpkg": "build/src/index.js",
   "dependencies": {
+    "buffer": "^6.0.3",
     "compoventuals": "^0.1.0",
     "matrix-widget-api": "^0.1.0-beta.15"
   },
@@ -48,5 +49,8 @@
   "directories": {
     "lib": "src",
     "test": "test"
+  },
+  "browser": {
+    "crypto": false
   }
 }
