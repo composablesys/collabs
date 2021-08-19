@@ -62,10 +62,14 @@ function containerSourceListener(event: MessageEvent<any>) {
   // import(/* webpackIgnore: true */ importUrl).then((module) => {
   // Actually, that's not working either (it converts import
   // to require).  So for now I will use this eval hack.
-  // TODO: do this the proper way / provide intended final
-  // name (on window) as a string.
+  // TODO: to use import, the bundled container needs to
+  // be an ES module (use standard export).  This corresponds
+  // to Webpack output.libraryTarget = "module".  However
+  // that is in dev and didn't work when I tried it last
+  // (08/2021), so for now we will use this window hack.
   eval("import(importUrl)").then((imported: any) => {
-    const containerSource = (window as any)["compoventuals-demos"];
+    const containerSource = (window as any)[event.data.windowPropName];
+    (window as any)[event.data.windowPropName] = undefined;
     if (!crdts.isContainerSource(containerSource)) {
       throw new Error("module.default is not a ContainerSource");
     }

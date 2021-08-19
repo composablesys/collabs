@@ -1,4 +1,5 @@
 import * as crdts from "compoventuals";
+import { WebSocketNetwork } from "compoventuals-ws-client";
 
 // Test Container, modified from counter demo.
 const testContainer: crdts.ContainerSource = {
@@ -12,6 +13,8 @@ const testContainer: crdts.ContainerSource = {
     <button id="decrement">-💯️</button>
     <br />
     <button id="reset">Reset</button>
+    <!-- Testing security: this is blocked by the browser. -->
+    <!--<img src="http://imgs.xkcd.com/comics/fissile_raspberry_isotopes.png">-->
     `;
 
     // Counter JS
@@ -46,6 +49,10 @@ const testContainer: crdts.ContainerSource = {
       clientCounter.reset();
       counter!.innerHTML = clientCounter.value.toString();
     };
+
+    // // Testing security: this is blocked by the browser.
+    // var HOST = "wss://compoventuals-tests.herokuapp.com";
+    // let client = new crdts.Runtime(new WebSocketNetwork(HOST, "counter"));
   },
 };
 export default testContainer;

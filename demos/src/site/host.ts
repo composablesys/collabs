@@ -1,9 +1,19 @@
 import { WebSocketNetwork } from "compoventuals-ws-client";
 
 // Change this file to change the app.
-// It must "export default" an instance of ContainerSource
+// It must set window[WINDOW_PROP_NAME] equal to
+// an instance of ContainerSource
 // that requires no networking (including loading other files).
+// You can set WINDOW_PROP_NAME that way using
+// Webpack with output.libraryTarget = "window"
+// and output.library = WINDOW_PROP_NAME.
+// window[WINDOW_PROP_NAME] must not be a standard
+// window property or it will be overwritten.
+// However it is okay if multiple containers (even within
+// the same app) use the same name, since it will be
+// cleared after each use.
 const CONTAINER_SOURCE_FILE = "containers/counter.js";
+const WINDOW_PROP_NAME = "compoventuals-demos";
 
 // TODO: load/save of BroadcastNetwork.  Not automatically
 // managed by Runtime.  We could either let load/save
@@ -80,7 +90,11 @@ Promise.all([loadContainerSourcePromise, readyForContainerPromise]).then(
     const containerSourceJs = value[0];
     // TODO: insecure targetOrigin
     iframeWindow.postMessage(
-      { type: "containerSource", containerSourceJs },
+      {
+        type: "containerSource",
+        windowPropName: WINDOW_PROP_NAME,
+        containerSourceJs,
+      },
       "*"
     );
   }
