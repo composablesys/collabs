@@ -52,8 +52,7 @@ function containerSourceListener(event: MessageEvent<any>) {
   // Dynamically import the javascript.
   // Based on https://stackoverflow.com/a/57255653
   const importUrl =
-    "data:text/javascript;base64," +
-    btoa(unescape(encodeURIComponent(containerSourceJs)));
+    "data:text/javascript," + encodeURIComponent(containerSourceJs);
   // We need this webpackIgnore magic comment or else webpack
   // will try to do its thing to the import statement, compiling
   // it into a __webpack_require, which is incorrect: it should
