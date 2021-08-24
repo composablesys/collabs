@@ -1,4 +1,4 @@
-import { Crdt } from "./crdt";
+import { Crdt } from "compoventuals";
 
 // TODO: supply a unique id?
 // TODO: Note shadow dom.  Replace HTMLElement with

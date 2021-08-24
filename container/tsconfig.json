@@ -8,9 +8,9 @@
      */
     "rootDir": ".",
     "outDir": "build",
-    "target": "es2019",
-    /* We need ES2021 WeakRefs.  Also exclude DOM. */
-    "lib": ["es2021.weakref", "es2019"],
+    "target": "es2020",
+    "module": "es2020",
+    "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
     /* The workspace structure causes tsc to check all
@@ -20,11 +20,8 @@
      * to skipLibChecks.
      */
     "skipLibCheck": true,
-    "module": "commonjs",
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
-    /* Include .js files in generated folder. */
-    "allowJs": true,
     /* Emit .d.ts files. */
     "declaration": true,
     /* Emit sourcemap files. */
@@ -32,5 +29,5 @@
     /* Use tslib to reduce generated js file sizes. */
     "importHelpers": true
   },
-  "include": ["src", "generated"]
+  "include": ["src"]
 }

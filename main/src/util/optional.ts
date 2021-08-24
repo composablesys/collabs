@@ -4,8 +4,9 @@ export class Optional<T> {
     private readonly valueIfPresent: T | undefined
   ) {}
   get(): T {
-    if (!this.isPresent)
-      throw new Error("Optional.value called but isSet is false");
+    if (!this.isPresent) {
+      throw new Error("Optional.get() called but isPresent is false");
+    }
     return this.valueIfPresent!;
   }
   orElse(other: T): T {
