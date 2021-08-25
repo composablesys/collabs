@@ -130,8 +130,9 @@ export class CompositeCrdt<
     return new Uint8Array();
   }
 
-  load(saveData: Uint8Array) {
+  load(saveData: Uint8Array): boolean {
     this.loadComposite(saveData);
+    return true;
   }
 
   /**

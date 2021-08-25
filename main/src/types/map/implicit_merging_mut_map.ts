@@ -276,8 +276,9 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
   }
 
   private inLoad?: true;
-  load(_saveData: Uint8Array) {
+  load(_saveData: Uint8Array): boolean {
     this.inLoad = true;
+    return true;
   }
 
   postLoad() {

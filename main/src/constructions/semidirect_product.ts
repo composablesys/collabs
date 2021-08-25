@@ -294,7 +294,7 @@ export abstract class SemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>>, CrdtParent
+  implements StatefulCrdt<SemidirectState<S>>, CrdtParent 
 {
   static readonly crdt1Name = "1";
   static readonly crdt2Name = "2";
@@ -485,7 +485,8 @@ export abstract class SemidirectProduct<
   // this.internalState, whatever it is.
   // Need option to do custom loading if that's not the
   // case.
-  load(saveData: Uint8Array) {
+  load(saveData: Uint8Array): boolean {
     this.state.load(saveData, this.runtime);
+    return true;
   }
 }

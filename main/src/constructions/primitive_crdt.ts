@@ -56,8 +56,9 @@ export abstract class PrimitiveCrdt<
    */
   protected abstract savePrimitive(): Uint8Array;
 
-  load(saveData: Uint8Array): void {
+  load(saveData: Uint8Array): boolean {
     this.loadPrimitive(saveData);
+    return true;
   }
 
   /**
