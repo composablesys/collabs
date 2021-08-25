@@ -9,8 +9,8 @@
     "rootDir": ".",
     "outDir": "build",
     "target": "es2019",
-    /* We need ES2021 WeakRefs.  Also exclude DOM. */
-    "lib": ["es2021.weakref", "es2019"],
+    /* We need ES2021 WeakRefs. */
+    "lib": ["es2021.weakref", "es2019", "dom"],
     /* Enable strict type checking. */
     "strict": true,
     /* The workspace structure causes tsc to check all

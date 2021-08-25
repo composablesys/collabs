@@ -333,8 +333,13 @@ export abstract class Crdt<
    * state, since one child's constructor can only have
    * received references to prior children (see YjsCrdtSet
    * for an example).
+   *
+   * @return whether the descendants should be loaded now.
+   * This should almost always be true; CMountPoint is
+   * the one exception.  If not, they can be loaded later
+   * by calling Runtime.delayedLoadDescendants(this).
    */
-  abstract load(saveData: Uint8Array): void;
+  abstract load(saveData: Uint8Array): boolean;
 
   /**
    * Only for use by Runtime.
@@ -348,6 +353,12 @@ export abstract class Crdt<
    * for efficiency).  This method is provided as an
    * optimization; it is always safe to instead
    * store your state in saveData and load it in load().
+   *
+   * If load returns false, then postLoad() is called
+   * immediately afterwards, even though descendants have
+   * not been loaded.  It is not called again if
+   * the descendants are later loaded by
+   * Runtime.delayedLoadDescendants(this).
    */
   postLoad(): void {}
 }

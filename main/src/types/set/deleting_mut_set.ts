@@ -41,7 +41,7 @@ class FakeDeletedCrdt extends Crdt {
   ] {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
-  load(_saveData: Uint8Array): void {
+  load(_saveData: Uint8Array): boolean {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
 
@@ -400,7 +400,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     return [DeletingMutCSetSave.encode(saveMessage).finish(), this.children];
   }
 
-  load(saveData: Uint8Array) {
+  load(saveData: Uint8Array): boolean {
     const saveMessage = DeletingMutCSetSave.decode(saveData);
     // Construct the children in the order given in
     // saveMessage, which is the same as the order they
@@ -413,5 +413,6 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     for (const { name, args } of saveMessage.constructorArgs) {
       this.receiveCreate(arrayAsString(name), args);
     }
+    return true;
   }
 }
