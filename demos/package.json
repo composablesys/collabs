@@ -18,6 +18,7 @@
   "dependencies": {
     "tslib": "^2.0.1",
     "compoventuals": "^0.1.0",
+    "compoventuals-container": "^0.1.0",
     "compoventuals-matrix-widget": "^0.1.0",
     "compoventuals-ws-client": "^0.1.0",
     "compoventuals-ws-server": "^0.1.0",

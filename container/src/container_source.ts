@@ -16,14 +16,15 @@ export interface ContainerSource {
    * It must be safe to call this method multiple times,
    * generating completely independent instances.
    *
-   * @param  domParent      Put all of your HTML components
+   * @param  shadowRoot Put all of your HTML components
    * in here, don't edit it otherwise.  It starts blank.
    * Note that it's not an HTMLElement, but you can
    * use appendChild to put a div inside it if you like.
-   * For things like getElementById, use domParent instead
+   * For things like getElementById, use shadowRoot instead
    * of document, due to the shadow DOM scoping.
-   * (For callers: no need to attach to the DOM before calling
-   * this method, domParent.getElementById will still work
+   * (For callers: no need to attach shadowRoot's parent to
+   * the DOM before calling
+   * this method, shadowRoot.getElementById will still work
    * on elements added within this method.)
    * TODO: can we guarantee its size etc. will
    * be set before calling it here?
@@ -33,7 +34,7 @@ export interface ContainerSource {
    * @return                [description]
    */
   attachNewContainer(
-    domParent: ShadowRoot,
+    shadowRoot: ShadowRoot,
     crdtParentHook: <C extends Crdt>(topLevelCrdt: C) => C
   ): void;
 

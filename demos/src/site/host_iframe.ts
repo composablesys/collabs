@@ -1,14 +1,11 @@
 import * as crdts from "compoventuals";
-
-// TODO: permissionless iframe (no communication except
-// what we allow).  Although some of this code (e.g. Shadow
-// DOM) stuff should remain on the permissionless side.
-// TODO: dynamic loading.
-// TODO: test with multiple instances.
+import { ContainerHost } from "compoventuals-container";
 
 /**
  * BroadcastNetwork that talks to the host page using
  * window.postMessage.
+ *
+ * TODO: move to sandbox package, together with host.ts networking?
  */
 class HostIframeNetwork implements crdts.BroadcastNetwork {
   onReceive!: (message: Uint8Array) => void;
@@ -38,57 +35,22 @@ class HostIframeNetwork implements crdts.BroadcastNetwork {
   load(_saveData: Uint8Array): void {}
 }
 
+// TODO: move to sandbox package?
+const containerSourceString = new Promise<string>((resolve) => {
+  function containerSourceListener(event: MessageEvent<any>) {
+    if (event.source !== window.parent) return;
+    if (event.data.type !== "containerSource") return;
+    window.removeEventListener("message", containerSourceListener);
+    resolve(event.data.containerSourceJs as string);
+  }
+  window.addEventListener("message", containerSourceListener, false);
+});
+
 const topDiv = document.getElementById("topDiv")!;
-const shadowRoot = topDiv.attachShadow({ mode: "open" });
-
 const client = new crdts.Runtime(new HostIframeNetwork());
-
-// We first listen for the ContainerSource string.
-function containerSourceListener(event: MessageEvent<any>) {
-  if (event.source !== window.parent) return;
-  if (event.data.type !== "containerSource") return;
-  window.removeEventListener("message", containerSourceListener);
-  const containerSourceJs = event.data.containerSourceJs as string;
-  // Dynamically import the javascript.
-  // Based on https://stackoverflow.com/a/57255653
-  const importUrl =
-    "data:text/javascript," + encodeURIComponent(containerSourceJs);
-  // We need this webpackIgnore magic comment or else webpack
-  // will try to do its thing to the import statement, compiling
-  // it into a __webpack_require, which is incorrect: it should
-  // be compiled as-is.
-  // From https://github.com/webpack/webpack/issues/4175#issuecomment-770769441
-  // Also note that in our tsconfig, we had to change the
-  // module to es2020 (first version supporting dynamic
-  // imports) or else TypeScript will try to convert it to
-  // require().  Then we had to change moduleResolution to
-  // node (default for commonJS but not for es2020) to
-  // fix compile errors.
-  import(/* webpackIgnore: true */ importUrl).then((imported) => {
-    // TODO: we would prefer to do it this way and use
-    // output.libraryTarget: "module" in webpack.config.ts,
-    // but the feature is still in dev and broken last
-    // time I tried it.
-    // const containerSource = imported.default;
-    const containerSource = (window as any)[event.data.windowPropName];
-    (window as any)[event.data.windowPropName] = undefined;
-    if (!crdts.isContainerSource(containerSource)) {
-      throw new Error(
-        "obtained value is not a ContainerSource: " + containerSource
-      );
-    }
-    // Use containerSource.
-    containerSource.attachNewContainer(shadowRoot, (topLevelCrdt) =>
-      client.registerCrdt("container", topLevelCrdt)
-    );
-    // Now we are ready to receive Crdt messages.
-    // TODO: insecure targetOrigin
-    window.parent.postMessage({ type: "readyForMessages" }, "*");
-  });
-}
-window.addEventListener("message", containerSourceListener, false);
+client.registerCrdt("host", new ContainerHost(topDiv, containerSourceString));
 
 // Let the host know that we are now listening for
 // the container.
 // TODO: insecure targetOrigin
-window.parent.postMessage({ type: "readyForContainer" }, "*");
+window.parent.postMessage({ type: "ready" }, "*");

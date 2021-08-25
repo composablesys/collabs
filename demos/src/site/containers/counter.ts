@@ -1,7 +1,8 @@
 import * as crdts from "compoventuals";
+import { ContainerSource } from "compoventuals-container";
 
 // Test Container, modified from counter demo.
-const testContainer: crdts.ContainerSource = {
+const testContainer: ContainerSource = {
   isContainerSource: true,
   attachNewContainer(domParent, crdtParentHook) {
     // Counter HTML.

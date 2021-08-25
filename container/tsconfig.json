@@ -8,6 +8,7 @@
      */
     "rootDir": ".",
     "outDir": "build",
+    /* es2020 target + module needed for dynamic import. */
     "target": "es2020",
     "module": "es2020",
     "moduleResolution": "node",

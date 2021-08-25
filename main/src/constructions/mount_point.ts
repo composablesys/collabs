@@ -6,6 +6,25 @@ import { Optional } from "../util";
 // appropriately).  Note they're not really events
 // (not associated to a message; no formal or replicated state change).
 
+export interface CMountPointEventsRecord extends CrdtEventsRecord {
+  /**
+   * Emitted at the end of a call to mount().
+   *
+   * Note this is not a CrdtEvent and has no associated
+   * timestamp, since calls to mount are local, not associated
+   * with a message.
+   */
+  Mount: {};
+  /**
+   * Emitted at the end of a call to unmount().
+   *
+   * Note this is not a CrdtEvent and has no associated
+   * timestamp, since calls to unmount are local, not associated
+   * with a message.
+   */
+  Unmount: {};
+}
+
 /**
  * A wrapper around a Crdt that can be mounted and
  * unmounted.  While unmounted, the wrapped Crdt cannot
@@ -47,11 +66,8 @@ import { Optional } from "../util";
  *
  * @type C the type of the wrapped Crdt
  */
-export class CMountPoint<
-    C extends Crdt,
-    Events extends CrdtEventsRecord = CrdtEventsRecord
-  >
-  extends Crdt<Events>
+export class CMountPoint<C extends Crdt>
+  extends Crdt<CMountPointEventsRecord>
   implements CrdtParent
 {
   /**
@@ -67,6 +83,41 @@ export class CMountPoint<
     timestamp: CausalTimestamp,
     message: Uint8Array
   ][] = [];
+  private needsDelayedLoad = false;
+
+  private toMount?: C;
+  /**
+   * Call this before mount to specify
+   * the wrapped Crdt and initialize it (if this
+   * is initialized).  mount should be called shortly
+   * afterwards (ideally in the same thread).
+   *
+   * The wrapped Crdt is not actually loaded and
+   * delivered queued messages until mount, so in between
+   * prepareMount and mount, you can do any setup needed
+   * to prepare for the loading and queued messages.
+   *
+   * TODO: I don't like this API; will CrdtInitTokens make
+   * it better?  Concern is that callers might need to
+   * do some setup in between constructing toMount and when
+   * it receives messages (e.g., registering event handlers,
+   * linking to GUI).  We could instead use a callback
+   * with generic args in the constructor, like in
+   * collections.
+   */
+  prepareMount<D extends C>(toMount: D): D {
+    if (this.isMounted) {
+      throw new Error("prepareMount called but already mounted");
+    }
+    if (this.toMount !== undefined) {
+      throw new Error("prepareMount called twice");
+    }
+    this.toMount = toMount;
+    if (this.afterInit) {
+      toMount.init("", this);
+    }
+    return toMount;
+  }
 
   /**
    * [mount description]
@@ -81,27 +132,30 @@ export class CMountPoint<
    * events for the queued messages; they were already dispatched when the messages
    * were originally received.
    *
-   * @param toMount Should be constructed with the same
+   * @param toMount Must be constructed with the same
    * type and constructor arguments each time.
    * @throw if this.isMounted
    */
-  protected mount(toMount: C): void {
-    if (this.isMounted) {
-      throw new Error("mount called but already mounted");
+  mount(): void {
+    if (this.toMount === undefined) {
+      throw new Error("prepareMount must be called before mount");
     }
+    this.wrappedCrdt = this.toMount;
+    delete this.toMount;
 
-    this.wrappedCrdt = toMount;
     if (this.afterInit) {
-      this.wrappedCrdt.init("", this);
-      this.runtime.delayedLoadDescendants(this);
-      // TODO (for unmount): delayed load should also
-      // invalidate any preemptive save
-      // from the last time we were unmounted.
+      if (this.needsDelayedLoad) {
+        this.runtime.delayedLoadDescendants(this);
+        // TODO (for unmount): delayed load should also
+        // invalidate any preemptive save
+        // from the last time we were unmounted.
+      }
       this.processMessageQueue();
     }
     // Else there cannot be any queued messages: messages are not
     // allowed to be delivered to us before init(), nor
     // can load() be called.
+    this.emit("Mount", {});
   }
 
   /**
@@ -132,30 +186,29 @@ export class CMountPoint<
     }
   }
 
-  protected unmount(): void {
+  /**
+   * [unmount description]
+   *
+   * @throw if !this.isMounted
+   */
+  unmount(): void {
     throw new Error("not yet implemented");
-    if (this.isMounted) {
-      // TODO: need to save wrappedCrdt and its descendants.
-      this.wrappedCrdt = undefined;
-      this.messageQueue = [];
+    if (!this.isMounted) {
+      throw new Error("unmount called but already unmounted");
     }
+    // TODO: need to save wrappedCrdt and its descendants.
+    this.wrappedCrdt = undefined;
+    this.messageQueue = [];
+
+    this.emit("Unmount", {});
   }
 
-  protected get isMounted(): boolean {
+  get isMounted(): boolean {
     return this.wrappedCrdt !== undefined;
   }
 
-  get(): C {
-    if (this.wrappedCrdt === undefined) {
-      throw new Error("CMountPoint.get() called but isMounted is false");
-    }
+  get mountedCrdt(): C | undefined {
     return this.wrappedCrdt;
-  }
-
-  optionalGet(): Optional<C> {
-    if (this.wrappedCrdt !== undefined) {
-      return Optional.of(this.wrappedCrdt);
-    } else return Optional.empty();
   }
 
   protected receiveInternal(
@@ -193,7 +246,10 @@ export class CMountPoint<
     if (name !== "") {
       throw new Error("Unknown child: " + name + ', children: [""]');
     }
-    return this.get();
+    if (this.wrappedCrdt === undefined) {
+      throw new Error('TODO: getChild("") called but not mounted');
+    }
+    return this.wrappedCrdt;
   }
 
   canGc(): boolean {
@@ -234,6 +290,8 @@ export class CMountPoint<
   }
 
   load(saveData: Uint8Array): boolean {
+    this.needsDelayedLoad = true;
+
     const save = CMountPointSave.decode(saveData);
     this.messageQueue = save.messageQueue.map((queuedMessage) => [
       queuedMessage.targetPath!,
