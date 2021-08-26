@@ -5,6 +5,7 @@ import {
   CrdtEventsRecord,
 } from "compoventuals";
 import { isContainerSource } from "./container_source";
+import { CrdtShadowRuntime } from "./crdt_shadow_runtime";
 
 export interface ContainerHostEventsRecord extends CrdtEventsRecord {
   /**
@@ -46,7 +47,7 @@ export interface ContainerHostEventsRecord extends CrdtEventsRecord {
 // type?), in case user wants to interact it with according
 // to an extended interface?  (As Optional.)
 export class ContainerHost extends CompositeCrdt<ContainerHostEventsRecord> {
-  private mountPoint: CMountPoint<Crdt>;
+  private mountPoint: CMountPoint<CrdtShadowRuntime>;
 
   constructor(
     domParent: HTMLElement,
@@ -113,9 +114,8 @@ export class ContainerHost extends CompositeCrdt<ContainerHostEventsRecord> {
     }
 
     // Use containerSource.
-    containerSource.attachNewContainer(shadowRoot, (topLevelCrdt) =>
-      this.mountPoint.prepareMount(topLevelCrdt)
-    );
+    const shadowRuntime = this.mountPoint.prepareMount(new CrdtShadowRuntime());
+    containerSource.attachNewContainer(shadowRoot, shadowRuntime);
     // Mount.  This loads saveData and delivers saveData,
     // if applicable.
     this.mountPoint.mount();

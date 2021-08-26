@@ -1,17 +1,6 @@
 import { WebSocketNetwork } from "compoventuals-ws-client";
 
 // Change this file to change the app.
-// It must set window[WINDOW_PROP_NAME] equal to
-// an instance of ContainerSource
-// that requires no networking (including loading other files).
-// You can set WINDOW_PROP_NAME that way using
-// Webpack with output.libraryTarget = "window"
-// and output.library = WINDOW_PROP_NAME.
-// window[WINDOW_PROP_NAME] must not be a standard
-// window property or it will be overwritten.
-// However it is okay if multiple containers (even within
-// the same app) use the same name, since it will be
-// cleared after each use.
 const CONTAINER_SOURCE_FILE = "containers/counter.js";
 
 // TODO: load/save of BroadcastNetwork.  Not automatically
@@ -34,7 +23,7 @@ let isReady = false;
 // case we will never know that it's ready.
 // Known workarounds (https://stackoverflow.com/a/36155560)
 // appear more complicated than just using a "ready" message.
-// TODO: what if we don't recieve the "ready" message, for the
+// TODO: what if we don't receive the "ready" message, for the
 // same reason?
 // TODO: move to sandbox package?
 const readyPromise = new Promise<void>((resolve) => {
