@@ -8,6 +8,7 @@ import {
   CausalTimestamp,
   DefaultCausalBroadcastNetwork,
 } from "compoventuals";
+import { Buffer } from "buffer";
 
 // TODO: size limits:
 // https://matrix.org/docs/spec/client_server/r0.6.1#size-limits

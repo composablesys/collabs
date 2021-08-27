@@ -21,6 +21,7 @@
   "dependencies": {
     "tslib": "^2.0.1",
     "compoventuals": "^0.1.0",
+    "buffer": "^6.0.3",
     "ws": "^7.4.6",
     "@types/ws": "^7.2.6",
     "reconnecting-websocket": "^4.4.0"

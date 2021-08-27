@@ -4,6 +4,7 @@ import {
   DefaultCausalBroadcastNetwork,
 } from "compoventuals";
 import ReconnectingWebSocket from "reconnecting-websocket";
+import { Buffer } from "buffer";
 
 export class WebSocketNetwork implements BroadcastNetwork {
   causal!: DefaultCausalBroadcastNetwork;

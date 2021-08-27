@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "target": "es2019",
+    "target": "es2020",
+    /* Recommend by Webpack. */
+    "module": "es2020",
+    /* Needed with module: es2020 or else stuff breaks. */
+    "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
     /* The workspace structure causes tsc to check all

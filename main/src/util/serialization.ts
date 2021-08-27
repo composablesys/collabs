@@ -8,6 +8,7 @@ import {
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { RootCrdt } from "../core/runtime";
+import { Buffer } from "buffer";
 
 /**
  * A serializer for elements (keys, values, etc.) in Crdt collections,
