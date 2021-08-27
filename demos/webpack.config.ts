@@ -9,21 +9,21 @@ const config: webpack.Configuration = {
   mode: "development",
   devtool: "inline-source-map",
   entry: {
-    counter: "./src/site/counter.ts",
-    whiteboard: "./src/site/whiteboard.ts",
-    aspace: "./src/site/aspace.ts",
-    counter_webrtc: "./src/site/counter_webrtc.ts",
-    minesweeper: "./src/site/minesweeper.ts",
-    variablecounter: "./src/site/variablecounter.ts",
-    text: "./src/site/text.ts",
-    plaintext: "./src/site/plaintext.ts",
-    host: "./src/site/host.ts",
-    host_iframe: "./src/site/host_iframe.ts",
-    "matrix/widget_test": "./src/site/matrix/widget_test.ts",
-    "matrix/whiteboard": "./src/site/matrix/whiteboard.ts",
-    "matrix/minesweeper": "./src/site/matrix/minesweeper.ts",
-    "matrix/plaintext": "./src/site/matrix/plaintext.ts",
+    "containers/aspace": "./src/site/containers/aspace.ts",
     "containers/counter": "./src/site/containers/counter.ts",
+    "containers/minesweeper": "./src/site/containers/minesweeper.ts",
+    "containers/plaintext": "./src/site/containers/plaintext.ts",
+    "containers/text": "./src/site/containers/text.ts",
+    "containers/whiteboard": "./src/site/containers/whiteboard.ts",
+    "hosts/plain": "./src/site/hosts/plain.ts",
+    "hosts/sandbox_iframe": "./src/site/hosts/sandbox_iframe.ts",
+    "hosts/sandbox": "./src/site/hosts/sandbox.ts",
+    "non_container_demos/counter_matrix":
+      "./src/site/non_container_demos/counter_matrix.ts",
+    "non_container_demos/counter_webrtc":
+      "./src/site/non_container_demos/counter_webrtc.ts",
+    "non_container_demos/counter_ws":
+      "./src/site/non_container_demos/counter_ws.ts",
     // TODO: Add more entries as needed for new pages
   },
   output: {
@@ -64,34 +64,38 @@ const config: webpack.Configuration = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: "./src/site/index.html", to: "index.html" },
-        { from: "./src/site/counter.html", to: "counter.html" },
-        { from: "./src/site/whiteboard.html", to: "whiteboard.html" },
-        { from: "./src/site/counter_webrtc.html", to: "counter_webrtc.html" },
-        { from: "./src/site/minesweeper.html", to: "minesweeper.html" },
-        { from: "./src/site/aspace.html", to: "aspace.html" },
-        { from: "./src/site/variablecounter.html", to: "variablecounter.html" },
-        { from: "./src/site/text.html", to: "text.html" },
-        { from: "./src/site/plaintext.html", to: "plaintext.html" },
-        { from: "./src/site/host.html", to: "host.html" },
-        { from: "./src/site/host_iframe.html", to: "host_iframe.html" },
         {
-          from: "./src/site/matrix/widget_test.html",
-          to: "matrix/widget_test.html",
+          from: "./src/site/hosts/plain.html",
+          to: "hosts/plain.html",
         },
         {
-          from: "./src/site/matrix/whiteboard.html",
-          to: "matrix/whiteboard.html",
+          from: "./src/site/hosts/sandbox_iframe.html",
+          to: "hosts/sandbox_iframe.html",
         },
         {
-          from: "./src/site/matrix/minesweeper.html",
-          to: "matrix/minesweeper.html",
+          from: "./src/site/hosts/sandbox.html",
+          to: "hosts/sandbox.html",
         },
         {
-          from: "./src/site/matrix/plaintext.html",
-          to: "matrix/plaintext.html",
+          from: "./src/site/non_container_demos/counter_matrix.html",
+          to: "non_container_demos/counter_matrix.html",
         },
-        { from: "./src/site/reset.html", to: "reset.html" },
+        {
+          from: "./src/site/non_container_demos/counter_webrtc.html",
+          to: "non_container_demos/counter_webrtc.html",
+        },
+        {
+          from: "./src/site/non_container_demos/counter_ws.html",
+          to: "non_container_demos/counter_ws.html",
+        },
+        {
+          from: "./src/site/index.html",
+          to: "index.html",
+        },
+        {
+          from: "./src/site/reset.html",
+          to: "reset.html",
+        },
         // TODO: Add more entries as needed for new pages
       ],
     }),

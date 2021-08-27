@@ -1,5 +1,5 @@
 import * as crdts from "compoventuals";
-import { YataSave } from "../../generated/site/proto_compiled";
+import { YataSave } from "../../../generated/site/proto_compiled";
 
 export class YataOp<T> extends crdts.CompositeCrdt {
   readonly creatorId: string;

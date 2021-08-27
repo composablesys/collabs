@@ -2,10 +2,10 @@ import * as crdts from "compoventuals";
 import { ContainerHost } from "compoventuals-container";
 
 /**
- * BroadcastNetwork that talks to the host page using
+ * BroadcastNetwork that talks to the sandbox page using
  * window.postMessage.
  *
- * TODO: move to sandbox package, together with host.ts networking?
+ * TODO: move to sandbox package, together with sandbox.ts networking?
  */
 class HostIframeNetwork implements crdts.BroadcastNetwork {
   onReceive!: (message: Uint8Array) => void;
@@ -28,7 +28,7 @@ class HostIframeNetwork implements crdts.BroadcastNetwork {
   }
 
   save(): Uint8Array {
-    // Nothing to save; host will save its own BroadcastNetwork.
+    // Nothing to save; sandbox will save its own BroadcastNetwork.
     return new Uint8Array();
   }
 
@@ -47,10 +47,10 @@ const containerSourceString = new Promise<string>((resolve) => {
 });
 
 const topDiv = document.getElementById("topDiv")!;
-const client = new crdts.Runtime(new HostIframeNetwork());
+const client = new crdts.Runtime(new HostIframeNetwork(), { periodMs: 200 });
 client.registerCrdt("host", new ContainerHost(topDiv, containerSourceString));
 
-// Let the host know that we are now listening for
+// Let the sandbox know that we are now listening for
 // the container.
 // TODO: insecure targetOrigin
 window.parent.postMessage({ type: "ready" }, "*");

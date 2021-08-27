@@ -1,29 +1,28 @@
 import * as crdts from "compoventuals";
 import { ContainerSource } from "compoventuals-container";
 
-// Test Container, modified from counter demo.
-const testContainer: ContainerSource = {
+const container: ContainerSource = {
   isContainerSource: true,
-  attachNewContainer(shadowRoot, crdtParentHook) {
-    // HTML.
-    shadowRoot.innerHTML = `
-    <!-- HTML page variables and buttons -->
-    <p id="counter">0</p>
-    <button id="increment">💯️</button>
-    <button id="decrement">-💯️</button>
-    <br />
-    <button id="reset">Reset</button>
-    <!-- Testing security: this is blocked by the browser. -->
-    <!--<img src="http://imgs.xkcd.com/comics/fissile_raspberry_isotopes.png">-->
+  attachNewContainer(document, runtime) {
+    // HTML
+    document.innerHTML = `
+      <!-- HTML page variables and buttons -->
+      <p id="counter">0</p>
+      <button id="increment">💯️</button>
+      <button id="decrement">-💯️</button>
+      <br />
+      <button id="reset">Reset</button>
+      <!-- Testing security: this is blocked by the browser. -->
+      <!--<img src="http://imgs.xkcd.com/comics/fissile_raspberry_isotopes.png">-->
     `;
 
-    // Counter JS
-    let clientCounter = crdtParentHook(new crdts.CCounter());
+    // JS
+    let clientCounter = runtime.registerCrdt("counter", new crdts.CCounter());
 
     /* HTML variables */
-    // Note that here we use shadowRoot instead of document,
+    // Note that here we use document instead of document,
     // to get Shadow DOM scoping.
-    var counter = shadowRoot.getElementById("counter");
+    var counter = document.getElementById("counter");
 
     /* Customize the event listener for CRDT as refresh the value */
     clientCounter.on("Change", (_) => {
@@ -31,20 +30,20 @@ const testContainer: ContainerSource = {
     });
 
     /* Customize onclick() function of increment button with CRDT operation */
-    shadowRoot.getElementById("increment")!.onclick = function () {
+    document.getElementById("increment")!.onclick = function () {
       console.log("clicked increment");
       clientCounter.add(100);
       counter!.innerHTML = clientCounter.value.toString();
     };
 
     /* Customize onclick() function of decrement button with CRDT operation */
-    shadowRoot.getElementById("decrement")!.onclick = function () {
+    document.getElementById("decrement")!.onclick = function () {
       console.log("clicked decrement");
       clientCounter.add(-100);
       counter!.innerHTML = clientCounter.value.toString();
     };
 
-    shadowRoot.getElementById("reset")!.onclick = function () {
+    document.getElementById("reset")!.onclick = function () {
       console.log("clicked reset");
       clientCounter.reset();
       counter!.innerHTML = clientCounter.value.toString();
@@ -55,4 +54,4 @@ const testContainer: ContainerSource = {
     // let client = new crdts.Runtime(new WebSocketNetwork(HOST, "counter"));
   },
 };
-export default testContainer;
+export default container;

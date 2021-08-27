@@ -1,12 +1,14 @@
-import { Crdt } from "compoventuals";
+import { Crdt, EventEmitter, CrdtEventsRecord } from "compoventuals";
 
-export interface ShadowRuntime {
+export interface ShadowRuntime extends EventEmitter<CrdtEventsRecord> {
   /**
    * TODO
    * @param
    * @return
    */
   registerCrdt<D extends Crdt>(name: string, child: D): D;
+
+  readonly replicaId: string;
 }
 
 // TODO: supply a unique id?

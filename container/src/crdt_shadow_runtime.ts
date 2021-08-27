@@ -8,4 +8,8 @@ export class CrdtShadowRuntime extends CompositeCrdt implements ShadowRuntime {
   public registerCrdt<D extends Crdt>(name: string, child: D): D {
     return super.addChild(name, child);
   }
+
+  get replicaId(): string {
+    return this.runtime.replicaId;
+  }
 }

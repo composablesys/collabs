@@ -8,7 +8,7 @@
     postMessage.
     From https://stackoverflow.com/a/31904447 -->
     <!-- TODO: can we further restrict this?  E.g. 'none'.
-    We can eliminate 'self' if we inline host_iframe.js. -->
+    We can eliminate 'self' if we inline sandbox_iframe.js. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self' 'unsafe-eval' 'unsafe-inline' data:;"
@@ -26,8 +26,9 @@
   </head>
 
   <body>
+    <!-- TODO: just use body instead, like in plain.ts?  Or, make plain.ts like this?  If so, force div to fill whole screen, so that e.g. background-color works as expected. -->
     <div id="topDiv" class="topDiv"></div>
 
-    <script src="host_iframe.js"></script>
+    <script src="sandbox_iframe.js"></script>
   </body>
 </html>
