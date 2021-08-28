@@ -3,11 +3,7 @@ import {
   IWidgetApiRequest,
   IWidgetApiRequestData,
 } from "matrix-widget-api";
-import {
-  BroadcastNetwork,
-  CausalTimestamp,
-  DefaultCausalBroadcastNetwork,
-} from "compoventuals";
+import { BroadcastNetwork } from "compoventuals";
 import { Buffer } from "buffer";
 
 // TODO: size limits:
@@ -22,7 +18,7 @@ interface NetworkEvent {
 export class MatrixWidgetNetwork implements BroadcastNetwork {
   private readonly eventType: string;
   private readonly api: WidgetApi;
-  private causal!: DefaultCausalBroadcastNetwork;
+  onReceive!: (message: Uint8Array) => void;
 
   private isReady = false;
   private queued: NetworkEvent[] | undefined = [];
@@ -92,18 +88,10 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
    */
   private receive(mxEvent: IWidgetApiRequestData) {
     const ourEvent = mxEvent.content as NetworkEvent;
-    this.causal.receive(new Uint8Array(Buffer.from(ourEvent.msg, "base64")));
+    this.onReceive(new Uint8Array(Buffer.from(ourEvent.msg, "base64")));
   }
 
-  register(causal: DefaultCausalBroadcastNetwork): void {
-    this.causal = causal;
-  }
-
-  send(
-    message: Uint8Array,
-    _firstTimestamp: CausalTimestamp,
-    _lastTimestamp: CausalTimestamp
-  ): void {
+  send(message: Uint8Array): void {
     const encoded = Buffer.from(message).toString("base64");
     const event: NetworkEvent = {
       msg: encoded,

@@ -1,6 +1,7 @@
 import * as crdts from "compoventuals";
 import { WebSocketNetwork } from "compoventuals-ws-client";
 import { min, max, round } from "mathjs";
+import $ from "jquery";
 
 /**
  * Get Heroku server host Websocket.

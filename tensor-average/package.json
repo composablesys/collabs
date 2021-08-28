@@ -21,8 +21,8 @@
   "dependencies": {
     "tslib": "^2.0.1",
     "compoventuals": "^0.1.0",
-    "@tensorflow/tfjs": "^3.3.0",
-    "@tensorflow/tfjs-node": "^3.3.0",
+    "@tensorflow/tfjs": "^3.8.0",
+    "@tensorflow/tfjs-node": "^3.8.0",
     "dotenv": "^8.2.0",
     "protobufjs": "~6.10.1"
   },
