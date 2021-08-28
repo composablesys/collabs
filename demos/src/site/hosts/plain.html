@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style type="text/css">
+      // Settings to make iframe fill the screen.
+      // From https://www.geeksforgeeks.org/how-to-set-fullscreen-iframe/
+      html {
+        overflow: auto;
+      }
+
+      html,
+      body,
+      div,
+      iframe {
+        margin: 0px;
+        padding: 0px;
+        height: 100%;
+        border: none;
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        border: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+    </style>
+
+    <title>Plain Container Host</title>
+  </head>
+
+  <body>
+    <!-- Run main script -->
+    <script src="plain.js"></script>
+  </body>
+</html>

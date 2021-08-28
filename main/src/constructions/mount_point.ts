@@ -1,10 +1,6 @@
 import { CMountPointSave } from "../../generated/proto_compiled";
 import { CausalTimestamp, Crdt, CrdtEventsRecord, CrdtParent } from "../core";
 
-// TODO: mount/unmount events by subclass (so you can name them
-// appropriately).  Note they're not really events
-// (not associated to a message; no formal or replicated state change).
-
 export interface CMountPointEventsRecord extends CrdtEventsRecord {
   /**
    * Emitted at the end of a call to mount().

@@ -1,26 +1,20 @@
 import * as crdts from "compoventuals";
-import { WebSocketNetwork } from "compoventuals-ws-client";
+import { ContainerRuntimeSource } from "compoventuals-container";
 import { min, max, round } from "mathjs";
 import $ from "jquery";
 
-/**
- * Get Heroku server host Websocket.
- */
-var HOST = location.origin.replace(/^http/, "ws");
+(async function () {
+  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
+    periodMs: 200,
+  });
 
-/**
- * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
- */
-let client = new crdts.Runtime(new WebSocketNetwork(HOST, "whiteboard"));
+  // The key represents a point in the form: x:y
+  // The value is the color of the stroke.
+  let clientBoard: crdts.LwwCMap<string, string> = runtime.registerCrdt(
+    "whiteboardId",
+    new crdts.LwwCMap()
+  );
 
-// The key represents a point in the form: x:y
-// The value is the color of the stroke.
-let clientBoard: crdts.LwwCMap<string, string> = client.registerCrdt(
-  "whiteboardId",
-  new crdts.LwwCMap()
-);
-
-window.onload = function () {
   var colors = document.getElementsByClassName("btn-colors");
   var clear = <HTMLButtonElement>document.getElementById("clear");
   var board = <HTMLCanvasElement>document.getElementById("board");
@@ -124,4 +118,4 @@ window.onload = function () {
         isDown = false;
       });
   }
-};
+})();
