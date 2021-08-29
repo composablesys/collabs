@@ -4,9 +4,6 @@ import { WebSocketNetwork } from "compoventuals-ws-client";
 import { WebRtcNetwork } from "compoventuals-webrtc-client";
 import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 
-// HTML
-require("./plain.css");
-
 // Extract the name of the ContainerSource file to import
 // from the URL's "container" GET parameter.
 // If container points to a local file (relative path),
@@ -57,6 +54,10 @@ switch (networkType) {
 const iframe = document.createElement("iframe");
 iframe.src = containerUrl;
 document.body.appendChild(iframe);
+// Set title to that of the container.
+iframe.addEventListener("load", () => {
+  document.title = iframe.contentDocument!.title;
+});
 
 // Attach the container.
 const runtime = new crdts.Runtime(network);

@@ -68,6 +68,11 @@ const config: webpack.Configuration = {
           from: "./src/site/*.html",
           to: "./[base]",
         },
+        // Copy hosts html files.
+        {
+          from: "./src/site/hosts/*.html",
+          to: "./hosts/[base]",
+        },
         // Copy non_container_demos html files.
         {
           from: "./src/site/non_container_demos/*.html",
@@ -87,13 +92,14 @@ const config: webpack.Configuration = {
     }) as any,
   ],
 };
-// Add one HtmlWebpackPlugin entry per entrypoint.
+// Add one HtmlWebpackPlugin entry per container entrypoint.
 // (If we do this the naive way, it puts every .js file
-// into every generated .html file.)
+// into every generated .html file.
 // Per this issue, there doesn't seem to be an easier way:
 // https://github.com/jantimon/html-webpack-plugin/issues/218
+// )
 for (const entry of Object.keys(config.entry!)) {
-  if (!entry.startsWith("non_container_demos")) {
+  if (entry.startsWith("containers/")) {
     config.plugins!.push(
       // For apps with js, automatically create an html file
       // that just imports the js file.  In some cases these
