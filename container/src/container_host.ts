@@ -19,7 +19,7 @@ export class ContainerHost extends PrimitiveCrdt {
    *
    * @param containerIFrame [description]
    */
-  constructor(containerIFrame: HTMLIFrameElement) {
+  constructor(readonly containerIFrame: HTMLIFrameElement) {
     super();
 
     const channel = new MessageChannel();

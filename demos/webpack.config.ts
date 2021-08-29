@@ -4,10 +4,16 @@ import CopyWebpackPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import InlineChunkHtmlPlugin from "react-dev-utils/InlineChunkHtmlPlugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
+import { BundleAnalyzerPlugin } from "webpack-bundle-analyzer";
 
 const config: webpack.Configuration = {
-  mode: "development",
-  devtool: "inline-source-map",
+  mode: "production",
+  optimization: {
+    usedExports: true,
+    innerGraph: true,
+    sideEffects: true,
+  },
+  // devtool: "inline-source-map",
   entry: {
     "containers/aspace": "./src/site/containers/aspace.ts",
     "containers/counter": "./src/site/containers/counter.ts",
@@ -16,6 +22,7 @@ const config: webpack.Configuration = {
     "containers/text": "./src/site/containers/text.ts",
     "containers/whiteboard": "./src/site/containers/whiteboard.ts",
     "hosts/plain": "./src/site/hosts/plain.ts",
+    "hosts/selector": "./src/site/hosts/selector.ts",
     "non_container_demos/counter_matrix":
       "./src/site/non_container_demos/counter_matrix.ts",
     "non_container_demos/counter_webrtc":
@@ -54,12 +61,6 @@ const config: webpack.Configuration = {
       },
     ],
   },
-  //   optimization: {
-  //     minimize: true,
-  //     minimizer: [new TerserPlugin({
-  //         sourceMap: true,
-  //     })]
-  //   },
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
@@ -83,6 +84,7 @@ const config: webpack.Configuration = {
     // Works with HtmlWebpackPlugin to inlines chunks
     // with "container" in the name.
     new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/containers\/.*/]) as any,
+    new BundleAnalyzerPlugin(),
     // Delete js files that have been inlined by InlineChunkHtmlPlugin.
     new CleanWebpackPlugin({
       cleanAfterEveryBuildPatterns: ["containers/*.js"],

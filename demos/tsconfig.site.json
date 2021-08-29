@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2019",
     /* Recommend by Webpack. */
-    "module": "es2020",
-    /* Needed with module: es2020 or else stuff breaks. */
+    "module": "es2015",
+    /* Needed with module: es2015 or else stuff breaks. */
     "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
