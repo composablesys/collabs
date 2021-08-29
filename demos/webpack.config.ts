@@ -1,6 +1,9 @@
 import * as path from "path";
 import * as webpack from "webpack";
 import CopyWebpackPlugin from "copy-webpack-plugin";
+import HtmlWebpackPlugin from "html-webpack-plugin";
+import InlineChunkHtmlPlugin from "react-dev-utils/InlineChunkHtmlPlugin";
+import { CleanWebpackPlugin } from "clean-webpack-plugin";
 
 const config: webpack.Configuration = {
   mode: "development",
@@ -23,10 +26,9 @@ const config: webpack.Configuration = {
   },
   output: {
     path: path.resolve(__dirname, "build/site"),
+    publicPath: "/",
     filename: "[name].js",
-    library: "compoventuals-demos",
-    libraryTarget: "window", // this needs to be changed
-    libraryExport: "default",
+    clean: true,
   },
   resolve: {
     // Add ".ts" and ".tsx" as resolvable extensions.
@@ -42,6 +44,14 @@ const config: webpack.Configuration = {
           configFile: "tsconfig.site.json",
         },
       },
+      {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"],
+      },
+      {
+        test: /\.html$/i,
+        loader: "html-loader",
+      },
     ],
   },
   //   optimization: {
@@ -53,15 +63,51 @@ const config: webpack.Configuration = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        // Copy all HTML files to the build dir.
+        // Copy index.html, reset.html.
         {
-          from: "./src/site/",
-          to: "./",
-          filter: (resourcePath: string) => resourcePath.endsWith(".html"),
+          from: "./src/site/*.html",
+          to: "./[base]",
+        },
+        // Copy non_container_demos html files.
+        {
+          from: "./src/site/non_container_demos/*.html",
+          to: "./non_container_demos/[base]",
         },
       ],
     }),
+    // Works with HtmlWebpackPlugin to inlines chunks
+    // with "container" in the name.
+    new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/containers\/.*/]) as any,
+    // Delete js files that have been inlined by InlineChunkHtmlPlugin.
+    new CleanWebpackPlugin({
+      cleanAfterEveryBuildPatterns: ["containers/*.js"],
+      cleanStaleWebpackAssets: false,
+      protectWebpackAssets: false,
+      verbose: true,
+    }) as any,
   ],
 };
+// Add one HtmlWebpackPlugin entry per entrypoint.
+// (If we do this the naive way, it puts every .js file
+// into every generated .html file.)
+// Per this issue, there doesn't seem to be an easier way:
+// https://github.com/jantimon/html-webpack-plugin/issues/218
+for (const entry of Object.keys(config.entry!)) {
+  if (!entry.startsWith("non_container_demos")) {
+    config.plugins!.push(
+      // For apps with js, automatically create an html file
+      // that just imports the js file.  In some cases these
+      // js files then import their prewritten companion html files, but
+      // this is unrelated.
+      // TODO: customize title
+      new HtmlWebpackPlugin({
+        title: "Compoventuals Demo",
+        filename: entry + ".html",
+        chunks: [entry],
+        inject: "body",
+      })
+    );
+  }
+}
 
 export default config;

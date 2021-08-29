@@ -2,6 +2,9 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
+  // HTML
+  document.body.innerHTML = require("./aspace.html").default;
+
   const WIN_TEXT = (function () {
     let ans = "a";
     for (let i = 0; i < 29; i++) ans += " a";
@@ -11,6 +14,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
     periodMs: 200,
   });
+
   const text = runtime.registerCrdt("text", new crdts.CText());
   const startTime = runtime.registerCrdt(
     "startTime",

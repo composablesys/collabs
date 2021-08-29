@@ -3,6 +3,9 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 import seedrandom from "seedrandom";
 
 (async function () {
+  // HTML
+  document.body.innerHTML = require("./minesweeper.html").default;
+
   const board = document.getElementById("board");
   const winText = document.getElementById("winText")!;
 
@@ -154,6 +157,7 @@ import seedrandom from "seedrandom";
   }
 
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
+
   let currentGame = runtime.registerCrdt(
     "currentGame",
     new crdts.LwwMutCRegister(

@@ -8,6 +8,11 @@ import {
 import Quill, { DeltaOperation } from "quill";
 
 (async function () {
+  // HTML
+  require("quill/dist/quill.snow.css");
+  document.body.innerHTML = require("./text.html").default;
+  document.body.style.background = "#e06666ff";
+
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
     periodMs: 200,
   });

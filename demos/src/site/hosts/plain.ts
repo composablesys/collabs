@@ -4,6 +4,9 @@ import { WebSocketNetwork } from "compoventuals-ws-client";
 import { WebRtcNetwork } from "compoventuals-webrtc-client";
 import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 
+// HTML
+require("./plain.css");
+
 // Extract the name of the ContainerSource file to import
 // from the URL's "container" GET parameter.
 // If container points to a local file (relative path),

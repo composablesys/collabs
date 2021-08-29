@@ -2,6 +2,9 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
+  // HTML
+  document.body.innerHTML = require("./counter.html").default;
+
   /**
    * Generate CRDTs' Runtime on each runtime and create CRDTs (e.g. Counter).
    */

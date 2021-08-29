@@ -4,6 +4,9 @@ import { min, max, round } from "mathjs";
 import $ from "jquery";
 
 (async function () {
+  // HTML
+  document.body.innerHTML = require("./whiteboard.html").default;
+
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
     periodMs: 200,
   });
