@@ -81,5 +81,6 @@
   ],
   "directories": {
     "test": "test"
-  }
+  },
+  "sideEffects": false
 }

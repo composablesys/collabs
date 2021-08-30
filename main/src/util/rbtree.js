@@ -1,7 +1,5 @@
 "use strict";
 
-module.exports = { createRBTree, fillRBTree };
-
 /**
  * Forked from the npm module functional-red-black-tree
  * https://www.npmjs.com/package/functional-red-black-tree
@@ -16,6 +14,8 @@ module.exports = { createRBTree, fillRBTree };
  * - modify remove so that it also returns the old index
  * of the removed element
  * - explicitly return undefined instead of void from get
+ * - add fillRBTree
+ * - convert module format to ES6
  */
 
 var RED = 0;
@@ -1105,13 +1105,13 @@ function defaultCompare(a, b) {
 }
 
 //Build a tree
-function createRBTree(compare) {
+export function createRBTree(compare) {
   return new RedBlackTree(compare || defaultCompare, null);
 }
 
 // keys, values are functions from i to the thing.
 // They will called in order, once on each i.
-function fillRBTree(compare, keys, values, length) {
+export function fillRBTree(compare, keys, values, length) {
   if (length === 0) return createRBTree(compare);
   // Construct a balanced binary tree that is all
   // black except for any leaves whose path is one

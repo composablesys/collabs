@@ -56,5 +56,6 @@
   ],
   "directories": {
     "lib": "src"
-  }
+  },
+  "sideEffects": false
 }

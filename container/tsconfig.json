@@ -9,6 +9,9 @@
     "rootDir": ".",
     "outDir": "build",
     "target": "es2019",
+    "module": "es2015",
+    /* Needed with module: es2015 or else stuff breaks. */
+    "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
     /* The workspace structure causes tsc to check all
@@ -18,7 +21,6 @@
      * to skipLibChecks.
      */
     "skipLibCheck": true,
-    "module": "commonjs",
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Emit .d.ts files. */

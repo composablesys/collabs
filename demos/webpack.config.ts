@@ -7,13 +7,13 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import { BundleAnalyzerPlugin } from "webpack-bundle-analyzer";
 
 const config: webpack.Configuration = {
-  mode: "production",
+  mode: "development",
+  devtool: false,
   optimization: {
     usedExports: true,
     innerGraph: true,
     sideEffects: true,
   },
-  // devtool: "inline-source-map",
   entry: {
     "containers/aspace": "./src/site/containers/aspace.ts",
     "containers/counter": "./src/site/containers/counter.ts",
@@ -84,7 +84,11 @@ const config: webpack.Configuration = {
     // Works with HtmlWebpackPlugin to inlines chunks
     // with "container" in the name.
     new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/containers\/.*/]) as any,
-    new BundleAnalyzerPlugin(),
+    // At the end of the build, pop up a browser window showing
+    // the causes of bundle size.
+    // Disable this before pushing to github as it may freeze
+    // the CI.
+    // new BundleAnalyzerPlugin(),
     // Delete js files that have been inlined by InlineChunkHtmlPlugin.
     new CleanWebpackPlugin({
       cleanAfterEveryBuildPatterns: ["containers/*.js"],

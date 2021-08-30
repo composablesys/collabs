@@ -53,5 +53,6 @@
   "directories": {
     "lib": "src",
     "test": "test"
-  }
+  },
+  "sideEffects": false
 }
