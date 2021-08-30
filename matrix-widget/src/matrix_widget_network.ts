@@ -11,8 +11,29 @@ import { Buffer } from "buffer";
 
 // TODO: reasonable error if lacking capabilities
 
+/**
+ * We limit the size of the "msg" field in our events
+ * to this size.  Matrix imposes message size limits
+ * of 65535 bytes
+ * (https://matrix.org/docs/spec/client_server/r0.6.1#size-limits);
+ * Element encrypted rooms further limit it to
+ * 40-something KB; and there is presumably overhead
+ * added by the matrix-widget-api / Element, so we aim
+ * low to be safe.
+ */
+const MAX_MSG_SIZE = 32000;
+/**
+ * For the uid: we use ascii chars in the range 32-95,
+ * for 6 bits of entropy per char.  I haven't thought
+ * carefully about whether 60 bits of entropy is correct.
+ */
+const LONG_MSG_UID_LENGTH = 10;
+
 interface NetworkEvent {
   msg: string;
+  uid?: string;
+  numPieces?: number;
+  piece?: number;
 }
 
 export class MatrixWidgetNetwork implements BroadcastNetwork {
@@ -83,25 +104,82 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
     });
     this.api.start();
   }
-  /**
-   * @return true if we handled the event
-   */
+
+  // TODO: once we add loading, it seems possible we will
+  // get partial messages that we don't need (already received)
+  // but that never complete, so that they are stored here
+  // forever (inefficient).
+  // That could be an argument to move this splitting into
+  // DefaultCausalBroadcastNetwork, which can immediately tell
+  // when a piece is unneeded, and also adds its own uids
+  // (sender/counter), so we don't need to create new ones.
+  private longMsgBuffer: Map<string, Array<string | null>> = new Map();
+
   private receive(mxEvent: IWidgetApiRequestData) {
     const ourEvent = mxEvent.content as NetworkEvent;
-    this.onReceive(new Uint8Array(Buffer.from(ourEvent.msg, "base64")));
+    if (ourEvent.uid !== undefined) {
+      // It's a long msg split into pieces.
+      let array = this.longMsgBuffer.get(ourEvent.uid);
+      if (array === undefined) {
+        array = new Array(ourEvent.numPieces!);
+        array.fill(null);
+        this.longMsgBuffer.set(ourEvent.uid, array);
+      }
+      array[ourEvent.piece!] = ourEvent.msg;
+      if (array.every((value) => value !== null)) {
+        // It's done.
+        this.longMsgBuffer.delete(ourEvent.uid);
+        this.receiveString(array.join(""));
+      }
+    } else {
+      // It's a whole message.
+      this.receiveString(ourEvent.msg);
+    }
+  }
+
+  private receiveString(msg: string) {
+    this.onReceive(new Uint8Array(Buffer.from(msg, "base64")));
   }
 
   send(message: Uint8Array): void {
     const encoded = Buffer.from(message).toString("base64");
-    const event: NetworkEvent = {
-      msg: encoded,
-    };
+    if (encoded.length > MAX_MSG_SIZE) {
+      // Break it into chunks of length <= MAX_MSG_SIZE,
+      // linked together by a random uid.
+      const uid = this.longMsgUid();
+      const numPieces = Math.ceil(encoded.length / MAX_MSG_SIZE);
+      for (let i = 0; i < encoded.length; i += MAX_MSG_SIZE) {
+        this.sendEvent({
+          msg: encoded.substring(i, i + MAX_MSG_SIZE),
+          uid,
+          numPieces,
+          piece: Math.floor(i / MAX_MSG_SIZE),
+        });
+      }
+    } else {
+      this.sendEvent({
+        msg: encoded,
+      });
+    }
+  }
+
+  private sendEvent(event: NetworkEvent) {
     if (this.isReady) {
       this.api.sendRoomEvent(this.eventType, event);
     } else {
       // Queue the message for later
       this.queued!.push(event);
     }
+  }
+
+  private longMsgUid(): string {
+    const uidBytes = new Uint8Array(LONG_MSG_UID_LENGTH);
+    window.crypto.getRandomValues(uidBytes);
+    const uidChars = new Array<number>(LONG_MSG_UID_LENGTH);
+    for (let i = 0; i < LONG_MSG_UID_LENGTH; i++) {
+      uidChars[i] = 32 + (uidBytes[i] % 64);
+    }
+    return String.fromCharCode(...uidChars);
   }
 
   save(): Uint8Array {
