@@ -30,8 +30,8 @@
  */
 
 const fs = require("fs");
-const PATH = "./generated/proto_compiled.js";
-let source = fs.readFileSync(PATH).toString();
+const path = process.argv[2];
+let source = fs.readFileSync(path).toString();
 
 // 1. Replace "(() => {" with "/*@__PURE__*/ (() => {".
 // This tells UglifyJS to trust that the IIFE class definitions
@@ -56,7 +56,7 @@ while ((index = source.indexOf("export const ", index + 1)) !== -1) {
   const classNameStart = index + 13;
   const classNameEquals = source.indexOf("=", classNameStart);
   source =
-    source.substring(0, classNameStart) + source.substring(classNameEquals + 1);
+    source.substring(0, classNameStart) + source.substring(classNameEquals + 2);
 }
 
-fs.writeFileSync(PATH, source);
+fs.writeFileSync(path, source);
