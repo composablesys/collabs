@@ -15,9 +15,18 @@
   "keywords": [
     "crdts"
   ],
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
-  "unpkg": "build/src/index.js",
+  "module": "build/esm/src/index.js",
+  "browser": "build/esm/src/index.js",
+  "types": "build/esm/src/index.d.ts",
+  "main": "build/commonjs/src/index.js",
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  },
+  "sideEffects": false,
   "dependencies": {
     "tslib": "^2.0.1",
     "compoventuals": "^0.1.0"
@@ -37,22 +46,14 @@
   },
   "scripts": {
     "build": "npm-run-all build:*",
-    "build:ts": "tsc --project tsconfig.json",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
-    "test:unit": "mocha",
+    "test:unit": "env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
     "clean": "rimraf build docs"
-  },
-  "files": [
-    "/build"
-  ],
-  "directories": {
-    "lib": "src",
-    "test": "test"
-  },
-  "sideEffects": false
+  }
 }

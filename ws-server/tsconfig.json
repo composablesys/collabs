@@ -11,6 +11,7 @@
     "target": "es6",
     /* Specify lib manually so we can exclude DOM. */
     "lib": ["es6"],
+    "module": "commonjs",
     /* Enable strict type checking. */
     "strict": true,
     /* The workspace structure causes tsc to check all
@@ -20,7 +21,6 @@
      * to skipLibChecks.
      */
     "skipLibCheck": true,
-    "module": "commonjs",
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Emit .d.ts files. */

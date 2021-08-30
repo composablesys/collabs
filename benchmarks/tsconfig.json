@@ -11,6 +11,7 @@
     "target": "es2019",
     /* Specify lib manually so we can exclude DOM. */
     "lib": ["es2019"],
+    "module": "commonjs",
     /* Enable strict type checking. */
     "strict": true,
     /*
@@ -18,7 +19,6 @@
      * See https://www.tensorflow.org/js/tutorials/setup#typescript
      */
     "skipLibCheck": true,
-    "module": "commonjs",
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Include automerge_perf benchmark js file. */

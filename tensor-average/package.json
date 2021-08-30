@@ -15,9 +15,18 @@
   "keywords": [
     "crdts"
   ],
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
-  "unpkg": "build/src/index.js",
+  "module": "build/esm/src/index.js",
+  "browser": "build/esm/src/index.js",
+  "types": "build/esm/src/index.d.ts",
+  "main": "build/commonjs/src/index.js",
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  },
+  "sideEffects": false,
   "dependencies": {
     "tslib": "^2.0.1",
     "compoventuals": "^0.1.0",
@@ -42,25 +51,18 @@
   },
   "scripts": {
     "build": "npm-run-all build:*",
-    "build:protobuf": "npm-run-all build:protobuf:prepare build:protobuf:js build:protobuf:ts",
-    "build:protobuf:prepare": "mkdirp generated",
-    "build:protobuf:js": "pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
+    "build:protobuf": "npm-run-all build:protobuf:*",
+    "build:protobuf:prepare": "mkdirp generated_esm generated build/esm/generated",
+    "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find src -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
-    "build:ts": "tsc --project tsconfig.json",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
-    "test:unit": "mocha",
+    "test:unit": "env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf generated build docs"
-  },
-  "files": [
-    "/build"
-  ],
-  "directories": {
-    "lib": "src",
-    "test": "test"
+    "clean": "rimraf generated generated_esm build docs"
   }
 }

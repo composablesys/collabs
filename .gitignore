@@ -4,7 +4,7 @@ build
 dist
 docs
 generated
-temp_build_files
+generated_esm
 .vscode/
 .idea/
 *.tsbuildinfo
