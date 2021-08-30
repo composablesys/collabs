@@ -8,23 +8,65 @@
   </head>
 
   <body>
-    <a href="counter.html">Counter</a>
-    <a href="whiteboard.html">Whiteboard</a>
-    <a href="counter_webrtc.html">WebRtc</a>
-    <a href="minesweeper.html">Minesweeper</a>
-    <a href="aspace.html">A Space</a>
-    <a href="variablecounter.html">Variable Counter</a>
-    <a href="text.html">Text</a>
-    <a href="plaintext.html">Plain text editor</a>
+    <h3>Container-based demos</h3>
+
+    <table id="containerTable"></table>
+
+    <script>
+      const networks = [
+        ...Object.entries({
+          ws: "WebSocket server",
+          matrix: "Matrix widget",
+        }),
+      ];
+      const containers = [
+        ...Object.entries({
+          counter: "Counter",
+          whiteboard: "Whiteboard",
+          minesweeper: "Minesweeper",
+          aspace: "A Space",
+          text: "Rich text editor",
+          plaintext: "Plain text editor",
+        }),
+      ];
+
+      const table = document.getElementById("containerTable");
+      // TODO: add true entry
+      for (const sandbox of [false]) {
+        for (let y = 0; y < networks.length; y++) {
+          const tr = table.insertRow();
+          for (let x = -2; x < containers.length; x++) {
+            const td = tr.insertCell();
+            if (x === -2) {
+              // Header column
+              td.innerHTML = `<b>${networks[y][0]} (${
+                sandbox ? "Sandbox" : "Plain"
+              })</b>`;
+            } else if (x === -1) {
+              // Selector column
+              td.innerHTML = `<a href="hosts/${
+                sandbox ? "selector_sandbox" : "selector"
+              }.html?network=${networks[y][0]}">Selector</a>`;
+            } else {
+              td.innerHTML = `<a href="hosts/${
+                sandbox ? "plain_sandbox" : "plain"
+              }.html?network=${networks[y][0]}&container=../containers/${
+                containers[x][0]
+              }.html">${containers[x][1]}</a>`;
+            }
+          }
+        }
+      }
+    </script>
+
     <p></p>
-    <h3>Matrix widget pages</h3>
-    These are not usable outside of a Matrix group.
-    <p>
-      <a href="matrix/widget_test.html">Widget test</a>
-      <a href="matrix/whiteboard.html">Whiteboard</a>
-      <a href="matrix/minesweeper.html">Minesweeper</a>
-      <a href="matrix/plaintext.html">Plain text editor</a>
-    </p>
+    <h3>Non-container demos</h3>
+    <a href="non_container_demos/counter_ws.html">Counter (WebSocket server)</a>
+    <a href="non_container_demos/counter_webrtc.html">Counter (WebRTC)</a>
+    <a href="non_container_demos/counter_matrix.html"
+      >Counter (Matrix widget)</a
+    >
+
     <p></p>
     <h3>Server admin</h3>
     <p>

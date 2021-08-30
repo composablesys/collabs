@@ -8,6 +8,7 @@ import {
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { RootCrdt } from "../core/runtime";
+import { Buffer } from "buffer";
 
 /**
  * A serializer for elements (keys, values, etc.) in Crdt collections,
@@ -61,6 +62,10 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
             crdtValue: CrdtReference.create({
               pathToBase: value.pathToRoot().map(stringAsArray),
             }),
+          };
+        } else if (value instanceof Uint8Array) {
+          message = {
+            bytesValue: value,
           };
         } else if (value instanceof Array) {
           // TODO: technically types are bad for recursive
@@ -123,6 +128,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         )) {
           ans[key] = this.deserialize(serialized, runtime);
         }
+        break;
+      case "bytesValue":
+        ans = decoded.bytesValue;
         break;
       default:
         throw new Error("Bad message format: decoded.value=" + decoded.value);

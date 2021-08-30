@@ -485,7 +485,8 @@ export abstract class SemidirectProduct<
   // this.internalState, whatever it is.
   // Need option to do custom loading if that's not the
   // case.
-  load(saveData: Uint8Array) {
+  load(saveData: Uint8Array): boolean {
     this.state.load(saveData, this.runtime);
+    return true;
   }
 }

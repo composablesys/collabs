@@ -20,6 +20,7 @@ message DefaultSerializerMessage {
         CrdtReference crdtValue = 6;
         ArrayMessage arrayValue = 7;
         ObjectMessage objectValue = 8;
+        bytes bytesValue = 9;
     }
 }
 

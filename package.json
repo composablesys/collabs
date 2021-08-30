@@ -24,6 +24,7 @@
     "json",
     "json-opt",
     "tensor-average",
+    "container",
     "ws-client",
     "ws-server",
     "webrtc-client",

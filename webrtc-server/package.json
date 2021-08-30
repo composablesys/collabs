@@ -17,7 +17,12 @@
   ],
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
-  "unpkg": "build/src/index.js",
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src"
+  },
   "dependencies": {
     "tslib": "^2.0.1",
     "ws": "^7.4.6",
@@ -33,7 +38,7 @@
   },
   "scripts": {
     "build": "npm-run-all build:*",
-    "build:ts": "tsc",
+    "build:ts": "tsc -p tsconfig.json",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
@@ -41,11 +46,5 @@
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
     "clean": "rimraf build docs"
-  },
-  "files": [
-    "/build"
-  ],
-  "directories": {
-    "lib": "src"
   }
 }

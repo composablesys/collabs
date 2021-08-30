@@ -1,0 +1,59 @@
+{
+  "name": "compoventuals-container",
+  "version": "0.1.0",
+  "description": "CRDTs designed compositionally (container system)",
+  "author": "Compoventuals contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/compoventuals/issues"
+  },
+  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/compoventuals.git"
+  },
+  "keywords": [
+    "crdts"
+  ],
+  "module": "build/esm/src/index.js",
+  "browser": "build/esm/src/index.js",
+  "types": "build/esm/src/index.d.ts",
+  "main": "build/commonjs/src/index.js",
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "tslib": "^2.0.1",
+    "compoventuals": "^0.1.0"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.3.5",
+    "typedoc": "^0.21.4",
+    "ts-node": "^10.1.0",
+    "chai": "^4.2.0",
+    "@types/chai": "^4.2.14",
+    "mocha": "^8.2.1",
+    "@types/mocha": "^8.2.0",
+    "pkg-ok": "^2.3.1",
+    "prettier": "^2.2.1",
+    "rimraf": "^2.7.1"
+  },
+  "scripts": {
+    "build": "npm-run-all build:*",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
+    "test": "npm-run-all test:*",
+    "test:unit": "env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
+    "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
+    "clean": "rimraf build docs"
+  }
+}

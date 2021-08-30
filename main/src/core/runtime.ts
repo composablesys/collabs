@@ -1,4 +1,3 @@
-import cryptoRandomString from "crypto-random-string";
 import {
   IRuntimeOneSave,
   RuntimeMessage,
@@ -102,23 +101,59 @@ class LoadHelper {
    * just before calling crdt.load.
    */
   savesById: Map<number, Uint8Array> = new Map();
+  /**
+   * Only contains entries for Crdts that have not yet
+   * finished loadDescendants (possibly waiting until
+   * delayedLoadDescendants).
+   */
   childrenById: Map<number, Map<string, number>> = new Map();
   /**
-   * Filled in only as Crdts are loaded (complement of savesById).
-   */
-  crdtsById: Map<number, Crdt> = new Map();
-  /**
-   * Filled in only as Crdts are loaded (complement of savesById).
+   * Only contains entries for Crdts that have been
+   * loaded but have not yet
+   * finished loadDescendants (possibly waiting until
+   * delayedLoadDescendants).
    */
   idsByCrdt: Map<Crdt, number> = new Map();
+  /**
+   * Stores Crdts that have been loaded and which returned
+   * false from load,
+   * indicating that we should skip loadDescendants during
+   * initial loading, and that have not yet had
+   * delayedLoadDescendants called.
+   * Such crdts can be loaded
+   * later on request, by calling Runtime.delayedLoadDescendants(crdt).
+   */
+  delayedLoadPending: Set<Crdt> = new Set();
 }
 
 const REPLICA_ID_LENGTH = 11;
-const REPLICA_ID_CHARS = (function () {
-  let arr = new Array<number>(128);
-  for (let i = 0; i < 128; i++) arr[i] = i;
+// TODO: put somewhere reasonable
+function randomReplicaId(): string {
+  // Here we exploit the fact that 128 divides 256.
+  // This would be biased if that were not the case.
+  const arr = new Array<number>(REPLICA_ID_LENGTH);
+  let randomValues = new Uint8Array(REPLICA_ID_LENGTH);
+  if (typeof window === "undefined") {
+    // Use Node crypto library.
+    // We use eval("require") to prevent Webpack from attempting
+    // to bundle the crypto module and complaining.
+    // In theory we should also be able to do this by
+    // adding "browser": {"crypto": false} to package.json,
+    // but that is not working, and besides, every user
+    // of this package would have to remember to do so.
+    // See https://github.com/webpack/webpack/issues/8826
+    const crypto = eval("require")("crypto");
+    const randomBuffer = crypto.randomBytes(REPLICA_ID_LENGTH);
+    randomValues = new Uint8Array(randomBuffer);
+  } else {
+    // Use browser crypto library
+    window.crypto.getRandomValues(randomValues);
+  }
+  for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
+    arr[i] = randomValues[i] % 128;
+  }
   return String.fromCharCode(...arr);
-})();
+}
 
 /**
  * TODO: usage
@@ -151,10 +186,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     // Set this.replicaId
     if (debugReplicaId) this.replicaId = debugReplicaId;
     else {
-      this.replicaId = cryptoRandomString({
-        length: REPLICA_ID_LENGTH,
-        characters: REPLICA_ID_CHARS,
-      });
+      this.replicaId = randomReplicaId();
     }
     // Set this.network
     if (isCausalBroadcastNetwork(network)) {
@@ -362,14 +394,21 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @return            [description]
    */
   getCrdtByReference(pathToRoot: string[], base: Crdt = this.rootCrdt): Crdt {
+    let ensureLoaded = this.isInLoad;
     let currentCrdt = base;
     for (let i = pathToRoot.length - 1; i >= 0; i--) {
-      if (this.loadHelper !== undefined) {
+      if (ensureLoaded) {
         // Ensure currentCrdt is loaded before asking it
         // for a child.
         this.loadOneIfNeeded(currentCrdt);
       }
       currentCrdt = currentCrdt.getChild(pathToRoot[i]);
+      if (currentCrdt === this.delayedLoadCrdt) {
+        // From now on, we will be asking for descendants
+        // of the Crdt currently being loaded.  We need
+        // to ensure they are loaded before proceeding.
+        ensureLoaded = true;
+      }
     }
     return currentCrdt;
   }
@@ -456,7 +495,12 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
   }
 
+  /**
+   * Defined so long as load() has been called,
+   * but empties as it is used (possibly by delayed loads).
+   */
   private loadHelper?: LoadHelper;
+  private inLoad = false;
 
   /**
    * Load the saved state output from Runtime.save.
@@ -486,6 +530,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       );
     }
     try {
+      this.inLoad = true;
       this.loadHelper = new LoadHelper();
       const message = RuntimeSave.decode(saveData);
       this.network.load(message.networkSave);
@@ -507,27 +552,43 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       }
       // Load the root
       this.loadOneIfNeeded(this.rootCrdt, 1);
-      // Load the rest depth-first
+      // Load the rest depth-first.  We assume rootCrdt load
+      // returns true.
       this.loadDescendants(this.rootCrdt, 1);
+      // TODO: clean up loadHelper state as we go, deleting
+      // all but that needed for skipped Crdts.
     } finally {
-      delete this.loadHelper;
+      this.inLoad = false;
     }
+
+    // TODO: in normal usage, check that loadHelper is now
+    // completely empty.
   }
 
   get isInLoad(): boolean {
-    return this.loadHelper !== undefined;
+    return this.inLoad;
   }
 
   /**
    * Provide crdt's id if known (optimization; necessary for root),
    * else we will look it up for you.
+   *
+   * It is assumed that crdt.parent is already loaded.
    */
   private loadOneIfNeeded(crdt: Crdt, id?: number) {
     if (id === undefined) {
       // Look it up ourselves
       if (crdt === this.rootCrdt) id = 1;
       else {
-        const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent)!;
+        // We assume the parent is already loaded,
+        // so parentId exists iff it has not finished
+        // loadDescendants.  So if parentId doesn't
+        // exist, then crdt must already be loaded.
+        const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent);
+        if (parentId === undefined) return;
+        // Also, since crdt is not already loaded, the call
+        // to loadDescendants on its parent cannot have
+        // finished, so parentChildren must still exist.
         const parentChildren = this.loadHelper!.childrenById.get(parentId)!;
         id = parentChildren.get(crdt.name)!;
       }
@@ -542,36 +603,86 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       // of its descendants.  This way, the second call to
       // loadOneIfNeeded will do nothing.
       this.loadHelper!.savesById.delete(id);
-      this.loadHelper!.crdtsById.set(id, crdt);
       this.loadHelper!.idsByCrdt.set(crdt, id);
-      crdt.load(saveData);
+      const shouldLoadDescendants = crdt.load(saveData);
+      if (!shouldLoadDescendants) {
+        this.loadHelper!.delayedLoadPending.add(crdt);
+      }
     }
   }
 
-  private loadDescendants(crdt: Crdt, id: number) {
-    const children = this.loadHelper!.childrenById.get(id)!;
-    // Load the children recursively
-    for (const [name, childId] of children) {
-      const child = crdt.getChild(name);
-      this.loadOneIfNeeded(child, childId);
-      // Note when getCrdtByReference loads a Crdt, it doesn't
-      // also load all descendants, so we need to do this even
-      // if child is already loaded.  It is safe if some
-      // or all of them are loaded, though, due to the
-      // "if needed" part of loadOneIfNeeded.
-      // Because we need to recurse here even if child has
-      // already been loaded, it would be incorrect for
-      // loadOneIfNeeded to delete its crdt from the
-      // parent's child list, since that would prevent
-      // the crdt from being visited in this iterator.
-      this.loadDescendants(child, childId);
+  private loadDescendants(crdt: Crdt, id: number, postLoad = true) {
+    if (!this.loadHelper!.delayedLoadPending.has(crdt)) {
+      const children = this.loadHelper!.childrenById.get(id)!;
+      // Load the children recursively
+      for (const [name, childId] of children) {
+        const child = crdt.getChild(name);
+        this.loadOneIfNeeded(child, childId);
+        // Note when getCrdtByReference loads a Crdt, it doesn't
+        // also load all descendants, so we need to do this even
+        // if child is already loaded.  It is safe if some
+        // or all of them are loaded, though, due to the
+        // "if needed" part of loadOneIfNeeded.
+        // Because we need to recurse here even if child has
+        // already been loaded, it would be incorrect for
+        // loadOneIfNeeded to delete its crdt from the
+        // parent's child list, since that would prevent
+        // the crdt from being visited in this iterator.
+        this.loadDescendants(child, childId);
+      }
+      // No longer need these.
+      this.loadHelper!.idsByCrdt.delete(crdt);
+      this.loadHelper!.childrenById.delete(id);
+      // TODO: would splitting the above into two loops be better?
+      // (Depth-first search where you visit all of a node's
+      // children before recursing.)
     }
-    // TODO: would splitting the above into two loops be better?
-    // (Depth-first search where you visit all of a node's
-    // children before recursing.)
+    // Else skip loadDescendants for now.  They can be loaded
+    // later on request, by calling this.delayedLoadDescendants(crdt).
 
-    // Post load (signal that all descendants are loaded)
-    crdt.postLoad();
+    if (postLoad) {
+      // Post load (signal that all descendants are loaded
+      // or skipped).
+      crdt.postLoad();
+    }
+  }
+
+  private delayedLoadCrdt?: Crdt;
+  /**
+   * TODO: generally this will only be called by crdt
+   * itself.
+   *
+   * Note that crdt.postLoad() is not called again
+   * (it was called during the initial skipped loading);
+   * instead do any post-loading after this method returns.
+   *
+   * @param  crdt [description]
+   * @return      [description]
+   */
+  delayedLoadDescendants(crdt: Crdt) {
+    if (crdt.runtime !== this) {
+      throw new Error("Runtime.delayedLoadDescendants called on wrong Runtime");
+    }
+    if (this.loadHelper === undefined) {
+      throw new Error("this.load has not yet been called");
+    }
+    const had = this.loadHelper.delayedLoadPending.delete(crdt);
+    if (!had) {
+      // TODO: error or just return?
+      throw new Error("Already loaded");
+    }
+
+    try {
+      this.delayedLoadCrdt = crdt;
+      // crdt's id must still exist because crdt has not
+      // finished loadDescendants yet.
+      // false to skip postLoad, it was already called during the
+      // normal loading sequence.
+      this.loadDescendants(crdt, this.loadHelper!.idsByCrdt.get(crdt)!, false);
+      // TODO: check loadHelper state has been properly cleaned up.
+    } finally {
+      delete this.delayedLoadCrdt;
+    }
   }
 
   private inRunLocally = false;

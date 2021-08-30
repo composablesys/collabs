@@ -7,10 +7,13 @@
      * others don't.
      */
     "rootDir": ".",
-    "outDir": "build",
+    "outDir": "build/esm",
     "target": "es2019",
     /* Specify lib manually so we can exclude DOM. */
     "lib": ["es2019"],
+    "module": "es2015",
+    /* Needed with module: es2015 or else stuff breaks. */
+    "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
     /*
@@ -18,7 +21,6 @@
      * See https://www.tensorflow.org/js/tutorials/setup#typescript
      */
     "skipLibCheck": true,
-    "module": "commonjs",
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Include .js files in generated folder. */
