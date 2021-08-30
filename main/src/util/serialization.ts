@@ -63,6 +63,10 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
               pathToBase: value.pathToRoot().map(stringAsArray),
             }),
           };
+        } else if (value instanceof Uint8Array) {
+          message = {
+            bytesValue: value,
+          };
         } else if (value instanceof Array) {
           // TODO: technically types are bad for recursive
           // call to this.serialize.
@@ -124,6 +128,9 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         )) {
           ans[key] = this.deserialize(serialized, runtime);
         }
+        break;
+      case "bytesValue":
+        ans = decoded.bytesValue;
         break;
       default:
         throw new Error("Bad message format: decoded.value=" + decoded.value);

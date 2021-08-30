@@ -3,6 +3,7 @@ import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 import { WebSocketNetwork } from "compoventuals-ws-client";
 import { ContainerHost } from "compoventuals-container";
 import $ from "jquery";
+import pako from "pako";
 
 // Extract the type of network to use from the URL's
 // "network" GET parameter.
@@ -43,7 +44,8 @@ switch (networkType) {
 const runtime = new crdts.Runtime(network);
 const currentHost = runtime.registerCrdt(
   "",
-  new crdts.LwwMutCRegister((htmlSrc: string) => {
+  new crdts.LwwMutCRegister((htmlSrcGzipped: Uint8Array) => {
+    const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
     // Create a new ContainerHost + IFrame from htmlSrc and
     // attach it to the document, invisible for now.
     const iframe = document.createElement("iframe");
@@ -64,6 +66,16 @@ currentHost.on("Set", (e) => {
   currentHost.value.get().containerIFrame.hidden = false;
 });
 
+function setHtmlSrc(htmlSrc: string) {
+  // The container definitions can get large (100s of KB)
+  // but are very gzippable, so let's compress them.
+  // CPU penalty should be okay since you only have to do
+  // this once at startup, which users should expect to take
+  // a moment anyway.
+  const htmlSrcGzipped = pako.deflate(htmlSrc);
+  currentHost.set(htmlSrcGzipped);
+}
+
 // Handle inputs.
 const urlForm = <HTMLFormElement>document.getElementById("urlForm")!;
 const urlInput = <HTMLInputElement>document.getElementById("url");
@@ -73,7 +85,7 @@ urlForm.addEventListener("submit", (e) => {
   $.ajax({
     url: urlInput.value,
     dataType: "text",
-    success: (htmlSrc: string) => currentHost.set(htmlSrc),
+    success: setHtmlSrc,
     error: (_, textStatus, errorThrown) => {
       alert("URL error: " + textStatus + ", " + errorThrown);
     },
@@ -85,5 +97,5 @@ const fileInput = <HTMLInputElement>document.getElementById("file");
 fileForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const file = fileInput.files![0];
-  file.text().then((htmlSrc) => currentHost.set(htmlSrc));
+  file.text().then(setHtmlSrc);
 });
