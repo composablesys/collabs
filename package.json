@@ -35,10 +35,11 @@
   ],
   "scripts": {
     "start": "npm start --prefix demos",
-    "build": "./foreach-workspace.sh \"npm run build --prefix\"",
-    "test": "./foreach-workspace.sh \"npm run test --prefix\"",
-    "fix": "./foreach-workspace.sh \"npm run fix --prefix\"",
-    "clean": "./foreach-workspace.sh \"npm run clean --prefix\"",
+    "foreach-workspace": "node foreach-workspace.js",
+    "build": "npm run foreach-workspace \"npm run build --prefix\"",
+    "test": "npm run foreach-workspace \"npm run test --prefix\"",
+    "fix": "npm run foreach-workspace \"npm run fix --prefix\"",
+    "clean": "npm run foreach-workspace \"npm run clean --prefix\"",
     "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
   },
   "engines": {
