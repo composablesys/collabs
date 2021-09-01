@@ -3,14 +3,13 @@ import {
   ElementSerializer,
   PairSerializer,
 } from "../../util";
-import { Crdt, CrdtParent } from "../../core";
+import { Crdt, CrdtInitToken, PreCrdt, RootParent } from "../../core";
 import { CRegister } from "../register";
 import { CSet } from "../set";
 import { AbstractCListCompositeCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { MovableCList, MovableCListEventsRecord } from "./interfaces";
 import { CompositeCrdt } from "../../constructions";
-import { RootCrdt } from "../../core/runtime";
 
 export class MovableMutCListEntry<
   C extends Crdt,
@@ -20,10 +19,10 @@ export class MovableMutCListEntry<
   readonly value: C;
   readonly loc: R;
 
-  constructor(value: C, loc: R) {
-    super();
-    this.value = this.addChild("", value);
-    this.loc = this.addChild("0", loc);
+  constructor(initToken: CrdtInitToken, value: PreCrdt<C>, loc: PreCrdt<R>) {
+    super(initToken);
+    this.value = this.addChildPreCrdt("", value);
+    this.loc = this.addChildPreCrdt("0", loc);
   }
 }
 
@@ -61,56 +60,64 @@ export class MovableMutCListFromSet<
    * make sense anyway).
    */
   constructor(
+    initToken: CrdtInitToken,
     setCallback: (
+      setInitToken: CrdtInitToken,
       setValueConstructor: (
-        ...setArgs: [L, InsertArgs]
+        setValueInitToken: CrdtInitToken,
+        ...setValueArgs: [L, InsertArgs]
       ) => MovableMutCListEntry<C, L, RegT>,
       setArgsSerializer: ElementSerializer<[L, InsertArgs]>
     ) => SetT,
     registerConstructor: (
+      registerInitToken: CrdtInitToken,
       initialValue: L,
       registerSerializer: ElementSerializer<L>
     ) => RegT,
     protected readonly denseLocalList: DenseT,
-    valueConstructor: (...args: InsertArgs) => C,
+    valueConstructor: (initToken: CrdtInitToken, ...args: InsertArgs) => C,
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
 
-    this.set = this.addChild(
+    this.set = this.addChildPreCrdt(
       "",
-      setCallback((loc, args) => {
-        const register = registerConstructor(loc, denseLocalList);
-        const entry = new MovableMutCListEntry<C, L, RegT>(
-          valueConstructor(...args),
-          register
-        );
-        register.on("Set", (event) => {
-          // Maintain denseLocalList's key set as a cache
-          // of the currently set locations, mapping to
-          // the corresponding entry.
-          // Also dispatch our own events.
-          // Note that move is the only time register.set
-          // is called; setting the initial state is done
-          // in the registerConstructor, not as a
-          // register.set operation, so it will not emit
-          // a Set event.
-          const startIndex = this.denseLocalList.delete(
-            event.previousValue
-          )![0];
-          const resultingStartIndex = this.denseLocalList.set(
-            register.value,
-            entry
+      PreCrdt.fromFunction(
+        setCallback,
+        (setValueInitToken, loc, args) => {
+          const entry = new MovableMutCListEntry<C, L, RegT>(
+            setValueInitToken,
+            PreCrdt.fromFunction(valueConstructor, ...args),
+            PreCrdt.fromFunction(registerConstructor, loc, denseLocalList)
           );
-          this.emit("Move", {
-            startIndex,
-            count: 1,
-            resultingStartIndex,
-            timestamp: event.timestamp,
+          entry.loc.on("Set", (event) => {
+            // Maintain denseLocalList's key set as a cache
+            // of the currently set locations, mapping to
+            // the corresponding entry.
+            // Also dispatch our own events.
+            // Note that move is the only time register.set
+            // is called; setting the initial state is done
+            // in the registerConstructor, not as a
+            // register.set operation, so it will not emit
+            // a Set event.
+            const startIndex = this.denseLocalList.delete(
+              event.previousValue
+            )![0];
+            const resultingStartIndex = this.denseLocalList.set(
+              entry.loc.value,
+              entry
+            );
+            this.emit("Move", {
+              startIndex,
+              count: 1,
+              resultingStartIndex,
+              timestamp: event.timestamp,
+            });
           });
-        });
-        return entry;
-      }, new PairSerializer(denseLocalList, argsSerializer))
+          return entry;
+        },
+        new PairSerializer(denseLocalList, argsSerializer)
+      )
     );
 
     // Maintain denseLocalList's key set as a cache
@@ -146,11 +153,6 @@ export class MovableMutCListFromSet<
         timestamp: event.timestamp,
       });
     });
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    this.denseLocalList.setRuntime(this.runtime);
   }
 
   insert(index: number, ...args: InsertArgs): C {
@@ -220,7 +222,7 @@ export class MovableMutCListFromSet<
   indexOf(searchElement: C, fromIndex = 0): number {
     // Avoid errors from searchElement.parent in case it
     // is the root.
-    if ((searchElement as Crdt as RootCrdt).isRootCrdt) return -1;
+    if (searchElement.parent instanceof RootParent) return -1;
 
     if (
       this.set.has(searchElement.parent as MovableMutCListEntry<C, L, RegT>)

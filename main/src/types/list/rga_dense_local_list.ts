@@ -53,15 +53,10 @@ export class RgaLoc {
 // TODO: tombstone version?  (canGc false after any ops;
 // send last two ids instead of whole path).
 export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
-  runtime!: Runtime;
   private tree: RBTree<RgaLoc, T>;
 
-  constructor() {
+  constructor(readonly runtime: Runtime) {
     this.tree = createRBTree(this.compare.bind(this));
-  }
-
-  setRuntime(runtime: Runtime): void {
-    this.runtime = runtime;
   }
 
   private checkIndex(index: number) {

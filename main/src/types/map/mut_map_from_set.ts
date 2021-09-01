@@ -4,7 +4,7 @@ import {
   ElementSerializer,
   PairSerializer,
 } from "../../util";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken, PreCrdt } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
@@ -38,29 +38,48 @@ export class MutCMapFromSet<
   protected readonly map: MapT;
 
   constructor(
+    initToken: CrdtInitToken,
     setCallback: (
-      setValueConstructor: (key: K, args: SetArgs) => C,
+      setInitToken: CrdtInitToken,
+      setValueConstructor: (
+        setValueInitToken: CrdtInitToken,
+        key: K,
+        args: SetArgs
+      ) => C,
       setArgsSerializer: ElementSerializer<[K, SetArgs]>
     ) => SetT,
     mapCallback: (
+      mapInitToken: CrdtInitToken,
       mapKeySerializer: ElementSerializer<K>,
       mapValueSerializer: ElementSerializer<C>
     ) => MapT,
-    valueConstructor: (key: K, ...args: SetArgs) => C,
+    valueConstructor: (
+      valueInitToken: CrdtInitToken,
+      key: K,
+      ...args: SetArgs
+    ) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
 
-    this.valueSet = this.addChild(
+    this.valueSet = this.addChildPreCrdt(
       "",
-      setCallback((key, args) => {
-        return valueConstructor(key, ...args);
-      }, new PairSerializer(keySerializer, argsSerializer))
+      PreCrdt.fromFunction(
+        setCallback,
+        (valueInitToken, key, args) => {
+          return valueConstructor(valueInitToken, key, ...args);
+        },
+        new PairSerializer(keySerializer, argsSerializer)
+      )
     );
-    this.map = this.addChild(
+    this.map = this.addChildPreCrdt(
       "0",
-      mapCallback(keySerializer, new CrdtSerializer(this.valueSet))
+      PreCrdt.fromFunction(
+        mapCallback,
+        keySerializer,
+        new CrdtSerializer(this.valueSet)
+      )
     );
 
     // Events

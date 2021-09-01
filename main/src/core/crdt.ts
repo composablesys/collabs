@@ -1,25 +1,44 @@
 import { EventEmitter } from "../util";
 import { CausalTimestamp } from "./causal_broadcast_network";
-import { RootCrdt, Runtime } from "./runtime";
+import { RootParent, Runtime } from "./runtime";
 
 /**
  * A Crdt that can be a parent to other Crdts.
- *
- * In addition to implementing this interface,
- * Crdt parents are responsible for calling
- * Crdt.init(name, this) on each child Crdt immediately
- * after the child is constructed,
- * where name is the child Crdt's name.
  */
-export interface CrdtParent extends Crdt {
-  /**
-   * Callback called by a child at the end of init when this is passed
-   * to init as parent.  It should throw an error if this is not the
-   * object calling init.
-   * @param child the child Crdt on which init was called with this as parent
-   */
-  onChildInit(child: Crdt): void;
+export type CrdtParent = Crdt | RootParent;
+
+/**
+ * Used to initialize a Crdt.  A token {name, parent} must
+ * ONLY be created and used by parent itself, to construct
+ * a Crdt that it is adding as a child.
+ */
+export interface CrdtInitToken {
+  name: string;
+  parent: CrdtParent;
 }
+
+export type CrdtConstructor<C extends Crdt, Args extends any[]> = new (
+  initToken: CrdtInitToken,
+  ...args: Args
+) => C;
+
+export type PreCrdt<C extends Crdt> = (initToken: CrdtInitToken) => C;
+
+export const PreCrdt = {
+  fromClass<C extends Crdt, Args extends any[]>(
+    Class: CrdtConstructor<C, Args>,
+    ...constructorArgs: Args
+  ): PreCrdt<C> {
+    return (initToken) => new Class(initToken, ...constructorArgs);
+  },
+
+  fromFunction<C extends Crdt, Args extends any[]>(
+    func: (initToken: CrdtInitToken, ...args: Args) => C,
+    ...funcArgs: Args
+  ): PreCrdt<C> {
+    return (initToken) => func(initToken, ...funcArgs);
+  },
+};
 
 /**
  * An event issued when a Crdt is changed by either
@@ -95,74 +114,37 @@ export interface CrdtEventsRecord {
 export abstract class Crdt<
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
-  private static readonly notYetInitMessage =
-    "this value is not available until after Crdt.init() " +
-    "(consider overriding init() and doing this after super.init())";
-  protected afterInit = false;
+  readonly runtime: Runtime;
+  /**
+   * TODO: only Runtime's RootCrdt will have RootParent
+   * as a parent, all others will have Crdt.
+   */
+  readonly parent: CrdtParent;
+  readonly name: string;
 
-  private runtimePrivate?: Runtime;
-  /** This Crdt's host Runtime. */
-  get runtime(): Runtime {
-    if (this.runtimePrivate === undefined) {
-      throw new Error(Crdt.notYetInitMessage);
-    }
-    return this.runtimePrivate;
-  }
-
-  private parentPrivate?: CrdtParent;
-  /** This Crdt's parent in the name hierarchy. */
-  get parent(): CrdtParent {
-    if (this.parentPrivate === undefined) {
-      throw new Error(Crdt.notYetInitMessage);
-    }
-    return this.parentPrivate;
-  }
-
-  private namePrivate?: string;
-  /** This Crdt's name in the name hierarchy. */
-  get name(): string {
-    if (this.namePrivate === undefined) {
-      throw new Error(Crdt.notYetInitMessage);
-    }
-    return this.namePrivate;
+  constructor(initToken: CrdtInitToken) {
+    super();
+    this.runtime = initToken.parent.runtime;
+    this.parent = initToken.parent;
+    this.name = initToken.name;
   }
 
   /**
    * An array of names listing all names on this Crdt's
-   * path to the RootCrdt, in order starting with this
-   * Crdt's name.
+   * path to the root Crdt, in order starting with this
+   * Crdt's name (unless this is the root Crdt, in which
+   * case this's name is excluded).
    */
   pathToRoot(): string[] {
     let ans = [];
     for (
       let current: Crdt = this;
-      (current as RootCrdt).isRootCrdt !== true;
+      !(current.parent instanceof RootParent);
       current = current.parent
     ) {
       ans.push(current.name);
     }
     return ans;
-  }
-
-  /**
-   * Called by this Crdt's parent to set its name
-   * and parent.
-   *
-   * This method must be called immediately after
-   * this is constructed, before performing any operations
-   * or receiving messages from remote replicas.
-   */
-  init(name: string, parent: CrdtParent) {
-    if (this.runtimePrivate !== undefined) {
-      throw new Error(
-        "init() has already been called" +
-          " (did you try to give this Crdt two parents?)"
-      );
-    }
-    this.runtimePrivate = parent.runtime;
-    this.parentPrivate = parent;
-    this.namePrivate = name;
-    this.afterInit = true;
   }
 
   // private needsSaving = false;

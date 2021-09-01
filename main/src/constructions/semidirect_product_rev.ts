@@ -6,7 +6,7 @@ import {
   CausalTimestamp,
   Crdt,
   CrdtEventsRecord,
-  CrdtParent,
+  CrdtInitToken,
   Runtime,
 } from "../core";
 import { DefaultElementSerializer, ElementSerializer } from "../util";
@@ -336,16 +336,13 @@ export type SemidirectMessage<m1ArgsT, m2ArgsT> =
   | m2Start<m2ArgsT>;
 
 export abstract class SemidirectProductRev<
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
-    C extends Crdt = Crdt,
-    m1Args extends Array<any> = [],
-    m2Args extends Array<any> = [],
-    m1Ret extends any | void = any | void,
-    m2Ret extends any | void = any | void
-  >
-  extends CompositeCrdt<Events, C>
-  implements CrdtParent
-{
+  Events extends CrdtEventsRecord = CrdtEventsRecord,
+  C extends Crdt = Crdt,
+  m1Args extends Array<any> = [],
+  m2Args extends Array<any> = [],
+  m1Ret extends any | void = any | void,
+  m2Ret extends any | void = any | void
+> extends CompositeCrdt<Events, C> {
   protected history = new MessageHistory(false, false, false);
   private receivedMessages = false;
   private m2Id = "";
@@ -357,8 +354,22 @@ export abstract class SemidirectProductRev<
     SemidirectMessage<m1Args, m2Args>
   > = DefaultElementSerializer.getInstance();
 
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
+  constructor(
+    initToken: CrdtInitToken,
+    historyTimestamps: boolean = false,
+    historyDiscard1Dominated: boolean = false,
+    historyDiscard2Dominated: boolean = false
+  ) {
+    super(initToken);
+    this.history = new MessageHistory(
+      historyTimestamps,
+      historyDiscard1Dominated,
+      historyDiscard2Dominated
+    );
+
+    // TODO: fix this subterfuge: separate methods for
+    // implementing (abstract, not called by users) and
+    // calling (the concrete wrappers here).
     this._m1 = this.m1;
     this._m2 = this.m2;
     this.m1 = (...args: m1Args) => {
@@ -377,24 +388,6 @@ export abstract class SemidirectProductRev<
       );
       return this.m2RetVal as m2Ret;
     };
-  }
-
-  protected setupHistory(
-    historyTimestamps: boolean = false,
-    historyDiscard1Dominated: boolean = false,
-    historyDiscard2Dominated: boolean = false
-  ) {
-    if (this.receivedMessages) {
-      throw new Error(
-        "Tried to set up after messages have been received. " +
-          "Make sure that this method is called in the constructor."
-      );
-    }
-    this.history = new MessageHistory(
-      historyTimestamps,
-      historyDiscard1Dominated,
-      historyDiscard2Dominated
-    );
   }
 
   protected trackM2Event(eventName: string, event: any) {

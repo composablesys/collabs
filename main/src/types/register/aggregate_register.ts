@@ -3,7 +3,7 @@ import {
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
 import { PrimitiveCrdt } from "../../constructions";
-import { CausalTimestamp } from "../../core";
+import { CausalTimestamp, CrdtInitToken } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
@@ -51,10 +51,11 @@ export abstract class AggregateArgsCRegister<
   private cacheValid: boolean = false;
 
   constructor(
+    initToken: CrdtInitToken,
     readonly valueConstructor: (...args: SetArgs) => S,
     readonly argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
   }
 
   set(...args: SetArgs): T {
@@ -225,9 +226,10 @@ export abstract class AggregateCRegister<
   Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
 > extends AggregateArgsCRegister<T, [T], T, Events> {
   constructor(
+    initToken: CrdtInitToken,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super((value) => value, SingletonSerializer.of(valueSerializer));
+    super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
   }
 
   set value(value: T) {

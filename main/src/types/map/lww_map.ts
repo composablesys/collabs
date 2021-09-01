@@ -13,6 +13,7 @@ import {
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { CMapEventsRecord } from "./interfaces";
+import { CrdtInitToken } from "../../core";
 
 export class CMapFromRegister<
     K,
@@ -31,23 +32,37 @@ export class CMapFromRegister<
    * value must be present right after a set() call.
    */
   constructor(
-    protected readonly registerConstructor: (key: K) => RegT,
+    initToken: CrdtInitToken,
+    protected readonly registerConstructor: (
+      registerInitToken: CrdtInitToken,
+      key: K
+    ) => RegT,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
-    super();
-    this.internalMap = this.addChild(
+    super(initToken);
+    // TODO: with the usual class-based addChild, TypeScript's
+    // generic type inference appeared to get overwhelmed
+    // and not infer the inner types correctly, leading to
+    // an error.  We work around it by writing an explicit
+    // PreCrdt callback instead.
+    this.internalMap = this.addChildPreCrdt(
       "",
-      new ImplicitMergingMutCMap(
-        this.internalRegisterConstructor.bind(this),
-        keySerializer
-      )
+      (childInitToken) =>
+        new ImplicitMergingMutCMap(
+          childInitToken,
+          this.internalRegisterConstructor.bind(this),
+          keySerializer
+        )
     );
 
     // Events emitters are added in internalRegisterConstructor.
   }
 
-  private internalRegisterConstructor(key: K): RegT {
-    const register = this.registerConstructor(key);
+  private internalRegisterConstructor(
+    registerInitToken: CrdtInitToken,
+    key: K
+  ): RegT {
+    const register = this.registerConstructor(registerInitToken, key);
     register.on("Set", (event) => {
       if (register.value.isPresent) {
         // The value was set (possibly overwriting a
@@ -120,10 +135,16 @@ export class LwwCMap<K, V> extends CMapFromRegister<
   OptionalLwwCRegister<V>
 > {
   constructor(
+    initToken: CrdtInitToken,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
   ) {
-    super(() => new OptionalLwwCRegister(valueSerializer), keySerializer);
+    super(
+      initToken,
+      (registerInitToken) =>
+        new OptionalLwwCRegister(registerInitToken, valueSerializer),
+      keySerializer
+    );
   }
 
   /**

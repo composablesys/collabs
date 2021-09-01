@@ -1,5 +1,5 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken } from "../../core";
 import { Resettable } from "../../abilities";
 import { ResettingMutCSet } from "../set";
 import { LwwCMap } from "./lww_map";
@@ -20,11 +20,17 @@ export class ResettingMutCMap<
   implements Resettable
 {
   constructor(
-    valueConstructor: (key: K, ...args: SetArgs) => C,
+    initToken: CrdtInitToken,
+    valueConstructor: (
+      valueInitToken: CrdtInitToken,
+      key: K,
+      ...args: SetArgs
+    ) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
+      initToken,
       (setValueConstructor, setArgsSerializer) =>
         new ResettingMutCSet(setValueConstructor, setArgsSerializer),
       (mapKeySerializer, mapValueSerializer) =>

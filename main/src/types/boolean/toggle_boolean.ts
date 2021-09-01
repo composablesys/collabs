@@ -1,5 +1,5 @@
 import { PrimitiveCrdt } from "../../constructions";
-import { CausalTimestamp } from "../../core";
+import { CausalTimestamp, CrdtInitToken } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";
@@ -10,8 +10,8 @@ export class ToggleCBoolean
 {
   private valueInternal: boolean;
 
-  constructor(private readonly initialValue = false) {
-    super();
+  constructor(initToken: CrdtInitToken, private readonly initialValue = false) {
+    super(initToken);
     this.valueInternal = initialValue;
   }
 
