@@ -32,7 +32,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 
   constructor(
     private readonly testName: string,
-    private readonly crdtConstructor: () => C,
+    private readonly crdtConstructor: (initToken: crdts.CrdtInitToken) => C,
     ops: {
       [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
     },
@@ -105,8 +105,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
         runtimes[i] = generator.newRuntime("manual", replicaIdRng);
-        crdtList[i] = this.crdtConstructor();
-        runtimes[i].registerCrdt("", crdtList[i]);
+        crdtList[i] = runtimes[i].registerPreCrdt("", this.crdtConstructor);
       }
 
       if (measurement === "memory") {
@@ -157,8 +156,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               // Create a new runtime etc. for user 0, then load
               const loadStartTime = process.hrtime.bigint();
               runtimes[0] = generator.newRuntime("manual", replicaIdRng);
-              crdtList[0] = this.crdtConstructor();
-              runtimes[0].registerCrdt("", crdtList[0]);
+              crdtList[0] = runtimes[0].registerPreCrdt(
+                "",
+                this.crdtConstructor
+              );
               runtimes[0].load(saveData);
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
@@ -227,8 +228,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
           runtimes[0] = generator.newRuntime("manual", replicaIdRng);
-          crdtList[0] = this.crdtConstructor();
-          runtimes[0].registerCrdt("", crdtList[0]);
+          crdtList[0] = runtimes[0].registerPreCrdt("", this.crdtConstructor);
           runtimes[0].load(saveData);
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
@@ -317,7 +317,7 @@ class NoopCrdtClass extends crdts.PrimitiveCrdt {
 function NoopCrdt() {
   return new MicroCrdtsBenchmark(
     "NoopCrdt",
-    () => new NoopCrdtClass(),
+    (initToken) => new NoopCrdtClass(initToken),
     { Noop: [(crdt) => crdt.noop(), 1] },
     () => null
   );
@@ -327,23 +327,20 @@ function DeepNoopCrdt() {
   class DeepNoopCrdt extends crdts.CompositeCrdt {
     readonly child: crdts.Crdt;
     readonly noop: NoopCrdtClass;
-    constructor(index: number) {
-      super();
+    constructor(initToken: crdts.CrdtInitToken, index: number) {
+      super(initToken);
       if (index === 0) {
-        this.child = this.addChild("child " + index, new NoopCrdtClass());
+        this.child = this.addChild("child " + index, NoopCrdtClass);
         this.noop = this.child as NoopCrdtClass;
       } else {
-        this.child = this.addChild(
-          "child " + index,
-          new DeepNoopCrdt(index - 1)
-        );
+        this.child = this.addChild("child " + index, DeepNoopCrdt, index - 1);
         this.noop = (this.child as DeepNoopCrdt).noop;
       }
     }
   }
   return new MicroCrdtsBenchmark(
     "DeepNoopCrdt",
-    () => new DeepNoopCrdt(10 - 1),
+    (initToken) => new DeepNoopCrdt(initToken, 10 - 1),
     { Noop: [(crdt) => crdt.noop.noop(), 1] },
     () => null
   );
@@ -356,7 +353,7 @@ function ICounter(
 ) {
   return new MicroCrdtsBenchmark(
     name,
-    () => new counter(),
+    (initToken) => new counter(initToken),
     {
       Add: [
         (crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)),
@@ -371,7 +368,7 @@ function ICounter(
 function MultiValueRegister() {
   return new MicroCrdtsBenchmark(
     "MultiValueRegister",
-    () => new crdts.LwwCRegister<number>(0),
+    (initToken) => new crdts.LwwCRegister<number>(initToken, 0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.conflicts()
   );
@@ -380,7 +377,7 @@ function MultiValueRegister() {
 function LwwCRegister() {
   return new MicroCrdtsBenchmark(
     "Register",
-    () => new crdts.LwwCRegister<number>(0),
+    (initToken) => new crdts.LwwCRegister<number>(initToken, 0),
     { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
     (crdt) => crdt.value
   );
@@ -389,7 +386,7 @@ function LwwCRegister() {
 function NumberCrdt() {
   return new MicroCrdtsBenchmark(
     "NumberCrdt",
-    () => new crdts.CNumber(1),
+    (initToken) => new crdts.CNumber(initToken, 1),
     {
       Add: [(crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)), 0.5],
       Mult: [(crdt, rng) => crdt.mult(Math.floor(8 * rng() - 4) / 2), 0.5],
@@ -401,7 +398,7 @@ function NumberCrdt() {
 function EnableWinsFlag() {
   return new MicroCrdtsBenchmark(
     "EnableWinsFlag",
-    () => new crdts.TrueWinsCBoolean(),
+    (initToken) => new crdts.TrueWinsCBoolean(initToken),
     {
       Enable: [(crdt) => (crdt.value = true), 0.5],
       Disable: [(crdt) => (crdt.value = false), 0.5],
@@ -413,7 +410,7 @@ function EnableWinsFlag() {
 function AddWinsSet() {
   return new MicroCrdtsBenchmark(
     "AddWinsSet",
-    () => new crdts.AddWinsCSet<number>(),
+    (initToken) => new crdts.AddWinsCSet<number>(initToken),
     {
       Toggle: [
         (crdt, rng) => {
@@ -438,9 +435,9 @@ function AddWinsSetRolling() {
   let i = 0;
   return new MicroCrdtsBenchmark(
     "AddWinsSetRolling",
-    () => {
+    (initToken) => {
       i = 0;
-      return new crdts.AddWinsCSet<number>();
+      return new crdts.AddWinsCSet<number>(initToken);
     },
     {
       Roll: [
@@ -463,9 +460,9 @@ function AddWinsSetRollingGrow() {
   let i = 0;
   return new MicroCrdtsBenchmark(
     "AddWinsSetRollingGrow",
-    () => {
+    (initToken) => {
       i = 0;
-      return new crdts.AddWinsCSet<number>();
+      return new crdts.AddWinsCSet<number>(initToken);
     },
     {
       Roll: [
@@ -486,9 +483,10 @@ function AddWinsSetRollingGrow() {
 function MapCrdt() {
   return new MicroCrdtsBenchmark(
     "MapCrdt",
-    () =>
+    (initToken) =>
       new crdts.MergingMutCMap<number, crdts.CCounter>(
-        () => new crdts.CCounter(),
+        initToken,
+        (valueInitToken) => new crdts.CCounter(valueInitToken),
         crdts.DefaultElementSerializer.getInstance()
       ),
     {
@@ -523,10 +521,11 @@ function MapCrdtRolling() {
   let i = 0;
   return new MicroCrdtsBenchmark(
     "MapCrdtRolling",
-    () => {
+    (initToken) => {
       i = 0;
       return new crdts.MergingMutCMap<number, crdts.CCounter>(
-        () => new crdts.CCounter(),
+        initToken,
+        (valueInitToken) => new crdts.CCounter(valueInitToken),
         crdts.DefaultElementSerializer.getInstance()
       );
     },
@@ -552,10 +551,11 @@ function MapCrdtRollingGrow() {
   let i = 0;
   return new MicroCrdtsBenchmark(
     "MapCrdtRollingGrow",
-    () => {
+    (initToken) => {
       i = 0;
       return new crdts.MergingMutCMap<number, crdts.CCounter>(
-        () => new crdts.CCounter(),
+        initToken,
+        (valueInitToken) => new crdts.CCounter(valueInitToken),
         crdts.DefaultElementSerializer.getInstance()
       );
     },
@@ -579,7 +579,7 @@ function MapCrdtRollingGrow() {
 function LwwMap() {
   return new MicroCrdtsBenchmark(
     "LwwMap",
-    () => new crdts.LwwCMap<number, number>(),
+    (initToken) => new crdts.LwwCMap<number, number>(initToken),
     {
       Toggle: [
         (crdt, rng) => {
@@ -605,9 +605,9 @@ function LwwMapRolling() {
   let i = 0;
   return new MicroCrdtsBenchmark(
     "LwwMapRolling",
-    () => {
+    (initToken) => {
       i = 0;
-      return new crdts.LwwCMap<number, number>();
+      return new crdts.LwwCMap<number, number>(initToken);
     },
     {
       Roll: [
@@ -627,9 +627,9 @@ function LwwMapRollingGrow() {
   let i = 0;
   return new MicroCrdtsBenchmark(
     "LwwMapRollingGrow",
-    () => {
+    (initToken) => {
       i = 0;
-      return new crdts.LwwCMap<number, number>();
+      return new crdts.LwwCMap<number, number>(initToken);
     },
     {
       Roll: [
@@ -647,7 +647,7 @@ function LwwMapRollingGrow() {
 function PrimitiveCListLtr() {
   return new MicroCrdtsBenchmark(
     "TextLtr",
-    () => new crdts.PrimitiveCList<string>(),
+    (initToken) => new crdts.PrimitiveCList<string>(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -664,7 +664,7 @@ function PrimitiveCListLtr() {
 function PrimitiveCListLtrGrow() {
   return new MicroCrdtsBenchmark(
     "TextLtrGrow",
-    () => new crdts.PrimitiveCList<string>(),
+    (initToken) => new crdts.PrimitiveCList<string>(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -680,7 +680,7 @@ function PrimitiveCListLtrGrow() {
 function PrimitiveCListRandom() {
   return new MicroCrdtsBenchmark(
     "TextRandom",
-    () => new crdts.PrimitiveCList<string>(),
+    (initToken) => new crdts.PrimitiveCList<string>(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -698,7 +698,7 @@ function PrimitiveCListRandom() {
 function PrimitiveCListRandomGrow() {
   return new MicroCrdtsBenchmark(
     "TextRandomGrow",
-    () => new crdts.PrimitiveCList<string>(),
+    (initToken) => new crdts.PrimitiveCList<string>(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -711,9 +711,10 @@ function PrimitiveCListRandomGrow() {
   );
 }
 
-function rgaCrdtConstructor() {
+function rgaCrdtConstructor(initToken: crdts.CrdtInitToken) {
   return new crdts.PrimitiveCListFromDenseLocalList(
-    new crdts.RgaDenseLocalList<string>(),
+    initToken,
+    new crdts.RgaDenseLocalList<string>(initToken.parent.runtime),
     crdts.TextSerializer.instance,
     crdts.TextArraySerializer.instance
   );
@@ -794,10 +795,10 @@ function ITensor(
 ) {
   return new MicroCrdtsBenchmark<TensorAverageCrdt | TensorCounterCrdt>(
     name,
-    () =>
+    (initToken) =>
       name === "TensorAvg"
-        ? new TensorAverageCrdt(shape, dtype)
-        : new TensorCounterCrdt(shape, dtype),
+        ? new TensorAverageCrdt(initToken, shape, dtype)
+        : new TensorCounterCrdt(initToken, shape, dtype),
     {
       Add: [
         (crdt, rng) => {

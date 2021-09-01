@@ -1,4 +1,4 @@
-import { CausalTimestamp, PrimitiveCrdt } from "compoventuals";
+import { CausalTimestamp, CrdtInitToken, PrimitiveCrdt } from "compoventuals";
 
 export class ContainerHost extends PrimitiveCrdt {
   private readonly messagePort: MessagePort;
@@ -19,8 +19,11 @@ export class ContainerHost extends PrimitiveCrdt {
    *
    * @param containerIFrame [description]
    */
-  constructor(readonly containerIFrame: HTMLIFrameElement) {
-    super();
+  constructor(
+    initToken: CrdtInitToken,
+    readonly containerIFrame: HTMLIFrameElement
+  ) {
+    super(initToken);
 
     const channel = new MessageChannel();
     this.messagePort = channel.port1;

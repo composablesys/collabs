@@ -3,11 +3,13 @@ import {
   Crdt,
   CrdtEvent,
   CrdtEventsRecord,
+  CrdtInitToken,
   DefaultElementSerializer,
   ElementSerializer,
   ImplicitMergingMutCMap,
   MergingMutCMap,
   OptionalLwwCRegister,
+  PreCrdt,
   PrimitiveCList,
   TextSerializer,
 } from "compoventuals";
@@ -38,22 +40,30 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   >;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
-  constructor() {
-    super();
+  constructor(initToken: CrdtInitToken) {
+    super(initToken);
 
     let keySerializer: ElementSerializer<string> =
       DefaultElementSerializer.getInstance();
-    this.internalMap = this.addChild(
+    this.internalMap = this.addChildPreCrdt(
       "internalMap",
-      new MergingMutCMap(() => new OptionalLwwCRegister(), keySerializer)
+      (childInitToken) =>
+        new MergingMutCMap(
+          childInitToken,
+          (valueInitToken) => new OptionalLwwCRegister(valueInitToken),
+          keySerializer
+        )
     );
 
-    this.ImplicitMergingMutCMap = this.addChild(
+    this.ImplicitMergingMutCMap = this.addChildPreCrdt(
       "ImplicitMergingMutCMap",
-      new ImplicitMergingMutCMap(
-        () => new PrimitiveCList(TextSerializer.instance),
-        keySerializer
-      )
+      (childInitToken) =>
+        new ImplicitMergingMutCMap(
+          childInitToken,
+          (valueInitToken) =>
+            new PrimitiveCList(valueInitToken, TextSerializer.instance),
+          keySerializer
+        )
     );
 
     this.internalNestedKeys = new Map();
@@ -183,8 +193,8 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     this.set(key, InternalType.List);
   }
 
-  addExtChild(name: string, child: Crdt) {
-    this.addChild(name, child);
+  addExtChild(name: string, child: PreCrdt<Crdt>) {
+    this.addChildPreCrdt(name, child);
   }
 }
 
@@ -192,8 +202,17 @@ export class JsonCursor {
   private internal: JsonCrdt;
   private cursor: string;
 
-  constructor(internal?: JsonCrdt, cursor?: string) {
-    if (!internal) internal = new JsonCrdt();
+  // TODO: not sure how to allow internal = undefined
+  // given the need for a CrdtInitToken.
+  // constructor(internal?: JsonCrdt, cursor?: string) {
+  //   if (!internal) internal = new JsonCrdt();
+  //   this.internal = internal;
+  //
+  //   if (!cursor) cursor = ":";
+  //   this.cursor = cursor;
+  // }
+
+  constructor(internal: JsonCrdt, cursor?: string) {
     this.internal = internal;
 
     if (!cursor) cursor = ":";

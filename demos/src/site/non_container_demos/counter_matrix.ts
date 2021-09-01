@@ -7,7 +7,7 @@ let client = new crdts.Runtime(
     periodMs: 300,
   }
 );
-let clientCounter = client.registerCrdt("counter", new crdts.CCounter());
+let clientCounter = client.registerCrdt("counter", crdts.CCounter);
 
 /* HTML variables */
 var counter = document.getElementById("counter");

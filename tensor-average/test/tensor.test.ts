@@ -99,11 +99,15 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCrdt(
         "counterId",
-        new TensorGCounterCrdt(shape, "float32")
+        TensorGCounterCrdt,
+        shape,
+        "float32"
       );
       bobCounter = bob.registerCrdt(
         "counterId",
-        new TensorGCounterCrdt(shape, "float32")
+        TensorGCounterCrdt,
+        shape,
+        "float32"
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -223,11 +227,15 @@ describe("tensor", () => {
         const dtype = "float32";
         const aliceCounter = alice.registerCrdt(
           "counterId2",
-          new TensorGCounterCrdt(shape, dtype)
+          TensorGCounterCrdt,
+          shape,
+          dtype
         );
         const bobCounter = bob.registerCrdt(
           "counterId2",
-          new TensorGCounterCrdt(shape, dtype)
+          TensorGCounterCrdt,
+          shape,
+          dtype
         );
         const identity = tf.eye(shape[0], shape[1], undefined, "float32");
         const tensor1 = identity.mul(2);
@@ -262,11 +270,15 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCrdt(
         "counterId",
-        new TensorCounterCrdt(shape, "float32")
+        TensorCounterCrdt,
+        shape,
+        "float32"
       );
       bobCounter = bob.registerCrdt(
         "counterId",
-        new TensorCounterCrdt(shape, "float32")
+        TensorCounterCrdt,
+        shape,
+        "float32"
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -388,12 +400,11 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceAvg = alice.registerCrdt(
         "avgId",
-        new TensorAverageCrdt(shape, "float32")
+        TensorAverageCrdt,
+        shape,
+        "float32"
       );
-      bobAvg = bob.registerCrdt(
-        "avgId",
-        new TensorAverageCrdt(shape, "float32")
-      );
+      bobAvg = bob.registerCrdt("avgId", TensorAverageCrdt, shape, "float32");
       if (debug) {
         addEventListeners(aliceAvg, "Alice");
         addEventListeners(bobAvg, "Bob");

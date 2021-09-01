@@ -22,12 +22,10 @@ describe("JsonCrdt", () => {
   let bobCursor: JsonCursor;
 
   beforeEach(() => {
-    let aliceCrdt = new JsonCrdt();
-    let bobCrdt = new JsonCrdt();
-    aliceCursor = new JsonCursor(aliceCrdt);
-    bobCursor = new JsonCursor(bobCrdt);
-    aliceJson = alice.registerCrdt("cursor", aliceCrdt);
-    bobJson = bob.registerCrdt("cursor", bobCrdt);
+    aliceJson = alice.registerCrdt("cursor", JsonCrdt);
+    bobJson = bob.registerCrdt("cursor", JsonCrdt);
+    aliceCursor = new JsonCursor(aliceJson);
+    bobCursor = new JsonCursor(bobJson);
   });
 
   it("is initially empty", () => {

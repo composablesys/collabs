@@ -9,7 +9,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
     periodMs: 200,
   });
 
-  const text = runtime.registerCrdt("text", new crdts.CText());
+  const text = runtime.registerCrdt("text", crdts.CText);
 
   const textarea = document.getElementById("textarea") as HTMLTextAreaElement;
   textarea.value = "";

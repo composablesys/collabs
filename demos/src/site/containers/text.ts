@@ -17,9 +17,9 @@ import Quill, { DeltaOperation } from "quill";
     periodMs: 200,
   });
 
-  let clientText = runtime.registerCrdt(
+  let clientText = runtime.registerPreCrdt(
     "text",
-    new YataLinear<string>("", ["\n"])
+    (initToken) => new YataLinear<string>(initToken, "", ["\n"])
   );
 
   // const Quill: any = Q;

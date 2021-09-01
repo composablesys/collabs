@@ -1,5 +1,6 @@
 import {
   CompositeCrdt,
+  CrdtInitToken,
   CText,
   DefaultElementSerializer,
   LwwCRegister,
@@ -24,18 +25,23 @@ export class JsonObject extends CompositeCrdt implements Resettable {
   /**
    * Internal use only
    */
-  constructor(private readonly makeThisExistent: () => void) {
-    super();
+  constructor(
+    initToken: CrdtInitToken,
+    private readonly makeThisExistent: () => void
+  ) {
+    super(initToken);
     // Note that adding the key explicitly is redundant, since a value
     // only ever calls makeThisExistent as part of an operation, and
     // that operation suffices to revive its map key, due to MergingMutCMap's
     // semantics.
-    this.internalMap = this.addChild(
+    this.internalMap = this.addChildPreCrdt(
       "nestedMap",
-      new MergingMutCMap(
-        () => new JsonElement(makeThisExistent),
-        DefaultElementSerializer.getInstance()
-      )
+      (childInitToken) =>
+        new MergingMutCMap(
+          childInitToken,
+          (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent),
+          DefaultElementSerializer.getInstance()
+        )
     );
   }
 
@@ -88,11 +94,18 @@ export class JsonObject extends CompositeCrdt implements Resettable {
 
 export class JsonArray extends CompositeCrdt implements Resettable {
   private readonly internalList: ResettingMutCList<JsonElement>;
-  constructor(private readonly makeThisExistent: () => void) {
-    super();
-    this.internalList = this.addChild(
+  constructor(
+    initToken: CrdtInitToken,
+    private readonly makeThisExistent: () => void
+  ) {
+    super(initToken);
+    this.internalList = this.addChildPreCrdt(
       "nestedMap",
-      new ResettingMutCList(() => new JsonElement(makeThisExistent))
+      (childInitToken) =>
+        new ResettingMutCList(
+          childInitToken,
+          (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent)
+        )
     );
   }
 
@@ -150,26 +163,23 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   private text: CText;
   private makeThisExistent: () => void;
 
-  static NewJson(): JsonElement {
-    return new JsonElement(() => {});
+  static NewJson(initToken: CrdtInitToken): JsonElement {
+    return new JsonElement(initToken, () => {});
   }
 
   /**
    * Internal use only
    */
-  constructor(makeThisExistent: () => void) {
-    super();
+  constructor(initToken: CrdtInitToken, makeThisExistent: () => void) {
+    super(initToken);
     this.makeThisExistent = makeThisExistent;
-    this.register = this.addChild(
+    this.register = this.addChildPreCrdt(
       "register",
-      new LwwCRegister<JsonValue>(null)
+      (childInitToken) => new LwwCRegister<JsonValue>(childInitToken, null)
     );
-    this.object = this.addChild(
-      "object",
-      new JsonObject(() => this.setIsObject())
-    );
-    this.array = this.addChild("array", new JsonArray(() => this.setIsArray()));
-    this.text = this.addChild("text", new CText());
+    this.object = this.addChild("object", JsonObject, () => this.setIsObject());
+    this.array = this.addChild("array", JsonArray, () => this.setIsArray());
+    this.text = this.addChild("text", CText);
   }
 
   get value(): JsonValue {

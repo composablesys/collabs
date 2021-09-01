@@ -158,31 +158,37 @@ import seedrandom from "seedrandom";
 
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
 
-  let currentGame = runtime.registerCrdt(
+  let currentGame = runtime.registerPreCrdt(
     "currentGame",
-    new crdts.LwwMutCRegister(
-      (
-        width: number,
-        height: number,
-        fractionMines: number,
-        seed: string,
-        startX: number,
-        startY: number
-      ) =>
-        new MinesweeperCrdt(width, height, fractionMines, seed, startX, startY)
-    )
+    (initToken) =>
+      new crdts.LwwMutCRegister(
+        initToken,
+        (valueInitToken, width, height, fractionMines, seed, startX, startY) =>
+          new MinesweeperCrdt(
+            valueInitToken,
+            width,
+            height,
+            fractionMines,
+            seed,
+            startX,
+            startY
+          )
+      )
   );
-  let currentSettings = runtime.registerCrdt(
+  let currentSettings = runtime.registerPreCrdt(
     "currentSettings",
-    new crdts.LwwCRegister<GameSettings>(settingsFromInput())
+    (initToken) =>
+      new crdts.LwwCRegister<GameSettings>(initToken, settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
-  let currentState = runtime.registerCrdt(
+  let currentState = runtime.registerPreCrdt(
     "currentState",
-    new crdts.LwwCRegister<MinesweeperCrdt | GameSettings>(
-      currentSettings.value
-    )
+    (initToken) =>
+      new crdts.LwwCRegister<MinesweeperCrdt | GameSettings>(
+        initToken,
+        currentSettings.value
+      )
   );
 
   runtime.on("Change", invalidate);
@@ -222,12 +228,13 @@ import seedrandom from "seedrandom";
     private readonly flag: crdts.LwwCRegister<FlagStatus>;
     number: number = 0;
 
-    constructor(readonly isMine: boolean) {
-      super();
-      this.revealed = this.addChild("revealed", new crdts.TrueWinsCBoolean());
-      this.flag = this.addChild(
+    constructor(initToken: crdts.CrdtInitToken, readonly isMine: boolean) {
+      super(initToken);
+      this.revealed = this.addChild("revealed", crdts.TrueWinsCBoolean);
+      this.flag = this.addChildPreCrdt(
         "flag",
-        new crdts.LwwCRegister<FlagStatus>(FlagStatus.NONE)
+        (childInitToken) =>
+          new crdts.LwwCRegister<FlagStatus>(childInitToken, FlagStatus.NONE)
       );
     }
 
@@ -286,6 +293,7 @@ import seedrandom from "seedrandom";
     readonly tiles: TileCrdt[][];
 
     constructor(
+      initToken: crdts.CrdtInitToken,
       readonly width: number,
       readonly height: number,
       fractionMines: number,
@@ -293,7 +301,7 @@ import seedrandom from "seedrandom";
       startX: number,
       startY: number
     ) {
-      super();
+      super(initToken);
       // Adjust fractionMines to account for fact that start
       // won't be a mine
       const size = width * height;
@@ -306,7 +314,7 @@ import seedrandom from "seedrandom";
         for (let y = 0; y < height; y++) {
           const isMine =
             x === startX && y === startY ? false : rng() < fractionMines;
-          this.tiles[x][y] = this.addChild(x + ":" + y, new TileCrdt(isMine));
+          this.tiles[x][y] = this.addChild(x + ":" + y, TileCrdt, isMine);
         }
       }
       // Compute neighbor numbers

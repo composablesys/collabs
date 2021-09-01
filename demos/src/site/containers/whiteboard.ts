@@ -13,9 +13,9 @@ import $ from "jquery";
 
   // The key represents a point in the form: x:y
   // The value is the color of the stroke.
-  let clientBoard: crdts.LwwCMap<string, string> = runtime.registerCrdt(
+  let clientBoard: crdts.LwwCMap<string, string> = runtime.registerPreCrdt(
     "whiteboardId",
-    new crdts.LwwCMap()
+    (initToken) => new crdts.LwwCMap(initToken)
   );
 
   var colors = document.getElementsByClassName("btn-colors");

@@ -9,7 +9,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
    * Generate CRDTs' Runtime on each runtime and create CRDTs (e.g. Counter).
    */
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
-  let counterCrdt = runtime.registerCrdt("counter", new crdts.CCounter());
+  let counterCrdt = runtime.registerCrdt("counter", crdts.CCounter);
 
   /* HTML variables */
   var counter = document.getElementById("counter");
