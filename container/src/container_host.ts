@@ -1,5 +1,7 @@
 import { CausalTimestamp, PrimitiveCrdt } from "compoventuals";
+import { SEND_CHANNEL_TYPE } from "./message_types";
 
+// TODO: way to send your own messages to the IFrame?
 export class ContainerHost extends PrimitiveCrdt {
   private readonly messagePort: MessagePort;
   /**
@@ -31,7 +33,11 @@ export class ContainerHost extends PrimitiveCrdt {
       // once onload?  It happens when the IFrame is attached
       // to the document; is that a prerequisite for loading as
       // well?
-      containerIFrame.contentWindow!.postMessage(null, "*", [channel.port2]);
+      containerIFrame.contentWindow!.postMessage(
+        { type: SEND_CHANNEL_TYPE },
+        "*",
+        [channel.port2]
+      );
       // TODO: remove listener once used?
     });
 

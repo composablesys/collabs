@@ -2,13 +2,16 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
+  console.log("counter: created");
   // HTML
   document.body.innerHTML = require("./counter.html").default;
 
   /**
    * Generate CRDTs' Runtime on each runtime and create CRDTs (e.g. Counter).
    */
+  console.log("counter: awaiting runtime");
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
+  console.log("counter: got runtime");
   let counterCrdt = runtime.registerCrdt("counter", new crdts.CCounter());
 
   /* HTML variables */

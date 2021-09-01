@@ -7,7 +7,7 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import { BundleAnalyzerPlugin } from "webpack-bundle-analyzer";
 
 const config: webpack.Configuration = {
-  mode: "production",
+  mode: "development",
   devtool: false,
   optimization: {
     usedExports: true,
@@ -23,6 +23,8 @@ const config: webpack.Configuration = {
     "containers/whiteboard": "./src/site/containers/whiteboard.ts",
     "hosts/plain": "./src/site/hosts/plain.ts",
     "hosts/selector": "./src/site/hosts/selector.ts",
+    "sandbox/outside": "./src/site/sandbox/outside.ts",
+    "sandbox/inside": "./src/site/sandbox/inside.ts",
     "non_container_demos/counter_matrix":
       "./src/site/non_container_demos/counter_matrix.ts",
     "non_container_demos/counter_webrtc":
@@ -84,6 +86,25 @@ const config: webpack.Configuration = {
     // Works with HtmlWebpackPlugin to inlines chunks
     // with "container" in the name.
     new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/containers\/.*/]) as any,
+    // HtmlWebpackPlugin for sandbox inside & outside, plus inlining for inside.
+    new HtmlWebpackPlugin({
+      title: "Compoventuals Demo",
+      filename: "sandbox/outside.html",
+      chunks: ["sandbox/outside"],
+      inject: "body",
+      template: "./src/site/sandbox/outside.html",
+      // Make the relative link go to ../sandbox/outside.js
+      // instead of sandbox/outside.js.
+      publicPath: "../",
+    }),
+    new HtmlWebpackPlugin({
+      title: "Compoventuals Demo",
+      filename: "sandbox/inside.html",
+      chunks: ["sandbox/inside"],
+      inject: "body",
+      template: "./src/site/sandbox/inside.html",
+    }),
+    new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/sandbox\/inside/]) as any,
     // At the end of the build, pop up a browser window showing
     // the causes of bundle size.
     // Disable this before pushing to github as it may freeze
@@ -91,7 +112,7 @@ const config: webpack.Configuration = {
     // new BundleAnalyzerPlugin(),
     // Delete js files that have been inlined by InlineChunkHtmlPlugin.
     new CleanWebpackPlugin({
-      cleanAfterEveryBuildPatterns: ["containers/*.js"],
+      cleanAfterEveryBuildPatterns: ["containers/*.js", "sandbox/inside.js"],
       cleanStaleWebpackAssets: false,
       protectWebpackAssets: false,
       verbose: true,

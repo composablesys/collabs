@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Block loading of external resources, or really any
+      communication with the outside world, except through
+      postMessage.
+      From https://stackoverflow.com/a/31904447
+    -->
+    <!--
+      TODO: can we further restrict this?  Try removing
+      things one at a time.
+      Also check list of things that are not affected by
+      default-src.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'unsafe-eval' 'unsafe-inline' data: blob:;"
+    />
+
+    <style>
+      // Settings to make iframe fill the screen.
+      // From https://www.geeksforgeeks.org/how-to-set-fullscreen-iframe/
+      html {
+        overflow: auto;
+      }
+
+      html,
+      body,
+      div,
+      iframe {
+        margin: 0px;
+        padding: 0px;
+        height: 100%;
+        border: none;
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        border: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+    </style>
+
+    <title>Sandbox Inside</title>
+  </head>
+
+  <body></body>
+</html>

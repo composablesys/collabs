@@ -1,4 +1,5 @@
 import { BroadcastNetwork, Runtime } from "compoventuals";
+import { SEND_CHANNEL_TYPE } from "./message_types";
 
 class ContainerNetwork implements BroadcastNetwork {
   constructor(private readonly messagePort: MessagePort) {}
@@ -37,6 +38,8 @@ export class ContainerRuntimeSource {
     const messagePort = await new Promise<MessagePort>((resolve) => {
       window.addEventListener("message", (e) => {
         if (e.source !== hostWindow) return;
+        if (typeof e.data !== "object") return;
+        if (e.data.type !== SEND_CHANNEL_TYPE) return;
         // TODO: other checks?
         resolve(e.ports[0]);
         // TODO: remove listener?
