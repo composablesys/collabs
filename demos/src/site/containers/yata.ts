@@ -188,10 +188,11 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
   ) {
     super(initToken);
     this.defaultContent = defaultContent;
+    let startOp!: YataOp<T>;
     const startOpPre: crdts.PreCrdt<YataOp<T>> = (
       valueInitToken: crdts.CrdtInitToken
     ) => {
-      const startOp = new YataOp(
+      startOp = new YataOp(
         valueInitToken,
         "",
         "",
@@ -201,13 +202,13 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
         0,
         []
       );
-      this.START = this.opMap.idOf(startOp);
       return startOp;
     };
+    let endOp!: YataOp<T>;
     const endOpPre: crdts.PreCrdt<YataOp<T>> = (
       valueInitToken: crdts.CrdtInitToken
     ) => {
-      const endOp = new YataOp(
+      endOp = new YataOp(
         valueInitToken,
         "",
         "",
@@ -217,7 +218,6 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
         Number.MAX_VALUE,
         []
       );
-      this.END = this.opMap.idOf(endOp);
       return endOp;
     };
     const initialContentOps = new Array<YataOp<T>>();
@@ -300,6 +300,8 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     this.opMap.on("Add", this.opMapAddEventHandler(this)); // TODO: Change to ValueInit
 
     // Configure the initial ops (like in valueConstructor).
+    this.START = this.opMap.idOf(startOp);
+    this.END = this.opMap.idOf(endOp);
     const idOfFn = (c: YataOp<T>) => this.opMap.idOf(c);
     const uids = [this.START]
       .concat(initialContentOps.map(idOfFn))
