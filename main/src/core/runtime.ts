@@ -20,48 +20,30 @@ import {
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
 import { CompositeCrdt } from "../constructions";
+import { RootParent } from "./root_parent";
 
-/**
- * The formal parent of the root Crdt.
- * Not for external use except as a type and for "instanceof"
- * checks.
- *
- * This is not part
- * of the tree of Crdts, but is necessary to keep the
- * API uniform (all Crdts need a parent, including the root Crdt).
- */
-export class RootParent {
+class RootCrdt extends CompositeCrdt {
   /**
-   * Used to prevent Crdts from being duck-typable as
-   * a RootParent.
+   * Exposes super.addChild publicly so Runtime can call it.
    */
-  readonly isRootParent = true;
+  public addChild<C extends Crdt, Args extends any[]>(
+    name: string,
+    childConstructor: CrdtConstructor<C, Args>,
+    ...childConstructorArgs: Args
+  ): C {
+    return super.addChild(name, childConstructor, ...childConstructorArgs);
+  }
 
-  constructor(readonly runtime: Runtime) {}
+  /**
+   * Exposes super.addChildPreCrdt publicly so Runtime can call it.
+   */
+  public addChildPreCrdt<C extends Crdt>(
+    name: string,
+    childPreCrdt: PreCrdt<C>
+  ): C {
+    return super.addChildPreCrdt(name, childPreCrdt);
+  }
 }
-
-// class RootCrdt extends CompositeCrdt {
-//   /**
-//    * Exposes super.addChild publicly so Runtime can call it.
-//    */
-//   public addChild<C extends Crdt, Args extends any[]>(
-//     name: string,
-//     childConstructor: CrdtConstructor<C, Args>,
-//     ...childConstructorArgs: Args
-//   ): C {
-//     return super.addChild(name, childConstructor, ...childConstructorArgs);
-//   }
-//
-//   /**
-//    * Exposes super.addChildPreCrdt publicly so Runtime can call it.
-//    */
-//   public addChildPreCrdt<C extends Crdt>(
-//     name: string,
-//     childPreCrdt: PreCrdt<C>
-//   ): C {
-//     return super.addChildPreCrdt(name, childPreCrdt);
-//   }
-// }
 
 // TODO: conventions: set listener var instead of this.network.register;
 // onEtc method names instead of receive
@@ -156,35 +138,12 @@ function randomReplicaId(): string {
  * TODO: usage
  */
 export class Runtime extends EventEmitter<CrdtEventsRecord> {
-  private RootCrdt = class extends CompositeCrdt {
-    /**
-     * Exposes super.addChild publicly so Runtime can call it.
-     */
-    public addChild<C extends Crdt, Args extends any[]>(
-      name: string,
-      childConstructor: CrdtConstructor<C, Args>,
-      ...childConstructorArgs: Args
-    ): C {
-      return super.addChild(name, childConstructor, ...childConstructorArgs);
-    }
-
-    /**
-     * Exposes super.addChildPreCrdt publicly so Runtime can call it.
-     */
-    public addChildPreCrdt<C extends Crdt>(
-      name: string,
-      childPreCrdt: PreCrdt<C>
-    ): C {
-      return super.addChildPreCrdt(name, childPreCrdt);
-    }
-  };
-
   private readonly batchType: "immediate" | "manual" | "periodic";
   private readonly batchingPeriodMs: number | undefined;
   private readonly network: CausalBroadcastNetwork;
   readonly replicaId: string;
 
-  private readonly rootCrdt: InstanceType<typeof this.RootCrdt>;
+  private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
   private loadAllowed = true;
 
@@ -216,7 +175,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
     this.network.register(this);
     // Create this.rootCrdt
-    this.rootCrdt = new this.RootCrdt({
+    this.rootCrdt = new RootCrdt({
       name: "",
       parent: new RootParent(this),
     });
@@ -324,7 +283,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private getOrCreatePointer(to: Crdt): number {
     // Base case: root
     if (to === this.rootCrdt) return 0;
-    else if (to instanceof this.RootCrdt) {
+    else if (to instanceof RootCrdt) {
       throw new Error(
         "Runtime.send called on wrong Runtime (getOrCreatePointer)"
       );

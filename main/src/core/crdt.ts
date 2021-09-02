@@ -1,6 +1,7 @@
 import { EventEmitter } from "../util";
 import { CausalTimestamp } from "./causal_broadcast_network";
-import { RootParent, Runtime } from "./runtime";
+import { RootParent } from "./root_parent";
+import { Runtime } from "./runtime";
 
 /**
  * A Crdt that can be a parent to other Crdts.
