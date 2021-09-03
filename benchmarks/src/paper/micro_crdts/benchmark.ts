@@ -105,7 +105,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
         runtimes[i] = generator.newRuntime("manual", replicaIdRng);
-        crdtList[i] = runtimes[i].registerPreCrdt("", this.crdtConstructor);
+        crdtList[i] = runtimes[i].registerCrdt("", this.crdtConstructor);
       }
 
       if (measurement === "memory") {
@@ -156,10 +156,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               // Create a new runtime etc. for user 0, then load
               const loadStartTime = process.hrtime.bigint();
               runtimes[0] = generator.newRuntime("manual", replicaIdRng);
-              crdtList[0] = runtimes[0].registerPreCrdt(
-                "",
-                this.crdtConstructor
-              );
+              crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
               runtimes[0].load(saveData);
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
@@ -228,7 +225,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
           runtimes[0] = generator.newRuntime("manual", replicaIdRng);
-          crdtList[0] = runtimes[0].registerPreCrdt("", this.crdtConstructor);
+          crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
           runtimes[0].load(saveData);
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
@@ -330,10 +327,16 @@ function DeepNoopCrdt() {
     constructor(initToken: crdts.CrdtInitToken, index: number) {
       super(initToken);
       if (index === 0) {
-        this.child = this.addChild("child " + index, NoopCrdtClass);
+        this.child = this.addChild(
+          "child " + index,
+          crdts.Pre(NoopCrdtClass)()
+        );
         this.noop = this.child as NoopCrdtClass;
       } else {
-        this.child = this.addChild("child " + index, DeepNoopCrdt, index - 1);
+        this.child = this.addChild(
+          "child " + index,
+          crdts.Pre(DeepNoopCrdt)(index - 1)
+        );
         this.noop = (this.child as DeepNoopCrdt).noop;
       }
     }

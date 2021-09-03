@@ -1,3 +1,4 @@
+import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 import {
   YataDeleteEvent,
@@ -17,9 +18,9 @@ import Quill, { DeltaOperation } from "quill";
     periodMs: 200,
   });
 
-  let clientText = runtime.registerPreCrdt(
+  let clientText = runtime.registerCrdt(
     "text",
-    (initToken) => new YataLinear<string>(initToken, "", ["\n"])
+    crdts.Pre(YataLinear)<string>("", ["\n"])
   );
 
   // const Quill: any = Q;

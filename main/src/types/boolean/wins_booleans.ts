@@ -1,7 +1,7 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
 import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
-import { CausalTimestamp, CrdtInitToken } from "../../core";
+import { CausalTimestamp, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 
@@ -97,7 +97,7 @@ export class FalseWinsCBoolean
 
   constructor(initToken: CrdtInitToken) {
     super(initToken);
-    this.negated = this.addChild("", TrueWinsCBoolean);
+    this.negated = this.addChild("", Pre(TrueWinsCBoolean)());
 
     // Events
     this.negated.on("Set", (event) =>

@@ -1,5 +1,9 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt, CrdtInitToken, RootParent } from "../../core";
+import {
+  ConstructorAsFunction,
+  DefaultElementSerializer,
+  ElementSerializer,
+} from "../../util";
+import { Crdt, CrdtInitToken, Pre, RootParent } from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
@@ -34,14 +38,8 @@ export class TombstoneMutCList<
   ) {
     super(
       initToken,
-      (setInitToken, setValueConstructor, setArgsSerializer) =>
-        new TombstoneMutCSet(
-          setInitToken,
-          setValueConstructor,
-          setArgsSerializer
-        ),
-      (registerInitToken, initialValue, registerSerializer) =>
-        new LwwCRegister(registerInitToken, initialValue, registerSerializer),
+      Pre(TombstoneMutCSet),
+      ConstructorAsFunction(LwwCRegister),
       new TreedocDenseLocalList(initToken.parent.runtime),
       valueConstructor,
       argsSerializer

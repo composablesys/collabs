@@ -4,7 +4,7 @@ import {
   ElementSerializer,
   PairSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken, PreCrdt } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
@@ -40,19 +40,17 @@ export class MutCMapFromSet<
   constructor(
     initToken: CrdtInitToken,
     setCallback: (
-      setInitToken: CrdtInitToken,
       setValueConstructor: (
         setValueInitToken: CrdtInitToken,
         key: K,
         args: SetArgs
       ) => C,
       setArgsSerializer: ElementSerializer<[K, SetArgs]>
-    ) => SetT,
+    ) => Pre<SetT>,
     mapCallback: (
-      mapInitToken: CrdtInitToken,
       mapKeySerializer: ElementSerializer<K>,
       mapValueSerializer: ElementSerializer<C>
-    ) => MapT,
+    ) => Pre<MapT>,
     valueConstructor: (
       valueInitToken: CrdtInitToken,
       key: K,
@@ -63,23 +61,15 @@ export class MutCMapFromSet<
   ) {
     super(initToken);
 
-    this.valueSet = this.addChildPreCrdt(
+    this.valueSet = this.addChild(
       "",
-      PreCrdt.fromFunction(
-        setCallback,
-        (valueInitToken, key, args) => {
-          return valueConstructor(valueInitToken, key, ...args);
-        },
-        new PairSerializer(keySerializer, argsSerializer)
-      )
+      setCallback((valueInitToken, key, args) => {
+        return valueConstructor(valueInitToken, key, ...args);
+      }, new PairSerializer(keySerializer, argsSerializer))
     );
-    this.map = this.addChildPreCrdt(
+    this.map = this.addChild(
       "0",
-      PreCrdt.fromFunction(
-        mapCallback,
-        keySerializer,
-        new CrdtSerializer(this.valueSet)
-      )
+      mapCallback(keySerializer, new CrdtSerializer(this.valueSet))
     );
 
     // Events

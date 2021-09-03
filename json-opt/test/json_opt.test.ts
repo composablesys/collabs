@@ -1,6 +1,6 @@
 import { assert } from "chai";
 import { JsonCrdt, JsonCursor } from "../src/json_opt";
-import { Runtime, TestingNetworkGenerator } from "compoventuals";
+import { Pre, Runtime, TestingNetworkGenerator } from "compoventuals";
 import seedrandom from "seedrandom";
 
 describe("JsonCrdt", () => {
@@ -22,8 +22,8 @@ describe("JsonCrdt", () => {
   let bobCursor: JsonCursor;
 
   beforeEach(() => {
-    aliceJson = alice.registerCrdt("cursor", JsonCrdt);
-    bobJson = bob.registerCrdt("cursor", JsonCrdt);
+    aliceJson = alice.registerCrdt("cursor", Pre(JsonCrdt)());
+    bobJson = bob.registerCrdt("cursor", Pre(JsonCrdt)());
     aliceCursor = new JsonCursor(aliceJson);
     bobCursor = new JsonCursor(bobJson);
   });

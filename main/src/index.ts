@@ -7,6 +7,7 @@ export * from "./types";
 // TODO: should we export all of this serialization stuff?
 // TODO: export newer classes
 export {
+  ConstructorAsFunction,
   EventEmitter,
   ElementSerializer,
   DefaultElementSerializer,

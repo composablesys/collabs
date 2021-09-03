@@ -493,15 +493,16 @@ function compoCrdt() {
 
     constructor(initToken: crdts.CrdtInitToken) {
       super(initToken);
-      this.text = this.addChild("text", crdts.CText);
-      this.doneCrdt = this.addChild("done", crdts.TrueWinsCBoolean);
-      this.items = this.addChildPreCrdt(
+      this.text = this.addChild("text", crdts.Pre(crdts.CText)());
+      this.doneCrdt = this.addChild(
+        "done",
+        crdts.Pre(crdts.TrueWinsCBoolean)()
+      );
+      this.items = this.addChild(
         "items",
-        (childInitToken) =>
-          new crdts.ResettingMutCList(
-            childInitToken,
-            (valueInitToken) => new CrdtTodoList(valueInitToken)
-          )
+        crdts.Pre(crdts.ResettingMutCList)(
+          crdts.ConstructorAsFunction(CrdtTodoList)
+        )
       );
     }
 
@@ -555,7 +556,7 @@ function compoCrdt() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -585,7 +586,7 @@ function compoCrdt() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
     },
@@ -638,12 +639,7 @@ class ResettingMutCListRga<C extends crdts.Crdt & crdts.Resettable>
     );
     super(
       initToken,
-      (mapInitToken) =>
-        new crdts.MergingMutCMap(
-          mapInitToken,
-          valueConstructor,
-          denseLocalList
-        ),
+      crdts.Pre(crdts.MergingMutCMap)(valueConstructor, denseLocalList),
       denseLocalList
     );
   }
@@ -664,15 +660,16 @@ function compoCrdtRga() {
 
     constructor(initToken: crdts.CrdtInitToken) {
       super(initToken);
-      this.text = this.addChild("text", CTextRga);
-      this.doneCrdt = this.addChild("done", crdts.TrueWinsCBoolean);
-      this.items = this.addChildPreCrdt(
+      this.text = this.addChild("text", crdts.Pre(CTextRga)());
+      this.doneCrdt = this.addChild(
+        "done",
+        crdts.Pre(crdts.TrueWinsCBoolean)()
+      );
+      this.items = this.addChild(
         "items",
-        (childInitToken) =>
-          new ResettingMutCListRga(
-            childInitToken,
-            (valueInitToken) => new CrdtTodoList(valueInitToken)
-          )
+        crdts.Pre(ResettingMutCListRga)(
+          crdts.ConstructorAsFunction(CrdtTodoList)
+        )
       );
     }
 
@@ -726,7 +723,7 @@ function compoCrdtRga() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -756,7 +753,7 @@ function compoCrdtRga() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
     },
@@ -774,15 +771,16 @@ function compoMovableCrdt() {
 
     constructor(initToken: crdts.CrdtInitToken) {
       super(initToken);
-      this.text = this.addChild("text", crdts.CText);
-      this.doneCrdt = this.addChild("done", crdts.TrueWinsCBoolean);
-      this.items = this.addChildPreCrdt(
+      this.text = this.addChild("text", crdts.Pre(crdts.CText)());
+      this.doneCrdt = this.addChild(
+        "done",
+        crdts.Pre(crdts.TrueWinsCBoolean)()
+      );
+      this.items = this.addChild(
         "items",
-        (childInitToken) =>
-          new crdts.DeletingMutCList(
-            childInitToken,
-            (valueInitToken) => new CrdtTodoList(valueInitToken)
-          )
+        crdts.Pre(crdts.DeletingMutCList)(
+          crdts.ConstructorAsFunction(CrdtTodoList)
+        )
       );
     }
 
@@ -836,7 +834,7 @@ function compoMovableCrdt() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -866,7 +864,7 @@ function compoMovableCrdt() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
     },
@@ -907,15 +905,13 @@ class DeletingMutCListRga<
   ) {
     super(
       initToken,
-      (setInitToken, setValueConstructor, setArgsSerializer) =>
-        new crdts.DeletingMutCSet(
-          setInitToken,
+      (setValueConstructor, setArgsSerializer) =>
+        crdts.Pre(crdts.DeletingMutCSet)(
           setValueConstructor,
           undefined,
           setArgsSerializer
         ),
-      (initialValue, registerSerializer) =>
-        new crdts.LwwCRegister(initialValue, registerSerializer),
+      crdts.ConstructorAsFunction(crdts.LwwCRegister),
       new crdts.RgaDenseLocalList(initToken.parent.runtime),
       valueConstructor,
       argsSerializer
@@ -934,24 +930,23 @@ function compoMovableCrdtRga() {
 
     constructor(initToken: crdts.CrdtInitToken) {
       super(initToken);
-      this.text = this.addChildPreCrdt(
+      this.text = this.addChild(
         "text",
-        (childInitToken) =>
-          new crdts.PrimitiveCListFromDenseLocalList(
-            childInitToken,
-            new crdts.RgaDenseLocalList<string>(childInitToken.parent.runtime),
-            crdts.TextSerializer.instance,
-            crdts.TextArraySerializer.instance
-          )
+        crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
+          new crdts.RgaDenseLocalList<string>(initToken.parent.runtime),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
       );
-      this.doneCrdt = this.addChild("done", crdts.TrueWinsCBoolean);
-      this.items = this.addChildPreCrdt(
+      this.doneCrdt = this.addChild(
+        "done",
+        crdts.Pre(crdts.TrueWinsCBoolean)()
+      );
+      this.items = this.addChild(
         "items",
-        (childInitToken) =>
-          new DeletingMutCListRga(
-            childInitToken,
-            (valueInitToken) => new CrdtTodoList(valueInitToken)
-          )
+        crdts.Pre(DeletingMutCListRga)(
+          crdts.ConstructorAsFunction(CrdtTodoList)
+        )
       );
     }
 
@@ -1006,7 +1001,7 @@ function compoMovableCrdtRga() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -1036,7 +1031,7 @@ function compoMovableCrdtRga() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerCrdt("", CrdtTodoList);
+      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
     },
@@ -1108,7 +1103,7 @@ function compoJson() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerPreCrdt("", JsonElement.NewJson);
+      let list = runtime.registerCrdt("", JsonElement.NewJson);
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTodoList(list.value as JsonObject);
@@ -1138,7 +1133,7 @@ function compoJson() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerPreCrdt("", JsonElement.NewJson);
+      let list = runtime.registerCrdt("", JsonElement.NewJson);
       runtime.load(saveData);
       return new JsonTodoList(list.value as JsonObject);
     },
@@ -1206,7 +1201,7 @@ function compoJsonText() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
-      let list = runtime.registerPreCrdt("", JsonElement.NewJson);
+      let list = runtime.registerCrdt("", JsonElement.NewJson);
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTextTodoList(list.value as JsonObject);
@@ -1236,7 +1231,7 @@ function compoJsonText() {
       // operations.
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      let list = runtime.registerPreCrdt("", JsonElement.NewJson);
+      let list = runtime.registerCrdt("", JsonElement.NewJson);
       runtime.load(saveData);
       return new JsonTextTodoList(list.value as JsonObject);
     },
@@ -1662,7 +1657,7 @@ function jsonCrdt() {
       runtime = generator.newRuntime("manual", rng);
       totalSentBytes = 0;
 
-      let crdt = runtime.registerCrdt("", JsonCrdt);
+      let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
       let cursor = new JsonCursor(crdt);
       this.sendNextMessage();
       cursor.setIsMap("items");
@@ -1699,7 +1694,7 @@ function jsonCrdt() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
 
-      let crdt = runtime.registerCrdt("", JsonCrdt);
+      let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
       let cursor = new JsonCursor(crdt);
 
       let idGen = new crdts.TreedocDenseLocalList<undefined>(runtime);

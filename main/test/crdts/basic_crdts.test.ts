@@ -4,6 +4,7 @@ import {
   CCounter,
   LwwCRegister,
   OptionalLwwCRegister,
+  Pre,
   Runtime,
   TestingNetworkGenerator,
 } from "../../src";
@@ -34,13 +35,11 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCrdt(
         "counterId",
-        AddComponent,
-        new CNumberState(0)
+        Pre(AddComponent)(new CNumberState(0))
       );
       bobCounter = bob.registerCrdt(
         "counterId",
-        AddComponent,
-        new CNumberState(0)
+        Pre(AddComponent)(new CNumberState(0))
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -100,8 +99,8 @@ describe("basic_crdts", () => {
     let bobCounter: CCounter;
 
     beforeEach(() => {
-      aliceCounter = alice.registerCrdt("counterId", CCounter);
-      bobCounter = bob.registerCrdt("counterId", CCounter);
+      aliceCounter = alice.registerCrdt("counterId", Pre(CCounter)());
+      bobCounter = bob.registerCrdt("counterId", Pre(CCounter)());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -303,13 +302,11 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceRegister = alice.registerCrdt(
         "multId",
-        MultComponent,
-        new CNumberState(2)
+        Pre(MultComponent)(new CNumberState(2))
       );
       bobRegister = bob.registerCrdt(
         "multId",
-        MultComponent,
-        new CNumberState(2)
+        Pre(MultComponent)(new CNumberState(2))
       );
       if (debug) {
         addEventListeners(aliceRegister, "Alice");
@@ -443,14 +440,8 @@ describe("basic_crdts", () => {
     let bobMvr: OptionalLwwCRegister<string>;
 
     beforeEach(() => {
-      aliceMvr = alice.registerCrdt<OptionalLwwCRegister<string>, []>(
-        "mvrId",
-        OptionalLwwCRegister
-      );
-      bobMvr = bob.registerCrdt<OptionalLwwCRegister<string>, []>(
-        "mvrId",
-        OptionalLwwCRegister
-      );
+      aliceMvr = alice.registerCrdt("mvrId", Pre(OptionalLwwCRegister)());
+      bobMvr = bob.registerCrdt("mvrId", Pre(OptionalLwwCRegister)());
       if (debug) {
         addEventListeners(aliceMvr, "Alice");
         addEventListeners(bobMvr, "Bob");
@@ -590,8 +581,8 @@ describe("basic_crdts", () => {
     let bobLww: LwwCRegister<string>;
 
     beforeEach(() => {
-      aliceLww = alice.registerCrdt("lwwId", LwwCRegister, "initial");
-      bobLww = bob.registerCrdt("lwwId", LwwCRegister, "initial");
+      aliceLww = alice.registerCrdt("lwwId", Pre(LwwCRegister)("initial"));
+      bobLww = bob.registerCrdt("lwwId", Pre(LwwCRegister)("initial"));
       if (debug) {
         addEventListeners(aliceLww, "Alice");
         addEventListeners(bobLww, "Bob");

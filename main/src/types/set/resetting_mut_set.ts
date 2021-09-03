@@ -3,7 +3,7 @@ import {
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt, CrdtInitToken, PreCrdt, Runtime } from "../../core";
+import { Crdt, CrdtInitToken, Pre, Runtime } from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
@@ -80,7 +80,6 @@ export class MutCSetFromMap<
   constructor(
     initToken: CrdtInitToken,
     mapCallback: (
-      mapInitToken: CrdtInitToken,
       mapValueConstructor: (
         mapValueInitToken: CrdtInitToken,
         key: [sender: string, uniqueNumber: number, args: AddArgs]
@@ -88,15 +87,14 @@ export class MutCSetFromMap<
       keySerializer: ElementSerializer<
         [sender: string, uniqueNumber: number, args: AddArgs]
       >
-    ) => MapT,
+    ) => Pre<MapT>,
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(initToken);
-    this.map = this.addChildPreCrdt(
+    this.map = this.addChild(
       "",
-      PreCrdt.fromFunction(
-        mapCallback,
+      mapCallback(
         (mapValueInitToken, key) =>
           valueConstructor(mapValueInitToken, ...key[2]),
         new MutCSetFromMapSerializer(argsSerializer)
@@ -167,13 +165,7 @@ export class ResettingMutCSet<
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super(
-      initToken,
-      (mapInitToken, mapValueConstructor, keySerializer) =>
-        new MergingMutCMap(mapInitToken, mapValueConstructor, keySerializer),
-      valueConstructor,
-      argsSerializer
-    );
+    super(initToken, Pre(MergingMutCMap), valueConstructor, argsSerializer);
   }
 
   owns(value: C): boolean {

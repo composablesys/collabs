@@ -5,7 +5,7 @@ import {
   Optional,
   PairSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
@@ -43,29 +43,25 @@ export class TombstoneMutCMap<
     // generic type inference appeared to get overwhelmed
     // and not infer the inner types correctly, leading to
     // an error.  We work around it by writing an explicit
-    // PreCrdt callback instead.
-    this.valueSet = this.addChildPreCrdt(
+    // Pre callback instead.
+    this.valueSet = this.addChild(
       "",
-      (childInitToken) =>
-        new DeletingMutCSet(
-          childInitToken,
-          (valueInitToken, key, args) => {
-            const value = valueConstructor(valueInitToken, key, ...args);
-            // Cache
-            this.keyByValue.set(value, key);
-            return value;
-          },
-          undefined,
-          new PairSerializer(keySerializer, argsSerializer)
-        )
+      Pre(DeletingMutCSet)(
+        (valueInitToken, key, args) => {
+          const value = valueConstructor(valueInitToken, key, ...args);
+          // Cache
+          this.keyByValue.set(value, key);
+          return value;
+        },
+        undefined,
+        new PairSerializer(keySerializer, argsSerializer)
+      )
     );
     this.map = this.addChild(
       "0",
-      LwwCMap,
-      keySerializer,
-      new CrdtSerializer<C>(this.valueSet)
+      Pre(LwwCMap)(keySerializer, new CrdtSerializer<C>(this.valueSet))
     );
-    this.keySet = this.addChild("1", AddWinsCSet, keySerializer);
+    this.keySet = this.addChild("1", Pre(AddWinsCSet)(keySerializer));
 
     // Events
 

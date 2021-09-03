@@ -6,7 +6,7 @@ import {
   CrdtEvent,
   CrdtEventsRecord,
   CrdtInitToken,
-  PreCrdt,
+  Pre,
 } from "../../core";
 
 // TODO: handle floating point non-commutativity
@@ -230,10 +230,10 @@ export class MNumber extends MultipleSemidirectProduct<
      * 2: add
      * 3: mult
      */
-    this.minCrdt = super.setupOneCrdt(PreCrdt.fromClass(MinComponent, state));
-    this.maxCrdt = super.setupOneCrdt(PreCrdt.fromClass(MaxComponent, state));
-    this.addCrdt = super.setupOneCrdt(PreCrdt.fromClass(AddComponent, state));
-    this.multCrdt = super.setupOneCrdt(PreCrdt.fromClass(MultComponent, state));
+    this.minCrdt = super.setupOneCrdt(Pre(MinComponent)(state));
+    this.maxCrdt = super.setupOneCrdt(Pre(MaxComponent)(state));
+    this.addCrdt = super.setupOneCrdt(Pre(AddComponent)(state));
+    this.multCrdt = super.setupOneCrdt(Pre(MultComponent)(state));
 
     this.minCrdt.on("Min", (event) => super.emit("Min", event));
     this.maxCrdt.on("Max", (event) => super.emit("Max", event));

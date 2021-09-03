@@ -44,8 +44,8 @@ export class CMapFromRegister<
     // generic type inference appeared to get overwhelmed
     // and not infer the inner types correctly, leading to
     // an error.  We work around it by writing an explicit
-    // PreCrdt callback instead.
-    this.internalMap = this.addChildPreCrdt(
+    // Pre callback instead.
+    this.internalMap = this.addChild(
       "",
       (childInitToken) =>
         new ImplicitMergingMutCMap(

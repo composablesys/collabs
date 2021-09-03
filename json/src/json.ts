@@ -5,6 +5,7 @@ import {
   DefaultElementSerializer,
   LwwCRegister,
   MergingMutCMap,
+  Pre,
   Resettable,
   ResettingMutCList,
 } from "compoventuals";
@@ -34,14 +35,12 @@ export class JsonObject extends CompositeCrdt implements Resettable {
     // only ever calls makeThisExistent as part of an operation, and
     // that operation suffices to revive its map key, due to MergingMutCMap's
     // semantics.
-    this.internalMap = this.addChildPreCrdt(
+    this.internalMap = this.addChild(
       "nestedMap",
-      (childInitToken) =>
-        new MergingMutCMap(
-          childInitToken,
-          (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent),
-          DefaultElementSerializer.getInstance()
-        )
+      Pre(MergingMutCMap)(
+        (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent),
+        DefaultElementSerializer.getInstance()
+      )
     );
   }
 
@@ -99,13 +98,11 @@ export class JsonArray extends CompositeCrdt implements Resettable {
     private readonly makeThisExistent: () => void
   ) {
     super(initToken);
-    this.internalList = this.addChildPreCrdt(
+    this.internalList = this.addChild(
       "nestedMap",
-      (childInitToken) =>
-        new ResettingMutCList(
-          childInitToken,
-          (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent)
-        )
+      Pre(ResettingMutCList)(
+        (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent)
+      )
     );
   }
 
@@ -173,13 +170,19 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   constructor(initToken: CrdtInitToken, makeThisExistent: () => void) {
     super(initToken);
     this.makeThisExistent = makeThisExistent;
-    this.register = this.addChildPreCrdt(
+    this.register = this.addChild(
       "register",
       (childInitToken) => new LwwCRegister<JsonValue>(childInitToken, null)
     );
-    this.object = this.addChild("object", JsonObject, () => this.setIsObject());
-    this.array = this.addChild("array", JsonArray, () => this.setIsArray());
-    this.text = this.addChild("text", CText);
+    this.object = this.addChild(
+      "object",
+      Pre(JsonObject)(() => this.setIsObject())
+    );
+    this.array = this.addChild(
+      "array",
+      Pre(JsonArray)(() => this.setIsArray())
+    );
+    this.text = this.addChild("text", Pre(CText)());
   }
 
   get value(): JsonValue {

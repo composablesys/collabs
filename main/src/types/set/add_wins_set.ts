@@ -3,7 +3,7 @@ import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
-import { CrdtInitToken } from "../../core";
+import { CrdtInitToken, Pre } from "../../core";
 
 export class CSetFromBoolean<
   T,
@@ -31,17 +31,23 @@ export class CSetFromBoolean<
     // generic type inference appeared to get overwhelmed
     // and not infer the inner types correctly, leading to
     // an error.  We work around it by writing an explicit
-    // PreCrdt callback instead.
-    this.booleanMap = this.addChildPreCrdt(
+    // Pre callback instead.
+    this.booleanMap = this.addChild(
       "",
-      (childInitToken) =>
-        new GrowOnlyImplicitMergingMutCMap(
-          childInitToken,
-          this.internalBooleanConstructor.bind(this),
-          valueSerializer
-        )
+      Pre(GrowOnlyImplicitMergingMutCMap)(
+        this.internalBooleanConstructor.bind(this),
+        valueSerializer
+      )
     );
     // Events emitters are setup by internalBooleanConstructor
+  }
+
+  static new<T, BoolT extends CBoolean>(
+    booleanConstructor: (booleanInitToken: CrdtInitToken) => BoolT,
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ): Pre<CSetFromBoolean<T, BoolT>> {
+    return (initToken) =>
+      new CSetFromBoolean(initToken, booleanConstructor, valueSerializer);
   }
 
   private internalBooleanConstructor(

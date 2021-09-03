@@ -6,6 +6,7 @@ import {
   CrdtEvent,
   CrdtEventsRecord,
   CrdtInitToken,
+  Pre,
   PrimitiveCrdt,
   Resettable,
 } from "compoventuals";
@@ -287,8 +288,8 @@ export class TensorCounterCrdt
     private readonly dtype: tf.NumericDataType
   ) {
     super(initToken);
-    this.plus = this.addChild("1", TensorGCounterCrdt, shape, dtype);
-    this.minus = this.addChild("2", TensorGCounterCrdt, shape, dtype);
+    this.plus = this.addChild("1", Pre(TensorGCounterCrdt)(shape, dtype));
+    this.minus = this.addChild("2", Pre(TensorGCounterCrdt)(shape, dtype));
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
@@ -345,8 +346,8 @@ export class TensorAverageCrdt
     private readonly dtype: tf.NumericDataType
   ) {
     super(initToken);
-    this.numerator = this.addChild("1", TensorCounterCrdt, shape, dtype);
-    this.denominator = this.addChild("2", CCounter);
+    this.numerator = this.addChild("1", Pre(TensorCounterCrdt)(shape, dtype));
+    this.denominator = this.addChild("2", Pre(CCounter)());
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));
   }

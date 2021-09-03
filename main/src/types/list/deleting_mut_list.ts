@@ -1,6 +1,10 @@
 import { Resettable } from "../../abilities";
-import { Crdt, CrdtInitToken, RootParent } from "../../core";
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { Crdt, CrdtInitToken, Pre, RootParent } from "../../core";
+import {
+  ConstructorAsFunction,
+  DefaultElementSerializer,
+  ElementSerializer,
+} from "../../util";
 import { LwwCRegister } from "../register";
 import { DeletingMutCSet } from "../set";
 import {
@@ -43,15 +47,9 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
   ) {
     super(
       initToken,
-      (setInitToken, setValueConstructor, setArgsSerializer) =>
-        new DeletingMutCSet(
-          setInitToken,
-          setValueConstructor,
-          undefined,
-          setArgsSerializer
-        ),
-      (registerInitToken, initialValue, registerSerializer) =>
-        new LwwCRegister(registerInitToken, initialValue, registerSerializer),
+      (setValueConstructor, setArgsSerializer) =>
+        Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
+      ConstructorAsFunction(LwwCRegister),
       new TreedocDenseLocalList(initToken.parent.runtime),
       valueConstructor,
       argsSerializer

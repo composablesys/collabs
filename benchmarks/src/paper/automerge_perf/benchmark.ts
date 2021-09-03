@@ -324,7 +324,7 @@ function treedocLww() {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerPreCrdt(
+      list = runtime.registerCrdt(
         "text",
         (initToken) =>
           new crdts.ResettingMutCList<crdts.LwwCRegister<string>>(
@@ -361,7 +361,7 @@ function treedocLww() {
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerPreCrdt(
+      list = runtime.registerCrdt(
         "text",
         (initToken) =>
           new crdts.ResettingMutCList<crdts.LwwCRegister<string>>(
@@ -395,11 +395,7 @@ class ResettingMutCListRga<
     );
     super(
       initToken,
-      crdts.PreCrdt.fromClass(
-        crdts.MergingMutCMap,
-        valueConstructor,
-        denseLocalList
-      ),
+      crdts.Pre(crdts.MergingMutCMap)(valueConstructor, denseLocalList),
       denseLocalList
     );
   }
@@ -414,7 +410,7 @@ function rgaLww() {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerPreCrdt(
+      list = runtime.registerCrdt(
         "text",
         (initToken) =>
           new ResettingMutCListRga(
@@ -452,7 +448,7 @@ function rgaLww() {
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerPreCrdt(
+      list = runtime.registerCrdt(
         "text",
         (initToken) =>
           new ResettingMutCListRga<crdts.LwwCRegister<string>>(
@@ -474,7 +470,7 @@ function textCrdt() {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt("text", crdts.CText);
+      list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
     },
     cleanup() {
       generator = null;
@@ -504,7 +500,7 @@ function textCrdt() {
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerCrdt("text", crdts.CText);
+      list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
       runtime.load(saveData);
     },
   });
@@ -521,10 +517,11 @@ function rga() {
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt(
         "text",
-        crdts.PrimitiveCListFromDenseLocalList,
-        new crdts.RgaDenseLocalList<string>(runtime),
-        crdts.TextSerializer.instance,
-        crdts.TextArraySerializer.instance
+        crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
+          new crdts.RgaDenseLocalList<string>(runtime),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
       );
     },
     cleanup() {
@@ -557,10 +554,11 @@ function rga() {
       runtime = generator.newRuntime("manual", rng);
       list = runtime.registerCrdt(
         "text",
-        crdts.PrimitiveCListFromDenseLocalList,
-        new crdts.RgaDenseLocalList<string>(runtime),
-        crdts.TextSerializer.instance,
-        crdts.TextArraySerializer.instance
+        crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
+          new crdts.RgaDenseLocalList<string>(runtime),
+          crdts.TextSerializer.instance,
+          crdts.TextArraySerializer.instance
+        )
       );
       runtime.load(saveData);
     },
@@ -646,7 +644,7 @@ function mapLww() {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerPreCrdt(
+      list = runtime.registerCrdt(
         "text",
         (initToken) => new crdts.LwwCMap<number, string>(initToken)
       );
@@ -679,7 +677,7 @@ function mapLww() {
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime("manual", rng);
-      list = runtime.registerPreCrdt(
+      list = runtime.registerCrdt(
         "text",
         (initToken) => new crdts.LwwCMap<number, string>(initToken)
       );

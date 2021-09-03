@@ -8,7 +8,7 @@ import {
   CrdtEventsRecord,
   Runtime,
   CrdtInitToken,
-  PreCrdt,
+  Pre,
 } from "../core";
 
 // TODO: revise this file.
@@ -330,12 +330,12 @@ export abstract class SemidirectProduct<
   // it being called after init.  But then it's annoying to pass
   // this to the children (as is one in ResetWrapperCrdt).
   protected setup<C1 extends StatefulCrdt<S>, C2 extends StatefulCrdt<S>>(
-    crdt1Pre: PreCrdt<C1>,
-    crdt2Pre: PreCrdt<C2>,
+    preCrdt1: Pre<C1>,
+    preCrdt2: Pre<C2>,
     initialState: S
   ): [C1, C2] {
-    const crdt1 = crdt1Pre({ name: SemidirectProduct.crdt1Name, parent: this });
-    const crdt2 = crdt2Pre({ name: SemidirectProduct.crdt2Name, parent: this });
+    const crdt1 = preCrdt1({ name: SemidirectProduct.crdt1Name, parent: this });
+    const crdt2 = preCrdt2({ name: SemidirectProduct.crdt2Name, parent: this });
     this.state.internalState = initialState;
     this.crdt1 = crdt1;
     this.crdt2 = crdt2;

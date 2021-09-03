@@ -11,6 +11,7 @@ import {
   CrdtEvent,
   CrdtEventsRecord,
   CrdtInitToken,
+  Pre,
 } from "../../core";
 
 export interface CCounterEvent extends CrdtEvent {
@@ -220,8 +221,8 @@ export class CCounter
 
   constructor(initToken: CrdtInitToken) {
     super(initToken);
-    this.plus = this.addChild("", GrowOnlyCCounter);
-    this.minus = this.addChild("0", GrowOnlyCCounter);
+    this.plus = this.addChild("", Pre(GrowOnlyCCounter)());
+    this.minus = this.addChild("0", Pre(GrowOnlyCCounter)());
 
     // Events
     this.plus.on("Add", (event) => {

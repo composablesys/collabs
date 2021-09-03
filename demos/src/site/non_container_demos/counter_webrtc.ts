@@ -15,7 +15,7 @@ const HOST = url.toString();
  */
 
 let client = new crdts.Runtime(new WebRtcNetwork(HOST));
-let clientCounter = client.registerCrdt("counter", crdts.CCounter);
+let clientCounter = client.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
 
 /* HTML variables */
 var counter = document.getElementById("counter");

@@ -1,5 +1,5 @@
 import { Resettable } from "../../abilities";
-import { CrdtInitToken } from "../../core";
+import { CrdtInitToken, Pre } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
@@ -77,9 +77,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
     super(initToken);
     this.argsById = this.addChild(
       "",
-      LwwCMap,
-      StringAsArraySerializer.instance,
-      argsSerializer
+      Pre(LwwCMap)(StringAsArraySerializer.instance, argsSerializer)
     );
 
     // Events and maintaining caches

@@ -9,7 +9,7 @@ import {
   EventEmitter,
   stringAsArray,
 } from "../util";
-import { Crdt, CrdtConstructor, CrdtEventsRecord, PreCrdt } from "./crdt";
+import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
   CausalTimestamp,
@@ -26,22 +26,8 @@ class RootCrdt extends CompositeCrdt {
   /**
    * Exposes super.addChild publicly so Runtime can call it.
    */
-  public addChild<C extends Crdt, Args extends any[]>(
-    name: string,
-    childConstructor: CrdtConstructor<C, Args>,
-    ...childConstructorArgs: Args
-  ): C {
-    return super.addChild(name, childConstructor, ...childConstructorArgs);
-  }
-
-  /**
-   * Exposes super.addChildPreCrdt publicly so Runtime can call it.
-   */
-  public addChildPreCrdt<C extends Crdt>(
-    name: string,
-    childPreCrdt: PreCrdt<C>
-  ): C {
-    return super.addChildPreCrdt(name, childPreCrdt);
+  public addChild<C extends Crdt>(name: string, preChild: Pre<C>): C {
+    return super.addChild(name, preChild);
   }
 }
 
@@ -195,24 +181,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @param
    * @return
    */
-  registerCrdt<C extends Crdt, Args extends any[]>(
-    name: string,
-    childConstructor: CrdtConstructor<C, Args>,
-    ...childConstructorArgs: Args
-  ): C {
-    return this.rootCrdt.addChild(
-      name,
-      childConstructor,
-      ...childConstructorArgs
-    );
-  }
-  /**
-   * TODO
-   * @param
-   * @return
-   */
-  registerPreCrdt<C extends Crdt>(name: string, childPreCrdt: PreCrdt<C>): C {
-    return this.rootCrdt.addChildPreCrdt(name, childPreCrdt);
+  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {
+    return this.rootCrdt.addChild(name, preCrdt);
   }
 
   /**

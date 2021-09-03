@@ -42,23 +42,21 @@ switch (networkType) {
 
 // Crdt setup.
 const runtime = new crdts.Runtime(network);
-const currentHost = runtime.registerPreCrdt(
+const currentHost = runtime.registerCrdt(
   "",
-  (initToken) =>
-    new crdts.LwwMutCRegister(
-      initToken,
-      (valueInitToken, htmlSrcGzipped: Uint8Array) => {
-        const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
-        // Create a new ContainerHost + IFrame from htmlSrc and
-        // attach it to the document, invisible for now.
-        const iframe = document.createElement("iframe");
-        iframe.hidden = true;
-        iframe.srcdoc = htmlSrc;
-        const host = new ContainerHost(valueInitToken, iframe);
-        document.body.appendChild(iframe);
-        return host;
-      }
-    )
+  crdts.Pre(crdts.LwwMutCRegister)(
+    (valueInitToken, htmlSrcGzipped: Uint8Array) => {
+      const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+      // Create a new ContainerHost + IFrame from htmlSrc and
+      // attach it to the document, invisible for now.
+      const iframe = document.createElement("iframe");
+      iframe.hidden = true;
+      iframe.srcdoc = htmlSrc;
+      const host = new ContainerHost(valueInitToken, iframe);
+      document.body.appendChild(iframe);
+      return host;
+    }
+  )
 );
 const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
 currentHost.on("Set", (e) => {

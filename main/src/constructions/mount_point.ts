@@ -1,5 +1,5 @@
 import { CMountPointSave } from "../../generated/proto_compiled";
-import { CausalTimestamp, Crdt, CrdtEventsRecord, PreCrdt } from "../core";
+import { CausalTimestamp, Crdt, CrdtEventsRecord, Pre } from "../core";
 
 export interface CMountPointEventsRecord extends CrdtEventsRecord {
   /**
@@ -97,14 +97,14 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
    * with generic args in the constructor, like in
    * collections.
    */
-  prepareMount<D extends C>(toMountPre: PreCrdt<D>): D {
+  prepareMount<D extends C>(preToMount: Pre<D>): D {
     if (this.isMounted) {
       throw new Error("prepareMount called but already mounted");
     }
     if (this.toMount !== undefined) {
       throw new Error("prepareMount called twice");
     }
-    const toMount = toMountPre({ name: "", parent: this });
+    const toMount = preToMount({ name: "", parent: this });
     this.toMount = toMount;
     return toMount;
   }

@@ -15,6 +15,7 @@ import {
   CMapSetEvent,
   CCounter,
   CrdtInitToken,
+  Pre,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom from "seedrandom";
@@ -37,8 +38,8 @@ describe("standard", () => {
     let bobFlag: TrueWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCrdt("ewFlagId", TrueWinsCBoolean);
-      bobFlag = bob.registerCrdt("ewFlagId", TrueWinsCBoolean);
+      aliceFlag = alice.registerCrdt("ewFlagId", Pre(TrueWinsCBoolean)());
+      bobFlag = bob.registerCrdt("ewFlagId", Pre(TrueWinsCBoolean)());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -127,8 +128,8 @@ describe("standard", () => {
     let bobFlag: FalseWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCrdt("dwFlagId", FalseWinsCBoolean);
-      bobFlag = bob.registerCrdt("dwFlagId", FalseWinsCBoolean);
+      aliceFlag = alice.registerCrdt("dwFlagId", Pre(FalseWinsCBoolean)());
+      bobFlag = bob.registerCrdt("dwFlagId", Pre(FalseWinsCBoolean)());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -213,8 +214,8 @@ describe("standard", () => {
     beforeEach(() => init(0));
 
     function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCrdt(name, CNumber, initialValue);
-      bobNumber = bob.registerCrdt(name, CNumber, initialValue);
+      aliceNumber = alice.registerCrdt(name, Pre(CNumber)(initialValue));
+      bobNumber = bob.registerCrdt(name, Pre(CNumber)(initialValue));
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -397,8 +398,8 @@ describe("standard", () => {
     beforeEach(() => init(0));
 
     function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCrdt(name, MNumber, initialValue);
-      bobNumber = bob.registerCrdt(name, MNumber, initialValue);
+      aliceNumber = alice.registerCrdt(name, Pre(MNumber)(initialValue));
+      bobNumber = bob.registerCrdt(name, Pre(MNumber)(initialValue));
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -558,14 +559,8 @@ describe("standard", () => {
     let bobSet: AddWinsCSet<string>;
 
     beforeEach(() => {
-      aliceSet = alice.registerCrdt<AddWinsCSet<string>, []>(
-        "awSetId",
-        AddWinsCSet
-      );
-      bobSet = bob.registerCrdt<AddWinsCSet<string>, []>(
-        "awSetId",
-        AddWinsCSet
-      );
+      aliceSet = alice.registerCrdt("awSetId", Pre(AddWinsCSet)());
+      bobSet = bob.registerCrdt("awSetId", Pre(AddWinsCSet)());
       if (debug) {
         addEventListeners(aliceSet, "Alice");
         addEventListeners(bobSet, "Bob");
@@ -777,11 +772,11 @@ describe("standard", () => {
     beforeEach(() => {
       const valueConstructor = (valueInitToken: CrdtInitToken) =>
         new CCounter(valueInitToken);
-      aliceMap = alice.registerPreCrdt(
+      aliceMap = alice.registerCrdt(
         "map",
         (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
       );
-      bobMap = bob.registerPreCrdt(
+      bobMap = bob.registerCrdt(
         "map",
         (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
       );
@@ -964,14 +959,8 @@ describe("standard", () => {
         let bobCounter = bobMap.get("test")!;
         runtimeGen.releaseAll();
 
-        let aliceSet = alice.registerCrdt<AddWinsCSet<CCounter>, []>(
-          "valueSet",
-          AddWinsCSet
-        );
-        let bobSet = bob.registerCrdt<AddWinsCSet<CCounter>, []>(
-          "valueSet",
-          AddWinsCSet
-        );
+        let aliceSet = alice.registerCrdt("valueSet", Pre(AddWinsCSet)());
+        let bobSet = bob.registerCrdt("valueSet", Pre(AddWinsCSet)());
 
         aliceSet.add(aliceCounter);
         assert.strictEqual(aliceSet.has(aliceCounter), true);
@@ -1013,11 +1002,8 @@ describe("standard", () => {
     let bobMap: LwwCMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.registerCrdt<LwwCMap<string, number>, []>(
-        "lwwMap",
-        LwwCMap
-      );
-      bobMap = bob.registerCrdt<LwwCMap<string, number>, []>("lwwMap", LwwCMap);
+      aliceMap = alice.registerCrdt("lwwMap", Pre(LwwCMap)());
+      bobMap = bob.registerCrdt("lwwMap", Pre(LwwCMap)());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -1273,7 +1259,7 @@ describe("standard", () => {
     let bobRegister: LwwCRegister<CNumber | undefined>;
 
     beforeEach(() => {
-      aliceSource = alice.registerPreCrdt(
+      aliceSource = alice.registerCrdt(
         "source",
         (childInitToken) =>
           new DeletingMutCSet(
@@ -1281,7 +1267,7 @@ describe("standard", () => {
             (valueInitToken) => new CNumber(valueInitToken)
           )
       );
-      bobSource = bob.registerPreCrdt(
+      bobSource = bob.registerCrdt(
         "source",
         (childInitToken) =>
           new DeletingMutCSet(
@@ -1289,12 +1275,12 @@ describe("standard", () => {
             (valueInitToken) => new CNumber(valueInitToken)
           )
       );
-      aliceRegister = alice.registerPreCrdt(
+      aliceRegister = alice.registerCrdt(
         "register",
         (childInitToken) =>
           new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
       );
-      bobRegister = bob.registerPreCrdt(
+      bobRegister = bob.registerCrdt(
         "register",
         (childInitToken) =>
           new LwwCRegister<CNumber | undefined>(childInitToken, undefined)

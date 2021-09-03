@@ -1,6 +1,6 @@
 import { Resettable } from "../../abilities";
 import { CompositeCrdt } from "../../constructions";
-import { Crdt, CrdtInitToken, PreCrdt } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import {
   ElementSerializer,
   DefaultElementSerializer,
@@ -34,27 +34,18 @@ export class MutCRegisterFromRegister<
    */
   constructor(
     initToken: CrdtInitToken,
-    registerCallback: (
-      registerInitToken: CrdtInitToken,
-      valueSerializer: ElementSerializer<C>
-    ) => RegT,
+    registerCallback: (valueSerializer: ElementSerializer<C>) => Pre<RegT>,
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: SetArgs) => C,
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(initToken);
     this.crdtFactory = this.addChild(
       "",
-      DeletingMutCSet,
-      valueConstructor,
-      [],
-      argsSerializer
+      Pre(DeletingMutCSet)(valueConstructor, [], argsSerializer)
     );
-    this.register = this.addChildPreCrdt(
+    this.register = this.addChild(
       "0",
-      PreCrdt.fromFunction(
-        registerCallback,
-        new CrdtSerializer(this.crdtFactory)
-      )
+      registerCallback(new CrdtSerializer(this.crdtFactory))
     );
 
     // Events
@@ -91,8 +82,7 @@ export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
   ) {
     super(
       initToken,
-      (registerValueSerializer) =>
-        new OptionalLwwCRegister(registerValueSerializer),
+      Pre(OptionalLwwCRegister),
       valueConstructor,
       argsSerializer
     );

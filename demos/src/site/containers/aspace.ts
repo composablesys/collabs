@@ -15,12 +15,12 @@ import { ContainerRuntimeSource } from "compoventuals-container";
     periodMs: 200,
   });
 
-  const text = runtime.registerCrdt("text", crdts.CText);
-  const startTime = runtime.registerPreCrdt(
+  const text = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
+  const startTime = runtime.registerCrdt(
     "startTime",
     (initToken) => new crdts.LwwCRegister<number>(initToken, 0)
   );
-  const winElapsedTime = runtime.registerPreCrdt(
+  const winElapsedTime = runtime.registerCrdt(
     "winElapsedTime",
     (initToken) => new crdts.LwwCRegister<number>(initToken, 0)
   );

@@ -1,5 +1,5 @@
 import { Resettable } from "../../abilities";
-import { Crdt, CrdtInitToken, PreCrdt } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { MergingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";
 import {
@@ -29,7 +29,7 @@ export class ResettingMutCList<C extends Crdt & Resettable>
     );
     super(
       initToken,
-      PreCrdt.fromClass(MergingMutCMap, valueConstructor, denseLocalList),
+      Pre(MergingMutCMap)(valueConstructor, denseLocalList),
       denseLocalList
     );
   }

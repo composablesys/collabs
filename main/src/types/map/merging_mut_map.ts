@@ -3,7 +3,7 @@ import {
   ElementSerializer,
   Optional,
 } from "../../util";
-import { Crdt, CrdtInitToken } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { AddWinsCSet } from "../set";
 import { AbstractCMapCompositeCrdt } from "./abstract_map";
@@ -26,11 +26,9 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
 
     this.internalMap = this.addChild(
       "",
-      ImplicitMergingMutCMap,
-      valueConstructor,
-      keySerializer
+      Pre(ImplicitMergingMutCMap)(valueConstructor, keySerializer)
     );
-    this.keySet = this.addChild("0", AddWinsCSet, keySerializer);
+    this.keySet = this.addChild("0", Pre(AddWinsCSet)(keySerializer));
 
     // Events
     this.internalMap.on("Set", (event) => {

@@ -18,28 +18,26 @@ export interface CrdtInitToken {
   parent: CrdtParent;
 }
 
-export type CrdtConstructor<C extends Crdt, Args extends any[]> = new (
-  initToken: CrdtInitToken,
-  ...args: Args
-) => C;
+/**
+ * Calling something Pre<C> indicates that it is one use.
+ * If you want a multi-user version, write out
+ * the function type explicitly instead (e.g. collection
+ * valueConstructor's), or use a function whose output is
+ * a Pre<C>.
+ *
+ * Usually C will be a Crdt type, but we allow more general
+ * types in case users make more general constructs that
+ * require an initToken (e.g., a Crdt + HTML component combo).
+ */
+export type Pre<C> = (initToken: CrdtInitToken) => C;
 
-export type PreCrdt<C extends Crdt> = (initToken: CrdtInitToken) => C;
-
-export const PreCrdt = {
-  fromClass<C extends Crdt, Args extends any[]>(
-    Class: CrdtConstructor<C, Args>,
-    ...constructorArgs: Args
-  ): PreCrdt<C> {
-    return (initToken) => new Class(initToken, ...constructorArgs);
-  },
-
-  fromFunction<C extends Crdt, Args extends any[]>(
-    func: (initToken: CrdtInitToken, ...args: Args) => C,
-    ...funcArgs: Args
-  ): PreCrdt<C> {
-    return (initToken) => func(initToken, ...funcArgs);
-  },
-};
+export function Pre<C, Args extends any[]>(
+  Class: new (initToken: CrdtInitToken, ...args: Args) => C
+): (...args: Args) => Pre<C> {
+  return (...args: Args) =>
+    (initToken: CrdtInitToken) =>
+      new Class(initToken, ...args);
+}
 
 /**
  * An event issued when a Crdt is changed by either

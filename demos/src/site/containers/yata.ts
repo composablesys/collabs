@@ -52,17 +52,16 @@ export class YataOp<T> extends crdts.CompositeCrdt {
     this.originId = originId;
     this.leftId = leftId;
     this.rightId = rightId;
-    this._deleted = this.addChildPreCrdt(
+    this._deleted = this.addChild(
       YataOp.deletedFlagCrdtName,
-      (childInitToken) => new crdts.LwwCRegister<boolean>(childInitToken, false)
+      crdts.Pre(crdts.LwwCRegister)<boolean>(false)
     );
     this.locallyDeleted = false;
     this.content = content;
     this.pos = pos;
-    this.attributes = this.addChildPreCrdt(
+    this.attributes = this.addChild(
       YataOp.attributesMapCrdtName,
-      (childInitToken) =>
-        new crdts.LwwCMap(childInitToken, undefined, undefined)
+      crdts.Pre(crdts.LwwCMap)(undefined, undefined)
     );
     this.attributesArg = attributes;
     this.originAttributesAtInput = originAttributesAtInput;
@@ -189,7 +188,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     super(initToken);
     this.defaultContent = defaultContent;
     let startOp!: YataOp<T>;
-    const startOpPre: crdts.PreCrdt<YataOp<T>> = (
+    const startOpPre: crdts.Pre<YataOp<T>> = (
       valueInitToken: crdts.CrdtInitToken
     ) => {
       startOp = new YataOp(
@@ -205,7 +204,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
       return startOp;
     };
     let endOp!: YataOp<T>;
-    const endOpPre: crdts.PreCrdt<YataOp<T>> = (
+    const endOpPre: crdts.Pre<YataOp<T>> = (
       valueInitToken: crdts.CrdtInitToken
     ) => {
       endOp = new YataOp(
@@ -221,8 +220,8 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
       return endOp;
     };
     const initialContentOps = new Array<YataOp<T>>();
-    const initialContentOpsPre: crdts.PreCrdt<YataOp<T>>[] =
-      initialContents.map((c, idx) => (valueInitToken: crdts.CrdtInitToken) => {
+    const initialContentOpsPre: crdts.Pre<YataOp<T>>[] = initialContents.map(
+      (c, idx) => (valueInitToken: crdts.CrdtInitToken) => {
         const op = new YataOp(
           valueInitToken,
           "",
@@ -235,67 +234,66 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
         );
         initialContentOps.push(op);
         return op;
-      });
-    this.opMap = this.addChildPreCrdt(
+      }
+    );
+    this.opMap = this.addChild(
       "nodeMap",
-      (childInitToken) =>
-        new crdts.DeletingMutCSet(
-          childInitToken,
-          (
-            valueInitToken: crdts.CrdtInitToken,
-            replicaId: string,
-            leftIntent: string,
-            rightIntent: string,
-            content: T,
-            originAttributesMapAtInput: Record<string, any>,
-            attributesMap: Record<string, any> = {}
-          ) => {
-            const originId = leftIntent;
-            let leftId = leftIntent;
-            while (this.op(leftId).rightId !== rightIntent) {
-              const o_id = this.op(leftId).rightId;
-              const o = this.op(this.op(leftId).rightId);
-              const i_origin = this.op(originId);
-              const o_origin = this.op(o.originId);
-              if (
-                (o.pos < i_origin.pos || i_origin.pos <= o_origin.pos) &&
-                (o.originId !== originId || o.creatorId < replicaId)
-              ) {
-                leftId = o_id;
-              } else {
-                if (i_origin.pos >= o_origin.pos) {
-                  break;
-                }
+      crdts.Pre(crdts.DeletingMutCSet)(
+        (
+          valueInitToken: crdts.CrdtInitToken,
+          replicaId: string,
+          leftIntent: string,
+          rightIntent: string,
+          content: T,
+          originAttributesMapAtInput: Record<string, any>,
+          attributesMap: Record<string, any> = {}
+        ) => {
+          const originId = leftIntent;
+          let leftId = leftIntent;
+          while (this.op(leftId).rightId !== rightIntent) {
+            const o_id = this.op(leftId).rightId;
+            const o = this.op(this.op(leftId).rightId);
+            const i_origin = this.op(originId);
+            const o_origin = this.op(o.originId);
+            if (
+              (o.pos < i_origin.pos || i_origin.pos <= o_origin.pos) &&
+              (o.originId !== originId || o.creatorId < replicaId)
+            ) {
+              leftId = o_id;
+            } else {
+              if (i_origin.pos >= o_origin.pos) {
+                break;
               }
             }
-            const rightId = this.op(leftId).rightId;
-            // TODO: Replace this with a binary tree (rbtree)
-            const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
-            const originAttributesEntriesAtCreate = [
-              ...this.op(originId).attributes.entries(),
-            ];
-            for (const [key, value] of originAttributesEntriesAtCreate) {
-              if (
-                attributesMap[key] !== value &&
-                attributesMap[key] === originAttributesMapAtInput[key]
-              ) {
-                attributesMap[key] = value;
-              }
+          }
+          const rightId = this.op(leftId).rightId;
+          // TODO: Replace this with a binary tree (rbtree)
+          const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
+          const originAttributesEntriesAtCreate = [
+            ...this.op(originId).attributes.entries(),
+          ];
+          for (const [key, value] of originAttributesEntriesAtCreate) {
+            if (
+              attributesMap[key] !== value &&
+              attributesMap[key] === originAttributesMapAtInput[key]
+            ) {
+              attributesMap[key] = value;
             }
-            return new YataOp<T>(
-              valueInitToken,
-              replicaId,
-              originId,
-              leftId,
-              rightId,
-              content,
-              pos,
-              originAttributesMapAtInput,
-              Object.entries(attributesMap)
-            );
-          },
-          [startOpPre, endOpPre, ...initialContentOpsPre]
-        )
+          }
+          return new YataOp<T>(
+            valueInitToken,
+            replicaId,
+            originId,
+            leftId,
+            rightId,
+            content,
+            pos,
+            originAttributesMapAtInput,
+            Object.entries(attributesMap)
+          );
+        },
+        [startOpPre, endOpPre, ...initialContentOpsPre]
+      )
     );
     this.opMap.on("Add", this.opMapAddEventHandler(this)); // TODO: Change to ValueInit
 

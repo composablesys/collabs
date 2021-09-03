@@ -1,10 +1,4 @@
-import {
-  Crdt,
-  CrdtEventsRecord,
-  CausalTimestamp,
-  CrdtConstructor,
-  PreCrdt,
-} from "../core";
+import { Crdt, CrdtEventsRecord, CausalTimestamp, Pre } from "../core";
 
 /**
  * TODO: usage.
@@ -38,25 +32,11 @@ export class CompositeCrdt<
    *
    * @return child
    */
-  protected addChild<D extends C, Args extends any[]>(
-    name: string,
-    childClass: CrdtConstructor<D, Args>,
-    ...childConstructorArgs: Args
-  ): D {
-    return this.addChildPreCrdt(
-      name,
-      PreCrdt.fromClass(childClass, ...childConstructorArgs)
-    );
-  }
-
-  protected addChildPreCrdt<D extends C>(
-    name: string,
-    childPreCrdt: PreCrdt<D>
-  ): D {
+  protected addChild<D extends C>(name: string, preChild: Pre<D>): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
-    const child = childPreCrdt({ name, parent: this });
+    const child = preChild({ name, parent: this });
     this.children.set(name, child);
     return child;
   }

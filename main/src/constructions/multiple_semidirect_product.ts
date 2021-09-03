@@ -7,7 +7,7 @@ import {
   Crdt,
   CrdtEventsRecord,
   CrdtInitToken,
-  PreCrdt,
+  Pre,
   Runtime,
 } from "../core";
 import { StatefulCrdt } from "./semidirect_product";
@@ -333,8 +333,8 @@ export abstract class MultipleSemidirectProduct<
    * Must be called after setupState, and in arbitration order
    * (ascending).
    */
-  protected setupOneCrdt<C extends StatefulCrdt<S>>(crdtPre: PreCrdt<C>): C {
-    const crdt = crdtPre({ name: "crdt" + this.crdts.length, parent: this });
+  protected setupOneCrdt<C extends StatefulCrdt<S>>(preCrdt: Pre<C>): C {
+    const crdt = preCrdt({ name: "crdt" + this.crdts.length, parent: this });
     // @ts-ignore Ignore readonly
     crdt.state = this.state.internalState;
     this.crdts.push(crdt);

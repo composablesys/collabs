@@ -9,7 +9,7 @@ import {
   ImplicitMergingMutCMap,
   MergingMutCMap,
   OptionalLwwCRegister,
-  PreCrdt,
+  Pre,
   PrimitiveCList,
   TextSerializer,
 } from "compoventuals";
@@ -45,17 +45,14 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
 
     let keySerializer: ElementSerializer<string> =
       DefaultElementSerializer.getInstance();
-    this.internalMap = this.addChildPreCrdt(
+    this.internalMap = this.addChild(
       "internalMap",
-      (childInitToken) =>
-        new MergingMutCMap(
-          childInitToken,
-          (valueInitToken) => new OptionalLwwCRegister(valueInitToken),
-          keySerializer
-        )
+      Pre(MergingMutCMap)(
+        Pre(OptionalLwwCRegister)<string | number | boolean>(keySerializer)
+      )
     );
 
-    this.ImplicitMergingMutCMap = this.addChildPreCrdt(
+    this.ImplicitMergingMutCMap = this.addChild(
       "ImplicitMergingMutCMap",
       (childInitToken) =>
         new ImplicitMergingMutCMap(
@@ -193,8 +190,8 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     this.set(key, InternalType.List);
   }
 
-  addExtChild(name: string, child: PreCrdt<Crdt>) {
-    this.addChildPreCrdt(name, child);
+  addExtChild(name: string, child: Pre<Crdt>) {
+    this.addChild(name, child);
   }
 }
 
@@ -202,15 +199,10 @@ export class JsonCursor {
   private internal: JsonCrdt;
   private cursor: string;
 
-  // TODO: not sure how to allow internal = undefined
-  // given the need for a CrdtInitToken.
-  // constructor(internal?: JsonCrdt, cursor?: string) {
-  //   if (!internal) internal = new JsonCrdt();
-  //   this.internal = internal;
-  //
-  //   if (!cursor) cursor = ":";
-  //   this.cursor = cursor;
-  // }
+  static new(): Pre<JsonCursor> {
+    return (initToken: CrdtInitToken) =>
+      new JsonCursor(new JsonCrdt(initToken));
+  }
 
   constructor(internal: JsonCrdt, cursor?: string) {
     this.internal = internal;

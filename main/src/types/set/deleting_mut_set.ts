@@ -13,7 +13,7 @@ import {
   Crdt,
   CrdtEventsRecord,
   CrdtInitToken,
-  PreCrdt,
+  Pre,
 } from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
 import { Resettable } from "../../abilities";
@@ -111,7 +111,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       ...args: AddArgs
     ) => C,
     /*initialValuesArgs: AddArgs[] = [],*/
-    initialValues: PreCrdt<C>[] = [],
+    initialValues: Pre<C>[] = [],
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(initToken);

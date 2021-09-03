@@ -4,7 +4,7 @@ import {
   CrdtEvent,
   CrdtEventsRecord,
   CrdtInitToken,
-  PreCrdt,
+  Pre,
 } from "../../core";
 import {
   PrimitiveCrdt,
@@ -135,8 +135,8 @@ export class CNumber extends SemidirectProduct<
 
     const state = new CNumberState(initialValue);
     [this.addCrdt, this.multCrdt] = super.setup(
-      PreCrdt.fromClass(AddComponent, state),
-      PreCrdt.fromClass(MultComponent, state),
+      Pre(AddComponent)(state),
+      Pre(MultComponent)(state),
       state
     );
 

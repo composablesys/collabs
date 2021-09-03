@@ -1,4 +1,4 @@
-import { CrdtInitToken, PreCrdt } from "../../core";
+import { CrdtInitToken, Pre } from "../../core";
 import { CMap } from "../map";
 import { AbstractCListCompositeCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
@@ -14,12 +14,12 @@ export class CListFromMap<
 
   constructor(
     initToken: CrdtInitToken,
-    map: PreCrdt<MapT>,
+    map: Pre<MapT>,
     protected readonly denseLocalList: DenseT
   ) {
     super(initToken);
 
-    this.internalMap = this.addChildPreCrdt("", map);
+    this.internalMap = this.addChild("", map);
 
     // Maintain denseLocalList as a view of map's keys.
     // Also emit events.

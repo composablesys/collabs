@@ -3,7 +3,7 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
@@ -34,17 +34,13 @@ export class TombstoneMutCSet<
 
     this.mutSet = this.addChild(
       "",
-      DeletingMutCSet,
-      valueConstructor,
-      undefined,
-      argsSerializer
+      Pre(DeletingMutCSet)(valueConstructor, undefined, argsSerializer)
     );
     // Use a custom serializer that uses mutSet's ids instead
     // of full pathToRoot's, for network efficiency.
     this.members = this.addChild(
       "0",
-      AddWinsCSet,
-      new CrdtSerializer<C>(this.mutSet)
+      Pre(AddWinsCSet)(new CrdtSerializer<C>(this.mutSet))
     );
 
     // Events

@@ -1,6 +1,6 @@
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import { Crdt, Runtime, TestingNetworkGenerator } from "compoventuals";
+import { Crdt, Pre, Runtime, TestingNetworkGenerator } from "compoventuals";
 import {
   conversions,
   TensorAverageCrdt,
@@ -99,15 +99,11 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCrdt(
         "counterId",
-        TensorGCounterCrdt,
-        shape,
-        "float32"
+        Pre(TensorGCounterCrdt)(shape, "float32")
       );
       bobCounter = bob.registerCrdt(
         "counterId",
-        TensorGCounterCrdt,
-        shape,
-        "float32"
+        Pre(TensorGCounterCrdt)(shape, "float32")
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -227,15 +223,11 @@ describe("tensor", () => {
         const dtype = "float32";
         const aliceCounter = alice.registerCrdt(
           "counterId2",
-          TensorGCounterCrdt,
-          shape,
-          dtype
+          Pre(TensorGCounterCrdt)(shape, dtype)
         );
         const bobCounter = bob.registerCrdt(
           "counterId2",
-          TensorGCounterCrdt,
-          shape,
-          dtype
+          Pre(TensorGCounterCrdt)(shape, dtype)
         );
         const identity = tf.eye(shape[0], shape[1], undefined, "float32");
         const tensor1 = identity.mul(2);
@@ -270,15 +262,11 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCrdt(
         "counterId",
-        TensorCounterCrdt,
-        shape,
-        "float32"
+        Pre(TensorCounterCrdt)(shape, "float32")
       );
       bobCounter = bob.registerCrdt(
         "counterId",
-        TensorCounterCrdt,
-        shape,
-        "float32"
+        Pre(TensorCounterCrdt)(shape, "float32")
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -400,11 +388,12 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceAvg = alice.registerCrdt(
         "avgId",
-        TensorAverageCrdt,
-        shape,
-        "float32"
+        Pre(TensorAverageCrdt)(shape, "float32")
       );
-      bobAvg = bob.registerCrdt("avgId", TensorAverageCrdt, shape, "float32");
+      bobAvg = bob.registerCrdt(
+        "avgId",
+        Pre(TensorAverageCrdt)(shape, "float32")
+      );
       if (debug) {
         addEventListeners(aliceAvg, "Alice");
         addEventListeners(bobAvg, "Bob");
