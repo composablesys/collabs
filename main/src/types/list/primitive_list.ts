@@ -452,7 +452,7 @@ export class PrimitiveCList<T>
   ) {
     super(
       initToken,
-      new TreedocDenseLocalList(initToken.parent.runtime),
+      new TreedocDenseLocalList(initToken.runtime),
       valueSerializer,
       valueArraySerializer
     );

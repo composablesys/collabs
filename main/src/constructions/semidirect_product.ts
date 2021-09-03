@@ -334,8 +334,12 @@ export abstract class SemidirectProduct<
     preCrdt2: Pre<C2>,
     initialState: S
   ): [C1, C2] {
-    const crdt1 = preCrdt1({ name: SemidirectProduct.crdt1Name, parent: this });
-    const crdt2 = preCrdt2({ name: SemidirectProduct.crdt2Name, parent: this });
+    const crdt1 = preCrdt1(
+      new CrdtInitToken(SemidirectProduct.crdt1Name, this)
+    );
+    const crdt2 = preCrdt2(
+      new CrdtInitToken(SemidirectProduct.crdt2Name, this)
+    );
     this.state.internalState = initialState;
     this.crdt1 = crdt1;
     this.crdt2 = crdt2;

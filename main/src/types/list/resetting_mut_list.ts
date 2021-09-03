@@ -25,7 +25,7 @@ export class ResettingMutCList<C extends Crdt & Resettable>
     ) => C
   ) {
     const denseLocalList = new TreedocDenseLocalList<undefined>(
-      initToken.parent.runtime
+      initToken.runtime
     );
     super(
       initToken,

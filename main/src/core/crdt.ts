@@ -1,21 +1,30 @@
 import { EventEmitter } from "../util";
 import { CausalTimestamp } from "./causal_broadcast_network";
-import { RootParent } from "./root_parent";
+import { isRuntime } from "./is_runtime";
 import { Runtime } from "./runtime";
 
 /**
- * A Crdt that can be a parent to other Crdts.
+ * A parent of a Crdt.  Only the root has Runtime as its
+ * parent; the rest have a Crdt as their parent.
  */
-export type CrdtParent = Crdt | RootParent;
+export type CrdtParent = Crdt | Runtime;
 
 /**
  * Used to initialize a Crdt.  A token {name, parent} must
  * ONLY be created and used by parent itself, to construct
  * a Crdt that it is adding as a child.
  */
-export interface CrdtInitToken {
-  name: string;
-  parent: CrdtParent;
+export class CrdtInitToken {
+  /**
+   * Must ONLY be called and used by parent itself, to construct
+   * a Crdt that it is adding as a child.
+   */
+  constructor(readonly name: string, readonly parent: CrdtParent) {}
+
+  get runtime(): Runtime {
+    if (isRuntime(this.parent)) return this.parent;
+    else return this.parent.runtime;
+  }
 }
 
 /**
@@ -123,7 +132,7 @@ export abstract class Crdt<
 
   constructor(initToken: CrdtInitToken) {
     super();
-    this.runtime = initToken.parent.runtime;
+    this.runtime = initToken.runtime;
     this.parent = initToken.parent;
     this.name = initToken.name;
   }
@@ -138,7 +147,7 @@ export abstract class Crdt<
     let ans = [];
     for (
       let current: Crdt = this;
-      !(current.parent instanceof RootParent);
+      !isRuntime(current.parent);
       current = current.parent
     ) {
       ans.push(current.name);

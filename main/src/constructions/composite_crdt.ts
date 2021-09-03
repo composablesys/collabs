@@ -1,4 +1,10 @@
-import { Crdt, CrdtEventsRecord, CausalTimestamp, Pre } from "../core";
+import {
+  Crdt,
+  CrdtEventsRecord,
+  CausalTimestamp,
+  Pre,
+  CrdtInitToken,
+} from "../core";
 
 /**
  * TODO: usage.
@@ -36,7 +42,7 @@ export class CompositeCrdt<
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
-    const child = preChild({ name, parent: this });
+    const child = preChild(new CrdtInitToken(name, this));
     this.children.set(name, child);
     return child;
   }

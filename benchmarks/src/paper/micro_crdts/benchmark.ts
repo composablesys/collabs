@@ -717,7 +717,7 @@ function PrimitiveCListRandomGrow() {
 function rgaCrdtConstructor(initToken: crdts.CrdtInitToken) {
   return new crdts.PrimitiveCListFromDenseLocalList(
     initToken,
-    new crdts.RgaDenseLocalList<string>(initToken.parent.runtime),
+    new crdts.RgaDenseLocalList<string>(initToken.runtime),
     crdts.TextSerializer.instance,
     crdts.TextArraySerializer.instance
   );

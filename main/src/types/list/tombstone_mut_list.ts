@@ -3,7 +3,7 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken, Pre, RootParent } from "../../core";
+import { Crdt, CrdtInitToken, Pre, isRuntime } from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
@@ -40,7 +40,7 @@ export class TombstoneMutCList<
       initToken,
       Pre(TombstoneMutCSet),
       ConstructorAsFunction(LwwCRegister),
-      new TreedocDenseLocalList(initToken.parent.runtime),
+      new TreedocDenseLocalList(initToken.runtime),
       valueConstructor,
       argsSerializer
     );
@@ -49,7 +49,7 @@ export class TombstoneMutCList<
   owns(value: C): boolean {
     // Avoid errors from value.parent in case it
     // is the root.
-    if (value.parent instanceof RootParent) return false;
+    if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
       value.parent as MovableMutCListEntry<

@@ -1,5 +1,11 @@
 import { CMountPointSave } from "../../generated/proto_compiled";
-import { CausalTimestamp, Crdt, CrdtEventsRecord, Pre } from "../core";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventsRecord,
+  CrdtInitToken,
+  Pre,
+} from "../core";
 
 export interface CMountPointEventsRecord extends CrdtEventsRecord {
   /**
@@ -104,7 +110,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
     if (this.toMount !== undefined) {
       throw new Error("prepareMount called twice");
     }
-    const toMount = preToMount({ name: "", parent: this });
+    const toMount = preToMount(new CrdtInitToken("", this));
     this.toMount = toMount;
     return toMount;
   }

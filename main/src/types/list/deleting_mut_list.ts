@@ -1,5 +1,5 @@
 import { Resettable } from "../../abilities";
-import { Crdt, CrdtInitToken, Pre, RootParent } from "../../core";
+import { Crdt, CrdtInitToken, Pre, isRuntime } from "../../core";
 import {
   ConstructorAsFunction,
   DefaultElementSerializer,
@@ -50,7 +50,7 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
       (setValueConstructor, setArgsSerializer) =>
         Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
       ConstructorAsFunction(LwwCRegister),
-      new TreedocDenseLocalList(initToken.parent.runtime),
+      new TreedocDenseLocalList(initToken.runtime),
       valueConstructor,
       argsSerializer
     );
@@ -59,7 +59,7 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
   owns(value: C): boolean {
     // Avoid errors from value.parent in case it
     // is the root.
-    if (value.parent instanceof RootParent) return false;
+    if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
       value.parent as MovableMutCListEntry<

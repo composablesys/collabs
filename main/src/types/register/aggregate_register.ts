@@ -123,7 +123,7 @@ export abstract class AggregateArgsCRegister<
 
   private constructValue(argsSerialized: Uint8Array): S {
     return this.valueConstructor(
-      ...this.argsSerializer.deserialize(argsSerialized, this.parent.runtime)
+      ...this.argsSerializer.deserialize(argsSerialized, this.runtime)
     );
   }
 

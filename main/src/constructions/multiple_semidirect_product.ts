@@ -334,7 +334,7 @@ export abstract class MultipleSemidirectProduct<
    * (ascending).
    */
   protected setupOneCrdt<C extends StatefulCrdt<S>>(preCrdt: Pre<C>): C {
-    const crdt = preCrdt({ name: "crdt" + this.crdts.length, parent: this });
+    const crdt = preCrdt(new CrdtInitToken("crdt" + this.crdts.length, this));
     // @ts-ignore Ignore readonly
     crdt.state = this.state.internalState;
     this.crdts.push(crdt);

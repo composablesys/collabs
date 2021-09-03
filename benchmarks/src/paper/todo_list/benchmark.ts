@@ -604,7 +604,7 @@ class CTextRga
   constructor(initToken: crdts.CrdtInitToken) {
     super(
       initToken,
-      new crdts.RgaDenseLocalList<string>(initToken.parent.runtime),
+      new crdts.RgaDenseLocalList<string>(initToken.runtime),
       crdts.TextSerializer.instance,
       crdts.TextArraySerializer.instance
     );
@@ -635,7 +635,7 @@ class ResettingMutCListRga<C extends crdts.Crdt & crdts.Resettable>
     ) => C
   ) {
     const denseLocalList = new crdts.RgaDenseLocalList<undefined>(
-      initToken.parent.runtime
+      initToken.runtime
     );
     super(
       initToken,
@@ -912,7 +912,7 @@ class DeletingMutCListRga<
           setArgsSerializer
         ),
       crdts.ConstructorAsFunction(crdts.LwwCRegister),
-      new crdts.RgaDenseLocalList(initToken.parent.runtime),
+      new crdts.RgaDenseLocalList(initToken.runtime),
       valueConstructor,
       argsSerializer
     );
@@ -933,7 +933,7 @@ function compoMovableCrdtRga() {
       this.text = this.addChild(
         "text",
         crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
-          new crdts.RgaDenseLocalList<string>(initToken.parent.runtime),
+          new crdts.RgaDenseLocalList<string>(initToken.runtime),
           crdts.TextSerializer.instance,
           crdts.TextArraySerializer.instance
         )

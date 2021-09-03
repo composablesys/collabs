@@ -3,7 +3,7 @@ import {
   ElementSerializer,
   PairSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken, Pre, RootParent } from "../../core";
+import { Crdt, CrdtInitToken, isRuntime, Pre } from "../../core";
 import { CRegister } from "../register";
 import { CSet } from "../set";
 import { AbstractCListCompositeCrdt } from "./abstract_list";
@@ -218,7 +218,7 @@ export class MovableMutCListFromSet<
   indexOf(searchElement: C, fromIndex = 0): number {
     // Avoid errors from searchElement.parent in case it
     // is the root.
-    if (searchElement.parent instanceof RootParent) return -1;
+    if (isRuntime(searchElement.parent)) return -1;
 
     if (
       this.set.has(searchElement.parent as MovableMutCListEntry<C, L, RegT>)

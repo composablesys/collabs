@@ -9,7 +9,7 @@ import {
   EventEmitter,
   stringAsArray,
 } from "../util";
-import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
+import { Crdt, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
   CausalTimestamp,
@@ -20,7 +20,6 @@ import {
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
 import { CompositeCrdt } from "../constructions";
-import { RootParent } from "./root_parent";
 
 class RootCrdt extends CompositeCrdt {
   /**
@@ -133,6 +132,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private pendingBatch: BatchInfo | null = null;
   private loadAllowed = true;
 
+  readonly isRuntime = true;
+
   /**
    * TODO.
    * @param readonlynetwork [description]
@@ -161,10 +162,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
     this.network.register(this);
     // Create this.rootCrdt
-    this.rootCrdt = new RootCrdt({
-      name: "",
-      parent: new RootParent(this),
-    });
+    this.rootCrdt = new RootCrdt(new CrdtInitToken("", this));
     this.rootCrdt.on("Change", (event) => this.emit("Change", event));
     // Process batchOptions
     if (typeof batchOptions === "object") {

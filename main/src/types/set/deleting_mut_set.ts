@@ -140,7 +140,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
           '(initial value) Duplicate newCrdt name: "' + name + '"'
         );
       }
-      const newCrdt = initialValues[i]({ name, parent: this });
+      const newCrdt = initialValues[i](new CrdtInitToken(name, this));
       this.children.set(name, newCrdt);
 
       // Initial values are not added to this.constructorArgs,
@@ -226,7 +226,10 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
-    const newValue = this.valueConstructor({ name, parent: this }, ...args);
+    const newValue = this.valueConstructor(
+      new CrdtInitToken(name, this),
+      ...args
+    );
     this.children.set(name, newValue);
     if (!isInitialValue) {
       // Initial values are not saved, since they are created
@@ -252,7 +255,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       // are defined properly in case the Crdt gets
       // re-serialized (e.g. during saving of whatever
       // holds a reference to it).
-      return FakeDeletedCrdt.of({ name, parent: this });
+      return FakeDeletedCrdt.of(new CrdtInitToken(name, this));
     }
     return child;
   }

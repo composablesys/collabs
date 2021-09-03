@@ -82,7 +82,7 @@ export class GrowOnlyImplicitMergingMutCMap<
       if (value === undefined) {
         // Create it, but only in the backup map,
         // since it is currently GC-able
-        value = this.valueConstructor({ name: keyString, parent: this }, key);
+        value = this.valueConstructor(new CrdtInitToken(keyString, this), key);
 
         if (this.inLoad) {
           // We can assume value will be nontrivial once

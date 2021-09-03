@@ -391,7 +391,7 @@ class ResettingMutCListRga<
     ) => C
   ) {
     const denseLocalList = new crdts.RgaDenseLocalList<undefined>(
-      initToken.parent.runtime
+      initToken.runtime
     );
     super(
       initToken,
