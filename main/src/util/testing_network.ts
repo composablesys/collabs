@@ -7,7 +7,7 @@ import {
 export class TestingNetwork implements BroadcastNetwork {
   sentBytes = 0;
   receivedBytes = 0;
-  onReceive!: (message: Uint8Array) => void;
+  onreceive!: (message: Uint8Array) => void;
   constructor(private generator: TestingNetworkGenerator) {}
   send(message: Uint8Array): void {
     this.sentBytes += message.byteLength;
@@ -101,7 +101,7 @@ export class TestingNetworkGenerator {
       if (recipient === sender) continue;
       for (let queued of senderMap.get(recipient)!) {
         recipient.receivedBytes += queued.byteLength;
-        recipient.onReceive!(queued);
+        recipient.onreceive!(queued);
       }
       senderMap.set(recipient, []);
     }

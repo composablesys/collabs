@@ -25,11 +25,9 @@ import { VectorClock } from "./vector_clock";
  */
 export interface BroadcastNetwork {
   /**
-   * Variable set by the using network (either a
-   * DefaultCausalBroadcastNetwork or a chained
-   * BroadcastNetwork).
+   * Variable set by the using network.
    */
-  onReceive: (message: Uint8Array) => void;
+  onreceive: (message: Uint8Array) => void;
   /**
    * Used by DefaultCausalBroadcastNetwork
    * to send a broadcast message. This message should be
@@ -142,6 +140,10 @@ class myMessage {
  * Perform casuality check to ensure message ordering.
  */
 export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
+  onreceive!: (
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp
+  ) => CausalTimestamp;
   /**
    * Registered Runtime.
    */
@@ -180,7 +182,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
      * Register EventListener with corresponding event handler.
      */
     this.broadcastNetwork = broadcastNetwork;
-    this.broadcastNetwork.onReceive = this.receive.bind(this);
+    this.broadcastNetwork.onreceive = this.receive.bind(this);
   }
   /**
    * Parse JSON format data back into myMessage type.
@@ -189,8 +191,8 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param message
    */
-  receive(message: Uint8Array) {
-    let parsed = myMessage.deserialize(message, this.crdtRuntime.replicaId);
+  private receive(message: Uint8Array) {
+    let parsed = myMessage.deserialize(message, this.runtime.replicaId);
     this.messageBuffer.push(parsed);
     this.checkMessageBuffer();
   }
@@ -199,7 +201,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param runtime
    */
-  register(runtime: Runtime): void {
+  setRuntime(runtime: Runtime): void {
     this.runtime = runtime;
     this.vc = new VectorClock(this.runtime.replicaId, true, -1);
   }
@@ -297,7 +299,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         /**
          * Send back the received message to runtime.
          */
-        let lastTimestamp = this.runtime.receive(
+        let lastTimestamp = this.onreceive(
           this.messageBuffer[index].message,
           curVectorClock
         );
@@ -324,10 +326,6 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
       }
     }
     this.bufferCheckIndex = this.messageBuffer.length;
-  }
-
-  get crdtRuntime(): Runtime {
-    return this.runtime;
   }
 
   serialize(value: CausalTimestamp): Uint8Array {

@@ -1,8 +1,8 @@
 // First attempt at the interface between the runtime
 // (causal broadcast network, etc.) and the Crdts.
 
-import { Runtime } from "./runtime";
 import { ElementSerializer } from "../util";
+import { Runtime } from "./runtime";
 
 /**
  * Interface describing the causal timestamps that
@@ -63,13 +63,17 @@ export interface CausalTimestamp {
 export interface CausalBroadcastNetwork
   extends ElementSerializer<CausalTimestamp> {
   /**
-   * Registers the given Runtime to receive messages
-   * from other replicas.  Such messages should be delivered
-   * to crdtRuntime.receive.  This method will be
-   * called exactly once, before any other methods.
-   * @param crdtRuntime The Runtime.
+   * Called by the using Runtime.
    */
-  register(crdtRuntime: Runtime): void;
+  setRuntime(runtime: Runtime): void;
+
+  /**
+   * Variable set by the using Runtime.
+   */
+  onreceive: (
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp
+  ) => CausalTimestamp;
 
   /**
    * Return the timestamp for the next message sent by previous' sender

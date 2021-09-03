@@ -160,7 +160,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     } else {
       this.network = new DefaultCausalBroadcastNetwork(network);
     }
-    this.network.register(this);
+    this.network.onreceive = this.receive.bind(this);
+    this.network.setRuntime(this);
     // Create this.rootCrdt
     this.rootCrdt = new RootCrdt(new CrdtInitToken("", this));
     this.rootCrdt.on("Change", (event) => this.emit("Change", event));
@@ -308,7 +309,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    *
    * Returns the CausalTimestamp of the last message processed.
    */
-  receive(
+  private receive(
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ): CausalTimestamp {
