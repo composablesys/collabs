@@ -28,8 +28,7 @@ describe("list", () => {
     let aliceId: string;
 
     beforeEach(() => {
-      source = new TreedocDenseLocalList();
-      source.setRuntime(alice);
+      source = new TreedocDenseLocalList(alice);
       aliceId = alice.replicaId;
     });
 
@@ -358,8 +357,10 @@ describe("list", () => {
 
   describe("TreedocDenseLocalList generic tests", () => {
     const sequenceSources = {
-      TreedocDenseLocalList: () => new TreedocDenseLocalList(),
-      RgaDenseLocalList: () => new RgaDenseLocalList(),
+      TreedocDenseLocalList: (runtime: Runtime) =>
+        new TreedocDenseLocalList(runtime),
+      // TODO: actualy use RgaDenseLocalList
+      // RgaDenseLocalList: (runtime: Runtime) => new RgaDenseLocalList(runtime),
     };
     for (let entry of Object.entries(sequenceSources)) {
       describe(entry[0], () => {
@@ -398,10 +399,8 @@ describe("list", () => {
         }
 
         beforeEach(() => {
-          aliceSource = new TreedocDenseLocalList();
-          aliceSource.setRuntime(alice);
-          bobSource = new TreedocDenseLocalList();
-          bobSource.setRuntime(bob);
+          aliceSource = new TreedocDenseLocalList(alice);
+          bobSource = new TreedocDenseLocalList(bob);
         });
 
         it("works for basic insertion", () => {

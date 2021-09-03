@@ -7,7 +7,7 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import { BundleAnalyzerPlugin } from "webpack-bundle-analyzer";
 
 const config: webpack.Configuration = {
-  mode: "production",
+  mode: "development",
   devtool: false,
   optimization: {
     usedExports: true,

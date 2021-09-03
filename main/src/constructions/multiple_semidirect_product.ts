@@ -6,10 +6,10 @@ import {
   CausalTimestamp,
   Crdt,
   CrdtEventsRecord,
-  CrdtParent,
+  CrdtInitToken,
+  Pre,
   Runtime,
 } from "../core";
-import { LocallyResettableState } from "./reset_wrapper_crdt";
 import { StatefulCrdt } from "./semidirect_product";
 
 class StoredMessage {
@@ -31,7 +31,7 @@ class StoredMessage {
   }
 }
 
-class MultipleSemidirectStateBase<S extends Object> {
+class MultipleSemidirectState<S extends Object> {
   protected receiptCounter = 0;
   // H maps i (arb index) -> history of messages from that CRDT
   protected history: Map<number, Array<StoredMessage>> = new Map();
@@ -127,7 +127,7 @@ class MultipleSemidirectStateBase<S extends Object> {
       let vcEntry = vc.get(senderHistory[0].sender);
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = MultipleSemidirectStateBase.indexAfter(
+        let concurrentIndexStart = MultipleSemidirectState.indexAfter(
           senderHistory,
           vcEntry
         );
@@ -283,29 +283,12 @@ class MultipleSemidirectStateBase<S extends Object> {
   }
 }
 
-class MultipleSemidirectStateLocallyResettable<S extends LocallyResettableState>
-  extends MultipleSemidirectStateBase<S>
-  implements LocallyResettableState
-{
-  resetLocalState(timestamp: CausalTimestamp) {
-    this.receiptCounter = 0;
-    this.history.clear();
-    this.internalState.resetLocalState(timestamp);
-  }
-}
-
-// TODO: instead of subclass, have interface for all-but-reset part of
-// SemidirectState, then have just one class including reset?
-export type MultipleSemidirectState<S> = S extends LocallyResettableState
-  ? MultipleSemidirectStateBase<S> & LocallyResettableState
-  : MultipleSemidirectStateBase<S>;
-
 export abstract class MultipleSemidirectProduct<
     S extends Object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<MultipleSemidirectState<S>>, CrdtParent
+  implements StatefulCrdt<MultipleSemidirectState<S>>
 {
   readonly state: MultipleSemidirectState<S>;
 
@@ -313,15 +296,13 @@ export abstract class MultipleSemidirectProduct<
    * TODO
    * @param historyTimestamps=false        [description]
    */
-  constructor(historyTimestamps = false) {
-    super();
+  constructor(initToken: CrdtInitToken, historyTimestamps = false) {
+    super(initToken);
     // Types are hacked a bit here to make implementation simpler
-    this.state = new MultipleSemidirectStateLocallyResettable<
-      S & LocallyResettableState
-    >(historyTimestamps) as MultipleSemidirectState<S>;
+    this.state = new MultipleSemidirectState(historyTimestamps);
   }
 
-  protected crdts!: Array<StatefulCrdt<S>>;
+  protected crdts: Array<StatefulCrdt<S>> = [];
 
   /**
    * TODO
@@ -344,40 +325,20 @@ export abstract class MultipleSemidirectProduct<
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
-  protected setup(crdts: Array<StatefulCrdt<S>>, initialState: S) {
+  protected setupState(initialState: S) {
     this.state.internalState = initialState;
-    this.crdts = crdts;
-    crdts.forEach((crdt) => {
-      // @ts-ignore Ignore readonly
-      crdt.state = initialState;
-    });
-
-    if (this.afterInit) this.initChildren();
   }
 
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    if (this.crdts[0] !== undefined) {
-      this.initChildren();
-    }
-  }
-
-  private initChildren() {
-    for (let i = 0; i < this.crdts.length; i++) {
-      let crdt = this.crdts[i];
-      this.childBeingAdded = crdt;
-      crdt.init("crdt" + i.toString(), this);
-    }
-  }
-
-  private childBeingAdded?: Crdt;
-  onChildInit(child: Crdt) {
-    if (child != this.childBeingAdded) {
-      throw new Error(
-        "this was passed to Crdt.init as parent externally" +
-          " (use this.setup instead)"
-      );
-    }
+  /**
+   * Must be called after setupState, and in arbitration order
+   * (ascending).
+   */
+  protected setupOneCrdt<C extends StatefulCrdt<S>>(preCrdt: Pre<C>): C {
+    const crdt = preCrdt(new CrdtInitToken("crdt" + this.crdts.length, this));
+    // @ts-ignore Ignore readonly
+    crdt.state = this.state.internalState;
+    this.crdts.push(crdt);
+    return crdt;
   }
 
   // The resulting message mact is then applied to σ and added to the history.

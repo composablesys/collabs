@@ -114,18 +114,13 @@ export class TreedocLocWrapper {
 export class TreedocDenseLocalList<T>
   implements DenseLocalList<TreedocLocWrapper, T>
 {
-  runtime!: Runtime;
   private tree: RBTree<TreedocLocWrapper, T>;
   // Indexed by serialized string
   readonly anchorCache: WeakValueMap<string, TreedocLoc>;
 
-  constructor() {
+  constructor(readonly runtime: Runtime) {
     this.tree = createRBTree(this.compareWrappers.bind(this));
     this.anchorCache = new WeakValueMap();
-  }
-
-  setRuntime(runtime: Runtime): void {
-    this.runtime = runtime;
   }
 
   private checkIndex(index: number) {

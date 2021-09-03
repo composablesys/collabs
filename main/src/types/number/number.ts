@@ -1,5 +1,11 @@
 import { CNumberComponentMessage } from "../../../generated/proto_compiled";
-import { CausalTimestamp, CrdtEvent, CrdtEventsRecord } from "../../core";
+import {
+  CausalTimestamp,
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtInitToken,
+  Pre,
+} from "../../core";
 import {
   PrimitiveCrdt,
   SemidirectProduct,
@@ -30,8 +36,8 @@ export class AddComponent
   implements StatefulCrdt<CNumberState>
 {
   readonly state: CNumberState;
-  constructor(initialState: CNumberState) {
-    super();
+  constructor(initToken: CrdtInitToken, initialState: CNumberState) {
+    super(initToken);
     this.state = initialState;
   }
 
@@ -76,8 +82,8 @@ export class MultComponent
   implements StatefulCrdt<CNumberState>
 {
   readonly state: CNumberState;
-  constructor(initialState: CNumberState) {
-    super();
+  constructor(initToken: CrdtInitToken, initialState: CNumberState) {
+    super(initToken);
     this.state = initialState;
   }
 
@@ -124,12 +130,15 @@ export class CNumber extends SemidirectProduct<
 > {
   private addCrdt: AddComponent;
   private multCrdt: MultComponent;
-  constructor(initialValue: number = 0) {
-    super(false);
+  constructor(initToken: CrdtInitToken, initialValue: number = 0) {
+    super(initToken, false);
+
     const state = new CNumberState(initialValue);
-    this.addCrdt = new AddComponent(state);
-    this.multCrdt = new MultComponent(state);
-    super.setup(this.addCrdt, this.multCrdt, state);
+    [this.addCrdt, this.multCrdt] = super.setup(
+      Pre(AddComponent)(state),
+      Pre(MultComponent)(state),
+      state
+    );
 
     // Events
     this.addCrdt.on("Add", (event) => super.emit("Add", event));

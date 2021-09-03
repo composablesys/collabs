@@ -1,4 +1,4 @@
-import { CrdtParent } from "../../core";
+import { CrdtInitToken, Pre } from "../../core";
 import { CMap } from "../map";
 import { AbstractCListCompositeCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
@@ -12,8 +12,12 @@ export class CListFromMap<
 > extends AbstractCListCompositeCrdt<T, InsertArgs> {
   protected readonly internalMap: MapT;
 
-  constructor(map: MapT, protected readonly denseLocalList: DenseT) {
-    super();
+  constructor(
+    initToken: CrdtInitToken,
+    map: Pre<MapT>,
+    protected readonly denseLocalList: DenseT
+  ) {
+    super(initToken);
 
     this.internalMap = this.addChild("", map);
 
@@ -45,11 +49,6 @@ export class CListFromMap<
         timestamp: event.timestamp,
       });
     });
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    this.denseLocalList.setRuntime(this.runtime);
   }
 
   insert(index: number, ...args: InsertArgs): T {

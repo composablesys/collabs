@@ -5,6 +5,8 @@ import {
   CompositeCrdt,
   CrdtEvent,
   CrdtEventsRecord,
+  CrdtInitToken,
+  Pre,
   PrimitiveCrdt,
   Resettable,
 } from "compoventuals";
@@ -124,10 +126,11 @@ export class TensorGCounterCrdt
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
+    initToken: CrdtInitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
-    super();
+    super(initToken);
     this.state = new TensorGCounterState();
   }
 
@@ -280,12 +283,13 @@ export class TensorCounterCrdt
   private readonly minus: TensorGCounterCrdt;
 
   constructor(
+    initToken: CrdtInitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
-    super();
-    this.plus = this.addChild("1", new TensorGCounterCrdt(shape, dtype));
-    this.minus = this.addChild("2", new TensorGCounterCrdt(shape, dtype));
+    super(initToken);
+    this.plus = this.addChild("1", Pre(TensorGCounterCrdt)(shape, dtype));
+    this.minus = this.addChild("2", Pre(TensorGCounterCrdt)(shape, dtype));
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
@@ -337,12 +341,13 @@ export class TensorAverageCrdt
   private readonly denominator: CCounter;
 
   constructor(
+    initToken: CrdtInitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
-    super();
-    this.numerator = this.addChild("1", new TensorCounterCrdt(shape, dtype));
-    this.denominator = this.addChild("2", new CCounter());
+    super(initToken);
+    this.numerator = this.addChild("1", Pre(TensorCounterCrdt)(shape, dtype));
+    this.denominator = this.addChild("2", Pre(CCounter)());
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));
   }

@@ -61,6 +61,6 @@ iframe.addEventListener("load", () => {
 
 // Attach the container.
 const runtime = new crdts.Runtime(network);
-const host = runtime.registerCrdt("host", new ContainerHost(iframe));
+const host = runtime.registerCrdt("host", crdts.Pre(ContainerHost)(iframe));
 
 // TODO: loading.  Make sure to block GUI until host says it's complete.

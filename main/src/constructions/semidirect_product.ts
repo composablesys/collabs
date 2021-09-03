@@ -6,10 +6,10 @@ import {
   CausalTimestamp,
   Crdt,
   CrdtEventsRecord,
-  CrdtParent,
   Runtime,
+  CrdtInitToken,
+  Pre,
 } from "../core";
-import { LocallyResettableState } from "./reset_wrapper_crdt";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?
@@ -35,7 +35,7 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-class SemidirectStateBase<S extends Object> {
+export class SemidirectState<S extends Object> {
   protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
@@ -132,7 +132,7 @@ class SemidirectStateBase<S extends Object> {
       let vcEntry = vc.get(historyEntry[0]);
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = SemidirectStateBase.indexAfter(
+        let concurrentIndexStart = SemidirectState.indexAfter(
           senderHistory,
           vcEntry
         );
@@ -245,23 +245,6 @@ class SemidirectStateBase<S extends Object> {
   }
 }
 
-class SemidirectStateLocallyResettable<S extends LocallyResettableState>
-  extends SemidirectStateBase<S>
-  implements LocallyResettableState
-{
-  resetLocalState(timestamp: CausalTimestamp) {
-    this.receiptCounter = 0;
-    this.history.clear();
-    this.internalState.resetLocalState(timestamp);
-  }
-}
-
-// TODO: instead of subclass, have interface for all-but-reset part of
-// SemidirectState, then have just one class including reset?
-export type SemidirectState<S> = S extends LocallyResettableState
-  ? SemidirectStateBase<S> & LocallyResettableState
-  : SemidirectStateBase<S>;
-
 /**
  * Interface describing a Crdt which stores all of its mutable state
  * in a single readonly variable state of type S.
@@ -294,7 +277,7 @@ export abstract class SemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>>, CrdtParent
+  implements StatefulCrdt<SemidirectState<S>>
 {
   static readonly crdt1Name = "1";
   static readonly crdt2Name = "2";
@@ -307,19 +290,18 @@ export abstract class SemidirectProduct<
    * @param historyDiscard2Dominated=false [description]
    */
   constructor(
+    initToken: CrdtInitToken,
     historyTimestamps = false,
     historyDiscard1Dominated = false,
     historyDiscard2Dominated = false
   ) {
-    super();
+    super(initToken);
     // Types are hacked a bit here to make implementation simpler
-    this.state = new SemidirectStateLocallyResettable<
-      S & LocallyResettableState
-    >(
+    this.state = new SemidirectState(
       historyTimestamps,
       historyDiscard1Dominated,
       historyDiscard2Dominated
-    ) as SemidirectState<S>;
+    );
   }
 
   protected crdt1!: StatefulCrdt<S>;
@@ -347,11 +329,17 @@ export abstract class SemidirectProduct<
   // TODO: move setup into constructor?  Then we don't have to worry about
   // it being called after init.  But then it's annoying to pass
   // this to the children (as is one in ResetWrapperCrdt).
-  protected setup(
-    crdt1: StatefulCrdt<S>,
-    crdt2: StatefulCrdt<S>,
+  protected setup<C1 extends StatefulCrdt<S>, C2 extends StatefulCrdt<S>>(
+    preCrdt1: Pre<C1>,
+    preCrdt2: Pre<C2>,
     initialState: S
-  ) {
+  ): [C1, C2] {
+    const crdt1 = preCrdt1(
+      new CrdtInitToken(SemidirectProduct.crdt1Name, this)
+    );
+    const crdt2 = preCrdt2(
+      new CrdtInitToken(SemidirectProduct.crdt2Name, this)
+    );
     this.state.internalState = initialState;
     this.crdt1 = crdt1;
     this.crdt2 = crdt2;
@@ -359,33 +347,7 @@ export abstract class SemidirectProduct<
     crdt1.state = initialState;
     // @ts-ignore Ignore readonly
     crdt2.state = initialState;
-    if (this.afterInit) this.initChildren();
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    if (this.crdt1 !== undefined) {
-      // setup has already been called
-      this.initChildren();
-    }
-  }
-
-  private initChildren() {
-    this.childBeingAdded = this.crdt1;
-    this.crdt1.init(SemidirectProduct.crdt1Name, this);
-    this.childBeingAdded = this.crdt2;
-    this.crdt2.init(SemidirectProduct.crdt2Name, this);
-    this.childBeingAdded = undefined;
-  }
-
-  private childBeingAdded?: Crdt;
-  onChildInit(child: Crdt) {
-    if (child != this.childBeingAdded) {
-      throw new Error(
-        "this was passed to Crdt.init as parent externally" +
-          " (use this.setup instead)"
-      );
-    }
+    return [crdt1, crdt2];
   }
 
   // TODO: errors if setup is not called exactly once?

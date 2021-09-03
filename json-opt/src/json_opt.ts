@@ -3,11 +3,13 @@ import {
   Crdt,
   CrdtEvent,
   CrdtEventsRecord,
+  CrdtInitToken,
   DefaultElementSerializer,
   ElementSerializer,
   ImplicitMergingMutCMap,
   MergingMutCMap,
   OptionalLwwCRegister,
+  Pre,
   PrimitiveCList,
   TextSerializer,
 } from "compoventuals";
@@ -38,22 +40,27 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
   >;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
-  constructor() {
-    super();
+  constructor(initToken: CrdtInitToken) {
+    super(initToken);
 
     let keySerializer: ElementSerializer<string> =
       DefaultElementSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
-      new MergingMutCMap(() => new OptionalLwwCRegister(), keySerializer)
+      Pre(MergingMutCMap)(
+        Pre(OptionalLwwCRegister)<string | number | boolean>(keySerializer)
+      )
     );
 
     this.ImplicitMergingMutCMap = this.addChild(
       "ImplicitMergingMutCMap",
-      new ImplicitMergingMutCMap(
-        () => new PrimitiveCList(TextSerializer.instance),
-        keySerializer
-      )
+      (childInitToken) =>
+        new ImplicitMergingMutCMap(
+          childInitToken,
+          (valueInitToken) =>
+            new PrimitiveCList(valueInitToken, TextSerializer.instance),
+          keySerializer
+        )
     );
 
     this.internalNestedKeys = new Map();
@@ -183,7 +190,7 @@ export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
     this.set(key, InternalType.List);
   }
 
-  addExtChild(name: string, child: Crdt) {
+  addExtChild(name: string, child: Pre<Crdt>) {
     this.addChild(name, child);
   }
 }
@@ -192,8 +199,12 @@ export class JsonCursor {
   private internal: JsonCrdt;
   private cursor: string;
 
-  constructor(internal?: JsonCrdt, cursor?: string) {
-    if (!internal) internal = new JsonCrdt();
+  static new(): Pre<JsonCursor> {
+    return (initToken: CrdtInitToken) =>
+      new JsonCursor(new JsonCrdt(initToken));
+  }
+
+  constructor(internal: JsonCrdt, cursor?: string) {
     this.internal = internal;
 
     if (!cursor) cursor = ":";

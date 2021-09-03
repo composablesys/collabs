@@ -1,3 +1,4 @@
+import { CrdtInitToken } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
@@ -16,10 +17,11 @@ export class LwwCRegister<T> extends AggregateCRegister<T> {
    * OptionalLwwCRegister<T>.
    */
   constructor(
+    initToken: CrdtInitToken,
     private readonly initialValue: T,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super(valueSerializer);
+    super(initToken, valueSerializer);
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
@@ -62,10 +64,11 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
    * OptionalFwwCRegister<T>.
    */
   constructor(
+    initToken: CrdtInitToken,
     private readonly initialValue: T,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super(valueSerializer);
+    super(initToken, valueSerializer);
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
@@ -114,9 +117,10 @@ export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
   T
 > {
   constructor(
+    initToken: CrdtInitToken,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super((value) => value, SingletonSerializer.of(valueSerializer));
+    super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
@@ -137,9 +141,10 @@ export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
   T
 > {
   constructor(
+    initToken: CrdtInitToken,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super((value) => value, SingletonSerializer.of(valueSerializer));
+    super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {

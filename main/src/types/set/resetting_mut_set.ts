@@ -3,7 +3,7 @@ import {
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt, Runtime } from "../../core";
+import { Crdt, CrdtInitToken, Pre, Runtime } from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
@@ -78,22 +78,25 @@ export class MutCSetFromMap<
    * use an optimized marker that gets deserialized to [].
    */
   constructor(
+    initToken: CrdtInitToken,
     mapCallback: (
       mapValueConstructor: (
+        mapValueInitToken: CrdtInitToken,
         key: [sender: string, uniqueNumber: number, args: AddArgs]
       ) => C,
       keySerializer: ElementSerializer<
         [sender: string, uniqueNumber: number, args: AddArgs]
       >
-    ) => MapT,
-    valueConstructor: (...args: AddArgs) => C,
+    ) => Pre<MapT>,
+    valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
     this.map = this.addChild(
       "",
       mapCallback(
-        (key) => valueConstructor(...key[2]),
+        (mapValueInitToken, key) =>
+          valueConstructor(mapValueInitToken, ...key[2]),
         new MutCSetFromMapSerializer(argsSerializer)
       )
     );
@@ -158,15 +161,11 @@ export class ResettingMutCSet<
   implements Resettable
 {
   constructor(
-    valueConstructor: (...args: AddArgs) => C,
+    initToken: CrdtInitToken,
+    valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super(
-      (mapValueConstructor, keySerializer) =>
-        new MergingMutCMap(mapValueConstructor, keySerializer),
-      valueConstructor,
-      argsSerializer
-    );
+    super(initToken, Pre(MergingMutCMap), valueConstructor, argsSerializer);
   }
 
   owns(value: C): boolean {

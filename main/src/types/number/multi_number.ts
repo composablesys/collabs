@@ -1,11 +1,13 @@
 import { MNumberComponentMessage } from "../../../generated/proto_compiled";
-import {
-  LocallyResettableState,
-  PrimitiveCrdt,
-  StatefulCrdt,
-} from "../../constructions";
+import { PrimitiveCrdt, StatefulCrdt } from "../../constructions";
 import { MultipleSemidirectProduct } from "../../constructions/multiple_semidirect_product";
-import { CausalTimestamp, CrdtEvent, CrdtEventsRecord } from "../../core";
+import {
+  CausalTimestamp,
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtInitToken,
+  Pre,
+} from "../../core";
 
 // TODO: handle floating point non-commutativity
 
@@ -28,13 +30,10 @@ export interface MNumberEventsRecord extends CrdtEventsRecord {
   Max: MNumberCompEvent;
 }
 
-export class MNumberState implements LocallyResettableState {
+export class MNumberState {
   value: number;
   constructor(readonly initialValue: number) {
     this.value = initialValue;
-  }
-  resetLocalState(): void {
-    this.value = this.initialValue;
   }
 }
 
@@ -45,8 +44,8 @@ export class AddComponent
 {
   readonly state: MNumberState;
 
-  constructor(initialState: MNumberState) {
-    super();
+  constructor(initToken: CrdtInitToken, initialState: MNumberState) {
+    super(initToken);
     this.state = initialState;
   }
 
@@ -89,8 +88,8 @@ export class MultComponent
 {
   readonly state: MNumberState;
 
-  constructor(initialState: MNumberState) {
-    super();
+  constructor(initToken: CrdtInitToken, initialState: MNumberState) {
+    super(initToken);
     this.state = initialState;
   }
 
@@ -133,8 +132,8 @@ export class MinComponent
 {
   readonly state: MNumberState;
 
-  constructor(initialState: MNumberState) {
-    super();
+  constructor(initToken: CrdtInitToken, initialState: MNumberState) {
+    super(initToken);
     this.state = initialState;
   }
 
@@ -175,8 +174,8 @@ export class MaxComponent
 {
   readonly state: MNumberState;
 
-  constructor(initialState: MNumberState) {
-    super();
+  constructor(initToken: CrdtInitToken, initialState: MNumberState) {
+    super(initToken);
     this.state = initialState;
   }
 
@@ -219,13 +218,11 @@ export class MNumber extends MultipleSemidirectProduct<
   private maxCrdt: MaxComponent;
   private addCrdt: AddComponent;
   private multCrdt: MultComponent;
-  constructor(initialValue: number = 0) {
-    super(false);
+  constructor(initToken: CrdtInitToken, initialValue: number = 0) {
+    super(initToken);
+
     const state = new MNumberState(initialValue);
-    this.addCrdt = new AddComponent(state);
-    this.multCrdt = new MultComponent(state);
-    this.minCrdt = new MinComponent(state);
-    this.maxCrdt = new MaxComponent(state);
+    super.setupState(state);
     /**
      * Arbitration order
      * 0: min
@@ -233,10 +230,11 @@ export class MNumber extends MultipleSemidirectProduct<
      * 2: add
      * 3: mult
      */
-    super.setup(
-      [this.minCrdt, this.maxCrdt, this.addCrdt, this.multCrdt],
-      state
-    );
+    this.minCrdt = super.setupOneCrdt(Pre(MinComponent)(state));
+    this.maxCrdt = super.setupOneCrdt(Pre(MaxComponent)(state));
+    this.addCrdt = super.setupOneCrdt(Pre(AddComponent)(state));
+    this.multCrdt = super.setupOneCrdt(Pre(MultComponent)(state));
+
     this.minCrdt.on("Min", (event) => super.emit("Min", event));
     this.maxCrdt.on("Max", (event) => super.emit("Max", event));
     this.addCrdt.on("Add", (event) => super.emit("Add", event));

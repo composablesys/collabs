@@ -7,7 +7,7 @@ import {
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { CausalTimestamp, CrdtParent } from "../../core";
+import { CausalTimestamp, CrdtInitToken } from "../../core";
 import { AbstractCListPrimitiveCrdt } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import {
@@ -57,18 +57,14 @@ export class PrimitiveCListFromDenseLocalList<
    * value instead.
    */
   constructor(
+    initToken: CrdtInitToken,
     protected readonly denseLocalList: DenseT,
     protected readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
     protected readonly valueArraySerializer:
       | ElementSerializer<T[]>
       | undefined = undefined
   ) {
-    super();
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    this.denseLocalList.setRuntime(this.runtime);
+    super(initToken);
   }
 
   /**
@@ -450,10 +446,16 @@ export class PrimitiveCList<T>
   implements Resettable
 {
   constructor(
+    initToken: CrdtInitToken,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
     valueArraySerializer: ElementSerializer<T[]> | undefined = undefined
   ) {
-    super(new TreedocDenseLocalList(), valueSerializer, valueArraySerializer);
+    super(
+      initToken,
+      new TreedocDenseLocalList(initToken.runtime),
+      valueSerializer,
+      valueArraySerializer
+    );
   }
 
   reset() {

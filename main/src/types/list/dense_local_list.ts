@@ -1,5 +1,5 @@
 import { ElementSerializer } from "../../util";
-import { CausalTimestamp, Runtime } from "../../core";
+import { CausalTimestamp } from "../../core";
 
 // TODO: stuff for cursors (exposing raw locs)
 
@@ -12,14 +12,6 @@ import { CausalTimestamp, Runtime } from "../../core";
  * index accesses.
  */
 export interface DenseLocalList<L, T> extends ElementSerializer<L> {
-  /**
-   * Needs to called exactly once, before using.
-   * Can we move this to the constructor instead?
-   * deserialize will use this Runtime automatically,
-   * ignoring its argument.
-   */
-  setRuntime(runtime: Runtime): void;
-
   /**
    * Return a message describing count new locs, inserted
    * starting at index, without the modifying the list's

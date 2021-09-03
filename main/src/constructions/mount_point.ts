@@ -1,5 +1,11 @@
 import { CMountPointSave } from "../../generated/proto_compiled";
-import { CausalTimestamp, Crdt, CrdtEventsRecord, CrdtParent } from "../core";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventsRecord,
+  CrdtInitToken,
+  Pre,
+} from "../core";
 
 export interface CMountPointEventsRecord extends CrdtEventsRecord {
   /**
@@ -61,10 +67,7 @@ export interface CMountPointEventsRecord extends CrdtEventsRecord {
  *
  * @type C the type of the wrapped Crdt
  */
-export class CMountPoint<C extends Crdt>
-  extends Crdt<CMountPointEventsRecord>
-  implements CrdtParent
-{
+export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
   /**
    * Name: "".  undefined iff unmounted.
    */
@@ -83,14 +86,14 @@ export class CMountPoint<C extends Crdt>
   private toMount?: C;
   /**
    * Call this before mount to specify
-   * the wrapped Crdt and initialize it (if this
-   * is initialized).  mount should be called shortly
+   * and construct the wrapped Crdt.  mount should be called shortly
    * afterwards (ideally in the same thread).
    *
    * The wrapped Crdt is not actually loaded and
    * delivered queued messages until mount, so in between
    * prepareMount and mount, you can do any setup needed
-   * to prepare for the loading and queued messages.
+   * to prepare for the loading and queued messages
+   * (e.g., adding event listeners for queued messages).
    *
    * TODO: I don't like this API; will CrdtInitTokens make
    * it better?  Concern is that callers might need to
@@ -100,17 +103,15 @@ export class CMountPoint<C extends Crdt>
    * with generic args in the constructor, like in
    * collections.
    */
-  prepareMount<D extends C>(toMount: D): D {
+  prepareMount<D extends C>(preToMount: Pre<D>): D {
     if (this.isMounted) {
       throw new Error("prepareMount called but already mounted");
     }
     if (this.toMount !== undefined) {
       throw new Error("prepareMount called twice");
     }
+    const toMount = preToMount(new CrdtInitToken("", this));
     this.toMount = toMount;
-    if (this.afterInit) {
-      toMount.init("", this);
-    }
     return toMount;
   }
 
@@ -138,18 +139,14 @@ export class CMountPoint<C extends Crdt>
     this.wrappedCrdt = this.toMount;
     delete this.toMount;
 
-    if (this.afterInit) {
-      if (this.needsDelayedLoad) {
-        this.runtime.delayedLoadDescendants(this);
-        // TODO (for unmount): delayed load should also
-        // invalidate any preemptive save
-        // from the last time we were unmounted.
-      }
-      this.processMessageQueue();
+    if (this.needsDelayedLoad) {
+      this.runtime.delayedLoadDescendants(this);
+      // TODO (for unmount): delayed load should also
+      // invalidate any preemptive save
+      // from the last time we were unmounted.
     }
-    // Else there cannot be any queued messages: messages are not
-    // allowed to be delivered to us before init(), nor
-    // can load() be called.
+    this.processMessageQueue();
+
     this.emit("Mount", {});
   }
 
@@ -162,23 +159,6 @@ export class CMountPoint<C extends Crdt>
       this.wrappedCrdt!.receive(...queued);
     }
     this.messageQueue = [];
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    // Init wrappedCrdt if it was mounted before this was called.
-    if (this.wrappedCrdt !== undefined) {
-      this.wrappedCrdt.init("", this);
-      // No need to load saveData or replay queued
-      // messages: load and receive cannot be called
-      // before init is called.
-    }
-  }
-
-  onChildInit(child: Crdt<CrdtEventsRecord>): void {
-    if (child !== this.wrappedCrdt) {
-      throw new Error("Unexpected child: " + child);
-    }
   }
 
   /**

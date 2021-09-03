@@ -9,8 +9,7 @@ import {
   EventEmitter,
   stringAsArray,
 } from "../util";
-import { CompositeCrdt } from "../constructions";
-import { Crdt, CrdtEventsRecord, CrdtParent } from "./crdt";
+import { Crdt, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
   CausalTimestamp,
@@ -20,49 +19,14 @@ import {
   BroadcastNetwork,
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
+import { CompositeCrdt } from "../constructions";
 
-export class RootCrdt extends CompositeCrdt {
-  readonly isRootCrdt = true;
-  private readonly runtimeRoot: Runtime;
-  constructor(runtime: Runtime) {
-    super();
-    this.runtimeRoot = runtime;
-    this.afterInit = true;
-  }
-
+class RootCrdt extends CompositeCrdt {
   /**
-   * Exposes CompositeCrdt.addChild publicly for use by
-   * Runtime.
+   * Exposes super.addChild publicly so Runtime can call it.
    */
-  public addChild<D extends Crdt>(name: string, child: D): D {
-    return super.addChild(name, child);
-  }
-
-  get runtime(): Runtime {
-    return this.runtimeRoot;
-  }
-
-  pathToRoot() {
-    return [];
-  }
-
-  canGc(): boolean {
-    return false;
-  }
-
-  // Crdt methods that don't make sense because we don't
-  // have a parent.
-
-  get parent(): CrdtParent {
-    throw new Error("RootCrdt has no parent");
-  }
-
-  get name(): string {
-    throw new Error("RootCrdt has no name");
-  }
-
-  init(_name: string, _parent: CrdtParent) {
-    throw new Error("RootCrdt has no parent and cannot be initialized");
+  public addChild<C extends Crdt>(name: string, preChild: Pre<C>): C {
+    return super.addChild(name, preChild);
   }
 }
 
@@ -168,6 +132,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   private pendingBatch: BatchInfo | null = null;
   private loadAllowed = true;
 
+  readonly isRuntime = true;
+
   /**
    * TODO.
    * @param readonlynetwork [description]
@@ -196,7 +162,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
     this.network.register(this);
     // Create this.rootCrdt
-    this.rootCrdt = new RootCrdt(this);
+    this.rootCrdt = new RootCrdt(new CrdtInitToken("", this));
     this.rootCrdt.on("Change", (event) => this.emit("Change", event));
     // Process batchOptions
     if (typeof batchOptions === "object") {
@@ -213,8 +179,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * @param
    * @return
    */
-  registerCrdt<D extends Crdt>(name: string, child: D): D {
-    return this.rootCrdt.addChild(name, child);
+  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {
+    return this.rootCrdt.addChild(name, preCrdt);
   }
 
   /**
@@ -282,7 +248,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
   }
 
-  private getOrCreatePointer(to: Crdt | RootCrdt): number {
+  private getOrCreatePointer(to: Crdt): number {
     // Base case: root
     if (to === this.rootCrdt) return 0;
     else if (to instanceof RootCrdt) {
@@ -297,7 +263,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // Add it the pointers list.  First need to make
     // sure its parent is added.
-    let parentPointer = this.getOrCreatePointer(to.parent);
+    // Since it's not a RootCrdt, we know to.parent is a Crdt,
+    // not a RootParent.
+    let parentPointer = this.getOrCreatePointer(to.parent as Crdt);
     let newPointer = this.pendingBatch!.pointers.length + 1;
     this.pendingBatch!.pointers.push({
       parent: parentPointer,
@@ -584,7 +552,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         // so parentId exists iff it has not finished
         // loadDescendants.  So if parentId doesn't
         // exist, then crdt must already be loaded.
-        const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent);
+        // Since it's not a RootCrdt, we know crdt.parent is a Crdt,
+        // not a RootParent.
+        const parentId = this.loadHelper!.idsByCrdt.get(crdt.parent as Crdt);
         if (parentId === undefined) return;
         // Also, since crdt is not already loaded, the call
         // to loadDescendants on its parent cannot have

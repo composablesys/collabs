@@ -3,6 +3,7 @@ import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
 import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { CrdtInitToken, Pre } from "../../core";
 
 export class CSetFromBoolean<
   T,
@@ -19,13 +20,21 @@ export class CSetFromBoolean<
    * to start containing some elements but not others).
    */
   constructor(
-    protected readonly booleanConstructor: () => BoolT,
+    initToken: CrdtInitToken,
+    protected readonly booleanConstructor: (
+      booleanInitToken: CrdtInitToken
+    ) => BoolT,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
+    // TODO: with the usual class-based addChild, TypeScript's
+    // generic type inference appeared to get overwhelmed
+    // and not infer the inner types correctly, leading to
+    // an error.  We work around it by writing an explicit
+    // Pre callback instead.
     this.booleanMap = this.addChild(
       "",
-      new GrowOnlyImplicitMergingMutCMap(
+      Pre(GrowOnlyImplicitMergingMutCMap)(
         this.internalBooleanConstructor.bind(this),
         valueSerializer
       )
@@ -33,8 +42,19 @@ export class CSetFromBoolean<
     // Events emitters are setup by internalBooleanConstructor
   }
 
-  private internalBooleanConstructor(key: T): BoolT {
-    const bool = this.booleanConstructor();
+  static new<T, BoolT extends CBoolean>(
+    booleanConstructor: (booleanInitToken: CrdtInitToken) => BoolT,
+    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+  ): Pre<CSetFromBoolean<T, BoolT>> {
+    return (initToken) =>
+      new CSetFromBoolean(initToken, booleanConstructor, valueSerializer);
+  }
+
+  private internalBooleanConstructor(
+    booleanInitToken: CrdtInitToken,
+    key: T
+  ): BoolT {
+    const bool = this.booleanConstructor(booleanInitToken);
     // Add event listeners
     bool.on("Set", (event) => {
       if (!event.previousValue && bool.value) {
@@ -90,9 +110,14 @@ export class AddWinsCSet<T>
   implements Resettable
 {
   constructor(
+    initToken: CrdtInitToken,
     valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
   ) {
-    super(() => new TrueWinsCBoolean(), valueSerializer);
+    super(
+      initToken,
+      (booleanInitToken) => new TrueWinsCBoolean(booleanInitToken),
+      valueSerializer
+    );
   }
 
   delete(value: T): void {

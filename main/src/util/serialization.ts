@@ -1,4 +1,4 @@
-import { Runtime, Crdt } from "../core/";
+import { Runtime, Crdt, isRuntime } from "../core/";
 import {
   ArrayMessage,
   CrdtReference,
@@ -7,7 +7,6 @@ import {
   ObjectMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { RootCrdt } from "../core/runtime";
 import { Buffer } from "buffer";
 
 /**
@@ -267,9 +266,9 @@ export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
       let current: Crdt = value;
       !(
         current === this.base ||
-        (this.base === undefined && (current as RootCrdt).isRootCrdt)
+        (this.base === undefined && isRuntime(current.parent))
       );
-      current = current.parent
+      current = current.parent as Crdt
     ) {
       pathToBase.push(current.name);
     }

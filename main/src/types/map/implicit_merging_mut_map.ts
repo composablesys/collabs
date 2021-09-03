@@ -6,7 +6,7 @@ import {
   stringAsArray,
   WeakValueMap,
 } from "../../util";
-import { CausalTimestamp, Crdt, CrdtParent } from "../../core";
+import { CausalTimestamp, Crdt, CrdtInitToken } from "../../core";
 import { Resettable } from "../../abilities";
 import { AbstractCMapCrdt } from "./abstract_map";
 
@@ -31,10 +31,10 @@ import { AbstractCMapCrdt } from "./abstract_map";
  * set has no effect, just
  * returning a value by calling get.
  */
-export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
-  extends AbstractCMapCrdt<K, C, []>
-  implements CrdtParent
-{
+export class GrowOnlyImplicitMergingMutCMap<
+  K,
+  C extends Crdt
+> extends AbstractCMapCrdt<K, C, []> {
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
@@ -54,10 +54,14 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
    * a function of the given arguments only.
    */
   constructor(
-    private readonly valueConstructor: (key: K) => C,
+    initToken: CrdtInitToken,
+    private readonly valueConstructor: (
+      valueInitToken: CrdtInitToken,
+      key: K
+    ) => C,
     private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
   }
 
   private keyAsString(key: K) {
@@ -78,11 +82,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
       if (value === undefined) {
         // Create it, but only in the backup map,
         // since it is currently GC-able
-        value = this.valueConstructor(key);
-
-        this.childBeingAdded = value;
-        value.init(keyString, this);
-        this.childBeingAdded = undefined;
+        value = this.valueConstructor(new CrdtInitToken(keyString, this), key);
 
         if (this.inLoad) {
           // We can assume value will be nontrivial once
@@ -100,16 +100,6 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
       }
       return [value, false];
     } else return [value, true];
-  }
-
-  private childBeingAdded?: C;
-  onChildInit(child: Crdt) {
-    if (child != this.childBeingAdded) {
-      throw new Error(
-        "this was passed to Crdt.init as parent externally" +
-          " (GMap manages its own children - they are its values)"
-      );
-    }
   }
 
   private inReceiveKeyStr: string | undefined = undefined;
@@ -314,10 +304,11 @@ export class ImplicitMergingMutCMap<
   C extends Crdt & Resettable
 > extends GrowOnlyImplicitMergingMutCMap<K, C> {
   constructor(
-    valueConstructor: (key: K) => C,
+    initToken: CrdtInitToken,
+    valueConstructor: (valueInitToken: CrdtInitToken, key: K) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
   ) {
-    super(valueConstructor, keySerializer);
+    super(initToken, valueConstructor, keySerializer);
   }
 
   delete(key: K): void {

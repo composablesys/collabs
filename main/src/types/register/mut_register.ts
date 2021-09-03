@@ -1,6 +1,6 @@
 import { Resettable } from "../../abilities";
 import { CompositeCrdt } from "../../constructions";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import {
   ElementSerializer,
   DefaultElementSerializer,
@@ -33,14 +33,15 @@ export class MutCRegisterFromRegister<
    * @param registerCallback [description]
    */
   constructor(
-    registerCallback: (valueSerializer: ElementSerializer<C>) => RegT,
-    valueConstructor: (...args: SetArgs) => C,
+    initToken: CrdtInitToken,
+    registerCallback: (valueSerializer: ElementSerializer<C>) => Pre<RegT>,
+    valueConstructor: (valueInitToken: CrdtInitToken, ...args: SetArgs) => C,
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
     this.crdtFactory = this.addChild(
       "",
-      new DeletingMutCSet(valueConstructor, [], argsSerializer)
+      Pre(DeletingMutCSet)(valueConstructor, [], argsSerializer)
     );
     this.register = this.addChild(
       "0",
@@ -75,12 +76,13 @@ export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
   implements Resettable
 {
   constructor(
-    valueConstructor: (...args: SetArgs) => C,
+    initToken: CrdtInitToken,
+    valueConstructor: (valueInitToken: CrdtInitToken, ...args: SetArgs) => C,
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
-      (registerValueSerializer) =>
-        new OptionalLwwCRegister(registerValueSerializer),
+      initToken,
+      Pre(OptionalLwwCRegister),
       valueConstructor,
       argsSerializer
     );

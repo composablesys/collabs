@@ -1,5 +1,9 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt } from "../../core";
+import {
+  ConstructorAsFunction,
+  DefaultElementSerializer,
+  ElementSerializer,
+} from "../../util";
+import { Crdt, CrdtInitToken, Pre, isRuntime } from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
@@ -10,7 +14,6 @@ import {
   TreedocDenseLocalList,
   TreedocLocWrapper,
 } from "./treedoc_dense_local_list";
-import { RootCrdt } from "../../core/runtime";
 
 export class TombstoneMutCList<
   C extends Crdt,
@@ -29,15 +32,15 @@ export class TombstoneMutCList<
   >
 > {
   constructor(
-    valueConstructor: (...args: InsertArgs) => C,
+    initToken: CrdtInitToken,
+    valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
-      (setValueConstructor, setArgsSerializer) =>
-        new TombstoneMutCSet(setValueConstructor, setArgsSerializer),
-      (initialValue, registerSerializer) =>
-        new LwwCRegister(initialValue, registerSerializer),
-      new TreedocDenseLocalList(),
+      initToken,
+      Pre(TombstoneMutCSet),
+      ConstructorAsFunction(LwwCRegister),
+      new TreedocDenseLocalList(initToken.runtime),
       valueConstructor,
       argsSerializer
     );
@@ -46,7 +49,7 @@ export class TombstoneMutCList<
   owns(value: C): boolean {
     // Avoid errors from value.parent in case it
     // is the root.
-    if ((value as Crdt as RootCrdt).isRootCrdt) return false;
+    if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
       value.parent as MovableMutCListEntry<

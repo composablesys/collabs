@@ -6,7 +6,13 @@ import {
 } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
 import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
-import { CausalTimestamp, CrdtEvent, CrdtEventsRecord } from "../../core";
+import {
+  CausalTimestamp,
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtInitToken,
+  Pre,
+} from "../../core";
 
 export interface CCounterEvent extends CrdtEvent {
   readonly arg: number;
@@ -213,10 +219,10 @@ export class CCounter
 
   private plusResetEvent?: CCounterEvent;
 
-  constructor() {
-    super();
-    this.plus = this.addChild("", new GrowOnlyCCounter());
-    this.minus = this.addChild("0", new GrowOnlyCCounter());
+  constructor(initToken: CrdtInitToken) {
+    super(initToken);
+    this.plus = this.addChild("", Pre(GrowOnlyCCounter)());
+    this.minus = this.addChild("0", Pre(GrowOnlyCCounter)());
 
     // Events
     this.plus.on("Add", (event) => {

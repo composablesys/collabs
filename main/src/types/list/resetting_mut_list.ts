@@ -1,5 +1,5 @@
 import { Resettable } from "../../abilities";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { MergingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";
 import {
@@ -17,9 +17,21 @@ export class ResettingMutCList<C extends Crdt & Resettable>
   >
   implements Resettable
 {
-  constructor(valueConstructor: (loc: TreedocLocWrapper) => C) {
-    const denseLocalList = new TreedocDenseLocalList<undefined>();
-    super(new MergingMutCMap(valueConstructor, denseLocalList), denseLocalList);
+  constructor(
+    initToken: CrdtInitToken,
+    valueConstructor: (
+      valueInitToken: CrdtInitToken,
+      loc: TreedocLocWrapper
+    ) => C
+  ) {
+    const denseLocalList = new TreedocDenseLocalList<undefined>(
+      initToken.runtime
+    );
+    super(
+      initToken,
+      Pre(MergingMutCMap)(valueConstructor, denseLocalList),
+      denseLocalList
+    );
   }
 
   reset(): void {

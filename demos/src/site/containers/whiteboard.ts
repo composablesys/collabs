@@ -15,7 +15,7 @@ import $ from "jquery";
   // The value is the color of the stroke.
   let clientBoard: crdts.LwwCMap<string, string> = runtime.registerCrdt(
     "whiteboardId",
-    new crdts.LwwCMap()
+    crdts.Pre(crdts.LwwCMap)()
   );
 
   var colors = document.getElementsByClassName("btn-colors");

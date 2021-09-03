@@ -1,5 +1,5 @@
 import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken } from "../../core";
 import { CMap, CMapEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
@@ -131,7 +131,9 @@ export const AbstractCMapCompositeCrdt = MakeAbstractCMap(
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->() => AbstractCMap<K, V, SetArgs> & CompositeCrdt<Events>;
+>(
+  initToken: CrdtInitToken
+) => AbstractCMap<K, V, SetArgs> & CompositeCrdt<Events>;
 
 export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
   PrimitiveCrdt
@@ -140,11 +142,15 @@ export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->() => AbstractCMap<K, V, SetArgs> & PrimitiveCrdt<Events>;
+>(
+  initToken: CrdtInitToken
+) => AbstractCMap<K, V, SetArgs> & PrimitiveCrdt<Events>;
 
 export const AbstractCMapCrdt = MakeAbstractCMap(Crdt) as abstract new <
   K,
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
->() => AbstractCMap<K, V, SetArgs> & Crdt<Events>;
+>(
+  initToken: CrdtInitToken
+) => AbstractCMap<K, V, SetArgs> & Crdt<Events>;

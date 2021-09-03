@@ -1,4 +1,5 @@
 import { Resettable } from "../../abilities";
+import { CrdtInitToken, Pre } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
@@ -69,13 +70,14 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
   > = new WeakMap();
 
   constructor(
+    initToken: CrdtInitToken,
     private readonly valueConstructor: (...args: AddArgs) => T,
     argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
+    super(initToken);
     this.argsById = this.addChild(
       "",
-      new LwwCMap(StringAsArraySerializer.instance, argsSerializer)
+      Pre(LwwCMap)(StringAsArraySerializer.instance, argsSerializer)
     );
 
     // Events and maintaining caches

@@ -1,5 +1,5 @@
 import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken } from "../../core";
 import { CSet, CSetEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCSet<T, AddArgs extends any[]>
@@ -95,7 +95,9 @@ export const AbstractCSetCompositeCrdt = MakeAbstractCSet(
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->() => AbstractCSet<T, AddArgs> & CompositeCrdt<Events>;
+>(
+  initToken: CrdtInitToken
+) => AbstractCSet<T, AddArgs> & CompositeCrdt<Events>;
 
 export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
   PrimitiveCrdt
@@ -103,10 +105,14 @@ export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->() => AbstractCSet<T, AddArgs> & PrimitiveCrdt<Events>;
+>(
+  initToken: CrdtInitToken
+) => AbstractCSet<T, AddArgs> & PrimitiveCrdt<Events>;
 
 export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
->() => AbstractCSet<T, AddArgs> & Crdt<Events>;
+>(
+  initToken: CrdtInitToken
+) => AbstractCSet<T, AddArgs> & Crdt<Events>;

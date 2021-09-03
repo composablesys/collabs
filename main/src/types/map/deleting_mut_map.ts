@@ -1,5 +1,5 @@
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt } from "../../core";
+import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { DeletingMutCSet } from "../set";
 import { LwwCMap } from "./lww_map";
@@ -16,15 +16,20 @@ export class DeletingMutCMap<K, C extends Crdt, SetArgs extends any[]>
   implements Resettable
 {
   constructor(
-    valueConstructor: (key: K, ...args: SetArgs) => C,
+    initToken: CrdtInitToken,
+    valueConstructor: (
+      valueInitToken: CrdtInitToken,
+      key: K,
+      ...args: SetArgs
+    ) => C,
     keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
     argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
+      initToken,
       (setValueConstructor, setArgsSerializer) =>
-        new DeletingMutCSet(setValueConstructor, undefined, setArgsSerializer),
-      (mapKeySerializer, mapValueSerializer) =>
-        new LwwCMap(mapKeySerializer, mapValueSerializer),
+        Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
+      Pre(LwwCMap),
       valueConstructor,
       keySerializer,
       argsSerializer

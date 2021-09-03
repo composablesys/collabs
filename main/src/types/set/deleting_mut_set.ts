@@ -12,14 +12,15 @@ import {
   CausalTimestamp,
   Crdt,
   CrdtEventsRecord,
-  CrdtParent,
+  CrdtInitToken,
+  Pre,
 } from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
 import { Resettable } from "../../abilities";
 
 class FakeDeletedCrdt extends Crdt {
-  private constructor() {
-    super();
+  private constructor(initToken: CrdtInitToken) {
+    super(initToken);
   }
 
   protected receiveInternal(
@@ -49,9 +50,8 @@ class FakeDeletedCrdt extends Crdt {
    * Used in getChild when the requested Crdt is deleted/
    * frozen.  See the comment there.
    */
-  static of(name: string, parent: CrdtParent): FakeDeletedCrdt {
-    const fakeDeletedCrdt = new FakeDeletedCrdt();
-    fakeDeletedCrdt.init(name, parent);
+  static of(initToken: CrdtInitToken): FakeDeletedCrdt {
+    const fakeDeletedCrdt = new FakeDeletedCrdt(initToken);
     return new Proxy(fakeDeletedCrdt, {
       get: function (target, p) {
         if (p in target) {
@@ -98,27 +98,23 @@ class FakeDeletedCrdt extends Crdt {
  */
 export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements Resettable, CrdtParent
+  implements Resettable
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
-  /*private initialValuesArgs?: AddArgs[];*/
-  private initialValues?: C[];
 
   constructor(
-    private readonly valueConstructor: (...args: AddArgs) => C,
+    initToken: CrdtInitToken,
+    private readonly valueConstructor: (
+      valueInitToken: CrdtInitToken,
+      ...args: AddArgs
+    ) => C,
     /*initialValuesArgs: AddArgs[] = [],*/
-    initialValues: C[] = [],
+    initialValues: Pre<C>[] = [],
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
-    super();
-    /*this.initialValuesArgs = initialValuesArgs;*/
-    this.initialValues = initialValues;
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
+    super(initToken);
 
     /*// Create the initial values from initialValuesArgs
     for (let i = 0; i < this.initialValuesArgs!.length; i++) {
@@ -133,8 +129,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     }
     delete this.initialValuesArgs;*/
     // Construct the initial values
-    for (let i = 0; i < this.initialValues!.length; i++) {
-      const newCrdt = this.initialValues![i];
+    for (let i = 0; i < initialValues.length; i++) {
       // Add as child with "["INIT", -i]" as id.
       // Similar to CompositeCrdt#addChild.
       let name = arrayAsString(
@@ -145,25 +140,12 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
           '(initial value) Duplicate newCrdt name: "' + name + '"'
         );
       }
+      const newCrdt = initialValues[i](new CrdtInitToken(name, this));
       this.children.set(name, newCrdt);
-      this.childBeingAdded = newCrdt;
-      newCrdt.init(name, this);
-      this.childBeingAdded = undefined;
 
       // Initial values are not added to this.constructorArgs,
       // since they are passed to the constructor, hence
       // do not need to be saved.
-    }
-    delete this.initialValues;
-  }
-
-  private childBeingAdded?: C;
-  onChildInit(child: Crdt) {
-    if (child != this.childBeingAdded) {
-      throw new Error(
-        "this was passed to Crdt.init as parent externally" +
-          " (use this.add or a CompositeCrdt instead)"
-      );
     }
   }
 
@@ -239,21 +221,21 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     if (args === undefined) {
       args = this.argsSerializer.deserialize(serializedArgs, this.runtime);
     }
-    const newValue = this.valueConstructor(...args);
     // Add as child with "[sender, counter]" as id.
     // Similar to CompositeCrdt#addChild.
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
+    const newValue = this.valueConstructor(
+      new CrdtInitToken(name, this),
+      ...args
+    );
     this.children.set(name, newValue);
     if (!isInitialValue) {
       // Initial values are not saved, since they are created
       // as part of initialization.
       this.constructorArgs.set(name, serializedArgs);
     }
-    this.childBeingAdded = newValue;
-    newValue.init(name, this);
-    this.childBeingAdded = undefined;
 
     return newValue;
   }
@@ -273,7 +255,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       // are defined properly in case the Crdt gets
       // re-serialized (e.g. during saving of whatever
       // holds a reference to it).
-      return FakeDeletedCrdt.of(name, this);
+      return FakeDeletedCrdt.of(new CrdtInitToken(name, this));
     }
     return child;
   }

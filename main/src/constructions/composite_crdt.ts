@@ -1,4 +1,10 @@
-import { Crdt, CrdtEventsRecord, CrdtParent, CausalTimestamp } from "../core";
+import {
+  Crdt,
+  CrdtEventsRecord,
+  CausalTimestamp,
+  Pre,
+  CrdtInitToken,
+} from "../core";
 
 /**
  * TODO: usage.
@@ -6,12 +12,9 @@ import { Crdt, CrdtEventsRecord, CrdtParent, CausalTimestamp } from "../core";
  * TODO: type params
  */
 export class CompositeCrdt<
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
-    C extends Crdt = Crdt
-  >
-  extends Crdt<Events>
-  implements CrdtParent
-{
+  Events extends CrdtEventsRecord = CrdtEventsRecord,
+  C extends Crdt = Crdt
+> extends Crdt<Events> {
   /**
    * The children, keyed by name.
    *
@@ -35,37 +38,13 @@ export class CompositeCrdt<
    *
    * @return child
    */
-  protected addChild<D extends C>(name: string, child: D): D {
+  protected addChild<D extends C>(name: string, preChild: Pre<D>): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
+    const child = preChild(new CrdtInitToken(name, this));
     this.children.set(name, child);
-    if (this.afterInit) this.initChild(name, child);
     return child;
-  }
-
-  init(name: string, parent: CrdtParent) {
-    super.init(name, parent);
-    // Init children added before init was called
-    for (let entry of this.children.entries()) {
-      this.initChild(entry[0], entry[1]);
-    }
-  }
-
-  private initChild(name: string, child: C) {
-    this.childBeingAdded = child;
-    child.init(name, this);
-    this.childBeingAdded = undefined;
-  }
-
-  private childBeingAdded?: C;
-  onChildInit(child: Crdt) {
-    if (child != this.childBeingAdded) {
-      throw new Error(
-        "this was passed to Crdt.init as parent externally" +
-          " (use this.addChild instead)"
-      );
-    }
   }
 
   protected receiveInternal(
