@@ -226,10 +226,10 @@ export class MessageHistory<Events extends CrdtEventsRecord> {
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
-    for (let i = 0; i < sparseArray.length; i++) {
-      if (sparseArray[i].senderCounter > value) return i;
+    for (let i = sparseArray.length - 1; i >= 0; i--) {
+      if (sparseArray[i].senderCounter <= value) return i + 1;
     }
-    return sparseArray.length;
+    return 0;
   }
 
   addMessageEvent(messageId: string, eventName: string, event: any) {

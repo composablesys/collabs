@@ -188,43 +188,38 @@ class MultipleSemidirectState<S extends Object> {
     return hist;
   }
 
-  // Binary search to find first index in array with senderCounter
-  // greater than given value
-  private static binSearch(
-    arr: Array<StoredMessage>,
-    value: number,
-    start: number,
-    end: number
-  ): number {
-    if (start >= end) return start;
-
-    let mid = Math.floor((start + end) / 2);
-
-    if (arr[mid].senderCounter > value) {
-      return this.binSearch(arr, value, start, mid - 1);
-    } else {
-      return this.binSearch(arr, value, mid + 1, end);
-    }
-  }
+  // // Binary search to find first index in array with senderCounter
+  // // greater than given value
+  // private static binSearch(
+  //   arr: Array<StoredMessage>,
+  //   value: number,
+  //   start: number,
+  //   end: number
+  // ): number {
+  //   if (start >= end) return start;
+  //
+  //   let mid = Math.floor((start + end) / 2);
+  //
+  //   if (arr[mid].senderCounter > value) {
+  //     return this.binSearch(arr, value, start, mid - 1);
+  //   } else {
+  //     return this.binSearch(arr, value, mid + 1, end);
+  //   }
+  // }
 
   private static indexAfter(
     sparseArray: Array<StoredMessage>,
     value: number
   ): number {
-    // binary search when sparseArray is large
-    // TODO: binsearch is not tested
-    // if (sparseArray.length > 100) {
-    //   return this.binSearch(sparseArray, value, 0, sparseArray.length);
-    // }
-
+    // TODO: binary search when sparseArray is large
     // Note that there may be duplicate timestamps.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
-    for (let i = 0; i < sparseArray.length; i++) {
-      if (sparseArray[i].senderCounter > value) return i;
+    for (let i = sparseArray.length - 1; i >= 0; i--) {
+      if (sparseArray[i].senderCounter <= value) return i + 1;
     }
-    return sparseArray.length;
+    return 0;
   }
 
   save(runtime: Runtime): Uint8Array {
