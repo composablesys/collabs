@@ -13,6 +13,7 @@ import {
   CrdtInitToken,
   Pre,
 } from "../../core";
+import { int64AsNumber } from "../../util";
 
 export interface CCounterEvent extends CrdtEvent {
   readonly arg: number;
@@ -105,20 +106,24 @@ export class GrowOnlyCCounter
         const m = this.M.get(timestamp.getSender());
         if (m === undefined) {
           this.M.set(timestamp.getSender(), [
-            (decoded.add!.prOld + decoded.add!.toAdd) %
+            (int64AsNumber(decoded.add!.prOld) +
+              int64AsNumber(decoded.add!.toAdd)) %
               GrowOnlyCCounter.MODULUS,
-            decoded.add!.prOld,
+            int64AsNumber(decoded.add!.prOld),
             decoded.add!.idCounter,
           ]);
         } else {
           // We are guaranteed m[2] === decoded.add!.idCounter.
-          m[0] = (m[0] + decoded.add!.toAdd) % GrowOnlyCCounter.MODULUS;
+          m[0] =
+            (m[0] + int64AsNumber(decoded.add!.toAdd)) %
+            GrowOnlyCCounter.MODULUS;
         }
         // Update the cached value.
         this.valueInternal =
-          (this.valueInternal + decoded.add!.toAdd) % GrowOnlyCCounter.MODULUS;
+          (this.valueInternal + int64AsNumber(decoded.add!.toAdd)) %
+          GrowOnlyCCounter.MODULUS;
         this.emit("Add", {
-          arg: decoded.add!.toAdd,
+          arg: int64AsNumber(decoded.add!.toAdd),
           timestamp,
           previousValue,
         });
@@ -127,7 +132,7 @@ export class GrowOnlyCCounter
         for (let vEntry of Object.entries(decoded.reset!.V!)) {
           const m = this.M.get(vEntry[0]);
           if (m !== undefined && m[2] === vEntry[1].idCounter) {
-            m[1] = Math.max(m[1], vEntry[1].v);
+            m[1] = Math.max(m[1], int64AsNumber(vEntry[1].v));
             // 0 vs -0 issue should be impossible because
             // we only ever deal with >= 0 numbers, so
             // -0 shouldn't be possible.
@@ -188,7 +193,11 @@ export class GrowOnlyCCounter
   loadPrimitive(saveData: Uint8Array) {
     const message = GrowOnlyCCounterSave.decode(saveData);
     for (const [replicaId, m] of Object.entries(message.M)) {
-      this.M.set(replicaId, [m.p, m.n, m.idCounter]);
+      this.M.set(replicaId, [
+        int64AsNumber(m.p),
+        int64AsNumber(m.n),
+        m.idCounter,
+      ]);
     }
     // Set the cached value.
     this.computeValue();

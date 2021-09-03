@@ -1,11 +1,11 @@
 message GrowOnlyCCounterAddMessage {
-    required uint32 toAdd = 1;
-    required uint32 prOld = 2;
+    required uint64 toAdd = 1;
+    required uint64 prOld = 2;
     required uint32 idCounter = 3;
 }
 
 message GrowOnlyCCounterResetEntry {
-  required uint32 v = 1;
+  required uint64 v = 1;
   required uint32 idCounter = 2;
 }
 
@@ -21,8 +21,8 @@ message GrowOnlyCCounterMessage {
 }
 
 message GrowOnlyCCounterSaveEntry {
-  required uint32 p = 1;
-  required uint32 n = 2;
+  required uint64 p = 1;
+  required uint64 n = 2;
   required uint32 idCounter = 3;
 }
 

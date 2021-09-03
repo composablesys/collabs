@@ -1,13 +1,13 @@
 message Tensor {
-  repeated uint32 shape = 0;
+  repeated uint32 shape = 1;
   enum DType {
     float32 = 0;
     int32 = 1;
     complex64 = 2;
     bool = 3;
   }
-  required DType dtype = 1;
-  required bytes data = 2;
+  required DType dtype = 2;
+  required bytes data = 3;
 }
 
 message TensorGCounterAddMessage {

@@ -13,6 +13,7 @@ import {
   CausalBroadcastNetwork,
 } from "./causal_broadcast_network";
 import { VectorClock } from "./vector_clock";
+import { int64AsNumber } from "../util";
 
 /**
  * Interface describing a (reliable, at-least-once, ordering
@@ -121,7 +122,7 @@ class myMessage {
     let vc = new VectorClock(
       decoded.sender,
       myReplicaId === decoded.sender,
-      decoded.time as number
+      int64AsNumber(decoded.time)
     );
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
     vc.vectorMap.set(decoded.sender, decoded.senderCounter);
