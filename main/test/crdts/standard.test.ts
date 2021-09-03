@@ -740,7 +740,7 @@ describe("standard", () => {
         assert.strictEqual(bobSet.booleanMap.size, 0);
       });
 
-      it("does not garbage collect non-deleted entries", async () => {
+      it.skip("does not garbage collect non-deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
           aliceSet.add(i + "");
         }
@@ -1227,7 +1227,7 @@ describe("standard", () => {
         assert.strictEqual(bobMap.internalMap.size, 0);
       });
 
-      it("does not garbage collect non-deleted entries", async () => {
+      it.skip("does not garbage collect non-deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
           aliceMap.set(i + "", 10 * i);
         }
