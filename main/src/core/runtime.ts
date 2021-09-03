@@ -184,6 +184,8 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     return this.rootCrdt.addChild(name, preCrdt);
   }
 
+  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
+
   /**
    * TODO.  Used internally by PrimitiveCrdt, that's about it.
    * @param  sender  [description]
@@ -205,6 +207,14 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         message
       );
       return;
+    }
+
+    if (this.currentlyProcessedTimestamp !== undefined) {
+      // send inside a receive call; not allowed (might break things).
+      throw new Error(
+        "Runtime.send called during another message's receive;" +
+          " did you try to perform an operation in an event handler?"
+      );
     }
 
     // TODO: reuse batchInfo, to avoid object creation?
@@ -657,7 +667,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
   }
 
   private inRunLocally = false;
-  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
   /**
    * TODOs: generally check this makes sense;
    * harden against repeated timestamps;
