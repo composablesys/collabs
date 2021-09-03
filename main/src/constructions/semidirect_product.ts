@@ -35,7 +35,7 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-export class SemidirectState<S extends Object> {
+export class SemidirectState<S extends object> {
   protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
@@ -260,12 +260,12 @@ export class SemidirectState<S extends Object> {
  * init, possibly overwriting state with a different instance
  * of S.
  *
- * @param S the state type.  S is forced to extend Object
+ * @param S the state type.  S is forced to extend object
  * because state is meant to be mutated in-place, since
  * it is readonly.  Immutable primitive types (e.g., number)
  * should be wrapped in an object.
  */
-export interface StatefulCrdt<S extends Object> extends Crdt {
+export interface StatefulCrdt<S extends object> extends Crdt {
   /**
    * Not for use outside of this (treat as protected).
    */
@@ -273,7 +273,7 @@ export interface StatefulCrdt<S extends Object> extends Crdt {
 }
 
 export abstract class SemidirectProduct<
-    S extends Object,
+    S extends object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>

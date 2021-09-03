@@ -31,7 +31,7 @@ class StoredMessage {
   }
 }
 
-class MultipleSemidirectState<S extends Object> {
+class MultipleSemidirectState<S extends object> {
   protected receiptCounter = 0;
   // H maps i (arb index) -> history of messages from that CRDT
   protected history: Map<number, Array<StoredMessage>> = new Map();
@@ -279,7 +279,7 @@ class MultipleSemidirectState<S extends Object> {
 }
 
 export abstract class MultipleSemidirectProduct<
-    S extends Object,
+    S extends object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
