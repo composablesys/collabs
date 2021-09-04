@@ -379,6 +379,33 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       if (ensureLoaded) {
         // Ensure currentCrdt is loaded before asking it
         // for a child.
+        // In doing so, we are careful to avoid creating circular
+        // dependencies, in which loading currentCrdt deserializes
+        // a Crdt reference that loads a Crdt that deserializes
+        // ... in a cycle.  To do so, we don't load Crdts
+        // before returning them; we only load their
+        // ancestors (necessary because loading is a
+        // prerequisite to calling getChild).  This loading
+        // is expected to construct, but not load, the
+        // children.  Constructing these children may
+        // require calling getCrdtByReference on other Crdts,
+        // but only ones that existed causally prior to the
+        // children's construction.  Thus loops are avoided
+        // because the causal order has no loops.
+        //
+        // There is still the possibility of long
+        // dependency chains, e.g., every character in a text
+        // document causing this line of code to be reached
+        // in reference to its previous character.  Such chains
+        // could easily overflow the stack, which might support
+        // only ~100,000 function calls.
+        // To mitigate this, in classes like DeletingMutCSet that
+        // construct many children during loading, we
+        // deliberately construct the children in causal order,
+        // so that any intra-set dependencies are resolved in
+        // order (iterately instead of recursively).  Long
+        // inter-Crdt dependency chains that circumvent this
+        // strategy are possible but seem unlikely.
         this.loadOneIfNeeded(currentCrdt);
       }
       currentCrdt = currentCrdt.getChild(pathToRoot[i]);
