@@ -16,7 +16,7 @@ let clientCounter = client.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
 var counter = document.getElementById("counter");
 
 /* Customize the event listener for CRDT as refresh the value */
-clientCounter.on("Change", (_) => {
+clientCounter.on("Message", (_) => {
   counter!.innerHTML = clientCounter.value.toString();
 });
 

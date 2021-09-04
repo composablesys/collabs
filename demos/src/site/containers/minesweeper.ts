@@ -412,7 +412,7 @@ class MinesweeperCrdt extends crdts.CompositeCrdt {
       )
   );
 
-  runtime.on("Change", invalidate);
+  runtime.on("Message", invalidate);
 
   document.getElementById("newGame")!.onclick = function () {
     currentSettings.value = settingsFromInput();

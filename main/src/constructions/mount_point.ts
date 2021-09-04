@@ -52,13 +52,13 @@ export interface CMountPointEventsRecord extends CrdtEventsRecord {
  * was unmounted locally, while messages queued since then
  * are stored in our own saveData.
  *
- * The above formalism extends to Change events for this Crdt
+ * The above formalism extends to Message events for this Crdt
  * and its ancestors: if a message is received for the
  * wrapped Crdt but it is unmounted, this Crdt and all
- * of its ancestors will emit Change events immediately,
+ * of its ancestors will emit Message events immediately,
  * as if it was mounted; later, when the wrapped Crdt is
  * mounted and the message is replayed, this Crdt and all
- * of its ancestors will **not** emit Change events, although
+ * of its ancestors will **not** emit Message events, although
  * the wrapped Crdt will emit all events as usual.
  *
  * Note that
@@ -124,7 +124,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
    * all of their events with the original (queued) timestamps,
    * which may be causally prior to timestamps that have
    * appeared in events for other Crdts.
-   * - this Crdt and its ancestors will not dispatch Change
+   * - this Crdt and its ancestors will not dispatch Message
    * events for the queued messages; they were already dispatched when the messages
    * were originally received.
    *
@@ -299,7 +299,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
    * Crdt to dispatch events with old (pre-save) timestamps,
    * contrary to most load/postLoad methods which do not
    * dispatch any events.  However this Crdt and its
-   * ancestors will not dispatch Change
+   * ancestors will not dispatch Message
    * events for the queued messages; they were already dispatched when the messages
    * were originally received (before saving).
    *

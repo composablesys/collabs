@@ -99,17 +99,17 @@ export interface CrdtEvent {
  */
 export interface CrdtEventsRecord {
   /**
-   * Emitted every time a Crdt changes (or may have
-   * changed).  Specifically, it is emitted every time
-   * a Crdt receives a message, at the end of message processing.
+   * Emitted every time a Crdt
+   * receives a message, at the end of message processing.
    *
    * This event should generally not be listened on.
    * Logical operations may be composed of multiple messages,
-   * each of which emits a Change event, so when early
-   * Change events are emitted, the Crdt may be in
-   * a nonsensical, transient internal state.
+   * each of which emits a Message event, so when early
+   * Message events are emitted, the Crdt may be in
+   * a nonsensical, transient internal state.  Instead,
+   * listen on Crdt-specific events.
    */
-  Change: CrdtEvent;
+  Message: CrdtEvent;
 }
 
 /**
@@ -160,7 +160,7 @@ export abstract class Crdt<
    * Callback used by this Crdt's CrdtParent to deliver
    * a message, possibly for one of this Crdt's descendants.
    * This method calls receiveInternal and
-   * then dispatches a "Change" event.
+   * then dispatches a "Message" event.
    *
    * Do not override this method; instead, override
    * receiveInternal.
@@ -179,7 +179,7 @@ export abstract class Crdt<
   ) {
     this.receiveInternal(targetPath, timestamp, message);
     // this.needsSaving = true;
-    this.emit("Change", { timestamp: timestamp });
+    this.emit("Message", { timestamp: timestamp });
   }
 
   /**

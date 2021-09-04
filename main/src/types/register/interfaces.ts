@@ -8,11 +8,6 @@ export interface CRegisterEventsRecord<T> extends CrdtEventsRecord {
   /**
    * Emitted whenever the value is set or otherwise
    * changed.
-   *
-   * You should listen on this event instead of
-   * on Change events, since a logical Set event may
-   * emit multiple Change events, with all but the last
-   * corresponding to a transient internal state.
    */
   Set: CRegisterEvent<T>;
 }
@@ -28,7 +23,7 @@ export interface CRegisterEventsRecord<T> extends CrdtEventsRecord {
  * e.g., using a user-supplied callback in the constructor.
  *
  * There are no CRegister-specific events; instead, listen
- * on the generic Change event and use this.value to read
+ * on the generic Message event and use this.value to read
  * the changed value, if needed.
  */
 export interface CRegister<

@@ -18,7 +18,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   var counter = document.getElementById("counter");
 
   /* Customize the event listener for CRDT as refresh the value */
-  counterCrdt.on("Change", (_) => {
+  counterCrdt.on("Message", (_) => {
     counter!.innerHTML = counterCrdt.value.toString();
   });
 

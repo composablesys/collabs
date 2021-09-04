@@ -88,7 +88,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   }
 
   // Respond to text changes
-  text.on("Change", () => {
+  text.on("Message", () => {
     textInput.value = text.join("");
     updateCursor();
   });
