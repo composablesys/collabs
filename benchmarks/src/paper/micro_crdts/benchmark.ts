@@ -656,10 +656,10 @@ function LwwMapRollingGrow() {
   );
 }
 
-function PrimitiveCListLtr() {
+function TextLtr() {
   return new MicroCrdtsBenchmark(
     "TextLtr",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -673,10 +673,10 @@ function PrimitiveCListLtr() {
   );
 }
 
-function PrimitiveCListLtrGrow() {
+function TextLtrGrow() {
   return new MicroCrdtsBenchmark(
     "TextLtrGrow",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -689,10 +689,10 @@ function PrimitiveCListLtrGrow() {
   );
 }
 
-function PrimitiveCListRandom() {
+function TextRandom() {
   return new MicroCrdtsBenchmark(
     "TextRandom",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -707,10 +707,10 @@ function PrimitiveCListRandom() {
   );
 }
 
-function PrimitiveCListRandomGrow() {
+function TextRandomGrow() {
   return new MicroCrdtsBenchmark(
     "TextRandomGrow",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -906,16 +906,16 @@ export default async function microCrdts(args: string[]) {
       benchmark = LwwMapRollingGrow();
       break;
     case "TextLtr":
-      benchmark = PrimitiveCListLtr();
+      benchmark = TextLtr();
       break;
     case "TextRandom":
-      benchmark = PrimitiveCListRandom();
+      benchmark = TextRandom();
       break;
     case "TextLtrGrow":
-      benchmark = PrimitiveCListLtrGrow();
+      benchmark = TextLtrGrow();
       break;
     case "TextRandomGrow":
-      benchmark = PrimitiveCListRandomGrow();
+      benchmark = TextRandomGrow();
       break;
     case "RgaLtr":
       benchmark = RgaLtr();
