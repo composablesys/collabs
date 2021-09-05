@@ -85,8 +85,7 @@ export class SemidirectState<S extends object> {
    * timestamp, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
    * timestamp.getSender()), it is assumed that the timestamp is
-   * causally greater than all prior messages, as described in
-   * CrdtInternal.effect, hence [] is returned.
+   * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaId: string, timestamp: CausalTimestamp) {
     return this.processTimestamp(
@@ -277,7 +276,7 @@ export abstract class SemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>>
+  implements StatefulCrdt<SemidirectState<S>> 
 {
   static readonly crdt1Name = "1";
   static readonly crdt2Name = "2";
@@ -328,7 +327,7 @@ export abstract class SemidirectProduct<
 
   // TODO: move setup into constructor?  Then we don't have to worry about
   // it being called after init.  But then it's annoying to pass
-  // this to the children (as is one in ResetWrapperCrdt).
+  // this to the children (as was done in ResetWrapperCrdt).
   protected setup<C1 extends StatefulCrdt<S>, C2 extends StatefulCrdt<S>>(
     preCrdt1: Pre<C1>,
     preCrdt2: Pre<C2>,
@@ -425,7 +424,7 @@ export abstract class SemidirectProduct<
     // TODO: this may spuriously return false if one of the Crdt's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Crdt's so far
-    // (e.g NumberCrdt), it ends up working because they check canGC()
+    // (e.g CNumber), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     return (
       this.state.isHistoryEmpty() && this.crdt1.canGc() && this.crdt2.canGc()

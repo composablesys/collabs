@@ -107,8 +107,7 @@ export class MessageHistory<Events extends CrdtEventsRecord> {
    * timestamp, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
    * timestamp.getSender()), it is assumed that the timestamp is
-   * causally greater than all prior messages, as described in
-   * CrdtInternal.effect, hence [] is returned.
+   * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaId: string, timestamp: CausalTimestamp) {
     return this.processTimestamp(
@@ -508,7 +507,7 @@ export abstract class SemidirectProductRev<
     // TODO: this may spuriously return false if one of the Crdt's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Crdt's so far
-    // (e.g NumberCrdt), it ends up working because they check canGC()
+    // (e.g CNumber), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     return this.history.isHistoryEmpty() && super.canGc();
   }

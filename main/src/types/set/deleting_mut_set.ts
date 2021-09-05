@@ -8,13 +8,7 @@ import {
   ElementSerializer,
   stringAsArray,
 } from "../../util";
-import {
-  CausalTimestamp,
-  Crdt,
-  CrdtEventsRecord,
-  CrdtInitToken,
-  Pre,
-} from "../../core";
+import { CausalTimestamp, Crdt, CrdtInitToken, Pre } from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
 import { Resettable } from "../../abilities";
 
@@ -30,16 +24,13 @@ class FakeDeletedCrdt extends Crdt {
   ): void {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
-  getChild(_name: string): Crdt<CrdtEventsRecord> {
+  getChild(_name: string): Crdt {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
   canGc(): boolean {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
-  save(): [
-    saveData: Uint8Array,
-    children: Map<string, Crdt<CrdtEventsRecord>>
-  ] {
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
   load(_saveData: Uint8Array): boolean {

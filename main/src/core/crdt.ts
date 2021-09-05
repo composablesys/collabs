@@ -34,7 +34,7 @@ export class CrdtInitToken {
  * valueConstructor's), or use a function whose output is
  * a Pre<C>.
  *
- * Usually C will be a Crdt type, but we allow more general
+ * Usually C will extend Crdt, but we allow more general
  * types in case users make more general constructs that
  * require an initToken (e.g., a Crdt + HTML component combo).
  */
@@ -73,7 +73,7 @@ export function Pre<C, Args extends any[]>(
  * dispatch Add if the value went from (not present) to (present);
  * don't dispatch it if the value was already present.
  * That is useful
- * for some views that only account for part of the state,
+ * for some views that only track part of the state,
  * e.g., the size of a CSet.
  */
 export interface CrdtEvent {
@@ -92,7 +92,7 @@ export interface CrdtEvent {
 /**
  * A record of events for a Crdt, indexed by name.
  *
- * Crdt types should define an events record extending
+ * Crdt subclasses should define an events record extending
  * this interface, adding a record for each possible change.
  * Each record's type should be a subinterface of
  * CrdtEvent.
@@ -116,7 +116,7 @@ export interface CrdtEventsRecord {
 /**
  * The base class for all Crdts.
  *
- * Most Crdt types will not extend this class directly,
+ * Most Crdts will not extend this class directly,
  * instead extending CObject, CPrimitive, or
  * SemidirectProduct.
  */
@@ -125,8 +125,8 @@ export abstract class Crdt<
 > extends EventEmitter<Events> {
   readonly runtime: Runtime;
   /**
-   * TODO: only Runtime's RootCrdt will have RootParent
-   * as a parent, all others will have Crdt.
+   * TODO: only Runtime's RootCrdt will have Runtime
+   * as a parent, all others will have a Crdt parent.
    */
   readonly parent: CrdtParent;
   readonly name: string;
@@ -205,7 +205,7 @@ export abstract class Crdt<
   /**
    * Returns the given child of this Crdt.
    * Only for use by Runtime; all others use
-   * Runtime.getCrdtByRer
+   * Runtime.getCrdtByReference.
    *
    * @param name the child's name
    */
@@ -233,7 +233,7 @@ export abstract class Crdt<
   //  * TODO: allow overriding if you know better?  Or, option
   //  * for save to return null for saveData if only children
   //  * need to be updated?  E.g. if you change a single attribute
-  //  * in a YjsCrdtSet rich text.  Although usually you'd be
+  //  * in a DeletingMutCSet rich text.  Although usually you'd be
   //  * changing characters, so this is moot.
   //  */
   // getAndResetNeedsSaving(): boolean {
@@ -307,9 +307,7 @@ export abstract class Crdt<
    * concurrently.  So make sure to account for this.
    *
    * Events should not be dispatched, since there is no
-   * associated timestamp.  An exception is events that are
-   * already not associated with timestamps, like CrdtSet
-   * ValueInit events.  This means that you cannot depend
+   * associated timestamp.  This means that you cannot depend
    * on events from children to help initialize your own
    * state (e.g., to setup cached views of child state);
    * instead, you must set that state in postLoad or load.
@@ -322,7 +320,7 @@ export abstract class Crdt<
    * you can accomplish this by initializing children in
    * the same order as they were initialized in the saved
    * state, since one child's constructor can only have
-   * received references to prior children (see YjsCrdtSet
+   * received references to prior children (see DeletingMutCSet
    * for an example).
    *
    * @return whether the descendants should be loaded now.
