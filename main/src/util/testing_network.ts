@@ -12,8 +12,8 @@ import { Unsubscribe } from "./event_emitter";
  * immediately as its own batch.
  */
 export class TestingBatchingStrategy implements BatchingStrategy {
-  private runtime?: Runtime;
-  private unsubscribe?: Unsubscribe;
+  private runtime?: Runtime = undefined;
+  private unsubscribe?: Unsubscribe = undefined;
 
   start(runtime: Runtime): void {
     this.runtime = runtime;
@@ -151,5 +151,5 @@ export class TestingNetworkGenerator {
     return ret;
   }
 
-  lastMessage: Uint8Array | undefined = undefined;
+  lastMessage?: Uint8Array = undefined;
 }

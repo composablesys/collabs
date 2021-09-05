@@ -71,7 +71,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
   /**
    * Name: "".  undefined iff unmounted.
    */
-  private wrappedCrdt: C | undefined = undefined;
+  private wrappedCrdt?: C = undefined;
   /**
    * messageQueue is always empty this is mounted
    * (wrappedCrdt !== undefined).
@@ -83,7 +83,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
   ][] = [];
   private needsDelayedLoad = false;
 
-  private toMount?: C;
+  private toMount?: C = undefined;
   /**
    * Call this before mount to specify
    * and construct the wrapped Crdt.  mount should be called shortly
@@ -137,7 +137,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
       throw new Error("prepareMount must be called before mount");
     }
     this.wrappedCrdt = this.toMount;
-    delete this.toMount;
+    this.toMount = undefined;
 
     if (this.needsDelayedLoad) {
       this.runtime.delayedLoadDescendants(this);

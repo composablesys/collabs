@@ -19,8 +19,8 @@ export interface BatchingStrategy {
  * the fastest-sending (reasonable) BatchingStrategy.
  */
 export class ImmediateBatchingStrategy implements BatchingStrategy {
-  private runtime?: Runtime;
-  private unsubscribe?: Unsubscribe;
+  private runtime?: Runtime = undefined;
+  private unsubscribe?: Unsubscribe = undefined;
 
   start(runtime: Runtime): void {
     this.runtime = runtime;
@@ -43,9 +43,9 @@ export class ImmediateBatchingStrategy implements BatchingStrategy {
  * as soon as possible.
  */
 export class RateLimitBatchingStrategy implements BatchingStrategy {
-  private runtime?: Runtime;
-  private unsubscribeChange?: Unsubscribe;
-  private unsubscribeReceiveBlocked?: Unsubscribe;
+  private runtime?: Runtime = undefined;
+  private unsubscribeChange?: Unsubscribe = undefined;
+  private unsubscribeReceiveBlocked?: Unsubscribe = undefined;
 
   private pendingBatch = false;
   private lastSend = -1;

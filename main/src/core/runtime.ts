@@ -250,7 +250,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     return this.rootCrdt.addChild(name, preCrdt);
   }
 
-  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
+  private currentlyProcessedTimestamp?: CausalTimestamp = undefined;
 
   /**
    * TODO.  Used internally by PrimitiveCrdt, that's about it.
@@ -585,7 +585,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
    * Defined so long as load() has been called,
    * but empties as it is used (possibly by delayed loads).
    */
-  private loadHelper?: LoadHelper;
+  private loadHelper?: LoadHelper = undefined;
   private inLoad = false;
 
   /**
@@ -735,7 +735,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     }
   }
 
-  private delayedLoadCrdt?: Crdt;
+  private delayedLoadCrdt?: Crdt = undefined;
   /**
    * TODO: generally this will only be called by crdt
    * itself.
@@ -769,7 +769,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
       this.loadDescendants(crdt, this.loadHelper!.idsByCrdt.get(crdt)!, false);
       // TODO: check loadHelper state has been properly cleaned up.
     } finally {
-      delete this.delayedLoadCrdt;
+      this.delayedLoadCrdt = undefined;
     }
   }
 

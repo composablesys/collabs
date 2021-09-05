@@ -47,7 +47,7 @@ export abstract class AggregateArgsCRegister<
   implements CRegister<T, SetArgs>
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];
-  private cachedValue: T | undefined = undefined;
+  private cachedValue?: T = undefined;
   private cacheValid: boolean = false;
 
   constructor(

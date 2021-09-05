@@ -226,7 +226,7 @@ export class CCounter
   private readonly plus: GrowOnlyCCounter;
   private readonly minus: GrowOnlyCCounter;
 
-  private plusResetEvent?: CCounterEvent;
+  private plusResetEvent?: CCounterEvent = undefined;
 
   constructor(initToken: CrdtInitToken) {
     super(initToken);
@@ -262,7 +262,7 @@ export class CCounter
         previousValue: this.plusResetEvent!.previousValue - event.previousValue,
         timestamp: event.timestamp,
       });
-      delete this.plusResetEvent;
+      this.plusResetEvent = undefined;
     });
   }
 

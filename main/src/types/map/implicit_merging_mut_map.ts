@@ -102,8 +102,8 @@ export class GrowOnlyImplicitMergingMutCMap<
     } else return [value, true];
   }
 
-  private inReceiveKeyStr: string | undefined = undefined;
-  private inReceiveValueCrdt: C | undefined = undefined;
+  private inReceiveKeyStr?: string = undefined;
+  private inReceiveValueCrdt?: C = undefined;
 
   protected receiveInternal(
     targetPath: string[],
@@ -265,14 +265,14 @@ export class GrowOnlyImplicitMergingMutCMap<
     return [new Uint8Array(), this.nontrivialMap];
   }
 
-  private inLoad?: true;
+  private inLoad = false;
   load(_saveData: Uint8Array): boolean {
     this.inLoad = true;
     return true;
   }
 
   postLoad() {
-    delete this.inLoad;
+    this.inLoad = false;
   }
 }
 

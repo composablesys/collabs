@@ -127,7 +127,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       );
       this.receiveCreate(name, this.argsSerializer.serialize(args), args, true);
     }
-    delete this.initialValuesArgs;*/
+    this.initialValuesArgs = undefined;*/
     // Construct the initial values
     for (let i = 0; i < initialValues.length; i++) {
       // Add as child with "["INIT", -i]" as id.
@@ -152,7 +152,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   private static nameSerializer =
     DefaultElementSerializer.getInstance<[string, number]>();
 
-  private ourCreatedValue?: C;
+  private ourCreatedValue?: C = undefined;
   protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
@@ -273,7 +273,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     });
     this.runtime.send(this, DeletingMutCSetMessage.encode(message).finish());
     let created = this.ourCreatedValue;
-    delete this.ourCreatedValue;
+    this.ourCreatedValue = undefined;
     return created!;
   }
 
@@ -287,7 +287,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     });
     this.runtime.send(this, DeletingMutCSetMessage.encode(message).finish());
     let created = this.ourCreatedValue;
-    delete this.ourCreatedValue;
+    this.ourCreatedValue = undefined;
     return created!;
   }
 

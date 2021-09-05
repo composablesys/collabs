@@ -7,8 +7,8 @@ export class WeakValueMap<K, V extends object> {
    * empty, e.g., so you can delete this map.
    * heldValue will be set to this.onemptyHeldValue.
    */
-  onempty?: (caller: this, heldValue: any) => void;
-  onemptyHeldValue?: any;
+  onempty?: (caller: this, heldValue: any) => void = undefined;
+  onemptyHeldValue?: any = undefined;
 
   constructor() {
     this.registry = new FinalizationRegistry((key) => this.checkKey(key));
