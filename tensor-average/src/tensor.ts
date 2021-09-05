@@ -2,12 +2,12 @@ import * as tf from "@tensorflow/tfjs";
 import {
   CausalTimestamp,
   CCounter,
-  CompositeCrdt,
+  CObject,
   CrdtEvent,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
-  PrimitiveCrdt,
+  CPrimitive,
   Resettable,
 } from "compoventuals";
 import * as proto from "../generated/proto_compiled";
@@ -120,7 +120,7 @@ function tensorsEqual<R extends tf.Rank>(
 }
 
 export class TensorGCounterCrdt
-  extends PrimitiveCrdt<TensorCounterEventsRecord>
+  extends CPrimitive<TensorCounterEventsRecord>
   implements Resettable
 {
   // TODO: refactor state as proper vars
@@ -276,7 +276,7 @@ export class TensorGCounterCrdt
 }
 
 export class TensorCounterCrdt
-  extends CompositeCrdt<TensorCounterEventsRecord>
+  extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
   private readonly plus: TensorGCounterCrdt;
@@ -334,7 +334,7 @@ export class TensorCounterCrdt
 }
 
 export class TensorAverageCrdt
-  extends CompositeCrdt<TensorCounterEventsRecord>
+  extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
   private readonly numerator: TensorCounterCrdt;

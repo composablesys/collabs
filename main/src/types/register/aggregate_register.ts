@@ -2,7 +2,7 @@ import {
   AggregateArgsCRegisterMessage,
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
-import { PrimitiveCrdt } from "../../constructions";
+import { CPrimitive } from "../../constructions";
 import { CausalTimestamp, CrdtInitToken } from "../../core";
 import {
   DefaultElementSerializer,
@@ -43,7 +43,7 @@ export abstract class AggregateArgsCRegister<
     S = T,
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
-  extends PrimitiveCrdt<Events>
+  extends CPrimitive<Events>
   implements CRegister<T, SetArgs>
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];

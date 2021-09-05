@@ -1,4 +1,4 @@
-import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CObject, CPrimitive } from "../../constructions";
 import { Crdt, CrdtInitToken } from "../../core";
 import { CMap, CMapEventsRecord } from "./interfaces";
 
@@ -51,7 +51,7 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCMapPrimitiveCrdt and the other examples
+ * by AbstractCMapCPrimitive and the other examples
  * in this file.
  */
 export function MakeAbstractCMap<
@@ -124,19 +124,17 @@ export function MakeAbstractCMap<
   return Mixin as any;
 }
 
-export const AbstractCMapCompositeCrdt = MakeAbstractCMap(
-  CompositeCrdt
-) as abstract new <
+export const AbstractCMapCObject = MakeAbstractCMap(CObject) as abstract new <
   K,
   V,
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
   initToken: CrdtInitToken
-) => AbstractCMap<K, V, SetArgs> & CompositeCrdt<Events>;
+) => AbstractCMap<K, V, SetArgs> & CObject<Events>;
 
-export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
-  PrimitiveCrdt
+export const AbstractCMapCPrimitive = MakeAbstractCMap(
+  CPrimitive
 ) as abstract new <
   K,
   V,
@@ -144,7 +142,7 @@ export const AbstractCMapPrimitiveCrdt = MakeAbstractCMap(
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
   initToken: CrdtInitToken
-) => AbstractCMap<K, V, SetArgs> & PrimitiveCrdt<Events>;
+) => AbstractCMap<K, V, SetArgs> & CPrimitive<Events>;
 
 export const AbstractCMapCrdt = MakeAbstractCMap(Crdt) as abstract new <
   K,

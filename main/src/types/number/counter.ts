@@ -5,7 +5,7 @@ import {
   IGrowOnlyCCounterSaveEntry,
 } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
-import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CObject, CPrimitive } from "../../constructions";
 import {
   CausalTimestamp,
   CrdtEvent,
@@ -31,7 +31,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
 }
 
 export class GrowOnlyCCounter
-  extends PrimitiveCrdt<CCounterEventsRecord>
+  extends CPrimitive<CCounterEventsRecord>
   implements Resettable
 {
   /**
@@ -205,7 +205,7 @@ export class GrowOnlyCCounter
 }
 
 export class CCounter
-  extends CompositeCrdt<CCounterEventsRecord>
+  extends CObject<CCounterEventsRecord>
   implements Resettable
 {
   /**

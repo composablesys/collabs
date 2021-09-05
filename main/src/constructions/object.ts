@@ -11,7 +11,7 @@ import {
  *
  * TODO: type params
  */
-export class CompositeCrdt<
+export class CObject<
   Events extends CrdtEventsRecord = CrdtEventsRecord,
   C extends Crdt = Crdt
 > extends Crdt<Events> {
@@ -54,7 +54,7 @@ export class CompositeCrdt<
   ): void {
     if (targetPath.length === 0) {
       // We are the target
-      throw new Error("CompositeCrdt received message for itself");
+      throw new Error("CObject received message for itself");
     }
 
     let child = this.children.get(targetPath[targetPath.length - 1]);

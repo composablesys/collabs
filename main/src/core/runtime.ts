@@ -19,13 +19,13 @@ import {
   BroadcastNetwork,
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
-import { CompositeCrdt } from "../constructions";
+import { CObject } from "../constructions";
 import {
   BatchingStrategy,
   ImmediateBatchingStrategy,
 } from "./batching_strategy";
 
-class RootCrdt extends CompositeCrdt {
+class RootCrdt extends CObject {
   /**
    * Exposes super.addChild publicly so Runtime can call it.
    */
@@ -253,7 +253,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   private currentlyProcessedTimestamp?: CausalTimestamp = undefined;
 
   /**
-   * TODO.  Used internally by PrimitiveCrdt, that's about it.
+   * TODO.  Used internally by CPrimitive, that's about it.
    * @param  sender  [description]
    * @param  message [description]
    * @return         [description]

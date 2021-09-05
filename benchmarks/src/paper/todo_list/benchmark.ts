@@ -484,7 +484,7 @@ function plainJs() {
 
 function compoCrdt() {
   class CrdtTodoList
-    extends crdts.CompositeCrdt
+    extends crdts.CObject
     implements ITodoList, crdts.Resettable
   {
     private readonly text: crdts.CText;
@@ -651,7 +651,7 @@ class ResettingMutCListRga<C extends crdts.Crdt & crdts.Resettable>
 
 function compoCrdtRga() {
   class CrdtTodoList
-    extends crdts.CompositeCrdt
+    extends crdts.CObject
     implements ITodoList, crdts.Resettable
   {
     private readonly text: CTextRga;
@@ -762,7 +762,7 @@ function compoCrdtRga() {
 
 function compoMovableCrdt() {
   class CrdtTodoList
-    extends crdts.CompositeCrdt
+    extends crdts.CObject
     implements ITodoList, crdts.Resettable
   {
     private readonly text: crdts.CText;
@@ -921,7 +921,7 @@ class DeletingMutCListRga<
 
 function compoMovableCrdtRga() {
   class CrdtTodoList
-    extends crdts.CompositeCrdt
+    extends crdts.CObject
     implements ITodoList, crdts.Resettable
   {
     private readonly text: crdts.CList<string>;

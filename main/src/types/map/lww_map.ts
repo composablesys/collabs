@@ -10,7 +10,7 @@ import {
   CRegisterEntryMeta,
   OptionalLwwCRegister,
 } from "../register";
-import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { AbstractCMapCObject } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { CMapEventsRecord } from "./interfaces";
 import { CrdtInitToken } from "../../core";
@@ -21,7 +21,7 @@ export class CMapFromRegister<
     SetArgs extends any[],
     RegT extends CRegister<Optional<V>, SetArgs> & Resettable
   >
-  extends AbstractCMapCompositeCrdt<K, V, SetArgs, CMapEventsRecord<K, V>>
+  extends AbstractCMapCObject<K, V, SetArgs, CMapEventsRecord<K, V>>
   implements Resettable
 {
   protected readonly internalMap: ImplicitMergingMutCMap<K, RegT>;

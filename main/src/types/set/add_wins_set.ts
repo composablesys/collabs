@@ -2,13 +2,13 @@ import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
-import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { AbstractCSetCObject } from "./abstract_set";
 import { CrdtInitToken, Pre } from "../../core";
 
 export class CSetFromBoolean<
   T,
   BoolT extends CBoolean
-> extends AbstractCSetCompositeCrdt<T, [T]> {
+> extends AbstractCSetCObject<T, [T]> {
   protected readonly booleanMap: GrowOnlyImplicitMergingMutCMap<T, BoolT>;
   // View of the set size, cached for efficiency.
   private cachedSize = 0;

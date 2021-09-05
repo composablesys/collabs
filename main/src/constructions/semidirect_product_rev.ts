@@ -10,7 +10,7 @@ import {
   Runtime,
 } from "../core";
 import { DefaultElementSerializer, ElementSerializer } from "../util";
-import { CompositeCrdt } from "./composite_crdt";
+import { CObject } from "./object";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?
@@ -342,7 +342,7 @@ export abstract class SemidirectProductRev<
   m2Args extends Array<any> = [],
   m1Ret extends any | void = any | void,
   m2Ret extends any | void = any | void
-> extends CompositeCrdt<Events, C> {
+> extends CObject<Events, C> {
   protected history = new MessageHistory(false, false, false);
   private receivedMessages = false;
   private m2Id = "";

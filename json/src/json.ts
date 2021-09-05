@@ -1,5 +1,5 @@
 import {
-  CompositeCrdt,
+  CObject,
   CrdtInitToken,
   CText,
   DefaultElementSerializer,
@@ -21,7 +21,7 @@ export type JsonValue =
   | JsonArray
   | CText;
 
-export class JsonObject extends CompositeCrdt implements Resettable {
+export class JsonObject extends CObject implements Resettable {
   private readonly internalMap: MergingMutCMap<string, JsonElement>;
   /**
    * Internal use only
@@ -91,7 +91,7 @@ export class JsonObject extends CompositeCrdt implements Resettable {
   }
 }
 
-export class JsonArray extends CompositeCrdt implements Resettable {
+export class JsonArray extends CObject implements Resettable {
   private readonly internalList: ResettingMutCList<JsonElement>;
   constructor(
     initToken: CrdtInitToken,
@@ -153,7 +153,7 @@ export class TextWrapper {
 // E.g. currently a reset on a big object will call it once per
 // sub-reset, each causing a call up the whole chain.
 
-export class JsonElement extends CompositeCrdt implements Resettable {
+export class JsonElement extends CObject implements Resettable {
   private register: LwwCRegister<JsonValue>;
   private object: JsonObject;
   private array: JsonArray;
@@ -244,7 +244,7 @@ export class JsonElement extends CompositeCrdt implements Resettable {
   }
 
   reset() {
-    // TODO: use generic CompositeCrdt reset
+    // TODO: use generic CObject reset
     this.object.reset();
     this.array.reset();
     this.text.reset();

@@ -8,7 +8,7 @@ import {
 import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
-import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { AbstractCMapCObject } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
 
 /**
@@ -19,7 +19,7 @@ export class TombstoneMutCMap<
   K,
   C extends Crdt,
   SetArgs extends any[]
-> extends AbstractCMapCompositeCrdt<K, C, SetArgs> {
+> extends AbstractCMapCObject<K, C, SetArgs> {
   private readonly valueSet: DeletingMutCSet<C, [K, SetArgs]>;
   private readonly map: LwwCMap<K, C>;
   private readonly keySet: AddWinsCSet<K>;

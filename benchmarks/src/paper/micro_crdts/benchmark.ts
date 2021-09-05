@@ -302,7 +302,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
  * A trivial Crdt that does nothing except send
  * empty messages.  Used for baseline measurements.
  */
-class NoopCrdtClass extends crdts.PrimitiveCrdt {
+class NoopCrdtClass extends crdts.CPrimitive {
   noop() {
     super.send(new Uint8Array());
   }
@@ -330,7 +330,7 @@ function NoopCrdt() {
 }
 
 function DeepNoopCrdt() {
-  class DeepNoopCrdt extends crdts.CompositeCrdt {
+  class DeepNoopCrdt extends crdts.CObject {
     readonly child: crdts.Crdt;
     readonly noop: NoopCrdtClass;
     constructor(initToken: crdts.CrdtInitToken, index: number) {

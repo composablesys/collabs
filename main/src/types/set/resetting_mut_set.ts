@@ -6,7 +6,7 @@ import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt, CrdtInitToken, Pre, Runtime } from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
-import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { AbstractCSetCObject } from "./abstract_set";
 import { CSetEventsRecord } from "./interfaces";
 
 class MutCSetFromMapSerializer<AddArgs extends any[]>
@@ -61,7 +61,7 @@ export class MutCSetFromMap<
     []
   >,
   Events extends CSetEventsRecord<C> = CSetEventsRecord<C>
-> extends AbstractCSetCompositeCrdt<C, AddArgs, Events> {
+> extends AbstractCSetCObject<C, AddArgs, Events> {
   protected map: MapT;
 
   /**

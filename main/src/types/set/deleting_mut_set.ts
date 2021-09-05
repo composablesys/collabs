@@ -131,7 +131,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     // Construct the initial values
     for (let i = 0; i < initialValues.length; i++) {
       // Add as child with "["INIT", -i]" as id.
-      // Similar to CompositeCrdt#addChild.
+      // Similar to CObject#addChild.
       let name = arrayAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", -i])
       );
@@ -191,7 +191,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       }
     } else {
       // Message for an existing child.  Proceed as in
-      // CompositeCrdt.
+      // CObject.
       let child = this.children.get(targetPath[targetPath.length - 1]);
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
@@ -222,7 +222,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       args = this.argsSerializer.deserialize(serializedArgs, this.runtime);
     }
     // Add as child with "[sender, counter]" as id.
-    // Similar to CompositeCrdt#addChild.
+    // Similar to CObject#addChild.
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }

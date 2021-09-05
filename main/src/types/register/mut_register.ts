@@ -1,5 +1,5 @@
 import { Resettable } from "../../abilities";
-import { CompositeCrdt } from "../../constructions";
+import { CObject } from "../../constructions";
 import { Crdt, CrdtInitToken, Pre } from "../../core";
 import {
   ElementSerializer,
@@ -19,7 +19,7 @@ export class MutCRegisterFromRegister<
     RegT extends CRegister<Value, [C]>,
     Events extends CRegisterEventsRecord<Value> = CRegisterEventsRecord<Value>
   >
-  extends CompositeCrdt<Events>
+  extends CObject<Events>
   implements CRegister<Value, SetArgs>
 {
   protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;

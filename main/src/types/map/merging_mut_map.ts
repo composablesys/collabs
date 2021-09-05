@@ -6,11 +6,11 @@ import {
 import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { AddWinsCSet } from "../set";
-import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { AbstractCMapCObject } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 
 export class MergingMutCMap<K, C extends Crdt & Resettable>
-  extends AbstractCMapCompositeCrdt<K, C, []>
+  extends AbstractCMapCObject<K, C, []>
   implements Resettable
 {
   private readonly internalMap: ImplicitMergingMutCMap<K, C>;

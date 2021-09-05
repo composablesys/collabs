@@ -7,10 +7,10 @@ import {
   WeakValueMap,
 } from "../../util";
 import { LwwCMap } from "../map";
-import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { AbstractCSetCObject } from "./abstract_set";
 
 export class ReferenceCSet<T extends object, AddArgs extends any[]>
-  extends AbstractCSetCompositeCrdt<T, AddArgs>
+  extends AbstractCSetCObject<T, AddArgs>
   implements Resettable
 {
   // This is also used to determine membership.
@@ -168,7 +168,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
 
   reset() {
     // Our (canGc-related) state is just a view of
-    // this.argsById's state, as usual for CompositeCrdt,
+    // this.argsById's state, as usual for CObject,
     // so this is an observed-reset operation.
     this.argsById.reset();
   }

@@ -1,4 +1,4 @@
-import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CObject, CPrimitive } from "../../constructions";
 import { Crdt, CrdtInitToken } from "../../core";
 import { CSet, CSetEventsRecord } from "./interfaces";
 
@@ -38,7 +38,7 @@ export declare abstract class AbstractCSet<T, AddArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCSetPrimitiveCrdt and the other examples
+ * by AbstractCSetCPrimitive and the other examples
  * in this file.
  */
 export function MakeAbstractCSet<
@@ -89,25 +89,23 @@ export function MakeAbstractCSet<
   return Mixin as any;
 }
 
-export const AbstractCSetCompositeCrdt = MakeAbstractCSet(
-  CompositeCrdt
-) as abstract new <
+export const AbstractCSetCObject = MakeAbstractCSet(CObject) as abstract new <
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
   initToken: CrdtInitToken
-) => AbstractCSet<T, AddArgs> & CompositeCrdt<Events>;
+) => AbstractCSet<T, AddArgs> & CObject<Events>;
 
-export const AbstractCSetPrimitiveCrdt = MakeAbstractCSet(
-  PrimitiveCrdt
+export const AbstractCSetCPrimitive = MakeAbstractCSet(
+  CPrimitive
 ) as abstract new <
   T,
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
   initToken: CrdtInitToken
-) => AbstractCSet<T, AddArgs> & PrimitiveCrdt<Events>;
+) => AbstractCSet<T, AddArgs> & CPrimitive<Events>;
 
 export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
   T,

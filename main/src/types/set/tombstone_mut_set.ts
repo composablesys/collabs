@@ -4,7 +4,7 @@ import {
   ElementSerializer,
 } from "../../util";
 import { Crdt, CrdtInitToken, Pre } from "../../core";
-import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { AbstractCSetCObject } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
 
@@ -17,7 +17,7 @@ import { DeletingMutCSet } from "./deleting_mut_set";
 export class TombstoneMutCSet<
   C extends Crdt,
   AddArgs extends any[]
-> extends AbstractCSetCompositeCrdt<C, AddArgs> {
+> extends AbstractCSetCObject<C, AddArgs> {
   private readonly mutSet: DeletingMutCSet<C, AddArgs>;
   private readonly members: AddWinsCSet<C>;
 

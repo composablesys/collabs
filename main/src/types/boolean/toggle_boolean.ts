@@ -1,11 +1,11 @@
-import { PrimitiveCrdt } from "../../constructions";
+import { CPrimitive } from "../../constructions";
 import { CausalTimestamp, CrdtInitToken } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";
 
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCrdt)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(CPrimitive)<CRegisterEventsRecord<boolean>>
   implements CBoolean
 {
   private valueInternal: boolean;

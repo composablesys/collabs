@@ -6,16 +6,16 @@ import {
 import { Crdt, CrdtInitToken, isRuntime, Pre } from "../../core";
 import { CRegister } from "../register";
 import { CSet } from "../set";
-import { AbstractCListCompositeCrdt } from "./abstract_list";
+import { AbstractCListCObject } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { MovableCList, MovableCListEventsRecord } from "./interfaces";
-import { CompositeCrdt } from "../../constructions";
+import { CObject } from "../../constructions";
 
 export class MovableMutCListEntry<
   C extends Crdt,
   L,
   R extends CRegister<L>
-> extends CompositeCrdt {
+> extends CObject {
   readonly value: C;
   readonly loc: R;
 
@@ -47,7 +47,7 @@ export class MovableMutCListFromSet<
     DenseT extends DenseLocalList<L, MovableMutCListEntry<C, L, RegT>>,
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
-  extends AbstractCListCompositeCrdt<C, InsertArgs, Events>
+  extends AbstractCListCObject<C, InsertArgs, Events>
   implements MovableCList<C, InsertArgs>
 {
   protected readonly set: SetT;

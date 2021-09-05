@@ -1,6 +1,6 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
-import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CObject, CPrimitive } from "../../constructions";
 import { CausalTimestamp, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
@@ -11,7 +11,7 @@ interface WinsCBooleanEntry {
 }
 
 export class TrueWinsCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCrdt)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(CPrimitive)<CRegisterEventsRecord<boolean>>
   implements Resettable
 {
   private entries: WinsCBooleanEntry[] = [];
@@ -90,7 +90,7 @@ export class TrueWinsCBoolean
 }
 
 export class FalseWinsCBoolean
-  extends MakeAbstractCBoolean(CompositeCrdt)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(CObject)<CRegisterEventsRecord<boolean>>
   implements Resettable
 {
   private readonly negated: TrueWinsCBoolean;

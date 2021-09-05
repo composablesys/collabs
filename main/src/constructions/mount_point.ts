@@ -41,7 +41,7 @@ export interface CMountPointEventsRecord extends CrdtEventsRecord {
  * this Crdt's state as formally equal to what its
  * state would be if its wrapped Crdt was mounted and
  * had received all currently queued messages.
- * In other words, it acts like a CompositeCrdt with
+ * In other words, it acts like a CObject with
  * the wrapped Crdt as its single child, named "".
  *
  * When unmounted locally, the local state differs from this formal

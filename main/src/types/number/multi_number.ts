@@ -1,5 +1,5 @@
 import { MNumberComponentMessage } from "../../../generated/proto_compiled";
-import { PrimitiveCrdt, StatefulCrdt } from "../../constructions";
+import { CPrimitive, StatefulCrdt } from "../../constructions";
 import { MultipleSemidirectProduct } from "../../constructions/multiple_semidirect_product";
 import {
   CausalTimestamp,
@@ -39,7 +39,7 @@ export class MNumberState {
 
 // Exporting just for tests, it's not exported at top-level
 export class AddComponent
-  extends PrimitiveCrdt<MNumberEventsRecord>
+  extends CPrimitive<MNumberEventsRecord>
   implements StatefulCrdt<MNumberState>
 {
   readonly state: MNumberState;
@@ -83,7 +83,7 @@ export class AddComponent
 }
 
 export class MultComponent
-  extends PrimitiveCrdt<MNumberEventsRecord>
+  extends CPrimitive<MNumberEventsRecord>
   implements StatefulCrdt<MNumberState>
 {
   readonly state: MNumberState;
@@ -127,7 +127,7 @@ export class MultComponent
 }
 
 export class MinComponent
-  extends PrimitiveCrdt<MNumberEventsRecord>
+  extends CPrimitive<MNumberEventsRecord>
   implements StatefulCrdt<MNumberState>
 {
   readonly state: MNumberState;
@@ -169,7 +169,7 @@ export class MinComponent
 }
 
 export class MaxComponent
-  extends PrimitiveCrdt<MNumberEventsRecord>
+  extends CPrimitive<MNumberEventsRecord>
   implements StatefulCrdt<MNumberState>
 {
   readonly state: MNumberState;

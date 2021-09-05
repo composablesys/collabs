@@ -117,7 +117,7 @@ export interface CrdtEventsRecord {
  * The base class for all Crdts.
  *
  * Most Crdt types will not extend this class directly,
- * instead extending CompositeCrdt, PrimitiveCrdt, or
+ * instead extending CObject, CPrimitive, or
  * SemidirectProduct.
  */
 export abstract class Crdt<

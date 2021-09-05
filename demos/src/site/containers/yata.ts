@@ -1,7 +1,7 @@
 import * as crdts from "compoventuals";
 import { YataSave } from "../../../generated/site/proto_compiled";
 
-export class YataOp<T> extends crdts.CompositeCrdt {
+export class YataOp<T> extends crdts.CObject {
   readonly creatorId: string;
   // TODO: readonly (broken only by initial values)
   public originId: string;

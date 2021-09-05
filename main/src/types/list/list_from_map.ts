@@ -1,6 +1,6 @@
 import { CrdtInitToken, Pre } from "../../core";
 import { CMap } from "../map";
-import { AbstractCListCompositeCrdt } from "./abstract_list";
+import { AbstractCListCObject } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 
 export class CListFromMap<
@@ -9,7 +9,7 @@ export class CListFromMap<
   L,
   MapT extends CMap<L, T, InsertArgs>,
   DenseT extends DenseLocalList<L, undefined>
-> extends AbstractCListCompositeCrdt<T, InsertArgs> {
+> extends AbstractCListCObject<T, InsertArgs> {
   protected readonly internalMap: MapT;
 
   constructor(

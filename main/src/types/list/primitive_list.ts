@@ -8,7 +8,7 @@ import {
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CausalTimestamp, CrdtInitToken } from "../../core";
-import { AbstractCListPrimitiveCrdt } from "./abstract_list";
+import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import {
   TreedocDenseLocalList,
@@ -29,7 +29,7 @@ export class PrimitiveCListFromDenseLocalList<
   T,
   L extends object,
   DenseT extends DenseLocalList<L, T>
-> extends AbstractCListPrimitiveCrdt<T, [T]> {
+> extends AbstractCListCPrimitive<T, [T]> {
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
   // TODO: use uniqueNumbers (from ids) instead of

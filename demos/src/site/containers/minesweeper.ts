@@ -24,7 +24,7 @@ enum TileStatus {
   REVEALED_MINE,
 }
 
-class TileCrdt extends crdts.CompositeCrdt {
+class TileCrdt extends crdts.CObject {
   private readonly revealed: crdts.TrueWinsCBoolean;
   private readonly flag: crdts.LwwCRegister<FlagStatus>;
   number: number = 0;
@@ -90,7 +90,7 @@ enum GameStatus {
   LOST,
 }
 
-class MinesweeperCrdt extends crdts.CompositeCrdt {
+class MinesweeperCrdt extends crdts.CObject {
   readonly tiles: TileCrdt[][];
 
   constructor(

@@ -7,7 +7,7 @@ import {
 import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
-import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { AbstractCMapCObject } from "./abstract_map";
 import { CMap } from "./interfaces";
 
 export interface ConflictsCMap<K, C> extends CMap<K, C> {
@@ -33,7 +33,7 @@ export class MutCMapFromSet<
   SetArgs extends any[],
   SetT extends CSet<C, [K, SetArgs]>,
   MapT extends ConflictsCMap<K, C>
-> extends AbstractCMapCompositeCrdt<K, C, SetArgs> {
+> extends AbstractCMapCObject<K, C, SetArgs> {
   protected readonly valueSet: SetT;
   protected readonly map: MapT;
 

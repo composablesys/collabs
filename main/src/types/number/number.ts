@@ -7,7 +7,7 @@ import {
   Pre,
 } from "../../core";
 import {
-  PrimitiveCrdt,
+  CPrimitive,
   SemidirectProduct,
   StatefulCrdt,
 } from "../../constructions";
@@ -32,7 +32,7 @@ export class CNumberState {
 
 // Exporting just for tests, it's not exported at top-level
 export class AddComponent
-  extends PrimitiveCrdt<CNumberEventsRecord>
+  extends CPrimitive<CNumberEventsRecord>
   implements StatefulCrdt<CNumberState>
 {
   readonly state: CNumberState;
@@ -78,7 +78,7 @@ export class AddComponent
 
 // Exporting just for tests, it's not exported at top-level
 export class MultComponent
-  extends PrimitiveCrdt<CNumberEventsRecord>
+  extends CPrimitive<CNumberEventsRecord>
   implements StatefulCrdt<CNumberState>
 {
   readonly state: CNumberState;
