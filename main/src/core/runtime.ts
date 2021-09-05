@@ -4,10 +4,10 @@ import {
   RuntimeSave,
 } from "../../generated/proto_compiled";
 import {
-  arrayAsString,
+  bytesAsString,
   ElementSerializer,
   EventEmitter,
-  stringAsArray,
+  stringAsBytes,
 } from "../util";
 import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
 import {
@@ -347,7 +347,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     let newPointer = this.pendingBatch!.pointers.length + 1;
     this.pendingBatch!.pointers.push({
       parent: parentPointer,
-      name: stringAsArray(to.name),
+      name: stringAsBytes(to.name),
     });
     this.pendingBatch!.pointerByCrdt.set(to, newPointer);
     return newPointer;
@@ -416,7 +416,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     let pathToRoots: string[][] = [[]];
     for (let i = 0; i < decoded.pointerParents.length; i++) {
       pathToRoots.push([
-        arrayAsString(decoded.pointerNames[i]),
+        bytesAsString(decoded.pointerNames[i]),
         ...pathToRoots[decoded.pointerParents[i]],
       ]);
     }
@@ -574,7 +574,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     const [saveData, children] = crdt.save();
     const crdtPointer = saves.length + 1;
     const name = crdt === this.rootCrdt ? "" : crdt.name;
-    saves.push({ parentPointer, name: stringAsArray(name), saveData });
+    saves.push({ parentPointer, name: stringAsBytes(name), saveData });
     // Recurse
     for (let child of children.values()) {
       this.saveRecursive(child, crdtPointer, saves);
@@ -633,7 +633,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
           // It's not rootCrdt, hence has a parent
           this.loadHelper.childrenById
             .get(oneSave.parentPointer)!
-            .set(arrayAsString(oneSave.name), id);
+            .set(bytesAsString(oneSave.name), id);
         }
       }
       // Load the root

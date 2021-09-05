@@ -3,10 +3,10 @@ import {
   DeletingMutCSetSave,
 } from "../../../generated/proto_compiled";
 import {
-  arrayAsString,
+  bytesAsString,
   DefaultElementSerializer,
   ElementSerializer,
-  stringAsArray,
+  stringAsBytes,
 } from "../../util";
 import { CausalTimestamp, Crdt, CrdtInitToken, Pre } from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
@@ -113,7 +113,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       // Using name "INIT" is a hack; need to figure out
       // a proper way to do this when implementing
       // initial values generally.
-      const name = arrayAsString(
+      const name = bytesAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", i])
       );
       this.receiveCreate(name, this.argsSerializer.serialize(args), args, true);
@@ -123,7 +123,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     for (let i = 0; i < initialValues.length; i++) {
       // Add as child with "["INIT", -i]" as id.
       // Similar to CObject#addChild.
-      let name = arrayAsString(
+      let name = bytesAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", -i])
       );
       if (this.children.has(name)) {
@@ -153,7 +153,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       let decoded = DeletingMutCSetMessage.decode(message);
       switch (decoded.op) {
         case "add":
-          const name = arrayAsString(
+          const name = bytesAsString(
             DeletingMutCSet.nameSerializer.serialize([
               timestamp.getSender(),
               decoded.add!.replicaUniqueNumber,
@@ -329,7 +329,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
    * Although identifier has type
    * string, it is properly a byte array, not
    * necessarily valid UTF-8.  So it should be serialized
-   * as a byte array (using stringAsArray), not a string.
+   * as a byte array (using stringAsBytes), not a string.
    *
    * TODO: remove in favor of BaseSerializer(this)?
    * Although then if you need strings like in YATA,
@@ -365,7 +365,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       // Map iterators run in insertion order.
       constructorArgs: [...this.constructorArgs].map(([name, args]) => {
         return {
-          name: stringAsArray(name),
+          name: stringAsBytes(name),
           args,
         };
       }),
@@ -384,7 +384,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     // already been initialized, so the call will
     // succeed uneventfully.
     for (const { name, args } of saveMessage.constructorArgs) {
-      this.receiveCreate(arrayAsString(name), args);
+      this.receiveCreate(bytesAsString(name), args);
     }
     return true;
   }

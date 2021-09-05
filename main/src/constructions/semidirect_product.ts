@@ -276,7 +276,7 @@ export abstract class SemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements StatefulCrdt<SemidirectState<S>> 
+  implements StatefulCrdt<SemidirectState<S>>
 {
   static readonly crdt1Name = "1";
   static readonly crdt2Name = "2";

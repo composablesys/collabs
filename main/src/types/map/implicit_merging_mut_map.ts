@@ -1,9 +1,9 @@
 import {
-  arrayAsString,
+  bytesAsString,
   DefaultElementSerializer,
   ElementSerializer,
   Optional,
-  stringAsArray,
+  stringAsBytes,
   WeakValueMap,
 } from "../../util";
 import { CausalTimestamp, Crdt, CrdtInitToken } from "../../core";
@@ -65,10 +65,10 @@ export class GrowOnlyImplicitMergingMutCMap<
   }
 
   private keyAsString(key: K) {
-    return arrayAsString(this.keySerializer.serialize(key));
+    return bytesAsString(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
+    return this.keySerializer.deserialize(stringAsBytes(str), this.runtime);
   }
 
   private getInternal(

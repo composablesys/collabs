@@ -4,7 +4,7 @@ import {
   TreedocLocWrapperMessage,
 } from "../../../generated/proto_compiled";
 import {
-  arrayAsString,
+  bytesAsString,
   createRBTree,
   fillRBTree,
   RBTree,
@@ -61,7 +61,7 @@ export class TreedocLocWrapper {
     // Get anchor from parent's cache
     // If anchor had a uid (e.g. tree style text crdt),
     // we could use that instead of serializing.
-    const anchorKey = arrayAsString(parent.serializeInternal(anchorTemp));
+    const anchorKey = bytesAsString(parent.serializeInternal(anchorTemp));
     let anchor = parent.anchorCache.get(anchorKey);
     if (anchor === undefined) {
       anchor = anchorTemp;
@@ -101,7 +101,7 @@ export class TreedocLocWrapper {
     parent: TreedocDenseLocalList<any>
   ): TreedocLocWrapper {
     const decoded = TreedocLocWrapperMessage.decode(serialized);
-    const anchorKey = arrayAsString(decoded.anchor);
+    const anchorKey = bytesAsString(decoded.anchor);
     let anchor = parent.anchorCache.get(anchorKey);
     if (anchor === undefined) {
       anchor = parent.deserializeInternal(decoded.anchor, parent.runtime);
@@ -338,7 +338,7 @@ export class TreedocDenseLocalList<T>
     const anchors = new Array<TreedocLoc>(decoded.anchors.length);
     for (let j = 0; j < anchors.length; j++) {
       anchors[j] = this.deserializeInternal(decoded.anchors[j], this.runtime);
-      this.anchorCache.set(arrayAsString(decoded.anchors[j]), anchors[j]);
+      this.anchorCache.set(bytesAsString(decoded.anchors[j]), anchors[j]);
     }
     this.tree = fillRBTree(
       this.compareWrappers.bind(this),
