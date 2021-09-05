@@ -482,7 +482,7 @@ function plainJs() {
   });
 }
 
-function compoCrdt() {
+function compoResetting() {
   class CrdtTodoList
     extends crdts.CObject
     implements ITodoList, crdts.Resettable
@@ -551,7 +551,7 @@ function compoCrdt() {
   let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
-  return new TodoListBenchmark("Compo Crdt", {
+  return new TodoListBenchmark("Compo Resetting", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
@@ -593,174 +593,7 @@ function compoCrdt() {
   });
 }
 
-class CTextRga
-  extends crdts.PrimitiveCListFromDenseLocalList<
-    string,
-    crdts.RgaLoc,
-    crdts.RgaDenseLocalList<string>
-  >
-  implements crdts.Resettable
-{
-  constructor(initToken: crdts.CrdtInitToken) {
-    super(
-      initToken,
-      new crdts.RgaDenseLocalList<string>(initToken.runtime),
-      crdts.TextSerializer.instance,
-      crdts.TextArraySerializer.instance
-    );
-  }
-
-  reset() {
-    // Since RgaDenseLocalList has no tombstones,
-    // clear is an observed-reset.
-    this.clear();
-  }
-}
-
-class ResettingMutCListRga<C extends crdts.Crdt & crdts.Resettable>
-  extends crdts.CListFromMap<
-    C,
-    [],
-    crdts.RgaLoc,
-    crdts.MergingMutCMap<crdts.RgaLoc, C>,
-    crdts.RgaDenseLocalList<undefined>
-  >
-  implements crdts.Resettable
-{
-  constructor(
-    initToken: crdts.CrdtInitToken,
-    valueConstructor: (
-      valueInitToken: crdts.CrdtInitToken,
-      loc: crdts.RgaLoc
-    ) => C
-  ) {
-    const denseLocalList = new crdts.RgaDenseLocalList<undefined>(
-      initToken.runtime
-    );
-    super(
-      initToken,
-      crdts.Pre(crdts.MergingMutCMap)(valueConstructor, denseLocalList),
-      denseLocalList
-    );
-  }
-
-  reset(): void {
-    this.internalMap.reset();
-  }
-}
-
-function compoCrdtRga() {
-  class CrdtTodoList
-    extends crdts.CObject
-    implements ITodoList, crdts.Resettable
-  {
-    private readonly text: CTextRga;
-    private readonly doneCrdt: crdts.TrueWinsCBoolean;
-    private readonly items: ResettingMutCListRga<CrdtTodoList>;
-
-    constructor(initToken: crdts.CrdtInitToken) {
-      super(initToken);
-      this.text = this.addChild("text", crdts.Pre(CTextRga)());
-      this.doneCrdt = this.addChild(
-        "done",
-        crdts.Pre(crdts.TrueWinsCBoolean)()
-      );
-      this.items = this.addChild(
-        "items",
-        crdts.Pre(ResettingMutCListRga)(
-          crdts.ConstructorAsFunction(CrdtTodoList)
-        )
-      );
-    }
-
-    addItem(index: number, text: string): void {
-      let item = this.items.insert(index);
-      item.insertText(0, text);
-    }
-    deleteItem(index: number): void {
-      this.items.delete(index);
-    }
-    getItem(index: number): CrdtTodoList {
-      return this.items.get(index);
-    }
-    get itemsSize(): number {
-      return this.items.length;
-    }
-
-    set done(done: boolean) {
-      this.doneCrdt.value = done;
-    }
-    get done(): boolean {
-      return this.doneCrdt.value;
-    }
-
-    insertText(index: number, text: string): void {
-      this.text.insert(index, ...text);
-    }
-    deleteText(index: number, count: number): void {
-      this.text.delete(index, count);
-    }
-    get textSize(): number {
-      return this.text.length; // Assumes all text registers are one char
-    }
-    getText(): string {
-      return this.text.join("");
-    }
-
-    reset() {
-      this.text.reset();
-      this.doneCrdt.reset();
-      this.items.reset();
-    }
-  }
-
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
-  let totalSentBytes: number;
-
-  return new TodoListBenchmark("Compo Crdt RGA", {
-    newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      totalSentBytes = 0;
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
-      // TODO: this seems unnecessary
-      this.sendNextMessage();
-      return list;
-    },
-    cleanup() {
-      generator = null;
-      runtime = null;
-    },
-    sendNextMessage() {
-      runtime!.commitBatch();
-      totalSentBytes += generator!.lastMessage
-        ? GZIP
-          ? zlib.gzipSync(generator!.lastMessage).byteLength
-          : generator!.lastMessage.byteLength
-        : 0;
-      generator!.lastMessage = undefined;
-    },
-    getSentBytes() {
-      return totalSentBytes;
-    },
-    save() {
-      const saveData = runtime!.save();
-      return [saveData, saveData.byteLength];
-    },
-    load(saveData: Uint8Array, rng) {
-      // Proceed like newTodoList, but without doing any
-      // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
-      runtime.load(saveData);
-      return list;
-    },
-  });
-}
-
-function compoMovableCrdt() {
+function compoDeleting() {
   class CrdtTodoList
     extends crdts.CObject
     implements ITodoList, crdts.Resettable
@@ -829,174 +662,7 @@ function compoMovableCrdt() {
   let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
-  return new TodoListBenchmark("Compo Movable Crdt", {
-    newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      totalSentBytes = 0;
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
-      // TODO: this seems unnecessary
-      this.sendNextMessage();
-      return list;
-    },
-    cleanup() {
-      generator = null;
-      runtime = null;
-    },
-    sendNextMessage() {
-      runtime!.commitBatch();
-      totalSentBytes += generator!.lastMessage
-        ? GZIP
-          ? zlib.gzipSync(generator!.lastMessage).byteLength
-          : generator!.lastMessage.byteLength
-        : 0;
-      generator!.lastMessage = undefined;
-    },
-    getSentBytes() {
-      return totalSentBytes;
-    },
-    save() {
-      const saveData = runtime!.save();
-      return [saveData, saveData.byteLength];
-    },
-    load(saveData: Uint8Array, rng) {
-      // Proceed like newTodoList, but without doing any
-      // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
-      runtime.load(saveData);
-      return list;
-    },
-  });
-}
-
-class DeletingMutCListRga<
-  C extends crdts.Crdt,
-  InsertArgs extends any[]
-> extends crdts.MovableMutCListFromSet<
-  C,
-  InsertArgs,
-  crdts.RgaLoc,
-  crdts.LwwCRegister<crdts.RgaLoc>,
-  crdts.DeletingMutCSet<
-    crdts.MovableMutCListEntry<
-      C,
-      crdts.RgaLoc,
-      crdts.LwwCRegister<crdts.RgaLoc>
-    >,
-    [crdts.RgaLoc, InsertArgs]
-  >,
-  crdts.RgaDenseLocalList<
-    crdts.MovableMutCListEntry<
-      C,
-      crdts.RgaLoc,
-      crdts.LwwCRegister<crdts.RgaLoc>
-    >
-  >
-> {
-  constructor(
-    initToken: crdts.CrdtInitToken,
-    valueConstructor: (
-      valueInitToken: crdts.CrdtInitToken,
-      ...args: InsertArgs
-    ) => C,
-    argsSerializer: crdts.ElementSerializer<InsertArgs> = crdts.DefaultElementSerializer.getInstance()
-  ) {
-    super(
-      initToken,
-      (setValueConstructor, setArgsSerializer) =>
-        crdts.Pre(crdts.DeletingMutCSet)(
-          setValueConstructor,
-          undefined,
-          setArgsSerializer
-        ),
-      crdts.ConstructorAsFunction(crdts.LwwCRegister),
-      new crdts.RgaDenseLocalList(initToken.runtime),
-      valueConstructor,
-      argsSerializer
-    );
-  }
-}
-
-function compoMovableCrdtRga() {
-  class CrdtTodoList
-    extends crdts.CObject
-    implements ITodoList, crdts.Resettable
-  {
-    private readonly text: crdts.CList<string>;
-    private readonly doneCrdt: crdts.TrueWinsCBoolean;
-    private readonly items: crdts.CList<CrdtTodoList, []>;
-
-    constructor(initToken: crdts.CrdtInitToken) {
-      super(initToken);
-      this.text = this.addChild(
-        "text",
-        crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
-          new crdts.RgaDenseLocalList<string>(initToken.runtime),
-          crdts.TextSerializer.instance,
-          crdts.TextArraySerializer.instance
-        )
-      );
-      this.doneCrdt = this.addChild(
-        "done",
-        crdts.Pre(crdts.TrueWinsCBoolean)()
-      );
-      this.items = this.addChild(
-        "items",
-        crdts.Pre(DeletingMutCListRga)(
-          crdts.ConstructorAsFunction(CrdtTodoList)
-        )
-      );
-    }
-
-    addItem(index: number, text: string): void {
-      let item = this.items.insert(index);
-      item.insertText(0, text);
-    }
-    deleteItem(index: number): void {
-      this.items.delete(index);
-    }
-    getItem(index: number): CrdtTodoList {
-      return this.items.get(index);
-    }
-    get itemsSize(): number {
-      return this.items.length;
-    }
-
-    set done(done: boolean) {
-      this.doneCrdt.value = done;
-    }
-    get done(): boolean {
-      return this.doneCrdt.value;
-    }
-
-    insertText(index: number, text: string): void {
-      // @ts-ignore TODO: remove this once RGA text is typed properly
-      this.text.insert(index, ...text);
-    }
-    deleteText(index: number, count: number): void {
-      this.text.delete(index, count);
-    }
-    get textSize(): number {
-      return this.text.length; // Assumes all text registers are one char
-    }
-    getText(): string {
-      return this.text.join("");
-    }
-
-    reset() {
-      this.text.clear();
-      this.doneCrdt.reset();
-      this.items.clear();
-    }
-  }
-
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
-  let totalSentBytes: number;
-
-  return new TodoListBenchmark("Compo Movable Crdt RGA", {
+  return new TodoListBenchmark("Compo Deleting", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
@@ -1560,14 +1226,14 @@ function yjs() {
   });
 }
 
-function jsonCrdt() {
+function compoJsonOpt() {
   class JsonCrdtTodoList implements ITodoList {
     private readonly items: JsonCursor;
     private readonly ids: crdts.PrimitiveCList<string>;
     private readonly text: crdts.PrimitiveCList<string>;
     constructor(
       private readonly crdt: JsonCursor,
-      private readonly idGen: crdts.TreedocDenseLocalList<undefined>,
+      private readonly idGen: crdts.RgaDenseLocalList<undefined>,
       private readonly runtime: crdts.Runtime
     ) {
       this.items = this.crdt.get("items")[0] as JsonCursor;
@@ -1576,24 +1242,8 @@ function jsonCrdt() {
     }
     addItem(index: number, text: string): void {
       // Generate new id for this index
-      // let startId: null | crdts.TreedocLoc = null;
-      // let endId: null | crdts.TreedocLoc = null;
-      let startId: any = null;
-      let endId: any = null;
-      if (index < this.ids.length) {
-        endId = this.idGen.deserializeInternal(
-          crdts.stringAsBytes(this.ids.get(index)),
-          this.runtime
-        );
-      }
-      if (index > 0) {
-        startId = this.idGen.deserializeInternal(
-          crdts.stringAsBytes(this.ids.get(index - 1)),
-          this.runtime
-        );
-      }
-      let id = this.idGen.createBetween(startId, endId, 1)[0];
-      let key: string = crdts.bytesAsString(this.idGen.serializeInternal(id));
+      let id = this.idGen.createNewLocs(index, 1)[0];
+      let key: string = crdts.bytesAsString(this.idGen.serialize(id));
       this.ids.insert(index, key);
 
       // Update Json Crdt with new item
@@ -1651,7 +1301,7 @@ function jsonCrdt() {
   let runtime: crdts.Runtime | null;
   let totalSentBytes: number;
 
-  return new TodoListBenchmark("Compo Json Crdt", {
+  return new TodoListBenchmark("Compo Json Opt", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
@@ -1665,7 +1315,7 @@ function jsonCrdt() {
       cursor.set("done", false);
       cursor.setIsList("text");
 
-      let idGen = new crdts.TreedocDenseLocalList<undefined>(runtime);
+      let idGen = new crdts.RgaDenseLocalList<undefined>(runtime);
       return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
     },
     cleanup() {
@@ -1697,7 +1347,7 @@ function jsonCrdt() {
       let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
       let cursor = new JsonCursor(crdt);
 
-      let idGen = new crdts.TreedocDenseLocalList<undefined>(runtime);
+      let idGen = new crdts.RgaDenseLocalList<undefined>(runtime);
 
       runtime.load(saveData);
 
@@ -1714,17 +1364,11 @@ export default async function todoList(args: string[]) {
     case "plainJs":
       benchmark = plainJs();
       break;
-    case "compoCrdt":
-      benchmark = compoCrdt();
+    case "compoResetting":
+      benchmark = compoResetting();
       break;
-    case "compoCrdtRga":
-      benchmark = compoCrdtRga();
-      break;
-    case "compoMovableCrdt":
-      benchmark = compoMovableCrdt();
-      break;
-    case "compoMovableCrdtRga":
-      benchmark = compoMovableCrdtRga();
+    case "compoDeleting":
+      benchmark = compoDeleting();
       break;
     case "compoJson":
       benchmark = compoJson();
@@ -1741,8 +1385,8 @@ export default async function todoList(args: string[]) {
     case "automergeNoText":
       benchmark = automergeNoText();
       break;
-    case "compoJsonCrdt":
-      benchmark = jsonCrdt();
+    case "compoJsonOpt":
+      benchmark = compoJsonOpt();
       break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);

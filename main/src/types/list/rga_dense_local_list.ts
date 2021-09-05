@@ -154,7 +154,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   canGc(): boolean {
     // TODO: will this work if there are dangling references
-    // to RgaLocs?  Likewise with Treedoc.
+    // to RgaLocs?
     return this.length === 0;
   }
 

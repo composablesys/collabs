@@ -11,32 +11,19 @@ import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import {
-  TreedocDenseLocalList,
-  TreedocLocWrapper,
-} from "./treedoc_dense_local_list";
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
 export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
   extends MovableMutCListFromSet<
     C,
     InsertArgs,
-    TreedocLocWrapper,
-    LwwCRegister<TreedocLocWrapper>,
+    RgaLoc,
+    LwwCRegister<RgaLoc>,
     DeletingMutCSet<
-      MovableMutCListEntry<
-        C,
-        TreedocLocWrapper,
-        LwwCRegister<TreedocLocWrapper>
-      >,
-      [TreedocLocWrapper, InsertArgs]
+      MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>,
+      [RgaLoc, InsertArgs]
     >,
-    TreedocDenseLocalList<
-      MovableMutCListEntry<
-        C,
-        TreedocLocWrapper,
-        LwwCRegister<TreedocLocWrapper>
-      >
-    >
+    RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>>
   >
   implements Resettable
 {
@@ -50,7 +37,7 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
       (setValueConstructor, setArgsSerializer) =>
         Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
       ConstructorAsFunction(LwwCRegister),
-      new TreedocDenseLocalList(initToken.runtime),
+      new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
       argsSerializer
     );
@@ -62,16 +49,12 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
     if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
-      value.parent as MovableMutCListEntry<
-        C,
-        TreedocLocWrapper,
-        LwwCRegister<TreedocLocWrapper>
-      >
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     );
   }
 
   reset() {
-    // This is a proper observed-reset since TreedocDenseLocalList
+    // This is a proper observed-reset since RgaDenseLocalList
     // has no tombstones.
     super.set.reset();
   }

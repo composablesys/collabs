@@ -10,11 +10,8 @@ import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { CausalTimestamp, CrdtInitToken } from "../../core";
 import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
-import {
-  TreedocDenseLocalList,
-  TreedocLocWrapper,
-} from "./treedoc_dense_local_list";
 import { Resettable } from "../../abilities";
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
 // TODO: document, test.
 // Note this is not a CRDT
@@ -438,11 +435,7 @@ export class PrimitiveCListFromDenseLocalList<
 }
 
 export class PrimitiveCList<T>
-  extends PrimitiveCListFromDenseLocalList<
-    T,
-    TreedocLocWrapper,
-    TreedocDenseLocalList<T>
-  >
+  extends PrimitiveCListFromDenseLocalList<T, RgaLoc, RgaDenseLocalList<T>>
   implements Resettable
 {
   constructor(
@@ -452,14 +445,14 @@ export class PrimitiveCList<T>
   ) {
     super(
       initToken,
-      new TreedocDenseLocalList(initToken.runtime),
+      new RgaDenseLocalList(initToken.runtime),
       valueSerializer,
       valueArraySerializer
     );
   }
 
   reset() {
-    // Since TreedocDenseLocalList has no tombstones,
+    // Since RgaDenseLocalList has no tombstones,
     // clear is an observed-reset.
     this.clear();
   }

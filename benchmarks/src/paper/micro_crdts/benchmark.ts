@@ -723,82 +723,6 @@ function TextRandomGrow() {
   );
 }
 
-function rgaCrdtConstructor(initToken: crdts.CrdtInitToken) {
-  return new crdts.PrimitiveCListFromDenseLocalList(
-    initToken,
-    new crdts.RgaDenseLocalList<string>(initToken.runtime),
-    crdts.TextSerializer.instance,
-    crdts.TextArraySerializer.instance
-  );
-}
-
-function RgaLtr() {
-  return new MicroCrdtsBenchmark(
-    "RgaLtr",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
-          else crdt.insert(crdt.length, randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function RgaLtrGrow() {
-  return new MicroCrdtsBenchmark(
-    "RgaLtrGrow",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          crdt.insert(crdt.length, randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function RgaRandom() {
-  return new MicroCrdtsBenchmark(
-    "RgaRandom",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
-          else
-            crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function RgaRandomGrow() {
-  return new MicroCrdtsBenchmark(
-    "RgaRandomGrow",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
 function ITensor(
   name: "TensorAvg" | "TensorCounter",
   shape: number[],
@@ -916,18 +840,6 @@ export default async function microCrdts(args: string[]) {
       break;
     case "TextRandomGrow":
       benchmark = TextRandomGrow();
-      break;
-    case "RgaLtr":
-      benchmark = RgaLtr();
-      break;
-    case "RgaRandom":
-      benchmark = RgaRandom();
-      break;
-    case "RgaLtrGrow":
-      benchmark = RgaLtrGrow();
-      break;
-    case "RgaRandomGrow":
-      benchmark = RgaRandomGrow();
       break;
     case "TensorCounter":
       benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);

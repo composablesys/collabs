@@ -315,19 +315,19 @@ function plainJsArray() {
   });
 }
 
-function treedocLww() {
+function resettingLww() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
   let list: crdts.ResettingMutCList<crdts.LwwCRegister<string>> | null;
 
-  return new AutomergePerfBenchmark("TreedocList<LwwRegister>", {
+  return new AutomergePerfBenchmark("Resetting Lww", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
-          new crdts.ResettingMutCList<crdts.LwwCRegister<string>>(
+          new crdts.ResettingMutCList(
             initToken,
             (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
           )
@@ -364,7 +364,7 @@ function treedocLww() {
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
-          new crdts.ResettingMutCList<crdts.LwwCRegister<string>>(
+          new crdts.ResettingMutCList(
             initToken,
             (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
           )
@@ -374,49 +374,21 @@ function treedocLww() {
   });
 }
 
-class ResettingMutCListRga<
-  C extends crdts.Crdt & crdts.Resettable
-> extends crdts.CListFromMap<
-  C,
-  [],
-  crdts.RgaLoc,
-  crdts.MergingMutCMap<crdts.RgaLoc, C>,
-  crdts.RgaDenseLocalList<undefined>
-> {
-  constructor(
-    initToken: crdts.CrdtInitToken,
-    valueConstructor: (
-      valueInitToken: crdts.CrdtInitToken,
-      loc: crdts.RgaLoc
-    ) => C
-  ) {
-    const denseLocalList = new crdts.RgaDenseLocalList<undefined>(
-      initToken.runtime
-    );
-    super(
-      initToken,
-      crdts.Pre(crdts.MergingMutCMap)(valueConstructor, denseLocalList),
-      denseLocalList
-    );
-  }
-}
-
-function rgaLww() {
+function deletingLww() {
   let generator: crdts.TestingNetworkGenerator | null;
   let runtime: crdts.Runtime | null;
-  let list: ResettingMutCListRga<crdts.LwwCRegister<string>> | null;
+  let list: crdts.DeletingMutCList<crdts.LwwCRegister<string>, []> | null;
 
-  return new AutomergePerfBenchmark("RGA LWW", {
+  return new AutomergePerfBenchmark("Deleting Lww", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
-          new ResettingMutCListRga(
+          new crdts.DeletingMutCList(
             initToken,
-            (valueInitToken) =>
-              new crdts.LwwCRegister<string>(valueInitToken, "")
+            (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
           )
       );
     },
@@ -451,7 +423,7 @@ function rgaLww() {
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
-          new ResettingMutCListRga<crdts.LwwCRegister<string>>(
+          new crdts.DeletingMutCList(
             initToken,
             (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
           )
@@ -501,65 +473,6 @@ function textCrdt() {
       generator = new crdts.TestingNetworkGenerator();
       runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
-      runtime.load(saveData);
-    },
-  });
-}
-
-function rga() {
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
-  let list: crdts.CList<string> | null;
-
-  return new AutomergePerfBenchmark("RGA", {
-    setup(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
-        "text",
-        crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
-          new crdts.RgaDenseLocalList<string>(runtime),
-          crdts.TextSerializer.instance,
-          crdts.TextArraySerializer.instance
-        )
-      );
-    },
-    cleanup() {
-      generator = null;
-      runtime = null;
-      list = null;
-    },
-    processEdit(edit) {
-      if (edit[2] !== undefined) {
-        // Insert edit[2] at edit[0]
-        list!.insert(edit[0], edit[2]);
-      } else {
-        // Delete character at edit[0]
-        list!.delete(edit[0]);
-      }
-      runtime!.commitBatch();
-    },
-    getSentBytes() {
-      return generator!.getTotalSentBytes();
-    },
-    getText() {
-      return list!.join("");
-    },
-    save() {
-      const saveData = runtime!.save();
-      return [saveData, saveData.byteLength];
-    },
-    load(saveData: Uint8Array, rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
-        "text",
-        crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
-          new crdts.RgaDenseLocalList<string>(runtime),
-          crdts.TextSerializer.instance,
-          crdts.TextArraySerializer.instance
-        )
-      );
       runtime.load(saveData);
     },
   });
@@ -767,17 +680,14 @@ export default async function automergePerf(args: string[]) {
     case "plainJsArray":
       benchmark = plainJsArray();
       break;
-    case "treedocLww":
-      benchmark = treedocLww();
+    case "resettingLww":
+      benchmark = resettingLww();
       break;
-    case "rgaLww":
-      benchmark = rgaLww();
+    case "deletingLww":
+      benchmark = deletingLww();
       break;
     case "textCrdt":
       benchmark = textCrdt();
-      break;
-    case "rga":
-      benchmark = rga();
       break;
     case "mapLww":
       benchmark = mapLww();

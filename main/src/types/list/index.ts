@@ -9,7 +9,3 @@ export * from "./resetting_mut_list";
 export * from "./rga_dense_local_list";
 export * from "./tombstone_mut_list";
 export * from "./text";
-export {
-  TreedocLocWrapper,
-  TreedocDenseLocalList,
-} from "./treedoc_dense_local_list";

@@ -124,7 +124,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * (and then change PrimitiveList's protobuf encoding
    * from sint to uint),
    * but for now we don't require this because
-   * Treedoc can give negative values.
+   * Rga can give negative values.
    *
    * Must work on (just) deleted locs.
    * @param  loc [description]
