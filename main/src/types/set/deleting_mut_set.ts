@@ -6,7 +6,6 @@ import {
   bytesAsString,
   DefaultElementSerializer,
   ElementSerializer,
-  stringAsBytes,
 } from "../../util";
 import { CausalTimestamp, Crdt, CrdtInitToken, Pre } from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
@@ -365,7 +364,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       // Map iterators run in insertion order.
       constructorArgs: [...this.constructorArgs].map(([name, args]) => {
         return {
-          name: stringAsBytes(name),
+          name,
           args,
         };
       }),
@@ -384,7 +383,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     // already been initialized, so the call will
     // succeed uneventfully.
     for (const { name, args } of saveMessage.constructorArgs) {
-      this.receiveCreate(bytesAsString(name), args);
+      this.receiveCreate(name, args);
     }
     return true;
   }

@@ -59,7 +59,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         } else if (value instanceof Crdt) {
           message = {
             crdtValue: CrdtReference.create({
-              pathToBase: value.pathToRoot().map(stringAsBytes),
+              pathToBase: value.pathToRoot(),
             }),
           };
         } else if (value instanceof Uint8Array) {
@@ -111,9 +111,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         ans = null;
         break;
       case "crdtValue":
-        ans = runtime.getCrdtByReference(
-          decoded.crdtValue!.pathToBase!.map(bytesAsString)
-        );
+        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToBase!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
@@ -273,21 +271,18 @@ export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
       pathToBase.push(current.name);
     }
     const message = CrdtReference.create({
-      pathToBase: pathToBase.map(stringAsBytes),
+      pathToBase,
     });
     return CrdtReference.encode(message).finish();
   }
 
   deserialize(message: Uint8Array, runtime: Runtime): C {
     const decoded = CrdtReference.decode(message);
-    return runtime.getCrdtByReference(
-      decoded.pathToBase!.map(bytesAsString),
-      this.base
-    ) as C;
+    return runtime.getCrdtByReference(decoded.pathToBase!, this.base) as C;
   }
 }
 
-const ENCODING: "latin1" = "latin1";
+const ENCODING: "base64" = "base64";
 export function bytesAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);
 }

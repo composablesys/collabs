@@ -3,12 +3,7 @@ import {
   RuntimeMessage,
   RuntimeSave,
 } from "../../generated/proto_compiled";
-import {
-  bytesAsString,
-  ElementSerializer,
-  EventEmitter,
-  stringAsBytes,
-} from "../util";
+import { ElementSerializer, EventEmitter } from "../util";
 import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
@@ -48,7 +43,7 @@ class RootCrdt extends CObject {
  * pointers.
  */
 interface BatchInfo {
-  pointers: { parent: number; name: Uint8Array }[];
+  pointers: { parent: number; name: string }[];
   pointerByCrdt: Map<Crdt, number>;
   messages: { sender: number; innerMessage: Uint8Array }[];
   firstTimestamp: CausalTimestamp;
@@ -347,7 +342,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     let newPointer = this.pendingBatch!.pointers.length + 1;
     this.pendingBatch!.pointers.push({
       parent: parentPointer,
-      name: stringAsBytes(to.name),
+      name: to.name,
     });
     this.pendingBatch!.pointerByCrdt.set(to, newPointer);
     return newPointer;
@@ -416,7 +411,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     let pathToRoots: string[][] = [[]];
     for (let i = 0; i < decoded.pointerParents.length; i++) {
       pathToRoots.push([
-        bytesAsString(decoded.pointerNames[i]),
+        decoded.pointerNames[i],
         ...pathToRoots[decoded.pointerParents[i]],
       ]);
     }
@@ -574,7 +569,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     const [saveData, children] = crdt.save();
     const crdtPointer = saves.length + 1;
     const name = crdt === this.rootCrdt ? "" : crdt.name;
-    saves.push({ parentPointer, name: stringAsBytes(name), saveData });
+    saves.push({ parentPointer, name, saveData });
     // Recurse
     for (let child of children.values()) {
       this.saveRecursive(child, crdtPointer, saves);
@@ -633,7 +628,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
           // It's not rootCrdt, hence has a parent
           this.loadHelper.childrenById
             .get(oneSave.parentPointer)!
-            .set(bytesAsString(oneSave.name), id);
+            .set(oneSave.name, id);
         }
       }
       // Load the root
