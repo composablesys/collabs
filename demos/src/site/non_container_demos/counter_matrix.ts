@@ -3,9 +3,7 @@ import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 
 let client = new crdts.Runtime(
   new MatrixWidgetNetwork("com.herokuapp.compoventuals-tests.counter"),
-  {
-    periodMs: 300,
-  }
+  new crdts.RateLimitBatchingStrategy(300)
 );
 let clientCounter = client.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
 

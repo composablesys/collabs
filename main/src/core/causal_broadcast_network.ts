@@ -65,15 +65,14 @@ export interface CausalBroadcastNetwork
   /**
    * Called by the using Runtime.
    */
-  setRuntime(runtime: Runtime): void;
-
-  /**
-   * Variable set by the using Runtime.
-   */
-  onreceive: (
-    message: Uint8Array,
-    firstTimestamp: CausalTimestamp
-  ) => CausalTimestamp;
+  registerRuntime(
+    runtime: Runtime,
+    onreceive: (
+      message: Uint8Array,
+      firstTimestamp: CausalTimestamp
+    ) => CausalTimestamp,
+    onreceiveblocked: () => void
+  ): void;
 
   /**
    * Return the timestamp for the next message sent by previous' sender

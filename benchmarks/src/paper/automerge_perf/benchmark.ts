@@ -323,7 +323,7 @@ function treedocLww() {
   return new AutomergePerfBenchmark("TreedocList<LwwRegister>", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
@@ -360,7 +360,7 @@ function treedocLww() {
     },
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
@@ -409,7 +409,7 @@ function rgaLww() {
   return new AutomergePerfBenchmark("RGA LWW", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
@@ -447,7 +447,7 @@ function rgaLww() {
     },
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) =>
@@ -469,7 +469,7 @@ function textCrdt() {
   return new AutomergePerfBenchmark("TextCrdt", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
     },
     cleanup() {
@@ -499,7 +499,7 @@ function textCrdt() {
     },
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
       runtime.load(saveData);
     },
@@ -514,7 +514,7 @@ function rga() {
   return new AutomergePerfBenchmark("RGA", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
@@ -551,7 +551,7 @@ function rga() {
     },
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         crdts.Pre(crdts.PrimitiveCListFromDenseLocalList)(
@@ -643,7 +643,7 @@ function mapLww() {
   return new AutomergePerfBenchmark("LwwMap", {
     setup(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) => new crdts.LwwCMap<number, string>(initToken)
@@ -676,7 +676,7 @@ function mapLww() {
     },
     load(saveData: Uint8Array, rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       list = runtime.registerCrdt(
         "text",
         (initToken) => new crdts.LwwCMap<number, string>(initToken)

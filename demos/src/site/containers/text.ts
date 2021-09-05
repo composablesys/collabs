@@ -14,9 +14,10 @@ import Quill, { DeltaOperation } from "quill";
   document.body.innerHTML = require("./text.html").default;
   document.body.style.background = "#e06666ff";
 
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
-    periodMs: 200,
-  });
+  const runtime = await ContainerRuntimeSource.newRuntime(
+    window.parent,
+    new crdts.RateLimitBatchingStrategy(200)
+  );
 
   let clientText = runtime.registerCrdt(
     "text",

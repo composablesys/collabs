@@ -141,14 +141,15 @@ class myMessage {
  * Perform casuality check to ensure message ordering.
  */
 export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
-  onreceive!: (
-    message: Uint8Array,
-    firstTimestamp: CausalTimestamp
-  ) => CausalTimestamp;
   /**
    * Registered Runtime.
    */
   private runtime!: Runtime;
+  private onreceive!: (
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp
+  ) => CausalTimestamp;
+  private onreceiveblocked!: () => void;
   /**
    * BroadcastNetwork for broadcasting messages.
    */
@@ -202,8 +203,17 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param runtime
    */
-  setRuntime(runtime: Runtime): void {
+  registerRuntime(
+    runtime: Runtime,
+    onreceive: (
+      message: Uint8Array,
+      firstTimestamp: CausalTimestamp
+    ) => CausalTimestamp,
+    onreceiveblocked: () => void
+  ): void {
     this.runtime = runtime;
+    this.onreceive = onreceive;
+    this.onreceiveblocked = onreceiveblocked;
     this.vc = new VectorClock(this.runtime.replicaId, true, -1);
   }
 
@@ -287,16 +297,19 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    * TODO: optimize?
    */
   private checkMessageBuffer(): void {
-    // Don't deliver any messages to the runtime if there is a pending
-    // batch of messages to send.
-    if (this.isPendingBatch) return;
-
     let index = this.messageBuffer.length - 1;
 
     while (index >= this.bufferCheckIndex) {
       let curVectorClock = this.messageBuffer[index].timestamp;
 
       if (this.vc.isReady(curVectorClock)) {
+        // Don't deliver any messages to the runtime if there is a pending
+        // batch of messages to send, but do let the runtime
+        // know of them.
+        if (this.isPendingBatch) {
+          this.onreceiveblocked();
+          return;
+        }
         /**
          * Send back the received message to runtime.
          */

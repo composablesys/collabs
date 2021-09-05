@@ -5,9 +5,10 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   // HTML
   document.body.innerHTML = require("./plaintext.html").default;
 
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
-    periodMs: 200,
-  });
+  const runtime = await ContainerRuntimeSource.newRuntime(
+    window.parent,
+    new crdts.RateLimitBatchingStrategy(200)
+  );
 
   const text = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
 

@@ -29,8 +29,8 @@ describe("standard", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("immediate", rng);
-    bob = runtimeGen.newRuntime("immediate", rng);
+    alice = runtimeGen.newRuntime(undefined, rng);
+    bob = runtimeGen.newRuntime(undefined, rng);
   });
 
   describe("TrueWinsCBoolean", () => {
@@ -47,7 +47,7 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: TrueWinsCBoolean, name: string): void {
-      flag.on("Change", (event, caller) => {
+      flag.on("Set", (event, caller) => {
         if (caller.value) {
           console.log(`${name}: ${event.timestamp.getSender()} enabled`);
         } else {
@@ -137,7 +137,7 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: FalseWinsCBoolean, name: string): void {
-      flag.on("Change", (event, caller) => {
+      flag.on("Set", (event, caller) => {
         if (caller.value) {
           console.log(`${name}: ${event.timestamp.getSender()} enabled`);
         } else {

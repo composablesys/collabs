@@ -24,8 +24,8 @@ describe("basic_crdts", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("immediate", rng);
-    bob = runtimeGen.newRuntime("immediate", rng);
+    alice = runtimeGen.newRuntime(undefined, rng);
+    bob = runtimeGen.newRuntime(undefined, rng);
   });
 
   describe("AddComponent", () => {
@@ -452,7 +452,7 @@ describe("basic_crdts", () => {
       mvr: OptionalLwwCRegister<T>,
       name: string
     ): void {
-      mvr.on("Change", (event) =>
+      mvr.on("Set", (event) =>
         console.log(`${name}: ${event.timestamp.getSender()} set`)
       );
     }

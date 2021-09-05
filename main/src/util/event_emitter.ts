@@ -2,8 +2,8 @@ export interface EventsRecord {
   [eventName: string]: any;
 }
 
-type Unsubscribe = () => void;
-type Handler<T, C> = (event: T, caller: C) => void;
+export type Unsubscribe = () => void;
+export type Handler<T, C> = (event: T, caller: C) => void;
 
 /**
  * Classes extending EventEmitter can emit events, and listeners can await

@@ -104,7 +104,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let runtimes: crdts.Runtime[] = [];
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
-        runtimes[i] = generator.newRuntime("manual", replicaIdRng);
+        runtimes[i] = generator.newRuntime(
+          new crdts.ManualBatchingStrategy(),
+          replicaIdRng
+        );
         crdtList[i] = runtimes[i].registerCrdt("", this.crdtConstructor);
       }
 
@@ -155,7 +158,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               }
               // Create a new runtime etc. for user 0, then load
               const loadStartTime = process.hrtime.bigint();
-              runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+              runtimes[0] = generator.newRuntime(
+                new crdts.ManualBatchingStrategy(),
+                replicaIdRng
+              );
               crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
               runtimes[0].load(saveData);
               const loadTime = new Number(
@@ -224,7 +230,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           crdtList[0] = undefined as unknown as C;
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
-          runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+          runtimes[0] = generator.newRuntime(
+            new crdts.ManualBatchingStrategy(),
+            replicaIdRng
+          );
           crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
           runtimes[0].load(saveData);
           const loadTime = new Number(

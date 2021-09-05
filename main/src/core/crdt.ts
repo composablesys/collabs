@@ -99,14 +99,15 @@ export interface CrdtEvent {
  */
 export interface CrdtEventsRecord {
   /**
-   * Emitted every time a Crdt
-   * receives a message, at the end of message processing.
+   * Emitted every time the Crdt receives a message
+   * (including messages sent by this replica),
+   * at the end of message processing.
    *
    * This event should generally not be listened on.
    * Logical operations may be composed of multiple messages,
    * each of which emits a Message event, so when early
    * Message events are emitted, the Crdt may be in
-   * a nonsensical, transient internal state.  Instead,
+   * a nonsensical, transient state.  Instead,
    * listen on Crdt-specific events.
    */
   Message: CrdtEvent;

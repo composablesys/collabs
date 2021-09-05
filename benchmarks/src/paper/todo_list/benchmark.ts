@@ -554,7 +554,7 @@ function compoCrdt() {
   return new TodoListBenchmark("Compo Crdt", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
@@ -585,7 +585,7 @@ function compoCrdt() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
@@ -721,7 +721,7 @@ function compoCrdtRga() {
   return new TodoListBenchmark("Compo Crdt RGA", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
@@ -752,7 +752,7 @@ function compoCrdtRga() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
@@ -832,7 +832,7 @@ function compoMovableCrdt() {
   return new TodoListBenchmark("Compo Movable Crdt", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
@@ -863,7 +863,7 @@ function compoMovableCrdt() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
@@ -999,7 +999,7 @@ function compoMovableCrdtRga() {
   return new TodoListBenchmark("Compo Movable Crdt RGA", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       // TODO: this seems unnecessary
@@ -1030,7 +1030,7 @@ function compoMovableCrdtRga() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
       runtime.load(saveData);
       return list;
@@ -1101,7 +1101,7 @@ function compoJson() {
   return new TodoListBenchmark("Compo Json", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", JsonElement.NewJson);
       list.setOrdinaryJS({ items: [] });
@@ -1132,7 +1132,7 @@ function compoJson() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       let list = runtime.registerCrdt("", JsonElement.NewJson);
       runtime.load(saveData);
       return new JsonTodoList(list.value as JsonObject);
@@ -1199,7 +1199,7 @@ function compoJsonText() {
   return new TodoListBenchmark("Compo Json Text", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = runtime.registerCrdt("", JsonElement.NewJson);
       list.setOrdinaryJS({ items: [] });
@@ -1230,7 +1230,7 @@ function compoJsonText() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       let list = runtime.registerCrdt("", JsonElement.NewJson);
       runtime.load(saveData);
       return new JsonTextTodoList(list.value as JsonObject);
@@ -1654,7 +1654,7 @@ function jsonCrdt() {
   return new TodoListBenchmark("Compo Json Crdt", {
     newTodoList(rng) {
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
 
       let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
@@ -1692,7 +1692,7 @@ function jsonCrdt() {
       // Proceed like newTodoList, but without doing any
       // operations.
       generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime("manual", rng);
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
 
       let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
       let cursor = new JsonCursor(crdt);

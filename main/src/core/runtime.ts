@@ -9,7 +9,7 @@ import {
   EventEmitter,
   stringAsArray,
 } from "../util";
-import { Crdt, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
+import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
   CausalTimestamp,
@@ -20,6 +20,10 @@ import {
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
 import { CompositeCrdt } from "../constructions";
+import {
+  BatchingStrategy,
+  ImmediateBatchingStrategy,
+} from "./batching_strategy";
 
 class RootCrdt extends CompositeCrdt {
   /**
@@ -119,20 +123,89 @@ function randomReplicaId(): string {
   return String.fromCharCode(...arr);
 }
 
+export interface RuntimeEvent {
+  /**
+   * Whether the event is due to local operations,
+   * i.e., Crdt method calls on this replica.
+   */
+  isLocal: boolean;
+}
+
+export interface RuntimeEventsRecord extends CrdtEventsRecord {
+  /**
+   * Emitted every time the Runtime receives a single Crdt message
+   * (including messages sent by this replica),
+   * at the end of message processing.
+   *
+   * This event should generally not be listened on.
+   * Logical operations may be composed of multiple messages,
+   * each of which emits a Message event, so when early
+   * Message events are emitted, the Runtime's Crdts may be in
+   * a nonsensical, transient state.  Instead,
+   * listen on Change events or Crdt-specific events.
+   *
+   * Note that actual
+   * messages received from the network may be batches of
+   * multiple Crdt messages.  In that case, one Message event
+   * is emitted for each of the Crdt messages.
+   */
+  Message: CrdtEvent;
+  /**
+   * Emitted after the Runtime's Crdts are changed by an
+   * operation or series of operations happening in the same
+   * thread.  An easy way to keep a view in sync with the
+   * Crdt state (model) is to refresh the view each time
+   * this event is emitted.
+   *
+   * Unlike Message events, Change events are only dispatched
+   * after a sequence of messages that were sent in the same thread
+   * of execution (either locally or on another replica).
+   * This means that Crdts will be in proper, usable states,
+   * not in nonsensical, transient states like with Message events.
+   *
+   * It is not guaranteed that Change events will be emitted
+   * once per thread of execution; they may be emitted less
+   * often.  There are two distinct causes of this:
+   * - On the sending replica, Runtime cannot detect the
+   * end of an execution thread directly; instead, when the
+   * first message is sent, Runtime creates a Promise
+   * microtask to emit the event.  Other Promise microtasks
+   * might occur first and perform more operations before
+   * this microtask resolves.
+   * - On receiving replicas, each batch received on the
+   * network emits one Change event, even if the batch contains
+   * messages from multiple threads of execution.
+   */
+  Change: RuntimeEvent;
+  /**
+   * Emitted after a batch of messages is sent or
+   * received.  Each such batch corresponds to one
+   * CausalBroadcastNetwork message.
+   */
+  Batch: RuntimeEvent;
+  /**
+   * Emitted when a received message is ready for processing
+   * but blocked by our pending send batch.  It will be
+   * processed after the next call to commitBatch().
+   */
+  ReceiveBlocked: {};
+}
+
 /**
  * TODO: usage
  */
-export class Runtime extends EventEmitter<CrdtEventsRecord> {
-  private readonly batchType: "immediate" | "manual" | "periodic";
-  private readonly batchingPeriodMs: number | undefined;
+export class Runtime extends EventEmitter<RuntimeEventsRecord> {
+  readonly isRuntime = true;
+
   private readonly network: CausalBroadcastNetwork;
   readonly replicaId: string;
+
+  private batchingStrategy: BatchingStrategy;
+  private changeEventPending = false;
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
   private loadAllowed = true;
-
-  readonly isRuntime = true;
 
   /**
    * TODO.
@@ -143,9 +216,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    */
   constructor(
     network: BroadcastNetwork | CausalBroadcastNetwork,
-    batchOptions: "immediate" | "manual" | { periodMs: number } = {
-      periodMs: 0,
-    },
+    batchingStrategy: BatchingStrategy = new ImmediateBatchingStrategy(),
     debugReplicaId: string | undefined = undefined
   ) {
     super();
@@ -160,19 +231,14 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     } else {
       this.network = new DefaultCausalBroadcastNetwork(network);
     }
-    this.network.onreceive = this.receive.bind(this);
-    this.network.setRuntime(this);
+    this.network.registerRuntime(this, this.receive.bind(this), () =>
+      this.emit("ReceiveBlocked", {})
+    );
     // Create this.rootCrdt
     this.rootCrdt = new RootCrdt(new CrdtInitToken("", this));
-    this.rootCrdt.on("Message", (event) => this.emit("Message", event));
-    // Process batchOptions
-    if (typeof batchOptions === "object") {
-      this.batchType = "periodic";
-      this.batchingPeriodMs = batchOptions.periodMs;
-    } else {
-      this.batchType = batchOptions;
-      this.batchingPeriodMs = undefined;
-    }
+    // Process batchingStrategy
+    this.batchingStrategy = batchingStrategy;
+    this.batchingStrategy.start(this);
   }
 
   /**
@@ -219,9 +285,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
 
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
-    let newBatch: boolean;
     if (this.pendingBatch === null) {
-      newBatch = true;
       timestamp = this.network.beginBatch();
       this.pendingBatch = {
         pointers: [],
@@ -231,7 +295,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         previousTimestamp: timestamp,
       };
     } else {
-      newBatch = false;
       timestamp = this.network.nextTimestamp(
         this.pendingBatch.previousTimestamp
       );
@@ -251,11 +314,15 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     });
     this.pendingBatch.previousTimestamp = timestamp;
 
-    if (this.batchType === "immediate") {
-      // Send immediately
-      this.commitBatch();
-    } else if (newBatch && this.batchType === "periodic") {
-      setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
+    this.emit("Message", { timestamp });
+    // Schedule a Change event as a microtask, if there
+    // is not one pending already.
+    if (!this.changeEventPending) {
+      this.changeEventPending = true;
+      Promise.resolve().then(() => {
+        this.changeEventPending = false;
+        this.emit("Change", { isLocal: true });
+      });
     }
   }
 
@@ -286,9 +353,17 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     return newPointer;
   }
 
+  setBatchingStrategy(batchingStrategy: BatchingStrategy) {
+    this.batchingStrategy.stop();
+    this.batchingStrategy = batchingStrategy;
+    this.batchingStrategy.start(this);
+  }
+
   /**
-   * TODO.  Mostly for manual batching, but can be
+   * TODO.  Mostly for BatchingStrategy, but can be
    * called whenever if you want immediate sending.
+   * Don't call it in the middle of a multi-message Crdt
+   * operation though.
    * @return [description]
    */
   commitBatch() {
@@ -312,6 +387,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       batch.firstTimestamp,
       batch.previousTimestamp
     );
+    this.emit("Batch", { isLocal: true });
   }
 
   /**
@@ -357,6 +433,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
           timestamp,
           decoded.innerMessages[i]
         );
+        this.emit("Message", { timestamp });
       } catch (e) {
         // TODO: handle gracefully
         throw e;
@@ -364,6 +441,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         this.currentlyProcessedTimestamp = undefined;
       }
     }
+
+    this.emit("Change", { isLocal: false });
+    this.emit("Batch", { isLocal: false });
     return timestamp;
   }
 

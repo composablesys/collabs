@@ -1,8 +1,37 @@
 import {
+  BatchingStrategy,
   BroadcastNetwork,
+  CrdtEvent,
   DefaultCausalBroadcastNetwork,
   Runtime,
 } from "../core";
+import { Unsubscribe } from "./event_emitter";
+
+/**
+ * For testing or special purposes only.  Sends each message
+ * immediately as its own batch.
+ */
+export class TestingBatchingStrategy implements BatchingStrategy {
+  private runtime?: Runtime;
+  private unsubscribe?: Unsubscribe;
+
+  start(runtime: Runtime): void {
+    this.runtime = runtime;
+    this.unsubscribe = this.runtime.on("Message", this.onmessage.bind(this));
+  }
+
+  stop(): void {
+    this.unsubscribe!();
+    this.runtime = undefined;
+    this.unsubscribe = undefined;
+  }
+
+  private onmessage(event: CrdtEvent) {
+    if (event.timestamp.isLocal()) {
+      this.runtime!.commitBatch();
+    }
+  }
+}
 
 export class TestingNetwork implements BroadcastNetwork {
   sentBytes = 0;
@@ -63,11 +92,11 @@ export class TestingNetworkGenerator {
    * @return              [description]
    */
   newRuntime(
-    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate",
+    batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
     rng: seedrandom.prng | undefined = undefined
   ) {
     let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;
-    return new Runtime(this.newNetwork(), batchOptions, replicaId);
+    return new Runtime(this.newNetwork(), batchingStrategy, replicaId);
   }
   newNetwork() {
     let network = new TestingNetwork(this);

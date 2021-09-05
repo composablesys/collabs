@@ -90,7 +90,7 @@ class myMessage {
  * Perform casuality check to ensure message ordering.
  */
 export class WebRtcNetwork implements CausalBroadcastNetwork {
-  onreceive!: (
+  private onreceive!: (
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ) => CausalTimestamp;
@@ -365,8 +365,16 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * @param crdtId the ID of each crdt.
    *
    */
-  setRuntime(runtime: Runtime): void {
+  registerRuntime(
+    runtime: Runtime,
+    onreceive: (
+      message: Uint8Array,
+      firstTimestamp: CausalTimestamp
+    ) => CausalTimestamp
+  ): void {
     this.runtime = runtime;
+    this.onreceive = onreceive;
+    // TODO: onreceiveblocked
     this.vc = new VectorClock(this.runtime.replicaId, true, -1);
     this.sendSignalingMessage({
       type: "register",
