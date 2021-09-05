@@ -8,7 +8,6 @@ import {
   LwwCRegister,
   MergingMutCMap,
   CNumber,
-  MNumber,
   TestingNetworkGenerator,
   DeletingMutCSet,
   CMapDeleteEvent,
@@ -234,11 +233,18 @@ describe("standard", () => {
           `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
         )
       );
-      // number.on("Reset", (event) =>
-      //   console.log(
-      //     `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
-      //   )
-      // );
+
+      number.on("Min", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} minned ${event.arg}`
+        )
+      );
+
+      number.on("Max", (event) =>
+        console.log(
+          `${name}: ${event.timestamp.getSender()} maxed ${event.arg}`
+        )
+      );
     }
 
     it("is initially 0", () => {
@@ -319,146 +325,6 @@ describe("standard", () => {
         runtimeGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 17);
         assert.strictEqual(bobNumber.value, 17);
-      });
-    });
-
-    // describe("reset", () => {
-    //   it("resets to the initial value", () => {
-    //     aliceNumber.add(1);
-    //     aliceNumber.reset();
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 0);
-    //     assert.strictEqual(bobNumber.value, 0);
-    //   });
-    //
-    //   it("works with non-concurrent updates", () => {
-    //     aliceNumber.add(3);
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 3);
-    //     assert.strictEqual(bobNumber.value, 3);
-    //
-    //     aliceNumber.reset();
-    //     aliceNumber.add(11);
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 11);
-    //     assert.strictEqual(bobNumber.value, 11);
-    //   });
-    //
-    //   it("lets concurrent adds survive", () => {
-    //     aliceNumber.reset();
-    //     bobNumber.add(10);
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 10);
-    //     assert.strictEqual(bobNumber.value, 10);
-    //   });
-    // });
-
-    describe("strongReset", () => {
-      it.skip("works with non-concurrent updates", () => {
-        // bobNumber.strongReset();
-        // runtimeGen.releaseAll();
-        // assert.strictEqual(aliceNumber.value, 0);
-        // assert.strictEqual(bobNumber.value, 0);
-        //
-        // aliceNumber.add(6);
-        // runtimeGen.releaseAll();
-        // assert.strictEqual(aliceNumber.value, 6);
-        // assert.strictEqual(bobNumber.value, 6);
-      });
-
-      it.skip("does not let concurrent add survive", () => {
-        // aliceNumber.strongReset();
-        // bobNumber.add(20);
-        // runtimeGen.releaseAll();
-        // assert.strictEqual(aliceNumber.value, 0);
-        // assert.strictEqual(bobNumber.value, 0);
-      });
-    });
-
-    // it("works with lots of concurrency", () => {
-    //   aliceNumber.add(3);
-    //   bobNumber.add(7);
-    //   aliceNumber.reset();
-    //   runtimeGen.release(bob);
-    //   assert.strictEqual(aliceNumber.value, 7);
-    //   assert.strictEqual(bobNumber.value, 7);
-    //
-    //   // TODO
-    //   // bobNumber.strongReset();
-    //   // runtimeGen.releaseAll();
-    //   // assert.strictEqual(aliceNumber.value, 0);
-    //   // assert.strictEqual(bobNumber.value, 0);
-    // });
-  });
-
-  describe("Multiple Ops Number", () => {
-    let aliceNumber: MNumber;
-    let bobNumber: MNumber;
-
-    beforeEach(() => init(0));
-
-    function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCrdt(name, Pre(MNumber)(initialValue));
-      bobNumber = bob.registerCrdt(name, Pre(MNumber)(initialValue));
-      if (debug) {
-        addEventListeners(aliceNumber, "Alice");
-        addEventListeners(bobNumber, "Bob");
-      }
-    }
-
-    function addEventListeners(number: MNumber, name: string): void {
-      number.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.added}`
-        )
-      );
-
-      number.on("Mult", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.multed}`
-        )
-      );
-
-      number.on("Min", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} minned ${event.compared}`
-        )
-      );
-
-      number.on("Max", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} maxed ${event.compared}`
-        )
-      );
-    }
-
-    it("is initially 0", () => {
-      assert.strictEqual(aliceNumber.value, 0);
-      assert.strictEqual(bobNumber.value, 0);
-    });
-
-    describe("add", () => {
-      it("works with non-concurrent updates", () => {
-        aliceNumber.add(3);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 3);
-
-        bobNumber.add(-4);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -1);
-        assert.strictEqual(bobNumber.value, -1);
-      });
-
-      it("works with concurrent updates", () => {
-        aliceNumber.add(3);
-        bobNumber.add(-4);
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, -4);
-
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -1);
-        assert.strictEqual(bobNumber.value, -1);
       });
     });
 
