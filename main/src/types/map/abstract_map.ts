@@ -128,10 +128,11 @@ export const AbstractCMapCObject = MakeAbstractCMap(CObject) as abstract new <
   K,
   V,
   SetArgs extends any[],
-  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>,
+  C extends Crdt = Crdt
 >(
   initToken: CrdtInitToken
-) => AbstractCMap<K, V, SetArgs> & CObject<Events>;
+) => AbstractCMap<K, V, SetArgs> & CObject<Events, C>;
 
 export const AbstractCMapCPrimitive = MakeAbstractCMap(
   CPrimitive

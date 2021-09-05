@@ -92,10 +92,11 @@ export function MakeAbstractCSet<
 export const AbstractCSetCObject = MakeAbstractCSet(CObject) as abstract new <
   T,
   AddArgs extends any[],
-  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
+  C extends Crdt = Crdt
 >(
   initToken: CrdtInitToken
-) => AbstractCSet<T, AddArgs> & CObject<Events>;
+) => AbstractCSet<T, AddArgs> & CObject<Events, C>;
 
 export const AbstractCSetCPrimitive = MakeAbstractCSet(
   CPrimitive

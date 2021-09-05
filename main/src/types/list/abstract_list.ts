@@ -481,10 +481,11 @@ export function MakeAbstractCList<
 export const AbstractCListCObject = MakeAbstractCList(CObject) as abstract new <
   T,
   InsertArgs extends any[],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>,
+  C extends Crdt = Crdt
 >(
   initToken: CrdtInitToken
-) => AbstractCList<T, InsertArgs> & CObject<Events>;
+) => AbstractCList<T, InsertArgs> & CObject<Events, C>;
 
 export const AbstractCListCPrimitive = MakeAbstractCList(
   CPrimitive
