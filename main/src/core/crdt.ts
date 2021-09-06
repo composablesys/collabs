@@ -119,21 +119,7 @@ export interface CrdtEvent {
  * for some views that only track part of the state,
  * e.g., the size of a CSet.
  */
-export interface CrdtEventsRecord {
-  /**
-   * Emitted every time the Crdt receives a message
-   * (including messages sent by this replica),
-   * at the end of message processing.
-   *
-   * This event should generally not be listened on.
-   * Logical operations may be composed of multiple messages,
-   * each of which emits a Message event, so when early
-   * Message events are emitted, the Crdt may be in
-   * a nonsensical, transient state.  Instead,
-   * listen on Crdt-specific events.
-   */
-  Message: CrdtEvent;
-}
+export interface CrdtEventsRecord {}
 
 /**
  * The base class for all Crdts.
@@ -182,8 +168,7 @@ export abstract class Crdt<
   /**
    * Callback used by this Crdt's CrdtParent to deliver
    * a message, possibly for one of this Crdt's descendants.
-   * This method calls receiveInternal and
-   * then dispatches a "Message" event.
+   * This method calls receiveInternal.
    *
    * Do not override this method; instead, override
    * receiveInternal.
@@ -201,8 +186,9 @@ export abstract class Crdt<
     message: Uint8Array
   ) {
     this.receiveInternal(targetPath, timestamp, message);
-    // this.needsSaving = true;
-    this.emit("Message", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
+    // While we do nothing here currently, we reserve the ability
+    // to do per-message processing in the future, e.g., dispatching a
+    // "Message" event or marking the Crdt as needing saving.
   }
 
   /**
