@@ -1,45 +1,43 @@
 import * as crdts from "compoventuals";
 import { WebRtcNetwork } from "compoventuals-webrtc-client";
 
-/**
- * Get Heroku server host Websocket.
- */
-// var HOST = location.origin.replace(/^http/, "ws");
+// WebRTC signalling server info, connecting to a
+// compoventuals-webrtc-server instance.
 const url = new URL(location.origin);
 url.protocol = "ws";
 url.port = "" + (parseInt(url.port) + 1);
 const HOST = url.toString();
 
-/**
- * Generate CRDTs' Runtime on each client and create CRDTs (e.g. Counter).
- */
+// Create a Runtime using our chosen network.
+// Here we use WebRtcNetwork from package compoventuals-webrtc-client,
+// which uses WebRTC to send messages, using
+// compoventuals-webrtc-server as the signalling server.
+const runtime = new crdts.Runtime(new WebRtcNetwork(HOST));
 
-let client = new crdts.Runtime(new WebRtcNetwork(HOST));
-let clientCounter = client.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
+// Create top-level Crdts to store the collaborative state.
+// Here we just need one counter.
+const counterCrdt = runtime.registerCrdt(
+  "counter",
+  crdts.Pre(crdts.CCounter)()
+);
 
-/* HTML variables */
-var counter = document.getElementById("counter");
+const display = document.getElementById("display")!;
 
-/* Customize the event listener for CRDT as refresh the value */
-clientCounter.on("Add", (_) => {
-  counter!.innerHTML = clientCounter.value.toString();
+// Refresh the display when the Crdt state changes, possibly
+// due to a message from another replica.
+runtime.on("Change", () => {
+  display.innerHTML = counterCrdt.value.toString();
 });
 
-/* Customize onclick() function of increment button with CRDT operation */
-document.getElementById("increment")!.onclick = function () {
-  console.log("clicked increment");
-  clientCounter.add(100);
-  counter!.innerHTML = clientCounter.value.toString();
+// Change counterCrdt's value on button clicks.
+// Note that we need not refresh the display here, since Batch
+// events are also triggered by local operations.
+document.getElementById("increment")!.onclick = () => {
+  counterCrdt.add(100);
 };
-
-/* Customize onclick() function of decrement button with CRDT operation */
-document.getElementById("decrement")!.onclick = function () {
-  console.log("clicked decrement");
-  clientCounter.add(-100);
-  counter!.innerHTML = clientCounter.value.toString();
+document.getElementById("decrement")!.onclick = () => {
+  counterCrdt.add(-100);
 };
-
-// /* Customize onclick() function of sync to synchronize the value */
-// document.getElementById("sync")!.onclick = function() {
-//     counter!.innerHTML = clientCounter.value.toString();
-// }
+document.getElementById("reset")!.onclick = () => {
+  counterCrdt.reset();
+};
