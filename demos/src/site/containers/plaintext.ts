@@ -2,9 +2,6 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./plaintext.html").default;
-
   const runtime = await ContainerRuntimeSource.newRuntime(
     window.parent,
     new crdts.RateLimitBatchingStrategy(200)

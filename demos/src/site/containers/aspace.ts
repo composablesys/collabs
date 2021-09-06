@@ -2,9 +2,6 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./aspace.html").default;
-
   const WIN_TEXT = (function () {
     let ans = "a";
     for (let i = 0; i < 29; i++) ans += " a";

@@ -236,9 +236,6 @@ class MinesweeperCrdt extends crdts.CObject {
 }
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./minesweeper.html").default;
-
   const board = document.getElementById("board");
   const winText = document.getElementById("winText")!;
 

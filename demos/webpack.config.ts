@@ -103,20 +103,21 @@ const config: webpack.Configuration = {
 // into every generated .html file.
 // Per this issue, there doesn't seem to be an easier way:
 // https://github.com/jantimon/html-webpack-plugin/issues/218
-// )
+// Anyway, this lets us customize the template per-container.)
 for (const entry of Object.keys(config.entry!)) {
   if (entry.startsWith("containers/")) {
     config.plugins!.push(
-      // For apps with js, automatically create an html file
-      // that just imports the js file.  In some cases these
-      // js files then import their prewritten companion html files, but
-      // this is unrelated.
-      // TODO: customize title
+      // Use each container's companion HTML file as the template.
+      // That way the result does basically what you'd except
+      // from the source files, except that in the source
+      // HTML files, it is important not to import the script
+      // (HtmlWebpackPlugin does that for us).
       new HtmlWebpackPlugin({
         title: "Compoventuals Demo",
         filename: entry + ".html",
         chunks: [entry],
         inject: "body",
+        template: `./src/site/${entry}.html`,
       })
     );
   }
