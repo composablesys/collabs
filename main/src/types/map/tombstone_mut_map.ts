@@ -109,7 +109,7 @@ export class TombstoneMutCMap<
         this.emit("Set", {
           key: event.value,
           previousValue: Optional.empty<C>(),
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
@@ -125,7 +125,7 @@ export class TombstoneMutCMap<
       this.emit("Delete", {
         key: event.value,
         deletedValue: this.map.get(event.value)!,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
   }

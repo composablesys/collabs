@@ -70,7 +70,7 @@ export class CMapFromRegister<
         this.emit("Set", {
           key,
           previousValue: event.previousValue,
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       } else if (event.previousValue.isPresent && !register.value.isPresent) {
         // The value was deleted, deleting a previously
@@ -78,7 +78,7 @@ export class CMapFromRegister<
         this.emit("Delete", {
           key,
           deletedValue: event.previousValue.get(),
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });

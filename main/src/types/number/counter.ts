@@ -9,6 +9,7 @@ import { CObject, CPrimitive } from "../../constructions";
 import {
   CausalTimestamp,
   CrdtEvent,
+  CrdtEventMeta,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
@@ -124,7 +125,7 @@ export class GrowOnlyCCounter
           GrowOnlyCCounter.MODULUS;
         this.emit("Add", {
           arg: int64AsNumber(decoded.add!.toAdd),
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
           previousValue,
         });
         break;
@@ -146,7 +147,7 @@ export class GrowOnlyCCounter
 
         this.emit("Reset", {
           arg: this.value - previousValue,
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
           previousValue,
         });
         break;
@@ -238,14 +239,14 @@ export class CCounter
       this.emit("Add", {
         arg: event.arg,
         previousValue: event.previousValue - this.minus.value,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
     this.minus.on("Add", (event) => {
       this.emit("Add", {
         arg: -event.arg,
         previousValue: this.plus.value - event.previousValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
     this.plus.on("Reset", (event) => {
@@ -260,7 +261,7 @@ export class CCounter
         // difference is in the safe range (-MODULUS, MODULUS).
         arg: this.plusResetEvent!.arg - event.arg,
         previousValue: this.plusResetEvent!.previousValue - event.previousValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
       this.plusResetEvent = undefined;
     });

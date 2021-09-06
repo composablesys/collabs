@@ -59,12 +59,12 @@ export class CSetFromBoolean<
     bool.on("Set", (event) => {
       if (!event.previousValue && bool.value) {
         this.cachedSize++;
-        this.emit("Add", { value: key, timestamp: event.timestamp });
+        this.emit("Add", { value: key, meta: event.meta });
       } else if (event.previousValue && !bool.value) {
         this.cachedSize--;
         this.emit("Delete", {
           value: key,
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });

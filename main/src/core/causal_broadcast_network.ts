@@ -71,7 +71,7 @@ export interface CausalBroadcastNetwork
       message: Uint8Array,
       firstTimestamp: CausalTimestamp
     ) => CausalTimestamp,
-    onreceiveblocked: () => void
+    onreceiveblocked: (sender: string) => void
   ): void;
 
   /**

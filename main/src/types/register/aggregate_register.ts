@@ -3,7 +3,7 @@ import {
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
 import { CPrimitive } from "../../constructions";
-import { CausalTimestamp, CrdtInitToken } from "../../core";
+import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
@@ -118,7 +118,10 @@ export abstract class AggregateArgsCRegister<
     this.cacheValid = false;
     this.cachedValue = undefined;
 
-    this.emit("Set", { timestamp, previousValue });
+    this.emit("Set", {
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      previousValue,
+    });
   }
 
   private constructValue(argsSerialized: Uint8Array): S {

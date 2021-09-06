@@ -27,7 +27,7 @@ export class TestingBatchingStrategy implements BatchingStrategy {
   }
 
   private onmessage(event: CrdtEvent) {
-    if (event.timestamp.isLocal()) {
+    if (event.meta.isLocal) {
       this.runtime!.commitBatch();
     }
   }

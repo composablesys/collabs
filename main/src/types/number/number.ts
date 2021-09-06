@@ -4,6 +4,7 @@ import { MultipleSemidirectProduct } from "../../constructions/multiple_semidire
 import {
   CausalTimestamp,
   CrdtEvent,
+  CrdtEventMeta,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
@@ -55,7 +56,7 @@ export class AddComponent
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
-      timestamp,
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
       arg: decoded.arg,
       previousValue,
     });
@@ -101,7 +102,7 @@ export class MultComponent
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
-      timestamp,
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
       arg: decoded.arg,
       previousValue,
     });
@@ -145,7 +146,7 @@ export class MinComponent
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
     this.emit("Min", {
-      timestamp,
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
       arg: decoded.arg,
       previousValue,
     });
@@ -189,7 +190,7 @@ export class MaxComponent
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);
     this.emit("Max", {
-      timestamp,
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
       arg: decoded.arg,
       previousValue,
     });

@@ -34,7 +34,7 @@ export class ImmediateBatchingStrategy implements BatchingStrategy {
   }
 
   private onchange(event: RuntimeEvent) {
-    if (event.isLocal) this.runtime!.commitBatch();
+    if (event.meta.isLocal) this.runtime!.commitBatch();
   }
 }
 
@@ -85,7 +85,7 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
   }
 
   private onchange(event: RuntimeEvent) {
-    if (event.isLocal) {
+    if (event.meta.isLocal) {
       if (!this.pendingBatch) {
         const time = Date.now();
         // If it has been more then periodMs ms since the last

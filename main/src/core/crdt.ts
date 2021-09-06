@@ -48,17 +48,60 @@ export function Pre<C, Args extends any[]>(
       new Class(initToken, ...args);
 }
 
+export interface CrdtEventMeta {
+  /**
+   * The replicaId of the replica that initiated the operation
+   * described by this event.
+   */
+  readonly sender: string;
+  /**
+   * Whether the operation was initiated locally.
+   *
+   * Equivalent to this.sender === (local Runtime).replicaId.
+   */
+  readonly isLocal: boolean;
+}
+
+export const CrdtEventMeta = {
+  fromTimestamp(timestamp: CausalTimestamp): CrdtEventMeta {
+    return { sender: timestamp.getSender(), isLocal: timestamp.isLocal() };
+  },
+
+  fromSender(sender: string, runtime: Runtime): CrdtEventMeta {
+    return { sender, isLocal: sender === runtime.replicaId };
+  },
+};
+
 /**
  * An event issued when a Crdt is changed by either
  * a remote or local operation.
  *
- * TODO: on/emit/etc.
- *
  * Crdts should define events implementing this interface
  * and pass those to registered listeners when the Crdt's
  * state is changed.
+ */
+export interface CrdtEvent {
+  readonly meta: CrdtEventMeta;
+}
+
+/**
+ * A record of events for a Crdt, indexed by name.
+ *
+ * Crdt subclasses should define an events record extending
+ * this interface, adding a record for each possible change.
+ *
+ * Each record's type should be a subinterface of
+ * CrdtEvent.  An exception is if you add events that
+ * describe local-only state changes not associated to
+ * a network message, althought these should be kept to a
+ * minimum.
  *
  * General advice:
+ * - Only emit events when your state is usable.  If one of
+ * your operations is made up of several sub-operations, and
+ * the intermediate states are nonsensical, don't emit events
+ * then, since the listeners might try to inspect the state
+ * during their event handlers.
  * - Events should be sufficient to maintain a view of
  * the state.  But, it is recommended to omit info
  * that the user can get from the Crdt during the event
@@ -75,27 +118,6 @@ export function Pre<C, Args extends any[]>(
  * That is useful
  * for some views that only track part of the state,
  * e.g., the size of a CSet.
- */
-export interface CrdtEvent {
-  /**
-   * The causal timestamp of the change.
-   *
-   * Note that
-   * because several CRDTs can share the same runtime, timestamps
-   * may not be continguous (i.e., entries in their vector clocks
-   * might skip numbers).  However, causally ordered delivery is
-   * still guaranteed.
-   * */
-  readonly timestamp: CausalTimestamp;
-}
-
-/**
- * A record of events for a Crdt, indexed by name.
- *
- * Crdt subclasses should define an events record extending
- * this interface, adding a record for each possible change.
- * Each record's type should be a subinterface of
- * CrdtEvent.
  */
 export interface CrdtEventsRecord {
   /**
@@ -180,7 +202,7 @@ export abstract class Crdt<
   ) {
     this.receiveInternal(targetPath, timestamp, message);
     // this.needsSaving = true;
-    this.emit("Message", { timestamp: timestamp });
+    this.emit("Message", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
   }
 
   /**

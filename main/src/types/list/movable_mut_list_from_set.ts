@@ -109,7 +109,7 @@ export class MovableMutCListFromSet<
             startIndex,
             count: 1,
             resultingStartIndex,
-            timestamp: event.timestamp,
+            meta: event.meta,
           });
         });
         return entry;
@@ -137,7 +137,7 @@ export class MovableMutCListFromSet<
       this.emit("Insert", {
         startIndex: index,
         count: 1,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
     this.set.on("Delete", (event) => {
@@ -146,7 +146,7 @@ export class MovableMutCListFromSet<
         startIndex: index,
         count: 1,
         deletedValues: [event.value.value],
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
   }

@@ -112,19 +112,15 @@ describe("SemidirectProduct", () => {
 
     function addEventListeners(number: CNumberSimple, name: string): void {
       number.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
       );
 
       number.on("Mult", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
       );
       // number.on("Reset", (event) =>
       //   console.log(
-      //     `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
+      //     `${name}: ${event.meta.sender} reset ${event.meta.sender}`
       //   )
       // );
     }

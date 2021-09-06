@@ -151,7 +151,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ) => CausalTimestamp;
-  private onreceiveblocked!: () => void;
+  private onreceiveblocked!: (sender: string) => void;
   /**
    * BroadcastNetwork for broadcasting messages.
    */
@@ -211,7 +211,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
       message: Uint8Array,
       firstTimestamp: CausalTimestamp
     ) => CausalTimestamp,
-    onreceiveblocked: () => void
+    onreceiveblocked: (sender: string) => void
   ): void {
     this.runtime = runtime;
     this.onreceive = onreceive;
@@ -309,7 +309,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         // batch of messages to send, but do let the runtime
         // know of them.
         if (this.isPendingBatch) {
-          this.onreceiveblocked();
+          this.onreceiveblocked(curVectorClock.getSender());
           return;
         }
         /**

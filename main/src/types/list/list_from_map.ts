@@ -36,7 +36,7 @@ export class CListFromMap<
         this.emit("Insert", {
           startIndex,
           count: 1,
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
@@ -46,7 +46,7 @@ export class CListFromMap<
         startIndex,
         count: 1,
         deletedValues: [event.deletedValue],
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
   }

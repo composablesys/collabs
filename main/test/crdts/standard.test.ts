@@ -48,9 +48,9 @@ describe("standard", () => {
     function addEventListeners(flag: TrueWinsCBoolean, name: string): void {
       flag.on("Set", (event, caller) => {
         if (caller.value) {
-          console.log(`${name}: ${event.timestamp.getSender()} enabled`);
+          console.log(`${name}: ${event.meta.sender} enabled`);
         } else {
-          console.log(`${name}: ${event.timestamp.getSender()} disabled`);
+          console.log(`${name}: ${event.meta.sender} disabled`);
         }
       });
     }
@@ -138,9 +138,9 @@ describe("standard", () => {
     function addEventListeners(flag: FalseWinsCBoolean, name: string): void {
       flag.on("Set", (event, caller) => {
         if (caller.value) {
-          console.log(`${name}: ${event.timestamp.getSender()} enabled`);
+          console.log(`${name}: ${event.meta.sender} enabled`);
         } else {
-          console.log(`${name}: ${event.timestamp.getSender()} disabled`);
+          console.log(`${name}: ${event.meta.sender} disabled`);
         }
       });
     }
@@ -223,27 +223,19 @@ describe("standard", () => {
 
     function addEventListeners(number: CNumber, name: string): void {
       number.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
       );
 
       number.on("Mult", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
       );
 
       number.on("Min", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} minned ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} minned ${event.arg}`)
       );
 
       number.on("Max", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} maxed ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} maxed ${event.arg}`)
       );
     }
 
@@ -436,14 +428,10 @@ describe("standard", () => {
 
     function addEventListeners(set: AddWinsCSet<string>, name: string): void {
       set.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.value}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.value}`)
       );
       set.on("Delete", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} deleted ${event.value}`
-        )
+        console.log(`${name}: ${event.meta.sender} deleted ${event.value}`)
       );
     }
 
@@ -1209,11 +1197,11 @@ describe("standard", () => {
 //
 //     let aliceOrthogonal = new OrthogonalCrdt("orthogonalId", alice);
 //     aliceOrthogonal.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " set to " +
+//         "Alice: " + event.meta.sender + " set to " +
 //         event.description));
 //     let bobOrthogonal = new OrthogonalCrdt("orthogonalId", bob);
 //     bobOrthogonal.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " set to " +
+//         "Bob: " + event.meta.sender + " set to " +
 //         event.description));
 //     assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);

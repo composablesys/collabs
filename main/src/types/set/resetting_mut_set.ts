@@ -106,14 +106,14 @@ export class MutCSetFromMap<
       if (!event.previousValue.isPresent) {
         this.emit("Add", {
           value: this.map.get(event.key)!,
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
     this.map.on("Delete", (event) => {
       this.emit("Delete", {
         value: event.deletedValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
   }

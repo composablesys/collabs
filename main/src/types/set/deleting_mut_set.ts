@@ -7,7 +7,13 @@ import {
   DefaultElementSerializer,
   ElementSerializer,
 } from "../../util";
-import { CausalTimestamp, Crdt, CrdtInitToken, Pre } from "../../core";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventMeta,
+  CrdtInitToken,
+  Pre,
+} from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
 import { Resettable } from "../../abilities";
 
@@ -165,7 +171,10 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
             this.ourCreatedValue = newValue;
           }
 
-          this.emit("Add", { value: newValue, timestamp });
+          this.emit("Add", {
+            value: newValue,
+            meta: CrdtEventMeta.fromTimestamp(timestamp),
+          });
           break;
         case "delete":
           const child = this.children.get(decoded.delete);
@@ -173,7 +182,10 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
             this.children.delete(decoded.delete);
             this.constructorArgs.delete(decoded.delete);
 
-            this.emit("Delete", { value: child, timestamp });
+            this.emit("Delete", {
+              value: child,
+              meta: CrdtEventMeta.fromTimestamp(timestamp),
+            });
           }
           break;
         default:

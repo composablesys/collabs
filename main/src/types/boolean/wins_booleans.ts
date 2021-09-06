@@ -1,7 +1,7 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
 import { CObject, CPrimitive } from "../../constructions";
-import { CausalTimestamp, CrdtInitToken, Pre } from "../../core";
+import { CausalTimestamp, CrdtEventMeta, CrdtInitToken, Pre } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 
@@ -57,7 +57,10 @@ export class TrueWinsCBoolean
 
     // Event
     if (this.value !== previousValue) {
-      this.emit("Set", { previousValue, timestamp });
+      this.emit("Set", {
+        previousValue,
+        meta: CrdtEventMeta.fromTimestamp(timestamp),
+      });
     }
   }
 
@@ -103,7 +106,7 @@ export class FalseWinsCBoolean
     this.negated.on("Set", (event) =>
       this.emit("Set", {
         previousValue: !event.previousValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       })
     );
   }

@@ -6,7 +6,12 @@ import {
   stringAsBytes,
   WeakValueMap,
 } from "../../util";
-import { CausalTimestamp, Crdt, CrdtInitToken } from "../../core";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventMeta,
+  CrdtInitToken,
+} from "../../core";
 import { Resettable } from "../../abilities";
 import { AbstractCMapCrdt } from "./abstract_map";
 
@@ -126,7 +131,11 @@ export class GrowOnlyImplicitMergingMutCMap<
       if (nontrivialStart && value.canGc()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
-        this.emit("Delete", { key, deletedValue: value, timestamp });
+        this.emit("Delete", {
+          key,
+          deletedValue: value,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
+        });
       }
       // If the value became nontrivial, move it to the
       // main map
@@ -138,7 +147,7 @@ export class GrowOnlyImplicitMergingMutCMap<
           // Empty to emphasize that the previous value was
           // not present.
           previousValue: Optional.empty<C>(),
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
         });
         // We won't dispatch Set events when the value
         // is not new because there can only ever be one

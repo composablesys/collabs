@@ -91,7 +91,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
           this.backupValuesById.delete(event.key);
           this.valuesById.set(event.key, value);
         }
-        this.emit("Add", { value, timestamp: event.timestamp });
+        this.emit("Add", { value, meta: event.meta });
       }
     });
     this.argsById.on("Delete", (event) => {
@@ -101,7 +101,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
       const value = this.valuesById.get(event.key)!;
       this.valuesById.delete(event.key);
       this.backupValuesById.set(event.key, value);
-      this.emit("Delete", { value, timestamp: event.timestamp });
+      this.emit("Delete", { value, meta: event.meta });
     });
   }
 

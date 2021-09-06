@@ -4,7 +4,7 @@ import {
   RuntimeSave,
 } from "../../generated/proto_compiled";
 import { ElementSerializer, EventEmitter } from "../util";
-import { Crdt, CrdtEvent, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
+import { Crdt, CrdtEventMeta, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
   CausalTimestamp,
@@ -119,14 +119,10 @@ function randomReplicaId(): string {
 }
 
 export interface RuntimeEvent {
-  /**
-   * Whether the event is due to local operations,
-   * i.e., Crdt method calls on this replica.
-   */
-  isLocal: boolean;
+  readonly meta: CrdtEventMeta;
 }
 
-export interface RuntimeEventsRecord extends CrdtEventsRecord {
+export interface RuntimeEventsRecord {
   /**
    * Emitted every time the Runtime receives a single Crdt message
    * (including messages sent by this replica),
@@ -144,7 +140,7 @@ export interface RuntimeEventsRecord extends CrdtEventsRecord {
    * multiple Crdt messages.  In that case, one Message event
    * is emitted for each of the Crdt messages.
    */
-  Message: CrdtEvent;
+  Message: RuntimeEvent;
   /**
    * Emitted after the Runtime's Crdts are changed by an
    * operation or series of operations happening in the same
@@ -183,7 +179,7 @@ export interface RuntimeEventsRecord extends CrdtEventsRecord {
    * but blocked by our pending send batch.  It will be
    * processed after the next call to commitBatch().
    */
-  ReceiveBlocked: {};
+  ReceiveBlocked: RuntimeEvent;
 }
 
 /**
@@ -226,8 +222,10 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     } else {
       this.network = new DefaultCausalBroadcastNetwork(network);
     }
-    this.network.registerRuntime(this, this.receive.bind(this), () =>
-      this.emit("ReceiveBlocked", {})
+    this.network.registerRuntime(this, this.receive.bind(this), (sender) =>
+      this.emit("ReceiveBlocked", {
+        meta: CrdtEventMeta.fromSender(sender, this),
+      })
     );
     // Create this.rootCrdt
     this.rootCrdt = new RootCrdt(new CrdtInitToken("", this));
@@ -309,14 +307,14 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     });
     this.pendingBatch.previousTimestamp = timestamp;
 
-    this.emit("Message", { timestamp });
+    this.emit("Message", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
     // Schedule a Change event as a microtask, if there
     // is not one pending already.
     if (!this.changeEventPending) {
       this.changeEventPending = true;
       Promise.resolve().then(() => {
         this.changeEventPending = false;
-        this.emit("Change", { isLocal: true });
+        this.emit("Change", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
       });
     }
   }
@@ -382,7 +380,9 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
       batch.firstTimestamp,
       batch.previousTimestamp
     );
-    this.emit("Batch", { isLocal: true });
+    this.emit("Batch", {
+      meta: CrdtEventMeta.fromSender(this.replicaId, this),
+    });
   }
 
   /**
@@ -428,7 +428,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
           timestamp,
           decoded.innerMessages[i]
         );
-        this.emit("Message", { timestamp });
+        this.emit("Message", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
       } catch (e) {
         // TODO: handle gracefully
         throw e;
@@ -437,8 +437,12 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
       }
     }
 
-    this.emit("Change", { isLocal: false });
-    this.emit("Batch", { isLocal: false });
+    this.emit("Change", {
+      meta: CrdtEventMeta.fromSender(firstTimestamp.getSender(), this),
+    });
+    this.emit("Batch", {
+      meta: CrdtEventMeta.fromSender(firstTimestamp.getSender(), this),
+    });
     return timestamp;
   }
 

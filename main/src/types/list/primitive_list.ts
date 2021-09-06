@@ -7,7 +7,7 @@ import {
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { CausalTimestamp, CrdtInitToken } from "../../core";
+import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
 import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { Resettable } from "../../abilities";
@@ -228,7 +228,7 @@ export class PrimitiveCListFromDenseLocalList<
         this.emit("Insert", {
           startIndex: index,
           count: values.length,
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
         });
         break;
       case "delete": {
@@ -246,7 +246,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            timestamp,
+            meta: CrdtEventMeta.fromTimestamp(timestamp),
           });
         } // Else already deleted
         break;
@@ -311,7 +311,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            timestamp,
+            meta: CrdtEventMeta.fromTimestamp(timestamp),
           });
         }
         break;
