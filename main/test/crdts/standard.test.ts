@@ -304,7 +304,7 @@ describe("standard", () => {
       });
 
       // TODO: giving wrong answer.
-      it.skip("works with the example from the paper", () => {
+      it("works with the example from the paper", () => {
         // See https://arxiv.org/abs/2004.04303, §3.1
         init(1, "numberIdPaper");
 

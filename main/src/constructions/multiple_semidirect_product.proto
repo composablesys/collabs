@@ -5,7 +5,7 @@ message MultiSemidirectProductStoredMessage {
   repeated string targetPath = 4;
   optional bytes timestamp = 5;
   required uint32 arbIndex = 6;
-  required bytes message = 7;
+  optional bytes message = 7;
 }
 
 message MultiSemidirectProductSenderHistory {

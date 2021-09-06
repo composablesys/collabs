@@ -246,7 +246,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
     m2Message: Uint8Array,
     m2Index: number,
     _m1TargetPath: string[],
-    _m1Timestamp: CausalTimestamp,
+    _m1Timestamp: CausalTimestamp | null,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
     let m2Decoded = CNumberComponentMessage.decode(m2Message);
