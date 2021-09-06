@@ -15,6 +15,8 @@ import {
 import { VectorClock } from "./vector_clock";
 import { int64AsNumber } from "../util";
 
+const DEBUG = false;
+
 /**
  * Interface describing a (reliable, at-least-once, ordering
  * agnostic)
@@ -326,17 +328,21 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         this.bufferCheckIndex = 0;
         index = this.messageBuffer.length - 1;
       } else {
-        console.log(
-          "DefaultCausalBroadcastNetwork.checkMessageBuffer: not ready"
-        );
+        if (DEBUG) {
+          console.log(
+            "DefaultCausalBroadcastNetwork.checkMessageBuffer: not ready"
+          );
+        }
         if (this.vc.isAlreadyReceived(curVectorClock)) {
           // Remove the message from the buffer
           this.messageBuffer.splice(index, 1);
-          console.log("(already received)");
+          if (DEBUG) console.log("(already received)");
         }
         index--;
-        console.log(this.vc.toString());
-        console.log(curVectorClock.toString());
+        if (DEBUG) {
+          console.log(this.vc.toString());
+          console.log(curVectorClock.toString());
+        }
       }
     }
     this.bufferCheckIndex = this.messageBuffer.length;
