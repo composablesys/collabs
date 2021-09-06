@@ -65,7 +65,15 @@ currentHost.on("Set", (e) => {
   if (e.previousValue.isPresent) {
     e.previousValue.get().containerIFrame.hidden = true;
   }
-  currentHost.value.get().containerIFrame.hidden = false;
+  const iframe = currentHost.value.get().containerIFrame;
+  iframe.hidden = false;
+  // Set title to that of the visible IFrame.
+  // We know that it is not yet loaded because it will only
+  // be Set once, in the same thread where it is initially
+  // created.
+  iframe.addEventListener("load", () => {
+    document.title = iframe.contentDocument!.title;
+  });
 });
 
 function setHtmlSrc(htmlSrc: string) {
