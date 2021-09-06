@@ -16,7 +16,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 
   // Refresh the display when the Crdt state changes, possibly
   // due to a message from another replica.
-  runtime.on("Batch", () => {
+  runtime.on("Change", () => {
     display.innerHTML = counterCrdt.value.toString();
   });
 
