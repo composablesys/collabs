@@ -187,6 +187,15 @@ export abstract class Crdt<
    * Core method used to receive messages, possibly for
    * one of this Crdt's descendants.
    *
+   * Although you may modify messages intended for your
+   * descendants (so long as you ensure eventual consistency),
+   * local messages (sent by this replica) must be delivered
+   * unchanged.  The only exception is if you are explicitly not
+   * allowing messages from that descendant
+   * (e.g., messages from deleted values in
+   * DeletingMutCSet); in that case, you should throw an error,
+   * which will prevent the operation.
+   *
    * @targetPath the target Crdt's id followed by
    * the ids of its ancestors in ascending order,
    * stopping at this Crdt (exclusive).
