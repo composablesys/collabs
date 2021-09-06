@@ -124,24 +124,6 @@ export interface RuntimeEvent {
 
 export interface RuntimeEventsRecord {
   /**
-   * Emitted every time the Runtime receives a single Crdt message
-   * (including messages sent by this replica),
-   * at the end of message processing.
-   *
-   * This event should generally not be listened on.
-   * Logical operations may be composed of multiple messages,
-   * each of which emits a Message event, so when early
-   * Message events are emitted, the Runtime's Crdts may be in
-   * a nonsensical, transient state.  Instead,
-   * listen on Change events or Crdt-specific events.
-   *
-   * Note that actual
-   * messages received from the network may be batches of
-   * multiple Crdt messages.  In that case, one Message event
-   * is emitted for each of the Crdt messages.
-   */
-  Message: RuntimeEvent;
-  /**
    * Emitted after the Runtime's Crdts are changed by an
    * operation or series of operations happening in the same
    * thread.  An easy way to keep a view in sync with the
@@ -180,6 +162,24 @@ export interface RuntimeEventsRecord {
    * processed after the next call to commitBatch().
    */
   ReceiveBlocked: RuntimeEvent;
+  /**
+   * Emitted every time the Runtime receives a single Crdt message
+   * (including messages sent by this replica),
+   * at the end of message processing.
+   *
+   * This event should generally not be listened on.
+   * Logical operations may be composed of multiple messages,
+   * each of which emits a Message event, so when early
+   * Message events are emitted, the Runtime's Crdts may be in
+   * a nonsensical, transient state.  Instead,
+   * listen on Change events or Crdt-specific events.
+   *
+   * Note that actual
+   * messages received from the network may be batches of
+   * multiple Crdt messages.  In that case, one Message event
+   * is emitted for each of the Crdt messages.
+   */
+  Message: RuntimeEvent;
 }
 
 /**
@@ -307,14 +307,14 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     });
     this.pendingBatch.previousTimestamp = timestamp;
 
-    this.emit("Message", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
+    this.emit("Message", { meta: CrdtEventMeta.local(this) });
     // Schedule a Change event as a microtask, if there
     // is not one pending already.
     if (!this.changeEventPending) {
       this.changeEventPending = true;
       Promise.resolve().then(() => {
         this.changeEventPending = false;
-        this.emit("Change", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
+        this.emit("Change", { meta: CrdtEventMeta.local(this) });
       });
     }
   }
@@ -381,7 +381,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
       batch.previousTimestamp
     );
     this.emit("Batch", {
-      meta: CrdtEventMeta.fromSender(this.replicaId, this),
+      meta: CrdtEventMeta.local(this),
     });
   }
 
@@ -777,19 +777,8 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
    * TODOs: generally check this makes sense;
    * harden against repeated timestamps;
    * sample ops; currently not discoverable;
-   *
-   * timestamp is just here to force you to use
-   * this only when processing a raw message.
-   * It's only used for bug-catching (compared to
-   * the real timestamp).
    */
-  runLocally<T>(timestamp: CausalTimestamp, doPureOps: () => T): T {
-    if (timestamp !== this.currentlyProcessedTimestamp) {
-      throw new Error(
-        "Wrong timestamp passed to runLocally;" +
-          " it must be from a current receive... call"
-      );
-    }
+  runLocally<T>(doPureOps: () => T): T {
     let oldInRunLocally = this.inRunLocally;
     this.inRunLocally = true;
     const toReturn = doPureOps();

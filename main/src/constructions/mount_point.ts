@@ -2,6 +2,7 @@ import { CMountPointSave } from "../../generated/proto_compiled";
 import {
   CausalTimestamp,
   Crdt,
+  CrdtEventMeta,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
@@ -147,7 +148,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
     }
     this.processMessageQueue();
 
-    this.emit("Mount", {});
+    this.emit("Mount", { meta: CrdtEventMeta.local(this.runtime) });
   }
 
   /**
@@ -175,7 +176,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
     this.wrappedCrdt = undefined;
     this.messageQueue = [];
 
-    this.emit("Unmount", {});
+    this.emit("Unmount", { meta: CrdtEventMeta.local(this.runtime) });
   }
 
   get isMounted(): boolean {

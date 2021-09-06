@@ -9,6 +9,7 @@ import {
   Pre,
   CPrimitive,
   Resettable,
+  CrdtEventMeta,
 } from "compoventuals";
 import * as proto from "../generated/proto_compiled";
 
@@ -222,7 +223,7 @@ export class TensorGCounterCrdt
         this.state.P.set(keyString, prNewTensor);
         this.emit("Add", {
           valueAdded,
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
         });
         valueAdded.dispose();
         break;
@@ -246,7 +247,9 @@ export class TensorGCounterCrdt
           }
           received.dispose();
         }
-        this.emit("Reset", { timestamp });
+        this.emit("Reset", {
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
+        });
         break;
 
       default:
@@ -294,7 +297,7 @@ export class TensorCounterCrdt
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
         this.emit("Add", {
-          timestamp: event.timestamp,
+          meta: event.meta,
           valueAdded: event.valueAdded.neg(),
         })
       )

@@ -70,6 +70,10 @@ export const CrdtEventMeta = {
   fromSender(sender: string, runtime: Runtime): CrdtEventMeta {
     return { sender, isLocal: sender === runtime.replicaId };
   },
+
+  local(runtime: Runtime): CrdtEventMeta {
+    return { sender: runtime.replicaId, isLocal: true };
+  },
 };
 
 /**
@@ -90,11 +94,17 @@ export interface CrdtEvent {
  * Crdt subclasses should define an events record extending
  * this interface, adding a record for each possible change.
  *
- * Each record's type should be a subinterface of
- * CrdtEvent.  An exception is if you add events that
- * describe local-only state changes not associated to
- * a network message, althought these should be kept to a
- * minimum.
+ * Each record's type must extend CrdtEvent.  TypeScript won't
+ * let us enforce this using CrdtEventsRecord, so we instead
+ * enforce this indirectly by making Crdt.emit only accept
+ * events extending CrdtEvent.
+ *
+ * Typically, events only happen in response to replicated operations
+ * (possibly initiated by us).  Some special events (e.g. in
+ * CMountPoint) are only associated to a local operation instead
+ * of a replicated one; in that case, they should still
+ * extend CrdtEvent, and they should always set
+ * meta: CrdtEventMeta.local(this.runtime).
  *
  * General advice:
  * - Only emit events when your state is usable.  If one of
@@ -118,8 +128,25 @@ export interface CrdtEvent {
  * That is useful
  * for some views that only track part of the state,
  * e.g., the size of a CSet.
+ * - If you making a non-reusable component for an app and
+ * don't want to bother adding individual events, you can just
+ * emit "Change" events when your state changes (e.g., on
+ * your children's "Change" events).  Or, you can skip events
+ * entirely and either refresh the whole display on Runtime
+ * "Change" events, or refresh your Crdt-specifc display on
+ * its children's "Change" events.
  */
-export interface CrdtEventsRecord {}
+export interface CrdtEventsRecord {
+  /**
+   * Emitted right after any other event is emitted.
+   *
+   * Listen to this if you want to know each time this Crdt
+   * is changed (e.g., so you can refresh a display based on
+   * this Crdt's state) without having to listen to each
+   * individual event type.
+   */
+  Change: CrdtEvent;
+}
 
 /**
  * The base class for all Crdts.
@@ -162,6 +189,28 @@ export abstract class Crdt<
       ans.push(current.name);
     }
     return ans;
+  }
+
+  /**
+   * Emits an event, which triggers all the registered event handlers.
+   * After emitting event, a "Change" event with the same
+   * event.meta is emitted, unless it is already a "Change" event.
+   *
+   * Unlike EventEmitter.emit, we force event to have type
+   * Events[K] & CrdtEvent.  This is meant to force the event
+   * types in our CrdtEventsRecord to extend CrdtEvent.
+   *
+   * @param eventName Name of the event
+   * @param event Event object to pass to the event handlers
+   */
+  protected emit<K extends keyof Events>(
+    eventName: K,
+    event: Events[K] & CrdtEvent
+  ): void {
+    super.emit(eventName, event);
+    if (eventName !== "Change") {
+      super.emit("Change", { meta: event.meta });
+    }
   }
 
   // private needsSaving = false;

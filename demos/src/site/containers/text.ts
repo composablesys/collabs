@@ -89,8 +89,8 @@ import Quill, { DeltaOperation } from "quill";
 
   clientText.on(
     "Insert",
-    ({ idx, timestamp, isLocal, newOp, uid }: YataInsertEvent<string>) => {
-      if (!isLocal) {
+    ({ idx, meta, newOp, uid }: YataInsertEvent<string>) => {
+      if (!meta.isLocal) {
         const formats: Record<string, any> = {};
         const it = newOp.attributes.entries();
         let result = it.next();
@@ -105,25 +105,15 @@ import Quill, { DeltaOperation } from "quill";
     }
   );
 
-  clientText.on(
-    "Delete",
-    ({ idx, uid, isLocal, timestamp }: YataDeleteEvent<string>) => {
-      if (!isLocal) {
-        quill.updateContents(new Delta().retain(idx).delete(1));
-      }
+  clientText.on("Delete", ({ idx, uid, meta }: YataDeleteEvent<string>) => {
+    if (!meta.isLocal) {
+      quill.updateContents(new Delta().retain(idx).delete(1));
     }
-  );
+  });
 
   clientText.on(
     "FormatExisting",
-    ({
-      idx,
-      uid,
-      key,
-      value,
-      isLocal,
-      timestamp,
-    }: YataFormatExistingEvent<string>) => {
+    ({ idx, uid, key, value, meta }: YataFormatExistingEvent<string>) => {
       quill.updateContents(new Delta().retain(idx).retain(1, { [key]: value }));
     }
   );

@@ -466,7 +466,7 @@ export abstract class SemidirectProductRev<
               else mAct = mActOrNull;
             }
           }
-          this.m1RetVal = this.runtime.runLocally(timestamp, () => {
+          this.m1RetVal = this.runtime.runLocally(() => {
             return this._m1!(...(mAct.m1Message as m1Start<m1Args>).args);
           });
           return;
@@ -477,7 +477,7 @@ export abstract class SemidirectProductRev<
             timestamp,
             message
           );
-          this.m2RetVal = this.runtime.runLocally(timestamp, () => {
+          this.m2RetVal = this.runtime.runLocally(() => {
             return this._m2!(...(semidirectMessage as m2Start<m2Args>).args);
           });
           return;

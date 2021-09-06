@@ -67,8 +67,8 @@ export class YataOp<T> extends crdts.CObject {
     this.originAttributesAtInput = originAttributesAtInput;
   }
 
-  initAttributes(timestamp: crdts.CausalTimestamp) {
-    this.runtime.runLocally(timestamp, () => {
+  initAttributes() {
+    this.runtime.runLocally(() => {
       for (const [key, value] of this.attributesArg) {
         this.attributes.set(key, value);
       }
@@ -79,7 +79,6 @@ export class YataOp<T> extends crdts.CObject {
 interface YataEvent extends crdts.CrdtEvent {
   uid: string;
   idx: number;
-  isLocal: boolean; // TODO: Remove cuz can be found in timestamp
 }
 
 export interface YataInsertEvent<T> extends YataEvent {
@@ -129,52 +128,50 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
 
   deletedMessageEventHandler =
     (yata: YataLinear<T>, uid: string) =>
-    ({ timestamp }: crdts.CrdtEvent) => {
-      if (!yata.op(uid).locallyDeleted) {
-        yata.emit("Delete", {
-          uid,
-          idx: yata.getIdxOfId(uid) + 1,
-          isLocal: timestamp.getSender() === yata.runtime.replicaId,
-          timestamp,
-        });
+    ({ meta }: crdts.CrdtEvent, caller: crdts.LwwCRegister<boolean>) => {
+      if (caller.value) {
+        if (!yata.op(uid).locallyDeleted) {
+          yata.emit("Delete", {
+            uid,
+            idx: yata.getIdxOfId(uid) + 1,
+            meta,
+          });
+        }
       }
     };
 
   attributesSetEventHandler =
     (yata: YataLinear<T>, uid: string) =>
-    ({ key, timestamp }: crdts.CMapSetEvent<string, any>) => {
+    ({ key, meta }: crdts.CMapSetEvent<string, any>) => {
       if (!yata.op(uid).deleted) {
         yata.emit("FormatExisting", {
           uid,
           idx: yata.getIdxOfId(uid),
-          isLocal: timestamp.getSender() === yata.runtime.replicaId,
           key,
           value: yata.op(uid).attributes.get(key),
-          timestamp,
+          meta,
         });
       }
     };
 
   opMapAddEventHandler =
     (yata: YataLinear<T>) =>
-    ({ value: newOp, timestamp }: crdts.CSetEvent<YataOp<T>>) => {
+    ({ value: newOp, meta }: crdts.CSetEvent<YataOp<T>>) => {
       // Link YataLinearOp list
       const uid = yata.opMap.idOf(newOp);
       yata.op(newOp.rightId).leftId = uid;
       yata.op(newOp.leftId).rightId = uid;
       // Copy initial attributes to the attributes map
-      newOp.initAttributes(timestamp);
+      newOp.initAttributes();
       // Register event handler for YataOp.deleted "change" event
-      newOp._deleted.on("Message", yata.deletedMessageEventHandler(yata, uid));
+      newOp._deleted.on("Set", yata.deletedMessageEventHandler(yata, uid));
       // Register event handler for YataOp.attributes "set" event
       newOp.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
-      const isLocal = timestamp.getSender() === yata.runtime.replicaId;
       const insertEvent = {
         uid,
         idx: yata.getIdxOfId(uid),
         newOp,
-        timestamp,
-        isLocal,
+        meta,
       };
       yata.emit("Insert", insertEvent);
       yata.trackM2Event("Insert", insertEvent);
@@ -316,7 +313,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     const addInitialContentOpEventHandlers =
       (yata: YataLinear<T>) => (op: YataOp<T>, uid: string) => {
         // Register event handler for YataOp.deleted "change" event
-        op._deleted.on("Message", yata.deletedMessageEventHandler(yata, uid));
+        op._deleted.on("Set", yata.deletedMessageEventHandler(yata, uid));
         // Register event handler for YataOp.attributes "set" event
         op.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
       };
