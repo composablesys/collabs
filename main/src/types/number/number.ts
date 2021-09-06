@@ -1,5 +1,5 @@
 import { CNumberComponentMessage } from "../../../generated/proto_compiled";
-import { CPrimitive, StatefulCrdt } from "../../constructions";
+import { CObject, CPrimitive, StatefulCrdt } from "../../constructions";
 import { MultipleSemidirectProduct } from "../../constructions/multiple_semidirect_product";
 import {
   CausalTimestamp,
@@ -9,6 +9,7 @@ import {
   CrdtInitToken,
   Pre,
 } from "../../core";
+import { ToggleCBoolean } from "../boolean";
 
 // TODO: handle floating point non-commutativity
 
@@ -212,15 +213,16 @@ export class MaxComponent
   }
 }
 
-export class CNumber extends MultipleSemidirectProduct<
-  CNumberState,
-  CNumberEventsRecord
-> {
-  private minCrdt: MinComponent;
-  private maxCrdt: MaxComponent;
-  private addCrdt: AddComponent;
-  private multCrdt: MultComponent;
-  constructor(initToken: CrdtInitToken, initialValue: number = 0) {
+/**
+ * Unlike CNumber, this doesn't allow multiplications with
+ * negative args.
+ */
+class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
+  minCrdt: MinComponent;
+  maxCrdt: MaxComponent;
+  addCrdt: AddComponent;
+  multCrdt: MultComponent;
+  constructor(initToken: CrdtInitToken, initialValue: number) {
     super(initToken);
 
     const state = new CNumberState(initialValue);
@@ -236,11 +238,6 @@ export class CNumber extends MultipleSemidirectProduct<
     this.maxCrdt = super.setupOneCrdt(Pre(MaxComponent)(state));
     this.addCrdt = super.setupOneCrdt(Pre(AddComponent)(state));
     this.multCrdt = super.setupOneCrdt(Pre(MultComponent)(state));
-
-    this.minCrdt.on("Min", (event) => super.emit("Min", event));
-    this.maxCrdt.on("Max", (event) => super.emit("Max", event));
-    this.addCrdt.on("Add", (event) => super.emit("Add", event));
-    this.multCrdt.on("Mult", (event) => super.emit("Mult", event));
   }
 
   protected action(
@@ -278,31 +275,101 @@ export class CNumber extends MultipleSemidirectProduct<
     };
   }
 
+  get value(): number {
+    return this.state.internalState.value;
+  }
+}
+
+export class CNumber extends CObject<CNumberEventsRecord> {
+  private base: CNumberBase;
+  /**
+   * Used to implement negative multiplications, which don't
+   * directly obey the semidirect product rules with min and
+   * max.  Instead, we use this boolean.  If true, the value
+   * is a negated view of our internal state.  Correspondingly,
+   * add, min, and max args must be negated, and min/max must
+   * be switched.
+   */
+  private negated: ToggleCBoolean;
+
+  constructor(initToken: CrdtInitToken, initialValue: number = 0) {
+    super(initToken);
+
+    this.base = this.addChild("", Pre(CNumberBase)(initialValue));
+    this.negated = this.addChild("0", Pre(ToggleCBoolean)());
+
+    this.base.minCrdt.on("Min", (event) => {
+      if (this.negated.value) {
+        super.emit("Max", {
+          arg: -event.arg,
+          previousValue: -event.previousValue,
+          meta: event.meta,
+        });
+      } else super.emit("Min", event);
+    });
+    this.base.maxCrdt.on("Max", (event) => {
+      if (this.negated.value) {
+        super.emit("Min", {
+          arg: -event.arg,
+          previousValue: -event.previousValue,
+          meta: event.meta,
+        });
+      } else super.emit("Max", event);
+    });
+    this.base.addCrdt.on("Add", (event) => {
+      if (this.negated.value) {
+        super.emit("Add", {
+          arg: -event.arg,
+          previousValue: -event.previousValue,
+          meta: event.meta,
+        });
+      } else super.emit("Add", event);
+    });
+    this.base.multCrdt.on("Mult", (event) => super.emit("Mult", event));
+    // TODO: combine negative mult events so that they reflect
+    // the original arg, instead of two separate events?
+    this.negated.on("Set", (event) =>
+      super.emit("Mult", {
+        arg: -1,
+        previousValue: -this.value,
+        meta: event.meta,
+      })
+    );
+  }
+
   add(toAdd: number) {
-    this.addCrdt.add(toAdd);
+    if (this.negated.value) {
+      this.base.addCrdt.add(-toAdd);
+    } else this.base.addCrdt.add(toAdd);
   }
 
   mult(toMult: number) {
-    this.multCrdt.mult(toMult);
+    if (toMult < 0) {
+      this.negated.toggle();
+      this.base.multCrdt.mult(-toMult);
+    } else this.base.multCrdt.mult(toMult);
   }
 
   min(toComp: number) {
-    this.minCrdt.min(toComp);
+    if (this.negated.value) {
+      this.base.maxCrdt.max(-toComp);
+    } else this.base.minCrdt.min(toComp);
   }
 
   max(toComp: number) {
-    this.maxCrdt.max(toComp);
+    if (this.negated.value) {
+      this.base.minCrdt.min(-toComp);
+    } else this.base.maxCrdt.max(toComp);
   }
 
   get value(): number {
+    const value = (this.negated.value ? -1 : 1) * this.base.value;
     // Although -0 === 0, some notions of equality
     // (in particular chai's assert.deepStrictEqual)
     // treat them differently.  This is a hack to prevent
     // -0 vs 0 from violating EC under this equality def.
     // It might be related to general floating point
     // noncommutativity and will go away once we fix that.
-    return this.state.internalState.value === -0
-      ? 0
-      : this.state.internalState.value;
+    return value === -0 ? 0 : value;
   }
 }
