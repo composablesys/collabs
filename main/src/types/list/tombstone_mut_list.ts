@@ -64,4 +64,32 @@ export class TombstoneMutCList<
       value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     );
   }
+
+  getArgs(index: number): InsertArgs {
+    return this.set.getArgs(
+      this.get(index).parent as MovableMutCListEntry<
+        C,
+        RgaLoc,
+        LwwCRegister<RgaLoc>
+      >
+    )[1];
+  }
+
+  /**
+   * [getArgsByValue description]
+   * @param  value [description]
+   * @return       [description]
+   * @throws if this.owns(value) is false
+   */
+  getArgsByValue(value: C): InsertArgs {
+    // Avoid errors from value.parent in case it
+    // is the root.
+    if (isRuntime(value.parent)) {
+      throw new Error("this.owns(value) is false");
+    }
+
+    return this.set.getArgs(
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+    )[1];
+  }
 }

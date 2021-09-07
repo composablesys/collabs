@@ -73,6 +73,18 @@ export class TombstoneMutCSet<
     return this.members.has(value);
   }
 
+  /**
+   * @param  value [description]
+   * @return the AddArgs used to add value
+   * @throws if !this.owns(value)
+   */
+  getArgs(value: C): AddArgs {
+    if (!this.owns(value)) {
+      throw new Error("this.owns(value) is false");
+    }
+    return this.mutSet.getArgs(value);
+  }
+
   values() {
     return this.members.values();
   }

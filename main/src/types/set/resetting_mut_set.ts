@@ -180,6 +180,19 @@ export class ResettingMutCSet<
     this.map.restore(key);
   }
 
+  /**
+   * @param  value [description]
+   * @return the AddArgs used to add value
+   * @throws if !this.owns(value)
+   */
+  getArgs(value: C): AddArgs {
+    const key = this.map.keyOf(value);
+    if (key === undefined) {
+      throw new Error("this.owns(value) is false");
+    }
+    return key[2];
+  }
+
   reset(): void {
     this.map.reset();
   }

@@ -53,10 +53,46 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
     );
   }
 
+  hasValue(value: C): boolean {
+    // Avoid errors from value.parent in case it
+    // is the root.
+    if (isRuntime(value.parent)) return false;
+
+    return this.set.has(
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+    );
+  }
+
   reset() {
     // This is a proper observed-reset since RgaDenseLocalList
     // has no tombstones.
     super.set.reset();
+  }
+
+  getArgs(index: number): InsertArgs {
+    return this.set.getArgs(
+      this.get(index).parent as MovableMutCListEntry<
+        C,
+        RgaLoc,
+        LwwCRegister<RgaLoc>
+      >
+    )[1];
+  }
+
+  /**
+   * [getArgsByValue description]
+   * @param  value [description]
+   * @return       [description]
+   * @throws if !this.hasValue(value)
+   */
+  getArgsByValue(value: C): InsertArgs {
+    if (!this.hasValue(value)) {
+      throw new Error("this.hasValue(value) is false");
+    }
+
+    return this.set.getArgs(
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+    )[1];
   }
 
   // TODO: conflicts methods for move locations?

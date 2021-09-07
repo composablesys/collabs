@@ -48,4 +48,36 @@ export class ResettingMutCMap<
     this.map.reset();
     this.valueSet.reset();
   }
+
+  /**
+   * [keyOf description] TODO: copy from CMap
+   * @param  value [description]
+   * @return       [description]
+   * @throws if this.owns(value) is false
+   */
+  keyOf(value: C): K {
+    if (!this.owns(value)) {
+      throw new Error("this.owns(value) is false");
+    }
+    return this.valueSet.getArgs(value)[0];
+  }
+
+  getArgs(key: K): SetArgs | undefined {
+    const value = this.get(key);
+    if (value === undefined) return undefined;
+    else return this.valueSet.getArgs(value)[1];
+  }
+
+  /**
+   * [getArgs description]
+   * @param  value [description]
+   * @return the SetArgs used to set value
+   * @throws if this.owns(value) is false
+   */
+  getArgsByValue(value: C): SetArgs {
+    if (!this.owns(value)) {
+      throw new Error("this.owns(value) is false");
+    }
+    return this.valueSet.getArgs(value)[1];
+  }
 }

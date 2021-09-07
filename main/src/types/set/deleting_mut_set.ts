@@ -370,6 +370,23 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     return this.children.get(id);
   }
 
+  /**
+   * @param  value [description]
+   * @return the AddArgs used to add value
+   * @throws if !this.has(value) or if value is an initialValue
+   * (those args aren't retained, for efficiency)
+   */
+  getArgs(value: C): AddArgs {
+    if (!this.has(value)) {
+      throw new Error("this.has(value) is false");
+    }
+    const argsSerialized = this.constructorArgs.get(value.name);
+    if (argsSerialized === undefined) {
+      throw new Error("Cannot call argsOf on initial value");
+    }
+    return this.argsSerializer.deserialize(argsSerialized, this.runtime);
+  }
+
   save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
     const saveMessage = DeletingMutCSetSave.create({
       // Note this will be in insertion order because

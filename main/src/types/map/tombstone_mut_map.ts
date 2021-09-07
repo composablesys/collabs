@@ -186,6 +186,25 @@ export class TombstoneMutCMap<
     return this.keyByValue.get(searchElement);
   }
 
+  getArgs(key: K): SetArgs | undefined {
+    const value = this.get(key);
+    if (value === undefined) return undefined;
+    else return this.valueSet.getArgs(value)[1];
+  }
+
+  /**
+   * [getArgs description]
+   * @param  value [description]
+   * @return the SetArgs used to set value
+   * @throws if this.owns(value) is false
+   */
+  getArgsByValue(value: C): SetArgs {
+    if (!this.owns(value)) {
+      throw new Error("this.owns(value) is false");
+    }
+    return this.valueSet.getArgs(value)[1];
+  }
+
   /**
    * Set the value at key to a previous value for key.
    *

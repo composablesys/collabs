@@ -64,6 +64,17 @@ export class MutCRegisterFromRegister<
   owns(value: C): boolean {
     return this.crdtFactory.owns(value);
   }
+
+  /**
+   * [getArgs description]
+   * @param  value [description]
+   * @return the SetArgs used to set value
+   * @throws if value has been superseded by a causally
+   * greater set value
+   */
+  getArgsByValue(value: C): SetArgs {
+    return this.crdtFactory.getArgs(value);
+  }
 }
 
 export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
@@ -99,5 +110,16 @@ export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
   reset() {
     this.crdtFactory.reset();
     this.register.reset();
+  }
+
+  /**
+   * [getArgs description]
+   * @return an Optional of the SetArgs used to set this.value
+   * (empty if this.value is an empty Optional)
+   */
+  getArgs(): Optional<SetArgs> {
+    const value = this.value;
+    if (value.isPresent) return Optional.of(super.getArgsByValue(value.get()));
+    else return Optional.empty();
   }
 }
