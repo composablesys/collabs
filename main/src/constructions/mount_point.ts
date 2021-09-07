@@ -84,38 +84,6 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
   ][] = [];
   private needsDelayedLoad = false;
 
-  private toMount?: C = undefined;
-  /**
-   * Call this before mount to specify
-   * and construct the wrapped Crdt.  mount should be called shortly
-   * afterwards (ideally in the same thread).
-   *
-   * The wrapped Crdt is not actually loaded and
-   * delivered queued messages until mount, so in between
-   * prepareMount and mount, you can do any setup needed
-   * to prepare for the loading and queued messages
-   * (e.g., adding event listeners for queued messages).
-   *
-   * TODO: I don't like this API; will CrdtInitTokens make
-   * it better?  Concern is that callers might need to
-   * do some setup in between constructing toMount and when
-   * it receives messages (e.g., registering event handlers,
-   * linking to GUI).  We could instead use a callback
-   * with generic args in the constructor, like in
-   * collections.
-   */
-  prepareMount<D extends C>(preToMount: Pre<D>): D {
-    if (this.isMounted) {
-      throw new Error("prepareMount called but already mounted");
-    }
-    if (this.toMount !== undefined) {
-      throw new Error("prepareMount called twice");
-    }
-    const toMount = preToMount(new CrdtInitToken("", this));
-    this.toMount = toMount;
-    return toMount;
-  }
-
   /**
    * [mount description]
    *
@@ -129,16 +97,19 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
    * events for the queued messages; they were already dispatched when the messages
    * were originally received.
    *
-   * @param toMount Must be constructed with the same
+   * @param wrappedCrdtConstructor Must be constructed with the same
    * type and constructor arguments each time.
+   * Use the callback to add event listeners etc. that need
+   * to be added before loading or receiving any messages.
+   *
    * @throw if this.isMounted
    */
-  mount(): void {
-    if (this.toMount === undefined) {
-      throw new Error("prepareMount must be called before mount");
-    }
-    this.wrappedCrdt = this.toMount;
-    this.toMount = undefined;
+  mount(wrappedCrdtConstructor: (initToken: CrdtInitToken) => C): void {
+    // We could pass wrappedCrdtConstructor in our constructor
+    // instead of here, but this way is easier in case you don't
+    // know what you're going to be constructing until mount
+    // time (e.g. old container demo).
+    this.wrappedCrdt = wrappedCrdtConstructor(new CrdtInitToken("", this));
 
     if (this.needsDelayedLoad) {
       this.runtime.delayedLoadDescendants(this);
