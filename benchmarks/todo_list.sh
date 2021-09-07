@@ -24,7 +24,7 @@ else
   names=("compoCrdt" "compoJson" "compoJsonText" "yjs" "automerge" "automergeNoText" "compoJsonCrdt" "compoMovableCrdt" "compoMovableCrdtRga" "compoCrdtRga" "compoMovableCrdtRga")
 fi
 
-for frequency in "whole" "rounds"
+for frequency in "whole"
 do
     for measurement in "time" "network" "memory" "save"
     do
