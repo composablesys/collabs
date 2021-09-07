@@ -138,6 +138,11 @@ class MicroYjsBenchmark {
               ans[measurement] = totalSentBytes;
               break;
             case "save":
+              // We add sleeps between measured things to make
+              // them more independent; before adding this,
+              // I've noticed changes to
+              // save code that affected load times.
+              await sleep(1000);
               // Just save and load user 0
               const saveStartTime = process.hrtime.bigint();
               const saveData = Y.encodeStateAsUpdate(yjss[0]);
@@ -145,6 +150,7 @@ class MicroYjsBenchmark {
                 process.hrtime.bigint() - saveStartTime!
               ).valueOf();
               yjss[0] = undefined as unknown as Y.Doc;
+              await sleep(1000);
               // Create a new Y.Doc for user 0, then load
               const loadStartTime = process.hrtime.bigint();
               yjss[0] = new Y.Doc();
@@ -206,6 +212,7 @@ class MicroYjsBenchmark {
           result[measurement] = totalSentBytes;
           break;
         case "save":
+          await sleep(1000);
           // Just save and load user 0
           const saveStartTime = process.hrtime.bigint();
           const saveData = Y.encodeStateAsUpdate(yjss[0]);
@@ -213,6 +220,7 @@ class MicroYjsBenchmark {
             process.hrtime.bigint() - saveStartTime!
           ).valueOf();
           yjss[0] = undefined as unknown as Y.Doc;
+          await sleep(1000);
           // Create a new Y.Doc for user 0, then load
           const loadStartTime = process.hrtime.bigint();
           yjss[0] = new Y.Doc();

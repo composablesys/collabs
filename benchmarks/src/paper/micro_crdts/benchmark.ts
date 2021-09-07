@@ -148,6 +148,11 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               // Just save and load user 0
               let beforeSave: Object;
               if (DEBUG) beforeSave = this.getState(crdtList[0]);
+              // We add sleeps between measured things to make
+              // them more independent; before adding this,
+              // I've noticed changes to
+              // save code that affected load times.
+              await sleep(1000);
               const saveStartTime = process.hrtime.bigint();
               const saveData = runtimes[0].save();
               const saveTime = new Number(
@@ -156,6 +161,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               if (this.crdtDestructor !== undefined) {
                 this.crdtDestructor(crdtList[0]);
               }
+              await sleep(1000);
               // Create a new runtime etc. for user 0, then load
               const loadStartTime = process.hrtime.bigint();
               runtimes[0] = generator.newRuntime(
@@ -219,6 +225,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           break;
         case "save":
           // Just save and load user 0
+          await sleep(1000);
           const saveStartTime = process.hrtime.bigint();
           const saveData = runtimes[0].save();
           const saveTime = new Number(
@@ -228,6 +235,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
             this.crdtDestructor(crdtList[0]);
           }
           crdtList[0] = undefined as unknown as C;
+          await sleep(1000);
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
           runtimes[0] = generator.newRuntime(

@@ -140,12 +140,18 @@ class AutomergePerfBenchmark {
             case "save":
               let beforeSave: string | undefined;
               if (DEBUG) beforeSave = this.testFactory.getText();
+              // We add sleeps between measured things to make
+              // them more independent; before adding this,
+              // I've noticed changes to
+              // save code that affected load times.
+              await sleep(1000);
               const saveStartTime = process.hrtime.bigint();
               const [saveData, saveSize] = this.testFactory.save();
               const saveTime = new Number(
                 process.hrtime.bigint() - saveStartTime!
               ).valueOf();
               this.testFactory.cleanup();
+              await sleep(1000);
               const loadStartTime = process.hrtime.bigint();
               this.testFactory.load(saveData, replicaIdRng);
               const loadTime = new Number(
@@ -206,12 +212,14 @@ class AutomergePerfBenchmark {
             this.testFactory.getSentBytes() - startSentBytes;
           break;
         case "save":
+          await sleep(1000);
           const saveStartTime = process.hrtime.bigint();
           const [saveData, saveSize] = this.testFactory.save();
           const saveTime = new Number(
             process.hrtime.bigint() - saveStartTime!
           ).valueOf();
           this.testFactory.cleanup();
+          await sleep(1000);
           const loadStartTime = process.hrtime.bigint();
 
           // // For profiling load times:
