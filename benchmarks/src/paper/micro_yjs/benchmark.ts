@@ -161,6 +161,7 @@ class MicroYjsBenchmark {
                   changes[0] = update;
                 }
               });
+              this.getState(yjss[0]); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
               ).valueOf();
@@ -231,6 +232,7 @@ class MicroYjsBenchmark {
               changes[0] = update;
             }
           });
+          this.getState(yjss[0]); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
           ).valueOf();

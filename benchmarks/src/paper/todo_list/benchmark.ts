@@ -187,6 +187,7 @@ class TodoListBenchmark {
               await sleep(1000);
               const loadStartTime = process.hrtime.bigint();
               list = this.testFactory.load(saveData, replicaIdRng);
+              this.toObject(list, true); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
               ).valueOf();
@@ -243,6 +244,7 @@ class TodoListBenchmark {
           await sleep(1000);
           const loadStartTime = process.hrtime.bigint();
           list = this.testFactory.load(saveData, replicaIdRng);
+          this.toObject(list, true); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
           ).valueOf();

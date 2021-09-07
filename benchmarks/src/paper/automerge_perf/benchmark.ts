@@ -154,6 +154,7 @@ class AutomergePerfBenchmark {
               await sleep(1000);
               const loadStartTime = process.hrtime.bigint();
               this.testFactory.load(saveData, replicaIdRng);
+              this.testFactory.getText(); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
               ).valueOf();
@@ -230,6 +231,7 @@ class AutomergePerfBenchmark {
           // }
 
           this.testFactory.load(saveData, replicaIdRng);
+          this.testFactory.getText(); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
           ).valueOf();

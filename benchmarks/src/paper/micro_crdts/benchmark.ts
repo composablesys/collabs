@@ -170,6 +170,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               );
               crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
               runtimes[0].load(saveData);
+              this.getState(crdtList[0]); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
               ).valueOf();
@@ -244,6 +245,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           );
           crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
           runtimes[0].load(saveData);
+          this.getState(crdtList[0]); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
           ).valueOf();
