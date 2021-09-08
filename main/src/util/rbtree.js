@@ -530,8 +530,8 @@ proto.find = function (key) {
 //Removes item with key from tree
 proto.remove = function (key) {
   var iter = this.find(key);
-  if (iter) {
-    return [iter.remove(), iter.index, iter.value];
+  if (iter.valid) {
+    return [iter.remove(), [iter.index, iter.value]];
   }
   return [this, undefined];
 };
