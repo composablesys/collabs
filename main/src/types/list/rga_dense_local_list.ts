@@ -305,6 +305,17 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     );
   }
 
+  createInitialLocs(count: number): RgaLoc[] {
+    // Create the locs with parent: undefined, sender: "INIT",
+    // and uniqueNumbers: [0, count).
+    const locs = new Array<RgaLoc>(count);
+    for (let i = 0; i < count; i++) {
+      locs[i] = new RgaLoc(undefined, "INIT", i);
+      this.storeBackupLoc(locs[i]);
+    }
+    return locs;
+  }
+
   /**
    * Returns arguments (namely, parent and uniqueNumberStart)
    * that, when passed to expandNewLocsArgs with the

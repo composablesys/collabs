@@ -31,12 +31,15 @@ export class TombstoneMutCList<
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
+    // TODO: initial values
     super(
       initToken,
-      Pre(TombstoneMutCSet),
+      (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
+        Pre(TombstoneMutCSet)(setValueConstuctor, setArgsSerializer),
       ConstructorAsFunction(LwwCRegister),
       new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
+      [],
       argsSerializer
     );
   }

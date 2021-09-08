@@ -66,6 +66,7 @@ export class MovableMutCListFromSet<
         setValueInitToken: CrdtInitToken,
         ...setValueArgs: [L, InsertArgs]
       ) => MovableMutCListEntry<C, L, RegT>,
+      setInitialValuesArgs: [L, InsertArgs][],
       setArgsSerializer: ElementSerializer<[L, InsertArgs]>
     ) => Pre<SetT>,
     registerConstructor: (
@@ -75,45 +76,56 @@ export class MovableMutCListFromSet<
     ) => RegT,
     protected readonly denseLocalList: DenseT,
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
+    initialValuesArgs: InsertArgs[] = [],
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(initToken);
 
+    const initialLocs = this.denseLocalList.createInitialLocs(
+      initialValuesArgs.length
+    );
+    const setInitialValuesArgs: [L, InsertArgs][] = initialLocs.map(
+      (loc, index) => [loc, initialValuesArgs[index]]
+    );
     this.set = this.addChild(
       "",
-      setCallback((setValueInitToken, loc, args) => {
-        const entry = new MovableMutCListEntry<C, L, RegT>(
-          setValueInitToken,
-          (valueInitToken) => valueConstructor(valueInitToken, ...args),
-          (registerInitToken) =>
-            registerConstructor(registerInitToken, loc, denseLocalList)
-        );
-        entry.loc.on("Set", (event) => {
-          // Maintain denseLocalList's key set as a cache
-          // of the currently set locations, mapping to
-          // the corresponding entry.
-          // Also dispatch our own events.
-          // Note that move is the only time register.set
-          // is called; setting the initial state is done
-          // in the registerConstructor, not as a
-          // register.set operation, so it will not emit
-          // a Set event.
-          const startIndex = this.denseLocalList.delete(
-            event.previousValue
-          )![0];
-          const resultingStartIndex = this.denseLocalList.set(
-            entry.loc.value,
-            entry
+      setCallback(
+        (setValueInitToken, loc, args) => {
+          const entry = new MovableMutCListEntry<C, L, RegT>(
+            setValueInitToken,
+            (valueInitToken) => valueConstructor(valueInitToken, ...args),
+            (registerInitToken) =>
+              registerConstructor(registerInitToken, loc, denseLocalList)
           );
-          this.emit("Move", {
-            startIndex,
-            count: 1,
-            resultingStartIndex,
-            meta: event.meta,
+          entry.loc.on("Set", (event) => {
+            // Maintain denseLocalList's key set as a cache
+            // of the currently set locations, mapping to
+            // the corresponding entry.
+            // Also dispatch our own events.
+            // Note that move is the only time register.set
+            // is called; setting the initial state is done
+            // in the registerConstructor, not as a
+            // register.set operation, so it will not emit
+            // a Set event.
+            const startIndex = this.denseLocalList.delete(
+              event.previousValue
+            )![0];
+            const resultingStartIndex = this.denseLocalList.set(
+              entry.loc.value,
+              entry
+            );
+            this.emit("Move", {
+              startIndex,
+              count: 1,
+              resultingStartIndex,
+              meta: event.meta,
+            });
           });
-        });
-        return entry;
-      }, new PairSerializer(denseLocalList, argsSerializer))
+          return entry;
+        },
+        setInitialValuesArgs,
+        new PairSerializer(denseLocalList, argsSerializer)
+      )
     );
 
     // Maintain denseLocalList's key set as a cache

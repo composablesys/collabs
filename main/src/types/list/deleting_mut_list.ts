@@ -30,15 +30,16 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
   constructor(
     initToken: CrdtInitToken,
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
+    initialValuesArgs: InsertArgs[] = [],
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(
       initToken,
-      (setValueConstructor, setArgsSerializer) =>
-        Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
+      Pre(DeletingMutCSet),
       ConstructorAsFunction(LwwCRegister),
       new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
+      initialValuesArgs,
       argsSerializer
     );
   }

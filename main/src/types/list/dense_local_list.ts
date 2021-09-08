@@ -71,6 +71,16 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   createNewLocs(index: number, count: number): L[];
 
   /**
+   * Like createNewLocs, but called just after initialization,
+   * and the locs you return should be the same on all replicas.
+   * This is used for adding initial values to a list in
+   * its constructor.
+   * @param  count [description]
+   * @return       [description]
+   */
+  createInitialLocs(count: number): L[];
+
+  /**
    * Set the value at loc.  loc may be new (received
    * from another replica), it may already be present,
    * or it may have previously been present but been
