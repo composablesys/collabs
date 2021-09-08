@@ -94,13 +94,21 @@ class FakeDeletedCrdt extends Crdt {
  */
 export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements Resettable
+  implements Resettable 
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
   private readonly initialValuesCount: number;
 
+  /**
+   * [constructor description]
+   * @param initToken                [description]
+   * @param readonlyvalueConstructor [description]
+   * @param initialValues to get the created values,
+   * call this.value() right after construction.  The
+   * iterator will return them in the order given by initialValuesArgs.
+   */
   constructor(
     initToken: CrdtInitToken,
     private readonly valueConstructor: (

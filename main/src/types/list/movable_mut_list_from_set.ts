@@ -128,6 +128,17 @@ export class MovableMutCListFromSet<
       )
     );
 
+    // TODO: events due to initial elements get dispatched in
+    // constructor, before we add event listeners, so we miss
+    // them.  Perhaps instead have initial values as a second
+    // function, but considered part of initialization?
+    // Then could even do elements one at a time and get them
+    // returned, which would make YATA easier.
+    // For now we just hack in the effect of the "Add" events.
+    for (const value of this.set) {
+      this.denseLocalList.set(value.loc.value, value);
+    }
+
     // Maintain denseLocalList's key set as a cache
     // of the currently set locations, mapping to
     // the corresponding entry.

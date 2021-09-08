@@ -1,6 +1,15 @@
 import * as crdts from "compoventuals";
 import { YataSave } from "../../../generated/site/proto_compiled";
 
+type YataOpArgs<T> = [
+  string,
+  string,
+  string,
+  T,
+  Record<string, any>,
+  Record<string, any>?
+];
+
 export class YataOp<T> extends crdts.CObject {
   readonly creatorId: string;
   // TODO: readonly (broken only by initial values)
@@ -118,10 +127,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
   private start: string = "";
   private end: string = "";
   readonly defaultContent: T;
-  public readonly opMap: crdts.DeletingMutCSet<
-    YataOp<T>,
-    [string, string, string, T, Record<string, any>, Record<string, any>?]
-  >;
+  public readonly opMap: crdts.DeletingMutCSet<YataOp<T>, YataOpArgs<T>>;
   protected lastEventType?: string;
   protected lastEventSender?: string;
   protected lastEventTime?: number;
@@ -184,115 +190,132 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
   ) {
     super(initToken);
     this.defaultContent = defaultContent;
+
+    // 0
+    const startArgs: YataOpArgs<T> = ["", "", "", defaultContent, {}];
+    // Number.MAX_VALUE
+    const endArgs: YataOpArgs<T> = ["", "", "", defaultContent, {}];
+    // ((idx + 1) * Number.MAX_VALUE) / (initialContents.length + 1)
+    const initialContentsArgs: YataOpArgs<T>[] = initialContents.map((c) => [
+      "",
+      "",
+      "",
+      c,
+      {},
+    ]);
+
+    let inConstructor = true;
+    let constructorIndex = 0;
     let startOp!: YataOp<T>;
-    const startOpPre: crdts.Pre<YataOp<T>> = (
-      valueInitToken: crdts.CrdtInitToken
-    ) => {
-      startOp = new YataOp(
-        valueInitToken,
-        "",
-        "",
-        "",
-        "",
-        defaultContent,
-        0,
-        []
-      );
-      return startOp;
-    };
     let endOp!: YataOp<T>;
-    const endOpPre: crdts.Pre<YataOp<T>> = (
-      valueInitToken: crdts.CrdtInitToken
-    ) => {
-      endOp = new YataOp(
-        valueInitToken,
-        "",
-        "",
-        "",
-        "",
-        defaultContent,
-        Number.MAX_VALUE,
-        []
-      );
-      return endOp;
-    };
-    const initialContentOps = new Array<YataOp<T>>();
-    const initialContentOpsPre: crdts.Pre<YataOp<T>>[] = initialContents.map(
-      (c, idx) => (valueInitToken: crdts.CrdtInitToken) => {
-        const op = new YataOp(
-          valueInitToken,
-          "",
-          "",
-          "",
-          "",
-          c,
-          ((idx + 1) * Number.MAX_VALUE) / (initialContents.length + 1),
-          []
-        );
-        initialContentOps.push(op);
-        return op;
-      }
-    );
+    let initialContentOps: YataOp<T>[] = [];
+    const outerThis = this;
     this.opMap = this.addChild(
       "nodeMap",
       crdts.Pre(crdts.DeletingMutCSet)(
         (
-          valueInitToken: crdts.CrdtInitToken,
-          replicaId: string,
-          leftIntent: string,
-          rightIntent: string,
-          content: T,
-          originAttributesMapAtInput: Record<string, any>,
-          attributesMap: Record<string, any> = {}
+          valueInitToken,
+          replicaId,
+          leftIntent,
+          rightIntent,
+          content,
+          originAttributesMapAtInput,
+          attributesMap = {}
         ) => {
-          const originId = leftIntent;
-          let leftId = leftIntent;
-          while (this.op(leftId).rightId !== rightIntent) {
-            const o_id = this.op(leftId).rightId;
-            const o = this.op(this.op(leftId).rightId);
-            const i_origin = this.op(originId);
-            const o_origin = this.op(o.originId);
-            if (
-              (o.pos < i_origin.pos || i_origin.pos <= o_origin.pos) &&
-              (o.originId !== originId || o.creatorId < replicaId)
-            ) {
-              leftId = o_id;
+          if (inConstructor) {
+            let op: YataOp<T>;
+            if (constructorIndex === 0) {
+              // startOp
+              op = startOp = new YataOp(
+                valueInitToken,
+                "",
+                "",
+                "",
+                "",
+                defaultContent,
+                0,
+                []
+              );
+            } else if (constructorIndex === 1) {
+              // endOp
+              op = endOp = new YataOp(
+                valueInitToken,
+                "",
+                "",
+                "",
+                "",
+                defaultContent,
+                Number.MAX_VALUE,
+                []
+              );
             } else {
-              if (i_origin.pos >= o_origin.pos) {
-                break;
+              // initialContent
+              op = new YataOp(
+                valueInitToken,
+                "",
+                "",
+                "",
+                "",
+                content,
+                ((constructorIndex - 1) * Number.MAX_VALUE) /
+                  (initialContents.length + 1),
+                []
+              );
+              initialContentOps.push(op);
+            }
+            constructorIndex++;
+            return op;
+          } else {
+            const originId = leftIntent;
+            let leftId = leftIntent;
+            while (this.op(leftId).rightId !== rightIntent) {
+              const o_id = this.op(leftId).rightId;
+              const o = this.op(this.op(leftId).rightId);
+              const i_origin = this.op(originId);
+              const o_origin = this.op(o.originId);
+              if (
+                (o.pos < i_origin.pos || i_origin.pos <= o_origin.pos) &&
+                (o.originId !== originId || o.creatorId < replicaId)
+              ) {
+                leftId = o_id;
+              } else {
+                if (i_origin.pos >= o_origin.pos) {
+                  break;
+                }
               }
             }
-          }
-          const rightId = this.op(leftId).rightId;
-          // TODO: Replace this with a binary tree (rbtree)
-          const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
-          const originAttributesEntriesAtCreate = [
-            ...this.op(originId).attributes.entries(),
-          ];
-          for (const [key, value] of originAttributesEntriesAtCreate) {
-            if (
-              attributesMap[key] !== value &&
-              attributesMap[key] === originAttributesMapAtInput[key]
-            ) {
-              attributesMap[key] = value;
+            const rightId = this.op(leftId).rightId;
+            // TODO: Replace this with a binary tree (rbtree)
+            const pos = (this.op(leftId).pos + this.op(rightId).pos) / 2;
+            const originAttributesEntriesAtCreate = [
+              ...this.op(originId).attributes.entries(),
+            ];
+            for (const [key, value] of originAttributesEntriesAtCreate) {
+              if (
+                attributesMap[key] !== value &&
+                attributesMap[key] === originAttributesMapAtInput[key]
+              ) {
+                attributesMap[key] = value;
+              }
             }
+            return new YataOp<T>(
+              valueInitToken,
+              replicaId,
+              originId,
+              leftId,
+              rightId,
+              content,
+              pos,
+              originAttributesMapAtInput,
+              Object.entries(attributesMap)
+            );
           }
-          return new YataOp<T>(
-            valueInitToken,
-            replicaId,
-            originId,
-            leftId,
-            rightId,
-            content,
-            pos,
-            originAttributesMapAtInput,
-            Object.entries(attributesMap)
-          );
         },
-        [startOpPre, endOpPre, ...initialContentOpsPre]
+        [startArgs, endArgs, ...initialContentsArgs]
       )
     );
-    this.opMap.on("Add", this.opMapAddEventHandler(this)); // TODO: Change to ValueInit
+    inConstructor = false;
+    this.opMap.on("Add", this.opMapAddEventHandler(this));
 
     // Configure the initial ops (like in valueConstructor).
     this.START = this.opMap.idOf(startOp);
@@ -313,7 +336,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     const addInitialContentOpEventHandlers =
       (yata: YataLinear<T>) => (op: YataOp<T>, uid: string) => {
         // Register event handler for YataOp.deleted "change" event
-        op._deleted.on("Set", yata.deletedMessageEventHandler(yata, uid));
+        op._deleted.on("Change", yata.deletedMessageEventHandler(yata, uid));
         // Register event handler for YataOp.attributes "set" event
         op.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
       };

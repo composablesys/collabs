@@ -63,20 +63,26 @@ interface RichTextEventsRecord extends crdts.CrdtEventsRecord {
 }
 
 class RichText extends crdts.CObject<RichTextEventsRecord> {
-  readonly text: crdts.DeletingMutCList<RichChar, [char: string]>;
+  readonly text: crdts.DeletingMutCList<RichChar, [char: string | object]>;
 
-  constructor(initToken: crdts.CrdtInitToken) {
+  constructor(
+    initToken: crdts.CrdtInitToken,
+    initialChars: (string | object)[] = []
+  ) {
     super(initToken);
 
     this.text = this.addChild(
       "",
-      crdts.Pre(crdts.DeletingMutCList)((valueInitToken, char) => {
-        const richChar = new RichChar(valueInitToken, char);
-        richChar.on("Format", (e) => {
-          this.emit("Format", { index: this.text.indexOf(richChar), ...e });
-        });
-        return richChar;
-      })
+      crdts.Pre(crdts.DeletingMutCList)(
+        (valueInitToken, char) => {
+          const richChar = new RichChar(valueInitToken, char);
+          richChar.on("Format", (e) => {
+            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+          });
+          return richChar;
+        },
+        initialChars.map((value) => [value])
+      )
     );
     this.text.on("Insert", (e) => {
       this.emit("Insert", e);
@@ -92,7 +98,11 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
     return this.text.length;
   }
 
-  insert(index: number, char: string, attributes?: Record<string, any>) {
+  insert(
+    index: number,
+    char: string | object,
+    attributes?: Record<string, any>
+  ) {
     const richChar = this.text.insert(index, char);
     this.formatChar(richChar, attributes);
   }
@@ -115,6 +125,10 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
       }
     }
   }
+
+  asArray(): (string | object)[] {
+    return [...this.text].map((richChar) => richChar.char);
+  }
 }
 
 (async function () {
@@ -123,8 +137,8 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
     new crdts.RateLimitBatchingStrategy(200)
   );
 
-  // TODO: may need to set initial content to "\n".
-  const clientText = runtime.registerCrdt("text", crdts.Pre(RichText)());
+  // Quill's initial content is "\n".
+  const clientText = runtime.registerCrdt("text", crdts.Pre(RichText)(["\n"]));
 
   const quill = new Quill("#editor", {
     theme: "snow",
@@ -161,7 +175,7 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
    */
   function getRelevantDeltaOperations(delta: Delta): {
     index: number;
-    insert?: string;
+    insert?: string | object;
     delete?: number;
     attributes?: Record<string, any>;
     retain?: number;
@@ -172,13 +186,16 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
       if (op.retain === undefined || op.attributes) {
         relevantOps.push({ index, ...op });
       }
-      index += op.retain ?? op.delete ?? op.insert.length;
+      // Deletes don't add to the index because we'll do the
+      // next operation after them, hence the text will already
+      // be shifted left.
+      index += op.retain ?? op.insert?.length ?? 0;
     }
     return relevantOps;
   }
 
   // Convert user inputs to Crdt operations.
-  quill.on("text-change", (delta, _oldDelta, source) => {
+  quill.on("text-change", (delta) => {
     // In theory we can listen for events with source "user",
     // to ignore changes caused by Crdt events instead of
     // user input.  However, changes that remove formatting
@@ -190,13 +207,6 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
     // to us or not.
     // if (source !== "user") return;
     if (ourChange) return;
-
-    // TODO: hack to insert the starting "\n" into our data
-    // model.
-    if (clientText.length === 0) {
-      console.log("inserting \\n");
-      clientText.insert(0, "\n");
-    }
 
     for (const op of getRelevantDeltaOperations(delta)) {
       // Insertion
