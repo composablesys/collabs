@@ -14,8 +14,8 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 
   // TODO: shared cursors
 
-  const myStartCursor = text.newCursor(0);
-  const myEndCursor = text.newCursor(0);
+  const myStartCursor = new crdts.LocalCursor(text, 0);
+  const myEndCursor = new crdts.LocalCursor(text, 0);
   function updateSelection() {
     // Need to do this on a delay because the event doesn't
     // due its default action (updating the handler) until

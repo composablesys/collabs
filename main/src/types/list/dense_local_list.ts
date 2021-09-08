@@ -1,8 +1,6 @@
 import { ElementSerializer } from "../../util";
 import { CausalTimestamp } from "../../core";
 
-// TODO: stuff for cursors (exposing raw locs)
-
 /**
  * Ops can assume causal order.
  *
@@ -108,7 +106,19 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
 
   readonly length: number;
 
-  indexOf(loc: L): number | undefined;
+  /**
+   * If loc is currently present, returns [its current index,
+   * true].  Else returns [the index where it would be if
+   * it were restored, false].
+   *
+   * Equivalently, returns [index of the least location that
+   * is >= the given location (possibly this.length), whether
+   * the location is present].
+   *
+   * @param  loc [description]
+   * @return     [description]
+   */
+  locate(loc: L): [index: number, isPresent: boolean];
 
   values(): IterableIterator<T>;
 

@@ -104,10 +104,9 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     return this.tree.length;
   }
 
-  indexOf(loc: RgaLoc): number | undefined {
-    const iter = this.tree.find(loc);
-    if (iter.valid) return iter.index;
-    else return undefined;
+  locate(loc: RgaLoc): [index: number, isPresent: boolean] {
+    const iter = this.tree.ge(loc);
+    return [iter.index, iter.key === loc];
   }
 
   *values(): IterableIterator<T> {

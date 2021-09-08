@@ -45,7 +45,7 @@ export class ResettingMutCList<C extends Crdt & Resettable>
   indexOf(searchElement: C, fromIndex = 0): number {
     const loc = this.internalMap.keyOf(searchElement);
     if (loc !== undefined) {
-      const index = this.denseLocalList.indexOf(loc)!;
+      const index = this.denseLocalList.locate(loc)[0];
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }

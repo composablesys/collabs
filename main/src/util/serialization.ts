@@ -4,10 +4,13 @@ import {
   CrdtReference,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
+  IOptionalSerializerMessage,
   ObjectMessage,
+  OptionalSerializerMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Buffer } from "buffer";
+import { Optional } from "./optional";
 
 /**
  * A serializer for elements (keys, values, etc.) in Crdt collections,
@@ -279,6 +282,45 @@ export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
   deserialize(message: Uint8Array, runtime: Runtime): C {
     const decoded = CrdtReference.decode(message);
     return runtime.getCrdtByReference(decoded.pathToBase!, this.base) as C;
+  }
+}
+
+export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
+  private constructor(private readonly valueSerializer: ElementSerializer<T>) {}
+
+  serialize(value: Optional<T>): Uint8Array {
+    const imessage: IOptionalSerializerMessage = {};
+    if (value.isPresent) {
+      imessage.valueIfPresent = this.valueSerializer.serialize(value.get());
+    }
+    const message = OptionalSerializerMessage.create(imessage);
+    return OptionalSerializerMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): Optional<T> {
+    const decoded = OptionalSerializerMessage.decode(message);
+    if (decoded.hasOwnProperty("valueIfPresent")) {
+      return Optional.of(
+        this.valueSerializer.deserialize(decoded.valueIfPresent, runtime)
+      );
+    } else return Optional.empty();
+  }
+
+  // Weak in both keys and values.
+  private static cache = new WeakMap<
+    ElementSerializer<any>,
+    WeakRef<OptionalSerializer<any>>
+  >();
+
+  static of<T>(valueSerializer: ElementSerializer<T>): OptionalSerializer<T> {
+    const existingWeak = OptionalSerializer.cache.get(valueSerializer);
+    if (existingWeak !== undefined) {
+      const existing = existingWeak.deref();
+      if (existing !== undefined) return existing;
+    }
+    const ret = new OptionalSerializer(valueSerializer);
+    OptionalSerializer.cache.set(valueSerializer, new WeakRef(ret));
+    return ret;
   }
 }
 

@@ -26,7 +26,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   const textInput = document.getElementById("textInput") as HTMLInputElement;
   textInput.value = "";
 
-  const myCursor = text.newCursor(0);
+  const myCursor = new crdts.LocalCursor(text, 0);
   function updateCursor() {
     const index = myCursor.index;
     textInput.selectionStart = index;

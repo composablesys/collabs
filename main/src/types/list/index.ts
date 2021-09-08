@@ -1,4 +1,5 @@
 export * from "./abstract_list";
+export * from "./cursor";
 export * from "./deleting_mut_list";
 export * from "./dense_local_list";
 export * from "./interfaces";

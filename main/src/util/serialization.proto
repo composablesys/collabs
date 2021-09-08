@@ -28,3 +28,7 @@ message PairSerializerMessage {
   required bytes one = 1;
   required bytes two = 2;
 }
+
+message OptionalSerializerMessage {
+  optional bytes valueIfPresent = 1;
+}

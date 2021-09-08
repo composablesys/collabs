@@ -10,6 +10,7 @@ import { AbstractCListCObject } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { MovableCList, MovableCListEventsRecord } from "./interfaces";
 import { CObject } from "../../constructions";
+import { LocatableCList } from "./cursor";
 
 export class MovableMutCListEntry<
   C extends Crdt,
@@ -48,7 +49,9 @@ export class MovableMutCListFromSet<
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCObject<C, InsertArgs, Events>
-  implements MovableCList<C, InsertArgs>
+  implements
+    MovableCList<C, InsertArgs>,
+    LocatableCList<L, C, InsertArgs, Events>
 {
   protected readonly set: SetT;
 
@@ -221,11 +224,23 @@ export class MovableMutCListFromSet<
       toMove[i].loc.set(locs[i]);
     }
     // Return the new index of toMove[0].
-    return this.denseLocalList.indexOf(locs[0])!;
+    return this.denseLocalList.locate(locs[0])[0];
   }
 
   get(index: number): C {
     return this.denseLocalList.get(index).value;
+  }
+
+  getLocation(index: number): L {
+    return this.denseLocalList.getLoc(index);
+  }
+
+  get locationSerializer(): ElementSerializer<L> {
+    return this.denseLocalList;
+  }
+
+  locate(location: L): [index: number, isPresent: boolean] {
+    return this.denseLocalList.locate(location);
   }
 
   *values(): IterableIterator<C> {
@@ -248,7 +263,7 @@ export class MovableMutCListFromSet<
     ) {
       const loc = (searchElement.parent as MovableMutCListEntry<C, L, RegT>).loc
         .value;
-      const index = this.denseLocalList.indexOf(loc)!;
+      const index = this.denseLocalList.locate(loc)[0];
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }
