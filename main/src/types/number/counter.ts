@@ -33,7 +33,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
 
 export class GrowOnlyCCounter
   extends CPrimitive<CCounterEventsRecord>
-  implements Resettable
+  implements Resettable 
 {
   /**
    * To prevent overflow into unsafe integers, whose
@@ -42,6 +42,10 @@ export class GrowOnlyCCounter
    * and values are taken modulo this value.  It is
    * half of Number.MAX_SAFE_INTEGER (rounded down),
    * i.e., 2^52 - 1.
+   *
+   * TODO: actually this is unsafe (not monotonic).  For now,
+   * don't let any numbers get this large.  If you really
+   * are counting something, you'll be fine, it's a huge number.
    */
   static readonly MODULUS = (Number.MAX_SAFE_INTEGER - 1) / 2;
 

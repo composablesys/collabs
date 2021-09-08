@@ -280,6 +280,14 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   }
 }
 
+/**
+ * TODO: warnings:
+ * - Eventual consistency may fail due to rounding issues.
+ * The only safe way is to stick to integer operands that aren't
+ * large enough to overflow anything.
+ * - Uses tombstones (one per operation).  So the memory
+ * usage will grow without bound, unlike most of our Crdts.
+ */
 export class CNumber extends CObject<CNumberEventsRecord> {
   private base: CNumberBase;
   /**
