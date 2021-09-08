@@ -682,7 +682,178 @@ function yjs() {
 //   );
 // }
 
-// TODO: use two crdts, like in dmonad benchmarks?
+function richText() {
+  // Copied from rich text demo.  TODO: way to reuse same file.
+  interface RichCharEventsRecord extends crdts.CrdtEventsRecord {
+    Format: { key: string } & crdts.CrdtEvent;
+  }
+
+  class RichChar extends crdts.CObject<RichCharEventsRecord> {
+    private readonly attributes: crdts.LwwCMap<string, any>;
+
+    /**
+     * char comes from a Quill Delta's insert field, split
+     * into single characters if a string.  So it is either
+     * a single char, or (for an embed) a JSON-serializable
+     * object with a single property.
+     */
+    constructor(
+      initToken: crdts.CrdtInitToken,
+      readonly char: string | object
+    ) {
+      super(initToken);
+
+      this.attributes = this.addChild("", crdts.Pre(crdts.LwwCMap)());
+
+      // Events
+      this.attributes.on("Set", (e) => {
+        this.emit("Format", {
+          key: e.key,
+          meta: e.meta,
+        });
+      });
+      this.attributes.on("Delete", (e) => {
+        this.emit("Format", { key: e.key, meta: e.meta });
+      });
+    }
+
+    getAttribute(attribute: string): any | null {
+      return this.attributes.get(attribute) ?? null;
+    }
+
+    /**
+     * null attribute deletes the existing one.
+     */
+    setAttribute(attribute: string, value: any | null) {
+      if (value === null) {
+        this.attributes.delete(attribute);
+      } else {
+        this.attributes.set(attribute, value);
+      }
+    }
+  }
+
+  interface RichTextEventsRecord extends crdts.CrdtEventsRecord {
+    Insert: { startIndex: number; count: number } & crdts.CrdtEvent;
+    Delete: { startIndex: number; count: number } & crdts.CrdtEvent;
+    Format: { index: number; key: string } & crdts.CrdtEvent;
+  }
+
+  class RichText extends crdts.CObject<RichTextEventsRecord> {
+    readonly text: crdts.DeletingMutCList<RichChar, [char: string | object]>;
+
+    constructor(
+      initToken: crdts.CrdtInitToken,
+      initialChars: (string | object)[] = []
+    ) {
+      super(initToken);
+
+      this.text = this.addChild(
+        "",
+        crdts.Pre(crdts.DeletingMutCList)(
+          (valueInitToken, char) => {
+            const richChar = new RichChar(valueInitToken, char);
+            richChar.on("Format", (e) => {
+              this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+            });
+            return richChar;
+          },
+          initialChars.map((value) => [value])
+        )
+      );
+      this.text.on("Insert", (e) => {
+        this.emit("Insert", e);
+      });
+      this.text.on("Delete", (e) => this.emit("Delete", e));
+    }
+
+    get(index: number): RichChar {
+      return this.text.get(index);
+    }
+
+    get length(): number {
+      return this.text.length;
+    }
+
+    insert(
+      index: number,
+      char: string | object,
+      attributes?: Record<string, any>
+    ) {
+      const richChar = this.text.insert(index, char);
+      this.formatChar(richChar, attributes);
+    }
+
+    delete(startIndex: number, count: number) {
+      this.text.delete(startIndex, count);
+    }
+
+    /**
+     * null attribute deletes the existing one.
+     */
+    format(index: number, newAttributes?: Record<string, any>) {
+      this.formatChar(this.get(index), newAttributes);
+    }
+
+    private formatChar(
+      richChar: RichChar,
+      newAttributes?: Record<string, any>
+    ) {
+      if (newAttributes) {
+        for (const entry of Object.entries(newAttributes)) {
+          richChar.setAttribute(...entry);
+        }
+      }
+    }
+
+    asArray(): (string | object)[] {
+      return [...this.text].map((richChar) => richChar.char);
+    }
+  }
+
+  let generator: crdts.TestingNetworkGenerator | null;
+  let runtime: crdts.Runtime | null;
+  let list: RichText | null;
+
+  return new AutomergePerfBenchmark("RichText", {
+    setup(rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      list = runtime.registerCrdt("text", crdts.Pre(RichText)());
+    },
+    cleanup() {
+      generator = null;
+      runtime = null;
+      list = null;
+    },
+    processEdit(edit) {
+      if (edit[2] !== undefined) {
+        // Insert edit[2] at edit[0]
+        list!.insert(edit[0], edit[2]);
+      } else {
+        // Delete character at edit[0]
+        list!.delete(edit[0], 1);
+      }
+      runtime!.commitBatch();
+    },
+    getSentBytes() {
+      return generator!.getTotalSentBytes();
+    },
+    getText() {
+      return list!.asArray().join("");
+    },
+    save() {
+      const saveData = runtime!.save();
+      return [saveData, saveData.byteLength];
+    },
+    load(saveData: Uint8Array, rng) {
+      generator = new crdts.TestingNetworkGenerator();
+      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      list = runtime.registerCrdt("text", crdts.Pre(RichText)());
+      runtime.load(saveData);
+    },
+  });
+}
 
 export default async function automergePerf(args: string[]) {
   let benchmark: AutomergePerfBenchmark;
@@ -707,6 +878,9 @@ export default async function automergePerf(args: string[]) {
       break;
     case "automerge":
       benchmark = automerge();
+      break;
+    case "richText":
+      benchmark = richText();
       break;
     // case "automergeNoText":
     //   benchmark = automergeNoText();
