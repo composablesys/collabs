@@ -24,6 +24,10 @@ export declare abstract class AbstractCSet<T, AddArgs extends any[]>
     thisArg?: any
   ): void;
   [Symbol.iterator](): IterableIterator<T>;
+  /**
+   * @return [...this].toString()
+   */
+  toString(): string;
 }
 
 /**
@@ -84,6 +88,10 @@ export function MakeAbstractCSet<
 
     [Symbol.iterator](): IterableIterator<T> {
       return this.values();
+    }
+
+    toString(): string {
+      return [...this].toString();
     }
   }
   return Mixin as any;

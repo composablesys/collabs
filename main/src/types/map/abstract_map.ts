@@ -28,6 +28,10 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
   keys(): IterableIterator<K>;
   values(): IterableIterator<V>;
   /**
+   * @return [...this].toString()
+   */
+  toString(): string;
+  /**
    * Searches linearly through the map using the default
    * iterator,
    * comparing values to searchElement using ===.
@@ -112,6 +116,10 @@ export function MakeAbstractCMap<
 
     *values(): IterableIterator<V> {
       for (const [_, value] of this) yield value;
+    }
+
+    toString(): string {
+      return [...this].toString();
     }
 
     keyOf(searchElement: V): K | undefined {

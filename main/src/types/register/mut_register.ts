@@ -75,6 +75,13 @@ export class MutCRegisterFromRegister<
   getArgsByValue(value: C): SetArgs {
     return this.crdtFactory.getArgs(value);
   }
+
+  /**
+   * @return this.value + ""
+   */
+  toString(): string {
+    return this.value + "";
+  }
 }
 
 export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>

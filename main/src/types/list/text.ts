@@ -6,4 +6,11 @@ export class CText extends PrimitiveCList<string> {
   constructor(initToken: CrdtInitToken) {
     super(initToken, TextSerializer.instance, TextArraySerializer.instance);
   }
+
+  /**
+   * @return this's string value
+   */
+  toString() {
+    return this.join("");
+  }
 }

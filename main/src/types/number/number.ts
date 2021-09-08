@@ -380,4 +380,11 @@ export class CNumber extends CObject<CNumberEventsRecord> {
     // noncommutativity and will go away once we fix that.
     return value === -0 ? 0 : value;
   }
+
+  /**
+   * @return this.value.toString()
+   */
+  toString(): string {
+    return this.value.toString();
+  }
 }

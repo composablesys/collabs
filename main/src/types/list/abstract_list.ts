@@ -23,6 +23,10 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
+  /**
+   * @return [...this].toString()
+   */
+  toString(): string;
 
   // Convenience mutators
   pop(): T;
@@ -184,6 +188,10 @@ export function MakeAbstractCList<
         yield [i, value];
         i++;
       }
+    }
+
+    toString(): string {
+      return [...this].toString();
     }
 
     // Convenience mutators

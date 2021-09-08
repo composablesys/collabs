@@ -173,6 +173,13 @@ export abstract class AggregateArgsCRegister<
     return this.entries.slice();
   }
 
+  /**
+   * @return this.value + ""
+   */
+  toString(): string {
+    return this.value + "";
+  }
+
   canGc(): boolean {
     return this.entries.length === 0;
   }

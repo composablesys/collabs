@@ -33,7 +33,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
 
 export class GrowOnlyCCounter
   extends CPrimitive<CCounterEventsRecord>
-  implements Resettable 
+  implements Resettable
 {
   /**
    * To prevent overflow into unsafe integers, whose
@@ -178,6 +178,13 @@ export class GrowOnlyCCounter
     return this.valueInternal;
   }
 
+  /**
+   * @return this.value.toString()
+   */
+  toString(): string {
+    return this.value.toString();
+  }
+
   canGc() {
     return this.M.size === 0;
   }
@@ -294,5 +301,12 @@ export class CCounter
     // value is in the range [0, MODULUS), so the
     // difference is in the safe range (-MODULUS, MODULUS).
     return this.plus.value - this.minus.value;
+  }
+
+  /**
+   * @return this.value.toString()
+   */
+  toString(): string {
+    return this.value.toString();
   }
 }
