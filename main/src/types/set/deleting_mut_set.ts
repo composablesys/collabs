@@ -99,6 +99,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
+  private readonly initialValuesCount: number;
 
   constructor(
     initToken: CrdtInitToken,
@@ -106,43 +107,23 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       valueInitToken: CrdtInitToken,
       ...args: AddArgs
     ) => C,
-    /*initialValuesArgs: AddArgs[] = [],*/
-    initialValues: Pre<C>[] = [],
+    initialValuesArgs: AddArgs[] = [],
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(initToken);
 
-    /*// Create the initial values from initialValuesArgs
-    for (let i = 0; i < this.initialValuesArgs!.length; i++) {
-      const args = this.initialValuesArgs![i];
-      // Using name "INIT" is a hack; need to figure out
+    // Create the initial values from initialValuesArgs.
+    for (let i = 0; i < initialValuesArgs.length; i++) {
+      const args = initialValuesArgs[i];
+      // TODO: Using name "INIT" is a hack; need to figure out
       // a proper way to do this when implementing
       // initial values generally.
       const name = bytesAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", i])
       );
-      this.receiveCreate(name, this.argsSerializer.serialize(args), args, true);
+      this.receiveCreate(name, undefined, args, true);
     }
-    this.initialValuesArgs = undefined;*/
-    // Construct the initial values
-    for (let i = 0; i < initialValues.length; i++) {
-      // Add as child with "["INIT", -i]" as id.
-      // Similar to CObject#addChild.
-      let name = bytesAsString(
-        DeletingMutCSet.nameSerializer.serialize(["INIT", -i])
-      );
-      if (this.children.has(name)) {
-        throw new Error(
-          '(initial value) Duplicate newCrdt name: "' + name + '"'
-        );
-      }
-      const newCrdt = initialValues[i](new CrdtInitToken(name, this));
-      this.children.set(name, newCrdt);
-
-      // Initial values are not added to this.constructorArgs,
-      // since they are passed to the constructor, hence
-      // do not need to be saved.
-    }
+    this.initialValuesCount = initialValuesArgs.length;
   }
 
   private static nameSerializer =
@@ -216,12 +197,12 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
 
   private receiveCreate(
     name: string,
-    serializedArgs: Uint8Array,
+    serializedArgs: Uint8Array | undefined,
     args: AddArgs | undefined = undefined,
     isInitialValue = false
   ): C {
     if (args === undefined) {
-      args = this.argsSerializer.deserialize(serializedArgs, this.runtime);
+      args = this.argsSerializer.deserialize(serializedArgs!, this.runtime);
     }
     // Add as child with "[sender, counter]" as id.
     // Similar to CObject#addChild.
@@ -236,7 +217,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     if (!isInitialValue) {
       // Initial values are not saved, since they are created
       // as part of initialization.
-      this.constructorArgs.set(name, serializedArgs);
+      this.constructorArgs.set(name, serializedArgs!);
     }
 
     return newValue;
@@ -263,7 +244,20 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   }
 
   canGc(): boolean {
-    return this.children.size === 0;
+    // To be in the initial state:
+    // 1. All values except the initial ones must be deleted.
+    // Such values are except those referenced by constructorArgs.
+    if (this.constructorArgs.size === 0) {
+      // 2. All initial values must still be present.
+      if (this.size === this.initialValuesCount) {
+        // 3. All initial values must canGc().
+        for (const value of this.values()) {
+          if (!value.canGc()) return false;
+        }
+        return true;
+      }
+    }
+    return false;
   }
 
   add(...args: AddArgs): C {
