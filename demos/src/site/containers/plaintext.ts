@@ -125,7 +125,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 
   // Display text changes
   text.on("Change", () => {
-    textarea.value = text.join("");
+    textarea.value = text.toString();
     updateCursor();
   });
 })();

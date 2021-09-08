@@ -473,7 +473,7 @@ function textCrdt() {
       return generator!.getTotalSentBytes();
     },
     getText() {
-      return list!.join("");
+      return list!.toString();
     },
     save() {
       const saveData = runtime!.save();
