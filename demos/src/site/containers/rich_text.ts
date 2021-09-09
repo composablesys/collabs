@@ -125,10 +125,6 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
       }
     }
   }
-
-  asArray(): (string | object)[] {
-    return [...this.text].map((richChar) => richChar.char);
-  }
 }
 
 (async function () {
@@ -186,10 +182,14 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
       if (op.retain === undefined || op.attributes) {
         relevantOps.push({ index, ...op });
       }
+      // Adjust index for the next op.
+      if (op.insert !== undefined) {
+        if (typeof op.insert === "string") index += op.insert.length;
+        else index += 1; // Embed
+      } else if (op.retain !== undefined) index += op.retain;
       // Deletes don't add to the index because we'll do the
       // next operation after them, hence the text will already
       // be shifted left.
-      index += op.retain ?? op.insert?.length ?? 0;
     }
     return relevantOps;
   }
