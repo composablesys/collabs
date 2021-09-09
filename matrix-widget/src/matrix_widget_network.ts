@@ -2,6 +2,7 @@ import {
   WidgetApi,
   IWidgetApiRequest,
   IWidgetApiRequestData,
+  Capability,
 } from "matrix-widget-api";
 import { BroadcastNetwork } from "compoventuals";
 import { Buffer } from "buffer";
@@ -60,13 +61,16 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
    * be comprehensible to end-users.
    * The actual event type used is <rootEventType>.<widgetId>.
    */
-  constructor(rootEventType: string) {
+  constructor(rootEventType: string, requestCapabilities: Capability[] = []) {
     this.eventType = `${rootEventType}.${MatrixWidgetNetwork.widgetId}`;
     this.api = new WidgetApi(MatrixWidgetNetwork.widgetId);
-    this.initializeWidgetApi(rootEventType);
+    this.initializeWidgetApi(rootEventType, requestCapabilities);
   }
 
-  private initializeWidgetApi(rootEventType: string): void {
+  private initializeWidgetApi(
+    rootEventType: string,
+    requestCapabilities: Capability[]
+  ): void {
     // Would like this to work, since it gives a sensible
     // message to the client, and is more likely to somdeay
     // allow the user to add the same widget twice without
@@ -75,6 +79,7 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
     // this.api.requestCapabilityToReceiveEvent(rootEventType);
     this.api.requestCapabilityToSendEvent(this.eventType);
     this.api.requestCapabilityToReceiveEvent(this.eventType);
+    this.api.requestCapabilities(requestCapabilities);
     this.api.on("action:send_event", (ev: CustomEvent<IWidgetApiRequest>) => {
       const mxEvent = ev.detail.data;
       if (mxEvent.type === this.eventType) {

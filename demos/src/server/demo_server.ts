@@ -13,6 +13,9 @@ const app = express().use((req, res) => {
   if (req.path === "/reset.html") {
     resetMessageHistory();
   }
+  // Allow cross-origin requests (e.g. a Matrix widget
+  // fetching a container).
+  res.header("Access-Control-Allow-Origin", "*");
   res.sendFile(req.path, { root: ROOT });
 });
 

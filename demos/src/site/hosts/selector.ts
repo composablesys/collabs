@@ -4,6 +4,7 @@ import { WebSocketNetwork } from "compoventuals-ws-client";
 import { ContainerHost } from "compoventuals-container";
 import $ from "jquery";
 import pako from "pako";
+import { saveAs } from "file-saver";
 
 // Extract the type of network to use from the URL's
 // "network" GET parameter.
@@ -93,15 +94,12 @@ const urlForm = <HTMLFormElement>document.getElementById("urlForm")!;
 const urlInput = <HTMLInputElement>document.getElementById("url");
 urlForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  // TODO: might this fail due to CORS on target server?
-  $.ajax({
-    url: urlInput.value,
-    dataType: "text",
-    success: setHtmlSrc,
-    error: (_, textStatus, errorThrown) => {
-      alert("URL error: " + textStatus + ", " + errorThrown);
-    },
-  });
+  // Note that the target server will need to allow the
+  // request through CORS (header "Access-Control-Allow-Origin": "*").
+  fetch(urlInput.value, { credentials: "omit" })
+    .then((response) => response.text())
+    .then(setHtmlSrc)
+    .catch((reason) => console.log("failed to fetch URL: " + reason));
 });
 
 const fileForm = <HTMLFormElement>document.getElementById("fileForm");
@@ -126,9 +124,12 @@ downloadButton.addEventListener("click", () => {
   const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
   // Trigger a file download of htmlSrc with suggested
   // file name `${document.title}.html`.
-  // Based on https://stackoverflow.com/a/45905238/16782898
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([htmlSrc], { type: "text/html" }));
-  a.setAttribute("download", `${document.title}.html`);
-  a.click();
+  // TODO: silently fails on Matrix due to their widget sandbox.
+  saveAs(new Blob([htmlSrc], { type: "text/html" }), `${document.title}.html`);
 });
+if (networkType === "matrix") {
+  downloadButton.disabled = true;
+  downloadButton.appendChild(
+    document.createTextNode(" (disabled by widget sandbox)")
+  );
+}
