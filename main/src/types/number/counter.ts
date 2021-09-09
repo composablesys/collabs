@@ -5,14 +5,16 @@ import {
   IGrowOnlyCCounterSaveEntry,
 } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
-import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CObject, CPrimitive } from "../../constructions";
 import {
   CausalTimestamp,
   CrdtEvent,
+  CrdtEventMeta,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
 } from "../../core";
+import { int64AsNumber } from "../../util";
 
 export interface CCounterEvent extends CrdtEvent {
   readonly arg: number;
@@ -30,7 +32,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
 }
 
 export class GrowOnlyCCounter
-  extends PrimitiveCrdt<CCounterEventsRecord>
+  extends CPrimitive<CCounterEventsRecord>
   implements Resettable
 {
   /**
@@ -40,6 +42,10 @@ export class GrowOnlyCCounter
    * and values are taken modulo this value.  It is
    * half of Number.MAX_SAFE_INTEGER (rounded down),
    * i.e., 2^52 - 1.
+   *
+   * TODO: actually this is unsafe (not monotonic).  For now,
+   * don't let any numbers get this large.  If you really
+   * are counting something, you'll be fine, it's a huge number.
    */
   static readonly MODULUS = (Number.MAX_SAFE_INTEGER - 1) / 2;
 
@@ -105,21 +111,25 @@ export class GrowOnlyCCounter
         const m = this.M.get(timestamp.getSender());
         if (m === undefined) {
           this.M.set(timestamp.getSender(), [
-            (decoded.add!.prOld + decoded.add!.toAdd) %
+            (int64AsNumber(decoded.add!.prOld) +
+              int64AsNumber(decoded.add!.toAdd)) %
               GrowOnlyCCounter.MODULUS,
-            decoded.add!.prOld,
+            int64AsNumber(decoded.add!.prOld),
             decoded.add!.idCounter,
           ]);
         } else {
           // We are guaranteed m[2] === decoded.add!.idCounter.
-          m[0] = (m[0] + decoded.add!.toAdd) % GrowOnlyCCounter.MODULUS;
+          m[0] =
+            (m[0] + int64AsNumber(decoded.add!.toAdd)) %
+            GrowOnlyCCounter.MODULUS;
         }
         // Update the cached value.
         this.valueInternal =
-          (this.valueInternal + decoded.add!.toAdd) % GrowOnlyCCounter.MODULUS;
+          (this.valueInternal + int64AsNumber(decoded.add!.toAdd)) %
+          GrowOnlyCCounter.MODULUS;
         this.emit("Add", {
-          arg: decoded.add!.toAdd,
-          timestamp,
+          arg: int64AsNumber(decoded.add!.toAdd),
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
           previousValue,
         });
         break;
@@ -127,7 +137,7 @@ export class GrowOnlyCCounter
         for (let vEntry of Object.entries(decoded.reset!.V!)) {
           const m = this.M.get(vEntry[0]);
           if (m !== undefined && m[2] === vEntry[1].idCounter) {
-            m[1] = Math.max(m[1], vEntry[1].v);
+            m[1] = Math.max(m[1], int64AsNumber(vEntry[1].v));
             // 0 vs -0 issue should be impossible because
             // we only ever deal with >= 0 numbers, so
             // -0 shouldn't be possible.
@@ -141,7 +151,7 @@ export class GrowOnlyCCounter
 
         this.emit("Reset", {
           arg: this.value - previousValue,
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
           previousValue,
         });
         break;
@@ -168,6 +178,13 @@ export class GrowOnlyCCounter
     return this.valueInternal;
   }
 
+  /**
+   * @return this.value.toString()
+   */
+  toString(): string {
+    return this.value.toString();
+  }
+
   canGc() {
     return this.M.size === 0;
   }
@@ -188,7 +205,11 @@ export class GrowOnlyCCounter
   loadPrimitive(saveData: Uint8Array) {
     const message = GrowOnlyCCounterSave.decode(saveData);
     for (const [replicaId, m] of Object.entries(message.M)) {
-      this.M.set(replicaId, [m.p, m.n, m.idCounter]);
+      this.M.set(replicaId, [
+        int64AsNumber(m.p),
+        int64AsNumber(m.n),
+        m.idCounter,
+      ]);
     }
     // Set the cached value.
     this.computeValue();
@@ -196,7 +217,7 @@ export class GrowOnlyCCounter
 }
 
 export class CCounter
-  extends CompositeCrdt<CCounterEventsRecord>
+  extends CObject<CCounterEventsRecord>
   implements Resettable
 {
   /**
@@ -217,7 +238,7 @@ export class CCounter
   private readonly plus: GrowOnlyCCounter;
   private readonly minus: GrowOnlyCCounter;
 
-  private plusResetEvent?: CCounterEvent;
+  private plusResetEvent?: CCounterEvent = undefined;
 
   constructor(initToken: CrdtInitToken) {
     super(initToken);
@@ -229,14 +250,14 @@ export class CCounter
       this.emit("Add", {
         arg: event.arg,
         previousValue: event.previousValue - this.minus.value,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
     this.minus.on("Add", (event) => {
       this.emit("Add", {
         arg: -event.arg,
         previousValue: this.plus.value - event.previousValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
     this.plus.on("Reset", (event) => {
@@ -251,9 +272,9 @@ export class CCounter
         // difference is in the safe range (-MODULUS, MODULUS).
         arg: this.plusResetEvent!.arg - event.arg,
         previousValue: this.plusResetEvent!.previousValue - event.previousValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
-      delete this.plusResetEvent;
+      this.plusResetEvent = undefined;
     });
   }
 
@@ -280,5 +301,12 @@ export class CCounter
     // value is in the range [0, MODULUS), so the
     // difference is in the safe range (-MODULUS, MODULUS).
     return this.plus.value - this.minus.value;
+  }
+
+  /**
+   * @return this.value.toString()
+   */
+  toString(): string {
+    return this.value.toString();
   }
 }

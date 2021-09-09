@@ -1,6 +1,6 @@
-import { CausalTimestamp, CrdtInitToken, PrimitiveCrdt } from "compoventuals";
+import { CausalTimestamp, CrdtInitToken, CPrimitive } from "compoventuals";
 
-export class ContainerHost extends PrimitiveCrdt {
+export class ContainerHost extends CPrimitive {
   private readonly messagePort: MessagePort;
   /**
    * Resolves once the container is done loading.

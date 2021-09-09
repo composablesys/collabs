@@ -25,13 +25,14 @@
           whiteboard: "Whiteboard",
           minesweeper: "Minesweeper",
           aspace: "A Space",
-          text: "Rich text editor",
+          rich_text: "Rich text editor",
+          rich_text_yata: "Rich text editor (experimental YATA + semidirect)",
           plaintext: "Plain text editor",
         }),
       ];
 
       const table = document.getElementById("containerTable");
-      // TODO: add true entry
+      // TODO: add sandbox=true entry
       for (const sandbox of [false]) {
         for (let y = 0; y < networks.length; y++) {
           const tr = table.insertRow();
@@ -39,9 +40,10 @@
             const td = tr.insertCell();
             if (x === -2) {
               // Header column
-              td.innerHTML = `<b>${networks[y][0]} (${
-                sandbox ? "Sandbox" : "Plain"
-              })</b>`;
+              // td.innerHTML = `<b>${networks[y][0]} (${
+              //   sandbox ? "Sandbox" : "Plain"
+              // })</b>`;
+              td.innerHTML = `<b>${networks[y][0]}</b>`;
             } else if (x === -1) {
               // Selector column
               td.innerHTML = `<a href="hosts/${
@@ -56,6 +58,16 @@
             }
           }
         }
+      }
+      // Download row
+      const tr = table.insertRow();
+      const header = tr.insertCell();
+      header.innerHTML =
+        "<b>Downloadable file</b><br />(right click -><br /> Save Link As...)";
+      tr.insertCell();
+      for (let x = 0; x < containers.length; x++) {
+        const td = tr.insertCell();
+        td.innerHTML = `<a href="../containers/${containers[x][0]}.html">${containers[x][1]}</a>`;
       }
     </script>
 

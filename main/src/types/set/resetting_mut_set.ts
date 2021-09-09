@@ -6,7 +6,7 @@ import { DefaultElementSerializer, ElementSerializer } from "../../util";
 import { Crdt, CrdtInitToken, Pre, Runtime } from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
-import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { AbstractCSetCObject } from "./abstract_set";
 import { CSetEventsRecord } from "./interfaces";
 
 class MutCSetFromMapSerializer<AddArgs extends any[]>
@@ -61,7 +61,7 @@ export class MutCSetFromMap<
     []
   >,
   Events extends CSetEventsRecord<C> = CSetEventsRecord<C>
-> extends AbstractCSetCompositeCrdt<C, AddArgs, Events> {
+> extends AbstractCSetCObject<C, AddArgs, Events> {
   protected map: MapT;
 
   /**
@@ -106,14 +106,14 @@ export class MutCSetFromMap<
       if (!event.previousValue.isPresent) {
         this.emit("Add", {
           value: this.map.get(event.key)!,
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
     this.map.on("Delete", (event) => {
       this.emit("Delete", {
         value: event.deletedValue,
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
   }
@@ -178,6 +178,19 @@ export class ResettingMutCSet<
       throw new Error("this.owns(value) is false");
     }
     this.map.restore(key);
+  }
+
+  /**
+   * @param  value [description]
+   * @return the AddArgs used to add value
+   * @throws if !this.owns(value)
+   */
+  getArgs(value: C): AddArgs {
+    const key = this.map.keyOf(value);
+    if (key === undefined) {
+      throw new Error("this.owns(value) is false");
+    }
+    return key[2];
   }
 
   reset(): void {

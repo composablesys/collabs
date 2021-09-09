@@ -35,7 +35,7 @@ class StoredMessage {
 // TODO: mention that to get a proper CRDT (equal internal states),
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
-export class SemidirectState<S extends Object> {
+export class SemidirectState<S extends object> {
   protected receiptCounter = 0;
   /**
    * Maps a replica id to an array of messages sent by that
@@ -85,8 +85,7 @@ export class SemidirectState<S extends Object> {
    * timestamp, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
    * timestamp.getSender()), it is assumed that the timestamp is
-   * causally greater than all prior messages, as described in
-   * CrdtInternal.effect, hence [] is returned.
+   * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaId: string, timestamp: CausalTimestamp) {
     return this.processTimestamp(
@@ -188,10 +187,10 @@ export class SemidirectState<S extends Object> {
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
-    for (let i = 0; i < sparseArray.length; i++) {
-      if (sparseArray[i].senderCounter > value) return i;
+    for (let i = sparseArray.length - 1; i >= 0; i--) {
+      if (sparseArray[i].senderCounter <= value) return i + 1;
     }
-    return sparseArray.length;
+    return 0;
   }
 
   save(runtime: Runtime): Uint8Array {
@@ -260,12 +259,12 @@ export class SemidirectState<S extends Object> {
  * init, possibly overwriting state with a different instance
  * of S.
  *
- * @param S the state type.  S is forced to extend Object
+ * @param S the state type.  S is forced to extend object
  * because state is meant to be mutated in-place, since
  * it is readonly.  Immutable primitive types (e.g., number)
  * should be wrapped in an object.
  */
-export interface StatefulCrdt<S extends Object> extends Crdt {
+export interface StatefulCrdt<S extends object> extends Crdt {
   /**
    * Not for use outside of this (treat as protected).
    */
@@ -273,7 +272,7 @@ export interface StatefulCrdt<S extends Object> extends Crdt {
 }
 
 export abstract class SemidirectProduct<
-    S extends Object,
+    S extends object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
@@ -328,7 +327,7 @@ export abstract class SemidirectProduct<
 
   // TODO: move setup into constructor?  Then we don't have to worry about
   // it being called after init.  But then it's annoying to pass
-  // this to the children (as is one in ResetWrapperCrdt).
+  // this to the children (as was done in ResetWrapperCrdt).
   protected setup<C1 extends StatefulCrdt<S>, C2 extends StatefulCrdt<S>>(
     preCrdt1: Pre<C1>,
     preCrdt2: Pre<C2>,
@@ -425,7 +424,7 @@ export abstract class SemidirectProduct<
     // TODO: this may spuriously return false if one of the Crdt's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Crdt's so far
-    // (e.g NumberCrdt), it ends up working because they check canGC()
+    // (e.g CNumber), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     return (
       this.state.isHistoryEmpty() && this.crdt1.canGc() && this.crdt2.canGc()

@@ -3,7 +3,7 @@ import ReconnectingWebSocket from "reconnecting-websocket";
 import { Buffer } from "buffer";
 
 export class WebSocketNetwork implements BroadcastNetwork {
-  onReceive!: (message: Uint8Array) => void;
+  onreceive!: (message: Uint8Array) => void;
   /**
    * WebSocket for connection to server.
    */
@@ -59,7 +59,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
     let parsed = JSON.parse(message.data) as { group: string; message: string };
     if (parsed.group === this.group) {
       // It's for us
-      this.onReceive(new Uint8Array(Buffer.from(parsed.message, "base64")));
+      this.onreceive(new Uint8Array(Buffer.from(parsed.message, "base64")));
     }
   };
   /**

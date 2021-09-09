@@ -12,7 +12,7 @@ then
     set -e
 fi
 
-for frequency in "whole" "rounds"
+for frequency in "whole"
 do
     for measurement in "time" "network" "memory" "save"
     do

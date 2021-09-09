@@ -2,12 +2,10 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./plaintext.html").default;
-
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
-    periodMs: 200,
-  });
+  const runtime = await ContainerRuntimeSource.newRuntime(
+    window.parent,
+    new crdts.RateLimitBatchingStrategy(200)
+  );
 
   const text = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
 
@@ -16,8 +14,8 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 
   // TODO: shared cursors
 
-  const myStartCursor = text.newCursor(0);
-  const myEndCursor = text.newCursor(0);
+  const myStartCursor = new crdts.LocalCursor(text, 0);
+  const myEndCursor = new crdts.LocalCursor(text, 0);
   function updateSelection() {
     // Need to do this on a delay because the event doesn't
     // due its default action (updating the handler) until
@@ -127,7 +125,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 
   // Display text changes
   text.on("Change", () => {
-    textarea.value = text.join("");
+    textarea.value = text.toString();
     updateCursor();
   });
 })();

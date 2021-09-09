@@ -6,11 +6,11 @@ import {
 import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { AddWinsCSet } from "../set";
-import { AbstractCMapCompositeCrdt } from "./abstract_map";
+import { AbstractCMapCObject } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 
 export class MergingMutCMap<K, C extends Crdt & Resettable>
-  extends AbstractCMapCompositeCrdt<K, C, []>
+  extends AbstractCMapCObject<K, C, []>
   implements Resettable
 {
   private readonly internalMap: ImplicitMergingMutCMap<K, C>;
@@ -42,7 +42,7 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
           this.emit("Set", {
             key: event.key,
             previousValue: Optional.empty<C>(),
-            timestamp: event.timestamp,
+            meta: event.meta,
           });
         }
       }
@@ -66,7 +66,7 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
         this.emit("Set", {
           key: event.value,
           previousValue: Optional.empty<C>(),
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
@@ -82,7 +82,7 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
           // the value most likely still exists in
           // internalMap's trivialMap (hasn't been GC'd yet).
           deletedValue: this.internalMap.get(event.key),
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
@@ -100,7 +100,7 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
           get deletedValue() {
             return outerThis.internalMap.get(event.value);
           },
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });

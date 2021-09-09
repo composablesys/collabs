@@ -58,6 +58,8 @@ const currentHost = runtime.registerCrdt(
     }
   )
 );
+
+// Selector GUI.
 const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
 currentHost.on("Set", (e) => {
   // Make the set value the only visible thing.
@@ -65,7 +67,15 @@ currentHost.on("Set", (e) => {
   if (e.previousValue.isPresent) {
     e.previousValue.get().containerIFrame.hidden = true;
   }
-  currentHost.value.get().containerIFrame.hidden = false;
+  const iframe = currentHost.value.get().containerIFrame;
+  iframe.hidden = false;
+  // Set title to that of the visible IFrame.
+  // We know that it is not yet loaded because it will only
+  // be Set once, in the same thread where it is initially
+  // created.
+  iframe.addEventListener("load", () => {
+    document.title = iframe.contentDocument!.title;
+  });
 });
 
 function setHtmlSrc(htmlSrc: string) {
@@ -99,5 +109,26 @@ const fileInput = <HTMLInputElement>document.getElementById("file");
 fileForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const file = fileInput.files![0];
+  if (file === undefined) return;
   file.text().then(setHtmlSrc);
+});
+
+// Download button GUI.
+const downloadDiv = document.getElementById("download.div")!;
+const downloadButton = <HTMLButtonElement>(
+  document.getElementById("download.button")
+);
+currentHost.on("Set", () => (downloadDiv.hidden = false));
+downloadButton.addEventListener("click", () => {
+  const htmlSrcGzippedOptional = currentHost.getArgs();
+  if (!htmlSrcGzippedOptional.isPresent) return;
+  const htmlSrcGzipped = htmlSrcGzippedOptional.get()[0];
+  const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+  // Trigger a file download of htmlSrc with suggested
+  // file name `${document.title}.html`.
+  // Based on https://stackoverflow.com/a/45905238/16782898
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([htmlSrc], { type: "text/html" }));
+  a.setAttribute("download", `${document.title}.html`);
+  a.click();
 });

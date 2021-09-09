@@ -1,6 +1,6 @@
 message RuntimeMessage {
   repeated uint32 pointerParents = 1 [packed=true];
-  repeated bytes pointerNames = 2;
+  repeated string pointerNames = 2;
   repeated uint32 messageSenders = 3 [packed=true];
   repeated bytes innerMessages = 4;
 }
@@ -8,7 +8,7 @@ message RuntimeMessage {
 message RuntimeOneSave {
   // Index of the parent in saves plus 1 (0 if this is root)
   required uint32 parentPointer = 1;
-  required bytes name = 2;
+  required string name = 2;
   required bytes saveData = 3;
 }
 

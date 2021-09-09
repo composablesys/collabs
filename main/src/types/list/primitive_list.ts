@@ -7,29 +7,21 @@ import {
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
 import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { CausalTimestamp, CrdtInitToken } from "../../core";
-import { AbstractCListPrimitiveCrdt } from "./abstract_list";
+import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
+import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
-import {
-  TreedocDenseLocalList,
-  TreedocLocWrapper,
-} from "./treedoc_dense_local_list";
 import { Resettable } from "../../abilities";
-
-// TODO: document, test.
-// Note this is not a CRDT
-// TODO: way to share with others (e.g., putting seqId
-// in a LwwRegister).  Could make this a CRDT for that,
-// but not desired if it's not going to be replicated.
-export interface Cursor {
-  index: number;
-}
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
+import { LocatableCList } from "./cursor";
 
 export class PrimitiveCListFromDenseLocalList<
-  T,
-  L extends object,
-  DenseT extends DenseLocalList<L, T>
-> extends AbstractCListPrimitiveCrdt<T, [T]> {
+    T,
+    L extends object,
+    DenseT extends DenseLocalList<L, T>
+  >
+  extends AbstractCListCPrimitive<T, [T]>
+  implements LocatableCList<L, T, [T]>
+{
   // TODO: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
   // TODO: use uniqueNumbers (from ids) instead of
@@ -231,7 +223,7 @@ export class PrimitiveCListFromDenseLocalList<
         this.emit("Insert", {
           startIndex: index,
           count: values.length,
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
         });
         break;
       case "delete": {
@@ -249,7 +241,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            timestamp,
+            meta: CrdtEventMeta.fromTimestamp(timestamp),
           });
         } // Else already deleted
         break;
@@ -314,7 +306,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            timestamp,
+            meta: CrdtEventMeta.fromTimestamp(timestamp),
           });
         }
         break;
@@ -326,6 +318,18 @@ export class PrimitiveCListFromDenseLocalList<
 
   get(index: number): T {
     return this.denseLocalList.get(index);
+  }
+
+  getLocation(index: number): L {
+    return this.denseLocalList.getLoc(index);
+  }
+
+  locate(location: L): [index: number, isPresent: boolean] {
+    return this.denseLocalList.locate(location);
+  }
+
+  get locationSerializer(): ElementSerializer<L> {
+    return this.denseLocalList;
   }
 
   values(): IterableIterator<T> {
@@ -407,42 +411,10 @@ export class PrimitiveCListFromDenseLocalList<
     //   i++;
     // }
   }
-
-  newCursor(startIndex: number, binding: "left" | "right" = "left"): Cursor {
-    const outerThis = this;
-    let loc: L | null = null;
-    const cursor = {
-      set index(index: number) {
-        if (binding === "left") {
-          if (index === 0) loc = null;
-          else loc = outerThis.denseLocalList.getLoc(index - 1);
-        } else {
-          if (index === outerThis.length) loc = null;
-          else loc = outerThis.denseLocalList.getLoc(index);
-        }
-      },
-
-      get index(): number {
-        if (binding === "left") {
-          if (loc === null) return 0;
-          else return outerThis.denseLocalList.leftIndex(loc);
-        } else {
-          if (loc === null) return outerThis.length;
-          else return outerThis.denseLocalList.rightIndex(loc);
-        }
-      },
-    };
-    cursor.index = startIndex;
-    return cursor;
-  }
 }
 
 export class PrimitiveCList<T>
-  extends PrimitiveCListFromDenseLocalList<
-    T,
-    TreedocLocWrapper,
-    TreedocDenseLocalList<T>
-  >
+  extends PrimitiveCListFromDenseLocalList<T, RgaLoc, RgaDenseLocalList<T>>
   implements Resettable
 {
   constructor(
@@ -452,14 +424,14 @@ export class PrimitiveCList<T>
   ) {
     super(
       initToken,
-      new TreedocDenseLocalList(initToken.runtime),
+      new RgaDenseLocalList(initToken.runtime),
       valueSerializer,
       valueArraySerializer
     );
   }
 
   reset() {
-    // Since TreedocDenseLocalList has no tombstones,
+    // Since RgaDenseLocalList has no tombstones,
     // clear is an observed-reset.
     this.clear();
   }

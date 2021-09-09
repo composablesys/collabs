@@ -9,14 +9,13 @@ import {
 import Quill, { DeltaOperation } from "quill";
 
 (async function () {
-  // HTML
+  // Include Quill CSS
   require("quill/dist/quill.snow.css");
-  document.body.innerHTML = require("./text.html").default;
-  document.body.style.background = "#e06666ff";
 
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
-    periodMs: 200,
-  });
+  const runtime = await ContainerRuntimeSource.newRuntime(
+    window.parent,
+    new crdts.RateLimitBatchingStrategy(200)
+  );
 
   let clientText = runtime.registerCrdt(
     "text",
@@ -90,8 +89,8 @@ import Quill, { DeltaOperation } from "quill";
 
   clientText.on(
     "Insert",
-    ({ idx, timestamp, isLocal, newOp, uid }: YataInsertEvent<string>) => {
-      if (!isLocal) {
+    ({ idx, meta, newOp, uid }: YataInsertEvent<string>) => {
+      if (!meta.isLocal) {
         const formats: Record<string, any> = {};
         const it = newOp.attributes.entries();
         let result = it.next();
@@ -106,25 +105,15 @@ import Quill, { DeltaOperation } from "quill";
     }
   );
 
-  clientText.on(
-    "Delete",
-    ({ idx, uid, isLocal, timestamp }: YataDeleteEvent<string>) => {
-      if (!isLocal) {
-        quill.updateContents(new Delta().retain(idx).delete(1));
-      }
+  clientText.on("Delete", ({ idx, uid, meta }: YataDeleteEvent<string>) => {
+    if (!meta.isLocal) {
+      quill.updateContents(new Delta().retain(idx).delete(1));
     }
-  );
+  });
 
   clientText.on(
     "FormatExisting",
-    ({
-      idx,
-      uid,
-      key,
-      value,
-      isLocal,
-      timestamp,
-    }: YataFormatExistingEvent<string>) => {
+    ({ idx, uid, key, value, meta }: YataFormatExistingEvent<string>) => {
       quill.updateContents(new Delta().retain(idx).retain(1, { [key]: value }));
     }
   );

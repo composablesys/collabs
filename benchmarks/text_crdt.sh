@@ -18,7 +18,7 @@ fi
 
 names=("compoCrdt" "compoJsonText" "compoJsonCrdt" "compoMovableCrdt")
 
-for frequency in "whole" "rounds"
+for frequency in "whole"
 do
     for measurement in "time" "network" "memory" "save"
     do
@@ -32,7 +32,7 @@ done
 # automerge-perf
 names=("textCrdt")
 
-for frequency in "whole" "rounds"
+for frequency in "whole"
 do
     for measurement in "time" "network" "memory" "save"
     do

@@ -10,10 +10,7 @@ import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import {
-  TreedocDenseLocalList,
-  TreedocLocWrapper,
-} from "./treedoc_dense_local_list";
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
 export class TombstoneMutCList<
   C extends Crdt,
@@ -21,27 +18,28 @@ export class TombstoneMutCList<
 > extends MovableMutCListFromSet<
   C,
   InsertArgs,
-  TreedocLocWrapper,
-  LwwCRegister<TreedocLocWrapper>,
+  RgaLoc,
+  LwwCRegister<RgaLoc>,
   TombstoneMutCSet<
-    MovableMutCListEntry<C, TreedocLocWrapper, LwwCRegister<TreedocLocWrapper>>,
-    [TreedocLocWrapper, InsertArgs]
+    MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>,
+    [RgaLoc, InsertArgs]
   >,
-  TreedocDenseLocalList<
-    MovableMutCListEntry<C, TreedocLocWrapper, LwwCRegister<TreedocLocWrapper>>
-  >
+  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>>
 > {
   constructor(
     initToken: CrdtInitToken,
     valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
     argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
   ) {
+    // TODO: initial values
     super(
       initToken,
-      Pre(TombstoneMutCSet),
+      (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
+        Pre(TombstoneMutCSet)(setValueConstuctor, setArgsSerializer),
       ConstructorAsFunction(LwwCRegister),
-      new TreedocDenseLocalList(initToken.runtime),
+      new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
+      [],
       argsSerializer
     );
   }
@@ -52,11 +50,7 @@ export class TombstoneMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
-      value.parent as MovableMutCListEntry<
-        C,
-        TreedocLocWrapper,
-        LwwCRegister<TreedocLocWrapper>
-      >
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     );
   }
 
@@ -70,11 +64,35 @@ export class TombstoneMutCList<
       throw new Error("this.owns(value) is false");
     }
     this.set.restore(
-      value.parent as MovableMutCListEntry<
-        C,
-        TreedocLocWrapper,
-        LwwCRegister<TreedocLocWrapper>
-      >
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     );
+  }
+
+  getArgs(index: number): InsertArgs {
+    return this.set.getArgs(
+      this.get(index).parent as MovableMutCListEntry<
+        C,
+        RgaLoc,
+        LwwCRegister<RgaLoc>
+      >
+    )[1];
+  }
+
+  /**
+   * [getArgsByValue description]
+   * @param  value [description]
+   * @return       [description]
+   * @throws if this.owns(value) is false
+   */
+  getArgsByValue(value: C): InsertArgs {
+    // Avoid errors from value.parent in case it
+    // is the root.
+    if (isRuntime(value.parent)) {
+      throw new Error("this.owns(value) is false");
+    }
+
+    return this.set.getArgs(
+      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+    )[1];
   }
 }

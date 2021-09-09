@@ -5,7 +5,7 @@ import { Crdt, CrdtEventsRecord, CausalTimestamp } from "../core";
  *
  * TODO: type param docstrings
  */
-export abstract class PrimitiveCrdt<
+export abstract class CPrimitive<
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends Crdt<Events> {
   protected send(message: Uint8Array) {
@@ -19,7 +19,7 @@ export abstract class PrimitiveCrdt<
   ): void {
     if (targetPath.length !== 0) {
       // We are not the target
-      throw new Error("PrimitiveCrdt received message for child");
+      throw new Error("CPrimitive received message for child");
     }
     this.receivePrimitive(timestamp, message);
   }
@@ -37,9 +37,7 @@ export abstract class PrimitiveCrdt<
   ): void;
 
   getChild(name: string): Crdt {
-    throw new Error(
-      "Unknown child: " + name + ", children: [] (PrimitiveCrdt)"
-    );
+    throw new Error("Unknown child: " + name + ", children: [] (CPrimitive)");
   }
 
   save(): [saveData: Uint8Array, children: Map<string, Crdt>] {

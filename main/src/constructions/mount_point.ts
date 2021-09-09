@@ -2,6 +2,7 @@ import { CMountPointSave } from "../../generated/proto_compiled";
 import {
   CausalTimestamp,
   Crdt,
+  CrdtEventMeta,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
@@ -41,7 +42,7 @@ export interface CMountPointEventsRecord extends CrdtEventsRecord {
  * this Crdt's state as formally equal to what its
  * state would be if its wrapped Crdt was mounted and
  * had received all currently queued messages.
- * In other words, it acts like a CompositeCrdt with
+ * In other words, it acts like a CObject with
  * the wrapped Crdt as its single child, named "".
  *
  * When unmounted locally, the local state differs from this formal
@@ -52,13 +53,13 @@ export interface CMountPointEventsRecord extends CrdtEventsRecord {
  * was unmounted locally, while messages queued since then
  * are stored in our own saveData.
  *
- * The above formalism extends to Change events for this Crdt
+ * The above formalism extends to Message events for this Crdt
  * and its ancestors: if a message is received for the
  * wrapped Crdt but it is unmounted, this Crdt and all
- * of its ancestors will emit Change events immediately,
+ * of its ancestors will emit Message events immediately,
  * as if it was mounted; later, when the wrapped Crdt is
  * mounted and the message is replayed, this Crdt and all
- * of its ancestors will **not** emit Change events, although
+ * of its ancestors will **not** emit Message events, although
  * the wrapped Crdt will emit all events as usual.
  *
  * Note that
@@ -71,7 +72,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
   /**
    * Name: "".  undefined iff unmounted.
    */
-  private wrappedCrdt: C | undefined = undefined;
+  private wrappedCrdt?: C = undefined;
   /**
    * messageQueue is always empty this is mounted
    * (wrappedCrdt !== undefined).
@@ -83,38 +84,6 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
   ][] = [];
   private needsDelayedLoad = false;
 
-  private toMount?: C;
-  /**
-   * Call this before mount to specify
-   * and construct the wrapped Crdt.  mount should be called shortly
-   * afterwards (ideally in the same thread).
-   *
-   * The wrapped Crdt is not actually loaded and
-   * delivered queued messages until mount, so in between
-   * prepareMount and mount, you can do any setup needed
-   * to prepare for the loading and queued messages
-   * (e.g., adding event listeners for queued messages).
-   *
-   * TODO: I don't like this API; will CrdtInitTokens make
-   * it better?  Concern is that callers might need to
-   * do some setup in between constructing toMount and when
-   * it receives messages (e.g., registering event handlers,
-   * linking to GUI).  We could instead use a callback
-   * with generic args in the constructor, like in
-   * collections.
-   */
-  prepareMount<D extends C>(preToMount: Pre<D>): D {
-    if (this.isMounted) {
-      throw new Error("prepareMount called but already mounted");
-    }
-    if (this.toMount !== undefined) {
-      throw new Error("prepareMount called twice");
-    }
-    const toMount = preToMount(new CrdtInitToken("", this));
-    this.toMount = toMount;
-    return toMount;
-  }
-
   /**
    * [mount description]
    *
@@ -124,20 +93,23 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
    * all of their events with the original (queued) timestamps,
    * which may be causally prior to timestamps that have
    * appeared in events for other Crdts.
-   * - this Crdt and its ancestors will not dispatch Change
+   * - this Crdt and its ancestors will not dispatch Message
    * events for the queued messages; they were already dispatched when the messages
    * were originally received.
    *
-   * @param toMount Must be constructed with the same
+   * @param wrappedCrdtConstructor Must be constructed with the same
    * type and constructor arguments each time.
+   * Use the callback to add event listeners etc. that need
+   * to be added before loading or receiving any messages.
+   *
    * @throw if this.isMounted
    */
-  mount(): void {
-    if (this.toMount === undefined) {
-      throw new Error("prepareMount must be called before mount");
-    }
-    this.wrappedCrdt = this.toMount;
-    delete this.toMount;
+  mount(wrappedCrdtConstructor: (initToken: CrdtInitToken) => C): void {
+    // We could pass wrappedCrdtConstructor in our constructor
+    // instead of here, but this way is easier in case you don't
+    // know what you're going to be constructing until mount
+    // time (e.g. old container demo).
+    this.wrappedCrdt = wrappedCrdtConstructor(new CrdtInitToken("", this));
 
     if (this.needsDelayedLoad) {
       this.runtime.delayedLoadDescendants(this);
@@ -147,7 +119,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
     }
     this.processMessageQueue();
 
-    this.emit("Mount", {});
+    this.emit("Mount", { meta: CrdtEventMeta.local(this.runtime) });
   }
 
   /**
@@ -175,7 +147,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
     this.wrappedCrdt = undefined;
     this.messageQueue = [];
 
-    this.emit("Unmount", {});
+    this.emit("Unmount", { meta: CrdtEventMeta.local(this.runtime) });
   }
 
   get isMounted(): boolean {
@@ -299,7 +271,7 @@ export class CMountPoint<C extends Crdt> extends Crdt<CMountPointEventsRecord> {
    * Crdt to dispatch events with old (pre-save) timestamps,
    * contrary to most load/postLoad methods which do not
    * dispatch any events.  However this Crdt and its
-   * ancestors will not dispatch Change
+   * ancestors will not dispatch Message
    * events for the queued messages; they were already dispatched when the messages
    * were originally received (before saving).
    *

@@ -12,8 +12,8 @@ describe("JsonCrdt", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("immediate", rng);
-    bob = runtimeGen.newRuntime("immediate", rng);
+    alice = runtimeGen.newRuntime(undefined, rng);
+    bob = runtimeGen.newRuntime(undefined, rng);
   });
 
   let aliceJson: JsonCrdt;

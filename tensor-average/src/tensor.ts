@@ -2,13 +2,14 @@ import * as tf from "@tensorflow/tfjs";
 import {
   CausalTimestamp,
   CCounter,
-  CompositeCrdt,
+  CObject,
   CrdtEvent,
   CrdtEventsRecord,
   CrdtInitToken,
   Pre,
-  PrimitiveCrdt,
+  CPrimitive,
   Resettable,
+  CrdtEventMeta,
 } from "compoventuals";
 import * as proto from "../generated/proto_compiled";
 
@@ -120,7 +121,7 @@ function tensorsEqual<R extends tf.Rank>(
 }
 
 export class TensorGCounterCrdt
-  extends PrimitiveCrdt<TensorCounterEventsRecord>
+  extends CPrimitive<TensorCounterEventsRecord>
   implements Resettable
 {
   // TODO: refactor state as proper vars
@@ -222,7 +223,7 @@ export class TensorGCounterCrdt
         this.state.P.set(keyString, prNewTensor);
         this.emit("Add", {
           valueAdded,
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
         });
         valueAdded.dispose();
         break;
@@ -246,7 +247,9 @@ export class TensorGCounterCrdt
           }
           received.dispose();
         }
-        this.emit("Reset", { timestamp });
+        this.emit("Reset", {
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
+        });
         break;
 
       default:
@@ -276,7 +279,7 @@ export class TensorGCounterCrdt
 }
 
 export class TensorCounterCrdt
-  extends CompositeCrdt<TensorCounterEventsRecord>
+  extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
   private readonly plus: TensorGCounterCrdt;
@@ -294,7 +297,7 @@ export class TensorCounterCrdt
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
         this.emit("Add", {
-          timestamp: event.timestamp,
+          meta: event.meta,
           valueAdded: event.valueAdded.neg(),
         })
       )
@@ -334,7 +337,7 @@ export class TensorCounterCrdt
 }
 
 export class TensorAverageCrdt
-  extends CompositeCrdt<TensorCounterEventsRecord>
+  extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
   private readonly numerator: TensorCounterCrdt;

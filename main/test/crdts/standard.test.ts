@@ -8,7 +8,6 @@ import {
   LwwCRegister,
   MergingMutCMap,
   CNumber,
-  MNumber,
   TestingNetworkGenerator,
   DeletingMutCSet,
   CMapDeleteEvent,
@@ -29,8 +28,8 @@ describe("standard", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("immediate", rng);
-    bob = runtimeGen.newRuntime("immediate", rng);
+    alice = runtimeGen.newRuntime(undefined, rng);
+    bob = runtimeGen.newRuntime(undefined, rng);
   });
 
   describe("TrueWinsCBoolean", () => {
@@ -47,11 +46,11 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: TrueWinsCBoolean, name: string): void {
-      flag.on("Change", (event, caller) => {
+      flag.on("Set", (event, caller) => {
         if (caller.value) {
-          console.log(`${name}: ${event.timestamp.getSender()} enabled`);
+          console.log(`${name}: ${event.meta.sender} enabled`);
         } else {
-          console.log(`${name}: ${event.timestamp.getSender()} disabled`);
+          console.log(`${name}: ${event.meta.sender} disabled`);
         }
       });
     }
@@ -137,11 +136,11 @@ describe("standard", () => {
     });
 
     function addEventListeners(flag: FalseWinsCBoolean, name: string): void {
-      flag.on("Change", (event, caller) => {
+      flag.on("Set", (event, caller) => {
         if (caller.value) {
-          console.log(`${name}: ${event.timestamp.getSender()} enabled`);
+          console.log(`${name}: ${event.meta.sender} enabled`);
         } else {
-          console.log(`${name}: ${event.timestamp.getSender()} disabled`);
+          console.log(`${name}: ${event.meta.sender} disabled`);
         }
       });
     }
@@ -224,21 +223,20 @@ describe("standard", () => {
 
     function addEventListeners(number: CNumber, name: string): void {
       number.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
       );
 
       number.on("Mult", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
       );
-      // number.on("Reset", (event) =>
-      //   console.log(
-      //     `${name}: ${event.timestamp.getSender()} reset ${event.timestamp.getSender()}`
-      //   )
-      // );
+
+      number.on("Min", (event) =>
+        console.log(`${name}: ${event.meta.sender} minned ${event.arg}`)
+      );
+
+      number.on("Max", (event) =>
+        console.log(`${name}: ${event.meta.sender} maxed ${event.arg}`)
+      );
     }
 
     it("is initially 0", () => {
@@ -305,6 +303,7 @@ describe("standard", () => {
         assert.strictEqual(bobNumber.value, 15);
       });
 
+      // TODO: giving wrong answer.
       it("works with the example from the paper", () => {
         // See https://arxiv.org/abs/2004.04303, §3.1
         init(1, "numberIdPaper");
@@ -319,146 +318,6 @@ describe("standard", () => {
         runtimeGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 17);
         assert.strictEqual(bobNumber.value, 17);
-      });
-    });
-
-    // describe("reset", () => {
-    //   it("resets to the initial value", () => {
-    //     aliceNumber.add(1);
-    //     aliceNumber.reset();
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 0);
-    //     assert.strictEqual(bobNumber.value, 0);
-    //   });
-    //
-    //   it("works with non-concurrent updates", () => {
-    //     aliceNumber.add(3);
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 3);
-    //     assert.strictEqual(bobNumber.value, 3);
-    //
-    //     aliceNumber.reset();
-    //     aliceNumber.add(11);
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 11);
-    //     assert.strictEqual(bobNumber.value, 11);
-    //   });
-    //
-    //   it("lets concurrent adds survive", () => {
-    //     aliceNumber.reset();
-    //     bobNumber.add(10);
-    //     runtimeGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 10);
-    //     assert.strictEqual(bobNumber.value, 10);
-    //   });
-    // });
-
-    describe("strongReset", () => {
-      it.skip("works with non-concurrent updates", () => {
-        // bobNumber.strongReset();
-        // runtimeGen.releaseAll();
-        // assert.strictEqual(aliceNumber.value, 0);
-        // assert.strictEqual(bobNumber.value, 0);
-        //
-        // aliceNumber.add(6);
-        // runtimeGen.releaseAll();
-        // assert.strictEqual(aliceNumber.value, 6);
-        // assert.strictEqual(bobNumber.value, 6);
-      });
-
-      it.skip("does not let concurrent add survive", () => {
-        // aliceNumber.strongReset();
-        // bobNumber.add(20);
-        // runtimeGen.releaseAll();
-        // assert.strictEqual(aliceNumber.value, 0);
-        // assert.strictEqual(bobNumber.value, 0);
-      });
-    });
-
-    // it("works with lots of concurrency", () => {
-    //   aliceNumber.add(3);
-    //   bobNumber.add(7);
-    //   aliceNumber.reset();
-    //   runtimeGen.release(bob);
-    //   assert.strictEqual(aliceNumber.value, 7);
-    //   assert.strictEqual(bobNumber.value, 7);
-    //
-    //   // TODO
-    //   // bobNumber.strongReset();
-    //   // runtimeGen.releaseAll();
-    //   // assert.strictEqual(aliceNumber.value, 0);
-    //   // assert.strictEqual(bobNumber.value, 0);
-    // });
-  });
-
-  describe("Multiple Ops Number", () => {
-    let aliceNumber: MNumber;
-    let bobNumber: MNumber;
-
-    beforeEach(() => init(0));
-
-    function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCrdt(name, Pre(MNumber)(initialValue));
-      bobNumber = bob.registerCrdt(name, Pre(MNumber)(initialValue));
-      if (debug) {
-        addEventListeners(aliceNumber, "Alice");
-        addEventListeners(bobNumber, "Bob");
-      }
-    }
-
-    function addEventListeners(number: MNumber, name: string): void {
-      number.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.added}`
-        )
-      );
-
-      number.on("Mult", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.multed}`
-        )
-      );
-
-      number.on("Min", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} minned ${event.compared}`
-        )
-      );
-
-      number.on("Max", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} maxed ${event.compared}`
-        )
-      );
-    }
-
-    it("is initially 0", () => {
-      assert.strictEqual(aliceNumber.value, 0);
-      assert.strictEqual(bobNumber.value, 0);
-    });
-
-    describe("add", () => {
-      it("works with non-concurrent updates", () => {
-        aliceNumber.add(3);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 3);
-
-        bobNumber.add(-4);
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -1);
-        assert.strictEqual(bobNumber.value, -1);
-      });
-
-      it("works with concurrent updates", () => {
-        aliceNumber.add(3);
-        bobNumber.add(-4);
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, -4);
-
-        runtimeGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -1);
-        assert.strictEqual(bobNumber.value, -1);
       });
     });
 
@@ -569,14 +428,10 @@ describe("standard", () => {
 
     function addEventListeners(set: AddWinsCSet<string>, name: string): void {
       set.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.value}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.value}`)
       );
       set.on("Delete", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} deleted ${event.value}`
-        )
+        console.log(`${name}: ${event.meta.sender} deleted ${event.value}`)
       );
     }
 
@@ -740,7 +595,7 @@ describe("standard", () => {
         assert.strictEqual(bobSet.booleanMap.size, 0);
       });
 
-      it("does not garbage collect non-deleted entries", async () => {
+      it.skip("does not garbage collect non-deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
           aliceSet.add(i + "");
         }
@@ -1227,7 +1082,7 @@ describe("standard", () => {
         assert.strictEqual(bobMap.internalMap.size, 0);
       });
 
-      it("does not garbage collect non-deleted entries", async () => {
+      it.skip("does not garbage collect non-deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
           aliceMap.set(i + "", 10 * i);
         }
@@ -1342,11 +1197,11 @@ describe("standard", () => {
 //
 //     let aliceOrthogonal = new OrthogonalCrdt("orthogonalId", alice);
 //     aliceOrthogonal.onchange = (event => console.log(
-//         "Alice: " + event.timestamp.getSender() + " set to " +
+//         "Alice: " + event.meta.sender + " set to " +
 //         event.description));
 //     let bobOrthogonal = new OrthogonalCrdt("orthogonalId", bob);
 //     bobOrthogonal.onchange = (event => console.log(
-//         "Bob: " + event.timestamp.getSender() + " set to " +
+//         "Bob: " + event.meta.sender + " set to " +
 //         event.description));
 //     assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);

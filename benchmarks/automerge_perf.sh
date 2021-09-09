@@ -16,15 +16,15 @@ fi
 
 if [ ! -z $5 ] && [ $5 == "--oursOnly" ]
 then
-  names=("treedocLww" "textCrdt" "mapLww" "rgaLww" "rga")
+  names=("resettingLww" "deletingLww" "textCrdt" "mapLww" "richText")
 elif [ ! -z $5 ] && [ $5 == "--theirsOnly" ]
 then
   names=("yjs" "automerge")
 else
-  names=("treedocLww" "textCrdt" "mapLww" "rgaLww" "rga" "yjs" "automerge")
+  names=("resettingLww" "deletingLww" "textCrdt" "mapLww" "richText" "yjs" "automerge")
 fi
 
-for frequency in "whole" "rounds"
+for frequency in "whole"
 do
     for measurement in "time" "network" "memory" "save"
     do

@@ -3,15 +3,23 @@ export class Optional<T> {
     readonly isPresent: boolean,
     private readonly valueIfPresent: T | undefined
   ) {}
+
   get(): T {
     if (!this.isPresent) {
       throw new Error("Optional.get() called but isPresent is false");
     }
     return this.valueIfPresent!;
   }
+
   orElse(other: T): T {
     if (this.isPresent) return this.valueIfPresent!;
     else return other;
+  }
+
+  toString(): string {
+    if (this.isPresent) {
+      return `Optional.of(${this.get()})`;
+    } else return "Optional.empty()";
   }
 
   private static emptyInstance = new Optional(false, undefined);

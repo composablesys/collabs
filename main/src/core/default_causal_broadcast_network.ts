@@ -13,6 +13,9 @@ import {
   CausalBroadcastNetwork,
 } from "./causal_broadcast_network";
 import { VectorClock } from "./vector_clock";
+import { int64AsNumber } from "../util";
+
+const DEBUG = false;
 
 /**
  * Interface describing a (reliable, at-least-once, ordering
@@ -25,11 +28,9 @@ import { VectorClock } from "./vector_clock";
  */
 export interface BroadcastNetwork {
   /**
-   * Variable set by the using network (either a
-   * DefaultCausalBroadcastNetwork or a chained
-   * BroadcastNetwork).
+   * Variable set by the using network.
    */
-  onReceive: (message: Uint8Array) => void;
+  onreceive: (message: Uint8Array) => void;
   /**
    * Used by DefaultCausalBroadcastNetwork
    * to send a broadcast message. This message should be
@@ -123,7 +124,7 @@ class myMessage {
     let vc = new VectorClock(
       decoded.sender,
       myReplicaId === decoded.sender,
-      decoded.time as number
+      int64AsNumber(decoded.time)
     );
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
     vc.vectorMap.set(decoded.sender, decoded.senderCounter);
@@ -146,6 +147,11 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    * Registered Runtime.
    */
   private runtime!: Runtime;
+  private onreceive!: (
+    message: Uint8Array,
+    firstTimestamp: CausalTimestamp
+  ) => CausalTimestamp;
+  private onreceiveblocked!: (sender: string) => void;
   /**
    * BroadcastNetwork for broadcasting messages.
    */
@@ -180,7 +186,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
      * Register EventListener with corresponding event handler.
      */
     this.broadcastNetwork = broadcastNetwork;
-    this.broadcastNetwork.onReceive = this.receive.bind(this);
+    this.broadcastNetwork.onreceive = this.receive.bind(this);
   }
   /**
    * Parse JSON format data back into myMessage type.
@@ -189,8 +195,8 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param message
    */
-  receive(message: Uint8Array) {
-    let parsed = myMessage.deserialize(message, this.crdtRuntime.replicaId);
+  private receive(message: Uint8Array) {
+    let parsed = myMessage.deserialize(message, this.runtime.replicaId);
     this.messageBuffer.push(parsed);
     this.checkMessageBuffer();
   }
@@ -199,8 +205,17 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    *
    * @param runtime
    */
-  register(runtime: Runtime): void {
+  registerRuntime(
+    runtime: Runtime,
+    onreceive: (
+      message: Uint8Array,
+      firstTimestamp: CausalTimestamp
+    ) => CausalTimestamp,
+    onreceiveblocked: (sender: string) => void
+  ): void {
     this.runtime = runtime;
+    this.onreceive = onreceive;
+    this.onreceiveblocked = onreceiveblocked;
     this.vc = new VectorClock(this.runtime.replicaId, true, -1);
   }
 
@@ -284,20 +299,23 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
    * TODO: optimize?
    */
   private checkMessageBuffer(): void {
-    // Don't deliver any messages to the runtime if there is a pending
-    // batch of messages to send.
-    if (this.isPendingBatch) return;
-
     let index = this.messageBuffer.length - 1;
 
     while (index >= this.bufferCheckIndex) {
       let curVectorClock = this.messageBuffer[index].timestamp;
 
       if (this.vc.isReady(curVectorClock)) {
+        // Don't deliver any messages to the runtime if there is a pending
+        // batch of messages to send, but do let the runtime
+        // know of them.
+        if (this.isPendingBatch) {
+          this.onreceiveblocked(curVectorClock.getSender());
+          return;
+        }
         /**
          * Send back the received message to runtime.
          */
-        let lastTimestamp = this.runtime.receive(
+        let lastTimestamp = this.onreceive(
           this.messageBuffer[index].message,
           curVectorClock
         );
@@ -310,24 +328,24 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
         this.bufferCheckIndex = 0;
         index = this.messageBuffer.length - 1;
       } else {
-        console.log(
-          "DefaultCausalBroadcastNetwork.checkMessageBuffer: not ready"
-        );
+        if (DEBUG) {
+          console.log(
+            "DefaultCausalBroadcastNetwork.checkMessageBuffer: not ready"
+          );
+        }
         if (this.vc.isAlreadyReceived(curVectorClock)) {
           // Remove the message from the buffer
           this.messageBuffer.splice(index, 1);
-          console.log("(already received)");
+          if (DEBUG) console.log("(already received)");
         }
         index--;
-        console.log(this.vc.toString());
-        console.log(curVectorClock.toString());
+        if (DEBUG) {
+          console.log(this.vc.toString());
+          console.log(curVectorClock.toString());
+        }
       }
     }
     this.bufferCheckIndex = this.messageBuffer.length;
-  }
-
-  get crdtRuntime(): Runtime {
-    return this.runtime;
   }
 
   serialize(value: CausalTimestamp): Uint8Array {

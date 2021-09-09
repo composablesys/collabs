@@ -104,10 +104,9 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     return this.tree.length;
   }
 
-  indexOf(loc: RgaLoc): number | undefined {
-    const iter = this.tree.find(loc);
-    if (iter.valid) return iter.index;
-    else return undefined;
+  locate(loc: RgaLoc): [index: number, isPresent: boolean] {
+    const iter = this.tree.ge(loc);
+    return [iter.index, iter.key === loc];
   }
 
   *values(): IterableIterator<T> {
@@ -154,7 +153,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   canGc(): boolean {
     // TODO: will this work if there are dangling references
-    // to RgaLocs?  Likewise with Treedoc.
+    // to RgaLocs?
     return this.length === 0;
   }
 
@@ -303,6 +302,17 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       count,
       false
     );
+  }
+
+  createInitialLocs(count: number): RgaLoc[] {
+    // Create the locs with parent: undefined, sender: "INIT",
+    // and uniqueNumbers: [0, count).
+    const locs = new Array<RgaLoc>(count);
+    for (let i = 0; i < count; i++) {
+      locs[i] = new RgaLoc(undefined, "INIT", i);
+      this.storeBackupLoc(locs[i]);
+    }
+    return locs;
   }
 
   /**

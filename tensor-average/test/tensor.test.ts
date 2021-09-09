@@ -75,7 +75,7 @@ describe("tensor", () => {
   ): void {
     crdt.on("Add", (event) =>
       console.log(
-        `${name}: ${event.timestamp.getSender()} added ${event.valueAdded.toString()}`
+        `${name}: ${event.meta.sender} added ${event.valueAdded.toString()}`
       )
     );
   }

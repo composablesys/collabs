@@ -34,7 +34,7 @@ export class CrdtInitToken {
  * valueConstructor's), or use a function whose output is
  * a Pre<C>.
  *
- * Usually C will be a Crdt type, but we allow more general
+ * Usually C will extend Crdt, but we allow more general
  * types in case users make more general constructs that
  * require an initToken (e.g., a Crdt + HTML component combo).
  */
@@ -48,17 +48,70 @@ export function Pre<C, Args extends any[]>(
       new Class(initToken, ...args);
 }
 
+export interface CrdtEventMeta {
+  /**
+   * The replicaId of the replica that initiated the operation
+   * described by this event.
+   */
+  readonly sender: string;
+  /**
+   * Whether the operation was initiated locally.
+   *
+   * Equivalent to this.sender === (local Runtime).replicaId.
+   */
+  readonly isLocal: boolean;
+}
+
+export const CrdtEventMeta = {
+  fromTimestamp(timestamp: CausalTimestamp): CrdtEventMeta {
+    return { sender: timestamp.getSender(), isLocal: timestamp.isLocal() };
+  },
+
+  fromSender(sender: string, runtime: Runtime): CrdtEventMeta {
+    return { sender, isLocal: sender === runtime.replicaId };
+  },
+
+  local(runtime: Runtime): CrdtEventMeta {
+    return { sender: runtime.replicaId, isLocal: true };
+  },
+};
+
 /**
  * An event issued when a Crdt is changed by either
  * a remote or local operation.
  *
- * TODO: on/emit/etc.
- *
  * Crdts should define events implementing this interface
  * and pass those to registered listeners when the Crdt's
  * state is changed.
+ */
+export interface CrdtEvent {
+  readonly meta: CrdtEventMeta;
+}
+
+/**
+ * A record of events for a Crdt, indexed by name.
+ *
+ * Crdt subclasses should define an events record extending
+ * this interface, adding a record for each possible change.
+ *
+ * Each record's type must extend CrdtEvent.  TypeScript won't
+ * let us enforce this using CrdtEventsRecord, so we instead
+ * enforce this indirectly by making Crdt.emit only accept
+ * events extending CrdtEvent.
+ *
+ * Typically, events only happen in response to replicated operations
+ * (possibly initiated by us).  Some special events (e.g. in
+ * CMountPoint) are only associated to a local operation instead
+ * of a replicated one; in that case, they should still
+ * extend CrdtEvent, and they should always set
+ * meta: CrdtEventMeta.local(this.runtime).
  *
  * General advice:
+ * - Only emit events when your state is usable.  If one of
+ * your operations is made up of several sub-operations, and
+ * the intermediate states are nonsensical, don't emit events
+ * then, since the listeners might try to inspect the state
+ * during their event handlers.
  * - Events should be sufficient to maintain a view of
  * the state.  But, it is recommended to omit info
  * that the user can get from the Crdt during the event
@@ -73,41 +126,24 @@ export function Pre<C, Args extends any[]>(
  * dispatch Add if the value went from (not present) to (present);
  * don't dispatch it if the value was already present.
  * That is useful
- * for some views that only account for part of the state,
+ * for some views that only track part of the state,
  * e.g., the size of a CSet.
- */
-export interface CrdtEvent {
-  /**
-   * The causal timestamp of the change.
-   *
-   * Note that
-   * because several CRDTs can share the same runtime, timestamps
-   * may not be continguous (i.e., entries in their vector clocks
-   * might skip numbers).  However, causally ordered delivery is
-   * still guaranteed.
-   * */
-  readonly timestamp: CausalTimestamp;
-}
-
-/**
- * A record of events for a Crdt, indexed by name.
- *
- * Crdt types should define an events record extending
- * this interface, adding a record for each possible change.
- * Each record's type should be a subinterface of
- * CrdtEvent.
+ * - If you making a non-reusable component for an app and
+ * don't want to bother adding individual events, you can just
+ * emit "Change" events when your state changes (e.g., on
+ * your children's "Change" events).  Or, you can skip events
+ * entirely and either refresh the whole display on Runtime
+ * "Change" events, or refresh your Crdt-specifc display on
+ * its children's "Change" events.
  */
 export interface CrdtEventsRecord {
   /**
-   * Emitted every time a Crdt changes (or may have
-   * changed).  Specifically, it is emitted every time
-   * a Crdt receives a message, at the end of message processing.
+   * Emitted right after any other event is emitted.
    *
-   * This event should generally not be listened on.
-   * Logical operations may be composed of multiple messages,
-   * each of which emits a Change event, so when early
-   * Change events are emitted, the Crdt may be in
-   * a nonsensical, transient internal state.
+   * Listen to this if you want to know each time this Crdt
+   * is changed (e.g., so you can refresh a display based on
+   * this Crdt's state) without having to listen to each
+   * individual event type.
    */
   Change: CrdtEvent;
 }
@@ -115,8 +151,8 @@ export interface CrdtEventsRecord {
 /**
  * The base class for all Crdts.
  *
- * Most Crdt types will not extend this class directly,
- * instead extending CompositeCrdt, PrimitiveCrdt, or
+ * Most Crdts will not extend this class directly,
+ * instead extending CObject, CPrimitive, or
  * SemidirectProduct.
  */
 export abstract class Crdt<
@@ -124,8 +160,8 @@ export abstract class Crdt<
 > extends EventEmitter<Events> {
   readonly runtime: Runtime;
   /**
-   * TODO: only Runtime's RootCrdt will have RootParent
-   * as a parent, all others will have Crdt.
+   * TODO: only Runtime's RootCrdt will have Runtime
+   * as a parent, all others will have a Crdt parent.
    */
   readonly parent: CrdtParent;
   readonly name: string;
@@ -155,12 +191,33 @@ export abstract class Crdt<
     return ans;
   }
 
+  /**
+   * Emits an event, which triggers all the registered event handlers.
+   * After emitting event, a "Change" event with the same
+   * event.meta is emitted, unless it is already a "Change" event.
+   *
+   * Unlike EventEmitter.emit, we force event to have type
+   * Events[K] & CrdtEvent.  This is meant to force the event
+   * types in our CrdtEventsRecord to extend CrdtEvent.
+   *
+   * @param eventName Name of the event
+   * @param event Event object to pass to the event handlers
+   */
+  protected emit<K extends keyof Events>(
+    eventName: K,
+    event: Events[K] & CrdtEvent
+  ): void {
+    super.emit(eventName, event);
+    if (eventName !== "Change") {
+      super.emit("Change", { meta: event.meta });
+    }
+  }
+
   // private needsSaving = false;
   /**
    * Callback used by this Crdt's CrdtParent to deliver
    * a message, possibly for one of this Crdt's descendants.
-   * This method calls receiveInternal and
-   * then dispatches a "Change" event.
+   * This method calls receiveInternal.
    *
    * Do not override this method; instead, override
    * receiveInternal.
@@ -178,13 +235,23 @@ export abstract class Crdt<
     message: Uint8Array
   ) {
     this.receiveInternal(targetPath, timestamp, message);
-    // this.needsSaving = true;
-    this.emit("Change", { timestamp: timestamp });
+    // While we do nothing here currently, we reserve the ability
+    // to do per-message processing in the future, e.g., dispatching a
+    // "Message" event or marking the Crdt as needing saving.
   }
 
   /**
    * Core method used to receive messages, possibly for
    * one of this Crdt's descendants.
+   *
+   * Although you may modify messages intended for your
+   * descendants (so long as you ensure eventual consistency),
+   * local messages (sent by this replica) must be delivered
+   * unchanged.  The only exception is if you are explicitly not
+   * allowing messages from that descendant
+   * (e.g., messages from deleted values in
+   * DeletingMutCSet); in that case, you should throw an error,
+   * which will prevent the operation.
    *
    * @targetPath the target Crdt's id followed by
    * the ids of its ancestors in ascending order,
@@ -204,7 +271,7 @@ export abstract class Crdt<
   /**
    * Returns the given child of this Crdt.
    * Only for use by Runtime; all others use
-   * Runtime.getCrdtByRer
+   * Runtime.getCrdtByReference.
    *
    * @param name the child's name
    */
@@ -232,7 +299,7 @@ export abstract class Crdt<
   //  * TODO: allow overriding if you know better?  Or, option
   //  * for save to return null for saveData if only children
   //  * need to be updated?  E.g. if you change a single attribute
-  //  * in a YjsCrdtSet rich text.  Although usually you'd be
+  //  * in a DeletingMutCSet rich text.  Although usually you'd be
   //  * changing characters, so this is moot.
   //  */
   // getAndResetNeedsSaving(): boolean {
@@ -306,9 +373,7 @@ export abstract class Crdt<
    * concurrently.  So make sure to account for this.
    *
    * Events should not be dispatched, since there is no
-   * associated timestamp.  An exception is events that are
-   * already not associated with timestamps, like CrdtSet
-   * ValueInit events.  This means that you cannot depend
+   * associated timestamp.  This means that you cannot depend
    * on events from children to help initialize your own
    * state (e.g., to setup cached views of child state);
    * instead, you must set that state in postLoad or load.
@@ -321,7 +386,7 @@ export abstract class Crdt<
    * you can accomplish this by initializing children in
    * the same order as they were initialized in the saved
    * state, since one child's constructor can only have
-   * received references to prior children (see YjsCrdtSet
+   * received references to prior children (see DeletingMutCSet
    * for an example).
    *
    * @return whether the descendants should be loaded now.

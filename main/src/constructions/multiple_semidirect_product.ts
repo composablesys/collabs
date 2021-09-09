@@ -13,7 +13,7 @@ import {
 import { StatefulCrdt } from "./semidirect_product";
 
 class StoredMessage {
-  message: Uint8Array;
+  message: Uint8Array | null;
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
@@ -21,20 +21,25 @@ class StoredMessage {
     readonly targetPath: string[],
     readonly timestamp: CausalTimestamp | null,
     readonly arbIndex: number, // arbitration number
-    message: Uint8Array
+    message: Uint8Array | null
   ) {
     this.message = message;
   }
 
-  setMessage(newMessage: Uint8Array) {
+  setMessage(newMessage: Uint8Array | null) {
     this.message = newMessage;
   }
 }
 
-class MultipleSemidirectState<S extends Object> {
+class MultipleSemidirectState<S extends object> {
   protected receiptCounter = 0;
-  // H maps i (arb index) -> history of messages from that CRDT
-  protected history: Map<number, Array<StoredMessage>> = new Map();
+  /**
+   * Maps a replica id to an array of messages sent by that
+   * replica, in order.  Keep in mind that per-sender message
+   * counters may not be contiguous, since they are shared between
+   * all Crdts with a given root.
+   */
+  protected history: Map<string, Array<StoredMessage>> = new Map();
   public internalState!: S;
   constructor(private readonly historyTimestamps: boolean) {}
 
@@ -49,10 +54,10 @@ class MultipleSemidirectState<S extends Object> {
     message: Uint8Array,
     arbId: number
   ) {
-    let senderHistory = this.history.get(arbId);
+    let senderHistory = this.history.get(timestamp.getSender());
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(arbId, senderHistory);
+      this.history.set(timestamp.getSender(), senderHistory);
     }
     senderHistory.push(
       new StoredMessage(
@@ -69,28 +74,11 @@ class MultipleSemidirectState<S extends Object> {
   }
 
   /**
-   * Replace message value of a given message
-   */
-  replace(arbId: number, newMessage: Uint8Array, timestamp: CausalTimestamp) {
-    let crdtHistory = this.history.get(arbId);
-    if (crdtHistory === undefined) {
-      return;
-    }
-
-    crdtHistory.forEach((msg: StoredMessage) => {
-      if (msg.timestamp == timestamp) {
-        msg.message = newMessage;
-      }
-    });
-  }
-
-  /**
    * Return all messages in the history concurrent to the given
    * timestamp, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
    * timestamp.getSender()), it is assumed that the timestamp is
-   * causally greater than all prior messages, as described in
-   * CrdtInternal.effect, hence [] is returned.
+   * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaId: string, timestamp: CausalTimestamp, arbId: number) {
     return this.processTimestamp(replicaId, timestamp, true, arbId);
@@ -124,7 +112,7 @@ class MultipleSemidirectState<S extends Object> {
     let vc = timestamp.asVectorClock();
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
-      let vcEntry = vc.get(senderHistory[0].sender);
+      let vcEntry = vc.get(historyEntry[0]);
       if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
         let concurrentIndexStart = MultipleSemidirectState.indexAfter(
@@ -174,65 +162,57 @@ class MultipleSemidirectState<S extends Object> {
   getLowerHistory(idx: number): StoredMessage[] {
     let hist: StoredMessage[] = [];
 
-    for (let i = 0; i < idx; i++) {
-      let messages = this.history.get(i);
-      if (messages) {
-        messages.forEach((msg) => {
-          if (msg.arbIndex < idx) {
-            hist.push(msg);
-          }
-        });
-      }
+    for (const messages of this.history.values()) {
+      messages.forEach((msg) => {
+        if (msg.arbIndex < idx) {
+          hist.push(msg);
+        }
+      });
     }
 
     return hist;
   }
 
-  // Binary search to find first index in array with senderCounter
-  // greater than given value
-  private static binSearch(
-    arr: Array<StoredMessage>,
-    value: number,
-    start: number,
-    end: number
-  ): number {
-    if (start >= end) return start;
-
-    let mid = Math.floor((start + end) / 2);
-
-    if (arr[mid].senderCounter > value) {
-      return this.binSearch(arr, value, start, mid - 1);
-    } else {
-      return this.binSearch(arr, value, mid + 1, end);
-    }
-  }
+  // // Binary search to find first index in array with senderCounter
+  // // greater than given value
+  // private static binSearch(
+  //   arr: Array<StoredMessage>,
+  //   value: number,
+  //   start: number,
+  //   end: number
+  // ): number {
+  //   if (start >= end) return start;
+  //
+  //   let mid = Math.floor((start + end) / 2);
+  //
+  //   if (arr[mid].senderCounter > value) {
+  //     return this.binSearch(arr, value, start, mid - 1);
+  //   } else {
+  //     return this.binSearch(arr, value, mid + 1, end);
+  //   }
+  // }
 
   private static indexAfter(
     sparseArray: Array<StoredMessage>,
     value: number
   ): number {
-    // binary search when sparseArray is large
-    // TODO: binsearch is not tested
-    // if (sparseArray.length > 100) {
-    //   return this.binSearch(sparseArray, value, 0, sparseArray.length);
-    // }
-
+    // TODO: binary search when sparseArray is large
     // Note that there may be duplicate timestamps.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
-    for (let i = 0; i < sparseArray.length; i++) {
-      if (sparseArray[i].senderCounter > value) return i;
+    for (let i = sparseArray.length - 1; i >= 0; i--) {
+      if (sparseArray[i].senderCounter <= value) return i + 1;
     }
-    return sparseArray.length;
+    return 0;
   }
 
   save(runtime: Runtime): Uint8Array {
     const historySave: {
       [sender: string]: IMultiSemidirectProductSenderHistory;
     } = {};
-    for (const [arbId, messages] of this.history) {
-      historySave[arbId] = {
+    for (const [sender, messages] of this.history) {
+      historySave[sender] = {
         messages: messages.map((message) => {
           return {
             sender: message.sender,
@@ -258,9 +238,9 @@ class MultipleSemidirectState<S extends Object> {
   load(saveData: Uint8Array, runtime: Runtime) {
     const saveMessage = MultiSemidirectProductSave.decode(saveData);
     this.receiptCounter = saveMessage.receiptCounter;
-    for (const [arbId, messages] of Object.entries(saveMessage.history)) {
+    for (const [sender, messages] of Object.entries(saveMessage.history)) {
       this.history.set(
-        parseInt(arbId),
+        sender,
         messages.messages!.map(
           (message) =>
             new StoredMessage(
@@ -275,7 +255,7 @@ class MultipleSemidirectState<S extends Object> {
                   )
                 : null,
               message.arbIndex,
-              message.message
+              message.hasOwnProperty("message") ? message.message! : null
             )
         )
       );
@@ -284,7 +264,7 @@ class MultipleSemidirectState<S extends Object> {
 }
 
 export abstract class MultipleSemidirectProduct<
-    S extends Object,
+    S extends object,
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
@@ -321,7 +301,7 @@ export abstract class MultipleSemidirectProduct<
     m2Message: Uint8Array,
     m2Index: number,
     m1TargetPath: string[],
-    m1Timestamp: CausalTimestamp,
+    m1Timestamp: CausalTimestamp | null,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
@@ -361,7 +341,8 @@ export abstract class MultipleSemidirectProduct<
       targetPath.length--;
       let crdt = this.crdts[idx];
 
-      // Act on all concurrent messages
+      // Be acted on by all concurrent messages with greater
+      // arbitration index (idx).
       let concurrent = this.state.getConcurrent(
         this.runtime.replicaId,
         timestamp,
@@ -373,24 +354,26 @@ export abstract class MultipleSemidirectProduct<
         m1Message: message,
       };
       for (let i = 0; i < concurrent.length; i++) {
-        let mActOrNull = this.action(
-          concurrent[i].targetPath,
-          concurrent[i].timestamp,
-          concurrent[i].message,
-          concurrent[i].arbIndex,
-          mAct.m1TargetPath,
-          timestamp,
-          mAct.m1Message
-        );
+        if (concurrent[i].message !== null) {
+          let mActOrNull = this.action(
+            concurrent[i].targetPath,
+            concurrent[i].timestamp,
+            concurrent[i].message!,
+            concurrent[i].arbIndex,
+            mAct.m1TargetPath,
+            timestamp,
+            mAct.m1Message
+          );
 
-        if (mActOrNull == null) return;
-        else mAct = mActOrNull;
+          if (mActOrNull == null) return;
+          else mAct = mActOrNull;
+        }
       }
 
       // mAct should act on all messages in history w/ lower order
       let hist = this.state.getLowerHistory(idx);
       hist.forEach((msg) => {
-        if (msg.timestamp) {
+        if (msg.message !== null) {
           let acted = this.action(
             mAct.m1TargetPath,
             timestamp,
@@ -402,6 +385,7 @@ export abstract class MultipleSemidirectProduct<
           );
 
           if (acted) msg.setMessage(acted.m1Message);
+          else msg.setMessage(null);
         }
       });
 
@@ -444,7 +428,7 @@ export abstract class MultipleSemidirectProduct<
     // TODO: this may spuriously return false if one of the Crdt's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Crdt's so far
-    // (e.g NumberCrdt), it ends up working because they check canGC()
+    // (e.g CNumber), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     let crdtsCanGc = true;
     this.crdts.forEach((crdt) => {

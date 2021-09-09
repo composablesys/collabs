@@ -3,13 +3,8 @@ import {
   RuntimeMessage,
   RuntimeSave,
 } from "../../generated/proto_compiled";
-import {
-  arrayAsString,
-  ElementSerializer,
-  EventEmitter,
-  stringAsArray,
-} from "../util";
-import { Crdt, CrdtEventsRecord, CrdtInitToken, Pre } from "./crdt";
+import { ElementSerializer, EventEmitter } from "../util";
+import { Crdt, CrdtEventMeta, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
   CausalTimestamp,
@@ -19,9 +14,13 @@ import {
   BroadcastNetwork,
   DefaultCausalBroadcastNetwork,
 } from "./default_causal_broadcast_network";
-import { CompositeCrdt } from "../constructions";
+import { CObject } from "../constructions";
+import {
+  BatchingStrategy,
+  ImmediateBatchingStrategy,
+} from "./batching_strategy";
 
-class RootCrdt extends CompositeCrdt {
+class RootCrdt extends CObject {
   /**
    * Exposes super.addChild publicly so Runtime can call it.
    */
@@ -44,7 +43,7 @@ class RootCrdt extends CompositeCrdt {
  * pointers.
  */
 interface BatchInfo {
-  pointers: { parent: number; name: Uint8Array }[];
+  pointers: { parent: number; name: string }[];
   pointerByCrdt: Map<Crdt, number>;
   messages: { sender: number; innerMessage: Uint8Array }[];
   firstTimestamp: CausalTimestamp;
@@ -119,20 +118,85 @@ function randomReplicaId(): string {
   return String.fromCharCode(...arr);
 }
 
+export interface RuntimeEvent {
+  readonly meta: CrdtEventMeta;
+}
+
+export interface RuntimeEventsRecord {
+  /**
+   * Emitted after the Runtime's Crdts are changed by an
+   * operation or series of operations happening in the same
+   * thread.  An easy way to keep a view in sync with the
+   * Crdt state (model) is to refresh the view each time
+   * this event is emitted.
+   *
+   * Unlike Message events, Change events are only dispatched
+   * after a sequence of messages that were sent in the same thread
+   * of execution (either locally or on another replica).
+   * This means that Crdts will be in proper, usable states,
+   * not in nonsensical, transient states like with Message events.
+   *
+   * It is not guaranteed that Change events will be emitted
+   * once per thread of execution; they may be emitted less
+   * often.  There are two distinct causes of this:
+   * - On the sending replica, Runtime cannot detect the
+   * end of an execution thread directly; instead, when the
+   * first message is sent, Runtime creates a Promise
+   * microtask to emit the event.  Other Promise microtasks
+   * might occur first and perform more operations before
+   * this microtask resolves.
+   * - On receiving replicas, each batch received on the
+   * network emits one Change event, even if the batch contains
+   * messages from multiple threads of execution.
+   */
+  Change: RuntimeEvent;
+  /**
+   * Emitted after a batch of messages is sent or
+   * received.  Each such batch corresponds to one
+   * CausalBroadcastNetwork message.
+   */
+  Batch: RuntimeEvent;
+  /**
+   * Emitted when a received message is ready for processing
+   * but blocked by our pending send batch.  It will be
+   * processed after the next call to commitBatch().
+   */
+  ReceiveBlocked: RuntimeEvent;
+  /**
+   * Emitted every time the Runtime receives a single Crdt message
+   * (including messages sent by this replica),
+   * at the end of message processing.
+   *
+   * This event should generally not be listened on.
+   * Logical operations may be composed of multiple messages,
+   * each of which emits a Message event, so when early
+   * Message events are emitted, the Runtime's Crdts may be in
+   * a nonsensical, transient state.  Instead,
+   * listen on Change events or Crdt-specific events.
+   *
+   * Note that actual
+   * messages received from the network may be batches of
+   * multiple Crdt messages.  In that case, one Message event
+   * is emitted for each of the Crdt messages.
+   */
+  Message: RuntimeEvent;
+}
+
 /**
  * TODO: usage
  */
-export class Runtime extends EventEmitter<CrdtEventsRecord> {
-  private readonly batchType: "immediate" | "manual" | "periodic";
-  private readonly batchingPeriodMs: number | undefined;
+export class Runtime extends EventEmitter<RuntimeEventsRecord> {
+  readonly isRuntime = true;
+
   private readonly network: CausalBroadcastNetwork;
   readonly replicaId: string;
+
+  private batchingStrategy: BatchingStrategy;
+  private changeEventPending = false;
 
   private readonly rootCrdt: RootCrdt;
   private pendingBatch: BatchInfo | null = null;
   private loadAllowed = true;
-
-  readonly isRuntime = true;
 
   /**
    * TODO.
@@ -143,9 +207,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    */
   constructor(
     network: BroadcastNetwork | CausalBroadcastNetwork,
-    batchOptions: "immediate" | "manual" | { periodMs: number } = {
-      periodMs: 0,
-    },
+    batchingStrategy: BatchingStrategy = new ImmediateBatchingStrategy(),
     debugReplicaId: string | undefined = undefined
   ) {
     super();
@@ -160,18 +222,16 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     } else {
       this.network = new DefaultCausalBroadcastNetwork(network);
     }
-    this.network.register(this);
+    this.network.registerRuntime(this, this.receive.bind(this), (sender) =>
+      this.emit("ReceiveBlocked", {
+        meta: CrdtEventMeta.fromSender(sender, this),
+      })
+    );
     // Create this.rootCrdt
     this.rootCrdt = new RootCrdt(new CrdtInitToken("", this));
-    this.rootCrdt.on("Change", (event) => this.emit("Change", event));
-    // Process batchOptions
-    if (typeof batchOptions === "object") {
-      this.batchType = "periodic";
-      this.batchingPeriodMs = batchOptions.periodMs;
-    } else {
-      this.batchType = batchOptions;
-      this.batchingPeriodMs = undefined;
-    }
+    // Process batchingStrategy
+    this.batchingStrategy = batchingStrategy;
+    this.batchingStrategy.start(this);
   }
 
   /**
@@ -183,8 +243,10 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     return this.rootCrdt.addChild(name, preCrdt);
   }
 
+  private currentlyProcessedTimestamp?: CausalTimestamp = undefined;
+
   /**
-   * TODO.  Used internally by PrimitiveCrdt, that's about it.
+   * TODO.  Used internally by CPrimitive, that's about it.
    * @param  sender  [description]
    * @param  message [description]
    * @return         [description]
@@ -206,11 +268,17 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       return;
     }
 
+    if (this.currentlyProcessedTimestamp !== undefined) {
+      // send inside a receive call; not allowed (might break things).
+      throw new Error(
+        "Runtime.send called during another message's receive;" +
+          " did you try to perform an operation in an event handler?"
+      );
+    }
+
     // TODO: reuse batchInfo, to avoid object creation?
     let timestamp: CausalTimestamp;
-    let newBatch: boolean;
     if (this.pendingBatch === null) {
-      newBatch = true;
       timestamp = this.network.beginBatch();
       this.pendingBatch = {
         pointers: [],
@@ -220,7 +288,6 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         previousTimestamp: timestamp,
       };
     } else {
-      newBatch = false;
       timestamp = this.network.nextTimestamp(
         this.pendingBatch.previousTimestamp
       );
@@ -240,11 +307,15 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     });
     this.pendingBatch.previousTimestamp = timestamp;
 
-    if (this.batchType === "immediate") {
-      // Send immediately
-      this.commitBatch();
-    } else if (newBatch && this.batchType === "periodic") {
-      setTimeout(() => this.commitBatch(), this.batchingPeriodMs!);
+    this.emit("Message", { meta: CrdtEventMeta.local(this) });
+    // Schedule a Change event as a microtask, if there
+    // is not one pending already.
+    if (!this.changeEventPending) {
+      this.changeEventPending = true;
+      Promise.resolve().then(() => {
+        this.changeEventPending = false;
+        this.emit("Change", { meta: CrdtEventMeta.local(this) });
+      });
     }
   }
 
@@ -269,15 +340,23 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     let newPointer = this.pendingBatch!.pointers.length + 1;
     this.pendingBatch!.pointers.push({
       parent: parentPointer,
-      name: stringAsArray(to.name),
+      name: to.name,
     });
     this.pendingBatch!.pointerByCrdt.set(to, newPointer);
     return newPointer;
   }
 
+  setBatchingStrategy(batchingStrategy: BatchingStrategy) {
+    this.batchingStrategy.stop();
+    this.batchingStrategy = batchingStrategy;
+    this.batchingStrategy.start(this);
+  }
+
   /**
-   * TODO.  Mostly for manual batching, but can be
+   * TODO.  Mostly for BatchingStrategy, but can be
    * called whenever if you want immediate sending.
+   * Don't call it in the middle of a multi-message Crdt
+   * operation though.
    * @return [description]
    */
   commitBatch() {
@@ -301,6 +380,9 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       batch.firstTimestamp,
       batch.previousTimestamp
     );
+    this.emit("Batch", {
+      meta: CrdtEventMeta.local(this),
+    });
   }
 
   /**
@@ -308,7 +390,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    *
    * Returns the CausalTimestamp of the last message processed.
    */
-  receive(
+  private receive(
     message: Uint8Array,
     firstTimestamp: CausalTimestamp
   ): CausalTimestamp {
@@ -329,7 +411,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     let pathToRoots: string[][] = [[]];
     for (let i = 0; i < decoded.pointerParents.length; i++) {
       pathToRoots.push([
-        arrayAsString(decoded.pointerNames[i]),
+        decoded.pointerNames[i],
         ...pathToRoots[decoded.pointerParents[i]],
       ]);
     }
@@ -346,6 +428,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
           timestamp,
           decoded.innerMessages[i]
         );
+        this.emit("Message", { meta: CrdtEventMeta.fromTimestamp(timestamp) });
       } catch (e) {
         // TODO: handle gracefully
         throw e;
@@ -353,6 +436,13 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
         this.currentlyProcessedTimestamp = undefined;
       }
     }
+
+    this.emit("Change", {
+      meta: CrdtEventMeta.fromSender(firstTimestamp.getSender(), this),
+    });
+    this.emit("Batch", {
+      meta: CrdtEventMeta.fromSender(firstTimestamp.getSender(), this),
+    });
     return timestamp;
   }
 
@@ -368,6 +458,33 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       if (ensureLoaded) {
         // Ensure currentCrdt is loaded before asking it
         // for a child.
+        // In doing so, we are careful to avoid creating circular
+        // dependencies, in which loading currentCrdt deserializes
+        // a Crdt reference that loads a Crdt that deserializes
+        // ... in a cycle.  To do so, we don't load Crdts
+        // before returning them; we only load their
+        // ancestors (necessary because loading is a
+        // prerequisite to calling getChild).  This loading
+        // is expected to construct, but not load, the
+        // children.  Constructing these children may
+        // require calling getCrdtByReference on other Crdts,
+        // but only ones that existed causally prior to the
+        // children's construction.  Thus loops are avoided
+        // because the causal order has no loops.
+        //
+        // There is still the possibility of long
+        // dependency chains, e.g., every character in a text
+        // document causing this line of code to be reached
+        // in reference to its previous character.  Such chains
+        // could easily overflow the stack, which might support
+        // only ~100,000 function calls.
+        // To mitigate this, in classes like DeletingMutCSet that
+        // construct many children during loading, we
+        // deliberately construct the children in causal order,
+        // so that any intra-set dependencies are resolved in
+        // order (iterately instead of recursively).  Long
+        // inter-Crdt dependency chains that circumvent this
+        // strategy are possible but seem unlikely.
         this.loadOneIfNeeded(currentCrdt);
       }
       currentCrdt = currentCrdt.getChild(pathToRoot[i]);
@@ -456,7 +573,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     const [saveData, children] = crdt.save();
     const crdtPointer = saves.length + 1;
     const name = crdt === this.rootCrdt ? "" : crdt.name;
-    saves.push({ parentPointer, name: stringAsArray(name), saveData });
+    saves.push({ parentPointer, name, saveData });
     // Recurse
     for (let child of children.values()) {
       this.saveRecursive(child, crdtPointer, saves);
@@ -467,7 +584,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
    * Defined so long as load() has been called,
    * but empties as it is used (possibly by delayed loads).
    */
-  private loadHelper?: LoadHelper;
+  private loadHelper?: LoadHelper = undefined;
   private inLoad = false;
 
   /**
@@ -515,7 +632,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
           // It's not rootCrdt, hence has a parent
           this.loadHelper.childrenById
             .get(oneSave.parentPointer)!
-            .set(arrayAsString(oneSave.name), id);
+            .set(oneSave.name, id);
         }
       }
       // Load the root
@@ -617,7 +734,7 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
     }
   }
 
-  private delayedLoadCrdt?: Crdt;
+  private delayedLoadCrdt?: Crdt = undefined;
   /**
    * TODO: generally this will only be called by crdt
    * itself.
@@ -651,29 +768,17 @@ export class Runtime extends EventEmitter<CrdtEventsRecord> {
       this.loadDescendants(crdt, this.loadHelper!.idsByCrdt.get(crdt)!, false);
       // TODO: check loadHelper state has been properly cleaned up.
     } finally {
-      delete this.delayedLoadCrdt;
+      this.delayedLoadCrdt = undefined;
     }
   }
 
   private inRunLocally = false;
-  private currentlyProcessedTimestamp: CausalTimestamp | undefined = undefined;
   /**
    * TODOs: generally check this makes sense;
    * harden against repeated timestamps;
    * sample ops; currently not discoverable;
-   *
-   * timestamp is just here to force you to use
-   * this only when processing a raw message.
-   * It's only used for bug-catching (compared to
-   * the real timestamp).
    */
-  runLocally<T>(timestamp: CausalTimestamp, doPureOps: () => T): T {
-    if (timestamp !== this.currentlyProcessedTimestamp) {
-      throw new Error(
-        "Wrong timestamp passed to runLocally;" +
-          " it must be from a current receive... call"
-      );
-    }
+  runLocally<T>(doPureOps: () => T): T {
     let oldInRunLocally = this.inRunLocally;
     this.inRunLocally = true;
     const toReturn = doPureOps();

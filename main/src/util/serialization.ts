@@ -4,10 +4,13 @@ import {
   CrdtReference,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
+  IOptionalSerializerMessage,
   ObjectMessage,
+  OptionalSerializerMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Buffer } from "buffer";
+import { Optional } from "./optional";
 
 /**
  * A serializer for elements (keys, values, etc.) in Crdt collections,
@@ -59,7 +62,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         } else if (value instanceof Crdt) {
           message = {
             crdtValue: CrdtReference.create({
-              pathToBase: value.pathToRoot().map(stringAsArray),
+              pathToBase: value.pathToRoot(),
             }),
           };
         } else if (value instanceof Uint8Array) {
@@ -111,9 +114,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         ans = null;
         break;
       case "crdtValue":
-        ans = runtime.getCrdtByReference(
-          decoded.crdtValue!.pathToBase!.map(arrayAsString)
-        );
+        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToBase!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
@@ -191,19 +192,19 @@ export class SingletonSerializer<T> implements ElementSerializer<[T]> {
 }
 
 /**
- * Serializes strings using stringAsArray.  This is necessary
+ * Serializes strings using stringAsBytes.  This is necessary
  * for strings that have been created from byte arrays using
- * arrayAsString, since those might not be UTF-8.
+ * bytesAsString, since those might not be UTF-8.
  */
 export class StringAsArraySerializer implements ElementSerializer<string> {
   private constructor() {}
 
   serialize(value: string): Uint8Array {
-    return stringAsArray(value);
+    return stringAsBytes(value);
   }
 
   deserialize(message: Uint8Array, _runtime: Runtime): string {
-    return arrayAsString(message);
+    return bytesAsString(message);
   }
 
   static instance = new StringAsArraySerializer();
@@ -273,24 +274,74 @@ export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
       pathToBase.push(current.name);
     }
     const message = CrdtReference.create({
-      pathToBase: pathToBase.map(stringAsArray),
+      pathToBase,
     });
     return CrdtReference.encode(message).finish();
   }
 
   deserialize(message: Uint8Array, runtime: Runtime): C {
     const decoded = CrdtReference.decode(message);
-    return runtime.getCrdtByReference(
-      decoded.pathToBase!.map(arrayAsString),
-      this.base
-    ) as C;
+    return runtime.getCrdtByReference(decoded.pathToBase!, this.base) as C;
   }
 }
 
-const ENCODING: "latin1" = "latin1";
-export function arrayAsString(array: Uint8Array) {
+export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
+  private constructor(private readonly valueSerializer: ElementSerializer<T>) {}
+
+  serialize(value: Optional<T>): Uint8Array {
+    const imessage: IOptionalSerializerMessage = {};
+    if (value.isPresent) {
+      imessage.valueIfPresent = this.valueSerializer.serialize(value.get());
+    }
+    const message = OptionalSerializerMessage.create(imessage);
+    return OptionalSerializerMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array, runtime: Runtime): Optional<T> {
+    const decoded = OptionalSerializerMessage.decode(message);
+    if (decoded.hasOwnProperty("valueIfPresent")) {
+      return Optional.of(
+        this.valueSerializer.deserialize(decoded.valueIfPresent, runtime)
+      );
+    } else return Optional.empty();
+  }
+
+  // Weak in both keys and values.
+  private static cache = new WeakMap<
+    ElementSerializer<any>,
+    WeakRef<OptionalSerializer<any>>
+  >();
+
+  static of<T>(valueSerializer: ElementSerializer<T>): OptionalSerializer<T> {
+    const existingWeak = OptionalSerializer.cache.get(valueSerializer);
+    if (existingWeak !== undefined) {
+      const existing = existingWeak.deref();
+      if (existing !== undefined) return existing;
+    }
+    const ret = new OptionalSerializer(valueSerializer);
+    OptionalSerializer.cache.set(valueSerializer, new WeakRef(ret));
+    return ret;
+  }
+}
+
+const ENCODING: "base64" = "base64";
+export function bytesAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);
 }
-export function stringAsArray(str: string) {
+export function stringAsBytes(str: string) {
   return new Uint8Array(Buffer.from(str, ENCODING));
+}
+
+/**
+ * Apply this function to protobuf.js [u/s]int64 output values
+ * to convert them to the nearest JS number (double).
+ * For safe integers, this is exact.
+ *
+ * In theory you can "request" protobuf.js to not use
+ * longs by not depending on the Long library, but that is
+ * flaky because one of our dependencies might import it.
+ */
+export function int64AsNumber(num: number | Long): number {
+  if (typeof num === "number") return num;
+  else return num.toNumber();
 }

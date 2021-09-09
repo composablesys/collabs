@@ -2,18 +2,16 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./aspace.html").default;
-
   const WIN_TEXT = (function () {
     let ans = "a";
     for (let i = 0; i < 29; i++) ans += " a";
     return ans;
   })();
 
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
-    periodMs: 200,
-  });
+  const runtime = await ContainerRuntimeSource.newRuntime(
+    window.parent,
+    new crdts.RateLimitBatchingStrategy(200)
+  );
 
   const text = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
   const startTime = runtime.registerCrdt(
@@ -28,7 +26,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   const textInput = document.getElementById("textInput") as HTMLInputElement;
   textInput.value = "";
 
-  const myCursor = text.newCursor(0);
+  const myCursor = new crdts.LocalCursor(text, 0);
   function updateCursor() {
     const index = myCursor.index;
     textInput.selectionStart = index;
@@ -89,7 +87,7 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 
   // Respond to text changes
   text.on("Change", () => {
-    textInput.value = text.join("");
+    textInput.value = text.toString();
     updateCursor();
   });
 

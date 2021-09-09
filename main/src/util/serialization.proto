@@ -1,5 +1,5 @@
 message CrdtReference {
-    repeated bytes pathToBase = 1;
+    repeated string pathToBase = 1;
 }
 
 message ArrayMessage {
@@ -27,4 +27,8 @@ message DefaultSerializerMessage {
 message PairSerializerMessage {
   required bytes one = 1;
   required bytes two = 2;
+}
+
+message OptionalSerializerMessage {
+  optional bytes valueIfPresent = 1;
 }

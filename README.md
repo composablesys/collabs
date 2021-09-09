@@ -99,6 +99,19 @@ See [Prettier's editor setup instructions](https://prettier.io/docs/en/editors.h
 
 If you don't set this, you'll need to run `npm run fix` in the top-level directory before committing and pushing your code to github. Otherwise, the CI will complain that the format is wrong.
 
+## Module support
+
+All packages that are libraries meant to be used in a browser
+compile to both ESM and CommonJS modules. This means that they
+should work both with bundlers like Webpack (permitting intelligent
+tree shaking) and Node.js.
+
+Although the ESM builds are .js files, they cannot be used directly
+in a browser; they require a bundler like Webpack. This is
+because TypeScript does not add .js file extensions to import
+statements, nor does it expand directory imports to include
+"/index.js".
+
 ## License
 
 Licensed under Apache 2.0.

@@ -2,8 +2,8 @@ import {
   AggregateArgsCRegisterMessage,
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
-import { PrimitiveCrdt } from "../../constructions";
-import { CausalTimestamp, CrdtInitToken } from "../../core";
+import { CPrimitive } from "../../constructions";
+import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
 import {
   DefaultElementSerializer,
   ElementSerializer,
@@ -43,11 +43,11 @@ export abstract class AggregateArgsCRegister<
     S = T,
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
-  extends PrimitiveCrdt<Events>
+  extends CPrimitive<Events>
   implements CRegister<T, SetArgs>
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];
-  private cachedValue: T | undefined = undefined;
+  private cachedValue?: T = undefined;
   private cacheValid: boolean = false;
 
   constructor(
@@ -118,7 +118,10 @@ export abstract class AggregateArgsCRegister<
     this.cacheValid = false;
     this.cachedValue = undefined;
 
-    this.emit("Set", { timestamp, previousValue });
+    this.emit("Set", {
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      previousValue,
+    });
   }
 
   private constructValue(argsSerialized: Uint8Array): S {
@@ -168,6 +171,13 @@ export abstract class AggregateArgsCRegister<
   conflictsMeta(): CRegisterEntryMeta<S>[] {
     // Defensive copy
     return this.entries.slice();
+  }
+
+  /**
+   * @return this.value + ""
+   */
+  toString(): string {
+    return this.value + "";
   }
 
   canGc(): boolean {

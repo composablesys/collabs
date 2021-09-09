@@ -1,13 +1,42 @@
 import {
+  BatchingStrategy,
   BroadcastNetwork,
+  CrdtEvent,
   DefaultCausalBroadcastNetwork,
   Runtime,
 } from "../core";
+import { Unsubscribe } from "./event_emitter";
+
+/**
+ * For testing or special purposes only.  Sends each message
+ * immediately as its own batch.
+ */
+export class TestingBatchingStrategy implements BatchingStrategy {
+  private runtime?: Runtime = undefined;
+  private unsubscribe?: Unsubscribe = undefined;
+
+  start(runtime: Runtime): void {
+    this.runtime = runtime;
+    this.unsubscribe = this.runtime.on("Message", this.onmessage.bind(this));
+  }
+
+  stop(): void {
+    this.unsubscribe!();
+    this.runtime = undefined;
+    this.unsubscribe = undefined;
+  }
+
+  private onmessage(event: CrdtEvent) {
+    if (event.meta.isLocal) {
+      this.runtime!.commitBatch();
+    }
+  }
+}
 
 export class TestingNetwork implements BroadcastNetwork {
   sentBytes = 0;
   receivedBytes = 0;
-  onReceive!: (message: Uint8Array) => void;
+  onreceive!: (message: Uint8Array) => void;
   constructor(private generator: TestingNetworkGenerator) {}
   send(message: Uint8Array): void {
     this.sentBytes += message.byteLength;
@@ -63,11 +92,11 @@ export class TestingNetworkGenerator {
    * @return              [description]
    */
   newRuntime(
-    batchOptions: "immediate" | "manual" | { periodMs: number } = "immediate",
+    batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
     rng: seedrandom.prng | undefined = undefined
   ) {
     let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;
-    return new Runtime(this.newNetwork(), batchOptions, replicaId);
+    return new Runtime(this.newNetwork(), batchingStrategy, replicaId);
   }
   newNetwork() {
     let network = new TestingNetwork(this);
@@ -101,7 +130,7 @@ export class TestingNetworkGenerator {
       if (recipient === sender) continue;
       for (let queued of senderMap.get(recipient)!) {
         recipient.receivedBytes += queued.byteLength;
-        recipient.onReceive!(queued);
+        recipient.onreceive!(queued);
       }
       senderMap.set(recipient, []);
     }
@@ -122,5 +151,5 @@ export class TestingNetworkGenerator {
     return ret;
   }
 
-  lastMessage: Uint8Array | undefined = undefined;
+  lastMessage?: Uint8Array = undefined;
 }

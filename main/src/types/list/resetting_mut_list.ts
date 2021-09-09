@@ -2,31 +2,23 @@ import { Resettable } from "../../abilities";
 import { Crdt, CrdtInitToken, Pre } from "../../core";
 import { MergingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";
-import {
-  TreedocDenseLocalList,
-  TreedocLocWrapper,
-} from "./treedoc_dense_local_list";
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
 export class ResettingMutCList<C extends Crdt & Resettable>
   extends CListFromMap<
     C,
     [],
-    TreedocLocWrapper,
-    MergingMutCMap<TreedocLocWrapper, C>,
-    TreedocDenseLocalList<undefined>
+    RgaLoc,
+    MergingMutCMap<RgaLoc, C>,
+    RgaDenseLocalList<undefined>
   >
   implements Resettable
 {
   constructor(
     initToken: CrdtInitToken,
-    valueConstructor: (
-      valueInitToken: CrdtInitToken,
-      loc: TreedocLocWrapper
-    ) => C
+    valueConstructor: (valueInitToken: CrdtInitToken, loc: RgaLoc) => C
   ) {
-    const denseLocalList = new TreedocDenseLocalList<undefined>(
-      initToken.runtime
-    );
+    const denseLocalList = new RgaDenseLocalList<undefined>(initToken.runtime);
     super(
       initToken,
       Pre(MergingMutCMap)(valueConstructor, denseLocalList),
@@ -53,7 +45,7 @@ export class ResettingMutCList<C extends Crdt & Resettable>
   indexOf(searchElement: C, fromIndex = 0): number {
     const loc = this.internalMap.keyOf(searchElement);
     if (loc !== undefined) {
-      const index = this.denseLocalList.indexOf(loc)!;
+      const index = this.denseLocalList.locate(loc)[0];
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }

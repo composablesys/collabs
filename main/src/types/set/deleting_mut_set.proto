@@ -11,7 +11,7 @@ message DeletingMutCSetMessage {
 }
 
 message DeletingMutCSetArgs {
-  required bytes name = 1;
+  required string name = 1;
   required bytes args = 2;
 }
 

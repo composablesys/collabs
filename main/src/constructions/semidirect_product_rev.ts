@@ -10,7 +10,7 @@ import {
   Runtime,
 } from "../core";
 import { DefaultElementSerializer, ElementSerializer } from "../util";
-import { CompositeCrdt } from "./composite_crdt";
+import { CObject } from "./object";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?
@@ -107,8 +107,7 @@ export class MessageHistory<Events extends CrdtEventsRecord> {
    * timestamp, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
    * timestamp.getSender()), it is assumed that the timestamp is
-   * causally greater than all prior messages, as described in
-   * CrdtInternal.effect, hence [] is returned.
+   * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaId: string, timestamp: CausalTimestamp) {
     return this.processTimestamp(
@@ -226,10 +225,10 @@ export class MessageHistory<Events extends CrdtEventsRecord> {
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
-    for (let i = 0; i < sparseArray.length; i++) {
-      if (sparseArray[i].senderCounter > value) return i;
+    for (let i = sparseArray.length - 1; i >= 0; i--) {
+      if (sparseArray[i].senderCounter <= value) return i + 1;
     }
-    return sparseArray.length;
+    return 0;
   }
 
   addMessageEvent(messageId: string, eventName: string, event: any) {
@@ -342,7 +341,7 @@ export abstract class SemidirectProductRev<
   m2Args extends Array<any> = [],
   m1Ret extends any | void = any | void,
   m2Ret extends any | void = any | void
-> extends CompositeCrdt<Events, C> {
+> extends CObject<Events, C> {
   protected history = new MessageHistory(false, false, false);
   private receivedMessages = false;
   private m2Id = "";
@@ -467,7 +466,7 @@ export abstract class SemidirectProductRev<
               else mAct = mActOrNull;
             }
           }
-          this.m1RetVal = this.runtime.runLocally(timestamp, () => {
+          this.m1RetVal = this.runtime.runLocally(() => {
             return this._m1!(...(mAct.m1Message as m1Start<m1Args>).args);
           });
           return;
@@ -478,7 +477,7 @@ export abstract class SemidirectProductRev<
             timestamp,
             message
           );
-          this.m2RetVal = this.runtime.runLocally(timestamp, () => {
+          this.m2RetVal = this.runtime.runLocally(() => {
             return this._m2!(...(semidirectMessage as m2Start<m2Args>).args);
           });
           return;
@@ -508,7 +507,7 @@ export abstract class SemidirectProductRev<
     // TODO: this may spuriously return false if one of the Crdt's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Crdt's so far
-    // (e.g NumberCrdt), it ends up working because they check canGC()
+    // (e.g CNumber), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
     return this.history.isHistoryEmpty() && super.canGc();
   }

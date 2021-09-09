@@ -104,7 +104,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       let runtimes: crdts.Runtime[] = [];
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
-        runtimes[i] = generator.newRuntime("manual", replicaIdRng);
+        runtimes[i] = generator.newRuntime(
+          new crdts.ManualBatchingStrategy(),
+          replicaIdRng
+        );
         crdtList[i] = runtimes[i].registerCrdt("", this.crdtConstructor);
       }
 
@@ -145,6 +148,11 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               // Just save and load user 0
               let beforeSave: Object;
               if (DEBUG) beforeSave = this.getState(crdtList[0]);
+              // We add sleeps between measured things to make
+              // them more independent; before adding this,
+              // I've noticed changes to
+              // save code that affected load times.
+              await sleep(1000);
               const saveStartTime = process.hrtime.bigint();
               const saveData = runtimes[0].save();
               const saveTime = new Number(
@@ -153,11 +161,16 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
               if (this.crdtDestructor !== undefined) {
                 this.crdtDestructor(crdtList[0]);
               }
+              await sleep(1000);
               // Create a new runtime etc. for user 0, then load
               const loadStartTime = process.hrtime.bigint();
-              runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+              runtimes[0] = generator.newRuntime(
+                new crdts.ManualBatchingStrategy(),
+                replicaIdRng
+              );
               crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
               runtimes[0].load(saveData);
+              this.getState(crdtList[0]); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
               ).valueOf();
@@ -213,6 +226,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           break;
         case "save":
           // Just save and load user 0
+          await sleep(1000);
           const saveStartTime = process.hrtime.bigint();
           const saveData = runtimes[0].save();
           const saveTime = new Number(
@@ -222,11 +236,16 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
             this.crdtDestructor(crdtList[0]);
           }
           crdtList[0] = undefined as unknown as C;
+          await sleep(1000);
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
-          runtimes[0] = generator.newRuntime("manual", replicaIdRng);
+          runtimes[0] = generator.newRuntime(
+            new crdts.ManualBatchingStrategy(),
+            replicaIdRng
+          );
           crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
           runtimes[0].load(saveData);
+          this.getState(crdtList[0]); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
           ).valueOf();
@@ -293,7 +312,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
  * A trivial Crdt that does nothing except send
  * empty messages.  Used for baseline measurements.
  */
-class NoopCrdtClass extends crdts.PrimitiveCrdt {
+class NoopCrdtClass extends crdts.CPrimitive {
   noop() {
     super.send(new Uint8Array());
   }
@@ -321,7 +340,7 @@ function NoopCrdt() {
 }
 
 function DeepNoopCrdt() {
-  class DeepNoopCrdt extends crdts.CompositeCrdt {
+  class DeepNoopCrdt extends crdts.CObject {
     readonly child: crdts.Crdt;
     readonly noop: NoopCrdtClass;
     constructor(initToken: crdts.CrdtInitToken, index: number) {
@@ -647,10 +666,10 @@ function LwwMapRollingGrow() {
   );
 }
 
-function PrimitiveCListLtr() {
+function TextLtr() {
   return new MicroCrdtsBenchmark(
     "TextLtr",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -664,10 +683,10 @@ function PrimitiveCListLtr() {
   );
 }
 
-function PrimitiveCListLtrGrow() {
+function TextLtrGrow() {
   return new MicroCrdtsBenchmark(
     "TextLtrGrow",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -680,10 +699,10 @@ function PrimitiveCListLtrGrow() {
   );
 }
 
-function PrimitiveCListRandom() {
+function TextRandom() {
   return new MicroCrdtsBenchmark(
     "TextRandom",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -698,86 +717,10 @@ function PrimitiveCListRandom() {
   );
 }
 
-function PrimitiveCListRandomGrow() {
+function TextRandomGrow() {
   return new MicroCrdtsBenchmark(
     "TextRandomGrow",
-    (initToken) => new crdts.PrimitiveCList<string>(initToken),
-    {
-      Op: [
-        (crdt, rng) => {
-          crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function rgaCrdtConstructor(initToken: crdts.CrdtInitToken) {
-  return new crdts.PrimitiveCListFromDenseLocalList(
-    initToken,
-    new crdts.RgaDenseLocalList<string>(initToken.runtime),
-    crdts.TextSerializer.instance,
-    crdts.TextArraySerializer.instance
-  );
-}
-
-function RgaLtr() {
-  return new MicroCrdtsBenchmark(
-    "RgaLtr",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
-          else crdt.insert(crdt.length, randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function RgaLtrGrow() {
-  return new MicroCrdtsBenchmark(
-    "RgaLtrGrow",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          crdt.insert(crdt.length, randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function RgaRandom() {
-  return new MicroCrdtsBenchmark(
-    "RgaRandom",
-    rgaCrdtConstructor,
-    {
-      Op: [
-        (crdt, rng) => {
-          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
-          else
-            crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
-        },
-        1.0,
-      ],
-    },
-    (crdt) => crdt.slice()
-  );
-}
-
-function RgaRandomGrow() {
-  return new MicroCrdtsBenchmark(
-    "RgaRandomGrow",
-    rgaCrdtConstructor,
+    (initToken) => new crdts.CText(initToken),
     {
       Op: [
         (crdt, rng) => {
@@ -897,28 +840,16 @@ export default async function microCrdts(args: string[]) {
       benchmark = LwwMapRollingGrow();
       break;
     case "TextLtr":
-      benchmark = PrimitiveCListLtr();
+      benchmark = TextLtr();
       break;
     case "TextRandom":
-      benchmark = PrimitiveCListRandom();
+      benchmark = TextRandom();
       break;
     case "TextLtrGrow":
-      benchmark = PrimitiveCListLtrGrow();
+      benchmark = TextLtrGrow();
       break;
     case "TextRandomGrow":
-      benchmark = PrimitiveCListRandomGrow();
-      break;
-    case "RgaLtr":
-      benchmark = RgaLtr();
-      break;
-    case "RgaRandom":
-      benchmark = RgaRandom();
-      break;
-    case "RgaLtrGrow":
-      benchmark = RgaLtrGrow();
-      break;
-    case "RgaRandomGrow":
-      benchmark = RgaRandomGrow();
+      benchmark = TextRandomGrow();
       break;
     case "TensorCounter":
       benchmark = ITensor("TensorCounter", [2, 2], "int32", 0);

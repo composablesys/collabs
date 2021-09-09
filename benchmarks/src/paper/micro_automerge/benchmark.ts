@@ -127,6 +127,11 @@ class MicroAutomergeBenchmark {
               ans[measurement] = totalSentBytes - startSentBytes;
               break;
             case "save":
+              // We add sleeps between measured things to make
+              // them more independent; before adding this,
+              // I've noticed changes to
+              // save code that affected load times.
+              await sleep(1000);
               // Just save and load user 0
               const saveStartTime = process.hrtime.bigint();
               const saveData = Automerge.save(automerges[0]);
@@ -134,6 +139,7 @@ class MicroAutomergeBenchmark {
                 process.hrtime.bigint() - saveStartTime!
               ).valueOf();
               automerges[0] = undefined;
+              await sleep(1000);
               // Create a new Automerge doc for user 0, then load
               const loadStartTime = process.hrtime.bigint();
               automerges[0] = Automerge.load(saveData);
@@ -197,6 +203,7 @@ class MicroAutomergeBenchmark {
           result[measurement] = totalSentBytes - startSentBytes;
           break;
         case "save":
+          await sleep(1000);
           // Just save and load user 0
           const saveStartTime = process.hrtime.bigint();
           const saveData = Automerge.save(automerges[0]);
@@ -204,6 +211,7 @@ class MicroAutomergeBenchmark {
             process.hrtime.bigint() - saveStartTime!
           ).valueOf();
           automerges[0] = undefined;
+          await sleep(1000);
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
           automerges[0] = Automerge.load(saveData);

@@ -1,4 +1,4 @@
-import { CompositeCrdt, PrimitiveCrdt } from "../../constructions";
+import { CObject, CPrimitive } from "../../constructions";
 import { Crdt, CrdtInitToken } from "../../core";
 import { CList, CListEventsRecord } from "./interfaces";
 
@@ -23,6 +23,10 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
+  /**
+   * @return [...this].toString()
+   */
+  toString(): string;
 
   // Convenience mutators
   pop(): T;
@@ -139,7 +143,7 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCListPrimitiveCrdt and the other examples
+ * by AbstractCListCPrimitive and the other examples
  * in this file.
  */
 export function MakeAbstractCList<
@@ -184,6 +188,10 @@ export function MakeAbstractCList<
         yield [i, value];
         i++;
       }
+    }
+
+    toString(): string {
+      return [...this].toString();
     }
 
     // Convenience mutators
@@ -478,25 +486,24 @@ export function MakeAbstractCList<
   return Mixin as any;
 }
 
-export const AbstractCListCompositeCrdt = MakeAbstractCList(
-  CompositeCrdt
-) as abstract new <
+export const AbstractCListCObject = MakeAbstractCList(CObject) as abstract new <
   T,
   InsertArgs extends any[],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>,
+  C extends Crdt = Crdt
 >(
   initToken: CrdtInitToken
-) => AbstractCList<T, InsertArgs> & CompositeCrdt<Events>;
+) => AbstractCList<T, InsertArgs> & CObject<Events, C>;
 
-export const AbstractCListPrimitiveCrdt = MakeAbstractCList(
-  PrimitiveCrdt
+export const AbstractCListCPrimitive = MakeAbstractCList(
+  CPrimitive
 ) as abstract new <
   T,
   InsertArgs extends any[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
   initToken: CrdtInitToken
-) => AbstractCList<T, InsertArgs> & PrimitiveCrdt<Events>;
+) => AbstractCList<T, InsertArgs> & CPrimitive<Events>;
 
 export const AbstractCListCrdt = MakeAbstractCList(Crdt) as abstract new <
   T,

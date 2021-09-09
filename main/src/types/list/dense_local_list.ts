@@ -1,8 +1,6 @@
 import { ElementSerializer } from "../../util";
 import { CausalTimestamp } from "../../core";
 
-// TODO: stuff for cursors (exposing raw locs)
-
 /**
  * Ops can assume causal order.
  *
@@ -71,6 +69,16 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   createNewLocs(index: number, count: number): L[];
 
   /**
+   * Like createNewLocs, but called just after initialization,
+   * and the locs you return should be the same on all replicas.
+   * This is used for adding initial values to a list in
+   * its constructor.
+   * @param  count [description]
+   * @return       [description]
+   */
+  createInitialLocs(count: number): L[];
+
+  /**
    * Set the value at loc.  loc may be new (received
    * from another replica), it may already be present,
    * or it may have previously been present but been
@@ -98,7 +106,19 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
 
   readonly length: number;
 
-  indexOf(loc: L): number | undefined;
+  /**
+   * If loc is currently present, returns [its current index,
+   * true].  Else returns [the index where it would be if
+   * it were restored, false].
+   *
+   * Equivalently, returns [index of the least location that
+   * is >= the given location (possibly this.length), whether
+   * the location is present].
+   *
+   * @param  loc [description]
+   * @return     [description]
+   */
+  locate(loc: L): [index: number, isPresent: boolean];
 
   values(): IterableIterator<T>;
 
@@ -124,7 +144,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * (and then change PrimitiveList's protobuf encoding
    * from sint to uint),
    * but for now we don't require this because
-   * Treedoc can give negative values.
+   * Rga can give negative values.
    *
    * Must work on (just) deleted locs.
    * @param  loc [description]

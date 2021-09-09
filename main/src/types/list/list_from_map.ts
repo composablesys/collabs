@@ -1,15 +1,20 @@
 import { CrdtInitToken, Pre } from "../../core";
+import { ElementSerializer } from "../../util";
 import { CMap } from "../map";
-import { AbstractCListCompositeCrdt } from "./abstract_list";
+import { AbstractCListCObject } from "./abstract_list";
+import { LocatableCList } from "./cursor";
 import { DenseLocalList } from "./dense_local_list";
 
 export class CListFromMap<
-  T,
-  InsertArgs extends any[],
-  L,
-  MapT extends CMap<L, T, InsertArgs>,
-  DenseT extends DenseLocalList<L, undefined>
-> extends AbstractCListCompositeCrdt<T, InsertArgs> {
+    T,
+    InsertArgs extends any[],
+    L,
+    MapT extends CMap<L, T, InsertArgs>,
+    DenseT extends DenseLocalList<L, undefined>
+  >
+  extends AbstractCListCObject<T, InsertArgs>
+  implements LocatableCList<L, T, InsertArgs>
+{
   protected readonly internalMap: MapT;
 
   constructor(
@@ -36,7 +41,7 @@ export class CListFromMap<
         this.emit("Insert", {
           startIndex,
           count: 1,
-          timestamp: event.timestamp,
+          meta: event.meta,
         });
       }
     });
@@ -46,7 +51,7 @@ export class CListFromMap<
         startIndex,
         count: 1,
         deletedValues: [event.deletedValue],
-        timestamp: event.timestamp,
+        meta: event.meta,
       });
     });
   }
@@ -73,6 +78,18 @@ export class CListFromMap<
 
   get(index: number): T {
     return this.internalMap.get(this.denseLocalList.getLoc(index))!;
+  }
+
+  getLocation(index: number): L {
+    return this.denseLocalList.getLoc(index);
+  }
+
+  locate(location: L): [index: number, isPresent: boolean] {
+    return this.denseLocalList.locate(location);
+  }
+
+  get locationSerializer(): ElementSerializer<L> {
+    return this.denseLocalList;
   }
 
   *values(): IterableIterator<T> {

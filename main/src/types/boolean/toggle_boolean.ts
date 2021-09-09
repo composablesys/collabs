@@ -1,11 +1,11 @@
-import { PrimitiveCrdt } from "../../constructions";
-import { CausalTimestamp, CrdtInitToken } from "../../core";
+import { CPrimitive } from "../../constructions";
+import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 import { CBoolean } from "./interfaces";
 
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCrdt)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(CPrimitive)<CRegisterEventsRecord<boolean>>
   implements CBoolean
 {
   private valueInternal: boolean;
@@ -34,7 +34,10 @@ export class ToggleCBoolean
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
     this.valueInternal = !this.valueInternal;
-    this.emit("Set", { timestamp, previousValue: !this.valueInternal });
+    this.emit("Set", {
+      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      previousValue: !this.valueInternal,
+    });
   }
 
   protected savePrimitive(): Uint8Array {

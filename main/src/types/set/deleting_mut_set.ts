@@ -3,15 +3,14 @@ import {
   DeletingMutCSetSave,
 } from "../../../generated/proto_compiled";
 import {
-  arrayAsString,
+  bytesAsString,
   DefaultElementSerializer,
   ElementSerializer,
-  stringAsArray,
 } from "../../util";
 import {
   CausalTimestamp,
   Crdt,
-  CrdtEventsRecord,
+  CrdtEventMeta,
   CrdtInitToken,
   Pre,
 } from "../../core";
@@ -30,16 +29,13 @@ class FakeDeletedCrdt extends Crdt {
   ): void {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
-  getChild(_name: string): Crdt<CrdtEventsRecord> {
+  getChild(_name: string): Crdt {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
   canGc(): boolean {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
-  save(): [
-    saveData: Uint8Array,
-    children: Map<string, Crdt<CrdtEventsRecord>>
-  ] {
+  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
     throw new Error("Crdt has been deleted from DeletingMutCSet and is frozen");
   }
   load(_saveData: Uint8Array): boolean {
@@ -103,56 +99,45 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
+  private readonly initialValuesCount: number;
 
+  /**
+   * [constructor description]
+   * @param initToken                [description]
+   * @param readonlyvalueConstructor [description]
+   * @param initialValues to get the created values,
+   * call this.value() right after construction.  The
+   * iterator will return them in the order given by initialValuesArgs.
+   */
   constructor(
     initToken: CrdtInitToken,
     private readonly valueConstructor: (
       valueInitToken: CrdtInitToken,
       ...args: AddArgs
     ) => C,
-    /*initialValuesArgs: AddArgs[] = [],*/
-    initialValues: Pre<C>[] = [],
+    initialValuesArgs: AddArgs[] = [],
     private readonly argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
   ) {
     super(initToken);
 
-    /*// Create the initial values from initialValuesArgs
-    for (let i = 0; i < this.initialValuesArgs!.length; i++) {
-      const args = this.initialValuesArgs![i];
-      // Using name "INIT" is a hack; need to figure out
+    // Create the initial values from initialValuesArgs.
+    for (let i = 0; i < initialValuesArgs.length; i++) {
+      const args = initialValuesArgs[i];
+      // TODO: Using name "INIT" is a hack; need to figure out
       // a proper way to do this when implementing
       // initial values generally.
-      const name = arrayAsString(
+      const name = bytesAsString(
         DeletingMutCSet.nameSerializer.serialize(["INIT", i])
       );
-      this.receiveCreate(name, this.argsSerializer.serialize(args), args, true);
+      this.receiveCreate(name, undefined, args, true);
     }
-    delete this.initialValuesArgs;*/
-    // Construct the initial values
-    for (let i = 0; i < initialValues.length; i++) {
-      // Add as child with "["INIT", -i]" as id.
-      // Similar to CompositeCrdt#addChild.
-      let name = arrayAsString(
-        DeletingMutCSet.nameSerializer.serialize(["INIT", -i])
-      );
-      if (this.children.has(name)) {
-        throw new Error(
-          '(initial value) Duplicate newCrdt name: "' + name + '"'
-        );
-      }
-      const newCrdt = initialValues[i](new CrdtInitToken(name, this));
-      this.children.set(name, newCrdt);
-
-      // Initial values are not added to this.constructorArgs,
-      // since they are passed to the constructor, hence
-      // do not need to be saved.
-    }
+    this.initialValuesCount = initialValuesArgs.length;
   }
 
   private static nameSerializer =
     DefaultElementSerializer.getInstance<[string, number]>();
 
-  private ourCreatedValue?: C;
+  private ourCreatedValue?: C = undefined;
   protected receiveInternal(
     targetPath: string[],
     timestamp: CausalTimestamp,
@@ -162,7 +147,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       let decoded = DeletingMutCSetMessage.decode(message);
       switch (decoded.op) {
         case "add":
-          const name = arrayAsString(
+          const name = bytesAsString(
             DeletingMutCSet.nameSerializer.serialize([
               timestamp.getSender(),
               decoded.add!.replicaUniqueNumber,
@@ -175,7 +160,10 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
             this.ourCreatedValue = newValue;
           }
 
-          this.emit("Add", { value: newValue, timestamp });
+          this.emit("Add", {
+            value: newValue,
+            meta: CrdtEventMeta.fromTimestamp(timestamp),
+          });
           break;
         case "delete":
           const child = this.children.get(decoded.delete);
@@ -183,7 +171,10 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
             this.children.delete(decoded.delete);
             this.constructorArgs.delete(decoded.delete);
 
-            this.emit("Delete", { value: child, timestamp });
+            this.emit("Delete", {
+              value: child,
+              meta: CrdtEventMeta.fromTimestamp(timestamp),
+            });
           }
           break;
         default:
@@ -191,7 +182,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       }
     } else {
       // Message for an existing child.  Proceed as in
-      // CompositeCrdt.
+      // CObject.
       let child = this.children.get(targetPath[targetPath.length - 1]);
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
@@ -214,15 +205,15 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
 
   private receiveCreate(
     name: string,
-    serializedArgs: Uint8Array,
+    serializedArgs: Uint8Array | undefined,
     args: AddArgs | undefined = undefined,
     isInitialValue = false
   ): C {
     if (args === undefined) {
-      args = this.argsSerializer.deserialize(serializedArgs, this.runtime);
+      args = this.argsSerializer.deserialize(serializedArgs!, this.runtime);
     }
     // Add as child with "[sender, counter]" as id.
-    // Similar to CompositeCrdt#addChild.
+    // Similar to CObject#addChild.
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
@@ -234,7 +225,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     if (!isInitialValue) {
       // Initial values are not saved, since they are created
       // as part of initialization.
-      this.constructorArgs.set(name, serializedArgs);
+      this.constructorArgs.set(name, serializedArgs!);
     }
 
     return newValue;
@@ -261,7 +252,20 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   }
 
   canGc(): boolean {
-    return this.children.size === 0;
+    // To be in the initial state:
+    // 1. All values except the initial ones must be deleted.
+    // Such values are except those referenced by constructorArgs.
+    if (this.constructorArgs.size === 0) {
+      // 2. All initial values must still be present.
+      if (this.size === this.initialValuesCount) {
+        // 3. All initial values must canGc().
+        for (const value of this.values()) {
+          if (!value.canGc()) return false;
+        }
+        return true;
+      }
+    }
+    return false;
   }
 
   add(...args: AddArgs): C {
@@ -273,7 +277,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     });
     this.runtime.send(this, DeletingMutCSetMessage.encode(message).finish());
     let created = this.ourCreatedValue;
-    delete this.ourCreatedValue;
+    this.ourCreatedValue = undefined;
     return created!;
   }
 
@@ -287,7 +291,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     });
     this.runtime.send(this, DeletingMutCSetMessage.encode(message).finish());
     let created = this.ourCreatedValue;
-    delete this.ourCreatedValue;
+    this.ourCreatedValue = undefined;
     return created!;
   }
 
@@ -338,7 +342,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
    * Although identifier has type
    * string, it is properly a byte array, not
    * necessarily valid UTF-8.  So it should be serialized
-   * as a byte array (using stringAsArray), not a string.
+   * as a byte array (using stringAsBytes), not a string.
    *
    * TODO: remove in favor of BaseSerializer(this)?
    * Although then if you need strings like in YATA,
@@ -368,13 +372,30 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     return this.children.get(id);
   }
 
+  /**
+   * @param  value [description]
+   * @return the AddArgs used to add value
+   * @throws if !this.has(value) or if value is an initialValue
+   * (those args aren't retained, for efficiency)
+   */
+  getArgs(value: C): AddArgs {
+    if (!this.has(value)) {
+      throw new Error("this.has(value) is false");
+    }
+    const argsSerialized = this.constructorArgs.get(value.name);
+    if (argsSerialized === undefined) {
+      throw new Error("Cannot call argsOf on initial value");
+    }
+    return this.argsSerializer.deserialize(argsSerialized, this.runtime);
+  }
+
   save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
     const saveMessage = DeletingMutCSetSave.create({
       // Note this will be in insertion order because
       // Map iterators run in insertion order.
       constructorArgs: [...this.constructorArgs].map(([name, args]) => {
         return {
-          name: stringAsArray(name),
+          name,
           args,
         };
       }),
@@ -393,7 +414,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
     // already been initialized, so the call will
     // succeed uneventfully.
     for (const { name, args } of saveMessage.constructorArgs) {
-      this.receiveCreate(arrayAsString(name), args);
+      this.receiveCreate(name, args);
     }
     return true;
   }

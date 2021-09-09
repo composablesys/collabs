@@ -2,54 +2,34 @@ import * as crdts from "compoventuals";
 import { ContainerRuntimeSource } from "compoventuals-container";
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./counter.html").default;
-
-  /**
-   * Generate CRDTs' Runtime on each runtime and create CRDTs (e.g. Counter).
-   */
+  // Create a Runtime intended for use within containers.
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
-  let counterCrdt = runtime.registerCrdt(
+
+  // Create top-level Crdts to store the collaborative state.
+  // Here we just need one counter.
+  const counterCrdt = runtime.registerCrdt(
     "counter",
     crdts.Pre(crdts.CCounter)()
   );
 
-  /* HTML variables */
-  var counter = document.getElementById("counter");
+  const display = document.getElementById("display")!;
 
-  /* Customize the event listener for CRDT as refresh the value */
-  counterCrdt.on("Change", (_) => {
-    counter!.innerHTML = counterCrdt.value.toString();
+  // Refresh the display when the Crdt state changes, possibly
+  // due to a message from another replica.
+  runtime.on("Change", () => {
+    display.innerHTML = counterCrdt.value.toString();
   });
 
-  /* Customize onclick() function of increment button with CRDT operation */
-  document.getElementById("increment")!.onclick = function () {
-    console.log("clicked increment");
+  // Change counterCrdt's value on button clicks.
+  // Note that we need not refresh the display here, since Batch
+  // events are also triggered by local operations.
+  document.getElementById("increment")!.onclick = () => {
     counterCrdt.add(100);
-    counter!.innerHTML = counterCrdt.value.toString();
   };
-
-  /* Customize onclick() function of decrement button with CRDT operation */
-  document.getElementById("decrement")!.onclick = function () {
-    console.log("clicked decrement");
+  document.getElementById("decrement")!.onclick = () => {
     counterCrdt.add(-100);
-    counter!.innerHTML = counterCrdt.value.toString();
   };
-
-  document.getElementById("reset")!.onclick = function () {
-    console.log("clicked reset");
+  document.getElementById("reset")!.onclick = () => {
     counterCrdt.reset();
-    counter!.innerHTML = counterCrdt.value.toString();
   };
-
-  // document.getElementById("strongReset")!.onclick = function () {
-  //   console.log("clicked strongReset");
-  //   counterCrdt.strongReset();
-  //   counter!.innerHTML = counterCrdt.value.toString();
-  // };
-
-  // /* Customize onclick() function of sync to synchronize the value */
-  // document.getElementById("sync")!.onclick = function() {
-  //     counter!.innerHTML = counterCrdt.value.toString();
-  // }
 })();

@@ -45,4 +45,36 @@ export class DeletingMutCMap<K, C extends Crdt, SetArgs extends any[]>
     this.map.reset();
     this.valueSet.reset();
   }
+
+  /**
+   * [keyOf description] TODO: copy from CMap
+   * @param  value [description]
+   * @return       [description]
+   * @throws if value is not a current value or conflict
+   */
+  keyOf(value: C): K {
+    if (!this.valueSet.has(value)) {
+      throw new Error("value is not a current value or conflict");
+    }
+    return this.valueSet.getArgs(value)[0];
+  }
+
+  getArgs(key: K): SetArgs | undefined {
+    const value = this.get(key);
+    if (value === undefined) return undefined;
+    else return this.valueSet.getArgs(value)[1];
+  }
+
+  /**
+   * [getArgs description]
+   * @param  value [description]
+   * @return the SetArgs used to set value
+   * @throws if value is not a current value or conflict
+   */
+  getArgsByValue(value: C): SetArgs {
+    if (!this.valueSet.has(value)) {
+      throw new Error("value is not a current value or conflict");
+    }
+    return this.valueSet.getArgs(value)[1];
+  }
 }

@@ -4,12 +4,10 @@ import { min, max, round } from "mathjs";
 import $ from "jquery";
 
 (async function () {
-  // HTML
-  document.body.innerHTML = require("./whiteboard.html").default;
-
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent, {
-    periodMs: 200,
-  });
+  const runtime = await ContainerRuntimeSource.newRuntime(
+    window.parent,
+    new crdts.RateLimitBatchingStrategy(200)
+  );
 
   // The key represents a point in the form: x:y
   // The value is the color of the stroke.

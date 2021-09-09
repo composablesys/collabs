@@ -1,4 +1,4 @@
-export class WeakValueMap<K, V extends Object> {
+export class WeakValueMap<K, V extends object> {
   private readonly internalMap = new Map<K, WeakRef<V>>();
   private readonly registry: FinalizationRegistry<K>;
 
@@ -7,8 +7,8 @@ export class WeakValueMap<K, V extends Object> {
    * empty, e.g., so you can delete this map.
    * heldValue will be set to this.onemptyHeldValue.
    */
-  onempty?: (caller: this, heldValue: any) => void;
-  onemptyHeldValue?: any;
+  onempty?: (caller: this, heldValue: any) => void = undefined;
+  onemptyHeldValue?: any = undefined;
 
   constructor() {
     this.registry = new FinalizationRegistry((key) => this.checkKey(key));

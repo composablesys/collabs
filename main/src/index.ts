@@ -8,13 +8,17 @@ export * from "./types";
 // TODO: export newer classes
 export {
   ConstructorAsFunction,
+  EventsRecord,
   EventEmitter,
+  Unsubscribe,
+  Handler,
   ElementSerializer,
   DefaultElementSerializer,
   TextSerializer,
   TextArraySerializer,
-  arrayAsString,
-  stringAsArray,
+  bytesAsString,
+  stringAsBytes,
+  TestingBatchingStrategy,
   TestingNetwork,
   TestingNetworkGenerator,
 } from "./util";

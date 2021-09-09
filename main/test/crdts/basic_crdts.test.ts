@@ -24,8 +24,8 @@ describe("basic_crdts", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime("immediate", rng);
-    bob = runtimeGen.newRuntime("immediate", rng);
+    alice = runtimeGen.newRuntime(undefined, rng);
+    bob = runtimeGen.newRuntime(undefined, rng);
   });
 
   describe("AddComponent", () => {
@@ -49,9 +49,7 @@ describe("basic_crdts", () => {
 
     function addEventListeners(counter: AddComponent, name: string): void {
       counter.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
       );
     }
 
@@ -109,16 +107,14 @@ describe("basic_crdts", () => {
 
     function addEventListeners(counter: CCounter, name: string): void {
       counter.on("Add", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} added ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
       );
       counter.on("Reset", (event) =>
-        console.log(`${name}: ${event.timestamp.getSender()} reset`)
+        console.log(`${name}: ${event.meta.sender} reset`)
       );
       // TODO
       // counter.on("StrongReset", (event) =>
-      //   console.log(`${name}: ${event.timestamp.getSender()} strong reset`)
+      //   console.log(`${name}: ${event.meta.sender} strong reset`)
       // );
     }
 
@@ -316,9 +312,7 @@ describe("basic_crdts", () => {
 
     function addEventListeners(register: MultComponent, name: string): void {
       register.on("Mult", (event) =>
-        console.log(
-          `${name}: ${event.timestamp.getSender()} multed ${event.arg}`
-        )
+        console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
       );
     }
 
@@ -379,7 +373,7 @@ describe("basic_crdts", () => {
   //   function addEventListeners<T>(gSet: GPlainSet<T>, name: string): void {
   //     gSet.on("Add", (event) =>
   //       console.log(
-  //         `${name}: ${event.timestamp.getSender()} added ${event.value}`
+  //         `${name}: ${event.meta.sender} added ${event.value}`
   //       )
   //     );
   //   }
@@ -452,8 +446,8 @@ describe("basic_crdts", () => {
       mvr: OptionalLwwCRegister<T>,
       name: string
     ): void {
-      mvr.on("Change", (event) =>
-        console.log(`${name}: ${event.timestamp.getSender()} set`)
+      mvr.on("Set", (event) =>
+        console.log(`${name}: ${event.meta.sender} set`)
       );
     }
 
@@ -593,7 +587,7 @@ describe("basic_crdts", () => {
       // TODO
       // lww.on("Lww", (event) =>
       //   console.log(
-      //     `${name}: ${event.timestamp.getSender()} set to ${event.value}`
+      //     `${name}: ${event.meta.sender} set to ${event.value}`
       //   )
       // );
     }

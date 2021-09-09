@@ -7,10 +7,10 @@ import {
   WeakValueMap,
 } from "../../util";
 import { LwwCMap } from "../map";
-import { AbstractCSetCompositeCrdt } from "./abstract_set";
+import { AbstractCSetCObject } from "./abstract_set";
 
 export class ReferenceCSet<T extends object, AddArgs extends any[]>
-  extends AbstractCSetCompositeCrdt<T, AddArgs>
+  extends AbstractCSetCObject<T, AddArgs>
   implements Resettable
 {
   // This is also used to determine membership.
@@ -91,7 +91,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
           this.backupValuesById.delete(event.key);
           this.valuesById.set(event.key, value);
         }
-        this.emit("Add", { value, timestamp: event.timestamp });
+        this.emit("Add", { value, meta: event.meta });
       }
     });
     this.argsById.on("Delete", (event) => {
@@ -101,7 +101,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
       const value = this.valuesById.get(event.key)!;
       this.valuesById.delete(event.key);
       this.backupValuesById.set(event.key, value);
-      this.emit("Delete", { value, timestamp: event.timestamp });
+      this.emit("Delete", { value, meta: event.meta });
     });
   }
 
@@ -168,7 +168,7 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
 
   reset() {
     // Our (canGc-related) state is just a view of
-    // this.argsById's state, as usual for CompositeCrdt,
+    // this.argsById's state, as usual for CObject,
     // so this is an observed-reset operation.
     this.argsById.reset();
   }

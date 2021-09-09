@@ -1,25 +1,30 @@
 import {
-  arrayAsString,
+  bytesAsString,
   DefaultElementSerializer,
   ElementSerializer,
   Optional,
-  stringAsArray,
+  stringAsBytes,
   WeakValueMap,
 } from "../../util";
-import { CausalTimestamp, Crdt, CrdtInitToken } from "../../core";
+import {
+  CausalTimestamp,
+  Crdt,
+  CrdtEventMeta,
+  CrdtInitToken,
+} from "../../core";
 import { Resettable } from "../../abilities";
 import { AbstractCMapCrdt } from "./abstract_map";
 
 /**
- * A basic CrdtMap that implicitly manages membership.
+ * A basic CMap of mutable values that implicitly manages membership.
  * Its main purpose is to manage Crdts sorted by key,
  * in such a way that concurrent operations on the same
  * key's value are merged.
  *
  * For the
  * purpose of the iterators and has, a key is considered
- * to be present in the map if its valuCrdt is nontrivial,
- * specifically, if valueCrdt.canGc() returns false.
+ * to be present in the map if its value is nontrivial,
+ * specifically, if value.canGc() returns false.
  * Note that this implies that a just-added key may
  * not be present in the map.  This unusual semantics
  * is necessary because the map does not necessarily
@@ -39,7 +44,7 @@ export class GrowOnlyImplicitMergingMutCMap<
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
    * @param valueConstructor A function used to initialize
-   * value Crdts when initKey() or getForce() is called on
+   * values when initKey() or getForce() is called on
    * their key.  The Crdt must have given the parent and id.
    * In the simplest usage, this function just calls C's
    * constructor with the given parent and id, and default
@@ -65,10 +70,10 @@ export class GrowOnlyImplicitMergingMutCMap<
   }
 
   private keyAsString(key: K) {
-    return arrayAsString(this.keySerializer.serialize(key));
+    return bytesAsString(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(stringAsArray(str), this.runtime);
+    return this.keySerializer.deserialize(stringAsBytes(str), this.runtime);
   }
 
   private getInternal(
@@ -102,8 +107,8 @@ export class GrowOnlyImplicitMergingMutCMap<
     } else return [value, true];
   }
 
-  private inReceiveKeyStr: string | undefined = undefined;
-  private inReceiveValueCrdt: C | undefined = undefined;
+  private inReceiveKeyStr?: string = undefined;
+  private inReceiveValue?: C = undefined;
 
   protected receiveInternal(
     targetPath: string[],
@@ -116,7 +121,7 @@ export class GrowOnlyImplicitMergingMutCMap<
       // Message for a child
       let key = this.stringAsKey(keyString);
       let [value, nontrivialStart] = this.getInternal(key, keyString);
-      this.inReceiveValueCrdt = value;
+      this.inReceiveValue = value;
 
       targetPath.length--;
       value.receive(targetPath, timestamp, message);
@@ -126,7 +131,11 @@ export class GrowOnlyImplicitMergingMutCMap<
       if (nontrivialStart && value.canGc()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
-        this.emit("Delete", { key, deletedValue: value, timestamp });
+        this.emit("Delete", {
+          key,
+          deletedValue: value,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
+        });
       }
       // If the value became nontrivial, move it to the
       // main map
@@ -138,7 +147,7 @@ export class GrowOnlyImplicitMergingMutCMap<
           // Empty to emphasize that the previous value was
           // not present.
           previousValue: Optional.empty<C>(),
-          timestamp,
+          meta: CrdtEventMeta.fromTimestamp(timestamp),
         });
         // We won't dispatch Set events when the value
         // is not new because there can only ever be one
@@ -151,7 +160,7 @@ export class GrowOnlyImplicitMergingMutCMap<
       }
     } finally {
       this.inReceiveKeyStr = undefined;
-      this.inReceiveValueCrdt = undefined;
+      this.inReceiveValue = undefined;
     }
   }
 
@@ -196,8 +205,8 @@ export class GrowOnlyImplicitMergingMutCMap<
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
       // Instead, use canGc directly.
-      if (!this.inReceiveValueCrdt!.canGc()) {
-        return this.inReceiveValueCrdt!;
+      if (!this.inReceiveValue!.canGc()) {
+        return this.inReceiveValue!;
       } else return undefined;
     }
     return this.nontrivialMap.get(this.keyAsString(key));
@@ -209,7 +218,7 @@ export class GrowOnlyImplicitMergingMutCMap<
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
       // Instead, use canGc directly.
-      return !this.inReceiveValueCrdt!.canGc();
+      return !this.inReceiveValue!.canGc();
     } else return this.nontrivialMap.has(str);
   }
 
@@ -218,8 +227,8 @@ export class GrowOnlyImplicitMergingMutCMap<
   }
 
   /**
-   * Returns true if valueCrdt is owned by this
-   * ImplicitCrdtMap, i.e., it is an output of this.get.
+   * Returns true if value is owned by this
+   * map, i.e., it is an output of this.get.
    */
   owns(value: C): boolean {
     return value.parent === this;
@@ -230,8 +239,8 @@ export class GrowOnlyImplicitMergingMutCMap<
   }
 
   *entries(): IterableIterator<[K, C]> {
-    for (let [keyStr, valueCrdt] of this.nontrivialMap) {
-      yield [this.stringAsKey(keyStr), valueCrdt];
+    for (let [keyStr, value] of this.nontrivialMap) {
+      yield [this.stringAsKey(keyStr), value];
     }
   }
 
@@ -241,20 +250,20 @@ export class GrowOnlyImplicitMergingMutCMap<
   }
 
   /**
-   * Returns valueCrdt's key.
+   * Returns value's key.
    */
-  keyOf(valueCrdt: C): K | undefined {
-    if (!this.owns(valueCrdt)) return undefined;
-    return this.stringAsKey(valueCrdt.name);
+  keyOf(value: C): K | undefined {
+    if (!this.owns(value)) return undefined;
+    return this.stringAsKey(value.name);
   }
 
   canGc() {
     /*
      * We don't need to check here that the backup
      * map is nonempty (which would be expensive):
-     * each value Crdt points to us (due to Crdt.parent),
+     * each value points to us (due to Crdt.parent),
      * so we will only be forgotten by a containing
-     * ImplicitCrdtMap if all of our children have no
+     * implicit map if all of our children have no
      * references to them, which is equivalent to the
      * backup map being empty(able).
      */
@@ -265,27 +274,27 @@ export class GrowOnlyImplicitMergingMutCMap<
     return [new Uint8Array(), this.nontrivialMap];
   }
 
-  private inLoad?: true;
+  private inLoad = false;
   load(_saveData: Uint8Array): boolean {
     this.inLoad = true;
     return true;
   }
 
   postLoad() {
-    delete this.inLoad;
+    this.inLoad = false;
   }
 }
 
 /**
- * A basic CrdtMap that implicitly manages membership.
+ * A basic CMap that implicitly manages membership.
  * Its main purpose is to manage Crdts sorted by key,
  * in such a way that concurrent operations on the same
  * key's value are merged.
  *
  * For the
  * purpose of the iterators and has, a key is considered
- * to be present in the map if its valuCrdt is nontrivial,
- * specifically, if valueCrdt.canGc() returns false.
+ * to be present in the map if its value is nontrivial,
+ * specifically, if value.canGc() returns false.
  * Note that this implies that a just-added key may
  * not be present in the map.  This unusual semantics
  * is necessary because the map does not necessarily

@@ -1,5 +1,5 @@
 import {
-  CompositeCrdt,
+  CObject,
   Crdt,
   CrdtEvent,
   CrdtEventsRecord,
@@ -29,7 +29,7 @@ enum InternalType {
   List,
 }
 
-export class JsonCrdt extends CompositeCrdt<JsonEventsRecord> {
+export class JsonCrdt extends CObject<JsonEventsRecord> {
   private readonly internalMap: MergingMutCMap<
     string,
     OptionalLwwCRegister<number | string | boolean | InternalType>

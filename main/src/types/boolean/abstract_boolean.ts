@@ -15,6 +15,10 @@ export declare abstract class AbstractCBoolean
   true(): void;
   false(): void;
   set(value: boolean): boolean;
+  /**
+   * @return this.value.toString()
+   */
+  toString(): string;
 }
 
 /**
@@ -49,6 +53,10 @@ export function MakeAbstractCBoolean<
     set(value: boolean): boolean {
       this.value = value;
       return this.value;
+    }
+
+    toString(): string {
+      return this.value.toString();
     }
   }
   return Mixin;

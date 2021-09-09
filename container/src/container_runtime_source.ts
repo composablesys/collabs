@@ -1,9 +1,9 @@
-import { BroadcastNetwork, Runtime } from "compoventuals";
+import { BatchingStrategy, BroadcastNetwork, Runtime } from "compoventuals";
 
 class ContainerNetwork implements BroadcastNetwork {
   constructor(private readonly messagePort: MessagePort) {}
 
-  onReceive!: (message: Uint8Array) => void;
+  onreceive!: (message: Uint8Array) => void;
 
   send(message: Uint8Array): void {
     this.messagePort.postMessage({ type: "send", message });
@@ -32,7 +32,7 @@ export class ContainerRuntimeSource {
    */
   static async newRuntime(
     hostWindow: Window,
-    batchOptions?: "immediate" | "manual" | { periodMs: number }
+    batchingStrategy?: BatchingStrategy
   ): Promise<Runtime> {
     const messagePort = await new Promise<MessagePort>((resolve) => {
       window.addEventListener("message", (e) => {
@@ -43,11 +43,11 @@ export class ContainerRuntimeSource {
       });
     });
     const network = new ContainerNetwork(messagePort);
-    const runtime = new Runtime(network, batchOptions);
+    const runtime = new Runtime(network, batchingStrategy);
     messagePort.onmessage = (e) => {
       switch (e.data.type) {
         case "receive":
-          network.onReceive(e.data.message);
+          network.onreceive(e.data.message);
           break;
         case "load":
           runtime.load(e.data.saveData);
