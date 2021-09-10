@@ -91,12 +91,21 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
     // This has to be called before this.api.start(), otherwise
     // start throws an error
     this.api.on("ready", () => {
-      // Replay any messages we missed
-      // TODO: how to do more than 25?
-      this.api.readRoomEvents(this.eventType, 25).then((events: any) => {
-        const eventsTyped = events as IWidgetApiRequestData[];
-        eventsTyped.forEach(this.receive, this);
-      });
+      // Replay any messages we missed.  We request as many
+      // messages as possible.  Indeed, we want every message
+      // with this event type.  However, per the draft spec:
+      // https://github.com/matrix-org/matrix-doc/blob/travis/msc%2Fwidgets-send-receive-events/proposals/2762-widget-event-receiving.md
+      // "The client is not required to backfill (use the
+      // /messages endpoint) to get more events for the
+      // widget, and is able to return less than the requested amount of events."
+      // So it is possible we will not get every message,
+      // but we can at least hope.
+      this.api
+        .readRoomEvents(this.eventType, Number.MAX_SAFE_INTEGER)
+        .then((events: any) => {
+          const eventsTyped = events as IWidgetApiRequestData[];
+          eventsTyped.forEach(this.receive, this);
+        });
       // Allow sending messages
       this.isReady = true;
       // Send queued messages
