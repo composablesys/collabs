@@ -2,9 +2,7 @@ import * as crdts from "compoventuals";
 import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 import { WebSocketNetwork } from "compoventuals-ws-client";
 import { ContainerHost } from "compoventuals-container";
-import $ from "jquery";
 import pako from "pako";
-import { saveAs } from "file-saver";
 
 // Extract the type of network to use from the URL's
 // "network" GET parameter.
@@ -15,10 +13,12 @@ if (!urlParams.has("network")) {
 const networkType = urlParams.get("network")!;
 console.log("networkType: " + networkType);
 let network: crdts.BroadcastNetwork;
+let batchingStrategy: crdts.BatchingStrategy;
 switch (networkType) {
   case "ws": {
     const HOST = location.origin.replace(/^http/, "ws");
     network = new WebSocketNetwork(HOST, "selector");
+    batchingStrategy = new crdts.RateLimitBatchingStrategy(0);
     break;
   }
   // TODO: waiting until WebRtcNetwork is a BroadcastNetwork
@@ -36,13 +36,14 @@ switch (networkType) {
     network = new MatrixWidgetNetwork(
       "com.herokuapp.compoventuals-tests.selector"
     );
+    batchingStrategy = new crdts.RateLimitBatchingStrategy(500, false);
     break;
   default:
     throw new Error('URL "network" GET parameter invalid: "${networkType}"');
 }
 
 // Crdt setup.
-const runtime = new crdts.Runtime(network);
+const runtime = new crdts.Runtime(network, batchingStrategy);
 const currentHost = runtime.registerCrdt(
   "",
   crdts.Pre(crdts.LwwMutCRegister)(
@@ -124,12 +125,36 @@ downloadButton.addEventListener("click", () => {
   const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
   // Trigger a file download of htmlSrc with suggested
   // file name `${document.title}.html`.
-  // TODO: silently fails on Matrix due to their widget sandbox.
-  saveAs(new Blob([htmlSrc], { type: "text/html" }), `${document.title}.html`);
-});
-if (networkType === "matrix") {
-  downloadButton.disabled = true;
-  downloadButton.appendChild(
-    document.createTextNode(" (disabled by widget sandbox)")
+  triggerDownload(
+    new Blob([htmlSrc], { type: "text/html" }),
+    `${document.title}.html`
   );
+});
+
+function triggerDownload(blob: Blob, filename: string) {
+  if (networkType === "matrix") {
+    // a.click() / saveAs in same Window don't work in
+    // Matrix widgets, probably due to the IFrame sandbox.
+    // We work around it by triggering the download in a new
+    // window instead.
+    // Thanks to Steffen Kolmer for suggesting this.
+    const w = window.open("about:blank")!;
+    setTimeout(function () {
+      triggerDownloadOnWindow(w, blob, filename);
+      setTimeout(function () {
+        w.close();
+      }, 100);
+    }, 0);
+  } else {
+    triggerDownloadOnWindow(window, blob, filename);
+  }
+}
+
+function triggerDownloadOnWindow(w: Window, blob: Blob, filename: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  w.document.body.appendChild(a);
+  a.click();
+  w.document.body.removeChild(a);
 }

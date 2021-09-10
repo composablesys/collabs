@@ -23,11 +23,13 @@ if (!urlParams.has("network")) {
 const networkType = urlParams.get("network")!;
 console.log("networkType: " + networkType);
 let network: crdts.BroadcastNetwork;
+let batchingStrategy: crdts.BatchingStrategy;
 switch (networkType) {
   case "ws": {
     const HOST = location.origin.replace(/^http/, "ws");
     // TODO: shorter group name than containerUrl?
     network = new WebSocketNetwork(HOST, "ws-" + containerUrl);
+    batchingStrategy = new crdts.RateLimitBatchingStrategy(0);
     break;
   }
   // TODO: waiting until WebRtcNetwork is a BroadcastNetwork
@@ -45,6 +47,7 @@ switch (networkType) {
     network = new MatrixWidgetNetwork(
       "com.herokuapp.compoventuals-tests.counter"
     );
+    batchingStrategy = new crdts.RateLimitBatchingStrategy(500, false);
     break;
   default:
     throw new Error('URL "network" GET parameter invalid: "${networkType}"');
@@ -60,7 +63,7 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const runtime = new crdts.Runtime(network);
+const runtime = new crdts.Runtime(network, batchingStrategy);
 const host = runtime.registerCrdt("host", crdts.Pre(ContainerHost)(iframe));
 
 // TODO: loading.  Make sure to block GUI until host says it's complete.
