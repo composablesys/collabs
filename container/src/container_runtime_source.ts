@@ -16,6 +16,15 @@ class ContainerNetwork implements BroadcastNetwork {
   load(_saveData: Uint8Array): void {}
 }
 
+// TODO: don't use a class since it's just wrapping a single
+// function (poor JS style).
+// TODO: loading: need to coordinate with consumers so that
+// they don't do Crdt ops before loading, unless it's not
+// going to load.
+// Unless we expect the host to block GUI input and trust
+// the container not to do ops except on GUI input?
+// Since the host needs to wait a bit for loading anyway.
+// (Is this possible with an IFrame, though?)
 export class ContainerRuntimeSource {
   /**
    * Not instantiable.

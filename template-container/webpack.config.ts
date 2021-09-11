@@ -8,30 +8,26 @@ import { CleanWebpackPlugin } from "clean-webpack-plugin";
 const config: webpack.Configuration = {
   mode: "development",
   devtool: "eval-source-map",
-  // Tree-shaking optimizations.  These help make
-  // small dist files in mode: "production".
-  // See https://blog.theodo.com/2021/04/library-tree-shaking/
   optimization: {
     usedExports: true,
     innerGraph: true,
     sideEffects: true,
   },
   entry: "./src/my_container.ts",
+  output: {
+    filename: "[name].js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
+  },
   // TypeScript configuration.
-  // See https://webpack.js.org/guides/typescript/ for more info,
-  // including advice on importing third-party libraries and
-  // non-ts assets.
+  // See https://webpack.js.org/guides/typescript/
   module: {
     rules: [
-      // All files with a `.ts` or `.tsx` extension will be handled by `ts-loader`
       {
         test: /\.tsx?$/,
         use: "ts-loader",
         exclude: /node_modules/,
       },
-      // Use the source maps from compoventuals and other
-      // dependencies, so that the browser debugger shows
-      // line numbers and files in their original TypeScript.
       {
         test: /\.js$/,
         enforce: "pre",
@@ -42,23 +38,13 @@ const config: webpack.Configuration = {
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
   },
-  output: {
-    filename: "[name].js",
-    path: path.resolve(__dirname, "dist"),
-  },
-  // We use several plugins in combination to build the container
-  // as a single HTML file, which as all of its resources
-  // inlined.
   plugins: [
     // Create an HTML file as the entry point, instead of just
     // a .js file.
     new HtmlWebpackPlugin({
-      filename: "[name].html",
+      filename: "my_container.html",
       // Use [name].html as the HTML file (minus scripts), instead of
-      // the plugin's default file.  This lets you write plain
-      // HTML for your app.  You can instead delete this option
-      // and create the HTML within your .ts file (more
-      // traditional for Webpack projects).
+      // the plugin's default file.
       template: "./src/my_container.html",
       // Inject the compiled .js into the <body> instead of the
       // <head>.  This is useful together with the template option,
@@ -70,7 +56,7 @@ const config: webpack.Configuration = {
     // is inlined in the output HTML file, instead of just
     // begin linked.  This lets your container be distributed
     // as a single HTML file.
-    // Docs: https://github.com/facebook/create-react-app/tree/main/packages/react-dev-utils#new-inlinechunkhtmlpluginhtmlwebpackplugin-htmlwebpackplugin-tests-regex
+    // See https://github.com/facebook/create-react-app/tree/main/packages/react-dev-utils#new-inlinechunkhtmlpluginhtmlwebpackplugin-htmlwebpackplugin-tests-regex
     new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/.*/]) as any,
     // Delete built .js files.  We don't need them since they
     // are inlined by InlineChunkHtmlPlugin.
