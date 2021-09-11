@@ -1,0 +1,23 @@
+{
+  /* This tsconfig is for the ESM build, targeted at browser bundlers. */
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "build/esm",
+    "target": "ES2020",
+    /* Use ESM modules for this build.  That lets browser bundlers tree-shake the library. */
+    "module": "ES6",
+    /* Needed with module: ES6 or else compilation breaks. */
+    "moduleResolution": "node",
+    /* Enable strict type checking. */
+    "strict": true,
+    /* Prevent errors caused by other libraries (e.g. the DOM types). */
+    "skipLibCheck": true,
+    /* Enable interop with dependencies using different module systems. */
+    "esModuleInterop": true,
+    /* Emit .d.ts files. */
+    "declaration": true,
+    /* Emit sourcemap files. */
+    "sourceMap": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,37 @@
+{
+  "main": "build/commonjs/src/index.js",
+  "module": "build/esm/src/index.js",
+  "browser": "build/esm/src/index.js",
+  "types": "build/esm/src/index.d.ts",
+  "files": [
+    "/build"
+  ],
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "compoventuals": "^0.1.0"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.3.5",
+    "ts-node": "^10.1.0",
+    "cross-env": "^7.0.3",
+    "chai": "^4.2.0",
+    "@types/chai": "^4.2.14",
+    "mocha": "^8.2.1",
+    "@types/mocha": "^8.2.0",
+    "seedrandom": "^3.0.5",
+    "@types/seedrandom": "^2.4.28",
+    "rimraf": "^2.7.1"
+  },
+  "scripts": {
+    "build": "npm-run-all build:*",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
+    "test": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
+    "clean": "rimraf build docs"
+  }
+}
