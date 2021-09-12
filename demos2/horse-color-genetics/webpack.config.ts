@@ -1,22 +1,29 @@
 import * as path from "path";
 import * as webpack from "webpack";
+import CopyWebpackPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import InlineChunkHtmlPlugin from "react-dev-utils/InlineChunkHtmlPlugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
 
-// TODO: replace any absolute links (jenniferhoffman.net)
+// TODO: replace XML get with plain file ref
+// TODO: single file bundle
+// TODO: field for URL hashes, so you can set/get easily
 
 // TODO: separate dev/prod files?
 const config: webpack.Configuration = {
   mode: "development",
-  devtool: false,
-  // devtool: "eval-source-map",
+  devtool: "eval-source-map",
   optimization: {
     usedExports: true,
     innerGraph: true,
     sideEffects: true,
   },
-  entry: "./src/main.js",
+  entry: {
+    "horse-color-genetics_files/horsegenetics2":
+      "./src/horse-color-genetics_files/horsegenetics2.js",
+    "horse-color-genetics_files/grabUrl":
+      "./src/horse-color-genetics_files/grabUrl.js",
+  },
   output: {
     filename: "[name].js",
     path: path.resolve(__dirname, "dist"),
@@ -39,42 +46,40 @@ const config: webpack.Configuration = {
         enforce: "pre",
         use: ["source-map-loader"],
       },
-      {
-        test: /\.html$/i,
-        loader: "html-loader",
-      },
-      {
-        test: /\.css$/i,
-        use: ["style-loader", "css-loader"],
-      },
-      {
-        test: /\.png$/i,
-        type: "asset/resource",
-      },
     ],
   },
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
   },
   plugins: [
-    // Create an HTML file as the entry point, instead of just
-    // a .js file.
-    new HtmlWebpackPlugin({
-      filename: "main.html",
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: "./src/horse-color-genetics.html",
+          to: "./[base]",
+        },
+        {
+          from: "./src/horse-color-genetics_files/*.png",
+          to: "./horse-color-genetics_files/[base]",
+        },
+        {
+          from: "./src/horse-color-genetics_files/*.jpg",
+          to: "./horse-color-genetics_files/[base]",
+        },
+        {
+          from: "./src/horse-color-genetics_files/*.gif",
+          to: "./horse-color-genetics_files/[base]",
+        },
+        {
+          from: "./src/horse-color-genetics_files/*.css",
+          to: "./horse-color-genetics_files/[base]",
+        },
+        {
+          from: "./src/horse-color-genetics_files/*.xml",
+          to: "./horse-color-genetics_files/[base]",
+        },
+      ],
     }),
-    // Works with HtmlWebpackPlugin so that the main script
-    // is inlined in the output HTML file, instead of just
-    // begin linked.  This lets your container be distributed
-    // as a single HTML file.
-    // See https://github.com/facebook/create-react-app/tree/main/packages/react-dev-utils#new-inlinechunkhtmlpluginhtmlwebpackplugin-htmlwebpackplugin-tests-regex
-    // new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/.*/]) as any,
-    // Delete built .js files.  We don't need them since they
-    // are inlined by InlineChunkHtmlPlugin.
-    // new CleanWebpackPlugin({
-    //   cleanAfterEveryBuildPatterns: ["*.js"],
-    //   cleanStaleWebpackAssets: false,
-    //   protectWebpackAssets: false,
-    // }),
   ],
 };
 

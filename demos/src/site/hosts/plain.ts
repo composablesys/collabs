@@ -59,7 +59,14 @@ iframe.src = containerUrl;
 document.body.appendChild(iframe);
 // Set title to that of the container.
 iframe.addEventListener("load", () => {
-  document.title = iframe.contentDocument!.title;
+  // contentDocument is only non-null if IFrame is from the
+  // same origin.
+  if (iframe.contentDocument !== null) {
+    document.title = iframe.contentDocument.title;
+  } else {
+    // TODO: use metadata from the container
+    document.title = "Container";
+  }
 });
 
 // Attach the container.

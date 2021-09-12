@@ -1,12 +1,13 @@
-<head>
+<html><head>
 <meta http-equiv="content-type" content="text/html; charset=windows-1252">
 	<title>Horse Color Genetics: An Introduction</title>
 	<meta name="author" content="Jennifer Hoffman">
 	<meta name="keywords" content="horse, equine, color, genetics, chestnut, black, dun, appaloosa, sabino, overo, paint, palomino, buckskin, bay, interactive, game, learning, serious games, tutorial">
 	<meta name="description" content="Learn how genes create coat colors in horses with this fun learning game!">
 	<meta http-equiv="X-UA-Compatible" content="IE=9">
-	<link rel="shortcut icon" href="https://horse.jenniferhoffman.net/favicon.ico">
+	<!--<link rel="shortcut icon" href="https://horse.jenniferhoffman.net/favicon.ico">-->
 	<link rel="stylesheet" type="text/css" href="horse-color-genetics_files/horsegenetics.css">
+	<script src="horse-color-genetics_files/horsegenetics2.js"></script>
 </head>
 
 <body onload="prepAnims();preloader();">
@@ -117,23 +118,21 @@ brownish coat, with a mane and tail the same or lighter in color than
 the coat.</p></div>
 			<div id="arrows" onclick="togglecolorinfo()"><img src="horse-color-genetics_files/arrow_down.png" name="arrow" alt="Toggle color description" title="Toggle color description" border="0"></div>
             <div id="generatecolor">
-                <a href="https://horse.jenniferhoffman.net/extension.html#gamewindow_anchor"><img src="horse-color-genetics_files/bback.png" alt="back to start" title="back to start" border="0"></a>
-                <a href="https://horse.jenniferhoffman.net/appaloosa.html#gamewindow_anchor"><img src="horse-color-genetics_files/back.png" alt="back one" title="back one" border="0"></a>
+                <!--<a href="https://horse.jenniferhoffman.net/extension.html#gamewindow_anchor"><img src="horse-color-genetics_files/bback.png" alt="back to start" title="back to start" border="0"></a>
+                <a href="https://horse.jenniferhoffman.net/appaloosa.html#gamewindow_anchor"><img src="horse-color-genetics_files/back.png" alt="back one" title="back one" border="0"></a>-->
                 <img id="randomButton" onmousedown="cursorWait();" onmouseup="randomhorse();updateURL()" src="horse-color-genetics_files/horseshoe.png" alt="generate a random horse" title="generate a random horse" border="0">
-                <a href="#"><img src="horse-color-genetics_files/forward.png" class="subdued" border="0"></a>
-                <a href="#"><img src="horse-color-genetics_files/fforward.png" class="subdued" border="0"></a>
+                <!--<a href="#"><img src="horse-color-genetics_files/forward.png" class="subdued" border="0"></a>
+                <a href="#"><img src="horse-color-genetics_files/fforward.png" class="subdued" border="0"></a>-->
             </div>
             <div id="footer">
                 <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank"><img alt="Creative Commons License" title="Creative Commons License" style="border-width:0" src="horse-color-genetics_files/88x31.png"></a>
             </div>
-		<div id="genehelp" style="top: -60px; display: none;">Gene information displayed here.</div>
+		<div id="genehelp" style="top: -58px; display: none;">Gene information displayed here.</div>
 		</div>
 		</div>
 		<div id="loadBarText" style="visibility: hidden;">Loading</div>
 		<div id="loadBarBox" style="visibility: hidden;"><div id="loadBar" style="width: 100%;"></div></div>
 	</div>
-	<script type="text/javascript">
-		useCategories=new Array("ui","extension","grey","agouti","cream","dun","champagne","flaxen","roan","paint","appaloosa","silver");
-	</script>
+	<script src="horse-color-genetics_files/grabUrl.js"></script>
 
-</body>
+</body></html>

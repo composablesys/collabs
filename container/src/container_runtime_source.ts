@@ -25,6 +25,8 @@ class ContainerNetwork implements BroadcastNetwork {
 // the container not to do ops except on GUI input?
 // Since the host needs to wait a bit for loading anyway.
 // (Is this possible with an IFrame, though?)
+// TODO: need to do this await before the parent receives onload.
+// Unless we add an extra message?
 export class ContainerRuntimeSource {
   /**
    * Not instantiable.
