@@ -26,13 +26,15 @@
     "tensor-average",
     "container",
     "template-custom-type",
+    "template-container",
     "ws-client",
     "ws-server",
     "webrtc-client",
     "webrtc-server",
     "matrix-widget",
     "benchmarks",
-    "demos"
+    "demos",
+    "demos2/horse-color-genetics"
   ],
   "scripts": {
     "start": "npm start --prefix demos",
