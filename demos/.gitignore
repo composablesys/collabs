@@ -1,6 +1,7 @@
 .DS_Store
+node_modules
+build
+generated
 .vscode/
 .idea/
 *.tsbuildinfo
-node_modules
-dist
