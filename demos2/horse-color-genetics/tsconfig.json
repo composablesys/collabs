@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2021",
-    /* Recommend by Webpack. */
-    "module": "ES6",
+    /* Recommend by Webpack. ES2020 so TypeScript won't mangle dynamic imports. */
+    "module": "ES2020",
     /* Needed with module: ES6 or else compilation breaks. */
     "moduleResolution": "node",
     /* Enable strict type checking. */

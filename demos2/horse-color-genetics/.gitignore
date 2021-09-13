@@ -4,3 +4,4 @@
 *.tsbuildinfo
 node_modules
 dist
+dist-one

@@ -24,6 +24,7 @@
   },
   "scripts": {
     "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "clean": "rimraf dist"
+    "build-one": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --config webpack-one.config.ts",
+    "clean": "rimraf dist-one"
   }
 }
