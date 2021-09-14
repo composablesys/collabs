@@ -14,28 +14,27 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
 
   // Now proceed as in a normal Compoventuals app, using runtime.
-  // Note that you you shouldn't try to load saveData; the
+  // Note that you you shouldn't try to load saveData;
   // ContainerRuntimeSource will do that for you.
 
-  // We include the simple counter demo as an example;
+  // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
 
+  // Register collaborative data types.
   const counterCrdt = runtime.registerCrdt(
     "counter",
     crdts.Pre(crdts.CCounter)()
   );
 
-  const display = document.getElementById("display")!;
-
   // Refresh the display when the Crdt state changes, possibly
   // due to a message from another replica.
+  const display = document.getElementById("display")!;
   runtime.on("Change", () => {
     display.innerHTML = counterCrdt.value.toString();
-    console.log("Change");
   });
 
   // Change counterCrdt's value on button clicks.
-  // Note that we need not refresh the display here, since Batch
+  // Note that we need not refresh the display here, since Change
   // events are also triggered by local operations.
   document.getElementById("increment")!.onclick = () => {
     counterCrdt.add(100);

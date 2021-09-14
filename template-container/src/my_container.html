@@ -4,15 +4,11 @@
   <head>
     <meta charset="utf-8" />
 
-    <!-- Don't include links to any resources (CSS, external scripts, etc.)
-      directly in the HTML file; Webpack won't bundle them.
-      Instead, import/require them in your .ts file. -->
-
     <title>My Container</title>
   </head>
 
   <body>
-    <!-- We include the simple counter demo as an example;
+    <!-- We include a simple collaborative counter as an example;
       delete this body and replace with your own HTML. -->
     <p id="display">0</p>
     <button id="increment">💯️</button>
@@ -21,6 +17,6 @@
     <button id="reset">Reset</button>
 
     <!-- Don't include a <script> tag for your main .ts file;
-      HtmlWebpackPlugin will do that for you. -->
+      HtmlWebpackPlugin will insert it for you. -->
   </body>
 </html>
