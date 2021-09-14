@@ -1,0 +1,6 @@
+- varying initialization (not synchronous; depends on local state, like time or replicaId). Either which constructors are called, or what arguments.
+- operations out of turn (in event handlers; during initialization/valueConstructors - for deleting structures, you can get around this by doing the ops just after initialization; anything that calls the op on every replica instead of just one)
+- non-unique names (registerCrdt, addChild). Not as bad because it will error the first time you try.
+- not register a Crdt (should be hard due to CrdtInitToken - don't forge these).
+  - should mention somewhere what's going on here (with Pre), how to get concrete instances.
+- everyone should be running same version. TODO for later: compatibility guide.
