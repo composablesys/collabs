@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>Semidirect Product Group demo</title>
+  </head>
+
+  <body>
+    <div id="header">
+      <!-- HTML page title -->
+      Semidirect Product Group Demo
+
+      <!-- HTML page variables and buttons -->
+      <p></p>
+      <div class="btn-ops">
+        <button id="reflectX">Reflect X-axis</button>
+        <button id="reflectY">Reflect Y-axis</button>
+        <button id="rotateCW">Rotate Clockwise</button>
+        <button id="rotateCCW">Rotate Counter-Clockwise</button>
+        <input type="number" id="rotate-deg" />
+      </div>
+    </div>
+
+    <img src="CMU.jpeg" id="image" scale="0.5" onContextMenu="return false;" />
+  </body>
+
+  <style>
+    #image {
+      width: 90px;
+      height: auto;
+    }
+
+    #board {
+      border: 2px solid black;
+    }
+  </style>
+</html>

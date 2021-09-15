@@ -68,6 +68,7 @@
   "workspaces": [
     "aspace",
     "counter",
+    "group",
     "horse-color-genetics",
     "minesweeper",
     "plaintext",
