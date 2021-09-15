@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>Container Testing Server</title>
+  </head>
+
+  <body>
+    <a href="host.html?network=ws">My Container</a>
+
+    <p></p>
+
+    <div id="matrix_div"></div>
+    <script>
+      const matrix_div = document.getElementById("matrix_div");
+      // TODO: easily copyable
+      matrix_div.innerHTML = `Matrix command (requires --https option): /addwidget ${window.origin}/host.html?network=matrix`;
+    </script>
+
+    <p></p>
+    <a href="reset.html">Reset server message history</a>
+  </body>
+</html>
