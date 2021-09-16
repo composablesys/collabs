@@ -58,7 +58,6 @@ const config: webpack.Configuration = {
       // Use horse-color-genetics.html as the HTML file,
       // instead of the plugin's default file.
       template: "./src/horse-color-genetics.html",
-      inject: "body",
     }),
     // Inline scripts in the HtmlWebpackPlugin's generated
     // HTML file.

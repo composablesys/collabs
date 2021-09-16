@@ -4,7 +4,6 @@ import { WebSocketNetwork } from "compoventuals-ws-client";
 import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 
 // TODO: future features:
-// - buttons to disable sending or receiving, for testing concurrency
 // - save & load button that also reports how long it takes
 
 // Extract the container & type of network to use from the URL's
@@ -41,7 +40,8 @@ switch (networkType) {
   default:
     throw new Error('URL "network" GET parameter invalid: "${networkType}"');
 }
-const runtime = new crdts.Runtime(network, batchingStrategy);
+const disonnectableNetwork = new crdts.DisconnectableNetwork(network);
+const runtime = new crdts.Runtime(disonnectableNetwork, batchingStrategy);
 
 // Add the container in an IFrame.
 const iframe = document.createElement("iframe");
@@ -63,3 +63,40 @@ iframe.addEventListener("load", () => {
 const host = runtime.registerCrdt("host", crdts.Pre(ContainerHost)(iframe));
 
 // TODO: loading.  Make sure to block GUI until host says it's complete.
+
+// App controls
+
+const connected = <HTMLInputElement>document.getElementById("connected");
+const sendConnected = <HTMLInputElement>(
+  document.getElementById("sendConnected")
+);
+const receiveConnected = <HTMLInputElement>(
+  document.getElementById("receiveConnected")
+);
+
+connected.addEventListener("click", () => {
+  // connected just forces the state of the others.
+  sendConnected.checked = connected.checked;
+  receiveConnected.checked = connected.checked;
+  updateNetwork();
+});
+sendConnected.addEventListener("click", updateNetwork);
+receiveConnected.addEventListener("click", updateNetwork);
+function updateNetwork() {
+  // connected state.
+  if (sendConnected.checked !== receiveConnected.checked) {
+    connected.indeterminate = true;
+  } else {
+    connected.indeterminate = false;
+    connected.checked = sendConnected.checked;
+  }
+  // Affect network.
+  disonnectableNetwork.receiveConnected = receiveConnected.checked;
+  disonnectableNetwork.sendConnected = sendConnected.checked;
+}
+
+// const saveLoad = <HTMLButtonElement>document.getElementById("saveLoad");
+// saveLoad.addEventListener("clicked", () => {
+//   // TODO: save, recreate, then load, without repeating
+//   // message history.
+// });

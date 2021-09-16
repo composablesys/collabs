@@ -8,6 +8,7 @@ export * from "./types";
 // TODO: export newer classes
 export {
   ConstructorAsFunction,
+  DisconnectableNetwork,
   EventsRecord,
   EventEmitter,
   Unsubscribe,

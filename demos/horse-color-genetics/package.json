@@ -35,7 +35,7 @@
     "dev:multi": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --config webpack-multi.config.ts",
     "build": "npm-run-all build:*",
     "build:standalone": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool --config webpack-standalone.config.ts",
-    "build:multi": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool --config webpack-multi.config.ts",
+    "build:multi": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool --module-generator-asset-resource-public-path \"https://compoventuals-tests.herokuapp.com/demos/horse-color-genetics/dist/multi/\" --config webpack-multi.config.ts",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
