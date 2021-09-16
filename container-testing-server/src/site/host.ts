@@ -11,7 +11,7 @@ import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
 // (Not including it here since it's not a real file and
 // Webpack will get confused.)
 declare const containerUrl: string;
-console.log("containerUrl: " + containerUrl);
+// console.log("containerUrl: " + containerUrl);
 
 // Extract the type of network to use from the URL's
 // "network" GET parameter.
@@ -20,7 +20,7 @@ if (!urlParams.has("network")) {
   throw new Error('URL missing "network" GET parameter.');
 }
 const networkType = urlParams.get("network")!;
-console.log("networkType: " + networkType);
+// console.log("networkType: " + networkType);
 
 // Setup Runtime.
 let network: crdts.BroadcastNetwork;
