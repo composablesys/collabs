@@ -1,0 +1,122 @@
+import * as crdts from "compoventuals";
+import { ContainerRuntimeSource } from "compoventuals-container";
+import { ContainerHost } from "compoventuals-container";
+import pako from "pako";
+
+(async function () {
+  // Create a Runtime intended for use within containers.
+  const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
+  const currentHost = runtime.registerCrdt(
+    "",
+    crdts.Pre(crdts.LwwMutCRegister)(
+      (valueInitToken, htmlSrcGzipped: Uint8Array) => {
+        const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+        // Create a new ContainerHost + IFrame from htmlSrc and
+        // attach it to the document, invisible for now.
+        const iframe = document.createElement("iframe");
+        iframe.hidden = true;
+        iframe.srcdoc = htmlSrc;
+        const host = new ContainerHost(valueInitToken, iframe);
+        document.body.appendChild(iframe);
+        return host;
+      }
+    )
+  );
+
+  // Selector GUI.
+  const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
+  currentHost.on("Set", (e) => {
+    // Make the set value the only visible thing.
+    selectorDiv.hidden = true;
+    if (e.previousValue.isPresent) {
+      e.previousValue.get().containerIFrame.hidden = true;
+    }
+    const iframe = currentHost.value.get().containerIFrame;
+    iframe.hidden = false;
+    // Set title to that of the visible IFrame.
+    // We know that it is not yet loaded because it will only
+    // be Set once, in the same thread where it is initially
+    // created.
+    iframe.addEventListener("load", () => {
+      document.title = iframe.contentDocument!.title;
+    });
+  });
+
+  function setHtmlSrc(htmlSrc: string) {
+    // The container definitions can get large (100s of KB)
+    // but are very gzippable, so let's compress them.
+    // CPU penalty should be okay since you only have to do
+    // this once at startup, which users should expect to take
+    // a moment anyway.
+    const htmlSrcGzipped = pako.deflate(htmlSrc);
+    currentHost.set(htmlSrcGzipped);
+  }
+
+  // Handle inputs.
+  const urlForm = <HTMLFormElement>document.getElementById("urlForm")!;
+  const urlInput = <HTMLInputElement>document.getElementById("url");
+  urlForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    // Note that the target server will need to allow the
+    // request through CORS (header "Access-Control-Allow-Origin": "*").
+    fetch(urlInput.value, { credentials: "omit" })
+      .then((response) => response.text())
+      .then(setHtmlSrc)
+      .catch((reason) => console.log("failed to fetch URL: " + reason));
+  });
+
+  const fileForm = <HTMLFormElement>document.getElementById("fileForm");
+  const fileInput = <HTMLInputElement>document.getElementById("file");
+  fileForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const file = fileInput.files![0];
+    if (file === undefined) return;
+    file.text().then(setHtmlSrc);
+  });
+
+  // Download button GUI.
+  const downloadDiv = document.getElementById("download.div")!;
+  const downloadButton = <HTMLButtonElement>(
+    document.getElementById("download.button")
+  );
+  currentHost.on("Set", () => (downloadDiv.hidden = false));
+  downloadButton.addEventListener("click", () => {
+    const htmlSrcGzippedOptional = currentHost.getArgs();
+    if (!htmlSrcGzippedOptional.isPresent) return;
+    const htmlSrcGzipped = htmlSrcGzippedOptional.get()[0];
+    const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+    // Trigger a file download of htmlSrc with suggested
+    // file name `${document.title}.html`.
+    triggerDownload(
+      new Blob([htmlSrc], { type: "text/html" }),
+      `${document.title}.html`
+    );
+  });
+
+  function triggerDownload(blob: Blob, filename: string) {
+    // a.click() / saveAs in same Window don't work in
+    // Matrix widgets, probably due to the IFrame sandbox.
+    // We work around it by triggering the download in a new
+    // window instead.
+    // Thanks to Steffen Kolmer for suggesting this.
+    const w = window.open("about:blank")!;
+    setTimeout(function () {
+      triggerDownloadOnWindow(w, blob, filename);
+      setTimeout(function () {
+        w.close();
+      }, 100);
+    }, 0);
+    // TODO: if possible, detect when we are in a host that
+    // allows downloads and do this nicer version instead.
+    // triggerDownloadOnWindow(window, blob, filename);
+  }
+
+  function triggerDownloadOnWindow(w: Window, blob: Blob, filename: string) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    w.document.body.appendChild(a);
+    a.click();
+    w.document.body.removeChild(a);
+  }
+})();

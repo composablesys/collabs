@@ -35,8 +35,7 @@
     "webrtc-server",
     "matrix-widget",
     "benchmarks",
-    "demos",
-    "demos2/horse-color-genetics"
+    "demos"
   ],
   "scripts": {
     "start": "npm start --prefix demos",

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      // Settings to make iframe fill the screen.
+      // From https://www.geeksforgeeks.org/how-to-set-fullscreen-iframe/
+      html {
+        overflow: auto;
+      }
+
+      html,
+      body,
+      #selectorDiv,
+      iframe {
+        margin: 0px;
+        padding: 0px;
+        height: 100%;
+        border: none;
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        border: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+    </style>
+
+    <title>Compoventuals Selector</title>
+  </head>
+
+  <body>
+    <div id="selectorDiv">
+      <h3>Select your app</h3>
+      <br />
+      <form id="urlForm">
+        <label for="url">By URL:</label><br />
+        <input type="url" id="url" name="url" />
+        <input type="submit" value="Go" />
+      </form>
+      <form id="fileForm">
+        <label for="file">By file:</label><br />
+        <input type="file" id="file" name="file" />
+        <input type="submit" value="Go" />
+      </form>
+    </div>
+
+    <div id="download.div" hidden="true">
+      <button id="download.button">Download app</button>
+    </div>
+  </body>
+</html>
