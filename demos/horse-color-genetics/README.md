@@ -2,9 +2,10 @@
 
 A collaborative app where you edit a horse's genes and observe the effects on its coat color, as a [Compoventuals container](TODO: guide link).
 
-TODO: author credit
+This is a collaborative version of an app by [Jennifer Hoffman](http://www.jenniferhoffman.net/). Original app:
+[https://horse.jenniferhoffman.net/horse-color-genetics.html](https://horse.jenniferhoffman.net/horse-color-genetics.html). Since the original app is CC-BY-NC-SA-3.0 licensed, so is this version.
 
-Based off of [template-container](TODO).
+Container organization based off of [template-container](TODO).
 
 ## Installation
 

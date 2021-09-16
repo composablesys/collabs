@@ -2,6 +2,8 @@
 
 A collaborative whiteboard, as a [Compoventuals container](TODO: guide link).
 
+Author: Ria Pradeep.
+
 Based off of [template-container](TODO).
 
 ## Installation

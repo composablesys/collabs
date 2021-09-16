@@ -2,6 +2,8 @@
 
 Collaborative Minesweeper, as a [Compoventuals container](TODO: guide link).
 
+Frontend by Ignacio Maronna.
+
 Based off of [template-container](TODO).
 
 ## Installation

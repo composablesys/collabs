@@ -5,8 +5,9 @@ import common from "./webpack-common.config";
 export default merge(common, {
   output: {
     path: path.resolve(__dirname, "dist/multi"),
-    // TODO: set this to final image file destination folder.
-    // "" works for testing (perhaps set it that way in dev mode?)
+    // This option is for development mode; in production
+    // mode, it is overwritten in the package.json script
+    // to point to the image's destination on our Heroku server.
     publicPath: "",
   },
   module: {

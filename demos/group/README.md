@@ -2,6 +2,8 @@
 
 A demo of the multiple semidirect product for manipulating shapes, as a [Compoventuals container](TODO: guide link).
 
+Author: Ria Pradeep.
+
 Based off of [template-container](TODO).
 
 ## Installation
