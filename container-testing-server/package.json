@@ -64,6 +64,7 @@
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf build"
+    "clean": "rimraf build",
+    "preinstall": "mkdir -p build/server && touch build/server/server.js"
   }
 }
