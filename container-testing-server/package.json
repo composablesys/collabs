@@ -58,7 +58,7 @@
     "dev:server": "npm run build:server",
     "build": "npm-run-all build:*",
     "build:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
-    "build:server": "tsc --build tsconfig-server.json",
+    "build:server": "rimraf build/server && tsc --build tsconfig-server.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
