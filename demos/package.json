@@ -1,7 +1,7 @@
 {
   "name": "compoventuals-demos",
   "version": "0.1.0",
-  "description": "CRDTs designed compositionally (demo webapps)",
+  "description": "CRDTs designed compositionally (demos)",
   "author": "Compoventuals contributors",
   "license": "Apache-2.0",
   "bugs": {
@@ -15,10 +15,10 @@
   "keywords": [
     "crdts"
   ],
-  "sideEffects": false,
   "dependencies": {
     "tslib": "^2.0.1",
     "compoventuals": "^0.1.0",
+    "compoventuals-container": "^0.1.0",
     "compoventuals-matrix-widget": "^0.1.0",
     "compoventuals-ws-client": "^0.1.0",
     "compoventuals-ws-server": "^0.1.0",
@@ -30,7 +30,8 @@
     "quill": "^1.3.6",
     "pako": "^2.0.4",
     "protobufjs": "~6.9.0",
-    "ws": "^7.4.6"
+    "ws": "^7.4.6",
+    "mathjs": "^9.2.0"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
@@ -60,23 +61,33 @@
     "@types/pako": "^1.0.2",
     "@types/webpack": "^5.28.0",
     "@types/webpack-env": "^1.16.2",
-    "@types/ws": "^7.2.6"
+    "@types/ws": "^7.2.6",
+    "@types/mathjs": "^6.0.11"
   },
+  "comment": "workspaces must be in build order, and workspace names must not include spaces or otherwise fail to be proper bash args",
+  "workspaces": [
+    "aspace",
+    "counter",
+    "horse-color-genetics",
+    "minesweeper",
+    "plaintext",
+    "rich-text",
+    "rich-text-yata",
+    "whiteboard",
+    "selector",
+    "server"
+  ],
   "scripts": {
-    "start": "node build/server/demo_server.js",
-    "build": "npm-run-all build:*",
-    "build:site": "npm-run-all build:site:*",
-    "build:site:protobuf": "npm-run-all build:site:protobuf:prepare build:site:protobuf:js build:site:protobuf:ts",
-    "build:site:protobuf:prepare": "mkdirp generated/site",
-    "build:site:protobuf:js": "pbjs -t static-module -w es6 -o generated/site/proto_compiled.js `find src/site -name '*.proto'`",
-    "build:site:protobuf:ts": "pbts -o generated/site/proto_compiled.d.ts generated/site/proto_compiled.js",
-    "build:site:webpack": "webpack",
-    "build:server": "tsc --build tsconfig.server.json",
-    "test": "npm-run-all test:*",
-    "test:pkg": "pkg-ok",
-    "test:format": "prettier --check .",
-    "fix": "npm-run-all fix:*",
-    "fix:format": "prettier --write .",
-    "clean": "rimraf build generated"
+    "start": "npm start --prefix server",
+    "foreach-workspace": "node foreach-workspace.js",
+    "dev": "npm run foreach-workspace \"npm run dev --prefix\"",
+    "build": "npm run foreach-workspace \"npm run build --prefix\"",
+    "test": "npm run foreach-workspace \"npm run test --prefix\"",
+    "fix": "npm run foreach-workspace \"npm run fix --prefix\"",
+    "clean": "npm run foreach-workspace \"npm run clean --prefix\"",
+    "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
+  },
+  "engines": {
+    "node": "15.6"
   }
 }

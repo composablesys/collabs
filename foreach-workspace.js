@@ -11,8 +11,17 @@ const child_process = require("child_process");
 (async function () {
   const command = process.argv[2];
   const packageJson = JSON.parse(fs.readFileSync("package.json").toString());
+  const noTest = new Set(packageJson.workspacesNoTest);
   const commands = [];
   for (const workspace of packageJson.workspaces) {
+    if (
+      (command.startsWith("npm run test") ||
+        command.startsWith("npm run fix")) &&
+      noTest.has(workspace)
+    ) {
+      console.log("skipping " + workspace);
+      continue;
+    }
     console.log("> " + command + " " + workspace);
     const out = child_process.spawnSync(command, [workspace], {
       stdio: [process.stdin, process.stdout, process.stderr],

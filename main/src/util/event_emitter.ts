@@ -24,9 +24,9 @@ export abstract class EventEmitter<Events extends EventsRecord> {
    * subclass as an instance of Crdt, for reasons
    * that are not clear to me.
    */
-  private readonly handlers: Partial<
-    { [K in keyof Events]: Set<Handler<Events[K], any>> }
-  > = {};
+  private readonly handlers: Partial<{
+    [K in keyof Events]: Set<Handler<Events[K], any>>;
+  }> = {};
 
   /**
    * Registers an event handler that is triggered when the event happens.

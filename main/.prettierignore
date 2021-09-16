@@ -1,4 +1,4 @@
 /build/*
 /generated/*
 /generated_esm/*
-/docs/*
+/docs/typedoc/*

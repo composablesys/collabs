@@ -10,6 +10,8 @@ export class ContainerHost extends CPrimitive {
    * with the container's IFrame, if you plan to load saveData.
    * Otherwise the container might send a message before
    * it is loaded, causing an error.
+   *
+   * TODO
    */
   readonly loadCompletePromise: Promise<void>;
   private loadCompleteResolve!: () => void;
