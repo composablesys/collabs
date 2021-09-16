@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>Compoventuals Demos</title>
+  </head>
+
+  <body>
+    <h3>Compoventuals Demos</h3>
+
+    <table id="containerTable"></table>
+
+    <script>
+      // Map: file name to title
+      const containers = [
+        ...Object.entries({
+          "counter/dist/counter.html": "Counter",
+          "whiteboard/dist/whiteboard.html": "Whiteboard",
+          "plaintext/dist/plaintext.html": "Plain text editor",
+          "rich-text/dist/rich_text.html": "Rich text editor",
+          "rich-text-yata/dist/rich_text_yata.html":
+            "Rich text editor<br />(experimental YATA + semidirect)",
+          "aspace/dist/aspace.html": "A Space",
+          "minesweeper/dist/minesweeper.html": "Minesweeper",
+          "horse-color-genetics/dist/standalone/horse-color-genetics.html":
+            "Horse color genetics (standalone)",
+          "horse-color-genetics/dist/multi/horse-color-genetics.html":
+            "Horse color genetics (multi-file)",
+          "selector/dist/selector.html": "Container selector",
+        }),
+      ];
+
+      const table = document.getElementById("containerTable");
+      {
+        // Demo row
+        const tr = table.insertRow();
+        const header = tr.insertCell();
+        header.innerHTML = "<b>Demo</b>";
+        for (let x = 0; x < containers.length; x++) {
+          const td = tr.insertCell();
+          td.innerHTML = `<a href="host.html?network=ws&container=demos/${containers[x][0]}">${containers[x][1]}</a>`;
+        }
+      }
+      {
+        // Download row
+        const tr = table.insertRow();
+        const header = tr.insertCell();
+        header.innerHTML = "<b>Downloadable file</b>";
+        for (let x = 0; x < containers.length; x++) {
+          const td = tr.insertCell();
+          td.innerHTML = `<a href="demos/${containers[x][0]}" download>${containers[x][1]}</a>`;
+        }
+      }
+    </script>
+
+    <p></p>
+    <h3>Server admin</h3>
+    <p>
+      <a href="reset.html">Reset message history</a>
+    </p>
+  </body>
+</html>

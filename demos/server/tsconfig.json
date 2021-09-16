@@ -17,5 +17,5 @@
     /* Emit sourcemap files. */
     "sourceMap": true
   },
-  "include": ["src"]
+  "include": ["src/site"]
 }

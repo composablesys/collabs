@@ -1,7 +1,0 @@
-.DS_Store
-.vscode/
-.idea/
-*.tsbuildinfo
-node_modules
-dist
-dist-one

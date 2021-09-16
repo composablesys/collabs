@@ -1,10 +1,16 @@
 {
+  "license": "Apache-2.0",
   "dependencies": {
     "compoventuals": "^0.1.0",
+    "compoventuals-container": "^0.1.0",
     "compoventuals-ws-client": "^0.1.0",
-    "compoventuals-ws-server": "^0.1.0"
+    "compoventuals-matrix-widget": "^0.1.0",
+    "compoventuals-ws-server": "^0.1.0",
+    "commander": "^8.2.0",
+    "express": "^4.17.1"
   },
   "devDependencies": {
+    "npm-run-all": "^4.1.5",
     "webpack": "^5.50.0",
     "webpack-cli": "^4.8.0",
     "@types/webpack": "^5.28.0",
@@ -16,12 +22,23 @@
     "ts-loader": "^9.2.5",
     "source-map-loader": "^3.0.0",
     "html-webpack-plugin": "^5.3.2",
+    "pkg-ok": "^2.3.1",
+    "prettier": "^2.2.1",
     "rimraf": "^2.7.1"
   },
   "scripts": {
-    "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
-    "start": "ts-node server/testing_server.ts",
-    "clean": "rimraf dist"
+    "start": "node build/server/server.js",
+    "dev": "npm-run-all dev:*",
+    "dev:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
+    "dev:server": "npm run build:server",
+    "build": "npm-run-all build:*",
+    "build:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "build:server": "tsc --build tsconfig-server.json",
+    "test": "npm-run-all test:*",
+    "test:pkg": "pkg-ok",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
+    "clean": "rimraf build"
   }
 }
