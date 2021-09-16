@@ -4,17 +4,11 @@ import { ContainerRuntimeSource } from "compoventuals-container";
 // Async so we can await ContainerRuntimeSource.newRuntime.
 (async function () {
   // Create a Runtime intended for use within containers.
-  // TODO: loading sequence (await Runtime, setup Crdts immediately,
-  // you'll be loaded (in setImmediate?) and receive queued
-  // messages, then you can perform Crdt operations.  Should
-  // work if you do the obvious thing (only do ops on user
-  // input, which will be queued behind setImmediate (TODO)), but
-  // in case loading takes a while, you might want to give a
-  // "Loading..." message to the user.)
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
 
-  // Now proceed as in a normal Compoventuals app, using runtime.
-  // Note that you you shouldn't try to load saveData;
+  // Now setup your program, using runtime.
+  // Note that you you shouldn't try to load saveData like you
+  // would in a non-container app;
   // ContainerRuntimeSource will do that for you.
 
   // We include a simple collaborative counter as an example;

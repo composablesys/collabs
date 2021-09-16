@@ -1,26 +1,47 @@
-TODO: move all advice in here that is not specific to containers to the guide page (?). At least keep install instructions, scripts, container-specific config.
+# Compoventuals template-container
 
-TODO: test both output files (once we add server)
+Template for a Compoventuals container. Containers are network agnostic and can be run in any [host](TODO: link to list of hosts).
 
-TODO: how to test saving?
+Guide: TODO
 
-npm run build-prod: build for production (smaller output file, but no source maps and takes longer). Configured in package.json; you can also use a file (see https://webpack.js.org/guides/production/)
+See also [template-app](TODO).
 
-How to test with Matrix using test server (/addwidget https://localhost:3000/dist/my_container.html)
+## Installation
 
-Also link to public sites where you can test it by uploading? (Matrix container host, ??) Or just call that deployment.
+First, install [Node.js](https://nodejs.org/). Then run `npm i`.
 
-Make sure to replace my_container with your file names in webpack.config.ts, package.json start command
+## Commands
+
+### `npm run dev`
+
+Build the container from `src/`, in [development mode](https://webpack.js.org/guides/development/).
+
+### `npm run build`
+
+Build the container from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; no source maps).
+
+### `npm start`
+
+Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your container. Use multiple browser windows at once to test collaboration.
+
+See [container-testing-server](TODO) for usage info.
+
+### `npm run clean`
+
+Delete `dist/`.
+
+## Starter Files
+
+- `src/`: Client-side app source files. If you rename the files in here, also rename their uses in `webpack.config.ts` and `package.json`.
+- `webpack.config.ts`: Webpack config for the client-side app.
+- `tsconfig.json`: TypeScript config for the client-side app.
+
+## Deployment
+
+See the [Guide](TODO) for deployment options.
 
 ## Licensing
 
-Containers are meant to be easily redistributable. Therefore they should have a permissive license TODO? Also nice to release the source code so people can tweak if they like - makes for easily distributed open-source collab apps.
+Coming soon: how to add license info and credits to your output file.
 
-TODO: testing advice (ws host - public or launch your own; Matrix - upload to host or launch your own local https server). Including concurrency testing - need an easy way to disconnect and reconnect with multiple users. Perhaps just include a dev server in /bin that auto-hosts your app (as few clicks as possible), with buttons to help test concurrency, and https option to test in matrix? Plus also refresh button (refresh message history, load new app)? Shouldn't matter if you have to restart the server command.
-
-See guide: if you decided not to inline any resources (e.g. a lot of images, for size/load time reasons), you can host them on a static site and refer to them by absolute URL
-(use output.publicPath for this in prod mode). You can't depend on relative URLs because the container might be loaded from a different domain (e.g., a blob: URL). Need to setup the static site's CORS headers so this is allowed (Access-Control-Allow-Origin: "\*"). Regardless, should inline as much as possible so that it can mostly work offline.
-
-Also need to allow CORS on main page if you want people to be able to get it by URL within a host. TODO: does github pages do this?
-
-TODO: test source maps (local + imported)
+Note that if you build your container as a single file with no external dependencies (recommended), then users can easily redistribute your container. Hence a permissive license is recommended.

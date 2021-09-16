@@ -4,6 +4,7 @@
     "compoventuals-container": "^0.1.0"
   },
   "devDependencies": {
+    "compoventuals-container-testing-server": "^0.1.0",
     "webpack": "^5.50.0",
     "webpack-cli": "^4.8.0",
     "@types/webpack": "^5.28.0",
@@ -21,8 +22,9 @@
     "rimraf": "^2.7.1"
   },
   "scripts": {
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build-prod": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "start": "container-testing-server dist/my_container.html",
+    "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
+    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
     "clean": "rimraf dist"
   }
 }

@@ -31,7 +31,7 @@ const config: webpack.Configuration = {
         use: ["source-map-loader"],
       },
       // If you include assets in your HTML file, uncomment
-      // the next rule and add html-loader as a devDependency,
+      // the next rule and install html-loader as a devDependency,
       // so that Webpack knows to include those assets.
       // {
       //   test: /\.(html)$/,
@@ -54,16 +54,18 @@ const config: webpack.Configuration = {
     // a .js file.
     new HtmlWebpackPlugin({
       filename: "my_container.html",
-      // Use my_container.html as the HTML file (minus scripts), instead of
-      // the plugin's default file.
+      // Use my_container.html as the HTML file,
+      // instead of the plugin's default file.
       template: "./src/my_container.html",
       // Inject the compiled .js into <body> instead of
       // <head>.  This lets you access HTML elements immediately
       // in your .ts file, instead of awaiting window.onload.
+      // (Normally you don't have to do this because scripts are
+      // deferred, but inline scripts can't be deferred.)
       inject: "body",
     }),
-    // Works with HtmlWebpackPlugin so that scripts
-    // are inlined in the output HTML file.
+    // Inline scripts in the HtmlWebpackPlugin's generated
+    // HTML file.
     // Docs: https://github.com/facebook/create-react-app/tree/main/packages/react-dev-utils#new-inlinechunkhtmlpluginhtmlwebpackplugin-htmlwebpackplugin-tests-regex
     new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/.*/]) as any,
     // Delete built .js files.  We don't need them since they
