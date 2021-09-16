@@ -12,7 +12,6 @@
 
       html,
       body,
-      div,
       iframe {
         margin: 0px;
         padding: 0px;
@@ -27,10 +26,38 @@
         overflow-y: auto;
         overflow-x: hidden;
       }
+
+      #appControls {
+        margin-top: 10px;
+        margin-left: 10px;
+      }
     </style>
 
     <title>Loading...</title>
   </head>
 
-  <body></body>
+  <body>
+    <div id="appControls">
+      <b>App controls</b>
+      <input type="checkbox" id="connected" checked="true" autocomplete="off" />
+      <label for="connected">Connected</label>
+      <input
+        type="checkbox"
+        id="sendConnected"
+        checked="true"
+        autocomplete="off"
+      />
+      <label for="sendConnected">Send connected</label>
+      <input
+        type="checkbox"
+        id="receiveConnected"
+        checked="true"
+        autocomplete="off"
+      />
+      <label for="receiveConnected">Receive connected</label>
+      <!--<button id="saveLoad">Save &amp; load</button>
+      <span id="saveLoadStatus"></span>-->
+      <hr />
+    </div>
+  </body>
 </html>
