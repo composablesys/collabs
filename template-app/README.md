@@ -12,17 +12,17 @@ First, install [Node.js](https://nodejs.org/). Then run `npm i`.
 
 ## Commands
 
+### `npm run dev`
+
+Build the app from `src/`, in [development mode](https://webpack.js.org/guides/development/).
+
 ### `npm run build`
 
-Build the app in `src/`, in [development mode](https://webpack.js.org/guides/development/).
-
-### `npm run build-prod`
-
-Build the app in `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; no source maps).
+Build the app from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; no source maps).
 
 ### `npm start`
 
-Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your app.
+Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your app. Use multiple browser windows at once to test collaboration.
 
 Options:
 
@@ -54,7 +54,7 @@ You can easily modify the testing server for testing with these other `Broadcast
 
   1. Remove the call to `startWebSocketServer` in `server/testing_server.ts`.
   2. Start the server in https mode (`npm start -- --https`).
-  3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/my_app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address). To test the widget across multiple machines, you can host the files on the web (a static site is fine, but https is required) and use `/addwidget <link to hosted my_app.html>`.
+  3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/my_app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
 
 - `WebRtcNetwork` from [compoventuals-webrtc-client](TODO):
   1. Install the WebRTC server: `npm i --save compoventuals-webrtc-server`.

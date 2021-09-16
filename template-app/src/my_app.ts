@@ -1,14 +1,14 @@
 import * as crdts from "compoventuals";
 import { WebSocketNetwork } from "compoventuals-ws-client";
 
-// Create a Runtime using our chosen network.
+// Create a Runtime using your chosen network.
 // Here we use WebSocketNetwork from package compoventuals-ws-client,
 // which sends messages through a compoventuals-ws-server
 // via WebSockets.
 // (A central server like this is not necessary to use
 // compoventuals, but it is convenient, especially for local testing.)
 const host = location.origin.replace(/^http/, "ws");
-const runtime = new crdts.Runtime(new WebSocketNetwork(host, "counter"));
+const runtime = new crdts.Runtime(new WebSocketNetwork(host, ""));
 
 // We include a simple collaborative counter as an example;
 // delete the code below and replace with your own.
