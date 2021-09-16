@@ -53,3 +53,5 @@ TODO: Matrix app (as demo of switching out network), mention how you can then us
 ## Next steps
 
 TODO: next guide (types, real data model, CObject); demos
+
+TODO: more info: link to Webpack docs/guides

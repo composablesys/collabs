@@ -4,3 +4,5 @@
 - not register a Crdt (should be hard due to CrdtInitToken - don't forge these).
   - should mention somewhere what's going on here (with Pre), how to get concrete instances.
 - everyone should be running same version. TODO for later: compatibility guide.
+- how to use valueConstructors
+- loading gotchas (performing ops before loading (block the user input in case loading takes some time); not setting up full state before loading; using ContainerRuntimeSource's auto load-after-first-thread but not setting up full state in the first thread)
