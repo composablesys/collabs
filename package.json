@@ -25,17 +25,22 @@
     "json-opt",
     "tensor-average",
     "container",
-    "container-testing-server",
-    "template-custom-type",
-    "template-container",
-    "template-app",
     "ws-client",
     "ws-server",
     "webrtc-client",
     "webrtc-server",
     "matrix-widget",
-    "benchmarks",
-    "demos"
+    "container-testing-server",
+    "template-custom-type",
+    "template-container",
+    "template-app",
+    "demos",
+    "benchmarks"
+  ],
+  "workspacesNoTest": [
+    "template-custom-type",
+    "template-container",
+    "template-app"
   ],
   "scripts": {
     "start": "npm start --prefix demos",
