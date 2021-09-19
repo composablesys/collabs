@@ -26,3 +26,4 @@ multiple semantics (some included, rest you can write your own), with common int
 Own types: We provide composition techniques and common interfaces to make this easier.
 
 Somewhere: events
+Somewhere: resets. Easy for CObject (especially if we make superclass).

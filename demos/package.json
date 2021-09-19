@@ -76,6 +76,7 @@
     "rich-text-yata",
     "whiteboard",
     "selector",
+    "tile-board",
     "server"
   ],
   "scripts": {
