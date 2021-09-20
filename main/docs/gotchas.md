@@ -8,3 +8,4 @@
 - loading gotchas (performing ops before loading (block the user input in case loading takes some time); not setting up full state before loading; using ContainerRuntimeSource's auto load-after-first-thread but not setting up full state in the first thread)
 - events not identical on all replicas
 - iterator orders not EC
+- wrong serializer (e.g a function)
