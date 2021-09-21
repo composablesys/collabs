@@ -21,9 +21,10 @@ Compoventuals is a library for building and using _collaborative data types_. Th
 
 [Typedoc](./typedoc)
 
+TODO
+
 acknowledge funding, CMU, all authors
 multiple semantics (some included, rest you can write your own), with common interfaces to ease switching.
 Own types: We provide composition techniques and common interfaces to make this easier.
 
-Somewhere: events
 Somewhere: resets. Easy for CObject (especially if we make superclass).

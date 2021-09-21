@@ -9,3 +9,4 @@
 - events not identical on all replicas
 - iterator orders not EC
 - wrong serializer (e.g a function)
+- here or elsewhere (non-gotcha)? mention useful features like batching, LWW consistency (setting many registers at once works as expected) - so long as you do ops in one thread. Avoid weird intermediate states due to batching and events.

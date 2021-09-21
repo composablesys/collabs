@@ -4,8 +4,6 @@
 
 This template demonstrates how to define a custom Compoventuals collaborative type and export it for reuse (e.g., as an npm package). It requires nothing fancy: you write the type, then export it. See [src/custom_type.ts](./src/custom_type.ts).
 
-Really we are just trying to advertise that yes, you can implement and share your own collaborative types - you're not stuck with only the ones we implemented! This is a unique feature of Compoventuals.
-
 [test/custom_type.test.ts](./test/custom_type.test.ts) shows how to test your type using `TestingNetworkGenerator`.
 
 The rest of this template is a (bare-bones) TypeScript library setup. For a real project, you'll probably want to use something more substantial like [typescript-starter](https://github.com/bitjson/typescript-starter).
@@ -16,6 +14,6 @@ Many types can be built out of existing Compoventuals types using `CObject`. How
 
 Compoventuals expects `Uint8Array`s for these messages. Some suggested ways to encoded and decode these `Uint8Array`s:
 
-- Use [protobuf.js](https://github.com/protobufjs/protobuf.js) with [its Typescript support](https://github.com/protobufjs/protobuf.js#usage-with-typescript). This is what Compoventuals does. See compoventuals-tensor-average for an example of how to set this up; it's a bit tricky to get the ESM build working and make it tree-shakable, due to bugs in the library's ESM output (as of 09/2021).
+- Use [protobuf.js](https://github.com/protobufjs/protobuf.js) with [its Typescript support](https://github.com/protobufjs/protobuf.js#usage-with-typescript). This is what Compoventuals does. See the compoventuals main package for an example of how to set this up; it's a bit tricky to get the ESM build working and make it tree-shakable, due to bugs in the library's ESM output (as of 09/2021).
 - Use [BSON](https://www.npmjs.com/package/bson) (binary JSON) to encode plain JS objects as `Uint8Array`s.
 - Use `Buffer.from` and `Buffer.toString` from [buffer](https://www.npmjs.com/package/buffer) to convert strings to `Uint8Array`s.

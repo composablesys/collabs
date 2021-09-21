@@ -26,6 +26,10 @@ Notes:
 
 TODO: events somewhere (how to connect model with the view); perhaps also mention ops in each example (controller -> model).
 
+## Using `CObject`
+
+TODO: here, or ref elsewhere? (Extra guide page? Custom types? CObject typedoc?)
+
 ## Examples
 
 For more examples, see the [Demos](TODO).
