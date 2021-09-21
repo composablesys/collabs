@@ -4,9 +4,9 @@ import $ from "jquery";
 export function setupWhiteboard(runtime: crdts.Runtime) {
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const clientBoard = runtime.registerCrdt(
+  const boardState = runtime.registerCrdt(
     "whiteboard",
-    crdts.Pre(crdts.LwwCMap)<[number, number], string>()
+    crdts.Pre(crdts.LwwCMap)<[x: number, y: number], string>()
   );
 
   const colors = document.getElementsByClassName("btn-colors");
@@ -66,14 +66,14 @@ export function setupWhiteboard(runtime: crdts.Runtime) {
   }
 
   // Draw points
-  clientBoard.on("Set", (event) => {
-    ctx!.fillStyle = clientBoard.get(event.key)!;
-    ctx!.fillRect(event.key[0], event.key[1], GRAN, GRAN);
+  boardState.on("Set", (event) => {
+    ctx.fillStyle = boardState.get(event.key)!;
+    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
   });
 
   // Clear points
-  clientBoard.on("Delete", (event) => {
-    ctx!.clearRect(event.key[0], event.key[1], GRAN, GRAN);
+  boardState.on("Delete", (event) => {
+    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
   });
 
   // Mouse Event Handlers
@@ -88,7 +88,7 @@ export function setupWhiteboard(runtime: crdts.Runtime) {
   });
 
   $(clear).on("click", function () {
-    clientBoard.reset();
+    boardState.reset();
   });
 
   // Draw on board
@@ -106,7 +106,7 @@ export function setupWhiteboard(runtime: crdts.Runtime) {
         canvasX = e.clientX - rect.left;
         canvasY = e.clientY - rect.top;
         interpolate(prevX, prevY, canvasX, canvasY).forEach(function (pt) {
-          clientBoard.set(pt, color);
+          boardState.set(pt, color);
         });
         prevX = canvasX;
         prevY = canvasY;

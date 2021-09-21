@@ -2,7 +2,7 @@
 
 This page gives an overview of the library's built-in collaborative data types. More detailed info about each type can be found in the [API docs](./typedoc).
 
-## Quick List
+## Quick Reference
 
 For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The table below gives suggested `C(X)` values for common types. Alternatives may differ in the operations they support or in how they resolve conflicts between concurrent operations. TODO: interface "of" methods as shortcut.
 
@@ -87,13 +87,17 @@ Efficiency of sending big object every time
 
 Types of mutable collections (Deleting, Resetting, Tombstone). Note downsides of each: resetting message size for all ops; tombstones; non-revivable/destroying/inconsisten on deleting (can get confusing if you store it elsewhere, need to check); resetting needs resetting. Also extras (merging map, move on deleting list, ?)
 
-### Maps vs `CObjects`
+### `CObject`s vs Ordinary Objects
+
+Similar to register discussion (granularity of edits)
+
+### `CObject`s vs `CMap`s
 
 Use CObject, unless it's really dynamic (props not known at compile time).
 
 ### Arrays vs `CLists`
 
-Lists are not like ordinary arrays (designed for insertion/deletion like a list); if you want a more ordinary array (fixed length or growing like a vector), use a map with numeric keys.
+Lists are not like ordinary arrays (designed for insertion/deletion like a list); if you want a more ordinary array (fixed length at constructor time), use a normal array (shorthand for a bunch of individual vars), or maybe in some situations a map with numeric keys. Actually this applies generally to any collection (e.g. our use of a map object in the horse demo) - change title?.
 
 ### Treating Immutable Values as Mutable
 
