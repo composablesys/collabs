@@ -10,6 +10,8 @@ We recommend using one of the following superclasses for your custom type. Howev
 
 See the API docs for a class (linked in the headers below) for instructions on how to subclass them.
 
+If your custom type is implementing one of the interfaces `CBoolean`, `CList`, `CMap`, `CSet`, you probably want to extend the corresponding abstract helper class instead of the classes listed here. E.g., to implement a `CList` that would otherwise extend `CObject`, instead extend [`AbstractCListCObject`](./typedoc/classes/AbstractCListCObject.html).
+
 ### [`CObject`](./typedoc/classes/CObject.html)
 
 For classes whose instance variables are themselves collaborative types. This is the most common and easiest to use superclass, and suffices for many [Data Models](TODO).
@@ -26,6 +28,4 @@ For combining non-commuting operations in the same type, adding operations to an
 
 ## Adding Events
 
-If you are publishing a custom type as a third-party library, we recommend that it dispatches its own [Events](TODO). These let your consumers observe changes while maintaining encapsulation. See the template's `CPair` for an example.
-
-For custom types that you only plan to use in your own application, though, it can be easier to just listen on events dispatched by internal collaborative types, or to just listen on `Runtime`'s "Change" event.
+See [Adding Events to Custom Types](TODO: events.md section).
