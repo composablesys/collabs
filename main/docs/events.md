@@ -43,7 +43,7 @@ Also, all collaborative data types have a "Change" event of type `CrdtEvent`, fr
 
 When listening on a collaborative type's events, you should register event listeners as soon as possible - usually in the same thread as the type is constructed. For example, to listen on child events in a `CObject`, you should register listeners in the constructor. This ensures that you don't miss any events.
 
-When listening on events from a collaborative type that is created dynamically in a collection (e.g., `DeletingMutCSet`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add", "Insert", "Set", etc. event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
+When listening on events from a collaborative type that is created dynamically in a collection (e.g., `ResettingMutCSet`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add", "Insert", "Set", etc. event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
 
 ## Adding Events to Custom Types
 

@@ -28,3 +28,5 @@ multiple semantics (some included, rest you can write your own), with common int
 Own types: We provide composition techniques and common interfaces to make this easier.
 
 Somewhere: resets. Easy for CObject (especially if we make superclass).
+
+Eventual consistency somewhere (formal correctness guarantee)? Different from strong consistency, so you can't do transactions. Also explain replicas/users?

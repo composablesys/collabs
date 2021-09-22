@@ -1,0 +1,1 @@
+mention useful features like batching, LWW consistency (setting many registers at once works as expected) - so long as you do ops in one thread. Avoid weird intermediate states due to batching and events. Not really transactions (no locking), but similar to the Yjs concept, except automatic.

@@ -22,7 +22,7 @@ Notes:
 - In practice, steps 2 and 3 are not sequential, but instead are a back-and-forth. Don't expect your program to compile until you have finished both of them together.
 - You may find that you need to revise your choice of collaborative types or your class structure, in order to support the right operations or obtain the right semantics (see [Choices](TODO: types.md#Choices) for some common choice points).
 - You don't need to replace variables with collaborative versions if they are never mutated after being set (`readonly`/`const` and internally immutable).
-- For advanced scenarios, like supporting new primitive types or novel behavior in the face of concurrent operations, you may need to write your own [Custom Types](TODO: specifically low-level/advanced section).
+- For advanced scenarios, like supporting new primitive types or novel behavior in the face of concurrent operations, you may need to use more advanced techniques for creating [Custom Types](TODO: specifically low-level/advanced section).
 
 TODO: events somewhere (how to connect model with the view); perhaps also mention ops in each example (controller -> model).
 
