@@ -1,6 +1,6 @@
 # Custom Collaborative Data Types
 
-A unique feature of Compoventuals is that you can extend the library with your own collaborative data types. This includes both creating [data models](TODO) as compositions of existing types, as well as implementing completely new types from scratch (e.g., an algorithm from a [CRDT](https://crdt.tech/) paper). Thus you are not stuck with only the types/operations/semantics that we provide.
+A core feature of Compoventuals is that you can extend the library with your own collaborative data types. This includes both creating [data models](TODO) as compositions of existing types, as well as implementing completely new types from scratch (e.g., an algorithm from a [CRDT](https://crdt.tech/) paper). Thus you are not stuck with only the types/operations/semantics that we provide.
 
 See [template-custom-type](TODO) for a template that you can use to get started. The template comes with a simple custom type `CPair` as an example (in `src/custom_type.ts`).
 
