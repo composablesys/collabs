@@ -14,7 +14,7 @@ Compoventuals is a library for building and using _collaborative data types_. Th
 
 - **Conflict-free:** Users see their own changes immediately, even when offline, and sync up with other users in the background. All users see the same state once they sync up, even if they made simultaneous changes (e.g., two users typing at once).
 - **Network-agnostic:** Compoventuals generates messages that you must eventually broadcast to all users, but how is completely up to you and your users: your own server, WebRTC, encrypted [Matrix](matrix.org) room, etc. TODO: link to zero-hosting deployment options (use someone else's); links to docs on each option. Networks page with all options?
-- **Keep your data model and type safety:** A unique feature of Compoventuals is that you can organize your collaborative state using reusable, strongly-typed classes. In particular, you can make a single-user app collaborative while preserving its data model and type safety, by directly replacing its frontend data types with collaborative versions.
+- **Keep your data model and type safety:** A core feature of Compoventuals is that you can organize your collaborative state using reusable, strongly-typed classes. In particular, you can make a single-user app collaborative while preserving its data model and type safety, by directly replacing its frontend data types with collaborative versions.
 - **Flexible and extensible:** At its core, Compoventuals is a library _for_ collaborative data types, not just a library _of_ types (although we provide plenty of those too). So if our data types don't meet your needs, you can create your own or get them from third-party libraries. In particular, you can create new types by composing existing ones.
 
 ## API

@@ -36,8 +36,6 @@ export interface LocatableCList<
    */
   locate(location: L): [index: number, isPresent: boolean];
 
-  readonly length: number;
-
   readonly locationSerializer: ElementSerializer<L>;
 }
 

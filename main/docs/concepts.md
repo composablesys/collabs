@@ -8,4 +8,8 @@ Eventual consistency
 
 Users/replicas (pick one and be consistent?)
 
+Op-based CRDTs
+
+Tree hierarchy (internals?)
+
 TODO? -->
