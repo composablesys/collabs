@@ -1,8 +1,3 @@
-// The casual broadcast network designed for a two-way interactive
-// communication session between user and server using WebSocket API.
-//
-// Also ensure the order of delivery with casuality check.
-
 import {
   DefaultCausalBroadcastMessage,
   DefaultCausalBroadcastSave,
@@ -20,56 +15,81 @@ const DEBUG = false;
 /**
  * Interface describing a (reliable, at-least-once, ordering
  * agnostic)
- * broadcast network.  This network is used
- * by DefaultCausalBroadcastNetwork to broadcast messages to
+ * broadcast network.
+ *
+ * This network is used
+ * by [[DefaultCausalBroadcastNetwork]] to broadcast messages to
  * other replicas reliably, while the
- * DefaultCausalBroadcastNetwork handles the tagged causal
+ * [[DefaultCausalBroadcastNetwork]] handles the causal
  * ordering of messages.
+ *
+ * Implementations are provided by plugin packages (see TODO), or you
+ * can write your own for a custom network.
  */
 export interface BroadcastNetwork {
   /**
-   * Variable set by the using network.
+   * Callback set by the using network.  Pass received
+   * messages to this function.
    */
   onreceive: (message: Uint8Array) => void;
   /**
-   * Used by DefaultCausalBroadcastNetwork
-   * to send a broadcast message. This message should be
-   * delivered to the
-   * registered DefaultCausalBroadcastNetwork's
-   * receive method on
+   * Used by [[DefaultCausalBroadcastNetwork]]
+   * to send a broadcast message.
+   *
+   * For implementers: The message must be
+   * delivered to the `onreceive` callbacks of
    * all other replicas in group, reliably and at-least-once,
-   * but without any ordering requirements.  (However, messages
-   * will only be delivered to their target Crdt's in
-   * causal order, with DefaultCausalBroadcastNetwork
-   * bufferring messages if needed).
-   * timestamp
-   * is provided for information purposes only -
-   * you can safely ignore it, and in particular, there
-   * is no ordering requirement for delivered messages.
-   * @param group An identifier for the group that
-   * this message should be broadcast to (see joinGroup).
-   * @param message The message to send
+   * but without any ordering requirements.
+   *
+   * @param message The message to send.
    */
   send(message: Uint8Array): void;
 
+  // TODO: need to prevent loading all messages after
+  // construction but before loading (the current behavior
+  // of WebSocketNetwork), iff it's going to be loaded.
   /**
-   * Save any current state if desired, for passing
-   * to load on a future newly initialized instance.
+   * Save any current state if desired.  This method should
+   * only be called by [[DefaultCausalBroadcastNetwork.save]].
    *
-   * The only requirement is that a loaded copy must
+   * The returned saveData may later be passed to [[load]]
+   * on a newly initialized instance of the same class,
+   * constructed with the same constructor arguments.
+   * The loaded instance will then deliver to `onreceive`
+   * **at least** any messages that were not delivered before
+   * saving, in any order as usual.
+   *
+   * Advice for implementers:
+   * - The only requirement is that a loaded copy must
    * eventually deliver any messages that were not already
    * delivered by the saved instance.  It is okay to deliver
-   * more (the likely behavior if you save no state), but
+   * more (e.g., if you save no state and ignore loading), but
    * inefficient.
-   *
-   * TODO: need to prevent loading all messages after
-   * construction but before loading (the current behavior
-   * of WebSocketNetwork), iff it's going to be loaded.
+   * - Note that
+   * [[load]] will be called on a replica
+   * with a different replicaId than this one, and that
+   * the save data may be loaded by multiple replicas concurrently.  Thus
+   * the save data must be forkable without breaking
+   * reliable delivery.
    *
    * @return [description]
    */
   save(): Uint8Array;
 
+  /**
+   * Loads the state from save data.  See [[save]].  This method should
+   * only be called by [[DefaultCausalBroadcastNetwork.load]].
+   *
+   * This must have been constructed with the same class and
+   * constructor arguments as the saved instance, and it must
+   * not have sent or received any messages yet.
+   *
+   * @param saveData An output of [[save]] from a previous
+   * instance of this class. Note that `saveData` will have been output
+   * by a different replica (with a different [[Runtime.replicaId]]),
+   * and the same `saveData` may be loaded on multiple
+   * replicas, possibly concurrently.
+   */
   load(saveData: Uint8Array): void;
 }
 
@@ -133,14 +153,8 @@ class myMessage {
 }
 
 /**
- * WebSocketNetwork:
- *
- * Process initialization when starting a new user node.
- *
- * Communicate with CRDT's runtime and send/receive message via
- * central broadcast server with WebSocket protocol.
- *
- * Perform casuality check to ensure message ordering.
+ * Default implementation of [[CausalBroadcastNetwork]]
+ * on top of an arbitrary [[BroadcastNetwork]].
  */
 export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   /**
@@ -152,10 +166,6 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     firstTimestamp: CausalTimestamp
   ) => CausalTimestamp;
   private onreceiveblocked!: (sender: string) => void;
-  /**
-   * BroadcastNetwork for broadcasting messages.
-   */
-  readonly broadcastNetwork: BroadcastNetwork;
   /**
    * Our current vector clock.
    */
@@ -177,10 +187,10 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   private isPendingBatch: boolean = false;
 
   /**
-   * [constructor description]
-   * @param broadcastNetwork [description]
+   * @param broadcastNetwork The [[BroadcastNetwork]] used
+   * to send and receive messages.
    */
-  constructor(broadcastNetwork: BroadcastNetwork) {
+  constructor(readonly broadcastNetwork: BroadcastNetwork) {
     /**
      * Open WebSocket connection with server.
      * Register EventListener with corresponding event handler.
@@ -200,11 +210,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     this.messageBuffer.push(parsed);
     this.checkMessageBuffer();
   }
-  /**
-   * Register Runtime CasualBroadcastNetwork.
-   *
-   * @param runtime
-   */
+
   registerRuntime(
     runtime: Runtime,
     onreceive: (
@@ -227,29 +233,7 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
     next.time = Date.now();
     return next;
   }
-  /**
-   * Send function on casualbroadcast network layer, which called
-   * by crdt's runtime layer.
-   *
-   * The message is wrapped with its corresponding timestamp (basic sender node
-   * info and vector clock).
-   *
-   * Using WebSocket as network transmission protocol.
-   * Using JSON format as message type.
-   *
-   * If the WebSocket Readystate is not Open, then buffer the message and
-   * wait until WebSocket open.
-   * If the WebSocket Readystate is Open, then send it with ws.send().
-   *
-   * @param group An identifier for the group that
-   * this message should be broadcast to.  A group
-   * encompasses both a set of replicas and a unit
-   * of causal consistency, i.e., messages should
-   * be causally consistent within a group but need
-   * not be across groups.
-   * @param message The message to send
-   * TODO
-   */
+
   commitBatch(
     message: Uint8Array,
     firstTimestamp: CausalTimestamp,
@@ -380,9 +364,4 @@ export class DefaultCausalBroadcastNetwork implements CausalBroadcastNetwork {
   }
 
   readonly isCausalBroadcastNetwork: true = true;
-
-  static timestampOf(_message: Uint8Array) {
-    // TODO
-    throw new Error("Method not implemented.");
-  }
 }

@@ -4,23 +4,29 @@ import { isRuntime } from "./is_runtime";
 import { Runtime } from "./runtime";
 
 /**
- * A parent of a Crdt.  Only the root has Runtime as its
- * parent; the rest have a Crdt as their parent.
+ * A parent of a Crdt.
+ *
+ * Only the root Crdt (which you will never
+ * encounter directly) has the [[Runtime]] as its
+ * parent; the rest have another Crdt as their parent.
  */
 export type CrdtParent = Crdt | Runtime;
 
 /**
  * Used to initialize a Crdt.  A token {name, parent} must
- * ONLY be created and used by parent itself, to construct
+ * **only** be created and used by parent itself, to construct
  * a Crdt that it is adding as a child.
  */
 export class CrdtInitToken {
   /**
-   * Must ONLY be called and used by parent itself, to construct
+   * Must **only** be called and used by parent itself, to construct
    * a Crdt that it is adding as a child.
    */
   constructor(readonly name: string, readonly parent: CrdtParent) {}
 
+  /**
+   * @return `parent`'s [[Runtime]].
+   */
   get runtime(): Runtime {
     if (isRuntime(this.parent)) return this.parent;
     else return this.parent.runtime;
@@ -28,18 +34,45 @@ export class CrdtInitToken {
 }
 
 /**
- * Calling something Pre<C> indicates that it is one use.
- * If you want a multi-user version, write out
- * the function type explicitly instead (e.g. collection
- * valueConstructor's), or use a function whose output is
- * a Pre<C>.
+ * A callback used to construct a `C`, i.e., a "Pre-`C`".
  *
- * Usually C will extend Crdt, but we allow more general
- * types in case users make more general constructs that
- * require an initToken (e.g., a Crdt + HTML component combo).
+ * `Pre<C>`s are passed to methods like [[Runtime.registerCrdt]]
+ * or [[CObject.addChild]] that construct a new [[Crdt]] using
+ * their own [[CrdtInitToken]].  Typically `C` extends [[Crdt]].
+ *
+ * You can use the [[Pre]] function to easily construct
+ * `Pre<C>`s based on `C`'s constructor.  See
+ * [Initialization](../initialization.html) for examples.
+ *
+ * Calling a callback a `Pre<C>`` indicates that it is one-use.
+ * Multi-use callbacks should instead have their types written
+ * out explicitly (as a function).
+ *
+ * @typeParam C The type of the object to be constructed.
  */
 export type Pre<C> = (initToken: CrdtInitToken) => C;
 
+/**
+ * Given a class, outputs a function that acts like the
+ * class's constructor, except that the function outputs a
+ * `[[Pre]]<C>` instead of requiring a [[CrdtInitToken]]
+ * as its first parameter.
+ *
+ * In other words, `Pre` curries the constructor, shifting
+ * the first argument to instead be the input of a second
+ * function.
+ *
+ * Typical usage looks like `Pre(Class name)<generic types>(constructor arguments omitting the first)`,
+ * where `Class`'s constructor takes a [[CrdtInitToken]]
+ * as its first argument.  See [Initialization](../initialization.html) for explicit
+ * examples and use cases.
+ *
+ * @param Class
+ * @return A function that is like `Class`'s constructor,
+ * except that the function outputs a
+ * `[[Pre]]<C>` instead of requiring a [[CrdtInitToken]]
+ * as its first parameter.
+ */
 export function Pre<C, Args extends any[]>(
   Class: new (initToken: CrdtInitToken, ...args: Args) => C
 ): (...args: Args) => Pre<C> {
@@ -48,6 +81,9 @@ export function Pre<C, Args extends any[]>(
       new Class(initToken, ...args);
 }
 
+/**
+ * Metadata for a [[CrdtEvent]].
+ */
 export interface CrdtEventMeta {
   /**
    * The replicaId of the replica that initiated the operation
@@ -57,115 +93,137 @@ export interface CrdtEventMeta {
   /**
    * Whether the operation was initiated locally.
    *
-   * Equivalent to this.sender === (local Runtime).replicaId.
+   * Equivalent to this.sender === (ambient Runtime).replicaId.
    */
   readonly isLocal: boolean;
 }
 
+/**
+ * A collection of utility functions for constructing
+ * [[CrdtEventMeta]]s.
+ */
 export const CrdtEventMeta = {
+  /**
+   * Returns a [[CrdtEventMeta]] for an event
+   * caused by an operation/message with the given timestamp.
+   *
+   * @param  timestamp [description]
+   * @return           [description]
+   */
   fromTimestamp(timestamp: CausalTimestamp): CrdtEventMeta {
     return { sender: timestamp.getSender(), isLocal: timestamp.isLocal() };
   },
 
+  /**
+   * Returns a [[CrdtEventMeta]] for an event
+   * caused by an operation/message with the given sender.
+   *
+   * @param  sender  [description]
+   * @param  runtime The ambient [[Runtime]], used to get
+   * our own `replicaId`.
+   * @return         [description]
+   */
   fromSender(sender: string, runtime: Runtime): CrdtEventMeta {
     return { sender, isLocal: sender === runtime.replicaId };
   },
 
+  /**
+   * Returns a [[CrdtEventMeta]] for an event
+   * caused by a local operation.
+   *
+   * @param  runtime The ambient [[Runtime]], used to get
+   * our own `replicaId`.
+   * @return         [description]
+   */
   local(runtime: Runtime): CrdtEventMeta {
     return { sender: runtime.replicaId, isLocal: true };
   },
 };
 
 /**
- * An event issued when a Crdt is changed by either
- * a remote or local operation.
+ * Supertype for events emitted by Crdts.
  *
- * Crdts should define events implementing this interface
- * and pass those to registered listeners when the Crdt's
- * state is changed.
+ * Such events are (typically) emitted after the Crdt processes a local
+ * or remote operation.
+ *
+ * Some special events (e.g. in
+ * [[CMountPoint]]) are only associated to a local operation instead
+ * of a replicated one; in that case, they should still
+ * extend CrdtEvent, and they should always set
+ * `meta: `[[CrdtEventMeta]]`.local(runtime)`.
+ *
+ * See [[CrdtEventsRecord]].
  */
 export interface CrdtEvent {
+  /**
+   * Metadata for this event.
+   */
   readonly meta: CrdtEventMeta;
 }
 
 /**
  * A record of events for a Crdt, indexed by name.
  *
- * Crdt subclasses should define an events record extending
+ * Crdt subclasses generally should define an events record extending
  * this interface, adding a record for each possible change.
+ * Each record has the form `eventName: EventType`, where eventName
+ * is a string and `EventType` is a type implementing [[CrdtEvent]].
+ * The Crdt should then emit appropriate events each time its
+ * state changes due to a local or remote operation.
+ * See [Events](../events.html) for advice on what events to
+ * include.
  *
- * Each record's type must extend CrdtEvent.  TypeScript won't
- * let us enforce this using CrdtEventsRecord, so we instead
- * enforce this indirectly by making Crdt.emit only accept
- * events extending CrdtEvent.
- *
- * Typically, events only happen in response to replicated operations
- * (possibly initiated by us).  Some special events (e.g. in
- * CMountPoint) are only associated to a local operation instead
- * of a replicated one; in that case, they should still
- * extend CrdtEvent, and they should always set
- * meta: CrdtEventMeta.local(this.runtime).
- *
- * General advice:
- * - Only emit events when your state is usable.  If one of
- * your operations is made up of several sub-operations, and
- * the intermediate states are nonsensical, don't emit events
- * then, since the listeners might try to inspect the state
- * during their event handlers.
- * - Events should be sufficient to maintain a view of
- * the state.  But, it is recommended to omit info
- * that the user can get from the Crdt during the event
- * listener (e.g., in CMap, events provide key but not value,
- * since the listener can get the value themselves.)
- * - Give the previous value, if it cannot be determined
- * otherwise (e.g. from the remaining state).  That is useful
- * for some views that only account for part of the state,
- * e.g., the size of a CMap.
- * - Don't dispatch events redundantly if there is no way
- * to tell whether they are redundant.  E.g., in CSet, only
- * dispatch Add if the value went from (not present) to (present);
- * don't dispatch it if the value was already present.
- * That is useful
- * for some views that only track part of the state,
- * e.g., the size of a CSet.
- * - If you making a non-reusable component for an app and
- * don't want to bother adding individual events, you can just
- * emit "Change" events when your state changes (e.g., on
- * your children's "Change" events).  Or, you can skip events
- * entirely and either refresh the whole display on Runtime
- * "Change" events, or refresh your Crdt-specifc display on
- * its children's "Change" events.
+ * TypeScript won't directly enforce the condition that each `EventType`
+ * implements [[CrdtEvent]], so we instead
+ * enforce this indirectly by making [[Crdt.emit]] only accept
+ * events extending [[CrdtEvent]].
  */
 export interface CrdtEventsRecord {
   /**
    * Emitted right after any other event is emitted.
    *
-   * Listen to this if you want to know each time this Crdt
+   * Listen on this if you want to know each time the [[Crdt]]
    * is changed (e.g., so you can refresh a display based on
-   * this Crdt's state) without having to listen to each
+   * its state) without having to listen on each
    * individual event type.
    */
   Change: CrdtEvent;
 }
 
 /**
- * The base class for all Crdts.
+ * The base class for all collaborative data structures.
  *
  * Most Crdts will not extend this class directly,
- * instead extending CObject, CPrimitive, or
- * SemidirectProduct.
+ * instead extending an existing construction like
+ * [[CObject]], [[CPrimitive]], or [[SemidirectProduct]].
+ * See [Custom Types](../../custom_types.html).
+ *
+ * @typeParam Events The events for this Crdt.
  */
 export abstract class Crdt<
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
+  /**
+   * The ambient [[Runtime]], responsible for sending
+   * and receiving this Crdt's messages.
+   */
   readonly runtime: Runtime;
   /**
-   * TODO: only Runtime's RootCrdt will have Runtime
-   * as a parent, all others will have a Crdt parent.
+   * The Crdt's parent in the tree of Crdts.
    */
   readonly parent: CrdtParent;
+  /**
+   * The Crdt's name, which distinguishes it among its siblings
+   * in tree of Crdts.
+   */
   readonly name: string;
 
+  /**
+   * Uses the given [[CrdtInitToken]] to register this Crdt
+   * with its parent, thus attaching it to the tree of Crdts.
+   * @param initToken A [[CrdtInitToken]] given by
+   * `initToken.parent` for use in constructing this Crdt.
+   */
   constructor(initToken: CrdtInitToken) {
     super();
     this.runtime = initToken.runtime;
@@ -174,10 +232,9 @@ export abstract class Crdt<
   }
 
   /**
-   * An array of names listing all names on this Crdt's
+   * Returns an array listing all names on this Crdt's
    * path to the root Crdt, in order starting with this
-   * Crdt's name (unless this is the root Crdt, in which
-   * case this's name is excluded).
+   * Crdt's name.  If this is the root Crdt, returns `[]`.
    */
   pathToRoot(): string[] {
     let ans = [];
@@ -192,16 +249,20 @@ export abstract class Crdt<
   }
 
   /**
-   * Emits an event, which triggers all the registered event handlers.
+   * Emits an event, which notifies all registered event handlers.
    * After emitting event, a "Change" event with the same
-   * event.meta is emitted, unless it is already a "Change" event.
+   * event.meta is emitted, unless it is already a "Change" event.  (Usually, Crdts should not emit a "Change" event
+   * directly, instead emitting a more specific, custom event.)
    *
-   * Unlike EventEmitter.emit, we force event to have type
-   * Events[K] & CrdtEvent.  This is meant to force the event
-   * types in our CrdtEventsRecord to extend CrdtEvent.
+   * `event` is forced to implement [[CrdtEvent]], to indirectly
+   * express the requirement that all event types in
+   * the [[CrdtEventsRecord]] implement [[CrdtEvent]].
    *
-   * @param eventName Name of the event
-   * @param event Event object to pass to the event handlers
+   * See [Events](../../events.html) for advice on what events to emit.
+   *
+   * @typeParam `eventName` as a string literal type.
+   * @param eventName Name of the event.
+   * @param event Event object to pass to the event handlers.
    */
   protected emit<K extends keyof Events>(
     eventName: K,
@@ -213,21 +274,19 @@ export abstract class Crdt<
     }
   }
 
-  // private needsSaving = false;
   /**
    * Callback used by this Crdt's CrdtParent to deliver
    * a message, possibly for one of this Crdt's descendants.
-   * This method calls receiveInternal.
    *
-   * Do not override this method; instead, override
-   * receiveInternal.
+   * For implementers: do not override this method; instead, override
+   * [[receiveInternal]], which is called by this method.
    *
-   * @targetPath the target Crdt's id followed by
-   * the ids of its ancestors in ascending order,
-   * stopping at this Crdt (exclusive).
-   * TODO: warning: mutated
-   * @param timestamp The timestamp of the received message
-   * @param message   The received message
+   * @param targetPath The target Crdt's name followed by
+   * the names of its ancestors in ascending order,
+   * stopping at this Crdt (exclusive).  `targetPath` is mutated
+   * and should not be reused.
+   * @param timestamp The timestamp of the received message.
+   * @param message   The received message.
    */
   receive(
     targetPath: string[],
@@ -244,20 +303,20 @@ export abstract class Crdt<
    * Core method used to receive messages, possibly for
    * one of this Crdt's descendants.
    *
-   * Although you may modify messages intended for your
-   * descendants (so long as you ensure eventual consistency),
-   * local messages (sent by this replica) must be delivered
+   * For implementers: although `receiveInternal` may modify messages intended for its
+   * descendants (so long as eventual consistency is ensured),
+   * local messages (sent by the local replica) must be delivered
    * unchanged.  The only exception is if you are explicitly not
    * allowing messages from that descendant
    * (e.g., messages from deleted values in
-   * DeletingMutCSet); in that case, you should throw an error,
-   * which will prevent the operation.
+   * [[DeletingMutCSet]]); in that case, this method should throw
+   * an error, preventing the offending operation.
    *
-   * @targetPath the target Crdt's id followed by
+   * @param targetPath the target Crdt's id followed by
    * the ids of its ancestors in ascending order,
    * stopping at this Crdt (exclusive).
-   * @param timestamp The timestamp of the received message
-   * @param message   The received message
+   * @param timestamp The timestamp of the received message.
+   * @param message   The received message.
    */
   protected abstract receiveInternal(
     targetPath: string[],
@@ -269,19 +328,20 @@ export abstract class Crdt<
   // index but not the underlying array).
 
   /**
-   * Returns the given child of this Crdt.
-   * Only for use by Runtime; all others use
-   * Runtime.getCrdtByReference.
+   * Returns the child of this Crdt with the given name.
    *
-   * @param name the child's name
+   * Only [[Runtime]] should call this method; all others
+   * should use [[Runtime.getCrdtByReference]].
+   *
+   * @param name
    */
   abstract getChild(name: string): Crdt;
 
   /**
    * If this Crdt is in its initial, post-constructor state, then
-   * this method should (but is not required to) return true; otherwise, it must return false.
+   * this method may (but is not required to) return true; otherwise, it returns false.
    *
-   * When canGc() is true, users of this Crdt may
+   * When canGc() is true, users of this Crdt may safely
    * delete it from memory ("garbage collection"),
    * recreating it using the
    * same constructor arguments if needed later.  That reduces
@@ -289,131 +349,127 @@ export abstract class Crdt<
    */
   abstract canGc(): boolean;
 
-  // /**
-  //  * Only for use by Runtime.
-  //  *
-  //  * Returns whether this Crdt needs saving, specifically,
-  //  * whether any messages have been received (including
-  //  * for descendants) since the last call to this method.
-  //  *
-  //  * TODO: allow overriding if you know better?  Or, option
-  //  * for save to return null for saveData if only children
-  //  * need to be updated?  E.g. if you change a single attribute
-  //  * in a DeletingMutCSet rich text.  Although usually you'd be
-  //  * changing characters, so this is moot.
-  //  */
-  // getAndResetNeedsSaving(): boolean {
-  //   const ans = this.needsSaving;
-  //   this.needsSaving = false;
-  //   return ans;
-  // }
-
   /**
-   * Only for use by Runtime.
+   * Saves this Crdt's internal state in serialized form.
+   * This method should only be called by [[Runtime.save]].
    *
-   * Must have no side-effects, and be able to be called
-   * multiple times.
+   * The returned `saveData` (first return value) may later be passed to [[load]]
+   * on a newly initialized instance of the same class,
+   * constructed with the same constructor arguments.
+   * The loaded instance must then have the same internal state,
+   * capable of sending and receiving operations as usual
+   * while ensuring eventual consistency.
    *
-   * saveData: a serialization of this Crdt's
-   * own internal state that is not set in the
-   * constructor, sufficient to reconstruct the
-   * state after initializing this Crdt with the same
-   * constructor arguments and then calling
-   * this.load(saveData).  This should not include
-   * saveData for children (their save methods will
-   * be called separately), but should be sufficient
-   * to initialize the children (i.e., construct them,
-   * without loading them) in this.load(saveData).
+   * The returned `children` is a map from name to child for this Crdt's
+   * nontrivial children.  [[Runtime.save]] will save those children recursively.
    *
-   * children: a map from name to child for this Crdt's
-   * nontrivial children.  This must include all children
+   * TODO: move advice to guide (also load)?  Likewise for subclass versions?
+   *
+   * Advice for implementers:
+   * - `saveData` should not encode child *states*, but it must
+   * be sufficient to initialize all children (i.e., construct them, without loading their
+   * own saved sate) in [[load]], if they were not already
+   * initialized by the constructor.  Typically, this means
+   * that you must save info about how to construct
+   * dynamically-created children.
+   * - `children` must include all children
    * for which canGc() is false, and may safely contain
-   * more.  These children will be saved recursively.
+   * more.
+   * - Note that
+   * [[load]] will be called on a replica
+   * with a different replicaId than this one, and that
+   * the save data may be loaded by multiple replicas concurrently.  Thus
+   * the save data must be forkable without breaking eventual
+   * consistency.
    */
   abstract save(): [saveData: Uint8Array, children: Map<string, Crdt>];
 
   /**
-   * Only for use by Runtime.
+   * Loads the state from `saveData`.  See [[save]].  This method should
+   * only be called by [[Runtime.load]].
    *
-   * Reconstruct the saved state recorded in saveData,
-   * which comes from an output of save().
-   * This includes setting all non-child state not set in
-   * the constructor, and initializing (constructing but
-   * not loading)
-   * all nontrivial children (it is also safe to constuct
-   * trivial children).  The children will then be loaded
-   * recursively.
+   * This must have been constructed with the same class and
+   * constructor arguments as the saved instance, and it must
+   * not have sent or received any messages yet.
    *
-   * During loading, you must not reference the state
-   * of any Crdt, although you may call
-   * Runtime.getCrdtByReference (e.g., by deserializing
-   * Crdt references).  This is because other Crdts may
-   * not have been loaded before this one (however,
+   * Events are not dispatched during loading.
+   *
+   * Advice for implementers:
+   * - This method should not load child states; children will instead be
+   * loaded recursively by [[Runtime.load]].
+   * - However, this method should ensure that all nontrivial
+   * children are initialized (constructed), if they are not already
+   * initialized by the constructor.  Typically, this means
+   * that you must construct any dynamically-created children
+   * described by `saveData`.
+   * - This method must not reference the state
+   * of any other Crdt except this's ancestors.  An exception is
+   * that it may call
+   * [[Runtime.getCrdtByReference]] (e.g., by deserializing
+   * Crdt references).  That is because other Crdts may
+   * not have been loaded before this one; however,
    * they are at least initialized (constructed) if
-   * demanded by Runtime.getCrdtByReference).
-   * If you depend on other Crdt's state to set your own
-   * state, you must store it in your own saveData.  An
-   * exception is your state that is a function of
-   * descendants' state, which you can initialize in
-   * postLoad().
+   * demanded by [[Runtime.getCrdtByReference]].
+   * Crdts that depend on other Crdt's state to set their own
+   * state must instead store it in their own `saveData` or
+   * load it during [[postLoad]].
+   * - Do not dispatch events during loading.
+   * - Do not depend on your children to dispatch events during
+   * loading.  E.g., if you normally maintain a view
+   * of one of your children's state using events, you will
+   * instead need to either save and load the view explicitly
+   * using your own `saveData`, or you will need to reconstruct
+   * it during [[postLoad]].  See TODO (loading page section on views or vice-versa).
+   * - [[getChild]] may be called on this Crdt after it is loaded
+   * but before its children are loaded; you must ensure this
+   * succeeds.  Also, if this method might
+   * cause `this.getChild` to be called (e.g., because it
+   * deserializes a reference to one of this's descendants),
+   * you must ensure that the `getChild` call succeeds.  Typically,
+   * you can accomplish that by initializing dynamically-created children in
+   * the same order as they were originally created
+   * (by operations), since one child's constructor can only have
+   * received references to causally prior children in its constructor
+   * arguments.  See [[DeletingMutCSet.load]]
+   * for an example implementation that does so.
    *
-   * This instance is guaranteed to have been initialized identically
-   * to the saved instance, i.e., they have the same
-   * constructor args, but not otherwise modified before
-   * load is called.  In particular, this instance may
-   * have an initial value set in the constructor; make sure
-   * you account for this (e.g., in a set with initial
-   * elements, be careful not to duplicate those elements
-   * during loading, if the saved state also contained those
-   * elements).
+   * @param saveData An output of [[save]] from a previous
+   * instance of this class. Note that `saveData` will have been output
+   * by a different replica (with a different [[Runtime.replicaId]]),
+   * and the same `saveData` may be loaded on multiple
+   * replicas, possibly concurrently.
    *
-   * In general, load will be called on a replica with a
-   * different replicaId than the saving replica.  Also,
-   * the same state may be loaded by different replicas
-   * concurrently.  So make sure to account for this.
-   *
-   * Events should not be dispatched, since there is no
-   * associated timestamp.  This means that you cannot depend
-   * on events from children to help initialize your own
-   * state (e.g., to setup cached views of child state);
-   * instead, you must set that state in postLoad or load.
-   *
-   * getChild may be called on this Crdt after it is loaded
-   * but before its children are loaded.  If this.load might
-   * cause this.getChild to be called (e.g., because you
-   * deserialize a reference to one of your descendants),
-   * you must ensure that this.getChild succeeds.  Typically,
-   * you can accomplish this by initializing children in
-   * the same order as they were initialized in the saved
-   * state, since one child's constructor can only have
-   * received references to prior children (see DeletingMutCSet
-   * for an example).
-   *
-   * @return whether the descendants should be loaded now.
-   * This should almost always be true; CMountPoint is
-   * the one exception.  If not, they can be loaded later
-   * by calling Runtime.delayedLoadDescendants(this).
+   * @return Whether the descendants should be loaded now.
+   * This should be true unless you are doing some form of
+   * lazy loading (e.g., [[CMountPoint]]).
+   * If false, this Crdt can
+   * later request that its descendants be loaded
+   * by calling [[Runtime.delayedLoadDescendants]](this).
    */
   abstract load(saveData: Uint8Array): boolean;
 
   /**
-   * Only for use by Runtime.
+   * Performs post-loading, setting internal state that is
+   * a function of this's descendants' states.  This method should
+   * only be called by [[Runtime.load]].
    *
-   * Override to initialize some state after load is called
-   * on this and all of its descendants have
-   * been loaded.  During this method, it is safe to
-   * set your state that is a function of descendant's
+   * During the loading sequence, this method is called after `load` is called
+   * on this and all of its descendants.
+   * Hence it is safe to
+   * set state that is a function of this's descendant's
    * state (e.g., a sorted view
    * of a descendant collection's values that you cache
-   * for efficiency).  This method is provided as an
-   * optimization; it is always safe to instead
-   * store your state in saveData and load it in load().
+   * for efficiency).
+   *
+   * This method is provided as an
+   * optimization; it is always safe for subclasses to instead
+   * store their state in the `saveData` and load it in `load`.
    *
    * If load returns false, then postLoad() is called
    * immediately afterwards, even though descendants have
    * not been loaded.  It is not called again if
    * the descendants are later loaded by
-   * Runtime.delayedLoadDescendants(this).
+   * [[Runtime.delayedLoadDescendants]](this).
    */
   postLoad(): void {}
 }

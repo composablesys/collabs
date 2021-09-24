@@ -26,6 +26,8 @@ For combining non-commuting operations in the same type, adding operations to an
 
 > **Caution:** As of 9/2021, the library's semidirect product support is under construction, so the API is subject to change. There are also a few variants ([`SemidirectProduct`](./typedoc/classes/SemidirectProduct.html), [`SemidirectProductRev`](./typedoc/classes/SemidirectProductRev.html), and [`MultipleSemidirectProduct`](./typedoc/classes/MultipleSemidirectProduct.html)). The final version(s) will probably look most like the current `SemidirectProductRev`.
 
+TODO: Crdt
+
 ## Adding Events
 
 See [Adding Events to Custom Types](TODO: events.md section).
