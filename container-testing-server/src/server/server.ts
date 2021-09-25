@@ -57,6 +57,7 @@ app.use((req, res) => {
     // Autogenerate a script that returns the containerUrl var.
     // Use JSON.stringify(x).slice(1, -1) to convert the string
     // into somethat that JS will parse as that string again.
+    res.set("Content-Type", "text/javascript");
     res.send(
       `const containerUrl = "${JSON.stringify(containerUrl).slice(1, -1)}";`
     );
