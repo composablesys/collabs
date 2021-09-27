@@ -12,6 +12,8 @@ See the API docs for a class (linked in the headers below) for instructions on h
 
 If your custom type is implementing one of the interfaces `CBoolean`, `CList`, `CMap`, `CSet`, you probably want to extend the corresponding abstract helper class instead of the classes listed here. E.g., to implement a `CList` that would otherwise extend `CObject`, instead extend [`AbstractCListCObject`](./typedoc/classes/AbstractCListCObject.html).
 
+TODO: examples here, or in class docs?
+
 ### [`CObject`](./typedoc/classes/CObject.html)
 
 For classes whose instance variables are themselves collaborative types. This is the most common and easiest to use superclass, and suffices for many [Data Models](TODO).

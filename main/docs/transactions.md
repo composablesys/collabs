@@ -14,3 +14,5 @@ Transactions (more generally, batches) have some useful properties:
 - All operations in a batch get identical [`CausalTimestamp`](./typedoc/interfaces/CausalTimestamp.html)s, except that the sender's vector clock entry increments with each operation. In particular, they all have identical wall-clock times, set according to the wall-clock time of the first operation.
 
 One consequence of these properties is that if you set multiple `LwwCRegister`s or `LwwCMap` values in a single transaction, and a concurrent transaction also sets all of the same values, then one of the transactions will win completely: all of the resulting values will come from one transaction or the other, not a mix of the two.
+
+TODO: optimizations (see blurb in BatchingStrategy). In particular mention name compression. Eventually that will go in internals.md, so users can predict exactly the effect of changes like shorter child names.
