@@ -165,6 +165,10 @@ export class TextArraySerializer implements ElementSerializer<string[]> {
   static instance = new TextArraySerializer();
 }
 
+/**
+ * Serializes [T] using a serializer for T.  This is slightly more efficient
+ * than the default serializer, and also works with arbitrary T.
+ */
 export class SingletonSerializer<T> implements ElementSerializer<[T]> {
   private constructor(private readonly valueSerializer: ElementSerializer<T>) {}
 

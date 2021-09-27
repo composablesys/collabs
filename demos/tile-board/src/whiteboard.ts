@@ -1,13 +1,7 @@
 import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
 import $ from "jquery";
 
-(async function () {
-  const runtime = await ContainerRuntimeSource.newRuntime(
-    window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
-  );
-
+export function setupWhiteboard(runtime: crdts.Runtime) {
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
   const boardState = runtime.registerCrdt(
@@ -121,4 +115,4 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown = false;
     });
-})();
+}

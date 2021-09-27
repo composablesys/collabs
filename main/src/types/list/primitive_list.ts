@@ -59,21 +59,10 @@ export class PrimitiveCListFromDenseLocalList<
     super(initToken);
   }
 
-  /**
-   * At least one value must be provided.  (TODO: we
-   * could mandate this with types by having an extra
-   * value param first, but then you can't use ...
-   * to input the values.)
-   * @return the first value
-   * @param  index          [description]
-   * @param  value          [description]
-   * @param  ...extraValues [description]
-   * @return                [description]
-   */
-  insert(index: number, ...values: T[]): T {
-    if (values.length === 0) {
-      throw new Error("At least one value must be provided");
-    }
+  insert(index: number, value: T): T;
+  insert(index: number, ...values: T[]): T | undefined;
+  insert(index: number, ...values: T[]): T | undefined {
+    if (values.length === 0) return undefined;
 
     const locMessage = this.denseLocalList.prepareNewLocs(index, values.length);
     const imessage: IPrimitiveCListInsertMessage = { locMessage };
@@ -95,29 +84,16 @@ export class PrimitiveCListFromDenseLocalList<
 
   // Override alias insert methods so we can accept
   // bulk values.
-  /**
-   * [push description]
-   *
-   * At least one value must be provided.
-   *
-   * @param  value          [description]
-   * @param  ...extraValues [description]
-   * @return the first value
-   */
-  push(...values: T[]): T {
+
+  push(value: T): T;
+  push(...values: T[]): T | undefined;
+  push(...values: T[]): T | undefined {
     return this.insert(this.length, ...values);
   }
 
-  /**
-   * [push description]
-   *
-   * At least one value must be provided.
-   *
-   * @param  value          [description]
-   * @param  ...extraValues [description]
-   * @return the first value
-   */
-  unshift(...values: T[]): T {
+  unshift(value: T): T;
+  unshift(...values: T[]): T | undefined;
+  unshift(...values: T[]): T | undefined {
     return this.insert(0, ...values);
   }
 

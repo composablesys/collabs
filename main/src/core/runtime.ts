@@ -32,11 +32,9 @@ class RootCrdt extends CObject {
 // TODO: conventions: set listener var instead of this.network.register;
 // onEtc method names instead of receive
 
-// Note that pointers stored in pointerByCrdt and messages
-// are one greater than the corresponding index in
-// pointers; 0 denotes the group parent, which is not stored in
-// pointers.
 /**
+ * Info about a pending batch.
+ *
  * Note that pointers stored in pointerByCrdt and messages
  * are one greater than the corresponding index in
  * pointers; 0 denotes the root, which is not stored in
@@ -51,6 +49,8 @@ interface BatchInfo {
 }
 
 /**
+ * Stores deserialized, but not yet used, state during loading.
+ *
  * Ids are as in the RuntimeOneSave message's parentPointer
  * field: 1 + the Crdt's index in RuntimeSave.saves.
  */
@@ -89,11 +89,23 @@ class LoadHelper {
   delayedLoadPending: Set<Crdt> = new Set();
 }
 
+/**
+ * Each byte of the replicaId gives us 7 bits of entropy,
+ * for a total of 77 bits.  This should give a quite low
+ * probability that two replicas in the same conversation
+ * will ever choose the same replicaId, even if we
+ * consider the total probability across billions of
+ * conversations.
+ */
 const REPLICA_ID_LENGTH = 11;
+
 // TODO: put somewhere reasonable
+/**
+ * @return A random replicaId made of ASCII characters.
+ * Such replicaId's can be safely treated as either
+ * byte arrays or UTF-8 strings.
+ */
 function randomReplicaId(): string {
-  // Here we exploit the fact that 128 divides 256.
-  // This would be biased if that were not the case.
   const arr = new Array<number>(REPLICA_ID_LENGTH);
   let randomValues = new Uint8Array(REPLICA_ID_LENGTH);
   if (typeof window === "undefined") {
@@ -113,53 +125,68 @@ function randomReplicaId(): string {
     window.crypto.getRandomValues(randomValues);
   }
   for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
+    // Here we exploit the fact that 128 divides 256.
+    // This would be biased otherwise.
     arr[i] = randomValues[i] % 128;
   }
   return String.fromCharCode(...arr);
 }
 
+/**
+ * Type for events emitted by [[Runtime]].
+ */
 export interface RuntimeEvent {
+  /**
+   * Metadata for this event.
+   */
   readonly meta: CrdtEventMeta;
 }
 
+/**
+ * Events record for [[Runtime]].
+ */
 export interface RuntimeEventsRecord {
   /**
-   * Emitted after the Runtime's Crdts are changed by an
-   * operation or series of operations happening in the same
-   * thread.  An easy way to keep a view in sync with the
+   * Emitted as soon as possible after processing a [transaction](../../transactions.html).
+   * An easy way to keep a view in sync with the
    * Crdt state (model) is to refresh the view each time
    * this event is emitted.
    *
-   * Unlike Message events, Change events are only dispatched
-   * after a sequence of messages that were sent in the same thread
-   * of execution (either locally or on another replica).
-   * This means that Crdts will be in proper, usable states,
-   * not in nonsensical, transient states like with Message events.
+   * More specifically, a Change event is emitted:
+   * - After processing any local transaction, in a new microtask.  (If another
+   * local transaction occurs before the microtask, only
+   * one Change event is emitted for the two transactions.)
+   * - After processing any remote batch, in the same thread.
+   * (If the batch contains multiple transactions, only one
+   * Change event is emitted for the whole batch.)
    *
-   * It is not guaranteed that Change events will be emitted
-   * once per thread of execution; they may be emitted less
-   * often.  There are two distinct causes of this:
-   * - On the sending replica, Runtime cannot detect the
-   * end of an execution thread directly; instead, when the
-   * first message is sent, Runtime creates a Promise
-   * microtask to emit the event.  Other Promise microtasks
-   * might occur first and perform more operations before
-   * this microtask resolves.
-   * - On receiving replicas, each batch received on the
-   * network emits one Change event, even if the batch contains
-   * messages from multiple threads of execution.
+   * So a Change event is emitted soon after each transaction
+   * (in a new microtask, at the latest), but not necessarily
+   * immediately, and not every transaction has its own
+   * Change event.  Also, the relation between transactions
+   * and Change events can differ across replicas.
    */
   Change: RuntimeEvent;
   /**
    * Emitted after a batch of messages is sent or
    * received.  Each such batch corresponds to one
-   * CausalBroadcastNetwork message.
+   * [[CausalBroadcastNetwork]] message.
+   *
+   * Note that for local messages, the Batch event may occur
+   * sometime after the corresponding operation, depending
+   * on the [[BatchingStrategy]].  If you need to observe
+   * local operations immediately, you should instead listen
+   * on Change events.
    */
   Batch: RuntimeEvent;
   /**
    * Emitted when a received message is ready for processing
    * but blocked by our pending send batch.  It will be
-   * processed after the next call to commitBatch().
+   * processed after the next call to [[commitBatch]].
+   *
+   * This event is mostly useful for [[BatchingStrategy]]'s,
+   * which may choose to call [[commitBatch]] immediately
+   * in response to this event.
    */
   ReceiveBlocked: RuntimeEvent;
   /**
@@ -167,12 +194,10 @@ export interface RuntimeEventsRecord {
    * (including messages sent by this replica),
    * at the end of message processing.
    *
-   * This event should generally not be listened on.
-   * Logical operations may be composed of multiple messages,
-   * each of which emits a Message event, so when early
-   * Message events are emitted, the Runtime's Crdts may be in
-   * a nonsensical, transient state.  Instead,
-   * listen on Change events or Crdt-specific events.
+   * This event should generally not be used except for testing.
+   * It can be emitted in the middle of a transaction, at which
+   * point collaborative type's states might not be usable.
+   * Instead, listen on Change events or Crdt-specific events.
    *
    * Note that actual
    * messages received from the network may be batches of
@@ -183,12 +208,46 @@ export interface RuntimeEventsRecord {
 }
 
 /**
- * TODO: usage
+ * The entry point for a Compoventuals app.
+ *
+ * Each Compoventuals app will typically have one `Runtime`,
+ * created at the beginning of the app.  This `Runtime` manages
+ * the collaborative data types, connects them to the network,
+ * manages saving and loading, and offers various utilities.
+ *
+ * After creating a `Runtime`, use [[registerCrdt]] to
+ * register your top-level (global variable) collaborative
+ * data types.  Next, if you are loading a previously saved state,
+ * call [[load]].  (Both of these steps must happen immediately
+ * after creating the `Runtime`, before performing any operations
+ * or receiving any network messages).  You are then ready
+ * to collaborate - perform local operations, read the state,
+ * and add event listeners so you are notified
+ * when the state changes.
+ *
+ * See the [Getting Started Guide](../../getting_started_guide.html)
+ * for an example app with a full walkthrough.
  */
 export class Runtime extends EventEmitter<RuntimeEventsRecord> {
+  /**
+   * Type guard.
+   */
   readonly isRuntime = true;
 
   private readonly network: CausalBroadcastNetwork;
+  /**
+   * An id for the local replica (user).  This is created
+   * randomly during `Runtime`'s constructor, with enough
+   * random bits that it is unlikely two replicas in the same
+   * collaborative group will ever have the same `replicaId`.
+   *
+   * Note that one real-world user may have multiple `replicaId`s
+   * over the course of a conversation; this is distinct from
+   * a persistent id like a username.  Indeed, each time a user
+   * refreshes their browser window, they get a new `replicaId`;
+   * and if a user has an app open in multiple tabs or devices,
+   * each of those gets its own `replicaId`.
+   */
   readonly replicaId: string;
 
   private batchingStrategy: BatchingStrategy;
@@ -199,11 +258,19 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   private loadAllowed = true;
 
   /**
-   * TODO.
-   * @param readonlynetwork [description]
-   * @param batchOptions    [description]
-   * @param debugReplicaId  Set a replicaId explicitly.
-   * Debug use only (e.g., ensuring determinism in tests).
+   * Creates a new `Runtime`.  This is the starting point of
+   * any Compoventuals app.
+   *
+   * @param network The network used to send messages between
+   * collaborators.  Internally, `Runtime` uses a [[CausalBroadcastNetwork]];
+   * if `network` is a [[BroadcastNetwork]], then
+   * a [[DefaultCausalBroadcastNetwork]] is created with
+   * `network` as its constructor argument.
+   * @param batchingStrategy The initial [[BatchingStrategy]],
+   * which controls how often messages are sent.  It can
+   * be changed later using [[setBatchingStrategy]].
+   * @param debugReplicaId  Sets [[replicaId]] explicitly.
+   * For debug use only (e.g., ensuring determinism in tests).
    */
   constructor(
     network: BroadcastNetwork | CausalBroadcastNetwork,
@@ -246,12 +313,18 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   private currentlyProcessedTimestamp?: CausalTimestamp = undefined;
 
   /**
-   * TODO.  Used internally by CPrimitive, that's about it.
-   * @param  sender  [description]
-   * @param  message [description]
-   * @return         [description]
+   * Called by `sender` to send a message to all of its
+   * replicas (including this one).
+   *
+   * Usually you will not call this method directly unless you
+   * are writing a direct `Crdt` subclass.  [[CPrimitive]]
+   * subclasses should instead call [[CPrimitive.send]].
+   *
+   * @param  sender  The `Crdt` sending this message, which must
+   * also be the caller of this method.
+   * @param  message The message to send.
    */
-  send(sender: Crdt, message: Uint8Array) {
+  send(sender: Crdt, message: Uint8Array): void {
     this.loadAllowed = false;
 
     if (sender.runtime !== this) {
@@ -346,6 +419,9 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     return newPointer;
   }
 
+  /**
+   * Sets the [[BatchingStrategy]], replacing the current one.
+   */
   setBatchingStrategy(batchingStrategy: BatchingStrategy) {
     this.batchingStrategy.stop();
     this.batchingStrategy = batchingStrategy;
@@ -353,13 +429,17 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * TODO.  Mostly for BatchingStrategy, but can be
-   * called whenever if you want immediate sending.
-   * Don't call it in the middle of a multi-message Crdt
-   * operation though.
-   * @return [description]
+   * Commits and sends all pending messages generated by
+   * local operations (if any), combining them into a single
+   * batch.  Like a transaction, these batched messages will
+   * be applied atomically on each remote replica, i.e., all
+   * in a row without interruption by other operations.
+   *
+   * Typically, only the set [[BatchingStrategy]] will call
+   * this method.  However, you can also call it at any time
+   * to commit the current batch early.
    */
-  commitBatch() {
+  commitBatch(): void {
     if (this.pendingBatch === null) return;
     const batch = this.pendingBatch;
     // Clear this.pendingBatch now so that this.network is
@@ -447,14 +527,31 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * TODO
-   * @param  pathToRoot [description]
+   * Returns the descendant of base with the given
+   * `pathToBase`.  This method is primarily used by
+   * serializers, like
+   * [[DefaultElementSerializer]] and [[CrdtSerializer]],
+   * to deserialize Crdt references, expressed as
+   * paths in the tree of Crdts.
+   *
+   * It is safe to call this method during loading (e.g.
+   * during a [[Crdt.load]] implementation), even if
+   * the desired `Crdt` or its ancestors have not yet been
+   * loaded.  In that case, the method will automatically
+   * load `Crdt`s as needed.
+   *
+   * @param  pathToBase An array listing all names on
+   * the path from the desired Crdt to `base`, in order
+   * starting with the desired Crdt's name.
+   * @param base An ancestor of the desired Crdt.  Defaults
+   * to the root Crdt, in which case `pathToBase` is the
+   * desired Crdt's [[Crdt.pathToRoot]].
    * @return            [description]
    */
-  getCrdtByReference(pathToRoot: string[], base: Crdt = this.rootCrdt): Crdt {
-    let ensureLoaded = this.isInLoad;
+  getCrdtByReference(pathToBase: string[], base: Crdt = this.rootCrdt): Crdt {
+    let ensureLoaded = this.inLoad;
     let currentCrdt = base;
-    for (let i = pathToRoot.length - 1; i >= 0; i--) {
+    for (let i = pathToBase.length - 1; i >= 0; i--) {
       if (ensureLoaded) {
         // Ensure currentCrdt is loaded before asking it
         // for a child.
@@ -487,7 +584,7 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
         // strategy are possible but seem unlikely.
         this.loadOneIfNeeded(currentCrdt);
       }
-      currentCrdt = currentCrdt.getChild(pathToRoot[i]);
+      currentCrdt = currentCrdt.getChild(pathToBase[i]);
       if (currentCrdt === this.delayedLoadCrdt) {
         // From now on, we will be asking for descendants
         // of the Crdt currently being loaded.  We need
@@ -498,6 +595,11 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     return currentCrdt;
   }
 
+  /**
+   * @return An [[ElementSerializer]] for the particular
+   * [[CausalTimestamp]] implementation used by our
+   * [[CausalBroadcastNetwork]].
+   */
   get timestampSerializer(): ElementSerializer<CausalTimestamp> {
     return this.network;
   }
@@ -505,8 +607,8 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   private idCounter = 0;
   /**
    * @return A unique string that will only appear once
-   * across all replicas, obtained by concatenating our
-   * replica id with a counter.
+   * across all replicas.  It is obtained by concatenating
+   * [[replicaId]] with a local counter.
    */
   getUniqueString() {
     // TODO: shorten?  (base64 instead of base10)
@@ -515,8 +617,8 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
 
   /**
    * @return A unique number that will only be
-   * associated with this runtime's replica id
-   * once, obtained using a counter.
+   * associated with this runtime's [[replicaId]]
+   * once.  It is obtained using a local counter.
    */
   getReplicaUniqueNumber(count = 1) {
     const ans = this.idCounter;
@@ -524,18 +626,29 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     return ans;
   }
 
+  // TODO: future work: thread friendly (option to sleep/yield
+  // occasionally, blocking messages while doing so);
+  // incremental saving (use the needsSaving flags to
+  // only update saved parts in some big map, e.g.,
+  // for local storage), if needed for large programs;
+  // make more compatable with KV-store browser APIs;
+  // add load/save strategies, like batching strategies or
+  // Yjs storage providers;
+  // integrate with lazy loading (need to be able to save
+  // a lazy Crdt and reload it later).
   /**
-   * Save the entire runtime state in serialized form.
-   * The saved state can then be passed to load on
-   * a Runtime constructed in the same way, to load the
-   * saved state.
+   * Saves the entire collaborative state in serialized form,
+   * including the runtime, all collaborative data types, and
+   * the network state.
    *
-   * TODO: future work: thread friendly (option to sleep/yield
-   * occasionally, blocking messages while doing so);
-   * incremental saving (use the needsSaving flags to
-   * only update saved parts in some big map, e.g.,
-   * for local storage), if needed for large programs.
-   * @return [description]
+   * The returned `saveData` may later be passed to [[load]]
+   * on a different instance of `Runtime` for the same app
+   * (specifically, same registered Crdts).
+   * The loaded app will then same internal state,
+   * capable of sending and receiving operations as usual
+   * while ensuring eventual consistency.
+   *
+   * @return `saveData`
    */
   save(): Uint8Array {
     // Commit the current batch, so we don't have to
@@ -545,7 +658,8 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     // TODO: potential downside: network may follow up
     // the end of the batch by delivering queued messages,
     // causing the state to be not quite what the user
-    // expected to save.
+    // expected to save.  Also it may be unexpected that
+    // we are sending messages right now.
     this.commitBatch();
 
     const saves: IRuntimeOneSave[] = [];
@@ -587,26 +701,32 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   private loadHelper?: LoadHelper = undefined;
   private inLoad = false;
 
+  // TODO: future work: thread friendly (option to sleep/yield
+  // occasionally, blocking messages while doing so;
+  // also tell caller not to read anything until done);
+  // does incremental loading (only changed Crdts) make sense?
   /**
-   * Load the saved state output from Runtime.save.
+   * Loads the state from `saveData`.  See [[save]].
    *
-   * The program must be initialized (i.e., registering top-level
-   * Crdts) exactly as in the program that was saved, then
-   * load must be called before you perform any operations
-   * or receive any messages.  I.e., you should use the
-   * same program to load as you used to save, and call
-   * load between its setup and when anything happens.
+   * `saveData` must have come from a `Runtime` for the same app
+   * (specifically, same registered Crdts, i.e., calls to
+   * [[registerCrdt]]).  This method must be called after
+   * registering all Crdts and before performing any operations
+   * or receiving any messages.
    *
-   * Note that events are generally not triggered during
-   * loading, so if you usually rely on events to create
-   * a view of the application state, you must manually
-   * create that view once after load.
+   * Note that Crdt events are not emitted during
+   * loading.  So if you usually rely on events to create
+   * a view of the collaborative state, you must manually
+   * create that view once after this method.
    *
-   * TODO: future work: thread friendly (option to sleep/yield
-   * occasionally, blocking messages while doing so;
-   * also tell caller not to read anything until done);
-   * does incremental loading (only changed Crdts) make sense?
-   * @param  saveData [description]
+   * @param  saveData An output of [[save]] from a previous
+   * instance of this app.  It is okay if `saveData` is
+   * used by multiple replicas within the same group,
+   * even concurrently.  Furthermore, it is okay for
+   * `saveData` to be arbitrarily old; the loaded replica
+   * will still converge to a consistent state once it
+   * receives all messages not causally prior to the original
+   * save operation.
    */
   load(saveData: Uint8Array) {
     if (!this.loadAllowed) {
@@ -648,10 +768,6 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
 
     // TODO: in normal usage, check that loadHelper is now
     // completely empty.
-  }
-
-  get isInLoad(): boolean {
-    return this.inLoad;
   }
 
   /**
@@ -736,12 +852,15 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
 
   private delayedLoadCrdt?: Crdt = undefined;
   /**
-   * TODO: generally this will only be called by crdt
-   * itself.
+   * Loads the descendants of a Crdt that requested to
+   * skip doing so during the initial call to [[load]],
+   * by returning false from its [[Crdt.load]] method.
+   * Typically this method will only be called by `crdt` itself,
+   * in order to lazily load its descendants.
    *
-   * Note that crdt.postLoad() is not called again
+   * `crdt`'s [[Crdt.postLoad]] method is not called again
    * (it was called during the initial skipped loading);
-   * instead do any post-loading after this method returns.
+   * instead, `crdt` should do any post-loading after this method returns.
    *
    * @param  crdt [description]
    * @return      [description]
@@ -773,10 +892,43 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
   }
 
   private inRunLocally = false;
+
   /**
-   * TODOs: generally check this makes sense;
-   * harden against repeated timestamps;
-   * sample ops; currently not discoverable;
+   * **Experimental method.**  Track progress at [https://github.com/composablesys/compoventuals/issues/172](https://github.com/composablesys/compoventuals/issues/172).
+   *
+   * While processing a received message m (either local or remote),
+   * this method can be called to run `doPureOps` as if
+   * it had been called by m's sender, as part of the operation
+   * that created m.  All operations performed in `doPureOps`
+   * are run locally with m's timestamp in place of a timestamp
+   * from the local user, and the resulting messages are not
+   * sent on the network.
+   *
+   * `doPureOps` must only perform collaborative data type
+   * operations.  Furthermore, it must be *pure* in the sense of Section 4 of
+   * [http://arxiv.org/abs/1710.04469](http://arxiv.org/abs/1710.04469): the messages sent as a result of its
+   * operations must not depend on the current state or
+   * on properties of the local replica (e.g., its [[replicaId]]).
+   * This ensures that the result is the same as if `doPureOps`
+   * had been called by m's sender, resulting in messages
+   * sent to us in the usual way.
+   *
+   * This method allows you to do "remote procedure calls (RPCs)"
+   * for collaborative data type operations, in which one
+   * replica instructs all others to perform certain operations,
+   * without having to do the operations explicitly.  For
+   * example, suppose you use a map from colors to pixels
+   * to make a collaborative whiteboard data type.  To fill
+   * a large rectangle, you could set each affected pixel,
+   * but that would result in one operation per pixel - potentially
+   * expensive on the network.  `runLocally` lets you instead
+   * send a single message describing the rectangle.  All
+   * recipient replicas then process the message by using
+   * `runLocally` to do the original (per-pixel) operations.
+   *
+   * @param doPureOps The pure collaborative data type operations
+   * to run locally.
+   * @return `doPureOps`'s return value.
    */
   runLocally<T>(doPureOps: () => T): T {
     let oldInRunLocally = this.inRunLocally;
@@ -786,6 +938,10 @@ export class Runtime extends EventEmitter<RuntimeEventsRecord> {
     return toReturn;
   }
 
+  /**
+   * @return Whether this `Runtime` is currently in
+   * a call to [[runLocally]].
+   */
   get isInRunLocally(): boolean {
     return this.inRunLocally;
   }

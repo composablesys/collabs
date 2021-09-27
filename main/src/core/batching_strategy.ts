@@ -2,21 +2,57 @@ import { Unsubscribe } from "../util";
 import { Runtime, RuntimeEvent } from "./runtime";
 
 /**
- * Except for special purposes, don't call commitBatch
- * on Runtime Message events, since those can happen in the
- * middle of a thread of execution, and then receivers might
- * get just one message but not the rest, leaving them in
- * a nonsensical, transient state for a while.
- * @param runtime [description]
+ * A strategy for batching messages sent by a [[Runtime]].
+ *
+ * A [[Runtime]] does not send messages automatically.
+ * Instead, it waits until [[Runtime.commitBatch]] is called,
+ * at which point all queued operations are sent as a single
+ * message.  A `BatchingStrategy` is responsible for calling
+ * [[Runtime.commitBatch]], according to any strategy.
+ * Typically, a strategy will commit batches in response
+ * to [[Runtime]]'s events, perhaps with a delay to prevent
+ * network stress.
+ *
+ * Except for special purposes, batching strategies should
+ * not call commitBatch
+ * on Runtime Message events.  Doing so may split up [transactions](TODO: guide/transactions.md)
+ * into several batches, violating transaction guarantees.
+ *
+ * A `BatchingStrategy` can only be used with one [[Runtime]].
+ *
+ * We recommend [[ImmediateBatchingStrategy]] as a default
+ * option, or [[RateLimitBatchingStrategy]] is you want to
+ * rate-limit message sending.  Larger batches reduce network
+ * traffic, both in terms of the number of separate messages and the
+ * total bytes sent, but they increase user-perceived latency.
  */
 export interface BatchingStrategy {
+  /**
+   * Called by `runtime` when this is set as its batching
+   * strategy, either in [[Runtime.constructor]] or
+   * [[Runtime.setBatchingStrategy]].  This should then
+   * apply it strategy to `runtime`, calling `runtime.commitBatch` when appropriate.
+   *
+   * This method should only be called by `runtime`.  It will
+   * only be called once.
+   */
   start(runtime: Runtime): void;
+  /**
+   * Called by `runtime` when this is removed as its
+   * batching strategy.  Afterwards, this should no longer
+   * call `runtime.commitBatch`.
+   *
+   * This method should only be called by `runtime`.  It will
+   * be called at most once, sometime after `start`.
+   */
   stop(): void;
 }
 
 /**
- * Sends a batch immediately on each Change event.  This is
- * the fastest-sending (reasonable) BatchingStrategy.
+ * Sends a batch immediately on each [[Runtime]] "Change" event.
+ *
+ * This is
+ * the fastest-sending reasonable [[BatchingStrategy]].
  */
 export class ImmediateBatchingStrategy implements BatchingStrategy {
   private runtime?: Runtime = undefined;
@@ -39,7 +75,7 @@ export class ImmediateBatchingStrategy implements BatchingStrategy {
 }
 
 /**
- * Sends at most one batch per period, otherwise sending
+ * Sends at most one batch per time period, otherwise sending
  * as soon as possible.
  */
 export class RateLimitBatchingStrategy implements BatchingStrategy {
@@ -51,14 +87,13 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
   private lastSend = -1;
 
   /**
-   * [constructor description]
-   * @param periodMs              [description]
-   * @param commitOnReceive=false if true, whenever tuntime
+   * @param periodMs The length of the time period in ms
+   * @param commitOnReceive If true, whenever `runtime`
    * would receive a message from another replica
-   * except that there is a pending batch (ReceiveBlocked event),
-   * commits the batch immediately (even if the period is not
-   * up), so that the received message can be processed
-   * immediately.
+   * except that there is a pending batch ("ReceiveBlocked" event),
+   * this commits the batch immediately, so that the received message can be processed
+   * immediately afterwards.  This may cause the rate limit to be
+   * exceeded.
    */
   constructor(readonly periodMs: number, readonly commitOnReceive = false) {}
 
@@ -114,7 +149,7 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
 }
 
 /**
- * Does nothing; you must call runtime.commitBatch() manually
+ * Does nothing; you must call [[Runtime.commitBatch]] manually
  * when you want to send a batch.
  */
 export class ManualBatchingStrategy implements BatchingStrategy {

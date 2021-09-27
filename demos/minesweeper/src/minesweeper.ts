@@ -98,9 +98,9 @@ class MinesweeperCrdt extends crdts.CObject {
     readonly width: number,
     readonly height: number,
     fractionMines: number,
-    seed: string,
     startX: number,
-    startY: number
+    startY: number,
+    seed: string
   ) {
     super(initToken);
     // Adjust fractionMines to account for fact that start
@@ -108,7 +108,7 @@ class MinesweeperCrdt extends crdts.CObject {
     const size = width * height;
     if (size > 1) fractionMines *= size / (size - 1);
     // Place mines and init tiles
-    let rng = seedrandom(seed);
+    const rng = seedrandom(seed);
     this.tiles = new Array<TileCrdt[]>(width);
     for (let x = 0; x < width; x++) {
       this.tiles[x] = new Array<TileCrdt>(height);
@@ -324,9 +324,9 @@ class MinesweeperCrdt extends crdts.CObject {
                   settings.width,
                   settings.height,
                   settings.fractionMines,
-                  Math.random() + "",
                   x,
-                  y
+                  y,
+                  Math.random() + ""
                 )
                 .get();
               currentState.value = newGame;
@@ -388,19 +388,19 @@ class MinesweeperCrdt extends crdts.CObject {
 
   const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
 
-  let currentGame = runtime.registerCrdt(
+  const currentGame = runtime.registerCrdt(
     "currentGame",
     crdts.Pre(crdts.LwwMutCRegister)(
       crdts.ConstructorAsFunction(MinesweeperCrdt)
     )
   );
-  let currentSettings = runtime.registerCrdt(
+  const currentSettings = runtime.registerCrdt(
     "currentSettings",
     crdts.Pre(crdts.LwwCRegister)(settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
-  let currentState = runtime.registerCrdt(
+  const currentState = runtime.registerCrdt(
     "currentState",
     (initToken) =>
       new crdts.LwwCRegister<MinesweeperCrdt | GameSettings>(

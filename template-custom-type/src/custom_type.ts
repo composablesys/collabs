@@ -8,8 +8,8 @@ import {
 } from "compoventuals";
 
 // Since you're exporting your type for reuse, it's a good
-// idea to convert expose meaningful events.
-// See the Compoventuals docs for advice on what events to include.
+// idea to expose meaningful events.
+// See the Compoventuals docs for advice on what events to include (TODO).
 export interface CPairEventsRecord<T, U> extends CrdtEventsRecord {
   FirstSet: CRegisterEvent<T>;
   SecondSet: CRegisterEvent<U>;

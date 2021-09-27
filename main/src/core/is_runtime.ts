@@ -8,6 +8,11 @@ import { Runtime } from "./runtime";
 // It's also possible that isRuntime is more efficient than
 // instanceof Runtime when x has a long prototype chain.
 
+/**
+ * Replacement for `instanceof Runtime` that doesn't import
+ * `Runtime` in JS, to avoid a circular dependency in
+ * [[Crdt]].
+ */
 export function isRuntime(x: any): x is Runtime {
   if (typeof x === "object") {
     if ((x as Runtime).isRuntime === true) {

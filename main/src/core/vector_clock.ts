@@ -1,11 +1,10 @@
 import { CausalTimestamp } from "./causal_broadcast_network";
 
-// The vector clock designed for CRDT library and casual broadcasting
-// runtime to ensure correct causality.
-
 /**
- * The vector clock class for ensuring casuality.
- * TODO: private / readonly
+ * Simple implementation of [[CausalTimestamp]] that uses
+ * a vector clock directly.
+ *
+ * This is inefficient and will be optimized in the future.
  */
 export class VectorClock implements CausalTimestamp {
   /**
@@ -16,7 +15,7 @@ export class VectorClock implements CausalTimestamp {
    * The record map from replica ids to the number of lastest message.
    */
   vectorMap: Map<string, number>;
-  local: boolean;
+  private local: boolean;
   time: number;
 
   /**
@@ -29,25 +28,19 @@ export class VectorClock implements CausalTimestamp {
     this.vectorMap.set(this.sender, 0);
     this.time = time;
   }
-  /**
-   * @returns the unique ID for this replica(replicaId).
-   */
+
   getSender(): any {
     return this.sender;
   }
+
   isLocal(): boolean {
     return this.local;
   }
-  /**
-   * @returns the vector clock with all the entries.
-   */
+
   asVectorClock(): Map<any, number> {
     return this.vectorMap;
   }
-  /**
-   * @returns the visible number of the counter from sender in
-   * this vectorclock.
-   */
+
   getSenderCounter(): number {
     return this.vectorMap.get(this.sender)!;
   }
@@ -55,14 +48,13 @@ export class VectorClock implements CausalTimestamp {
   getTime(): number {
     return this.time;
   }
-  /**
-   * @returns the total number of replicas invovled in this crdts.
-   */
+
   getSize(): number {
     return this.vectorMap.size;
   }
+
   /**
-   * Update the vector of the sender's entry.
+   * Update the sender's vector entry (mutating operation).
    */
   increment(): void {
     const oldValue = this.vectorMap.get(this.sender);
@@ -71,15 +63,16 @@ export class VectorClock implements CausalTimestamp {
     }
     this.vectorMap.set(this.sender, oldValue + 1);
   }
+
   /**
    * Check if a message with a certain timestamp is ready for
    * delivery in causal order, given that this is
    * the vector clock merge of all previously-received
    * messages.
    *
-   * @param other the vector clock
-   * the other message
-   * @returns other's message is ready or not.
+   * @param other The vector clock of
+   * the other message.
+   * @returns Whether other's message is ready.
    */
   isReady(other: VectorClock): boolean {
     let otherSender = other.getSender();
@@ -110,17 +103,15 @@ export class VectorClock implements CausalTimestamp {
   }
 
   /**
-   * TODO: test
-   *
    * Check if a message with a certain timestamp has already
    * been received, given that this is
    * the vector clock merge of all previously-received
    * messages.
    *
-   * @param  other the vector clock
-   * the other message
-   * @return if a message with VectorClock other has
-   * already been received, according to this
+   * @param other The vector clock of
+   * the other message.
+   * @return If a message with timestamp `other` has
+   * already been received, according to this.
    */
   isAlreadyReceived(other: VectorClock): boolean {
     let senderEntry = this.vectorMap.get(other.sender);
@@ -132,21 +123,18 @@ export class VectorClock implements CausalTimestamp {
 
   /**
    * Set sender's lastest entry received in this VectorClock
-   * to that of vc.
+   * to that of `vc` (mutating operation).
    *
-   * This operation is mainly done after correctly deliver the message
-   * when isReady() function returns true.
-   *
-   * @param vc the VectorClock from other replica.
+   * @param vc
    */
   mergeSender(vc: VectorClock): void {
     this.vectorMap.set(vc.getSender(), vc.getSenderCounter());
   }
+
   /**
-   * Merge current VectorClock with the vector clock recevied from
-   * other replica.
+   * Merge this with `vc` (mutating operation).
    *
-   * @param vc the VectorClock from other replica.
+   * @param vc
    */
   merge(vc: VectorClock): void {
     let otherVectorMap = vc.asVectorClock();
@@ -162,10 +150,12 @@ export class VectorClock implements CausalTimestamp {
       }
     }
   }
+
   /**
+   * Sets an entry in this vector clock (mutating operation).
    *
-   * @param replicaId the replicaId of the entry to set
-   * @param clockValue the clock number of the replica.
+   * @param replicaId The entry's `replicaId`.
+   * @param clockValue The clock value to set.
    */
   setEntry(replicaId: string, clockValue: number): void {
     this.vectorMap.set(replicaId, clockValue);
@@ -179,6 +169,9 @@ export class VectorClock implements CausalTimestamp {
     });
   }
 
+  /**
+   * @return A clone of this.
+   */
   clone(): VectorClock {
     let copy = new VectorClock(this.sender, this.local, this.time);
     copy.vectorMap = new Map(this.vectorMap);
