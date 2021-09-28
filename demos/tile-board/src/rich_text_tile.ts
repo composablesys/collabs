@@ -1,5 +1,4 @@
 import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
@@ -127,40 +126,18 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
   }
 }
 
-(async function () {
-  const runtime = await ContainerRuntimeSource.newRuntime(
-    window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
-  );
-
+export function richTextPreContent(
+  contentInitToken: crdts.CrdtInitToken,
+  contentDomParent: HTMLElement
+): crdts.Crdt {
   // Quill's initial content is "\n".
-  const clientText = runtime.registerCrdt("text", crdts.Pre(RichText)(["\n"]));
+  const clientText = new RichText(contentInitToken, ["\n"]);
 
-  const quill = new Quill("#editor", {
+  const quill = new Quill(contentDomParent, {
     theme: "snow",
-    // Modules list from quilljs example, via
-    // https://github.com/KillerCodeMonkey/ngx-quill/issues/295#issuecomment-443268064
-    // We remove syntax: true because I can't figure out how
-    // to trick Webpack into importing highlight.js for
-    // side-effects.
-    // Same with "formula" (after "video") and katex.
+    // Minimal toolbars, to avoid clutter.
     modules: {
-      toolbar: [
-        [{ font: [] }, { size: [] }],
-        ["bold", "italic", "underline", "strike"],
-        [{ color: [] }, { background: [] }],
-        [{ script: "super" }, { script: "sub" }],
-        [{ header: "1" }, { header: "2" }, "blockquote", "code-block"],
-        [
-          { list: "ordered" },
-          { list: "bullet" },
-          { indent: "-1" },
-          { indent: "+1" },
-        ],
-        ["direction", { align: [] }],
-        ["link", "image", "video"],
-        ["clean"],
-      ],
+      toolbar: [["link", "image", "video"]],
     },
   });
 
@@ -270,7 +247,9 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
         .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
     );
   });
-})();
+
+  return clientText;
+}
 
 // TODO: cursor management.  Quill appears to be doing this
 // for us, but should verify.
