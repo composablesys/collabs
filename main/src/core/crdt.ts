@@ -1,4 +1,4 @@
-import { EventEmitter } from "../util";
+import { EventEmitter } from "./event_emitter";
 import { CausalTimestamp } from "./causal_broadcast_network";
 import { isRuntime } from "./is_runtime";
 import { Runtime } from "./runtime";

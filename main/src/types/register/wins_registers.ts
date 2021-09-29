@@ -1,7 +1,6 @@
-import { CrdtInitToken } from "../../core";
+import { CrdtInitToken, ElementSerializer } from "../../core";
 import {
   DefaultElementSerializer,
-  ElementSerializer,
   Optional,
   SingletonSerializer,
 } from "../../util";

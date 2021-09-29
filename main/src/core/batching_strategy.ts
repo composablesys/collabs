@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../util";
+import { Unsubscribe } from "./event_emitter";
 import { Runtime, RuntimeEvent } from "./runtime";
 
 /**

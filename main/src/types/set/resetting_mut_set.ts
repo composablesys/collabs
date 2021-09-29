@@ -2,8 +2,14 @@ import {
   IMutCSetFromMapKeyMessage,
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt, CrdtInitToken, Pre, Runtime } from "../../core";
+import { DefaultElementSerializer } from "../../util";
+import {
+  Crdt,
+  CrdtInitToken,
+  ElementSerializer,
+  Pre,
+  Runtime,
+} from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCObject } from "./abstract_set";

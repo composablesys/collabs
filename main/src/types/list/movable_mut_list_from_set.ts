@@ -1,9 +1,11 @@
+import { DefaultElementSerializer, PairSerializer } from "../../util";
 import {
-  DefaultElementSerializer,
+  Crdt,
+  CrdtInitToken,
   ElementSerializer,
-  PairSerializer,
-} from "../../util";
-import { Crdt, CrdtInitToken, isRuntime, Pre } from "../../core";
+  isRuntime,
+  Pre,
+} from "../../core";
 import { CRegister } from "../register";
 import { CSet } from "../set";
 import { AbstractCListCObject } from "./abstract_list";

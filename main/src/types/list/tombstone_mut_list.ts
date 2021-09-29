@@ -1,9 +1,11 @@
+import { ConstructorAsFunction, DefaultElementSerializer } from "../../util";
 import {
-  ConstructorAsFunction,
-  DefaultElementSerializer,
+  Crdt,
+  CrdtInitToken,
+  Pre,
+  isRuntime,
   ElementSerializer,
-} from "../../util";
-import { Crdt, CrdtInitToken, Pre, isRuntime } from "../../core";
+} from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {

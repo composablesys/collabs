@@ -1,5 +1,4 @@
-import { ElementSerializer } from "../../util";
-import { CausalTimestamp } from "../../core";
+import { CausalTimestamp, ElementSerializer } from "../../core";
 
 /**
  * Ops can assume causal order.

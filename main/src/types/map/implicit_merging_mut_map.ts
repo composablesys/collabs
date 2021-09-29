@@ -1,7 +1,6 @@
 import {
   bytesAsString,
   DefaultElementSerializer,
-  ElementSerializer,
   Optional,
   stringAsBytes,
   WeakValueMap,
@@ -11,6 +10,7 @@ import {
   Crdt,
   CrdtEventMeta,
   CrdtInitToken,
+  ElementSerializer,
 } from "../../core";
 import { Resettable } from "../../abilities";
 import { AbstractCMapCrdt } from "./abstract_map";

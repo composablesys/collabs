@@ -1,12 +1,7 @@
 import { Resettable } from "../../abilities";
 import { CObject } from "../../constructions";
-import { Crdt, CrdtInitToken, Pre } from "../../core";
-import {
-  ElementSerializer,
-  DefaultElementSerializer,
-  Optional,
-  CrdtSerializer,
-} from "../../util";
+import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { DefaultElementSerializer, Optional, CrdtSerializer } from "../../util";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";

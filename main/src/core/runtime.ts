@@ -3,7 +3,6 @@ import {
   RuntimeMessage,
   RuntimeSave,
 } from "../../generated/proto_compiled";
-import { ElementSerializer, EventEmitter } from "../util";
 import { Crdt, CrdtEventMeta, CrdtInitToken, Pre } from "./crdt";
 import {
   CausalBroadcastNetwork,
@@ -19,6 +18,8 @@ import {
   BatchingStrategy,
   ImmediateBatchingStrategy,
 } from "./batching_strategy";
+import { EventEmitter } from "./event_emitter";
+import { ElementSerializer } from "./element_serializer";
 
 class RootCrdt extends CObject {
   /**

@@ -1,7 +1,6 @@
 import {
   byteArrayEquals,
   DefaultElementSerializer,
-  ElementSerializer,
   Optional,
 } from "../../util";
 import { Resettable } from "../../abilities";
@@ -13,7 +12,7 @@ import {
 import { AbstractCMapCObject } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { CMapEventsRecord } from "./interfaces";
-import { CrdtInitToken } from "../../core";
+import { CrdtInitToken, ElementSerializer } from "../../core";
 
 export class CMapFromRegister<
     K,

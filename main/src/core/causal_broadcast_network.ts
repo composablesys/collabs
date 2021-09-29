@@ -1,4 +1,4 @@
-import { ElementSerializer } from "../util";
+import { ElementSerializer } from "./element_serializer";
 import { Runtime } from "./runtime";
 
 /**

@@ -1,7 +1,13 @@
 import { Resettable } from "../../abilities";
 import { CObject } from "../../constructions";
-import { CrdtEvent, CrdtEventsRecord, CrdtInitToken, Pre } from "../../core";
-import { ElementSerializer, Optional, OptionalSerializer } from "../../util";
+import {
+  CrdtEvent,
+  CrdtEventsRecord,
+  CrdtInitToken,
+  ElementSerializer,
+  Pre,
+} from "../../core";
+import { Optional, OptionalSerializer } from "../../util";
 import { LwwCRegister } from "../register";
 import { CList, CListEventsRecord } from "./interfaces";
 

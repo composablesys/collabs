@@ -1,9 +1,5 @@
-import {
-  CrdtSerializer,
-  DefaultElementSerializer,
-  ElementSerializer,
-} from "../../util";
-import { Crdt, CrdtInitToken, Pre } from "../../core";
+import { CrdtSerializer, DefaultElementSerializer } from "../../util";
+import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
 import { AbstractCSetCObject } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";

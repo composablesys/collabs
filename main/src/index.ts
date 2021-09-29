@@ -9,11 +9,6 @@ export * from "./types";
 export {
   ConstructorAsFunction,
   DisconnectableNetwork,
-  EventsRecord,
-  EventEmitter,
-  Unsubscribe,
-  Handler,
-  ElementSerializer,
   DefaultElementSerializer,
   CrdtSerializer,
   OptionalSerializer,

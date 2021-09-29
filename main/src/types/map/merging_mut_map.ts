@@ -1,9 +1,5 @@
-import {
-  DefaultElementSerializer,
-  ElementSerializer,
-  Optional,
-} from "../../util";
-import { Crdt, CrdtInitToken, Pre } from "../../core";
+import { DefaultElementSerializer, Optional } from "../../util";
+import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { AddWinsCSet } from "../set";
 import { AbstractCMapCObject } from "./abstract_map";

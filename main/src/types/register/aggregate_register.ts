@@ -3,12 +3,13 @@ import {
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
 import { CPrimitive } from "../../constructions";
-import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
 import {
-  DefaultElementSerializer,
+  CausalTimestamp,
+  CrdtEventMeta,
+  CrdtInitToken,
   ElementSerializer,
-  SingletonSerializer,
-} from "../../util";
+} from "../../core";
+import { DefaultElementSerializer, SingletonSerializer } from "../../util";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";
 
 export interface CRegisterEntryMeta<S> {

@@ -4,8 +4,8 @@ import {
   CrdtEvent,
   DefaultCausalBroadcastNetwork,
   Runtime,
+  Unsubscribe,
 } from "../core";
-import { Unsubscribe } from "./event_emitter";
 
 /**
  * For testing or special purposes only.  Sends each message

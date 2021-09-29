@@ -1,8 +1,7 @@
 import { Resettable } from "../../abilities";
-import { CrdtInitToken, Pre } from "../../core";
+import { CrdtInitToken, ElementSerializer, Pre } from "../../core";
 import {
   DefaultElementSerializer,
-  ElementSerializer,
   StringAsArraySerializer,
   WeakValueMap,
 } from "../../util";

@@ -1,10 +1,9 @@
 import {
   CrdtSerializer,
   DefaultElementSerializer,
-  ElementSerializer,
   PairSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken, Pre } from "../../core";
+import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
 import { AbstractCMapCObject } from "./abstract_map";

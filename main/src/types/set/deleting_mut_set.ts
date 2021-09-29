@@ -2,17 +2,13 @@ import {
   DeletingMutCSetMessage,
   DeletingMutCSetSave,
 } from "../../../generated/proto_compiled";
-import {
-  bytesAsString,
-  DefaultElementSerializer,
-  ElementSerializer,
-} from "../../util";
+import { bytesAsString, DefaultElementSerializer } from "../../util";
 import {
   CausalTimestamp,
   Crdt,
   CrdtEventMeta,
   CrdtInitToken,
-  Pre,
+  ElementSerializer,
 } from "../../core";
 import { AbstractCSetCrdt } from "./abstract_set";
 import { Resettable } from "../../abilities";

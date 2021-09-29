@@ -1,4 +1,4 @@
-import { Runtime, Crdt, isRuntime } from "../core/";
+import { Runtime, Crdt, isRuntime, ElementSerializer } from "../core/";
 import {
   ArrayMessage,
   CrdtReference,
@@ -11,18 +11,6 @@ import {
 } from "../../generated/proto_compiled";
 import { Buffer } from "buffer";
 import { Optional } from "./optional";
-
-/**
- * A serializer for elements (keys, values, etc.) in Crdt collections,
- * so that they can
- * be sent to other replicas in Crdt operations.
- *
- * DefaultCollectionSerializer.getInstance() should suffice for most uses.
- */
-export interface ElementSerializer<T> {
-  serialize(value: T): Uint8Array;
-  deserialize(message: Uint8Array, runtime: Runtime): T;
-}
 
 /**
  * Default serializer.
@@ -334,18 +322,4 @@ export function bytesAsString(array: Uint8Array) {
 }
 export function stringAsBytes(str: string) {
   return new Uint8Array(Buffer.from(str, ENCODING));
-}
-
-/**
- * Apply this function to protobuf.js [u/s]int64 output values
- * to convert them to the nearest JS number (double).
- * For safe integers, this is exact.
- *
- * In theory you can "request" protobuf.js to not use
- * longs by not depending on the Long library, but that is
- * flaky because one of our dependencies might import it.
- */
-export function int64AsNumber(num: number | Long): number {
-  if (typeof num === "number") return num;
-  else return num.toNumber();
 }

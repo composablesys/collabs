@@ -1,10 +1,12 @@
 import { Resettable } from "../../abilities";
-import { Crdt, CrdtInitToken, Pre, isRuntime } from "../../core";
 import {
-  ConstructorAsFunction,
-  DefaultElementSerializer,
+  Crdt,
+  CrdtInitToken,
+  Pre,
+  isRuntime,
   ElementSerializer,
-} from "../../util";
+} from "../../core";
+import { ConstructorAsFunction, DefaultElementSerializer } from "../../util";
 import { LwwCRegister } from "../register";
 import { DeletingMutCSet } from "../set";
 import {

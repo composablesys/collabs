@@ -1,5 +1,4 @@
-import { CrdtInitToken, Pre } from "../../core";
-import { ElementSerializer } from "../../util";
+import { CrdtInitToken, ElementSerializer, Pre } from "../../core";
 import { CMap } from "../map";
 import { AbstractCListCObject } from "./abstract_list";
 import { LocatableCList } from "./cursor";

@@ -1,5 +1,5 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { Crdt, CrdtInitToken, Pre } from "../../core";
+import { DefaultElementSerializer } from "../../util";
+import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { DeletingMutCSet } from "../set";
 import { LwwCMap } from "./lww_map";

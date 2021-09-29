@@ -1,9 +1,9 @@
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
+import { DefaultElementSerializer } from "../../util";
 import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
 import { AbstractCSetCObject } from "./abstract_set";
-import { CrdtInitToken, Pre } from "../../core";
+import { CrdtInitToken, ElementSerializer, Pre } from "../../core";
 
 export class CSetFromBoolean<
   T,

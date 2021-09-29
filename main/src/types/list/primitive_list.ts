@@ -6,8 +6,13 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
-import { DefaultElementSerializer, ElementSerializer } from "../../util";
-import { CausalTimestamp, CrdtEventMeta, CrdtInitToken } from "../../core";
+import { DefaultElementSerializer } from "../../util";
+import {
+  CausalTimestamp,
+  CrdtEventMeta,
+  CrdtInitToken,
+  ElementSerializer,
+} from "../../core";
 import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { Resettable } from "../../abilities";

@@ -7,9 +7,10 @@ import {
   Crdt,
   CrdtEventsRecord,
   CrdtInitToken,
+  ElementSerializer,
   Runtime,
 } from "../core";
-import { DefaultElementSerializer, ElementSerializer } from "../util";
+import { DefaultElementSerializer } from "../util";
 import { CObject } from "./object";
 
 // TODO: revise this file.
