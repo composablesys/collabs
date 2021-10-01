@@ -1,9 +1,0 @@
-.DS_Store
-node_modules
-build
-typedoc
-generated
-generated_esm
-.vscode/
-.idea/
-*.tsbuildinfo

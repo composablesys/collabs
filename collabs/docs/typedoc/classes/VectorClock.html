@@ -1,0 +1,686 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>VectorClock | @collabs/collabs</title>
+	<meta name="description" content="Documentation for @collabs/collabs">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+	<script async src="../assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">@collabs/collabs</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../modules.html">@collabs/collabs</a>
+				</li>
+				<li>
+					<a href="VectorClock.html">VectorClock</a>
+				</li>
+			</ul>
+			<h1>Class VectorClock</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>Simple implementation of <a href="../interfaces/CausalTimestamp.html">CausalTimestamp</a> that uses
+						a vector clock directly.</p>
+					</div>
+					<p>This is inefficient and will be optimized in the future.</p>
+				</div>
+			</section>
+			<section class="tsd-panel tsd-hierarchy">
+				<h3>Hierarchy</h3>
+				<ul class="tsd-hierarchy">
+					<li>
+						<span class="target">VectorClock</span>
+					</li>
+				</ul>
+			</section>
+			<section class="tsd-panel">
+				<h3>Implements</h3>
+				<ul class="tsd-hierarchy">
+					<li><a href="../interfaces/CausalTimestamp.html" class="tsd-signature-type" data-tsd-kind="Interface">CausalTimestamp</a></li>
+				</ul>
+			</section>
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Constructors</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="VectorClock.html#constructor" class="tsd-kind-icon">constructor</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Properties</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="VectorClock.html#sender" class="tsd-kind-icon">sender</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="VectorClock.html#time" class="tsd-kind-icon">time</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="VectorClock.html#vectorMap" class="tsd-kind-icon">vector<wbr>Map</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Methods</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#asVectorClock" class="tsd-kind-icon">as<wbr>Vector<wbr>Clock</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#clone" class="tsd-kind-icon">clone</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#getSender" class="tsd-kind-icon">get<wbr>Sender</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#getSenderCounter" class="tsd-kind-icon">get<wbr>Sender<wbr>Counter</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#getSize" class="tsd-kind-icon">get<wbr>Size</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#getTime" class="tsd-kind-icon">get<wbr>Time</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#increment" class="tsd-kind-icon">increment</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#isAlreadyReceived" class="tsd-kind-icon">is<wbr>Already<wbr>Received</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#isLocal" class="tsd-kind-icon">is<wbr>Local</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#isReady" class="tsd-kind-icon">is<wbr>Ready</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#merge" class="tsd-kind-icon">merge</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#mergeSender" class="tsd-kind-icon">merge<wbr>Sender</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#setEntry" class="tsd-kind-icon">set<wbr>Entry</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="VectorClock.html#toString" class="tsd-kind-icon">to<wbr>String</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Constructors</h2>
+				<section class="tsd-panel tsd-member tsd-kind-constructor tsd-parent-kind-class">
+					<a name="constructor" class="tsd-anchor"></a>
+					<h3>constructor</h3>
+					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">new <wbr>Vector<wbr>Clock<span class="tsd-signature-symbol">(</span>sender<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, local<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span>, time<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L24">collabs/src/core/vector_clock.ts:24</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Initialize the vector with replica&#39;s own entry.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>sender: <span class="tsd-signature-type">string</span></h5>
+								</li>
+								<li>
+									<h5>local: <span class="tsd-signature-type">boolean</span></h5>
+								</li>
+								<li>
+									<h5>time: <span class="tsd-signature-type">number</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Properties</h2>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="sender" class="tsd-anchor"></a>
+					<h3>sender</h3>
+					<div class="tsd-signature tsd-kind-icon">sender<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L13">collabs/src/core/vector_clock.ts:13</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>replicaId of the sender</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="time" class="tsd-anchor"></a>
+					<h3>time</h3>
+					<div class="tsd-signature tsd-kind-icon">time<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L19">collabs/src/core/vector_clock.ts:19</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="vectorMap" class="tsd-anchor"></a>
+					<h3>vector<wbr>Map</h3>
+					<div class="tsd-signature tsd-kind-icon">vector<wbr>Map<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L17">collabs/src/core/vector_clock.ts:17</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The record map from replica ids to the number of lastest message.</p>
+						</div>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Methods</h2>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="asVectorClock" class="tsd-anchor"></a>
+					<h3>as<wbr>Vector<wbr>Clock</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">as<wbr>Vector<wbr>Clock<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Implementation of <a href="../interfaces/CausalTimestamp.html">CausalTimestamp</a>.<a href="../interfaces/CausalTimestamp.html#asVectorClock">asVectorClock</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L40">collabs/src/core/vector_clock.ts:40</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></h4>
+							<p>This timestamp in the form of a vector clock,
+								i.e., as a map from replica ids to the number of their
+							most recent causally &lt;= message.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="clone" class="tsd-anchor"></a>
+					<h3>clone</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">clone<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L175">collabs/src/core/vector_clock.ts:175</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></h4>
+							<p>A clone of this.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="getSender" class="tsd-anchor"></a>
+					<h3>get<wbr>Sender</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Sender<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Implementation of <a href="../interfaces/CausalTimestamp.html">CausalTimestamp</a>.<a href="../interfaces/CausalTimestamp.html#getSender">getSender</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L32">collabs/src/core/vector_clock.ts:32</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">any</span></h4>
+							<p>The message sender&#39;s replica id.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="getSenderCounter" class="tsd-anchor"></a>
+					<h3>get<wbr>Sender<wbr>Counter</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Sender<wbr>Counter<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Implementation of <a href="../interfaces/CausalTimestamp.html">CausalTimestamp</a>.<a href="../interfaces/CausalTimestamp.html#getSenderCounter">getSenderCounter</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L44">collabs/src/core/vector_clock.ts:44</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
+							<p>The counter for messages sent by this message&#39;s
+								sender.  Equivalent to
+							this.asVectorClock().get(this.getSender()).</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="getSize" class="tsd-anchor"></a>
+					<h3>get<wbr>Size</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Size<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L52">collabs/src/core/vector_clock.ts:52</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="getTime" class="tsd-anchor"></a>
+					<h3>get<wbr>Time</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Time<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Implementation of <a href="../interfaces/CausalTimestamp.html">CausalTimestamp</a>.<a href="../interfaces/CausalTimestamp.html#getTime">getTime</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L48">collabs/src/core/vector_clock.ts:48</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
+							<p>The time this message was generated, as
+								given by the sender&#39;s Date.now().  This is useful
+								in some forms of conflict resolution (e.g., a
+							last-writer-wins register).</p>
+							<p>Note that if multiple operations
+								were sent in a single batch, then this gives the time
+								of the first operation, which may differ substantially
+								from the time of later operations.  Thus it is mostly
+								intended for conflict resolution or when batches are
+								sent relatively quickly; when batches can be long and
+								precise times are needed, Crdts should send times
+							manually.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="increment" class="tsd-anchor"></a>
+					<h3>increment</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">increment<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L59">collabs/src/core/vector_clock.ts:59</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Update the sender&#39;s vector entry (mutating operation).</p>
+								</div>
+							</div>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="isAlreadyReceived" class="tsd-anchor"></a>
+					<h3>is<wbr>Already<wbr>Received</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">is<wbr>Already<wbr>Received<span class="tsd-signature-symbol">(</span>other<span class="tsd-signature-symbol">: </span><a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L116">collabs/src/core/vector_clock.ts:116</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Check if a message with a certain timestamp has already
+										been received, given that this is
+										the vector clock merge of all previously-received
+									messages.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>other: <a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The vector clock of
+										the other message.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+							<p>If a message with timestamp <code>other</code> has
+							already been received, according to this.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="isLocal" class="tsd-anchor"></a>
+					<h3>is<wbr>Local</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">is<wbr>Local<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Implementation of <a href="../interfaces/CausalTimestamp.html">CausalTimestamp</a>.<a href="../interfaces/CausalTimestamp.html#isLocal">isLocal</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L36">collabs/src/core/vector_clock.ts:36</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+							<p>Whether the message was generated by the local
+								replica.  Equivalent to getSender() ===
+							Runtime.getReplicaId().</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="isReady" class="tsd-anchor"></a>
+					<h3>is<wbr>Ready</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">is<wbr>Ready<span class="tsd-signature-symbol">(</span>other<span class="tsd-signature-symbol">: </span><a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L77">collabs/src/core/vector_clock.ts:77</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Check if a message with a certain timestamp is ready for
+										delivery in causal order, given that this is
+										the vector clock merge of all previously-received
+									messages.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>other: <a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The vector clock of
+										the other message.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+							<p>Whether other&#39;s message is ready.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="merge" class="tsd-anchor"></a>
+					<h3>merge</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">merge<span class="tsd-signature-symbol">(</span>vc<span class="tsd-signature-symbol">: </span><a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L139">collabs/src/core/vector_clock.ts:139</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Merge this with <code>vc</code> (mutating operation).</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>vc: <a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></h5>
+									<div class="tsd-comment tsd-typography">
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="mergeSender" class="tsd-anchor"></a>
+					<h3>merge<wbr>Sender</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">merge<wbr>Sender<span class="tsd-signature-symbol">(</span>vc<span class="tsd-signature-symbol">: </span><a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L130">collabs/src/core/vector_clock.ts:130</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Set sender&#39;s lastest entry received in this VectorClock
+									to that of <code>vc</code> (mutating operation).</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>vc: <a href="VectorClock.html" class="tsd-signature-type" data-tsd-kind="Class">VectorClock</a></h5>
+									<div class="tsd-comment tsd-typography">
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="setEntry" class="tsd-anchor"></a>
+					<h3>set<wbr>Entry</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">set<wbr>Entry<span class="tsd-signature-symbol">(</span>replicaId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, clockValue<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L160">collabs/src/core/vector_clock.ts:160</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Sets an entry in this vector clock (mutating operation).</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>replicaId: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The entry&#39;s <code>replicaId</code>.</p>
+									</div>
+								</li>
+								<li>
+									<h5>clockValue: <span class="tsd-signature-type">number</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The clock value to set.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="toString" class="tsd-anchor"></a>
+					<h3>to<wbr>String</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">to<wbr>String<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/core/vector_clock.ts#L164">collabs/src/core/vector_clock.ts:164</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="../modules.html">Exports</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-class">
+						<a href="VectorClock.html" class="tsd-kind-icon">Vector<wbr>Clock</a>
+						<ul>
+							<li class=" tsd-kind-constructor tsd-parent-kind-class">
+								<a href="VectorClock.html#constructor" class="tsd-kind-icon">constructor</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="VectorClock.html#sender" class="tsd-kind-icon">sender</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="VectorClock.html#time" class="tsd-kind-icon">time</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="VectorClock.html#vectorMap" class="tsd-kind-icon">vector<wbr>Map</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#asVectorClock" class="tsd-kind-icon">as<wbr>Vector<wbr>Clock</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#clone" class="tsd-kind-icon">clone</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#getSender" class="tsd-kind-icon">get<wbr>Sender</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#getSenderCounter" class="tsd-kind-icon">get<wbr>Sender<wbr>Counter</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#getSize" class="tsd-kind-icon">get<wbr>Size</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#getTime" class="tsd-kind-icon">get<wbr>Time</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#increment" class="tsd-kind-icon">increment</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#isAlreadyReceived" class="tsd-kind-icon">is<wbr>Already<wbr>Received</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#isLocal" class="tsd-kind-icon">is<wbr>Local</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#isReady" class="tsd-kind-icon">is<wbr>Ready</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#merge" class="tsd-kind-icon">merge</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#mergeSender" class="tsd-kind-icon">merge<wbr>Sender</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#setEntry" class="tsd-kind-icon">set<wbr>Entry</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="VectorClock.html#toString" class="tsd-kind-icon">to<wbr>String</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="after-current">
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+</body>
+</html>

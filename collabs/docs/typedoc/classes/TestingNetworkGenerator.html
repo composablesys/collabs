@@ -1,0 +1,416 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>TestingNetworkGenerator | @collabs/collabs</title>
+	<meta name="description" content="Documentation for @collabs/collabs">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+	<script async src="../assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">@collabs/collabs</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../modules.html">@collabs/collabs</a>
+				</li>
+				<li>
+					<a href="TestingNetworkGenerator.html">TestingNetworkGenerator</a>
+				</li>
+			</ul>
+			<h1>Class TestingNetworkGenerator</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>Creates a collection of Runtimes linked together
+							(i.e., in-memory networking) that deliver messages
+						when release is called.</p>
+					</div>
+				</div>
+			</section>
+			<section class="tsd-panel tsd-hierarchy">
+				<h3>Hierarchy</h3>
+				<ul class="tsd-hierarchy">
+					<li>
+						<span class="target">TestingNetworkGenerator</span>
+					</li>
+				</ul>
+			</section>
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Constructors</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#constructor" class="tsd-kind-icon">constructor</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Properties</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#lastMessage" class="tsd-kind-icon">last<wbr>Message</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#messageQueues" class="tsd-kind-icon">message<wbr>Queues</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Methods</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#getTestingNetwork" class="tsd-kind-icon">get<wbr>Testing<wbr>Network</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#getTotalSentBytes" class="tsd-kind-icon">get<wbr>Total<wbr>Sent<wbr>Bytes</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#newNetwork" class="tsd-kind-icon">new<wbr>Network</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#newRuntime" class="tsd-kind-icon">new<wbr>Runtime</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#release" class="tsd-kind-icon">release</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#releaseAll" class="tsd-kind-icon">release<wbr>All</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="TestingNetworkGenerator.html#releaseByNetwork" class="tsd-kind-icon">release<wbr>ByNetwork</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Constructors</h2>
+				<section class="tsd-panel tsd-member tsd-kind-constructor tsd-parent-kind-class">
+					<a name="constructor" class="tsd-anchor"></a>
+					<h3>constructor</h3>
+					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">new <wbr>Testing<wbr>Network<wbr>Generator<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="TestingNetworkGenerator.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetworkGenerator</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+							</aside>
+							<h4 class="tsd-returns-title">Returns <a href="TestingNetworkGenerator.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetworkGenerator</a></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Properties</h2>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="lastMessage" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> last<wbr>Message</h3>
+					<div class="tsd-signature tsd-kind-icon">last<wbr>Message<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol"> = ...</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L154">collabs/src/util/testing_network.ts:154</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="messageQueues" class="tsd-anchor"></a>
+					<h3>message<wbr>Queues</h3>
+					<div class="tsd-signature tsd-kind-icon">message<wbr>Queues<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> = ...</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L112">collabs/src/util/testing_network.ts:112</a></li>
+						</ul>
+					</aside>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Methods</h2>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="getTestingNetwork" class="tsd-anchor"></a>
+					<h3>get<wbr>Testing<wbr>Network</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Testing<wbr>Network<span class="tsd-signature-symbol">(</span>runtime<span class="tsd-signature-symbol">: </span><a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L142">collabs/src/util/testing_network.ts:142</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>runtime: <a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="getTotalSentBytes" class="tsd-anchor"></a>
+					<h3>get<wbr>Total<wbr>Sent<wbr>Bytes</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Total<wbr>Sent<wbr>Bytes<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L148">collabs/src/util/testing_network.ts:148</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="newNetwork" class="tsd-anchor"></a>
+					<h3>new<wbr>Network</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">new<wbr>Network<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="DefaultCausalBroadcastNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">DefaultCausalBroadcastNetwork</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L101">collabs/src/util/testing_network.ts:101</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <a href="DefaultCausalBroadcastNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">DefaultCausalBroadcastNetwork</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="newRuntime" class="tsd-anchor"></a>
+					<h3>new<wbr>Runtime</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">new<wbr>Runtime<span class="tsd-signature-symbol">(</span>batchingStrategy<span class="tsd-signature-symbol">?: </span><a href="../interfaces/BatchingStrategy.html" class="tsd-signature-type" data-tsd-kind="Interface">BatchingStrategy</a>, rng<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">prng</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L94">collabs/src/util/testing_network.ts:94</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>[newRuntime description]</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>batchingStrategy: <a href="../interfaces/BatchingStrategy.html" class="tsd-signature-type" data-tsd-kind="Interface">BatchingStrategy</a><span class="tsd-signature-symbol"> = ...</span></h5>
+								</li>
+								<li>
+									<h5>rng: <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">prng</span><span class="tsd-signature-symbol"> = ...</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="release" class="tsd-anchor"></a>
+					<h3>release</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">release<span class="tsd-signature-symbol">(</span>senderRuntime<span class="tsd-signature-symbol">: </span><a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a>, <span class="tsd-signature-symbol">...</span>recipientRuntimes<span class="tsd-signature-symbol">: </span><a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L119">collabs/src/util/testing_network.ts:119</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Release all queued messages from sender to the specified recipients.
+										If recipients are not specified, releases them to all
+										recipients.  Only recipients that existed at the time
+									of sending will receive a message.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>senderRuntime: <a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagRest">Rest</span> <span class="tsd-signature-symbol">...</span>recipientRuntimes: <a href="Runtime.html" class="tsd-signature-type" data-tsd-kind="Class">Runtime</a><span class="tsd-signature-symbol">[]</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="releaseAll" class="tsd-anchor"></a>
+					<h3>release<wbr>All</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">release<wbr>All<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L138">collabs/src/util/testing_network.ts:138</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="releaseByNetwork" class="tsd-anchor"></a>
+					<h3>release<wbr>ByNetwork</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">release<wbr>ByNetwork<span class="tsd-signature-symbol">(</span>sender<span class="tsd-signature-symbol">: </span><a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a>, <span class="tsd-signature-symbol">...</span>recipients<span class="tsd-signature-symbol">: </span><a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/composablesys/collabs/blob/23fbde3/collabs/src/util/testing_network.ts#L126">collabs/src/util/testing_network.ts:126</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>sender: <a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagRest">Rest</span> <span class="tsd-signature-symbol">...</span>recipients: <a href="TestingNetwork.html" class="tsd-signature-type" data-tsd-kind="Class">TestingNetwork</a><span class="tsd-signature-symbol">[]</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="../modules.html">Exports</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-class">
+						<a href="TestingNetworkGenerator.html" class="tsd-kind-icon">Testing<wbr>Network<wbr>Generator</a>
+						<ul>
+							<li class=" tsd-kind-constructor tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#constructor" class="tsd-kind-icon">constructor</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#lastMessage" class="tsd-kind-icon">last<wbr>Message</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#messageQueues" class="tsd-kind-icon">message<wbr>Queues</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#getTestingNetwork" class="tsd-kind-icon">get<wbr>Testing<wbr>Network</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#getTotalSentBytes" class="tsd-kind-icon">get<wbr>Total<wbr>Sent<wbr>Bytes</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#newNetwork" class="tsd-kind-icon">new<wbr>Network</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#newRuntime" class="tsd-kind-icon">new<wbr>Runtime</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#release" class="tsd-kind-icon">release</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#releaseAll" class="tsd-kind-icon">release<wbr>All</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="TestingNetworkGenerator.html#releaseByNetwork" class="tsd-kind-icon">release<wbr>ByNetwork</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="after-current">
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+</body>
+</html>
