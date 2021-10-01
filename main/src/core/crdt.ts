@@ -81,6 +81,7 @@ export function Pre<C, Args extends any[]>(
       new Class(initToken, ...args);
 }
 
+// TODO: use a normal class instead of the interface + const?
 /**
  * Metadata for a [[CrdtEvent]].
  */
@@ -96,6 +97,10 @@ export interface CrdtEventMeta {
    * Equivalent to this.sender === (ambient Runtime).replicaId.
    */
   readonly isLocal: boolean;
+  /**
+   * The event's CausalTimestamp.  Work in progress.
+   */
+  readonly timestamp: CausalTimestamp;
 }
 
 /**
@@ -111,32 +116,11 @@ export const CrdtEventMeta = {
    * @return           [description]
    */
   fromTimestamp(timestamp: CausalTimestamp): CrdtEventMeta {
-    return { sender: timestamp.getSender(), isLocal: timestamp.isLocal() };
-  },
-
-  /**
-   * Returns a [[CrdtEventMeta]] for an event
-   * caused by an operation/message with the given sender.
-   *
-   * @param  sender  [description]
-   * @param  runtime The ambient [[Runtime]], used to get
-   * our own `replicaId`.
-   * @return         [description]
-   */
-  fromSender(sender: string, runtime: Runtime): CrdtEventMeta {
-    return { sender, isLocal: sender === runtime.replicaId };
-  },
-
-  /**
-   * Returns a [[CrdtEventMeta]] for an event
-   * caused by a local operation.
-   *
-   * @param  runtime The ambient [[Runtime]], used to get
-   * our own `replicaId`.
-   * @return         [description]
-   */
-  local(runtime: Runtime): CrdtEventMeta {
-    return { sender: runtime.replicaId, isLocal: true };
+    return {
+      sender: timestamp.getSender(),
+      isLocal: timestamp.isLocal(),
+      timestamp,
+    };
   },
 };
 

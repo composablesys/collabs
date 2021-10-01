@@ -1,7 +1,7 @@
 import {
   BatchingStrategy,
   BroadcastNetwork,
-  CrdtEvent,
+  RuntimeEvent,
   DefaultCausalBroadcastNetwork,
   Runtime,
   Unsubscribe,
@@ -26,8 +26,8 @@ export class TestingBatchingStrategy implements BatchingStrategy {
     this.unsubscribe = undefined;
   }
 
-  private onmessage(event: CrdtEvent) {
-    if (event.meta.isLocal) {
+  private onmessage(event: RuntimeEvent) {
+    if (event.isLocal) {
       this.runtime!.commitBatch();
     }
   }
