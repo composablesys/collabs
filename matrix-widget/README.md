@@ -1,8 +1,8 @@
-# @collabs/container
+# @collabs/matrix-widget
 
 **Collabs MatrixWidgetNetwork**
 
-[https://www.npmjs.com/package/@collabs/container](https://www.npmjs.com/package/@collabs/container)
+[https://www.npmjs.com/package/@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget)
 
 A Collabs `BroadcastNetwork` implementation that uses [matrix-widget-api](https://www.npmjs.com/package/matrix-widget-api).
 
