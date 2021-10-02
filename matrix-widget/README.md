@@ -1,18 +1,18 @@
 # @collabs/container
 
-**Tools for Collabs containers (network-agnostic collaborative apps)**
+**Collabs MatrixWidgetNetwork**
 
 [https://www.npmjs.com/package/@collabs/container](https://www.npmjs.com/package/@collabs/container)
 
-## Docs
+A Collabs `BroadcastNetwork` implementation that uses [matrix-widget-api](https://www.npmjs.com/package/matrix-widget-api).
 
-[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/containers.md)
+## Docs
 
 ### API
 
 ```
 git clone https://github.com/composablesys/collabs.git
-cd collabs/container
+cd collabs/matrix-widget
 npm i
 npm run build
 ```

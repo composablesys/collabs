@@ -4,7 +4,7 @@ import {
   IWidgetApiRequestData,
   Capability,
 } from "matrix-widget-api";
-import { BroadcastNetwork } from "compoventuals";
+import { BroadcastNetwork } from "@collabs/collabs";
 import { Buffer } from "buffer";
 
 // TODO: size limits:

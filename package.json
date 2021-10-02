@@ -20,7 +20,7 @@
   },
   "comment": "workspaces must be in build order, and workspace names must not include spaces or otherwise fail to be proper bash args",
   "workspaces": [
-    "main",
+    "collabs",
     "json",
     "json-opt",
     "tensor-average",

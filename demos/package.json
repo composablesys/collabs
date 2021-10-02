@@ -22,8 +22,6 @@
     "compoventuals-matrix-widget": "^0.1.0",
     "compoventuals-ws-client": "^0.1.0",
     "compoventuals-ws-server": "^0.1.0",
-    "compoventuals-webrtc-client": "^0.1.0",
-    "compoventuals-webrtc-server": "^0.1.0",
     "express": "^4.17.1",
     "jquery": "^3.6.0",
     "matrix-widget-api": "^0.1.0-beta.15",

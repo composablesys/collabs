@@ -1,6 +1,6 @@
 {
   "name": "@collabs/container",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tools for Collabs containers (network-agnostic collaborative apps)",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -14,11 +14,8 @@
   },
   "keywords": [
     "Collabs",
-    "CRDT",
     "collaboration",
-    "local-first",
-    "collections",
-    "data structures"
+    "local-first"
   ],
   "module": "build/esm/src/index.js",
   "browser": "build/esm/src/index.js",
