@@ -1,12 +1,12 @@
-import * as crdts from "compoventuals";
-import { WebSocketNetwork } from "compoventuals-ws-client";
+import * as crdts from "@collabs/collabs";
+import { WebSocketNetwork } from "@collabs/ws-client";
 
 // Create a Runtime using your chosen network.
-// Here we use WebSocketNetwork from package compoventuals-ws-client,
-// which sends messages through a compoventuals-ws-server
+// Here we use WebSocketNetwork from package @collabs/ws-client,
+// which sends messages through a @collabs/ws-server
 // via WebSockets.
 // (A central server like this is not necessary to use
-// compoventuals, but it is convenient, especially for local testing.)
+// Collabs, but it is convenient, especially for local testing.)
 const host = location.origin.replace(/^http/, "ws");
 const runtime = new crdts.Runtime(new WebSocketNetwork(host, ""));
 

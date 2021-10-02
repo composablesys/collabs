@@ -1,9 +1,9 @@
-import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerRuntimeSource } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
-require("quill/dist/quill.snow.css");
+import "quill/dist/quill.snow.css";
 
 const Delta = Quill.import("delta");
 declare type Delta = {

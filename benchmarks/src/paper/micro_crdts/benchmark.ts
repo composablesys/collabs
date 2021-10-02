@@ -1,10 +1,7 @@
 import { assert } from "chai";
-import * as crdts from "compoventuals";
+import * as crdts from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs-node";
-import {
-  TensorAverageCrdt,
-  TensorCounterCrdt,
-} from "compoventuals-tensor-average";
+import { TensorAverageCrdt, TensorCounterCrdt } from "@collabs/tensor-average";
 import seedrandom from "seedrandom";
 import {
   getRecordedTrials,

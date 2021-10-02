@@ -1,6 +1,6 @@
 # Counter Demo
 
-A simple collaborative counter, as a [Compoventuals container](TODO: guide link).
+A simple collaborative counter, as a [Collabs container](TODO: guide link).
 
 Based off of [template-container](TODO).
 

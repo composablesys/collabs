@@ -1,6 +1,6 @@
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import { Crdt, Pre, Runtime, TestingNetworkGenerator } from "compoventuals";
+import { Crdt, Pre, Runtime, TestingNetworkGenerator } from "@collabs/collabs";
 import {
   conversions,
   TensorAverageCrdt,

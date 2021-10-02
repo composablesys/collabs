@@ -1,4 +1,4 @@
-import { CausalTimestamp, CrdtInitToken, CPrimitive } from "compoventuals";
+import { CausalTimestamp, CrdtInitToken, CPrimitive } from "@collabs/collabs";
 
 export class ContainerHost extends CPrimitive {
   private readonly messagePort: MessagePort;

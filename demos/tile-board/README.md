@@ -1,6 +1,6 @@
 # Tile Board Demo
 
-A collaborative board where you can add tiles containing arbitrary other Compoventuals apps.
+A collaborative board where you can add tiles containing arbitrary other Collabs apps.
 
 Based off of [template-container](TODO).
 

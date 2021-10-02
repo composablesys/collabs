@@ -2,7 +2,7 @@
 
 Server for running the demos.
 
-It serves the demos folder under /demos, and also provides pages including a generic Compoventuals container host (from `/src/site/`). You can host any container by navigating to `/host.html?network=ws&container=<url>`.
+It serves the demos folder under /demos, and also provides pages including a generic Collabs container host (from `/src/site/`). You can host any container by navigating to `/host.html?network=ws&container=<url>`.
 
 Based off of [container-testing-server](TODO).
 

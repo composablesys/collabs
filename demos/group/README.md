@@ -1,6 +1,6 @@
 # Shapes Demo (Multiple Semidirect Product)
 
-A demo of the multiple semidirect product for manipulating shapes, as a [Compoventuals container](TODO: guide link).
+A demo of the multiple semidirect product for manipulating shapes, as a [Collabs container](TODO: guide link).
 
 Author: Ria Pradeep.
 

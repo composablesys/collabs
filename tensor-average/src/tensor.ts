@@ -10,7 +10,7 @@ import {
   CPrimitive,
   Resettable,
   CrdtEventMeta,
-} from "compoventuals";
+} from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
 export interface TensorCounterEventsRecord extends CrdtEventsRecord {

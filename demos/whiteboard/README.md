@@ -1,6 +1,6 @@
 # Whiteboard Demo
 
-A collaborative whiteboard, as a [Compoventuals container](TODO: guide link).
+A collaborative whiteboard, as a [Collabs container](TODO: guide link).
 
 Author: Ria Pradeep.
 

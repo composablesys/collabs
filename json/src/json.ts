@@ -8,7 +8,7 @@ import {
   Pre,
   Resettable,
   ResettingMutCList,
-} from "compoventuals";
+} from "@collabs/collabs";
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
 

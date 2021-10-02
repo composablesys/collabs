@@ -1,4 +1,4 @@
-import * as crdts from "compoventuals";
+import * as crdts from "@collabs/collabs";
 import { edits, finalText } from "./editing-trace";
 import Automerge from "automerge";
 import * as Y from "yjs";

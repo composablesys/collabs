@@ -4,9 +4,9 @@ TODO
 
 - Note node >= 15 dependency (for workspaces) - greater than current LTS version. Can we enforce this with an npm devDependency? (Would be awkward if we get pinned to an old version, though.)
 
-# Compoventuals template-container
+# Collabs template-container
 
-Template for a Compoventuals container. Containers are network agnostic and can be run in any [host](TODO: link to list of hosts).
+Template for a Collabs container. Containers are network agnostic and can be run in any [host](TODO: link to list of hosts).
 
 Guide: TODO
 

@@ -1,4 +1,4 @@
-import { BroadcastNetwork } from "compoventuals";
+import { BroadcastNetwork } from "@collabs/collabs";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import { Buffer } from "buffer";
 

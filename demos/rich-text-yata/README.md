@@ -1,6 +1,6 @@
 # Rich Text Demo (Experimental YATA + Semidirect)
 
-A collaborative rich text editor using [Quill](https://quilljs.com/), as a [Compoventuals container](TODO: guide link).
+A collaborative rich text editor using [Quill](https://quilljs.com/), as a [Collabs container](TODO: guide link).
 
 This demo uses YATA instead of the built-in CRDT sequence algorithm, and it uses a semidirect product to better preserver user intention: if you type in the middle of a block of text while someone else changes its formatting, your new text will get the block formatting. Currently, the Quill integration is a bit behind the other rich text demo, hence the label "experimental".
 

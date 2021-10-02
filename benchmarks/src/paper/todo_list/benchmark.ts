@@ -1,11 +1,6 @@
-import * as crdts from "compoventuals";
-import {
-  JsonElement,
-  JsonArray,
-  JsonObject,
-  TextWrapper,
-} from "compoventuals-json";
-import { JsonCrdt, JsonCursor } from "compoventuals-json-opt";
+import * as crdts from "@collabs/collabs";
+import { JsonElement, JsonArray, JsonObject, TextWrapper } from "@collabs/json";
+import { JsonCrdt, JsonCursor } from "@collabs/json-opt";
 import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";

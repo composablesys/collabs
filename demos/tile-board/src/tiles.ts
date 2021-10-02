@@ -1,6 +1,7 @@
-import * as crdts from "compoventuals";
-import { ContainerHost } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerHost } from "@collabs/container";
 import pako from "pako";
+import { richTextPreContent } from "./rich_text_tile";
 
 /**
  * A Crdt that holds an immutable value passed to the constructor.
@@ -12,19 +13,22 @@ class CImmutable<T> extends crdts.CObject {
 }
 
 class CTile extends crdts.CObject {
-  readonly containerHost: ContainerHost;
+  readonly contentCrdt: crdts.Crdt;
   readonly left: crdts.LwwCRegister<number>;
   readonly top: crdts.LwwCRegister<number>;
   readonly width: crdts.LwwCRegister<number>;
   readonly height: crdts.LwwCRegister<number>;
 
   readonly dom: HTMLDivElement;
-  private readonly iframe: HTMLIFrameElement;
+  readonly innerDiv: HTMLDivElement;
 
   constructor(
     initToken: crdts.CrdtInitToken,
     private readonly domParent: HTMLElement,
-    url: string,
+    preContent: (
+      contentInitToken: crdts.CrdtInitToken,
+      contentDomParent: HTMLElement
+    ) => crdts.Crdt,
     initialX: number,
     initialY: number,
     initialWidth: number,
@@ -33,18 +37,19 @@ class CTile extends crdts.CObject {
     super(initToken);
 
     // Create DOM.
-    this.iframe = document.createElement("iframe");
-    this.iframe.src = url;
-    this.iframe.className = "tileIframe";
-
     this.dom = document.createElement("div");
     this.dom.className = "tile";
-    this.dom.appendChild(this.iframe);
+    this.dom.draggable = false;
+    this.innerDiv = document.createElement("div");
+    this.innerDiv.className = "tile-inner-div";
+    this.innerDiv.draggable = false;
+    this.dom.appendChild(this.innerDiv);
+    domParent.appendChild(this.dom);
     this.setupRectHandlers();
 
-    this.containerHost = this.addChild(
-      "",
-      crdts.Pre(ContainerHost)(this.iframe)
+    // Create types.
+    this.contentCrdt = this.addChild("", (contentInitToken) =>
+      preContent(contentInitToken, this.innerDiv)
     );
     this.left = this.addChild("x", crdts.Pre(crdts.LwwCRegister)(initialX));
     this.top = this.addChild("y", crdts.Pre(crdts.LwwCRegister)(initialY));
@@ -57,7 +62,7 @@ class CTile extends crdts.CObject {
       crdts.Pre(crdts.LwwCRegister)(initialHeight)
     );
 
-    // Keep the IFrame in sync with its rect.
+    // Keep this.dom in sync with its rect.
     this.dom.style.position = "absolute";
     this.updateRect();
     this.left.on("Set", () => this.updateRect());
@@ -110,7 +115,7 @@ class CTile extends crdts.CObject {
       if (this.inResizeZone(e)) {
         // Resizing
         this.isResizing = true;
-        this.iframe.style.pointerEvents = "none";
+        this.innerDiv.style.pointerEvents = "none";
         this.dom.style.cursor = "nwse-resize";
 
         const [x, y] = this.coords(e, this.dom);
@@ -123,7 +128,7 @@ class CTile extends crdts.CObject {
       } else if (this.inMoveZone(e)) {
         // Moving
         this.isMoving = true;
-        this.iframe.style.pointerEvents = "none";
+        this.innerDiv.style.pointerEvents = "none";
         this.dom.style.cursor = "move";
 
         const [x, y] = this.coords(e, this.domParent);
@@ -206,7 +211,7 @@ class CTile extends crdts.CObject {
   private mouseEnd(e: MouseEvent, skipLastUpdate = false) {
     if (this.isResizing) {
       this.isResizing = false;
-      this.iframe.style.pointerEvents = "auto";
+      this.innerDiv.style.pointerEvents = "auto";
       this.dom.style.cursor = "default";
       // Perform the Crdt op.  That also updates our own view.
       if (skipLastUpdate) {
@@ -225,7 +230,7 @@ class CTile extends crdts.CObject {
       }
     } else if (this.isMoving) {
       this.isMoving = false;
-      this.iframe.style.pointerEvents = "auto";
+      this.innerDiv.style.pointerEvents = "auto";
       // Perform the Crdt op.  That also updates our own view.
       if (skipLastUpdate) {
         this.left.value = this.newLeft;
@@ -282,12 +287,20 @@ export function setupTiles(runtime: crdts.Runtime) {
   const appExistingDiv = <HTMLDivElement>(
     document.getElementById("appExistingDiv")
   );
-  existingApps.on("Change", () => {
+  function refreshAppExistingDiv() {
     // Refresh the list of apps in appExistingDiv.
     appExistingDiv.innerHTML = "";
+
+    const richTextButton = document.createElement("button");
+    richTextButton.appendChild(document.createTextNode("Sticky Note"));
+    richTextButton.onclick = () => {
+      addRichText();
+    };
+    appExistingDiv.appendChild(richTextButton);
+    appExistingDiv.appendChild(document.createElement("br"));
+
     existingApps.forEach((app) => {
       const button = document.createElement("button");
-      // TODO: title for app
       button.appendChild(document.createTextNode(app.value.title));
       button.onclick = () => {
         addTile(app);
@@ -295,7 +308,9 @@ export function setupTiles(runtime: crdts.Runtime) {
       appExistingDiv.appendChild(button);
       appExistingDiv.appendChild(document.createElement("br"));
     });
-  });
+  }
+  refreshAppExistingDiv();
+  existingApps.on("Change", refreshAppExistingDiv);
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
@@ -352,23 +367,26 @@ export function setupTiles(runtime: crdts.Runtime) {
         // it can be serialized properly.  url is a Blob URL
         // meaningful only to the local replica, and using
         // the raw HTML src would be expensive.
-        app: CImmutable<{ url: string; title: string }>,
+        app: "richText" | CImmutable<{ url: string; title: string }>,
         initialX: number,
         initialY: number,
         initialWidth: number,
         initialHeight: number
       ) => {
-        // Add a tile with the given url and initial rect.
+        // Add a tile with the given app and initial rect.
+        const preContent =
+          app === "richText"
+            ? richTextPreContent
+            : iframeFromUrl(app.value.url);
         const tile = new CTile(
           valueInitToken,
           tileParent,
-          app.value.url,
+          preContent,
           initialX,
           initialY,
           initialWidth,
           initialHeight
         );
-        tileParent.appendChild(tile.dom);
         return tile;
       }
     )
@@ -382,7 +400,27 @@ export function setupTiles(runtime: crdts.Runtime) {
 
   function addTile(app: CImmutable<{ url: string; title: string }>) {
     // TODO: set initial rect intelligently.
-    // TODO: extract tile from app instead of using filenames etc.
+    // TODO: extract title from app instead of using filenames etc.
     tiles.add(app, 1350, 1350, 300, 300);
+  }
+
+  function addRichText() {
+    // TODO: set initial rect intelligently.
+    tiles.add("richText", 1350, 1350, 300, 300);
+  }
+
+  function iframeFromUrl(
+    url: string
+  ): (
+    contentInitToken: crdts.CrdtInitToken,
+    contentDomParent: HTMLElement
+  ) => crdts.Crdt {
+    return (contentInitToken, contentDomParent) => {
+      const iframe = document.createElement("iframe");
+      iframe.src = url;
+      iframe.className = "tileIframe";
+      contentDomParent.appendChild(iframe);
+      return new ContainerHost(contentInitToken, iframe);
+    };
   }
 }
