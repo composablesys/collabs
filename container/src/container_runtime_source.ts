@@ -1,4 +1,4 @@
-import { BatchingStrategy, BroadcastNetwork, Runtime } from "compoventuals";
+import { BatchingStrategy, BroadcastNetwork, Runtime } from "@collabs/collabs";
 
 class ContainerNetwork implements BroadcastNetwork {
   constructor(private readonly messagePort: MessagePort) {}
