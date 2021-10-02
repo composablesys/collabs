@@ -1,4 +1,4 @@
-import { startWebSocketServer } from "compoventuals-ws-server";
+import { startWebSocketServer } from "@collabs/ws-server";
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -35,9 +35,9 @@ if (args[0] === "--https" || args[0] === "-s") {
   );
 }
 
-// Run the compoventuals-ws-server.
+// Run the @collabs/ws-server.
 const { reset } = startWebSocketServer({ server });
-// If you replace compoventuals-ws-server with something else,
+// If you replace @collabs/ws-server with something else,
 // remove resetMessageHistory() and reset.html.
 function resetMessageHistory() {
   reset();

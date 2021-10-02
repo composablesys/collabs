@@ -1,6 +1,6 @@
-# Compoventuals template-app
+# Collabs template-app
 
-Template for a Compoventuals app with a specific network (e.g., your own server).
+Template for a Collabs app with a specific network (e.g., your own server).
 
 Guide: TODO
 
@@ -42,7 +42,7 @@ Delete `dist/`.
 
 ## Changing the Network
 
-The template uses `compoventuals-ws-client`'s `WebSocketNetwork` on the client and `compoventuals-ws-server` on the testing server. So, all communication happens through the testing server, which clients connect to using WebSockets.
+The template uses `Collabs-ws-client`'s `WebSocketNetwork` on the client and `Collabs-ws-server` on the testing server. So, all communication happens through the testing server, which clients connect to using WebSockets.
 
 While the starter server is convenient for testing, it is not appropriate for actual deployments: all users on the site are collaborators, and the state is not saved, except as an ever-growing message log in the server's memory. You should instead customize the app's [`BroadcastNetwork`](TODO) to integrate with your own server, or use one that integrates with an existing network (e.g., [`MatrixWidgetNetwork`](TODO)). You should also set up [saving and loading](TODO: relevant guide) in the client app.
 
@@ -50,13 +50,13 @@ While the starter server is convenient for testing, it is not appropriate for ac
 
 You can easily modify the testing server for testing with these other `BroadcastNetwork` implementations:
 
-- `MatrixWidgetNetwork` from [compoventuals-matrix-widget](TODO):
+- `MatrixWidgetNetwork` from [Collabs-matrix-widget](TODO):
 
   1. Remove the call to `startWebSocketServer` in `server/testing_server.ts`.
   2. Start the server in https mode (`npm start -- --https`).
   3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/my_app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
 
-- `WebRtcNetwork` from [compoventuals-webrtc-client](TODO):
-  1. Install the WebRTC server: `npm i --save compoventuals-webrtc-server`.
-  2. Replace the call to `startWebSocketServer` in `server/testing_server.ts` with a call to `startWebRtcServer`, imported from `compoventuals-webrtc-server`.
+- `WebRtcNetwork` from [Collabs-webrtc-client](TODO):
+  1. Install the WebRTC server: `npm i --save Collabs-webrtc-server`.
+  2. Replace the call to `startWebSocketServer` in `server/testing_server.ts` with a call to `startWebRtcServer`, imported from `Collabs-webrtc-server`.
   3. Start the server and navigate to your app as usual.
