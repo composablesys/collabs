@@ -1,5 +1,5 @@
-import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerRuntimeSource } from "@collabs/container";
 
 // Async so we can await ContainerRuntimeSource.newRuntime.
 (async function () {
