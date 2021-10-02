@@ -1,7 +1,7 @@
 # A Space Demo
 
 A collaborative recreation of a game by
-[William Hoza](https://williamhoza.com/), as a [Compoventuals container](TODO: guide link).
+[William Hoza](https://williamhoza.com/), as a [Collabs container](TODO: guide link).
 
 Based off of [template-container](TODO).
 

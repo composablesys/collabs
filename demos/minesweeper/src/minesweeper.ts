@@ -1,5 +1,5 @@
-import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerRuntimeSource } from "@collabs/container";
 import seedrandom from "seedrandom";
 
 // Minesweeper Crdt

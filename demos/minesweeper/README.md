@@ -1,6 +1,6 @@
 # Minesweeper Demo
 
-Collaborative Minesweeper, as a [Compoventuals container](TODO: guide link).
+Collaborative Minesweeper, as a [Collabs container](TODO: guide link).
 
 Frontend by Ignacio Maronna.
 

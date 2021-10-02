@@ -1,6 +1,6 @@
 # Plain Text Editor Demo
 
-A collaborative plain text editor, as a [Compoventuals container](TODO: guide link).
+A collaborative plain text editor, as a [Collabs container](TODO: guide link).
 
 Based off of [template-container](TODO).
 

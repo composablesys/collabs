@@ -1,4 +1,4 @@
-import * as crdts from "compoventuals";
+import * as crdts from "@collabs/collabs";
 import $ from "jquery";
 
 export function setupWhiteboard(runtime: crdts.Runtime) {

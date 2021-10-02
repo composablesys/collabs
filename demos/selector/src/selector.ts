@@ -1,6 +1,6 @@
-import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
-import { ContainerHost } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerRuntimeSource } from "@collabs/container";
+import { ContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {

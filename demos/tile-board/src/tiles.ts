@@ -1,5 +1,5 @@
-import * as crdts from "compoventuals";
-import { ContainerHost } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerHost } from "@collabs/container";
 import pako from "pako";
 import { richTextPreContent } from "./rich_text_tile";
 

@@ -1,4 +1,4 @@
-import * as crdts from "compoventuals";
+import * as crdts from "@collabs/collabs";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
