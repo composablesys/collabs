@@ -31,6 +31,7 @@ const config: webpack.Configuration = {
       },
     ],
   },
+  ignoreWarnings: [/Failed to parse source map/],
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
   },
