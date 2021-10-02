@@ -13,8 +13,6 @@
     "container",
     "ws-client",
     "ws-server",
-    "webrtc-client",
-    "webrtc-server",
     "matrix-widget",
     "container-testing-server",
     "template-custom-type",
