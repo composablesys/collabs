@@ -10,7 +10,7 @@ Collabs is a library for building and using _collaborative data structures_. The
 
 [Live demos](https://compoventuals-tests.herokuapp.com/) ([source](https://github.com/composablesys/collabs/tree/master/demos))
 
-[Getting Started Guide](./docs/getting_started_guide.md)
+[Getting Started Guide](https://github.com/composablesys/collabs/tree/master/collabs/docs/getting_started_guide.md)
 
 ## Principles
 
@@ -23,9 +23,18 @@ Collabs is a library for building and using _collaborative data structures_. The
 
 ## Docs
 
-[Docs](./docs/index.md)
+[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/index.md)
 
-[API](./docs/typedoc)
+### API
+
+```
+git clone https://github.com/composablesys/collabs.git
+cd collabs/collabs
+npm i
+npm run build
+```
+
+Open `docs/typedoc/index.html.`
 
 ## Authors and Acknowledgements
 
