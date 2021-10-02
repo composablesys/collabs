@@ -5,11 +5,11 @@ import {
   CRegisterEvent,
   LwwCRegister,
   Pre,
-} from "compoventuals";
+} from "@collabs/collabs";
 
 // Since you're exporting your type for reuse, it's a good
 // idea to expose meaningful events.
-// See the Compoventuals docs for advice on what events to include (TODO).
+// See the Collabs docs (https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md) for advice on what events to include.
 export interface CPairEventsRecord<T, U> extends CrdtEventsRecord {
   FirstSet: CRegisterEvent<T>;
   SecondSet: CRegisterEvent<U>;
