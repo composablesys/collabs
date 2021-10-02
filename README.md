@@ -1,6 +1,6 @@
 # Collabs Monorepo
 
-You're probably looking for [@collabs/collabs](https://github.com/composablesys/collabs#readme).
+You're probably looking for [@collabs/collabs](https://github.com/composablesys/collabs/tree/master/collabs#readme).
 
 ## Packages in this repo
 
