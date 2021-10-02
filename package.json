@@ -1,20 +1,6 @@
 {
-  "name": "compoventuals-metapackage",
-  "version": "0.1.0",
-  "description": "CRDTs designed compositionally (meta-package)",
-  "author": "Compoventuals contributors",
+  "author": "Collabs contributors",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
-  },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/composablesys/compoventuals.git"
-  },
-  "keywords": [
-    "crdts"
-  ],
   "devDependencies": {
     "rimraf": "^2.7.1"
   },
