@@ -6,7 +6,7 @@
  * https://github.com/mikolalysenko/functional-red-black-tree
  * which is MIT licensed.  Copyright (c) 2013 Mikola Lysenko
  *
- * We (Compoventuals) modified this file as follows:
+ * We (Collabs) modified this file as follows:
  * - modify insert so that it also
  * returns the index of the inserted element
  * - add ignoreExisting parameter to insert (the original

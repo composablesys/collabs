@@ -8,7 +8,7 @@
  *
  * These each individually make Webpack (really UglifyJS) concerned
  * that each class definition may have side effects, so when
- * bundling a webapp that uses compoventuals, Webpack chooses
+ * bundling a webapp that uses collabs, Webpack chooses
  * to include the entire proto_compiled.js file even if the
  * app only uses a few messages from it.
  * See https://github.com/mishoo/UglifyJS/issues/1261#issuecomment-285203500

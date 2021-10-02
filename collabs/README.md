@@ -19,7 +19,7 @@ Collabs is a library for building and using _collaborative data structures_. The
 <!-- TODO: link to zero-hosting deployment options (use someone else's); links to docs on each option. Networks page with all options? -->
 - **Flexible and extensible:** At its core, `collabs` is a library _for_ collaborative data structures, not just a library _of_ them (although we provide plenty of those too). So if our data types don't meet your needs, you can create your own or get them from third-party libraries.
 - **Composable**: In particular, we provide techniques to create new types by composing existing ones. Correctness properties compose too!
-- **Keep your data model and type safety:** A core feature of Compoventuals is that you can organize your collaborative state using reusable, strongly-typed classes. In particular, you can make a single-user app collaborative while preserving its data model and type safety, by directly replacing its frontend data types with collaborative versions.
+- **Keep your data model and type safety:** A core feature of Collabs is that you can organize your collaborative state using reusable, strongly-typed classes. In particular, you can make a single-user app collaborative while preserving its data model and type safety, by directly replacing its frontend data types with collaborative versions.
 
 ## Docs
 
@@ -38,6 +38,6 @@ Open `docs/typedoc/index.html.`
 
 ## Authors and Acknowledgements
 
-Compoventuals was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at Carnegie Mellon University's Composable Systems Lab.
+Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at Carnegie Mellon University's Composable Systems Lab.
 
 Matthew Weidner's work on the project is supported by an NDSEG Fellowship sponsored by the US Office of Naval Research.

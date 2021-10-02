@@ -7,7 +7,7 @@
  * Forked from DefinitelyTyped, which is MIT licensed.
  * See above comment for source.
  *
- * We (Compoventuals) modified this file to match our
+ * We (Collabs) modified this file to match our
  * changes to rbtree.js.
  */
 
