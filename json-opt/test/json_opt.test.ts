@@ -1,6 +1,6 @@
 import { assert } from "chai";
 import { JsonCrdt, JsonCursor } from "../src/json_opt";
-import { Pre, Runtime, TestingNetworkGenerator } from "compoventuals";
+import { Pre, Runtime, TestingNetworkGenerator } from "@collabs/collabs";
 import seedrandom from "seedrandom";
 
 describe("JsonCrdt", () => {
