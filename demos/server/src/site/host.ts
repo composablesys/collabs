@@ -32,9 +32,7 @@ switch (networkType) {
     break;
   }
   case "matrix":
-    network = new MatrixWidgetNetwork(
-      "com.herokuapp.@collabs/tests.counter"
-    );
+    network = new MatrixWidgetNetwork("com.herokuapp.@collabs/tests.counter");
     batchingStrategy = new crdts.RateLimitBatchingStrategy(500, false);
     break;
   default:
