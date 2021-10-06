@@ -23,7 +23,7 @@ Collabs is a library for building and using _collaborative data structures_. The
 
 ## Docs
 
-[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/index.md)
+[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs#readme)
 
 ### API
 
@@ -34,7 +34,7 @@ npm i
 npm run build
 ```
 
-Open `docs/typedoc/index.html.`
+Open `docs/typedoc/index.html` in a browser.
 
 ## Authors and Acknowledgements
 

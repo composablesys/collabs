@@ -17,4 +17,11 @@
 
 ## API
 
-[API](./typedoc/index.html)
+```
+git clone https://github.com/composablesys/collabs.git
+cd collabs/collabs
+npm i
+npm run build
+```
+
+Open `docs/typedoc/index.html` in a browser.
