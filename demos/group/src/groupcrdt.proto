@@ -1,7 +1,12 @@
 message GroupComponentMessage {
-    optional double X = 1;
-    optional double Y = 2;
-    optional double rotate = 3;
-    optional double reflectX = 4;
-    optional double reflectY = 5;
+    optional double X1 = 1;
+    optional double Y1 = 2;
+    optional double rotate1 = 3;
+    optional double reflectX1 = 4;
+    optional double reflectY1 = 5;
+    optional double X2 = 6;
+    optional double Y2 = 7;
+    optional double rotate2 = 8;
+    optional double reflectX2 = 9;
+    optional double reflectY2 = 10;
 }

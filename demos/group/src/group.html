@@ -14,20 +14,40 @@
 
       <!-- HTML page variables and buttons -->
       <p></p>
-      <div class="btn-ops">
-        <button id="reflectX">Reflect X-axis</button>
-        <button id="reflectY">Reflect Y-axis</button>
-        <button id="rotateCW">Rotate Clockwise</button>
-        <button id="rotateCCW">Rotate Counter-Clockwise</button>
-        <input type="number" id="rotate-deg" />
+      <div class="btn-ops-1">
+        <p>CMU Image</p>
+        <button id="reflectX1">Reflect X-axis</button>
+        <button id="reflectY1">Reflect Y-axis</button>
+        <button id="rotateCW1">Rotate Clockwise</button>
+        <button id="rotateCCW1">Rotate Counter-Clockwise</button>
+        <input type="number" id="rotate-deg1" />
+      </div>
+
+      <div class="btn-ops-2">
+        <p>ISR Image</p>
+        <button id="reflectX2">Reflect X-axis</button>
+        <button id="reflectY2">Reflect Y-axis</button>
+        <button id="rotateCW2">Rotate Clockwise</button>
+        <button id="rotateCCW2">Rotate Counter-Clockwise</button>
+        <input type="number" id="rotate-deg2" />
       </div>
     </div>
 
-    <img src="CMU.jpeg" id="image" scale="0.5" onContextMenu="return false;" />
+    <img src="CMU.jpeg" id="cmu" onContextMenu="return false;" />
+    <img src="ISR.jpeg" id="isr" onContextMenu="return false;" />
   </body>
 
   <style>
-    #image {
+    p {
+      display: inline-block;
+    }
+
+    #cmu {
+      width: 90px;
+      height: auto;
+    }
+
+    #isr {
       width: 90px;
       height: auto;
     }
