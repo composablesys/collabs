@@ -669,19 +669,22 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     // - If equal, equal
     // - undefined < positive uniqueNumber
     // - negative uniqueNumber < undefined
+    // - negative uniqueNumber < positive uniqueNumber
+    // - compare by sender
     // - compare by uniqueNumber
-    // - break ties by sender
     if (aPrev === bPrev) return 0;
     else if (aPrev === undefined) {
       return -bPrev!.uniqueNumber;
     } else if (bPrev === undefined) {
       return aPrev.uniqueNumber;
-    } else if (aPrev.uniqueNumber !== bPrev.uniqueNumber) {
-      return aPrev.uniqueNumber - bPrev.uniqueNumber;
-    } else if (aPrev.sender < bPrev.sender) {
-      return -1;
+    } else if (
+      Math.sign(aPrev.uniqueNumber) !== Math.sign(bPrev.uniqueNumber)
+    ) {
+      return aPrev.uniqueNumber;
+    } else if (aPrev.sender !== bPrev.sender) {
+      return aPrev.sender < bPrev.sender ? -1 : 1;
     } else {
-      return 1;
+      return aPrev.uniqueNumber - bPrev.uniqueNumber;
     }
   }
 }
