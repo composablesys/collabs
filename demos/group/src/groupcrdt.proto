@@ -9,4 +9,6 @@ message GroupComponentMessage {
     optional double rotate2 = 8;
     optional double reflectX2 = 9;
     optional double reflectY2 = 10;
+    optional double X3 = 11;
+    optional double Y3 = 12;
 }

@@ -31,10 +31,24 @@
         <button id="rotateCCW2">Rotate Counter-Clockwise</button>
         <input type="number" id="rotate-deg2" />
       </div>
+
+      <div class="btn-ops-3">
+        <p>Group</p>
+        <button id="reflectX3">Reflect X-axis</button>
+        <button id="reflectY3">Reflect Y-axis</button>
+        <button id="rotateCW3">Rotate Clockwise</button>
+        <button id="rotateCCW3">Rotate Counter-Clockwise</button>
+        <input type="number" id="rotate-deg3" />
+        <button id="translate3">Translate</button>
+        <input type="number" id="translateX3" placeholder="dX" />
+        <input type="number" id="translateY3" placeholder="dY" />
+      </div>
     </div>
 
-    <img src="CMU.jpeg" id="cmu" onContextMenu="return false;" />
-    <img src="ISR.jpeg" id="isr" onContextMenu="return false;" />
+    <div id="group">
+      <img src="ISR.jpeg" id="isr" onContextMenu="return false;" />
+      <img src="CMU.jpeg" id="cmu" onContextMenu="return false;" />
+    </div>
   </body>
 
   <style>
@@ -43,17 +57,21 @@
     }
 
     #cmu {
-      width: 90px;
+      width: 300px;
       height: auto;
+      transform-origin: center;
+      position: absolute;
+      top: 300;
+      left: 0;
     }
 
     #isr {
-      width: 90px;
+      width: 300px;
       height: auto;
-    }
-
-    #board {
-      border: 2px solid black;
+      transform-origin: center;
+      position: absolute;
+      top: 300;
+      left: 0;
     }
   </style>
 </html>

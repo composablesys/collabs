@@ -11,30 +11,27 @@ import $ from "jquery";
 
   var ops1 = document.getElementsByClassName("btn-ops-1");
   var ops2 = document.getElementsByClassName("btn-ops-2");
+  var ops3 = document.getElementsByClassName("btn-ops-3");
   var deg1 = <HTMLInputElement>document.getElementById("rotate-deg1");
   var deg2 = <HTMLInputElement>document.getElementById("rotate-deg2");
+  var deg3 = <HTMLInputElement>document.getElementById("rotate-deg3");
+  var groupdX = <HTMLInputElement>document.getElementById("translateX3");
+  var groupdY = <HTMLInputElement>document.getElementById("translateY3");
   var imgCMU = <HTMLCanvasElement>document.getElementById("cmu");
   var imgISR = <HTMLCanvasElement>document.getElementById("isr");
+  var group = <HTMLCanvasElement>document.getElementById("group");
   
   let updateImg = function () {
     var state: GroupState = clientGroup.getState();
-    console.log("updating image...");
-    console.log(state);
-    // imgCMU!.style.transform = `translate(${state.X1}px,${state.Y1}px) rotate(${state.rotate1}deg) scaleY(${state.reflectX1}) scaleX(${state.reflectY1})`;
-    imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`;
+    // imgISR!.style.transform = `translate(10px,10px)`
+    imgCMU!.style.transform = `translate(${state.X1}px,${state.Y1}px) rotate(${state.rotate1}deg) scaleY(${state.reflectX1}) scaleX(${state.reflectY1})`; // translate(-50%, -50%)`;
+    imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
+    // group!.style.transform = `translate(${state.X3}px,${state.Y3}px)`;
   };
 
   clientGroup.on("Change", () => {
     updateImg();
   });
-
-  clientGroup.on("Translate", () => {
-    console.log("translating image");
-  });
-
-  clientGroup.on("ReflectY", () => {
-    console.log("reflecting y");
-  })
 
   // Perform specified operation on the CMU image
   $(ops1).on("click", function (e: JQuery.ClickEvent) {
@@ -69,7 +66,6 @@ import $ from "jquery";
         break;
 
       case "rotateCW2":
-        console.log("rotating")
         clientGroup.rotate(parseInt(deg2!.value) || 0, 2);
         break;
 
@@ -79,23 +75,51 @@ import $ from "jquery";
     }
   });
 
+    // Perform specified operation on both images
+    $(ops3).on("click", function (e: JQuery.ClickEvent) {
+      switch (e.target.id) {
+        case "reflectX3":
+          clientGroup.reflectX(3);
+          break;
+  
+        case "reflectY3":
+          clientGroup.reflectY(3);
+          break;
+  
+        case "rotateCW3":
+          clientGroup.rotate(parseInt(deg3!.value) || 0, 3);
+          break;
+  
+        case "rotateCCW3":
+          clientGroup.rotate(-1 * parseInt(deg3!.value) || 0, 3);
+          break;
+
+        case "translate3":
+          clientGroup.translate(parseInt(groupdX!.value) || 0, parseInt(groupdY!.value) || 0, 3);
+          break;
+      }
+    });
+
   
   var offsetY = document.getElementById("header")!.offsetHeight || 100;
-  clientGroup.translate(imgCMU.offsetLeft, offsetY - imgCMU.offsetHeight, 1);
-  clientGroup.translate(imgISR.offsetLeft, offsetY - imgISR.offsetHeight, 2);
   // Move CMU image around screen
   var isDown1 = false;
+  var X1 : number, Y1 : number;
   $(imgCMU)
-    .on("mousedown", function () {
+    .on("mousedown", function (e: JQuery.MouseDownEvent) {
       isDown1 = true;
+      X1 = e.pageX;
+      Y1 = e.pageY;
     })
     .on("mousemove", function (e: JQuery.MouseMoveEvent) {
       if (isDown1) {
         clientGroup.translate(
-          e.pageX - imgCMU.offsetWidth / 2,
-          e.pageY - offsetY - imgCMU.offsetHeight / 2,
+          e.pageX - X1,
+          e.pageY - Y1,
           1
         );
+        X1 = e.pageX;
+        Y1 = e.pageY;
       }
     })
     .on("mouseup", function () {
@@ -104,20 +128,22 @@ import $ from "jquery";
 
   // Move ISR image around screen
   var isDown2 = false;
+  var X2 : number, Y2 : number;
   $(imgISR)
-    .on("mousedown", function () {
-      console.log("starting to move ISR");
+    .on("mousedown", function (e: JQuery.MouseDownEvent) {
       isDown2 = true;
+      X2 = e.pageX;
+      Y2 = e.pageY;
     })
     .on("mousemove", function (e: JQuery.MouseMoveEvent) {
-      console.log("not moving ISR");
       if (isDown2) {
-        console.log("moving ISR");
         clientGroup.translate(
-          e.pageX - imgISR.offsetWidth / 2,
-          e.pageY - offsetY - imgISR.offsetHeight / 2,
+          e.pageX - X2,
+          e.pageY - Y2,
           2
         );
+        X2 = e.pageX;
+        Y2 = e.pageY;
       }
     })
     .on("mouseup", function () {
