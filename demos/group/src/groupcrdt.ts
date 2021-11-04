@@ -7,8 +7,6 @@ export interface GroupTranslateEvent extends crdts.CrdtEvent {
   readonly dY1: number;
   readonly dX2: number;
   readonly dY2: number;
-  readonly dX3: number;
-  readonly dY3: number;
 }
 
 export interface GroupRotateEvent extends crdts.CrdtEvent {
@@ -44,8 +42,6 @@ export class GroupState {
   rotate2: number;
   reflectX2: number;
   reflectY2: number;
-  X3: number;
-  Y3: number;
 
   constructor() {
     this.X1 = 0;
@@ -58,8 +54,6 @@ export class GroupState {
     this.reflectX2 = 1;
     this.reflectY2 = 1;
     this.rotate2 = 0;
-    this.X3 = 0;
-    this.Y3 = 0;
   }
 
   resetLocalState(): void {
@@ -73,8 +67,6 @@ export class GroupState {
     this.reflectX2 = 1;
     this.reflectY2 = 1;
     this.rotate2 = 0;
-    this.X3 = 0;
-    this.Y3 = 0;
   }
 }
 
@@ -94,7 +86,7 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
       } else if (img === 2) {
         message = GroupComponentMessage.create({ X2: newX, Y2: newY });
       } else {
-        message = GroupComponentMessage.create({ X3: newX, Y3: newY });
+        message = GroupComponentMessage.create({ X1: newX, Y1: newY, X2: newX, Y2: newY });
       }
       let buffer = GroupComponentMessage.encode(message).finish();
       super.send(buffer);
@@ -110,16 +102,12 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     this.state.Y1 += decoded.Y1;
     this.state.X2 += decoded.X2;
     this.state.Y2 += decoded.Y2;
-    this.state.X3 += decoded.X3;
-    this.state.Y3 += decoded.Y3;
     this.emit("Translate", {
       meta: crdts.CrdtEventMeta.fromTimestamp(timestamp),
       dX1: decoded.X1,
       dY1: decoded.Y1,
       dX2: decoded.X2,
       dY2: decoded.Y2,
-      dX3: decoded.X3,
-      dY3: decoded.Y3,
     });
   }
 
@@ -134,8 +122,6 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
       Y1: this.state.Y1,
       X2: this.state.X2,
       Y2: this.state.Y2,
-      X3: this.state.X3,
-      Y3: this.state.Y3,
     });
     return GroupComponentMessage.encode(message).finish();
   }
@@ -145,8 +131,6 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     this.state.Y1 = GroupComponentMessage.decode(saveData).Y1;
     this.state.X2 = GroupComponentMessage.decode(saveData).X2;
     this.state.Y2 = GroupComponentMessage.decode(saveData).Y2;
-    this.state.X3 = GroupComponentMessage.decode(saveData).X3;
-    this.state.Y3 = GroupComponentMessage.decode(saveData).Y3;
   }
 }
 
@@ -178,14 +162,13 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
       return degrees * (Math.PI / 180);
     }
 
-    let d = Math.sqrt(Math.pow(this.state.X1 - this.state.X2, 2) + Math.pow(this.state.Y1 - this.state.Y2, 2));
-    let ang = Math.asin((this.state.Y1 - this.state.Y2) / d);
-    let h = d / 2;
-    let dX1 = h * (Math.cos(toRadians(ang)) - Math.cos(toRadians(ang - dDegrees)));
-    let dX2 = h * (Math.cos(toRadians(ang + 180)) - Math.cos(toRadians(ang - dDegrees + 180)));
-    let dY1 = h * (Math.sin(toRadians(ang)) - Math.sin(toRadians(ang - dDegrees)));
-    let dY2 = h * (Math.sin(toRadians(ang + 180)) - Math.sin(toRadians(ang - dDegrees + 180)));
-    return [dX1, dX2, dY1, dY2];
+    let cos = Math.cos(toRadians(dDegrees))
+    let sin = Math.sin(toRadians(dDegrees))
+    let newX1 = this.state.X1 * cos - this.state.Y1 * sin
+    let newY1 = this.state.X1 * sin + this.state.Y1 * cos
+    let newX2 = this.state.X2 * cos - this.state.Y2 * sin
+    let newY2 = this.state.X2 * sin + this.state.Y2 * cos
+    return [newX1, newX2, newY1, newY2];
   }
 
   protected receivePrimitive(
@@ -196,11 +179,11 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     
 
     if (decoded.rotate1 === decoded.rotate2) {
-      let [dX1, dX2, dY1, dY2] = this.semidirectDiffs(decoded.rotate1);
-      this.state.X1 += dX1;
-      this.state.X2 += dX2;
-      this.state.Y1 -= dY1;
-      this.state.Y2 -= dY2;
+      if (decoded.rotate1 < 0) {
+        [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] = this.semidirectDiffs(decoded.rotate1);
+      } else {
+        [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] = this.semidirectDiffs(decoded.rotate1 - 360);
+      }
     }
 
     this.state.rotate1 += decoded.rotate1;
@@ -260,7 +243,8 @@ export class ReflectXComponent extends crdts.CPrimitive<GroupEventsRecord> {
     if (decoded.reflectX1 === -1 && decoded.reflectX2 === -1) {
       this.state.rotate1 *= -1;
       this.state.rotate2 *= -1;
-      [this.state.Y1, this.state.Y2] = [this.state.Y2, this.state.Y1];
+      this.state.Y1 *= -1;
+      this.state.Y2 *= -1;
     }
 
     this.emit("ReflectX", {
@@ -318,7 +302,8 @@ export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
     if (decoded.reflectY1 === -1 && decoded.reflectY2 === -1) {
       this.state.rotate1 *= -1;
       this.state.rotate2 *= -1;
-      [this.state.X1, this.state.X2] = [this.state.X2, this.state.X1];
+      this.state.X1 *= -1;
+      this.state.X2 *= -1;
     }
 
     this.emit("ReflectY", {
@@ -395,32 +380,32 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
     var rotateArg2: number = m1Decoded!.rotate2 || 0;
     var reflectXArg2: number = m1Decoded!.reflectX2 || 1;
     var reflectYArg2: number = m1Decoded!.reflectY2 || 1;
-    var XArg3: number = m1Decoded!.X3 || 0;
-    var YArg3: number = m1Decoded!.Y3 || 0;
     switch (m2Index) {
       case 3:
         reflectYArg1 *= m2Decoded.reflectY1;
         reflectYArg2 *= m2Decoded.reflectY2;
         rotateArg1 *= -1;
         rotateArg2 *= -1;
-        [XArg1, XArg2] = [XArg2, XArg1];
+        XArg1 *= -1;
+        XArg2 *= -1;
         break;
       case 2:
         reflectXArg1 *= m2Decoded.reflectX1;
         reflectXArg2 *= m2Decoded.reflectX2;
         rotateArg1 *= -1;
         rotateArg2 *= -1;
-        [YArg1, YArg2] = [YArg2, YArg1];
+        YArg1 *= -1;
+        YArg2 *= -1;
         break;
       case 1:
         rotateArg1 += m2Decoded.rotate1;
         rotateArg2 += m2Decoded.rotate2;
         if (m2Decoded.rotate1 === m2Decoded.rotate2) {
-          let [dX1, dX2, dY1, dY2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1);
-          XArg1 += dX1;
-          XArg2 += dX2;
-          YArg1 -= dY1;
-          YArg2 -= dY2;
+          if (m2Decoded.rotate1 < 0) {
+            [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1 + 360);
+          } else {
+            [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1 - 360);
+          }
         }
         break;
       default:
@@ -428,8 +413,6 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
         YArg1 += m1Decoded.Y1;
         XArg2 += m1Decoded.X2;
         YArg2 += m1Decoded.Y2;
-        XArg3 += m1Decoded.X3;
-        YArg3 += m1Decoded.Y3;
     }
     let acted = GroupComponentMessage.create({
       X1: XArg1,
@@ -442,8 +425,6 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
       rotate2: rotateArg2,
       reflectX2: reflectXArg2,
       reflectY2: reflectYArg2,
-      X3: XArg3,
-      Y3: YArg3,
     });
 
     return {

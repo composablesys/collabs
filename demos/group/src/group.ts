@@ -95,6 +95,7 @@ import $ from "jquery";
           break;
 
         case "translate3":
+          console.log(`rotating group by ${groupdX!.value} ${groupdY!.value}`)
           clientGroup.translate(parseInt(groupdX!.value) || 0, parseInt(groupdY!.value) || 0, 3);
           break;
       }
