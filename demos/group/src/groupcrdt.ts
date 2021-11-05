@@ -157,17 +157,17 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     }
   }
 
-  semidirectDiffs(dDegrees : number) {
+  semidirectDiffs(dDegrees : number, X1 : number, Y1 : number, X2 : number, Y2 : number) {
     let toRadians = (degrees : number) => {
       return degrees * (Math.PI / 180);
     }
 
     let cos = Math.cos(toRadians(dDegrees))
     let sin = Math.sin(toRadians(dDegrees))
-    let newX1 = this.state.X1 * cos - this.state.Y1 * sin
-    let newY1 = this.state.X1 * sin + this.state.Y1 * cos
-    let newX2 = this.state.X2 * cos - this.state.Y2 * sin
-    let newY2 = this.state.X2 * sin + this.state.Y2 * cos
+    let newX1 = X1 * cos - Y1 * sin
+    let newY1 = X1 * sin + Y1 * cos
+    let newX2 = X2 * cos - Y2 * sin
+    let newY2 = X2 * sin + Y2 * cos
     return [newX1, newX2, newY1, newY2];
   }
 
@@ -180,9 +180,9 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
 
     if (decoded.rotate1 === decoded.rotate2) {
       if (decoded.rotate1 < 0) {
-        [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] = this.semidirectDiffs(decoded.rotate1);
+        [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] = this.semidirectDiffs(decoded.rotate1, this.state.X1, this.state.Y1, this.state.X2, this.state.Y2);
       } else {
-        [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] = this.semidirectDiffs(decoded.rotate1 - 360);
+        [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] = this.semidirectDiffs(decoded.rotate1 - 360, this.state.X1, this.state.Y1, this.state.X2, this.state.Y2);
       }
     }
 
@@ -402,9 +402,9 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
         rotateArg2 += m2Decoded.rotate2;
         if (m2Decoded.rotate1 === m2Decoded.rotate2) {
           if (m2Decoded.rotate1 < 0) {
-            [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1 + 360);
+            [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1, XArg1, YArg1, XArg2, YArg2);
           } else {
-            [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1 - 360);
+            [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(m2Decoded.rotate1 - 360, XArg1, YArg1, XArg2, YArg2);
           }
         }
         break;

@@ -19,14 +19,11 @@ import $ from "jquery";
   var groupdY = <HTMLInputElement>document.getElementById("translateY3");
   var imgCMU = <HTMLCanvasElement>document.getElementById("cmu");
   var imgISR = <HTMLCanvasElement>document.getElementById("isr");
-  var group = <HTMLCanvasElement>document.getElementById("group");
-  
+
   let updateImg = function () {
-    var state: GroupState = clientGroup.getState();
-    // imgISR!.style.transform = `translate(10px,10px)`
+    let state: GroupState = clientGroup.getState();
     imgCMU!.style.transform = `translate(${state.X1}px,${state.Y1}px) rotate(${state.rotate1}deg) scaleY(${state.reflectX1}) scaleX(${state.reflectY1})`; // translate(-50%, -50%)`;
     imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
-    // group!.style.transform = `translate(${state.X3}px,${state.Y3}px)`;
   };
 
   clientGroup.on("Change", () => {
@@ -75,31 +72,57 @@ import $ from "jquery";
     }
   });
 
-    // Perform specified operation on both images
-    $(ops3).on("click", function (e: JQuery.ClickEvent) {
-      switch (e.target.id) {
-        case "reflectX3":
-          clientGroup.reflectX(3);
-          break;
-  
-        case "reflectY3":
-          clientGroup.reflectY(3);
-          break;
-  
-        case "rotateCW3":
-          clientGroup.rotate(parseInt(deg3!.value) || 0, 3);
-          break;
-  
-        case "rotateCCW3":
-          clientGroup.rotate(-1 * parseInt(deg3!.value) || 0, 3);
-          break;
+  function groupRotate(dDegrees : number) {
+    let state: GroupState = clientGroup.getState();
+    let centerX = (state.X1 + state.X2) / 2;
+    let centerY = (state.Y1 + state.Y2) / 2;
+    clientGroup.translate(-1 * centerX, -1 * centerY, 3);
+    clientGroup.rotate(dDegrees, 3);
+    clientGroup.translate(centerX, centerY, 3);
+  }
 
-        case "translate3":
-          console.log(`rotating group by ${groupdX!.value} ${groupdY!.value}`)
-          clientGroup.translate(parseInt(groupdX!.value) || 0, parseInt(groupdY!.value) || 0, 3);
-          break;
-      }
-    });
+  function groupReflect(axis : string) {
+    let state: GroupState = clientGroup.getState();
+    switch (axis) {
+      case "X":
+        let centerX = (state.Y1 + state.Y2) / 2;
+        clientGroup.translate(0, -1 * centerX, 3);
+        clientGroup.reflectX(3);
+        clientGroup.translate(0, centerX, 3);
+        break;
+      case "Y":
+        let centerY = (state.X1 + state.X2) / 2;
+        clientGroup.translate(-1 * centerY, 0, 3);
+        clientGroup.reflectY(3);
+        clientGroup.translate(centerY, 0, 3);
+        break;
+    }
+  }
+
+  // Perform specified operation on both images
+  $(ops3).on("click", function (e: JQuery.ClickEvent) {
+    switch (e.target.id) {
+      case "reflectX3":
+        groupReflect("X")
+        break;
+
+      case "reflectY3":
+        groupReflect("Y")
+        break;
+
+      case "rotateCW3":
+        groupRotate(parseInt(deg3!.value) || 0);
+        break;
+
+      case "rotateCCW3":
+        groupRotate(-1 * parseInt(deg3!.value) || 0);
+        break;
+
+      case "translate3":
+        clientGroup.translate(parseInt(groupdX!.value) || 0, parseInt(groupdY!.value) || 0, 3);
+        break;
+    }
+  });
 
   
   var offsetY = document.getElementById("header")!.offsetHeight || 100;
