@@ -72,7 +72,7 @@ import $ from "jquery";
     }
   });
 
-  function groupRotate(dDegrees : number) {
+  function groupRotate(dDegrees: number) {
     let state: GroupState = clientGroup.getState();
     let centerX = (state.X1 + state.X2) / 2;
     let centerY = (state.Y1 + state.Y2) / 2;
@@ -81,7 +81,7 @@ import $ from "jquery";
     clientGroup.translate(centerX, centerY, 3);
   }
 
-  function groupReflect(axis : string) {
+  function groupReflect(axis: string) {
     let state: GroupState = clientGroup.getState();
     switch (axis) {
       case "X":
@@ -103,11 +103,11 @@ import $ from "jquery";
   $(ops3).on("click", function (e: JQuery.ClickEvent) {
     switch (e.target.id) {
       case "reflectX3":
-        groupReflect("X")
+        groupReflect("X");
         break;
 
       case "reflectY3":
-        groupReflect("Y")
+        groupReflect("Y");
         break;
 
       case "rotateCW3":
@@ -119,16 +119,19 @@ import $ from "jquery";
         break;
 
       case "translate3":
-        clientGroup.translate(parseInt(groupdX!.value) || 0, parseInt(groupdY!.value) || 0, 3);
+        clientGroup.translate(
+          parseInt(groupdX!.value) || 0,
+          parseInt(groupdY!.value) || 0,
+          3
+        );
         break;
     }
   });
 
-  
   var offsetY = document.getElementById("header")!.offsetHeight || 100;
   // Move CMU image around screen
   var isDown1 = false;
-  var X1 : number, Y1 : number;
+  var X1: number, Y1: number;
   $(imgCMU)
     .on("mousedown", function (e: JQuery.MouseDownEvent) {
       isDown1 = true;
@@ -137,11 +140,7 @@ import $ from "jquery";
     })
     .on("mousemove", function (e: JQuery.MouseMoveEvent) {
       if (isDown1) {
-        clientGroup.translate(
-          e.pageX - X1,
-          e.pageY - Y1,
-          1
-        );
+        clientGroup.translate(e.pageX - X1, e.pageY - Y1, 1);
         X1 = e.pageX;
         Y1 = e.pageY;
       }
@@ -152,7 +151,7 @@ import $ from "jquery";
 
   // Move ISR image around screen
   var isDown2 = false;
-  var X2 : number, Y2 : number;
+  var X2: number, Y2: number;
   $(imgISR)
     .on("mousedown", function (e: JQuery.MouseDownEvent) {
       isDown2 = true;
@@ -161,11 +160,7 @@ import $ from "jquery";
     })
     .on("mousemove", function (e: JQuery.MouseMoveEvent) {
       if (isDown2) {
-        clientGroup.translate(
-          e.pageX - X2,
-          e.pageY - Y2,
-          2
-        );
+        clientGroup.translate(e.pageX - X2, e.pageY - Y2, 2);
         X2 = e.pageX;
         Y2 = e.pageY;
       }
