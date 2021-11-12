@@ -193,7 +193,7 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     message: Uint8Array
   ) {
     let decoded = GroupComponentMessage.decode(message);
-    
+
     this.state.rotate1 += decoded.rotate1;
     this.state.rotate2 += decoded.rotate2;
 
