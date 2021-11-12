@@ -193,7 +193,11 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     message: Uint8Array
   ) {
     let decoded = GroupComponentMessage.decode(message);
+    
+    this.state.rotate1 += decoded.rotate1;
+    this.state.rotate2 += decoded.rotate2;
 
+    // Check for group rotation
     if (decoded.rotate1 === decoded.rotate2) {
       if (decoded.rotate1 < 0) {
         [this.state.X1, this.state.X2, this.state.Y1, this.state.Y2] =
@@ -215,9 +219,6 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
           );
       }
     }
-
-    this.state.rotate1 += decoded.rotate1;
-    this.state.rotate2 += decoded.rotate2;
 
     this.emit("Rotate", {
       meta: crdts.CrdtEventMeta.fromTimestamp(timestamp),
@@ -272,7 +273,7 @@ export class ReflectXComponent extends crdts.CPrimitive<GroupEventsRecord> {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectX1 *= decoded.reflectX1;
     this.state.reflectX2 *= decoded.reflectX2;
-    // rotating a group
+    // Check for group reflection
     if (decoded.reflectX1 === -1 && decoded.reflectX2 === -1) {
       this.state.rotate1 *= -1;
       this.state.rotate2 *= -1;
@@ -331,7 +332,7 @@ export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectY1 *= decoded.reflectY1;
     this.state.reflectY2 *= decoded.reflectY2;
-    // rotating a group
+    // Check for group reflection
     if (decoded.reflectY1 === -1 && decoded.reflectY2 === -1) {
       this.state.rotate1 *= -1;
       this.state.rotate2 *= -1;
@@ -419,22 +420,29 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
       case 3:
         reflectYArg1 *= m2Decoded.reflectY1;
         reflectYArg2 *= m2Decoded.reflectY2;
-        rotateArg1 *= -1;
-        rotateArg2 *= -1;
-        XArg1 *= -1;
-        XArg2 *= -1;
+        // Check for group reflection
+        if (m2Decoded.reflectY1 === -1 && m2Decoded.reflectY2 === -1) {
+          rotateArg1 *= -1;
+          rotateArg2 *= -1;
+          XArg1 *= -1;
+          XArg2 *= -1;
+        }
         break;
       case 2:
         reflectXArg1 *= m2Decoded.reflectX1;
         reflectXArg2 *= m2Decoded.reflectX2;
-        rotateArg1 *= -1;
-        rotateArg2 *= -1;
-        YArg1 *= -1;
-        YArg2 *= -1;
+        // Check for group reflection
+        if (m2Decoded.reflectX1 === -1 && m2Decoded.reflectX2 === -1) {
+          rotateArg1 *= -1;
+          rotateArg2 *= -1;
+          YArg1 *= -1;
+          YArg2 *= -1;
+        }
         break;
       case 1:
         rotateArg1 += m2Decoded.rotate1;
         rotateArg2 += m2Decoded.rotate2;
+        // Check for group rotation
         if (m2Decoded.rotate1 === m2Decoded.rotate2) {
           if (m2Decoded.rotate1 < 0) {
             [XArg1, XArg2, YArg1, YArg2] = this.rotateCrdt.semidirectDiffs(
