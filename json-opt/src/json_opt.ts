@@ -12,7 +12,7 @@ import {
   Pre,
   PrimitiveCList,
   TextSerializer,
-} from "compoventuals";
+} from "@collabs/collabs";
 
 export interface JsonEvent extends CrdtEvent {
   readonly key: string;

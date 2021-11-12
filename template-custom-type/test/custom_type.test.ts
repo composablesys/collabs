@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import { Pre, Runtime, TestingNetworkGenerator } from "compoventuals";
+import { Pre, Runtime, TestingNetworkGenerator } from "@collabs/collabs";
 import seedrandom = require("seedrandom");
 import { CPair } from "../src";
 

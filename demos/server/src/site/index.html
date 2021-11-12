@@ -4,11 +4,11 @@
   <head>
     <meta charset="utf-8" />
 
-    <title>Compoventuals Demos</title>
+    <title>Collabs Demos</title>
   </head>
 
   <body>
-    <h3>Compoventuals Demos</h3>
+    <h3>Collabs Demos</h3>
 
     <table id="containerTable"></table>
 
@@ -21,14 +21,16 @@
           "plaintext/dist/plaintext.html": "Plain text editor",
           "rich-text/dist/rich_text.html": "Rich text editor",
           "rich-text-yata/dist/rich_text_yata.html":
-            "Rich text editor<br />(experimental YATA + semidirect)",
-          "group/dist/group.html": "Shapes<br />(multiple semidirect)",
+            "Rich text editor -<br />YATA + semidirect (experimental)",
+          "group/dist/group.html":
+            "Shapes - multiple<br />semidirect (experimental)",
+          "tile-board/dist/tile_board.html": "Tile Board<br />(experimental)",
           "aspace/dist/aspace.html": "A Space",
           "minesweeper/dist/minesweeper.html": "Minesweeper",
           "horse-color-genetics/dist/standalone/horse-color-genetics.html":
-            "Horse color genetics (standalone)",
+            "Horse color genetics -<br />standalone",
           "horse-color-genetics/dist/multi/horse-color-genetics.html":
-            "Horse color genetics (multi-file)",
+            "Horse color genetics -<br /> multi-file",
           "selector/dist/selector.html": "Container selector",
         }),
       ];
@@ -55,6 +57,20 @@
         }
       }
     </script>
+
+    <p></p>
+    <h3>Use in Matrix Widgets</h3>
+    In a widget-aware <a href="https://matrix.org/">Matrix</a> client (e.g.
+    <a href="https://app.element.io/">Element Web</a>): Send the message
+    <br /><br /><tt
+      >/addwidget
+      https://compoventuals-tests.herokuapp.com/host.html?network=matrix&container=demos/selector/dist/selector.html</tt
+    ><br /><br />
+    Click "Room Info" in the top-right, then select "Custom Widget".<br />Finally,
+    enter the URL (or upload a copy) of a link from the "Downloadable file"
+    row.<br /><br />
+    (Shortcut: replace <tt>selector/dist/selector.html</tt> with the demo file's
+    path in the above command.)
 
     <p></p>
     <h3>Server admin</h3>

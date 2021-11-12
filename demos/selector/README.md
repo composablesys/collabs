@@ -1,6 +1,6 @@
 # Container Selector
 
-Lets the user select a [Compoventuals container](TODO: guide link) from a link or a file, then download the container as a file for safekeeping or sharing. This project is itself a Compoventuals container.
+Lets the user select a [Collabs container](TODO: guide link) from a link or a file, then download the container as a file for safekeeping or sharing. This project is itself a Collabs container.
 
 Based off of [template-container](TODO).
 

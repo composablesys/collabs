@@ -1,6 +1,6 @@
 # Rich Text Demo
 
-A collaborative rich text editor using [Quill](https://quilljs.com/), as a [Compoventuals container](TODO: guide link).
+A collaborative rich text editor using [Quill](https://quilljs.com/), as a [Collabs container](TODO: guide link).
 
 Based off of [template-container](TODO).
 

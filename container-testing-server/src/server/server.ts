@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { startWebSocketServer } from "compoventuals-ws-server";
+import { startWebSocketServer } from "@collabs/ws-server";
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -57,6 +57,7 @@ app.use((req, res) => {
     // Autogenerate a script that returns the containerUrl var.
     // Use JSON.stringify(x).slice(1, -1) to convert the string
     // into somethat that JS will parse as that string again.
+    res.set("Content-Type", "text/javascript");
     res.send(
       `const containerUrl = "${JSON.stringify(containerUrl).slice(1, -1)}";`
     );
@@ -86,9 +87,9 @@ if (program.opts().https) {
   );
 }
 
-// Run the compoventuals-ws-server.
+// Run the ws-server.
 const { reset } = startWebSocketServer({ server });
-// If you replace compoventuals-ws-server with something else,
+// If you replace the ws-server with something else,
 // remove resetMessageHistory() and reset.html.
 function resetMessageHistory() {
   reset();

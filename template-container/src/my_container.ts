@@ -1,5 +1,5 @@
-import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
+import * as crdts from "@collabs/collabs";
+import { ContainerRuntimeSource } from "@collabs/container";
 
 // Async so we can await ContainerRuntimeSource.newRuntime.
 (async function () {
@@ -15,28 +15,25 @@ import { ContainerRuntimeSource } from "compoventuals-container";
   // delete the code below and replace with your own.
 
   // Register collaborative data types.
-  const counterCrdt = runtime.registerCrdt(
-    "counter",
-    crdts.Pre(crdts.CCounter)()
-  );
+  const counter = runtime.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
 
   // Refresh the display when the Crdt state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
   runtime.on("Change", () => {
-    display.innerHTML = counterCrdt.value.toString();
+    display.innerHTML = counter.value.toString();
   });
 
-  // Change counterCrdt's value on button clicks.
+  // Change counter's value on button clicks.
   // Note that we need not refresh the display here, since Change
   // events are also triggered by local operations.
   document.getElementById("increment")!.onclick = () => {
-    counterCrdt.add(100);
+    counter.add(100);
   };
   document.getElementById("decrement")!.onclick = () => {
-    counterCrdt.add(-100);
+    counter.add(-100);
   };
   document.getElementById("reset")!.onclick = () => {
-    counterCrdt.reset();
+    counter.reset();
   };
 })();

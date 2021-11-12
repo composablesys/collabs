@@ -1,7 +1,7 @@
-import * as crdts from "compoventuals";
-import { ContainerHost } from "compoventuals-container";
-import { WebSocketNetwork } from "compoventuals-ws-client";
-import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
+import * as crdts from "@collabs/collabs";
+import { ContainerHost } from "@collabs/container";
+import { WebSocketNetwork } from "@collabs/ws-client";
+import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
 
 // TODO: future features:
 // - save & load button that also reports how long it takes
@@ -32,9 +32,7 @@ switch (networkType) {
     break;
   }
   case "matrix":
-    network = new MatrixWidgetNetwork(
-      "com.herokuapp.compoventuals-tests.counter"
-    );
+    network = new MatrixWidgetNetwork("com.herokuapp.@collabs/tests.counter");
     batchingStrategy = new crdts.RateLimitBatchingStrategy(500, false);
     break;
   default:

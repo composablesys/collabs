@@ -1,34 +1,18 @@
 {
-  "name": "compoventuals-metapackage",
-  "version": "0.1.0",
-  "description": "CRDTs designed compositionally (meta-package)",
-  "author": "Compoventuals contributors",
+  "author": "Collabs contributors",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
-  },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/composablesys/compoventuals.git"
-  },
-  "keywords": [
-    "crdts"
-  ],
   "devDependencies": {
     "rimraf": "^2.7.1"
   },
   "comment": "workspaces must be in build order, and workspace names must not include spaces or otherwise fail to be proper bash args",
   "workspaces": [
-    "main",
+    "collabs",
     "json",
     "json-opt",
     "tensor-average",
     "container",
     "ws-client",
     "ws-server",
-    "webrtc-client",
-    "webrtc-server",
     "matrix-widget",
     "container-testing-server",
     "template-custom-type",

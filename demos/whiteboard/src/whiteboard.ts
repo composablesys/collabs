@@ -1,6 +1,5 @@
-import * as crdts from "compoventuals";
-import { ContainerRuntimeSource } from "compoventuals-container";
-import { min, max, round } from "mathjs";
+import * as crdts from "@collabs/collabs";
+import { ContainerRuntimeSource } from "@collabs/container";
 import $ from "jquery";
 
 (async function () {
@@ -9,114 +8,117 @@ import $ from "jquery";
     new crdts.RateLimitBatchingStrategy(200)
   );
 
-  // The key represents a point in the form: x:y
+  // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  let clientBoard: crdts.LwwCMap<string, string> = runtime.registerCrdt(
-    "whiteboardId",
-    crdts.Pre(crdts.LwwCMap)()
+  const boardState = runtime.registerCrdt(
+    "whiteboard",
+    crdts.Pre(crdts.LwwCMap)<[x: number, y: number], string>()
   );
 
-  var colors = document.getElementsByClassName("btn-colors");
-  var clear = <HTMLButtonElement>document.getElementById("clear");
-  var board = <HTMLCanvasElement>document.getElementById("board");
-  var ctx = board.getContext("2d");
-  let gran = 2;
+  const colors = document.getElementsByClassName("btn-colors");
+  const clear = <HTMLButtonElement>document.getElementById("clear");
+  const board = <HTMLCanvasElement>document.getElementById("board");
+  const ctx = board.getContext("2d")!;
+  const GRAN = 2;
 
-  let roundGran = function (n: number): number {
-    return round(n / gran) * gran;
-  };
+  function roundGran(n: number): number {
+    return Math.round(n / GRAN) * GRAN;
+  }
 
-  let interpolate = function (sX: number, sY: number, eX: number, eY: number) {
+  function interpolate(
+    sX: number,
+    sY: number,
+    eX: number,
+    eY: number
+  ): [number, number][] {
+    const pts: [number, number][] = [];
+
     // special case - line goes straight up/down
     if (sX == eX) {
-      let pts = [];
       for (
-        let i = roundGran(min(sY, eY));
-        i <= roundGran(max(sY, eY));
-        i += gran
+        let i = roundGran(Math.min(sY, eY));
+        i <= roundGran(Math.max(sY, eY));
+        i += GRAN
       ) {
-        pts.push(roundGran(sX) + ":" + i);
+        pts.push([roundGran(sX), i]);
       }
 
       return pts;
     }
 
-    let slope = (eY - sY) / (eX - sX);
-    let pts = [];
-    let intercept = sY - slope * sX;
+    const slope = (eY - sY) / (eX - sX);
+    const intercept = sY - slope * sX;
 
     // Depending on slope, iterate by xs or ys
     if (slope <= 1 && slope >= -1) {
       for (
-        let i = roundGran(min(sX, eX));
-        i <= roundGran(max(sX, eX));
-        i += gran
+        let i = roundGran(Math.min(sX, eX));
+        i <= roundGran(Math.max(sX, eX));
+        i += GRAN
       ) {
-        pts.push(i + ":" + roundGran(slope * i + intercept));
+        pts.push([i, roundGran(slope * i + intercept)]);
       }
     } else {
       for (
-        let i = roundGran(min(sY, eY));
-        i <= roundGran(max(sY, eY));
-        i += gran
+        let i = roundGran(Math.min(sY, eY));
+        i <= roundGran(Math.max(sY, eY));
+        i += GRAN
       ) {
-        pts.push(roundGran((i - intercept) / slope) + ":" + i);
+        pts.push([roundGran((i - intercept) / slope), i]);
       }
     }
 
     return pts;
-  };
+  }
 
   // Draw points
-  clientBoard.on("Set", (event) => {
-    var keys = event.key.split(":");
-    ctx!.fillStyle = clientBoard.get(event.key)!;
-    ctx!.fillRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
+  boardState.on("Set", (event) => {
+    ctx.fillStyle = boardState.get(event.key)!;
+    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
   });
 
   // Clear points
-  clientBoard.on("Delete", (event) => {
-    var keys = event.key.split(":");
-    ctx!.clearRect(parseInt(keys[0]), parseInt(keys[1]), gran, gran);
+  boardState.on("Delete", (event) => {
+    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
   });
 
   // Mouse Event Handlers
-  if (board) {
-    var ctx = board.getContext("2d");
-    var color = "black";
+  let color = "black";
 
-    var isDown = false;
-    var canvasX: number, canvasY: number, prevX: number, prevY: number;
+  let isDown = false;
+  let canvasX: number, canvasY: number, prevX: number, prevY: number;
 
-    // Update color selection
-    $(colors).on("click", function (e: JQuery.ClickEvent) {
-      color = e.target.id;
+  // Update color selection
+  $(colors).on("click", function (e: JQuery.ClickEvent) {
+    color = e.target.id;
+  });
+
+  $(clear).on("click", function () {
+    boardState.reset();
+  });
+
+  // Draw on board
+  $(board)
+    .on("mousedown", function (e: JQuery.MouseDownEvent) {
+      isDown = true;
+      const rect = e.target.getBoundingClientRect();
+      prevX = e.clientX - rect.left;
+      prevY = e.clientY - rect.top;
+    })
+    .on("mousemove", function (e: JQuery.MouseMoveEvent) {
+      if ((e.buttons & 1) === 0) isDown = false;
+      if (isDown !== false) {
+        const rect = e.target.getBoundingClientRect();
+        canvasX = e.clientX - rect.left;
+        canvasY = e.clientY - rect.top;
+        interpolate(prevX, prevY, canvasX, canvasY).forEach(function (pt) {
+          boardState.set(pt, color);
+        });
+        prevX = canvasX;
+        prevY = canvasY;
+      }
+    })
+    .on("mouseup", function () {
+      isDown = false;
     });
-
-    $(clear).on("click", function () {
-      clientBoard.reset();
-    });
-
-    // Draw on board
-    $(board)
-      .on("mousedown", function (e: JQuery.MouseDownEvent) {
-        isDown = true;
-        prevX = e.pageX - board.offsetLeft;
-        prevY = e.pageY - board.offsetTop;
-      })
-      .on("mousemove", function (e: JQuery.MouseMoveEvent) {
-        if (isDown !== false) {
-          canvasX = e.pageX - board.offsetLeft;
-          canvasY = e.pageY - board.offsetTop;
-          interpolate(prevX, prevY, canvasX, canvasY).forEach(function (pt) {
-            clientBoard.set(pt, color);
-          });
-          prevX = canvasX;
-          prevY = canvasY;
-        }
-      })
-      .on("mouseup", function () {
-        isDown = false;
-      });
-  }
 })();

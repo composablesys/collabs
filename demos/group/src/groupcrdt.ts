@@ -1,5 +1,4 @@
-import * as crdts from "compoventuals";
-import { decode } from "punycode";
+import * as crdts from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 
 export interface GroupTranslateEvent extends crdts.CrdtEvent {

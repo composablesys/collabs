@@ -1,19 +1,21 @@
 {
-  "name": "compoventuals-container-testing-server",
+  "name": "@collabs/container-testing-server",
   "version": "0.1.0",
-  "description": "CRDTs designed compositionally (container testing server)",
-  "author": "Compoventuals contributors",
+  "description": "Simple server for testing Collabs containers",
+  "author": "Collabs contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
+    "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/container-testing-server#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/composablesys/compoventuals.git"
+    "url": "git+https://github.com/composablesys/collabs.git"
   },
   "keywords": [
-    "crdts"
+    "Collabs",
+    "collaboration",
+    "local-first"
   ],
   "bin": {
     "container-testing-server": "build/server/server.js"
@@ -25,33 +27,38 @@
   "directories": {
     "lib": "src"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "compoventuals": "^0.1.0",
-    "compoventuals-container": "^0.1.0",
-    "compoventuals-ws-client": "^0.1.0",
-    "compoventuals-matrix-widget": "^0.1.0",
-    "compoventuals-ws-server": "^0.1.0",
+    "@collabs/collabs": "^0.1.0",
+    "@collabs/container": "^0.1.0",
+    "@collabs/matrix-widget": "^0.1.0",
+    "@collabs/ws-client": "^0.1.0",
+    "@collabs/ws-server": "^0.1.0",
     "commander": "^8.2.0",
     "express": "^4.17.1"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5",
-    "webpack": "^5.50.0",
-    "webpack-cli": "^4.8.0",
+    "@types/node": "^15.6.1",
     "@types/webpack": "^5.28.0",
     "@types/webpack-env": "^1.16.2",
+    "copy-webpack-plugin": "^9.0.1",
     "cross-env": "^7.0.3",
-    "ts-node": "^10.1.0",
-    "@types/node": "^15.6.1",
-    "typescript": "^4.3.5",
-    "ts-loader": "^9.2.5",
-    "source-map-loader": "^3.0.0",
     "html-webpack-plugin": "^5.3.2",
+    "npm-run-all": "^4.1.5",
     "pkg-ok": "^2.3.1",
     "prettier": "^2.2.1",
-    "rimraf": "^2.7.1"
+    "rimraf": "^2.7.1",
+    "source-map-loader": "^3.0.0",
+    "ts-loader": "^9.2.5",
+    "ts-node": "^10.1.0",
+    "typescript": "^4.3.5",
+    "webpack": "^5.50.0",
+    "webpack-cli": "^4.8.0"
   },
   "scripts": {
+    "prepack": "npm run clean && npm run build && npm run test",
     "start": "node build/server/server.js",
     "dev": "npm-run-all dev:*",
     "dev:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",

@@ -1,7 +1,7 @@
-import * as crdts from "compoventuals";
-import { ContainerHost } from "compoventuals-container";
-import { WebSocketNetwork } from "compoventuals-ws-client";
-import { MatrixWidgetNetwork } from "compoventuals-matrix-widget";
+import * as crdts from "@collabs/collabs";
+import { ContainerHost } from "@collabs/container";
+import { WebSocketNetwork } from "@collabs/ws-client";
+import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
 
 // TODO: future features:
 // - buttons to disable sending or receiving, for testing concurrency
@@ -35,7 +35,7 @@ switch (networkType) {
   }
   case "matrix":
     network = new MatrixWidgetNetwork(
-      "com.herokuapp.compoventuals-tests.counter"
+      "container-testing-server." + containerUrl
     );
     batchingStrategy = new crdts.RateLimitBatchingStrategy(500, false);
     break;

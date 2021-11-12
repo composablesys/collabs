@@ -1,10 +1,10 @@
-# Compoventuals template-container
+# Collabs template-container
 
-Template for a Compoventuals container. Containers are network agnostic and can be run in any [host](TODO: link to list of hosts).
+Template for a Collabs container. Containers are network agnostic and can be run in any "host".
 
-Guide: TODO
+[Guide](https://github.com/composablesys/collabs/tree/master/collabs/docs/getting_started_guide.md)
 
-See also [template-app](TODO).
+See also [template-app](https://github.com/composablesys/collabs/tree/master/template-app).
 
 ## Installation
 
@@ -24,7 +24,7 @@ Build the container from `src/`, in [production mode](https://webpack.js.org/gui
 
 Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your container. Use multiple browser windows at once to test collaboration.
 
-See [container-testing-server](TODO) for usage info.
+See [container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) for usage info.
 
 ### `npm run clean`
 
@@ -38,7 +38,7 @@ Delete `dist/`.
 
 ## Deployment
 
-See the [Guide](TODO) for deployment options.
+See the [Guide](https://github.com/composablesys/collabs/tree/master/collabs/docs/getting_started_guide.md) for deployment options.
 
 ## Licensing
 

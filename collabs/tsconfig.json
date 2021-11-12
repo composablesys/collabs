@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* Use . as rootDir so build contains a nested src folder.
+     * This keeps things consistent across different projects,
+     * some of which have a "generated" folder (thus causing
+     * Typescript to set rootDir = . by default) while
+     * others don't.
+     */
+    "rootDir": ".",
+    "outDir": "build/esm",
+    /* We need ES2021 WeakRefs. */
+    "target": "es2021",
+    "module": "es2015",
+    /* Needed with module: es2015 or else stuff breaks. */
+    "moduleResolution": "node",
+    /* Enable strict type checking. */
+    "strict": true,
+    /* The workspace structure causes tsc to check all
+     * projects in node_modules during compilation, including
+     * one tfjs dependency (webgl pinned version) that has
+     * a bug.  So while we are using workspaces, we need
+     * to skipLibChecks.
+     */
+    "skipLibCheck": true,
+    /* Include generated .js files. */
+    "allowJs": true,
+    /* Enable interop with dependencies using different module systems. */
+    "esModuleInterop": true,
+    /* Emit .d.ts files. */
+    "declaration": true,
+    /* Emit sourcemap files. */
+    "sourceMap": true,
+    /* Use tslib to reduce generated js file sizes. */
+    "importHelpers": true
+  },
+  "include": ["src", "generated"]
+}
