@@ -1,8 +1,6 @@
 /**
  * A network that broadcasts messages to all replicas
- * exactly once in causal order.
- *
- * TODO: no echo.
+ * exactly once in causal order with no echo.
  *
  * TODO: some standard bidirectional pipe abstraction,
  * instead of custom send/register stuff?
@@ -15,13 +13,17 @@ export interface CausalBroadcastNetwork {
   /**
    * Set by the using Runtime to receive messages.
    */
-  onreceive: (message: Uint8Array) => void;
+  onreceive: (
+    message: Uint8Array,
+    sender: string,
+    senderCounter: number
+  ) => void;
   /**
    * Set by the using Runtime to indicate its replicaId.
    */
   replicaId: string;
 
-  send(message: Uint8Array): void;
+  send(message: Uint8Array, senderCounter: number): void;
 
   load(saveData: Uint8Array | null): Promise<void>;
   save(): Promise<Uint8Array>;

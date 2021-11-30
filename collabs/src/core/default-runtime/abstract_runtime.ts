@@ -8,10 +8,17 @@ import { Runtime } from "../runtime";
  */
 export abstract class AbstractRuntime implements Runtime {
   readonly isRuntime: true = true;
-  readonly rootCrdt: Crdt;
+  /**
+   * Readonly. Set with setRootCrdt.
+   */
+  protected rootCrdt!: Crdt;
 
-  constructor(readonly replicaId: string, preRootCrdt: Pre<Crdt>) {
-    this.rootCrdt = preRootCrdt(new InitToken("", this));
+  constructor(readonly replicaId: string) {}
+
+  protected setRootCrdt<C extends Crdt>(preRootCrdt: Pre<C>): C {
+    const rootCrdt = preRootCrdt(new InitToken("", this));
+    this.rootCrdt = rootCrdt;
+    return rootCrdt;
   }
 
   private idCounter = 0;

@@ -27,6 +27,12 @@ export class App {
     return this.runtime.load(saveData);
   }
 
+  // TODO: flush? Or make part of saving?
+  // (Right before signing out, want to force-send any
+  // queued messages in a batch.)
+
+  // TODO: need to block interaction during this?
+  // (Runtime queue received messages; need to block user input)
   save(): Promise<Uint8Array> {
     return this.runtime.save();
   }

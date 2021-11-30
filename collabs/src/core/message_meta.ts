@@ -1,50 +1,35 @@
-import { Optional } from "../util";
-
 export interface VectorClock {
-  get(replicaId: string): number | undefined;
+  /**
+   * The maximum senderCounter received from replicaId,
+   * or 0 if none have been received.
+   * Equivalently, the number of messages received from
+   * replicaId.
+   */
+  get(replicaId: string): number;
 }
 
 export interface MessageMeta {
+  // Mandatory metadata
+
   readonly isLocal: boolean;
   readonly sender: string;
   /**
-   * A counter for messages sent by this sender, starting at 0.
+   * A counter for messages sent by this sender, starting at 1.
    */
   readonly senderCounter: number;
 
-  readonly vectorClock: Optional<VectorClock>;
-  requestVectorClock(): void;
+  // Default optional metadata, only available to descendants of a
+  // Crdt that adds them (e.g., MessageMetaLayer).
+  readonly vectorClock?: VectorClock;
+  /**
+   * Note this might go backwards (even on the same replica)
+   * or generally act irrationally.
+   */
+  readonly wallClockTime?: number;
+  readonly lamportTimestamp?: number;
 
-  readonly wallClockTime: Optional<number>;
-  requestWallClockTime(): void;
-
-  readonly lamportTimestamp: Optional<number>;
-  requestLamportTimestamp(): void;
-}
-
-/**
- * Minimal implementation of MessageMeta that includes only
- * mandatory fields. requests throw an error.
- */
-export class MandatoryMessageMeta implements MessageMeta {
-  constructor(
-    readonly isLocal: boolean,
-    readonly sender: string,
-    readonly senderCounter: number
-  ) {}
-
-  readonly vectorClock = Optional.empty<VectorClock>();
-  requestVectorClock(): void {
-    throw new Error("MandatoryMessageMeta does not support requests.");
-  }
-
-  readonly wallClockTime = Optional.empty<number>();
-  requestWallClockTime(): void {
-    throw new Error("MandatoryMessageMeta does not support requests.");
-  }
-
-  readonly lamportTimestamp = Optional.empty<number>();
-  requestLamportTimestamp(): void {
-    throw new Error("MandatoryMessageMeta does not support requests.");
-  }
+  // Crdts may choose to add other metadata as well.
+  // It is recommended that these are indexed by Symbols instead
+  // of strings, to avoid conflicts.
+  // If a field is not added, it will be not present (undefined).
 }

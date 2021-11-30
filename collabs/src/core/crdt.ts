@@ -118,6 +118,8 @@ export interface CrdtEventsRecord {
    * is changed (e.g., so you can refresh a display based on
    * its state) without having to listen on each
    * individual event type.
+   *
+   * TODO: change to "Event"
    */
   Change: CrdtEvent;
 }
@@ -188,6 +190,10 @@ export abstract class Crdt<
     }
   }
 
+  protected send(messagePath: Uint8Array[]) {
+    this.parent.childSend(this, messagePath);
+  }
+
   /**
    * Callback used by this Crdt's parent to deliver
    * a message, possibly for one of this Crdt's descendants.
@@ -227,6 +233,9 @@ export abstract class Crdt<
     meta: MessageMeta
   ): void;
 
+  abstract load(saveData: Uint8Array | null): Promise<void>;
+  abstract save(): Promise<Uint8Array>;
+
   getNamePath(descendant: Crdt): string[] {
     let current = descendant;
     const namePath = [];
@@ -254,9 +263,6 @@ export abstract class Crdt<
    * @return          [description]
    */
   abstract getDescendant(namePath: string[]): Crdt;
-
-  abstract load(saveData: Uint8Array | null): Promise<void>;
-  abstract save(): Promise<Uint8Array>;
 
   /**
    * If this Crdt is in its initial, post-constructor state, then

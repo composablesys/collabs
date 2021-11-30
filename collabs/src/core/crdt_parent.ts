@@ -1,4 +1,5 @@
 import { Crdt } from "./crdt";
+import { MessageMeta } from "./message_meta";
 import { Runtime } from "./runtime";
 
 /**
@@ -6,6 +7,18 @@ import { Runtime } from "./runtime";
  */
 export interface ParentCrdt extends Crdt {
   childSend(child: Crdt, messagePath: Uint8Array[]): void;
+
+  /**
+   * @return the MessageMeta that will be passed along with
+   * the received message corresponding to the next childSend
+   * call, assuming there are no intervening messages
+   * (within the whole Runtime). This can be used by children
+   * to get the MessageMeta for messages that they echo internally.
+   * Typically, it will just be
+   * parent.nextMessageMeta(), but this Crdt may choose to
+   * add extra fields.
+   */
+  nextMessageMeta(): MessageMeta;
 }
 
 /**

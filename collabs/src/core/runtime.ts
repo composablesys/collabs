@@ -22,7 +22,9 @@ export interface Runtime {
    * multiple messages might share the same [[MessageMeta]]:
    * its messages might be batched by an ancestor, while
    * [[MessageMeta]] only updates when this Runtime sends a
-   * message.
+   * message. This should only be called by the Runtime's children;
+   * in general, Crdts should only call nextMessageMeta on their
+   * own parent.
    */
   nextMessageMeta(): MessageMeta;
 
