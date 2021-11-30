@@ -1,11 +1,14 @@
 import { Crdt, InitToken, Pre } from "../crdt";
+import { MessageMeta } from "../message_meta";
 import { Runtime } from "../runtime";
 
 /**
  * Skeletal implementation of [[Runtime]] that implements
  * most behavior using a [[rootCrdt]].
  */
-export abstract class AbstractRuntime implements Runtime {
+export abstract class AbstractRuntime<M extends MessageMeta = MessageMeta>
+  implements Runtime<M>
+{
   readonly isRuntime: true = true;
   readonly rootCrdt: Crdt;
 
@@ -43,7 +46,7 @@ export abstract class AbstractRuntime implements Runtime {
 
   abstract childSend(child: Crdt, messagePath: Uint8Array[]): void;
 
-  abstract nextMessageMeta(): MessageMeta;
+  abstract nextMessageMeta(): M;
 
   abstract registerCrdt<C extends any>(name: string, preCrdt: any): C;
 }

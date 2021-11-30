@@ -1,5 +1,6 @@
 import { CrdtParent } from "./crdt_parent";
 import { EventEmitter } from "./event_emitter";
+import { MessageMeta } from "./message_meta";
 import { isRuntime, Runtime } from "./runtime";
 
 /**
@@ -121,13 +122,19 @@ export interface CrdtEventsRecord {
   Change: CrdtEvent;
 }
 
+/**
+ * @typeParam M the type of MessageMeta required for [[receive]]
+ * and from the ambient [[Runtime]].
+ * @typeParam Events TODO
+ */
 export abstract class Crdt<
+  M extends MessageMeta = MessageMeta,
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
   /**
    * The ambient [[Runtime]].
    */
-  readonly runtime: Runtime;
+  readonly runtime: Runtime<M>;
   /**
    * The Crdt's parent in the tree of Crdts.
    */
@@ -146,7 +153,12 @@ export abstract class Crdt<
    */
   constructor(initToken: InitToken) {
     super();
-    this.runtime = initToken.runtime;
+    // TODO: enforce the type here directly? Tricky because
+    // the parent might not require as strict of MessageMeta.
+    // For now, we enforce it when parent accepts the child:
+    // it must check that child is a subtype of Crdt<runtime's
+    // provided MessageMeta>.
+    this.runtime = initToken.runtime as Runtime<M>;
     this.parent = initToken.parent;
     this.name = initToken.name;
   }
@@ -186,7 +198,7 @@ export abstract class Crdt<
    *
    * TODO: params
    */
-  receive(messagePath: Uint8Array[], meta: MessageMeta) {
+  receive(messagePath: Uint8Array[], meta: M) {
     this.receiveInternal(messagePath, meta);
     // While we do nothing here currently, we reserve the ability
     // to do per-message processing in the future, e.g., dispatching an
@@ -208,10 +220,7 @@ export abstract class Crdt<
    *
    * TODO: params
    */
-  protected abstract receiveInternal(
-    messagePath: Uint8Array[],
-    meta: MessageMeta
-  ): void;
+  protected abstract receiveInternal(messagePath: Uint8Array[], meta: M): void;
 
   getNamePath(descendant: Crdt): string[] {
     let current = descendant;
