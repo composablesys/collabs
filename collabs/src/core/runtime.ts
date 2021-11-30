@@ -5,7 +5,7 @@ import { MessageMeta } from "./message_meta";
  * @typeParam M the type of [[MessageMeta]] passed to
  * registered Crdt's.
  */
-export interface Runtime<M extends MessageMeta = MessageMeta> {
+export interface Runtime {
   // Utilities for internal use by Crdts, serializers, etc.
 
   /**
@@ -24,7 +24,7 @@ export interface Runtime<M extends MessageMeta = MessageMeta> {
    * [[MessageMeta]] only updates when this Runtime sends a
    * message.
    */
-  nextMessageMeta(): M;
+  nextMessageMeta(): MessageMeta;
 
   /**
    * @param count = 1 When set, treat this as count calls,
@@ -64,7 +64,7 @@ export interface Runtime<M extends MessageMeta = MessageMeta> {
 
   // Implementations of user-facing methods from CollabsApp.
 
-  registerCrdt<C extends Crdt<M>>(name: string, preCrdt: Pre<C>): C;
+  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C;
   load(saveData: Uint8Array | null): Promise<void>;
   save(): Promise<Uint8Array>;
 }

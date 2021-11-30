@@ -128,13 +128,12 @@ export interface CrdtEventsRecord {
  * @typeParam Events TODO
  */
 export abstract class Crdt<
-  M extends MessageMeta = MessageMeta,
   Events extends CrdtEventsRecord = CrdtEventsRecord
 > extends EventEmitter<Events> {
   /**
    * The ambient [[Runtime]].
    */
-  readonly runtime: Runtime<M>;
+  readonly runtime: Runtime;
   /**
    * The Crdt's parent in the tree of Crdts.
    */
@@ -158,7 +157,7 @@ export abstract class Crdt<
     // For now, we enforce it when parent accepts the child:
     // it must check that child is a subtype of Crdt<runtime's
     // provided MessageMeta>.
-    this.runtime = initToken.runtime as Runtime<M>;
+    this.runtime = initToken.runtime;
     this.parent = initToken.parent;
     this.name = initToken.name;
   }
@@ -198,7 +197,7 @@ export abstract class Crdt<
    *
    * TODO: params
    */
-  receive(messagePath: Uint8Array[], meta: M) {
+  receive(messagePath: Uint8Array[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
     // While we do nothing here currently, we reserve the ability
     // to do per-message processing in the future, e.g., dispatching an
@@ -220,7 +219,10 @@ export abstract class Crdt<
    *
    * TODO: params
    */
-  protected abstract receiveInternal(messagePath: Uint8Array[], meta: M): void;
+  protected abstract receiveInternal(
+    messagePath: Uint8Array[],
+    meta: MessageMeta
+  ): void;
 
   getNamePath(descendant: Crdt): string[] {
     let current = descendant;
