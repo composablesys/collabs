@@ -1,0 +1,5 @@
+message RuntimeMessage {
+  repeated bytes messagePath = 1;
+  required string sender = 2;
+  required uint64 senderCounter = 3;
+}

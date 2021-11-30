@@ -323,3 +323,17 @@ export function bytesAsString(array: Uint8Array) {
 export function stringAsBytes(str: string) {
   return new Uint8Array(Buffer.from(str, ENCODING));
 }
+
+/**
+ * Apply this function to protobuf.js [u/s]int64 output values
+ * to convert them to the nearest JS number (double).
+ * For safe integers, this is exact.
+ *
+ * In theory you can "request" protobuf.js to not use
+ * longs by not depending on the Long library, but that is
+ * flaky because one of our dependencies might import it.
+ */
+export function int64AsNumber(num: number | Long): number {
+  if (typeof num === "number") return num;
+  else return num.toNumber();
+}

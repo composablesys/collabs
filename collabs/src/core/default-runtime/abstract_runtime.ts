@@ -46,5 +46,5 @@ export abstract class AbstractRuntime implements Runtime {
 
   abstract nextMessageMeta(): MessageMeta;
 
-  abstract registerCrdt<C extends any>(name: string, preCrdt: any): C;
+  abstract registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C;
 }

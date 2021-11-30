@@ -1,11 +1,13 @@
-import { Crdt } from "./crdt";
+import { Crdt, Pre } from "./crdt";
+import { DefaultRuntime } from "./default-runtime";
+import { CausalBroadcastNetwork } from "./default-runtime/causal_broadcast_network";
 import { Runtime } from "./runtime";
 
 /**
  * The entrypoint for a Collabs app.
  *
  * TODO: sample code. Workflow: new, register, await load
- * (call with null if new), then use Crdts.
+ * (call with null if new), start, then use Crdts.
  *
  * Internally, an App is a thin wrapper around its [[Runtime]],
  * exposing only the user-facing methods.

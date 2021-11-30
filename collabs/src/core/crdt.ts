@@ -196,6 +196,9 @@ export abstract class Crdt<
    * [[receiveInternal]], which is called by this method.
    *
    * TODO: params
+   *
+   * TODO: warning: messagePath may be modified (length decreased);
+   * copy before use.
    */
   receive(messagePath: Uint8Array[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
@@ -237,6 +240,19 @@ export abstract class Crdt<
     return namePath;
   }
 
+  /**
+   * TODO: needs to work even in the middle of load
+   * (so need to lazily load children before calling
+   * getDescendant on them, if the namePath goes farther).
+   * Can we implement this functionality once in an abstract
+   * ParentCrdt class?
+   *
+   * TODO: error behavior (bad namePath vs no longer exists
+   * (DeletingMutCSet case)).
+   *
+   * @param  namePath [description]
+   * @return          [description]
+   */
   abstract getDescendant(namePath: string[]): Crdt;
 
   abstract load(saveData: Uint8Array | null): Promise<void>;
