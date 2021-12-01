@@ -1,3 +1,4 @@
+import { BatchingLayerMessage } from "../../../generated/proto_compiled";
 import { Crdt, CrdtEventsRecord, InitToken, Pre } from "../crdt";
 import { ParentCrdt } from "../crdt_parent";
 import { MessageMeta } from "../message_meta";
@@ -6,17 +7,18 @@ import { BatchingStrategy } from "./batching_strategy";
 /**
  * Info about a pending batch.
  *
- * The sent messagePath's are interpreted as paths in
- * a tree (in reverse order), with the elements labelling
- * edges. We apply prefix compression to the set of paths
- * in this tree.
+ * The sent messagePath's are interpreted as paths to the root in
+ * a tree (last element is closest to the root), with the elements labelling
+ * edges. We apply suffix compression (prefix compression but
+ * reversed) to these paths.
  *
  * Edge labels are compared using ===, so you will only get
  * reasonable equality for (1) strings and (2) Uint8Arrays
  * that are stored by the sender and reused (e.g. collection
  * elements stored in serialized form).
  *
- * Vertices are labelled with numbers sequentially.
+ * Vertices are labelled with numbers sequentially. The root
+ * (messagePath = []) is 0.
  */
 interface BatchInfo {
   /**
@@ -53,6 +55,11 @@ interface BatchInfo {
 
 /**
  * Crdt that batches message sent by its descendants.
+ *
+ * TODO: somewhere: advice to reuse Uint8Array's, or use strings,
+ * if you send the same messages often. That way they
+ * can be batched properly. Especially true for high-up
+ * things, e.g., child names and adding metadata.
  */
 export class BatchingLayer extends Crdt implements ParentCrdt {
   private child!: Crdt;
@@ -119,14 +126,65 @@ export class BatchingLayer extends Crdt implements ParentCrdt {
   }
 
   commitBatch() {
-    // TODO: serialize and send
+    if (this.pendingBatch === null) return;
+    const batch = this.pendingBatch;
+    // Clear this.pendingBatch now so that this.isBatchPending()
+    // is false when we call send at the end of this method,
+    // in case our parent wants to deliver queued messages
+    // at that time. TODO: won't be necessary after reordering
+    // batch & meta layers, but still seems useful.
+    this.pendingBatch = null;
+
+    // Serialize the batch and send it.
+    // We only need to serialize batch.edges and batch.messages;
+    // batch.children is redundant with batch.edges.
+    const batchMessage = BatchingLayerMessage.create({
+      edges: batch.edges.map((edge) => {
+        if (typeof edge.label === "string") {
+          return { stringLabel: edge.label, parent: edge.parent };
+        } else {
+          return { bytesLabel: edge.label, parent: edge.parent };
+        }
+      }),
+      messages: batch.messages,
+    });
+    const serialized = BatchingLayerMessage.encode(batchMessage).finish();
+    this.send([serialized]);
+
+    // TODO: optimized encoding: unwrap inner fields as
+    // multiple arrays; for labels, put in one big Uint8Array
+    // (encoding strings as needed) and have a separate packed
+    // array of sint32's giving the length of each one and
+    // using sign to say if it's a string or not.
+    // Will avoid overhead of field number & type markers
+    // on each label, and also gives us an easy way to encode
+    // string-or-Uint8Array.
   }
 
   protected receiveInternal(
     messagePath: (Uint8Array | string)[],
     meta: MessageMeta
   ): void {
-    throw new Error("Method not implemented.");
+    // We do our own echo.
+    if (meta.isLocal) return;
+
+    if (messagePath.length !== 1) {
+      throw new Error("messagePath.length is not 1: " + messagePath.length);
+    }
+
+    const deserialized = BatchingLayerMessage.decode(
+      <Uint8Array>messagePath[0]
+    );
+    for (let vertex of deserialized.messages) {
+      // Reconstruct vertex's messagePath, then deliver it.
+      const childMessagePath: (Uint8Array | string)[] = [];
+      while (vertex !== 0) {
+        const edge = deserialized.edges[vertex - 1];
+        childMessagePath.push((edge.stringLabel || edge.bytesLabel)!);
+        vertex = edge.parent;
+      }
+      this.child.receive(childMessagePath, meta);
+    }
   }
 
   load(saveData: Uint8Array | null): Promise<void> {
