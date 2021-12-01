@@ -1,76 +1,62 @@
+import { CrdtEvent } from "../crdt";
 import { Unsubscribe } from "../event_emitter";
-import { Runtime, RuntimeEvent } from "../runtime";
+import { BatchingLayer } from "./batching_layer";
 
 /**
- * A strategy for batching messages sent by a [[Runtime]].
+ * A strategy for batching messages in a [[BatchingLayer]].
  *
- * A [[Runtime]] does not send messages automatically.
- * Instead, it waits until [[Runtime.commitBatch]] is called,
- * at which point all queued operations are sent as a single
- * message.  A `BatchingStrategy` is responsible for calling
- * [[Runtime.commitBatch]], according to any strategy.
- * Typically, a strategy will commit batches in response
- * to [[Runtime]]'s events, perhaps with a delay to prevent
- * network stress.
- *
- * Except for special purposes, batching strategies should
- * not call commitBatch
- * on Runtime Message events.  Doing so may split up [transactions](TODO: guide/transactions.md)
- * into several batches, violating transaction guarantees.
- *
- * A `BatchingStrategy` can only be used with one [[Runtime]].
- *
- * We recommend [[ImmediateBatchingStrategy]] as a default
- * option, or [[RateLimitBatchingStrategy]] is you want to
- * rate-limit message sending.  Larger batches reduce network
+ * `BatchingStrategy` instances are responsible for automatically
+ * calling [[BatchingLayer.commitBatch]] as desired, so
+ * that the user does not have to call it manually.
+ * Larger batches (more messages) reduce network
  * traffic, both in terms of the number of separate messages and the
- * total bytes sent, but they increase user-perceived latency.
+ * total bytes sent, but they increase sending latency.
+ *
+ * A `BatchingStrategy` can only be used with one [[BatchingLayer]].
+ *
+ * [[ImmediateBatchingStrategy]] is recommended as a default
+ * option. Use [[RateLimitBatchingStrategy]] if you want to
+ * rate-limit message sending.
  */
 export interface BatchingStrategy {
   /**
-   * Called by `runtime` when this is set as its batching
-   * strategy, either in [[Runtime.constructor]] or
-   * [[Runtime.setBatchingStrategy]].  This should then
-   * apply it strategy to `runtime`, calling `runtime.commitBatch` when appropriate.
+   * Called by the using [[BatchingLayer]] when this is
+   * first set as its batching strategy.
    *
-   * This method should only be called by `runtime`.  It will
-   * only be called once.
+   * This will then start calling `batchingLayer.commitBatch()`
+   * according to its strategy.
    */
-  start(runtime: Runtime): void;
+  start(batchingLayer: BatchingLayer): void;
   /**
-   * Called by `runtime` when this is removed as its
-   * batching strategy.  Afterwards, this should no longer
-   * call `runtime.commitBatch`.
+   * Called by the using [[BatchingLayer]] when this is
+   * removed as its batching strategy.
    *
-   * This method should only be called by `runtime`.  It will
-   * be called at most once, sometime after `start`.
+   * This will then no longer call `batchingLayer.commitBatch()`.
    */
   stop(): void;
 }
 
 /**
- * Sends a batch immediately on each [[Runtime]] "Change" event.
+ * Sends a batch immediately on each [[BatchingLayer]] "BatchPending" event.
  *
  * This is
  * the fastest-sending reasonable [[BatchingStrategy]].
  */
 export class ImmediateBatchingStrategy implements BatchingStrategy {
-  private runtime?: Runtime = undefined;
+  private batchingLayer?: BatchingLayer = undefined;
   private unsubscribe?: Unsubscribe = undefined;
 
-  start(runtime: Runtime): void {
-    this.runtime = runtime;
-    this.unsubscribe = this.runtime.on("Change", this.onchange.bind(this));
+  start(batchingLayer: BatchingLayer): void {
+    this.batchingLayer = batchingLayer;
+    this.unsubscribe = this.batchingLayer.on("BatchPending", (e) => {
+      if (e.meta.isLocal) this.batchingLayer!.commitBatch();
+    });
   }
 
   stop(): void {
     this.unsubscribe!();
-    this.runtime = undefined;
+    this.batchingLayer = undefined;
     this.unsubscribe = undefined;
-  }
-
-  private onchange(event: RuntimeEvent) {
-    if (event.isLocal) this.runtime!.commitBatch();
   }
 }
 
@@ -79,7 +65,7 @@ export class ImmediateBatchingStrategy implements BatchingStrategy {
  * as soon as possible.
  */
 export class RateLimitBatchingStrategy implements BatchingStrategy {
-  private runtime?: Runtime = undefined;
+  private batchingLayer?: BatchingLayer = undefined;
   private unsubscribeChange?: Unsubscribe = undefined;
   private unsubscribeReceiveBlocked?: Unsubscribe = undefined;
 
@@ -88,39 +74,33 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
 
   /**
    * @param periodMs The length of the time period in ms
-   * @param commitOnReceive If true, whenever `runtime`
+   * @param commitOnReceive If true, whenever `batchingLayer`
    * would receive a message from another replica
    * except that there is a pending batch ("ReceiveBlocked" event),
    * this commits the batch immediately, so that the received message can be processed
    * immediately afterwards.  This may cause the rate limit to be
    * exceeded.
    */
-  constructor(readonly periodMs: number, readonly commitOnReceive = false) {}
+  constructor(readonly periodMs: number) {}
 
-  start(runtime: Runtime): void {
-    this.runtime = runtime;
-    this.unsubscribeChange = this.runtime.on(
-      "Change",
-      this.onchange.bind(this)
+  start(batchingLayer: BatchingLayer): void {
+    this.batchingLayer = batchingLayer;
+    this.unsubscribeChange = this.batchingLayer.on(
+      "BatchPending",
+      this.onBatchPending.bind(this)
     );
-    if (this.commitOnReceive) {
-      this.unsubscribeReceiveBlocked = this.runtime.on(
-        "ReceiveBlocked",
-        this.commitBatch
-      );
-    }
   }
 
   stop(): void {
     this.unsubscribeChange!();
     if (this.unsubscribeReceiveBlocked) this.unsubscribeReceiveBlocked!();
-    this.runtime = undefined;
+    this.batchingLayer = undefined;
     this.unsubscribeChange = undefined;
     this.unsubscribeReceiveBlocked = undefined;
   }
 
-  private onchange(event: RuntimeEvent) {
-    if (event.isLocal) {
+  private onBatchPending(event: CrdtEvent) {
+    if (event.meta.isLocal) {
       if (!this.pendingBatch) {
         const time = Date.now();
         // If it has been more then periodMs ms since the last
@@ -140,19 +120,19 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
   }
 
   private commitBatch = () => {
-    if (this.runtime !== undefined) {
+    if (this.batchingLayer !== undefined) {
       this.pendingBatch = false;
       this.lastSend = Date.now();
-      this.runtime.commitBatch();
+      this.batchingLayer.commitBatch();
     }
   };
 }
 
 /**
- * Does nothing; you must call [[Runtime.commitBatch]] manually
+ * Does nothing; you must call [[BatchingLayer.commitBatch]] manually
  * when you want to send a batch.
  */
 export class ManualBatchingStrategy implements BatchingStrategy {
-  start(_runtime: Runtime): void {}
+  start(_batchingLayer: BatchingLayer): void {}
   stop(): void {}
 }

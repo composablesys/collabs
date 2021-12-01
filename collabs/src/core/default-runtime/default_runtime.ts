@@ -22,10 +22,9 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
 
   /**
    * The number of messages sent so far.
-   * Initialized to 0 in the constructor.
    * Note the next message's senderCounter will be one greater.
    */
-  private currentSenderCounter: number;
+  private currentSenderCounter = 0;
   /**
    * Stores messages received while a batch is pending.
    * They will be delivered immediately after the batch is
@@ -34,17 +33,16 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
   private queuedReceivedMessages: [
     messagePath: Uint8Array[],
     meta: MessageMeta
-  ][];
+  ][] = [];
 
   constructor(
     network: CausalBroadcastNetwork,
     options?: { batchingStrategy?: BatchingStrategy; debugReplicaId?: string }
   ) {
-    const replicaId = options?.debugReplicaId ?? randomReplicaId();
+    super(options?.debugReplicaId ?? randomReplicaId());
+
     const batchingStrategy =
       options?.batchingStrategy ?? new ImmediateBatchingStrategy();
-
-    super(replicaId);
 
     // Setup Crdt tree.
     this.messageMetaLayer = this.setRootCrdt(Pre(MessageMetaLayer)());
@@ -57,11 +55,23 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
     this.network = network;
     this.network.onreceive = this.receive.bind(this);
     this.network.replicaId = this.replicaId;
-
-    // Setup other class vars.
-    this.currentSenderCounter = 0;
-    this.queuedReceivedMessages = [];
   }
+
+  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {
+    return this.registry.addChild(name, preCrdt);
+  }
+
+  /**
+   * Replaces the current [[BatchingStrategy]] with
+   * `batchingStrategy`.
+   *
+   * @param  batchingStrategy [description]
+   */
+  setBatchingStrategy(batchingStrategy: BatchingStrategy): void {
+    this.batchingLayer.setBatchingStrategy(batchingStrategy);
+  }
+
+  private inRootReceive = false;
 
   // TODO: can we move this and receive to the abstract class,
   // or add an intermediate layer that assumes the network but
@@ -75,10 +85,22 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
       throw new Error("childSend called by non-root: " + child);
     }
 
-    // Echo with only mandatory MessageMeta.
+    // Local echo with only mandatory MessageMeta.
     // TODO: error handling.
+    if (this.inRootReceive) {
+      // send inside a receive call; not allowed (might break things).
+      throw new Error(
+        "Runtime.send called during another message's receive;" +
+          " did you try to perform an operation in an event handler?"
+      );
+    }
     const meta = this.nextMessageMeta();
-    this.rootCrdt.receive([...messagePath], meta);
+    this.inRootReceive = true;
+    try {
+      this.rootCrdt.receive([...messagePath], meta);
+    } finally {
+      this.inRootReceive = false;
+    }
 
     // Serialize messagePath. From our choice of Crdt layers,
     // we know it's actually all Uint8Array's.
@@ -114,8 +136,20 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
     if (this.batchingLayer.isBatchPending()) {
       this.queuedReceivedMessages.push([deserialized.messagePath, meta]);
     } else {
+      if (this.inRootReceive) {
+        // nested receive calls; not allowed (might break things).
+        throw new Error(
+          "Runtime.receive called during another message's receive;" +
+            " did you try to deliver a message in an event handler?"
+        );
+      }
       // TODO: error handling.
-      this.rootCrdt.receive(deserialized.messagePath, meta);
+      this.inRootReceive = true;
+      try {
+        this.rootCrdt.receive(deserialized.messagePath, meta);
+      } finally {
+        this.inRootReceive = false;
+      }
     }
   }
 
@@ -125,9 +159,5 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
       sender: this.replicaId,
       senderCounter: this.currentSenderCounter + 1,
     };
-  }
-
-  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {
-    return this.registry.addChild(name, preCrdt);
   }
 }

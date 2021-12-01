@@ -1,8 +1,29 @@
 import { BatchingLayerMessage } from "../../../generated/proto_compiled";
-import { Crdt, CrdtEventsRecord, InitToken, Pre } from "../crdt";
+import { Crdt, CrdtEvent, CrdtEventsRecord, InitToken, Pre } from "../crdt";
 import { ParentCrdt } from "../crdt_parent";
 import { MessageMeta } from "../message_meta";
 import { BatchingStrategy } from "./batching_strategy";
+
+/**
+ * TODO: guarantees Change event for all changes.
+ * For send, this is per transaction (microtask after
+ * each sent message), possibly more than once per batch
+ * or after the batch is committed (if committed synchronously).
+ * For received messages, emitted once per batch.
+ */
+export interface BatchingLayerEventsRecord extends CrdtEventsRecord {
+  /**
+   * Emitted when a batch is pending, i.e., there is
+   * a complete transaction waiting to be sent.
+   * [[commitBatch]] can be be called to send it immediately,
+   * or you (or the [[BatchingStrategy]]) can wait to send it later.
+   *
+   * Specifically, this event is emitted in a microtask after
+   * the child sends a message, unless that message's batch
+   * is already committed by the time of the microtask.
+   */
+  BatchPending: CrdtEvent;
+}
 
 /**
  * Info about a pending batch.
@@ -61,7 +82,10 @@ interface BatchInfo {
  * can be batched properly. Especially true for high-up
  * things, e.g., child names and adding metadata.
  */
-export class BatchingLayer extends Crdt implements ParentCrdt {
+export class BatchingLayer
+  extends Crdt<BatchingLayerEventsRecord>
+  implements ParentCrdt
+{
   private child!: Crdt;
 
   private pendingBatch: BatchInfo | null = null;
@@ -71,6 +95,7 @@ export class BatchingLayer extends Crdt implements ParentCrdt {
     private batchingStrategy: BatchingStrategy
   ) {
     super(initToken);
+    this.batchingStrategy.start(this);
   }
 
   setChild<C extends Crdt>(preChild: Pre<C>): C {
@@ -79,9 +104,25 @@ export class BatchingLayer extends Crdt implements ParentCrdt {
     return child;
   }
 
+  /**
+   * Replaces the current [[BatchingStrategy]] with
+   * `batchingStrategy`.
+   *
+   * @param  batchingStrategy [description]
+   */
+  setBatchingStrategy(batchingStrategy: BatchingStrategy): void {
+    this.batchingStrategy.stop();
+    this.batchingStrategy = batchingStrategy;
+    this.batchingStrategy.start(this);
+  }
+
   isBatchPending(): boolean {
     return this.pendingBatch !== null;
   }
+
+  private inChildReceive = false;
+
+  private batchEventPending = false;
 
   childSend(
     child: Crdt<CrdtEventsRecord>,
@@ -89,6 +130,23 @@ export class BatchingLayer extends Crdt implements ParentCrdt {
   ): void {
     if (child !== this.child) {
       throw new Error("childSend called by non-child: " + child);
+    }
+
+    // Local echo.
+    // TODO: error on nested sends?
+    if (this.inChildReceive) {
+      // send inside a receive call; not allowed (might break things).
+      throw new Error(
+        "BatchingLayer.send called during another message's receive;" +
+          " did you try to perform an operation in an event handler?"
+      );
+    }
+    const meta = this.parent.nextMessageMeta();
+    this.inChildReceive = true;
+    try {
+      this.child.receive(messagePath, meta);
+    } finally {
+      this.inChildReceive = false;
     }
 
     let pendingBatch = this.pendingBatch;
@@ -123,8 +181,31 @@ export class BatchingLayer extends Crdt implements ParentCrdt {
       vertex = nextVertex;
     }
     pendingBatch.messages.push(vertex);
+
+    // Schedule a BatchPending event as a microtask, if there
+    // is not one pending already.
+    // This notifies BatchingStrategy and also emits a Change event.
+    if (!this.batchEventPending) {
+      this.batchEventPending = true;
+      Promise.resolve().then(() => {
+        this.batchEventPending = false;
+        if (this.isBatchPending()) {
+          this.emit("BatchPending", { meta });
+        } else {
+          // The batch is no longer pending, so don't emit
+          // a BatchPending event. However we still have to
+          // emit a Change event, since the state was changed
+          // in a transaction.
+          this.emit("Change", { meta });
+        }
+      });
+    }
   }
 
+  /**
+   * [commitBatch description]
+   * @return [description]
+   */
   commitBatch() {
     if (this.pendingBatch === null) return;
     const batch = this.pendingBatch;
@@ -176,15 +257,31 @@ export class BatchingLayer extends Crdt implements ParentCrdt {
       <Uint8Array>messagePath[0]
     );
     for (let vertex of deserialized.messages) {
-      // Reconstruct vertex's messagePath, then deliver it.
+      // Reconstruct vertex's messagePath.
       const childMessagePath: (Uint8Array | string)[] = [];
       while (vertex !== 0) {
         const edge = deserialized.edges[vertex - 1];
         childMessagePath.push((edge.stringLabel || edge.bytesLabel)!);
         vertex = edge.parent;
       }
-      this.child.receive(childMessagePath, meta);
+      // Deliver messagePath.
+      if (this.inChildReceive) {
+        // nested receive calls; not allowed (might break things).
+        throw new Error(
+          "BatchingLayer.receive called during another message's receive;" +
+            " did you try to deliver a message in an event handler?"
+        );
+      }
+      this.inChildReceive = true;
+      try {
+        this.child.receive(childMessagePath, meta);
+      } finally {
+        this.inChildReceive = false;
+      }
     }
+
+    // Emit Change event, so that all changes have an event.
+    this.emit("Change", { meta });
   }
 
   load(saveData: Uint8Array | null): Promise<void> {

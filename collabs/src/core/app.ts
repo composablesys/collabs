@@ -1,5 +1,6 @@
 import { Crdt, Pre } from "./crdt";
 import { DefaultRuntime } from "./default-runtime";
+import { BatchingStrategy } from "./default-runtime/batching_strategy";
 import { CausalBroadcastNetwork } from "./default-runtime/causal_broadcast_network";
 import { Runtime } from "./runtime";
 
@@ -13,8 +14,11 @@ import { Runtime } from "./runtime";
  * exposing only the user-facing methods.
  */
 export class App {
-  static fromNetwork(network: CausalBroadcastNetwork): App {
-    return new App(new DefaultRuntime(network));
+  static createDefault(
+    network: CausalBroadcastNetwork,
+    options?: { batchingStrategy?: BatchingStrategy; debugReplicaId?: string }
+  ): App {
+    return new App(new DefaultRuntime(network, options));
   }
 
   constructor(readonly runtime: Runtime) {}
