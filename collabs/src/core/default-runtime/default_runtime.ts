@@ -3,6 +3,11 @@ import { Crdt, CrdtEventsRecord, Pre } from "../crdt";
 import { MessageMeta } from "../message_meta";
 import { Runtime } from "../runtime";
 import { AbstractRuntime } from "./abstract_runtime";
+import { BatchingLayer } from "./batching_layer";
+import {
+  BatchingStrategy,
+  ImmediateBatchingStrategy,
+} from "./batching_strategy";
 import { CausalBroadcastNetwork } from "./causal_broadcast_network";
 import { MessageMetaLayer } from "./message_meta_layer";
 import { PublicCObject } from "./public_object";
@@ -21,6 +26,15 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
    * Note the next message's senderCounter will be one greater.
    */
   private currentSenderCounter: number;
+  /**
+   * Stores messages received while a batch is pending.
+   * They will be delivered immediately after the batch is
+   * sent.
+   */
+  private queuedReceivedMessages: [
+    messagePath: Uint8Array[],
+    meta: MessageMeta
+  ][];
 
   constructor(
     network: CausalBroadcastNetwork,
@@ -46,13 +60,17 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
 
     // Setup other class vars.
     this.currentSenderCounter = 0;
+    this.queuedReceivedMessages = [];
   }
 
   // TODO: can we move this and receive to the abstract class,
   // or add an intermediate layer that assumes the network but
   // not the layers, or make the layers customizable thru
   // options?
-  childSend(child: Crdt<CrdtEventsRecord>, messagePath: Uint8Array[]): void {
+  childSend(
+    child: Crdt<CrdtEventsRecord>,
+    messagePath: (Uint8Array | string)[]
+  ): void {
     if (child !== this.rootCrdt) {
       throw new Error("childSend called by non-root: " + child);
     }
@@ -62,9 +80,10 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
     const meta = this.nextMessageMeta();
     this.rootCrdt.receive([...messagePath], meta);
 
-    // Serialize messagePath.
+    // Serialize messagePath. From our choice of Crdt layers,
+    // we know it's actually all Uint8Array's.
     const runtimeMessage = RuntimeMessage.create({
-      messagePath,
+      messagePath: <Uint8Array[]>messagePath,
     });
     const serialized = RuntimeMessage.encode(runtimeMessage).finish();
 
@@ -74,6 +93,17 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
 
     // Update senderCounter for the next message.
     this.currentSenderCounter++;
+
+    // Receive message queued during the batch.
+    for (const [messagePath, meta] of this.queuedReceivedMessages) {
+      // TODO: error handling.
+      try {
+        this.rootCrdt.receive(messagePath, meta);
+      } catch (e) {
+        console.error("Error in receive handler:");
+        console.error(e);
+      }
+    }
   }
 
   receive(message: Uint8Array, sender: string, senderCounter: number): void {
@@ -81,8 +111,12 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
 
     // Deliver to root with only mandatory MessageMeta.
     const meta = { isLocal: false, sender, senderCounter };
-    // TODO: error handling.
-    this.rootCrdt.receive(deserialized.messagePath, meta);
+    if (this.batchingLayer.isBatchPending()) {
+      this.queuedReceivedMessages.push([deserialized.messagePath, meta]);
+    } else {
+      // TODO: error handling.
+      this.rootCrdt.receive(deserialized.messagePath, meta);
+    }
   }
 
   nextMessageMeta(): MessageMeta {

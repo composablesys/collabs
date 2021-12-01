@@ -190,7 +190,7 @@ export abstract class Crdt<
     }
   }
 
-  protected send(messagePath: Uint8Array[]) {
+  protected send(messagePath: (Uint8Array | string)[]) {
     this.parent.childSend(this, messagePath);
   }
 
@@ -206,7 +206,7 @@ export abstract class Crdt<
    * TODO: warning: messagePath may be modified (length decreased);
    * copy before use.
    */
-  receive(messagePath: Uint8Array[], meta: MessageMeta) {
+  receive(messagePath: (Uint8Array | string)[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
     // While we do nothing here currently, we reserve the ability
     // to do per-message processing in the future, e.g., dispatching an
@@ -229,7 +229,7 @@ export abstract class Crdt<
    * TODO: params
    */
   protected abstract receiveInternal(
-    messagePath: Uint8Array[],
+    messagePath: (Uint8Array | string)[],
     meta: MessageMeta
   ): void;
 

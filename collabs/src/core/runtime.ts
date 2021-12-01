@@ -14,7 +14,7 @@ export interface Runtime {
   readonly isRuntime: true;
   readonly replicaId: string;
 
-  childSend(child: Crdt, messagePath: Uint8Array[]): void;
+  childSend(child: Crdt, messagePath: (Uint8Array | string)[]): void;
 
   /**
    * @return the [[MessageMeta]] that will be attached to the

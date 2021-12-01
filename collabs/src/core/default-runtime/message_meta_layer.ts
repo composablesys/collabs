@@ -56,7 +56,10 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
     return this.pendingMeta;
   }
 
-  childSend(child: Crdt<CrdtEventsRecord>, messagePath: Uint8Array[]): void {
+  childSend(
+    child: Crdt<CrdtEventsRecord>,
+    messagePath: (Uint8Array | string)[]
+  ): void {
     if (child !== this.child) {
       throw new Error("childSend called by non-child: " + child);
     }

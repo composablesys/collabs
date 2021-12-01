@@ -6,7 +6,7 @@ import { Runtime } from "./runtime";
  * Interface implemented by a [[Crdt]] that can have children.
  */
 export interface ParentCrdt extends Crdt {
-  childSend(child: Crdt, messagePath: Uint8Array[]): void;
+  childSend(child: Crdt, messagePath: (Uint8Array | string)[]): void;
 
   /**
    * @return the MessageMeta that will be passed along with
