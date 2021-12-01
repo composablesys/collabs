@@ -1,7 +1,8 @@
-import { Crdt, Pre } from "./crdt";
+import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
 import { DefaultRuntime } from "./default-runtime";
 import { BatchingStrategy } from "./default-runtime/batching_strategy";
 import { CausalBroadcastNetwork } from "./default-runtime/causal_broadcast_network";
+import { EventEmitter } from "./event_emitter";
 import { Runtime } from "./runtime";
 
 /**
@@ -11,9 +12,9 @@ import { Runtime } from "./runtime";
  * (call with null if new), start, then use Crdts.
  *
  * Internally, an App is a thin wrapper around its [[Runtime]],
- * exposing only the user-facing methods.
+ * exposing only the user-facing methods and events.
  */
-export class App {
+export class App extends EventEmitter<CrdtEventsRecord> {
   static createDefault(
     network: CausalBroadcastNetwork,
     options?: { batchingStrategy?: BatchingStrategy; debugReplicaId?: string }
@@ -21,7 +22,10 @@ export class App {
     return new App(new DefaultRuntime(network, options));
   }
 
-  constructor(readonly runtime: Runtime) {}
+  constructor(readonly runtime: Runtime) {
+    super();
+    this.runtime.on("Change", (e) => this.emit("Change", e));
+  }
 
   registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {
     return this.runtime.registerCrdt(name, preCrdt);

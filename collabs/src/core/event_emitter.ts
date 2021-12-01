@@ -13,9 +13,9 @@ export type Handler<T, C> = (event: T, caller: C) => void;
  *
  * @remarks
  * Inspired by {@link https://github.com/ai/nanoevents | nanoevents}, but
- * refactored as an abstract class to better fit into our class hierarchy.
+ * refactored as a class to better fit into our class hierarchy.
  */
-export abstract class EventEmitter<Events extends EventsRecord> {
+export class EventEmitter<Events extends EventsRecord> {
   /**
    * Maps event names to registered handlers.
    *

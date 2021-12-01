@@ -13,7 +13,10 @@ import { MessageMetaLayer } from "./message_meta_layer";
 import { PublicCObject } from "./public_object";
 import { randomReplicaId } from "./random_replica_id";
 
-export class DefaultRuntime extends AbstractRuntime implements Runtime {
+export class DefaultRuntime
+  extends AbstractRuntime<CrdtEventsRecord>
+  implements Runtime
+{
   private readonly messageMetaLayer: MessageMetaLayer;
   private readonly batchingLayer: BatchingLayer;
   private readonly registry: PublicCObject;
@@ -55,6 +58,9 @@ export class DefaultRuntime extends AbstractRuntime implements Runtime {
     this.network = network;
     this.network.onreceive = this.receive.bind(this);
     this.network.replicaId = this.replicaId;
+
+    // Events.
+    this.batchingLayer.on("Change", (e) => this.emit("Change", e));
   }
 
   registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {

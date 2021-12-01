@@ -1,4 +1,5 @@
-import { Crdt, InitToken, Pre } from "../crdt";
+import { Crdt, CrdtEventsRecord, InitToken, Pre } from "../crdt";
+import { EventEmitter } from "../event_emitter";
 import { MessageMeta } from "../message_meta";
 import { Runtime } from "../runtime";
 
@@ -6,14 +7,19 @@ import { Runtime } from "../runtime";
  * Skeletal implementation of [[Runtime]] that implements
  * most behavior using a [[rootCrdt]].
  */
-export abstract class AbstractRuntime implements Runtime {
+export abstract class AbstractRuntime<Events extends CrdtEventsRecord>
+  extends EventEmitter<Events>
+  implements Runtime
+{
   readonly isRuntime: true = true;
   /**
    * Readonly. Set with setRootCrdt.
    */
   protected rootCrdt!: Crdt;
 
-  constructor(readonly replicaId: string) {}
+  constructor(readonly replicaId: string) {
+    super();
+  }
 
   protected setRootCrdt<C extends Crdt>(preRootCrdt: Pre<C>): C {
     const rootCrdt = preRootCrdt(new InitToken("", this));

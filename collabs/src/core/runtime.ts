@@ -1,11 +1,12 @@
-import { Crdt, Pre } from "./crdt";
+import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
+import { EventEmitter } from "./event_emitter";
 import { MessageMeta } from "./message_meta";
 
 /**
  * @typeParam M the type of [[MessageMeta]] passed to
  * registered Crdt's.
  */
-export interface Runtime {
+export interface Runtime extends EventEmitter<CrdtEventsRecord> {
   // Utilities for internal use by Crdts, serializers, etc.
 
   /**
