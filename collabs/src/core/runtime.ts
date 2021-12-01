@@ -26,6 +26,9 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
    * message. This should only be called by the Runtime's children;
    * in general, Crdts should only call nextMessageMeta on their
    * own parent.
+   *
+   * TODO: encouraged to use === values when it hasn't changed
+   * yet, so children can easily tell when it changes.
    */
   nextMessageMeta(): MessageMeta;
 

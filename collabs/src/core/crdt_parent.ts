@@ -17,6 +17,9 @@ export interface ParentCrdt extends Crdt {
    * Typically, it will just be
    * parent.nextMessageMeta(), but this Crdt may choose to
    * add extra fields.
+   *
+   * TODO: encouraged to use === values when it hasn't changed
+   * yet, so children can easily tell when it changes.
    */
   nextMessageMeta(): MessageMeta;
 }

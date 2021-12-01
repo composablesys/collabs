@@ -55,27 +55,28 @@ interface BatchInfo {
   /**
    * The vertices corresponding to actual complete messagePaths,
    * in order of sending.
-   * TODO: can these be stored more compactly?
    */
   messages: number[];
 }
 
-// TODO: receivers' MessageMeta will end up being different
-// from sender's if a non-descendant message is sent during
-// a batch, or if messages are received from other users
-// during a batch.
-// So this is pretty much only useful if:
-// - it's the sole descendant of the Runtime at this level, and
-// none of its ancestors send messages of their own
-// - the Runtime (or some ancestor that completely controls
-// parent.nextMessageMeta()) refuses to deliver received
-// messages while isBatchPending(), instead queuing them
-// until the next time this sends a message.
-//
-// I.e., the setting of DefaultRuntime or something very similar.
-
 /**
  * Crdt that batches message sent by its descendants.
+ *
+ * TODO: for correct MessageMeta's (consistent between sender
+ * and receiver), need to guarantee that parent.nextMessageMeta()
+ * is consistent within batches. In practice, this requires
+ * usage like in DefaultRuntime: BatchingLayer is the root
+ * (so no other sent messages can increase senderCounter),
+ * and only mandatory MessageMeta is supplied (so received messages
+ * don't change it).
+ *
+ * TODO: transactions: still works within event loop iterations;
+ * but when a batch contains multiple transactions, there
+ * might be other messages causally between them, in case
+ * a message is received in between. So delaying commitBatch
+ * calls doesn't work to create transactions across event
+ * loop iterations, unless the parent blocks delivery while
+ * isBatchPending().
  *
  * TODO: somewhere: advice to reuse Uint8Array's, or use strings,
  * if you send the same messages often. That way they
@@ -133,7 +134,6 @@ export class BatchingLayer
     }
 
     // Local echo.
-    // TODO: error on nested sends?
     if (this.inChildReceive) {
       // send inside a receive call; not allowed (might break things).
       throw new Error(
@@ -210,10 +210,7 @@ export class BatchingLayer
     if (this.pendingBatch === null) return;
     const batch = this.pendingBatch;
     // Clear this.pendingBatch now so that this.isBatchPending()
-    // is false when we call send at the end of this method,
-    // in case our parent wants to deliver queued messages
-    // at that time. TODO: won't be necessary after reordering
-    // batch & meta layers, but still seems useful.
+    // is false when we call send at the end of this method.
     this.pendingBatch = null;
 
     // Serialize the batch and send it.

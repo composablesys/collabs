@@ -23,7 +23,10 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
    */
   private currentLamportTimestamp: number = 0;
 
+  // These are all cached so that === equality is valid.
   private pendingMeta: MessageMeta | null = null;
+  private pendingMetaBase: MessageMeta | null = null;
+  private pendingMetaSerialized: Uint8Array | null = null;
 
   setChild<C extends Crdt>(preChild: Pre<C>): C {
     const child = preChild(new InitToken("", this));
@@ -35,15 +38,24 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
    * TODO: calling this the first time sets the meta's time,
    * which is a little weird for a not-obviously-mutating
    * method name.
-   * Also, it's invalidated if any other messages are sent/received.
+   *
+   * Note that the return value is invalid once any
+   * other messages are sent/received by this layer or
+   * parent's nextMessageMeta() changes.
+   *
    * @return [description]
    */
   nextMessageMeta(): MessageMeta {
-    if (this.pendingMeta === null) {
-      // Create the next MessageMeta.
+    if (
+      this.pendingMeta === null ||
+      this.pendingMetaBase !== this.parent.nextMessageMeta()
+    ) {
+      // pendingMeta is either not yet created, or invalidated
+      // by our parent's meta change; make a new one.
+      const parentMeta = this.parent.nextMessageMeta();
       const vcMapCopy = new Map(this.currentVectorClock);
-      this.pendingMeta = {
-        ...this.parent.nextMessageMeta(),
+      const meta: MessageMeta = {
+        ...parentMeta,
         vectorClock: {
           get(replicaId) {
             return vcMapCopy.get(replicaId) ?? 0;
@@ -52,6 +64,17 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
         wallClockTime: Date.now(),
         lamportTimestamp: this.currentLamportTimestamp + 1,
       };
+      this.pendingMeta = meta;
+
+      // Also update other cached fields.
+      this.pendingMetaBase = parentMeta;
+      const metaMessage = MessageMetaLayerMessage.create({
+        vectorClock: Object.fromEntries(this.currentVectorClock),
+        wallClockTime: meta.wallClockTime!,
+        lamportTimestamp: meta.lamportTimestamp!,
+      });
+      this.pendingMetaSerialized =
+        MessageMetaLayerMessage.encode(metaMessage).finish();
     }
     return this.pendingMeta;
   }
@@ -64,20 +87,18 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
       throw new Error("childSend called by non-child: " + child);
     }
 
+    // TODO: optimization: if parent.nextMessageMeta()
+    // is unchanged, we can assume this message will be batched
+    // with the previous (TODO: document this guarantee
+    // in ParentCrdt, Runtime). So even if our meta has changed,
+    // we can just send the diff (e.g. updated vector clock entry,
+    // skip updating time?).
+
     // Add the next MessageMeta, serialized, to messagePath.
-    const meta = this.nextMessageMeta();
-    const metaMessage = MessageMetaLayerMessage.create({
-      vectorClock: Object.fromEntries(this.currentVectorClock),
-      wallClockTime: meta.wallClockTime!,
-      lamportTimestamp: meta.lamportTimestamp!,
-    });
-    const metaSerialized = MessageMetaLayerMessage.encode(metaMessage).finish();
-
-    messagePath.push(metaSerialized);
+    // First call nextMessageMeta() to ensure it's created.
+    this.nextMessageMeta();
+    messagePath.push(this.pendingMetaSerialized!);
     this.send(messagePath);
-
-    // Update metadata for the next message.
-    this.currentLamportTimestamp++;
   }
 
   protected receiveInternal(
@@ -110,13 +131,19 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
     this.child.receive(messagePath, newMeta);
 
     // Update our own state to reflect newMeta.
-    if (!meta.isLocal) {
+    if (meta.isLocal) {
+      this.currentLamportTimestamp++;
+    } else {
       this.currentVectorClock.set(meta.sender, meta.senderCounter);
       this.currentLamportTimestamp = Math.max(
         lamportTimestamp,
         this.currentLamportTimestamp
       );
     }
+    // Invalidate the current pendingMeta.
+    this.pendingMeta = null;
+    this.pendingMetaBase = null;
+    this.pendingMetaSerialized = null;
   }
 
   load(saveData: Uint8Array | null): Promise<void> {

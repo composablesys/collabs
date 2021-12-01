@@ -17,8 +17,8 @@ export class DefaultRuntime
   extends AbstractRuntime<CrdtEventsRecord>
   implements Runtime
 {
-  private readonly messageMetaLayer: MessageMetaLayer;
   private readonly batchingLayer: BatchingLayer;
+  private readonly messageMetaLayer: MessageMetaLayer;
   private readonly registry: PublicCObject;
 
   readonly network: CausalBroadcastNetwork;
@@ -28,15 +28,7 @@ export class DefaultRuntime
    * Note the next message's senderCounter will be one greater.
    */
   private currentSenderCounter = 0;
-  /**
-   * Stores messages received while a batch is pending.
-   * They will be delivered immediately after the batch is
-   * sent.
-   */
-  private queuedReceivedMessages: [
-    messagePath: Uint8Array[],
-    meta: MessageMeta
-  ][] = [];
+  private pendingMeta: MessageMeta;
 
   constructor(
     network: CausalBroadcastNetwork,
@@ -48,16 +40,23 @@ export class DefaultRuntime
       options?.batchingStrategy ?? new ImmediateBatchingStrategy();
 
     // Setup Crdt tree.
-    this.messageMetaLayer = this.setRootCrdt(Pre(MessageMetaLayer)());
-    this.batchingLayer = this.messageMetaLayer.setChild(
-      Pre(BatchingLayer)(batchingStrategy)
+    this.batchingLayer = this.setRootCrdt(Pre(BatchingLayer)(batchingStrategy));
+    this.messageMetaLayer = this.batchingLayer.setChild(
+      Pre(MessageMetaLayer)()
     );
-    this.registry = this.batchingLayer.setChild(Pre(PublicCObject)());
+    this.registry = this.messageMetaLayer.setChild(Pre(PublicCObject)());
 
     // Setup network.
     this.network = network;
     this.network.onreceive = this.receive.bind(this);
     this.network.replicaId = this.replicaId;
+
+    // Misc setup.
+    this.pendingMeta = {
+      isLocal: true,
+      sender: this.replicaId,
+      senderCounter: 1,
+    };
 
     // Events.
     this.batchingLayer.on("Change", (e) => this.emit("Change", e));
@@ -121,17 +120,6 @@ export class DefaultRuntime
 
     // Update senderCounter for the next message.
     this.currentSenderCounter++;
-
-    // Receive message queued during the batch.
-    for (const [messagePath, meta] of this.queuedReceivedMessages) {
-      // TODO: error handling.
-      try {
-        this.rootCrdt.receive(messagePath, meta);
-      } catch (e) {
-        console.error("Error in receive handler:");
-        console.error(e);
-      }
-    }
   }
 
   receive(message: Uint8Array, sender: string, senderCounter: number): void {
@@ -139,31 +127,31 @@ export class DefaultRuntime
 
     // Deliver to root with only mandatory MessageMeta.
     const meta = { isLocal: false, sender, senderCounter };
-    if (this.batchingLayer.isBatchPending()) {
-      this.queuedReceivedMessages.push([deserialized.messagePath, meta]);
-    } else {
-      if (this.inRootReceive) {
-        // nested receive calls; not allowed (might break things).
-        throw new Error(
-          "Runtime.receive called during another message's receive;" +
-            " did you try to deliver a message in an event handler?"
-        );
-      }
-      // TODO: error handling.
-      this.inRootReceive = true;
-      try {
-        this.rootCrdt.receive(deserialized.messagePath, meta);
-      } finally {
-        this.inRootReceive = false;
-      }
+    if (this.inRootReceive) {
+      // nested receive calls; not allowed (might break things).
+      throw new Error(
+        "Runtime.receive called during another message's receive;" +
+          " did you try to deliver a message in an event handler?"
+      );
+    }
+    // TODO: error handling.
+    this.inRootReceive = true;
+    try {
+      this.rootCrdt.receive(deserialized.messagePath, meta);
+    } finally {
+      this.inRootReceive = false;
     }
   }
 
   nextMessageMeta(): MessageMeta {
-    return {
-      isLocal: true,
-      sender: this.replicaId,
-      senderCounter: this.currentSenderCounter + 1,
-    };
+    if (this.pendingMeta.senderCounter !== this.currentSenderCounter + 1) {
+      // Update pendingMeta.
+      this.pendingMeta = {
+        isLocal: true,
+        sender: this.replicaId,
+        senderCounter: this.currentSenderCounter + 1,
+      };
+    }
+    return this.pendingMeta;
   }
 }
