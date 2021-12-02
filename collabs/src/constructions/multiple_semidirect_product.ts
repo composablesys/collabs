@@ -3,10 +3,10 @@ import {
   MultiSemidirectProductSave,
 } from "../../generated/proto_compiled";
 import {
-  CausalTimestamp,
+  MessageMeta,
   Crdt,
   CrdtEventsRecord,
-  CrdtInitToken,
+  InitToken,
   Pre,
   Runtime,
 } from "../core";
@@ -19,7 +19,7 @@ class StoredMessage {
     readonly senderCounter: number,
     readonly receiptCounter: number,
     readonly targetPath: string[],
-    readonly timestamp: CausalTimestamp | null,
+    readonly meta: MessageMeta | null,
     readonly arbIndex: number, // arbitration number
     message: Uint8Array | null
   ) {
@@ -44,28 +44,28 @@ class MultipleSemidirectState<S extends object> {
   constructor(private readonly historyTimestamps: boolean) {}
 
   /**
-   * Add message to the history with the given timestamp.
+   * Add message to the history with the given meta.
    * replicaId is our replica id.
    */
   add(
     replicaId: string,
     targetPath: string[],
-    timestamp: CausalTimestamp,
+    meta: MessageMeta,
     message: Uint8Array,
     arbId: number
   ) {
-    let senderHistory = this.history.get(timestamp.getSender());
+    let senderHistory = this.history.get(meta.sender);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(timestamp.getSender(), senderHistory);
+      this.history.set(meta.sender, senderHistory);
     }
     senderHistory.push(
       new StoredMessage(
-        timestamp.getSender(),
-        timestamp.getSenderCounter(),
+        meta.sender,
+        meta.senderCounter,
         this.receiptCounter,
         targetPath,
-        this.historyTimestamps ? timestamp : null,
+        this.historyTimestamps ? meta : null,
         arbId,
         message
       )
@@ -75,41 +75,41 @@ class MultipleSemidirectState<S extends object> {
 
   /**
    * Return all messages in the history concurrent to the given
-   * timestamp, in some causal order (specifically, this replica's
+   * meta, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
-   * timestamp.getSender()), it is assumed that the timestamp is
+   * meta.sender), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaId: string, timestamp: CausalTimestamp, arbId: number) {
-    return this.processTimestamp(replicaId, timestamp, true, arbId);
+  getConcurrent(replicaId: string, meta: MessageMeta, arbId: number) {
+    return this.processTimestamp(replicaId, meta, true, arbId);
   }
 
   /**
    * Performs specified actions on all messages in the history:
    * - if returnConcurrent is true, returns the list of
-   * all messages in the history concurrent to timestamp, in
+   * all messages in the history concurrent to meta, in
    * receipt order.
    * - if discardDominated is true, deletes all messages from
-   * the history whose timestamps are causally dominated by
-   * or equal to the given timestamp.  (Note that this means that
-   * if we want to keep a message with the given timestamp in
+   * the history whose metas are causally dominated by
+   * or equal to the given meta.  (Note that this means that
+   * if we want to keep a message with the given meta in
    * the history, it must be added to the history after calling
    * this method.)
    */
   private processTimestamp(
     replicaId: string,
-    timestamp: CausalTimestamp,
+    meta: MessageMeta,
     returnConcurrent: boolean,
     arbId: number
   ) {
-    if (replicaId === timestamp.getSender()) {
+    if (replicaId === meta.sender) {
       return [];
     }
     // Gather up the concurrent messages.  These are all
     // messages by each replicaId with sender counter
-    // greater than timestamp.asVectorClock().get(replicaId).
+    // greater than meta.vectorClock!.get(replicaId).
     let concurrent: Array<StoredMessage> = [];
-    let vc = timestamp.asVectorClock();
+    let vc = meta.vectorClock!;
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
@@ -197,7 +197,7 @@ class MultipleSemidirectState<S extends object> {
     value: number
   ): number {
     // TODO: binary search when sparseArray is large
-    // Note that there may be duplicate timestamps.
+    // Note that there may be duplicate metas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
@@ -219,8 +219,8 @@ class MultipleSemidirectState<S extends object> {
             senderCounter: message.senderCounter,
             receiptCounter: message.receiptCounter,
             targetPath: message.targetPath,
-            timestamp: this.historyTimestamps
-              ? runtime.timestampSerializer.serialize(message.timestamp!)
+            meta: this.historyTimestamps
+              ? runtime.metaSerializer.serialize(message.meta!)
               : null,
             arbIndex: message.arbIndex,
             message: message.message,
@@ -249,10 +249,7 @@ class MultipleSemidirectState<S extends object> {
               message.receiptCounter,
               message.targetPath!,
               this.historyTimestamps
-                ? runtime.timestampSerializer.deserialize(
-                    message.timestamp!,
-                    runtime
-                  )
+                ? runtime.metaSerializer.deserialize(message.meta!, runtime)
                 : null,
               message.arbIndex,
               message.hasOwnProperty("message") ? message.message! : null
@@ -276,7 +273,7 @@ export abstract class MultipleSemidirectProduct<
    * TODO
    * @param historyTimestamps=false        [description]
    */
-  constructor(initToken: CrdtInitToken, historyTimestamps = false) {
+  constructor(initToken: InitToken, historyTimestamps = false) {
     super(initToken);
     // Types are hacked a bit here to make implementation simpler
     this.state = new MultipleSemidirectState(historyTimestamps);
@@ -297,11 +294,11 @@ export abstract class MultipleSemidirectProduct<
    */
   protected abstract action(
     m2TargetPath: string[],
-    m2Timestamp: CausalTimestamp | null,
+    m2Timestamp: MessageMeta | null,
     m2Message: Uint8Array,
     m2Index: number,
     m1TargetPath: string[],
-    m1Timestamp: CausalTimestamp | null,
+    m1Timestamp: MessageMeta | null,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null;
 
@@ -314,7 +311,7 @@ export abstract class MultipleSemidirectProduct<
    * (ascending).
    */
   protected setupOneCrdt<C extends StatefulCrdt<S>>(preCrdt: Pre<C>): C {
-    const crdt = preCrdt(new CrdtInitToken("crdt" + this.crdts.length, this));
+    const crdt = preCrdt(new InitToken("crdt" + this.crdts.length, this));
     // @ts-ignore Ignore readonly
     crdt.state = this.state.internalState;
     this.crdts.push(crdt);
@@ -326,7 +323,7 @@ export abstract class MultipleSemidirectProduct<
   // regardless ofwhether they are concurrent or not.
   protected receiveInternal(
     targetPath: string[],
-    timestamp: CausalTimestamp,
+    meta: MessageMeta,
     message: Uint8Array
   ) {
     if (targetPath.length === 0) {
@@ -345,7 +342,7 @@ export abstract class MultipleSemidirectProduct<
       // arbitration index (idx).
       let concurrent = this.state.getConcurrent(
         this.runtime.replicaId,
-        timestamp,
+        meta,
         idx
       );
 
@@ -357,11 +354,11 @@ export abstract class MultipleSemidirectProduct<
         if (concurrent[i].message !== null) {
           let mActOrNull = this.action(
             concurrent[i].targetPath,
-            concurrent[i].timestamp,
+            concurrent[i].meta,
             concurrent[i].message!,
             concurrent[i].arbIndex,
             mAct.m1TargetPath,
-            timestamp,
+            meta,
             mAct.m1Message
           );
 
@@ -376,11 +373,11 @@ export abstract class MultipleSemidirectProduct<
         if (msg.message !== null) {
           let acted = this.action(
             mAct.m1TargetPath,
-            timestamp,
+            meta,
             mAct.m1Message,
             idx,
             msg.targetPath,
-            msg.timestamp,
+            msg.meta,
             msg.message
           );
 
@@ -393,12 +390,12 @@ export abstract class MultipleSemidirectProduct<
       this.state.add(
         this.runtime.replicaId,
         targetPath.slice(),
-        timestamp,
+        meta,
         mAct.m1Message,
         idx
       );
 
-      crdt.receive(mAct.m1TargetPath, timestamp, mAct.m1Message);
+      crdt.receive(mAct.m1TargetPath, meta, mAct.m1Message);
     } else {
       throw new Error(
         "Unknown SemidirectProduct child: " +

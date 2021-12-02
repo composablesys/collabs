@@ -1,9 +1,5 @@
-import { CrdtInitToken, ElementSerializer } from "../../core";
-import {
-  DefaultElementSerializer,
-  Optional,
-  SingletonSerializer,
-} from "../../util";
+import { InitToken, Serializer } from "../../core";
+import { DefaultSerializer, Optional, SingletonSerializer } from "../../util";
 import {
   AggregateArgsCRegister,
   AggregateCRegister,
@@ -16,9 +12,11 @@ export class LwwCRegister<T> extends AggregateCRegister<T> {
    * OptionalLwwCRegister<T>.
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly initialValue: T,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, valueSerializer);
   }
@@ -42,7 +40,7 @@ export class LwwCRegister<T> extends AggregateCRegister<T> {
     if (conflictsMeta.length === 0) {
       throw new Error("conflictsMeta is empty");
     }
-    // Return the value with the largest timestamp.
+    // Return the value with the largest meta.
     // Ties broken arbitrarily (last in iteration order).
     let bestValue: T;
     let bestTime = Number.NEGATIVE_INFINITY;
@@ -63,9 +61,11 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
    * OptionalFwwCRegister<T>.
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly initialValue: T,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, valueSerializer);
   }
@@ -89,7 +89,7 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
     if (conflictsMeta.length === 0) {
       throw new Error("conflictsMeta is empty");
     }
-    // Return the value with the smallest timestamp.
+    // Return the value with the smallest meta.
     // Ties broken arbitrarily (first in iteration order).
     let bestValue: T;
     let bestTime = Number.POSITIVE_INFINITY;
@@ -116,8 +116,10 @@ export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
   T
 > {
   constructor(
-    initToken: CrdtInitToken,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
   }
@@ -140,8 +142,10 @@ export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
   T
 > {
   constructor(
-    initToken: CrdtInitToken,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
   }

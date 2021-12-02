@@ -27,7 +27,7 @@ export abstract class CPrimitive<
    * Receives messages sent by send
    * on replicas of this crdt (including those sent
    * locally).
-   * @param  timestamp  [description]
+   * @param  meta  [description]
    * @param  message    [description]
    */
   protected abstract receivePrimitive(

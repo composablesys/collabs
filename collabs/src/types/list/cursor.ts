@@ -3,8 +3,8 @@ import { CObject } from "../../constructions";
 import {
   CrdtEvent,
   CrdtEventsRecord,
-  CrdtInitToken,
-  ElementSerializer,
+  InitToken,
+  Serializer,
   Pre,
 } from "../../core";
 import { Optional, OptionalSerializer } from "../../util";
@@ -42,7 +42,7 @@ export interface LocatableCList<
    */
   locate(location: L): [index: number, isPresent: boolean];
 
-  readonly locationSerializer: ElementSerializer<L>;
+  readonly locationSerializer: Serializer<L>;
 }
 
 class CursorCommon<L> {
@@ -115,7 +115,7 @@ export class CCursor
   private readonly loc: LwwCRegister<Optional<any>>;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     list: LocatableCList<any, any, any, any>,
     startIndex: number,
     binding: "left" | "right" = "left"

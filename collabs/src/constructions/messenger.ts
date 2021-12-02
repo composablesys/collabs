@@ -1,12 +1,12 @@
 import {
-  CausalTimestamp,
+  MessageMeta,
   CrdtEvent,
   CrdtEventMeta,
   CrdtEventsRecord,
-  CrdtInitToken,
-  ElementSerializer,
+  InitToken,
+  Serializer,
 } from "../core";
-import { DefaultElementSerializer } from "../util";
+import { DefaultSerializer } from "../util";
 import { CPrimitive } from "./primitive";
 
 export interface CMessengerEvent<M> extends CrdtEvent {
@@ -29,8 +29,10 @@ export interface CMessengerEventsRecord<M> extends CrdtEventsRecord {
  */
 export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
   constructor(
-    initToken: CrdtInitToken,
-    private readonly messageSerializer: ElementSerializer<M> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    private readonly messageSerializer: Serializer<M> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
   }
@@ -40,14 +42,11 @@ export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
     super.send(encoded);
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
     const decoded = this.messageSerializer.deserialize(message, this.runtime);
     this.emit("Message", {
       message: decoded,
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta: CrdtEventMeta.fromTimestamp(meta),
     });
   }
 

@@ -1,4 +1,4 @@
-import { CausalTimestamp, ElementSerializer } from "../../core";
+import { MessageMeta, Serializer } from "../../core";
 
 /**
  * Ops can assume causal order.
@@ -8,7 +8,7 @@ import { CausalTimestamp, ElementSerializer } from "../../core";
  * Methods should throw errors on out-of-bounds
  * index accesses.
  */
-export interface DenseLocalList<L, T> extends ElementSerializer<L> {
+export interface DenseLocalList<L, T> extends Serializer<L> {
   /**
    * Return a message describing count new locs, inserted
    * starting at index, without the modifying the list's
@@ -29,7 +29,7 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
   /**
    * Receive a message from prepareNewLocs, inserting the locs
    * specified in the call to prepareNewLocs with the given
-   * values.  timestamp is provided so you can use it
+   * values.  meta is provided so you can use it
    * to assign metadata (e.g., sender, senderCounter)
    * without needing to duplicate it in message (although
    * note that senderCounter cannot be used to guarantee
@@ -38,13 +38,13 @@ export interface DenseLocalList<L, T> extends ElementSerializer<L> {
    * without any intervening operations.
    *
    * @param  message   [description]
-   * @param  timestamp [description]
+   * @param  meta [description]
    * @param  values    [description]
    * @return           the index of the first value
    */
   receiveNewLocs(
     message: Uint8Array,
-    timestamp: CausalTimestamp,
+    meta: MessageMeta,
     values: ArrayLike<T>
   ): [index: number, locs: L[]];
 

@@ -1,9 +1,9 @@
-import { DefaultElementSerializer } from "../../util";
+import { DefaultSerializer } from "../../util";
 import { CBoolean, TrueWinsCBoolean } from "../boolean";
 import { Resettable } from "../../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
 import { AbstractCSetCObject } from "./abstract_set";
-import { CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { InitToken, Serializer, Pre } from "../../core";
 
 export class CSetFromBoolean<
   T,
@@ -20,11 +20,13 @@ export class CSetFromBoolean<
    * to start containing some elements but not others).
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     protected readonly booleanConstructor: (
-      booleanInitToken: CrdtInitToken
+      booleanInitToken: InitToken
     ) => BoolT,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
     // TODO: with the usual class-based addChild, TypeScript's
@@ -43,15 +45,17 @@ export class CSetFromBoolean<
   }
 
   static new<T, BoolT extends CBoolean>(
-    booleanConstructor: (booleanInitToken: CrdtInitToken) => BoolT,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    booleanConstructor: (booleanInitToken: InitToken) => BoolT,
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ): Pre<CSetFromBoolean<T, BoolT>> {
     return (initToken) =>
       new CSetFromBoolean(initToken, booleanConstructor, valueSerializer);
   }
 
   private internalBooleanConstructor(
-    booleanInitToken: CrdtInitToken,
+    booleanInitToken: InitToken,
     key: T
   ): BoolT {
     const bool = this.booleanConstructor(booleanInitToken);
@@ -110,8 +114,10 @@ export class AddWinsCSet<T>
   implements Resettable
 {
   constructor(
-    initToken: CrdtInitToken,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(
       initToken,

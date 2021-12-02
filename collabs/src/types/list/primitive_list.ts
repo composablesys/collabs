@@ -6,13 +6,8 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
-import { DefaultElementSerializer } from "../../util";
-import {
-  CausalTimestamp,
-  CrdtEventMeta,
-  CrdtInitToken,
-  ElementSerializer,
-} from "../../core";
+import { DefaultSerializer } from "../../util";
+import { MessageMeta, CrdtEventMeta, InitToken, Serializer } from "../../core";
 import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { Resettable } from "../../abilities";
@@ -37,7 +32,7 @@ export class PrimitiveCListFromDenseLocalList<
   // save size by 200-300KB, save & load time, and
   // need for causality, at the expense of larger
   // deleteRange messages (since we are not piggy-backing
-  // on the CausalTimestamp), especially in bulk messages.
+  // on the MessageMeta), especially in bulk messages.
   // TODO: try putting this in the values instead of its
   // own map.
   /**
@@ -54,11 +49,13 @@ export class PrimitiveCListFromDenseLocalList<
    * value instead.
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     protected readonly denseLocalList: DenseT,
-    protected readonly valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
+    protected readonly valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    ),
     protected readonly valueArraySerializer:
-      | ElementSerializer<T[]>
+      | Serializer<T[]>
       | undefined = undefined
   ) {
     super(initToken);
@@ -162,10 +159,7 @@ export class PrimitiveCListFromDenseLocalList<
     this.send(PrimitiveCListMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
     const decoded = PrimitiveCListMessage.decode(message);
     switch (decoded.op) {
       case "insert":
@@ -193,18 +187,18 @@ export class PrimitiveCListFromDenseLocalList<
         }
         const [index, locs] = this.denseLocalList.receiveNewLocs(
           insert.locMessage,
-          timestamp,
+          meta,
           values
         );
         // Store senderCounters.
         for (const loc of locs) {
-          this.senderCounters.set(loc, timestamp.getSenderCounter());
+          this.senderCounters.set(loc, meta.senderCounter);
         }
         // Event
         this.emit("Insert", {
           startIndex: index,
           count: values.length,
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta: CrdtEventMeta.fromTimestamp(meta),
         });
         break;
       case "delete": {
@@ -222,7 +216,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            meta: CrdtEventMeta.fromTimestamp(timestamp),
+            meta: CrdtEventMeta.fromTimestamp(meta),
           });
         } // Else already deleted
         break;
@@ -255,7 +249,7 @@ export class PrimitiveCListFromDenseLocalList<
             ) - 1
           : this.length - 1;
 
-        const vc = timestamp.asVectorClock();
+        const vc = meta.vectorClock!;
         const toDelete: L[] = [];
         for (let i = startIndex; i <= endIndex; i++) {
           const loc = this.denseLocalList.getLoc(i);
@@ -287,7 +281,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            meta: CrdtEventMeta.fromTimestamp(timestamp),
+            meta: CrdtEventMeta.fromTimestamp(meta),
           });
         }
         break;
@@ -309,7 +303,7 @@ export class PrimitiveCListFromDenseLocalList<
     return this.denseLocalList.locate(location);
   }
 
-  get locationSerializer(): ElementSerializer<L> {
+  get locationSerializer(): Serializer<L> {
     return this.denseLocalList;
   }
 
@@ -399,9 +393,11 @@ export class PrimitiveCList<T>
   implements Resettable
 {
   constructor(
-    initToken: CrdtInitToken,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance(),
-    valueArraySerializer: ElementSerializer<T[]> | undefined = undefined
+    initToken: InitToken,
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    ),
+    valueArraySerializer: Serializer<T[]> | undefined = undefined
   ) {
     super(
       initToken,

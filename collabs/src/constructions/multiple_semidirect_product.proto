@@ -3,7 +3,7 @@ message MultiSemidirectProductStoredMessage {
   required uint32 senderCounter = 2;
   required uint32 receiptCounter = 3;
   repeated string targetPath = 4;
-  optional bytes timestamp = 5;
+  optional bytes meta = 5;
   required uint32 arbIndex = 6;
   optional bytes message = 7;
 }

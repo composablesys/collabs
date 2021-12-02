@@ -15,7 +15,7 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
    */
   private currentVectorClock = new Map<string, number>();
   /**
-   * The current Lamport timestamp, i.e., the max timestamp
+   * The current Lamport meta, i.e., the max meta
    * sent or received so far.
    * Note the next message's senderCounter will be one greater.
    * @param  newInitToken("",this [description]

@@ -1,5 +1,5 @@
 import { Resettable } from "../../abilities";
-import { Crdt, CrdtInitToken, Pre } from "../../core";
+import { Crdt, InitToken, Pre } from "../../core";
 import { MergingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
@@ -15,8 +15,8 @@ export class ResettingMutCList<C extends Crdt & Resettable>
   implements Resettable
 {
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, loc: RgaLoc) => C
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, loc: RgaLoc) => C
   ) {
     const denseLocalList = new RgaDenseLocalList<undefined>(initToken.runtime);
     super(

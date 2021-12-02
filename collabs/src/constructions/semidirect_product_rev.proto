@@ -2,7 +2,7 @@ message SemidirectProductRevStoredMessage {
   required uint32 senderCounter = 1;
   required uint32 receiptCounter = 2;
   repeated string targetPath = 3;
-  optional bytes timestamp = 4;
+  optional bytes meta = 4;
   required bytes message = 5;
 }
 

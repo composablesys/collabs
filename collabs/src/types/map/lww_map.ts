@@ -1,8 +1,4 @@
-import {
-  byteArrayEquals,
-  DefaultElementSerializer,
-  Optional,
-} from "../../util";
+import { byteArrayEquals, DefaultSerializer, Optional } from "../../util";
 import { Resettable } from "../../abilities";
 import {
   CRegister,
@@ -12,7 +8,7 @@ import {
 import { AbstractCMapCObject } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { CMapEventsRecord } from "./interfaces";
-import { CrdtInitToken, ElementSerializer } from "../../core";
+import { InitToken, Serializer } from "../../core";
 
 export class CMapFromRegister<
     K,
@@ -31,12 +27,14 @@ export class CMapFromRegister<
    * value must be present right after a set() call.
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     protected readonly registerConstructor: (
-      registerInitToken: CrdtInitToken,
+      registerInitToken: InitToken,
       key: K
     ) => RegT,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
     // TODO: with the usual class-based addChild, TypeScript's
@@ -58,7 +56,7 @@ export class CMapFromRegister<
   }
 
   private internalRegisterConstructor(
-    registerInitToken: CrdtInitToken,
+    registerInitToken: InitToken,
     key: K
   ): RegT {
     const register = this.registerConstructor(registerInitToken, key);
@@ -134,9 +132,13 @@ export class LwwCMap<K, V> extends CMapFromRegister<
   OptionalLwwCRegister<V>
 > {
   constructor(
-    initToken: CrdtInitToken,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
-    private readonly valueSerializer: ElementSerializer<V> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    ),
+    private readonly valueSerializer: Serializer<V> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(
       initToken,

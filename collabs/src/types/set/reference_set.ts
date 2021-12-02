@@ -1,7 +1,7 @@
 import { Resettable } from "../../abilities";
-import { CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { InitToken, Serializer, Pre } from "../../core";
 import {
-  DefaultElementSerializer,
+  DefaultSerializer,
   StringAsArraySerializer,
   WeakValueMap,
 } from "../../util";
@@ -69,9 +69,11 @@ export class ReferenceCSet<T extends object, AddArgs extends any[]>
   > = new WeakMap();
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly valueConstructor: (...args: AddArgs) => T,
-    argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
+    argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
     this.argsById = this.addChild(

@@ -1,5 +1,5 @@
 import { CObject, CPrimitive } from "../../constructions";
-import { Crdt, CrdtInitToken } from "../../core";
+import { Crdt, InitToken } from "../../core";
 import { CList, CListEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCList<T, InsertArgs extends any[]>
@@ -492,7 +492,7 @@ export const AbstractCListCObject = MakeAbstractCList(CObject) as abstract new <
   Events extends CListEventsRecord<T> = CListEventsRecord<T>,
   C extends Crdt = Crdt
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCList<T, InsertArgs> & CObject<Events, C>;
 
 export const AbstractCListCPrimitive = MakeAbstractCList(
@@ -502,7 +502,7 @@ export const AbstractCListCPrimitive = MakeAbstractCList(
   InsertArgs extends any[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCList<T, InsertArgs> & CPrimitive<Events>;
 
 export const AbstractCListCrdt = MakeAbstractCList(Crdt) as abstract new <
@@ -510,5 +510,5 @@ export const AbstractCListCrdt = MakeAbstractCList(Crdt) as abstract new <
   InsertArgs extends any[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCList<T, InsertArgs> & Crdt<Events>;

@@ -1,12 +1,6 @@
 import { Resettable } from "../../abilities";
-import {
-  Crdt,
-  CrdtInitToken,
-  Pre,
-  isRuntime,
-  ElementSerializer,
-} from "../../core";
-import { ConstructorAsFunction, DefaultElementSerializer } from "../../util";
+import { Crdt, InitToken, Pre, isRuntime, Serializer } from "../../core";
+import { ConstructorAsFunction, DefaultSerializer } from "../../util";
 import { LwwCRegister } from "../register";
 import { DeletingMutCSet } from "../set";
 import {
@@ -30,10 +24,12 @@ export class DeletingMutCList<C extends Crdt, InsertArgs extends any[]>
   implements Resettable
 {
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
-    argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
+    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(
       initToken,

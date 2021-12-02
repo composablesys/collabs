@@ -1,5 +1,5 @@
-import { CrdtSerializer, DefaultElementSerializer } from "../../util";
-import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { CrdtSerializer, DefaultSerializer } from "../../util";
+import { Crdt, InitToken, Serializer, Pre } from "../../core";
 import { AbstractCSetCObject } from "./abstract_set";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
@@ -22,9 +22,11 @@ export class TombstoneMutCSet<
    * @param valueConstructor [description]
    */
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
-    argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
+    argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
 

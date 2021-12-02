@@ -1,10 +1,10 @@
 import {
   CrdtSerializer,
-  DefaultElementSerializer,
+  DefaultSerializer,
   Optional,
   PairSerializer,
 } from "../../util";
-import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { Crdt, InitToken, Serializer, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCObject } from "./abstract_map";
@@ -27,14 +27,18 @@ export class TombstoneMutCMap<
   private readonly keyByValue: WeakMap<C, K> = new WeakMap();
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     valueConstructor: (
-      valueInitToken: CrdtInitToken,
+      valueInitToken: InitToken,
       key: K,
       ...args: SetArgs
     ) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
-    argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    ),
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
 

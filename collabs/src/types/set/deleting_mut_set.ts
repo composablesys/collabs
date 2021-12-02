@@ -88,7 +88,7 @@ class FakeDeletedCrdt extends Crdt {
  */
 export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
   extends AbstractCSetCrdt<C, AddArgs>
-  implements ParentCrdt, Resettable 
+  implements ParentCrdt, Resettable
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls

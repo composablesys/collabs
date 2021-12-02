@@ -2,11 +2,11 @@ import { CNumberComponentMessage } from "../../../generated/proto_compiled";
 import { CObject, CPrimitive, StatefulCrdt } from "../../constructions";
 import { MultipleSemidirectProduct } from "../../constructions/multiple_semidirect_product";
 import {
-  CausalTimestamp,
+  MessageMeta,
   CrdtEvent,
   CrdtEventMeta,
   CrdtEventsRecord,
-  CrdtInitToken,
+  InitToken,
   Pre,
 } from "../../core";
 import { ToggleCBoolean } from "../boolean";
@@ -39,7 +39,7 @@ export class AddComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: CrdtInitToken, initialState: CNumberState) {
+  constructor(initToken: InitToken, initialState: CNumberState) {
     super(initToken);
     this.state = initialState;
   }
@@ -52,12 +52,12 @@ export class AddComponent
     }
   }
 
-  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta: CrdtEventMeta.fromTimestamp(meta),
       arg: decoded.arg,
       previousValue,
     });
@@ -85,7 +85,7 @@ export class MultComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: CrdtInitToken, initialState: CNumberState) {
+  constructor(initToken: InitToken, initialState: CNumberState) {
     super(initToken);
     this.state = initialState;
   }
@@ -98,12 +98,12 @@ export class MultComponent
     }
   }
 
-  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta: CrdtEventMeta.fromTimestamp(meta),
       arg: decoded.arg,
       previousValue,
     });
@@ -131,7 +131,7 @@ export class MinComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: CrdtInitToken, initialState: CNumberState) {
+  constructor(initToken: InitToken, initialState: CNumberState) {
     super(initToken);
     this.state = initialState;
   }
@@ -142,12 +142,12 @@ export class MinComponent
     super.send(buffer);
   }
 
-  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
     this.emit("Min", {
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta: CrdtEventMeta.fromTimestamp(meta),
       arg: decoded.arg,
       previousValue,
     });
@@ -175,7 +175,7 @@ export class MaxComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: CrdtInitToken, initialState: CNumberState) {
+  constructor(initToken: InitToken, initialState: CNumberState) {
     super(initToken);
     this.state = initialState;
   }
@@ -186,12 +186,12 @@ export class MaxComponent
     super.send(buffer);
   }
 
-  protected receivePrimitive(timestamp: CausalTimestamp, message: Uint8Array) {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);
     this.emit("Max", {
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta: CrdtEventMeta.fromTimestamp(meta),
       arg: decoded.arg,
       previousValue,
     });
@@ -222,7 +222,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   maxCrdt: MaxComponent;
   addCrdt: AddComponent;
   multCrdt: MultComponent;
-  constructor(initToken: CrdtInitToken, initialValue: number) {
+  constructor(initToken: InitToken, initialValue: number) {
     super(initToken);
 
     const state = new CNumberState(initialValue);
@@ -242,11 +242,11 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 
   protected action(
     _m2TargetPath: string[],
-    _m2Timestamp: CausalTimestamp | null,
+    _m2Timestamp: MessageMeta | null,
     m2Message: Uint8Array,
     m2Index: number,
     _m1TargetPath: string[],
-    _m1Timestamp: CausalTimestamp | null,
+    _m1Timestamp: MessageMeta | null,
     m1Message: Uint8Array
   ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
     let m2Decoded = CNumberComponentMessage.decode(m2Message);
@@ -300,7 +300,7 @@ export class CNumber extends CObject<CNumberEventsRecord> {
    */
   private negated: ToggleCBoolean;
 
-  constructor(initToken: CrdtInitToken, initialValue: number = 0) {
+  constructor(initToken: InitToken, initialValue: number = 0) {
     super(initToken);
 
     this.base = this.addChild("", Pre(CNumberBase)(initialValue));

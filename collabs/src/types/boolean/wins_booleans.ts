@@ -1,7 +1,7 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
 import { CObject, CPrimitive } from "../../constructions";
-import { CausalTimestamp, CrdtEventMeta, CrdtInitToken, Pre } from "../../core";
+import { MessageMeta, CrdtEventMeta, InitToken, Pre } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 
@@ -30,14 +30,11 @@ export class TrueWinsCBoolean
     return this.entries.length !== 0;
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
     const previousValue = this.value;
 
     const newEntries: WinsCBooleanEntry[] = [];
-    let vc = timestamp.asVectorClock();
+    let vc = meta.vectorClock!;
     for (const entry of this.entries) {
       let vcEntry = vc.get(entry.sender);
       if (vcEntry === undefined || vcEntry < entry.senderCounter) {
@@ -48,8 +45,8 @@ export class TrueWinsCBoolean
     if (message.length === 0) {
       // It's setting to true, add a new entry.
       newEntries.push({
-        sender: timestamp.getSender(),
-        senderCounter: timestamp.getSenderCounter(),
+        sender: meta.sender,
+        senderCounter: meta.senderCounter,
       });
     }
 
@@ -59,7 +56,7 @@ export class TrueWinsCBoolean
     if (this.value !== previousValue) {
       this.emit("Set", {
         previousValue,
-        meta: CrdtEventMeta.fromTimestamp(timestamp),
+        meta: CrdtEventMeta.fromTimestamp(meta),
       });
     }
   }
@@ -98,7 +95,7 @@ export class FalseWinsCBoolean
 {
   private readonly negated: TrueWinsCBoolean;
 
-  constructor(initToken: CrdtInitToken) {
+  constructor(initToken: InitToken) {
     super(initToken);
     this.negated = this.addChild("", Pre(TrueWinsCBoolean)());
 

@@ -1,4 +1,4 @@
-import { CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { InitToken, Serializer, Pre } from "../../core";
 import { CMap } from "../map";
 import { AbstractCListCObject } from "./abstract_list";
 import { LocatableCList } from "./cursor";
@@ -17,7 +17,7 @@ export class CListFromMap<
   protected readonly internalMap: MapT;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     map: Pre<MapT>,
     protected readonly denseLocalList: DenseT
   ) {
@@ -87,7 +87,7 @@ export class CListFromMap<
     return this.denseLocalList.locate(location);
   }
 
-  get locationSerializer(): ElementSerializer<L> {
+  get locationSerializer(): Serializer<L> {
     return this.denseLocalList;
   }
 

@@ -6,7 +6,7 @@ import {
   RgaLocMessage,
 } from "../../../generated/proto_compiled";
 import { createRBTree, fillRBTree, RBTree, WeakValueMap } from "../../util";
-import { CausalTimestamp, Runtime } from "../../core";
+import { MessageMeta, Runtime } from "../../core";
 import { DenseLocalList } from "./dense_local_list";
 
 // TODO: helper that uses an RBTree and implements everything
@@ -264,7 +264,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   receiveNewLocs(
     message: Uint8Array,
-    timestamp: CausalTimestamp,
+    meta: MessageMeta,
     values: ArrayLike<T>
   ): [index: number, locs: RgaLoc[]] {
     const decoded = RgaDenseLocalListPrepareMessage.decode(message);
@@ -276,7 +276,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       : undefined;
     const locs = this.expandNewLocArgs(
       parent,
-      timestamp.getSender(),
+      meta.sender,
       decoded.uniqueNumberStart,
       values.length,
       true

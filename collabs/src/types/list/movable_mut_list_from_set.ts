@@ -1,11 +1,5 @@
-import { DefaultElementSerializer, PairSerializer } from "../../util";
-import {
-  Crdt,
-  CrdtInitToken,
-  ElementSerializer,
-  isRuntime,
-  Pre,
-} from "../../core";
+import { DefaultSerializer, PairSerializer } from "../../util";
+import { Crdt, InitToken, Serializer, isRuntime, Pre } from "../../core";
 import { CRegister } from "../register";
 import { CSet } from "../set";
 import { AbstractCListCObject } from "./abstract_list";
@@ -22,7 +16,7 @@ export class MovableMutCListEntry<
   readonly value: C;
   readonly loc: R;
 
-  constructor(initToken: CrdtInitToken, value: Pre<C>, loc: Pre<R>) {
+  constructor(initToken: InitToken, value: Pre<C>, loc: Pre<R>) {
     super(initToken);
     this.value = this.addChild("", value);
     this.loc = this.addChild("0", loc);
@@ -65,24 +59,26 @@ export class MovableMutCListFromSet<
    * make sense anyway).
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     setCallback: (
       setValueConstructor: (
-        setValueInitToken: CrdtInitToken,
+        setValueInitToken: InitToken,
         ...setValueArgs: [L, InsertArgs]
       ) => MovableMutCListEntry<C, L, RegT>,
       setInitialValuesArgs: [L, InsertArgs][],
-      setArgsSerializer: ElementSerializer<[L, InsertArgs]>
+      setArgsSerializer: Serializer<[L, InsertArgs]>
     ) => Pre<SetT>,
     registerConstructor: (
-      registerInitToken: CrdtInitToken,
+      registerInitToken: InitToken,
       initialValue: L,
-      registerSerializer: ElementSerializer<L>
+      registerSerializer: Serializer<L>
     ) => RegT,
     protected readonly denseLocalList: DenseT,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
+    valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
-    argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
+    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
 
@@ -237,7 +233,7 @@ export class MovableMutCListFromSet<
     return this.denseLocalList.getLoc(index);
   }
 
-  get locationSerializer(): ElementSerializer<L> {
+  get locationSerializer(): Serializer<L> {
     return this.denseLocalList;
   }
 

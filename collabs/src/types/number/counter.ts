@@ -7,11 +7,11 @@ import {
 import { Resettable } from "../../abilities";
 import { CObject, CPrimitive } from "../../constructions";
 import {
-  CausalTimestamp,
+  MessageMeta,
   CrdtEvent,
   CrdtEventMeta,
   CrdtEventsRecord,
-  CrdtInitToken,
+  InitToken,
   Pre,
 } from "../../core";
 
@@ -99,17 +99,14 @@ export class GrowOnlyCCounter
     super.send(GrowOnlyCCounterMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
     let decoded = GrowOnlyCCounterMessage.decode(message);
     const previousValue = this.value;
     switch (decoded.data) {
       case "add":
-        const m = this.M.get(timestamp.getSender());
+        const m = this.M.get(meta.sender);
         if (m === undefined) {
-          this.M.set(timestamp.getSender(), [
+          this.M.set(meta.sender, [
             (int64AsNumber(decoded.add!.prOld) +
               int64AsNumber(decoded.add!.toAdd)) %
               GrowOnlyCCounter.MODULUS,
@@ -128,7 +125,7 @@ export class GrowOnlyCCounter
           GrowOnlyCCounter.MODULUS;
         this.emit("Add", {
           arg: int64AsNumber(decoded.add!.toAdd),
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta: CrdtEventMeta.fromTimestamp(meta),
           previousValue,
         });
         break;
@@ -150,7 +147,7 @@ export class GrowOnlyCCounter
 
         this.emit("Reset", {
           arg: this.value - previousValue,
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta: CrdtEventMeta.fromTimestamp(meta),
           previousValue,
         });
         break;
@@ -239,7 +236,7 @@ export class CCounter
 
   private plusResetEvent?: CCounterEvent = undefined;
 
-  constructor(initToken: CrdtInitToken) {
+  constructor(initToken: InitToken) {
     super(initToken);
     this.plus = this.addChild("", Pre(GrowOnlyCCounter)());
     this.minus = this.addChild("0", Pre(GrowOnlyCCounter)());

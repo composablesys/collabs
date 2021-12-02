@@ -1,10 +1,10 @@
 // import { CMountPointSave } from "../../generated/proto_compiled";
 // import {
-//   CausalTimestamp,
+//   MessageMeta,
 //   Crdt,
 //   CrdtEventMeta,
 //   CrdtEventsRecord,
-//   CrdtInitToken,
+//   InitToken,
 //   Pre,
 // } from "../core";
 //
@@ -13,7 +13,7 @@
 //    * Emitted at the end of a call to mount().
 //    *
 //    * Note this is not a CrdtEvent and has no associated
-//    * timestamp, since calls to mount are local, not associated
+//    * meta, since calls to mount are local, not associated
 //    * with a message.
 //    */
 //   Mount: {};
@@ -21,7 +21,7 @@
 //    * Emitted at the end of a call to unmount().
 //    *
 //    * Note this is not a CrdtEvent and has no associated
-//    * timestamp, since calls to unmount are local, not associated
+//    * meta, since calls to unmount are local, not associated
 //    * with a message.
 //    */
 //   Unmount: {};
@@ -79,7 +79,7 @@
 //    */
 //   private messageQueue: [
 //     targetPath: string[],
-//     timestamp: CausalTimestamp,
+//     meta: MessageMeta,
 //     message: Uint8Array
 //   ][] = [];
 //   private needsDelayedLoad = false;
@@ -90,8 +90,8 @@
 //    * Note that if there are queued messages, they will
 //    * now be delivered, with some unusual behaviors:
 //    * - wrappedCrdt and its descendants will dispatch
-//    * all of their events with the original (queued) timestamps,
-//    * which may be causally prior to timestamps that have
+//    * all of their events with the original (queued) metas,
+//    * which may be causally prior to metas that have
 //    * appeared in events for other Crdts.
 //    * - this Crdt and its ancestors will not dispatch Message
 //    * events for the queued messages; they were already dispatched when the messages
@@ -104,12 +104,12 @@
 //    *
 //    * @throw if this.isMounted
 //    */
-//   mount(wrappedCrdtConstructor: (initToken: CrdtInitToken) => C): void {
+//   mount(wrappedCrdtConstructor: (initToken: InitToken) => C): void {
 //     // We could pass wrappedCrdtConstructor in our constructor
 //     // instead of here, but this way is easier in case you don't
 //     // know what you're going to be constructing until mount
 //     // time (e.g. old container demo).
-//     this.wrappedCrdt = wrappedCrdtConstructor(new CrdtInitToken("", this));
+//     this.wrappedCrdt = wrappedCrdtConstructor(new InitToken("", this));
 //
 //     if (this.needsDelayedLoad) {
 //       this.runtime.delayedLoadDescendants(this);
@@ -119,7 +119,7 @@
 //     }
 //     this.processMessageQueue();
 //
-//     // TODO: event.  Doesn't work while timestamp is required.
+//     // TODO: event.  Doesn't work while meta is required.
 //     // this.emit("Mount", { meta: CrdtEventMeta.local(this.runtime) });
 //   }
 //
@@ -148,7 +148,7 @@
 //     this.wrappedCrdt = undefined;
 //     this.messageQueue = [];
 //
-//     // TODO: event.  Doesn't work while timestamp is required.
+//     // TODO: event.  Doesn't work while meta is required.
 //     // this.emit("Unmount", { meta: CrdtEventMeta.local(this.runtime) });
 //   }
 //
@@ -162,7 +162,7 @@
 //
 //   protected receiveInternal(
 //     targetPath: string[],
-//     timestamp: CausalTimestamp,
+//     meta: MessageMeta,
 //     message: Uint8Array
 //   ): void {
 //     if (targetPath.length === 0) {
@@ -181,9 +181,9 @@
 //
 //     targetPath.length--;
 //     if (this.wrappedCrdt !== undefined) {
-//       this.wrappedCrdt.receive(targetPath, timestamp, message);
+//       this.wrappedCrdt.receive(targetPath, meta, message);
 //     } else {
-//       this.messageQueue.push([targetPath, timestamp, message]);
+//       this.messageQueue.push([targetPath, meta, message]);
 //     }
 //   }
 //
@@ -219,10 +219,10 @@
 //   ] {
 //     const saveMessage = CMountPointSave.create({
 //       messageQueue: this.messageQueue.map(
-//         ([targetPath, timestamp, message]) => {
+//         ([targetPath, meta, message]) => {
 //           return {
 //             targetPath,
-//             timestamp: this.runtime.timestampSerializer.serialize(timestamp),
+//             meta: this.runtime.metaSerializer.serialize(meta),
 //             message,
 //           };
 //         }
@@ -244,8 +244,8 @@
 //     const save = CMountPointSave.decode(saveData);
 //     this.messageQueue = save.messageQueue.map((queuedMessage) => [
 //       queuedMessage.targetPath!,
-//       this.runtime.timestampSerializer.deserialize(
-//         queuedMessage.timestamp!,
+//       this.runtime.metaSerializer.deserialize(
+//         queuedMessage.meta!,
 //         this.runtime
 //       ),
 //       queuedMessage.message,
@@ -270,7 +270,7 @@
 //    * If the wrapped Crdt is mounted now but it wasn't when
 //    * saveData was generated, replays the saved queued
 //    * messages.  Note that this will cause the wrapped
-//    * Crdt to dispatch events with old (pre-save) timestamps,
+//    * Crdt to dispatch events with old (pre-save) metas,
 //    * contrary to most load/postLoad methods which do not
 //    * dispatch any events.  However this Crdt and its
 //    * ancestors will not dispatch Message

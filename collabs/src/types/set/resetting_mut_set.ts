@@ -2,24 +2,17 @@ import {
   IMutCSetFromMapKeyMessage,
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
-import { DefaultElementSerializer } from "../../util";
-import {
-  Crdt,
-  CrdtInitToken,
-  ElementSerializer,
-  Pre,
-  Runtime,
-} from "../../core";
+import { DefaultSerializer } from "../../util";
+import { Crdt, InitToken, Serializer, Pre, Runtime } from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCObject } from "./abstract_set";
 import { CSetEventsRecord } from "./interfaces";
 
 class MutCSetFromMapSerializer<AddArgs extends any[]>
-  implements
-    ElementSerializer<[sender: string, uniqueNumber: number, args: AddArgs]>
+  implements Serializer<[sender: string, uniqueNumber: number, args: AddArgs]>
 {
-  constructor(private readonly argsSerializer: ElementSerializer<AddArgs>) {}
+  constructor(private readonly argsSerializer: Serializer<AddArgs>) {}
 
   serialize(
     value: [sender: string, uniqueNumber: number, args: AddArgs]
@@ -84,18 +77,20 @@ export class MutCSetFromMap<
    * use an optimized marker that gets deserialized to [].
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     mapCallback: (
       mapValueConstructor: (
-        mapValueInitToken: CrdtInitToken,
+        mapValueInitToken: InitToken,
         key: [sender: string, uniqueNumber: number, args: AddArgs]
       ) => C,
-      keySerializer: ElementSerializer<
+      keySerializer: Serializer<
         [sender: string, uniqueNumber: number, args: AddArgs]
       >
     ) => Pre<MapT>,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
-    argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
+    valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
+    argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
     this.map = this.addChild(
@@ -167,9 +162,11 @@ export class ResettingMutCSet<
   implements Resettable
 {
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: AddArgs) => C,
-    argsSerializer: ElementSerializer<AddArgs> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
+    argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, Pre(MergingMutCMap), valueConstructor, argsSerializer);
   }

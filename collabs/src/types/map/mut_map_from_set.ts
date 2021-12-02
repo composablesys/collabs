@@ -1,9 +1,5 @@
-import {
-  CrdtSerializer,
-  DefaultElementSerializer,
-  PairSerializer,
-} from "../../util";
-import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { CrdtSerializer, DefaultSerializer, PairSerializer } from "../../util";
+import { Crdt, InitToken, Serializer, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { CSet } from "../set";
 import { AbstractCMapCObject } from "./abstract_map";
@@ -37,26 +33,30 @@ export class MutCMapFromSet<
   protected readonly map: MapT;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     setCallback: (
       setValueConstructor: (
-        setValueInitToken: CrdtInitToken,
+        setValueInitToken: InitToken,
         key: K,
         args: SetArgs
       ) => C,
-      setArgsSerializer: ElementSerializer<[K, SetArgs]>
+      setArgsSerializer: Serializer<[K, SetArgs]>
     ) => Pre<SetT>,
     mapCallback: (
-      mapKeySerializer: ElementSerializer<K>,
-      mapValueSerializer: ElementSerializer<C>
+      mapKeySerializer: Serializer<K>,
+      mapValueSerializer: Serializer<C>
     ) => Pre<MapT>,
     valueConstructor: (
-      valueInitToken: CrdtInitToken,
+      valueInitToken: InitToken,
       key: K,
       ...args: SetArgs
     ) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance(),
-    argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    ),
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
 

@@ -1,5 +1,5 @@
 import { CObject, CPrimitive } from "../../constructions";
-import { Crdt, CrdtInitToken } from "../../core";
+import { Crdt, InitToken } from "../../core";
 import { CMap, CMapEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
@@ -139,7 +139,7 @@ export const AbstractCMapCObject = MakeAbstractCMap(CObject) as abstract new <
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>,
   C extends Crdt = Crdt
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCMap<K, V, SetArgs> & CObject<Events, C>;
 
 export const AbstractCMapCPrimitive = MakeAbstractCMap(
@@ -150,7 +150,7 @@ export const AbstractCMapCPrimitive = MakeAbstractCMap(
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCMap<K, V, SetArgs> & CPrimitive<Events>;
 
 export const AbstractCMapCrdt = MakeAbstractCMap(Crdt) as abstract new <
@@ -159,5 +159,5 @@ export const AbstractCMapCrdt = MakeAbstractCMap(Crdt) as abstract new <
   SetArgs extends any[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCMap<K, V, SetArgs> & Crdt<Events>;

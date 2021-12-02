@@ -1,6 +1,6 @@
 message CMountPointQueuedMessage {
   repeated string targetPath = 1;
-  optional bytes timestamp = 2;
+  optional bytes meta = 2;
   required bytes message = 3;
 }
 

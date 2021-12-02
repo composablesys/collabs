@@ -1,5 +1,5 @@
-import { DefaultElementSerializer, Optional } from "../../util";
-import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
+import { DefaultSerializer, Optional } from "../../util";
+import { Crdt, InitToken, Serializer, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { AddWinsCSet } from "../set";
 import { AbstractCMapCObject } from "./abstract_map";
@@ -14,9 +14,11 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
   private cachedSize = 0;
 
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, key: K) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, key: K) => C,
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
 

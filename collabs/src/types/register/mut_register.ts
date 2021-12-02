@@ -1,7 +1,7 @@
 import { Resettable } from "../../abilities";
 import { CObject } from "../../constructions";
-import { Crdt, CrdtInitToken, ElementSerializer, Pre } from "../../core";
-import { DefaultElementSerializer, Optional, CrdtSerializer } from "../../util";
+import { Crdt, InitToken, Serializer, Pre } from "../../core";
+import { DefaultSerializer, Optional, CrdtSerializer } from "../../util";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";
@@ -28,10 +28,12 @@ export class MutCRegisterFromRegister<
    * @param registerCallback [description]
    */
   constructor(
-    initToken: CrdtInitToken,
-    registerCallback: (valueSerializer: ElementSerializer<C>) => Pre<RegT>,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: SetArgs) => C,
-    argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    registerCallback: (valueSerializer: Serializer<C>) => Pre<RegT>,
+    valueConstructor: (valueInitToken: InitToken, ...args: SetArgs) => C,
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
     this.crdtFactory = this.addChild(
@@ -89,9 +91,11 @@ export class LwwMutCRegister<C extends Crdt, SetArgs extends any[]>
   implements Resettable
 {
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: SetArgs) => C,
-    argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, ...args: SetArgs) => C,
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(
       initToken,

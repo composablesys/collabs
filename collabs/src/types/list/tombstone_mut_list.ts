@@ -1,11 +1,5 @@
-import { ConstructorAsFunction, DefaultElementSerializer } from "../../util";
-import {
-  Crdt,
-  CrdtInitToken,
-  Pre,
-  isRuntime,
-  ElementSerializer,
-} from "../../core";
+import { ConstructorAsFunction, DefaultSerializer } from "../../util";
+import { Crdt, InitToken, Pre, isRuntime, Serializer } from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
@@ -29,9 +23,11 @@ export class TombstoneMutCList<
   RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>>
 > {
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, ...args: InsertArgs) => C,
-    argsSerializer: ElementSerializer<InsertArgs> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
+    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     // TODO: initial values
     super(

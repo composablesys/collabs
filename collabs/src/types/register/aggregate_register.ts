@@ -3,13 +3,8 @@ import {
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
 import { CPrimitive } from "../../constructions";
-import {
-  CausalTimestamp,
-  CrdtEventMeta,
-  CrdtInitToken,
-  ElementSerializer,
-} from "../../core";
-import { DefaultElementSerializer, SingletonSerializer } from "../../util";
+import { MessageMeta, CrdtEventMeta, InitToken, Serializer } from "../../core";
+import { DefaultSerializer, SingletonSerializer } from "../../util";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";
 
 export interface CRegisterEntryMeta<S> {
@@ -52,9 +47,11 @@ export abstract class AggregateArgsCRegister<
   private cacheValid: boolean = false;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     readonly valueConstructor: (...args: SetArgs) => S,
-    readonly argsSerializer: ElementSerializer<SetArgs> = DefaultElementSerializer.getInstance()
+    readonly argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
   }
@@ -79,15 +76,12 @@ export abstract class AggregateArgsCRegister<
     }
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
+  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
     // Get previousValue now
     const previousValue = this.value;
 
     let decoded = AggregateArgsCRegisterMessage.decode(message);
-    let vc = timestamp.asVectorClock();
+    let vc = meta.vectorClock!;
     let newState = new Array<AggregateArgsCRegisterEntry<S>>();
     for (let entry of this.entries) {
       let vcEntry = vc.get(entry.sender);
@@ -100,9 +94,9 @@ export abstract class AggregateArgsCRegister<
         // Add the new entry
         const entry = new AggregateArgsCRegisterEntry(
           this.constructValue(decoded.setArgs),
-          timestamp.getSender(),
-          timestamp.getSenderCounter(),
-          timestamp.getTime(),
+          meta.sender,
+          meta.senderCounter,
+          meta.getTime(),
           decoded.setArgs
         );
         newState.push(entry);
@@ -120,7 +114,7 @@ export abstract class AggregateArgsCRegister<
     this.cachedValue = undefined;
 
     this.emit("Set", {
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta: CrdtEventMeta.fromTimestamp(meta),
       previousValue,
     });
   }
@@ -237,8 +231,10 @@ export abstract class AggregateCRegister<
   Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
 > extends AggregateArgsCRegister<T, [T], T, Events> {
   constructor(
-    initToken: CrdtInitToken,
-    valueSerializer: ElementSerializer<T> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
   }
