@@ -111,7 +111,9 @@ export class CObject<
       throw new Error("CObject received message for itself");
     }
 
-    let child = this.children.get(<string>messagePath[messagePath.length - 1]);
+    const child = this.children.get(
+      <string>messagePath[messagePath.length - 1]
+    );
     if (child === undefined) {
       throw new Error(
         "Unknown child: " +

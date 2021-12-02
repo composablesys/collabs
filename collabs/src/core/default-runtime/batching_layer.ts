@@ -1,4 +1,7 @@
-import { BatchingLayerMessage } from "../../../generated/proto_compiled";
+import {
+  BatchingLayerEdgeMessage,
+  BatchingLayerMessage,
+} from "../../../generated/proto_compiled";
 import { Crdt, CrdtEvent, CrdtEventsRecord, InitToken, Pre } from "../crdt";
 import { ParentCrdt } from "../crdt_parent";
 import { MessageMeta } from "../message_meta";
@@ -257,8 +260,10 @@ export class BatchingLayer
       // Reconstruct vertex's messagePath.
       const childMessagePath: (Uint8Array | string)[] = [];
       while (vertex !== 0) {
-        const edge = deserialized.edges[vertex - 1];
-        childMessagePath.push((edge.stringLabel || edge.bytesLabel)!);
+        const edge = <BatchingLayerEdgeMessage>deserialized.edges[vertex - 1];
+        childMessagePath.push(
+          edge.label === "stringLabel" ? edge.stringLabel : edge.bytesLabel
+        );
         vertex = edge.parent;
       }
       // Deliver messagePath.

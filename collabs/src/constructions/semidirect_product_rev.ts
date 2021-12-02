@@ -258,9 +258,7 @@ export class MessageHistory<Events extends CrdtEventsRecord> {
             senderCounter: message.senderCounter,
             receiptCounter: message.receiptCounter,
             targetPath: message.targetPath,
-            meta: this.historyTimestamps
-              ? runtime.metaSerializer.serialize(message.meta!)
-              : null,
+            // TODO: meta, if this.historyTimestamps.
             message: message.message,
           };
         }),
@@ -300,9 +298,10 @@ export class MessageHistory<Events extends CrdtEventsRecord> {
               message.senderCounter,
               message.receiptCounter,
               message.targetPath!,
-              this.historyTimestamps
-                ? runtime.metaSerializer.deserialize(message.meta!, runtime)
-                : null,
+              null,
+              // this.historyTimestamps
+              //   ? runtime.metaSerializer.deserialize(message.meta!, runtime)
+              //   : null,
               message.message
             )
         )
@@ -344,9 +343,7 @@ export abstract class SemidirectProductRev<
   private _m2?: (...args: m2Args) => m2Ret;
   private m1RetVal?: m1Ret;
   private m2RetVal?: m2Ret;
-  private messageValueSerializer: Serializer<
-    SemidirectMessage<m1Args, m2Args>
-  > = DefaultSerializer.getInstance(initToken.runtime);
+  private messageValueSerializer: Serializer<SemidirectMessage<m1Args, m2Args>>;
 
   constructor(
     initToken: InitToken,
@@ -355,6 +352,11 @@ export abstract class SemidirectProductRev<
     historyDiscard2Dominated: boolean = false
   ) {
     super(initToken);
+
+    this.messageValueSerializer = DefaultSerializer.getInstance(
+      initToken.runtime
+    );
+
     this.history = new MessageHistory(
       historyTimestamps,
       historyDiscard1Dominated,
@@ -368,18 +370,12 @@ export abstract class SemidirectProductRev<
     this._m2 = this.m2;
     this.m1 = (...args: m1Args) => {
       this.m1RetVal = undefined;
-      this.runtime.send(
-        this,
-        this.messageValueSerializer.serialize({ m: 1, args })
-      );
+      this.send([this.messageValueSerializer.serialize({ m: 1, args })]);
       return this.m1RetVal as m1Ret;
     };
     this.m2 = (...args: m2Args) => {
       this.m2RetVal = undefined;
-      this.runtime.send(
-        this,
-        this.messageValueSerializer.serialize({ m: 2, args })
-      );
+      this.send([this.messageValueSerializer.serialize({ m: 2, args })]);
       return this.m2RetVal as m2Ret;
     };
   }
@@ -415,16 +411,15 @@ export abstract class SemidirectProductRev<
   }
 
   protected receiveInternal(
-    targetPath: string[],
-    meta: MessageMeta,
-    message: Uint8Array
+    messagePath: (Uint8Array | string)[],
+    meta: MessageMeta
   ) {
     this.receivedMessages = this.receivedMessages || true;
-    if (targetPath.length === 0) {
-      const semidirectMessage = this.messageValueSerializer.deserialize(
-        message,
-        this.runtime
-      );
+    const message = messagePath[messagePath.length - 1];
+    if (typeof message !== "string") {
+      // Uint8Array, message for ourselves.
+      const semidirectMessage =
+        this.messageValueSerializer.deserialize(message);
       switch (true) {
         case semidirectMessage.m === 1:
           let concurrent = this.history.getConcurrent(
@@ -432,7 +427,7 @@ export abstract class SemidirectProductRev<
             meta
           );
           let mAct = {
-            m1TargetPath: targetPath,
+            m1TargetPath: <string[]>[], // TODO: not actually used/usable
             m1Message: semidirectMessage,
           };
           if (concurrent.length > 0) {
@@ -444,8 +439,7 @@ export abstract class SemidirectProductRev<
                 concurrent[i][1].targetPath,
                 concurrent[i][1].meta,
                 this.messageValueSerializer.deserialize(
-                  concurrent[i][1].message,
-                  this.runtime
+                  concurrent[i][1].message
                 ) as m2Start<m2Args>,
                 this.history
                   .getMessageEvents(
@@ -468,7 +462,7 @@ export abstract class SemidirectProductRev<
         case semidirectMessage.m === 2:
           this.m2Id = this.history.add(
             this.runtime.replicaId,
-            targetPath.slice(),
+            [], // TODO: not actually used/usable
             meta,
             message
           );
@@ -483,19 +477,19 @@ export abstract class SemidirectProductRev<
       }
     }
 
-    let child = this.children.get(targetPath[targetPath.length - 1]);
+    let child = this.children.get(message);
     if (child === undefined) {
       throw new Error(
         "Unknown child: " +
-          targetPath[targetPath.length - 1] +
+          message +
           " in: " +
-          JSON.stringify(targetPath) +
+          JSON.stringify(messagePath) +
           ", children: " +
           JSON.stringify([...this.children.keys()])
       );
     }
-    targetPath.length--;
-    child.receive(targetPath, meta, message);
+    messagePath.length--;
+    child.receive(messagePath, meta);
   }
 
   canGc(): boolean {

@@ -7,12 +7,12 @@ message SemidirectProductRevStoredMessage {
 }
 
 message SemidirectProductRevSenderHistory {
-  repeated SemidirectProductStoredMessage messages = 1;
+  repeated SemidirectProductRevStoredMessage messages = 1;
 }
 
 message SemidirectProductRevSave {
   required uint32 receiptCounter = 1;
-  map<string, SemidirectProductSenderHistory> history = 2;
+  map<string, SemidirectProductRevSenderHistory> history = 2;
   map<string, string> messageEvents = 3;
   required bytes subclassSave = 4;
 }
