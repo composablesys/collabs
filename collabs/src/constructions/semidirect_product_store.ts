@@ -2,8 +2,8 @@ import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
 } from "../../generated/proto_compiled";
-import { CausalTimestamp, CrdtInitToken, ElementSerializer } from "../core";
-import { DefaultElementSerializer } from "../util";
+import { InitToken, Serializer } from "../core";
+import { DefaultSerializer } from "../util";
 import { CObject } from "./object";
 
 class StoredMessage<M2> {
@@ -58,9 +58,11 @@ export class SemidirectProductStore<M1, M2> extends CObject {
   private history: Map<string, StoredMessage<M2>[]> = new Map();
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly action: (m2: M2, m1: M1) => M1 | null,
-    private readonly m2Serializer: ElementSerializer<M2> = DefaultElementSerializer.getInstance(),
+    private readonly m2Serializer: Serializer<M2> = DefaultSerializer.getInstance(
+      initToken.runtime
+    ),
     private readonly discardM1Dominated = false,
     private readonly discardM2Dominated = false
   ) {

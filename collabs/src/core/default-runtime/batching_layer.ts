@@ -281,11 +281,11 @@ export class BatchingLayer
     this.emit("Change", { meta });
   }
 
-  load(saveData: Uint8Array | null): Promise<void> {
+  save(): Uint8Array {
     throw new Error("Method not implemented.");
   }
 
-  save(): Promise<Uint8Array> {
+  load(saveData: Uint8Array | null): void {
     throw new Error("Method not implemented.");
   }
 

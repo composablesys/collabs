@@ -9,7 +9,7 @@ export * from "./types";
 export {
   ConstructorAsFunction,
   DisconnectableNetwork,
-  DefaultElementSerializer,
+  DefaultSerializer,
   CrdtSerializer,
   OptionalSerializer,
   PairSerializer,

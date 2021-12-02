@@ -31,18 +31,18 @@ export class App extends EventEmitter<CrdtEventsRecord> {
     return this.runtime.registerCrdt(name, preCrdt);
   }
 
-  load(saveData: Uint8Array | null): Promise<void> {
-    return this.runtime.load(saveData);
-  }
-
   // TODO: flush? Or make part of saving?
   // (Right before signing out, want to force-send any
   // queued messages in a batch.)
 
   // TODO: need to block interaction during this?
   // (Runtime queue received messages; need to block user input)
-  save(): Promise<Uint8Array> {
+  save(): Uint8Array {
     return this.runtime.save();
+  }
+
+  load(saveData: Uint8Array | null): void {
+    this.runtime.load(saveData);
   }
 
   // TODO: on change/message/receive; other events?

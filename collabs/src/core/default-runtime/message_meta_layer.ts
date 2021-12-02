@@ -146,11 +146,11 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
     this.pendingMetaSerialized = null;
   }
 
-  load(saveData: Uint8Array | null): Promise<void> {
+  save(): Uint8Array {
     throw new Error("Method not implemented.");
   }
 
-  save(): Promise<Uint8Array> {
+  load(saveData: Uint8Array | null): void {
     throw new Error("Method not implemented.");
   }
 

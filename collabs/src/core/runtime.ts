@@ -42,7 +42,7 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
    * associated with this Runtime's [[replicaId]]
    * once.
    */
-  getReplicaUniqueNumber(count: number | undefined): number;
+  getReplicaUniqueNumber(count?: number): number;
   /**
    * @return A unique string that will only appear once
    * across all replicas.
@@ -71,8 +71,8 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
   // Implementations of user-facing methods from CollabsApp.
 
   registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C;
-  load(saveData: Uint8Array | null): Promise<void>;
-  save(): Promise<Uint8Array>;
+  save(): Uint8Array;
+  load(saveData: Uint8Array | null): void;
 }
 
 export function isRuntime(x: any): x is Runtime {

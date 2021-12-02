@@ -1,5 +1,5 @@
 import { CObject, CPrimitive } from "../../constructions";
-import { Crdt, CrdtInitToken } from "../../core";
+import { Crdt, InitToken } from "../../core";
 import { CSet, CSetEventsRecord } from "./interfaces";
 
 export declare abstract class AbstractCSet<T, AddArgs extends any[]>
@@ -103,7 +103,7 @@ export const AbstractCSetCObject = MakeAbstractCSet(CObject) as abstract new <
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
   C extends Crdt = Crdt
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCSet<T, AddArgs> & CObject<Events, C>;
 
 export const AbstractCSetCPrimitive = MakeAbstractCSet(
@@ -113,7 +113,7 @@ export const AbstractCSetCPrimitive = MakeAbstractCSet(
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCSet<T, AddArgs> & CPrimitive<Events>;
 
 export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
@@ -121,5 +121,5 @@ export const AbstractCSetCrdt = MakeAbstractCSet(Crdt) as abstract new <
   AddArgs extends any[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
-  initToken: CrdtInitToken
+  initToken: InitToken
 ) => AbstractCSet<T, AddArgs> & Crdt<Events>;

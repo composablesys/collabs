@@ -47,12 +47,12 @@ export abstract class AbstractRuntime<Events extends CrdtEventsRecord>
     return this.rootCrdt.getDescendant(namePath);
   }
 
-  load(saveData: Uint8Array | null): Promise<void> {
-    return this.rootCrdt.load(saveData);
+  save(): Uint8Array {
+    return this.rootCrdt.save();
   }
 
-  save(): Promise<Uint8Array> {
-    return this.rootCrdt.save();
+  load(saveData: Uint8Array | null): void {
+    this.rootCrdt.load(saveData);
   }
 
   abstract childSend(child: Crdt, messagePath: Uint8Array[]): void;

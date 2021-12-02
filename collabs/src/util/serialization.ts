@@ -1,4 +1,4 @@
-import { Runtime, Crdt, isRuntime, ElementSerializer } from "../core/";
+import { Runtime, Crdt, isRuntime, Serializer } from "../core/";
 import {
   ArrayMessage,
   CrdtReference,
@@ -16,17 +16,25 @@ import { Optional } from "./optional";
  * Default serializer.
  * string, number, boolean, undefined, and null types are passed by-value.
  * Crdt types are sent by-reference, using the Crdt's
- * rootId and pathToRoot to identify different replicas
+ * rootId and namePath to identify different replicas
  * of the same Crdt.  Other types are passed by-value using BSON
  * (via https://github.com/mongodb/js-bson).
  */
 
-export class DefaultElementSerializer<T> implements ElementSerializer<T> {
-  private constructor() {}
+export class DefaultSerializer<T> implements Serializer<T> {
+  private constructor(private readonly runtime: Runtime) {}
 
-  private static instance = new DefaultElementSerializer<any>();
-  static getInstance<U>(): DefaultElementSerializer<U> {
-    return DefaultElementSerializer.instance;
+  private static instancesByRuntime = new Map<
+    Runtime,
+    DefaultSerializer<any>
+  >();
+  static getInstance<U>(runtime: Runtime): DefaultSerializer<U> {
+    let instance = DefaultSerializer.instancesByRuntime.get(runtime);
+    if (instance === undefined) {
+      instance = new DefaultSerializer(runtime);
+      DefaultSerializer.instancesByRuntime.set(runtime, instance);
+    }
+    return instance;
   }
 
   serialize(value: T): Uint8Array {
@@ -50,7 +58,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         } else if (value instanceof Crdt) {
           message = {
             crdtValue: CrdtReference.create({
-              pathToBase: value.pathToRoot(),
+              pathToBase: this.runtime.getNamePath(value),
             }),
           };
         } else if (value instanceof Uint8Array) {
@@ -82,7 +90,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
     return DefaultSerializerMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array, runtime: Runtime): T {
+  deserialize(message: Uint8Array): T {
     let decoded = DefaultSerializerMessage.decode(message);
     let ans: any;
     switch (decoded.value) {
@@ -102,11 +110,11 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         ans = null;
         break;
       case "crdtValue":
-        ans = runtime.getCrdtByReference(decoded.crdtValue!.pathToBase!);
+        ans = this.runtime.getDescendant(decoded.crdtValue!.pathToBase!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
-          this.deserialize(serialized, runtime)
+          this.deserialize(serialized)
         );
         break;
       case "objectValue":
@@ -114,7 +122,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
         for (const [key, serialized] of Object.entries(
           decoded.objectValue!.properties!
         )) {
-          ans[key] = this.deserialize(serialized, runtime);
+          ans[key] = this.deserialize(serialized);
         }
         break;
       case "bytesValue":
@@ -128,7 +136,7 @@ export class DefaultElementSerializer<T> implements ElementSerializer<T> {
   }
 }
 
-export class TextSerializer implements ElementSerializer<string> {
+export class TextSerializer implements Serializer<string> {
   private constructor() {}
   serialize(value: string): Uint8Array {
     return new Uint8Array(Buffer.from(value, "utf-8"));
@@ -142,7 +150,7 @@ export class TextSerializer implements ElementSerializer<string> {
 /**
  * Only works on char arrays
  */
-export class TextArraySerializer implements ElementSerializer<string[]> {
+export class TextArraySerializer implements Serializer<string[]> {
   private constructor() {}
   serialize(value: string[]): Uint8Array {
     return new Uint8Array(Buffer.from(value.join(""), "utf-8"));
@@ -157,8 +165,8 @@ export class TextArraySerializer implements ElementSerializer<string[]> {
  * Serializes [T] using a serializer for T.  This is slightly more efficient
  * than the default serializer, and also works with arbitrary T.
  */
-export class SingletonSerializer<T> implements ElementSerializer<[T]> {
-  private constructor(private readonly valueSerializer: ElementSerializer<T>) {}
+export class SingletonSerializer<T> implements Serializer<[T]> {
+  private constructor(private readonly valueSerializer: Serializer<T>) {}
 
   serialize(value: [T]): Uint8Array {
     return this.valueSerializer.serialize(value[0]);
@@ -168,12 +176,10 @@ export class SingletonSerializer<T> implements ElementSerializer<[T]> {
     return [this.valueSerializer.deserialize(message, runtime)];
   }
 
-  private static cache: WeakMap<
-    ElementSerializer<any>,
-    SingletonSerializer<any>
-  > = new WeakMap();
+  private static cache: WeakMap<Serializer<any>, SingletonSerializer<any>> =
+    new WeakMap();
 
-  static of<T>(valueSerializer: ElementSerializer<T>): ElementSerializer<[T]> {
+  static of<T>(valueSerializer: Serializer<T>): Serializer<[T]> {
     let existing = this.cache.get(valueSerializer);
     if (existing === undefined) {
       existing = new SingletonSerializer(valueSerializer);
@@ -188,7 +194,7 @@ export class SingletonSerializer<T> implements ElementSerializer<[T]> {
  * for strings that have been created from byte arrays using
  * bytesAsString, since those might not be UTF-8.
  */
-export class StringAsArraySerializer implements ElementSerializer<string> {
+export class StringAsArraySerializer implements Serializer<string> {
   private constructor() {}
 
   serialize(value: string): Uint8Array {
@@ -213,10 +219,10 @@ export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
   return true;
 }
 
-export class PairSerializer<T, U> implements ElementSerializer<[T, U]> {
+export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
-    private readonly oneSerializer: ElementSerializer<T>,
-    private readonly twoSerializer: ElementSerializer<U>
+    private readonly oneSerializer: Serializer<T>,
+    private readonly twoSerializer: Serializer<U>
   ) {}
 
   serialize(value: [T, U]): Uint8Array {
@@ -246,7 +252,7 @@ export class PairSerializer<T, U> implements ElementSerializer<[T, U]> {
  * the closer the serialized values are to base within
  * the Crdt hierarchy, and best when base is their parent.
  */
-export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
+export class CrdtSerializer<C extends Crdt> implements Serializer<C> {
   /**
    * [constructor description]
    * @param base if omitted, uses the rootCrdt
@@ -277,8 +283,8 @@ export class CrdtSerializer<C extends Crdt> implements ElementSerializer<C> {
   }
 }
 
-export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
-  private constructor(private readonly valueSerializer: ElementSerializer<T>) {}
+export class OptionalSerializer<T> implements Serializer<Optional<T>> {
+  private constructor(private readonly valueSerializer: Serializer<T>) {}
 
   serialize(value: Optional<T>): Uint8Array {
     const imessage: IOptionalSerializerMessage = {};
@@ -300,11 +306,11 @@ export class OptionalSerializer<T> implements ElementSerializer<Optional<T>> {
 
   // Weak in both keys and values.
   private static cache = new WeakMap<
-    ElementSerializer<any>,
+    Serializer<any>,
     WeakRef<OptionalSerializer<any>>
   >();
 
-  static of<T>(valueSerializer: ElementSerializer<T>): OptionalSerializer<T> {
+  static of<T>(valueSerializer: Serializer<T>): OptionalSerializer<T> {
     const existingWeak = OptionalSerializer.cache.get(valueSerializer);
     if (existingWeak !== undefined) {
       const existing = existingWeak.deref();

@@ -1,19 +1,21 @@
 import {
   bytesAsString,
-  DefaultElementSerializer,
+  DefaultSerializer,
   Optional,
   stringAsBytes,
   WeakValueMap,
 } from "../../util";
 import {
-  CausalTimestamp,
   Crdt,
-  CrdtEventMeta,
-  CrdtInitToken,
-  ElementSerializer,
+  CrdtEventsRecord,
+  InitToken,
+  MessageMeta,
+  ParentCrdt,
+  Serializer,
 } from "../../core";
 import { Resettable } from "../../abilities";
 import { AbstractCMapCrdt } from "./abstract_map";
+import { ImplicitMergingMutCMapSave } from "../../../generated/proto_compiled";
 
 /**
  * A basic CMap of mutable values that implicitly manages membership.
@@ -36,10 +38,10 @@ import { AbstractCMapCrdt } from "./abstract_map";
  * set has no effect, just
  * returning a value by calling get.
  */
-export class GrowOnlyImplicitMergingMutCMap<
-  K,
-  C extends Crdt
-> extends AbstractCMapCrdt<K, C, []> {
+export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
+  extends AbstractCMapCrdt<K, C, []>
+  implements ParentCrdt
+{
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
@@ -59,12 +61,11 @@ export class GrowOnlyImplicitMergingMutCMap<
    * a function of the given arguments only.
    */
   constructor(
-    initToken: CrdtInitToken,
-    private readonly valueConstructor: (
-      valueInitToken: CrdtInitToken,
-      key: K
-    ) => C,
-    private readonly keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    private readonly valueConstructor: (valueInitToken: InitToken, key: K) => C,
+    private readonly keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
   }
@@ -73,7 +74,7 @@ export class GrowOnlyImplicitMergingMutCMap<
     return bytesAsString(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(stringAsBytes(str), this.runtime);
+    return this.keySerializer.deserialize(stringAsBytes(str));
   }
 
   private getInternal(
@@ -87,9 +88,10 @@ export class GrowOnlyImplicitMergingMutCMap<
       if (value === undefined) {
         // Create it, but only in the backup map,
         // since it is currently GC-able
-        value = this.valueConstructor(new CrdtInitToken(keyString, this), key);
+        value = this.valueConstructor(new InitToken(keyString, this), key);
 
-        if (this.inLoad) {
+        if (this.pendingChildSaves !== null) {
+          // We are in this.load.
           // We can assume value will be nontrivial once
           // it is recursively loaded, since save only
           // returns the nontrivial children.
@@ -107,15 +109,30 @@ export class GrowOnlyImplicitMergingMutCMap<
     } else return [value, true];
   }
 
+  childSend(
+    child: Crdt<CrdtEventsRecord>,
+    messagePath: (string | Uint8Array)[]
+  ): void {
+    if (child.parent !== this) {
+      throw new Error("childSend called by non-child: " + child);
+    }
+
+    messagePath.push(child.name);
+    this.send(messagePath);
+  }
+
+  nextMessageMeta(): MessageMeta {
+    return this.parent.nextMessageMeta();
+  }
+
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 
   protected receiveInternal(
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
+    messagePath: (Uint8Array | string)[],
+    meta: MessageMeta
   ): void {
-    const keyString = targetPath[targetPath.length - 1];
+    const keyString = <string>messagePath[messagePath.length - 1];
     this.inReceiveKeyStr = keyString;
     try {
       // Message for a child
@@ -123,8 +140,8 @@ export class GrowOnlyImplicitMergingMutCMap<
       let [value, nontrivialStart] = this.getInternal(key, keyString);
       this.inReceiveValue = value;
 
-      targetPath.length--;
-      value.receive(targetPath, timestamp, message);
+      messagePath.length--;
+      value.receive(messagePath, meta);
 
       // If the value became GC-able, move it to the
       // backup map
@@ -134,7 +151,7 @@ export class GrowOnlyImplicitMergingMutCMap<
         this.emit("Delete", {
           key,
           deletedValue: value,
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta,
         });
       }
       // If the value became nontrivial, move it to the
@@ -147,7 +164,7 @@ export class GrowOnlyImplicitMergingMutCMap<
           // Empty to emphasize that the previous value was
           // not present.
           previousValue: Optional.empty<C>(),
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta,
         });
         // We won't dispatch Set events when the value
         // is not new because there can only ever be one
@@ -162,10 +179,6 @@ export class GrowOnlyImplicitMergingMutCMap<
       this.inReceiveKeyStr = undefined;
       this.inReceiveValue = undefined;
     }
-  }
-
-  getChild(name: string): Crdt {
-    return this.getInternal(this.stringAsKey(name), name)[0];
   }
 
   set(key: K): C {
@@ -257,6 +270,64 @@ export class GrowOnlyImplicitMergingMutCMap<
     return this.stringAsKey(value.name);
   }
 
+  save(): Uint8Array {
+    const childSaves: { [name: string]: Uint8Array } = {};
+    // Only need to save nontrivial children, since trivial
+    // children are in their initial states.
+    for (const [name, child] of this.nontrivialMap) {
+      childSaves[name] = child.save();
+    }
+    const saveMessage = ImplicitMergingMutCMapSave.create({
+      childSaves,
+    });
+    return ImplicitMergingMutCMapSave.encode(saveMessage).finish();
+  }
+
+  /**
+   * Map from child names to their saveData, containing
+   * precisely the children that have not yet initiated loading.
+   * null if we are not currently loading children.
+   */
+  private pendingChildSaves: Map<string, Uint8Array> | null = null;
+
+  load(saveData: Uint8Array | null): void {
+    if (saveData === null) {
+      // No children to notify.
+    } else {
+      const saveMessage = ImplicitMergingMutCMapSave.decode(saveData);
+      // For the child saves: it's possible that loading
+      // one child might lead to this.getDescendant being
+      // called for some other child (typically by deserializing
+      // a Crdt reference). So we use this.pendingChildSaves
+      // to allow getDescendant to load children on demand.
+      this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
+      for (const [name, childSave] of this.pendingChildSaves) {
+        // Note this loop will skip over children that get
+        // loaded preemptively by getDescendant, since they
+        // are deleted from this.pendingChildSaves.
+        const child = this.getInternal(this.stringAsKey(name), name)[0];
+        child.load(childSave);
+      }
+      this.pendingChildSaves = null;
+    }
+  }
+
+  getDescendant(namePath: string[]): Crdt {
+    if (namePath.length === 0) return this;
+
+    const name = namePath[namePath.length - 1];
+    const child = this.getInternal(this.stringAsKey(name), name)[0];
+    namePath.length--;
+    if (this.pendingChildSaves !== null && namePath.length > 0) {
+      // Ensure child is loaded.
+      const childSave = this.pendingChildSaves.get(name);
+      if (childSave !== undefined) {
+        child.load(childSave);
+      }
+    }
+    return child.getDescendant(namePath);
+  }
+
   canGc() {
     /*
      * We don't need to check here that the backup
@@ -268,20 +339,6 @@ export class GrowOnlyImplicitMergingMutCMap<
      * backup map being empty(able).
      */
     return this.nontrivialMap.size === 0;
-  }
-
-  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
-    return [new Uint8Array(), this.nontrivialMap];
-  }
-
-  private inLoad = false;
-  load(_saveData: Uint8Array): boolean {
-    this.inLoad = true;
-    return true;
-  }
-
-  postLoad() {
-    this.inLoad = false;
   }
 }
 
@@ -313,9 +370,11 @@ export class ImplicitMergingMutCMap<
   C extends Crdt & Resettable
 > extends GrowOnlyImplicitMergingMutCMap<K, C> {
   constructor(
-    initToken: CrdtInitToken,
-    valueConstructor: (valueInitToken: CrdtInitToken, key: K) => C,
-    keySerializer: ElementSerializer<K> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    valueConstructor: (valueInitToken: InitToken, key: K) => C,
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken, valueConstructor, keySerializer);
   }

@@ -190,7 +190,11 @@ export abstract class Crdt<
     }
   }
 
-  protected send(messagePath: (Uint8Array | string)[]) {
+  /**
+   * TODO: arg may be mutated by others.
+   * @param  messagePath [description]
+   */
+  protected send(messagePath: (Uint8Array | string)[]): void {
     this.parent.childSend(this, messagePath);
   }
 
@@ -233,8 +237,8 @@ export abstract class Crdt<
     meta: MessageMeta
   ): void;
 
-  abstract load(saveData: Uint8Array | null): Promise<void>;
-  abstract save(): Promise<Uint8Array>;
+  abstract save(): Uint8Array;
+  abstract load(saveData: Uint8Array | null): void;
 
   getNamePath(descendant: Crdt): string[] {
     let current = descendant;
@@ -250,11 +254,18 @@ export abstract class Crdt<
   }
 
   /**
+   * Returns the  descendant of this Crdt at the
+   * given `namePath`.
+   *
+   * TODO: inclusive of this.
+   *
    * TODO: needs to work even in the middle of load
    * (so need to lazily load children before calling
    * getDescendant on them, if the namePath goes farther).
    * Can we implement this functionality once in an abstract
-   * ParentCrdt class?
+   * ParentCrdt class? Also, in general, you're guaranteed load
+   * has already been called if namePath.length > 0, but not
+   * otherwise ("this" case).
    *
    * TODO: error behavior (bad namePath vs no longer exists
    * (DeletingMutCSet case)).

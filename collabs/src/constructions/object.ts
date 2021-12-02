@@ -1,9 +1,11 @@
+import { CObjectSave } from "../../generated/proto_compiled";
 import {
   Crdt,
   CrdtEventsRecord,
-  CausalTimestamp,
+  InitToken,
+  MessageMeta,
+  ParentCrdt,
   Pre,
-  CrdtInitToken,
 } from "../core";
 
 /**
@@ -47,9 +49,12 @@ import {
  * ## Example Subclass
  */
 export class CObject<
-  Events extends CrdtEventsRecord = CrdtEventsRecord,
-  C extends Crdt = Crdt
-> extends Crdt<Events> {
+    Events extends CrdtEventsRecord = CrdtEventsRecord,
+    C extends Crdt = Crdt
+  >
+  extends Crdt<Events>
+  implements ParentCrdt
+{
   /**
    * The children, keyed by name.
    *
@@ -79,37 +84,119 @@ export class CObject<
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
-    const child = preChild(new CrdtInitToken(name, this));
+    const child = preChild(new InitToken(name, this));
     this.children.set(name, child);
     return child;
   }
 
+  childSend(child: Crdt, messagePath: (string | Uint8Array)[]): void {
+    if (child.parent !== this) {
+      throw new Error("childSend called by non-child: " + child);
+    }
+
+    messagePath.push(child.name);
+    this.send(messagePath);
+  }
+
+  nextMessageMeta(): MessageMeta {
+    return this.parent.nextMessageMeta();
+  }
+
   protected receiveInternal(
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
+    messagePath: (Uint8Array | string)[],
+    meta: MessageMeta
   ): void {
-    if (targetPath.length === 0) {
+    if (messagePath.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");
     }
 
-    let child = this.children.get(targetPath[targetPath.length - 1]);
+    let child = this.children.get(<string>messagePath[messagePath.length - 1]);
     if (child === undefined) {
       throw new Error(
         "Unknown child: " +
-          targetPath[targetPath.length - 1] +
+          messagePath[messagePath.length - 1] +
           " in: " +
-          JSON.stringify(targetPath) +
+          JSON.stringify(messagePath) +
           ", children: " +
           JSON.stringify([...this.children.keys()])
       );
     }
-    targetPath.length--;
-    child.receive(targetPath, timestamp, message);
+    messagePath.length--;
+    child.receive(messagePath, meta);
   }
 
-  getChild(name: string): Crdt {
+  save(): Uint8Array {
+    const childSaves: { [name: string]: Uint8Array } = {};
+    for (const [name, child] of this.children) {
+      childSaves[name] = child.save();
+    }
+    const saveMessage = CObjectSave.create({
+      childSaves,
+      objectSave: this.saveObject(),
+    });
+    return CObjectSave.encode(saveMessage).finish();
+  }
+
+  /**
+   * Override to save extra state, which is passed
+   * to loadObject during load after the children
+   * are initialized.  TODO: how to use safely (general
+   * save/load advice).
+   * @return [description]
+   */
+  protected saveObject(): Uint8Array | null {
+    return null;
+  }
+
+  /**
+   * Map from child names to their saveData, containing
+   * precisely the children that have not yet initiated loading.
+   * null if we are not currently loading children.
+   */
+  private pendingChildSaves: Map<string, Uint8Array> | null = null;
+
+  load(saveData: Uint8Array | null): void {
+    if (saveData === null) {
+      // Indicates skipped loading. Pass on the message.
+      for (const child of this.children.values()) child.load(null);
+      this.loadObject(null);
+    } else {
+      const saveMessage = CObjectSave.decode(saveData);
+      // For the child saves: it's possible that loading
+      // one child might lead to this.getDescendant being
+      // called for some other child (typically by deserializing
+      // a Crdt reference). So we use this.pendingChildSaves
+      // to allow getDescendant to load children on demand.
+      this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
+      for (const [name, childSave] of this.pendingChildSaves) {
+        // Note this loop will skip over children that get
+        // loaded preemptively by getDescendant, since they
+        // are deleted from this.pendingChildSaves.
+        this.children.get(name)!.load(childSave);
+      }
+      this.pendingChildSaves = null;
+      if (saveMessage.hasOwnProperty("objectSave")) {
+        this.loadObject(saveMessage.objectSave!);
+      } else {
+        this.loadObject(null);
+      }
+    }
+  }
+
+  /**
+   * Note this is called after the children are initialized
+   * but before they are loaded.
+   *
+   * @param  saveData the output of saveObject() on
+   * a previous saved instance
+   */
+  protected loadObject(saveData: Uint8Array | null): void {}
+
+  getDescendant(namePath: string[]): Crdt {
+    if (namePath.length === 0) return this;
+
+    const name = namePath[namePath.length - 1];
     const child = this.children.get(name);
     if (child === undefined) {
       throw new Error(
@@ -119,47 +206,24 @@ export class CObject<
           JSON.stringify([...this.children.keys()])
       );
     }
-    return child;
+    namePath.length--;
+    if (this.pendingChildSaves !== null && namePath.length > 0) {
+      // Ensure child is loaded.
+      const childSave = this.pendingChildSaves.get(name);
+      if (childSave !== undefined) {
+        child.load(childSave);
+      }
+    }
+    return child.getDescendant(namePath);
   }
 
   /**
    * @return true if canGc() returns true on every child
    */
   canGc(): boolean {
-    for (let child of this.children.values()) {
+    for (const child of this.children.values()) {
       if (!child.canGc()) return false;
     }
     return true;
   }
-
-  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
-    return [this.saveComposite(), this.children];
-  }
-
-  /**
-   * Override to save extra state, which is passed
-   * to loadComposite during load after the children
-   * are initialized.  TODO: how to use safely (general
-   * save/load advice).
-   * @return [description]
-   */
-  protected saveComposite(): Uint8Array {
-    return new Uint8Array();
-  }
-
-  load(saveData: Uint8Array): boolean {
-    this.loadComposite(saveData);
-    return true;
-  }
-
-  /**
-   * Note this is called after the children are initialized
-   * but before they are loaded.
-   *
-   * @param  saveData the output of saveComposite() on
-   * a previous saved instance
-   */
-  protected loadComposite(saveData: Uint8Array) {}
-
-  // You can also choose to override postLoad().
 }

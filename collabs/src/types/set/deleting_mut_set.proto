@@ -10,12 +10,15 @@ message DeletingMutCSetMessage {
   }
 }
 
-message DeletingMutCSetArgs {
+message DeletingMutCSetValueSave {
   required string name = 1;
-  required bytes args = 2;
+  required bytes saveData = 2;
+  // Only present for non-initial values.
+  optional bytes args = 3;
 }
 
 message DeletingMutCSetSave {
   // In order by time created on this replica.
-  repeated DeletingMutCSetArgs constructorArgs = 1;
+  // TODO: optimization: flatten.
+  repeated DeletingMutCSetValueSave valueSaves = 1;
 }
