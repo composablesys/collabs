@@ -9,7 +9,6 @@ import { CObject, CPrimitive } from "../../constructions";
 import {
   MessageMeta,
   CrdtEvent,
-  CrdtEventMeta,
   CrdtEventsRecord,
   InitToken,
   Pre,
@@ -32,7 +31,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
 
 export class GrowOnlyCCounter
   extends CPrimitive<CCounterEventsRecord>
-  implements Resettable
+  implements Resettable 
 {
   /**
    * To prevent overflow into unsafe integers, whose
@@ -81,7 +80,7 @@ export class GrowOnlyCCounter
         idCounter,
       },
     });
-    super.send(GrowOnlyCCounterMessage.encode(message).finish());
+    this.sendPrimitive(GrowOnlyCCounterMessage.encode(message).finish());
   }
 
   inc() {
@@ -96,10 +95,10 @@ export class GrowOnlyCCounter
     const message = GrowOnlyCCounterMessage.create({
       reset: { V },
     });
-    super.send(GrowOnlyCCounterMessage.encode(message).finish());
+    this.sendPrimitive(GrowOnlyCCounterMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
     let decoded = GrowOnlyCCounterMessage.decode(message);
     const previousValue = this.value;
     switch (decoded.data) {
@@ -125,7 +124,7 @@ export class GrowOnlyCCounter
           GrowOnlyCCounter.MODULUS;
         this.emit("Add", {
           arg: int64AsNumber(decoded.add!.toAdd),
-          meta: CrdtEventMeta.fromTimestamp(meta),
+          meta,
           previousValue,
         });
         break;
@@ -147,7 +146,7 @@ export class GrowOnlyCCounter
 
         this.emit("Reset", {
           arg: this.value - previousValue,
-          meta: CrdtEventMeta.fromTimestamp(meta),
+          meta,
           previousValue,
         });
         break;
@@ -185,7 +184,7 @@ export class GrowOnlyCCounter
     return this.M.size === 0;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     const mMessage: { [replicaId: string]: IGrowOnlyCCounterSaveEntry } = {};
     for (const [replicaId, m] of this.M) {
       mMessage[replicaId] = {
@@ -198,7 +197,8 @@ export class GrowOnlyCCounter
     return GrowOnlyCCounterSave.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     const message = GrowOnlyCCounterSave.decode(saveData);
     for (const [replicaId, m] of Object.entries(message.M)) {
       this.M.set(replicaId, [

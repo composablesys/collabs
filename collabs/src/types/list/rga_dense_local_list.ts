@@ -269,10 +269,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   ): [index: number, locs: RgaLoc[]] {
     const decoded = RgaDenseLocalListPrepareMessage.decode(message);
     const parent = decoded.hasOwnProperty("parent")
-      ? this.deserializeAsMessage(
-          RgaLocMessage.create(decoded.parent!),
-          this.runtime
-        )
+      ? this.deserializeAsMessage(RgaLocMessage.create(decoded.parent!))
       : undefined;
     const locs = this.expandNewLocArgs(
       parent,
@@ -596,15 +593,12 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     };
   }
 
-  deserialize(message: Uint8Array, runtime: Runtime): RgaLoc {
+  deserialize(message: Uint8Array): RgaLoc {
     const decoded = RgaLocMessage.decode(message);
-    return this.deserializeAsMessage(decoded, runtime);
+    return this.deserializeAsMessage(decoded);
   }
 
-  private deserializeAsMessage(
-    decoded: RgaLocMessage,
-    _runtime: Runtime
-  ): RgaLoc {
+  private deserializeAsMessage(decoded: RgaLocMessage): RgaLoc {
     let i: number;
     let existing: RgaLoc | undefined = undefined;
     // Find the lowest ancestor that we already have.

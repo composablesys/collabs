@@ -44,16 +44,6 @@ export class CSetFromBoolean<
     // Events emitters are setup by internalBooleanConstructor
   }
 
-  static new<T, BoolT extends CBoolean>(
-    booleanConstructor: (booleanInitToken: InitToken) => BoolT,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
-  ): Pre<CSetFromBoolean<T, BoolT>> {
-    return (initToken) =>
-      new CSetFromBoolean(initToken, booleanConstructor, valueSerializer);
-  }
-
   private internalBooleanConstructor(
     booleanInitToken: InitToken,
     key: T

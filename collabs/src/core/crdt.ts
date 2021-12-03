@@ -179,13 +179,17 @@ export abstract class Crdt<
    * @typeParam `eventName` as a string literal type.
    * @param eventName Name of the event.
    * @param event Event object to pass to the event handlers.
+   * @param emitChangeEvent = true if true (default) and the
+   * event is not a "Change" event, a "Change" event is
+   * emitted immediately after `event`.
    */
   protected emit<K extends keyof Events>(
     eventName: K,
-    event: Events[K] & CrdtEvent
+    event: Events[K] & CrdtEvent,
+    emitChangeEvent = true
   ): void {
     super.emit(eventName, event);
-    if (eventName !== "Change") {
+    if (emitChangeEvent && eventName !== "Change") {
       super.emit("Change", { meta: event.meta });
     }
   }

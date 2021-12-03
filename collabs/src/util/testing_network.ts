@@ -1,8 +1,8 @@
 import {
+  BatchingLayer,
   BatchingStrategy,
-  BroadcastNetwork,
-  RuntimeEvent,
-  DefaultCausalBroadcastNetwork,
+  CausalBroadcastNetwork,
+  DefaultRuntime,
   Runtime,
   Unsubscribe,
 } from "../core";
@@ -12,37 +12,41 @@ import {
  * immediately as its own batch.
  */
 export class TestingBatchingStrategy implements BatchingStrategy {
-  private runtime?: Runtime = undefined;
+  private batchingLayer?: BatchingLayer = undefined;
   private unsubscribe?: Unsubscribe = undefined;
 
-  start(runtime: Runtime): void {
-    this.runtime = runtime;
-    this.unsubscribe = this.runtime.on("Message", this.onmessage.bind(this));
+  start(batchingLayer: BatchingLayer): void {
+    this.batchingLayer = batchingLayer;
+    this.unsubscribe = this.batchingLayer.on("DebugSend", () =>
+      this.batchingLayer!.commitBatch()
+    );
   }
 
   stop(): void {
     this.unsubscribe!();
-    this.runtime = undefined;
+    this.batchingLayer = undefined;
     this.unsubscribe = undefined;
-  }
-
-  private onmessage(event: RuntimeEvent) {
-    if (event.isLocal) {
-      this.runtime!.commitBatch();
-    }
   }
 }
 
-export class TestingNetwork implements BroadcastNetwork {
+export class TestingNetwork implements CausalBroadcastNetwork {
   sentBytes = 0;
   receivedBytes = 0;
-  onreceive!: (message: Uint8Array) => void;
+
+  onreceive!: (
+    message: Uint8Array,
+    sender: string,
+    senderCounter: number
+  ) => void;
+  replicaId!: string;
+
   constructor(private generator: TestingNetworkGenerator) {}
-  send(message: Uint8Array): void {
+
+  send(message: Uint8Array, senderCounter: number): void {
     this.sentBytes += message.byteLength;
     let queueMap = this.generator.messageQueues.get(this)!;
     for (let queue of queueMap.values()) {
-      queue.push(message);
+      queue.push([message, senderCounter]);
     }
     this.generator.lastMessage = message;
   }
@@ -55,7 +59,7 @@ export class TestingNetwork implements BroadcastNetwork {
   /**
    * Not implemented (no-op).
    */
-  load(_saveData: Uint8Array) {}
+  load() {}
 }
 
 // Copied from Runtime (TODO: use directly to
@@ -95,9 +99,13 @@ export class TestingNetworkGenerator {
     batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
     rng: seedrandom.prng | undefined = undefined
   ) {
-    let replicaId = rng ? pseudorandomReplicaId(rng) : undefined;
-    return new Runtime(this.newNetwork(), batchingStrategy, replicaId);
+    let debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
+    return new DefaultRuntime(this.newNetwork(), {
+      batchingStrategy,
+      debugReplicaId,
+    });
   }
+
   newNetwork() {
     let network = new TestingNetwork(this);
     let newQueue = new Map<TestingNetwork, Array<any>>();
@@ -106,10 +114,17 @@ export class TestingNetworkGenerator {
       oldEntry[1].set(network, []);
     }
     this.messageQueues.set(network, newQueue);
-    return new DefaultCausalBroadcastNetwork(network);
+    return network;
   }
-  // Maps sender and recipient to an array of queued messages.
-  messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
+
+  /**
+   * Maps sender and recipient to an array of queued messages.
+   */
+  messageQueues = new Map<
+    TestingNetwork,
+    Map<TestingNetwork, [message: Uint8Array, senderCounter: number][]>
+  >();
+
   /**
    * Release all queued messages from sender to the specified recipients.
    * If recipients are not specified, releases them to all
@@ -123,18 +138,21 @@ export class TestingNetworkGenerator {
     );
     this.releaseByNetwork(sender, ...recipients);
   }
+
   releaseByNetwork(sender: TestingNetwork, ...recipients: TestingNetwork[]) {
     if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
     let senderMap = this.messageQueues.get(sender)!;
     for (let recipient of recipients) {
       if (recipient === sender) continue;
       for (let queued of senderMap.get(recipient)!) {
-        recipient.receivedBytes += queued.byteLength;
-        recipient.onreceive!(queued);
+        // TODO: count senderCounter towards totals.
+        recipient.receivedBytes += queued[0].byteLength;
+        recipient.onreceive!(queued[0], sender.replicaId, queued[1]);
       }
       senderMap.set(recipient, []);
     }
   }
+
   releaseAll() {
     for (let sender of this.messageQueues.keys()) this.releaseByNetwork(sender);
   }

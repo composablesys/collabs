@@ -19,7 +19,7 @@ export {
   TextArraySerializer,
   bytesAsString,
   stringAsBytes,
-  TestingBatchingStrategy,
+  // TestingBatchingStrategy,
   TestingNetwork,
   TestingNetworkGenerator,
 } from "./util";

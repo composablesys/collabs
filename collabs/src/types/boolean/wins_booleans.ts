@@ -1,7 +1,7 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
 import { Resettable } from "../../abilities";
 import { CObject, CPrimitive } from "../../constructions";
-import { MessageMeta, CrdtEventMeta, InitToken, Pre } from "../../core";
+import { MessageMeta, InitToken, Pre } from "../../core";
 import { CRegisterEventsRecord } from "../register";
 import { MakeAbstractCBoolean } from "./abstract_boolean";
 
@@ -22,15 +22,15 @@ export class TrueWinsCBoolean
     // change the state (add another entry), but not for
     // false, because in that case setting to false
     // does nothing.
-    if (value) this.send(new Uint8Array());
-    else if (this.value) this.send(new Uint8Array(1));
+    if (value) this.sendPrimitive(new Uint8Array());
+    else if (this.value) this.sendPrimitive(new Uint8Array(1));
   }
 
   get value(): boolean {
     return this.entries.length !== 0;
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
     const previousValue = this.value;
 
     const newEntries: WinsCBooleanEntry[] = [];
@@ -56,7 +56,7 @@ export class TrueWinsCBoolean
     if (this.value !== previousValue) {
       this.emit("Set", {
         previousValue,
-        meta: CrdtEventMeta.fromTimestamp(meta),
+        meta,
       });
     }
   }
@@ -70,7 +70,7 @@ export class TrueWinsCBoolean
     this.value = false;
   }
 
-  protected savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     const message = WinsCBooleanSave.create({
       senders: this.entries.map((entry) => entry.sender),
       senderCounters: this.entries.map((entry) => entry.senderCounter),
@@ -78,7 +78,8 @@ export class TrueWinsCBoolean
     return WinsCBooleanSave.encode(message).finish();
   }
 
-  protected loadPrimitive(saveData: Uint8Array): void {
+  load(saveData: Uint8Array | null): void {
+    if (saveData === null) return;
     const decoded = WinsCBooleanSave.decode(saveData);
     for (let i = 0; i < decoded.senders.length; i++) {
       this.entries.push({

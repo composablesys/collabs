@@ -1,4 +1,4 @@
-import { Runtime, Crdt, isRuntime, Serializer } from "../core/";
+import { Runtime, Crdt, Serializer } from "../core/";
 import {
   ArrayMessage,
   CrdtReference,
@@ -141,7 +141,7 @@ export class TextSerializer implements Serializer<string> {
   serialize(value: string): Uint8Array {
     return new Uint8Array(Buffer.from(value, "utf-8"));
   }
-  deserialize(message: Uint8Array, _runtime: Runtime): string {
+  deserialize(message: Uint8Array): string {
     return Buffer.from(message).toString("utf-8");
   }
   static instance = new TextSerializer();
@@ -155,7 +155,7 @@ export class TextArraySerializer implements Serializer<string[]> {
   serialize(value: string[]): Uint8Array {
     return new Uint8Array(Buffer.from(value.join(""), "utf-8"));
   }
-  deserialize(message: Uint8Array, _runtime: Runtime): string[] {
+  deserialize(message: Uint8Array): string[] {
     return [...Buffer.from(message).toString("utf-8")];
   }
   static instance = new TextArraySerializer();
@@ -172,8 +172,8 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
     return this.valueSerializer.serialize(value[0]);
   }
 
-  deserialize(message: Uint8Array, runtime: Runtime): [T] {
-    return [this.valueSerializer.deserialize(message, runtime)];
+  deserialize(message: Uint8Array): [T] {
+    return [this.valueSerializer.deserialize(message)];
   }
 
   private static cache: WeakMap<Serializer<any>, SingletonSerializer<any>> =
@@ -201,7 +201,7 @@ export class StringAsArraySerializer implements Serializer<string> {
     return stringAsBytes(value);
   }
 
-  deserialize(message: Uint8Array, _runtime: Runtime): string {
+  deserialize(message: Uint8Array): string {
     return bytesAsString(message);
   }
 
@@ -233,11 +233,11 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
     return PairSerializerMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array, runtime: Runtime): [T, U] {
+  deserialize(message: Uint8Array): [T, U] {
     const decoded = PairSerializerMessage.decode(message);
     return [
-      this.oneSerializer.deserialize(decoded.one, runtime),
-      this.twoSerializer.deserialize(decoded.two, runtime),
+      this.oneSerializer.deserialize(decoded.one),
+      this.twoSerializer.deserialize(decoded.two),
     ];
   }
 }
@@ -255,21 +255,18 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
 export class CrdtSerializer<C extends Crdt> implements Serializer<C> {
   /**
    * [constructor description]
-   * @param base if omitted, uses the rootCrdt
+   * @param base
    */
-  constructor(private readonly base?: Crdt) {}
+  constructor(private readonly base: Crdt | Runtime) {}
 
   serialize(value: C): Uint8Array {
     let pathToBase = [];
     for (
-      let current: Crdt = value;
-      !(
-        current === this.base ||
-        (this.base === undefined && isRuntime(current.parent))
-      );
-      current = current.parent as Crdt
+      let current: Crdt | Runtime = value;
+      !(current === this.base);
+      current = (<Crdt>current).parent
     ) {
-      pathToBase.push(current.name);
+      pathToBase.push((<Crdt>current).name);
     }
     const message = CrdtReference.create({
       pathToBase,
@@ -277,9 +274,9 @@ export class CrdtSerializer<C extends Crdt> implements Serializer<C> {
     return CrdtReference.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array, runtime: Runtime): C {
+  deserialize(message: Uint8Array): C {
     const decoded = CrdtReference.decode(message);
-    return runtime.getCrdtByReference(decoded.pathToBase!, this.base) as C;
+    return this.base.getDescendant(decoded.pathToBase) as C;
   }
 }
 
@@ -295,11 +292,11 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
     return OptionalSerializerMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array, runtime: Runtime): Optional<T> {
+  deserialize(message: Uint8Array): Optional<T> {
     const decoded = OptionalSerializerMessage.decode(message);
     if (decoded.hasOwnProperty("valueIfPresent")) {
       return Optional.of(
-        this.valueSerializer.deserialize(decoded.valueIfPresent, runtime)
+        this.valueSerializer.deserialize(decoded.valueIfPresent)
       );
     } else return Optional.empty();
   }

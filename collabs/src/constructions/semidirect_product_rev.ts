@@ -501,7 +501,7 @@ export abstract class SemidirectProductRev<
     return this.history.isHistoryEmpty() && super.canGc();
   }
 
-  protected saveComposite(): Uint8Array {
+  saveComposite(): Uint8Array {
     return this.history.save(this.runtime, this.saveSemidirectProductRev());
   }
 
@@ -510,18 +510,18 @@ export abstract class SemidirectProductRev<
    * be passed to loadSemidirectProductRev during this.load,
    * after loading the semidirect product state.
    */
-  protected saveSemidirectProductRev(): Uint8Array {
+  saveSemidirectProductRev(): Uint8Array {
     return new Uint8Array();
   }
 
-  protected loadSemidirectProductRev(saveData: Uint8Array) {}
+  loadSemidirectProductRev(saveData: Uint8Array) {}
 
   // TODO: the children loading their own states (both
   // of them, in arbitrary order) must correctly set
   // this.internalState, whatever it is.
   // Need option to do custom loading if that's not the
   // case.
-  protected loadComposite(saveData: Uint8Array) {
+  loadComposite(saveData: Uint8Array) {
     this.loadSemidirectProductRev(this.history.load(saveData, this.runtime));
   }
 }

@@ -147,7 +147,7 @@ export class CObject<
    * save/load advice).
    * @return [description]
    */
-  protected saveObject(): Uint8Array | null {
+  saveObject(): Uint8Array | null {
     return null;
   }
 
@@ -193,7 +193,7 @@ export class CObject<
    * @param  saveData the output of saveObject() on
    * a previous saved instance
    */
-  protected loadObject(saveData: Uint8Array | null): void {}
+  loadObject(saveData: Uint8Array | null): void {}
 
   getDescendant(namePath: string[]): Crdt {
     if (namePath.length === 0) return this;

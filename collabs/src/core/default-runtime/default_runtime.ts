@@ -1,4 +1,7 @@
-import { RuntimeMessage } from "../../../generated/proto_compiled";
+import {
+  DefaultRuntimeMessage,
+  DefaultRuntimeSave,
+} from "../../../generated/proto_compiled";
 import { Crdt, CrdtEventsRecord, Pre } from "../crdt";
 import { MessageMeta } from "../message_meta";
 import { Runtime } from "../runtime";
@@ -109,10 +112,10 @@ export class DefaultRuntime
 
     // Serialize messagePath. From our choice of Crdt layers,
     // we know it's actually all Uint8Array's.
-    const runtimeMessage = RuntimeMessage.create({
+    const runtimeMessage = DefaultRuntimeMessage.create({
       messagePath: <Uint8Array[]>messagePath,
     });
-    const serialized = RuntimeMessage.encode(runtimeMessage).finish();
+    const serialized = DefaultRuntimeMessage.encode(runtimeMessage).finish();
 
     // Send. It will be delivered to each other replica's
     // receive function, exactly once, in causal order.
@@ -123,7 +126,7 @@ export class DefaultRuntime
   }
 
   receive(message: Uint8Array, sender: string, senderCounter: number): void {
-    const deserialized = RuntimeMessage.decode(message);
+    const deserialized = DefaultRuntimeMessage.decode(message);
 
     // Deliver to root with only mandatory MessageMeta.
     const meta = { isLocal: false, sender, senderCounter };
@@ -153,5 +156,25 @@ export class DefaultRuntime
       };
     }
     return this.pendingMeta;
+  }
+
+  save(): Uint8Array {
+    const saveMessage = DefaultRuntimeSave.create({
+      crdtSave: super.save(),
+      networkSave: this.network.save(),
+    });
+    return DefaultRuntimeSave.encode(saveMessage).finish();
+  }
+
+  load(saveData: Uint8Array | null): void {
+    if (saveData === null) {
+      // Indicates skipped loading. Pass on the message.
+      super.load(null);
+      this.network.load(null);
+    } else {
+      const saveMessage = DefaultRuntimeSave.decode(saveData);
+      super.load(saveMessage.crdtSave);
+      this.network.load(saveMessage.networkSave);
+    }
   }
 }

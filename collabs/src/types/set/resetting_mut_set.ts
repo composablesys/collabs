@@ -3,7 +3,7 @@ import {
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
 import { DefaultSerializer } from "../../util";
-import { Crdt, InitToken, Serializer, Pre, Runtime } from "../../core";
+import { Crdt, InitToken, Serializer, Pre } from "../../core";
 import { Resettable } from "../../abilities";
 import { CMap, MergingMutCMap } from "../map";
 import { AbstractCSetCObject } from "./abstract_set";
@@ -29,8 +29,7 @@ class MutCSetFromMapSerializer<AddArgs extends any[]>
   }
 
   deserialize(
-    message: Uint8Array,
-    runtime: Runtime
+    message: Uint8Array
   ): [sender: string, uniqueNumber: number, args: AddArgs] {
     const decoded = MutCSetFromMapKeyMessage.decode(message);
     // If args is not set, then use [].
@@ -39,7 +38,7 @@ class MutCSetFromMapSerializer<AddArgs extends any[]>
     // the proper way to check if
     // an optional field is set is to use hasOwnProperty.
     const args = decoded.hasOwnProperty("args")
-      ? this.argsSerializer.deserialize(decoded.args, runtime)
+      ? this.argsSerializer.deserialize(decoded.args)
       : ([] as unknown as AddArgs);
     return [decoded.sender, decoded.uniqueNumber, args];
   }

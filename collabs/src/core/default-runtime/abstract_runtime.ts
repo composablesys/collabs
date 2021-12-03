@@ -27,6 +27,14 @@ export abstract class AbstractRuntime<Events extends CrdtEventsRecord>
     return rootCrdt;
   }
 
+  save(): Uint8Array {
+    return this.rootCrdt.save();
+  }
+
+  load(saveData: Uint8Array | null): void {
+    this.rootCrdt.load(saveData);
+  }
+
   private idCounter = 0;
   getReplicaUniqueNumber(count = 1): number {
     const ans = this.idCounter;
@@ -45,14 +53,6 @@ export abstract class AbstractRuntime<Events extends CrdtEventsRecord>
 
   getDescendant(namePath: string[]): Crdt {
     return this.rootCrdt.getDescendant(namePath);
-  }
-
-  save(): Uint8Array {
-    return this.rootCrdt.save();
-  }
-
-  load(saveData: Uint8Array | null): void {
-    this.rootCrdt.load(saveData);
   }
 
   abstract childSend(child: Crdt, messagePath: Uint8Array[]): void;

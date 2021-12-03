@@ -4,7 +4,6 @@ import { MultipleSemidirectProduct } from "../../constructions/multiple_semidire
 import {
   MessageMeta,
   CrdtEvent,
-  CrdtEventMeta,
   CrdtEventsRecord,
   InitToken,
   Pre,
@@ -48,16 +47,16 @@ export class AddComponent
     if (toAdd !== 0) {
       let message = CNumberComponentMessage.create({ arg: toAdd });
       let buffer = CNumberComponentMessage.encode(message).finish();
-      super.send(buffer);
+      this.sendPrimitive(buffer);
     }
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
-      meta: CrdtEventMeta.fromTimestamp(meta),
+      meta,
       arg: decoded.arg,
       previousValue,
     });
@@ -67,14 +66,15 @@ export class AddComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     this.state.value = CNumberComponentMessage.decode(saveData).arg;
   }
 }
@@ -94,16 +94,16 @@ export class MultComponent
     if (toMult !== 1) {
       let message = CNumberComponentMessage.create({ arg: toMult });
       let buffer = CNumberComponentMessage.encode(message).finish();
-      super.send(buffer);
+      this.sendPrimitive(buffer);
     }
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
-      meta: CrdtEventMeta.fromTimestamp(meta),
+      meta,
       arg: decoded.arg,
       previousValue,
     });
@@ -113,14 +113,15 @@ export class MultComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     this.state.value = CNumberComponentMessage.decode(saveData).arg;
   }
 }
@@ -139,15 +140,15 @@ export class MinComponent
   min(toComp: number) {
     let message = CNumberComponentMessage.create({ arg: toComp });
     let buffer = CNumberComponentMessage.encode(message).finish();
-    super.send(buffer);
+    this.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
     this.emit("Min", {
-      meta: CrdtEventMeta.fromTimestamp(meta),
+      meta,
       arg: decoded.arg,
       previousValue,
     });
@@ -157,14 +158,15 @@ export class MinComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     this.state.value = CNumberComponentMessage.decode(saveData).arg;
   }
 }
@@ -183,15 +185,15 @@ export class MaxComponent
   max(toComp: number) {
     let message = CNumberComponentMessage.create({ arg: toComp });
     let buffer = CNumberComponentMessage.encode(message).finish();
-    super.send(buffer);
+    this.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array) {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
     let decoded = CNumberComponentMessage.decode(message);
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);
     this.emit("Max", {
-      meta: CrdtEventMeta.fromTimestamp(meta),
+      meta,
       arg: decoded.arg,
       previousValue,
     });
@@ -201,14 +203,15 @@ export class MaxComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     this.state.value = CNumberComponentMessage.decode(saveData).arg;
   }
 }
@@ -241,16 +244,18 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   }
 
   protected action(
-    _m2TargetPath: string[],
-    _m2Timestamp: MessageMeta | null,
-    m2Message: Uint8Array,
+    m2MessagePath: (Uint8Array | string)[],
+    _m2Meta: MessageMeta,
     m2Index: number,
-    _m1TargetPath: string[],
-    _m1Timestamp: MessageMeta | null,
-    m1Message: Uint8Array
-  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    let m2Decoded = CNumberComponentMessage.decode(m2Message);
-    let m1Decoded = CNumberComponentMessage.decode(m1Message);
+    m1MessagePath: (Uint8Array | string)[],
+    _m1Meta: MessageMeta | null
+  ): { m1MessagePath: (Uint8Array | string)[] } | null {
+    let m2Decoded = CNumberComponentMessage.decode(
+      <Uint8Array>m2MessagePath[0]
+    );
+    let m1Decoded = CNumberComponentMessage.decode(
+      <Uint8Array>m1MessagePath[0]
+    );
     var actedArg: number;
     switch (m2Index) {
       case 3:
@@ -270,8 +275,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
     });
 
     return {
-      m1TargetPath: [],
-      m1Message: CNumberComponentMessage.encode(acted).finish(),
+      m1MessagePath: [CNumberComponentMessage.encode(acted).finish()],
     };
   }
 

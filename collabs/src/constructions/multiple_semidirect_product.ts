@@ -68,7 +68,7 @@ class MultipleSemidirectState<S extends object> {
    */
   protected history: Map<string, Array<StoredMessage>> = new Map();
   public internalState!: S;
-  constructor(private readonly historyTimestamps: boolean) {}
+  constructor(private readonly historyMetas: boolean) {}
 
   /**
    * Add message to the history with the given meta.
@@ -86,7 +86,7 @@ class MultipleSemidirectState<S extends object> {
         meta.senderCounter,
         this.receiptCounter,
         messagePath,
-        this.historyTimestamps ? meta : null,
+        this.historyMetas ? meta : null,
         arbId
       )
     );
@@ -101,7 +101,7 @@ class MultipleSemidirectState<S extends object> {
    * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaId: string, meta: MessageMeta, arbId: number) {
-    return this.processTimestamp(replicaId, meta, true, arbId);
+    return this.processMeta(replicaId, meta, true, arbId);
   }
 
   /**
@@ -116,7 +116,7 @@ class MultipleSemidirectState<S extends object> {
    * the history, it must be added to the history after calling
    * this method.)
    */
-  private processTimestamp(
+  private processMeta(
     replicaId: string,
     meta: MessageMeta,
     returnConcurrent: boolean,
@@ -243,7 +243,7 @@ class MultipleSemidirectState<S extends object> {
                 return { stringData: value };
               } else return { bytesData: value };
             }),
-            meta: null, // TODO: historyTimestamps not supported
+            meta: null, // TODO: historyMetas not supported
             arbIndex: message.arbIndex,
           };
         }),
@@ -290,18 +290,18 @@ export abstract class MultipleSemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements ParentCrdt, StatefulCrdt<MultipleSemidirectState<S>>
+  implements ParentCrdt, StatefulCrdt<MultipleSemidirectState<S>> 
 {
   readonly state: MultipleSemidirectState<S>;
 
   /**
    * TODO
-   * @param historyTimestamps=false        [description]
+   * @param historyMetas=false        [description]
    */
-  constructor(initToken: InitToken, historyTimestamps = false) {
+  constructor(initToken: InitToken, historyMetas = false) {
     super(initToken);
     // Types are hacked a bit here to make implementation simpler
-    this.state = new MultipleSemidirectState(historyTimestamps);
+    this.state = new MultipleSemidirectState(historyMetas);
   }
 
   childSend(child: Crdt, messagePath: (string | Uint8Array)[]): void {
@@ -322,20 +322,20 @@ export abstract class MultipleSemidirectProduct<
   /**
    * TODO
    * @param  m2TargetPath [description]
-   * @param  m2Timestamp  [description]
+   * @param  m2Meta  [description]
    * @param  m2Message    [description]
    * @param  m2Index      [description]
    * @param  m1TargetPath [description]
-   * @param  m1Timestamp  [description]
+   * @param  m1Meta  [description]
    * @param  m1Message    [description]
    * @return              [description]
    */
   protected abstract action(
     m2MessagePath: (Uint8Array | string)[],
-    m2Timestamp: MessageMeta | null,
+    m2Meta: MessageMeta | null,
     m2Index: number,
     m1MessagePath: (Uint8Array | string)[],
-    m1Timestamp: MessageMeta | null
+    m1Meta: MessageMeta | null
   ): { m1MessagePath: (Uint8Array | string)[] } | null;
 
   protected setupState(initialState: S) {

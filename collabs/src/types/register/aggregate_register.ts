@@ -3,7 +3,7 @@ import {
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
 import { CPrimitive } from "../../constructions";
-import { MessageMeta, CrdtEventMeta, InitToken, Serializer } from "../../core";
+import { MessageMeta, InitToken, Serializer } from "../../core";
 import { DefaultSerializer, SingletonSerializer } from "../../util";
 import { CRegister, CRegisterEventsRecord } from "./interfaces";
 
@@ -61,7 +61,7 @@ export abstract class AggregateArgsCRegister<
       setArgs: this.argsSerializer.serialize(args),
     });
     let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-    super.send(buffer);
+    this.sendPrimitive(buffer);
     return this.value;
   }
 
@@ -72,11 +72,11 @@ export abstract class AggregateArgsCRegister<
         reset: true,
       }); // no value
       let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-      super.send(buffer);
+      this.sendPrimitive(buffer);
     }
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
     // Get previousValue now
     const previousValue = this.value;
 
@@ -96,7 +96,7 @@ export abstract class AggregateArgsCRegister<
           this.constructValue(decoded.setArgs),
           meta.sender,
           meta.senderCounter,
-          meta.getTime(),
+          meta.wallClockTime!,
           decoded.setArgs
         );
         newState.push(entry);
@@ -114,14 +114,14 @@ export abstract class AggregateArgsCRegister<
     this.cachedValue = undefined;
 
     this.emit("Set", {
-      meta: CrdtEventMeta.fromTimestamp(meta),
+      meta,
       previousValue,
     });
   }
 
   private constructValue(argsSerialized: Uint8Array): S {
     return this.valueConstructor(
-      ...this.argsSerializer.deserialize(argsSerialized, this.runtime)
+      ...this.argsSerializer.deserialize(argsSerialized)
     );
   }
 
@@ -179,7 +179,7 @@ export abstract class AggregateArgsCRegister<
     return this.entries.length === 0;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     const message = AggregateArgsCRegisterSave.create({
       entries: this.entries.map((entry) => {
         return {
@@ -193,7 +193,8 @@ export abstract class AggregateArgsCRegister<
     return AggregateArgsCRegisterSave.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     const message = AggregateArgsCRegisterSave.decode(saveData);
     for (let element of message.entries) {
       this.entries.push(

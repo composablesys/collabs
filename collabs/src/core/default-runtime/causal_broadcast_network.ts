@@ -25,6 +25,6 @@ export interface CausalBroadcastNetwork {
 
   send(message: Uint8Array, senderCounter: number): void;
 
-  load(saveData: Uint8Array | null): Promise<void>;
-  save(): Promise<Uint8Array>;
+  load(saveData: Uint8Array | null): void;
+  save(): Uint8Array;
 }

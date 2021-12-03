@@ -7,7 +7,7 @@ import {
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
 import { DefaultSerializer } from "../../util";
-import { MessageMeta, CrdtEventMeta, InitToken, Serializer } from "../../core";
+import { MessageMeta, InitToken, Serializer } from "../../core";
 import { AbstractCListCPrimitive } from "./abstract_list";
 import { DenseLocalList } from "./dense_local_list";
 import { Resettable } from "../../abilities";
@@ -80,7 +80,7 @@ export class PrimitiveCListFromDenseLocalList<
       };
     }
     const message = PrimitiveCListMessage.create({ insert: imessage });
-    this.send(PrimitiveCListMessage.encode(message).finish());
+    this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
     return values[0];
   }
 
@@ -134,7 +134,7 @@ export class PrimitiveCListFromDenseLocalList<
           uniqueNumber: id[1],
         },
       });
-      this.send(PrimitiveCListMessage.encode(message).finish());
+      this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
     } else {
       const imessage: IPrimitiveCListDeleteRangeMessage = {};
       if (startIndex !== 0) {
@@ -150,16 +150,16 @@ export class PrimitiveCListFromDenseLocalList<
       const message = PrimitiveCListMessage.create({
         deleteRange: imessage,
       });
-      this.send(PrimitiveCListMessage.encode(message).finish());
+      this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
     }
   }
 
   clear() {
     const message = PrimitiveCListMessage.create({ deleteRange: {} });
-    this.send(PrimitiveCListMessage.encode(message).finish());
+    this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
     const decoded = PrimitiveCListMessage.decode(message);
     switch (decoded.op) {
       case "insert":
@@ -167,19 +167,14 @@ export class PrimitiveCListFromDenseLocalList<
         let values: T[];
         switch (insert.type) {
           case "value":
-            values = [
-              this.valueSerializer.deserialize(insert.value, this.runtime),
-            ];
+            values = [this.valueSerializer.deserialize(insert.value)];
             break;
           case "values":
-            values = this.valueArraySerializer!.deserialize(
-              insert.values,
-              this.runtime
-            );
+            values = this.valueArraySerializer!.deserialize(insert.values);
             break;
           case "valuesArray":
             values = insert.valuesArray!.values!.map((oneValue) =>
-              this.valueSerializer.deserialize(oneValue, this.runtime)
+              this.valueSerializer.deserialize(oneValue)
             );
             break;
           default:
@@ -198,7 +193,7 @@ export class PrimitiveCListFromDenseLocalList<
         this.emit("Insert", {
           startIndex: index,
           count: values.length,
-          meta: CrdtEventMeta.fromTimestamp(meta),
+          meta,
         });
         break;
       case "delete": {
@@ -216,7 +211,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            meta: CrdtEventMeta.fromTimestamp(meta),
+            meta,
           });
         } // Else already deleted
         break;
@@ -233,19 +228,13 @@ export class PrimitiveCListFromDenseLocalList<
         // the current cost).
         const startIndex = decoded.deleteRange!.hasOwnProperty("startLoc")
           ? this.denseLocalList.rightIndex(
-              this.denseLocalList.deserialize(
-                decoded.deleteRange!.startLoc!,
-                this.runtime
-              )
+              this.denseLocalList.deserialize(decoded.deleteRange!.startLoc!)
             )
           : 0;
         // TODO: leftIndex name is improper
         const endIndex = decoded.deleteRange!.hasOwnProperty("endLoc")
           ? this.denseLocalList.leftIndex(
-              this.denseLocalList.deserialize(
-                decoded.deleteRange!.endLoc!,
-                this.runtime
-              )
+              this.denseLocalList.deserialize(decoded.deleteRange!.endLoc!)
             ) - 1
           : this.length - 1;
 
@@ -281,7 +270,7 @@ export class PrimitiveCListFromDenseLocalList<
             startIndex: ret[0],
             count: 1,
             deletedValues: [ret[1]],
-            meta: CrdtEventMeta.fromTimestamp(meta),
+            meta,
           });
         }
         break;
@@ -326,7 +315,7 @@ export class PrimitiveCListFromDenseLocalList<
     return this.denseLocalList.canGc();
   }
 
-  protected savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     const senderCountersSave = new Array<number>(this.denseLocalList.length);
     let i = 0;
     this.denseLocalList.forEach((loc) => {
@@ -352,20 +341,15 @@ export class PrimitiveCListFromDenseLocalList<
     return PrimitiveCListSave.encode(message).finish();
   }
 
-  protected loadPrimitive(saveData: Uint8Array): void {
+  load(saveData: Uint8Array | null): void {
+    if (saveData === null) return;
     const decoded = PrimitiveCListSave.decode(saveData);
     if (this.valueArraySerializer !== undefined) {
-      const values = this.valueArraySerializer.deserialize(
-        decoded.values,
-        this.runtime
-      );
+      const values = this.valueArraySerializer.deserialize(decoded.values);
       this.denseLocalList.loadLocs(decoded.locs, (index) => values[index]);
     } else {
       this.denseLocalList.loadLocs(decoded.locs, (index) =>
-        this.valueSerializer.deserialize(
-          decoded.valuesArray!.values![index],
-          this.runtime
-        )
+        this.valueSerializer.deserialize(decoded.valuesArray!.values![index])
       );
     }
     // Load this.senderCounters.

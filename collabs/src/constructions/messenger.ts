@@ -1,7 +1,6 @@
 import {
   MessageMeta,
   CrdtEvent,
-  CrdtEventMeta,
   CrdtEventsRecord,
   InitToken,
   Serializer,
@@ -39,22 +38,22 @@ export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
 
   sendMessage(message: M): void {
     const encoded = this.messageSerializer.serialize(message);
-    super.send(encoded);
+    super.sendPrimitive(encoded);
   }
 
-  protected receivePrimitive(meta: MessageMeta, message: Uint8Array): void {
-    const decoded = this.messageSerializer.deserialize(message, this.runtime);
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
+    const decoded = this.messageSerializer.deserialize(message);
     this.emit("Message", {
       message: decoded,
-      meta: CrdtEventMeta.fromTimestamp(meta),
+      meta,
     });
   }
 
-  protected savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     return new Uint8Array();
   }
 
-  protected loadPrimitive(_saveData: Uint8Array): void {
+  load(): void {
     // No-op.
   }
 

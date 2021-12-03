@@ -26,6 +26,15 @@ export interface BatchingLayerEventsRecord extends CrdtEventsRecord {
    * is already committed by the time of the microtask.
    */
   BatchPending: CrdtEvent;
+  /**
+   * Event for debugging and testing purposes only.
+   * Emitted each time a message is sent by the child,
+   * at the end of [[BatchingLayer.childSend]]. By calling [[BatchingLayer.commitBatch]]
+   * each time this event is emitted, you can effectively
+   * disable batching. Doing so in a real application is
+   * not recommended because it will break up transactions.
+   */
+  DebugSend: CrdtEvent;
 }
 
 /**
@@ -203,6 +212,8 @@ export class BatchingLayer
         }
       });
     }
+
+    this.emit("DebugSend", { meta }, false);
   }
 
   /**
