@@ -129,7 +129,6 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     for (const historyEntry of this.history.entries()) {
       const senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
-      if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
         let concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {

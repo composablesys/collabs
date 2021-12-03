@@ -244,10 +244,7 @@ export class PrimitiveCListFromDenseLocalList<
           const loc = this.denseLocalList.getLoc(i);
           // Check causality
           const vcEntry = vc.get(this.denseLocalList.idOf(loc)[0]);
-          if (
-            vcEntry !== undefined &&
-            vcEntry >= this.senderCounters.get(loc)!
-          ) {
+          if (vcEntry >= this.senderCounters.get(loc)!) {
             // Store for later instead of deleting
             // immediately, so that indices don't move on
             // us unexpectedly.

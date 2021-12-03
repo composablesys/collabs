@@ -13,7 +13,7 @@ import {
   CMapDeleteEvent,
   CMapSetEvent,
   CCounter,
-  CrdtInitToken,
+  InitToken,
   Pre,
 } from "../../src";
 import { debug } from "../debug";
@@ -303,7 +303,6 @@ describe("standard", () => {
         assert.strictEqual(bobNumber.value, 15);
       });
 
-      // TODO: giving wrong answer.
       it("works with the example from the paper", () => {
         // See https://arxiv.org/abs/2004.04303, §3.1
         init(1, "numberIdPaper");
@@ -625,7 +624,7 @@ describe("standard", () => {
     let bobMap: MergingMutCMap<string, CCounter>;
 
     beforeEach(() => {
-      const valueConstructor = (valueInitToken: CrdtInitToken) =>
+      const valueConstructor = (valueInitToken: InitToken) =>
         new CCounter(valueInitToken);
       aliceMap = alice.registerCrdt(
         "map",

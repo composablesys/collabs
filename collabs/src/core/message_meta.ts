@@ -4,6 +4,7 @@ export interface VectorClock {
    * or 0 if none have been received.
    * Equivalently, the number of messages received from
    * replicaId.
+   * When replicaId is sender, this is senderCounter.
    */
   get(replicaId: string): number;
 }

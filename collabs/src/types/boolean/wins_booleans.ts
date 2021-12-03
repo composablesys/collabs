@@ -36,8 +36,7 @@ export class TrueWinsCBoolean
     const newEntries: WinsCBooleanEntry[] = [];
     let vc = meta.vectorClock!;
     for (const entry of this.entries) {
-      let vcEntry = vc.get(entry.sender);
-      if (vcEntry === undefined || vcEntry < entry.senderCounter) {
+      if (vc.get(entry.sender) < entry.senderCounter) {
         newEntries.push(entry);
       }
     }

@@ -160,7 +160,9 @@ export class BatchingLayer
     const meta = this.parent.nextMessageMeta();
     this.inChildReceive = true;
     try {
-      this.child.receive(messagePath, meta);
+      // Need to copy messagePath since receive mutates it but
+      // we still need to store it.
+      this.child.receive(messagePath.slice(), meta);
     } finally {
       this.inChildReceive = false;
     }
@@ -228,7 +230,8 @@ export class BatchingLayer
     if (this.pendingBatch === null) return;
     const batch = this.pendingBatch;
     // Clear this.pendingBatch now so that this.isBatchPending()
-    // is false when we call send at the end of this method.
+    // is false when we call send at the end of this method,
+    // in case someone consults it during send.
     this.pendingBatch = null;
 
     // Serialize the batch and send it.
@@ -271,9 +274,10 @@ export class BatchingLayer
     const deserialized = BatchingLayerMessage.decode(
       <Uint8Array>messagePath[0]
     );
-    for (let vertex of deserialized.messages) {
+    for (const messageVertex of deserialized.messages) {
       // Reconstruct vertex's messagePath.
       const childMessagePath: (Uint8Array | string)[] = [];
+      let vertex = messageVertex;
       while (vertex !== 0) {
         const edge = <BatchingLayerEdgeMessage>deserialized.edges[vertex - 1];
         childMessagePath.push(

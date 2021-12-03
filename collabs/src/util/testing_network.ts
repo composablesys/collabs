@@ -157,10 +157,8 @@ export class TestingNetworkGenerator {
     for (let sender of this.messageQueues.keys()) this.releaseByNetwork(sender);
   }
 
-  getTestingNetwork(runtime: Runtime) {
-    // @ts-ignore network is private
-    let causal = runtime.network as DefaultCausalBroadcastNetwork;
-    return causal.broadcastNetwork as TestingNetwork;
+  getTestingNetwork(runtime: Runtime): TestingNetwork {
+    return <TestingNetwork>(<DefaultRuntime>runtime).network;
   }
 
   getTotalSentBytes() {

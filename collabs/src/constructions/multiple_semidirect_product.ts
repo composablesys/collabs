@@ -133,7 +133,6 @@ class MultipleSemidirectState<S extends object> {
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
-      if (vcEntry === undefined) vcEntry = -1;
       if (senderHistory !== undefined) {
         let concurrentIndexStart = MultipleSemidirectState.indexAfter(
           senderHistory,

@@ -2,7 +2,31 @@ import { MessageMetaLayerMessage } from "../../../generated/proto_compiled";
 import { int64AsNumber } from "../../util";
 import { Crdt, CrdtEventsRecord, InitToken, Pre } from "../crdt";
 import { ParentCrdt } from "../crdt_parent";
-import { MessageMeta } from "../message_meta";
+import { MessageMeta, VectorClock } from "../message_meta";
+
+class BasicVectorClock implements VectorClock {
+  constructor(
+    private readonly parentMeta: MessageMeta,
+    private readonly vcMap: { [replicaId: string]: number | Long.Long }
+  ) {}
+
+  get(replicaId: string): number {
+    if (replicaId === this.parentMeta.sender)
+      return this.parentMeta.senderCounter;
+    else return int64AsNumber(this.vcMap[replicaId] ?? 0);
+  }
+
+  toString(): string {
+    return JSON.stringify({
+      sender: this.parentMeta.sender,
+      senderCounter: this.parentMeta.senderCounter,
+      otherEntries: Object.entries(this.vcMap).map(([k, v]) => [
+        k,
+        int64AsNumber(v),
+      ]),
+    });
+  }
+}
 
 /**
  * Crdt that provides optional MessageMeta fields to its
@@ -53,14 +77,12 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
       // pendingMeta is either not yet created, or invalidated
       // by our parent's meta change; make a new one.
       const parentMeta = this.parent.nextMessageMeta();
-      const vcMapCopy = new Map(this.currentVectorClock);
       const meta: MessageMeta = {
         ...parentMeta,
-        vectorClock: {
-          get(replicaId) {
-            return vcMapCopy.get(replicaId) ?? 0;
-          },
-        },
+        vectorClock: new BasicVectorClock(
+          parentMeta,
+          Object.fromEntries(this.currentVectorClock)
+        ),
         wallClockTime: Date.now(),
         lamportTimestamp: this.currentLamportTimestamp + 1,
       };
@@ -117,11 +139,7 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
     const lamportTimestamp = int64AsNumber(metaDeserialized.lamportTimestamp);
     const newMeta: MessageMeta = {
       ...meta,
-      vectorClock: {
-        get(replicaId) {
-          return int64AsNumber(metaDeserialized.vectorClock[replicaId] ?? 0);
-        },
-      },
+      vectorClock: new BasicVectorClock(meta, metaDeserialized.vectorClock),
       wallClockTime: int64AsNumber(metaDeserialized.wallClockTime),
       lamportTimestamp,
     };

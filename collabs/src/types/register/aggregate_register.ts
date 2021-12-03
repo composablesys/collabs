@@ -84,8 +84,7 @@ export abstract class AggregateArgsCRegister<
     let vc = meta.vectorClock!;
     let newState = new Array<AggregateArgsCRegisterEntry<S>>();
     for (let entry of this.entries) {
-      let vcEntry = vc.get(entry.sender);
-      if (vcEntry === undefined || vcEntry < entry.senderCounter) {
+      if (vc.get(entry.sender) < entry.senderCounter) {
         newState.push(entry);
       }
     }
