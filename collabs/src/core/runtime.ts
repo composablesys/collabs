@@ -75,7 +75,8 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
    * TODO: disallow calling during send/receive?
    * Should be implied, but could point out explicitly,
    * since it could break things in weird ways.
-   * Can likewise guarantee to Crdts.
+   * Can likewise guarantee to Crdts. Also, don't consult
+   * nextMessageMeta() during loading/saving?
    * @return [description]
    */
   save(): Uint8Array;

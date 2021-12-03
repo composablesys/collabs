@@ -1,4 +1,7 @@
-import { MessageMetaLayerMessage } from "../../../generated/proto_compiled";
+import {
+  MessageMetaLayerMessage,
+  MessageMetaLayerSave,
+} from "../../../generated/proto_compiled";
 import { int64AsNumber } from "../../util";
 import { Crdt, CrdtEventsRecord, InitToken, Pre } from "../crdt";
 import { ParentCrdt } from "../crdt_parent";
@@ -6,25 +9,17 @@ import { MessageMeta, VectorClock } from "../message_meta";
 
 class BasicVectorClock implements VectorClock {
   constructor(
-    private readonly parentMeta: MessageMeta,
     private readonly vcMap: { [replicaId: string]: number | Long.Long }
   ) {}
 
   get(replicaId: string): number {
-    if (replicaId === this.parentMeta.sender)
-      return this.parentMeta.senderCounter;
-    else return int64AsNumber(this.vcMap[replicaId] ?? 0);
+    return int64AsNumber(this.vcMap[replicaId] ?? 0);
   }
 
   toString(): string {
-    return JSON.stringify({
-      sender: this.parentMeta.sender,
-      senderCounter: this.parentMeta.senderCounter,
-      otherEntries: Object.entries(this.vcMap).map(([k, v]) => [
-        k,
-        int64AsNumber(v),
-      ]),
-    });
+    return JSON.stringify(
+      Object.entries(this.vcMap).map(([k, v]) => [k, int64AsNumber(v)])
+    );
   }
 }
 
@@ -35,7 +30,7 @@ class BasicVectorClock implements VectorClock {
 export class MessageMetaLayer extends Crdt implements ParentCrdt {
   private child!: Crdt;
   /**
-   * Excludes this.replicaId.
+   * Includes this.runtime.replicaId.
    */
   private currentVectorClock = new Map<string, number>();
   /**
@@ -77,12 +72,11 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
       // pendingMeta is either not yet created, or invalidated
       // by our parent's meta change; make a new one.
       const parentMeta = this.parent.nextMessageMeta();
+      const vectorClockForMeta = Object.fromEntries(this.currentVectorClock);
+      vectorClockForMeta[this.runtime.replicaId] = parentMeta.senderCounter;
       const meta: MessageMeta = {
         ...parentMeta,
-        vectorClock: new BasicVectorClock(
-          parentMeta,
-          Object.fromEntries(this.currentVectorClock)
-        ),
+        vectorClock: new BasicVectorClock(vectorClockForMeta),
         wallClockTime: Date.now(),
         lamportTimestamp: this.currentLamportTimestamp + 1,
       };
@@ -90,8 +84,10 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
 
       // Also update other cached fields.
       this.pendingMetaBase = parentMeta;
+      const vectorClockForMessage = Object.fromEntries(this.currentVectorClock);
+      delete vectorClockForMessage[this.runtime.replicaId];
       const metaMessage = MessageMetaLayerMessage.create({
-        vectorClock: Object.fromEntries(this.currentVectorClock),
+        vectorClock: vectorClockForMessage,
         wallClockTime: meta.wallClockTime!,
         lamportTimestamp: meta.lamportTimestamp!,
       });
@@ -136,10 +132,11 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
     const metaDeserialized = MessageMetaLayerMessage.decode(
       messagePath[messagePath.length - 1]
     );
+    metaDeserialized.vectorClock[meta.sender] = meta.senderCounter;
     const lamportTimestamp = int64AsNumber(metaDeserialized.lamportTimestamp);
     const newMeta: MessageMeta = {
       ...meta,
-      vectorClock: new BasicVectorClock(meta, metaDeserialized.vectorClock),
+      vectorClock: new BasicVectorClock(metaDeserialized.vectorClock),
       wallClockTime: int64AsNumber(metaDeserialized.wallClockTime),
       lamportTimestamp,
     };
@@ -149,15 +146,12 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
     this.child.receive(messagePath, newMeta);
 
     // Update our own state to reflect newMeta.
-    if (meta.isLocal) {
-      this.currentLamportTimestamp++;
-    } else {
-      this.currentVectorClock.set(meta.sender, meta.senderCounter);
-      this.currentLamportTimestamp = Math.max(
-        lamportTimestamp,
-        this.currentLamportTimestamp
-      );
-    }
+    this.currentVectorClock.set(meta.sender, meta.senderCounter);
+    this.currentLamportTimestamp = Math.max(
+      lamportTimestamp,
+      this.currentLamportTimestamp
+    );
+
     // Invalidate the current pendingMeta.
     this.pendingMeta = null;
     this.pendingMetaBase = null;
@@ -165,11 +159,31 @@ export class MessageMetaLayer extends Crdt implements ParentCrdt {
   }
 
   save(): Uint8Array {
-    throw new Error("Method not implemented.");
+    const vectorClock = Object.fromEntries(this.currentVectorClock);
+    const saveMessage = MessageMetaLayerSave.create({
+      vectorClock,
+      lamportTimestamp: this.currentLamportTimestamp,
+      childSave: this.child.save(),
+    });
+    return MessageMetaLayerSave.encode(saveMessage).finish();
   }
 
   load(saveData: Uint8Array | null): void {
-    throw new Error("Method not implemented.");
+    if (saveData === null) {
+      // Indicates skipped loading. Pass on the message.
+      this.child.load(null);
+    } else {
+      const saveMessage = MessageMetaLayerSave.decode(saveData);
+      for (const [replicaId, entry] of Object.entries(
+        saveMessage.vectorClock
+      )) {
+        this.currentVectorClock.set(replicaId, int64AsNumber(entry));
+      }
+      this.currentLamportTimestamp = int64AsNumber(
+        saveMessage.lamportTimestamp
+      );
+      this.child.load(saveMessage.childSave);
+    }
   }
 
   getDescendant(namePath: string[]): Crdt<CrdtEventsRecord> {

@@ -306,11 +306,20 @@ export class BatchingLayer
   }
 
   save(): Uint8Array {
-    throw new Error("Method not implemented.");
+    // TODO: what to do about a pending batch? Ideally
+    // should flush it.
+    // Would be a mistake to send later, since saveData might
+    // be loaded multiple times or by different users.
+    if (this.pendingBatch !== null) {
+      throw new Error(
+        "Cannot save during pending batch (call commitBatch() first)"
+      );
+    }
+    return this.child.save();
   }
 
   load(saveData: Uint8Array | null): void {
-    throw new Error("Method not implemented.");
+    this.child.load(saveData);
   }
 
   getDescendant(namePath: string[]): Crdt<CrdtEventsRecord> {

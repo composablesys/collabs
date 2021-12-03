@@ -1,5 +1,13 @@
 message MessageMetaLayerMessage {
+  // Excludes this replicaId.
   map<string, uint64> vectorClock = 1;
   required uint64 wallClockTime = 2;
   required uint64 lamportTimestamp = 3;
+}
+
+message MessageMetaLayerSave {
+  // Includes the saving replicaId.
+  map<string, uint64> vectorClock = 1;
+  required uint64 lamportTimestamp = 2;
+  required bytes childSave = 3;
 }
