@@ -148,6 +148,10 @@ export class BatchingLayer
     // Local echo.
     if (this.inChildReceive) {
       // send inside a receive call; not allowed (might break things).
+      // TODO: Do we need to ban this here? Perhaps just in
+      // Runtime? (In case you want to wrap this in runLocally.
+      // Although this should be the root anyway, so that's not
+      // valid.)
       throw new Error(
         "BatchingLayer.send called during another message's receive;" +
           " did you try to perform an operation in an event handler?"

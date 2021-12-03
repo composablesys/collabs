@@ -9,9 +9,12 @@ import {
   InitToken,
   Serializer,
   Runtime,
+  Pre,
+  PublicCObject,
 } from "../core";
 import { DefaultSerializer } from "../util";
 import { CObject } from "./object";
+import { RunLocallyLayer } from "./run_locally_layer";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?
@@ -335,7 +338,7 @@ export abstract class SemidirectProductRev<
   m2Args extends Array<any> = [],
   m1Ret extends any | void = any | void,
   m2Ret extends any | void = any | void
-> extends CObject<Events, C> {
+> extends CObject<Events> {
   protected history = new MessageHistory(false, false, false);
   private receivedMessages = false;
   private m2Id = "";
@@ -345,6 +348,9 @@ export abstract class SemidirectProductRev<
   private m2RetVal?: m2Ret;
   private messageValueSerializer: Serializer<SemidirectMessage<m1Args, m2Args>>;
 
+  private readonly runLocallyLayer: RunLocallyLayer;
+  private readonly internalCObject: PublicCObject;
+
   constructor(
     initToken: InitToken,
     historyTimestamps: boolean = false,
@@ -352,6 +358,9 @@ export abstract class SemidirectProductRev<
     historyDiscard2Dominated: boolean = false
   ) {
     super(initToken);
+
+    this.runLocallyLayer = super.addChild("", Pre(RunLocallyLayer)());
+    this.internalCObject = this.runLocallyLayer.setChild(Pre(PublicCObject)());
 
     this.messageValueSerializer = DefaultSerializer.getInstance(
       initToken.runtime
@@ -378,6 +387,10 @@ export abstract class SemidirectProductRev<
       this.send([this.messageValueSerializer.serialize({ m: 2, args })]);
       return this.m2RetVal as m2Ret;
     };
+  }
+
+  protected addSemidirectChild<D extends C>(name: string, preChild: Pre<D>): D {
+    return this.internalCObject.addChild(name, preChild);
   }
 
   protected trackM2Event(eventName: string, event: any) {
@@ -455,7 +468,7 @@ export abstract class SemidirectProductRev<
               else mAct = mActOrNull;
             }
           }
-          this.m1RetVal = this.runtime.runLocally(() => {
+          this.m1RetVal = this.runLocallyLayer.runLocally(meta, () => {
             return this._m1!(...(mAct.m1Message as m1Start<m1Args>).args);
           });
           return;
@@ -466,7 +479,7 @@ export abstract class SemidirectProductRev<
             meta,
             message
           );
-          this.m2RetVal = this.runtime.runLocally(() => {
+          this.m2RetVal = this.runLocallyLayer.runLocally(meta, () => {
             return this._m2!(...(semidirectMessage as m2Start<m2Args>).args);
           });
           return;
@@ -501,7 +514,7 @@ export abstract class SemidirectProductRev<
     return this.history.isHistoryEmpty() && super.canGc();
   }
 
-  saveComposite(): Uint8Array {
+  saveObject(): Uint8Array {
     return this.history.save(this.runtime, this.saveSemidirectProductRev());
   }
 
@@ -521,7 +534,8 @@ export abstract class SemidirectProductRev<
   // this.internalState, whatever it is.
   // Need option to do custom loading if that's not the
   // case.
-  loadComposite(saveData: Uint8Array) {
+  loadObject(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     this.loadSemidirectProductRev(this.history.load(saveData, this.runtime));
   }
 }

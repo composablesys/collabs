@@ -210,7 +210,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     let endOp!: YataOp<T>;
     let initialContentOps: YataOp<T>[] = [];
     const outerThis = this;
-    this.opMap = this.addChild(
+    this.opMap = this.addSemidirectChild(
       "nodeMap",
       crdts.Pre(crdts.DeletingMutCSet)(
         (

@@ -71,6 +71,13 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
   // Implementations of user-facing methods from CollabsApp.
 
   registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C;
+  /**
+   * TODO: disallow calling during send/receive?
+   * Should be implied, but could point out explicitly,
+   * since it could break things in weird ways.
+   * Can likewise guarantee to Crdts.
+   * @return [description]
+   */
   save(): Uint8Array;
   load(saveData: Uint8Array | null): void;
 }
