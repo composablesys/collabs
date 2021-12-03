@@ -327,7 +327,7 @@ function plainJsArray() {
 
 function resettingLww() {
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let list: crdts.ResettingMutCList<crdts.LwwCRegister<string>> | null;
 
   return new AutomergePerfBenchmark("Resetting Lww", {
@@ -386,7 +386,7 @@ function resettingLww() {
 
 function deletingLww() {
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let list: crdts.DeletingMutCList<crdts.LwwCRegister<string>, []> | null;
 
   return new AutomergePerfBenchmark("Deleting Lww", {
@@ -445,7 +445,7 @@ function deletingLww() {
 
 function textCrdt() {
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let list: crdts.CText | null;
 
   return new AutomergePerfBenchmark("TextCrdt", {
@@ -560,7 +560,7 @@ function automerge() {
 
 function mapLww() {
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let list: crdts.LwwCMap<number, string> | null;
 
   return new AutomergePerfBenchmark("LwwMap", {
@@ -697,10 +697,7 @@ function richText() {
      * a single char, or (for an embed) a JSON-serializable
      * object with a single property.
      */
-    constructor(
-      initToken: crdts.CrdtInitToken,
-      readonly char: string | object
-    ) {
+    constructor(initToken: crdts.InitToken, readonly char: string | object) {
       super(initToken);
 
       this.attributes = this.addChild("", crdts.Pre(crdts.LwwCMap)());
@@ -743,7 +740,7 @@ function richText() {
     readonly text: crdts.DeletingMutCList<RichChar, [char: string | object]>;
 
     constructor(
-      initToken: crdts.CrdtInitToken,
+      initToken: crdts.InitToken,
       initialChars: (string | object)[] = []
     ) {
       super(initToken);
@@ -812,7 +809,7 @@ function richText() {
   }
 
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let list: RichText | null;
 
   return new AutomergePerfBenchmark("RichText", {

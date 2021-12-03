@@ -180,7 +180,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return true;
   }
 
-  saveComposite(): Uint8Array {
+  protected saveObject(): Uint8Array {
     const historySave: {
       [sender: string]: ISemidirectProductStoreSenderHistory;
     } = {};
@@ -202,7 +202,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return SemidirectProductStoreSave.encode(saveMessage).finish();
   }
 
-  loadComposite(saveData: Uint8Array) {
+  protected loadObject(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     const saveMessage = SemidirectProductStoreSave.decode(saveData);
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {

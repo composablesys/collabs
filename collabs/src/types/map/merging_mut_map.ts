@@ -162,7 +162,7 @@ export class MergingMutCMap<K, C extends Crdt & Resettable>
     this.internalMap.reset();
   }
 
-  postLoad() {
+  protected loadObject() {
     // Compute cachedSize directly.
     for (const _ of this.values()) this.cachedSize++;
   }

@@ -173,9 +173,10 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * Load the locs specified by saveData (from saveLocs)
    * and the values specified by the values callback,
    * which represents an array of the same length as the
-   * saved loc array.
+   * saved loc array.  Like in Crdt, always called, but
+   * with null if there is nothing to load.
    */
-  loadLocs(saveData: Uint8Array, values: (index: number) => T): void;
+  loadLocs(saveData: Uint8Array | null, values: (index: number) => T): void;
 
   // TODO: refactor together with Cursor.
   // Perhaps just leftIndexOf, rightIndexOf, going

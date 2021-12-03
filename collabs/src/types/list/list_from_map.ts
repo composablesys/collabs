@@ -107,11 +107,11 @@ export class CListFromMap<
     return super.canGc() && this.denseLocalList.canGc();
   }
 
-  saveComposite(): Uint8Array {
+  protected saveObject(): Uint8Array {
     return this.denseLocalList.saveLocs();
   }
 
-  loadComposite(saveData: Uint8Array): void {
+  protected loadObject(saveData: Uint8Array | null): void {
     this.denseLocalList.loadLocs(saveData, () => undefined);
   }
 }

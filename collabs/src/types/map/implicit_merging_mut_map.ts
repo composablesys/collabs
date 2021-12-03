@@ -302,6 +302,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
       // to allow getDescendant to load children on demand.
       this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
       for (const [name, childSave] of this.pendingChildSaves) {
+        this.pendingChildSaves.delete(name);
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
@@ -322,6 +323,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Crdt>
       // Ensure child is loaded.
       const childSave = this.pendingChildSaves.get(name);
       if (childSave !== undefined) {
+        this.pendingChildSaves.delete(name);
         child.load(childSave);
       }
     }

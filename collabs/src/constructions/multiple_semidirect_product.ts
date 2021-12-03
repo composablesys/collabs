@@ -466,6 +466,7 @@ export abstract class MultipleSemidirectProduct<
       // to allow getDescendant to load children on demand.
       this.pendingChildSaves = new Map(saveMessage.childSaves.entries());
       for (const [idx, childSave] of this.pendingChildSaves) {
+        this.pendingChildSaves.delete(idx);
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
@@ -490,6 +491,7 @@ export abstract class MultipleSemidirectProduct<
         // Ensure child is loaded.
         const childSave = this.pendingChildSaves.get(idx);
         if (childSave !== undefined) {
+          this.pendingChildSaves.delete(idx);
           this.crdts[idx].load(childSave);
         }
       }

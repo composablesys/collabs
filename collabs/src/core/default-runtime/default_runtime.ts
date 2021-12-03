@@ -79,6 +79,10 @@ export class DefaultRuntime
     this.batchingLayer.setBatchingStrategy(batchingStrategy);
   }
 
+  commitBatch() {
+    this.batchingLayer.commitBatch();
+  }
+
   private inRootReceive = false;
 
   // TODO: can we move this and receive to the abstract class,

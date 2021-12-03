@@ -287,7 +287,7 @@ export class MovableMutCListFromSet<
     return super.canGc() && this.denseLocalList.canGc();
   }
 
-  postLoad() {
+  protected loadObject() {
     // Fill in denseLocalList, which starts empty.
     for (const value of this.set) {
       this.denseLocalList.set(value.loc.value, value);

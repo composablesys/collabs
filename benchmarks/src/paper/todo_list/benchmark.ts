@@ -496,7 +496,7 @@ function compoResetting() {
     private readonly doneCrdt: crdts.TrueWinsCBoolean;
     private readonly items: crdts.ResettingMutCList<CrdtTodoList>;
 
-    constructor(initToken: crdts.CrdtInitToken) {
+    constructor(initToken: crdts.InitToken) {
       super(initToken);
       this.text = this.addChild("text", crdts.Pre(crdts.CText)());
       this.doneCrdt = this.addChild(
@@ -553,7 +553,7 @@ function compoResetting() {
   }
 
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Resetting", {
@@ -607,7 +607,7 @@ function compoDeleting() {
     private readonly doneCrdt: crdts.TrueWinsCBoolean;
     private readonly items: crdts.DeletingMutCList<CrdtTodoList, []>;
 
-    constructor(initToken: crdts.CrdtInitToken) {
+    constructor(initToken: crdts.InitToken) {
       super(initToken);
       this.text = this.addChild("text", crdts.Pre(crdts.CText)());
       this.doneCrdt = this.addChild(
@@ -664,7 +664,7 @@ function compoDeleting() {
   }
 
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Deleting", {
@@ -766,7 +766,7 @@ function compoJson() {
   }
 
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
@@ -864,7 +864,7 @@ function compoJsonText() {
   }
 
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
@@ -1303,7 +1303,7 @@ function compoJsonOpt() {
   }
 
   let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.Runtime | null;
+  let runtime: crdts.DefaultRuntime | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Opt", {

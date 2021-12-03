@@ -430,6 +430,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       }
       // Load children that have not already been loaded.
       for (const [name, childSave] of this.pendingChildSaves) {
+        this.pendingChildSaves.delete(name);
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
@@ -464,6 +465,7 @@ export class DeletingMutCSet<C extends Crdt, AddArgs extends any[]>
       // Ensure child is loaded.
       const childSave = this.pendingChildSaves.get(name);
       if (childSave !== undefined) {
+        this.pendingChildSaves.delete(name);
         child.load(childSave);
       }
     }

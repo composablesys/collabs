@@ -147,7 +147,7 @@ export class CObject<
    * save/load advice).
    * @return [description]
    */
-  saveObject(): Uint8Array | null {
+  protected saveObject(): Uint8Array | null {
     return null;
   }
 
@@ -172,6 +172,7 @@ export class CObject<
       // to allow getDescendant to load children on demand.
       this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
       for (const [name, childSave] of this.pendingChildSaves) {
+        this.pendingChildSaves.delete(name);
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
@@ -187,13 +188,14 @@ export class CObject<
   }
 
   /**
-   * Note this is called after the children are initialized
-   * but before they are loaded.
+   * Note this is called after the children are loaded.
+   * Also, it is always called, even if saveObject returned
+   * null (in that case it is called with null).
    *
    * @param  saveData the output of saveObject() on
    * a previous saved instance
    */
-  loadObject(saveData: Uint8Array | null): void {}
+  protected loadObject(saveData: Uint8Array | null): void {}
 
   getDescendant(namePath: string[]): Crdt {
     if (namePath.length === 0) return this;
@@ -213,6 +215,7 @@ export class CObject<
       // Ensure child is loaded.
       const childSave = this.pendingChildSaves.get(name);
       if (childSave !== undefined) {
+        this.pendingChildSaves.delete(name);
         child.load(childSave);
       }
     }

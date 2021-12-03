@@ -1,15 +1,14 @@
 import * as tf from "@tensorflow/tfjs";
 import {
-  CausalTimestamp,
   CCounter,
   CObject,
   CrdtEvent,
   CrdtEventsRecord,
-  CrdtInitToken,
+  InitToken,
+  MessageMeta,
   Pre,
   CPrimitive,
   Resettable,
-  CrdtEventMeta,
 } from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
@@ -127,7 +126,7 @@ export class TensorGCounterCrdt
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
@@ -157,7 +156,7 @@ export class TensorGCounterCrdt
     const message = proto.TensorGCounterMessage.create({
       add: { prOld, prNew, idCounter: this.state.idCounter! },
     });
-    super.send(proto.TensorGCounterMessage.encode(message).finish());
+    this.sendPrimitive(proto.TensorGCounterMessage.encode(message).finish());
   }
 
   reset(): void {
@@ -171,7 +170,7 @@ export class TensorGCounterCrdt
         ),
       },
     });
-    super.send(proto.TensorGCounterMessage.encode(message).finish());
+    this.sendPrimitive(proto.TensorGCounterMessage.encode(message).finish());
   }
 
   /** Clears the memory taken by the tensors */
@@ -199,17 +198,14 @@ export class TensorGCounterCrdt
   }
 
   protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
+    message: Uint8Array | string,
+    meta: MessageMeta
   ): void {
-    const decoded = proto.TensorGCounterMessage.decode(message);
+    const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":
         const addMessage = decoded.add!;
-        const keyString = this.keyString(
-          timestamp.getSender(),
-          addMessage.idCounter
-        );
+        const keyString = this.keyString(meta.sender, addMessage.idCounter);
         const prNewTensor = conversions.protobufToTF.tensor(addMessage.prNew);
         const prOldTensor = conversions.protobufToTF.tensor(addMessage.prOld);
         const valueAdded = prNewTensor.sub(prOldTensor);
@@ -223,7 +219,7 @@ export class TensorGCounterCrdt
         this.state.P.set(keyString, prNewTensor);
         this.emit("Add", {
           valueAdded,
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta,
         });
         valueAdded.dispose();
         break;
@@ -248,7 +244,7 @@ export class TensorGCounterCrdt
           received.dispose();
         }
         this.emit("Reset", {
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta,
         });
         break;
 
@@ -272,10 +268,10 @@ export class TensorGCounterCrdt
   }
 
   // TODO: implement
-  protected savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     return new Uint8Array();
   }
-  protected loadPrimitive(saveData: Uint8Array): void {}
+  load(saveData: Uint8Array | null): void {}
 }
 
 export class TensorCounterCrdt
@@ -286,7 +282,7 @@ export class TensorCounterCrdt
   private readonly minus: TensorGCounterCrdt;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
@@ -344,7 +340,7 @@ export class TensorAverageCrdt
   private readonly denominator: CCounter;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {

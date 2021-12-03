@@ -3,9 +3,9 @@ import {
   Crdt,
   CrdtEvent,
   CrdtEventsRecord,
-  CrdtInitToken,
-  DefaultElementSerializer,
-  ElementSerializer,
+  InitToken,
+  DefaultSerializer,
+  Serializer,
   ImplicitMergingMutCMap,
   MergingMutCMap,
   OptionalLwwCRegister,
@@ -40,11 +40,12 @@ export class JsonCrdt extends CObject<JsonEventsRecord> {
   >;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
-  constructor(initToken: CrdtInitToken) {
+  constructor(initToken: InitToken) {
     super(initToken);
 
-    let keySerializer: ElementSerializer<string> =
-      DefaultElementSerializer.getInstance();
+    let keySerializer: Serializer<string> = DefaultSerializer.getInstance(
+      initToken.runtime
+    );
     this.internalMap = this.addChild(
       "internalMap",
       Pre(MergingMutCMap)(
@@ -200,8 +201,7 @@ export class JsonCursor {
   private cursor: string;
 
   static new(): Pre<JsonCursor> {
-    return (initToken: CrdtInitToken) =>
-      new JsonCursor(new JsonCrdt(initToken));
+    return (initToken: InitToken) => new JsonCursor(new JsonCrdt(initToken));
   }
 
   constructor(internal: JsonCrdt, cursor?: string) {

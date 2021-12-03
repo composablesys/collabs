@@ -1,4 +1,7 @@
-import { CObject } from "../../constructions";
+// Import CObject from a specific file, to avoid preloading
+// the whole constructions directory, which sometimes causes
+// circular dependency errors.
+import { CObject } from "../../constructions/object";
 import { Crdt, Pre } from "../crdt";
 
 // TODO: different directly? E.g. constuctions? Also, different

@@ -91,7 +91,7 @@ export class CSetFromBoolean<
     }
   }
 
-  postLoad() {
+  protected loadObject() {
     // Set this.cachedSize as a view of the set's size.
     for (const value of this.booleanMap.values()) {
       if (value.value) this.cachedSize++;

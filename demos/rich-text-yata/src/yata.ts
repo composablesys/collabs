@@ -560,17 +560,10 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     return YataSave.encode(saveData).finish();
   }
 
-  private saveData?: Uint8Array;
-  protected loadSemidirectProductRev(saveData: Uint8Array) {
-    // Need to wait until postLoad, after opMap is loaded,
-    // before loading.
-    this.saveData = saveData;
-  }
-
-  postLoad() {
+  protected loadSemidirectProductRev(saveData: Uint8Array | null) {
+    if (saveData === null) return;
     // Set leftId, rightId's based on saved order.
-    const message = YataSave.decode(this.saveData!);
-    delete this.saveData;
+    const message = YataSave.decode(saveData);
     for (let i = 0; i < message.idArray.length - 1; i++) {
       const left = message.idArray[i];
       const right = message.idArray[i + 1];

@@ -29,7 +29,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 
   constructor(
     private readonly testName: string,
-    private readonly crdtConstructor: (initToken: crdts.CrdtInitToken) => C,
+    private readonly crdtConstructor: (initToken: crdts.InitToken) => C,
     ops: {
       [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
     },
@@ -98,7 +98,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       // Setup
       // TODO: should this be included in memory?
       let generator = new crdts.TestingNetworkGenerator();
-      let runtimes: crdts.Runtime[] = [];
+      let runtimes: crdts.DefaultRuntime[] = [];
       let crdtList: C[] = [];
       for (let i = 0; i < USERS; i++) {
         runtimes[i] = generator.newRuntime(
@@ -311,16 +311,16 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
  */
 class NoopCrdtClass extends crdts.CPrimitive {
   noop() {
-    super.send(new Uint8Array());
+    super.sendPrimitive(new Uint8Array());
   }
 
   receivePrimitive() {}
 
-  savePrimitive() {
+  save() {
     return new Uint8Array();
   }
 
-  loadPrimitive() {}
+  load() {}
 
   canGc() {
     return true;
@@ -340,7 +340,7 @@ function DeepNoopCrdt() {
   class DeepNoopCrdt extends crdts.CObject {
     readonly child: crdts.Crdt;
     readonly noop: NoopCrdtClass;
-    constructor(initToken: crdts.CrdtInitToken, index: number) {
+    constructor(initToken: crdts.InitToken, index: number) {
       super(initToken);
       if (index === 0) {
         this.child = this.addChild(
@@ -506,7 +506,7 @@ function MapCrdt() {
       new crdts.MergingMutCMap<number, crdts.CCounter>(
         initToken,
         (valueInitToken) => new crdts.CCounter(valueInitToken),
-        crdts.DefaultElementSerializer.getInstance()
+        crdts.DefaultSerializer.getInstance(initToken.runtime)
       ),
     {
       Toggle: [
@@ -545,7 +545,7 @@ function MapCrdtRolling() {
       return new crdts.MergingMutCMap<number, crdts.CCounter>(
         initToken,
         (valueInitToken) => new crdts.CCounter(valueInitToken),
-        crdts.DefaultElementSerializer.getInstance()
+        crdts.DefaultSerializer.getInstance(initToken.runtime)
       );
     },
     {
@@ -575,7 +575,7 @@ function MapCrdtRollingGrow() {
       return new crdts.MergingMutCMap<number, crdts.CCounter>(
         initToken,
         (valueInitToken) => new crdts.CCounter(valueInitToken),
-        crdts.DefaultElementSerializer.getInstance()
+        crdts.DefaultSerializer.getInstance(initToken.runtime)
       );
     },
     {
@@ -880,6 +880,7 @@ export default async function microCrdts(args: string[]) {
       break;
     // TODO: LwwMap<number, number>?
     // TODO: TreedocList<Counter>?  Make sure to enable GC
+    // TODO: DeletingMutCSet, others
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);
   }
