@@ -6,7 +6,7 @@ import { CBoolean } from "./interfaces";
 
 export class ToggleCBoolean
   extends MakeAbstractCBoolean(CPrimitive)<CRegisterEventsRecord<boolean>>
-  implements CBoolean 
+  implements CBoolean
 {
   private valueInternal: boolean;
 

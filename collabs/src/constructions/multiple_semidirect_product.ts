@@ -290,7 +290,7 @@ export abstract class MultipleSemidirectProduct<
     Events extends CrdtEventsRecord = CrdtEventsRecord
   >
   extends Crdt<Events>
-  implements ParentCrdt, StatefulCrdt<MultipleSemidirectState<S>> 
+  implements ParentCrdt, StatefulCrdt<MultipleSemidirectState<S>>
 {
   readonly state: MultipleSemidirectState<S>;
 

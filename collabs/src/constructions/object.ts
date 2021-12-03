@@ -53,7 +53,7 @@ export class CObject<
     C extends Crdt = Crdt
   >
   extends Crdt<Events>
-  implements ParentCrdt 
+  implements ParentCrdt
 {
   /**
    * The children, keyed by name.

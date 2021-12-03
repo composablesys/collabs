@@ -31,7 +31,7 @@ export interface CCounterEventsRecord extends CrdtEventsRecord {
 
 export class GrowOnlyCCounter
   extends CPrimitive<CCounterEventsRecord>
-  implements Resettable 
+  implements Resettable
 {
   /**
    * To prevent overflow into unsafe integers, whose
