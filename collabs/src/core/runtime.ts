@@ -1,12 +1,12 @@
 import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
+import { ICrdtParent } from "./crdt_parent";
 import { EventEmitter } from "./event_emitter";
-import { MessageMeta } from "./message_meta";
 
 /**
  * @typeParam M the type of [[MessageMeta]] passed to
  * registered Crdt's.
  */
-export interface Runtime extends EventEmitter<CrdtEventsRecord> {
+export interface Runtime extends ICrdtParent, EventEmitter<CrdtEventsRecord> {
   // Utilities for internal use by Crdts, serializers, etc.
 
   /**
@@ -14,23 +14,6 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
    */
   readonly isRuntime: true;
   readonly replicaId: string;
-
-  childSend(child: Crdt, messagePath: (Uint8Array | string)[]): void;
-
-  /**
-   * @return the [[MessageMeta]] that will be attached to the
-   * next sent message. Note that from a Crdt's perspective,
-   * multiple messages might share the same [[MessageMeta]]:
-   * its messages might be batched by an ancestor, while
-   * [[MessageMeta]] only updates when this Runtime sends a
-   * message. This should only be called by the Runtime's children;
-   * in general, Crdts should only call nextMessageMeta on their
-   * own parent.
-   *
-   * TODO: encouraged to use === values when it hasn't changed
-   * yet, so children can easily tell when it changes.
-   */
-  nextMessageMeta(): MessageMeta;
 
   /**
    * @param count = 1 When set, treat this as count calls,
@@ -68,7 +51,7 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
    */
   getDescendant(namePath: string[]): Crdt;
 
-  // Implementations of user-facing methods from CollabsApp.
+  // Implementations of user-facing methods from App.
 
   registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C;
   /**
@@ -77,6 +60,7 @@ export interface Runtime extends EventEmitter<CrdtEventsRecord> {
    * since it could break things in weird ways.
    * Can likewise guarantee to Crdts. Also, don't consult
    * nextMessageMeta() during loading/saving?
+   * (More generally: decouple these things.)
    * @return [description]
    */
   save(): Uint8Array;

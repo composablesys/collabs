@@ -165,6 +165,30 @@ export abstract class Crdt<
   }
 
   /**
+   * Returns context for the given key as supplied by
+   * some ancestor, or undefined if not supplied.
+   *
+   * Keys are queried on ancestors in
+   * a call chain (like in object inheritance): first, this
+   * calls `getAddedContext(key)` on the parent;
+   * if that returns undefined, it calls on the grandparent,
+   * etc., ending with the [[Runtime]].
+   *
+   * The returned context may be a value or a function.
+   * The value case is analogous to a property,
+   * while the function case is analogous to a method.
+   */
+  getContext(key: symbol): any | undefined {
+    let current: CrdtParent = this.parent;
+    while (true) {
+      const currentAttempt = current.getAddedContext(key);
+      if (currentAttempt !== undefined) return currentAttempt;
+      if (isRuntime(current)) return undefined;
+      current = current.parent;
+    }
+  }
+
+  /**
    * Emits an event, which notifies all registered event handlers.
    * After emitting event, a "Change" event with the same
    * event.meta is emitted, unless it is already a "Change" event.  (Usually, Crdts should not emit a "Change" event

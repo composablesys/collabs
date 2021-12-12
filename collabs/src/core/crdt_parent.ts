@@ -1,31 +1,42 @@
 import { Crdt } from "./crdt";
-import { MessageMeta } from "./message_meta";
 import { Runtime } from "./runtime";
 
 /**
- * Interface implemented by a [[Crdt]] that can have children.
+ * Interface implemented by something that can be a parent
+ * of a [[Crdt]].
+ *
+ * Consumers should use [[CrdtParent]] instead of this interface.
+ * You should only reference this interface directly if you
+ * are a [[Crdt]] implementing it in order to be a [[CrdtParent]].
  */
-export interface ParentCrdt extends Crdt {
+export interface ICrdtParent {
   childSend(child: Crdt, messagePath: (Uint8Array | string)[]): void;
 
   /**
-   * @return the MessageMeta that will be passed along with
-   * the received message corresponding to the next childSend
-   * call, assuming there are no intervening messages
-   * (within the whole Runtime). This can be used by children
-   * to get the MessageMeta for messages that they echo internally.
-   * Typically, it will just be
-   * parent.nextMessageMeta(), but this Crdt may choose to
-   * add extra fields.
+   * Returns context added by this particular [[CrdtParent]]
+   * for the given key, or undefined if not added.
    *
-   * TODO: encouraged to use === values when it hasn't changed
-   * yet, so children can easily tell when it changes.
+   * Keys are queried by [[Crdt.getContext]] in
+   * a call chain (like in object inheritance): first, the [[Crdt]]
+   * calls `getAddedContext(key)` on the parent;
+   * if that returns undefined, it calls on the grandparent,
+   * etc., ending with the [[Runtime]].
+   *
+   * As in object inheritance, a key present in one [[Crdt]]
+   * overshadows its ancestors' values for that key,
+   * but that [[Crdt]] may choose to consult the next
+   * higher up value, accessed through its own [[Crdt.getContext]]
+   * method.
+   *
+   * The returned context may be a value or a function.
+   * The value case is analogous to a property,
+   * while the function case is analogous to a method.
    */
-  nextMessageMeta(): MessageMeta;
+  getAddedContext(key: symbol): any | undefined;
 }
 
 /**
  * Something that can be a parent of a [[Crdt]]: either
  * a [[Runtime]] or a [[Crdt]] that can have children.
  */
-export type CrdtParent = Runtime | ParentCrdt;
+export type CrdtParent = ICrdtParent & (Crdt | Runtime);
