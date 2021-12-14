@@ -1,34 +1,38 @@
-import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
-import { DefaultRuntime } from "./default-runtime";
-import { BatchingStrategy } from "./default-runtime/batching_strategy";
-import { CausalBroadcastNetwork } from "./default-runtime/causal_broadcast_network";
+import { Collab, CollabEvent, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime } from "./runtime";
+
+interface AppEventsRecord {
+  /**
+   * Emitted each time the app's state is changed and
+   * is in a reasonable user-facing state
+   * (so not in the middle of a transaction).
+   *
+   * A simple way to keep a GUI in sync with the app is to
+   * do `app.on("Change", refreshDisplay)`.
+   */
+  Change: CollabEvent;
+}
 
 /**
  * The entrypoint for a Collabs app.
  *
  * TODO: sample code. Workflow: new, register, await load
- * (call with null if new), start, then use Crdts.
+ * (call with null if new), start, then use Collabs.
  *
  * Internally, an App is a thin wrapper around its [[Runtime]],
  * exposing only the user-facing methods and events.
+ *
+ * TODO: see [concrete instance]
  */
-export class App extends EventEmitter<CrdtEventsRecord> {
-  static createDefault(
-    network: CausalBroadcastNetwork,
-    options?: { batchingStrategy?: BatchingStrategy; debugReplicaId?: string }
-  ): App {
-    return new App(new DefaultRuntime(network, options));
-  }
-
+export class App extends EventEmitter<AppEventsRecord> {
   constructor(readonly runtime: Runtime) {
     super();
     this.runtime.on("Change", (e) => this.emit("Change", e));
   }
 
-  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C {
-    return this.runtime.registerCrdt(name, preCrdt);
+  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
+    return this.runtime.registerCollab(name, preCollab);
   }
 
   // TODO: flush? Or make part of saving?
@@ -44,12 +48,6 @@ export class App extends EventEmitter<CrdtEventsRecord> {
   load(saveData: Uint8Array | null): void {
     this.runtime.load(saveData);
   }
-
-  // TODO: on change/message/receive; other events?
-  // How to do "Change" event in case messages get caught
-  // deep inside and never reach the Runtime
-  // (e.g. batching, nested containers), without violating
-  // transactions?
 
   // TODO: user-led transactions? Consider Yjs, Automerge APIs.
 }

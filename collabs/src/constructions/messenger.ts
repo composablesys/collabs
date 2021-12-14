@@ -1,23 +1,23 @@
 import {
   MessageMeta,
-  CrdtEvent,
-  CrdtEventsRecord,
+  CollabEvent,
+  CollabEventsRecord,
   InitToken,
   Serializer,
 } from "../core";
 import { DefaultSerializer } from "../util";
 import { CPrimitive } from "./primitive";
 
-export interface CMessengerEvent<M> extends CrdtEvent {
+export interface CMessengerEvent<M> extends CollabEvent {
   message: M;
 }
 
-export interface CMessengerEventsRecord<M> extends CrdtEventsRecord {
+export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
   Message: CMessengerEvent<M>;
 }
 
 /**
- * A Crdt that merely sends messages.
+ * A Collab that merely sends messages.
  *
  * Intended for use with [[SemidirectProductStore]], and little
  * else.

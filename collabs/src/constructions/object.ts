@@ -1,10 +1,10 @@
 import { CObjectSave } from "../../generated/proto_compiled";
 import {
-  Crdt,
-  CrdtEventsRecord,
+  Collab,
+  CollabEventsRecord,
   InitToken,
   MessageMeta,
-  ParentCrdt,
+  ParentCollab,
   Pre,
 } from "../core";
 
@@ -24,13 +24,13 @@ import {
  * map with [[LwwCRegister]] values; its contribution is to
  * provide a simple [[CMap]]-compliant API for the wrapped type.
  *
- * TODO: difference from normal object: scoping, Crdt interface
+ * TODO: difference from normal object: scoping, Collab interface
  *
  * ## Usage
  *
  * The children must be registered in the constructor
- * using [[addChild]], which accepts a [[Pre]]-Crdt and
- * outputs the constructed Crdt.  Each child must be assigned
+ * using [[addChild]], which accepts a [[Pre]]-Collab and
+ * outputs the constructed Collab.  Each child must be assigned
  * a unique name, e.g., its name as an instance field.  (If
  * you are concerned about message sizes on the network,
  * you can instead use maximally short names - "" for the most-used
@@ -49,11 +49,11 @@ import {
  * ## Example Subclass
  */
 export class CObject<
-    Events extends CrdtEventsRecord = CrdtEventsRecord,
-    C extends Crdt = Crdt
+    Events extends CollabEventsRecord = CollabEventsRecord,
+    C extends Collab = Collab
   >
-  extends Crdt<Events>
-  implements ParentCrdt
+  extends Collab<Events>
+  implements ParentCollab
 {
   /**
    * The children, keyed by name.
@@ -71,7 +71,7 @@ export class CObject<
   protected readonly children: Map<string, C> = new Map();
 
   /**
-   * Add child as a child of this Crdt with the given
+   * Add child as a child of this Collab with the given
    * name.
    *
    * TODO: correctness requirements and recommended usage
@@ -89,7 +89,7 @@ export class CObject<
     return child;
   }
 
-  childSend(child: Crdt, messagePath: (string | Uint8Array)[]): void {
+  childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
     if (child.parent !== this) {
       throw new Error("childSend called by non-child: " + child);
     }
@@ -168,7 +168,7 @@ export class CObject<
       // For the child saves: it's possible that loading
       // one child might lead to this.getDescendant being
       // called for some other child (typically by deserializing
-      // a Crdt reference). So we use this.pendingChildSaves
+      // a Collab reference). So we use this.pendingChildSaves
       // to allow getDescendant to load children on demand.
       this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
       for (const [name, childSave] of this.pendingChildSaves) {
@@ -197,7 +197,7 @@ export class CObject<
    */
   protected loadObject(saveData: Uint8Array | null): void {}
 
-  getDescendant(namePath: string[]): Crdt {
+  getDescendant(namePath: string[]): Collab {
     if (namePath.length === 0) return this;
 
     const name = namePath[namePath.length - 1];

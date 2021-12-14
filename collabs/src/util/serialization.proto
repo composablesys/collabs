@@ -1,4 +1,4 @@
-message CrdtReference {
+message CollabReference {
     repeated string pathToBase = 1;
 }
 
@@ -17,7 +17,7 @@ message DefaultSerializerMessage {
         bool booleanValue = 3;
         bool undefinedValue = 4;
         bool nullValue = 5;
-        CrdtReference crdtValue = 6;
+        CollabReference crdtValue = 6;
         ArrayMessage arrayValue = 7;
         ObjectMessage objectValue = 8;
         bytes bytesValue = 9;

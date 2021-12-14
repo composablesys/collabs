@@ -1,13 +1,26 @@
-import { Crdt, CrdtEventsRecord, Pre } from "./crdt";
-import { ICrdtParent } from "./crdt_parent";
+import { Collab, CollabEvent, Pre } from "./collab";
+import { ICollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 
+interface RuntimeEventsRecord {
+  /**
+   * Emitted each time the app's state is changed and
+   * is in a reasonable user-facing state
+   * (so not in the middle of a transaction).
+   *
+   * A simple way to keep a GUI in sync with the app is to
+   * do `runtime.on("Change", refreshDisplay)`.
+   */
+  Change: CollabEvent;
+}
+
 /**
- * @typeParam M the type of [[MessageMeta]] passed to
- * registered Crdt's.
+ * TODO: see [concrete instance]
  */
-export interface Runtime extends ICrdtParent, EventEmitter<CrdtEventsRecord> {
-  // Utilities for internal use by Crdts, serializers, etc.
+export interface Runtime
+  extends ICollabParent,
+    EventEmitter<RuntimeEventsRecord> {
+  // Utilities for internal use by Collabs, serializers, etc.
 
   /**
    * Type guard, used by [[isRuntime]].
@@ -26,6 +39,7 @@ export interface Runtime extends ICrdtParent, EventEmitter<CrdtEventsRecord> {
    * once.
    */
   getReplicaUniqueNumber(count?: number): number;
+
   /**
    * @return A unique string that will only appear once
    * across all replicas.
@@ -33,32 +47,36 @@ export interface Runtime extends ICrdtParent, EventEmitter<CrdtEventsRecord> {
   getUniqueString(): string;
 
   /**
-   * Returns the series of names on crdt's path to this Runtime.
+   * Returns the series of names on descendant's path to this Runtime.
    *
    * The path may be truncated if this Runtime guarantees
    * that all
-   * public-facing Crdt's will be descendants of a given
-   * Crdt (e.g., a distinguished root).
+   * public-facing Collab's will be descendants of a given
+   * Collab (e.g., a distinguished root).
+   *
+   * See [[getDescendant]].
+   *
    * @param  descendant [description]
    * @return            [description]
    */
-  getNamePath(descendant: Crdt): string[];
+  getNamePath(descendant: Collab): string[];
+
   /**
    * Returns the descendant with the given `namePath`,
    * as returned by [[getNamePath]].
    * @param  namePath [description]
    * @return          [description]
    */
-  getDescendant(namePath: string[]): Crdt;
+  getDescendant(namePath: string[]): Collab;
 
   // Implementations of user-facing methods from App.
 
-  registerCrdt<C extends Crdt>(name: string, preCrdt: Pre<C>): C;
+  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C;
   /**
    * TODO: disallow calling during send/receive?
    * Should be implied, but could point out explicitly,
    * since it could break things in weird ways.
-   * Can likewise guarantee to Crdts. Also, don't consult
+   * Can likewise guarantee to Collabs. Also, don't consult
    * nextMessageMeta() during loading/saving?
    * (More generally: decouple these things.)
    * @return [description]

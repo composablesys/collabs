@@ -19,9 +19,9 @@ export class EventEmitter<Events extends EventsRecord> {
   /**
    * Maps event names to registered handlers.
    *
-   * TODO: properly, any should instead be this.  However,
-   * that causes errors when trying to treat a Crdt
-   * subclass as an instance of Crdt, for reasons
+   * Properly, `any` should instead be `this`.  However,
+   * that causes errors when trying to treat a Collab
+   * subclass as an instance of Collab, for reasons
    * that are not clear to me.
    */
   private readonly handlers: Partial<{

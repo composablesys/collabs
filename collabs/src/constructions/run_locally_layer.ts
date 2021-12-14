@@ -1,9 +1,9 @@
 import {
-  Crdt,
-  CrdtEventsRecord,
+  Collab,
+  CollabEventsRecord,
   InitToken,
   MessageMeta,
-  ParentCrdt,
+  ParentCollab,
   Pre,
 } from "../core";
 
@@ -14,11 +14,11 @@ import {
  *
  * TODO: use case (bulk ops, renamed ops)
  */
-export class RunLocallyLayer extends Crdt implements ParentCrdt {
-  private child!: Crdt;
+export class RunLocallyLayer extends Collab implements ParentCollab {
+  private child!: Collab;
   private runLocallyMeta: MessageMeta | null = null;
 
-  setChild<C extends Crdt>(preChild: Pre<C>): C {
+  setChild<C extends Collab>(preChild: Pre<C>): C {
     const child = preChild(new InitToken("", this));
     this.child = child;
     return child;
@@ -36,7 +36,7 @@ export class RunLocallyLayer extends Crdt implements ParentCrdt {
   }
 
   childSend(
-    child: Crdt<CrdtEventsRecord>,
+    child: Collab<CollabEventsRecord>,
     messagePath: (string | Uint8Array)[]
   ): void {
     if (child !== this.child) {
@@ -74,7 +74,7 @@ export class RunLocallyLayer extends Crdt implements ParentCrdt {
     this.child.load(saveData);
   }
 
-  getDescendant(namePath: string[]): Crdt<CrdtEventsRecord> {
+  getDescendant(namePath: string[]): Collab<CollabEventsRecord> {
     if (namePath.length === 0) return this;
     if (namePath[namePath.length - 1] !== "") {
       throw new Error("Unrecognized child: " + namePath[namePath.length - 1]);

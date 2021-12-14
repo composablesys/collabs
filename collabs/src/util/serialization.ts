@@ -1,7 +1,7 @@
-import { Runtime, Crdt, Serializer } from "../core/";
+import { Runtime, Collab, Serializer } from "../core/";
 import {
   ArrayMessage,
-  CrdtReference,
+  CollabReference,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
   IOptionalSerializerMessage,
@@ -13,14 +13,25 @@ import { Buffer } from "buffer";
 import { Optional } from "./optional";
 
 /**
+ * A serializer for values of type `T` (e.g., elements
+ * in Collabs collections), so that they can
+ * be sent to other replicas in Collabs operations.
+ *
+ * [[DefaultSerializer.getInstance]]`(runtime)` should suffice for most uses.
+ */
+export interface Serializer<T> {
+  serialize(value: T): Uint8Array;
+  deserialize(message: Uint8Array): T;
+}
+
+/**
  * Default serializer.
  * string, number, boolean, undefined, and null types are passed by-value.
- * Crdt types are sent by-reference, using the Crdt's
+ * Collab types are sent by-reference, using the Collab's
  * rootId and namePath to identify different replicas
- * of the same Crdt.  Other types are passed by-value using BSON
+ * of the same Collab.  Other types are passed by-value using BSON
  * (via https://github.com/mongodb/js-bson).
  */
-
 export class DefaultSerializer<T> implements Serializer<T> {
   private constructor(private readonly runtime: Runtime) {}
 
@@ -55,9 +66,9 @@ export class DefaultSerializer<T> implements Serializer<T> {
       default:
         if (value === null) {
           message = { nullValue: true };
-        } else if (value instanceof Crdt) {
+        } else if (value instanceof Collab) {
           message = {
-            crdtValue: CrdtReference.create({
+            crdtValue: CollabReference.create({
               pathToBase: this.runtime.getNamePath(value),
             }),
           };
@@ -243,39 +254,39 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
 }
 
 /**
- * Serializes Crdts using their path to a specified
- * base Crdt (default the root), which must be an
- * ancestor of all serialized Crdts.
+ * Serializes Collabs using their path to a specified
+ * base Collab (default the root), which must be an
+ * ancestor of all serialized Collabs.
  *
  * This is more efficient than using DefaultSerializer
  * when base is not the root.  It is more efficient
  * the closer the serialized values are to base within
- * the Crdt hierarchy, and best when base is their parent.
+ * the Collab hierarchy, and best when base is their parent.
  */
-export class CrdtSerializer<C extends Crdt> implements Serializer<C> {
+export class CollabSerializer<C extends Collab> implements Serializer<C> {
   /**
    * [constructor description]
    * @param base
    */
-  constructor(private readonly base: Crdt | Runtime) {}
+  constructor(private readonly base: Collab | Runtime) {}
 
   serialize(value: C): Uint8Array {
     let pathToBase = [];
     for (
-      let current: Crdt | Runtime = value;
+      let current: Collab | Runtime = value;
       !(current === this.base);
-      current = (<Crdt>current).parent
+      current = (<Collab>current).parent
     ) {
-      pathToBase.push((<Crdt>current).name);
+      pathToBase.push((<Collab>current).name);
     }
-    const message = CrdtReference.create({
+    const message = CollabReference.create({
       pathToBase,
     });
-    return CrdtReference.encode(message).finish();
+    return CollabReference.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): C {
-    const decoded = CrdtReference.decode(message);
+    const decoded = CollabReference.decode(message);
     return this.base.getDescendant(decoded.pathToBase) as C;
   }
 }
