@@ -1,4 +1,4 @@
-import { CRegister } from "../register";
+import { CRegister } from "./register";
 
 export interface CBoolean extends CRegister<boolean, [boolean]> {
   /**

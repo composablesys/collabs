@@ -1,6 +1,6 @@
-import { CObject, CPrimitive } from "../../constructions";
-import { Collab, InitToken } from "../../core";
-import { CSet, CSetEventsRecord } from "./interfaces";
+import { CObject, CPrimitive } from "../constructions";
+import { Collab, InitToken } from "../core";
+import { CSet, CSetEventsRecord } from "./set";
 
 export declare abstract class AbstractCSet<T, AddArgs extends any[]>
   extends Collab
@@ -42,7 +42,7 @@ export declare abstract class AbstractCSet<T, AddArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCSetCPrimitive and the other examples
+ * by AbstractCSetCObject and the other examples
  * in this file.
  */
 export function MakeAbstractCSet<

@@ -1,6 +1,6 @@
-import { CObject, CPrimitive } from "../../constructions";
-import { Collab, InitToken } from "../../core";
-import { CMap, CMapEventsRecord } from "./interfaces";
+import { CObject, CPrimitive } from "../constructions";
+import { Collab, InitToken } from "../core";
+import { CMap, CMapEventsRecord } from "./map";
 
 export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
   extends Collab
@@ -55,7 +55,7 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCMapCPrimitive and the other examples
+ * by AbstractCMapCObject and the other examples
  * in this file.
  */
 export function MakeAbstractCMap<

@@ -1,6 +1,6 @@
-import { CObject, CPrimitive } from "../../constructions";
-import { Collab, InitToken } from "../../core";
-import { CList, CListEventsRecord } from "./interfaces";
+import { CObject, CPrimitive } from "../constructions";
+import { Collab, InitToken } from "../core";
+import { CList, CListEventsRecord } from "./list";
 
 export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   extends Collab
@@ -143,7 +143,7 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCListCPrimitive and the other examples
+ * by AbstractCListCObject and the other examples
  * in this file.
  */
 export function MakeAbstractCList<

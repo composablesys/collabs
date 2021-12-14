@@ -22,8 +22,8 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
-import { Optional } from "../../util/optional";
-import { Collab, CollabEvent, CollabEventsRecord } from "../../core";
+import { Optional } from "../util/optional";
+import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
 export interface CMapSetEvent<K, V> extends CollabEvent {
   key: K;
@@ -49,8 +49,9 @@ export interface CMapEventsRecord<K, V> extends CollabEventsRecord {
    * a previously-existing value's key is restored,
    * even if the value object remained the same.
    * It is NOT emitted each time the value mutates
-   * internally, in MutCMaps; for that, add your own event listeners
-   * in the valueConstructor.
+   * internally, if the value is itself a [[Collab]]; for that,
+   * add your own event listeners on the value
+   * itself in the valueConstructor.
    */
   Set: CMapSetEvent<K, V>;
   Delete: CMapDeleteEvent<K, V>;

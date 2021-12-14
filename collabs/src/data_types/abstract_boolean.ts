@@ -1,5 +1,5 @@
-import { Collab } from "../../core";
-import { CBoolean } from "./interfaces";
+import { Collab } from "../core";
+import { CBoolean } from "./boolean";
 
 export declare abstract class AbstractCBoolean
   extends Collab
@@ -9,7 +9,7 @@ export declare abstract class AbstractCBoolean
 
   /**
    * Override this if you want a semantic different from
-   * this.value = !this.value.
+   * `this.value = !this.value`.
    */
   toggle(): void;
   true(): void;

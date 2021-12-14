@@ -22,7 +22,7 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
-import { Collab, CollabEvent, CollabEventsRecord } from "../../core";
+import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
 export interface CSetEvent<T> extends CollabEvent {
   value: T;
