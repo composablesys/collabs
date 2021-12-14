@@ -1,4 +1,4 @@
-import { Runtime, Collab, Serializer } from "../core/";
+import { Runtime, Collab } from "../core/";
 import {
   ArrayMessage,
   CollabReference,
@@ -24,18 +24,27 @@ export interface Serializer<T> {
   deserialize(message: Uint8Array): T;
 }
 
+// In this file, we generally cache instances in case each
+// element of a collection constructs a derived serializer
+// from a fixed given one.
+
 /**
  * Default serializer.
  * string, number, boolean, undefined, and null types are passed by-value.
- * Collab types are sent by-reference, using the Collab's
- * rootId and namePath to identify different replicas
- * of the same Collab.  Other types are passed by-value using BSON
- * (via https://github.com/mongodb/js-bson).
+ * Collab types are sent by-reference, using
+ * [[Runtime.getNamePath]] to identify different replicas
+ * of the same Collab.  Arrays and objects are serialized
+ * recursively. Note that object classes are not preserved
+ *
+ * TODO: restrictions, e.g., functions. Structured clone alg,
+ * like window.postMessage?
  */
 export class DefaultSerializer<T> implements Serializer<T> {
   private constructor(private readonly runtime: Runtime) {}
 
-  private static instancesByRuntime = new Map<
+  // Only weak in keys, since we expect a Runtime's DefaultSerializer
+  // to exist for as long as the Runtime.
+  private static instancesByRuntime = new WeakMap<
     Runtime,
     DefaultSerializer<any>
   >();
@@ -69,7 +78,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
         } else if (value instanceof Collab) {
           message = {
             crdtValue: CollabReference.create({
-              pathToBase: this.runtime.getNamePath(value),
+              namePath: this.runtime.getNamePath(value),
             }),
           };
         } else if (value instanceof Uint8Array) {
@@ -77,16 +86,18 @@ export class DefaultSerializer<T> implements Serializer<T> {
             bytesValue: value,
           };
         } else if (value instanceof Array) {
-          // TODO: technically types are bad for recursive
-          // call to this.serialize.
+          // Technically types are bad for recursive
+          // call to this.serialize, but it's okay because
+          // we ignore our generic type.
           message = {
             arrayValue: ArrayMessage.create({
               elements: value.map((element) => this.serialize(element)),
             }),
           };
         } else {
-          // TODO: technically types are bad for recursive
-          // call to this.serialize.
+          // Technically types are bad for recursive
+          // call to this.serialize, but it's okay because
+          // we ignore our generic type.
           const properties: { [key: string]: Uint8Array } = {};
           for (const [key, property] of Object.entries(value)) {
             properties[key] = this.serialize(property);
@@ -121,7 +132,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
         ans = null;
         break;
       case "crdtValue":
-        ans = this.runtime.getDescendant(decoded.crdtValue!.pathToBase!);
+        ans = this.runtime.getDescendant(decoded.crdtValue!.namePath!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
@@ -142,7 +153,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
       default:
         throw new Error("Bad message format: decoded.value=" + decoded.value);
     }
-    // TODO: throw an error if ans is not of type T?
+    // No way of checking if it's really type T.
     return ans as T;
   }
 }
@@ -155,11 +166,12 @@ export class TextSerializer implements Serializer<string> {
   deserialize(message: Uint8Array): string {
     return Buffer.from(message).toString("utf-8");
   }
-  static instance = new TextSerializer();
+  static readonly instance = new TextSerializer();
 }
 
 /**
- * Only works on char arrays
+ * Only works on char arrays (each element must be a
+ * single-character string).
  */
 export class TextArraySerializer implements Serializer<string[]> {
   private constructor() {}
@@ -169,7 +181,7 @@ export class TextArraySerializer implements Serializer<string[]> {
   deserialize(message: Uint8Array): string[] {
     return [...Buffer.from(message).toString("utf-8")];
   }
-  static instance = new TextArraySerializer();
+  static readonly instance = new TextArraySerializer();
 }
 
 /**
@@ -187,23 +199,33 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
     return [this.valueSerializer.deserialize(message)];
   }
 
-  private static cache: WeakMap<Serializer<any>, SingletonSerializer<any>> =
-    new WeakMap();
+  // Weak in both keys and values.
+  private static cache = new WeakMap<
+    Serializer<any>,
+    WeakRef<SingletonSerializer<any>>
+  >();
 
-  static of<T>(valueSerializer: Serializer<T>): Serializer<[T]> {
-    let existing = this.cache.get(valueSerializer);
-    if (existing === undefined) {
-      existing = new SingletonSerializer(valueSerializer);
-      this.cache.set(valueSerializer, existing);
+  static getInstance<T>(
+    valueSerializer: Serializer<T>
+  ): SingletonSerializer<T> {
+    const existingWeak = SingletonSerializer.cache.get(valueSerializer);
+    if (existingWeak !== undefined) {
+      const existing = existingWeak.deref();
+      if (existing !== undefined) return existing;
     }
-    return existing;
+    const ret = new SingletonSerializer(valueSerializer);
+    SingletonSerializer.cache.set(valueSerializer, new WeakRef(ret));
+    return ret;
   }
 }
 
 /**
- * Serializes strings using stringAsBytes.  This is necessary
- * for strings that have been created from byte arrays using
- * bytesAsString, since those might not be UTF-8.
+ * Serializes strings that are outputs of
+ * [[bytesAsString]], using [[stringAsBytes]].
+ *
+ * This is more efficient than using a literal string
+ * encoding, since we know the strings have a restricted
+ * form.
  */
 export class StringAsArraySerializer implements Serializer<string> {
   private constructor() {}
@@ -216,11 +238,13 @@ export class StringAsArraySerializer implements Serializer<string> {
     return bytesAsString(message);
   }
 
-  static instance = new StringAsArraySerializer();
+  static readonly instance = new StringAsArraySerializer();
 }
 
 /**
  * Compares two Uint8Array's for equality.
+ *
+ * TODO: optimize; delete if unused.
  */
 export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
   if (one.length !== two.length) return false;
@@ -230,6 +254,7 @@ export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
   return true;
 }
 
+// TODO: cache instances?
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
     private readonly oneSerializer: Serializer<T>,
@@ -253,13 +278,16 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
   }
 }
 
+// TODO: cache instances?
 /**
- * Serializes Collabs using their path to a specified
- * base Collab (default the root), which must be an
- * ancestor of all serialized Collabs.
+ * Serializes [[Collab]]s using their name path with
+ * respect to a specified
+ * base Collab or the [[Runtime]] (the default),
+ * as returned by `base.getNamePath`.
+ * The base must be an ancestor of all serialized Collabs.
  *
  * This is more efficient than using DefaultSerializer
- * when base is not the root.  It is more efficient
+ * when base is not the [[Runtime]].  It is more efficient
  * the closer the serialized values are to base within
  * the Collab hierarchy, and best when base is their parent.
  */
@@ -271,23 +299,15 @@ export class CollabSerializer<C extends Collab> implements Serializer<C> {
   constructor(private readonly base: Collab | Runtime) {}
 
   serialize(value: C): Uint8Array {
-    let pathToBase = [];
-    for (
-      let current: Collab | Runtime = value;
-      !(current === this.base);
-      current = (<Collab>current).parent
-    ) {
-      pathToBase.push((<Collab>current).name);
-    }
     const message = CollabReference.create({
-      pathToBase,
+      namePath: this.base.getNamePath(value),
     });
     return CollabReference.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): C {
     const decoded = CollabReference.decode(message);
-    return this.base.getDescendant(decoded.pathToBase) as C;
+    return this.base.getDescendant(decoded.namePath) as C;
   }
 }
 
@@ -318,7 +338,7 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
     WeakRef<OptionalSerializer<any>>
   >();
 
-  static of<T>(valueSerializer: Serializer<T>): OptionalSerializer<T> {
+  static getInstance<T>(valueSerializer: Serializer<T>): OptionalSerializer<T> {
     const existingWeak = OptionalSerializer.cache.get(valueSerializer);
     if (existingWeak !== undefined) {
       const existing = existingWeak.deref();
@@ -339,13 +359,13 @@ export function stringAsBytes(str: string) {
 }
 
 /**
- * Apply this function to protobuf.js [u/s]int64 output values
+ * Apply this function to protobuf.js uint64 and sint64 output values
  * to convert them to the nearest JS number (double).
  * For safe integers, this is exact.
  *
  * In theory you can "request" protobuf.js to not use
- * longs by not depending on the Long library, but that is
- * flaky because one of our dependencies might import it.
+ * Longs by not depending on the Long library, but that is
+ * flaky because a dependency might import it.
  */
 export function int64AsNumber(num: number | Long): number {
   if (typeof num === "number") return num;

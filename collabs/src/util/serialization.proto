@@ -1,5 +1,5 @@
 message CollabReference {
-    repeated string pathToBase = 1;
+    repeated string namePath = 1;
 }
 
 message ArrayMessage {
