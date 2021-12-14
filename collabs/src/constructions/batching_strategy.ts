@@ -1,5 +1,4 @@
-import { CollabEvent } from "../crdt";
-import { Unsubscribe } from "../event_emitter";
+import { Unsubscribe } from "../core";
 import { BatchingLayer } from "./batching_layer";
 
 /**
@@ -48,9 +47,9 @@ export class ImmediateBatchingStrategy implements BatchingStrategy {
 
   start(batchingLayer: BatchingLayer): void {
     this.batchingLayer = batchingLayer;
-    this.unsubscribe = this.batchingLayer.on("BatchPending", (e) => {
-      if (e.meta.isLocal) this.batchingLayer!.commitBatch();
-    });
+    this.unsubscribe = this.batchingLayer.on("BatchPending", () =>
+      this.batchingLayer!.commitBatch()
+    );
   }
 
   stop(): void {
@@ -99,22 +98,20 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
     this.unsubscribeReceiveBlocked = undefined;
   }
 
-  private onBatchPending(event: CollabEvent) {
-    if (event.meta.isLocal) {
-      if (!this.pendingBatch) {
-        const time = Date.now();
-        // If it has been more then periodMs ms since the last
-        // batch, commit immediately.
-        if (this.lastSend === -1 || this.lastSend + this.periodMs <= time) {
-          this.commitBatch();
-        } else {
-          // Wait until periodMs ms have elapsed since lastSend.
-          this.pendingBatch = true;
-          setTimeout(
-            this.commitBatch,
-            Math.min(this.lastSend + this.periodMs - time, this.periodMs)
-          );
-        }
+  private onBatchPending() {
+    if (!this.pendingBatch) {
+      const time = Date.now();
+      // If it has been more then periodMs ms since the last
+      // batch, commit immediately.
+      if (this.lastSend === -1 || this.lastSend + this.periodMs <= time) {
+        this.commitBatch();
+      } else {
+        // Wait until periodMs ms have elapsed since lastSend.
+        this.pendingBatch = true;
+        setTimeout(
+          this.commitBatch,
+          Math.min(this.lastSend + this.periodMs - time, this.periodMs)
+        );
       }
     }
   }

@@ -3,9 +3,8 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  Serializer,
 } from "../core";
-import { DefaultSerializer } from "../util";
+import { DefaultSerializer, Serializer } from "../util";
 import { CPrimitive } from "./primitive";
 
 export interface CMessengerEvent<M> extends CollabEvent {
@@ -17,13 +16,11 @@ export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
 }
 
 /**
- * A Collab that merely sends messages.
- *
- * Intended for use with [[SemidirectProductStore]], and little
- * else.
+ * A Collab that merely sends and receives messages.
  *
  * When a message is received, a Message event is emitted.
- * Note that messages may arrive in different orders on
+ * Note that depending on the [[Runtime]],
+ * messages may arrive in different orders on
  * different replicas.
  */
 export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {

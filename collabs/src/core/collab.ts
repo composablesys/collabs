@@ -265,6 +265,10 @@ export abstract class Collab<
    * one of this Collab's descendants.
    *
    * TODO: params
+   *
+   * TODO: sample desc from CPrimitive:
+   * Receives messages sent by [[send]]
+   * on local and replica replicas of this [[CPrimitive]].
    */
   protected abstract receiveInternal(
     messagePath: (Uint8Array | string)[],

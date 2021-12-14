@@ -12,7 +12,7 @@ import {
  * locally only, not as a replicated operation, by calling
  * [[runLocally]].
  *
- * TODO: use case (bulk ops, renamed ops)
+ * TODO: use case (bulk ops, renamed ops). Use with CMessenger.
  */
 export class RunLocallyLayer extends Collab implements ParentCollab {
   private child!: Collab;

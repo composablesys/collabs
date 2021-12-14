@@ -1,10 +1,16 @@
 import {
   BatchingLayerEdgeMessage,
   BatchingLayerMessage,
-} from "../../../generated/proto_compiled";
-import { Collab, CollabEvent, CollabEventsRecord, InitToken, Pre } from "../crdt";
-import { ParentCollab } from "../crdt_parent";
-import { MessageMeta } from "../message_meta";
+} from "../../generated/proto_compiled";
+import {
+  Collab,
+  CollabEvent,
+  CollabEventsRecord,
+  InitToken,
+  ICollabParent,
+  MessageMeta,
+  Pre,
+} from "../core";
 import { BatchingStrategy } from "./batching_strategy";
 
 /**
@@ -74,21 +80,15 @@ interface BatchInfo {
 /**
  * Collab that batches message sent by its descendants.
  *
+ * TODO: messages might be received in the middle of a batch.
+ * But, need to ensure they can't be received in the middle
+ * of a transaction.
+ *
  * TODO: for correct MessageMeta's (consistent between sender
  * and receiver), need to guarantee that parent.nextMessageMeta()
  * is consistent within batches. In practice, this requires
- * usage like in DefaultRuntime: BatchingLayer is the root
- * (so no other sent messages can increase senderCounter),
- * and only mandatory MessageMeta is supplied (so received messages
- * don't change it).
- *
- * TODO: transactions: still works within event loop iterations;
- * but when a batch contains multiple transactions, there
- * might be other messages causally between them, in case
- * a message is received in between. So delaying commitBatch
- * calls doesn't work to create transactions across event
- * loop iterations, unless the parent blocks delivery while
- * isBatchPending().
+ * that no ancestors of this layer add non-constant
+ * MessageMeta fields.
  *
  * TODO: somewhere: advice to reuse Uint8Array's, or use strings,
  * if you send the same messages often. That way they
@@ -97,7 +97,7 @@ interface BatchInfo {
  */
 export class BatchingLayer
   extends Collab<BatchingLayerEventsRecord>
-  implements ParentCollab
+  implements ICollabParent
 {
   private child!: Collab;
 
@@ -157,7 +157,9 @@ export class BatchingLayer
           " did you try to perform an operation in an event handler?"
       );
     }
-    const meta = this.parent.nextMessageMeta();
+    const meta = <MessageMeta>(
+      this.getContext(MessageMeta.NEXT_MESSAGE_META)
+    ) ?? { sender: this.runtime.replicaId, isLocalEcho: true };
     this.inChildReceive = true;
     try {
       // Need to copy messagePath since receive mutates it but
@@ -260,12 +262,21 @@ export class BatchingLayer
     // string-or-Uint8Array.
   }
 
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): any {
+    return undefined;
+  }
+
   protected receiveInternal(
     messagePath: (Uint8Array | string)[],
     meta: MessageMeta
   ): void {
-    // We do our own echo.
-    if (meta.isLocal) return;
+    // We do our own local echo.
+    if (meta.isLocalEcho) return;
 
     if (messagePath.length !== 1) {
       throw new Error("messagePath.length is not 1: " + messagePath.length);
@@ -333,9 +344,5 @@ export class BatchingLayer
 
   canGc(): boolean {
     return !this.isBatchPending() && this.child.canGc();
-  }
-
-  nextMessageMeta(): MessageMeta {
-    return this.parent.nextMessageMeta();
   }
 }

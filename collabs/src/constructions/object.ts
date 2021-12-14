@@ -2,17 +2,17 @@ import { CObjectSave } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEventsRecord,
+  ICollabParent,
   InitToken,
   MessageMeta,
-  ParentCollab,
   Pre,
 } from "../core";
 
 /**
- * A collaborative object, made of instance fields that
- * are themselves collaborative data types.
+ * A [[Collab]] object, made of instance fields that
+ * are themselves Collabs.
  *
- * The collaborative instance fields are its *children*.
+ * The Collab instance fields are its *children*.
  *
  * `CObject` enables the simplest form of composition:
  * you use a fixed set of existing collaborative data
@@ -47,26 +47,26 @@ import {
  * 3 things to translate for your users: operations, queries (reading value), events
  *
  * ## Example Subclass
+ *
+ * TODO
  */
 export class CObject<
     Events extends CollabEventsRecord = CollabEventsRecord,
     C extends Collab = Collab
   >
   extends Collab<Events>
-  implements ParentCollab
+  implements ICollabParent
 {
   /**
    * The children, keyed by name.
    *
    * This map should only be read, not mutated.
    *
-   * Typically, subclasses should store their
+   * It is good style for subclasses to store their
    * children in their own instance variables,
    * not use this map to look them up.  This map
    * is exposed mainly as a convenience for methods that
-   * act on all children in the style of canGc().
-   *
-   * TODO: just expose values method instead?
+   * act on all children, in the style of [[canGc]].
    */
   protected readonly children: Map<string, C> = new Map();
 
@@ -98,8 +98,13 @@ export class CObject<
     this.send(messagePath);
   }
 
-  nextMessageMeta(): MessageMeta {
-    return this.parent.nextMessageMeta();
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): any {
+    return undefined;
   }
 
   protected receiveInternal(

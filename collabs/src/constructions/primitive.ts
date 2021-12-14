@@ -1,9 +1,11 @@
 import { Collab, CollabEventsRecord, MessageMeta } from "../core";
 
 /**
- * TODO: description, correctness definition (from paper)
+ * Convenience superclass for a primitive [[Collab]] (Collab with no children, i.e., leaf in the Collab tree).
  *
- * TODO: type param docstrings
+ * This class provides simplified send and receive methods,
+ * [[sendPrimitive]] and [[receivePrimitive]]), and
+ * implements [[Collab]] methods that are not relevant to primitive Collabs.
  */
 export abstract class CPrimitive<
   Events extends CollabEventsRecord = CollabEventsRecord
@@ -12,6 +14,17 @@ export abstract class CPrimitive<
     this.send([message]);
   }
 
+  /**
+   * Do not override this method; instead override
+   * [[sendPrimitive]].
+   *
+   * If you need to override this method instead of
+   * [[sendPrimitive]], consider extending [[Collab]]
+   * directly instead of this class.
+   *
+   * @param  messagePath [description]
+   * @return             [description]
+   */
   protected receiveInternal(
     messagePath: (Uint8Array | string)[],
     meta: MessageMeta
@@ -24,9 +37,9 @@ export abstract class CPrimitive<
   }
 
   /**
-   * Receives messages sent by send
-   * on replicas of this crdt (including those sent
-   * locally).
+   * Receives messages sent by [[send]]
+   * on local and replica replicas of this [[CPrimitive]].
+   *
    * @param  meta  [description]
    * @param  message    [description]
    */
