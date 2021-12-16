@@ -3,8 +3,9 @@ import {
   SemidirectProductStoreSave,
 } from "../../../generated/proto_compiled";
 import { CObject } from "../../constructions";
-import { InitToken, MessageMeta } from "../../core";
+import { InitToken } from "../../core";
 import { Serializer, DefaultSerializer } from "../../util";
+import { CRDTMessageMeta } from "./crdt_message_meta";
 
 class StoredMessage<M2> {
   constructor(
@@ -71,25 +72,29 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     super(initToken);
   }
 
-  processM2(m2: M2, meta: MessageMeta): void {
+  processM2(m2: M2, crdtMeta: CRDTMessageMeta): void {
     // Add m2 to the history.
     if (this.discardM2Dominated) {
-      this.processMeta(meta, false, true);
+      this.processMeta(crdtMeta, false, true);
     }
-    let senderHistory = this.history.get(meta.sender);
+    let senderHistory = this.history.get(crdtMeta.sender);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(meta.sender, senderHistory);
+      this.history.set(crdtMeta.sender, senderHistory);
     }
     senderHistory.push(
-      new StoredMessage(meta.senderCounter, this.receiptCounter, m2)
+      new StoredMessage(crdtMeta.senderCounter, this.receiptCounter, m2)
     );
     this.receiptCounter++;
   }
 
-  processM1(m1: M1, meta: MessageMeta): M1 | null {
+  processM1(m1: M1, crdtMeta: CRDTMessageMeta): M1 | null {
     // Collect concurrent messages.
-    const concurrent = this.processMeta(meta, true, this.discardM1Dominated);
+    const concurrent = this.processMeta(
+      crdtMeta,
+      true,
+      this.discardM1Dominated
+    );
     // Action.
     for (const storedMessage of concurrent) {
       const mActOrNull = this.action(storedMessage.message, m1);
@@ -102,21 +107,21 @@ export class SemidirectProductStore<M1, M2> extends CObject {
   /**
    * Performs specified actions on all messages in the history:
    * - if returnConcurrent is true, returns the list of
-   * all messages in the history concurrent to meta, in
+   * all messages in the history concurrent to crdtMeta, in
    * receipt order.
    * - if discardDominated is true, deletes all messages from
-   * the history whose metas are causally dominated by
-   * or equal to the given meta.  (Note that this means that
-   * if we want to keep a message with the given meta in
+   * the history whose crdtMetas are causally dominated by
+   * or equal to the given crdtMeta.  (Note that this means that
+   * if we want to keep a message with the given crdtMeta in
    * the history, it must be added to the history after calling
    * this method.)
    */
   private processMeta(
-    meta: MessageMeta,
+    crdtMeta: CRDTMessageMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (this.runtime.replicaId === meta.sender) {
+    if (this.runtime.replicaId === crdtMeta.sender) {
       if (discardDominated) {
         // Nothing's concurrent, so clear everything
         this.history.clear();
@@ -125,9 +130,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     }
     // Gather up the concurrent messages.  These are all
     // messages by each replicaId with sender counter
-    // greater than meta.vectorClock!.get(replicaId).
+    // greater than crdtMeta.vectorClock.get(replicaId).
     const concurrent: StoredMessage<M2>[] = [];
-    const vc = meta.vectorClock!;
+    const vc = crdtMeta.vectorClock;
     for (const historyEntry of this.history.entries()) {
       const senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
@@ -164,7 +169,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    */
   private indexAfter(sparseArray: StoredMessage<M2>[], value: number): number {
     // TODO: binary search when sparseArray is large
-    // Note that there may be duplicate metas.
+    // Note that there may be duplicate crdtMetas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.

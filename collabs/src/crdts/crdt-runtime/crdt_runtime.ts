@@ -17,7 +17,7 @@ import {
   RuntimeEventsRecord,
 } from "../../core";
 import { BroadcastNetwork } from "./broadcast_network";
-import { CRDTMessageMetaLayer } from "./crdt_message_meta_layer";
+import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
 
 // TODO: make sure to emit Change events when internal
 // transactions/batches happen (local echos that don't
@@ -27,7 +27,7 @@ export class CRDTRuntime
   implements Runtime
 {
   private readonly batchingLayer: BatchingLayer;
-  private readonly crdtMetaLayer: CRDTMessageMetaLayer;
+  private readonly crdtMetaLayer: CRDTExtraMetaLayer;
   private readonly registry: PublicCObject;
 
   readonly network: BroadcastNetwork;
@@ -48,9 +48,7 @@ export class CRDTRuntime
     this.batchingLayer = this.setRootCollab(
       Pre(BatchingLayer)(batchingStrategy)
     );
-    this.crdtMetaLayer = this.batchingLayer.setChild(
-      Pre(CRDTMessageMetaLayer)()
-    );
+    this.crdtMetaLayer = this.batchingLayer.setChild(Pre(CRDTExtraMetaLayer)());
     this.registry = this.crdtMetaLayer.setChild(Pre(PublicCObject)());
 
     // Setup network.

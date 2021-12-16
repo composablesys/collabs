@@ -1,9 +1,9 @@
 import {
   Collab,
   CollabEventsRecord,
+  ICollabParent,
   InitToken,
   MessageMeta,
-  ParentCollab,
   Pre,
 } from "../core";
 
@@ -14,7 +14,7 @@ import {
  *
  * TODO: use case (bulk ops, renamed ops). Use with CMessenger.
  */
-export class RunLocallyLayer extends Collab implements ParentCollab {
+export class RunLocallyLayer extends Collab implements ICollabParent {
   private child!: Collab;
   private runLocallyMeta: MessageMeta | null = null;
 
@@ -52,11 +52,14 @@ export class RunLocallyLayer extends Collab implements ParentCollab {
     }
   }
 
-  nextMessageMeta(): MessageMeta {
-    if (this.runLocallyMeta !== null) {
-      // TODO: is this appropriate/needed?
-      return this.runLocallyMeta;
-    } else return this.parent.nextMessageMeta();
+  getAddedContext(key: symbol): any {
+    if (key === MessageMeta.NEXT_MESSAGE_META) {
+      if (this.runLocallyMeta !== null) {
+        // TODO: is this appropriate/needed?
+        return this.runLocallyMeta;
+      } else return undefined;
+    }
+    return undefined;
   }
 
   protected receiveInternal(

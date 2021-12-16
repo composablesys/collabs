@@ -12,6 +12,7 @@ import {
   Pre,
   ICollabParent,
 } from "../../core";
+import { CRDTMessageMeta } from "./crdt_message_meta";
 
 /**
  * Interface describing a Collab which stores all of its mutable state
@@ -74,7 +75,11 @@ class MultipleSemidirectState<S extends object> {
    * Add message to the history with the given meta.
    * replicaId is our replica id.
    */
-  add(messagePath: (Uint8Array | string)[], meta: MessageMeta, arbId: number) {
+  add(
+    messagePath: (Uint8Array | string)[],
+    meta: CRDTMessageMeta,
+    arbId: number
+  ) {
     let senderHistory = this.history.get(meta.sender);
     if (senderHistory === undefined) {
       senderHistory = [];
@@ -100,7 +105,7 @@ class MultipleSemidirectState<S extends object> {
    * meta.sender), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaId: string, meta: MessageMeta, arbId: number) {
+  getConcurrent(replicaId: string, meta: CRDTMessageMeta, arbId: number) {
     return this.processMeta(replicaId, meta, true, arbId);
   }
 
@@ -118,7 +123,7 @@ class MultipleSemidirectState<S extends object> {
    */
   private processMeta(
     replicaId: string,
-    meta: MessageMeta,
+    meta: CRDTMessageMeta,
     returnConcurrent: boolean,
     arbId: number
   ) {
@@ -127,9 +132,9 @@ class MultipleSemidirectState<S extends object> {
     }
     // Gather up the concurrent messages.  These are all
     // messages by each replicaId with sender counter
-    // greater than meta.vectorClock!.get(replicaId).
+    // greater than meta.vectorClock.get(replicaId).
     let concurrent: Array<StoredMessage> = [];
-    let vc = meta.vectorClock!;
+    let vc = meta.vectorClock;
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
@@ -369,6 +374,8 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("TODO");
     }
 
+    const crdtMeta = CRDTMessageMeta.from(meta);
+
     const name = <string>messagePath[messagePath.length - 1];
     let idx: number;
     if (
@@ -382,7 +389,7 @@ export abstract class MultipleSemidirectProduct<
       // arbitration index (idx).
       let concurrent = this.state.getConcurrent(
         this.runtime.replicaId,
-        meta,
+        crdtMeta,
         idx
       );
 
@@ -422,7 +429,7 @@ export abstract class MultipleSemidirectProduct<
       });
 
       // add mAct to state and history
-      this.state.add(messagePath.slice(), meta, idx);
+      this.state.add(messagePath.slice(), crdtMeta, idx);
 
       crdt.receive(mAct.m1MessagePath, meta);
     } else {

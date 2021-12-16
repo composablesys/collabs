@@ -12,6 +12,7 @@ import {
   Pre,
 } from "../../core";
 import { DefaultSerializer, Serializer } from "../../util";
+import { CRDTMessageMeta } from "./crdt_message_meta";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?
@@ -23,7 +24,7 @@ class StoredMessage {
     readonly senderCounter: number,
     readonly receiptCounter: number,
     readonly targetPath: string[],
-    readonly meta: MessageMeta | null,
+    readonly crdtMeta: CRDTMessageMeta | null,
     readonly message: Uint8Array
   ) {}
 }
@@ -42,11 +43,11 @@ export class StoredMessageEvent {
 // we technically must compare receipt orders as equivalent if
 // they are both in causal order.
 
-// TODO: In runtime, store a mapping from `${meta.sender}{meta.vectorClock!.get(meta.sender)}` to the events triggered by the message.
-// TODO: In runtime, add a getMessageEvents() method that retrieves the list of events from mapping.get(`${meta.sender}{meta.vectorClock!.get(meta.sender)}`)
-// TODO: In runtime, add an addMessageEventIfTracked() method that does mapping.get(`${meta.sender}{meta.vectorClock!.get(meta.sender)}`).push(event) if the mapping has the key.
-// TODO: In runtime, add a trackMessageEvents() method that adds `${meta.sender}{meta.vectorClock!.get(meta.sender)}`: [] to the mapping.
-// TODO: In runtime, add an untrackMessageEvents() method that removes `${meta.sender}{meta.vectorClock!.get(meta.sender)}` from the mapping.
+// TODO: In runtime, store a mapping from `${meta.sender}{meta.vectorClock.get(meta.sender)}` to the events triggered by the message.
+// TODO: In runtime, add a getMessageEvents() method that retrieves the list of events from mapping.get(`${meta.sender}{meta.vectorClock.get(meta.sender)}`)
+// TODO: In runtime, add an addMessageEventIfTracked() method that does mapping.get(`${meta.sender}{meta.vectorClock.get(meta.sender)}`).push(event) if the mapping has the key.
+// TODO: In runtime, add a trackMessageEvents() method that adds `${meta.sender}{meta.vectorClock.get(meta.sender)}`: [] to the mapping.
+// TODO: In runtime, add an untrackMessageEvents() method that removes `${meta.sender}{meta.vectorClock.get(meta.sender)}` from the mapping.
 // TODO: In Collab's omit, call addMessageEventIfTracked()
 
 export class MessageHistory<Events extends CollabEventsRecord> {
@@ -65,52 +66,52 @@ export class MessageHistory<Events extends CollabEventsRecord> {
     private readonly historyDiscard2Dominated: boolean
   ) {}
   /**
-   * Add message to the history with the given meta.
+   * Add message to the history with the given crdtMeta.
    * replicaId is our replica id.
    */
   add(
     replicaId: string,
     targetPath: string[],
-    meta: MessageMeta,
+    crdtMeta: CRDTMessageMeta,
     message: Uint8Array
   ): string {
     if (this.historyDiscard2Dominated) {
-      this.processTimestamp(replicaId, meta, false, true);
+      this.processTimestamp(replicaId, crdtMeta, false, true);
     }
-    let senderHistory = this.history.get(meta.sender);
+    let senderHistory = this.history.get(crdtMeta.sender);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(meta.sender, senderHistory);
+      this.history.set(crdtMeta.sender, senderHistory);
     }
     senderHistory.push(
       new StoredMessage(
-        meta.senderCounter,
+        crdtMeta.senderCounter,
         this.receiptCounter,
         targetPath,
-        this.historyTimestamps ? meta : null,
+        this.historyTimestamps ? crdtMeta : null,
         message
       )
     );
 
-    const m2Id = `${meta.sender}${meta.senderCounter}`;
+    const m2Id = `${crdtMeta.sender}${crdtMeta.senderCounter}`;
 
     // Start tracking message events
-    this.messageEvents.set(`${meta.sender}${meta.senderCounter}`, []);
+    this.messageEvents.set(`${crdtMeta.sender}${crdtMeta.senderCounter}`, []);
     this.receiptCounter++;
     return m2Id;
   }
 
   /**
    * Return all messages in the history concurrent to the given
-   * meta, in some causal order (specifically, this replica's
+   * crdtMeta, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaId ===
-   * meta.sender), it is assumed that the meta is
+   * crdtMeta.sender), it is assumed that the crdtMeta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaId: string, meta: MessageMeta) {
+  getConcurrent(replicaId: string, crdtMeta: CRDTMessageMeta) {
     return this.processTimestamp(
       replicaId,
-      meta,
+      crdtMeta,
       true,
       this.historyDiscard1Dominated
     );
@@ -119,28 +120,28 @@ export class MessageHistory<Events extends CollabEventsRecord> {
   /**
    * Performs specified actions on all messages in the history:
    * - if returnConcurrent is true, returns the list of
-   * all messages in the history concurrent to meta, in
+   * all messages in the history concurrent to crdtMeta, in
    * receipt order.
    * - if discardDominated is true, deletes all messages from
-   * the history whose metas are causally dominated by
-   * or equal to the given meta.  (Note that this means that
-   * if we want to keep a message with the given meta in
+   * the history whose crdtMetas are causally dominated by
+   * or equal to the given crdtMeta.  (Note that this means that
+   * if we want to keep a message with the given crdtMeta in
    * the history, it must be added to the history after calling
    * this method.)
    */
   private processTimestamp(
     replicaId: string,
-    meta: MessageMeta,
+    crdtMeta: CRDTMessageMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (replicaId === meta.sender) {
+    if (replicaId === crdtMeta.sender) {
       if (discardDominated) {
         for (let historyEntry of this.history.entries()) {
           for (let message of historyEntry[1]) {
             // Stop tracking message events
             this.messageEvents.delete(
-              `${message.meta!.sender}${message.meta!.senderCounter}`
+              `${message.crdtMeta!.sender}${message.crdtMeta!.senderCounter}`
             );
           }
         }
@@ -151,9 +152,9 @@ export class MessageHistory<Events extends CollabEventsRecord> {
     }
     // Gather up the concurrent messages.  These are all
     // messages by each replicaId with sender counter
-    // greater than meta.vectorClock!.get(replicaId).
+    // greater than crdtMeta.vectorClock.get(replicaId).
     let concurrent: Array<[string, StoredMessage]> = [];
-    let vc = meta.vectorClock!;
+    let vc = crdtMeta.vectorClock;
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
       let vcEntry = vc.get(historyEntry[0]);
@@ -171,8 +172,8 @@ export class MessageHistory<Events extends CollabEventsRecord> {
           for (let i = 0; i < concurrentIndexStart; i++) {
             // Stop tracking message events
             this.messageEvents.delete(
-              `${senderHistory[i].meta!.sender}${
-                senderHistory[i].meta!.senderCounter
+              `${senderHistory[i].crdtMeta!.sender}${
+                senderHistory[i].crdtMeta!.senderCounter
               }`
             );
           }
@@ -218,7 +219,7 @@ export class MessageHistory<Events extends CollabEventsRecord> {
     value: number
   ): number {
     // TODO: binary search when sparseArray is large
-    // Note that there may be duplicate metas.
+    // Note that there may be duplicate crdtMetas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
@@ -257,7 +258,7 @@ export class MessageHistory<Events extends CollabEventsRecord> {
             senderCounter: message.senderCounter,
             receiptCounter: message.receiptCounter,
             targetPath: message.targetPath,
-            // TODO: meta, if this.historyTimestamps.
+            // TODO: crdtMeta, if this.historyTimestamps.
             message: message.message,
           };
         }),
@@ -267,7 +268,7 @@ export class MessageHistory<Events extends CollabEventsRecord> {
     for (const [id, event] of this.messageEvents) {
       // TODO: intelligent way to serialize events.
       // In particular, this will do silly things to
-      // meta.
+      // crdtMeta.
       messageEventsSave[id] = JSON.stringify(event);
     }
     const saveMessage = SemidirectProductRevSave.create({
@@ -423,6 +424,8 @@ export abstract class SemidirectProductRev<
     messagePath: (Uint8Array | string)[],
     meta: MessageMeta
   ) {
+    const crdtMeta = CRDTMessageMeta.from(meta);
+
     this.receivedMessages = this.receivedMessages || true;
     const message = messagePath[messagePath.length - 1];
     if (typeof message !== "string") {
@@ -433,7 +436,7 @@ export abstract class SemidirectProductRev<
         case semidirectMessage.m === 1:
           let concurrent = this.history.getConcurrent(
             this.runtime.replicaId,
-            meta
+            crdtMeta
           );
           let mAct = {
             m1TargetPath: <string[]>[], // TODO: not actually used/usable
@@ -446,7 +449,7 @@ export abstract class SemidirectProductRev<
               // with ResetComponent.
               let mActOrNull = this.action(
                 concurrent[i][1].targetPath,
-                concurrent[i][1].meta,
+                concurrent[i][1].crdtMeta,
                 this.messageValueSerializer.deserialize(
                   concurrent[i][1].message
                 ) as m2Start<m2Args>,
@@ -472,7 +475,7 @@ export abstract class SemidirectProductRev<
           this.m2Id = this.history.add(
             this.runtime.replicaId,
             [], // TODO: not actually used/usable
-            meta,
+            crdtMeta,
             message
           );
           this.m2RetVal = this.runLocallyLayer.runLocally(meta, () => {
