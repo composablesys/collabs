@@ -1,44 +1,43 @@
 import {
-  DefaultRuntimeMessage,
-  DefaultRuntimeSave,
+  CRDTRuntimeMessage,
+  CRDTRuntimeSave,
 } from "../../../generated/proto_compiled";
-import { Collab, CollabEventsRecord, Pre } from "../crdt";
-import { MessageMeta } from "../message_meta";
-import { Runtime } from "../runtime";
-import { AbstractRuntime } from "./abstract_runtime";
-import { BatchingLayer } from "./batching_layer";
+import { BatchingLayer, PublicCObject } from "../../constructions";
 import {
   BatchingStrategy,
   ImmediateBatchingStrategy,
-} from "./batching_strategy";
-import { CausalBroadcastNetwork } from "./causal_broadcast_network";
-import { MessageMetaLayer } from "./message_meta_layer";
-import { PublicCObject } from "./public_object";
-import { randomReplicaId } from "./random_replica_id";
+} from "../../constructions/batching_strategy";
+import {
+  AbstractRuntime,
+  Collab,
+  CollabEventsRecord,
+  Pre,
+  randomReplicaId,
+  Runtime,
+  RuntimeEventsRecord,
+} from "../../core";
+import { BroadcastNetwork } from "./broadcast_network";
+import { CRDTMessageMetaLayer } from "./crdt_message_meta_layer";
 
 // TODO: make sure to emit Change events when internal
 // transactions/batches happen (local echos that don't
 // reach here yet).
-export class DefaultRuntime
-  extends AbstractRuntime<CollabEventsRecord>
+export class CRDTRuntime
+  extends AbstractRuntime<RuntimeEventsRecord>
   implements Runtime
 {
   private readonly batchingLayer: BatchingLayer;
-  private readonly messageMetaLayer: MessageMetaLayer;
+  private readonly crdtMetaLayer: CRDTMessageMetaLayer;
   private readonly registry: PublicCObject;
 
-  readonly network: CausalBroadcastNetwork;
-
-  /**
-   * The number of messages sent so far.
-   * Note the next message's senderCounter will be one greater.
-   */
-  private currentSenderCounter = 0;
-  private pendingMeta: MessageMeta;
+  readonly network: BroadcastNetwork;
 
   constructor(
-    network: CausalBroadcastNetwork,
-    options?: { batchingStrategy?: BatchingStrategy; debugReplicaId?: string }
+    network: BroadcastNetwork,
+    options?: {
+      batchingStrategy?: BatchingStrategy;
+      debugReplicaId?: string;
+    }
   ) {
     super(options?.debugReplicaId ?? randomReplicaId());
 
@@ -49,22 +48,15 @@ export class DefaultRuntime
     this.batchingLayer = this.setRootCollab(
       Pre(BatchingLayer)(batchingStrategy)
     );
-    this.messageMetaLayer = this.batchingLayer.setChild(
-      Pre(MessageMetaLayer)()
+    this.crdtMetaLayer = this.batchingLayer.setChild(
+      Pre(CRDTMessageMetaLayer)()
     );
-    this.registry = this.messageMetaLayer.setChild(Pre(PublicCObject)());
+    this.registry = this.crdtMetaLayer.setChild(Pre(PublicCObject)());
 
     // Setup network.
     this.network = network;
     this.network.onreceive = this.receive.bind(this);
     this.network.replicaId = this.replicaId;
-
-    // Misc setup.
-    this.pendingMeta = {
-      isLocal: true,
-      sender: this.replicaId,
-      senderCounter: 1,
-    };
 
     // Events.
     this.batchingLayer.on("Change", (e) => this.emit("Change", e));
@@ -111,34 +103,33 @@ export class DefaultRuntime
           " did you try to perform an operation in an event handler?"
       );
     }
-    const meta = this.nextMessageMeta();
     this.inRootReceive = true;
     try {
-      this.rootCollab.receive([...messagePath], meta);
+      this.rootCollab.receive([...messagePath], {
+        sender: this.replicaId,
+        isLocalEcho: true,
+      });
     } finally {
       this.inRootReceive = false;
     }
 
     // Serialize messagePath. From our choice of Collab layers,
     // we know it's actually all Uint8Array's.
-    const runtimeMessage = DefaultRuntimeMessage.create({
+    const runtimeMessage = CRDTRuntimeMessage.create({
       messagePath: <Uint8Array[]>messagePath,
+      sender: this.replicaId,
     });
-    const serialized = DefaultRuntimeMessage.encode(runtimeMessage).finish();
+    const serialized = CRDTRuntimeMessage.encode(runtimeMessage).finish();
 
     // Send. It will be delivered to each other replica's
-    // receive function, exactly once, in causal order.
-    this.network.send(serialized, meta.senderCounter);
-
-    // Update senderCounter for the next message.
-    this.currentSenderCounter++;
+    // receive function, eventually at-least-once.
+    this.network.send(serialized);
   }
 
-  receive(message: Uint8Array, sender: string, senderCounter: number): void {
-    const deserialized = DefaultRuntimeMessage.decode(message);
+  receive(message: Uint8Array): void {
+    const deserialized = CRDTRuntimeMessage.decode(message);
 
     // Deliver to root with only mandatory MessageMeta.
-    const meta = { isLocal: false, sender, senderCounter };
     if (this.inRootReceive) {
       // nested receive calls; not allowed (might break things).
       throw new Error(
@@ -149,30 +140,30 @@ export class DefaultRuntime
     // TODO: error handling.
     this.inRootReceive = true;
     try {
-      this.rootCollab.receive(deserialized.messagePath, meta);
+      this.rootCollab.receive(deserialized.messagePath, {
+        sender: deserialized.sender,
+        isLocalEcho: false,
+      });
     } finally {
       this.inRootReceive = false;
     }
   }
 
-  nextMessageMeta(): MessageMeta {
-    if (this.pendingMeta.senderCounter !== this.currentSenderCounter + 1) {
-      // Update pendingMeta.
-      this.pendingMeta = {
-        isLocal: true,
-        sender: this.replicaId,
-        senderCounter: this.currentSenderCounter + 1,
-      };
-    }
-    return this.pendingMeta;
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): any {
+    return undefined;
   }
 
   save(): Uint8Array {
-    const saveMessage = DefaultRuntimeSave.create({
+    const saveMessage = CRDTRuntimeSave.create({
       crdtSave: super.save(),
       networkSave: this.network.save(),
     });
-    return DefaultRuntimeSave.encode(saveMessage).finish();
+    return CRDTRuntimeSave.encode(saveMessage).finish();
   }
 
   load(saveData: Uint8Array | null): void {
@@ -181,7 +172,7 @@ export class DefaultRuntime
       super.load(null);
       this.network.load(null);
     } else {
-      const saveMessage = DefaultRuntimeSave.decode(saveData);
+      const saveMessage = CRDTRuntimeSave.decode(saveData);
       super.load(saveMessage.crdtSave);
       this.network.load(saveMessage.networkSave);
     }

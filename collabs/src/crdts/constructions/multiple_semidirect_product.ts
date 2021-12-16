@@ -3,15 +3,15 @@ import {
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
   MultiSemidirectProductSave,
-} from "../../generated/proto_compiled";
+} from "../../../generated/proto_compiled";
 import {
   MessageMeta,
   Collab,
   CollabEventsRecord,
   InitToken,
   Pre,
-  ParentCollab,
-} from "../core";
+  ICollabParent,
+} from "../../core";
 
 /**
  * Interface describing a Collab which stores all of its mutable state
@@ -289,7 +289,7 @@ export abstract class MultipleSemidirectProduct<
     Events extends CollabEventsRecord = CollabEventsRecord
   >
   extends Collab<Events>
-  implements ParentCollab, StatefulCRDT<MultipleSemidirectState<S>>
+  implements ICollabParent, StatefulCRDT<MultipleSemidirectState<S>>
 {
   readonly state: MultipleSemidirectState<S>;
 
@@ -312,8 +312,13 @@ export abstract class MultipleSemidirectProduct<
     this.send(messagePath);
   }
 
-  nextMessageMeta(): MessageMeta {
-    return this.parent.nextMessageMeta();
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): any {
+    return undefined;
   }
 
   protected crdts: Array<StatefulCRDT<S>> = [];

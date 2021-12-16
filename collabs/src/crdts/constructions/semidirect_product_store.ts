@@ -1,10 +1,10 @@
 import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
-} from "../../generated/proto_compiled";
-import { InitToken, MessageMeta, Serializer } from "../core";
-import { DefaultSerializer } from "../util";
-import { CObject } from "./object";
+} from "../../../generated/proto_compiled";
+import { CObject } from "../../constructions";
+import { InitToken, MessageMeta } from "../../core";
+import { Serializer, DefaultSerializer } from "../../util";
 
 class StoredMessage<M2> {
   constructor(
@@ -45,6 +45,8 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
+ *
+ * TODO: need this be a Collab?
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private receiptCounter = 0;

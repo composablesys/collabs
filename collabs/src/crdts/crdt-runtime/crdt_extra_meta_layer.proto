@@ -1,0 +1,14 @@
+message CRDTExtraMetaLayerMessage {
+  // Excludes this replicaId.
+  required uint64 senderCounter = 1;
+  map<string, uint64> vectorClock = 2;
+  required uint64 wallClockTime = 3;
+  required uint64 lamportTimestamp = 4;
+}
+
+message CRDTExtraMetaLayerSave {
+  // Includes the saving replicaId.
+  map<string, uint64> vectorClock = 1;
+  required uint64 lamportTimestamp = 2;
+  required bytes childSave = 3;
+}

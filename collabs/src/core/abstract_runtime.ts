@@ -1,13 +1,12 @@
-import { Collab, CollabEventsRecord, InitToken, Pre } from "../crdt";
-import { EventEmitter } from "../event_emitter";
-import { MessageMeta } from "../message_meta";
-import { Runtime } from "../runtime";
+import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
+import { EventEmitter } from "./event_emitter";
+import { Runtime, RuntimeEventsRecord } from "./runtime";
 
 /**
  * Skeletal implementation of [[Runtime]] that implements
  * most behavior using a root [[Collab]].
  */
-export abstract class AbstractRuntime<Events extends CollabEventsRecord>
+export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   extends EventEmitter<Events>
   implements Runtime
 {
@@ -55,9 +54,15 @@ export abstract class AbstractRuntime<Events extends CollabEventsRecord>
     return this.rootCollab.getDescendant(namePath);
   }
 
-  abstract childSend(child: Collab, messagePath: Uint8Array[]): void;
+  abstract registerCollab<C extends Collab<CollabEventsRecord>>(
+    name: string,
+    preCollab: Pre<C>
+  ): C;
 
-  abstract nextMessageMeta(): MessageMeta;
+  abstract childSend(
+    child: Collab<CollabEventsRecord>,
+    messagePath: (string | Uint8Array)[]
+  ): void;
 
-  abstract registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C;
+  abstract getAddedContext(key: symbol): any;
 }

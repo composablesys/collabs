@@ -2,7 +2,7 @@ import { Collab, CollabEvent, Pre } from "./collab";
 import { ICollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 
-interface RuntimeEventsRecord {
+export interface RuntimeEventsRecord {
   /**
    * Emitted each time the app's state is changed and
    * is in a reasonable user-facing state
@@ -17,9 +17,10 @@ interface RuntimeEventsRecord {
 /**
  * TODO: see [concrete instance]
  */
-export interface Runtime
-  extends ICollabParent,
-    EventEmitter<RuntimeEventsRecord> {
+export interface Runtime<
+  Events extends RuntimeEventsRecord = RuntimeEventsRecord
+> extends ICollabParent,
+    EventEmitter<Events> {
   // Utilities for internal use by Collabs, serializers, etc.
 
   /**

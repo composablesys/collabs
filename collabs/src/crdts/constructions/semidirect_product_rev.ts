@@ -1,20 +1,17 @@
 import {
   ISemidirectProductRevSenderHistory,
   SemidirectProductRevSave,
-} from "../../generated/proto_compiled";
+} from "../../../generated/proto_compiled";
+import { CObject, PublicCObject, RunLocallyLayer } from "../../constructions";
 import {
   MessageMeta,
   Collab,
   CollabEventsRecord,
   InitToken,
-  Serializer,
   Runtime,
   Pre,
-  PublicCObject,
-} from "../core";
-import { DefaultSerializer } from "../util";
-import { CObject } from "./object";
-import { RunLocallyLayer } from "./run_locally_layer";
+} from "../../core";
+import { DefaultSerializer, Serializer } from "../../util";
 
 // TODO: revise this file.
 // In particular, separate out resettable version?

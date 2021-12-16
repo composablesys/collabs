@@ -96,6 +96,11 @@ export const MessageMeta = {
    * return the correct [[MessageMeta]]. An exception is if
    * you know descendants will ignore locally echoed messages,
    * in which case it does not matter.
+   *
+   * TODO: === equality valid (for giving messages in the same
+   * transaction/batch equal MessageMeta---good for transaction
+   * semantics, and good for compressing batches). Although then
+   * you get the mutable symbol fields messed up?
    */
   NEXT_MESSAGE_META: Symbol(),
-};
+} as const;

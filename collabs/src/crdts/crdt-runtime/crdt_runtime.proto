@@ -1,8 +1,9 @@
-message DefaultRuntimeMessage {
+message CRDTRuntimeMessage {
   repeated bytes messagePath = 1;
+  required string sender = 2;
 }
 
-message DefaultRuntimeSave {
+message CRDTRuntimeSave {
   required bytes crdtSave = 1;
   required bytes networkSave = 2;
 }
