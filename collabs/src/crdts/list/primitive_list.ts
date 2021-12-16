@@ -6,20 +6,35 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
-import { DefaultSerializer } from "../../util";
-import { MessageMeta, InitToken, Serializer } from "../../core";
-import { AbstractCListCPrimitive } from "./abstract_list";
+import { DefaultSerializer, Serializer } from "../../util";
+import { InitToken } from "../../core";
 import { DenseLocalList } from "./dense_local_list";
-import { Resettable } from "../../abilities";
+import { Resettable } from "../abilities";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 import { LocatableCList } from "./cursor";
+import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import {
+  AbstractCList,
+  CListEventsRecord,
+  MakeAbstractCList,
+} from "../../data_types";
+
+const AbstractCListPrimitiveCRDT = MakeAbstractCList(
+  PrimitiveCRDT
+) as abstract new <
+  T,
+  InsertArgs extends any[],
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+>(
+  initToken: InitToken
+) => AbstractCList<T, InsertArgs> & PrimitiveCRDT<Events>;
 
 export class PrimitiveCListFromDenseLocalList<
     T,
     L extends object,
     DenseT extends DenseLocalList<L, T>
   >
-  extends AbstractCListCPrimitive<T, [T]>
+  extends AbstractCListPrimitiveCRDT<T, [T]>
   implements LocatableCList<L, T, [T]>
 {
   // TODO: make senderCounters optional?  (Only needed
@@ -80,7 +95,7 @@ export class PrimitiveCListFromDenseLocalList<
       };
     }
     const message = PrimitiveCListMessage.create({ insert: imessage });
-    this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+    this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
     return values[0];
   }
 
@@ -134,7 +149,7 @@ export class PrimitiveCListFromDenseLocalList<
           uniqueNumber: id[1],
         },
       });
-      this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+      this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
     } else {
       const imessage: IPrimitiveCListDeleteRangeMessage = {};
       if (startIndex !== 0) {
@@ -150,17 +165,20 @@ export class PrimitiveCListFromDenseLocalList<
       const message = PrimitiveCListMessage.create({
         deleteRange: imessage,
       });
-      this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+      this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
     }
   }
 
   clear() {
     const message = PrimitiveCListMessage.create({ deleteRange: {} });
-    this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+    this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
-    const decoded = PrimitiveCListMessage.decode(message);
+  protected receiveCRDT(
+    message: string | Uint8Array,
+    meta: CRDTMessageMeta
+  ): void {
+    const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
       case "insert":
         const insert = PrimitiveCListInsertMessage.create(decoded.insert!);
@@ -238,7 +256,7 @@ export class PrimitiveCListFromDenseLocalList<
             ) - 1
           : this.length - 1;
 
-        const vc = meta.vectorClock!;
+        const vc = meta.vectorClock;
         const toDelete: L[] = [];
         for (let i = startIndex; i <= endIndex; i++) {
           const loc = this.denseLocalList.getLoc(i);

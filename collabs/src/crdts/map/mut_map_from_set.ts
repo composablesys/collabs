@@ -1,9 +1,12 @@
-import { CollabSerializer, DefaultSerializer, PairSerializer } from "../../util";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
+import {
+  CollabSerializer,
+  DefaultSerializer,
+  PairSerializer,
+  Serializer,
+} from "../../util";
+import { Collab, InitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
-import { CSet } from "../set";
-import { AbstractCMapCObject } from "./abstract_map";
-import { CMap } from "./interfaces";
+import { AbstractCMapCObject, CMap, CSet } from "../../data_types";
 
 export interface ConflictsCMap<K, C> extends CMap<K, C> {
   /**

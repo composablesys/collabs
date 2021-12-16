@@ -1,6 +1,9 @@
 import { CNumberComponentMessage } from "../../../generated/proto_compiled";
-import { CObject, CPrimitive, StatefulCRDT } from "../../constructions";
-import { MultipleSemidirectProduct } from "../../constructions/multiple_semidirect_product";
+import { CObject } from "../../constructions";
+import {
+  MultipleSemidirectProduct,
+  StatefulCRDT,
+} from "../constructions/multiple_semidirect_product";
 import {
   MessageMeta,
   CollabEvent,
@@ -9,6 +12,7 @@ import {
   Pre,
 } from "../../core";
 import { ToggleCBoolean } from "../boolean";
+import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 // TODO: handle floating point non-commutativity
 
@@ -33,7 +37,7 @@ export class CNumberState {
 
 // Exporting just for tests, it's not exported at top-level
 export class AddComponent
-  extends CPrimitive<CNumberEventsRecord>
+  extends PrimitiveCRDT<CNumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -47,12 +51,12 @@ export class AddComponent
     if (toAdd !== 0) {
       let message = CNumberComponentMessage.create({ arg: toAdd });
       let buffer = CNumberComponentMessage.encode(message).finish();
-      this.sendPrimitive(buffer);
+      this.sendCRDT(buffer);
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
-    let decoded = CNumberComponentMessage.decode(message);
+  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
@@ -80,7 +84,7 @@ export class AddComponent
 }
 
 export class MultComponent
-  extends CPrimitive<CNumberEventsRecord>
+  extends PrimitiveCRDT<CNumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -94,12 +98,12 @@ export class MultComponent
     if (toMult !== 1) {
       let message = CNumberComponentMessage.create({ arg: toMult });
       let buffer = CNumberComponentMessage.encode(message).finish();
-      this.sendPrimitive(buffer);
+      this.sendCRDT(buffer);
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
-    let decoded = CNumberComponentMessage.decode(message);
+  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
@@ -127,7 +131,7 @@ export class MultComponent
 }
 
 export class MinComponent
-  extends CPrimitive<CNumberEventsRecord>
+  extends PrimitiveCRDT<CNumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -140,11 +144,11 @@ export class MinComponent
   min(toComp: number) {
     let message = CNumberComponentMessage.create({ arg: toComp });
     let buffer = CNumberComponentMessage.encode(message).finish();
-    this.sendPrimitive(buffer);
+    this.sendCRDT(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
-    let decoded = CNumberComponentMessage.decode(message);
+  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
     this.emit("Min", {
@@ -172,7 +176,7 @@ export class MinComponent
 }
 
 export class MaxComponent
-  extends CPrimitive<CNumberEventsRecord>
+  extends PrimitiveCRDT<CNumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -185,11 +189,11 @@ export class MaxComponent
   max(toComp: number) {
     let message = CNumberComponentMessage.create({ arg: toComp });
     let buffer = CNumberComponentMessage.encode(message).finish();
-    this.sendPrimitive(buffer);
+    this.sendCRDT(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta) {
-    let decoded = CNumberComponentMessage.decode(message);
+  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);
     this.emit("Max", {

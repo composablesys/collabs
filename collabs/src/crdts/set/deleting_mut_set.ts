@@ -3,17 +3,16 @@ import {
   DeletingMutCSetSave,
   IDeletingMutCSetValueSave,
 } from "../../../generated/proto_compiled";
-import { bytesAsString, DefaultSerializer } from "../../util";
+import { bytesAsString, DefaultSerializer, Serializer } from "../../util";
 import {
   Collab,
+  ICollabParent,
   InitToken,
   MessageMeta,
-  ParentCollab,
   Runtime,
-  Serializer,
 } from "../../core";
-import { AbstractCSetCollab } from "./abstract_set";
-import { Resettable } from "../../abilities";
+import { Resettable } from "../abilities";
+import { AbstractCSetCollab } from "../../data_types";
 
 class FakeDeletedCollab extends Collab {
   private constructor(initToken: InitToken) {
@@ -21,19 +20,29 @@ class FakeDeletedCollab extends Collab {
   }
 
   protected receiveInternal(): void {
-    throw new Error("Collab has been deleted from DeletingMutCSet and is frozen");
+    throw new Error(
+      "Collab has been deleted from DeletingMutCSet and is frozen"
+    );
   }
   save(): Uint8Array {
-    throw new Error("Collab has been deleted from DeletingMutCSet and is frozen");
+    throw new Error(
+      "Collab has been deleted from DeletingMutCSet and is frozen"
+    );
   }
   load(): void {
-    throw new Error("Collab has been deleted from DeletingMutCSet and is frozen");
+    throw new Error(
+      "Collab has been deleted from DeletingMutCSet and is frozen"
+    );
   }
   getDescendant(): Collab {
-    throw new Error("Collab has been deleted from DeletingMutCSet and is frozen");
+    throw new Error(
+      "Collab has been deleted from DeletingMutCSet and is frozen"
+    );
   }
   canGc(): boolean {
-    throw new Error("Collab has been deleted from DeletingMutCSet and is frozen");
+    throw new Error(
+      "Collab has been deleted from DeletingMutCSet and is frozen"
+    );
   }
 
   /**
@@ -88,7 +97,7 @@ class FakeDeletedCollab extends Collab {
  */
 export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
   extends AbstractCSetCollab<C, AddArgs>
-  implements ParentCollab, Resettable
+  implements ICollabParent, Resettable
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
@@ -139,10 +148,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     this.send(messagePath);
   }
 
-  nextMessageMeta(): MessageMeta {
-    return this.parent.nextMessageMeta();
-  }
-
   // TODO: less hacky way to use Default when you don't have a runtime?
   // Although really this should have its own serializer.
   private static nameSerializer = DefaultSerializer.getInstance<
@@ -162,7 +167,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
-        if (meta.isLocal) {
+        if (meta.isLocalEcho) {
           throw new Error(
             "Operation performed on deleted " +
               "(hence frozen) child of DeletingMutCSet, name: " +
@@ -187,7 +192,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
           );
           const newValue = this.receiveCreate(name, decoded.add!.args);
 
-          if (meta.isLocal) {
+          if (meta.isLocalEcho) {
             // TODO: previously we also did this if runLocally
             // was true.
             this.ourCreatedValue = newValue;
@@ -239,6 +244,15 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     }
 
     return newValue;
+  }
+
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): any {
+    return undefined;
   }
 
   add(...args: AddArgs): C {

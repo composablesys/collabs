@@ -1,4 +1,5 @@
-import { MessageMeta, Serializer } from "../../core";
+import { MessageMeta } from "../../core";
+import { Serializer } from "../../util";
 
 /**
  * Ops can assume causal order.
@@ -36,6 +37,9 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * uniqueness).  If the message
    * was from this replica, it will have just been created,
    * without any intervening operations.
+   *
+   * TODO: meta -> CRDTMessageMeta? (Only if we can make
+   * requests.)
    *
    * @param  message   [description]
    * @param  meta [description]

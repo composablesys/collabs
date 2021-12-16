@@ -1,6 +1,6 @@
-import { InitToken, Serializer, Pre } from "../../core";
-import { CMap } from "../map";
-import { AbstractCListCObject } from "./abstract_list";
+import { InitToken, Pre } from "../../core";
+import { AbstractCListCObject, CMap } from "../../data_types";
+import { Serializer } from "../../util";
 import { LocatableCList } from "./cursor";
 import { DenseLocalList } from "./dense_local_list";
 

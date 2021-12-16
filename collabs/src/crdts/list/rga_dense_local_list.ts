@@ -5,9 +5,10 @@ import {
   RgaDenseLocalListSave,
   RgaLocMessage,
 } from "../../../generated/proto_compiled";
-import { createRBTree, fillRBTree, RBTree, WeakValueMap } from "../../util";
+import { createRBTree, fillRBTree, RBTree } from "../util";
 import { MessageMeta, Runtime } from "../../core";
 import { DenseLocalList } from "./dense_local_list";
+import { WeakValueMap } from "../../util";
 
 // TODO: helper that uses an RBTree and implements everything
 // except the loc specific methods (stuff below comment

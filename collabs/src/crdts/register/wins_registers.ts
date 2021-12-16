@@ -1,5 +1,10 @@
-import { InitToken, Serializer } from "../../core";
-import { DefaultSerializer, Optional, SingletonSerializer } from "../../util";
+import { InitToken } from "../../core";
+import {
+  DefaultSerializer,
+  Optional,
+  Serializer,
+  SingletonSerializer,
+} from "../../util";
 import {
   AggregateArgsCRegister,
   AggregateCRegister,
@@ -121,7 +126,11 @@ export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
       initToken.runtime
     )
   ) {
-    super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
+    super(
+      initToken,
+      (value) => value,
+      SingletonSerializer.getInstance(valueSerializer)
+    );
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
@@ -147,7 +156,11 @@ export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
       initToken.runtime
     )
   ) {
-    super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
+    super(
+      initToken,
+      (value) => value,
+      SingletonSerializer.getInstance(valueSerializer)
+    );
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {

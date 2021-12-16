@@ -2,20 +2,20 @@ import {
   bytesAsString,
   DefaultSerializer,
   Optional,
+  Serializer,
   stringAsBytes,
   WeakValueMap,
 } from "../../util";
 import {
   Collab,
   CollabEventsRecord,
+  ICollabParent,
   InitToken,
   MessageMeta,
-  ParentCollab,
-  Serializer,
 } from "../../core";
-import { Resettable } from "../../abilities";
-import { AbstractCMapCollab } from "./abstract_map";
+import { Resettable } from "../abilities";
 import { ImplicitMergingMutCMapSave } from "../../../generated/proto_compiled";
+import { AbstractCMapCollab } from "../../data_types";
 
 /**
  * A basic CMap of mutable values that implicitly manages membership.
@@ -40,7 +40,7 @@ import { ImplicitMergingMutCMapSave } from "../../../generated/proto_compiled";
  */
 export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
   extends AbstractCMapCollab<K, C, []>
-  implements ParentCollab
+  implements ICollabParent
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
@@ -121,8 +121,13 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     this.send(messagePath);
   }
 
-  nextMessageMeta(): MessageMeta {
-    return this.parent.nextMessageMeta();
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): any {
+    return undefined;
   }
 
   private inReceiveKeyStr?: string = undefined;

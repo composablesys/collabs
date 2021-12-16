@@ -1,12 +1,15 @@
-import { DefaultSerializer, PairSerializer } from "../../util";
-import { Collab, InitToken, Serializer, isRuntime, Pre } from "../../core";
-import { CRegister } from "../register";
-import { CSet } from "../set";
-import { AbstractCListCObject } from "./abstract_list";
+import { DefaultSerializer, PairSerializer, Serializer } from "../../util";
+import { Collab, InitToken, isRuntime, Pre } from "../../core";
 import { DenseLocalList } from "./dense_local_list";
-import { MovableCList, MovableCListEventsRecord } from "./interfaces";
 import { CObject } from "../../constructions";
 import { LocatableCList } from "./cursor";
+import {
+  AbstractCListCObject,
+  CRegister,
+  CSet,
+  MovableCList,
+  MovableCListEventsRecord,
+} from "../../data_types";
 
 export class MovableMutCListEntry<
   C extends Collab,

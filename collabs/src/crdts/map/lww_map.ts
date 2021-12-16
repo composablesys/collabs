@@ -1,14 +1,18 @@
-import { byteArrayEquals, DefaultSerializer, Optional } from "../../util";
-import { Resettable } from "../../abilities";
 import {
-  CRegister,
-  CRegisterEntryMeta,
-  OptionalLwwCRegister,
-} from "../register";
-import { AbstractCMapCObject } from "./abstract_map";
+  byteArrayEquals,
+  DefaultSerializer,
+  Optional,
+  Serializer,
+} from "../../util";
+import { Resettable } from "../abilities";
+import { CRegisterEntryMeta, OptionalLwwCRegister } from "../register";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
-import { CMapEventsRecord } from "./interfaces";
-import { InitToken, Serializer } from "../../core";
+import { InitToken } from "../../core";
+import {
+  AbstractCMapCObject,
+  CMapEventsRecord,
+  CRegister,
+} from "../../data_types";
 
 export class CMapFromRegister<
     K,

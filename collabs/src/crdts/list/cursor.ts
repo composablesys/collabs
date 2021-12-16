@@ -1,15 +1,9 @@
-import { Resettable } from "../../abilities";
+import { Resettable } from "../abilities";
 import { CObject } from "../../constructions";
-import {
-  CollabEvent,
-  CollabEventsRecord,
-  InitToken,
-  Serializer,
-  Pre,
-} from "../../core";
-import { Optional, OptionalSerializer } from "../../util";
+import { CollabEvent, CollabEventsRecord, InitToken, Pre } from "../../core";
+import { Optional, OptionalSerializer, Serializer } from "../../util";
 import { LwwCRegister } from "../register";
-import { CList, CListEventsRecord } from "./interfaces";
+import { CList, CListEventsRecord } from "../../data_types";
 
 export interface LocatableCList<
   L,
@@ -127,7 +121,7 @@ export class CCursor
       "",
       Pre(LwwCRegister)(
         list.getLocation(startIndex),
-        OptionalSerializer.of(list.locationSerializer)
+        OptionalSerializer.getInstance(list.locationSerializer)
       )
     );
     this.loc.on("Set", (e) => this.emit("Set", e));

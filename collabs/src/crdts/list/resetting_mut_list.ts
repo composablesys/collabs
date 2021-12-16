@@ -1,4 +1,4 @@
-import { Resettable } from "../../abilities";
+import { Resettable } from "../abilities";
 import { Collab, InitToken, Pre } from "../../core";
 import { MergingMutCMap } from "../map";
 import { CListFromMap } from "./list_from_map";

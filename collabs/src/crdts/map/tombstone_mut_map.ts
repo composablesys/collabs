@@ -3,12 +3,13 @@ import {
   DefaultSerializer,
   Optional,
   PairSerializer,
+  Serializer,
 } from "../../util";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
+import { Collab, InitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
-import { AbstractCMapCObject } from "./abstract_map";
 import { LwwCMap } from "./lww_map";
+import { AbstractCMapCObject } from "../../data_types";
 
 /**
  * Warning: tombstones.  Benefit is that you can

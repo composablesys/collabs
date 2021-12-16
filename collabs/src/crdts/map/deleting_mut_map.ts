@@ -1,6 +1,6 @@
-import { DefaultSerializer } from "../../util";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
-import { Resettable } from "../../abilities";
+import { DefaultSerializer, Serializer } from "../../util";
+import { Collab, InitToken, Pre } from "../../core";
+import { Resettable } from "../abilities";
 import { DeletingMutCSet } from "../set";
 import { LwwCMap } from "./lww_map";
 import { MutCMapFromSet } from "./mut_map_from_set";

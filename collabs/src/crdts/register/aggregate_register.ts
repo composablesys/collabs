@@ -2,10 +2,10 @@ import {
   AggregateArgsCRegisterMessage,
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
-import { CPrimitive } from "../../constructions";
-import { MessageMeta, InitToken, Serializer } from "../../core";
-import { DefaultSerializer, SingletonSerializer } from "../../util";
-import { CRegister, CRegisterEventsRecord } from "./interfaces";
+import { InitToken } from "../../core";
+import { CRegister, CRegisterEventsRecord } from "../../data_types";
+import { DefaultSerializer, Serializer, SingletonSerializer } from "../../util";
+import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 export interface CRegisterEntryMeta<S> {
   readonly value: S;
@@ -39,7 +39,7 @@ export abstract class AggregateArgsCRegister<
     S = T,
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
-  extends CPrimitive<Events>
+  extends PrimitiveCRDT<Events>
   implements CRegister<T, SetArgs>
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];
@@ -61,7 +61,7 @@ export abstract class AggregateArgsCRegister<
       setArgs: this.argsSerializer.serialize(args),
     });
     let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-    this.sendPrimitive(buffer);
+    this.sendCRDT(buffer);
     return this.value;
   }
 
@@ -72,19 +72,21 @@ export abstract class AggregateArgsCRegister<
         reset: true,
       }); // no value
       let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-      this.sendPrimitive(buffer);
+      this.sendCRDT(buffer);
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
+  protected receiveCRDT(
+    message: string | Uint8Array,
+    meta: CRDTMessageMeta
+  ): void {
     // Get previousValue now
     const previousValue = this.value;
 
-    let decoded = AggregateArgsCRegisterMessage.decode(message);
-    let vc = meta.vectorClock!;
-    let newState = new Array<AggregateArgsCRegisterEntry<S>>();
-    for (let entry of this.entries) {
-      if (vc.get(entry.sender) < entry.senderCounter) {
+    const decoded = AggregateArgsCRegisterMessage.decode(<Uint8Array>message);
+    const newState = new Array<AggregateArgsCRegisterEntry<S>>();
+    for (const entry of this.entries) {
+      if (meta.vectorClock.get(entry.sender) < entry.senderCounter) {
         newState.push(entry);
       }
     }
@@ -95,7 +97,7 @@ export abstract class AggregateArgsCRegister<
           this.constructValue(decoded.setArgs),
           meta.sender,
           meta.senderCounter,
-          meta.wallClockTime!,
+          meta.wallClockTime,
           decoded.setArgs
         );
         newState.push(entry);
@@ -236,7 +238,11 @@ export abstract class AggregateCRegister<
       initToken.runtime
     )
   ) {
-    super(initToken, (value) => value, SingletonSerializer.of(valueSerializer));
+    super(
+      initToken,
+      (value) => value,
+      SingletonSerializer.getInstance(valueSerializer)
+    );
   }
 
   set value(value: T) {

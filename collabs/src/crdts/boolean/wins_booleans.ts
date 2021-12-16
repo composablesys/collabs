@@ -1,9 +1,9 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
-import { Resettable } from "../../abilities";
-import { CObject, CPrimitive } from "../../constructions";
-import { MessageMeta, InitToken, Pre } from "../../core";
-import { CRegisterEventsRecord } from "../register";
-import { MakeAbstractCBoolean } from "./abstract_boolean";
+import { Resettable } from "../abilities";
+import { CObject } from "../../constructions";
+import { InitToken, Pre } from "../../core";
+import { CRegisterEventsRecord, MakeAbstractCBoolean } from "../../data_types";
+import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 interface WinsCBooleanEntry {
   readonly sender: string;
@@ -11,7 +11,7 @@ interface WinsCBooleanEntry {
 }
 
 export class TrueWinsCBoolean
-  extends MakeAbstractCBoolean(CPrimitive)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(PrimitiveCRDT)<CRegisterEventsRecord<boolean>>
   implements Resettable
 {
   private entries: WinsCBooleanEntry[] = [];
@@ -22,21 +22,20 @@ export class TrueWinsCBoolean
     // change the state (add another entry), but not for
     // false, because in that case setting to false
     // does nothing.
-    if (value) this.sendPrimitive(new Uint8Array());
-    else if (this.value) this.sendPrimitive(new Uint8Array(1));
+    if (value) this.sendCRDT(new Uint8Array());
+    else if (this.value) this.sendCRDT(new Uint8Array(1));
   }
 
   get value(): boolean {
     return this.entries.length !== 0;
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
+  protected receiveCRDT(message: Uint8Array, meta: CRDTMessageMeta): void {
     const previousValue = this.value;
 
     const newEntries: WinsCBooleanEntry[] = [];
-    let vc = meta.vectorClock!;
     for (const entry of this.entries) {
-      if (vc.get(entry.sender) < entry.senderCounter) {
+      if (meta.vectorClock.get(entry.sender) < entry.senderCounter) {
         newEntries.push(entry);
       }
     }

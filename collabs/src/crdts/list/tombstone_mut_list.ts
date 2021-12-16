@@ -1,5 +1,9 @@
-import { ConstructorAsFunction, DefaultSerializer } from "../../util";
-import { Collab, InitToken, Pre, isRuntime, Serializer } from "../../core";
+import {
+  ConstructorAsFunction,
+  DefaultSerializer,
+  Serializer,
+} from "../../util";
+import { Collab, InitToken, Pre, isRuntime } from "../../core";
 import { LwwCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {

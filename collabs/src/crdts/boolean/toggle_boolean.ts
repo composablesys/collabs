@@ -1,11 +1,13 @@
-import { CPrimitive } from "../../constructions";
 import { MessageMeta, InitToken } from "../../core";
-import { CRegisterEventsRecord } from "../register";
-import { MakeAbstractCBoolean } from "./abstract_boolean";
-import { CBoolean } from "./interfaces";
+import {
+  CBoolean,
+  CRegisterEventsRecord,
+  MakeAbstractCBoolean,
+} from "../../data_types";
+import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(CPrimitive)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(PrimitiveCRDT)<CRegisterEventsRecord<boolean>>
   implements CBoolean
 {
   private valueInternal: boolean;
@@ -24,10 +26,13 @@ export class ToggleCBoolean
   }
 
   toggle() {
-    this.sendPrimitive(new Uint8Array());
+    this.sendCRDT(new Uint8Array());
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
+  protected receiveCRDT(
+    message: string | Uint8Array,
+    meta: CRDTMessageMeta
+  ): void {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
     this.valueInternal = !this.valueInternal;
@@ -37,10 +42,13 @@ export class ToggleCBoolean
     });
   }
 
+  // Length 0 for false, 1 for true.
+  private static FALSE_MESSAGE = new Uint8Array(0);
+  private static TRUE_MESSAGE = new Uint8Array(1);
+
   save(): Uint8Array {
-    // Length 0 for false, 1 for true
-    if (this.valueInternal) return new Uint8Array();
-    else return new Uint8Array(1);
+    if (this.valueInternal) return ToggleCBoolean.FALSE_MESSAGE;
+    else return ToggleCBoolean.TRUE_MESSAGE;
   }
 
   load(saveData: Uint8Array | null): void {

@@ -2,12 +2,11 @@ import {
   IMutCSetFromMapKeyMessage,
   MutCSetFromMapKeyMessage,
 } from "../../../generated/proto_compiled";
-import { DefaultSerializer } from "../../util";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
-import { Resettable } from "../../abilities";
-import { CMap, MergingMutCMap } from "../map";
-import { AbstractCSetCObject } from "./abstract_set";
-import { CSetEventsRecord } from "./interfaces";
+import { DefaultSerializer, Serializer } from "../../util";
+import { Collab, InitToken, Pre } from "../../core";
+import { Resettable } from "../abilities";
+import { MergingMutCMap } from "../map";
+import { AbstractCSetCObject, CMap, CSetEventsRecord } from "../../data_types";
 
 class MutCSetFromMapSerializer<AddArgs extends any[]>
   implements Serializer<[sender: string, uniqueNumber: number, args: AddArgs]>

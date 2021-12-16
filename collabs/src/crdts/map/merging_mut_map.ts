@@ -1,9 +1,9 @@
-import { DefaultSerializer, Optional } from "../../util";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
-import { Resettable } from "../../abilities";
+import { DefaultSerializer, Optional, Serializer } from "../../util";
+import { Collab, InitToken, Pre } from "../../core";
+import { Resettable } from "../abilities";
 import { AddWinsCSet } from "../set";
-import { AbstractCMapCObject } from "./abstract_map";
 import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
+import { AbstractCMapCObject } from "../../data_types";
 
 export class MergingMutCMap<K, C extends Collab & Resettable>
   extends AbstractCMapCObject<K, C, []>

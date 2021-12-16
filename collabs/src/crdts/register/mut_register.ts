@@ -1,10 +1,15 @@
-import { Resettable } from "../../abilities";
 import { CObject } from "../../constructions";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
-import { DefaultSerializer, Optional, CollabSerializer } from "../../util";
+import { Collab, InitToken, Pre } from "../../core";
+import { CRegister, CRegisterEventsRecord } from "../../data_types";
+import {
+  DefaultSerializer,
+  Optional,
+  CollabSerializer,
+  Serializer,
+} from "../../util";
+import { Resettable } from "../abilities";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
-import { CRegister, CRegisterEventsRecord } from "./interfaces";
 import { OptionalLwwCRegister } from "./wins_registers";
 
 export class MutCRegisterFromRegister<

@@ -4,15 +4,10 @@ import {
   IGrowOnlyCCounterResetEntry,
   IGrowOnlyCCounterSaveEntry,
 } from "../../../generated/proto_compiled";
-import { Resettable } from "../../abilities";
-import { CObject, CPrimitive } from "../../constructions";
-import {
-  MessageMeta,
-  CollabEvent,
-  CollabEventsRecord,
-  InitToken,
-  Pre,
-} from "../../core";
+import { Resettable } from "../abilities";
+import { CObject } from "../../constructions";
+import { CollabEvent, CollabEventsRecord, InitToken, Pre } from "../../core";
+import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 export interface CCounterEvent extends CollabEvent {
   readonly arg: number;
@@ -30,7 +25,7 @@ export interface CCounterEventsRecord extends CollabEventsRecord {
 }
 
 export class GrowOnlyCCounter
-  extends CPrimitive<CCounterEventsRecord>
+  extends PrimitiveCRDT<CCounterEventsRecord>
   implements Resettable
 {
   /**
@@ -80,7 +75,7 @@ export class GrowOnlyCCounter
         idCounter,
       },
     });
-    this.sendPrimitive(GrowOnlyCCounterMessage.encode(message).finish());
+    this.sendCRDT(GrowOnlyCCounterMessage.encode(message).finish());
   }
 
   inc() {
@@ -95,11 +90,14 @@ export class GrowOnlyCCounter
     const message = GrowOnlyCCounterMessage.create({
       reset: { V },
     });
-    this.sendPrimitive(GrowOnlyCCounterMessage.encode(message).finish());
+    this.sendCRDT(GrowOnlyCCounterMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
-    let decoded = GrowOnlyCCounterMessage.decode(message);
+  protected receiveCRDT(
+    message: string | Uint8Array,
+    meta: CRDTMessageMeta
+  ): void {
+    let decoded = GrowOnlyCCounterMessage.decode(<Uint8Array>message);
     const previousValue = this.value;
     switch (decoded.data) {
       case "add":

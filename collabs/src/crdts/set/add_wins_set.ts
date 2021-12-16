@@ -1,9 +1,9 @@
-import { DefaultSerializer } from "../../util";
-import { CBoolean, TrueWinsCBoolean } from "../boolean";
-import { Resettable } from "../../abilities";
+import { DefaultSerializer, Serializer } from "../../util";
+import { TrueWinsCBoolean } from "../boolean";
+import { Resettable } from "../abilities";
 import { GrowOnlyImplicitMergingMutCMap } from "../map";
-import { AbstractCSetCObject } from "./abstract_set";
-import { InitToken, Serializer, Pre } from "../../core";
+import { InitToken, Pre } from "../../core";
+import { AbstractCSetCObject, CBoolean } from "../../data_types";
 
 export class CSetFromBoolean<
   T,

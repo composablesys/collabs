@@ -1,8 +1,8 @@
-import { CollabSerializer, DefaultSerializer } from "../../util";
-import { Collab, InitToken, Serializer, Pre } from "../../core";
-import { AbstractCSetCObject } from "./abstract_set";
+import { CollabSerializer, DefaultSerializer, Serializer } from "../../util";
+import { Collab, InitToken, Pre } from "../../core";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
+import { AbstractCSetCObject } from "../../data_types";
 
 /**
  * Warning: tombstones, so uses ever-growing memory.  Use
