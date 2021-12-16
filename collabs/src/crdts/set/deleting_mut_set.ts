@@ -152,7 +152,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
   // Although really this should have its own serializer.
   private static nameSerializer = DefaultSerializer.getInstance<
     [string, number]
-  >(undefined as unknown as Runtime);
+  >({} as unknown as Runtime);
 
   private ourCreatedValue?: C = undefined;
   protected receiveInternal(
