@@ -1,20 +1,20 @@
-import { CausalBroadcastNetwork } from "../core";
+import { BroadcastNetwork } from "../crdt-runtime";
 
 /**
- * A CausalBroadcastNetwork that wraps another network and
- * provides the ability to disconnect it send or
+ * A [[BroadcastNetwork]] that wraps another network and
+ * provides the ability to disconnect its send or
  * receive functionality.  While disconnected, messages
  * are queued until reconnected.
  */
-export class DisconnectableNetwork implements CausalBroadcastNetwork {
+export class DisconnectableNetwork implements BroadcastNetwork {
   readonly onreceive!: (message: Uint8Array) => void;
 
   private _sendConnected = true;
   private _receiveConnected = true;
-  private sendQueue: [message: Uint8Array, senderCounter: number][] = [];
+  private sendQueue: Uint8Array[] = [];
   private receiveQueue: Uint8Array[] = [];
 
-  constructor(private readonly pipedNetwork: CausalBroadcastNetwork) {
+  constructor(private readonly pipedNetwork: BroadcastNetwork) {
     pipedNetwork.onreceive = this.receive.bind(this);
   }
 
@@ -22,18 +22,18 @@ export class DisconnectableNetwork implements CausalBroadcastNetwork {
     this.pipedNetwork.replicaId = replicaId;
   }
 
-  send(message: Uint8Array, senderCounter: number): void {
+  send(message: Uint8Array): void {
     if (this._sendConnected) {
-      this.pipedNetwork.send(message, senderCounter);
+      this.pipedNetwork.send(message);
     } else {
-      this.sendQueue.push([message, senderCounter]);
+      this.sendQueue.push(message);
     }
   }
 
   set sendConnected(sendConnected: boolean) {
     this._sendConnected = sendConnected;
     if (sendConnected) {
-      this.sendQueue.forEach((message) => this.pipedNetwork.send(...message));
+      this.sendQueue.forEach((message) => this.pipedNetwork.send(message));
       this.sendQueue = [];
     }
   }

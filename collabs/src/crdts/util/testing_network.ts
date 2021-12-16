@@ -1,11 +1,7 @@
-import {
-  BatchingLayer,
-  BatchingStrategy,
-  CausalBroadcastNetwork,
-  DefaultRuntime,
-  Runtime,
-  Unsubscribe,
-} from "../core";
+import { BatchingLayer } from "../../constructions";
+import { BatchingStrategy } from "../../constructions/batching_strategy";
+import { Runtime, Unsubscribe } from "../../core";
+import { BroadcastNetwork, CRDTRuntime } from "../crdt-runtime";
 
 /**
  * For testing or special purposes only.  Sends each message
@@ -29,24 +25,20 @@ export class TestingBatchingStrategy implements BatchingStrategy {
   }
 }
 
-export class TestingNetwork implements CausalBroadcastNetwork {
+export class TestingNetwork implements BroadcastNetwork {
   sentBytes = 0;
   receivedBytes = 0;
 
-  onreceive!: (
-    message: Uint8Array,
-    sender: string,
-    senderCounter: number
-  ) => void;
+  onreceive!: (message: Uint8Array) => void;
   replicaId!: string;
 
   constructor(private generator: TestingNetworkGenerator) {}
 
-  send(message: Uint8Array, senderCounter: number): void {
+  send(message: Uint8Array): void {
     this.sentBytes += message.byteLength;
     let queueMap = this.generator.messageQueues.get(this)!;
     for (let queue of queueMap.values()) {
-      queue.push([message, senderCounter]);
+      queue.push(message);
     }
     this.generator.lastMessage = message;
   }
@@ -100,7 +92,7 @@ export class TestingNetworkGenerator {
     rng: seedrandom.prng | undefined = undefined
   ) {
     let debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
-    return new DefaultRuntime(this.newNetwork(), {
+    return new CRDTRuntime(this.newNetwork(), {
       batchingStrategy,
       debugReplicaId,
     });
@@ -120,10 +112,7 @@ export class TestingNetworkGenerator {
   /**
    * Maps sender and recipient to an array of queued messages.
    */
-  messageQueues = new Map<
-    TestingNetwork,
-    Map<TestingNetwork, [message: Uint8Array, senderCounter: number][]>
-  >();
+  messageQueues = new Map<TestingNetwork, Map<TestingNetwork, Uint8Array[]>>();
 
   /**
    * Release all queued messages from sender to the specified recipients.
@@ -146,8 +135,8 @@ export class TestingNetworkGenerator {
       if (recipient === sender) continue;
       for (let queued of senderMap.get(recipient)!) {
         // TODO: count senderCounter towards totals.
-        recipient.receivedBytes += queued[0].byteLength;
-        recipient.onreceive!(queued[0], sender.replicaId, queued[1]);
+        recipient.receivedBytes += queued.byteLength;
+        recipient.onreceive!(queued);
       }
       senderMap.set(recipient, []);
     }
@@ -158,7 +147,7 @@ export class TestingNetworkGenerator {
   }
 
   getTestingNetwork(runtime: Runtime): TestingNetwork {
-    return <TestingNetwork>(<DefaultRuntime>runtime).network;
+    return <TestingNetwork>(<CRDTRuntime>runtime).network;
   }
 
   getTotalSentBytes() {
