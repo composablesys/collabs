@@ -25,8 +25,10 @@ interface AppEventsRecord {
  *
  * TODO: see [concrete instance]
  */
-export class App extends EventEmitter<AppEventsRecord> {
-  constructor(readonly runtime: Runtime) {
+export class App<
+  R extends Runtime = Runtime
+> extends EventEmitter<AppEventsRecord> {
+  constructor(readonly runtime: R) {
     super();
     this.runtime.on("Change", (e) => this.emit("Change", e));
   }

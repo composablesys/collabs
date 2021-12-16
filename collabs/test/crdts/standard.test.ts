@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import {
   AddWinsCSet,
-  Runtime,
+  CRDTApp,
   FalseWinsCBoolean,
   TrueWinsCBoolean,
   LwwCMap,
@@ -20,16 +20,16 @@ import { debug } from "../debug";
 import seedrandom from "seedrandom";
 
 describe("standard", () => {
-  let runtimeGen: TestingNetworkGenerator;
-  let alice: Runtime;
-  let bob: Runtime;
+  let appGen: TestingNetworkGenerator;
+  let alice: CRDTApp;
+  let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime(undefined, rng);
-    bob = runtimeGen.newRuntime(undefined, rng);
+    appGen = new TestingNetworkGenerator();
+    alice = appGen.newApp(undefined, rng);
+    bob = appGen.newApp(undefined, rng);
   });
 
   describe("TrueWinsCBoolean", () => {
@@ -37,8 +37,8 @@ describe("standard", () => {
     let bobFlag: TrueWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCrdt("ewFlagId", Pre(TrueWinsCBoolean)());
-      bobFlag = bob.registerCrdt("ewFlagId", Pre(TrueWinsCBoolean)());
+      aliceFlag = alice.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
+      bobFlag = bob.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -65,7 +65,7 @@ describe("standard", () => {
       assert.isTrue(aliceFlag.value);
       assert.isFalse(bobFlag.value);
 
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.isTrue(aliceFlag.value);
       assert.isTrue(bobFlag.value);
 
@@ -73,7 +73,7 @@ describe("standard", () => {
       assert.isFalse(aliceFlag.value);
       assert.isTrue(bobFlag.value);
 
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.isFalse(aliceFlag.value);
       assert.isFalse(bobFlag.value);
     });
@@ -85,7 +85,7 @@ describe("standard", () => {
       assert.isFalse(bobFlag.value);
 
       // Enable wins
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.isTrue(aliceFlag.value);
       assert.isTrue(bobFlag.value);
     });
@@ -98,7 +98,7 @@ describe("standard", () => {
         ]);
 
         aliceFlag.value = true;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         await promise;
       });
@@ -107,7 +107,7 @@ describe("standard", () => {
     describe("disable", () => {
       it("emits a Set event", async () => {
         aliceFlag.value = true;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         const promise = Promise.all([
           aliceFlag.nextEvent("Set"),
@@ -115,7 +115,7 @@ describe("standard", () => {
         ]);
 
         aliceFlag.value = false;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         await promise;
       });
@@ -127,8 +127,8 @@ describe("standard", () => {
     let bobFlag: FalseWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCrdt("dwFlagId", Pre(FalseWinsCBoolean)());
-      bobFlag = bob.registerCrdt("dwFlagId", Pre(FalseWinsCBoolean)());
+      aliceFlag = alice.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
+      bobFlag = bob.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -152,12 +152,12 @@ describe("standard", () => {
 
     it("works with non-concurrent updates", () => {
       bobFlag.value = true;
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.isTrue(aliceFlag.value);
       assert.isTrue(bobFlag.value);
 
       aliceFlag.value = false;
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.isFalse(aliceFlag.value);
       assert.isFalse(bobFlag.value);
     });
@@ -169,7 +169,7 @@ describe("standard", () => {
       assert.isFalse(bobFlag.value);
 
       // Disable wins
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.isFalse(aliceFlag.value);
       assert.isFalse(bobFlag.value);
     });
@@ -177,7 +177,7 @@ describe("standard", () => {
     describe("enable", () => {
       it("emits a Set event", async () => {
         aliceFlag.value = false;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         const promise = Promise.all([
           aliceFlag.nextEvent("Set"),
@@ -185,7 +185,7 @@ describe("standard", () => {
         ]);
 
         aliceFlag.value = true;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         await promise;
       });
@@ -199,7 +199,7 @@ describe("standard", () => {
         ]);
 
         aliceFlag.value = false;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         await promise;
       });
@@ -213,8 +213,8 @@ describe("standard", () => {
     beforeEach(() => init(0));
 
     function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCrdt(name, Pre(CNumber)(initialValue));
-      bobNumber = bob.registerCrdt(name, Pre(CNumber)(initialValue));
+      aliceNumber = alice.registerCollab(name, Pre(CNumber)(initialValue));
+      bobNumber = bob.registerCollab(name, Pre(CNumber)(initialValue));
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -247,12 +247,12 @@ describe("standard", () => {
     describe("add", () => {
       it("works with non-concurrent updates", () => {
         aliceNumber.add(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 3);
         assert.strictEqual(bobNumber.value, 3);
 
         bobNumber.add(-4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -1);
         assert.strictEqual(bobNumber.value, -1);
       });
@@ -263,7 +263,7 @@ describe("standard", () => {
         assert.strictEqual(aliceNumber.value, 3);
         assert.strictEqual(bobNumber.value, -4);
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -1);
         assert.strictEqual(bobNumber.value, -1);
       });
@@ -272,17 +272,17 @@ describe("standard", () => {
     describe("add and mult", () => {
       it("works with non-concurrent updates", () => {
         aliceNumber.add(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 3);
         assert.strictEqual(bobNumber.value, 3);
 
         bobNumber.mult(-4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -12);
         assert.strictEqual(bobNumber.value, -12);
 
         aliceNumber.add(7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -5);
         assert.strictEqual(bobNumber.value, -5);
       });
@@ -298,7 +298,7 @@ describe("standard", () => {
         assert.strictEqual(bobNumber.value, 5);
 
         // Arbitration order places multiplication last
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 15);
         assert.strictEqual(bobNumber.value, 15);
       });
@@ -314,7 +314,7 @@ describe("standard", () => {
         assert.strictEqual(aliceNumber.value, 3);
         assert.strictEqual(bobNumber.value, 7);
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 17);
         assert.strictEqual(bobNumber.value, 17);
       });
@@ -323,22 +323,22 @@ describe("standard", () => {
     describe("multiple ops", () => {
       it("works with non-concurrent updates", () => {
         aliceNumber.add(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 3);
         assert.strictEqual(bobNumber.value, 3);
 
         bobNumber.mult(-4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -12);
         assert.strictEqual(bobNumber.value, -12);
 
         aliceNumber.min(10);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -12);
         assert.strictEqual(bobNumber.value, -12);
 
         aliceNumber.max(-5);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, -5);
         assert.strictEqual(bobNumber.value, -5);
       });
@@ -354,7 +354,7 @@ describe("standard", () => {
         assert.strictEqual(bobNumber.value, 5);
 
         // Arbitration order places multiplication last
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 15);
         assert.strictEqual(bobNumber.value, 15);
 
@@ -364,7 +364,7 @@ describe("standard", () => {
         assert.strictEqual(bobNumber.value, 75);
 
         // Arbitration order places multiplication last
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 10);
         assert.strictEqual(bobNumber.value, 10);
 
@@ -374,7 +374,7 @@ describe("standard", () => {
         assert.strictEqual(bobNumber.value, 15);
 
         // Arbitration order places addition last
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 15);
         assert.strictEqual(bobNumber.value, 15);
       });
@@ -384,20 +384,20 @@ describe("standard", () => {
     //   it("resets to the initial value", () => {
     //     aliceNumber.add(1);
     //     aliceNumber.reset();
-    //     runtimeGen.releaseAll();
+    //     appGen.releaseAll();
     //     assert.strictEqual(aliceNumber.value, 0);
     //     assert.strictEqual(bobNumber.value, 0);
     //   });
 
     //   it("works with non-concurrent updates", () => {
     //     aliceNumber.add(3);
-    //     runtimeGen.releaseAll();
+    //     appGen.releaseAll();
     //     assert.strictEqual(aliceNumber.value, 3);
     //     assert.strictEqual(bobNumber.value, 3);
 
     //     aliceNumber.reset();
     //     aliceNumber.add(11);
-    //     runtimeGen.releaseAll();
+    //     appGen.releaseAll();
     //     assert.strictEqual(aliceNumber.value, 11);
     //     assert.strictEqual(bobNumber.value, 11);
     //   });
@@ -405,7 +405,7 @@ describe("standard", () => {
     //   it("lets concurrent adds survive", () => {
     //     aliceNumber.reset();
     //     bobNumber.add(10);
-    //     runtimeGen.releaseAll();
+    //     appGen.releaseAll();
     //     assert.strictEqual(aliceNumber.value, 10);
     //     assert.strictEqual(bobNumber.value, 10);
     //   });
@@ -417,8 +417,8 @@ describe("standard", () => {
     let bobSet: AddWinsCSet<string>;
 
     beforeEach(() => {
-      aliceSet = alice.registerCrdt("awSetId", Pre(AddWinsCSet)());
-      bobSet = bob.registerCrdt("awSetId", Pre(AddWinsCSet)());
+      aliceSet = alice.registerCollab("awSetId", Pre(AddWinsCSet)());
+      bobSet = bob.registerCollab("awSetId", Pre(AddWinsCSet)());
       if (debug) {
         addEventListeners(aliceSet, "Alice");
         addEventListeners(bobSet, "Bob");
@@ -442,17 +442,17 @@ describe("standard", () => {
     describe("add", () => {
       it("works with non-concurrent updates", () => {
         aliceSet.add("element");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["element"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["element"]));
 
         bobSet.add("7");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["element", "7"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["element", "7"]));
 
         aliceSet.add("7");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["element", "7"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["element", "7"]));
       });
@@ -466,7 +466,7 @@ describe("standard", () => {
         assert.deepStrictEqual(new Set(aliceSet), new Set(["first"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["second"]));
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["first", "second"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["first", "second"]));
       });
@@ -475,19 +475,19 @@ describe("standard", () => {
     describe("delete", () => {
       it("deletes existing elements", () => {
         aliceSet.add("element");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["element"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["element"]));
 
         aliceSet.delete("element");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set([]));
         assert.deepStrictEqual(new Set(bobSet), new Set([]));
       });
 
       it("does not delete non-existing elements", () => {
         bobSet.delete("nonexistent");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set([]));
         assert.deepStrictEqual(new Set(bobSet), new Set([]));
       });
@@ -497,7 +497,7 @@ describe("standard", () => {
         aliceSet.add("concurrent");
         aliceSet.delete("concurrent");
         bobSet.add("concurrent");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["concurrent"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["concurrent"]));
       });
@@ -506,19 +506,19 @@ describe("standard", () => {
     describe("strongDelete", () => {
       it.skip("deletes existing elements", () => {
         // aliceSet.add("element");
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.deepStrictEqual(new Set(aliceSet), new Set(["element"]));
         // assert.deepStrictEqual(new Set(bobSet), new Set(["element"]));
         //
         // aliceSet.strongDelete("element");
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.deepStrictEqual(new Set(aliceSet), new Set([]));
         // assert.deepStrictEqual(new Set(bobSet), new Set([]));
       });
 
       it.skip("does not delete non-existing elements", () => {
         // bobSet.strongDelete("nonexistent");
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.deepStrictEqual(new Set(aliceSet), new Set([]));
         // assert.deepStrictEqual(new Set(bobSet), new Set([]));
       });
@@ -528,7 +528,7 @@ describe("standard", () => {
         // aliceSet.add("concurrent");
         // aliceSet.strongDelete("concurrent");
         // bobSet.add("concurrent");
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.deepStrictEqual(new Set(aliceSet), new Set([]));
         // assert.deepStrictEqual(new Set(bobSet), new Set([]));
       });
@@ -538,7 +538,7 @@ describe("standard", () => {
       it("lets concurrent adds survive", () => {
         bobSet.add("first");
         bobSet.add("second");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["first", "second"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["first", "second"]));
 
@@ -550,7 +550,7 @@ describe("standard", () => {
         );
         assert.deepStrictEqual(new Set(bobSet), new Set([]));
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceSet), new Set(["survivor"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["survivor"]));
       });
@@ -561,7 +561,7 @@ describe("standard", () => {
     //     it("does not let concurrent adds survive", () => {
     //       bobSet.add("first");
     //       bobSet.add("second");
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       assert.deepStrictEqual(new Set(aliceSet), new Set(["first", "second"]));
     //       assert.deepStrictEqual(new Set(bobSet), new Set(["first", "second"]));
     //
@@ -570,7 +570,7 @@ describe("standard", () => {
     //       assert.deepStrictEqual(new Set(aliceSet), new Set(["survivor"]));
     //       assert.deepStrictEqual(new Set(bobSet), new Set([]));
     //
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       assert.deepStrictEqual(new Set(aliceSet), new Set([]));
     //       assert.deepStrictEqual(new Set(bobSet), new Set([]));
     //     });
@@ -580,12 +580,12 @@ describe("standard", () => {
         for (let i = 0; i < 100; i++) {
           aliceSet.add(i + "");
         }
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         for (let i = 0; i < 100; i++) {
           if (i < 50) aliceSet.delete(i + "");
           else bobSet.delete(i + "");
         }
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         // TODO: use memtest to force gc
         await new Promise((resolve) => setTimeout(resolve, 1000));
         // @ts-ignore private
@@ -598,7 +598,7 @@ describe("standard", () => {
         for (let i = 0; i < 100; i++) {
           aliceSet.add(i + "");
         }
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         // Check nothing has happened synchronously
         assert.strictEqual(aliceSet.size, 100);
         assert.strictEqual(bobSet.size, 100);
@@ -626,11 +626,11 @@ describe("standard", () => {
     beforeEach(() => {
       const valueConstructor = (valueInitToken: InitToken) =>
         new CCounter(valueInitToken);
-      aliceMap = alice.registerCrdt(
+      aliceMap = alice.registerCollab(
         "map",
         (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
       );
-      bobMap = bob.registerCrdt(
+      bobMap = bob.registerCollab(
         "map",
         (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
       );
@@ -655,7 +655,7 @@ describe("standard", () => {
     describe("set", () => {
       it("works with non-concurrent updates", () => {
         aliceMap.set("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["test"]));
       });
@@ -667,7 +667,7 @@ describe("standard", () => {
         assert.isTrue(aliceMap.has("test"));
         assert.isFalse(bobMap.has("test"));
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.isTrue(aliceMap.has("test"));
         assert.isTrue(bobMap.has("test"));
       });
@@ -677,7 +677,7 @@ describe("standard", () => {
         assert.isFalse(aliceMap.has("not in map"));
         assert.isFalse(bobMap.has("not in map"));
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.isFalse(aliceMap.has("not in map"));
         assert.isFalse(bobMap.has("not in map"));
       });
@@ -686,7 +686,7 @@ describe("standard", () => {
     describe("get", () => {
       it("returns the value if the key is in the map", () => {
         aliceMap.set("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         const aliceTest = aliceMap.get("test")!;
         const bobTest = bobMap.get("test")!;
         assert.isOk(aliceTest);
@@ -697,7 +697,7 @@ describe("standard", () => {
 
       it("returns undefined if the key is not in the map", () => {
         aliceMap.set("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         const aliceTest = aliceMap.get("not in map");
         const bobTest = bobMap.get("not in map");
         assert.isUndefined(aliceTest);
@@ -706,12 +706,12 @@ describe("standard", () => {
 
       it("returns a CRDT that can be modified", () => {
         aliceMap.set("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         const aliceTest = aliceMap.get("test")!;
         const bobTest = bobMap.get("test")!;
         aliceTest.add(3);
         bobTest.add(4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceTest.value, 7);
         assert.strictEqual(bobTest.value, 7);
       });
@@ -720,11 +720,11 @@ describe("standard", () => {
     describe("delete", () => {
       it("deletes existing elements", () => {
         bobMap.set("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
 
         bobMap.delete("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
         assert.isUndefined(aliceMap.get("test"));
@@ -733,7 +733,7 @@ describe("standard", () => {
 
       it("does not delete non-existing elements", () => {
         bobMap.delete("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
         assert.isUndefined(aliceMap.get("test"));
@@ -742,7 +742,7 @@ describe("standard", () => {
 
       it("lets concurrent value operation survive", () => {
         aliceMap.set("register");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
 
@@ -751,7 +751,7 @@ describe("standard", () => {
 
         aliceMap.delete("register");
         bobRegister!.add(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
         assert.strictEqual(bobRegister!.value, 3);
@@ -768,7 +768,7 @@ describe("standard", () => {
 
       beforeEach(() => {
         aliceMap.set("register");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
 
@@ -785,7 +785,7 @@ describe("standard", () => {
         assert.strictEqual(aliceRegister!.value, 0);
 
         bobRegister!.add(5);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
         assert.strictEqual(bobRegister!.value, 5);
@@ -796,7 +796,7 @@ describe("standard", () => {
       it("lets causally later op survive", () => {
         bobMap.reset();
         bobRegister.add(7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
         assert.strictEqual(bobRegister.value, 7);
@@ -811,31 +811,31 @@ describe("standard", () => {
         let aliceCounter = aliceMap.get("test")!;
         bobMap.set("test");
         let bobCounter = bobMap.get("test")!;
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
-        let aliceSet = alice.registerCrdt("valueSet", Pre(AddWinsCSet)());
-        let bobSet = bob.registerCrdt("valueSet", Pre(AddWinsCSet)());
+        let aliceSet = alice.registerCollab("valueSet", Pre(AddWinsCSet)());
+        let bobSet = bob.registerCollab("valueSet", Pre(AddWinsCSet)());
 
         aliceSet.add(aliceCounter);
         assert.strictEqual(aliceSet.has(aliceCounter), true);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(bobSet.has(bobCounter), true);
       });
     });
   });
 
   // TODO
-  // describe("RuntimeCrdtGenerator", () => {
-  //   let aliceGen: RuntimeCrdtGenerator<Number>;
-  //   let bobGen: RuntimeCrdtGenerator<Number>;
+  // describe("CRDTAppCrdtGenerator", () => {
+  //   let aliceGen: CRDTAppCrdtGenerator<Number>;
+  //   let bobGen: CRDTAppCrdtGenerator<Number>;
   //   let aliceCounter: Number;
   //   let bobCounter: Number;
   //
   //   beforeEach(() => {
   //     const generator = (parent: Crdt, id: string, _: Uint8Array) =>
   //       new Number(parent, id);
-  //     aliceGen = new RuntimeCrdtGenerator(alice, "gen", generator);
-  //     bobGen = new RuntimeCrdtGenerator(bob, "gen", generator);
+  //     aliceGen = new CRDTAppCrdtGenerator(alice, "gen", generator);
+  //     bobGen = new CRDTAppCrdtGenerator(bob, "gen", generator);
   //     aliceCounter = aliceGen.generate(new Uint8Array());
   //     bobGen.on("NewCrdt", (event) => (bobCounter = event.newCrdt));
   //   });
@@ -843,7 +843,7 @@ describe("standard", () => {
   //   describe("generate", () => {
   //     it("generates CRDTs that work", () => {
   //       aliceCounter.add(7);
-  //       runtimeGen.releaseAll();
+  //       appGen.releaseAll();
   //       assert.strictEqual(aliceCounter.value, 7);
   //       assert.isNotNull(bobCounter);
   //       assert.strictEqual(bobCounter.value, 7);
@@ -856,8 +856,8 @@ describe("standard", () => {
     let bobMap: LwwCMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.registerCrdt("lwwMap", Pre(LwwCMap)());
-      bobMap = bob.registerCrdt("lwwMap", Pre(LwwCMap)());
+      aliceMap = alice.registerCollab("lwwMap", Pre(LwwCMap)());
+      bobMap = bob.registerCollab("lwwMap", Pre(LwwCMap)());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -883,7 +883,7 @@ describe("standard", () => {
     describe("set", () => {
       it("works with non-concurrent updates", () => {
         aliceMap.set("test", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["test"]));
         assert.deepStrictEqual(new Set(aliceMap.values()), new Set([7]));
@@ -928,7 +928,7 @@ describe("standard", () => {
         });
 
         aliceMap.set("test", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         await promise;
       });
@@ -940,7 +940,7 @@ describe("standard", () => {
         assert.isTrue(aliceMap.has("test"));
         assert.isFalse(bobMap.has("test"));
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.isTrue(aliceMap.has("test"));
         assert.isTrue(bobMap.has("test"));
       });
@@ -950,7 +950,7 @@ describe("standard", () => {
         assert.isFalse(aliceMap.has("not in map"));
         assert.isFalse(bobMap.has("not in map"));
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.isFalse(aliceMap.has("not in map"));
         assert.isFalse(bobMap.has("not in map"));
       });
@@ -959,14 +959,14 @@ describe("standard", () => {
     describe("get", () => {
       it("returns the value if the key is in the map", () => {
         aliceMap.set("test", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceMap.get("test"), 7);
         assert.strictEqual(bobMap.get("test"), 7);
       });
 
       it("returns undefined if the key is not in the map", () => {
         aliceMap.set("test", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.isUndefined(aliceMap.get("not in map"));
         assert.isUndefined(bobMap.get("not in map"));
       });
@@ -975,11 +975,11 @@ describe("standard", () => {
     describe("delete", () => {
       it("deletes existing elements", () => {
         bobMap.set("test", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
 
         bobMap.delete("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(aliceMap.values()), new Set([]));
@@ -992,7 +992,7 @@ describe("standard", () => {
 
       it("does not delete non-existing elements", () => {
         bobMap.delete("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(aliceMap.values()), new Set([]));
@@ -1007,7 +1007,7 @@ describe("standard", () => {
       // this should no longer need the time interval
       it("lets later set survive", () => {
         aliceMap.set("register", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
 
@@ -1019,7 +1019,7 @@ describe("standard", () => {
           // Loop; Bob will have a later time than now
         }
         bobMap.set("register", 3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
         assert.strictEqual(bobMap.get("register"), 3);
@@ -1028,7 +1028,7 @@ describe("standard", () => {
 
       it("emits right events", async () => {
         aliceMap.set("test", 7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         const promise = Promise.all([
           aliceMap.nextEvent("Delete"),
@@ -1057,7 +1057,7 @@ describe("standard", () => {
         // });
 
         aliceMap.delete("test");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         await promise;
       });
@@ -1067,12 +1067,12 @@ describe("standard", () => {
         for (let i = 0; i < 100; i++) {
           aliceMap.set(i + "", 10 * i);
         }
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         for (let i = 0; i < 100; i++) {
           if (i < 50) aliceMap.delete(i + "");
           else bobMap.delete(i + "");
         }
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         // TODO: use memtest to force gc
         await new Promise((resolve) => setTimeout(resolve, 1000));
         // @ts-ignore internalMap is private
@@ -1085,7 +1085,7 @@ describe("standard", () => {
         for (let i = 0; i < 100; i++) {
           aliceMap.set(i + "", 10 * i);
         }
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         // Check nothing has happened synchronously
         assert.strictEqual(aliceMap.size, 100);
         assert.strictEqual(bobMap.size, 100);
@@ -1113,7 +1113,7 @@ describe("standard", () => {
     let bobRegister: LwwCRegister<CNumber | undefined>;
 
     beforeEach(() => {
-      aliceSource = alice.registerCrdt(
+      aliceSource = alice.registerCollab(
         "source",
         (childInitToken) =>
           new DeletingMutCSet(
@@ -1121,7 +1121,7 @@ describe("standard", () => {
             (valueInitToken) => new CNumber(valueInitToken)
           )
       );
-      bobSource = bob.registerCrdt(
+      bobSource = bob.registerCollab(
         "source",
         (childInitToken) =>
           new DeletingMutCSet(
@@ -1129,12 +1129,12 @@ describe("standard", () => {
             (valueInitToken) => new CNumber(valueInitToken)
           )
       );
-      aliceRegister = alice.registerCrdt(
+      aliceRegister = alice.registerCollab(
         "register",
         (childInitToken) =>
           new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
       );
-      bobRegister = bob.registerCrdt(
+      bobRegister = bob.registerCollab(
         "register",
         (childInitToken) =>
           new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
@@ -1151,7 +1151,7 @@ describe("standard", () => {
       aliceRegister.value.add(7);
       assert.strictEqual(aliceRegister.value.value, 7);
 
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.strictEqual(bobRegister.value!.value, 7);
     });
 
@@ -1172,15 +1172,15 @@ describe("standard", () => {
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
       aliceRegister.value = new1;
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       let new1Bob = bobRegister.value!;
       bobRegister.value = new2;
-      runtimeGen.releaseAll();
+      appGen.releaseAll();
       let new2Alice = aliceRegister.value!;
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
@@ -1206,35 +1206,35 @@ describe("standard", () => {
 //     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
 //
 //     aliceOrthogonal.rotate(1);
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [1, false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [1, false]);
 //
 //     aliceOrthogonal.rotate(10);
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [11 % (2*Math.PI), false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [11 % (2*Math.PI), false]);
 //     aliceOrthogonal.rotate(-10);
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //
 //     bobOrthogonal.reflectHorizontalAxis();
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [2*Math.PI - 1, true]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [2*Math.PI - 1, true]);
 //
 //     aliceOrthogonal.rotate(1.5);
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [0.5, true]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [0.5, true]);
 //
 //     bobOrthogonal.reflect(0.5);
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [0.5, false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [0.5, false]);
 //
 //     // Out of order tests
 //     aliceOrthogonal.reset();
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
 //
@@ -1246,7 +1246,7 @@ describe("standard", () => {
 //     assert.deepStrictEqual(aliceOrthogonal.value, [Math.PI/2, false]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [0, true]);
 //
-//     runtimeGen.releaseAll();
+//     appGen.releaseAll();
 //     assert.deepStrictEqual(aliceOrthogonal.value, [3*Math.PI/2, true]);
 //     assert.deepStrictEqual(bobOrthogonal.value, [3*Math.PI/2, true]);
 //     console.log("...ok");

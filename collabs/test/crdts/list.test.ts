@@ -1,28 +1,28 @@
 import { assert } from "chai";
-import { Runtime, TestingNetworkGenerator, RgaDenseLocalList } from "../../src";
+import { CRDTApp, TestingNetworkGenerator, RgaDenseLocalList } from "../../src";
 import seedrandom from "seedrandom";
 import util from "util";
 
 describe("list", () => {
-  let runtimeGen: TestingNetworkGenerator;
-  let alice: Runtime;
-  let bob: Runtime;
+  let appGen: TestingNetworkGenerator;
+  let alice: CRDTApp;
+  let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime(undefined, rng);
-    bob = runtimeGen.newRuntime(undefined, rng);
+    appGen = new TestingNetworkGenerator();
+    alice = appGen.newApp(undefined, rng);
+    bob = appGen.newApp(undefined, rng);
   });
 
   describe("DenseLocalList generic tests", () => {
     it.skip("Rga");
     // const sequenceSources = {
-    //   TreedocDenseLocalList: (runtime: Runtime) =>
-    //     new TreedocDenseLocalList(runtime),
+    //   TreedocDenseLocalList: (app: CRDTApp) =>
+    //     new TreedocDenseLocalList(app),
     //   // TODO: actualy use RgaDenseLocalList
-    //   // RgaDenseLocalList: (runtime: Runtime) => new RgaDenseLocalList(runtime),
+    //   // RgaDenseLocalList: (app: CRDTApp) => new RgaDenseLocalList(app),
     // };
     // for (let entry of Object.entries(sequenceSources)) {
     //   describe(entry[0], () => {
@@ -56,7 +56,7 @@ describe("list", () => {
     //       seqIds: TreedocLoc[]
     //     ): TreedocLoc[] {
     //       return seqIds.map((value) =>
-    //         to.deserializeInternal(from.serializeInternal(value), to.runtime)
+    //         to.deserializeInternal(from.serializeInternal(value), to.app)
     //       );
     //     }
     //
@@ -72,7 +72,7 @@ describe("list", () => {
     //
     //     it("transfers basic insertion", () => {
     //       let mid = aliceSource.createBetween(null, null, 1)[0];
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       checkOrder(bobSource, transfer(aliceSource, bobSource, [mid]));
     //     });
     //
@@ -84,7 +84,7 @@ describe("list", () => {
     //         seqIds.push(lastSeqId);
     //       }
     //       checkOrder(aliceSource, seqIds);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       checkOrder(bobSource, transfer(aliceSource, bobSource, seqIds));
     //     });
     //
@@ -97,7 +97,7 @@ describe("list", () => {
     //       }
     //       let seqIds = seqIdsRev.reverse();
     //       checkOrder(aliceSource, seqIds);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       checkOrder(bobSource, transfer(aliceSource, bobSource, seqIds));
     //     });
     //
@@ -113,13 +113,13 @@ describe("list", () => {
     //         seqIds.splice(randIndex, 0, newId);
     //       }
     //       checkOrder(aliceSource, seqIds);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       checkOrder(bobSource, transfer(aliceSource, bobSource, seqIds));
     //     });
     //
     //     it("works for concurrent insertions", () => {
     //       let [left, right] = aliceSource.createBetween(null, null, 2);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       let [bobLeft, bobRight] = transfer(aliceSource, bobSource, [
     //         left,
     //         right,
@@ -127,7 +127,7 @@ describe("list", () => {
     //
     //       let aliceMid = aliceSource.createBetween(left, right, 1)[0];
     //       let bobMid = bobSource.createBetween(bobLeft, bobRight, 1)[0];
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //
     //       let aliceMidBob = transfer(aliceSource, bobSource, [aliceMid])[0];
     //       let bobMidAlice = transfer(bobSource, aliceSource, [bobMid])[0];
@@ -145,13 +145,13 @@ describe("list", () => {
     //       }
     //
     //       checkOrder(aliceSource, ordered);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       checkOrder(bobSource, transfer(aliceSource, bobSource, ordered));
     //     });
     //
     //     it("works for insertions between concurrent insertions", () => {
     //       let [left, right] = aliceSource.createBetween(null, null, 2);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       let [bobLeft, bobRight] = transfer(aliceSource, bobSource, [
     //         left,
     //         right,
@@ -159,7 +159,7 @@ describe("list", () => {
     //
     //       let aliceMid = aliceSource.createBetween(left, right, 1)[0];
     //       let bobMid = bobSource.createBetween(bobLeft, bobRight, 1)[0];
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //
     //       // let aliceMidBob = transfer(aliceSource, bobSource, [aliceMid])[0];
     //       let bobMidAlice = transfer(bobSource, aliceSource, [bobMid])[0];
@@ -176,7 +176,7 @@ describe("list", () => {
     //
     //       let ordered = [left, leftAlice, aliceMidMid, rightAlice, right];
     //       checkOrder(aliceSource, ordered);
-    //       runtimeGen.releaseAll();
+    //       appGen.releaseAll();
     //       checkOrder(bobSource, transfer(aliceSource, bobSource, ordered));
     //     });
     //   });

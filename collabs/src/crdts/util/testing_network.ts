@@ -1,7 +1,7 @@
 import { BatchingLayer } from "../../constructions";
 import { BatchingStrategy } from "../../constructions/batching_strategy";
-import { Runtime, Unsubscribe } from "../../core";
-import { BroadcastNetwork, CRDTRuntime } from "../crdt-runtime";
+import { Unsubscribe } from "../../core";
+import { BroadcastNetwork, CRDTApp } from "../crdt-runtime";
 
 /**
  * For testing or special purposes only.  Sends each message
@@ -73,26 +73,23 @@ function pseudorandomReplicaId(rng: seedrandom.prng) {
 }
 
 /**
- * Creates a collection of Runtimes linked together
- * (i.e., in-memory networking) that deliver messages
+ * Creates a collection of [[CRDTApp]]s linked together
+ * (in-memory networking) that deliver messages
  * when release is called.
  */
 export class TestingNetworkGenerator {
   /**
-   * [newRuntime description]
-   * @param  batchOptions Note that the default here is
-   * "immediate", unlike Runtime, where it is {periodMs: 0}.
-   * "immediate" is better for tests, while {periodMs: 0} is
-   * better for real apps.
-   * @param  rng          [description]
-   * @return              [description]
+   * [newApp description]
+   * @param  batchingStrategy Note that the default here is
+   * [[TestingBatchingStrategy]], unlike in [[CRDTApp]].
+   * @return                  [description]
    */
-  newRuntime(
+  newApp(
     batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
     rng: seedrandom.prng | undefined = undefined
   ) {
     let debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
-    return new CRDTRuntime(this.newNetwork(), {
+    return new CRDTApp(this.newNetwork(), {
       batchingStrategy,
       debugReplicaId,
     });
@@ -120,11 +117,9 @@ export class TestingNetworkGenerator {
    * recipients.  Only recipients that existed at the time
    * of sending will receive a message.
    */
-  release(senderRuntime: Runtime, ...recipientRuntimes: Runtime[]) {
-    let sender = this.getTestingNetwork(senderRuntime);
-    let recipients = recipientRuntimes.map((runtime) =>
-      this.getTestingNetwork(runtime)
-    );
+  release(senderApp: CRDTApp, ...recipientApps: CRDTApp[]) {
+    let sender = this.getTestingNetwork(senderApp);
+    let recipients = recipientApps.map((app) => this.getTestingNetwork(app));
     this.releaseByNetwork(sender, ...recipients);
   }
 
@@ -146,8 +141,8 @@ export class TestingNetworkGenerator {
     for (let sender of this.messageQueues.keys()) this.releaseByNetwork(sender);
   }
 
-  getTestingNetwork(runtime: Runtime): TestingNetwork {
-    return <TestingNetwork>(<CRDTRuntime>runtime).network;
+  getTestingNetwork(app: CRDTApp): TestingNetwork {
+    return <TestingNetwork>(<CRDTApp>app).runtime.network;
   }
 
   getTotalSentBytes() {
