@@ -110,8 +110,8 @@ export class CMapFromRegister<
   }
 
   *entries(): IterableIterator<[K, V]> {
-    for (let [key, valueCRDT] of this.internalMap) {
-      yield [key, valueCRDT.value.get()];
+    for (let [key, valueRegister] of this.internalMap) {
+      yield [key, valueRegister.value.get()];
     }
   }
 
@@ -163,8 +163,8 @@ export class LwwCMap<K, V> extends CMapFromRegister<
    * in lexicographic order by sender.
    */
   getConflicts(key: K): V[] {
-    const valueCRDT = this.internalMap.getIfPresent(key);
-    return valueCRDT === undefined ? [] : valueCRDT.conflicts();
+    const valueRegister = this.internalMap.getIfPresent(key);
+    return valueRegister === undefined ? [] : valueRegister.conflicts();
   }
 
   /**
@@ -176,8 +176,8 @@ export class LwwCMap<K, V> extends CMapFromRegister<
    * in lexicographic order by sender.
    */
   getConflictsMeta(key: K): CRegisterEntryMeta<V>[] {
-    const valueCRDT = this.internalMap.getIfPresent(key);
-    return valueCRDT === undefined ? [] : valueCRDT.conflictsMeta();
+    const valueRegister = this.internalMap.getIfPresent(key);
+    return valueRegister === undefined ? [] : valueRegister.conflictsMeta();
   }
 
   /**

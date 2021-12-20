@@ -77,7 +77,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
           message = { nullValue: true };
         } else if (value instanceof Collab) {
           message = {
-            crdtValue: CollabReference.create({
+            collabValue: CollabReference.create({
               namePath: this.runtime.getNamePath(value),
             }),
           };
@@ -131,8 +131,8 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "nullValue":
         ans = null;
         break;
-      case "crdtValue":
-        ans = this.runtime.getDescendant(decoded.crdtValue!.namePath!);
+      case "collabValue":
+        ans = this.runtime.getDescendant(decoded.collabValue!.namePath!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>

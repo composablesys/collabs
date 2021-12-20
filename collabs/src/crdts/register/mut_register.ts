@@ -22,7 +22,7 @@ export class MutCRegisterFromRegister<
   extends CObject<Events>
   implements CRegister<Value, SetArgs>
 {
-  protected readonly crdtFactory: DeletingMutCSet<C, SetArgs>;
+  protected readonly valueFactory: DeletingMutCSet<C, SetArgs>;
   protected readonly register: RegT;
 
   /**
@@ -41,13 +41,13 @@ export class MutCRegisterFromRegister<
     )
   ) {
     super(initToken);
-    this.crdtFactory = this.addChild(
+    this.valueFactory = this.addChild(
       "",
       Pre(DeletingMutCSet)(valueConstructor, [], argsSerializer)
     );
     this.register = this.addChild(
       "0",
-      registerCallback(new CollabSerializer(this.crdtFactory))
+      registerCallback(new CollabSerializer(this.valueFactory))
     );
 
     // Events
@@ -55,8 +55,8 @@ export class MutCRegisterFromRegister<
   }
 
   set(...args: SetArgs): Value {
-    this.crdtFactory.clear();
-    return this.register.set(this.crdtFactory.add(...args));
+    this.valueFactory.clear();
+    return this.register.set(this.valueFactory.add(...args));
   }
 
   get value(): Value {
@@ -64,7 +64,7 @@ export class MutCRegisterFromRegister<
   }
 
   owns(value: C): boolean {
-    return this.crdtFactory.owns(value);
+    return this.valueFactory.owns(value);
   }
 
   /**
@@ -75,7 +75,7 @@ export class MutCRegisterFromRegister<
    * greater set value
    */
   getArgsByValue(value: C): SetArgs {
-    return this.crdtFactory.getArgs(value);
+    return this.valueFactory.getArgs(value);
   }
 
   /**
@@ -119,7 +119,7 @@ export class LwwMutCRegister<C extends Collab, SetArgs extends any[]>
   }
 
   reset() {
-    this.crdtFactory.reset();
+    this.valueFactory.reset();
     this.register.reset();
   }
 
