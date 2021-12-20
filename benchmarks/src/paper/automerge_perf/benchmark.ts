@@ -1,4 +1,4 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { edits, finalText } from "./editing-trace";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -326,26 +326,26 @@ function plainJsArray() {
 }
 
 function resettingLww() {
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
-  let list: crdts.ResettingMutCList<crdts.LwwCRegister<string>> | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
+  let list: collabs.ResettingMutCList<collabs.LwwCRegister<string>> | null;
 
   return new AutomergePerfBenchmark("Resetting Lww", {
     setup(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab(
         "text",
         (initToken) =>
-          new crdts.ResettingMutCList(
+          new collabs.ResettingMutCList(
             initToken,
-            (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
+            (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
       list = null;
     },
     processEdit(edit) {
@@ -356,7 +356,7 @@ function resettingLww() {
         // Delete character at edit[0]
         list!.delete(edit[0]);
       }
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
     },
     getSentBytes() {
       return generator!.getTotalSentBytes();
@@ -365,46 +365,46 @@ function resettingLww() {
       return list!.map((lww) => lww.value).join("");
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab(
         "text",
         (initToken) =>
-          new crdts.ResettingMutCList(
+          new collabs.ResettingMutCList(
             initToken,
-            (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
+            (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
-      runtime.load(saveData);
+      app.load(saveData);
     },
   });
 }
 
 function deletingLww() {
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
-  let list: crdts.DeletingMutCList<crdts.LwwCRegister<string>, []> | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
+  let list: collabs.DeletingMutCList<collabs.LwwCRegister<string>, []> | null;
 
   return new AutomergePerfBenchmark("Deleting Lww", {
     setup(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab(
         "text",
         (initToken) =>
-          new crdts.DeletingMutCList(
+          new collabs.DeletingMutCList(
             initToken,
-            (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
+            (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
       list = null;
     },
     processEdit(edit) {
@@ -415,7 +415,7 @@ function deletingLww() {
         // Delete character at edit[0]
         list!.delete(edit[0]);
       }
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
     },
     getSentBytes() {
       return generator!.getTotalSentBytes();
@@ -424,39 +424,39 @@ function deletingLww() {
       return list!.map((lww) => lww.value).join("");
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab(
         "text",
         (initToken) =>
-          new crdts.DeletingMutCList(
+          new collabs.DeletingMutCList(
             initToken,
-            (valueInitToken) => new crdts.LwwCRegister(valueInitToken, "")
+            (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
-      runtime.load(saveData);
+      app.load(saveData);
     },
   });
 }
 
-function textCrdt() {
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
-  let list: crdts.CText | null;
+function textCollab() {
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
+  let list: collabs.CText | null;
 
-  return new AutomergePerfBenchmark("TextCrdt", {
+  return new AutomergePerfBenchmark("TextCollab", {
     setup(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab("text", collabs.Pre(collabs.CText)());
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
       list = null;
     },
     processEdit(edit) {
@@ -467,7 +467,7 @@ function textCrdt() {
         // Delete character at edit[0]
         list!.delete(edit[0]);
       }
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
     },
     getSentBytes() {
       return generator!.getTotalSentBytes();
@@ -476,14 +476,14 @@ function textCrdt() {
       return list!.toString();
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
-      runtime.load(saveData);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab("text", collabs.Pre(collabs.CText)());
+      app.load(saveData);
     },
   });
 }
@@ -559,22 +559,22 @@ function automerge() {
 // }
 
 function mapLww() {
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
-  let list: crdts.LwwCMap<number, string> | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
+  let list: collabs.LwwCMap<number, string> | null;
 
   return new AutomergePerfBenchmark("LwwMap", {
     setup(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab(
         "text",
-        (initToken) => new crdts.LwwCMap<number, string>(initToken)
+        (initToken) => new collabs.LwwCMap<number, string>(initToken)
       );
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
       list = null;
     },
     processEdit(edit) {
@@ -585,7 +585,7 @@ function mapLww() {
         // Delete character at edit[0]
         list!.delete(edit[0]);
       }
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
     },
     getSentBytes() {
       return generator!.getTotalSentBytes();
@@ -594,17 +594,17 @@ function mapLww() {
       return undefined;
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt(
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab(
         "text",
-        (initToken) => new crdts.LwwCMap<number, string>(initToken)
+        (initToken) => new collabs.LwwCMap<number, string>(initToken)
       );
-      runtime.load(saveData);
+      app.load(saveData);
     },
   });
 }
@@ -655,12 +655,12 @@ function yjs() {
 }
 
 // Removed; according to dmonad benchmarks, takes 20,000 seconds!
-// function deltaCrdts() {
+// function deltaCollabs() {
 //   let doc: any;
 //   let totalSentBytes: number;
 //
 //   return new AutomergePerfBenchmark(
-//     "deltaCrdts",
+//     "deltaCollabs",
 //     () => {
 //       doc = DeltaCRDT("rga")("1");
 //       totalSentBytes = 0;
@@ -684,12 +684,12 @@ function yjs() {
 
 function richText() {
   // Copied from rich text demo.  TODO: way to reuse same file.
-  interface RichCharEventsRecord extends crdts.CrdtEventsRecord {
-    Format: { key: string } & crdts.CrdtEvent;
+  interface RichCharEventsRecord extends collabs.CollabEventsRecord {
+    Format: { key: string } & collabs.CollabEvent;
   }
 
-  class RichChar extends crdts.CObject<RichCharEventsRecord> {
-    private readonly attributes: crdts.LwwCMap<string, any>;
+  class RichChar extends collabs.CObject<RichCharEventsRecord> {
+    private readonly attributes: collabs.LwwCMap<string, any>;
 
     /**
      * char comes from a Quill Delta's insert field, split
@@ -697,10 +697,10 @@ function richText() {
      * a single char, or (for an embed) a JSON-serializable
      * object with a single property.
      */
-    constructor(initToken: crdts.InitToken, readonly char: string | object) {
+    constructor(initToken: collabs.InitToken, readonly char: string | object) {
       super(initToken);
 
-      this.attributes = this.addChild("", crdts.Pre(crdts.LwwCMap)());
+      this.attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
 
       // Events
       this.attributes.on("Set", (e) => {
@@ -730,24 +730,24 @@ function richText() {
     }
   }
 
-  interface RichTextEventsRecord extends crdts.CrdtEventsRecord {
-    Insert: { startIndex: number; count: number } & crdts.CrdtEvent;
-    Delete: { startIndex: number; count: number } & crdts.CrdtEvent;
-    Format: { index: number; key: string } & crdts.CrdtEvent;
+  interface RichTextEventsRecord extends collabs.CollabEventsRecord {
+    Insert: { startIndex: number; count: number } & collabs.CollabEvent;
+    Delete: { startIndex: number; count: number } & collabs.CollabEvent;
+    Format: { index: number; key: string } & collabs.CollabEvent;
   }
 
-  class RichText extends crdts.CObject<RichTextEventsRecord> {
-    readonly text: crdts.DeletingMutCList<RichChar, [char: string | object]>;
+  class RichText extends collabs.CObject<RichTextEventsRecord> {
+    readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
 
     constructor(
-      initToken: crdts.InitToken,
+      initToken: collabs.InitToken,
       initialChars: (string | object)[] = []
     ) {
       super(initToken);
 
       this.text = this.addChild(
         "",
-        crdts.Pre(crdts.DeletingMutCList)(
+        collabs.Pre(collabs.DeletingMutCList)(
           (valueInitToken, char) => {
             const richChar = new RichChar(valueInitToken, char);
             richChar.on("Format", (e) => {
@@ -808,19 +808,19 @@ function richText() {
     }
   }
 
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
   let list: RichText | null;
 
   return new AutomergePerfBenchmark("RichText", {
     setup(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt("text", crdts.Pre(RichText)());
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab("text", collabs.Pre(RichText)());
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
       list = null;
     },
     processEdit(edit) {
@@ -831,7 +831,7 @@ function richText() {
         // Delete character at edit[0]
         list!.delete(edit[0], 1);
       }
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
     },
     getSentBytes() {
       return generator!.getTotalSentBytes();
@@ -840,14 +840,14 @@ function richText() {
       return list!.asArray().join("");
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      list = runtime.registerCrdt("text", crdts.Pre(RichText)());
-      runtime.load(saveData);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      list = app.registerCollab("text", collabs.Pre(RichText)());
+      app.load(saveData);
     },
   });
 }
@@ -864,8 +864,8 @@ export default async function automergePerf(args: string[]) {
     case "deletingLww":
       benchmark = deletingLww();
       break;
-    case "textCrdt":
-      benchmark = textCrdt();
+    case "textCollab":
+      benchmark = textCollab();
       break;
     case "mapLww":
       benchmark = mapLww();
@@ -882,8 +882,8 @@ export default async function automergePerf(args: string[]) {
     // case "automergeNoText":
     //   benchmark = automergeNoText();
     //   break;
-    // case "deltaCrdts":
-    //   benchmark = deltaCrdts();
+    // case "deltaCollabs":
+    //   benchmark = deltaCollabs();
     //   break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);

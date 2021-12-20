@@ -2,8 +2,8 @@ import * as tf from "@tensorflow/tfjs";
 import {
   CCounter,
   CObject,
-  CrdtEvent,
-  CrdtEventsRecord,
+  CollabEvent,
+  CollabEventsRecord,
   InitToken,
   MessageMeta,
   Pre,
@@ -12,12 +12,12 @@ import {
 } from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
-export interface TensorCounterEventsRecord extends CrdtEventsRecord {
-  Add: CrdtEvent & {
+export interface TensorCounterEventsRecord extends CollabEventsRecord {
+  Add: CollabEvent & {
     readonly valueAdded: tf.Tensor;
   };
   // TODO: informative event (equivalent add)
-  Reset: CrdtEvent;
+  Reset: CollabEvent;
 }
 
 export class TensorGCounterState {
@@ -119,7 +119,7 @@ function tensorsEqual<R extends tf.Rank>(
   return tf.tidy(() => (tf.equal(a, b).all().arraySync() as number) === 1);
 }
 
-export class TensorGCounterCrdt
+export class TensorGCounterCollab
   extends CPrimitive<TensorCounterEventsRecord>
   implements Resettable
 {
@@ -274,12 +274,12 @@ export class TensorGCounterCrdt
   load(saveData: Uint8Array | null): void {}
 }
 
-export class TensorCounterCrdt
+export class TensorCounterCollab
   extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
-  private readonly plus: TensorGCounterCrdt;
-  private readonly minus: TensorGCounterCrdt;
+  private readonly plus: TensorGCounterCollab;
+  private readonly minus: TensorGCounterCollab;
 
   constructor(
     initToken: InitToken,
@@ -287,8 +287,8 @@ export class TensorCounterCrdt
     private readonly dtype: tf.NumericDataType
   ) {
     super(initToken);
-    this.plus = this.addChild("1", Pre(TensorGCounterCrdt)(shape, dtype));
-    this.minus = this.addChild("2", Pre(TensorGCounterCrdt)(shape, dtype));
+    this.plus = this.addChild("1", Pre(TensorGCounterCollab)(shape, dtype));
+    this.minus = this.addChild("2", Pre(TensorGCounterCollab)(shape, dtype));
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
@@ -332,11 +332,11 @@ export class TensorCounterCrdt
   }
 }
 
-export class TensorAverageCrdt
+export class TensorAverageCollab
   extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
-  private readonly numerator: TensorCounterCrdt;
+  private readonly numerator: TensorCounterCollab;
   private readonly denominator: CCounter;
 
   constructor(
@@ -345,7 +345,7 @@ export class TensorAverageCrdt
     private readonly dtype: tf.NumericDataType
   ) {
     super(initToken);
-    this.numerator = this.addChild("1", Pre(TensorCounterCrdt)(shape, dtype));
+    this.numerator = this.addChild("1", Pre(TensorCounterCollab)(shape, dtype));
     this.denominator = this.addChild("2", Pre(CCounter)());
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));

@@ -1,7 +1,10 @@
 import { assert } from "chai";
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs-node";
-import { TensorAverageCrdt, TensorCounterCrdt } from "@collabs/tensor-average";
+import {
+  TensorAverageCollab,
+  TensorCounterCollab,
+} from "@collabs/tensor-average";
 import seedrandom from "seedrandom";
 import {
   getRecordedTrials,
@@ -19,22 +22,22 @@ const ROUND_OPS = Math.ceil(OPS / 10);
 const SEED = "42";
 const USERS = 16;
 
-class MicroCrdtsBenchmark<C extends crdts.Crdt> {
+class MicroCollabsBenchmark<C extends collabs.Collab> {
   private readonly totalWeight: number;
   private readonly weightIndexedOps: ((
-    crdt: C,
+    collab: C,
     rng: seedrandom.prng
   ) => void)[];
   private readonly cumulativeWeights: number[];
 
   constructor(
     private readonly testName: string,
-    private readonly crdtConstructor: (initToken: crdts.InitToken) => C,
+    private readonly collabConstructor: (initToken: collabs.InitToken) => C,
     ops: {
-      [opName: string]: [(crdt: C, rng: seedrandom.prng) => void, number];
+      [opName: string]: [(collab: C, rng: seedrandom.prng) => void, number];
     },
-    private readonly getState: (crdt: C) => any,
-    private readonly crdtDestructor?: (crdt: C) => void
+    private readonly getState: (collab: C) => any,
+    private readonly collabDestructor?: (collab: C) => void
   ) {
     // Init ability to choose random ops with given weights
     this.cumulativeWeights = [];
@@ -63,7 +66,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
     measurement: "time" | "memory" | "network" | "save",
     frequency: "whole" | "rounds"
   ) {
-    console.log("Starting micro_crdts test: " + this.testName);
+    console.log("Starting micro_collabs test: " + this.testName);
 
     let results = new Array<{ [measurement: string]: number }>(
       getRecordedTrials()
@@ -97,15 +100,15 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 
       // Setup
       // TODO: should this be included in memory?
-      let generator = new crdts.TestingNetworkGenerator();
-      let runtimes: crdts.DefaultRuntime[] = [];
-      let crdtList: C[] = [];
+      let generator = new collabs.TestingNetworkGenerator();
+      let apps: collabs.CRDTApp[] = [];
+      let collabList: C[] = [];
       for (let i = 0; i < USERS; i++) {
-        runtimes[i] = generator.newRuntime(
-          new crdts.ManualBatchingStrategy(),
+        apps[i] = generator.newApp(
+          new collabs.ManualBatchingStrategy(),
           replicaIdRng
         );
-        crdtList[i] = runtimes[i].registerCrdt("", this.crdtConstructor);
+        collabList[i] = apps[i].registerCollab("", this.collabConstructor);
       }
 
       if (measurement === "memory") {
@@ -144,30 +147,33 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
             case "save":
               // Just save and load user 0
               let beforeSave: Object;
-              if (DEBUG) beforeSave = this.getState(crdtList[0]);
+              if (DEBUG) beforeSave = this.getState(collabList[0]);
               // We add sleeps between measured things to make
               // them more independent; before adding this,
               // I've noticed changes to
               // save code that affected load times.
               await sleep(1000);
               const saveStartTime = process.hrtime.bigint();
-              const saveData = runtimes[0].save();
+              const saveData = apps[0].save();
               const saveTime = new Number(
                 process.hrtime.bigint() - saveStartTime!
               ).valueOf();
-              if (this.crdtDestructor !== undefined) {
-                this.crdtDestructor(crdtList[0]);
+              if (this.collabDestructor !== undefined) {
+                this.collabDestructor(collabList[0]);
               }
               await sleep(1000);
               // Create a new runtime etc. for user 0, then load
               const loadStartTime = process.hrtime.bigint();
-              runtimes[0] = generator.newRuntime(
-                new crdts.ManualBatchingStrategy(),
+              apps[0] = generator.newApp(
+                new collabs.ManualBatchingStrategy(),
                 replicaIdRng
               );
-              crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
-              runtimes[0].load(saveData);
-              this.getState(crdtList[0]); // Read the state
+              collabList[0] = apps[0].registerCollab(
+                "",
+                this.collabConstructor
+              );
+              apps[0].load(saveData);
+              this.getState(collabList[0]); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
               ).valueOf();
@@ -178,7 +184,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
                 loadTime,
               };
               if (DEBUG) {
-                const afterSave = this.getState(crdtList[0]);
+                const afterSave = this.getState(collabList[0]);
                 assert.deepStrictEqual(
                   beforeSave!,
                   afterSave,
@@ -196,10 +202,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
         // Each user sends concurrently, then receives
         // each other's messages.
         for (let i = 0; i < USERS; i++) {
-          this.getWeightedRandomOp(rng)(crdtList[i], rng);
-          runtimes[i].commitBatch();
+          this.getWeightedRandomOp(rng)(collabList[i], rng);
+          apps[i].runtime.commitBatch();
         }
-        for (let i = 0; i < USERS; i++) generator.release(runtimes[i]);
+        for (let i = 0; i < USERS; i++) generator.release(apps[i]);
 
         // if (measurement === "memory") await sleep(0);
       }
@@ -225,24 +231,24 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
           // Just save and load user 0
           await sleep(1000);
           const saveStartTime = process.hrtime.bigint();
-          const saveData = runtimes[0].save();
+          const saveData = apps[0].save();
           const saveTime = new Number(
             process.hrtime.bigint() - saveStartTime!
           ).valueOf();
-          if (this.crdtDestructor !== undefined) {
-            this.crdtDestructor(crdtList[0]);
+          if (this.collabDestructor !== undefined) {
+            this.collabDestructor(collabList[0]);
           }
-          crdtList[0] = undefined as unknown as C;
+          collabList[0] = undefined as unknown as C;
           await sleep(1000);
           // Create a new runtime etc. for user 0, then load
           const loadStartTime = process.hrtime.bigint();
-          runtimes[0] = generator.newRuntime(
-            new crdts.ManualBatchingStrategy(),
+          apps[0] = generator.newApp(
+            new collabs.ManualBatchingStrategy(),
             replicaIdRng
           );
-          crdtList[0] = runtimes[0].registerCrdt("", this.crdtConstructor);
-          runtimes[0].load(saveData);
-          this.getState(crdtList[0]); // Read the state
+          collabList[0] = apps[0].registerCollab("", this.collabConstructor);
+          apps[0].load(saveData);
+          this.getState(collabList[0]); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!
           ).valueOf();
@@ -267,13 +273,13 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
       }
 
       // Check results are all the same
-      let result0 = this.getState(crdtList[0]);
+      let result0 = this.getState(collabList[0]);
       for (let i = 1; i < USERS; i++) {
-        assert.deepStrictEqual(this.getState(crdtList[i]), result0);
+        assert.deepStrictEqual(this.getState(collabList[i]), result0);
       }
 
-      if (this.crdtDestructor !== undefined) {
-        crdtList.forEach((crdt) => this.crdtDestructor?.(crdt));
+      if (this.collabDestructor !== undefined) {
+        collabList.forEach((collab) => this.collabDestructor?.(collab));
       }
     }
 
@@ -287,7 +293,7 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
     }
     for (const oneRecord of toRecord) {
       record(
-        "micro_crdts/" + oneRecord,
+        "micro_collabs/" + oneRecord,
         this.testName,
         frequency,
         getRecordedTrials(),
@@ -306,10 +312,10 @@ class MicroCrdtsBenchmark<C extends crdts.Crdt> {
 }
 
 /**
- * A trivial Crdt that does nothing except send
+ * A trivial Collab that does nothing except send
  * empty messages.  Used for baseline measurements.
  */
-class NoopCrdtClass extends crdts.CPrimitive {
+class NoopCollabClass extends collabs.CPrimitive {
   noop() {
     super.sendPrimitive(new Uint8Array());
   }
@@ -327,120 +333,120 @@ class NoopCrdtClass extends crdts.CPrimitive {
   }
 }
 
-function NoopCrdt() {
-  return new MicroCrdtsBenchmark(
-    "NoopCrdt",
-    (initToken) => new NoopCrdtClass(initToken),
-    { Noop: [(crdt) => crdt.noop(), 1] },
+function NoopCollab() {
+  return new MicroCollabsBenchmark(
+    "NoopCollab",
+    (initToken) => new NoopCollabClass(initToken),
+    { Noop: [(collab) => collab.noop(), 1] },
     () => null
   );
 }
 
-function DeepNoopCrdt() {
-  class DeepNoopCrdt extends crdts.CObject {
-    readonly child: crdts.Crdt;
-    readonly noop: NoopCrdtClass;
-    constructor(initToken: crdts.InitToken, index: number) {
+function DeepNoopCollab() {
+  class DeepNoopCollab extends collabs.CObject {
+    readonly child: collabs.Collab;
+    readonly noop: NoopCollabClass;
+    constructor(initToken: collabs.InitToken, index: number) {
       super(initToken);
       if (index === 0) {
         this.child = this.addChild(
           "child " + index,
-          crdts.Pre(NoopCrdtClass)()
+          collabs.Pre(NoopCollabClass)()
         );
-        this.noop = this.child as NoopCrdtClass;
+        this.noop = this.child as NoopCollabClass;
       } else {
         this.child = this.addChild(
           "child " + index,
-          crdts.Pre(DeepNoopCrdt)(index - 1)
+          collabs.Pre(DeepNoopCollab)(index - 1)
         );
-        this.noop = (this.child as DeepNoopCrdt).noop;
+        this.noop = (this.child as DeepNoopCollab).noop;
       }
     }
   }
-  return new MicroCrdtsBenchmark(
-    "DeepNoopCrdt",
-    (initToken) => new DeepNoopCrdt(initToken, 10 - 1),
-    { Noop: [(crdt) => crdt.noop.noop(), 1] },
+  return new MicroCollabsBenchmark(
+    "DeepNoopCollab",
+    (initToken) => new DeepNoopCollab(initToken, 10 - 1),
+    { Noop: [(collab) => collab.noop.noop(), 1] },
     () => null
   );
 }
 
 function ICounter(
   name: string,
-  counter: typeof crdts.CCounter,
+  counter: typeof collabs.CCounter,
   resetFraction: number
 ) {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     name,
     (initToken) => new counter(initToken),
     {
       Add: [
-        (crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)),
+        (collab, rng) => collab.add(Math.floor(rng() * 100 - 50)),
         1 - resetFraction,
       ],
-      Reset: [(crdt) => crdt.reset(), resetFraction],
+      Reset: [(collab) => collab.reset(), resetFraction],
     },
-    (crdt) => crdt.value
+    (collab) => collab.value
   );
 }
 
 function MultiValueRegister() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "MultiValueRegister",
-    (initToken) => new crdts.LwwCRegister<number>(initToken, 0),
-    { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
-    (crdt) => crdt.conflicts()
+    (initToken) => new collabs.LwwCRegister<number>(initToken, 0),
+    { Set: [(collab, rng) => (collab.value = rng()), 1] },
+    (collab) => collab.conflicts()
   );
 }
 
 function LwwCRegister() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "Register",
-    (initToken) => new crdts.LwwCRegister<number>(initToken, 0),
-    { Set: [(crdt, rng) => (crdt.value = rng()), 1] },
-    (crdt) => crdt.value
+    (initToken) => new collabs.LwwCRegister<number>(initToken, 0),
+    { Set: [(collab, rng) => (collab.value = rng()), 1] },
+    (collab) => collab.value
   );
 }
 
-function NumberCrdt() {
-  return new MicroCrdtsBenchmark(
-    "NumberCrdt",
-    (initToken) => new crdts.CNumber(initToken, 1),
+function NumberCollab() {
+  return new MicroCollabsBenchmark(
+    "NumberCollab",
+    (initToken) => new collabs.CNumber(initToken, 1),
     {
-      Add: [(crdt, rng) => crdt.add(Math.floor(rng() * 100 - 50)), 0.5],
-      Mult: [(crdt, rng) => crdt.mult(Math.floor(8 * rng() - 4) / 2), 0.5],
+      Add: [(collab, rng) => collab.add(Math.floor(rng() * 100 - 50)), 0.5],
+      Mult: [(collab, rng) => collab.mult(Math.floor(8 * rng() - 4) / 2), 0.5],
     },
-    (crdt) => crdt.value
+    (collab) => collab.value
   );
 }
 
 function EnableWinsFlag() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "EnableWinsFlag",
-    (initToken) => new crdts.TrueWinsCBoolean(initToken),
+    (initToken) => new collabs.TrueWinsCBoolean(initToken),
     {
-      Enable: [(crdt) => (crdt.value = true), 0.5],
-      Disable: [(crdt) => (crdt.value = false), 0.5],
+      Enable: [(collab) => (collab.value = true), 0.5],
+      Disable: [(collab) => (collab.value = false), 0.5],
     },
-    (crdt) => crdt.value
+    (collab) => collab.value
   );
 }
 
 function AddWinsSet() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "AddWinsSet",
-    (initToken) => new crdts.AddWinsCSet<number>(initToken),
+    (initToken) => new collabs.AddWinsCSet<number>(initToken),
     {
       Toggle: [
-        (crdt, rng) => {
+        (collab, rng) => {
           let value = Math.floor(rng() * 100);
-          if (crdt.has(value)) crdt.delete(value);
-          else crdt.add(value);
+          if (collab.has(value)) collab.delete(value);
+          else collab.add(value);
         },
         1.0,
       ],
     },
-    (crdt) => new Set(crdt)
+    (collab) => new Set(collab)
   );
 }
 
@@ -452,81 +458,81 @@ function AddWinsSet() {
  */
 function AddWinsSetRolling() {
   let i = 0;
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "AddWinsSetRolling",
     (initToken) => {
       i = 0;
-      return new crdts.AddWinsCSet<number>(initToken);
+      return new collabs.AddWinsCSet<number>(initToken);
     },
     {
       Roll: [
-        (crdt) => {
-          if (i >= 100) crdt.delete(i - 100);
-          crdt.add(i);
+        (collab) => {
+          if (i >= 100) collab.delete(i - 100);
+          collab.add(i);
           i++;
         },
         1.0,
       ],
     },
-    (crdt) => {
+    (collab) => {
       //console.log("AddWinsSetRolling total elements touched: " + i);
-      return new Set(crdt);
+      return new Set(collab);
     }
   );
 }
 
 function AddWinsSetRollingGrow() {
   let i = 0;
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "AddWinsSetRollingGrow",
     (initToken) => {
       i = 0;
-      return new crdts.AddWinsCSet<number>(initToken);
+      return new collabs.AddWinsCSet<number>(initToken);
     },
     {
       Roll: [
-        (crdt) => {
-          crdt.add(i);
+        (collab) => {
+          collab.add(i);
           i++;
         },
         1.0,
       ],
     },
-    (crdt) => {
+    (collab) => {
       //console.log("AddWinsSetRolling total elements touched: " + i);
-      return new Set(crdt);
+      return new Set(collab);
     }
   );
 }
 
-function MapCrdt() {
-  return new MicroCrdtsBenchmark(
-    "MapCrdt",
+function MapCollab() {
+  return new MicroCollabsBenchmark(
+    "MapCollab",
     (initToken) =>
-      new crdts.MergingMutCMap<number, crdts.CCounter>(
+      new collabs.MergingMutCMap<number, collabs.CCounter>(
         initToken,
-        (valueInitToken) => new crdts.CCounter(valueInitToken),
-        crdts.DefaultSerializer.getInstance(initToken.runtime)
+        (valueInitToken) => new collabs.CCounter(valueInitToken),
+        collabs.DefaultSerializer.getInstance(initToken.runtime)
       ),
     {
       Toggle: [
-        (crdt, rng) => {
+        (collab, rng) => {
           let key = Math.floor(rng() * 100);
-          if (crdt.has(key)) crdt.delete(key);
-          else crdt.set(key);
+          if (collab.has(key)) collab.delete(key);
+          else collab.set(key);
         },
         0.5,
       ],
       ValueOp: [
-        (crdt, rng) => {
+        (collab, rng) => {
           let key = Math.floor(rng() * 100);
-          if (!crdt.has(key)) crdt.set(key);
-          crdt.get(key)!.add(Math.floor(rng() * 100 - 50));
+          if (!collab.has(key)) collab.set(key);
+          collab.get(key)!.add(Math.floor(rng() * 100 - 50));
         },
         0.5,
       ],
     },
-    (crdt) => new Map([...crdt].map((value) => [value[0], value[1].value]))
+    (collab) => new Map([...collab].map((value) => [value[0], value[1].value]))
   );
 }
 
@@ -536,197 +542,203 @@ function MapCrdt() {
  * Useful for memory benchmarking.
  * Note each op is an add+delete, unlike AddWinsSet().
  */
-function MapCrdtRolling() {
+function MapCollabRolling() {
   let i = 0;
-  return new MicroCrdtsBenchmark(
-    "MapCrdtRolling",
+  return new MicroCollabsBenchmark(
+    "MapCollabRolling",
     (initToken) => {
       i = 0;
-      return new crdts.MergingMutCMap<number, crdts.CCounter>(
+      return new collabs.MergingMutCMap<number, collabs.CCounter>(
         initToken,
-        (valueInitToken) => new crdts.CCounter(valueInitToken),
-        crdts.DefaultSerializer.getInstance(initToken.runtime)
+        (valueInitToken) => new collabs.CCounter(valueInitToken),
+        collabs.DefaultSerializer.getInstance(initToken.runtime)
       );
     },
     {
       Roll: [
-        (crdt, rng) => {
-          if (i >= 100) crdt.delete(i - 100);
-          if (!crdt.has(i)) crdt.set(i);
-          crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
+        (collab, rng) => {
+          if (i >= 100) collab.delete(i - 100);
+          if (!collab.has(i)) collab.set(i);
+          collab.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
         1.0,
       ],
     },
-    (crdt) => {
-      //console.log("MapCrdtRolling total elements touched: " + i);
-      return new Map([...crdt].map((value) => [value[0], value[1].value]));
+    (collab) => {
+      //console.log("MapCollabRolling total elements touched: " + i);
+      return new Map([...collab].map((value) => [value[0], value[1].value]));
     }
   );
 }
 
-function MapCrdtRollingGrow() {
+function MapCollabRollingGrow() {
   let i = 0;
-  return new MicroCrdtsBenchmark(
-    "MapCrdtRollingGrow",
+  return new MicroCollabsBenchmark(
+    "MapCollabRollingGrow",
     (initToken) => {
       i = 0;
-      return new crdts.MergingMutCMap<number, crdts.CCounter>(
+      return new collabs.MergingMutCMap<number, collabs.CCounter>(
         initToken,
-        (valueInitToken) => new crdts.CCounter(valueInitToken),
-        crdts.DefaultSerializer.getInstance(initToken.runtime)
+        (valueInitToken) => new collabs.CCounter(valueInitToken),
+        collabs.DefaultSerializer.getInstance(initToken.runtime)
       );
     },
     {
       Roll: [
-        (crdt, rng) => {
-          if (!crdt.has(i)) crdt.set(i);
-          crdt.get(i)!.add(Math.floor(rng() * 100 - 50));
+        (collab, rng) => {
+          if (!collab.has(i)) collab.set(i);
+          collab.get(i)!.add(Math.floor(rng() * 100 - 50));
           i++;
         },
         1.0,
       ],
     },
-    (crdt) => {
-      //console.log("MapCrdtRolling total elements touched: " + i);
-      return new Map([...crdt].map((value) => [value[0], value[1].value]));
+    (collab) => {
+      //console.log("MapCollabRolling total elements touched: " + i);
+      return new Map([...collab].map((value) => [value[0], value[1].value]));
     }
   );
 }
 
 function LwwMap() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "LwwMap",
-    (initToken) => new crdts.LwwCMap<number, number>(initToken),
+    (initToken) => new collabs.LwwCMap<number, number>(initToken),
     {
       Toggle: [
-        (crdt, rng) => {
+        (collab, rng) => {
           let key = Math.floor(rng() * 100);
-          if (crdt.has(key)) crdt.delete(key);
-          else crdt.set(key, 0);
+          if (collab.has(key)) collab.delete(key);
+          else collab.set(key, 0);
         },
         0.5,
       ],
       ValueOp: [
-        (crdt, rng) => {
+        (collab, rng) => {
           let key = Math.floor(rng() * 100);
-          crdt.set(key, Math.floor(rng() * 100 - 50));
+          collab.set(key, Math.floor(rng() * 100 - 50));
         },
         0.5,
       ],
     },
-    (crdt) => new Map(crdt.entries())
+    (collab) => new Map(collab.entries())
   );
 }
 
 function LwwMapRolling() {
   let i = 0;
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "LwwMapRolling",
     (initToken) => {
       i = 0;
-      return new crdts.LwwCMap<number, number>(initToken);
+      return new collabs.LwwCMap<number, number>(initToken);
     },
     {
       Roll: [
-        (crdt, rng) => {
-          if (i >= 100) crdt.delete(i - 100);
-          crdt.set(i, Math.floor(rng() * 100 - 50));
+        (collab, rng) => {
+          if (i >= 100) collab.delete(i - 100);
+          collab.set(i, Math.floor(rng() * 100 - 50));
           i++;
         },
         1.0,
       ],
     },
-    (crdt) => new Map(crdt.entries())
+    (collab) => new Map(collab.entries())
   );
 }
 
 function LwwMapRollingGrow() {
   let i = 0;
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "LwwMapRollingGrow",
     (initToken) => {
       i = 0;
-      return new crdts.LwwCMap<number, number>(initToken);
+      return new collabs.LwwCMap<number, number>(initToken);
     },
     {
       Roll: [
-        (crdt, rng) => {
-          crdt.set(i, Math.floor(rng() * 100 - 50));
+        (collab, rng) => {
+          collab.set(i, Math.floor(rng() * 100 - 50));
           i++;
         },
         1.0,
       ],
     },
-    (crdt) => new Map(crdt.entries())
+    (collab) => new Map(collab.entries())
   );
 }
 
 function TextLtr() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "TextLtr",
-    (initToken) => new crdts.CText(initToken),
+    (initToken) => new collabs.CText(initToken),
     {
       Op: [
-        (crdt, rng) => {
-          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
-          else crdt.insert(crdt.length, randomChar(rng));
+        (collab, rng) => {
+          if (collab.length > 100) collab.delete(Math.floor(rng() * 100));
+          else collab.insert(collab.length, randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.slice()
+    (collab) => collab.slice()
   );
 }
 
 function TextLtrGrow() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "TextLtrGrow",
-    (initToken) => new crdts.CText(initToken),
+    (initToken) => new collabs.CText(initToken),
     {
       Op: [
-        (crdt, rng) => {
-          crdt.insert(crdt.length, randomChar(rng));
+        (collab, rng) => {
+          collab.insert(collab.length, randomChar(rng));
         },
         1.0,
       ],
     },
-    (crdt) => crdt.slice()
+    (collab) => collab.slice()
   );
 }
 
 function TextRandom() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "TextRandom",
-    (initToken) => new crdts.CText(initToken),
+    (initToken) => new collabs.CText(initToken),
     {
       Op: [
-        (crdt, rng) => {
-          if (crdt.length > 100) crdt.delete(Math.floor(rng() * 100));
+        (collab, rng) => {
+          if (collab.length > 100) collab.delete(Math.floor(rng() * 100));
           else
-            crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
+            collab.insert(
+              Math.floor(rng() * (collab.length + 1)),
+              randomChar(rng)
+            );
         },
         1.0,
       ],
     },
-    (crdt) => crdt.slice()
+    (collab) => collab.slice()
   );
 }
 
 function TextRandomGrow() {
-  return new MicroCrdtsBenchmark(
+  return new MicroCollabsBenchmark(
     "TextRandomGrow",
-    (initToken) => new crdts.CText(initToken),
+    (initToken) => new collabs.CText(initToken),
     {
       Op: [
-        (crdt, rng) => {
-          crdt.insert(Math.floor(rng() * (crdt.length + 1)), randomChar(rng));
+        (collab, rng) => {
+          collab.insert(
+            Math.floor(rng() * (collab.length + 1)),
+            randomChar(rng)
+          );
         },
         1.0,
       ],
     },
-    (crdt) => crdt.slice()
+    (collab) => collab.slice()
   );
 }
 
@@ -736,66 +748,66 @@ function ITensor(
   dtype: tf.NumericDataType,
   resetFraction: number
 ) {
-  return new MicroCrdtsBenchmark<TensorAverageCrdt | TensorCounterCrdt>(
+  return new MicroCollabsBenchmark<TensorAverageCollab | TensorCounterCollab>(
     name,
     (initToken) =>
       name === "TensorAvg"
-        ? new TensorAverageCrdt(initToken, shape, dtype)
-        : new TensorCounterCrdt(initToken, shape, dtype),
+        ? new TensorAverageCollab(initToken, shape, dtype)
+        : new TensorCounterCollab(initToken, shape, dtype),
     {
       Add: [
-        (crdt, rng) => {
+        (collab, rng) => {
           const toAdd = tf.rand(shape, () => 10 * rng() - 5, dtype);
-          crdt.add(toAdd);
+          collab.add(toAdd);
           toAdd.dispose();
         },
         1 - resetFraction,
       ],
-      Reset: [(crdt) => crdt.reset(), resetFraction],
+      Reset: [(collab) => collab.reset(), resetFraction],
     },
-    (crdt) => tf.tidy(() => crdt.value.arraySync()),
-    (crdt) => crdt.dispose()
+    (collab) => tf.tidy(() => collab.value.arraySync()),
+    (collab) => collab.dispose()
   );
 }
 
-export default async function microCrdts(args: string[]) {
-  let benchmark: MicroCrdtsBenchmark<any>;
+export default async function microCollabs(args: string[]) {
+  let benchmark: MicroCollabsBenchmark<any>;
   switch (args[0]) {
-    case "NoopCrdt":
-      benchmark = NoopCrdt();
+    case "NoopCollab":
+      benchmark = NoopCollab();
       break;
-    case "DeepNoopCrdt":
-      benchmark = DeepNoopCrdt();
+    case "DeepNoopCollab":
+      benchmark = DeepNoopCollab();
       break;
     case "Counter":
-      benchmark = ICounter(args[0], crdts.CCounter, 0);
+      benchmark = ICounter(args[0], collabs.CCounter, 0);
       break;
     case "Counter-1":
-      benchmark = ICounter(args[0], crdts.CCounter, 0.01);
+      benchmark = ICounter(args[0], collabs.CCounter, 0.01);
       break;
     case "Counter-10":
-      benchmark = ICounter(args[0], crdts.CCounter, 0.1);
+      benchmark = ICounter(args[0], collabs.CCounter, 0.1);
       break;
     case "Counter-50":
-      benchmark = ICounter(args[0], crdts.CCounter, 0.5);
+      benchmark = ICounter(args[0], collabs.CCounter, 0.5);
       break;
     case "Counter-100":
-      benchmark = ICounter(args[0], crdts.CCounter, 1);
+      benchmark = ICounter(args[0], collabs.CCounter, 1);
       break;
     // case "CounterPure":
-    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0);
+    //   benchmark = ICounter(args[0], collabs.CCounterPure, 0);
     //   break;
     // case "CounterPure-1":
-    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.01);
+    //   benchmark = ICounter(args[0], collabs.CCounterPure, 0.01);
     //   break;
     // case "CounterPure-10":
-    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.1);
+    //   benchmark = ICounter(args[0], collabs.CCounterPure, 0.1);
     //   break;
     // case "CounterPure-50":
-    //   benchmark = ICounter(args[0], crdts.CCounterPure, 0.5);
+    //   benchmark = ICounter(args[0], collabs.CCounterPure, 0.5);
     //   break;
     // case "CounterPure-100":
-    //   benchmark = ICounter(args[0], crdts.CCounterPure, 1);
+    //   benchmark = ICounter(args[0], collabs.CCounterPure, 1);
     //   break;
     case "MultiValueRegister":
       benchmark = MultiValueRegister();
@@ -803,8 +815,8 @@ export default async function microCrdts(args: string[]) {
     case "Register":
       benchmark = LwwCRegister();
       break;
-    case "NumberCrdt":
-      benchmark = NumberCrdt();
+    case "NumberCollab":
+      benchmark = NumberCollab();
       break;
     case "EnableWinsFlag":
       benchmark = EnableWinsFlag();
@@ -818,14 +830,14 @@ export default async function microCrdts(args: string[]) {
     case "AddWinsSetRollingGrow":
       benchmark = AddWinsSetRollingGrow();
       break;
-    case "MapCrdt":
-      benchmark = MapCrdt();
+    case "MapCollab":
+      benchmark = MapCollab();
       break;
-    case "MapCrdtRolling":
-      benchmark = MapCrdtRolling();
+    case "MapCollabRolling":
+      benchmark = MapCollabRolling();
       break;
-    case "MapCrdtRollingGrow":
-      benchmark = MapCrdtRollingGrow();
+    case "MapCollabRollingGrow":
+      benchmark = MapCollabRollingGrow();
       break;
     case "LwwMap":
       benchmark = LwwMap();

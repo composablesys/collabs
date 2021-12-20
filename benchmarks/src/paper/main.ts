@@ -6,7 +6,7 @@ import {
   setVersion,
   setWarmupTrials,
 } from "./record";
-import microCrdts from "./micro_crdts/benchmark";
+import microCrdts from "./micro_collabs/benchmark";
 import microAutomerge from "./micro_automerge/benchmark";
 import microYjs from "./micro_yjs/benchmark";
 

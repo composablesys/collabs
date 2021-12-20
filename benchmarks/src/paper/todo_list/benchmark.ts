@@ -1,6 +1,6 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { JsonElement, JsonArray, JsonObject, TextWrapper } from "@collabs/json";
-import { JsonCrdt, JsonCursor } from "@collabs/json-opt";
+import { JsonCollab, JsonCursor } from "@collabs/json-opt";
 import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -488,25 +488,25 @@ function plainJs() {
 }
 
 function compoResetting() {
-  class CrdtTodoList
-    extends crdts.CObject
-    implements ITodoList, crdts.Resettable
+  class CollabTodoList
+    extends collabs.CObject
+    implements ITodoList, collabs.Resettable
   {
-    private readonly text: crdts.CText;
-    private readonly doneCrdt: crdts.TrueWinsCBoolean;
-    private readonly items: crdts.ResettingMutCList<CrdtTodoList>;
+    private readonly text: collabs.CText;
+    private readonly doneCollab: collabs.TrueWinsCBoolean;
+    private readonly items: collabs.ResettingMutCList<CollabTodoList>;
 
-    constructor(initToken: crdts.InitToken) {
+    constructor(initToken: collabs.InitToken) {
       super(initToken);
-      this.text = this.addChild("text", crdts.Pre(crdts.CText)());
-      this.doneCrdt = this.addChild(
+      this.text = this.addChild("text", collabs.Pre(collabs.CText)());
+      this.doneCollab = this.addChild(
         "done",
-        crdts.Pre(crdts.TrueWinsCBoolean)()
+        collabs.Pre(collabs.TrueWinsCBoolean)()
       );
       this.items = this.addChild(
         "items",
-        crdts.Pre(crdts.ResettingMutCList)(
-          crdts.ConstructorAsFunction(CrdtTodoList)
+        collabs.Pre(collabs.ResettingMutCList)(
+          collabs.ConstructorAsFunction(CollabTodoList)
         )
       );
     }
@@ -518,7 +518,7 @@ function compoResetting() {
     deleteItem(index: number): void {
       this.items.delete(index);
     }
-    getItem(index: number): CrdtTodoList {
+    getItem(index: number): CollabTodoList {
       return this.items.get(index);
     }
     get itemsSize(): number {
@@ -526,10 +526,10 @@ function compoResetting() {
     }
 
     set done(done: boolean) {
-      this.doneCrdt.value = done;
+      this.doneCollab.value = done;
     }
     get done(): boolean {
-      return this.doneCrdt.value;
+      return this.doneCollab.value;
     }
 
     insertText(index: number, text: string): void {
@@ -547,31 +547,31 @@ function compoResetting() {
 
     reset() {
       this.text.reset();
-      this.doneCrdt.reset();
+      this.doneCollab.reset();
       this.items.reset();
     }
   }
 
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Resetting", {
     newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
+      let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
     },
     sendNextMessage() {
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -583,41 +583,41 @@ function compoResetting() {
       return totalSentBytes;
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
-      runtime.load(saveData);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
+      app.load(saveData);
       return list;
     },
   });
 }
 
 function compoDeleting() {
-  class CrdtTodoList
-    extends crdts.CObject
-    implements ITodoList, crdts.Resettable
+  class CollabTodoList
+    extends collabs.CObject
+    implements ITodoList, collabs.Resettable
   {
-    private readonly text: crdts.CText;
-    private readonly doneCrdt: crdts.TrueWinsCBoolean;
-    private readonly items: crdts.DeletingMutCList<CrdtTodoList, []>;
+    private readonly text: collabs.CText;
+    private readonly doneCollab: collabs.TrueWinsCBoolean;
+    private readonly items: collabs.DeletingMutCList<CollabTodoList, []>;
 
-    constructor(initToken: crdts.InitToken) {
+    constructor(initToken: collabs.InitToken) {
       super(initToken);
-      this.text = this.addChild("text", crdts.Pre(crdts.CText)());
-      this.doneCrdt = this.addChild(
+      this.text = this.addChild("text", collabs.Pre(collabs.CText)());
+      this.doneCollab = this.addChild(
         "done",
-        crdts.Pre(crdts.TrueWinsCBoolean)()
+        collabs.Pre(collabs.TrueWinsCBoolean)()
       );
       this.items = this.addChild(
         "items",
-        crdts.Pre(crdts.DeletingMutCList)(
-          crdts.ConstructorAsFunction(CrdtTodoList)
+        collabs.Pre(collabs.DeletingMutCList)(
+          collabs.ConstructorAsFunction(CollabTodoList)
         )
       );
     }
@@ -629,7 +629,7 @@ function compoDeleting() {
     deleteItem(index: number): void {
       this.items.delete(index);
     }
-    getItem(index: number): CrdtTodoList {
+    getItem(index: number): CollabTodoList {
       return this.items.get(index);
     }
     get itemsSize(): number {
@@ -637,10 +637,10 @@ function compoDeleting() {
     }
 
     set done(done: boolean) {
-      this.doneCrdt.value = done;
+      this.doneCollab.value = done;
     }
     get done(): boolean {
-      return this.doneCrdt.value;
+      return this.doneCollab.value;
     }
 
     insertText(index: number, text: string): void {
@@ -658,31 +658,31 @@ function compoDeleting() {
 
     reset() {
       this.text.reset();
-      this.doneCrdt.reset();
+      this.doneCollab.reset();
       this.items.reset();
     }
   }
 
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Deleting", {
     newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
+      let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
     },
     sendNextMessage() {
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -694,16 +694,16 @@ function compoDeleting() {
       return totalSentBytes;
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      let list = runtime.registerCrdt("", crdts.Pre(CrdtTodoList)());
-      runtime.load(saveData);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
+      app.load(saveData);
       return list;
     },
   });
@@ -765,26 +765,26 @@ function compoJson() {
     }
   }
 
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json", {
     newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", JsonElement.NewJson);
+      let list = app.registerCollab("", JsonElement.NewJson);
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTodoList(list.value as JsonObject);
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
     },
     sendNextMessage() {
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -796,16 +796,16 @@ function compoJson() {
       return totalSentBytes;
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      let list = runtime.registerCrdt("", JsonElement.NewJson);
-      runtime.load(saveData);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      let list = app.registerCollab("", JsonElement.NewJson);
+      app.load(saveData);
       return new JsonTodoList(list.value as JsonObject);
     },
   });
@@ -848,41 +848,41 @@ function compoJsonText() {
     }
 
     insertText(index: number, text: string): void {
-      let textArray = this.jsonObj.get("text")!.value as crdts.CText;
+      let textArray = this.jsonObj.get("text")!.value as collabs.CText;
       textArray.insert(index, ...text);
     }
     deleteText(index: number, count: number): void {
-      let textList = this.jsonObj.get("text")!.value as crdts.CText;
+      let textList = this.jsonObj.get("text")!.value as collabs.CText;
       textList.delete(index, count);
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!.value as crdts.CText).length;
+      return (this.jsonObj.get("text")!.value as collabs.CText).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!.value as crdts.CText).join("");
+      return (this.jsonObj.get("text")!.value as collabs.CText).join("");
     }
   }
 
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Text", {
     newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
-      let list = runtime.registerCrdt("", JsonElement.NewJson);
+      let list = app.registerCollab("", JsonElement.NewJson);
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JsonTextTodoList(list.value as JsonObject);
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
     },
     sendNextMessage() {
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -894,16 +894,16 @@ function compoJsonText() {
       return totalSentBytes;
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
-      let list = runtime.registerCrdt("", JsonElement.NewJson);
-      runtime.load(saveData);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
+      let list = app.registerCollab("", JsonElement.NewJson);
+      app.load(saveData);
       return new JsonTextTodoList(list.value as JsonObject);
     },
   });
@@ -931,13 +931,13 @@ function automerge() {
     addItem(index: number, text: string): void {
       theDoc = Automerge.change(theDoc, (doc) => {
         let thisDoc = this.getThis(doc);
-        let textCrdt = new Automerge.Text();
+        let textCollab = new Automerge.Text();
         thisDoc.items.insertAt(index, {
-          text: textCrdt,
+          text: textCollab,
           done: false,
           items: [],
         });
-        textCrdt.insertAt!(0, ...text);
+        textCollab.insertAt!(0, ...text);
       });
     }
     deleteItem(index: number): void {
@@ -1143,10 +1143,10 @@ function yjs() {
   let totalSentBytes: number;
 
   class YjsTodoList implements ITodoList {
-    private readonly textCrdt: Y.Text;
+    private readonly textCollab: Y.Text;
     private readonly items: Y.Array<Y.Map<any>>;
     constructor(private readonly map: Y.Map<any>) {
-      this.textCrdt = map.get("text");
+      this.textCollab = map.get("text");
       this.items = map.get("items");
     }
 
@@ -1182,19 +1182,19 @@ function yjs() {
 
     insertText(index: number, text: string): void {
       topDoc!.transact(() => {
-        this.textCrdt.insert(index, text);
+        this.textCollab.insert(index, text);
       });
     }
     deleteText(index: number, count: number): void {
       topDoc!.transact(() => {
-        this.textCrdt.delete(index, count);
+        this.textCollab.delete(index, count);
       });
     }
     get textSize(): number {
-      return this.textCrdt.length;
+      return this.textCollab.length;
     }
     getText(): string {
-      return this.textCrdt.toString();
+      return this.textCollab.toString();
     }
   }
 
@@ -1232,26 +1232,28 @@ function yjs() {
 }
 
 function compoJsonOpt() {
-  class JsonCrdtTodoList implements ITodoList {
+  class JsonCollabTodoList implements ITodoList {
     private readonly items: JsonCursor;
-    private readonly ids: crdts.PrimitiveCList<string>;
-    private readonly text: crdts.PrimitiveCList<string>;
+    private readonly ids: collabs.PrimitiveCList<string>;
+    private readonly text: collabs.PrimitiveCList<string>;
     constructor(
-      private readonly crdt: JsonCursor,
-      private readonly idGen: crdts.RgaDenseLocalList<undefined>,
-      private readonly runtime: crdts.Runtime
+      private readonly collab: JsonCursor,
+      private readonly idGen: collabs.RgaDenseLocalList<undefined>,
+      private readonly runtime: collabs.Runtime
     ) {
-      this.items = this.crdt.get("items")[0] as JsonCursor;
-      this.ids = this.crdt.get("itemsIds")[0] as crdts.PrimitiveCList<string>;
-      this.text = this.crdt.get("text")[0] as crdts.PrimitiveCList<string>;
+      this.items = this.collab.get("items")[0] as JsonCursor;
+      this.ids = this.collab.get(
+        "itemsIds"
+      )[0] as collabs.PrimitiveCList<string>;
+      this.text = this.collab.get("text")[0] as collabs.PrimitiveCList<string>;
     }
     addItem(index: number, text: string): void {
       // Generate new id for this index
       let id = this.idGen.createNewLocs(index, 1)[0];
-      let key: string = crdts.bytesAsString(this.idGen.serialize(id));
+      let key: string = collabs.bytesAsString(this.idGen.serialize(id));
       this.ids.insert(index, key);
 
-      // Update Json Crdt with new item
+      // Update Json Collab with new item
       this.items.setIsMap(key);
       let newItem = this.items.get(key)[0] as JsonCursor;
       newItem.setIsMap("items");
@@ -1260,7 +1262,7 @@ function compoJsonOpt() {
       newItem.setIsList("text");
 
       // Update text item
-      let textItem = newItem.get("text")[0] as crdts.PrimitiveCList<string>;
+      let textItem = newItem.get("text")[0] as collabs.PrimitiveCList<string>;
       textItem.insert(0, ...text);
     }
     deleteItem(index: number): void {
@@ -1270,7 +1272,7 @@ function compoJsonOpt() {
     }
     getItem(index: number): ITodoList {
       let id: string = this.ids.get(index);
-      return new JsonCrdtTodoList(
+      return new JsonCollabTodoList(
         this.items.get(id)[0] as JsonCursor,
         this.idGen,
         this.runtime
@@ -1281,11 +1283,11 @@ function compoJsonOpt() {
     }
 
     get done(): boolean {
-      return this.crdt.get("done")[0] as boolean;
+      return this.collab.get("done")[0] as boolean;
     }
 
     set done(done: boolean) {
-      this.crdt.set("done", done);
+      this.collab.set("done", done);
     }
 
     insertText(index: number, text: string): void {
@@ -1302,33 +1304,33 @@ function compoJsonOpt() {
     }
   }
 
-  let generator: crdts.TestingNetworkGenerator | null;
-  let runtime: crdts.DefaultRuntime | null;
+  let generator: collabs.TestingNetworkGenerator | null;
+  let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Json Opt", {
     newTodoList(rng) {
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
 
-      let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
-      let cursor = new JsonCursor(crdt);
+      let collab = app.registerCollab("", collabs.Pre(JsonCollab)());
+      let cursor = new JsonCursor(collab);
       this.sendNextMessage();
       cursor.setIsMap("items");
       cursor.setIsList("itemsIds");
       cursor.set("done", false);
       cursor.setIsList("text");
 
-      let idGen = new crdts.RgaDenseLocalList<undefined>(runtime);
-      return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
+      let idGen = new collabs.RgaDenseLocalList<undefined>(app.runtime);
+      return new JsonCollabTodoList(cursor, idGen, collab.runtime);
     },
     cleanup() {
       generator = null;
-      runtime = null;
+      app = null;
     },
     sendNextMessage() {
-      runtime!.commitBatch();
+      app!.runtime.commitBatch();
       totalSentBytes += generator!.lastMessage
         ? GZIP
           ? zlib.gzipSync(generator!.lastMessage).byteLength
@@ -1340,28 +1342,28 @@ function compoJsonOpt() {
       return totalSentBytes;
     },
     save() {
-      const saveData = runtime!.save();
+      const saveData = app!.save();
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new crdts.TestingNetworkGenerator();
-      runtime = generator.newRuntime(new crdts.ManualBatchingStrategy(), rng);
+      generator = new collabs.TestingNetworkGenerator();
+      app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
 
-      let crdt = runtime.registerCrdt("", crdts.Pre(JsonCrdt)());
-      let cursor = new JsonCursor(crdt);
+      let collab = app.registerCollab("", collabs.Pre(JsonCollab)());
+      let cursor = new JsonCursor(collab);
 
-      let idGen = new crdts.RgaDenseLocalList<undefined>(runtime);
+      let idGen = new collabs.RgaDenseLocalList<undefined>(app.runtime);
 
-      runtime.load(saveData);
+      app.load(saveData);
 
-      return new JsonCrdtTodoList(cursor, idGen, crdt.runtime);
+      return new JsonCollabTodoList(cursor, idGen, collab.runtime);
     },
   });
 }
 
-// TODO: use two crdts, like in dmonad benchmarks?
+// TODO: use two collabs, like in dmonad benchmarks?
 
 export default async function todoList(args: string[]) {
   let benchmark: TodoListBenchmark;
