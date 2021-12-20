@@ -1,12 +1,12 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import $ from "jquery";
 
-export function setupWhiteboard(runtime: crdts.Runtime) {
+export function setupWhiteboard(app: collabs.App) {
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const boardState = runtime.registerCrdt(
+  const boardState = app.registerCollab(
     "whiteboard",
-    crdts.Pre(crdts.LwwCMap)<[x: number, y: number], string>()
+    collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
 
   const colors = document.getElementsByClassName("btn-colors");

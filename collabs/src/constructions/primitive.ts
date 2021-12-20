@@ -1,83 +1,59 @@
-import { Crdt, CrdtEventsRecord, CausalTimestamp } from "../core";
+import { Collab, CollabEventsRecord, MessageMeta } from "../core";
 
 /**
- * TODO: description, correctness definition (from paper)
+ * Convenience superclass for a primitive [[Collab]] (Collab with no children, i.e., leaf in the Collab tree).
  *
- * TODO: type param docstrings
+ * This class provides simplified send and receive methods,
+ * [[sendPrimitive]] and [[receivePrimitive]]), and
+ * implements [[Collab]] methods that are not relevant to primitive Collabs.
  */
 export abstract class CPrimitive<
-  Events extends CrdtEventsRecord = CrdtEventsRecord
-> extends Crdt<Events> {
-  protected send(message: Uint8Array) {
-    this.runtime.send(this, message);
+  Events extends CollabEventsRecord = CollabEventsRecord
+> extends Collab<Events> {
+  protected sendPrimitive(message: Uint8Array | string) {
+    this.send([message]);
   }
 
+  /**
+   * Do not override this method; instead override
+   * [[sendPrimitive]].
+   *
+   * If you need to override this method instead of
+   * [[sendPrimitive]], consider extending [[Collab]]
+   * directly instead of this class.
+   *
+   * @param  messagePath [description]
+   * @return             [description]
+   */
   protected receiveInternal(
-    targetPath: string[],
-    timestamp: CausalTimestamp,
-    message: Uint8Array
+    messagePath: (Uint8Array | string)[],
+    meta: MessageMeta
   ): void {
-    if (targetPath.length !== 0) {
+    if (messagePath.length !== 1) {
       // We are not the target
       throw new Error("CPrimitive received message for child");
     }
-    this.receivePrimitive(timestamp, message);
+    this.receivePrimitive(messagePath[0], meta);
   }
 
   /**
-   * Receives messages sent by send
-   * on replicas of this crdt (including those sent
-   * locally).
-   * @param  timestamp  [description]
+   * Receives messages sent by [[send]]
+   * on local and replica replicas of this [[CPrimitive]].
+   *
+   * @param  meta  [description]
    * @param  message    [description]
    */
   protected abstract receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
+    message: Uint8Array | string,
+    meta: MessageMeta
   ): void;
 
-  getChild(name: string): Crdt {
-    throw new Error("Unknown child: " + name + ", children: [] (CPrimitive)");
+  getDescendant(namePath: string[]): Collab {
+    if (namePath.length !== 0) {
+      throw new Error(
+        "CPrimitive has no descendants, but namePath=" + namePath
+      );
+    }
+    return this;
   }
-
-  save(): [saveData: Uint8Array, children: Map<string, Crdt>] {
-    return [this.savePrimitive(), new Map()];
-  }
-
-  /**
-   * Return a serialization of this Crdt's
-   * own internal state that is not set in the
-   * constructor, sufficient to reconstruct the
-   * state after initializing this Crdt with the same
-   * constructor arguments and then calling
-   * this.loadPrimitive(<return value>).
-   */
-  protected abstract savePrimitive(): Uint8Array;
-
-  load(saveData: Uint8Array): boolean {
-    this.loadPrimitive(saveData);
-    return true;
-  }
-
-  /**
-   *Reconstruct the saved state recorded in saveData,
-   * which is an output of savePrimitive().
-   * This includes setting all state not set in
-   * the constructor.
-   *
-   * During loading, you must not reference the state
-   * of any Crdt, although you may call
-   * Runtime.getCrdtByReference (e.g., by deserializing
-   * Crdt references).  This is because other Crdts may
-   * not have been loaded before this one (however,
-   * they are at least initialized (constructed) if
-   * demanded by Runtime.getCrdtByReference).
-   * If you depend on other Crdt's state to set your own
-   * state, you must store it in your own saveData.
-   *
-   * TODO: note why circular dependencies are impossible.
-   */
-  protected abstract loadPrimitive(saveData: Uint8Array): void;
-
-  // You can also choose to override postLoad().
 }

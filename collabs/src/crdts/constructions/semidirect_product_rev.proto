@@ -1,0 +1,18 @@
+message SemidirectProductRevStoredMessage {
+  required uint32 senderCounter = 1;
+  required uint32 receiptCounter = 2;
+  repeated string targetPath = 3;
+  optional bytes meta = 4;
+  required bytes message = 5;
+}
+
+message SemidirectProductRevSenderHistory {
+  repeated SemidirectProductRevStoredMessage messages = 1;
+}
+
+message SemidirectProductRevSave {
+  required uint32 receiptCounter = 1;
+  map<string, SemidirectProductRevSenderHistory> history = 2;
+  map<string, string> messageEvents = 3;
+  required bytes subclassSave = 4;
+}

@@ -1,8 +1,8 @@
 import {
   CObject,
-  CrdtInitToken,
+  InitToken,
   CText,
-  DefaultElementSerializer,
+  DefaultSerializer,
   LwwCRegister,
   MergingMutCMap,
   Pre,
@@ -27,7 +27,7 @@ export class JsonObject extends CObject implements Resettable {
    * Internal use only
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly makeThisExistent: () => void
   ) {
     super(initToken);
@@ -39,7 +39,7 @@ export class JsonObject extends CObject implements Resettable {
       "nestedMap",
       Pre(MergingMutCMap)(
         (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent),
-        DefaultElementSerializer.getInstance()
+        DefaultSerializer.getInstance(initToken.runtime)
       )
     );
   }
@@ -94,7 +94,7 @@ export class JsonObject extends CObject implements Resettable {
 export class JsonArray extends CObject implements Resettable {
   private readonly internalList: ResettingMutCList<JsonElement>;
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly makeThisExistent: () => void
   ) {
     super(initToken);
@@ -160,14 +160,14 @@ export class JsonElement extends CObject implements Resettable {
   private text: CText;
   private makeThisExistent: () => void;
 
-  static NewJson(initToken: CrdtInitToken): JsonElement {
+  static NewJson(initToken: InitToken): JsonElement {
     return new JsonElement(initToken, () => {});
   }
 
   /**
    * Internal use only
    */
-  constructor(initToken: CrdtInitToken, makeThisExistent: () => void) {
+  constructor(initToken: InitToken, makeThisExistent: () => void) {
     super(initToken);
     this.makeThisExistent = makeThisExistent;
     this.register = this.addChild(

@@ -2,24 +2,24 @@ import { assert } from "chai";
 import { TestingNetworkGenerator } from "../../src";
 
 describe("Runtime", () => {
-  let runtimeGen: TestingNetworkGenerator;
+  let appGen: TestingNetworkGenerator;
 
   beforeEach(() => {
-    runtimeGen = new TestingNetworkGenerator();
+    appGen = new TestingNetworkGenerator();
   });
   describe("replicaId", () => {
     it("generates without error on Node", () => {
-      runtimeGen.newRuntime();
+      appGen.newApp();
     });
 
     it("has length 11", () => {
-      assert.strictEqual(runtimeGen.newRuntime().replicaId.length, 11);
+      assert.strictEqual(appGen.newApp().runtime.replicaId.length, 11);
     });
 
     it("is different each time", () => {
       assert.notStrictEqual(
-        runtimeGen.newRuntime().replicaId,
-        runtimeGen.newRuntime().replicaId
+        appGen.newApp().runtime.replicaId,
+        appGen.newApp().runtime.replicaId
       );
     });
   });

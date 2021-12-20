@@ -1,9 +1,0 @@
-message CMountPointQueuedMessage {
-  repeated string targetPath = 1;
-  optional bytes timestamp = 2;
-  required bytes message = 3;
-}
-
-message CMountPointSave {
-  repeated CMountPointQueuedMessage messageQueue = 1;
-}

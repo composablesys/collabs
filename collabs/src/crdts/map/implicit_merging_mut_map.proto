@@ -1,0 +1,6 @@
+message ImplicitMergingMutCMapSave {
+  // TODO: do these need to be ordered like in DeletingMutCSet,
+  // in case of initialization dependencies? Or does
+  // getInternal take care of that?
+  map<string, bytes> childSaves = 1;
+}

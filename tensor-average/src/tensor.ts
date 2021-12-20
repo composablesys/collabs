@@ -1,24 +1,23 @@
 import * as tf from "@tensorflow/tfjs";
 import {
-  CausalTimestamp,
   CCounter,
   CObject,
-  CrdtEvent,
-  CrdtEventsRecord,
-  CrdtInitToken,
+  CollabEvent,
+  CollabEventsRecord,
+  InitToken,
+  MessageMeta,
   Pre,
   CPrimitive,
   Resettable,
-  CrdtEventMeta,
 } from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
-export interface TensorCounterEventsRecord extends CrdtEventsRecord {
-  Add: CrdtEvent & {
+export interface TensorCounterEventsRecord extends CollabEventsRecord {
+  Add: CollabEvent & {
     readonly valueAdded: tf.Tensor;
   };
   // TODO: informative event (equivalent add)
-  Reset: CrdtEvent;
+  Reset: CollabEvent;
 }
 
 export class TensorGCounterState {
@@ -120,14 +119,14 @@ function tensorsEqual<R extends tf.Rank>(
   return tf.tidy(() => (tf.equal(a, b).all().arraySync() as number) === 1);
 }
 
-export class TensorGCounterCrdt
+export class TensorGCounterCollab
   extends CPrimitive<TensorCounterEventsRecord>
   implements Resettable
 {
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
@@ -157,7 +156,7 @@ export class TensorGCounterCrdt
     const message = proto.TensorGCounterMessage.create({
       add: { prOld, prNew, idCounter: this.state.idCounter! },
     });
-    super.send(proto.TensorGCounterMessage.encode(message).finish());
+    this.sendPrimitive(proto.TensorGCounterMessage.encode(message).finish());
   }
 
   reset(): void {
@@ -171,7 +170,7 @@ export class TensorGCounterCrdt
         ),
       },
     });
-    super.send(proto.TensorGCounterMessage.encode(message).finish());
+    this.sendPrimitive(proto.TensorGCounterMessage.encode(message).finish());
   }
 
   /** Clears the memory taken by the tensors */
@@ -199,17 +198,14 @@ export class TensorGCounterCrdt
   }
 
   protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
+    message: Uint8Array | string,
+    meta: MessageMeta
   ): void {
-    const decoded = proto.TensorGCounterMessage.decode(message);
+    const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":
         const addMessage = decoded.add!;
-        const keyString = this.keyString(
-          timestamp.getSender(),
-          addMessage.idCounter
-        );
+        const keyString = this.keyString(meta.sender, addMessage.idCounter);
         const prNewTensor = conversions.protobufToTF.tensor(addMessage.prNew);
         const prOldTensor = conversions.protobufToTF.tensor(addMessage.prOld);
         const valueAdded = prNewTensor.sub(prOldTensor);
@@ -223,7 +219,7 @@ export class TensorGCounterCrdt
         this.state.P.set(keyString, prNewTensor);
         this.emit("Add", {
           valueAdded,
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta,
         });
         valueAdded.dispose();
         break;
@@ -248,7 +244,7 @@ export class TensorGCounterCrdt
           received.dispose();
         }
         this.emit("Reset", {
-          meta: CrdtEventMeta.fromTimestamp(timestamp),
+          meta,
         });
         break;
 
@@ -272,27 +268,27 @@ export class TensorGCounterCrdt
   }
 
   // TODO: implement
-  protected savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     return new Uint8Array();
   }
-  protected loadPrimitive(saveData: Uint8Array): void {}
+  load(saveData: Uint8Array | null): void {}
 }
 
-export class TensorCounterCrdt
+export class TensorCounterCollab
   extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
-  private readonly plus: TensorGCounterCrdt;
-  private readonly minus: TensorGCounterCrdt;
+  private readonly plus: TensorGCounterCollab;
+  private readonly minus: TensorGCounterCollab;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
     super(initToken);
-    this.plus = this.addChild("1", Pre(TensorGCounterCrdt)(shape, dtype));
-    this.minus = this.addChild("2", Pre(TensorGCounterCrdt)(shape, dtype));
+    this.plus = this.addChild("1", Pre(TensorGCounterCollab)(shape, dtype));
+    this.minus = this.addChild("2", Pre(TensorGCounterCollab)(shape, dtype));
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
@@ -336,20 +332,20 @@ export class TensorCounterCrdt
   }
 }
 
-export class TensorAverageCrdt
+export class TensorAverageCollab
   extends CObject<TensorCounterEventsRecord>
   implements Resettable
 {
-  private readonly numerator: TensorCounterCrdt;
+  private readonly numerator: TensorCounterCollab;
   private readonly denominator: CCounter;
 
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
     super(initToken);
-    this.numerator = this.addChild("1", Pre(TensorCounterCrdt)(shape, dtype));
+    this.numerator = this.addChild("1", Pre(TensorCounterCollab)(shape, dtype));
     this.denominator = this.addChild("2", Pre(CCounter)());
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));

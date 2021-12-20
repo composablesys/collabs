@@ -1,29 +1,29 @@
 import { assert } from "chai";
-import { JsonCrdt, JsonCursor } from "../src/json_opt";
-import { Pre, Runtime, TestingNetworkGenerator } from "@collabs/collabs";
+import { JsonCollab, JsonCursor } from "../src/json_opt";
+import { CRDTApp, Pre, TestingNetworkGenerator } from "@collabs/collabs";
 import seedrandom from "seedrandom";
 
-describe("JsonCrdt", () => {
+describe("JsonCollab", () => {
   let runtimeGen: TestingNetworkGenerator;
-  let alice: Runtime;
-  let bob: Runtime;
+  let alice: CRDTApp;
+  let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime(undefined, rng);
-    bob = runtimeGen.newRuntime(undefined, rng);
+    alice = runtimeGen.newApp(undefined, rng);
+    bob = runtimeGen.newApp(undefined, rng);
   });
 
-  let aliceJson: JsonCrdt;
+  let aliceJson: JsonCollab;
   let aliceCursor: JsonCursor;
-  let bobJson: JsonCrdt;
+  let bobJson: JsonCollab;
   let bobCursor: JsonCursor;
 
   beforeEach(() => {
-    aliceJson = alice.registerCrdt("cursor", Pre(JsonCrdt)());
-    bobJson = bob.registerCrdt("cursor", Pre(JsonCrdt)());
+    aliceJson = alice.registerCollab("cursor", Pre(JsonCollab)());
+    bobJson = bob.registerCollab("cursor", Pre(JsonCollab)());
     aliceCursor = new JsonCursor(aliceJson);
     bobCursor = new JsonCursor(bobJson);
   });

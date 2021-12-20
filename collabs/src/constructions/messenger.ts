@@ -1,61 +1,56 @@
 import {
-  CausalTimestamp,
-  CrdtEvent,
-  CrdtEventMeta,
-  CrdtEventsRecord,
-  CrdtInitToken,
-  ElementSerializer,
+  MessageMeta,
+  CollabEvent,
+  CollabEventsRecord,
+  InitToken,
 } from "../core";
-import { DefaultElementSerializer } from "../util";
+import { DefaultSerializer, Serializer } from "../util";
 import { CPrimitive } from "./primitive";
 
-export interface CMessengerEvent<M> extends CrdtEvent {
+export interface CMessengerEvent<M> extends CollabEvent {
   message: M;
 }
 
-export interface CMessengerEventsRecord<M> extends CrdtEventsRecord {
+export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
   Message: CMessengerEvent<M>;
 }
 
 /**
- * A Crdt that merely sends messages.
- *
- * Intended for use with [[SemidirectProductStore]], and little
- * else.
+ * A Collab that merely sends and receives messages.
  *
  * When a message is received, a Message event is emitted.
- * Note that messages may arrive in different orders on
+ * Note that depending on the [[Runtime]],
+ * messages may arrive in different orders on
  * different replicas.
  */
 export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
   constructor(
-    initToken: CrdtInitToken,
-    private readonly messageSerializer: ElementSerializer<M> = DefaultElementSerializer.getInstance()
+    initToken: InitToken,
+    private readonly messageSerializer: Serializer<M> = DefaultSerializer.getInstance(
+      initToken.runtime
+    )
   ) {
     super(initToken);
   }
 
   sendMessage(message: M): void {
     const encoded = this.messageSerializer.serialize(message);
-    super.send(encoded);
+    super.sendPrimitive(encoded);
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
-    const decoded = this.messageSerializer.deserialize(message, this.runtime);
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
+    const decoded = this.messageSerializer.deserialize(message);
     this.emit("Message", {
       message: decoded,
-      meta: CrdtEventMeta.fromTimestamp(timestamp),
+      meta,
     });
   }
 
-  protected savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     return new Uint8Array();
   }
 
-  protected loadPrimitive(_saveData: Uint8Array): void {
+  load(): void {
     // No-op.
   }
 

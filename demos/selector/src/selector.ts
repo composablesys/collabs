@@ -1,14 +1,14 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 import { ContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
-  // Create a Runtime intended for use within containers.
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
-  const currentHost = runtime.registerCrdt(
+  // Create a App intended for use within containers.
+  const runtime = await ContainerAppSource.newApp(window.parent);
+  const currentHost = runtime.registerCollab(
     "",
-    crdts.Pre(crdts.LwwMutCRegister)(
+    collabs.Pre(collabs.LwwMutCRegister)(
       (valueInitToken, htmlSrcGzipped: Uint8Array) => {
         const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
         // Create a new ContainerHost + IFrame from htmlSrc and

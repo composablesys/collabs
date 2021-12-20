@@ -16,12 +16,12 @@ fi
 
 if [ ! -z $5 ] && [ $5 == "--oursOnly" ]
 then
-  names=("resettingLww" "deletingLww" "textCrdt" "mapLww" "richText")
+  names=("resettingLww" "deletingLww" "text" "mapLww" "richText")
 elif [ ! -z $5 ] && [ $5 == "--theirsOnly" ]
 then
   names=("yjs" "automerge")
 else
-  names=("resettingLww" "deletingLww" "textCrdt" "mapLww" "richText" "yjs" "automerge")
+  names=("resettingLww" "deletingLww" "text" "mapLww" "richText" "yjs" "automerge")
 fi
 
 for frequency in "whole"

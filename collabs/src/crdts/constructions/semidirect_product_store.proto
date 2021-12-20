@@ -1,0 +1,15 @@
+message SemidirectProductStoreStoredMessage {
+  required uint32 senderCounter = 1;
+  required uint32 receiptCounter = 2;
+  required bytes message = 3;
+}
+
+message SemidirectProductStoreSenderHistory {
+  repeated SemidirectProductStoreStoredMessage messages = 1;
+}
+
+message SemidirectProductStoreSave {
+  required uint32 receiptCounter = 1;
+  map<string, SemidirectProductStoreSenderHistory> history = 2;
+  // internalState is loaded by the children, not here
+}

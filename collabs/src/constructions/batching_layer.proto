@@ -1,0 +1,12 @@
+message BatchingLayerEdgeMessage {
+  oneof label {
+    string stringLabel = 1;
+    bytes bytesLabel = 2;
+  }
+  required uint32 parent = 3;
+}
+
+message BatchingLayerMessage {
+  repeated BatchingLayerEdgeMessage edges = 1;
+  repeated uint32 messages = 2 [packed=true];
+}

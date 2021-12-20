@@ -1,0 +1,24 @@
+message DeletingMutCSetCreateMessage {
+  required uint32 replicaUniqueNumber = 1;
+  required bytes args = 2;
+}
+
+message DeletingMutCSetMessage {
+  oneof op {
+    DeletingMutCSetCreateMessage add = 1;
+    string delete = 2;
+  }
+}
+
+message DeletingMutCSetValueSave {
+  required string name = 1;
+  required bytes saveData = 2;
+  // Only present for non-initial values.
+  optional bytes args = 3;
+}
+
+message DeletingMutCSetSave {
+  // In order by time created on this replica.
+  // TODO: optimization: flatten.
+  repeated DeletingMutCSetValueSave valueSaves = 1;
+}

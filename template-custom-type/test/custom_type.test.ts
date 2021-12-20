@@ -1,23 +1,23 @@
 import { assert } from "chai";
-import { Pre, Runtime, TestingNetworkGenerator } from "@collabs/collabs";
+import { Pre, TestingNetworkGenerator, CRDTApp } from "@collabs/collabs";
 import seedrandom = require("seedrandom");
 import { CPair } from "../src";
 
 describe("template-custom-type", () => {
   let runtimeGen: TestingNetworkGenerator;
-  let alice: Runtime;
-  let bob: Runtime;
+  let alice: CRDTApp;
+  let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    // Use TestingNetworkGenerator to get Runtimes for various
+    // Use TestingNetworkGenerator to get Apps for various
     // test users.
     // It is recommended to use rng with a fixed seed so that
     // the tests are deterministic.
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime(undefined, rng);
-    bob = runtimeGen.newRuntime(undefined, rng);
+    alice = runtimeGen.newApp(undefined, rng);
+    bob = runtimeGen.newApp(undefined, rng);
   });
 
   describe("CPair", () => {
@@ -25,9 +25,9 @@ describe("template-custom-type", () => {
     let bobPair: CPair<number, number>;
 
     beforeEach(() => {
-      // Register the Crdts you want to test, like in a normal app.
-      alicePair = alice.registerCrdt("pair", Pre(CPair)(0, 0));
-      bobPair = bob.registerCrdt("pair", Pre(CPair)(0, 0));
+      // Register the Collabs you want to test, like in a normal app.
+      alicePair = alice.registerCollab("pair", Pre(CPair)(0, 0));
+      bobPair = bob.registerCollab("pair", Pre(CPair)(0, 0));
     });
 
     it("has initial values", () => {

@@ -17,7 +17,7 @@ fi
 ./automerge_perf.sh $1 $2 $3 $4 $5
 if [ -z $5 ] || [ $5 != "--theirsOnly" ]
 then
-  ./micro_crdts.sh $1 $2 $3 $4
+  ./micro_collabs.sh $1 $2 $3 $4
 fi
 if [ -z $5 ] || [ $5 != "--oursOnly" ]
 then

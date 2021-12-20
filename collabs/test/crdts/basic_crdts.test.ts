@@ -5,7 +5,7 @@ import {
   LwwCRegister,
   OptionalLwwCRegister,
   Pre,
-  Runtime,
+  CRDTApp,
   TestingNetworkGenerator,
 } from "../../src";
 import seedrandom from "seedrandom";
@@ -13,19 +13,19 @@ import {
   AddComponent,
   CNumberState,
   MultComponent,
-} from "../../src/types/number/number";
+} from "../../src/crdts/number/number";
 
 describe("basic_crdts", () => {
-  let runtimeGen: TestingNetworkGenerator;
-  let alice: Runtime;
-  let bob: Runtime;
+  let appGen: TestingNetworkGenerator;
+  let alice: CRDTApp;
+  let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime(undefined, rng);
-    bob = runtimeGen.newRuntime(undefined, rng);
+    appGen = new TestingNetworkGenerator();
+    alice = appGen.newApp(undefined, rng);
+    bob = appGen.newApp(undefined, rng);
   });
 
   describe("AddComponent", () => {
@@ -33,11 +33,11 @@ describe("basic_crdts", () => {
     let bobCounter: AddComponent;
 
     beforeEach(() => {
-      aliceCounter = alice.registerCrdt(
+      aliceCounter = alice.registerCollab(
         "counterId",
         Pre(AddComponent)(new CNumberState(0))
       );
-      bobCounter = bob.registerCrdt(
+      bobCounter = bob.registerCollab(
         "counterId",
         Pre(AddComponent)(new CNumberState(0))
       );
@@ -61,17 +61,17 @@ describe("basic_crdts", () => {
     describe("add", () => {
       it("works for non-concurrent updates", () => {
         aliceCounter.add(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.state.value, 3);
         assert.strictEqual(bobCounter.state.value, 3);
 
         bobCounter.add(-4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.state.value, -1);
         assert.strictEqual(bobCounter.state.value, -1);
 
         aliceCounter.add(12);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.state.value, 11);
         assert.strictEqual(bobCounter.state.value, 11);
       });
@@ -85,7 +85,7 @@ describe("basic_crdts", () => {
         assert.strictEqual(aliceCounter.state.value, 2);
         assert.strictEqual(bobCounter.state.value, -5);
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.state.value, -3);
         assert.strictEqual(bobCounter.state.value, -3);
       });
@@ -97,8 +97,8 @@ describe("basic_crdts", () => {
     let bobCounter: CCounter;
 
     beforeEach(() => {
-      aliceCounter = alice.registerCrdt("counterId", Pre(CCounter)());
-      bobCounter = bob.registerCrdt("counterId", Pre(CCounter)());
+      aliceCounter = alice.registerCollab("counterId", Pre(CCounter)());
+      bobCounter = bob.registerCollab("counterId", Pre(CCounter)());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -126,22 +126,22 @@ describe("basic_crdts", () => {
     describe("add", () => {
       it("works for non-concurrent updates", () => {
         aliceCounter.add(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 3);
         assert.strictEqual(bobCounter.value, 3);
 
         bobCounter.add(-4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, -1);
         assert.strictEqual(bobCounter.value, -1);
 
         aliceCounter.add(-3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, -4);
         assert.strictEqual(bobCounter.value, -4);
 
         bobCounter.add(4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 0);
         assert.strictEqual(bobCounter.value, 0);
       });
@@ -157,7 +157,7 @@ describe("basic_crdts", () => {
         assert.strictEqual(aliceCounter.value, -5);
         assert.strictEqual(bobCounter.value, -1);
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, -6);
         assert.strictEqual(bobCounter.value, -6);
       });
@@ -166,24 +166,24 @@ describe("basic_crdts", () => {
     describe("reset", () => {
       it("works for non-concurrent updates", () => {
         bobCounter.add(20);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 20);
         assert.strictEqual(bobCounter.value, 20);
 
         aliceCounter.reset();
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 0);
         assert.strictEqual(bobCounter.value, 0);
 
         bobCounter.add(7);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 7);
         assert.strictEqual(bobCounter.value, 7);
       });
 
       it("works for non-concurrent reset followed by add", () => {
         aliceCounter.add(-1);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, -1);
         assert.strictEqual(bobCounter.value, -1);
 
@@ -192,20 +192,20 @@ describe("basic_crdts", () => {
         assert.strictEqual(bobCounter.value, -1);
 
         aliceCounter.add(11);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 11);
         assert.strictEqual(bobCounter.value, 11);
       });
 
       it("lets concurrent adds survive", () => {
         aliceCounter.add(10);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 10);
         assert.strictEqual(bobCounter.value, 10);
 
         aliceCounter.reset();
         bobCounter.add(10);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceCounter.value, 10);
         assert.strictEqual(bobCounter.value, 10);
       });
@@ -217,10 +217,10 @@ describe("basic_crdts", () => {
         aliceCounter.add(-1);
         bobCounter.add(11);
         bobCounter.add(-2);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         aliceCounter.reset();
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         assert.isTrue(aliceCounter.canGc());
         assert.isTrue(bobCounter.canGc());
@@ -232,7 +232,7 @@ describe("basic_crdts", () => {
         aliceCounter.reset();
         bobCounter.add(11);
         bobCounter.add(-2);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
 
         assert.isFalse(aliceCounter.canGc());
         assert.isFalse(bobCounter.canGc());
@@ -246,30 +246,30 @@ describe("basic_crdts", () => {
     describe("strong reset", () => {
       it.skip("works with non-concurrent updates", () => {
         // aliceCounter.add(10);
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.strictEqual(aliceCounter.value, 10);
         // assert.strictEqual(bobCounter.value, 10);
         //
         // bobCounter.strongReset();
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.strictEqual(aliceCounter.value, 0);
         // assert.strictEqual(bobCounter.value, 0);
         //
         // aliceCounter.add(6);
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.strictEqual(aliceCounter.value, 6);
         // assert.strictEqual(bobCounter.value, 6);
       });
 
       it.skip("wins over concurrent add", () => {
         // aliceCounter.add(10);
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.strictEqual(aliceCounter.value, 10);
         // assert.strictEqual(bobCounter.value, 10);
         //
         // aliceCounter.strongReset();
         // bobCounter.add(20);
-        // runtimeGen.releaseAll();
+        // appGen.releaseAll();
         // assert.strictEqual(aliceCounter.value, 0);
         // assert.strictEqual(bobCounter.value, 0);
       });
@@ -279,13 +279,13 @@ describe("basic_crdts", () => {
       aliceCounter.add(3);
       bobCounter.add(7);
       aliceCounter.reset();
-      runtimeGen.release(bob);
+      appGen.release(bob);
       assert.strictEqual(aliceCounter.value, 7);
       assert.strictEqual(bobCounter.value, 7);
 
       // TODO
       // bobCounter.strongReset();
-      // runtimeGen.releaseAll();
+      // appGen.releaseAll();
       // assert.strictEqual(aliceCounter.value, 0);
       // assert.strictEqual(bobCounter.value, 0);
     });
@@ -296,11 +296,11 @@ describe("basic_crdts", () => {
     let bobRegister: MultComponent;
 
     beforeEach(() => {
-      aliceRegister = alice.registerCrdt(
+      aliceRegister = alice.registerCollab(
         "multId",
         Pre(MultComponent)(new CNumberState(2))
       );
-      bobRegister = bob.registerCrdt(
+      bobRegister = bob.registerCollab(
         "multId",
         Pre(MultComponent)(new CNumberState(2))
       );
@@ -324,12 +324,12 @@ describe("basic_crdts", () => {
     describe("mult", () => {
       it("works for non-concurrent updates", () => {
         aliceRegister.mult(3);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceRegister.state.value, 6);
         assert.strictEqual(bobRegister.state.value, 6);
 
         bobRegister.mult(-4);
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceRegister.state.value, -24);
         assert.strictEqual(bobRegister.state.value, -24);
       });
@@ -343,7 +343,7 @@ describe("basic_crdts", () => {
         assert.strictEqual(aliceRegister.state.value, 4);
         assert.strictEqual(bobRegister.state.value, -16);
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceRegister.state.value, -32);
         assert.strictEqual(bobRegister.state.value, -32);
       });
@@ -362,8 +362,8 @@ describe("basic_crdts", () => {
   //   let bobGPlainSet: GPlainSet<any>;
   //
   //   beforeEach(() => {
-  //     aliceGPlainSet = alice.registerCrdt("gsetId", new GPlainSet());
-  //     bobGPlainSet = bob.registerCrdt("gsetId", new GPlainSet());
+  //     aliceGPlainSet = alice.registerCollab("gsetId", new GPlainSet());
+  //     bobGPlainSet = bob.registerCollab("gsetId", new GPlainSet());
   //     if (debug) {
   //       addEventListeners(aliceGPlainSet, "Alice");
   //       addEventListeners(bobGPlainSet, "Bob");
@@ -386,12 +386,12 @@ describe("basic_crdts", () => {
   //   describe("add", () => {
   //     it("works with non-concurrent updates", () => {
   //       aliceGPlainSet.add("element");
-  //       runtimeGen.releaseAll();
+  //       appGen.releaseAll();
   //       assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["element"]));
   //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element"]));
   //
   //       bobGPlainSet.add(7);
-  //       runtimeGen.releaseAll();
+  //       appGen.releaseAll();
   //       assert.deepStrictEqual(
   //         new Set(aliceGPlainSet),
   //         new Set(["element", 7])
@@ -399,7 +399,7 @@ describe("basic_crdts", () => {
   //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["element", 7]));
   //
   //       aliceGPlainSet.add(7);
-  //       runtimeGen.releaseAll();
+  //       appGen.releaseAll();
   //       assert.deepStrictEqual(
   //         new Set(aliceGPlainSet),
   //         new Set(["element", 7])
@@ -416,7 +416,7 @@ describe("basic_crdts", () => {
   //       assert.deepStrictEqual(new Set(aliceGPlainSet), new Set(["first"]));
   //       assert.deepStrictEqual(new Set(bobGPlainSet), new Set(["second"]));
   //
-  //       runtimeGen.releaseAll();
+  //       appGen.releaseAll();
   //       assert.deepStrictEqual(
   //         new Set(aliceGPlainSet),
   //         new Set(["first", "second"])
@@ -434,8 +434,8 @@ describe("basic_crdts", () => {
     let bobMvr: OptionalLwwCRegister<string>;
 
     beforeEach(() => {
-      aliceMvr = alice.registerCrdt("mvrId", Pre(OptionalLwwCRegister)());
-      bobMvr = bob.registerCrdt("mvrId", Pre(OptionalLwwCRegister)());
+      aliceMvr = alice.registerCollab("mvrId", Pre(OptionalLwwCRegister)());
+      bobMvr = bob.registerCollab("mvrId", Pre(OptionalLwwCRegister)());
       if (debug) {
         addEventListeners(aliceMvr, "Alice");
         addEventListeners(bobMvr, "Bob");
@@ -459,7 +459,7 @@ describe("basic_crdts", () => {
     describe("setter", () => {
       it("works with non-concurrent updates", () => {
         aliceMvr.set("second");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["second"])
@@ -470,7 +470,7 @@ describe("basic_crdts", () => {
         );
 
         aliceMvr.set("third");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["third"])
@@ -478,7 +478,7 @@ describe("basic_crdts", () => {
         assert.deepStrictEqual(new Set(bobMvr.conflicts()), new Set(["third"]));
 
         bobMvr.set("bob's");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["bob's"])
@@ -489,7 +489,7 @@ describe("basic_crdts", () => {
       it("works with concurrent updates", () => {
         aliceMvr.set("concA");
         bobMvr.set("concB");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["concA", "concB"])
@@ -509,7 +509,7 @@ describe("basic_crdts", () => {
           new Set(bobMvr.conflicts()),
           new Set(["concB2"])
         );
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["concA2", "concB2"])
@@ -523,7 +523,7 @@ describe("basic_crdts", () => {
       it("merges redundant writes", () => {
         aliceMvr.set("redundant");
         bobMvr.set("redundant");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["redundant"])
@@ -538,7 +538,7 @@ describe("basic_crdts", () => {
         aliceMvr.set("redundant");
         bobMvr.set("redundant");
         aliceMvr.set("overwrite");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["redundant", "overwrite"])
@@ -556,7 +556,7 @@ describe("basic_crdts", () => {
         assert.deepStrictEqual(new Set(aliceMvr.conflicts()), new Set([]));
 
         bobMvr.set("conc");
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.deepStrictEqual(
           new Set(aliceMvr.conflicts()),
           new Set(["conc"])
@@ -575,8 +575,8 @@ describe("basic_crdts", () => {
     let bobLww: LwwCRegister<string>;
 
     beforeEach(() => {
-      aliceLww = alice.registerCrdt("lwwId", Pre(LwwCRegister)("initial"));
-      bobLww = bob.registerCrdt("lwwId", Pre(LwwCRegister)("initial"));
+      aliceLww = alice.registerCollab("lwwId", Pre(LwwCRegister)("initial"));
+      bobLww = bob.registerCollab("lwwId", Pre(LwwCRegister)("initial"));
       if (debug) {
         addEventListeners(aliceLww, "Alice");
         addEventListeners(bobLww, "Bob");
@@ -600,22 +600,22 @@ describe("basic_crdts", () => {
     describe("setter", () => {
       it("works with non-concurrent updates", () => {
         aliceLww.value = "second";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "second");
         assert.strictEqual(bobLww.value, "second");
 
         aliceLww.value = "third";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "third");
         assert.strictEqual(bobLww.value, "third");
 
         aliceLww.value = "third";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "third");
         assert.strictEqual(bobLww.value, "third");
 
         bobLww.value = "bob's";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "bob's");
         assert.strictEqual(bobLww.value, "bob's");
       });
@@ -627,7 +627,7 @@ describe("basic_crdts", () => {
           // Loop; Bob will have a later time than now
         }
         bobLww.value = "concB";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "concB");
         assert.strictEqual(bobLww.value, "concB");
 
@@ -641,7 +641,7 @@ describe("basic_crdts", () => {
         bobLww.value = "concB2";
         assert.strictEqual(bobLww.value, "concB2");
 
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "concB2");
         assert.strictEqual(bobLww.value, "concB2");
       });
@@ -649,7 +649,7 @@ describe("basic_crdts", () => {
       it("works with redundant writes", () => {
         aliceLww.value = "redundant";
         bobLww.value = "redundant";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "redundant");
         assert.strictEqual(bobLww.value, "redundant");
       });
@@ -657,7 +657,7 @@ describe("basic_crdts", () => {
       it("works with overwrites", () => {
         aliceLww.value = "redundant";
         aliceLww.value = "overwrite";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "overwrite");
         assert.strictEqual(bobLww.value, "overwrite");
       });
@@ -669,7 +669,7 @@ describe("basic_crdts", () => {
         assert.strictEqual(aliceLww.value, "initial");
 
         bobLww.value = "conc";
-        runtimeGen.releaseAll();
+        appGen.releaseAll();
         assert.strictEqual(aliceLww.value, "conc");
         assert.strictEqual(bobLww.value, "conc");
       });

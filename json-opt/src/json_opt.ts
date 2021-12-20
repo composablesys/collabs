@@ -1,11 +1,11 @@
 import {
   CObject,
-  Crdt,
-  CrdtEvent,
-  CrdtEventsRecord,
-  CrdtInitToken,
-  DefaultElementSerializer,
-  ElementSerializer,
+  Collab,
+  CollabEvent,
+  CollabEventsRecord,
+  InitToken,
+  DefaultSerializer,
+  Serializer,
   ImplicitMergingMutCMap,
   MergingMutCMap,
   OptionalLwwCRegister,
@@ -14,12 +14,12 @@ import {
   TextSerializer,
 } from "@collabs/collabs";
 
-export interface JsonEvent extends CrdtEvent {
+export interface JsonEvent extends CollabEvent {
   readonly key: string;
-  readonly value: Crdt;
+  readonly value: Collab;
 }
 
-export interface JsonEventsRecord extends CrdtEventsRecord {
+export interface JsonEventsRecord extends CollabEventsRecord {
   Add: JsonEvent;
   Delete: JsonEvent;
 }
@@ -29,7 +29,7 @@ enum InternalType {
   List,
 }
 
-export class JsonCrdt extends CObject<JsonEventsRecord> {
+export class JsonCollab extends CObject<JsonEventsRecord> {
   private readonly internalMap: MergingMutCMap<
     string,
     OptionalLwwCRegister<number | string | boolean | InternalType>
@@ -40,11 +40,12 @@ export class JsonCrdt extends CObject<JsonEventsRecord> {
   >;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
-  constructor(initToken: CrdtInitToken) {
+  constructor(initToken: InitToken) {
     super(initToken);
 
-    let keySerializer: ElementSerializer<string> =
-      DefaultElementSerializer.getInstance();
+    let keySerializer: Serializer<string> = DefaultSerializer.getInstance(
+      initToken.runtime
+    );
     this.internalMap = this.addChild(
       "internalMap",
       Pre(MergingMutCMap)(
@@ -190,21 +191,20 @@ export class JsonCrdt extends CObject<JsonEventsRecord> {
     this.set(key, InternalType.List);
   }
 
-  addExtChild(name: string, child: Pre<Crdt>) {
+  addExtChild(name: string, child: Pre<Collab>) {
     this.addChild(name, child);
   }
 }
 
 export class JsonCursor {
-  private internal: JsonCrdt;
+  private internal: JsonCollab;
   private cursor: string;
 
   static new(): Pre<JsonCursor> {
-    return (initToken: CrdtInitToken) =>
-      new JsonCursor(new JsonCrdt(initToken));
+    return (initToken: InitToken) => new JsonCursor(new JsonCollab(initToken));
   }
 
-  constructor(internal: JsonCrdt, cursor?: string) {
+  constructor(internal: JsonCollab, cursor?: string) {
     this.internal = internal;
 
     if (!cursor) cursor = ":";

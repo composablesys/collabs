@@ -21,8 +21,8 @@
 	- randomhorse()
 */
 
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 // CSS
 import css from "./horsegenetics.css";
 
@@ -201,7 +201,7 @@ export function reverseAllele(allele) {
     ".png";
   +'"';
 
-  // Called by Crdt event listeners instead.
+  // Called by Collab event listeners instead.
   // evaluateGenetics();
 }
 //////////////////////////////////////////////////////////////////////////
@@ -1887,7 +1887,7 @@ export function preloader() {
   });
 }
 
-// Crdt stuff
+// Collab stuff
 
 const GENES = [
   "e",
@@ -1918,17 +1918,17 @@ const IRREGULAR_DEFAULTS = {
 // Maps alleleName's to their controlling LwwCRegister.
 let alleles = {};
 
-// Async so we can await ContainerRuntimeSource.newRuntime.
+// Async so we can await ContainerAppSource.newApp.
 async function crdtSetup() {
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
+  const app = await ContainerAppSource.newApp(window.parent);
 
   for (const gene of GENES) {
     for (const num of [1, 2]) {
       const alleleName = gene + num;
       const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
-      alleles[alleleName] = runtime.registerCrdt(
+      alleles[alleleName] = app.registerCollab(
         alleleName,
-        crdts.Pre(crdts.LwwCRegister)(defaultValue)
+        collabs.Pre(collabs.LwwCRegister)(defaultValue)
       );
       alleles[alleleName].on("Set", () => {
         // Reflect the change in the GUI.
@@ -1939,7 +1939,7 @@ async function crdtSetup() {
     }
   }
 
-  runtime.on("Change", evaluateGenetics);
+  app.on("Change", evaluateGenetics);
 }
 
 function imageSrc(filename) {

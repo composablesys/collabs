@@ -6,7 +6,7 @@ import {
   setVersion,
   setWarmupTrials,
 } from "./record";
-import microCrdts from "./micro_crdts/benchmark";
+import microCollabs from "./micro_collabs/benchmark";
 import microAutomerge from "./micro_automerge/benchmark";
 import microYjs from "./micro_yjs/benchmark";
 
@@ -34,8 +34,8 @@ You can set both trial counts to 0 to do a test run (check that test names and a
     case "todo_list":
       await todoList(testArgs);
       break;
-    case "micro_crdts":
-      await microCrdts(testArgs);
+    case "micro_collabs":
+      await microCollabs(testArgs);
       break;
     case "micro_automerge":
       await microAutomerge(testArgs);

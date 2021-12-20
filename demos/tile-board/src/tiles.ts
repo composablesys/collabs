@@ -1,34 +1,34 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { ContainerHost } from "@collabs/container";
 import pako from "pako";
 import { richTextPreContent } from "./rich_text_tile";
 
 /**
- * A Crdt that holds an immutable value passed to the constructor.
+ * A Collab that holds an immutable value passed to the constructor.
  */
-class CImmutable<T> extends crdts.CObject {
-  constructor(initToken: crdts.CrdtInitToken, readonly value: T) {
+class CImmutable<T> extends collabs.CObject {
+  constructor(initToken: collabs.InitToken, readonly value: T) {
     super(initToken);
   }
 }
 
-class CTile extends crdts.CObject {
-  readonly contentCrdt: crdts.Crdt;
-  readonly left: crdts.LwwCRegister<number>;
-  readonly top: crdts.LwwCRegister<number>;
-  readonly width: crdts.LwwCRegister<number>;
-  readonly height: crdts.LwwCRegister<number>;
+class CTile extends collabs.CObject {
+  readonly contentCollab: collabs.Collab;
+  readonly left: collabs.LwwCRegister<number>;
+  readonly top: collabs.LwwCRegister<number>;
+  readonly width: collabs.LwwCRegister<number>;
+  readonly height: collabs.LwwCRegister<number>;
 
   readonly dom: HTMLDivElement;
   readonly innerDiv: HTMLDivElement;
 
   constructor(
-    initToken: crdts.CrdtInitToken,
+    initToken: collabs.InitToken,
     private readonly domParent: HTMLElement,
     preContent: (
-      contentInitToken: crdts.CrdtInitToken,
+      contentInitToken: collabs.InitToken,
       contentDomParent: HTMLElement
-    ) => crdts.Crdt,
+    ) => collabs.Collab,
     initialX: number,
     initialY: number,
     initialWidth: number,
@@ -48,18 +48,18 @@ class CTile extends crdts.CObject {
     this.setupRectHandlers();
 
     // Create types.
-    this.contentCrdt = this.addChild("", (contentInitToken) =>
+    this.contentCollab = this.addChild("", (contentInitToken) =>
       preContent(contentInitToken, this.innerDiv)
     );
-    this.left = this.addChild("x", crdts.Pre(crdts.LwwCRegister)(initialX));
-    this.top = this.addChild("y", crdts.Pre(crdts.LwwCRegister)(initialY));
+    this.left = this.addChild("x", collabs.Pre(collabs.LwwCRegister)(initialX));
+    this.top = this.addChild("y", collabs.Pre(collabs.LwwCRegister)(initialY));
     this.width = this.addChild(
       "width",
-      crdts.Pre(crdts.LwwCRegister)(initialWidth)
+      collabs.Pre(collabs.LwwCRegister)(initialWidth)
     );
     this.height = this.addChild(
       "height",
-      crdts.Pre(crdts.LwwCRegister)(initialHeight)
+      collabs.Pre(collabs.LwwCRegister)(initialHeight)
     );
 
     // Keep this.dom in sync with its rect.
@@ -149,7 +149,7 @@ class CTile extends crdts.CObject {
           return;
         }
         const [x, y] = this.coords(e, this.dom);
-        // Visually update the size, but don't perform a Crdt
+        // Visually update the size, but don't perform a Collab
         // op yet.
         this.newWidth = Math.max(
           this.startWidth + x - this.mouseStartX,
@@ -168,7 +168,7 @@ class CTile extends crdts.CObject {
           return;
         }
         const [x, y] = this.coords(e, this.domParent);
-        // Visually update the size, but don't perform a Crdt
+        // Visually update the size, but don't perform a Collab
         // op yet.
         // TODO: prevent dragging off canvas
         this.newLeft = Math.max(this.startLeft + x - this.mouseStartX, 0);
@@ -213,7 +213,7 @@ class CTile extends crdts.CObject {
       this.isResizing = false;
       this.innerDiv.style.pointerEvents = "auto";
       this.dom.style.cursor = "default";
-      // Perform the Crdt op.  That also updates our own view.
+      // Perform the Collab op.  That also updates our own view.
       if (skipLastUpdate) {
         this.width.value = this.newWidth;
         this.height.value = this.newHeight;
@@ -231,7 +231,7 @@ class CTile extends crdts.CObject {
     } else if (this.isMoving) {
       this.isMoving = false;
       this.innerDiv.style.pointerEvents = "auto";
-      // Perform the Crdt op.  That also updates our own view.
+      // Perform the Collab op.  That also updates our own view.
       if (skipLastUpdate) {
         this.left.value = this.newLeft;
         this.top.value = this.newTop;
@@ -265,15 +265,15 @@ class CTile extends crdts.CObject {
   }
 }
 
-export function setupTiles(runtime: crdts.Runtime) {
+export function setupTiles(app: collabs.App) {
   // --------------------------------------
   // Existing Apps
 
   // The list of known (existing) apps, in the order they
   // were added.  Each app is stored as its Blob URL.
-  const existingApps = runtime.registerCrdt(
+  const existingApps = app.registerCollab(
     "existingApps",
-    crdts.Pre(crdts.DeletingMutCList)(
+    collabs.Pre(collabs.DeletingMutCList)(
       (valueInitToken, htmlSrcGzipped: Uint8Array, title: string) => {
         const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
         const url = URL.createObjectURL(
@@ -358,9 +358,9 @@ export function setupTiles(runtime: crdts.Runtime) {
   // --------------------------------------
   // Tiles
   const tileParent = <HTMLDivElement>document.getElementById("boardScroller");
-  const tiles = runtime.registerCrdt(
+  const tiles = app.registerCollab(
     "tiles",
-    crdts.Pre(crdts.DeletingMutCSet)(
+    collabs.Pre(collabs.DeletingMutCSet)(
       (
         valueInitToken,
         // We use app as an argument instead of url so that
@@ -412,9 +412,9 @@ export function setupTiles(runtime: crdts.Runtime) {
   function iframeFromUrl(
     url: string
   ): (
-    contentInitToken: crdts.CrdtInitToken,
+    contentInitToken: collabs.InitToken,
     contentDomParent: HTMLElement
-  ) => crdts.Crdt {
+  ) => collabs.Collab {
     return (contentInitToken, contentDomParent) => {
       const iframe = document.createElement("iframe");
       iframe.src = url;

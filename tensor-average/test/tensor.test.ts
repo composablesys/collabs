@@ -1,24 +1,29 @@
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
-import { Crdt, Pre, Runtime, TestingNetworkGenerator } from "@collabs/collabs";
+import {
+  Collab,
+  CRDTApp,
+  Pre,
+  TestingNetworkGenerator,
+} from "@collabs/collabs";
 import {
   conversions,
-  TensorAverageCrdt,
-  TensorCounterCrdt,
+  TensorAverageCollab,
+  TensorCounterCollab,
   TensorCounterEventsRecord,
-  TensorGCounterCrdt,
+  TensorGCounterCollab,
 } from "../src/";
 import { debug } from "./debug";
 
 describe("tensor", () => {
   let runtimeGen: TestingNetworkGenerator;
-  let alice: Runtime;
-  let bob: Runtime;
+  let alice: CRDTApp;
+  let bob: CRDTApp;
 
   beforeEach(() => {
     runtimeGen = new TestingNetworkGenerator();
-    alice = runtimeGen.newRuntime();
-    bob = runtimeGen.newRuntime();
+    alice = runtimeGen.newApp();
+    bob = runtimeGen.newApp();
     tf.engine().startScope();
   });
 
@@ -70,7 +75,7 @@ describe("tensor", () => {
   }
 
   function addEventListeners(
-    crdt: Crdt<TensorCounterEventsRecord>,
+    crdt: Collab<TensorCounterEventsRecord>,
     name: string
   ): void {
     crdt.on("Add", (event) =>
@@ -93,17 +98,17 @@ describe("tensor", () => {
   describe("TensorGCounter", function () {
     this.slow(1000); // tensor operations on large tensors can be slow
     const shape = [100, 20, 10];
-    let aliceCounter: TensorGCounterCrdt;
-    let bobCounter: TensorGCounterCrdt;
+    let aliceCounter: TensorGCounterCollab;
+    let bobCounter: TensorGCounterCollab;
 
     beforeEach(() => {
-      aliceCounter = alice.registerCrdt(
+      aliceCounter = alice.registerCollab(
         "counterId",
-        Pre(TensorGCounterCrdt)(shape, "float32")
+        Pre(TensorGCounterCollab)(shape, "float32")
       );
-      bobCounter = bob.registerCrdt(
+      bobCounter = bob.registerCollab(
         "counterId",
-        Pre(TensorGCounterCrdt)(shape, "float32")
+        Pre(TensorGCounterCollab)(shape, "float32")
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -221,13 +226,13 @@ describe("tensor", () => {
       it("lets concurrent non-uniform adds survive", () => {
         const shape = [2, 2];
         const dtype = "float32";
-        const aliceCounter = alice.registerCrdt(
+        const aliceCounter = alice.registerCollab(
           "counterId2",
-          Pre(TensorGCounterCrdt)(shape, dtype)
+          Pre(TensorGCounterCollab)(shape, dtype)
         );
-        const bobCounter = bob.registerCrdt(
+        const bobCounter = bob.registerCollab(
           "counterId2",
-          Pre(TensorGCounterCrdt)(shape, dtype)
+          Pre(TensorGCounterCollab)(shape, dtype)
         );
         const identity = tf.eye(shape[0], shape[1], undefined, "float32");
         const tensor1 = identity.mul(2);
@@ -256,17 +261,17 @@ describe("tensor", () => {
   describe("TensorCounter", function () {
     this.slow(1000); // tensor operations on large tensors can be slow
     const shape = [100, 100];
-    let aliceCounter: TensorCounterCrdt;
-    let bobCounter: TensorCounterCrdt;
+    let aliceCounter: TensorCounterCollab;
+    let bobCounter: TensorCounterCollab;
 
     beforeEach(() => {
-      aliceCounter = alice.registerCrdt(
+      aliceCounter = alice.registerCollab(
         "counterId",
-        Pre(TensorCounterCrdt)(shape, "float32")
+        Pre(TensorCounterCollab)(shape, "float32")
       );
-      bobCounter = bob.registerCrdt(
+      bobCounter = bob.registerCollab(
         "counterId",
-        Pre(TensorCounterCrdt)(shape, "float32")
+        Pre(TensorCounterCollab)(shape, "float32")
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -382,17 +387,17 @@ describe("tensor", () => {
   describe("TensorAverage", function () {
     this.slow(1000); // tensor operations on large tensors can be slow
     const shape = [100, 100];
-    let aliceAvg: TensorAverageCrdt;
-    let bobAvg: TensorAverageCrdt;
+    let aliceAvg: TensorAverageCollab;
+    let bobAvg: TensorAverageCollab;
 
     beforeEach(() => {
-      aliceAvg = alice.registerCrdt(
+      aliceAvg = alice.registerCollab(
         "avgId",
-        Pre(TensorAverageCrdt)(shape, "float32")
+        Pre(TensorAverageCollab)(shape, "float32")
       );
-      bobAvg = bob.registerCrdt(
+      bobAvg = bob.registerCollab(
         "avgId",
-        Pre(TensorAverageCrdt)(shape, "float32")
+        Pre(TensorAverageCollab)(shape, "float32")
       );
       if (debug) {
         addEventListeners(aliceAvg, "Alice");

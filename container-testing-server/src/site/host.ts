@@ -37,13 +37,13 @@ switch (networkType) {
     network = new MatrixWidgetNetwork(
       "container-testing-server." + containerUrl
     );
-    batchingStrategy = new crdts.RateLimitBatchingStrategy(500, false);
+    batchingStrategy = new crdts.RateLimitBatchingStrategy(500);
     break;
   default:
     throw new Error('URL "network" GET parameter invalid: "${networkType}"');
 }
-const disonnectableNetwork = new crdts.DisconnectableNetwork(network);
-const runtime = new crdts.Runtime(disonnectableNetwork, batchingStrategy);
+const disconnectableNetwork = new crdts.DisconnectableNetwork(network);
+const app = new crdts.CRDTApp(disconnectableNetwork, { batchingStrategy });
 
 // Add the container in an IFrame.
 const iframe = document.createElement("iframe");
@@ -62,7 +62,7 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = runtime.registerCrdt("host", crdts.Pre(ContainerHost)(iframe));
+const host = app.registerCollab("host", crdts.Pre(ContainerHost)(iframe));
 
 // TODO: loading.  Make sure to block GUI until host says it's complete.
 
@@ -93,8 +93,8 @@ function updateNetwork() {
     connected.checked = sendConnected.checked;
   }
   // Affect network.
-  disonnectableNetwork.receiveConnected = receiveConnected.checked;
-  disonnectableNetwork.sendConnected = sendConnected.checked;
+  disconnectableNetwork.receiveConnected = receiveConnected.checked;
+  disconnectableNetwork.sendConnected = sendConnected.checked;
 }
 
 // const saveLoad = <HTMLButtonElement>document.getElementById("saveLoad");

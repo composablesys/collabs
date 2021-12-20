@@ -1,4 +1,4 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
@@ -9,12 +9,12 @@ declare type Delta = {
   ops: DeltaOperation[];
 };
 
-interface RichCharEventsRecord extends crdts.CrdtEventsRecord {
-  Format: { key: string } & crdts.CrdtEvent;
+interface RichCharEventsRecord extends collabs.CollabEventsRecord {
+  Format: { key: string } & collabs.CollabEvent;
 }
 
-class RichChar extends crdts.CObject<RichCharEventsRecord> {
-  private readonly attributes: crdts.LwwCMap<string, any>;
+class RichChar extends collabs.CObject<RichCharEventsRecord> {
+  private readonly attributes: collabs.LwwCMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -22,10 +22,10 @@ class RichChar extends crdts.CObject<RichCharEventsRecord> {
    * a single char, or (for an embed) a JSON-serializable
    * object with a single property.
    */
-  constructor(initToken: crdts.CrdtInitToken, readonly char: string | object) {
+  constructor(initToken: collabs.InitToken, readonly char: string | object) {
     super(initToken);
 
-    this.attributes = this.addChild("", crdts.Pre(crdts.LwwCMap)());
+    this.attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
 
     // Events
     this.attributes.on("Set", (e) => {
@@ -55,24 +55,24 @@ class RichChar extends crdts.CObject<RichCharEventsRecord> {
   }
 }
 
-interface RichTextEventsRecord extends crdts.CrdtEventsRecord {
-  Insert: { startIndex: number; count: number } & crdts.CrdtEvent;
-  Delete: { startIndex: number; count: number } & crdts.CrdtEvent;
-  Format: { index: number; key: string } & crdts.CrdtEvent;
+interface RichTextEventsRecord extends collabs.CollabEventsRecord {
+  Insert: { startIndex: number; count: number } & collabs.CollabEvent;
+  Delete: { startIndex: number; count: number } & collabs.CollabEvent;
+  Format: { index: number; key: string } & collabs.CollabEvent;
 }
 
-class RichText extends crdts.CObject<RichTextEventsRecord> {
-  readonly text: crdts.DeletingMutCList<RichChar, [char: string | object]>;
+class RichText extends collabs.CObject<RichTextEventsRecord> {
+  readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
 
   constructor(
-    initToken: crdts.CrdtInitToken,
+    initToken: collabs.InitToken,
     initialChars: (string | object)[] = []
   ) {
     super(initToken);
 
     this.text = this.addChild(
       "",
-      crdts.Pre(crdts.DeletingMutCList)(
+      collabs.Pre(collabs.DeletingMutCList)(
         (valueInitToken, char) => {
           const richChar = new RichChar(valueInitToken, char);
           richChar.on("Format", (e) => {
@@ -127,9 +127,9 @@ class RichText extends crdts.CObject<RichTextEventsRecord> {
 }
 
 export function richTextPreContent(
-  contentInitToken: crdts.CrdtInitToken,
+  contentInitToken: collabs.InitToken,
   contentDomParent: HTMLElement
-): crdts.Crdt {
+): collabs.Collab {
   // Quill's initial content is "\n".
   const clientText = new RichText(contentInitToken, ["\n"]);
 
@@ -171,10 +171,10 @@ export function richTextPreContent(
     return relevantOps;
   }
 
-  // Convert user inputs to Crdt operations.
+  // Convert user inputs to Collab operations.
   quill.on("text-change", (delta) => {
     // In theory we can listen for events with source "user",
-    // to ignore changes caused by Crdt events instead of
+    // to ignore changes caused by Collab events instead of
     // user input.  However, changes that remove formatting
     // using the "remove formatting" button, or by toggling
     // a link off, instead get emitted with source "api".
@@ -210,7 +210,7 @@ export function richTextPreContent(
     }
   });
 
-  // Reflect Crdt operations in Quill.
+  // Reflect Collab operations in Quill.
   // Note that for local operations, Quill has already updated
   // its own representation, so we should skip doing so again.
 
@@ -222,7 +222,7 @@ export function richTextPreContent(
   }
 
   clientText.on("Insert", (e) => {
-    if (e.meta.isLocal) return;
+    if (e.meta.isLocalEcho) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
       // Characters start without any formatting.
@@ -233,13 +233,13 @@ export function richTextPreContent(
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.isLocal) return;
+    if (e.meta.isLocalEcho) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.isLocal) return;
+    if (e.meta.isLocalEcho) return;
 
     updateContents(
       new Delta()

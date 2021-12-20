@@ -13,15 +13,15 @@ export type Handler<T, C> = (event: T, caller: C) => void;
  *
  * @remarks
  * Inspired by {@link https://github.com/ai/nanoevents | nanoevents}, but
- * refactored as an abstract class to better fit into our class hierarchy.
+ * refactored as a class to better fit into our class hierarchy.
  */
-export abstract class EventEmitter<Events extends EventsRecord> {
+export class EventEmitter<Events extends EventsRecord> {
   /**
    * Maps event names to registered handlers.
    *
-   * TODO: properly, any should instead be this.  However,
-   * that causes errors when trying to treat a Crdt
-   * subclass as an instance of Crdt, for reasons
+   * Properly, `any` should instead be `this`.  However,
+   * that causes errors when trying to treat a Collab
+   * subclass as an instance of Collab, for reasons
    * that are not clear to me.
    */
   private readonly handlers: Partial<{

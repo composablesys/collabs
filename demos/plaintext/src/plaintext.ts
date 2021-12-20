@@ -1,21 +1,21 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 
 (async function () {
-  const runtime = await ContainerRuntimeSource.newRuntime(
+  const runtime = await ContainerAppSource.newApp(
     window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
+    new collabs.RateLimitBatchingStrategy(200)
   );
 
-  const text = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
+  const text = runtime.registerCollab("text", collabs.Pre(collabs.CText)());
 
   const textarea = document.getElementById("textarea") as HTMLTextAreaElement;
   textarea.value = "";
 
   // TODO: shared cursors
 
-  const myStartCursor = new crdts.LocalCursor(text, 0);
-  const myEndCursor = new crdts.LocalCursor(text, 0);
+  const myStartCursor = new collabs.LocalCursor(text, 0);
+  const myEndCursor = new collabs.LocalCursor(text, 0);
   function updateSelection() {
     // Need to do this on a delay because the event doesn't
     // due its default action (updating the handler) until
