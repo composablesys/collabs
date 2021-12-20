@@ -1,5 +1,5 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 import {
   YataDeleteEvent,
   YataFormatExistingEvent,
@@ -12,14 +12,14 @@ import Quill, { DeltaOperation } from "quill";
   // Include Quill CSS
   require("quill/dist/quill.snow.css");
 
-  const runtime = await ContainerRuntimeSource.newRuntime(
+  const app = await ContainerAppSource.newApp(
     window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
+    new collabs.RateLimitBatchingStrategy(200)
   );
 
-  let clientText = runtime.registerCrdt(
+  let clientText = app.registerCollab(
     "text",
-    crdts.Pre(YataLinear)<string>("", ["\n"])
+    collabs.Pre(YataLinear)<string>("", ["\n"])
   );
 
   // const Quill: any = Q;
@@ -65,7 +65,7 @@ import Quill, { DeltaOperation } from "quill";
         if (op.insert) {
           for (let i = 0; i < op.insert.length; i++) {
             clientText.insertByIdx(
-              runtime.replicaId,
+              app.runtime.replicaId,
               op.idx + i,
               op.insert[i],
               op.attributes
@@ -90,7 +90,7 @@ import Quill, { DeltaOperation } from "quill";
   clientText.on(
     "Insert",
     ({ idx, meta, newOp, uid }: YataInsertEvent<string>) => {
-      if (!meta.isLocal) {
+      if (!meta.isLocalEcho) {
         const formats: Record<string, any> = {};
         const it = newOp.attributes.entries();
         let result = it.next();
@@ -106,7 +106,7 @@ import Quill, { DeltaOperation } from "quill";
   );
 
   clientText.on("Delete", ({ idx, uid, meta }: YataDeleteEvent<string>) => {
-    if (!meta.isLocal) {
+    if (!meta.isLocalEcho) {
       quill.updateContents(new Delta().retain(idx).delete(1));
     }
   });

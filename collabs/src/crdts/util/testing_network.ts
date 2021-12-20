@@ -30,7 +30,6 @@ export class TestingNetwork implements BroadcastNetwork {
   receivedBytes = 0;
 
   onreceive!: (message: Uint8Array) => void;
-  replicaId!: string;
 
   constructor(private generator: TestingNetworkGenerator) {}
 

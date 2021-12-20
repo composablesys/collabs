@@ -1,5 +1,5 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 
 (async function () {
   const WIN_TEXT = (function () {
@@ -8,25 +8,25 @@ import { ContainerRuntimeSource } from "@collabs/container";
     return ans;
   })();
 
-  const runtime = await ContainerRuntimeSource.newRuntime(
+  const runtime = await ContainerAppSource.newApp(
     window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
+    new collabs.RateLimitBatchingStrategy(200)
   );
 
-  const text = runtime.registerCrdt("text", crdts.Pre(crdts.CText)());
-  const startTime = runtime.registerCrdt(
+  const text = runtime.registerCollab("text", collabs.Pre(collabs.CText)());
+  const startTime = runtime.registerCollab(
     "startTime",
-    (initToken) => new crdts.LwwCRegister<number>(initToken, 0)
+    (initToken) => new collabs.LwwCRegister<number>(initToken, 0)
   );
-  const winElapsedTime = runtime.registerCrdt(
+  const winElapsedTime = runtime.registerCollab(
     "winElapsedTime",
-    (initToken) => new crdts.LwwCRegister<number>(initToken, 0)
+    (initToken) => new collabs.LwwCRegister<number>(initToken, 0)
   );
 
   const textInput = document.getElementById("textInput") as HTMLInputElement;
   textInput.value = "";
 
-  const myCursor = new crdts.LocalCursor(text, 0);
+  const myCursor = new collabs.LocalCursor(text, 0);
   function updateCursor() {
     const index = myCursor.index;
     textInput.selectionStart = index;

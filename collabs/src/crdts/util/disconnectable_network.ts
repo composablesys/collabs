@@ -18,10 +18,6 @@ export class DisconnectableNetwork implements BroadcastNetwork {
     pipedNetwork.onreceive = this.receive.bind(this);
   }
 
-  set replicaId(replicaId: string) {
-    this.pipedNetwork.replicaId = replicaId;
-  }
-
   send(message: Uint8Array): void {
     if (this._sendConnected) {
       this.pipedNetwork.send(message);

@@ -1,29 +1,29 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 
-export interface GroupTranslateEvent extends crdts.CrdtEvent {
+export interface GroupTranslateEvent extends collabs.CollabEvent {
   readonly dX1: number;
   readonly dY1: number;
   readonly dX2: number;
   readonly dY2: number;
 }
 
-export interface GroupRotateEvent extends crdts.CrdtEvent {
+export interface GroupRotateEvent extends collabs.CollabEvent {
   readonly rotated1: number;
   readonly rotated2: number;
 }
 
-export interface GroupReflectXEvent extends crdts.CrdtEvent {
+export interface GroupReflectXEvent extends collabs.CollabEvent {
   readonly reflect1: number;
   readonly reflect2: number;
 }
 
-export interface GroupReflectYEvent extends crdts.CrdtEvent {
+export interface GroupReflectYEvent extends collabs.CollabEvent {
   readonly reflect1: number;
   readonly reflect2: number;
 }
 
-export interface GroupEventsRecord extends crdts.CrdtEventsRecord {
+export interface GroupEventsRecord extends collabs.CollabEventsRecord {
   Translate: GroupTranslateEvent;
   Rotate: GroupRotateEvent;
   ReflectX: GroupReflectXEvent;
@@ -69,10 +69,10 @@ export class GroupState {
   }
 }
 
-export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
+export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: crdts.CrdtInitToken, initialState: GroupState) {
+  constructor(initToken: collabs.InitToken, initialState: GroupState) {
     super(initToken);
     this.state = initialState;
   }
@@ -93,21 +93,18 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
         });
       }
       let buffer = GroupComponentMessage.encode(message).finish();
-      super.send(buffer);
+      super.sendPrimitive(buffer);
     }
   }
 
-  protected receivePrimitive(
-    timestamp: crdts.CausalTimestamp,
-    message: Uint8Array
-  ) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.X1 += decoded.X1;
     this.state.Y1 += decoded.Y1;
     this.state.X2 += decoded.X2;
     this.state.Y2 += decoded.Y2;
     this.emit("Translate", {
-      meta: crdts.CrdtEventMeta.fromTimestamp(timestamp),
+      meta,
       dX1: decoded.X1,
       dY1: decoded.Y1,
       dX2: decoded.X2,
@@ -124,7 +121,7 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     );
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = GroupComponentMessage.create({
       X1: this.state.X1,
       Y1: this.state.Y1,
@@ -134,7 +131,7 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array) {
     this.state.X1 = GroupComponentMessage.decode(saveData).X1;
     this.state.Y1 = GroupComponentMessage.decode(saveData).Y1;
     this.state.X2 = GroupComponentMessage.decode(saveData).X2;
@@ -142,10 +139,10 @@ export class TranslateComponent extends crdts.CPrimitive<GroupEventsRecord> {
   }
 }
 
-export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
+export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: crdts.CrdtInitToken, initialState: GroupState) {
+  constructor(initToken: collabs.InitToken, initialState: GroupState) {
     super(initToken);
     this.state = initialState;
   }
@@ -164,7 +161,7 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
         });
       }
       let buffer = GroupComponentMessage.encode(message).finish();
-      super.send(buffer);
+      super.sendPrimitive(buffer);
     }
   }
 
@@ -188,10 +185,7 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return [newX1, newX2, newY1, newY2];
   }
 
-  protected receivePrimitive(
-    timestamp: crdts.CausalTimestamp,
-    message: Uint8Array
-  ) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
     let decoded = GroupComponentMessage.decode(message);
 
     this.state.rotate1 += decoded.rotate1;
@@ -221,7 +215,7 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     }
 
     this.emit("Rotate", {
-      meta: crdts.CrdtEventMeta.fromTimestamp(timestamp),
+      meta,
       rotated1: decoded.rotate1,
       rotated2: decoded.rotate2,
     });
@@ -231,7 +225,7 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return this.state.rotate1 === 0 && this.state.rotate2 === 0;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = GroupComponentMessage.create({
       rotate1: this.state.rotate1,
       rotate2: this.state.rotate2,
@@ -239,16 +233,16 @@ export class RotateComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array) {
     this.state.rotate1 = GroupComponentMessage.decode(saveData).rotate1;
     this.state.rotate2 = GroupComponentMessage.decode(saveData).rotate2;
   }
 }
 
-export class ReflectXComponent extends crdts.CPrimitive<GroupEventsRecord> {
+export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: crdts.CrdtInitToken, initialState: GroupState) {
+  constructor(initToken: collabs.InitToken, initialState: GroupState) {
     super(initToken);
     this.state = initialState;
   }
@@ -263,13 +257,10 @@ export class ReflectXComponent extends crdts.CPrimitive<GroupEventsRecord> {
       message = GroupComponentMessage.create({ reflectX1: -1, reflectX2: -1 });
     }
     let buffer = GroupComponentMessage.encode(message).finish();
-    super.send(buffer);
+    super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(
-    timestamp: crdts.CausalTimestamp,
-    message: Uint8Array
-  ) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectX1 *= decoded.reflectX1;
     this.state.reflectX2 *= decoded.reflectX2;
@@ -282,7 +273,7 @@ export class ReflectXComponent extends crdts.CPrimitive<GroupEventsRecord> {
     }
 
     this.emit("ReflectX", {
-      meta: crdts.CrdtEventMeta.fromTimestamp(timestamp),
+      meta,
       reflect1: decoded.reflectX1,
       reflect2: decoded.reflectX2,
     });
@@ -292,22 +283,22 @@ export class ReflectXComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return this.state.reflectX1 === 1;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = GroupComponentMessage.create({
       reflectX1: this.state.reflectX1,
     });
     return GroupComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array) {
     this.state.reflectX1 = GroupComponentMessage.decode(saveData).reflectX1;
   }
 }
 
-export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
+export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: crdts.CrdtInitToken, initialState: GroupState) {
+  constructor(initToken: collabs.InitToken, initialState: GroupState) {
     super(initToken);
     this.state = initialState;
   }
@@ -322,13 +313,10 @@ export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
       message = GroupComponentMessage.create({ reflectY1: -1, reflectY2: -1 });
     }
     let buffer = GroupComponentMessage.encode(message).finish();
-    super.send(buffer);
+    super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(
-    timestamp: crdts.CausalTimestamp,
-    message: Uint8Array
-  ) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectY1 *= decoded.reflectY1;
     this.state.reflectY2 *= decoded.reflectY2;
@@ -341,7 +329,7 @@ export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
     }
 
     this.emit("ReflectY", {
-      meta: crdts.CrdtEventMeta.fromTimestamp(timestamp),
+      meta,
       reflect1: decoded.reflectY1,
       reflect2: decoded.reflectY2,
     });
@@ -351,7 +339,7 @@ export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return this.state.reflectY1 === 1 && this.state.reflectY2 === 1;
   }
 
-  savePrimitive(): Uint8Array {
+  save(): Uint8Array {
     let message = GroupComponentMessage.create({
       reflectY1: this.state.reflectY1,
       reflectY2: this.state.reflectY2,
@@ -359,13 +347,13 @@ export class ReflectYComponent extends crdts.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(saveData: Uint8Array) {
+  load(saveData: Uint8Array) {
     this.state.reflectY1 = GroupComponentMessage.decode(saveData).reflectY1;
     this.state.reflectY2 = GroupComponentMessage.decode(saveData).reflectY2;
   }
 }
 
-export class GroupCrdt extends crdts.MultipleSemidirectProduct<
+export class GroupCRDT extends collabs.MultipleSemidirectProduct<
   GroupState,
   GroupEventsRecord
 > {
@@ -374,16 +362,20 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
   private reflectXCrdt: ReflectXComponent;
   private reflectYCrdt: ReflectYComponent;
 
-  constructor(initToken: crdts.CrdtInitToken) {
+  constructor(initToken: collabs.InitToken) {
     super(initToken, false);
     const state = new GroupState();
     super.setupState(state);
-    this.translateCrdt = super.setupOneCrdt(
-      crdts.Pre(TranslateComponent)(state)
+    this.translateCrdt = super.setupOneCRDT(
+      collabs.Pre(TranslateComponent)(state)
     );
-    this.rotateCrdt = super.setupOneCrdt(crdts.Pre(RotateComponent)(state));
-    this.reflectXCrdt = super.setupOneCrdt(crdts.Pre(ReflectXComponent)(state));
-    this.reflectYCrdt = super.setupOneCrdt(crdts.Pre(ReflectYComponent)(state));
+    this.rotateCrdt = super.setupOneCRDT(collabs.Pre(RotateComponent)(state));
+    this.reflectXCrdt = super.setupOneCRDT(
+      collabs.Pre(ReflectXComponent)(state)
+    );
+    this.reflectYCrdt = super.setupOneCRDT(
+      collabs.Pre(ReflectYComponent)(state)
+    );
 
     this.translateCrdt.on("Translate", (event) =>
       super.emit("Translate", event)
@@ -396,16 +388,14 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
   // Want to "add on" m2's actions to m1. Start with m1 values and
   // add reflection or rotation as needed.
   protected action(
-    _m2TargetPath: string[],
-    _m2Timestamp: crdts.CausalTimestamp | null,
-    m2Message: Uint8Array,
+    m2MessagePath: (Uint8Array | string)[],
+    _m2Meta: collabs.MessageMeta | null,
     m2Index: number,
-    _m1TargetPath: string[],
-    _m1Timestamp: crdts.CausalTimestamp,
-    m1Message: Uint8Array
-  ): { m1TargetPath: string[]; m1Message: Uint8Array } | null {
-    let m2Decoded = GroupComponentMessage.decode(m2Message);
-    let m1Decoded = GroupComponentMessage.decode(m1Message);
+    m1MessagePath: (Uint8Array | string)[],
+    _m1Meta: collabs.MessageMeta | null
+  ): { m1MessagePath: (Uint8Array | string)[] } | null {
+    let m2Decoded = GroupComponentMessage.decode(<Uint8Array>m2MessagePath[0]);
+    let m1Decoded = GroupComponentMessage.decode(<Uint8Array>m1MessagePath[0]);
     var XArg1: number = m1Decoded!.X1 || 0;
     var YArg1: number = m1Decoded!.Y1 || 0;
     var rotateArg1: number = m1Decoded!.rotate1 || 0;
@@ -483,8 +473,7 @@ export class GroupCrdt extends crdts.MultipleSemidirectProduct<
     });
 
     return {
-      m1TargetPath: [],
-      m1Message: GroupComponentMessage.encode(acted).finish(),
+      m1MessagePath: [GroupComponentMessage.encode(acted).finish()],
     };
   }
 

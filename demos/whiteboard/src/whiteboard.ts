@@ -1,18 +1,18 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 import $ from "jquery";
 
 (async function () {
-  const runtime = await ContainerRuntimeSource.newRuntime(
+  const runtime = await ContainerAppSource.newApp(
     window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
+    new collabs.RateLimitBatchingStrategy(200)
   );
 
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const boardState = runtime.registerCrdt(
+  const boardState = runtime.registerCollab(
     "whiteboard",
-    crdts.Pre(crdts.LwwCMap)<[x: number, y: number], string>()
+    collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
 
   const colors = document.getElementsByClassName("btn-colors");

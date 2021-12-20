@@ -54,7 +54,6 @@ export class CRDTRuntime
     // Setup network.
     this.network = network;
     this.network.onreceive = this.receive.bind(this);
-    this.network.replicaId = this.replicaId;
 
     // Events.
     this.batchingLayer.on("Change", (e) => this.emit("Change", e));

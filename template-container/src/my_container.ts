@@ -1,23 +1,26 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 
-// Async so we can await ContainerRuntimeSource.newRuntime.
+// Async so we can await ContainerAppSource.newApp.
 (async function () {
-  // Create a Runtime intended for use within containers.
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
+  // Create a App intended for use within containers.
+  const runtime = await ContainerAppSource.newApp(window.parent);
 
   // Now setup your program, using runtime.
   // Note that you you shouldn't try to load saveData like you
   // would in a non-container app;
-  // ContainerRuntimeSource will do that for you.
+  // ContainerAppSource will do that for you.
 
   // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
 
   // Register collaborative data types.
-  const counter = runtime.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
+  const counter = runtime.registerCollab(
+    "counter",
+    collabs.Pre(collabs.CCounter)()
+  );
 
-  // Refresh the display when the Crdt state changes, possibly
+  // Refresh the display when the Collab state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
   runtime.on("Change", () => {

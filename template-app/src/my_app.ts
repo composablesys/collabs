@@ -1,4 +1,4 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
 // Create a Runtime using your chosen network.
@@ -8,18 +8,18 @@ import { WebSocketNetwork } from "@collabs/ws-client";
 // (A central server like this is not necessary to use
 // Collabs, but it is convenient, especially for local testing.)
 const host = location.origin.replace(/^http/, "ws");
-const runtime = new crdts.Runtime(new WebSocketNetwork(host, ""));
+const app = new collabs.CRDTApp(new WebSocketNetwork(host, ""));
 
 // We include a simple collaborative counter as an example;
 // delete the code below and replace with your own.
 
 // Register collaborative data types.
-const counter = runtime.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
+const counter = app.registerCollab("counter", collabs.Pre(collabs.CCounter)());
 
-// Refresh the display when the Crdt state changes, possibly
+// Refresh the display when the Collab state changes, possibly
 // due to a message from another replica.
 const display = document.getElementById("display")!;
-runtime.on("Change", () => {
+app.on("Change", () => {
   display.innerHTML = counter.value.toString();
 });
 

@@ -1,4 +1,4 @@
-import { CausalTimestamp, CrdtInitToken, CPrimitive } from "@collabs/collabs";
+import { MessageMeta, InitToken, CPrimitive } from "@collabs/collabs";
 
 export class ContainerHost extends CPrimitive {
   private readonly messagePort: MessagePort;
@@ -22,7 +22,7 @@ export class ContainerHost extends CPrimitive {
    * @param containerIFrame [description]
    */
   constructor(
-    initToken: CrdtInitToken,
+    initToken: InitToken,
     readonly containerIFrame: HTMLIFrameElement
   ) {
     super(initToken);
@@ -63,29 +63,26 @@ export class ContainerHost extends CPrimitive {
         this.loadCompleteResolve();
         break;
       case "send":
-        this.send(e.data.message);
+        this.sendPrimitive(<Uint8Array>e.data.message);
         break;
       default:
         throw new Error("bad e.data.type: " + e.data.type);
     }
   }
 
-  protected receivePrimitive(
-    timestamp: CausalTimestamp,
-    message: Uint8Array
-  ): void {
-    if (!timestamp.isLocal()) {
-      this.messagePort.postMessage({ type: "receive", timestamp, message });
+  protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
+    if (!meta.isLocalEcho) {
+      this.messagePort.postMessage({ type: "receive", meta, message });
     }
     // Else the container already processed it.
   }
 
-  protected savePrimitive(): Uint8Array {
-    // TODO: need preSaveAsync
+  save(): Uint8Array {
+    // TODO: need this to be async
     throw new Error("Method not implemented.");
   }
 
-  protected loadPrimitive(saveData: Uint8Array): void {
+  load(saveData: Uint8Array | null): void {
     this.messagePort.postMessage({ type: "load", saveData });
   }
 

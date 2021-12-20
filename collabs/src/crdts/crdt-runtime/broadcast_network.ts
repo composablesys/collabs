@@ -14,10 +14,6 @@ export interface BroadcastNetwork {
    * Set by the using Runtime to receive messages.
    */
   onreceive: (message: Uint8Array) => void;
-  /**
-   * Set by the using Runtime to indicate its replicaId.
-   */
-  replicaId: string;
 
   // /**
   //  * TODO: opt: if true, you guarantee exactly-once causal

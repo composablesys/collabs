@@ -345,7 +345,7 @@ export abstract class SemidirectProductRev<
   private m2RetVal?: m2Ret;
   private messageValueSerializer: Serializer<SemidirectMessage<m1Args, m2Args>>;
 
-  private readonly runLocallyLayer: RunLocallyLayer;
+  protected readonly runLocallyLayer: RunLocallyLayer;
   private readonly internalCObject: PublicCObject;
 
   constructor(
@@ -522,11 +522,11 @@ export abstract class SemidirectProductRev<
    * be passed to loadSemidirectProductRev during this.load,
    * after loading the semidirect product state.
    */
-  saveSemidirectProductRev(): Uint8Array {
+  protected saveSemidirectProductRev(): Uint8Array {
     return new Uint8Array();
   }
 
-  loadSemidirectProductRev(saveData: Uint8Array | null) {}
+  protected loadSemidirectProductRev(saveData: Uint8Array | null) {}
 
   // TODO: the children loading their own states (both
   // of them, in arbitrary order) must correctly set

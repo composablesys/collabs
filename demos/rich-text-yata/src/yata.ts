@@ -1,4 +1,4 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { YataSave } from "../generated/proto_compiled";
 
 type YataOpArgs<T> = [
@@ -10,25 +10,25 @@ type YataOpArgs<T> = [
   Record<string, any>?
 ];
 
-export class YataOp<T> extends crdts.CObject {
+export class YataOp<T> extends collabs.CObject {
   readonly creatorId: string;
   // TODO: readonly (broken only by initial values)
   public originId: string;
   // TODO: leftId, rightId need saving
   public leftId: string;
   public rightId: string;
-  readonly _deleted: crdts.LwwCRegister<boolean>;
+  readonly _deleted: collabs.LwwCRegister<boolean>;
   readonly content: T;
   readonly pos: number;
-  readonly attributes: crdts.LwwCMap<string, any>;
+  readonly attributes: collabs.LwwCMap<string, any>;
   // Doesn't need saving because it is only used on the
   // deleting replica, and any loading replica will
   // necessarily not be the deleter.
   public locallyDeleted: boolean;
   public readonly originAttributesAtInput: Record<string, any>;
   public readonly attributesArg: [string, any][];
-  static readonly attributesMapCrdtName = "attributes";
-  static readonly deletedFlagCrdtName = "deleted";
+  static readonly attributesMapCollabName = "attributes";
+  static readonly deletedFlagCollabName = "deleted";
 
   sameFormatAsPrev(attrName: string) {
     return (
@@ -46,7 +46,7 @@ export class YataOp<T> extends crdts.CObject {
   }
 
   constructor(
-    initToken: crdts.CrdtInitToken,
+    initToken: collabs.InitToken,
     creatorId: string,
     originId: string,
     leftId: string,
@@ -62,22 +62,25 @@ export class YataOp<T> extends crdts.CObject {
     this.leftId = leftId;
     this.rightId = rightId;
     this._deleted = this.addChild(
-      YataOp.deletedFlagCrdtName,
-      crdts.Pre(crdts.LwwCRegister)<boolean>(false)
+      YataOp.deletedFlagCollabName,
+      collabs.Pre(collabs.LwwCRegister)<boolean>(false)
     );
     this.locallyDeleted = false;
     this.content = content;
     this.pos = pos;
     this.attributes = this.addChild(
-      YataOp.attributesMapCrdtName,
-      crdts.Pre(crdts.LwwCMap)(undefined, undefined)
+      YataOp.attributesMapCollabName,
+      collabs.Pre(collabs.LwwCMap)(undefined, undefined)
     );
     this.attributesArg = attributes;
     this.originAttributesAtInput = originAttributesAtInput;
   }
 
-  initAttributes() {
-    this.runtime.runLocally(() => {
+  initAttributes(
+    runLocallyLayer: collabs.RunLocallyLayer,
+    meta: collabs.MessageMeta
+  ) {
+    runLocallyLayer.runLocally(meta, () => {
       for (const [key, value] of this.attributesArg) {
         this.attributes.set(key, value);
       }
@@ -85,7 +88,7 @@ export class YataOp<T> extends crdts.CObject {
   }
 }
 
-interface YataEvent extends crdts.CrdtEvent {
+interface YataEvent extends collabs.CollabEvent {
   uid: string;
   idx: number;
 }
@@ -101,7 +104,7 @@ export interface YataFormatExistingEvent<T> extends YataEvent {
   value: any;
 }
 
-interface YataEventsRecord<T> extends crdts.CrdtEventsRecord {
+interface YataEventsRecord<T> extends collabs.CollabEventsRecord {
   Insert: YataInsertEvent<T>;
   Delete: YataDeleteEvent<T>;
   FormatExisting: YataFormatExistingEvent<T>;
@@ -118,23 +121,23 @@ type m2Args<T> = [
   attributeEntries?: Record<string, any>
 ];
 
-export class YataLinear<T> extends crdts.SemidirectProductRev<
+export class YataLinear<T> extends collabs.SemidirectProductRev<
   YataEventsRecord<T>,
-  crdts.Crdt,
+  collabs.Collab,
   m1Args,
   m2Args<T>
 > {
   private start: string = "";
   private end: string = "";
   readonly defaultContent: T;
-  public readonly opMap: crdts.DeletingMutCSet<YataOp<T>, YataOpArgs<T>>;
+  public readonly opMap: collabs.DeletingMutCSet<YataOp<T>, YataOpArgs<T>>;
   protected lastEventType?: string;
   protected lastEventSender?: string;
   protected lastEventTime?: number;
 
   deletedMessageEventHandler =
     (yata: YataLinear<T>, uid: string) =>
-    ({ meta }: crdts.CrdtEvent, caller: crdts.LwwCRegister<boolean>) => {
+    ({ meta }: collabs.CollabEvent, caller: collabs.LwwCRegister<boolean>) => {
       if (caller.value) {
         if (!yata.op(uid).locallyDeleted) {
           yata.emit("Delete", {
@@ -148,7 +151,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
 
   attributesSetEventHandler =
     (yata: YataLinear<T>, uid: string) =>
-    ({ key, meta }: crdts.CMapSetEvent<string, any>) => {
+    ({ key, meta }: collabs.CMapSetEvent<string, any>) => {
       if (!yata.op(uid).deleted) {
         yata.emit("FormatExisting", {
           uid,
@@ -162,13 +165,13 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
 
   opMapAddEventHandler =
     (yata: YataLinear<T>) =>
-    ({ value: newOp, meta }: crdts.CSetEvent<YataOp<T>>) => {
+    ({ value: newOp, meta }: collabs.CSetEvent<YataOp<T>>) => {
       // Link YataLinearOp list
       const uid = yata.opMap.idOf(newOp);
       yata.op(newOp.rightId).leftId = uid;
       yata.op(newOp.leftId).rightId = uid;
       // Copy initial attributes to the attributes map
-      newOp.initAttributes();
+      newOp.initAttributes(this.runLocallyLayer, meta);
       // Register event handler for YataOp.deleted "change" event
       newOp._deleted.on("Set", yata.deletedMessageEventHandler(yata, uid));
       // Register event handler for YataOp.attributes "set" event
@@ -184,7 +187,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     };
 
   constructor(
-    initToken: crdts.CrdtInitToken,
+    initToken: collabs.InitToken,
     defaultContent: T,
     initialContents: T[]
   ) {
@@ -212,7 +215,7 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
     const outerThis = this;
     this.opMap = this.addSemidirectChild(
       "nodeMap",
-      crdts.Pre(crdts.DeletingMutCSet)(
+      collabs.Pre(collabs.DeletingMutCSet)(
         (
           valueInitToken,
           replicaId,
@@ -365,12 +368,12 @@ export class YataLinear<T> extends crdts.SemidirectProductRev<
 
   protected action(
     m2TargetPath: string[],
-    m2Timestamp: crdts.CausalTimestamp | null,
-    m2Message: crdts.m2Start<m2Args<T>>, // User-defined
+    m2Timestamp: collabs.MessageMeta | null,
+    m2Message: collabs.m2Start<m2Args<T>>, // User-defined
     m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
-    m1Timestamp: crdts.CausalTimestamp,
-    m1Message: crdts.m1Start<m1Args> // User-defined
+    m1Timestamp: collabs.MessageMeta,
+    m1Message: collabs.m1Start<m1Args> // User-defined
   ) {
     // Conflict resolution function
     let newM1 = m1Message;

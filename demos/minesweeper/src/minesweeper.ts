@@ -1,8 +1,8 @@
-import * as crdts from "@collabs/collabs";
-import { ContainerRuntimeSource } from "@collabs/container";
+import * as collabs from "@collabs/collabs";
+import { ContainerAppSource } from "@collabs/container";
 import seedrandom from "seedrandom";
 
-// Minesweeper Crdt
+// Minesweeper Collab
 
 interface GameSettings {
   readonly width: number;
@@ -24,20 +24,20 @@ enum TileStatus {
   REVEALED_MINE,
 }
 
-class TileCrdt extends crdts.CObject {
-  private readonly revealed: crdts.TrueWinsCBoolean;
-  private readonly flag: crdts.LwwCRegister<FlagStatus>;
+class TileCollab extends collabs.CObject {
+  private readonly revealed: collabs.TrueWinsCBoolean;
+  private readonly flag: collabs.LwwCRegister<FlagStatus>;
   number: number = 0;
 
-  constructor(initToken: crdts.CrdtInitToken, readonly isMine: boolean) {
+  constructor(initToken: collabs.InitToken, readonly isMine: boolean) {
     super(initToken);
     this.revealed = this.addChild(
       "revealed",
-      crdts.Pre(crdts.TrueWinsCBoolean)()
+      collabs.Pre(collabs.TrueWinsCBoolean)()
     );
     this.flag = this.addChild(
       "flag",
-      crdts.Pre(crdts.LwwCRegister)<FlagStatus>(FlagStatus.NONE)
+      collabs.Pre(collabs.LwwCRegister)<FlagStatus>(FlagStatus.NONE)
     );
   }
 
@@ -90,11 +90,11 @@ enum GameStatus {
   LOST,
 }
 
-class MinesweeperCrdt extends crdts.CObject {
-  readonly tiles: TileCrdt[][];
+class MinesweeperCollab extends collabs.CObject {
+  readonly tiles: TileCollab[][];
 
   constructor(
-    initToken: crdts.CrdtInitToken,
+    initToken: collabs.InitToken,
     readonly width: number,
     readonly height: number,
     fractionMines: number,
@@ -109,15 +109,15 @@ class MinesweeperCrdt extends crdts.CObject {
     if (size > 1) fractionMines *= size / (size - 1);
     // Place mines and init tiles
     const rng = seedrandom(seed);
-    this.tiles = new Array<TileCrdt[]>(width);
+    this.tiles = new Array<TileCollab[]>(width);
     for (let x = 0; x < width; x++) {
-      this.tiles[x] = new Array<TileCrdt>(height);
+      this.tiles[x] = new Array<TileCollab>(height);
       for (let y = 0; y < height; y++) {
         const isMine =
           x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
           x + ":" + y,
-          crdts.Pre(TileCrdt)(isMine)
+          collabs.Pre(TileCollab)(isMine)
         );
       }
     }
@@ -256,8 +256,8 @@ class MinesweeperCrdt extends crdts.CObject {
         box.setAttribute("col", x.toString());
         box.className = "cell";
         box.id = "row_" + y.toString() + "_" + x.toString();
-        if (state instanceof MinesweeperCrdt) {
-          let game = state as MinesweeperCrdt;
+        if (state instanceof MinesweeperCollab) {
+          let game = state as MinesweeperCollab;
           let tile = game.tiles[x][y];
           box.addEventListener("click", (event) => {
             if (event.button === 0) game.leftClick(x, y);
@@ -343,8 +343,8 @@ class MinesweeperCrdt extends crdts.CObject {
       board.appendChild(row);
     }
 
-    if (state instanceof MinesweeperCrdt) {
-      let game = state as MinesweeperCrdt;
+    if (state instanceof MinesweeperCollab) {
+      let game = state as MinesweeperCollab;
       switch (game.winStatus()) {
         case GameStatus.WON:
           winText.innerHTML = "You won!";
@@ -386,24 +386,24 @@ class MinesweeperCrdt extends crdts.CObject {
     };
   }
 
-  const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
+  const runtime = await ContainerAppSource.newApp(window.parent);
 
-  const currentGame = runtime.registerCrdt(
+  const currentGame = runtime.registerCollab(
     "currentGame",
-    crdts.Pre(crdts.LwwMutCRegister)(
-      crdts.ConstructorAsFunction(MinesweeperCrdt)
+    collabs.Pre(collabs.LwwMutCRegister)(
+      collabs.ConstructorAsFunction(MinesweeperCollab)
     )
   );
-  const currentSettings = runtime.registerCrdt(
+  const currentSettings = runtime.registerCollab(
     "currentSettings",
-    crdts.Pre(crdts.LwwCRegister)(settingsFromInput())
+    collabs.Pre(collabs.LwwCRegister)(settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
-  const currentState = runtime.registerCrdt(
+  const currentState = runtime.registerCollab(
     "currentState",
     (initToken) =>
-      new crdts.LwwCRegister<MinesweeperCrdt | GameSettings>(
+      new collabs.LwwCRegister<MinesweeperCollab | GameSettings>(
         initToken,
         currentSettings.value
       )

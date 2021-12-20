@@ -1,4 +1,4 @@
-import { BatchingStrategy, BroadcastNetwork, Runtime } from "@collabs/collabs";
+import { BatchingStrategy, BroadcastNetwork, CRDTApp } from "@collabs/collabs";
 
 class ContainerNetwork implements BroadcastNetwork {
   constructor(private readonly messagePort: MessagePort) {}
@@ -27,7 +27,7 @@ class ContainerNetwork implements BroadcastNetwork {
 // (Is this possible with an IFrame, though?)
 // TODO: need to do this await before the parent receives onload.
 // Unless we add an extra message?
-export class ContainerRuntimeSource {
+export class ContainerAppSource {
   /**
    * Not instantiable.
    */
@@ -41,10 +41,10 @@ export class ContainerRuntimeSource {
    * @param  batchOptions [description]
    * @return              [description]
    */
-  static async newRuntime(
+  static async newApp(
     hostWindow: Window,
     batchingStrategy?: BatchingStrategy
-  ): Promise<Runtime> {
+  ): Promise<CRDTApp> {
     const messagePort = await new Promise<MessagePort>((resolve) => {
       window.addEventListener("message", (e) => {
         if (e.source !== hostWindow) return;
@@ -54,20 +54,23 @@ export class ContainerRuntimeSource {
       });
     });
     const network = new ContainerNetwork(messagePort);
-    const runtime = new Runtime(network, batchingStrategy);
+    const app = new CRDTApp(network, { batchingStrategy });
     messagePort.onmessage = (e) => {
       switch (e.data.type) {
         case "receive":
           network.onreceive(e.data.message);
           break;
         case "load":
-          runtime.load(e.data.saveData);
+          app.load(<Uint8Array | null>e.data.saveData);
           messagePort.postMessage({ type: "loadComplete" });
+          // TODO: let this side's user know that loading is
+          // complete, either by waiting to return from newApp
+          // until this happens, or using an event/promise.
           break;
         default:
           throw new Error("bad e.data.type: " + e.data.type);
       }
     };
-    return runtime;
+    return app;
   }
 }

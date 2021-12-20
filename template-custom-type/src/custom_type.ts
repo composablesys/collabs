@@ -1,7 +1,7 @@
 import {
   CObject,
-  CrdtEventsRecord,
-  CrdtInitToken,
+  CollabEventsRecord,
+  InitToken,
   CRegisterEvent,
   LwwCRegister,
   Pre,
@@ -10,7 +10,7 @@ import {
 // Since you're exporting your type for reuse, it's a good
 // idea to expose meaningful events.
 // See the Collabs docs (https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md) for advice on what events to include.
-export interface CPairEventsRecord<T, U> extends CrdtEventsRecord {
+export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
   FirstSet: CRegisterEvent<T>;
   SecondSet: CRegisterEvent<U>;
 }
@@ -26,17 +26,17 @@ export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
   private readonly firstReg: LwwCRegister<T>;
   private readonly secondReg: LwwCRegister<U>;
 
-  constructor(initToken: CrdtInitToken, firstInitial: T, secondInitial: U) {
+  constructor(initToken: InitToken, firstInitial: T, secondInitial: U) {
     super(initToken);
 
-    // Setup child Crdts.
+    // Setup child Collabs.
     this.firstReg = this.addChild("firstReg", Pre(LwwCRegister)(firstInitial));
     this.secondReg = this.addChild(
       "secondReg",
       Pre(LwwCRegister)(secondInitial)
     );
 
-    // Convert child Crdt events into our own.
+    // Convert child Collab events into our own.
     this.firstReg.on("Set", (e) => this.emit("FirstSet", e));
     this.secondReg.on("Set", (e) => this.emit("SecondSet", e));
   }
