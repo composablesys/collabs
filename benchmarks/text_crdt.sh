@@ -30,7 +30,7 @@ do
 done
 
 # automerge-perf
-names=("textCrdt")
+names=("text")
 
 for frequency in "whole"
 do

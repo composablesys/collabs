@@ -443,12 +443,12 @@ function deletingLww() {
   });
 }
 
-function textCollab() {
+function text() {
   let generator: collabs.TestingNetworkGenerator | null;
   let app: collabs.CRDTApp | null;
   let list: collabs.CText | null;
 
-  return new AutomergePerfBenchmark("TextCollab", {
+  return new AutomergePerfBenchmark("Text", {
     setup(rng) {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
@@ -864,8 +864,8 @@ export default async function automergePerf(args: string[]) {
     case "deletingLww":
       benchmark = deletingLww();
       break;
-    case "textCollab":
-      benchmark = textCollab();
+    case "text":
+      benchmark = text();
       break;
     case "mapLww":
       benchmark = mapLww();

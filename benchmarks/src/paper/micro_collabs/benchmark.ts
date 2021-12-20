@@ -315,7 +315,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
  * A trivial Collab that does nothing except send
  * empty messages.  Used for baseline measurements.
  */
-class NoopCollabClass extends collabs.CPrimitive {
+class NoopClass extends collabs.CPrimitive {
   noop() {
     super.sendPrimitive(new Uint8Array());
   }
@@ -333,39 +333,36 @@ class NoopCollabClass extends collabs.CPrimitive {
   }
 }
 
-function NoopCollab() {
+function Noop() {
   return new MicroCollabsBenchmark(
-    "NoopCollab",
-    (initToken) => new NoopCollabClass(initToken),
+    "Noop",
+    (initToken) => new NoopClass(initToken),
     { Noop: [(collab) => collab.noop(), 1] },
     () => null
   );
 }
 
-function DeepNoopCollab() {
-  class DeepNoopCollab extends collabs.CObject {
+function DeepNoop() {
+  class DeepNoop extends collabs.CObject {
     readonly child: collabs.Collab;
-    readonly noop: NoopCollabClass;
+    readonly noop: NoopClass;
     constructor(initToken: collabs.InitToken, index: number) {
       super(initToken);
       if (index === 0) {
-        this.child = this.addChild(
-          "child " + index,
-          collabs.Pre(NoopCollabClass)()
-        );
-        this.noop = this.child as NoopCollabClass;
+        this.child = this.addChild("child " + index, collabs.Pre(NoopClass)());
+        this.noop = this.child as NoopClass;
       } else {
         this.child = this.addChild(
           "child " + index,
-          collabs.Pre(DeepNoopCollab)(index - 1)
+          collabs.Pre(DeepNoop)(index - 1)
         );
-        this.noop = (this.child as DeepNoopCollab).noop;
+        this.noop = (this.child as DeepNoop).noop;
       }
     }
   }
   return new MicroCollabsBenchmark(
-    "DeepNoopCollab",
-    (initToken) => new DeepNoopCollab(initToken, 10 - 1),
+    "DeepNoop",
+    (initToken) => new DeepNoop(initToken, 10 - 1),
     { Noop: [(collab) => collab.noop.noop(), 1] },
     () => null
   );
@@ -408,9 +405,9 @@ function LwwCRegister() {
   );
 }
 
-function NumberCollab() {
+function NumberTest() {
   return new MicroCollabsBenchmark(
-    "NumberCollab",
+    "Number",
     (initToken) => new collabs.CNumber(initToken, 1),
     {
       Add: [(collab, rng) => collab.add(Math.floor(rng() * 100 - 50)), 0.5],
@@ -505,9 +502,9 @@ function AddWinsSetRollingGrow() {
   );
 }
 
-function MapCollab() {
+function MapTest() {
   return new MicroCollabsBenchmark(
-    "MapCollab",
+    "Map",
     (initToken) =>
       new collabs.MergingMutCMap<number, collabs.CCounter>(
         initToken,
@@ -542,10 +539,10 @@ function MapCollab() {
  * Useful for memory benchmarking.
  * Note each op is an add+delete, unlike AddWinsSet().
  */
-function MapCollabRolling() {
+function MapRolling() {
   let i = 0;
   return new MicroCollabsBenchmark(
-    "MapCollabRolling",
+    "MapRolling",
     (initToken) => {
       i = 0;
       return new collabs.MergingMutCMap<number, collabs.CCounter>(
@@ -566,16 +563,16 @@ function MapCollabRolling() {
       ],
     },
     (collab) => {
-      //console.log("MapCollabRolling total elements touched: " + i);
+      //console.log("MapRolling total elements touched: " + i);
       return new Map([...collab].map((value) => [value[0], value[1].value]));
     }
   );
 }
 
-function MapCollabRollingGrow() {
+function MapRollingGrow() {
   let i = 0;
   return new MicroCollabsBenchmark(
-    "MapCollabRollingGrow",
+    "MapRollingGrow",
     (initToken) => {
       i = 0;
       return new collabs.MergingMutCMap<number, collabs.CCounter>(
@@ -595,7 +592,7 @@ function MapCollabRollingGrow() {
       ],
     },
     (collab) => {
-      //console.log("MapCollabRolling total elements touched: " + i);
+      //console.log("MapRolling total elements touched: " + i);
       return new Map([...collab].map((value) => [value[0], value[1].value]));
     }
   );
@@ -773,11 +770,11 @@ function ITensor(
 export default async function microCollabs(args: string[]) {
   let benchmark: MicroCollabsBenchmark<any>;
   switch (args[0]) {
-    case "NoopCollab":
-      benchmark = NoopCollab();
+    case "Noop":
+      benchmark = Noop();
       break;
-    case "DeepNoopCollab":
-      benchmark = DeepNoopCollab();
+    case "DeepNoop":
+      benchmark = DeepNoop();
       break;
     case "Counter":
       benchmark = ICounter(args[0], collabs.CCounter, 0);
@@ -815,8 +812,8 @@ export default async function microCollabs(args: string[]) {
     case "Register":
       benchmark = LwwCRegister();
       break;
-    case "NumberCollab":
-      benchmark = NumberCollab();
+    case "Number":
+      benchmark = NumberTest();
       break;
     case "EnableWinsFlag":
       benchmark = EnableWinsFlag();
@@ -830,14 +827,14 @@ export default async function microCollabs(args: string[]) {
     case "AddWinsSetRollingGrow":
       benchmark = AddWinsSetRollingGrow();
       break;
-    case "MapCollab":
-      benchmark = MapCollab();
+    case "Map":
+      benchmark = MapTest();
       break;
-    case "MapCollabRolling":
-      benchmark = MapCollabRolling();
+    case "MapRolling":
+      benchmark = MapRolling();
       break;
-    case "MapCollabRollingGrow":
-      benchmark = MapCollabRollingGrow();
+    case "MapRollingGrow":
+      benchmark = MapRollingGrow();
       break;
     case "LwwMap":
       benchmark = LwwMap();
