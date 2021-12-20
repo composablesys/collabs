@@ -51,7 +51,7 @@ export class RgaLoc {
   }
 }
 
-// TODO: tombstone version?  (canGc false after any ops;
+// TODO: tombstone version?  (canGC false after any ops;
 // send last two ids instead of whole path).
 export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   private tree: RBTree<RgaLoc, T>;
@@ -152,7 +152,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     return this.tree.ge(loc).index;
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // TODO: will this work if there are dangling references
     // to RgaLocs?
     return this.length === 0;
@@ -295,7 +295,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     const [parent, uniqueNumberStart] = this.getNewLocsArgs(index, count);
     return this.expandNewLocArgs(
       parent,
-      this.runtime.replicaId,
+      this.runtime.replicaID,
       uniqueNumberStart,
       count,
       false
@@ -316,7 +316,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   /**
    * Returns arguments (namely, parent and uniqueNumberStart)
    * that, when passed to expandNewLocsArgs with the
-   * same value of count and with sender = this.runtime.replicaId,
+   * same value of count and with sender = this.runtime.replicaID,
    * yield count new locs at the given index.
    *
    * @param  index [description]
@@ -360,7 +360,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     let parent = origin;
     if (
       origin !== undefined &&
-      origin.sender === this.runtime.replicaId &&
+      origin.sender === this.runtime.replicaID &&
       Math.sign(origin.uniqueNumber) === sign
     ) {
       // Same sender and sign.

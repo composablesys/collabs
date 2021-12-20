@@ -85,7 +85,7 @@ interface BatchInfo {
  * of a transaction.
  *
  * TODO: for correct MessageMeta's (consistent between sender
- * and receiver), need to guarantee that parent.nextMessageMeta()
+ * and receiver), need to guarantee that next MessageMeta context
  * is consistent within batches. In practice, this requires
  * that no ancestors of this layer add non-constant
  * MessageMeta fields.
@@ -159,7 +159,7 @@ export class BatchingLayer
     }
     const meta = <MessageMeta>(
       this.getContext(MessageMeta.NEXT_MESSAGE_META)
-    ) ?? { sender: this.runtime.replicaId, isLocalEcho: true };
+    ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
     this.inChildReceive = true;
     try {
       // Need to copy messagePath since receive mutates it but
@@ -342,7 +342,7 @@ export class BatchingLayer
     return this.child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
-    return !this.isBatchPending() && this.child.canGc();
+  canGC(): boolean {
+    return !this.isBatchPending() && this.child.canGC();
   }
 }

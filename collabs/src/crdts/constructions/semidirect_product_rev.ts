@@ -35,7 +35,7 @@ export class StoredMessageEvent {
 
 // TODO: future opts: indexed messages; setting the history
 // to a subset; causal stability.
-// TODO: for this to work, replicaId's must be comparable according
+// TODO: for this to work, replicaID's must be comparable according
 // to the same-equals approach.  Typically, this requires them
 // to be primitive types, as objects which are equal-valued but have
 // different pointers will be considered different.
@@ -67,16 +67,16 @@ export class MessageHistory<Events extends CollabEventsRecord> {
   ) {}
   /**
    * Add message to the history with the given crdtMeta.
-   * replicaId is our replica id.
+   * replicaID is our replica id.
    */
   add(
-    replicaId: string,
+    replicaID: string,
     targetPath: string[],
     crdtMeta: CRDTMessageMeta,
     message: Uint8Array
   ): string {
     if (this.historyDiscard2Dominated) {
-      this.processTimestamp(replicaId, crdtMeta, false, true);
+      this.processTimestamp(replicaID, crdtMeta, false, true);
     }
     let senderHistory = this.history.get(crdtMeta.sender);
     if (senderHistory === undefined) {
@@ -104,13 +104,13 @@ export class MessageHistory<Events extends CollabEventsRecord> {
   /**
    * Return all messages in the history concurrent to the given
    * crdtMeta, in some causal order (specifically, this replica's
-   * receipt order).  If we are the sender (i.e., replicaId ===
+   * receipt order).  If we are the sender (i.e., replicaID ===
    * crdtMeta.sender), it is assumed that the crdtMeta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaId: string, crdtMeta: CRDTMessageMeta) {
+  getConcurrent(replicaID: string, crdtMeta: CRDTMessageMeta) {
     return this.processTimestamp(
-      replicaId,
+      replicaID,
       crdtMeta,
       true,
       this.historyDiscard1Dominated
@@ -130,12 +130,12 @@ export class MessageHistory<Events extends CollabEventsRecord> {
    * this method.)
    */
   private processTimestamp(
-    replicaId: string,
+    replicaID: string,
     crdtMeta: CRDTMessageMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (replicaId === crdtMeta.sender) {
+    if (replicaID === crdtMeta.sender) {
       if (discardDominated) {
         for (let historyEntry of this.history.entries()) {
           for (let message of historyEntry[1]) {
@@ -151,8 +151,8 @@ export class MessageHistory<Events extends CollabEventsRecord> {
       return [];
     }
     // Gather up the concurrent messages.  These are all
-    // messages by each replicaId with sender counter
-    // greater than crdtMeta.vectorClock.get(replicaId).
+    // messages by each replicaID with sender counter
+    // greater than crdtMeta.vectorClock.get(replicaID).
     let concurrent: Array<[string, StoredMessage]> = [];
     let vc = crdtMeta.vectorClock;
     for (let historyEntry of this.history.entries()) {
@@ -435,7 +435,7 @@ export abstract class SemidirectProductRev<
       switch (true) {
         case semidirectMessage.m === 1:
           let concurrent = this.history.getConcurrent(
-            this.runtime.replicaId,
+            this.runtime.replicaID,
             crdtMeta
           );
           let mAct = {
@@ -473,7 +473,7 @@ export abstract class SemidirectProductRev<
           return;
         case semidirectMessage.m === 2:
           this.m2Id = this.history.add(
-            this.runtime.replicaId,
+            this.runtime.replicaID,
             [], // TODO: not actually used/usable
             crdtMeta,
             message
@@ -504,13 +504,13 @@ export abstract class SemidirectProductRev<
     child.receive(messagePath, meta);
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // TODO: this may spuriously return false if one of the Collab's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Collab's so far
     // (e.g CNumber), it ends up working because they check canGC()
     // by asking the state if it is in its initial state.
-    return this.history.isHistoryEmpty() && super.canGc();
+    return this.history.isHistoryEmpty() && super.canGC();
   }
 
   protected saveObject(): Uint8Array {

@@ -284,10 +284,10 @@ export class MovableMutCListFromSet<
     return this.indexOf(searchElement, fromIndex) !== -1;
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // Even if the set is trivial, denseLocalList might
     // have tombstones, so we need to check for it here.
-    return super.canGc() && this.denseLocalList.canGc();
+    return super.canGC() && this.denseLocalList.canGC();
   }
 
   protected loadObject() {

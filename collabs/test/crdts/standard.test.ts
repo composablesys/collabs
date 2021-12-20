@@ -824,33 +824,6 @@ describe("standard", () => {
     });
   });
 
-  // TODO
-  // describe("CRDTAppCrdtGenerator", () => {
-  //   let aliceGen: CRDTAppCrdtGenerator<Number>;
-  //   let bobGen: CRDTAppCrdtGenerator<Number>;
-  //   let aliceCounter: Number;
-  //   let bobCounter: Number;
-  //
-  //   beforeEach(() => {
-  //     const generator = (parent: Crdt, id: string, _: Uint8Array) =>
-  //       new Number(parent, id);
-  //     aliceGen = new CRDTAppCrdtGenerator(alice, "gen", generator);
-  //     bobGen = new CRDTAppCrdtGenerator(bob, "gen", generator);
-  //     aliceCounter = aliceGen.generate(new Uint8Array());
-  //     bobGen.on("NewCrdt", (event) => (bobCounter = event.newCrdt));
-  //   });
-  //
-  //   describe("generate", () => {
-  //     it("generates CRDTs that work", () => {
-  //       aliceCounter.add(7);
-  //       appGen.releaseAll();
-  //       assert.strictEqual(aliceCounter.value, 7);
-  //       assert.isNotNull(bobCounter);
-  //       assert.strictEqual(bobCounter.value, 7);
-  //     });
-  //   });
-  // });
-
   describe("LwwCMap", () => {
     let aliceMap: LwwCMap<string, number>;
     let bobMap: LwwCMap<string, number>;
@@ -1141,12 +1114,12 @@ describe("standard", () => {
       );
     });
 
-    it("returns new Crdt", () => {
-      let newCrdt = aliceSource.add();
-      assert.strictEqual(newCrdt.value, 0);
+    it("returns new Collab", () => {
+      let newCollab = aliceSource.add();
+      assert.strictEqual(newCollab.value, 0);
     });
 
-    it("transfers new Crdt via register", () => {
+    it("transfers new Collab via register", () => {
       aliceRegister.value = aliceSource.add();
       aliceRegister.value.add(7);
       assert.strictEqual(aliceRegister.value.value, 7);

@@ -66,7 +66,7 @@ export class AddComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
@@ -113,7 +113,7 @@ export class MultComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
@@ -158,7 +158,7 @@ export class MinComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
@@ -203,7 +203,7 @@ export class MaxComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 

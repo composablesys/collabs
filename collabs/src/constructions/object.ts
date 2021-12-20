@@ -66,7 +66,7 @@ export class CObject<
    * children in their own instance variables,
    * not use this map to look them up.  This map
    * is exposed mainly as a convenience for methods that
-   * act on all children, in the style of [[canGc]].
+   * act on all children, in the style of [[canGC]].
    */
   protected readonly children: Map<string, C> = new Map();
 
@@ -228,11 +228,11 @@ export class CObject<
   }
 
   /**
-   * @return true if canGc() returns true on every child
+   * @return true if canGC() returns true on every child
    */
-  canGc(): boolean {
+  canGC(): boolean {
     for (const child of this.children.values()) {
-      if (!child.canGc()) return false;
+      if (!child.canGC()) return false;
     }
     return true;
   }

@@ -20,11 +20,11 @@ const DEBUG = false;
 class BasicVectorClock implements VectorClock {
   // TODO: opt: pre-convert Longs to ints, should be more efficient?
   constructor(
-    private readonly vcMap: { [replicaId: string]: number | Long.Long }
+    private readonly vcMap: { [replicaID: string]: number | Long.Long }
   ) {}
 
-  get(replicaId: string): number {
-    return int64AsNumber(this.vcMap[replicaId] ?? 0);
+  get(replicaID: string): number {
+    return int64AsNumber(this.vcMap[replicaID] ?? 0);
   }
 
   toString(): string {
@@ -41,7 +41,7 @@ class BasicVectorClock implements VectorClock {
 export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   private child!: Collab;
   /**
-   * Includes this.runtime.replicaId.
+   * Includes this.runtime.replicaID.
    */
   private currentVectorClock = new Map<string, number>();
   /**
@@ -77,7 +77,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   constructor(initToken: InitToken) {
     super(initToken);
 
-    this.currentVectorClock.set(this.runtime.replicaId, 0);
+    this.currentVectorClock.set(this.runtime.replicaID, 0);
   }
 
   setChild<C extends Collab>(preChild: Pre<C>): C {
@@ -90,7 +90,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
-      ) ?? { sender: this.runtime.replicaId, isLocalEcho: true };
+      ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
       this.createPendingMeta();
       meta[CRDTExtraMeta.MESSAGE_META_KEY] = this.pendingCRDTMeta!;
       return meta;
@@ -110,9 +110,9 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     if (this.pendingCRDTMeta === null) {
       // Create and cache this.pendingCRDTMeta.
       const vectorClockForMeta = Object.fromEntries(this.currentVectorClock);
-      vectorClockForMeta[this.runtime.replicaId]++;
+      vectorClockForMeta[this.runtime.replicaID]++;
       const crdtMeta = new CRDTExtraMeta(
-        vectorClockForMeta[this.runtime.replicaId],
+        vectorClockForMeta[this.runtime.replicaID],
         new BasicVectorClock(vectorClockForMeta),
         Date.now(),
         this.currentLamportTimestamp + 1
@@ -121,9 +121,9 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
       // Also cache this.pendingCRDTMetaSerialized.
       const vectorClockForMessage = Object.fromEntries(this.currentVectorClock);
-      delete vectorClockForMessage[this.runtime.replicaId];
+      delete vectorClockForMessage[this.runtime.replicaID];
       const metaMessage = CRDTExtraMetaLayerMessage.create({
-        senderCounter: vectorClockForMeta[this.runtime.replicaId],
+        senderCounter: vectorClockForMeta[this.runtime.replicaID],
         vectorClock: vectorClockForMessage,
         wallClockTime: crdtMeta.wallClockTime,
         lamportTimestamp: crdtMeta.lamportTimestamp,
@@ -334,10 +334,10 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       this.child.load(null);
     } else {
       const saveMessage = CRDTExtraMetaLayerSave.decode(saveData);
-      for (const [replicaId, entry] of Object.entries(
+      for (const [replicaID, entry] of Object.entries(
         saveMessage.vectorClock
       )) {
-        this.currentVectorClock.set(replicaId, int64AsNumber(entry));
+        this.currentVectorClock.set(replicaID, int64AsNumber(entry));
       }
       this.currentLamportTimestamp = int64AsNumber(
         saveMessage.lamportTimestamp
@@ -355,7 +355,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return this.child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // Vector clock state is never trivial after the
     // first message. Approximate as never trivial.
     return false;

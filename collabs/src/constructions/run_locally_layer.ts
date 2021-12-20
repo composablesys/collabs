@@ -86,7 +86,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return this.child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
-    return this.child.canGc();
+  canGC(): boolean {
+    return this.child.canGC();
   }
 }

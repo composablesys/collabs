@@ -4,7 +4,7 @@ export class ContainerHost extends CPrimitive {
   private readonly messagePort: MessagePort;
   /**
    * Resolves once the container is done loading.
-   * If this Crdt is never loaded, this will never resolve.
+   * If this Collab is never loaded, this will never resolve.
    *
    * Await this promise before allowing the user to interact
    * with the container's IFrame, if you plan to load saveData.
@@ -86,7 +86,7 @@ export class ContainerHost extends CPrimitive {
     this.messagePort.postMessage({ type: "load", saveData });
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     return false;
   }
 }

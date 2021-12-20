@@ -103,7 +103,7 @@ export class CRDTRuntime
     this.inRootReceive = true;
     try {
       this.rootCollab.receive([...messagePath], {
-        sender: this.replicaId,
+        sender: this.replicaID,
         isLocalEcho: true,
       });
     } finally {
@@ -114,7 +114,7 @@ export class CRDTRuntime
     // we know it's actually all Uint8Array's.
     const runtimeMessage = CRDTRuntimeMessage.create({
       messagePath: <Uint8Array[]>messagePath,
-      sender: this.replicaId,
+      sender: this.replicaID,
     });
     const serialized = CRDTRuntimeMessage.encode(runtimeMessage).finish();
 

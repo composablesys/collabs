@@ -164,7 +164,7 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    */
   getLocById(sender: string, uniqueNumber: number): L | undefined;
 
-  canGc(): boolean;
+  canGC(): boolean;
 
   /**
    * Save the locs only in a format suitable for saveData.

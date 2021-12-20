@@ -124,7 +124,7 @@ class TodoListBenchmark {
       console.log("Starting trial " + trial);
 
       this.rng = seedrandom(SEED);
-      const replicaIdRng = seedrandom(SEED + SEED);
+      const replicaIDRng = seedrandom(SEED + SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -136,7 +136,7 @@ class TodoListBenchmark {
       }
 
       // TODO: should we include setup in the time recording?
-      let list = this.testFactory.newTodoList(replicaIdRng);
+      let list = this.testFactory.newTodoList(replicaIDRng);
 
       switch (measurement) {
         case "time":
@@ -181,7 +181,7 @@ class TodoListBenchmark {
               this.testFactory.cleanup();
               await sleep(1000);
               const loadStartTime = process.hrtime.bigint();
-              list = this.testFactory.load(saveData, replicaIdRng);
+              list = this.testFactory.load(saveData, replicaIDRng);
               this.toObject(list, true); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
@@ -238,7 +238,7 @@ class TodoListBenchmark {
           this.testFactory.cleanup();
           await sleep(1000);
           const loadStartTime = process.hrtime.bigint();
-          list = this.testFactory.load(saveData, replicaIdRng);
+          list = this.testFactory.load(saveData, replicaIDRng);
           this.toObject(list, true); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!

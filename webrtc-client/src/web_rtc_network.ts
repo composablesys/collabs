@@ -61,7 +61,7 @@ class myMessage {
    * Parse serialized data back to myMessage.
    *
    * @param data serialized message
-   * @param myReplicaId the local use's replicaId
+   * @param myReplicaId the local use's replicaID
    * @returns a deserialized myMessage
    */
   static deserialize(data: Uint8Array, myReplicaId: string): myMessage {
@@ -245,7 +245,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     // TODO: Complete multiple users connection built.
     let index = 0;
     while (index < users.length) {
-      if (users[index] != this.runtime.replicaId) {
+      if (users[index] != this.runtime.replicaID) {
         this.userName = users[index];
         break;
       }
@@ -259,7 +259,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
         type: "offer",
         name: this.userName,
         offer: offer,
-        requestName: this.runtime.replicaId,
+        requestName: this.runtime.replicaID,
       });
       this.peerRtc.setLocalDescription(offer);
     });
@@ -331,7 +331,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     let parsed = JSON.parse(event.data) as { message: string };
     let myPackage = myMessage.deserialize(
       new Uint8Array(Buffer.from(parsed.message, "base64")),
-      this.runtime.replicaId
+      this.runtime.replicaID
     );
     this.messageBuffer.push([myPackage.message, myPackage.timestamp]);
     this.checkMessageBuffer();
@@ -355,7 +355,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    *
    */
   getReplicaId(): any {
-    return this.runtime.replicaId;
+    return this.runtime.replicaID;
   }
   /**
    * Register newly created crdt with its ID and corresponding message
@@ -375,10 +375,10 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
     this.runtime = runtime;
     this.onreceive = onreceive;
     // TODO: onreceiveblocked
-    this.vc = new VectorClock(this.runtime.replicaId, true, -1);
+    this.vc = new VectorClock(this.runtime.replicaID, true, -1);
     this.sendSignalingMessage({
       type: "register",
-      name: this.runtime.replicaId,
+      name: this.runtime.replicaID,
       crdtName: Runtime.name,
     });
 
@@ -523,7 +523,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
   }
 
   deserialize(message: Uint8Array, runtime: Runtime): CausalTimestamp {
-    return myMessage.deserialize(message, runtime.replicaId).timestamp;
+    return myMessage.deserialize(message, runtime.replicaID).timestamp;
   }
 
   save(): Uint8Array {

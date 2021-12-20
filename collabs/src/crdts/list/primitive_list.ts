@@ -326,8 +326,8 @@ export class PrimitiveCListFromDenseLocalList<
     } else return super.slice(start, end);
   }
 
-  canGc(): boolean {
-    return this.denseLocalList.canGc();
+  canGC(): boolean {
+    return this.denseLocalList.canGC();
   }
 
   save(): Uint8Array {

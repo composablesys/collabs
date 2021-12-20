@@ -64,7 +64,7 @@ export class GrowOnlyCCounter
 
     toAdd %= GrowOnlyCCounter.MODULUS;
 
-    const m = this.M.get(this.runtime.replicaId);
+    const m = this.M.get(this.runtime.replicaID);
     const idCounter =
       m === undefined ? this.runtime.getReplicaUniqueNumber() : m[2];
     const prOld = m === undefined ? 0 : m[0];
@@ -84,8 +84,8 @@ export class GrowOnlyCCounter
 
   reset() {
     const V: { [id: string]: IGrowOnlyCCounterResetEntry } = {};
-    for (let [replicaId, m] of this.M) {
-      V[replicaId] = { v: m[0], idCounter: m[2] };
+    for (let [replicaID, m] of this.M) {
+      V[replicaID] = { v: m[0], idCounter: m[2] };
     }
     const message = GrowOnlyCCounterMessage.create({
       reset: { V },
@@ -178,14 +178,14 @@ export class GrowOnlyCCounter
     return this.value.toString();
   }
 
-  canGc() {
+  canGC() {
     return this.M.size === 0;
   }
 
   save(): Uint8Array {
-    const mMessage: { [replicaId: string]: IGrowOnlyCCounterSaveEntry } = {};
-    for (const [replicaId, m] of this.M) {
-      mMessage[replicaId] = {
+    const mMessage: { [replicaID: string]: IGrowOnlyCCounterSaveEntry } = {};
+    for (const [replicaID, m] of this.M) {
+      mMessage[replicaID] = {
         p: m[0],
         n: m[1],
         idCounter: m[2],
@@ -198,8 +198,8 @@ export class GrowOnlyCCounter
   load(saveData: Uint8Array | null) {
     if (saveData === null) return;
     const message = GrowOnlyCCounterSave.decode(saveData);
-    for (const [replicaId, m] of Object.entries(message.M)) {
-      this.M.set(replicaId, [
+    for (const [replicaID, m] of Object.entries(message.M)) {
+      this.M.set(replicaID, [
         int64AsNumber(m.p),
         int64AsNumber(m.n),
         m.idCounter,

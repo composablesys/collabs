@@ -101,10 +101,10 @@ export class CListFromMap<
     return this.denseLocalList.length;
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // Even if the map is trivial, denseLocalList might
     // have tombstones, so we need to check for it here.
-    return super.canGc() && this.denseLocalList.canGc();
+    return super.canGC() && this.denseLocalList.canGC();
   }
 
   protected saveObject(): Uint8Array {

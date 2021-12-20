@@ -1,21 +1,21 @@
 /**
- * The default length of a replicaId, in characters.
+ * The default length of a replicaID, in characters.
  *
  * Rationale for value 11:
- * Each character of the replicaId gives us 7 bits of entropy,
+ * Each character of the replicaID gives us 7 bits of entropy,
  * for a total of 77 bits.  This gives a < 1%
  * probability that two replicas in the same conversation
- * will ever choose the same replicaId's, even if we
+ * will ever choose the same replicaID's, even if we
  * consider the total probability across 1 billion
- * conversations with 1 million replicaIds each
+ * conversations with 1 million replicaIDs each
  * (= 100 users * 1000 days * 10 replicas/user/day).
  */
 export const DEFAULT_REPLICA_ID_LENGTH = 11;
 
 /**
- * @return A random replicaId made of ASCII characters
+ * @return A random replicaID made of ASCII characters
  * (char codes 0--127, inclusive).
- * Such replicaId's can be safely treated as either
+ * Such replicaID's can be safely treated as either
  * byte arrays or UTF-8 strings.
  */
 export function randomReplicaId(

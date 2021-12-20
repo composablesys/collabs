@@ -43,7 +43,7 @@
  */
 export interface MessageMeta {
   /**
-   * The message sender's replicaId.
+   * The message sender's replicaID.
    */
   readonly sender: string;
   /**
@@ -52,7 +52,7 @@ export interface MessageMeta {
    *
    * For Collabs that process their own messages immediately
    * (CRDTs and other highly available data structures),
-   * this is equivalent to `this.sender === (relevant Runtime).replicaId`.
+   * this is equivalent to `this.sender === (relevant Runtime).replicaID`.
    * For data structures that wait to process messages until
    * later (e.g., when signalled by a server), each message
    * may be delivered twice: once as a local echo
@@ -76,7 +76,7 @@ export const MessageMeta = {
    * [[Collab.getContext]] key with value type [[MessageMeta]] that returns
    * the next [[MessageMeta]] for a locally echoed message, or
    * undefined if the next [[MessageMeta]] is just the default
-   * `{ sender: (local replicaId), isLocalEcho: true }`
+   * `{ sender: (local replicaID), isLocalEcho: true }`
    *
    * The next [[MessageMeta]] will be passed along with
    * the locally echoed message corresponding to the next

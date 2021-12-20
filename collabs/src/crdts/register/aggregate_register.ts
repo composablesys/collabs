@@ -67,7 +67,7 @@ export abstract class AggregateArgsCRegister<
 
   reset(): void {
     // Only reset if needed
-    if (!this.canGc()) {
+    if (!this.canGC()) {
       let message = AggregateArgsCRegisterMessage.create({
         reset: true,
       }); // no value
@@ -176,7 +176,7 @@ export abstract class AggregateArgsCRegister<
     return this.value + "";
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     return this.entries.length === 0;
   }
 

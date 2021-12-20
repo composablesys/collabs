@@ -1,4 +1,4 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { ContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
 import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
@@ -23,27 +23,27 @@ const networkType = urlParams.get("network")!;
 // console.log("networkType: " + networkType);
 
 // Setup Runtime.
-let network: crdts.BroadcastNetwork;
-let batchingStrategy: crdts.BatchingStrategy;
+let network: collabs.BroadcastNetwork;
+let batchingStrategy: collabs.BatchingStrategy;
 switch (networkType) {
   case "ws": {
     const wsAddr = location.origin.replace(/^http/, "ws");
     // TODO: shorter group name than containerUrl?
     network = new WebSocketNetwork(wsAddr, "");
-    batchingStrategy = new crdts.RateLimitBatchingStrategy(0);
+    batchingStrategy = new collabs.RateLimitBatchingStrategy(0);
     break;
   }
   case "matrix":
     network = new MatrixWidgetNetwork(
       "container-testing-server." + containerUrl
     );
-    batchingStrategy = new crdts.RateLimitBatchingStrategy(500);
+    batchingStrategy = new collabs.RateLimitBatchingStrategy(500);
     break;
   default:
     throw new Error('URL "network" GET parameter invalid: "${networkType}"');
 }
-const disconnectableNetwork = new crdts.DisconnectableNetwork(network);
-const app = new crdts.CRDTApp(disconnectableNetwork, { batchingStrategy });
+const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
+const app = new collabs.CRDTApp(disconnectableNetwork, { batchingStrategy });
 
 // Add the container in an IFrame.
 const iframe = document.createElement("iframe");
@@ -62,7 +62,7 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab("host", crdts.Pre(ContainerHost)(iframe));
+const host = app.registerCollab("host", collabs.Pre(ContainerHost)(iframe));
 
 // TODO: loading.  Make sure to block GUI until host says it's complete.
 

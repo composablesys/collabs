@@ -119,7 +119,7 @@ export class MutCSetFromMap<
 
   add(...args: AddArgs): C {
     return this.map.set([
-      this.runtime.replicaId,
+      this.runtime.replicaID,
       this.runtime.getReplicaUniqueNumber(),
       args,
     ]);

@@ -65,7 +65,7 @@ import Quill, { DeltaOperation } from "quill";
         if (op.insert) {
           for (let i = 0; i < op.insert.length; i++) {
             clientText.insertByIdx(
-              app.runtime.replicaId,
+              app.runtime.replicaID,
               op.idx + i,
               op.insert[i],
               op.attributes

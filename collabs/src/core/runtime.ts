@@ -27,16 +27,16 @@ export interface Runtime<
    * Type guard, used by [[isRuntime]].
    */
   readonly isRuntime: true;
-  readonly replicaId: string;
+  readonly replicaID: string;
 
   /**
    * @param count = 1 When set, treat this as count calls,
    * each claiming one number in sequence. Thus all numbers
    * in the range [returned number, returned number + count)
-   * will only be associated with this runtime's [[replicaId]]
+   * will only be associated with this runtime's [[replicaID]]
    * once.
    * @return A unique number that will only be
-   * associated with this Runtime's [[replicaId]]
+   * associated with this Runtime's [[replicaID]]
    * once.
    */
   getReplicaUniqueNumber(count?: number): number;
@@ -78,7 +78,7 @@ export interface Runtime<
    * Should be implied, but could point out explicitly,
    * since it could break things in weird ways.
    * Can likewise guarantee to Collabs. Also, don't consult
-   * nextMessageMeta() during loading/saving?
+   * next MessageMeta during loading/saving?
    * (More generally: decouple these things.)
    * @return [description]
    */

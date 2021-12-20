@@ -26,7 +26,7 @@ import { AbstractCMapCollab } from "../../data_types";
  * For the
  * purpose of the iterators and has, a key is considered
  * to be present in the map if its value is nontrivial,
- * specifically, if value.canGc() returns false.
+ * specifically, if value.canGC() returns false.
  * Note that this implies that a just-added key may
  * not be present in the map.  This unusual semantics
  * is necessary because the map does not necessarily
@@ -150,7 +150,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
 
       // If the value became GC-able, move it to the
       // backup map
-      if (nontrivialStart && value.canGc()) {
+      if (nontrivialStart && value.canGC()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
         this.emit("Delete", {
@@ -161,7 +161,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
       }
       // If the value became nontrivial, move it to the
       // main map
-      else if (!nontrivialStart && !value.canGc()) {
+      else if (!nontrivialStart && !value.canGC()) {
         this.trivialMap.delete(keyString);
         this.nontrivialMap.set(keyString, value);
         this.emit("Set", {
@@ -222,8 +222,8 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     if (this.inReceiveKeyStr === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
-      // Instead, use canGc directly.
-      if (!this.inReceiveValue!.canGc()) {
+      // Instead, use canGC directly.
+      if (!this.inReceiveValue!.canGC()) {
         return this.inReceiveValue!;
       } else return undefined;
     }
@@ -235,13 +235,13 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     if (this.inReceiveKeyStr === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
-      // Instead, use canGc directly.
-      return !this.inReceiveValue!.canGc();
+      // Instead, use canGC directly.
+      return !this.inReceiveValue!.canGC();
     } else return this.nontrivialMap.has(str);
   }
 
   hasValue(value: C): boolean {
-    return this.owns(value) && !value.canGc();
+    return this.owns(value) && !value.canGC();
   }
 
   /**
@@ -335,7 +335,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     return child.getDescendant(namePath);
   }
 
-  canGc() {
+  canGC() {
     /*
      * We don't need to check here that the backup
      * map is nonempty (which would be expensive):
@@ -358,7 +358,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
  * For the
  * purpose of the iterators and has, a key is considered
  * to be present in the map if its value is nontrivial,
- * specifically, if value.canGc() returns false.
+ * specifically, if value.canGC() returns false.
  * Note that this implies that a just-added key may
  * not be present in the map.  This unusual semantics
  * is necessary because the map does not necessarily

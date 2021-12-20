@@ -16,7 +16,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
    */
   protected rootCollab!: Collab;
 
-  constructor(readonly replicaId: string) {
+  constructor(readonly replicaID: string) {
     super();
   }
 
@@ -43,7 +43,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
 
   getUniqueString(): string {
     // TODO: shorten?  (base64 instead of base10)
-    return this.getReplicaUniqueNumber() + " " + this.replicaId;
+    return this.getReplicaUniqueNumber() + " " + this.replicaID;
   }
 
   getNamePath(descendant: Collab): string[] {

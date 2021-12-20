@@ -92,7 +92,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
       console.log("Starting trial " + trial);
 
       let rng = seedrandom(SEED);
-      const replicaIdRng = seedrandom(SEED + SEED);
+      const replicaIDRng = seedrandom(SEED + SEED);
 
       let startTime: bigint;
       let startSentBytes = 0;
@@ -106,7 +106,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
       for (let i = 0; i < USERS; i++) {
         apps[i] = generator.newApp(
           new collabs.ManualBatchingStrategy(),
-          replicaIdRng
+          replicaIDRng
         );
         collabList[i] = apps[i].registerCollab("", this.collabConstructor);
       }
@@ -166,7 +166,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
               const loadStartTime = process.hrtime.bigint();
               apps[0] = generator.newApp(
                 new collabs.ManualBatchingStrategy(),
-                replicaIdRng
+                replicaIDRng
               );
               collabList[0] = apps[0].registerCollab(
                 "",
@@ -244,7 +244,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
           const loadStartTime = process.hrtime.bigint();
           apps[0] = generator.newApp(
             new collabs.ManualBatchingStrategy(),
-            replicaIdRng
+            replicaIDRng
           );
           collabList[0] = apps[0].registerCollab("", this.collabConstructor);
           apps[0].load(saveData);
@@ -328,7 +328,7 @@ class NoopClass extends collabs.CPrimitive {
 
   load() {}
 
-  canGc() {
+  canGC() {
     return true;
   }
 }

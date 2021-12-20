@@ -39,7 +39,7 @@ class FakeDeletedCollab extends Collab {
       "Collab has been deleted from DeletingMutCSet and is frozen"
     );
   }
-  canGc(): boolean {
+  canGC(): boolean {
     throw new Error(
       "Collab has been deleted from DeletingMutCSet and is frozen"
     );
@@ -86,7 +86,7 @@ class FakeDeletedCollab extends Collab {
  *
  * Warning: in given constructor/its init function,
  * be careful not to use replica-specific info
- * (replicaId, runtime.getReplicaUniqueNumber()) -
+ * (replicaID, runtime.getReplicaUniqueNumber()) -
  * it won't be consistent on different replicas.
  * If you need these, you must pass them yourself as
  * constructor args.  Likewise, if you are passed in a
@@ -486,16 +486,16 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     return child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // To be in the initial state:
     // 1. All values except the initial ones must be deleted.
     // Such values are except those referenced by constructorArgs.
     if (this.constructorArgs.size === 0) {
       // 2. All initial values must still be present.
       if (this.size === this.initialValuesCount) {
-        // 3. All initial values must canGc().
+        // 3. All initial values must canGC().
         for (const value of this.values()) {
-          if (!value.canGc()) return false;
+          if (!value.canGC()) return false;
         }
         return true;
       }

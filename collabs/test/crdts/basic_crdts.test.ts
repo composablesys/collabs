@@ -222,8 +222,8 @@ describe("basic_crdts", () => {
         aliceCounter.reset();
         appGen.releaseAll();
 
-        assert.isTrue(aliceCounter.canGc());
-        assert.isTrue(bobCounter.canGc());
+        assert.isTrue(aliceCounter.canGC());
+        assert.isTrue(bobCounter.canGC());
       });
 
       it("does not allow garbage collection when not reset", () => {
@@ -234,8 +234,8 @@ describe("basic_crdts", () => {
         bobCounter.add(-2);
         appGen.releaseAll();
 
-        assert.isFalse(aliceCounter.canGc());
-        assert.isFalse(bobCounter.canGc());
+        assert.isFalse(aliceCounter.canGC());
+        assert.isFalse(bobCounter.canGC());
       });
 
       it.skip("works with recreating gc'd Counter", () => {

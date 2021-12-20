@@ -121,7 +121,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (this.runtime.replicaId === crdtMeta.sender) {
+    if (this.runtime.replicaID === crdtMeta.sender) {
       if (discardDominated) {
         // Nothing's concurrent, so clear everything
         this.history.clear();
@@ -129,8 +129,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
       return [];
     }
     // Gather up the concurrent messages.  These are all
-    // messages by each replicaId with sender counter
-    // greater than crdtMeta.vectorClock.get(replicaId).
+    // messages by each replicaID with sender counter
+    // greater than crdtMeta.vectorClock.get(replicaID).
     const concurrent: StoredMessage<M2>[] = [];
     const vc = crdtMeta.vectorClock;
     for (const historyEntry of this.history.entries()) {
@@ -179,8 +179,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return 0;
   }
 
-  canGc(): boolean {
-    // canGc() iff the history is empty.
+  canGC(): boolean {
+    // canGC() iff the history is empty.
     for (const value of this.history.values()) {
       if (value.length !== 0) return false;
     }

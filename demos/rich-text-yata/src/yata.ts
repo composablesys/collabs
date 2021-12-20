@@ -113,7 +113,7 @@ interface YataEventsRecord<T> extends collabs.CollabEventsRecord {
 type m1Args = [ids: string[], attributes: Record<string, any>];
 type m2Args<T> = [
   uniqueNumber: number,
-  replicaId: string,
+  replicaID: string,
   leftIntent: string,
   rightIntent: string,
   content: T,
@@ -218,7 +218,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
       collabs.Pre(collabs.DeletingMutCSet)(
         (
           valueInitToken,
-          replicaId,
+          replicaID,
           leftIntent,
           rightIntent,
           content,
@@ -278,7 +278,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
               const o_origin = this.op(o.originId);
               if (
                 (o.pos < i_origin.pos || i_origin.pos <= o_origin.pos) &&
-                (o.originId !== originId || o.creatorId < replicaId)
+                (o.originId !== originId || o.creatorId < replicaID)
               ) {
                 leftId = o_id;
               } else {
@@ -303,7 +303,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
             }
             return new YataOp<T>(
               valueInitToken,
-              replicaId,
+              replicaID,
               originId,
               leftId,
               rightId,
@@ -394,7 +394,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   }
 
   private insert(
-    replicaId: string,
+    replicaID: string,
     leftIntent: string,
     rightIntent: string,
     content: T,
@@ -403,7 +403,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   ): void {
     this.m2(
       this.runtime.getReplicaUniqueNumber(),
-      replicaId,
+      replicaID,
       leftIntent,
       rightIntent,
       content,
@@ -487,7 +487,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   }
 
   insertByIdx(
-    replicaId: string,
+    replicaID: string,
     idx: number,
     content: T,
     attributeObj?: Record<string, any>
@@ -496,7 +496,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     console.log("idx:", idx);
     console.log("idLeftOfCursor:", idLeftOfCursor);
     this.insert(
-      replicaId,
+      replicaID,
       idLeftOfCursor,
       this.op(idLeftOfCursor).rightId,
       content,

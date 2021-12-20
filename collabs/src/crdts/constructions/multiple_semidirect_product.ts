@@ -73,7 +73,7 @@ class MultipleSemidirectState<S extends object> {
 
   /**
    * Add message to the history with the given meta.
-   * replicaId is our replica id.
+   * replicaID is our replica id.
    */
   add(
     messagePath: (Uint8Array | string)[],
@@ -101,12 +101,12 @@ class MultipleSemidirectState<S extends object> {
   /**
    * Return all messages in the history concurrent to the given
    * meta, in some causal order (specifically, this replica's
-   * receipt order).  If we are the sender (i.e., replicaId ===
+   * receipt order).  If we are the sender (i.e., replicaID ===
    * meta.sender), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaId: string, meta: CRDTMessageMeta, arbId: number) {
-    return this.processMeta(replicaId, meta, true, arbId);
+  getConcurrent(replicaID: string, meta: CRDTMessageMeta, arbId: number) {
+    return this.processMeta(replicaID, meta, true, arbId);
   }
 
   /**
@@ -122,17 +122,17 @@ class MultipleSemidirectState<S extends object> {
    * this method.)
    */
   private processMeta(
-    replicaId: string,
+    replicaID: string,
     meta: CRDTMessageMeta,
     returnConcurrent: boolean,
     arbId: number
   ) {
-    if (replicaId === meta.sender) {
+    if (replicaID === meta.sender) {
       return [];
     }
     // Gather up the concurrent messages.  These are all
-    // messages by each replicaId with sender counter
-    // greater than meta.vectorClock.get(replicaId).
+    // messages by each replicaID with sender counter
+    // greater than meta.vectorClock.get(replicaID).
     let concurrent: Array<StoredMessage> = [];
     let vc = meta.vectorClock;
     for (let historyEntry of this.history.entries()) {
@@ -388,7 +388,7 @@ export abstract class MultipleSemidirectProduct<
       // Be acted on by all concurrent messages with greater
       // arbitration index (idx).
       let concurrent = this.state.getConcurrent(
-        this.runtime.replicaId,
+        this.runtime.replicaID,
         crdtMeta,
         idx
       );
@@ -515,7 +515,7 @@ export abstract class MultipleSemidirectProduct<
     }
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // TODO: this may spuriously return false if one of the Collab's is not
     // in its initial state only because we overwrote that state with
     // the semidirect initial state.  Although, for our Collab's so far
@@ -523,7 +523,7 @@ export abstract class MultipleSemidirectProduct<
     // by asking the state if it is in its initial state.
     let crdtsCanGc = true;
     this.crdts.forEach((crdt) => {
-      crdtsCanGc = crdtsCanGc && crdt.canGc();
+      crdtsCanGc = crdtsCanGc && crdt.canGC();
     });
 
     return this.state.isHistoryEmpty() && crdtsCanGc;
