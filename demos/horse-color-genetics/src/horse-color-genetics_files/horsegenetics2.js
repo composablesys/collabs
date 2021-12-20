@@ -1920,13 +1920,13 @@ let alleles = {};
 
 // Async so we can await ContainerAppSource.newApp.
 async function crdtSetup() {
-  const runtime = await ContainerAppSource.newApp(window.parent);
+  const app = await ContainerAppSource.newApp(window.parent);
 
   for (const gene of GENES) {
     for (const num of [1, 2]) {
       const alleleName = gene + num;
       const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
-      alleles[alleleName] = runtime.registerCollab(
+      alleles[alleleName] = app.registerCollab(
         alleleName,
         collabs.Pre(collabs.LwwCRegister)(defaultValue)
       );
@@ -1939,7 +1939,7 @@ async function crdtSetup() {
     }
   }
 
-  runtime.on("Change", evaluateGenetics);
+  app.on("Change", evaluateGenetics);
 }
 
 function imageSrc(filename) {
