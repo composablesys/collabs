@@ -1,8 +1,5 @@
 import { DefaultSerializer, PairSerializer, Serializer } from "../../util";
 import { Collab, InitToken, isRuntime, Pre } from "../../core";
-import { DenseLocalList } from "./dense_local_list";
-import { CObject } from "../../constructions";
-import { LocatableCList } from "./cursor";
 import {
   AbstractCListCObject,
   CRegister,
@@ -10,6 +7,9 @@ import {
   MovableCList,
   MovableCListEventsRecord,
 } from "../../data_types";
+import { CObject } from "../../constructions";
+import { DenseLocalList } from "./dense_local_list";
+import { LocatableCList } from "./cursor";
 
 export class MovableMutCListEntry<
   C extends Collab,
@@ -40,7 +40,7 @@ export class MovableMutCListEntry<
 
 export class MovableMutCListFromSet<
     C extends Collab,
-    InsertArgs extends any[],
+    InsertArgs extends unknown[],
     L,
     RegT extends CRegister<L>,
     SetT extends CSet<MovableMutCListEntry<C, L, RegT>, [L, InsertArgs]>,
@@ -191,7 +191,7 @@ export class MovableMutCListFromSet<
    */
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
-      throw new Error("invalid count: " + count);
+      throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
     const toDelete = new Array<MovableMutCListEntry<C, L, RegT>>(count);

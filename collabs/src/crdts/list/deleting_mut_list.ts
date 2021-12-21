@@ -13,7 +13,7 @@ import {
 } from "./movable_mut_list_from_set";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
-export class DeletingMutCList<C extends Collab, InsertArgs extends any[]>
+export class DeletingMutCList<C extends Collab, InsertArgs extends unknown[]>
   extends MovableMutCListFromSet<
     C,
     InsertArgs,

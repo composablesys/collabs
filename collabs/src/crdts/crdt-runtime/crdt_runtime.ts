@@ -88,7 +88,7 @@ export class CRDTRuntime
     messagePath: (Uint8Array | string)[]
   ): void {
     if (child !== this.rootCollab) {
-      throw new Error("childSend called by non-root: " + child);
+      throw new Error(`childSend called by non-root: ${child}`);
     }
 
     // Local echo with only mandatory MessageMeta.
@@ -151,7 +151,7 @@ export class CRDTRuntime
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 

@@ -35,8 +35,8 @@ export class TestingNetwork implements BroadcastNetwork {
 
   send(message: Uint8Array): void {
     this.sentBytes += message.byteLength;
-    let queueMap = this.generator.messageQueues.get(this)!;
-    for (let queue of queueMap.values()) {
+    const queueMap = this.generator.messageQueues.get(this)!;
+    for (const queue of queueMap.values()) {
       queue.push(message);
     }
     this.generator.lastMessage = message;
@@ -50,7 +50,9 @@ export class TestingNetwork implements BroadcastNetwork {
   /**
    * Not implemented (no-op).
    */
-  load() {}
+  load() {
+    // Not implemented.
+  }
 }
 
 // Copied from Runtime (TODO: use directly to
@@ -58,13 +60,13 @@ export class TestingNetwork implements BroadcastNetwork {
 const REPLICA_ID_LENGTH = 11;
 const REPLICA_ID_CHARS = allAscii();
 function allAscii() {
-  let arr = new Array<number>(128);
+  const arr = new Array<number>(128);
   for (let i = 0; i < 128; i++) arr[i] = i;
   return String.fromCharCode(...arr);
 }
 
 function pseudorandomReplicaId(rng: seedrandom.prng) {
-  let chars = new Array<string>(REPLICA_ID_LENGTH);
+  const chars = new Array<string>(REPLICA_ID_LENGTH);
   for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
     chars[i] = REPLICA_ID_CHARS[Math.floor(rng() * REPLICA_ID_CHARS.length)];
   }
@@ -87,7 +89,7 @@ export class TestingNetworkGenerator {
     batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
     rng: seedrandom.prng | undefined = undefined
   ) {
-    let debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
+    const debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
     return new CRDTApp(this.newNetwork(), {
       batchingStrategy,
       debugReplicaId,
@@ -95,9 +97,9 @@ export class TestingNetworkGenerator {
   }
 
   newNetwork() {
-    let network = new TestingNetwork(this);
-    let newQueue = new Map<TestingNetwork, Array<any>>();
-    for (let oldEntry of this.messageQueues.entries()) {
+    const network = new TestingNetwork(this);
+    const newQueue = new Map<TestingNetwork, Uint8Array[]>();
+    for (const oldEntry of this.messageQueues.entries()) {
       newQueue.set(oldEntry[0], []);
       oldEntry[1].set(network, []);
     }
@@ -117,36 +119,37 @@ export class TestingNetworkGenerator {
    * of sending will receive a message.
    */
   release(senderApp: CRDTApp, ...recipientApps: CRDTApp[]) {
-    let sender = this.getTestingNetwork(senderApp);
-    let recipients = recipientApps.map((app) => this.getTestingNetwork(app));
+    const sender = this.getTestingNetwork(senderApp);
+    const recipients = recipientApps.map((app) => this.getTestingNetwork(app));
     this.releaseByNetwork(sender, ...recipients);
   }
 
   releaseByNetwork(sender: TestingNetwork, ...recipients: TestingNetwork[]) {
     if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
-    let senderMap = this.messageQueues.get(sender)!;
-    for (let recipient of recipients) {
+    const senderMap = this.messageQueues.get(sender)!;
+    for (const recipient of recipients) {
       if (recipient === sender) continue;
-      for (let queued of senderMap.get(recipient)!) {
+      for (const queued of senderMap.get(recipient)!) {
         // TODO: count senderCounter towards totals.
         recipient.receivedBytes += queued.byteLength;
-        recipient.onreceive!(queued);
+        recipient.onreceive(queued);
       }
       senderMap.set(recipient, []);
     }
   }
 
   releaseAll() {
-    for (let sender of this.messageQueues.keys()) this.releaseByNetwork(sender);
+    for (const sender of this.messageQueues.keys())
+      this.releaseByNetwork(sender);
   }
 
   getTestingNetwork(app: CRDTApp): TestingNetwork {
-    return <TestingNetwork>(<CRDTApp>app).runtime.network;
+    return <TestingNetwork>app.runtime.network;
   }
 
   getTotalSentBytes() {
     let ret = 0;
-    for (let sender of this.messageQueues.keys()) ret += sender.sentBytes;
+    for (const sender of this.messageQueues.keys()) ret += sender.sentBytes;
     return ret;
   }
 

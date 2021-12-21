@@ -91,7 +91,7 @@ export class CObject<
 
   childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
     if (child.parent !== this) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
@@ -103,7 +103,7 @@ export class CObject<
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
@@ -121,12 +121,11 @@ export class CObject<
     );
     if (child === undefined) {
       throw new Error(
-        "Unknown child: " +
-          messagePath[messagePath.length - 1] +
-          " in: " +
-          JSON.stringify(messagePath) +
-          ", children: " +
-          JSON.stringify([...this.children.keys()])
+        `Unknown child: ${
+          messagePath[messagePath.length - 1]
+        } in: ${JSON.stringify(messagePath)}, children: ${JSON.stringify([
+          ...this.children.keys(),
+        ])}`
       );
     }
     messagePath.length--;
@@ -184,8 +183,8 @@ export class CObject<
         this.children.get(name)!.load(childSave);
       }
       this.pendingChildSaves = null;
-      if (saveMessage.hasOwnProperty("objectSave")) {
-        this.loadObject(saveMessage.objectSave!);
+      if (Object.prototype.hasOwnProperty.call(saveMessage, "objectSave")) {
+        this.loadObject(saveMessage.objectSave);
       } else {
         this.loadObject(null);
       }
@@ -200,7 +199,10 @@ export class CObject<
    * @param  saveData the output of saveObject() on
    * a previous saved instance
    */
-  protected loadObject(saveData: Uint8Array | null): void {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected loadObject(saveData: Uint8Array | null): void {
+    // Does nothing by default.
+  }
 
   getDescendant(namePath: string[]): Collab {
     if (namePath.length === 0) return this;

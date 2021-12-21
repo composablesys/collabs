@@ -8,8 +8,8 @@ import {
 import { Collab, InitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
-import { LwwCMap } from "./lww_map";
 import { AbstractCMapCObject } from "../../data_types";
+import { LwwCMap } from "./lww_map";
 
 /**
  * Warning: tombstones.  Benefit is that you can
@@ -18,7 +18,7 @@ import { AbstractCMapCObject } from "../../data_types";
 export class TombstoneMutCMap<
   K,
   C extends Collab,
-  SetArgs extends any[]
+  SetArgs extends unknown[]
 > extends AbstractCMapCObject<K, C, SetArgs> {
   private readonly valueSet: DeletingMutCSet<C, [K, SetArgs]>;
   private readonly map: LwwCMap<K, C>;

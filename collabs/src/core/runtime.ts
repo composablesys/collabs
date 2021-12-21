@@ -86,7 +86,7 @@ export interface Runtime<
   load(saveData: Uint8Array | null): void;
 }
 
-export function isRuntime(x: any): x is Runtime {
+export function isRuntime(x: unknown): x is Runtime {
   if (typeof x === "object") {
     if ((x as Runtime).isRuntime === true) {
       return true;

@@ -8,22 +8,22 @@ import {
 } from "../../../generated/proto_compiled";
 import { DefaultSerializer, Serializer } from "../../util";
 import { InitToken } from "../../core";
-import { DenseLocalList } from "./dense_local_list";
 import { Resettable } from "../abilities";
-import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
-import { LocatableCList } from "./cursor";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 import {
   AbstractCList,
   CListEventsRecord,
   MakeAbstractCList,
 } from "../../data_types";
+import { DenseLocalList } from "./dense_local_list";
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
+import { LocatableCList } from "./cursor";
 
 const AbstractCListPrimitiveCRDT = MakeAbstractCList(
   PrimitiveCRDT
 ) as abstract new <
   T,
-  InsertArgs extends any[],
+  InsertArgs extends unknown[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
   initToken: InitToken
@@ -136,7 +136,7 @@ export class PrimitiveCListFromDenseLocalList<
    */
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
-      throw new Error("invalid count: " + count);
+      throw new Error(`invalid count: ${count}`);
     }
     if (count === 0) return;
     if (count === 1) {
@@ -180,7 +180,7 @@ export class PrimitiveCListFromDenseLocalList<
   ): void {
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
-      case "insert":
+      case "insert": {
         const insert = PrimitiveCListInsertMessage.create(decoded.insert!);
         let values: T[];
         switch (insert.type) {
@@ -196,7 +196,7 @@ export class PrimitiveCListFromDenseLocalList<
             );
             break;
           default:
-            throw new Error("Unrecognized insert.type: " + insert.type);
+            throw new Error(`Unrecognized insert.type: ${insert.type}`);
         }
         const [index, locs] = this.denseLocalList.receiveNewLocs(
           insert.locMessage,
@@ -214,6 +214,7 @@ export class PrimitiveCListFromDenseLocalList<
           meta,
         });
         break;
+      }
       case "delete": {
         // Single delete, using id.
         const toDelete = this.denseLocalList.getLocById(
@@ -244,13 +245,19 @@ export class PrimitiveCListFromDenseLocalList<
         // method to remove elements without doing an
         // extra O(log n) remove each (which is most of
         // the current cost).
-        const startIndex = decoded.deleteRange!.hasOwnProperty("startLoc")
+        const startIndex = Object.prototype.hasOwnProperty.call(
+          decoded.deleteRange!,
+          "startLoc"
+        )
           ? this.denseLocalList.rightIndex(
               this.denseLocalList.deserialize(decoded.deleteRange!.startLoc!)
             )
           : 0;
         // TODO: leftIndex name is improper
-        const endIndex = decoded.deleteRange!.hasOwnProperty("endLoc")
+        const endIndex = Object.prototype.hasOwnProperty.call(
+          decoded.deleteRange!,
+          "endLoc"
+        )
           ? this.denseLocalList.leftIndex(
               this.denseLocalList.deserialize(decoded.deleteRange!.endLoc!)
             ) - 1
@@ -291,7 +298,7 @@ export class PrimitiveCListFromDenseLocalList<
         break;
       }
       default:
-        throw new Error("Unrecognized decoded.op: " + decoded.op);
+        throw new Error(`Unrecognized decoded.op: ${decoded.op}`);
     }
   }
 

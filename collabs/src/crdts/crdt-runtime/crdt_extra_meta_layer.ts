@@ -51,7 +51,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * @param  newInitToken("",this [description]
    * @return                      [description]
    */
-  private currentLamportTimestamp: number = 0;
+  private currentLamportTimestamp = 0;
 
   // These are all cached so that === equality is valid.
   private pendingCRDTMeta: CRDTExtraMeta | null = null;
@@ -86,7 +86,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return child;
   }
 
-  getAddedContext(key: symbol): any {
+  getAddedContext(key: symbol): unknown {
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
@@ -148,7 +148,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
   childSend(child: Collab, messagePath: (Uint8Array | string)[]): void {
     if (child !== this.child) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     // Add the next CRDTExtraMeta, serialized, to messagePath.

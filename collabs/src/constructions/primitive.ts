@@ -51,7 +51,7 @@ export abstract class CPrimitive<
   getDescendant(namePath: string[]): Collab {
     if (namePath.length !== 0) {
       throw new Error(
-        "CPrimitive has no descendants, but namePath=" + namePath
+        `CPrimitive has no descendants, but namePath = ${namePath}`
       );
     }
     return this;

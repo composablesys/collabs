@@ -142,7 +142,7 @@ export class BatchingLayer
     messagePath: (Uint8Array | string)[]
   ): void {
     if (child !== this.child) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     // Local echo.
@@ -207,18 +207,24 @@ export class BatchingLayer
     // This notifies BatchingStrategy and also emits a Change event.
     if (!this.batchEventPending) {
       this.batchEventPending = true;
-      Promise.resolve().then(() => {
-        this.batchEventPending = false;
-        if (this.isBatchPending()) {
-          this.emit("BatchPending", { meta });
-        } else {
-          // The batch is no longer pending, so don't emit
-          // a BatchPending event. However we still have to
-          // emit a Change event, since the state was changed
-          // in a transaction.
-          this.emit("Change", { meta });
-        }
-      });
+      Promise.resolve()
+        .then(() => {
+          this.batchEventPending = false;
+          if (this.isBatchPending()) {
+            this.emit("BatchPending", { meta });
+          } else {
+            // The batch is no longer pending, so don't emit
+            // a BatchPending event. However we still have to
+            // emit a Change event, since the state was changed
+            // in a transaction.
+            this.emit("Change", { meta });
+          }
+        })
+        .catch((err) => {
+          setTimeout(() => {
+            throw err;
+          });
+        });
     }
 
     this.emit("DebugSend", { meta }, false);
@@ -267,7 +273,7 @@ export class BatchingLayer
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
@@ -279,7 +285,9 @@ export class BatchingLayer
     if (meta.isLocalEcho) return;
 
     if (messagePath.length !== 1) {
-      throw new Error("messagePath.length is not 1: " + messagePath.length);
+      throw new Error(
+        `messagePath.length is not 1: ${JSON.stringify(messagePath)}`
+      );
     }
 
     const deserialized = BatchingLayerMessage.decode(

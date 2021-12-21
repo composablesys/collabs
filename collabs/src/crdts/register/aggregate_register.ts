@@ -35,7 +35,7 @@ class AggregateArgsCRegisterEntry<S> implements CRegisterEntryMeta<S> {
  */
 export abstract class AggregateArgsCRegister<
     T,
-    SetArgs extends any[],
+    SetArgs extends unknown[],
     S = T,
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
@@ -44,7 +44,7 @@ export abstract class AggregateArgsCRegister<
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];
   private cachedValue?: T = undefined;
-  private cacheValid: boolean = false;
+  private cacheValid = false;
 
   constructor(
     initToken: InitToken,
@@ -57,10 +57,10 @@ export abstract class AggregateArgsCRegister<
   }
 
   set(...args: SetArgs): T {
-    let message = AggregateArgsCRegisterMessage.create({
+    const message = AggregateArgsCRegisterMessage.create({
       setArgs: this.argsSerializer.serialize(args),
     });
-    let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
+    const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
     this.sendCRDT(buffer);
     return this.value;
   }
@@ -68,10 +68,10 @@ export abstract class AggregateArgsCRegister<
   reset(): void {
     // Only reset if needed
     if (!this.canGC()) {
-      let message = AggregateArgsCRegisterMessage.create({
+      const message = AggregateArgsCRegisterMessage.create({
         reset: true,
       }); // no value
-      let buffer = AggregateArgsCRegisterMessage.encode(message).finish();
+      const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
       this.sendCRDT(buffer);
     }
   }
@@ -91,7 +91,7 @@ export abstract class AggregateArgsCRegister<
       }
     }
     switch (decoded.data) {
-      case "setArgs":
+      case "setArgs": {
         // Add the new entry
         const entry = new AggregateArgsCRegisterEntry(
           this.constructValue(decoded.setArgs),
@@ -102,12 +102,13 @@ export abstract class AggregateArgsCRegister<
         );
         newState.push(entry);
         break;
+      }
       case "reset":
         // Add nothing new to newState
         break;
       default:
         throw new Error(
-          "AggregateCRegister: Bad decoded.data: " + decoded.data
+          `AggregateCRegister: Bad decoded.data: ${decoded.data}`
         );
     }
     this.setNewState(newState);
@@ -173,7 +174,7 @@ export abstract class AggregateArgsCRegister<
    * @return this.value + ""
    */
   toString(): string {
-    return this.value + "";
+    return String(this.value);
   }
 
   canGC(): boolean {
@@ -197,7 +198,7 @@ export abstract class AggregateArgsCRegister<
   load(saveData: Uint8Array | null) {
     if (saveData === null) return;
     const message = AggregateArgsCRegisterSave.decode(saveData);
-    for (let element of message.entries) {
+    for (const element of message.entries) {
       this.entries.push(
         new AggregateArgsCRegisterEntry(
           this.constructValue(element.setArgs),

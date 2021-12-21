@@ -28,7 +28,7 @@ export interface CRegisterEventsRecord<T> extends CollabEventsRecord {
  */
 export interface CRegister<
   T,
-  SetArgs extends any[] = [T],
+  SetArgs extends unknown[] = [T],
   Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
 > extends Collab<Events> {
   /**

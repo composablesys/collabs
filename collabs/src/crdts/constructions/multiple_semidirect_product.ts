@@ -14,6 +14,8 @@ import {
 } from "../../core";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
+/* eslint-disable */
+
 /**
  * Interface describing a Collab which stores all of its mutable state
  * in a single readonly variable state of type S.

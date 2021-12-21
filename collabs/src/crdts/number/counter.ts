@@ -53,13 +53,11 @@ export class GrowOnlyCCounter
     if (toAdd === 0) return;
     if (toAdd < 0) {
       throw new Error(
-        "toAdd = " +
-          toAdd +
-          "; must be nonnegative (consider using CCounter instead)"
+        `toAdd = ${toAdd}; must be nonnegative (consider using CCounter instead)`
       );
     }
     if (!Number.isInteger(toAdd)) {
-      throw new Error("toAdd = " + toAdd + "; must be an integer");
+      throw new Error(`toAdd = ${toAdd}; must be an integer`);
     }
 
     toAdd %= GrowOnlyCCounter.MODULUS;
@@ -68,7 +66,7 @@ export class GrowOnlyCCounter
     const idCounter =
       m === undefined ? this.runtime.getReplicaUniqueNumber() : m[2];
     const prOld = m === undefined ? 0 : m[0];
-    let message = GrowOnlyCCounterMessage.create({
+    const message = GrowOnlyCCounterMessage.create({
       add: {
         prOld,
         toAdd,
@@ -84,7 +82,7 @@ export class GrowOnlyCCounter
 
   reset() {
     const V: { [id: string]: IGrowOnlyCCounterResetEntry } = {};
-    for (let [replicaID, m] of this.M) {
+    for (const [replicaID, m] of this.M) {
       V[replicaID] = { v: m[0], idCounter: m[2] };
     }
     const message = GrowOnlyCCounterMessage.create({
@@ -97,10 +95,10 @@ export class GrowOnlyCCounter
     message: string | Uint8Array,
     meta: CRDTMessageMeta
   ): void {
-    let decoded = GrowOnlyCCounterMessage.decode(<Uint8Array>message);
+    const decoded = GrowOnlyCCounterMessage.decode(<Uint8Array>message);
     const previousValue = this.value;
     switch (decoded.data) {
-      case "add":
+      case "add": {
         const m = this.M.get(meta.sender);
         if (m === undefined) {
           this.M.set(meta.sender, [
@@ -126,8 +124,9 @@ export class GrowOnlyCCounter
           previousValue,
         });
         break;
+      }
       case "reset":
-        for (let vEntry of Object.entries(decoded.reset!.V!)) {
+        for (const vEntry of Object.entries(decoded.reset!.V!)) {
           const m = this.M.get(vEntry[0]);
           if (m !== undefined && m[2] === vEntry[1].idCounter) {
             m[1] = Math.max(m[1], int64AsNumber(vEntry[1].v));
@@ -149,7 +148,7 @@ export class GrowOnlyCCounter
         });
         break;
       default:
-        throw new Error("Unknown decoded.data: " + decoded.data);
+        throw new Error(`Unknown decoded.data: ${decoded.data}`);
     }
   }
 

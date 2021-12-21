@@ -6,18 +6,18 @@ import {
 } from "../../util";
 import { Resettable } from "../abilities";
 import { CRegisterEntryMeta, OptionalLwwCRegister } from "../register";
-import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { InitToken } from "../../core";
 import {
   AbstractCMapCObject,
   CMapEventsRecord,
   CRegister,
 } from "../../data_types";
+import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 
 export class CMapFromRegister<
     K,
     V,
-    SetArgs extends any[],
+    SetArgs extends unknown[],
     RegT extends CRegister<Optional<V>, SetArgs> & Resettable
   >
   extends AbstractCMapCObject<K, V, SetArgs, CMapEventsRecord<K, V>>
@@ -110,7 +110,7 @@ export class CMapFromRegister<
   }
 
   *entries(): IterableIterator<[K, V]> {
-    for (let [key, valueRegister] of this.internalMap) {
+    for (const [key, valueRegister] of this.internalMap) {
       yield [key, valueRegister.value.get()];
     }
   }

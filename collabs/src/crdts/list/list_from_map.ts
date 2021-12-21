@@ -6,7 +6,7 @@ import { DenseLocalList } from "./dense_local_list";
 
 export class CListFromMap<
     T,
-    InsertArgs extends any[],
+    InsertArgs extends unknown[],
     L,
     MapT extends CMap<L, T, InsertArgs>,
     DenseT extends DenseLocalList<L, undefined>
@@ -62,7 +62,7 @@ export class CListFromMap<
 
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
-      throw new Error("invalid count: " + count);
+      throw new Error(`invalid count: ${count}`);
     }
     // Get the locs to delete.
     const toDelete = new Array<L>(count);

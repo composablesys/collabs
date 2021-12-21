@@ -40,7 +40,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     messagePath: (string | Uint8Array)[]
   ): void {
     if (child !== this.child) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     if (this.runLocallyMeta !== null) {
@@ -52,7 +52,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     }
   }
 
-  getAddedContext(key: symbol): any {
+  getAddedContext(key: symbol): unknown {
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       if (this.runLocallyMeta !== null) {
         // TODO: is this appropriate/needed?

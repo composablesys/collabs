@@ -43,7 +43,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
 
   getUniqueString(): string {
     // TODO: shorten?  (base64 instead of base10)
-    return this.getReplicaUniqueNumber() + " " + this.replicaID;
+    return `${this.getReplicaUniqueNumber()} ${this.replicaID}`;
   }
 
   getNamePath(descendant: Collab): string[] {
@@ -64,5 +64,5 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
     messagePath: (string | Uint8Array)[]
   ): void;
 
-  abstract getAddedContext(key: symbol): any;
+  abstract getAddedContext(key: symbol): unknown;
 }

@@ -63,7 +63,7 @@ export type Pre<C> = (initToken: InitToken) => C;
  * `[[Pre]]<C>` instead of requiring a [[InitToken]]
  * as its first parameter.
  */
-export function Pre<C, Args extends any[]>(
+export function Pre<C, Args extends unknown[]>(
   Class: new (initToken: InitToken, ...args: Args) => C
 ): (...args: Args) => Pre<C> {
   return (...args: Args) =>
@@ -187,9 +187,9 @@ export abstract class Collab<
    * in that message, either directly or as a field on its
    * [[MessageMeta]].
    */
-  getContext(key: symbol): any | undefined {
+  getContext(key: symbol): unknown {
     let current: CollabParent = this.parent;
-    while (true) {
+    for (;;) {
       const currentAttempt = current.getAddedContext(key);
       if (currentAttempt !== undefined) return currentAttempt;
       if (isRuntime(current)) return undefined;

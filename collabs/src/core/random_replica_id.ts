@@ -1,3 +1,5 @@
+import * as crypto from "crypto";
+
 /**
  * The default length of a replicaID, in characters.
  *
@@ -32,8 +34,10 @@ export function randomReplicaId(
     // but that is not working, and besides, every user
     // of this package would have to remember to do so.
     // See https://github.com/webpack/webpack/issues/8826
-    const crypto = eval("require")("crypto");
-    const randomBuffer = crypto.randomBytes(length);
+    const cryptoReal = <typeof crypto>(
+      (<typeof require>eval("require"))("crypto")
+    );
+    const randomBuffer = cryptoReal.randomBytes(length);
     randomValues = new Uint8Array(randomBuffer);
   } else {
     // Use browser crypto library.

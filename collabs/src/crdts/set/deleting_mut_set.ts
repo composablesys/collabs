@@ -55,7 +55,7 @@ class FakeDeletedCollab extends Collab {
       get: function (target, p) {
         if (p in target) {
           // Do the behavior defined by FakeDeletedCollab.
-          return (target as any)[p];
+          return (target as unknown as Record<string | symbol, unknown>)[p];
         } else {
           throw new Error(
             "Collab has been deleted from DeletingMutCSet and is frozen"
@@ -66,7 +66,7 @@ class FakeDeletedCollab extends Collab {
       set: function (target, p, value) {
         if (p in target) {
           // Do the behavior defined by FakeDeletedCollab.
-          (target as any)[p] = value;
+          (target as unknown as Record<string | symbol, unknown>)[p] = value;
           return true;
         } else {
           throw new Error(
@@ -95,7 +95,7 @@ class FakeDeletedCollab extends Collab {
  * must instead be passed as a separate non-Collab
  * constructor arg.
  */
-export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
+export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractCSetCollab<C, AddArgs>
   implements ICollabParent, Resettable
 {
@@ -141,7 +141,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
 
   childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
     if (child.parent !== this) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
@@ -163,7 +163,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
       // CObject.
-      let child = this.children.get(lastMessage);
+      const child = this.children.get(lastMessage);
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
@@ -181,9 +181,9 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
       messagePath.length--;
       child.receive(messagePath, meta);
     } else {
-      let decoded = DeletingMutCSetMessage.decode(lastMessage);
+      const decoded = DeletingMutCSetMessage.decode(lastMessage);
       switch (decoded.op) {
-        case "add":
+        case "add": {
           const name = bytesAsString(
             DeletingMutCSet.nameSerializer.serialize([
               meta.sender,
@@ -203,7 +203,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
             meta,
           });
           break;
-        case "delete":
+        }
+        case "delete": {
           const child = this.children.get(decoded.delete);
           if (child !== undefined) {
             this.children.delete(decoded.delete);
@@ -215,8 +216,9 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
             });
           }
           break;
+        }
         default:
-          throw new Error("Unknown decoded.op: " + decoded.op);
+          throw new Error(`Unknown decoded.op: ${decoded.op}`);
       }
     }
   }
@@ -251,40 +253,40 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
   add(...args: AddArgs): C {
-    let message = DeletingMutCSetMessage.create({
+    const message = DeletingMutCSetMessage.create({
       add: {
         replicaUniqueNumber: this.runtime.getReplicaUniqueNumber(),
         args: this.argsSerializer.serialize(args),
       },
     });
     this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    let created = this.ourCreatedValue;
+    const created = this.ourCreatedValue;
     this.ourCreatedValue = undefined;
     return created!;
   }
 
   // TODO
   pureAdd(uniqueNumber: number, ...args: AddArgs): C {
-    let message = DeletingMutCSetMessage.create({
+    const message = DeletingMutCSetMessage.create({
       add: {
         replicaUniqueNumber: uniqueNumber,
         args: this.argsSerializer.serialize(args),
       },
     });
     this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    let created = this.ourCreatedValue;
+    const created = this.ourCreatedValue;
     this.ourCreatedValue = undefined;
     return created!;
   }
 
   delete(value: C): void {
     if (this.has(value)) {
-      let message = DeletingMutCSetMessage.create({
+      const message = DeletingMutCSetMessage.create({
         delete: value.name,
       });
       this.send([DeletingMutCSetMessage.encode(message).finish()]);
@@ -419,7 +421,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
       let i = 0;
       for (; i < saveMessage.valueSaves.length; i++) {
         const valueSave = saveMessage.valueSaves[i];
-        if (valueSave.hasOwnProperty("args")) {
+        if (Object.prototype.hasOwnProperty.call(valueSave, "args")) {
           // Reached end of initial values' saves.
           break;
         }

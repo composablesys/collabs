@@ -1,8 +1,8 @@
 import { CollabSerializer, DefaultSerializer, Serializer } from "../../util";
 import { Collab, InitToken, Pre } from "../../core";
+import { AbstractCSetCObject } from "../../data_types";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
-import { AbstractCSetCObject } from "../../data_types";
 
 /**
  * Warning: tombstones, so uses ever-growing memory.  Use
@@ -12,7 +12,7 @@ import { AbstractCSetCObject } from "../../data_types";
  */
 export class TombstoneMutCSet<
   C extends Collab,
-  AddArgs extends any[]
+  AddArgs extends unknown[]
 > extends AbstractCSetCObject<C, AddArgs> {
   private readonly mutSet: DeletingMutCSet<C, AddArgs>;
   private readonly members: AddWinsCSet<C>;

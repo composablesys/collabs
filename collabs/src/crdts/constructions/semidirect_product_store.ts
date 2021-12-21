@@ -135,9 +135,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     const vc = crdtMeta.vectorClock;
     for (const historyEntry of this.history.entries()) {
       const senderHistory = historyEntry[1];
-      let vcEntry = vc.get(historyEntry[0]);
+      const vcEntry = vc.get(historyEntry[0]);
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
+        const concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {
           for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
             concurrent.push(senderHistory[i]);

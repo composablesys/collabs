@@ -74,7 +74,7 @@ export interface CMapEventsRecord<K, V> extends CollabEventsRecord {
 export interface CMap<
   K,
   V,
-  SetArgs extends any[] = [V],
+  SetArgs extends unknown[] = [V],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 > extends Collab<Events> {
   /**
@@ -113,7 +113,7 @@ export interface CMap<
 
   forEach(
     callbackfn: (value: V, key: K, map: this) => void,
-    thisArg?: any
+    thisArg?: any //eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
 
   /**

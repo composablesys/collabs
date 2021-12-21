@@ -1,5 +1,5 @@
-import { CObject } from "./object";
 import { Collab, Pre } from "../core";
+import { CObject } from "./object";
 
 /**
  * A CObject that exposes its [[addChild]] method publicly,

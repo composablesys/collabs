@@ -68,7 +68,7 @@ export interface MessageMeta {
    *
    * For more info, see the interface description.
    */
-  [key: symbol]: any;
+  [key: symbol]: unknown;
 }
 
 export const MessageMeta = {

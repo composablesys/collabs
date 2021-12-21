@@ -28,7 +28,7 @@ export interface ICollabParent {
    * Returns context added by this particular [[CollabParent]]
    * for the given key, or undefined if not added.
    */
-  getAddedContext(key: symbol): any | undefined;
+  getAddedContext(key: symbol): unknown;
 }
 
 /**

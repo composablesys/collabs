@@ -7,8 +7,8 @@ export class WeakValueMap<K, V extends object> {
    * empty, e.g., so you can delete this map.
    * heldValue will be set to this.onemptyHeldValue.
    */
-  onempty?: (caller: this, heldValue: any) => void = undefined;
-  onemptyHeldValue?: any = undefined;
+  onempty?: (caller: this, heldValue: any) => void = undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+  onemptyHeldValue?: any = undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   constructor() {
     this.registry = new FinalizationRegistry((key) => this.checkKey(key));
@@ -29,9 +29,9 @@ export class WeakValueMap<K, V extends object> {
   }
 
   get(key: K): V | undefined {
-    let value = this.internalMap.get(key);
+    const value = this.internalMap.get(key);
     if (value === undefined) return undefined;
-    let deref = value.deref();
+    const deref = value.deref();
     if (deref === undefined) this.delete(key);
     return deref;
   }
@@ -52,8 +52,8 @@ export class WeakValueMap<K, V extends object> {
   }
 
   *[Symbol.iterator](): IterableIterator<[K, V]> {
-    for (let entry of this.internalMap.entries()) {
-      let valueDeref = entry[1].deref();
+    for (const entry of this.internalMap.entries()) {
+      const valueDeref = entry[1].deref();
       if (valueDeref !== undefined) yield [entry[0], valueDeref];
     }
   }
@@ -66,7 +66,7 @@ export class WeakValueMap<K, V extends object> {
    * @return     [description]
    */
   private checkKey(key: K) {
-    let value = this.internalMap.get(key);
+    const value = this.internalMap.get(key);
     if (value !== undefined) {
       if (value.deref() === undefined) {
         this.delete(key);

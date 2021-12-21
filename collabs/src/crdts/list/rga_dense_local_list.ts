@@ -7,8 +7,8 @@ import {
 } from "../../../generated/proto_compiled";
 import { createRBTree, fillRBTree, RBTree } from "../util";
 import { MessageMeta, Runtime } from "../../core";
-import { DenseLocalList } from "./dense_local_list";
 import { WeakValueMap } from "../../util";
+import { DenseLocalList } from "./dense_local_list";
 
 // TODO: helper that uses an RBTree and implements everything
 // except the loc specific methods (stuff below comment
@@ -40,6 +40,7 @@ export class RgaLoc {
   toString(): string {
     let ans = "[";
     for (
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       let current: RgaLoc | undefined = this;
       current !== undefined;
       current = current.parent
@@ -62,9 +63,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   private checkIndex(index: number) {
     if (index < 0 || index >= this.length) {
-      throw new Error(
-        "Index out of bounds: " + index + " (length: " + this.length + ")"
-      );
+      throw new Error(`Index out of bounds: ${index} (length: ${this.length})`);
     }
   }
 
@@ -189,7 +188,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   }
 
   private unstoreLoc(loc: RgaLoc): void {
-    let senderMap = this.locsById.get(loc.sender);
+    const senderMap = this.locsById.get(loc.sender);
     if (senderMap !== undefined) {
       senderMap.delete(loc.uniqueNumber);
       if (senderMap.size === 0) {
@@ -210,7 +209,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   }
 
   private unstoreBackupLoc(loc: RgaLoc): void {
-    let senderMap = this.backupLocsById.get(loc.sender);
+    const senderMap = this.backupLocsById.get(loc.sender);
     if (senderMap !== undefined) {
       senderMap.delete(loc.uniqueNumber);
       if (senderMap.internalSize === 0) {
@@ -269,7 +268,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     values: ArrayLike<T>
   ): [index: number, locs: RgaLoc[]] {
     const decoded = RgaDenseLocalListPrepareMessage.decode(message);
-    const parent = decoded.hasOwnProperty("parent")
+    const parent = Object.prototype.hasOwnProperty.call(decoded, "parent")
       ? this.deserializeAsMessage(RgaLocMessage.create(decoded.parent!))
       : undefined;
     const locs = this.expandNewLocArgs(

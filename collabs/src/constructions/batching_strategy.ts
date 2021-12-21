@@ -92,7 +92,7 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
 
   stop(): void {
     this.unsubscribeChange!();
-    if (this.unsubscribeReceiveBlocked) this.unsubscribeReceiveBlocked!();
+    if (this.unsubscribeReceiveBlocked) this.unsubscribeReceiveBlocked();
     this.batchingLayer = undefined;
     this.unsubscribeChange = undefined;
     this.unsubscribeReceiveBlocked = undefined;
@@ -130,6 +130,10 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
  * when you want to send a batch.
  */
 export class ManualBatchingStrategy implements BatchingStrategy {
-  start(_batchingLayer: BatchingLayer): void {}
-  stop(): void {}
+  start(_batchingLayer: BatchingLayer): void {
+    // Does nothing.
+  }
+  stop(): void {
+    // Does nothing.
+  }
 }

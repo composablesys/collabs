@@ -114,7 +114,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     messagePath: (string | Uint8Array)[]
   ): void {
     if (child.parent !== this) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
@@ -126,7 +126,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
@@ -141,8 +141,8 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     this.inReceiveKeyStr = keyString;
     try {
       // Message for a child
-      let key = this.stringAsKey(keyString);
-      let [value, nontrivialStart] = this.getInternal(key, keyString);
+      const key = this.stringAsKey(keyString);
+      const [value, nontrivialStart] = this.getInternal(key, keyString);
       this.inReceiveValue = value;
 
       messagePath.length--;
@@ -257,7 +257,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
   }
 
   *entries(): IterableIterator<[K, C]> {
-    for (let [keyStr, value] of this.nontrivialMap) {
+    for (const [keyStr, value] of this.nontrivialMap) {
       yield [this.stringAsKey(keyStr), value];
     }
   }

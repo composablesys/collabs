@@ -66,7 +66,7 @@ export interface CListEventsRecord<T> extends CollabEventsRecord {
  */
 export interface CList<
   T,
-  InsertArgs extends any[] = [T],
+  InsertArgs extends unknown[] = [T],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 > extends Collab<Events> {
   /**
@@ -200,11 +200,11 @@ export interface CList<
    */
   find<S extends T>(
     predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): S | undefined;
   find(
     predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): T | undefined;
 
   /**
@@ -218,7 +218,7 @@ export interface CList<
    */
   findIndex(
     predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): number;
 
   /**
@@ -290,7 +290,7 @@ export interface CList<
   //  */
   // every<S extends T>(
   //   predicate: (value: T, index: number, list: this) => value is S,
-  //   thisArg?: any
+  //    thisArg?: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   // ): this is S[];
   /**
    * Determines whether all the members of this list satisfy the specified test.
@@ -302,7 +302,7 @@ export interface CList<
    */
   every(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): boolean;
   /**
    * Determines whether the specified callback function returns true for any element of this list.
@@ -314,7 +314,7 @@ export interface CList<
    */
   some(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): boolean;
   /**
    * Performs the specified action for each element in this list.
@@ -323,7 +323,7 @@ export interface CList<
    */
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
   /**
    * Calls a defined callback function on each element of this list, and returns an array that contains the results.
@@ -332,7 +332,7 @@ export interface CList<
    */
   map<U>(
     callbackfn: (value: T, index: number, list: this) => U,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
   /**
    * Returns the elements of this list that meet the condition specified in a callback function.
@@ -341,7 +341,7 @@ export interface CList<
    */
   filter<S extends T>(
     predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): S[];
   /**
    * Returns the elements of this list that meet the condition specified in a callback function.
@@ -350,7 +350,7 @@ export interface CList<
    */
   filter(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): T[];
   /**
    * Adds all the elements of this list into a string, separated by the specified separator string.
@@ -435,7 +435,7 @@ export interface MovableCListEventsRecord<T> extends CListEventsRecord<T> {
 
 export interface MovableCList<
   T,
-  InsertArgs extends any[] = [T],
+  InsertArgs extends unknown[] = [T],
   Events extends MovableCListEventsRecord<T> = MovableCListEventsRecord<T>
 > extends CList<T, InsertArgs, Events> {
   /**

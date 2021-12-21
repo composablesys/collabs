@@ -8,7 +8,7 @@ import { MutCMapFromSet } from "./mut_map_from_set";
 export class ResettingMutCMap<
     K,
     C extends Collab & Resettable,
-    SetArgs extends any[]
+    SetArgs extends unknown[]
   >
   extends MutCMapFromSet<
     K,

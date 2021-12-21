@@ -2,8 +2,8 @@ import { DefaultSerializer, Optional, Serializer } from "../../util";
 import { Collab, InitToken, Pre } from "../../core";
 import { Resettable } from "../abilities";
 import { AddWinsCSet } from "../set";
-import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 import { AbstractCMapCObject } from "../../data_types";
+import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
 
 export class MergingMutCMap<K, C extends Collab & Resettable>
   extends AbstractCMapCObject<K, C, []>
@@ -164,6 +164,7 @@ export class MergingMutCMap<K, C extends Collab & Resettable>
 
   protected loadObject() {
     // Compute cachedSize directly.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const _ of this.values()) this.cachedSize++;
   }
 }

@@ -14,6 +14,8 @@ import {
 import { DefaultSerializer, Serializer } from "../../util";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
+/* eslint-disable */
+
 // TODO: revise this file.
 // In particular, separate out resettable version?
 // (Currently has weird conditional types.)

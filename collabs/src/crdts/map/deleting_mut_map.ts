@@ -5,7 +5,7 @@ import { DeletingMutCSet } from "../set";
 import { LwwCMap } from "./lww_map";
 import { MutCMapFromSet } from "./mut_map_from_set";
 
-export class DeletingMutCMap<K, C extends Collab, SetArgs extends any[]>
+export class DeletingMutCMap<K, C extends Collab, SetArgs extends unknown[]>
   extends MutCMapFromSet<
     K,
     C,

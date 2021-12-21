@@ -8,7 +8,7 @@ import { CList, CListEventsRecord } from "../../data_types";
 export interface LocatableCList<
   L,
   T,
-  InsertArgs extends any[] = [T],
+  InsertArgs extends unknown[] = [T],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 > extends CList<T, InsertArgs, Events> {
   /**
@@ -41,7 +41,7 @@ export interface LocatableCList<
 
 class CursorCommon<L> {
   constructor(
-    readonly list: LocatableCList<L, any, any, any>,
+    readonly list: LocatableCList<L, unknown, unknown[]>,
     readonly binding: "left" | "right" = "left"
   ) {}
 
@@ -74,11 +74,11 @@ class CursorCommon<L> {
 }
 
 export class LocalCursor {
-  private readonly common: CursorCommon<any>;
-  private loc!: Optional<any>;
+  private readonly common: CursorCommon<unknown>;
+  private loc!: Optional<unknown>;
 
   constructor(
-    list: LocatableCList<any, any, any, any>,
+    list: LocatableCList<unknown, unknown, unknown[]>,
     startIndex: number,
     binding: "left" | "right" = "left"
   ) {
@@ -103,14 +103,14 @@ export class CCursor
   extends CObject<CCursorEventsRecord>
   implements Resettable
 {
-  private readonly common: CursorCommon<any>;
+  private readonly common: CursorCommon<unknown>;
   // LWW is probably overkill since usually only one replica
   // will use this cursor, but it's easiest.
-  private readonly loc: LwwCRegister<Optional<any>>;
+  private readonly loc: LwwCRegister<Optional<unknown>>;
 
   constructor(
     initToken: InitToken,
-    list: LocatableCList<any, any, any, any>,
+    list: LocatableCList<unknown, unknown, unknown[]>,
     startIndex: number,
     binding: "left" | "right" = "left"
   ) {
@@ -120,7 +120,7 @@ export class CCursor
     this.loc = this.addChild(
       "",
       Pre(LwwCRegister)(
-        list.getLocation(startIndex),
+        Optional.of(list.getLocation(startIndex)),
         OptionalSerializer.getInstance(list.locationSerializer)
       )
     );
