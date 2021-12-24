@@ -42,8 +42,8 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   }
 
   getUniqueString(): string {
-    // TODO: shorten?  (base64 instead of base10)
-    return `${this.getReplicaUniqueNumber()} ${this.replicaID}`;
+    // TODO: opt: shorten (base128 instead of base36)
+    return `${this.getReplicaUniqueNumber().toString(36)} ${this.replicaID}`;
   }
 
   getNamePath(descendant: Collab): string[] {

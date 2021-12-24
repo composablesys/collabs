@@ -6,18 +6,19 @@
  * itself is that [[MessageMeta]] contains info that is not
  * specific to one [[Collab]] and can be shared between them.
  * Examples include the message's sender (included by default)
- * and a vector clock (optionally added by TODO).
+ * and a vector clock (optionally added by [[CRDTExtraMetaLayer]]).
+ *
  * Using [[MessageMeta]] instead of including such info
  * directly in the messages allows for efficiency improvements:
+ * - Collabs don't need to store any state needed for
+ * construction metadata (e.g., a current vector clock).
+ * This deduplicates state, and also allows Collabs to be
+ * garbage collected even if they depend on nontrivial
+ * global state.
  * - If multiple Collabs send messages that depend on the same
  * metadata, and those messages get batched together
  * by [[BatchingLayer]], the batch need only include
  * the metadata once, instead of once within each message.
- * - Collabs don't need to store any state needed for
- * construction metadata (e.g., a current vector clock).
- * This deduplicates state, and also allows Collabs to be
- * garbage collected even in they depend on nontrivial
- * global state.
  *
  * By default, [[MessageMeta]] only includes the metadata
  * specified here. However, a Collab may choose to add
@@ -28,7 +29,7 @@
  * as a constant). It should also define the
  * [[MessageMeta.NEXT_MESSAGE_META]] key for
  * [[ICollabParent.getAddedContext]].
- * See TODO for an example.
+ * See [[CRDTExtraMetaLayer.getAddedContext]] for an example.
  *
  * A Collab may depend on specific extra metadata being present.
  * In that case, one of its ancestors must add the
@@ -62,9 +63,7 @@ export interface MessageMeta {
   readonly isLocalEcho: boolean;
 
   /**
-   * TODO: does this show up in docs?
-   *
-   * Record type for any extra metadata, indexed by a `symbol.`
+   * Record type for any extra metadata, indexed by a `symbol`.
    *
    * For more info, see the interface description.
    */
@@ -96,11 +95,6 @@ export const MessageMeta = {
    * return the correct [[MessageMeta]]. An exception is if
    * you know descendants will ignore locally echoed messages,
    * in which case it does not matter.
-   *
-   * TODO: === equality valid (for giving messages in the same
-   * transaction/batch equal MessageMeta---good for transaction
-   * semantics, and good for compressing batches). Although then
-   * you get the mutable symbol fields messed up?
    */
   NEXT_MESSAGE_META: Symbol(),
 } as const;
