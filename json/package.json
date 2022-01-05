@@ -1,6 +1,6 @@
 {
   "name": "@collabs/json",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "CRDTs designed compositionally (JSON datatype)",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -28,7 +28,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "^0.1.0",
+    "@collabs/collabs": "0.1.3",
     "tslib": "^2.0.1"
   },
   "devDependencies": {
