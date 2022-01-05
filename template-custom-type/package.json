@@ -12,7 +12,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "^0.1.0"
+    "@collabs/collabs": "0.1.x"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
