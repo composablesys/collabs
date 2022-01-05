@@ -49,6 +49,7 @@
     "typescript": "^4.3.5"
   },
   "scripts": {
+    "prepack": "npm run clean && npm run build && npm run test",
     "build": "npm-run-all build:*",
     "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
