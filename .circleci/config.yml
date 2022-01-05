@@ -8,7 +8,6 @@ orbs:
   # See the orb documentation here: https://circleci.com/developer/orbs/orb/circleci/node
   node: circleci/node@4.1
 
-
 jobs:
   # Below is the definition of your job to build and test your app, you can rename and customize it as you want.
   build-and-test:
@@ -16,7 +15,7 @@ jobs:
     # You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # A list of available CircleCI docker Convenience Images are available here: https://circleci.com/developer/images/image/cimg/node
     docker:
-      - image: cimg/node:15.6
+      - image: cimg/node:16.13
     # Then run your tests!
     # CircleCI will report the results back to your VCS provider.
     steps:
@@ -25,7 +24,7 @@ jobs:
       # Next, the node orb's install-packages step will install the dependencies from a package.json.
       # The orb install-packages step will also automatically cache them for faster future runs.
       #- node/install-packages:
-        #  override-ci-command: npm install
+      #  override-ci-command: npm install
       - node/install-packages
       # If you are using yarn instead npm, remove the line above and uncomment the two lines below.
       # - node/install-packages:
