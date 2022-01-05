@@ -1,13 +1,13 @@
 {
   "license": "Apache-2.0",
   "dependencies": {
-    "@collabs/collabs": "^0.1.0",
-    "@collabs/container": "^0.1.0",
+    "@collabs/collabs": "0.1.3",
+    "@collabs/container": "0.1.3",
     "quill": "^1.3.6"
   },
   "devDependencies": {
     "@types/quill": "^2.0.8",
-    "@collabs/container-testing-server": "^0.1.0",
+    "@collabs/container-testing-server": "0.1.3",
     "webpack": "^5.50.0",
     "webpack-cli": "^4.8.0",
     "@types/webpack": "^5.28.0",
