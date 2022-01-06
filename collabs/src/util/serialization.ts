@@ -249,18 +249,18 @@ export class StringAsArraySerializer implements Serializer<string> {
 
 /**
  * Compares two Uint8Array's for equality.
- *
- * TODO: optimize; delete if unused.
  */
 export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
   if (one.length !== two.length) return false;
+  // OPT: convert to a Uint32Array
+  // and do 4-byte comparisons at a time?
   for (let i = 0; i < one.length; i++) {
     if (one[i] !== two[i]) return false;
   }
   return true;
 }
 
-// TODO: cache instances?
+// OPT: cache instances?
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
     private readonly oneSerializer: Serializer<T>,
@@ -284,7 +284,7 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
   }
 }
 
-// TODO: cache instances?
+// OPT: cache instances?
 /**
  * Serializes [[Collab]]s using their name path with
  * respect to a specified

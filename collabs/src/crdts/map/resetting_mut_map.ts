@@ -54,16 +54,17 @@ export class ResettingMutCMap<
   }
 
   /**
-   * [keyOf description] TODO: copy from CMap
-   * @param  value [description]
-   * @return       [description]
-   * @throws if this.owns(value) is false
+   * Returns the unique key associated to a value owned
+   * by this map, regardless of whether it is present. If
+   * the value is not owned by this map, returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
    */
-  keyOf(value: C): K {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
+  keyOf(searchElement: C): K | undefined {
+    if (!this.owns(searchElement)) {
+      return undefined;
     }
-    return this.valueSet.getArgs(value)[0];
+    return this.valueSet.getArgs(searchElement)[0];
   }
 
   getArgs(key: K): SetArgs | undefined {

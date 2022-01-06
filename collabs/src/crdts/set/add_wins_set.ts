@@ -29,11 +29,7 @@ export class CSetFromBoolean<
     )
   ) {
     super(initToken);
-    // TODO: with the usual class-based addChild, TypeScript's
-    // generic type inference appeared to get overwhelmed
-    // and not infer the inner types correctly, leading to
-    // an error.  We work around it by writing an explicit
-    // Pre callback instead.
+
     this.booleanMap = this.addChild(
       "",
       Pre(GrowOnlyImplicitMergingMutCMap)(

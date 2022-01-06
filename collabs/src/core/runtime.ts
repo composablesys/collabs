@@ -62,7 +62,7 @@ export interface Runtime<
    * in the range [returned number, returned number + count)
    * will only be associated with this runtime's [[replicaID]]
    * once.
-   * @return A unique number that will only be
+   * @return A unique nonnegative number that will only be
    * associated with this Runtime's [[replicaID]]
    * once.
    */

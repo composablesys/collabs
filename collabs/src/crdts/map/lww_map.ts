@@ -6,7 +6,7 @@ import {
 } from "../../util";
 import { Resettable } from "../abilities";
 import { CRegisterEntryMeta, OptionalLwwCRegister } from "../register";
-import { InitToken } from "../../core";
+import { InitToken, Pre } from "../../core";
 import {
   AbstractCMapCObject,
   CMapEventsRecord,
@@ -41,19 +41,13 @@ export class CMapFromRegister<
     )
   ) {
     super(initToken);
-    // TODO: with the usual class-based addChild, TypeScript's
-    // generic type inference appeared to get overwhelmed
-    // and not infer the inner types correctly, leading to
-    // an error.  We work around it by writing an explicit
-    // Pre callback instead.
+
     this.internalMap = this.addChild(
       "",
-      (childInitToken) =>
-        new ImplicitMergingMutCMap(
-          childInitToken,
-          this.internalRegisterConstructor.bind(this),
-          keySerializer
-        )
+      Pre(ImplicitMergingMutCMap)(
+        this.internalRegisterConstructor.bind(this),
+        keySerializer
+      )
     );
 
     // Events emitters are added in internalRegisterConstructor.

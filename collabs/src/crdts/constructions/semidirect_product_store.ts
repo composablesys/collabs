@@ -168,7 +168,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    * value.
    */
   private indexAfter(sparseArray: StoredMessage<M2>[], value: number): number {
-    // TODO: binary search when sparseArray is large
+    // OPT: binary search when sparseArray is large?
     // Note that there may be duplicate crdtMetas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that

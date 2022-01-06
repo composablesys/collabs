@@ -23,7 +23,7 @@ interface AppEventsRecord {
  * Internally, an App is a thin wrapper around its [[Runtime]],
  * exposing only the user-facing methods and events.
  *
- * TODO: see [concrete instance]
+ * For a concrete instance, see [[CRDTApp]].
  */
 export class App<
   R extends Runtime = Runtime
@@ -37,12 +37,6 @@ export class App<
     return this.runtime.registerCollab(name, preCollab);
   }
 
-  // TODO: flush? Or make part of saving?
-  // (Right before signing out, want to force-send any
-  // queued messages in a batch.)
-
-  // TODO: need to block interaction during this?
-  // (Runtime queue received messages; need to block user input)
   save(): Uint8Array {
     return this.runtime.save();
   }
@@ -50,6 +44,4 @@ export class App<
   load(saveData: Uint8Array | null): void {
     this.runtime.load(saveData);
   }
-
-  // TODO: user-led transactions? Consider Yjs, Automerge APIs.
 }

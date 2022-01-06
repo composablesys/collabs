@@ -38,9 +38,6 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * was from this replica, it will have just been created,
    * without any intervening operations.
    *
-   * TODO: meta -> CRDTMessageMeta? (Only if we can make
-   * requests.)
-   *
    * @param  message   [description]
    * @param  meta [description]
    * @param  values    [description]
@@ -127,14 +124,7 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
 
   locs(): IterableIterator<L>;
 
-  /**
-   * TODO: backwards from map for efficiency with
-   * rbtree; perhaps modify rbtree to reverse the
-   * key/value order.
-   * @param  callbackfn [description]
-   * @return            [description]
-   */
-  forEach(callbackfn: (loc: L, value: T) => void): void;
+  forEach(callbackfn: (value: T, loc: L) => void): void;
 
   /**
    * This should be guarded against mutation
@@ -182,7 +172,7 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    */
   loadLocs(saveData: Uint8Array | null, values: (index: number) => T): void;
 
-  // TODO: refactor together with Cursor.
+  // TODO: refactor together with Cursor/List locations.
   // Perhaps just leftIndexOf, rightIndexOf, going
   // along with indexOf?
   // Also: leftIndex is wrong name because it is only the

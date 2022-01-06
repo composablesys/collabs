@@ -97,7 +97,4 @@ export class DeletingMutCList<C extends Collab, InsertArgs extends unknown[]>
       value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     )[1];
   }
-
-  // TODO: conflicts methods for move locations?
-  // Likewise for TombstoneMutCList.
 }

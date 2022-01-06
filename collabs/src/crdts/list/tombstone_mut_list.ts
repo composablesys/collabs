@@ -33,7 +33,6 @@ export class TombstoneMutCList<
       initToken.runtime
     )
   ) {
-    // TODO: initial values
     super(
       initToken,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>

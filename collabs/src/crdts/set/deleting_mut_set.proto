@@ -19,6 +19,6 @@ message DeletingMutCSetValueSave {
 
 message DeletingMutCSetSave {
   // In order by time created on this replica.
-  // TODO: optimization: flatten.
+  // OPT: flatten.
   repeated DeletingMutCSetValueSave valueSaves = 1;
 }

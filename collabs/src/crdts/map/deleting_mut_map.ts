@@ -51,16 +51,17 @@ export class DeletingMutCMap<K, C extends Collab, SetArgs extends unknown[]>
   }
 
   /**
-   * [keyOf description] TODO: copy from CMap
-   * @param  value [description]
-   * @return       [description]
-   * @throws if value is not a current value or conflict
+   * Returns the unique key associated to a value in this map
+   * if the value is currently present or a conflict; else
+   * returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
    */
-  keyOf(value: C): K {
-    if (!this.valueSet.has(value)) {
-      throw new Error("value is not a current value or conflict");
+  keyOf(searchElement: C): K | undefined {
+    if (!this.valueSet.has(searchElement)) {
+      return undefined;
     }
-    return this.valueSet.getArgs(value)[0];
+    return this.valueSet.getArgs(searchElement)[0];
   }
 
   getArgs(key: K): SetArgs | undefined {

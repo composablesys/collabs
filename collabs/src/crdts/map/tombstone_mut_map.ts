@@ -43,11 +43,6 @@ export class TombstoneMutCMap<
   ) {
     super(initToken);
 
-    // TODO: with the usual class-based addChild, TypeScript's
-    // generic type inference appeared to get overwhelmed
-    // and not infer the inner types correctly, leading to
-    // an error.  We work around it by writing an explicit
-    // Pre callback instead.
     this.valueSet = this.addChild(
       "",
       Pre(DeletingMutCSet)(
@@ -186,6 +181,13 @@ export class TombstoneMutCMap<
     this.keySet.clear();
   }
 
+  /**
+   * Returns the unique key associated to a value owned
+   * by this map, regardless of whether it is present. If
+   * the value is not owned by this map, returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
+   */
   keyOf(searchElement: C): K | undefined {
     return this.keyByValue.get(searchElement);
   }

@@ -95,7 +95,7 @@ export function MakeAbstractCMap<
       callbackfn: (value: V, key: K, map: this) => void,
       thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): void {
-      // TODO: this might not give the exact same semantics
+      // Not sure if this gives the exact same semantics
       // as Map if callbackfn modifies this during the
       // loop.  (Given that Array.forEach has a rather
       // funky polyfill on MDN, I expect Map.forEach is

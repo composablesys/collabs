@@ -35,11 +35,11 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
   unshift(...args: InsertArgs): T;
 
   // TODO: advice for range versions of mutators
-  // TODO: may want to optimize methods involving slice
+  // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
-  // TODO: optimize includes, indexOf, lastIndexOf if you know how to get
+  // OPT: optimize includes, indexOf, lastIndexOf if you know how to get
   // the index of an element immediately.
-  // TODO: optimize join for TextCollab (in particular, join('')).
+  // OPT: optimize join for TextCollab (in particular, join('')).
 
   // Convenience accessors
   concat(...items: ConcatArray<T>[]): T[];
@@ -196,7 +196,7 @@ export function MakeAbstractCList<
 
     // Convenience mutators
     pop(): T {
-      // TODO: implementations can do this more efficiently
+      // OPT: implementations can do this more efficiently
       // (one tree lookup only) using delete's return value,
       // or by noting that it's guaranteed to be the end of
       // the list.
@@ -210,7 +210,7 @@ export function MakeAbstractCList<
     }
 
     shift(): T {
-      // TODO: implementations can do this more efficiently
+      // OPT: implementations can do this more efficiently
       // (one tree lookup only) using delete's return value,
       // or by noting that it's guaranteed to be the start of
       // the list.
@@ -229,7 +229,7 @@ export function MakeAbstractCList<
     // I would expect at least the ones that also appear
     // on TypedArray are safe.
     private asArrayLike(): ArrayLike<T> {
-      // TODO: cache the value (make a property of the
+      // OPT: cache the value (make a property of the
       // list), to prevent recreating it each time it is used?
 
       // Use a proxy to define [index] accessors

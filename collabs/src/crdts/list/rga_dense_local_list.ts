@@ -18,7 +18,8 @@ import { DenseLocalList } from "./dense_local_list";
 // (package access)
 /**
  * Note: within a replica, all RgaLoc's have a unique
- * object.  So object equality is value equality.  TODO (enforce during deserialization)
+ * object.  So object equality is value equality.
+ * This is enforced by [[RgaDenseLocalList.deserialize]].
  */
 export class RgaLoc {
   /**
@@ -131,7 +132,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     }
   }
 
-  forEach(callbackfn: (loc: RgaLoc, value: T) => void) {
+  forEach(callbackfn: (value: T, loc: RgaLoc) => void) {
     this.tree.forEach(callbackfn);
   }
 
@@ -326,7 +327,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     index: number,
     count: number
   ): [parent: RgaLoc | undefined, uniqueNumberStart: number] {
-    // TODO: get both left and right with a single tree lookup
+    // OPT: get both left and right with a single tree lookup
     // in the common case.
     const left = index === 0 ? undefined : this.getLoc(index - 1);
     const right = index === this.length ? undefined : this.getLoc(index);
@@ -375,7 +376,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       } else {
         // Find the ancestor of nonOrigin at the same depth
         // as origin.
-        // TODO: this repeats work when origin = left
+        // OPT: this repeats work when origin = left
         // (the common case).
         let nonOriginAnc = nonOrigin;
         for (let i = nonOrigin.depth; i > origin.depth; i--) {
@@ -396,9 +397,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
         }
       }
     }
-    // Add 1 to this so it's always positive.  TODO: in
-    // Runtime, guarantee nonnegative (or positive, and
-    // then remove the +1 here).
+    // Add 1 to this so it's always positive.
     const uniqueNumberStart =
       sign * (this.runtime.getReplicaUniqueNumber(count) + 1);
     return [parent, uniqueNumberStart];
@@ -442,7 +441,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     // Make a map from locs to their indices.
     const indexByLoc = new Map<RgaLoc, number>();
     let j = 0;
-    this.tree.forEach((loc) => {
+    this.tree.forEach((_, loc) => {
       indexByLoc.set(loc, j);
       j++;
     });
@@ -458,7 +457,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       length: this.tree.length,
     };
     let i = 0;
-    this.tree.forEach((loc) => {
+    this.tree.forEach((_, loc) => {
       this.saveOneLoc(i, loc, imessage, indexByLoc, indexBySender);
       i++;
     });
@@ -654,8 +653,8 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       if (aAnc === bAnc) break;
       aPrev = aAnc;
       bPrev = bAnc;
-      // TODO: this ! is improper, but it's okay
-      // because it's not consulted.
+      // This ! is improper, but it's okay
+      // because it's not consulted when ! fails.
       aAnc = aAnc.parent!;
       bAnc = bAnc.parent!;
     }

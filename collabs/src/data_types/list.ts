@@ -241,8 +241,7 @@ export interface CList<
     thisArg?: This
   ): U[];
 
-  // TODO: modified this type by replacing A with T[],
-  // does that make sense?
+  // Note: we modified this type from the Array version by replacing A with T[].
   /**
    * Returns a new array with all sub-array elements concatenated into it recursively up to the
    * specified depth.

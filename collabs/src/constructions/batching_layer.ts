@@ -232,6 +232,9 @@ export class BatchingLayer
           }
         })
         .catch((err) => {
+          // Shouldn't be any errors here, but handle it
+          // anyway to make ESLint happy.
+
           // Don't let the error fail the promise,
           // but still make it print
           // its error like it was unhandled.
@@ -329,6 +332,13 @@ export class BatchingLayer
       this.inChildReceive = true;
       try {
         this.child.receive(childMessagePath, meta);
+      } catch (err) {
+        // Don't let the error block other messages' delivery,
+        // but still make it print
+        // its error like it was unhandled.
+        setTimeout(() => {
+          throw err;
+        });
       } finally {
         this.inChildReceive = false;
       }

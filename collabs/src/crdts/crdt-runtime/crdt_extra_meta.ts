@@ -18,7 +18,7 @@ export interface VectorClock {
 export class CRDTExtraMeta {
   constructor(
     readonly senderCounter: number,
-    // TODO: make these optional, need to be requested in context.
+    // OPT: make these optional, need to be requested in context.
     readonly vectorClock: VectorClock,
     readonly wallClockTime: number,
     readonly lamportTimestamp: number

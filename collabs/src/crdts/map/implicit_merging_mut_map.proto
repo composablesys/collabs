@@ -1,6 +1,6 @@
 message ImplicitMergingMutCMapSave {
-  // TODO: do these need to be ordered like in DeletingMutCSet,
-  // in case of initialization dependencies? Or does
-  // getInternal take care of that?
+  // TODO: load in creation order (like in DeletingMutCSet),
+  // in case keys deserialize other values, to avoid too-deep
+  // recursion?
   map<string, bytes> childSaves = 1;
 }

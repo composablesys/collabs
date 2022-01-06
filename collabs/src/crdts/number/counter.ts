@@ -29,16 +29,8 @@ export class GrowOnlyCCounter
   implements Resettable
 {
   /**
-   * To prevent overflow into unsafe integers, whose
-   * addition is not necessarily commutative (making
-   * eventual consistency more difficult), all operations
-   * and values are taken modulo this value.  It is
-   * half of Number.MAX_SAFE_INTEGER (rounded down),
-   * i.e., 2^52 - 1.
-   *
-   * TODO: actually this is unsafe (not monotonic).  For now,
-   * don't let any numbers get this large.  If you really
-   * are counting something, you'll be fine, it's a huge number.
+   * This was an attempt at fixing overflow issues that is
+   * not actually sound; see https://github.com/composablesys/collabs/issues/50
    */
   static readonly MODULUS = (Number.MAX_SAFE_INTEGER - 1) / 2;
 

@@ -42,7 +42,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   }
 
   getUniqueString(): string {
-    // TODO: opt: shorten (base128 instead of base36)
+    // OPT: shorten (base128 instead of base36)
     return `${this.getReplicaUniqueNumber().toString(36)} ${this.replicaID}`;
   }
 

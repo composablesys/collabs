@@ -14,8 +14,6 @@ import {
 import { ToggleCBoolean } from "../boolean";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
-// TODO: handle floating point non-commutativity
-
 export interface CNumberEvent extends CollabEvent {
   readonly arg: number;
   readonly previousValue: number;
@@ -289,12 +287,14 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 }
 
 /**
- * TODO: warnings:
+ * Warnings:
  * - Eventual consistency may fail due to rounding issues.
  * The only safe way is to stick to integer operands that aren't
  * large enough to overflow anything.
  * - Uses tombstones (one per operation).  So the memory
  * usage will grow without bound, unlike most of our Collabs.
+ *
+ * See https://github.com/composablesys/collabs/issues/177
  */
 export class CNumber extends CObject<CNumberEventsRecord> {
   private base: CNumberBase;
@@ -342,8 +342,6 @@ export class CNumber extends CObject<CNumberEventsRecord> {
       } else super.emit("Add", event);
     });
     this.base.multCRDT.on("Mult", (event) => super.emit("Mult", event));
-    // TODO: combine negative mult events so that they reflect
-    // the original arg, instead of two separate events?
     this.negated.on("Set", (event) =>
       super.emit("Mult", {
         arg: -1,

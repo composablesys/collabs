@@ -7,5 +7,10 @@ export * from "./map";
 export * from "./number";
 export * from "./register";
 export * from "./set";
-// TODO: skip exporting RBTree?
-export * from "./util";
+// Leave out RBTree.
+export {
+  DisconnectableNetwork,
+  TestingBatchingStrategy,
+  TestingNetwork,
+  TestingNetworkGenerator,
+} from "./util";

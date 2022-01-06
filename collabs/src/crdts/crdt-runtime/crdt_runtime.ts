@@ -76,10 +76,6 @@ export class CRDTRuntime
 
   private inRootReceive = false;
 
-  // TODO: can we move this and receive to the abstract class,
-  // or add an intermediate layer that assumes the network but
-  // not the layers, or make the layers customizable thru
-  // options?
   childSend(
     child: Collab<CollabEventsRecord>,
     messagePath: (Uint8Array | string)[]
@@ -89,7 +85,6 @@ export class CRDTRuntime
     }
 
     // Local echo with only mandatory MessageMeta.
-    // TODO: error handling.
     if (this.inRootReceive) {
       // send inside a receive call; not allowed (might break things).
       throw new Error(
@@ -102,6 +97,13 @@ export class CRDTRuntime
       this.rootCollab.receive([...messagePath], {
         sender: this.replicaID,
         isLocalEcho: true,
+      });
+    } catch (err) {
+      // Don't let the error block other messages' delivery,
+      // but still make it print
+      // its error like it was unhandled.
+      setTimeout(() => {
+        throw err;
       });
     } finally {
       this.inRootReceive = false;
@@ -131,12 +133,18 @@ export class CRDTRuntime
           " did you try to deliver a message in an event handler?"
       );
     }
-    // TODO: error handling.
     this.inRootReceive = true;
     try {
       this.rootCollab.receive(deserialized.messagePath, {
         sender: deserialized.sender,
         isLocalEcho: false,
+      });
+    } catch (err) {
+      // Don't let the error block other messages' delivery,
+      // but still make it print
+      // its error like it was unhandled.
+      setTimeout(() => {
+        throw err;
       });
     } finally {
       this.inRootReceive = false;

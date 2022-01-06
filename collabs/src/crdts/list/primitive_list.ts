@@ -37,9 +37,9 @@ export class PrimitiveCListFromDenseLocalList<
   extends AbstractCListPrimitiveCRDT<T, [T]>
   implements LocatableCList<L, T, [T]>
 {
-  // TODO: make senderCounters optional?  (Only needed
+  // OPT: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
-  // TODO: use uniqueNumbers (from ids) instead of
+  // OPT: use uniqueNumbers (from ids) instead of
   // senderCounters?  (Send maximum abs value of a uniqueNumber
   // present in the deleted range for each user; compare
   // to those instead of senderCounters in deleteRange;
@@ -48,7 +48,7 @@ export class PrimitiveCListFromDenseLocalList<
   // need for causality, at the expense of larger
   // deleteRange messages (since we are not piggy-backing
   // on the MessageMeta), especially in bulk messages.
-  // TODO: try putting this in the values instead of its
+  // OPT: try putting this in the values instead of its
   // own map.
   /**
    * keys are precisely the locs in the list.
@@ -237,7 +237,7 @@ export class PrimitiveCListFromDenseLocalList<
       }
       case "deleteRange": {
         // Range delete, using start & end locs
-        // TODO: use internal iterator instead (O(1) instead
+        // OPT: use internal iterator instead (O(1) instead
         // of O(log n) to get next).  Perhaps expose slice
         // or forEach functionality on partial ranges.
         // Can also optimize by giving the startLoc instead
@@ -253,7 +253,6 @@ export class PrimitiveCListFromDenseLocalList<
               this.denseLocalList.deserialize(decoded.deleteRange!.startLoc!)
             )
           : 0;
-        // TODO: leftIndex name is improper
         const endIndex = Object.prototype.hasOwnProperty.call(
           decoded.deleteRange!,
           "endLoc"
@@ -285,8 +284,8 @@ export class PrimitiveCListFromDenseLocalList<
           // Delete from senderCounters.
           this.senderCounters.delete(toDelete[i]);
           // Event
-          // TODO: bulk events, for efficiency.
-          // Also can we make that work with string?
+          // OPT: bulk events.
+          // Also, can we make that work with string?
           // (Use array | string for deletedValues?)
           this.emit("Delete", {
             startIndex: ret[0],
@@ -340,7 +339,7 @@ export class PrimitiveCListFromDenseLocalList<
   save(): Uint8Array {
     const senderCountersSave = new Array<number>(this.denseLocalList.length);
     let i = 0;
-    this.denseLocalList.forEach((loc) => {
+    this.denseLocalList.forEach((_, loc) => {
       senderCountersSave[i] = this.senderCounters.get(loc)!;
       i++;
     });
@@ -376,7 +375,7 @@ export class PrimitiveCListFromDenseLocalList<
     }
     // Load this.senderCounters.
     let i = 0;
-    this.denseLocalList.forEach((loc) => {
+    this.denseLocalList.forEach((_, loc) => {
       this.senderCounters.set(loc, decoded.senderCounters[i]);
       i++;
     });

@@ -268,11 +268,15 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
   }
 
   /**
-   * Returns value's key.
+   * Returns the unique key associated to a value owned
+   * by this map. If
+   * the value is not owned by this map, returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
    */
-  keyOf(value: C): K | undefined {
-    if (!this.owns(value)) return undefined;
-    return this.stringAsKey(value.name);
+  keyOf(searchElement: C): K | undefined {
+    if (!this.owns(searchElement)) return undefined;
+    return this.stringAsKey(searchElement.name);
   }
 
   save(): Uint8Array {

@@ -1,6 +1,6 @@
 import { BatchingLayer } from "../../constructions";
 import { BatchingStrategy } from "../../constructions/batching_strategy";
-import { Unsubscribe } from "../../core";
+import { DEFAULT_REPLICA_ID_LENGTH, Unsubscribe } from "../../core";
 import { BroadcastNetwork, CRDTApp } from "../crdt-runtime";
 
 /**
@@ -55,22 +55,12 @@ export class TestingNetwork implements BroadcastNetwork {
   }
 }
 
-// Copied from Runtime (TODO: use directly to
-// avoid duplication?)
-const REPLICA_ID_LENGTH = 11;
-const REPLICA_ID_CHARS = allAscii();
-function allAscii() {
-  const arr = new Array<number>(128);
-  for (let i = 0; i < 128; i++) arr[i] = i;
-  return String.fromCharCode(...arr);
-}
-
 function pseudorandomReplicaId(rng: seedrandom.prng) {
-  const chars = new Array<string>(REPLICA_ID_LENGTH);
-  for (let i = 0; i < REPLICA_ID_LENGTH; i++) {
-    chars[i] = REPLICA_ID_CHARS[Math.floor(rng() * REPLICA_ID_CHARS.length)];
+  const arr = new Array<number>(DEFAULT_REPLICA_ID_LENGTH);
+  for (let i = 0; i < arr.length; i++) {
+    arr[i] = Math.floor(rng() * 128);
   }
-  return chars.join("");
+  return String.fromCharCode(...arr);
 }
 
 /**
@@ -130,7 +120,6 @@ export class TestingNetworkGenerator {
     for (const recipient of recipients) {
       if (recipient === sender) continue;
       for (const queued of senderMap.get(recipient)!) {
-        // TODO: count senderCounter towards totals.
         recipient.receivedBytes += queued.byteLength;
         recipient.onreceive(queued);
       }

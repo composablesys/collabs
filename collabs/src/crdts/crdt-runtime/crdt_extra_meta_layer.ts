@@ -6,7 +6,7 @@ import { Collab, ICollabParent, InitToken, MessageMeta, Pre } from "../../core";
 import { int64AsNumber } from "../../util";
 import { CRDTExtraMeta, VectorClock } from "./crdt_extra_meta";
 
-// TODO: put somewhere reasonable
+// Debug flag for causality checking.
 const DEBUG = false;
 
 /**
@@ -18,7 +18,7 @@ const DEBUG = false;
  * which grows without bound during a collaborative session.
  */
 class BasicVectorClock implements VectorClock {
-  // TODO: opt: pre-convert Longs to ints, should be more efficient?
+  // OPT: pre-convert Longs to ints, should be more efficient?
   constructor(
     private readonly vcMap: { [replicaID: string]: number | Long.Long }
   ) {}
@@ -64,7 +64,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   private messageBuffer: {
     messagePath: (Uint8Array | string)[];
     meta: MessageMeta;
-    // TODO: opt: store an intermediate form here that is smaller
+    // OPT: store an intermediate form here that is smaller
     // in memory (just extract the maximal VC entries, leave
     // rest serialized).
     crdtMetaMessage: CRDTExtraMetaLayerMessage;
@@ -130,7 +130,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       });
       this.pendingCRDTMetaSerialized =
         CRDTExtraMetaLayerMessage.encode(metaMessage).finish();
-      // TODO: opt: if we know we're in the same
+      // OPT: if we know we're in the same
       // batch as a previous message with a different CRDTExtraMeta,
       // we can give just a diff (or reuse the serialized
       // thing entirely, if we can infer the change, i.e.,
@@ -213,9 +213,16 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // Add the CRDTExtraMeta to meta.
     meta[CRDTExtraMeta.MESSAGE_META_KEY] = crdtMeta;
 
-    // TODO: error handling (do here since it can be
-    // out-of-turn relative to parent's delivery).
-    this.child.receive(messagePath, meta);
+    try {
+      this.child.receive(messagePath, meta);
+    } catch (err) {
+      // Don't let the error block other messages' delivery,
+      // but still make it print
+      // its error like it was unhandled.
+      setTimeout(() => {
+        throw err;
+      });
+    }
 
     // Update our own state to reflect crdtMeta.
     this.currentVectorClock.set(meta.sender, crdtMeta.senderCounter);
@@ -245,7 +252,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
           crdtMetaMessage
         );
         // Remove from the buffer.
-        // TODO: something more efficient?  (Costly array
+        // OPT: something more efficient?  (Costly array
         // deletions).
         this.messageBuffer.splice(index, 1);
         // Set index to the end and try again, in case
@@ -289,7 +296,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
 
     // Check other entries are <= ours.
-    // TODO: opt: only need to check causally maximal entries.
+    // OPT: only need to check causally maximal entries.
     // Also, should separate this and isAlreadyDelivered from
     // VCs, since they will be optional in the future.
     for (const [id, value] of Object.entries(crdtMetaMessage.vectorClock)) {
