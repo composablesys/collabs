@@ -15,6 +15,7 @@
   "keywords": [
     "crdts"
   ],
+  "private": true,
   "module": "build/esm/src/index.js",
   "browser": "build/esm/src/index.js",
   "types": "build/esm/src/index.d.ts",

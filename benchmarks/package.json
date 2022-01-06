@@ -15,6 +15,7 @@
   "keywords": [
     "crdts"
   ],
+  "private": true,
   "dependencies": {
     "@airbnb/node-memwatch": "^2.0.0",
     "@collabs/collabs": "0.1.3",
