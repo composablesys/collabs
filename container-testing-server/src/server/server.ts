@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { startWebSocketServer } from "@collabs/ws-server";
 import express from "express";
 import fs from "fs";

@@ -18,11 +18,12 @@
     "local-first"
   ],
   "bin": {
-    "container-testing-server": "build/server/server.js"
+    "container-testing-server": "bin/container-testing-server"
   },
   "files": [
     "/build",
-    "/keys"
+    "/keys",
+    "/bin"
   ],
   "directories": {
     "lib": "src"
@@ -59,19 +60,18 @@
   },
   "scripts": {
     "prepack": "npm run clean && npm run build && npm run test",
-    "start": "node build/server/server.js",
+    "start": "bin/container-testing-server",
     "dev": "npm-run-all dev:*",
     "dev:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
     "dev:server": "npm run build:server",
     "build": "npm-run-all build:*",
     "build:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
-    "build:server": "rimraf build/server && tsc --build tsconfig-server.json",
+    "build:server": "tsc --build tsconfig-server.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf build",
-    "preinstall": "mkdir -p build/server && touch build/server/server.js"
+    "clean": "rimraf build"
   }
 }
