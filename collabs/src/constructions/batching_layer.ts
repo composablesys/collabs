@@ -13,14 +13,25 @@ import {
 } from "../core";
 import { BatchingStrategy } from "./batching_strategy";
 
-/**
- * TODO: guarantees Change event for all changes.
- * For send, this is per transaction (microtask after
- * each sent message), possibly more than once per batch
- * or after the batch is committed (if committed synchronously).
- * For received messages, emitted once per batch.
- */
 export interface BatchingLayerEventsRecord extends CollabEventsRecord {
+  /**
+   * Emitted each time the child's state is changed
+   * (including changes to its descendants) and
+   * is in a reasonable user-facing state
+   * (so not in the middle of a transaction).
+   *
+   * A [[Runtime]] using this [[BatchingLayer]] should listen
+   * on this event and emit its own "Change" events in response.
+   *
+   * More specifically, a "Change" event is emitted:
+   * - For messages sent by the local child, once per
+   * transaction, in a microtask scheduled after the first
+   * sent message. Note this happen be more than once per
+   * batch or after the batch is committed, if it is
+   * committed synchronously with the transaction.
+   * - For received messages, once per batch.
+   */
+  Change: CollabEvent;
   /**
    * Emitted when a batch is pending, i.e., there is
    * a complete transaction waiting to be sent.
@@ -323,7 +334,6 @@ export class BatchingLayer
       }
     }
 
-    // Emit Change event, so that all changes have an event.
     this.emit("Change", { meta });
   }
 

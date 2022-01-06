@@ -125,8 +125,10 @@ export class CCursor
       )
     );
     this.loc.on("Set", (e) => this.emit("Set", e));
-    // TODO: oonly emit if index actually changed (need to cache)
-    list.on("Change", (e) => this.emit("Set", e));
+    // TODO: only emit if index actually changed (need to cache,
+    // or only listen on the Insert/Delete events and compare
+    // their indices).
+    list.on("Any", (e) => this.emit("Set", e));
   }
 
   set index(index: number) {

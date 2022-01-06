@@ -117,13 +117,16 @@ export interface CollabEventsRecord {
    * Emitted right after any other event is emitted.
    *
    * Listen on this if you want to know each time the [[Collab]]
-   * is changed (e.g., so you can refresh a display based on
+   * emits an event (e.g., so you can refresh a display based on
    * its state) without having to listen on each
    * individual event type.
    *
-   * TODO: change to "Event"
+   * For Collabs that emit an event after each user-facing change,
+   * this is effectively the same as [[Runtime]]'s "Change"
+   * event, except restricted to the scope of this [[Collab]] and
+   * its descendants.
    */
-  Change: CollabEvent;
+  Any: CollabEvent;
 }
 
 /**
@@ -199,8 +202,8 @@ export abstract class Collab<
 
   /**
    * Emits an event, which notifies all registered event handlers.
-   * After emitting event, a "Change" event with the same
-   * event.meta is emitted, unless it is already a "Change" event.  (Usually, Collabs should not emit a "Change" event
+   * After emitting event, an "Any" event with the same
+   * event.meta is emitted, unless it is already an "Any" event.  (Usually, Collabs should not emit an "Any" event
    * directly, instead emitting a more specific, custom event.)
    *
    * `event` is forced to implement [[CollabEvent]], to indirectly
@@ -212,18 +215,18 @@ export abstract class Collab<
    * @typeParam `eventName` as a string literal type.
    * @param eventName Name of the event.
    * @param event Event object to pass to the event handlers.
-   * @param emitChangeEvent = true if true (default) and the
-   * event is not a "Change" event, a "Change" event is
+   * @param emitAnyEvent = true if true (default) and the
+   * event is not an "Any" event, an "Any" event is
    * emitted immediately after `event`.
    */
   protected emit<K extends keyof Events>(
     eventName: K,
     event: Events[K] & CollabEvent,
-    emitChangeEvent = true
+    emitAnyEvent = true
   ): void {
     super.emit(eventName, event);
-    if (emitChangeEvent && eventName !== "Change") {
-      super.emit("Change", { meta: event.meta });
+    if (emitAnyEvent && eventName !== "Any") {
+      super.emit("Any", { meta: event.meta });
     }
   }
 

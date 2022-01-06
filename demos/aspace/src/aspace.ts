@@ -86,7 +86,7 @@ import { ContainerAppSource } from "@collabs/container";
   }
 
   // Respond to text changes
-  text.on("Change", () => {
+  text.on("Any", () => {
     textInput.value = text.toString();
     updateCursor();
   });

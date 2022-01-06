@@ -79,7 +79,10 @@ Next, we register our "global variable" `Collab`s - structures that exist outsid
 
 ```ts
 // Register Collabs.
-const counter = runtime.registerCollab("counter", collabs.Pre(collabs.CCounter)());
+const counter = runtime.registerCollab(
+  "counter",
+  collabs.Pre(collabs.CCounter)()
+);
 ```
 
 A few things to note here:
@@ -144,7 +147,10 @@ import { ContainerRuntimeSource } from "@collabs/container";
   // delete the code below and replace with your own.
 
   // Register Collabs.
-  const counter = runtime.registerCollab("counter", collabs.Pre(collabs.CCounter)());
+  const counter = runtime.registerCollab(
+    "counter",
+    collabs.Pre(collabs.CCounter)()
+  );
 
   // Refresh the display when the Collab state changes, possibly
   // due to a message from another replica.

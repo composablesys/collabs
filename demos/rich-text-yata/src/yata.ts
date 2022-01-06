@@ -339,7 +339,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     const addInitialContentOpEventHandlers =
       (yata: YataLinear<T>) => (op: YataOp<T>, uid: string) => {
         // Register event handler for YataOp.deleted "change" event
-        op._deleted.on("Change", yata.deletedMessageEventHandler(yata, uid));
+        op._deleted.on("Any", yata.deletedMessageEventHandler(yata, uid));
         // Register event handler for YataOp.attributes "set" event
         op.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
       };

@@ -56,34 +56,34 @@ If you are publishing a custom type as a third-party library, we recommend that 
 
 TODO: General advice (merge with below paragraph):
 
-- - Only emit events when your state is usable. If one of
-- your operations is made up of several sub-operations, and
-- the intermediate states are nonsensical, don't emit events
-- then, since the listeners might try to inspect the state
-- during their event handlers.
-- - Events should be sufficient to maintain a view of
-- the state. But, it is recommended to omit info
-- that the user can get from the Collab during the event
-- listener (e.g., in CMap, events provide key but not value,
-- since the listener can get the value themselves.)
-- - Give the previous value, if it cannot be determined
-- otherwise (e.g. from the remaining state). That is useful
-- for some views that only account for part of the state,
-- e.g., the size of a CMap.
-- - Don't dispatch events redundantly if there is no way
-- to tell whether they are redundant. E.g., in CSet, only
-- dispatch Add if the value went from (not present) to (present);
-- don't dispatch it if the value was already present.
-- That is useful
-- for some views that only track part of the state,
-- e.g., the size of a CSet.
-- - If you making a non-reusable component for an app and
-- don't want to bother adding individual events, you can just
-- emit "Change" events when your state changes (e.g., on
-- your children's "Change" events). Or, you can skip events
-- entirely and either refresh the whole display on Runtime
-- "Change" events, or refresh your Collab-specific display on
-- its children's "Change" events.
+- Only emit events when your state is usable. If one of
+  your operations is made up of several sub-operations, and
+  the intermediate states are nonsensical, don't emit events
+  then, since the listeners might try to inspect the state
+  during their event handlers.
+- Events should be sufficient to maintain a view of
+  the state. But, it is recommended to omit info
+  that the user can get from the Collab during the event
+  listener (e.g., in CMap, events provide key but not value,
+  since the listener can get the value themselves.)
+- Give the previous value, if it cannot be determined
+  otherwise (e.g. from the remaining state). That is useful
+  for some views that only account for part of the state,
+  e.g., the size of a CMap.
+- Don't dispatch events redundantly if there is no way
+  to tell whether they are redundant. E.g., in CSet, only
+  dispatch Add if the value went from (not present) to (present);
+  don't dispatch it if the value was already present.
+  That is useful
+  for some views that only track part of the state,
+  e.g., the size of a CSet.
+- If you making a non-reusable component for an app and
+  don't want to bother adding individual events, you can just
+  emit "Change" events when your state changes (e.g., on
+  your children's "Change" events). Or, you can skip events
+  entirely and either refresh the whole display on Runtime
+  "Change" events, or refresh your Collab-specific display on
+  its children's "Change" events.
 
 See [`CollabEventsRecord`](./typedoc/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`CSet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 

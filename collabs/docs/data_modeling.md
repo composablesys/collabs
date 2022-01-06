@@ -231,7 +231,9 @@ Finally, we need to convert the variable `currentGame: Minesweeper` that holds t
 ```ts
 const currentGame = runtime.registerCollab(
   "currentGame",
-  collabs.Pre(collabs.LwwMutCRegister)(collabs.ConstructorAsFunction(CMinesweeper))
+  collabs.Pre(collabs.LwwMutCRegister)(
+    collabs.ConstructorAsFunction(CMinesweeper)
+  )
 );
 ```
 

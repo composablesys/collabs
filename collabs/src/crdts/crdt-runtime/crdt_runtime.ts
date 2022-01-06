@@ -19,9 +19,6 @@ import {
 import { BroadcastNetwork } from "./broadcast_network";
 import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
 
-// TODO: make sure to emit Change events when internal
-// transactions/batches happen (local echos that don't
-// reach here yet).
 export class CRDTRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
   implements Runtime

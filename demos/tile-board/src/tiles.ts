@@ -310,7 +310,7 @@ export function setupTiles(app: collabs.App) {
     });
   }
   refreshAppExistingDiv();
-  existingApps.on("Change", refreshAppExistingDiv);
+  existingApps.on("Any", refreshAppExistingDiv);
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
