@@ -69,10 +69,10 @@ export interface Runtime<
   getReplicaUniqueNumber(count?: number): number;
 
   /**
-   * @return A unique string that will only appear once
+   * @return A UID, i.e., a unique string that will only appear once
    * across all replicas.
    */
-  getUniqueString(): string;
+  getUID(): string;
 
   /**
    * Returns the series of names on descendant's path to this Runtime.

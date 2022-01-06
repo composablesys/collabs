@@ -3,16 +3,11 @@ import {
   DeletingMutCSetSave,
   IDeletingMutCSetValueSave,
 } from "../../../generated/proto_compiled";
-import { bytesAsString, DefaultSerializer, Serializer } from "../../util";
-import {
-  Collab,
-  ICollabParent,
-  InitToken,
-  MessageMeta,
-  Runtime,
-} from "../../core";
+import { DefaultSerializer, Serializer } from "../../util";
+import { Collab, ICollabParent, InitToken, MessageMeta } from "../../core";
 import { Resettable } from "../abilities";
 import { AbstractCSetCollab } from "../../data_types";
+import { makeUID } from "../../util/uid";
 
 class FakeDeletedCollab extends Collab {
   private constructor(initToken: InitToken) {
@@ -128,12 +123,10 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     // Create the initial values from initialValuesArgs.
     for (let i = 0; i < initialValuesArgs.length; i++) {
       const args = initialValuesArgs[i];
-      // TODO: Using name "INIT" is a hack; need to figure out
+      // Using name "INIT" is a hack; need to figure out
       // a proper way to do this when implementing
       // initial values generally.
-      const name = bytesAsString(
-        DeletingMutCSet.nameSerializer.serialize(["INIT", i])
-      );
+      const name = makeUID("INIT", i);
       this.receiveCreate(name, undefined, args, true);
     }
     this.initialValuesCount = initialValuesArgs.length;
@@ -147,12 +140,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     messagePath.push(child.name);
     this.send(messagePath);
   }
-
-  // TODO: less hacky way to use Default when you don't have a runtime?
-  // Although really this should have its own serializer.
-  private static nameSerializer = DefaultSerializer.getInstance<
-    [string, number]
-  >({} as unknown as Runtime);
 
   private ourCreatedValue?: C = undefined;
   protected receiveInternal(
@@ -184,17 +171,12 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       const decoded = DeletingMutCSetMessage.decode(lastMessage);
       switch (decoded.op) {
         case "add": {
-          const name = bytesAsString(
-            DeletingMutCSet.nameSerializer.serialize([
-              meta.sender,
-              decoded.add!.replicaUniqueNumber,
-            ])
-          );
+          const name = makeUID(meta.sender, decoded.add!.replicaUniqueNumber);
           const newValue = this.receiveCreate(name, decoded.add!.args);
 
           if (meta.isLocalEcho) {
-            // TODO: previously we also did this if runLocally
-            // was true.
+            // Previously we also did this if runLocally
+            // was true; see https://github.com/composablesys/collabs/issues/172
             this.ourCreatedValue = newValue;
           }
 
@@ -270,7 +252,15 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return created!;
   }
 
-  // TODO
+  /**
+   * Experimental; subject to removal.
+   *
+   * This was added for the rich-text-yata demo, which
+   * requires a "pure" (in the sense of pure op-based CRDTs)
+   * add method, in order to work with runLocally.
+   *
+   * (TODO: remove or clarify.)
+   */
   pureAdd(uniqueNumber: number, ...args: AddArgs): C {
     const message = DeletingMutCSetMessage.create({
       add: {
@@ -321,44 +311,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     // that would happen if we processed the message history
     // consisting only of messages concurrent to this message.
     this.clear();
-  }
-
-  /**
-   * Returns a short unique identifier for value
-   * which can be passed to getById to retrieve
-   * value later.
-   *
-   * Although identifier has type
-   * string, it is properly a byte array, not
-   * necessarily valid UTF-8.  So it should be serialized
-   * as a byte array (using stringAsBytes), not a string.
-   *
-   * TODO: remove in favor of BaseSerializer(this)?
-   * Although then if you need strings like in YATA,
-   * you end up redundantly converting the string names
-   * to arrays and back.
-   *
-   * @param  value [description]
-   * @return           [description]
-   * @throws if !this.owns(value)
-   */
-  idOf(value: C): string {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
-    }
-    return value.name;
-  }
-
-  /**
-   * Returns the value with the given uid, obtained
-   * from idOf.  If value has been deleted, returns
-   * undefined.
-   *
-   * @param  uid [description]
-   * @return     [description]
-   */
-  getById(id: string): C | undefined {
-    return this.children.get(id);
   }
 
   /**

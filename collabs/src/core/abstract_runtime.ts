@@ -1,3 +1,4 @@
+import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime, RuntimeEventsRecord } from "./runtime";
@@ -8,7 +9,7 @@ import { Runtime, RuntimeEventsRecord } from "./runtime";
  */
 export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   extends EventEmitter<Events>
-  implements Runtime
+  implements Runtime 
 {
   readonly isRuntime: true = true;
   /**
@@ -41,9 +42,8 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
     return ans;
   }
 
-  getUniqueString(): string {
-    // OPT: shorten (base128 instead of base36)
-    return `${this.getReplicaUniqueNumber().toString(36)} ${this.replicaID}`;
+  getUID(): string {
+    return makeUID(this.replicaID, this.getReplicaUniqueNumber());
   }
 
   getNamePath(descendant: Collab): string[] {
