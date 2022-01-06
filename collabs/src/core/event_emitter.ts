@@ -74,7 +74,16 @@ export class EventEmitter<Events extends EventsRecord> {
    */
   protected emit<K extends keyof Events>(eventName: K, event: Events[K]): void {
     for (const handler of this.handlers[eventName] ?? []) {
-      handler(event, this);
+      try {
+        handler(event, this);
+      } catch (err) {
+        // Don't let the error block other event handlers
+        // or affect the emitter, but still make it print
+        // its error like it was unhandled.
+        setTimeout(() => {
+          throw err;
+        });
+      }
     }
   }
 }

@@ -221,6 +221,9 @@ export class BatchingLayer
           }
         })
         .catch((err) => {
+          // Don't let the error fail the promise,
+          // but still make it print
+          // its error like it was unhandled.
           setTimeout(() => {
             throw err;
           });
