@@ -1,3 +1,3 @@
-describe("JsonElement", () => {
+describe("JSONElement", () => {
   it.skip("tests", () => {});
 });

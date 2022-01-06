@@ -16,7 +16,7 @@ do
   done
 done
 
-names=("compoCrdt" "compoJsonText" "compoJsonCrdt" "compoMovableCrdt" "compoCrdtRga" "compoMovableCrdtRga")
+names=("compoCrdt" "compoJSONText" "compoJSONCrdt" "compoMovableCrdt" "compoCrdtRga" "compoMovableCrdtRga")
 for measurement in "time" "network" "memory" "save"
 do
   for name in ${names[*]}

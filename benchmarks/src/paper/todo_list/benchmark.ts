@@ -1,6 +1,6 @@
 import * as collabs from "@collabs/collabs";
-import { JsonElement, JsonArray, JsonObject, TextWrapper } from "@collabs/json";
-import { JsonCollab, JsonCursor } from "@collabs/json-opt";
+import { JSONElement, JSONArray, JSONObject, TextWrapper } from "@collabs/json";
+import { JSONCollab, JSONCursor } from "@collabs/json-opt";
 import seedrandom from "seedrandom";
 import Automerge from "automerge";
 import * as Y from "yjs";
@@ -709,11 +709,11 @@ function compoDeleting() {
   });
 }
 
-function compoJson() {
-  class JsonTodoList implements ITodoList {
-    constructor(private readonly jsonObj: JsonObject) {}
+function compoJSON() {
+  class JSONTodoList implements ITodoList {
+    constructor(private readonly jsonObj: JSONObject) {}
     addItem(index: number, text: string): void {
-      let item = (this.jsonObj.get("items")!.value as JsonArray).insert(index);
+      let item = (this.jsonObj.get("items")!.value as JSONArray).insert(index);
       item.setOrdinaryJS({
         items: [],
         done: false,
@@ -721,16 +721,16 @@ function compoJson() {
       });
     }
     deleteItem(index: number): void {
-      (this.jsonObj.get("items")!.value as JsonArray).delete(index);
+      (this.jsonObj.get("items")!.value as JSONArray).delete(index);
     }
     getItem(index: number): ITodoList {
-      return new JsonTodoList(
-        (this.jsonObj.get("items")!.value as JsonArray).get(index)!
-          .value as JsonObject
+      return new JSONTodoList(
+        (this.jsonObj.get("items")!.value as JSONArray).get(index)!
+          .value as JSONObject
       );
     }
     get itemsSize(): number {
-      return (this.jsonObj.get("items")!.value as JsonArray).length;
+      return (this.jsonObj.get("items")!.value as JSONArray).length;
     }
 
     get done(): boolean {
@@ -743,22 +743,22 @@ function compoJson() {
 
     insertText(index: number, text: string): void {
       // TODO: use bulk ops
-      let textArray = this.jsonObj.get("text")!.value as JsonArray;
+      let textArray = this.jsonObj.get("text")!.value as JSONArray;
       for (let i = 0; i < text.length; i++) {
         textArray.insert(index + i).setPrimitive(text[i]);
       }
     }
     deleteText(index: number, count: number): void {
-      let textArray = this.jsonObj.get("text")!.value as JsonArray;
+      let textArray = this.jsonObj.get("text")!.value as JSONArray;
       for (let i = 0; i < count; i++) {
         textArray.delete(index);
       }
     }
     get textSize(): number {
-      return (this.jsonObj.get("text")!.value as JsonArray).length;
+      return (this.jsonObj.get("text")!.value as JSONArray).length;
     }
     getText(): string {
-      return (this.jsonObj.get("text")!.value as JsonArray)
+      return (this.jsonObj.get("text")!.value as JSONArray)
         .asArray()
         .map((element) => element.value)
         .join("");
@@ -769,15 +769,15 @@ function compoJson() {
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
-  return new TodoListBenchmark("Compo Json", {
+  return new TodoListBenchmark("Compo JSON", {
     newTodoList(rng) {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
-      let list = app.registerCollab("", JsonElement.NewJson);
+      let list = app.registerCollab("", JSONElement.NewJSON);
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
-      return new JsonTodoList(list.value as JsonObject);
+      return new JSONTodoList(list.value as JSONObject);
     },
     cleanup() {
       generator = null;
@@ -804,9 +804,9 @@ function compoJson() {
       // operations.
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
-      let list = app.registerCollab("", JsonElement.NewJson);
+      let list = app.registerCollab("", JSONElement.NewJSON);
       app.load(saveData);
-      return new JsonTodoList(list.value as JsonObject);
+      return new JSONTodoList(list.value as JSONObject);
     },
   });
 }
@@ -815,11 +815,11 @@ function compoJson() {
  * Like Compo JSON but uses our dedicated text-editing
  * data structure.
  */
-function compoJsonText() {
-  class JsonTextTodoList implements ITodoList {
-    constructor(private readonly jsonObj: JsonObject) {}
+function compoJSONText() {
+  class JSONTextTodoList implements ITodoList {
+    constructor(private readonly jsonObj: JSONObject) {}
     addItem(index: number, text: string): void {
-      let item = (this.jsonObj.get("items")!.value as JsonArray).insert(index);
+      let item = (this.jsonObj.get("items")!.value as JSONArray).insert(index);
       item.setOrdinaryJS({
         items: [],
         done: false,
@@ -827,16 +827,16 @@ function compoJsonText() {
       });
     }
     deleteItem(index: number): void {
-      (this.jsonObj.get("items")!.value as JsonArray).delete(index);
+      (this.jsonObj.get("items")!.value as JSONArray).delete(index);
     }
     getItem(index: number): ITodoList {
-      return new JsonTextTodoList(
-        (this.jsonObj.get("items")!.value as JsonArray).get(index)!
-          .value as JsonObject
+      return new JSONTextTodoList(
+        (this.jsonObj.get("items")!.value as JSONArray).get(index)!
+          .value as JSONObject
       );
     }
     get itemsSize(): number {
-      return (this.jsonObj.get("items")!.value as JsonArray).length;
+      return (this.jsonObj.get("items")!.value as JSONArray).length;
     }
 
     get done(): boolean {
@@ -867,15 +867,15 @@ function compoJsonText() {
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
-  return new TodoListBenchmark("Compo Json Text", {
+  return new TodoListBenchmark("Compo JSON Text", {
     newTodoList(rng) {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
-      let list = app.registerCollab("", JsonElement.NewJson);
+      let list = app.registerCollab("", JSONElement.NewJSON);
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
-      return new JsonTextTodoList(list.value as JsonObject);
+      return new JSONTextTodoList(list.value as JSONObject);
     },
     cleanup() {
       generator = null;
@@ -902,9 +902,9 @@ function compoJsonText() {
       // operations.
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
-      let list = app.registerCollab("", JsonElement.NewJson);
+      let list = app.registerCollab("", JSONElement.NewJSON);
       app.load(saveData);
-      return new JsonTextTodoList(list.value as JsonObject);
+      return new JSONTextTodoList(list.value as JSONObject);
     },
   });
 }
@@ -1231,17 +1231,17 @@ function yjs() {
   });
 }
 
-function compoJsonOpt() {
-  class JsonCollabTodoList implements ITodoList {
-    private readonly items: JsonCursor;
+function compoJSONOpt() {
+  class JSONCollabTodoList implements ITodoList {
+    private readonly items: JSONCursor;
     private readonly ids: collabs.PrimitiveCList<string>;
     private readonly text: collabs.PrimitiveCList<string>;
     constructor(
-      private readonly collab: JsonCursor,
+      private readonly collab: JSONCursor,
       private readonly idGen: collabs.RgaDenseLocalList<undefined>,
       private readonly runtime: collabs.Runtime
     ) {
-      this.items = this.collab.get("items")[0] as JsonCursor;
+      this.items = this.collab.get("items")[0] as JSONCursor;
       this.ids = this.collab.get(
         "itemsIds"
       )[0] as collabs.PrimitiveCList<string>;
@@ -1253,9 +1253,9 @@ function compoJsonOpt() {
       let key: string = collabs.bytesAsString(this.idGen.serialize(id));
       this.ids.insert(index, key);
 
-      // Update Json Collab with new item
+      // Update JSON Collab with new item
       this.items.setIsMap(key);
-      let newItem = this.items.get(key)[0] as JsonCursor;
+      let newItem = this.items.get(key)[0] as JSONCursor;
       newItem.setIsMap("items");
       newItem.setIsList("itemsIds");
       newItem.set("done", false);
@@ -1272,8 +1272,8 @@ function compoJsonOpt() {
     }
     getItem(index: number): ITodoList {
       let id: string = this.ids.get(index);
-      return new JsonCollabTodoList(
-        this.items.get(id)[0] as JsonCursor,
+      return new JSONCollabTodoList(
+        this.items.get(id)[0] as JSONCursor,
         this.idGen,
         this.runtime
       );
@@ -1308,14 +1308,14 @@ function compoJsonOpt() {
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
-  return new TodoListBenchmark("Compo Json Opt", {
+  return new TodoListBenchmark("Compo JSON Opt", {
     newTodoList(rng) {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
 
-      let collab = app.registerCollab("", collabs.Pre(JsonCollab)());
-      let cursor = new JsonCursor(collab);
+      let collab = app.registerCollab("", collabs.Pre(JSONCollab)());
+      let cursor = new JSONCursor(collab);
       this.sendNextMessage();
       cursor.setIsMap("items");
       cursor.setIsList("itemsIds");
@@ -1323,7 +1323,7 @@ function compoJsonOpt() {
       cursor.setIsList("text");
 
       let idGen = new collabs.RgaDenseLocalList<undefined>(app.runtime);
-      return new JsonCollabTodoList(cursor, idGen, collab.runtime);
+      return new JSONCollabTodoList(cursor, idGen, collab.runtime);
     },
     cleanup() {
       generator = null;
@@ -1351,14 +1351,14 @@ function compoJsonOpt() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
 
-      let collab = app.registerCollab("", collabs.Pre(JsonCollab)());
-      let cursor = new JsonCursor(collab);
+      let collab = app.registerCollab("", collabs.Pre(JSONCollab)());
+      let cursor = new JSONCursor(collab);
 
       let idGen = new collabs.RgaDenseLocalList<undefined>(app.runtime);
 
       app.load(saveData);
 
-      return new JsonCollabTodoList(cursor, idGen, collab.runtime);
+      return new JSONCollabTodoList(cursor, idGen, collab.runtime);
     },
   });
 }
@@ -1377,11 +1377,11 @@ export default async function todoList(args: string[]) {
     case "compoDeleting":
       benchmark = compoDeleting();
       break;
-    case "compoJson":
-      benchmark = compoJson();
+    case "compoJSON":
+      benchmark = compoJSON();
       break;
-    case "compoJsonText":
-      benchmark = compoJsonText();
+    case "compoJSONText":
+      benchmark = compoJSONText();
       break;
     case "yjs":
       benchmark = yjs();
@@ -1392,8 +1392,8 @@ export default async function todoList(args: string[]) {
     case "automergeNoText":
       benchmark = automergeNoText();
       break;
-    case "compoJsonOpt":
-      benchmark = compoJsonOpt();
+    case "compoJSONOpt":
+      benchmark = compoJSONOpt();
       break;
     default:
       throw new Error("Unrecognized benchmark arg: " + args[0]);

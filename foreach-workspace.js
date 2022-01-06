@@ -10,10 +10,10 @@ const child_process = require("child_process");
 
 (async function () {
   const command = process.argv[2];
-  const packageJson = JSON.parse(fs.readFileSync("package.json").toString());
-  const noTest = new Set(packageJson.workspacesNoTest);
+  const packageJSON = JSON.parse(fs.readFileSync("package.json").toString());
+  const noTest = new Set(packageJSON.workspacesNoTest);
   const commands = [];
-  for (const workspace of packageJson.workspaces) {
+  for (const workspace of packageJSON.workspaces) {
     if (
       (command.startsWith("npm run test") ||
         command.startsWith("npm run fix")) &&

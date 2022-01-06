@@ -16,7 +16,7 @@ fi
 
 # todo-list
 
-names=("compoCrdt" "compoJsonText" "compoJsonCrdt" "compoMovableCrdt")
+names=("compoCrdt" "compoJSONText" "compoJSONCrdt" "compoMovableCrdt")
 
 for frequency in "whole"
 do

@@ -1,9 +1,9 @@
 import { assert } from "chai";
-import { JsonCollab, JsonCursor } from "../src/json_opt";
+import { JSONCollab, JSONCursor } from "../src/json_opt";
 import { CRDTApp, Pre, TestingNetworkGenerator } from "@collabs/collabs";
 import seedrandom from "seedrandom";
 
-describe("JsonCollab", () => {
+describe("JSONCollab", () => {
   let runtimeGen: TestingNetworkGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
@@ -16,16 +16,16 @@ describe("JsonCollab", () => {
     bob = runtimeGen.newApp(undefined, rng);
   });
 
-  let aliceJson: JsonCollab;
-  let aliceCursor: JsonCursor;
-  let bobJson: JsonCollab;
-  let bobCursor: JsonCursor;
+  let aliceJSON: JSONCollab;
+  let aliceCursor: JSONCursor;
+  let bobJSON: JSONCollab;
+  let bobCursor: JSONCursor;
 
   beforeEach(() => {
-    aliceJson = alice.registerCollab("cursor", Pre(JsonCollab)());
-    bobJson = bob.registerCollab("cursor", Pre(JsonCollab)());
-    aliceCursor = new JsonCursor(aliceJson);
-    bobCursor = new JsonCursor(bobJson);
+    aliceJSON = alice.registerCollab("cursor", Pre(JSONCollab)());
+    bobJSON = bob.registerCollab("cursor", Pre(JSONCollab)());
+    aliceCursor = new JSONCursor(aliceJSON);
+    bobCursor = new JSONCursor(bobJSON);
   });
 
   it("is initially empty", () => {
@@ -79,8 +79,8 @@ describe("JsonCollab", () => {
       assert.typeOf(aliceCursor.get("testNested")[0], "object");
       assert.typeOf(bobCursor.get("testNested")[0], "object");
 
-      let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
-      let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+      let aliceCursorNested = aliceCursor.get("testNested")[0] as JSONCursor;
+      let bobCursorNested = bobCursor.get("testNested")[0] as JSONCursor;
       assert.deepStrictEqual(aliceCursorNested.keys(), []);
       assert.deepStrictEqual(bobCursorNested.keys(), []);
 
@@ -109,8 +109,8 @@ describe("JsonCollab", () => {
       assert.typeOf(aliceCursor.get("testNested")[0], "object");
       assert.typeOf(bobCursor.get("testNested")[0], "object");
 
-      let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
-      let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+      let aliceCursorNested = aliceCursor.get("testNested")[0] as JSONCursor;
+      let bobCursorNested = bobCursor.get("testNested")[0] as JSONCursor;
       assert.deepStrictEqual(aliceCursorNested.keys(), []);
       assert.deepStrictEqual(bobCursorNested.keys(), []);
 
@@ -143,7 +143,7 @@ describe("JsonCollab", () => {
         new Set([20, "string"])
       );
 
-      // Test that keys only returns keys for top level of Json object
+      // Test that keys only returns keys for top level of JSON object
       assert.deepStrictEqual(aliceCursor.keys(), ["testNested"]);
       assert.deepStrictEqual(bobCursor.keys(), ["testNested"]);
     });
@@ -180,8 +180,8 @@ describe("JsonCollab", () => {
       bobCursor.setIsMap("testNested");
       runtimeGen.releaseAll();
 
-      let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
-      let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+      let aliceCursorNested = aliceCursor.get("testNested")[0] as JSONCursor;
+      let bobCursorNested = bobCursor.get("testNested")[0] as JSONCursor;
 
       aliceCursorNested.set("nestedVal", 20);
       runtimeGen.releaseAll();
@@ -217,8 +217,8 @@ describe("JsonCollab", () => {
       );
       assert.includeDeepMembers(bobCursor.values(), [16]);
 
-      let aliceCursorNested = aliceCursor.get("testNested")[0] as JsonCursor;
-      let bobCursorNested = bobCursor.get("testNested")[0] as JsonCursor;
+      let aliceCursorNested = aliceCursor.get("testNested")[0] as JSONCursor;
+      let bobCursorNested = bobCursor.get("testNested")[0] as JSONCursor;
 
       bobCursorNested.set("nestedValString", "string");
       runtimeGen.releaseAll();

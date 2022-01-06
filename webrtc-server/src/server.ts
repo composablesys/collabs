@@ -7,7 +7,7 @@ function noop() {}
 
 /**
  * webRtc server used only.
- * Send Jsonify signaling message to clients.
+ * Send JSONify signaling message to clients.
  */
 function sendWebRtcSignalMessage(connection: any, message: any) {
   connection.send(JSON.stringify(message));

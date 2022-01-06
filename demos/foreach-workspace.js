@@ -10,9 +10,9 @@ const child_process = require("child_process");
 
 (async function () {
   const command = process.argv[2];
-  const packageJson = JSON.parse(fs.readFileSync("package.json").toString());
+  const packageJSON = JSON.parse(fs.readFileSync("package.json").toString());
   const commands = [];
-  for (const workspace of packageJson.workspaces) {
+  for (const workspace of packageJSON.workspaces) {
     console.log("> " + command + " " + workspace);
     const out = child_process.spawnSync(command, [workspace], {
       stdio: [process.stdin, process.stdout, process.stderr],
