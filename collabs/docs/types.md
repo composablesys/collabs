@@ -1,6 +1,6 @@
 # Collaborative Data Structures
 
-This page gives an overview of the library's built-in collaborative data structures. More detailed info about each type can be found in the [API docs](./typedoc).
+This page gives an overview of the library's built-in collaborative data structures (`Collab`s, for short). More detailed info about each data structure can be found in the [API docs](./typedoc).
 
 ## Quick Reference
 
@@ -43,8 +43,8 @@ We distinguish mutable value collections by including `Mut` in their names, e.g.
 In some situations, the immutable vs. mutable distinction is subtle:
 
 1. `LwwCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LwwCMap` and a map with mutable values is that in `LwwCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
-2. You can use collaborative types as immutable values. In that case, the immutable value acts as a _reference_ to the original collaborative type, like the \* types above.
-   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a collaborative type that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LwwCRegister<CPerson>` to store a reference to the project lead, chosen from the set's values.
+2. You can use `Collab`s as immutable values. In that case, the immutable value acts as a _reference_ to the original `Collab`, like the \* types above.
+   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LwwCRegister<CPerson>` to store a reference to the project lead, chosen from the set's values.
 
 **Caution:** The library will not prevent you from internally mutating a value that you used in an immutable collection. Instead, you must take care not to do this. If you do mutate a value stored in an immutable collection, then that mutation will not be replicated to other users. Thus the mutating user will see the mutated state, while the other users will not, violating consistency.
 
@@ -52,7 +52,7 @@ In some situations, the immutable vs. mutable distinction is subtle:
 
 Immutable value collections have straightforward interfaces, similar to their ordinary versions. E.g., `AddWinsCSet<T>` has methods `add(value: T)`, `delete(value: T)`, values()`, etc., just like ES6 `Set<T>`.
 
-Besides ensuring that the values are not mutated internally, ensure that they can be serialized - see [./serialization.md](Serialization). Primitive values, JSON-like objects or arrays, and references to collaborative types are all serializable by default.
+Besides ensuring that the values are not mutated internally, ensure that they can be serialized - see [./serialization.md](Serialization). Primitive values, JSON-like objects or arrays, and references to `Collab`s are all serializable by default.
 
 **Semantic difference with ES6 `Set` and `Map`:** when comparing `AddWinsCSet` values or `CMap` keys, we use _serialization equality_ instead of `===` equality. That is, `x` and `y` are considered equal if they serialize to the same `Uint8Array`. With the default serializer, this is equivalent to _deep `===` equality_. See [`ReferenceCSet`](./typedoc/classes/ReferenceCSet.html) for a collaborative set that instead compares object values using `===`.
 
@@ -60,22 +60,22 @@ Besides ensuring that the values are not mutated internally, ensure that they ca
 
 ### Mutable Value Collections
 
-Mutable value collections use values that are themselves collaborative types. You mutate the values internally by performing operations on them as usual. If multiple users mutate a value concurrently, their changes will all take effect, using the value's usual conflict resolution algorithm.
+Mutable value collections use values that are themselves `Collab`s. You mutate the values internally by performing operations on them as usual. If multiple users mutate a value concurrently, their changes will all take effect, using the value's usual conflict resolution algorithm.
 
-The values are created dynamically at runtime, in response to operations on the collection. E.g., in a `CSet<C>`, each time a user calls `add`, a new instance of the collaborative type `C` is created on each replica as the new set element. Such collection operations are the _only_ way to create collaborative types dynamically like this, at least when using just our built-in types.
+The values are created dynamically at runtime, in response to operations on the collection. E.g., in a `CSet<C>`, each time a user calls `add`, a new instance of the `Collab` `C` is created on each replica as the new set element. Such collection operations are the _only_ way to create `Collab`s dynamically like this, at least when using just our built-in data structures.
 
-To allow you to create collaborative types dynamically, mutable values collections work a bit differently from the immutable versions. E.g., in a `CSet<CCounter>`, you can't create a new instance `foo` of `CCounter` and then call `set.add(foo)`: constructing `foo` is impossible without a `CrdtInitToken`. Instead:
+To allow you to create `Collab`s dynamically, mutable values collections work a bit differently from the immutable versions. E.g., in a `CSet<CCounter>`, you can't create a new instance `foo` of `CCounter` and then call `set.add(foo)`: constructing `foo` is impossible without a `InitToken`. Instead:
 
 - Operations that create a new value (e.g., `CSet.add`, `CMap.set`, `CList.insert`) input arbitrary arguments. The arguments' type (as an array) is specified using a generic type on the relevant interface, e.g., `CSet`'s `AddArgs`. They must be serializable - see [./serialization.md](Serialization). When such an operation is called, it serializes its arguments and sends them to every replica.
-- You must specify a callback, `valueConstructor`, as a constructor argument when creating the collection. This callback is called with the arguments received from an `add`/`set`/`insert`/etc. operation (deserialized), plus a `CrdtInitToken`. The callback must use these to construct a new value, perform any per-value setup like adding event listeners, then return the value.
+- You must specify a callback, `valueConstructor`, as a constructor argument when creating the collection. This callback is called with the arguments received from an `add`/`set`/`insert`/etc. operation (deserialized), plus a `InitToken`. The callback must use these to construct a new value, perform any per-value setup like adding event listeners, then return the value.
 
 <!-- > **Example:** TODO -->
 
-> **Aside:** In principle, once you have one way of creating collaborative types dynamically (e.g., `DeletingMutCSet`), you can use that to create types dynamically, then put the types in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating collaborative types with a `DeletingMutCSet` and then setting them as values in a `LwwCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`DeletingMutCSet`](./typedoc/classes/DeletingMutCSet.html) and [`GrowOnlyImplicitMergingMutCMap`](./typedoc/classes/GrowOnlyImplicitMergingMutCMap.html).
+> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `DeletingMutCSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `DeletingMutCSet` and then setting them as values in a `LwwCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`DeletingMutCSet`](./typedoc/classes/DeletingMutCSet.html) and [`GrowOnlyImplicitMergingMutCMap`](./typedoc/classes/GrowOnlyImplicitMergingMutCMap.html).
 
 ## Choices
 
-Often you can choose between several collaborative types. Different choices may support different operations, or different semantics in the face of conflicting concurrent operations. This section describes some common choices and how the options differ.
+Often you can choose between several collaborative data structures. Different choices may support different operations, or different semantics in the face of conflicting concurrent operations. This section describes some common choices and how the options differ.
 
 ### Registers vs Everything Else
 

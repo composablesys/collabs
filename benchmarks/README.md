@@ -55,3 +55,11 @@ Run without any arguments for usage instructions.
 `./micro_automerge.sh`: Runs all microbenchmarks for Yjs.
 
 `npm start`: Runs an individual benchmark. "<major test>" is one of "automerge_perf", "todo_list", "micro_collabs", "micro_yjs", or "micro_automerge". The "test args..." are specific to each major test; see the correponding `benchmark.ts` file to learn their form. Currently, all major tests assume these have the form "<test name> <measurement = time | memory | network | save> <mode = whole | rounds>".
+
+## Graphing Data
+
+The benchmark results can be graphed using the R scripts in [compoventuals-chart](https://github.com/composablesys/compoventuals-chart).
+
+Specifically, you can clone that repository, delete old data if desired (all folders except `rscripts`), then run the above commands with the repository's location as the output folder. Then run that repository's `make_rmd_html.sh` to output HTML files with the graphs (requires R and some R packages).
+
+<!-- TODO: publicly expose our server, and link to it here. -->

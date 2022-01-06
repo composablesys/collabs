@@ -1,7 +1,7 @@
 {
   "name": "@collabs/json-opt",
   "version": "0.1.3",
-  "description": "CRDTs designed compositionally (Optimized JSON datatype)",
+  "description": "Collabs example - optimized JSON CRDT",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
   "bugs": {

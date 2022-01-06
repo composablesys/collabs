@@ -14,7 +14,7 @@ Our ultimate goal is to make collaborative apps **easier for programmers to writ
 
 > See also: [CRDTs as a foundational technology](https://www.inkandswitch.com/local-first.html#crdts) in the Ink & Switch essay. Collabs provides the CRDTs.
 
-A collaborative app that delegates all collaboration to Collabs's collaborative data types automatically gets two nice properties:
+A collaborative app that delegates all collaboration to Collabs's collaborative data structures automatically gets two nice properties:
 
 1. It is network-agnostic, capable of running on top of any broadcast network (especially if it is a [Container](./containers.md)).
 2. All data and logic is stored on users' devices, where it can be saved and used forever, even when offline.
@@ -29,10 +29,10 @@ One can imagine a desktop or smartphone program that is designed to connect arbi
 
 ## Differences from Prior Work
 
-While there already exist collaborative data type libraries, including network-agnostic, local-first libraries (see [Related Work](./related_work.md)), we believe Collabs is warranted because of some key features:
+While there already exist collaborative data structure libraries, including network-agnostic, local-first libraries (see [Related Work](./related_work.md)), we believe Collabs is warranted because of some key features:
 
 - **Keep your data model and type safety:** You can organize your collaborative state using reusable, strongly-typed classes.
-- **Flexible and extensible:** You can create new collaborative data types, instead of just using the ones we provide. So, if a cool new CRDT algorithm appears, like a [list with move operation](https://dl.acm.org/doi/10.1145/3380787.3393677), you don't have to create a new library to use it. (Don't worry, we already implement this move operation in [`DeletingMutCList`](./typedoc/classes/DeletingMutCList.html).) Or, if our performance is inadequate for your app, you can make your own optimized data types, or even create wrappers around other libraries' better implementations.
-- **Composable:** We provide composition techniques that let you create new collaborative data types from existing ones, instead of starting from scratch each time. Built-in techniques include the mutable collection types, [`CObject`](./typedoc/classes/CObject.html), and [`SemidirectProduct`](./typedoc/classes/SemidirectProduct.html), that let you create new collaborative data types from existing ones, instead of starting from scratch each time. Of course, you can also create new composition techniques, e.g., by subclassing [`Crdt`](./typedoc/classes/Crdt.html) directly.
+- **Flexible and extensible:** You can create new collaborative data structures, instead of just using the ones we provide. So, if a cool new CRDT algorithm appears, like a [list with move operation](https://dl.acm.org/doi/10.1145/3380787.3393677), you don't have to create a new library to use it. (Don't worry, we already implement this move operation in [`DeletingMutCList`](./typedoc/classes/DeletingMutCList.html).) Or, if our performance is inadequate for your app, you can make your own optimized data structures, or even create wrappers around other libraries' better implementations.
+- **Composable:** We provide composition techniques that let you create new collaborative data structures from existing ones, instead of starting from scratch each time. Built-in techniques include the mutable collection types, [`CObject`](./typedoc/classes/CObject.html), and [`SemidirectProduct`](./typedoc/classes/SemidirectProduct.html), that let you create new collaborative data structures from existing ones, instead of starting from scratch each time. Of course, you can also create new composition techniques, e.g., by subclassing [`Collab`](./typedoc/classes/Collab.html) directly.
 
 Considered together, these features are unique among prior work. Of course, which library you should use depends on your precise programming style and app. Each library has its own characteristics, and in particular, its own data model (how you must represent your data to make it collaborative).

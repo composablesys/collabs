@@ -62,31 +62,31 @@ Let's take a look at `src/my_container.ts`.
 We import the library, plus the container-specific `ContainerRuntimeSource` from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
 
 ```ts
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { ContainerRuntimeSource } from "@collabs/container";
 ```
 
 <!-- TODO: async -->
 
-Our first task is to get an instance of `Runtime`. This is the entry point for Collabs; it connects collaborative types to the network. For a container, we use `ContainerRuntimeSource.newRuntime`.
+Our first task is to get an instance of `Runtime`. This is the entry point for Collabs; it connects collaborative data structures (`Collab`s, for short) to the network. For a container, we use `ContainerRuntimeSource.newRuntime`.
 
 ```ts
 // Create a Runtime intended for use within containers.
 const runtime = await ContainerRuntimeSource.newRuntime(window.parent);
 ```
 
-Next, we register our "global variable" collaborative types - types that exist outside of any scope. These must together encompass the whole collaborative state, and they must be registered immediately after creating `runtime`. We do so using `runtime.registerCrdt`.
+Next, we register our "global variable" `Collab`s - structures that exist outside of any scope. These must together encompass the whole collaborative state, and they must be registered immediately after creating `runtime`. We do so using `runtime.registerCollab`.
 
 ```ts
-// Register collaborative data types.
-const counter = runtime.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
+// Register Collabs.
+const counter = runtime.registerCollab("counter", collabs.Pre(collabs.CCounter)());
 ```
 
 A few things to note here:
 
-- The first argument to `registerCrdt` is a _name_ for the collaborative type, used to identify it across different users. This can be arbitrary, but we recommend using the same name as the variable used to store the collaborative type. Each call to `registerCrdt` must use a unique name.
-- We don't call [`CCounter`](./typedoc/classes/CCounter.html)'s constructor directly. Indeed, that constructor's first argument, of type `CrdtInitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `crdts.Pre(crdts.CCounter)` with the rest of `CCounter`'s constructor arguments - in this case, `()`.  
-  In general, when constructing collaborative types, you use `Pre` instead of `new` in this way. I.e.:
+- The first argument to `registerCollab` is a _name_ for the `Collab`, used to identify it across different users. This can be arbitrary, but we recommend using the same name as the variable used to store the `Collab`. Each call to `registerCollab` must use a unique name.
+- We don't call [`CCounter`](./typedoc/classes/CCounter.html)'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.CCounter)` with the rest of `CCounter`'s constructor arguments - in this case, `()`.  
+  In general, when constructing `Collab`s, you use `Pre` instead of `new` in this way. I.e.:
   ```ts
   Pre(class_name)<generic types>( constructor args)
   ```
@@ -96,10 +96,10 @@ A few things to note here:
   ```
   See [Initialization](./initialization.md) for more info.
 
-Now that we have our `counter`, we need to observe changes to it and update the state. Here we use the catch-all `Runtime` "Change" event, which is fired whenever any collaborative type changes, including by the local user. See [Events](./events.md) for more info.
+Now that we have our `counter`, we need to observe changes to it and update the state. Here we use the catch-all `Runtime` "Change" event, which is fired whenever any `Collab` changes, including by the local user. See [Events](./events.md) for more info.
 
 ```ts
-// Refresh the display when the Crdt state changes, possibly
+// Refresh the display when the Collab state changes, possibly
 // due to a message from another replica.
 const display = document.getElementById("display")!;
 runtime.on("Change", () => {
@@ -107,7 +107,7 @@ runtime.on("Change", () => {
 });
 ```
 
-Finally, we convert user inputs into operations on `counter`. Since `counter` is a collaborative type, these operations will eventually show up for all users. Furthermore, everyone will eventually end up in the same state even if multiple users do operations concurrently. (Use the "Disconnect" buttons on the test page to try this out!)
+Finally, we convert user inputs into operations on `counter`. Since `counter` is a `Collab`, these operations will eventually show up for all users. Furthermore, everyone will eventually end up in the same state even if multiple users do operations concurrently. (Use the "Disconnect" buttons on the test page to try this out!)
 
 ```ts
 // Change counter's value on button clicks.
@@ -127,7 +127,7 @@ document.getElementById("reset")!.onclick = () => {
 The complete `src/my_container.ts` appears below.
 
 ```ts
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { ContainerRuntimeSource } from "@collabs/container";
 
 // Async so we can await ContainerRuntimeSource.newRuntime.
@@ -143,10 +143,10 @@ import { ContainerRuntimeSource } from "@collabs/container";
   // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
 
-  // Register collaborative data types.
-  const counter = runtime.registerCrdt("counter", crdts.Pre(crdts.CCounter)());
+  // Register Collabs.
+  const counter = runtime.registerCollab("counter", collabs.Pre(collabs.CCounter)());
 
-  // Refresh the display when the Crdt state changes, possibly
+  // Refresh the display when the Collab state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
   runtime.on("Change", () => {

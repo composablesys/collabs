@@ -8,7 +8,7 @@ Coming soon: how the library handles errors, and advice for recovering from a bu
 
 <!-- TODO
 
-On sender: user may need to refresh the page, in case you did something with the op locally that wasn't caused by a message (user processes the mesage like anyone else). Bad op won't do anything to anyone, except for partial state ops?
+On sender: user may need to refresh the page, in case you did something with the op locally that wasn't caused by a message (user processes the mesage like anyone else). Bad op won't do anything to anyone, except for partial state ops? Need to avoid saving the errored state; you can recover as long as refresh from a point before the error.
 
 On receiver: WIP. But if it errors during receipt on the sender, it won't get sent.
 
