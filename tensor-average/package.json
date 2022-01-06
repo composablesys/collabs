@@ -13,7 +13,7 @@
     "url": "git+https://github.com/composablesys/collabs.git"
   },
   "keywords": [
-    "crdts"
+    "CRDT"
   ],
   "private": true,
   "module": "build/esm/src/index.js",

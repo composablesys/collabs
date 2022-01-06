@@ -1880,7 +1880,7 @@ export function preloader() {
 
   loadText.innerHTML = "Loading";
 
-  crdtSetup().then(() => {
+  collabsSetup().then(() => {
     myLoadBar.parentNode.style.visibility = "hidden";
     loadText.style.visibility = "hidden";
     gameWindow.className = "";
@@ -1919,7 +1919,7 @@ const IRREGULAR_DEFAULTS = {
 let alleles = {};
 
 // Async so we can await ContainerAppSource.newApp.
-async function crdtSetup() {
+async function collabsSetup() {
   const app = await ContainerAppSource.newApp(window.parent);
 
   for (const gene of GENES) {
