@@ -26,7 +26,7 @@ export interface BatchingLayerEventsRecord extends CollabEventsRecord {
    * More specifically, a "Change" event is emitted:
    * - For messages sent by the local child, once per
    * transaction, in a microtask scheduled after the first
-   * sent message. Note this happen be more than once per
+   * sent message. Note that this may happen more than once per
    * batch or after the batch is committed, if it is
    * committed synchronously with the transaction.
    * - For received messages, once per batch.
@@ -228,14 +228,10 @@ export class BatchingLayer
         .then(() => {
           this.batchEventPending = false;
           if (this.isBatchPending()) {
+            // Only emit if the batch is still pending.
             this.emit("BatchPending", { meta });
-          } else {
-            // The batch is no longer pending, so don't emit
-            // a BatchPending event. However we still have to
-            // emit a Change event, since the state was changed
-            // in a transaction.
-            this.emit("Change", { meta });
           }
+          this.emit("Change", { meta });
         })
         .catch((err) => {
           // Shouldn't be any errors here, but handle it
