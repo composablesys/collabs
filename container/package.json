@@ -1,6 +1,6 @@
 {
   "name": "@collabs/container",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Tools for Collabs containers (network-agnostic collaborative apps)",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -33,7 +33,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.2.0",
+    "@collabs/collabs": "0.2.1",
     "tslib": "^2.0.1"
   },
   "devDependencies": {
