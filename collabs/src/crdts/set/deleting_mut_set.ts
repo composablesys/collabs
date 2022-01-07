@@ -220,9 +220,19 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
     const newValue = this.valueConstructor(new InitToken(name, this), ...args);
+
     this.children.set(name, newValue);
     if (!isInitialValue) {
-      // Initial values are not saved, since they are created
+      if (this.pendingChildSaves === null) {
+        // Not an initial value and not currently loading =>
+        // this has already been loaded.
+        // Since the value is new with no prior saved state,
+        // we need to call value.load(null) to indicate that
+        // newValue skipped loading.
+        newValue.load(null);
+      }
+      // Save the constuctor args.
+      // Not needed for initial values, since they are created
       // as part of initialization.
       this.constructorArgs.set(name, serializedArgs!);
     }

@@ -92,11 +92,18 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
 
         if (this.pendingChildSaves !== null) {
           // We are in this.load.
-          // We can assume value will be nontrivial once
+          // So, value.load will be called by this.load
+          // right after the value is returned;
+          // we don't need to do it here.
+          // Also, we can assume value will be nontrivial once
           // it is recursively loaded, since save only
           // returns the nontrivial children.
           this.nontrivialMap.set(keyString, value);
         } else {
+          // Since the value is new with no prior saved state,
+          // we need to call value.load(null) to indicate that
+          // loading was skipped.
+          value.load(null);
           // The value starts trivial; if it becomes nontrivial
           // due to a message, receiveInternal will move
           // it to nontrivialMap.

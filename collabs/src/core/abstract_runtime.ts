@@ -9,7 +9,7 @@ import { Runtime, RuntimeEventsRecord } from "./runtime";
  */
 export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   extends EventEmitter<Events>
-  implements Runtime 
+  implements Runtime
 {
   readonly isRuntime: true = true;
   /**
