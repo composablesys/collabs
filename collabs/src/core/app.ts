@@ -17,13 +17,16 @@ interface AppEventsRecord {
 /**
  * The entrypoint for a Collabs app.
  *
- * TODO: sample code. Workflow: new, register, await load
- * (call with null if new), start, then use Collabs.
+ * See [../../getting_started_guide.md] for a sample application
+ * using the [[CRDTApp]] subclass, which illustrates the general
+ * usage pattern.
  *
  * Internally, an App is a thin wrapper around its [[Runtime]],
  * exposing only the user-facing methods and events.
  *
- * For a concrete instance, see [[CRDTApp]].
+ * For a concrete instance designed for used with Collabs's
+ * built-in library of Conflict-free Replicated Data
+ * Types, see [[CRDTApp]].
  */
 export class App<
   R extends Runtime = Runtime

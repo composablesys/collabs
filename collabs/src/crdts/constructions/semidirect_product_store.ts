@@ -15,6 +15,11 @@ class StoredMessage<M2> {
   ) {}
 }
 
+// Currently, this doesn't need to be a Collab; it just stores
+// stuff. We'll leave it as one for now in case it requires
+// message sending later. Will reconsider the next time we
+// refactor the semidirect product API.
+
 /**
  * A bare-bones semidirect product implementation that stores
  * and acts on custom messages provided by the user, without
@@ -46,8 +51,6 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
- *
- * TODO: need this be a Collab?
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private receiptCounter = 0;
@@ -133,9 +136,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     // greater than crdtMeta.vectorClock.get(replicaID).
     const concurrent: StoredMessage<M2>[] = [];
     const vc = crdtMeta.vectorClock;
-    for (const historyEntry of this.history.entries()) {
-      const senderHistory = historyEntry[1];
-      const vcEntry = vc.get(historyEntry[0]);
+    for (const [sender, senderHistory] of this.history.entries()) {
+      const vcEntry = vc.get(sender);
       if (senderHistory !== undefined) {
         const concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {
@@ -145,11 +147,14 @@ export class SemidirectProductStore<M1, M2> extends CObject {
         }
         if (discardDominated) {
           // Keep only the messages with index
-          // >= concurrentIndexStart
-          senderHistory.splice(0, concurrentIndexStart);
-          // TODO: delete it from the map if empty,
-          // as a form of garbage collection.
-          // This also makes isHistoryEmpty simpler.
+          // >= concurrentIndexStart.
+          if (concurrentIndexStart === senderHistory.length) {
+            // We want to empty senderHistory completely;
+            // delete it from this.history.
+            this.history.delete(sender);
+          } else {
+            senderHistory.splice(0, concurrentIndexStart);
+          }
         }
       }
     }

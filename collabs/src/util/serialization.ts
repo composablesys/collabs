@@ -34,10 +34,7 @@ export interface Serializer<T> {
  * Collab types are sent by-reference, using
  * [[Runtime.getNamePath]] to identify different replicas
  * of the same Collab.  Arrays and objects are serialized
- * recursively. Note that object classes are not preserved
- *
- * TODO: restrictions, e.g., functions. Structured clone alg,
- * like window.postMessage?
+ * recursively. Note that object classes are not preserved.
  */
 export class DefaultSerializer<T> implements Serializer<T> {
   private constructor(private readonly runtime: Runtime) {}
@@ -247,19 +244,6 @@ export class StringAsArraySerializer implements Serializer<string> {
   static readonly instance = new StringAsArraySerializer();
 }
 
-/**
- * Compares two Uint8Array's for equality.
- */
-export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
-  if (one.length !== two.length) return false;
-  // OPT: convert to a Uint32Array
-  // and do 4-byte comparisons at a time?
-  for (let i = 0; i < one.length; i++) {
-    if (one[i] !== two[i]) return false;
-  }
-  return true;
-}
-
 // OPT: cache instances?
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
@@ -362,6 +346,19 @@ export function bytesAsString(array: Uint8Array) {
 }
 export function stringAsBytes(str: string) {
   return new Uint8Array(Buffer.from(str, ENCODING));
+}
+
+/**
+ * Compares two Uint8Array's for equality.
+ */
+export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
+  if (one.length !== two.length) return false;
+  // OPT: convert to a Uint32Array
+  // and do 4-byte comparisons at a time?
+  for (let i = 0; i < one.length; i++) {
+    if (one[i] !== two[i]) return false;
+  }
+  return true;
 }
 
 /**

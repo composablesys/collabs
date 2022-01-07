@@ -55,7 +55,7 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends unknown[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCMapCObject and the other examples
+ * by [[AbstractCMapCObject]] and the other examples
  * in this file.
  */
 export function MakeAbstractCMap<

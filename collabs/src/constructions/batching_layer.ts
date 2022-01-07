@@ -91,20 +91,30 @@ interface BatchInfo {
 /**
  * Collab that batches message sent by its descendants.
  *
- * TODO: messages might be received in the middle of a batch.
- * But, need to ensure they can't be received in the middle
- * of a transaction.
+ * Batching serves a few purposes:
+ * - Enforces transactional
+ * behavior ([transactions docs](../../transactions.md)):
+ * messages sent in the same event loop iteration are
+ * delivered atomically on each replica.
+ * - Reduce the number and size of messages sent on the
+ * network, by delivering multiple transactions together
+ * with some compression applied. Specifically, path
+ * prefix compression is applied to sent `messagePath`s,
+ * so in particular, multiple messages from the same [[Collab]]
+ * end up only sending that [[Collab]]'s name path once.
+ * - Rate-limit the rate of message sending.
  *
- * TODO: for correct MessageMeta's (consistent between sender
- * and receiver), need to guarantee that next MessageMeta context
- * is consistent within batches. In practice, this requires
- * that no ancestors of this layer add non-constant
- * MessageMeta fields.
+ * Typically, [[BatchingLayer]] should either be the
+ * root Collab, or the sole child of the root, or the
+ * sole child of a sole child, etc. Otherwise,
+ * the current [[MessageMeta]] may change during a batch,
+ * causing a sending replica to see different [[MessageMeta]]'s
+ * than recipients.
  *
- * TODO: somewhere: advice to reuse Uint8Array's, or use strings,
- * if you send the same messages often. That way they
- * can be batched properly. Especially true for high-up
- * things, e.g., child names and adding metadata.
+ * As an optimization, descendants of a [[BatchingLayer]] should reuse
+ * [[Uint8Array]] objects (treated as immutable) when sending
+ * identical messages, possibly within the same batch. That
+ * allows [[BatchingLayer]] to deduplicate the messages.
  */
 export class BatchingLayer
   extends Collab<BatchingLayerEventsRecord>
@@ -159,10 +169,6 @@ export class BatchingLayer
     // Local echo.
     if (this.inChildReceive) {
       // send inside a receive call; not allowed (might break things).
-      // TODO: Do we need to ban this here? Perhaps just in
-      // Runtime? (In case you want to wrap this in runLocally.
-      // Although this should be the root anyway, so that's not
-      // valid.)
       throw new Error(
         "BatchingLayer.send called during another message's receive;" +
           " did you try to perform an operation in an event handler?"
@@ -186,7 +192,7 @@ export class BatchingLayer
       this.pendingBatch = pendingBatch;
     }
 
-    // TODO: for single (non-batched) messages, optimize by
+    // OPT: for single (non-batched) messages, optimize by
     // not doing anything fancy, just using the literal path?
     // Don't even form the pendingBatch structure, just store
     // it as a second special case after the empty case.
@@ -275,7 +281,7 @@ export class BatchingLayer
     const serialized = BatchingLayerMessage.encode(batchMessage).finish();
     this.send([serialized]);
 
-    // TODO: optimized encoding: unwrap inner fields as
+    // OPT: optimized encoding: unwrap inner fields as
     // multiple arrays; for labels, put in one big Uint8Array
     // (encoding strings as needed) and have a separate packed
     // array of sint32's giving the length of each one and

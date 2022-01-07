@@ -42,7 +42,7 @@ export declare abstract class AbstractCSet<T, AddArgs extends unknown[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCSetCObject and the other examples
+ * by [[AbstractCSetCObject]] and the other examples
  * in this file.
  */
 export function MakeAbstractCSet<

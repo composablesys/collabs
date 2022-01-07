@@ -80,7 +80,7 @@ export class TombstoneMutCMap<
     // (due to keySet.add) followed by a Set for the
     // actual value, such that the two events together
     // end up in the proper state and have reasonable
-    // previousValues (accounting for each other). TODO.
+    // previousValues (accounting for each other).
     this.map.on("Set", (event) => {
       if (this.has(event.key)) {
         // Note in case 1, this will properly have

@@ -28,13 +28,12 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
    */
   toString(): string;
 
-  // Convenience mutators
+  // Convenience mutators.
   pop(): T;
   push(...args: InsertArgs): T;
   shift(): T;
   unshift(...args: InsertArgs): T;
 
-  // TODO: advice for range versions of mutators
   // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
   // OPT: optimize includes, indexOf, lastIndexOf if you know how to get
@@ -136,15 +135,21 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
  * methods to an arbitrary Collab base class.
  * You may override the default implementations.
  *
- * Implemented methods: clear, forEach, Symbol.iterator
+ * Implemented methods: all except insert, delete, get,
+ * values, and length.
  *
  * Due to limitations of TypeScript, this version of the
  * function sets all of Base's generic type parameters to their
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCListCObject and the other examples
+ * by [[AbstractCListCObject]] and the other examples
  * in this file.
+ *
+ * In CLists with `InsertArgs == [T]``, you
+ * wish to modify [[push]] and [[unshift]] to allow bulk insertions,
+ * like their `Array` versions.
+ * See [[PrimitiveCList]] for an example of how to do this.
  */
 export function MakeAbstractCList<
   TBase extends abstract new (...args: any[]) => Collab
@@ -251,7 +256,6 @@ export function MakeAbstractCList<
 
     concat(...items: ConcatArray<T>[]): T[];
     concat(...items: (T | ConcatArray<T>)[]): T[] {
-      // TODO: can we use Array.call version here?
       return this.slice().concat(...items);
     }
 
@@ -299,7 +303,6 @@ export function MakeAbstractCList<
     }
 
     flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[] {
-      // TODO
       return this.slice().flat(depth);
     }
 
@@ -374,7 +377,7 @@ export function MakeAbstractCList<
       thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): U[] {
       const outerThis = this;
-      // TODO: why is the cast needed here?  Type inference
+      // Why is the cast needed here?  Type inference
       // seems to be failing.
       return Array.prototype.map.call(
         this.asArrayLike(),
@@ -415,7 +418,7 @@ export function MakeAbstractCList<
         list: this
       ) => T
     ): T;
-    // TODO: had to make initialValue optional here, is
+    // Had to make initialValue optional here, is
     // that okay?  Same in reduceRight.
     reduce<U>(
       callbackfn: (
@@ -427,7 +430,7 @@ export function MakeAbstractCList<
       initialValue?: U
     ): U {
       const outerThis = this;
-      // TODO: why is the cast and any needed here?  Type inference
+      // Why is the cast and any needed here?  Type inference
       // seems to be failing.
       return Array.prototype.reduce.call(
         this.asArrayLike(),
@@ -468,7 +471,7 @@ export function MakeAbstractCList<
       initialValue?: U
     ): U {
       const outerThis = this;
-      // TODO: why is the cast and any needed here?  Type inference
+      // Why is the cast and any needed here?  Type inference
       // seems to be failing.
       return Array.prototype.reduceRight.call(
         this.asArrayLike(),
@@ -495,7 +498,7 @@ export function MakeAbstractCList<
       return <T[]>Array.prototype.slice.call(this.asArrayLike(), start, end);
     }
   }
-  // TODO: this almost works except it thinks insert's return
+  // This almost works except it thinks insert's return
   // type is unknown for some reason?
   // eslint-disable-next-line
   return Mixin as any;

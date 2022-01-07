@@ -139,8 +139,17 @@ export class MergingMutCMap<K, C extends Collab & Resettable>
     return this.cachedSize;
   }
 
+  /**
+   * Returns an iterable of keys in the map.
+   *
+   * The
+   * iteration order is NOT eventually consistent, i.e.,
+   * it may differ on replicas with the same state.
+   *
+   * Warning: in the face of concurrent map modifications,
+   * this may return unexpected results.
+   */
   *entries(): IterableIterator<[K, C]> {
-    // TODO: could get weird if there is concurrent modification
     for (const entry of this.internalMap.entries()) yield entry;
     for (const key of this.keySet) {
       // Skip already yielded ones

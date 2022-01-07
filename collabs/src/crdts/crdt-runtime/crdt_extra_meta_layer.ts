@@ -135,9 +135,11 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       // we can give just a diff (or reuse the serialized
       // thing entirely, if we can infer the change, i.e.,
       // it's just incrementing our senderCounter.)
-      // TODO: That is also necessary for good transaction semantics
+      // That is also necessary for good transaction semantics
       // (e.g., multiple LWW sets within a transaction all have
-      // same wall clock time).
+      // same wall clock time). Should be OK for now because wall
+      // block time is unlikely to change much in a synchronous
+      // execution thread.
     }
   }
 

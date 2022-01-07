@@ -9,10 +9,10 @@ import {
 } from "../core";
 
 /**
- * A [[Collab]] object, made of instance fields that
+ * A [[Collab]] object, made of properties that
  * are themselves Collabs.
  *
- * The Collab instance fields are its *children*.
+ * The Collab properties are its *children*.
  *
  * `CObject` enables the simplest form of composition:
  * you use a fixed set of existing collaborative data
@@ -24,31 +24,46 @@ import {
  * map with [[LwwCRegister]] values; its contribution is to
  * provide a simple [[CMap]]-compliant API for the wrapped type.
  *
- * TODO: difference from normal object: scoping, Collab interface
+ * Unlike a normal object or a `Collab` with normal
+ * properties, `CObject` ensures that its `Collab` children
+ * are linked to each other through the network. Specifically,
+ * each time a child requests to send a message, `CObject` sends
+ * it tagged with the child's name; recipient replicas then
+ * pass the message to their own child
+ * with that name.
  *
  * ## Usage
  *
  * The children must be registered in the constructor
  * using [[addChild]], which accepts a [[Pre]]-Collab and
  * outputs the constructed Collab.  Each child must be assigned
- * a unique name, e.g., its name as an instance field.  (If
+ * a unique name, e.g., its name as an property.  (If
  * you are concerned about message sizes on the network,
  * you can instead use maximally short names - "" for the most-used
- * child, then "0", "1", etc.)
+ * child, then "0", "1", etc. Think of
+ * these short names like the field numbers in Protobuf structs.)
  *
  * To be eventually consistent, a `CObject` should not have
- * mutable besides outside of its children.  One exception
- * is
+ * mutable properties outside of its children.  One exception
+ * is mutable properties that are deterministic views of
+ * child state. E.g., if one child stores a set of words,
+ * it is of course eventually consistent to also store an
+ * alphabetized list as a view of that set. You can keep
+ * such a view up-to-date by updating the view in response
+ * to child events.
  *
- * Allowed instance fields (children, non-collaborative stuff
- * (e.g. readonly vars)), views of collab state.  Correctness
- * condition?
- *
- * 3 things to translate for your users: operations, queries (reading value), events
+ * A fully reusable `CObject` instance has three main
+ * responsibilities:
+ * - Translate operations (mutating method calls) into operations on
+ * its children.
+ * - Translate queries (method calls/properties for reading
+ * the state) into queries on its children and views.
+ * - Translate events emitted by the children into its own
+ * events.
  *
  * ## Example Subclass
  *
- * TODO
+ * See [template-custom-type](../../../../template-custom-type).
  */
 export class CObject<
     Events extends CollabEventsRecord = CollabEventsRecord,
@@ -74,9 +89,16 @@ export class CObject<
    * Add child as a child of this Collab with the given
    * name.
    *
-   * TODO: correctness requirements and recommended usage
-   * as this.foo = this.addChild("foo", new ...)
-   * (ref to class doc?).
+   * It is recomend that you use this in the style
+   * ```ts
+   * this.foo = this.addChild("foo", Pre(FooClass)(constructor args...));
+   * ```
+   * In particular, the created child should be stored as an ordinary
+   * object property.  Each child must be assigned
+   * a unique name, e.g., its name as an property.  (If
+   * you are concerned about message sizes on the network,
+   * you can instead use maximally short names - "" for the most-used
+   * child, then "0", "1", etc.)
    *
    * @return child
    */
@@ -147,8 +169,7 @@ export class CObject<
   /**
    * Override to save extra state, which is passed
    * to loadObject during load after the children
-   * are initialized.  TODO: how to use safely (general
-   * save/load advice).
+   * are initialized.
    * @return [description]
    */
   protected saveObject(): Uint8Array | null {
@@ -192,12 +213,16 @@ export class CObject<
   }
 
   /**
-   * Note this is called after the children are loaded.
-   * Also, it is always called, even if saveObject returned
-   * null (in that case it is called with null).
+   * Override to load extra state, using `saveData` from
+   * [[saveObject]].
    *
-   * @param  saveData the output of saveObject() on
-   * a previous saved instance
+   * Note this is called after the children are loaded.
+   * Also, this is always called, even if [[saveObject]] returned
+   * null (in that case this is called with null).
+   *
+   * @param  saveData the output of [[saveObject]] on
+   * a previous saved instance, or null if loading
+   * is being skipped (the app instance is new).
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected loadObject(saveData: Uint8Array | null): void {

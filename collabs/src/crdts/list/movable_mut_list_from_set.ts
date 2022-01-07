@@ -132,7 +132,7 @@ export class MovableMutCListFromSet<
       )
     );
 
-    // TODO: events due to initial elements get dispatched in
+    // Events due to initial values get dispatched in
     // constructor, before we add event listeners, so we miss
     // them.  Perhaps instead have initial values as a second
     // function, but considered part of initialization?

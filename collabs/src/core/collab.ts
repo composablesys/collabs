@@ -77,12 +77,6 @@ export function Pre<C, Args extends unknown[]>(
  * Such events are typically emitted after the Collab processes a local
  * or remote message.
  *
- * TODO: Some special events (e.g. in
- * [[CMountPoint]]) are only associated to a local operation instead
- * of a replicated one; in that case, they should still
- * extend CollabEvent, and they should always set
- * `meta: `[[CollabEventMeta]]`.local(runtime)`.
- *
  * See [[CollabEventsRecord]].
  */
 export interface CollabEvent {
@@ -130,7 +124,73 @@ export interface CollabEventsRecord {
 }
 
 /**
- * TODO
+ * The base class for collaborative data structures ("Collabs", for short).
+ *
+ * Typically, implementations will not extend this class
+ * directly, instead extending an existing subclass;
+ * see [Custom Collaborative Data Structures](../../custom_types.md).
+ *
+ * # Abstraction
+ *
+ * Fundamentally, `Collab` is an abstraction representing
+ * a data structure that is replicated across multiple
+ * replicas (i.e., a replicated data type),
+ * with the replicas kept in sync by sending messages to each
+ * other. The precise network model (causal broadcast,
+ * server-serialized order, immediate local echo, etc.)
+ * is left open, to let the library be as general as
+ * possible. Instead, each Collab should specify its network requirements,
+ * typically in the form of a specific [[Runtime]] or
+ * ancestor `Collab`s; users are then expected to meet
+ * these requirements when using the Collab.
+ *
+ * # Use Cases
+ *
+ * Potential use cases for `Collab` subclasses include operation-based CRDTs,
+ * state-based CRDTs, Operational Transformation types,
+ * and strongly consistent types with server-serialized messages.
+ * However, by default, the library only includes operation-based
+ * CRDTs, together with a [[CRDTRuntime]] needed to
+ * use them. Nonetheless, many parts of the library
+ * can be reused with more general collaborative data
+ * structures (e.g., `CObject`). These can be determined
+ * by viewing the source code: any classes in `src` and
+ * outside of `src/crdts` should be suitable for general use,
+ * while `src/crdts` includes the built-in CRDTs and CRDT-specific
+ * helpers.
+ *
+ * # Composition
+ *
+ * `Collab` natively supports *composition*: nesting
+ * `Collab`s inside of each other, while maintaining
+ * replication in the obvious way (children of replicas
+ * are themselves replicas).
+ *
+ * Composition includes
+ * ordinary object-oriented composition ([[CObject]]),
+ * collections of `Collab`s (e.g., [[DeletingMutCSet]]),
+ * and `Collab`s that provide a specific
+ * environment to their children (e.g., [[CrdtExtraMetaLayer]]).
+ *
+ * Each `Collab` has full control over its children,
+ * allowing a wide range of behavior to be implemented
+ * using `Collab` ancestors (e.g., message batching
+ * ([[BatchingLayer]]), causal ordering
+ *  ([[CrdtExtraMetaLayer]]), and lazy-loading (WIP)).
+ *
+ * TODO: internals: tree of Collabs, rooted at a [[Runtime]];
+ * names and parents;
+ * initialization with InitToken enforces it.
+ *
+ * # Other Features
+ *
+ * ## Events
+ *
+ * TODO: events. Ref appropriate docs/methods.
+ *
+ * ## Saving and Loading
+ *
+ * TODO: saving, loading. Ref appropriate docs/methods.
  */
 export abstract class Collab<
   Events extends CollabEventsRecord = CollabEventsRecord
@@ -238,7 +298,12 @@ export abstract class Collab<
    * ancestors may choose to modify the message before delivery,
    * including possibly delivering extra messages or none at all.
    *
-   * @param  messagePath [description] TODO: will be modified
+   * @param  messagePath An array of messages to be
+   * delivered to replicas' [[receive]] method.
+   * Typically this takes the form of a child `Collab`'s
+   * sent `messagePath`, with an extra message sent by this
+   * `Collab` appended to the end. Note that the array may
+   * be modified in-place by ancestors.
    */
   protected send(messagePath: (Uint8Array | string)[]): void {
     this.parent.childSend(this, messagePath);
@@ -251,10 +316,14 @@ export abstract class Collab<
    * For implementers: do not override this method; instead, override
    * [[receiveInternal]], which is called by this method.
    *
-   * TODO: params
-   *
-   * TODO: warning: messagePath may be modified (length decreased);
-   * copy before use.
+   * @param messagePath A messagePath sent by a local or
+   * remote replica
+   * using [[send]], possibly modified by ancestor
+   * `Collab`s. This may be modified in-place. A common pattern
+   * is to read the last message, decrement the length,
+   * and then deliver it to a child `Collab`.
+   * @param meta Metadata attached to this message by
+   * ancestor `Collab`s.
    */
   receive(messagePath: (Uint8Array | string)[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
@@ -267,20 +336,53 @@ export abstract class Collab<
    * Core method used to receive messages, possibly for
    * one of this Collab's descendants.
    *
-   * TODO: params
-   *
-   * TODO: sample desc from CPrimitive:
-   * Receives messages sent by [[send]]
-   * on local and replica replicas of this [[CPrimitive]].
+   * @param messagePath A messagePath sent by a local or
+   * remote replica
+   * using [[send]], possibly modified by ancestor
+   * `Collab`s. This may be modified in-place. A common pattern
+   * is to read the last message, decrement the length,
+   * and then deliver it to a child `Collab`.
+   * @param meta Metadata attached to this message by
+   * ancestor `Collab`s.
    */
   protected abstract receiveInternal(
     messagePath: (Uint8Array | string)[],
     meta: MessageMeta
   ): void;
 
+  /**
+   * TODO
+   * @return [description]
+   */
   abstract save(): Uint8Array;
+
+  /**
+   * TODO
+   * @param saveData [description]
+   */
   abstract load(saveData: Uint8Array | null): void;
 
+  /**
+   * Returns the "name path" from `descendant` to `this`,
+   * i.e., the list of names on that path in the tree of
+   * `Collab`s.
+   *
+   * I.e., it is `[descendent.name, descendant.parent.name,
+   * descendant.parent.parent.name, ...]` continuing
+   * until `this` is reached, excluding `this.name`.
+   *
+   * [[getDescendant]] does the reverse procedure.
+   * [[getNamePath]] and [[getDescendant]] together allow
+   * one to make a serializable reference to a `Collab` that
+   * is comprehensible across replicas. That is how
+   * [[DefaultSerializer]] and [[CollabSerializer]] serialize
+   * `Collab`s.
+   *
+   * @param  descendant A `Collab` that is a descendant
+   * of `this`.
+   * @throws if `descendant` is not a descendant of `this`
+   * in the tree of `Collab`s.
+   */
   getNamePath(descendant: Collab): string[] {
     let current = descendant;
     const namePath = [];
@@ -295,24 +397,26 @@ export abstract class Collab<
   }
 
   /**
-   * Returns the  descendant of this Collab at the
-   * given `namePath`.
+   * Returns the descendant of this Collab at the
+   * given name path.
    *
-   * TODO: inclusive of this.
+   * If `namePath` is `[]`, `this` is returned.
    *
-   * TODO: needs to work even in the middle of load
-   * (so need to lazily load children before calling
-   * getDescendant on them, if the namePath goes farther).
-   * Can we implement this functionality once in an abstract
-   * ParentCollab class? Also, in general, you're guaranteed load
-   * has already been called if namePath.length > 0, but not
-   * otherwise ("this" case).
+   * This method must work even in the middle of a call
+   * to [[load]], in case one of this `Collab`'s descendants.
+   * deserializes a reference to another descendant.
+   * You are guaranteed that this method will not be called
+   * with a non-`[]` `namePath` until after [[load]] has
+   * been called (but not necessarily terminated), but
+   * it may be called with `namePath = []` at any time,
+   * in which case `this` should be returned without error.
    *
-   * TODO: error behavior (bad namePath vs no longer exists
-   * (DeletingMutCSet case)).
-   *
-   * @param  namePath [description]
-   * @return          [description]
+   * @param  namePath A name path referencing a descendant
+   * of this `Collab` (inclusive), as returned by [[getNamePath]].
+   * @return The descendant at the given name path.
+   * @throws If there is no descendant with the given name
+   * path. Note that it possible that the descendant used to
+   * exist but has since been deleted.
    */
   abstract getDescendant(namePath: string[]): Collab;
 
