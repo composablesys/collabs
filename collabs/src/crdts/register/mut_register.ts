@@ -14,7 +14,7 @@ import { OptionalLwwCRegister } from "./wins_registers";
 
 export class MutCRegisterFromRegister<
     C extends Collab,
-    SetArgs extends any[],
+    SetArgs extends unknown[],
     Value,
     RegT extends CRegister<Value, [C]>,
     Events extends CRegisterEventsRecord<Value> = CRegisterEventsRecord<Value>
@@ -82,11 +82,11 @@ export class MutCRegisterFromRegister<
    * @return this.value + ""
    */
   toString(): string {
-    return this.value + "";
+    return String(this.value);
   }
 }
 
-export class LwwMutCRegister<C extends Collab, SetArgs extends any[]>
+export class LwwMutCRegister<C extends Collab, SetArgs extends unknown[]>
   extends MutCRegisterFromRegister<
     C,
     SetArgs,

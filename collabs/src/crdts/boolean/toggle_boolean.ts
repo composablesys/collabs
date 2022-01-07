@@ -58,7 +58,7 @@ export class ToggleCBoolean
     this.valueInternal = saveData.length !== 0;
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     return this.valueInternal === this.initialValue;
   }
 }

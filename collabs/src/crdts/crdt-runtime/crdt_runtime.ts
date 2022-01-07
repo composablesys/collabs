@@ -19,9 +19,6 @@ import {
 import { BroadcastNetwork } from "./broadcast_network";
 import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
 
-// TODO: make sure to emit Change events when internal
-// transactions/batches happen (local echos that don't
-// reach here yet).
 export class CRDTRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
   implements Runtime
@@ -79,20 +76,15 @@ export class CRDTRuntime
 
   private inRootReceive = false;
 
-  // TODO: can we move this and receive to the abstract class,
-  // or add an intermediate layer that assumes the network but
-  // not the layers, or make the layers customizable thru
-  // options?
   childSend(
     child: Collab<CollabEventsRecord>,
     messagePath: (Uint8Array | string)[]
   ): void {
     if (child !== this.rootCollab) {
-      throw new Error("childSend called by non-root: " + child);
+      throw new Error(`childSend called by non-root: ${child}`);
     }
 
     // Local echo with only mandatory MessageMeta.
-    // TODO: error handling.
     if (this.inRootReceive) {
       // send inside a receive call; not allowed (might break things).
       throw new Error(
@@ -103,8 +95,15 @@ export class CRDTRuntime
     this.inRootReceive = true;
     try {
       this.rootCollab.receive([...messagePath], {
-        sender: this.replicaId,
+        sender: this.replicaID,
         isLocalEcho: true,
+      });
+    } catch (err) {
+      // Don't let the error block other messages' delivery,
+      // but still make it print
+      // its error like it was unhandled.
+      setTimeout(() => {
+        throw err;
       });
     } finally {
       this.inRootReceive = false;
@@ -114,7 +113,7 @@ export class CRDTRuntime
     // we know it's actually all Uint8Array's.
     const runtimeMessage = CRDTRuntimeMessage.create({
       messagePath: <Uint8Array[]>messagePath,
-      sender: this.replicaId,
+      sender: this.replicaID,
     });
     const serialized = CRDTRuntimeMessage.encode(runtimeMessage).finish();
 
@@ -134,12 +133,18 @@ export class CRDTRuntime
           " did you try to deliver a message in an event handler?"
       );
     }
-    // TODO: error handling.
     this.inRootReceive = true;
     try {
       this.rootCollab.receive(deserialized.messagePath, {
         sender: deserialized.sender,
         isLocalEcho: false,
+      });
+    } catch (err) {
+      // Don't let the error block other messages' delivery,
+      // but still make it print
+      // its error like it was unhandled.
+      setTimeout(() => {
+        throw err;
       });
     } finally {
       this.inRootReceive = false;
@@ -151,7 +156,7 @@ export class CRDTRuntime
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 

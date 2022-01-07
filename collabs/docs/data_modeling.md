@@ -4,7 +4,7 @@ Collabs is designed to let you create custom type-safe collaborative data models
 
 In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. You can even publish them as [Custom Types](./custom_types.md) for others to use.
 
-> **Aside:** Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data types", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.  
+> **Aside:** Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data structures", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.  
 > Of course, from the library's perspective, there is no difference. Indeed, many of our built-in "data structures" are actually implemented on top of other data structures using the techniques described here.
 
 ## Process
@@ -20,7 +20,7 @@ We illustrate this process with examples below.
 Notes:
 
 - In practice, steps 2 and 3 are not sequential, but instead are a back-and-forth. Don't expect your program to compile until you have finished both of them together.
-- You may find that you need to revise your choice of collaborative types or your class structure, in order to support the right operations or obtain the right semantics (see [Choices](./types.md) for some common choice points).
+- You may find that you need to revise your choice of collaborative data structures or your class structure, in order to support the right operations or obtain the right semantics (see [Choices](./types.md) for some common choice points).
 - You don't need to replace variables with collaborative versions if they are never mutated after being set (`readonly`/`const` and internally immutable).
 - For advanced scenarios, like supporting new primitive types or novel behavior in the face of concurrent operations, you may need to use more advanced techniques for creating [Custom Types](./custom_types.md).
 
@@ -63,9 +63,9 @@ boardState.set([x, y], color);
 **Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `LwwCMap<[x: number, y: number], string>`:
 
 ```ts
-const boardState = runtime.registerCrdt(
+const boardState = runtime.registerCollab(
   "whiteboard",
-  crdts.Pre(crdts.LwwCMap)<[x: number, y: number], string>()
+  collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
 );
 ```
 
@@ -157,21 +157,21 @@ Per step 2, we should replace `Tile`'s properties with collaborative versions:
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
 
 ```ts
-class CTile extends crdts.CObject {
-  readonly revealed: crdts.TrueWinsCBoolean;
-  readonly flag: crdts.LwwCRegister<FlagStatus>;
+class CTile extends collabs.CObject {
+  readonly revealed: collabs.TrueWinsCBoolean;
+  readonly flag: collabs.LwwCRegister<FlagStatus>;
   readonly isMine: boolean;
   readonly number: number;
 
-  constructor(initToken: crdts.CrdtInitToken, isMine: boolean, number: number) {
+  constructor(initToken: collabs.InitToken, isMine: boolean, number: number) {
     super(initToken);
     this.revealed = this.addChild(
       "revealed",
-      crdts.Pre(crdts.TrueWinsCBoolean)()
+      collabs.Pre(collabs.TrueWinsCBoolean)()
     );
     this.flag = this.addChild(
       "flag",
-      crdts.Pre(crdts.LwwCRegister)<FlagStatus>(FlagStatus.NONE)
+      collabs.Pre(collabs.LwwCRegister)<FlagStatus>(FlagStatus.NONE)
     );
     this.isMine = isMine;
     this.number = number;
@@ -188,13 +188,13 @@ First, we cannot use randomness in the constructor: per [Initialization](./initi
 Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` implementations, there is actually no need for us to use a `CList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./types.md).)
 
 ```ts
-class MinesweeperCrdt extends crdts.CObject {
+class MinesweeperCollab extends collabs.CObject {
   readonly tiles: CTile[][];
   readonly width: number;
   readonly height: number;
 
   constructor(
-    initToken: crdts.CrdtInitToken,
+    initToken: collabs.InitToken,
     width: number,
     height: number,
     fractionMines: number,
@@ -216,7 +216,7 @@ class MinesweeperCrdt extends crdts.CObject {
       for (let y = 0; y < height; y++) {
         this.tiles[x][y] = this.addChild(
           x + ":" + y, // Unique name
-          crdts.Pre(CTile)(this.isMine(x, y), this.number(x, y))
+          collabs.Pre(CTile)(this.isMine(x, y), this.number(x, y))
         );
       }
     }
@@ -229,9 +229,11 @@ class MinesweeperCrdt extends crdts.CObject {
 Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LwwMutCRegister<CMinesweeper>` because the game is internally mutable:
 
 ```ts
-const currentGame = runtime.registerCrdt(
+const currentGame = runtime.registerCollab(
   "currentGame",
-  crdts.Pre(crdts.LwwMutCRegister)(crdts.ConstructorAsFunction(CMinesweeper))
+  collabs.Pre(collabs.LwwMutCRegister)(
+    collabs.ConstructorAsFunction(CMinesweeper)
+  )
 );
 ```
 

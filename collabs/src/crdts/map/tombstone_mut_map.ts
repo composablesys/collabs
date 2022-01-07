@@ -8,8 +8,8 @@ import {
 import { Collab, InitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
-import { LwwCMap } from "./lww_map";
 import { AbstractCMapCObject } from "../../data_types";
+import { LwwCMap } from "./lww_map";
 
 /**
  * Warning: tombstones.  Benefit is that you can
@@ -18,7 +18,7 @@ import { AbstractCMapCObject } from "../../data_types";
 export class TombstoneMutCMap<
   K,
   C extends Collab,
-  SetArgs extends any[]
+  SetArgs extends unknown[]
 > extends AbstractCMapCObject<K, C, SetArgs> {
   private readonly valueSet: DeletingMutCSet<C, [K, SetArgs]>;
   private readonly map: LwwCMap<K, C>;
@@ -43,11 +43,6 @@ export class TombstoneMutCMap<
   ) {
     super(initToken);
 
-    // TODO: with the usual class-based addChild, TypeScript's
-    // generic type inference appeared to get overwhelmed
-    // and not infer the inner types correctly, leading to
-    // an error.  We work around it by writing an explicit
-    // Pre callback instead.
     this.valueSet = this.addChild(
       "",
       Pre(DeletingMutCSet)(
@@ -85,7 +80,7 @@ export class TombstoneMutCMap<
     // (due to keySet.add) followed by a Set for the
     // actual value, such that the two events together
     // end up in the proper state and have reasonable
-    // previousValues (accounting for each other). TODO.
+    // previousValues (accounting for each other).
     this.map.on("Set", (event) => {
       if (this.has(event.key)) {
         // Note in case 1, this will properly have
@@ -186,6 +181,13 @@ export class TombstoneMutCMap<
     this.keySet.clear();
   }
 
+  /**
+   * Returns the unique key associated to a value owned
+   * by this map, regardless of whether it is present. If
+   * the value is not owned by this map, returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
+   */
   keyOf(searchElement: C): K | undefined {
     return this.keyByValue.get(searchElement);
   }

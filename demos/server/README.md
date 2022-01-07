@@ -31,6 +31,8 @@ Options:
 
 The port can be configured with the PORT environment variable. It defaults to 3000.
 
+The linked demos use that server to collaborate, but you can also follow the instructions to run in Matrix widgets. (To load Matrix widgets from a localhost server, you'll need to start it in HTTPS mode: `npm start -- --https`. Note that other clients will only be able to load the widget if they can connect to the server at the same address---if it's a localhost address, all clients need to be on the same machine).
+
 ### `npm run clean`
 
 Delete `dist/`.

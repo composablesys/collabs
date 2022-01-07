@@ -13,14 +13,25 @@ import {
 } from "../core";
 import { BatchingStrategy } from "./batching_strategy";
 
-/**
- * TODO: guarantees Change event for all changes.
- * For send, this is per transaction (microtask after
- * each sent message), possibly more than once per batch
- * or after the batch is committed (if committed synchronously).
- * For received messages, emitted once per batch.
- */
 export interface BatchingLayerEventsRecord extends CollabEventsRecord {
+  /**
+   * Emitted each time the child's state is changed
+   * (including changes to its descendants) and
+   * is in a reasonable user-facing state
+   * (so not in the middle of a transaction).
+   *
+   * A [[Runtime]] using this [[BatchingLayer]] should listen
+   * on this event and emit its own "Change" events in response.
+   *
+   * More specifically, a "Change" event is emitted:
+   * - For messages sent by the local child, once per
+   * transaction, in a microtask scheduled after the first
+   * sent message. Note this happen be more than once per
+   * batch or after the batch is committed, if it is
+   * committed synchronously with the transaction.
+   * - For received messages, once per batch.
+   */
+  Change: CollabEvent;
   /**
    * Emitted when a batch is pending, i.e., there is
    * a complete transaction waiting to be sent.
@@ -80,20 +91,30 @@ interface BatchInfo {
 /**
  * Collab that batches message sent by its descendants.
  *
- * TODO: messages might be received in the middle of a batch.
- * But, need to ensure they can't be received in the middle
- * of a transaction.
+ * Batching serves a few purposes:
+ * - Enforces transactional
+ * behavior ([transactions docs](../../transactions.md)):
+ * messages sent in the same event loop iteration are
+ * delivered atomically on each replica.
+ * - Reduce the number and size of messages sent on the
+ * network, by delivering multiple transactions together
+ * with some compression applied. Specifically, path
+ * prefix compression is applied to sent `messagePath`s,
+ * so in particular, multiple messages from the same [[Collab]]
+ * end up only sending that [[Collab]]'s name path once.
+ * - Rate-limit the rate of message sending.
  *
- * TODO: for correct MessageMeta's (consistent between sender
- * and receiver), need to guarantee that parent.nextMessageMeta()
- * is consistent within batches. In practice, this requires
- * that no ancestors of this layer add non-constant
- * MessageMeta fields.
+ * Typically, [[BatchingLayer]] should either be the
+ * root Collab, or the sole child of the root, or the
+ * sole child of a sole child, etc. Otherwise,
+ * the current [[MessageMeta]] may change during a batch,
+ * causing a sending replica to see different [[MessageMeta]]'s
+ * than recipients.
  *
- * TODO: somewhere: advice to reuse Uint8Array's, or use strings,
- * if you send the same messages often. That way they
- * can be batched properly. Especially true for high-up
- * things, e.g., child names and adding metadata.
+ * As an optimization, descendants of a [[BatchingLayer]] should reuse
+ * [[Uint8Array]] objects (treated as immutable) when sending
+ * identical messages, possibly within the same batch. That
+ * allows [[BatchingLayer]] to deduplicate the messages.
  */
 export class BatchingLayer
   extends Collab<BatchingLayerEventsRecord>
@@ -142,16 +163,12 @@ export class BatchingLayer
     messagePath: (Uint8Array | string)[]
   ): void {
     if (child !== this.child) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     // Local echo.
     if (this.inChildReceive) {
       // send inside a receive call; not allowed (might break things).
-      // TODO: Do we need to ban this here? Perhaps just in
-      // Runtime? (In case you want to wrap this in runLocally.
-      // Although this should be the root anyway, so that's not
-      // valid.)
       throw new Error(
         "BatchingLayer.send called during another message's receive;" +
           " did you try to perform an operation in an event handler?"
@@ -159,7 +176,7 @@ export class BatchingLayer
     }
     const meta = <MessageMeta>(
       this.getContext(MessageMeta.NEXT_MESSAGE_META)
-    ) ?? { sender: this.runtime.replicaId, isLocalEcho: true };
+    ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
     this.inChildReceive = true;
     try {
       // Need to copy messagePath since receive mutates it but
@@ -175,7 +192,7 @@ export class BatchingLayer
       this.pendingBatch = pendingBatch;
     }
 
-    // TODO: for single (non-batched) messages, optimize by
+    // OPT: for single (non-batched) messages, optimize by
     // not doing anything fancy, just using the literal path?
     // Don't even form the pendingBatch structure, just store
     // it as a second special case after the empty case.
@@ -207,18 +224,30 @@ export class BatchingLayer
     // This notifies BatchingStrategy and also emits a Change event.
     if (!this.batchEventPending) {
       this.batchEventPending = true;
-      Promise.resolve().then(() => {
-        this.batchEventPending = false;
-        if (this.isBatchPending()) {
-          this.emit("BatchPending", { meta });
-        } else {
-          // The batch is no longer pending, so don't emit
-          // a BatchPending event. However we still have to
-          // emit a Change event, since the state was changed
-          // in a transaction.
-          this.emit("Change", { meta });
-        }
-      });
+      Promise.resolve()
+        .then(() => {
+          this.batchEventPending = false;
+          if (this.isBatchPending()) {
+            this.emit("BatchPending", { meta });
+          } else {
+            // The batch is no longer pending, so don't emit
+            // a BatchPending event. However we still have to
+            // emit a Change event, since the state was changed
+            // in a transaction.
+            this.emit("Change", { meta });
+          }
+        })
+        .catch((err) => {
+          // Shouldn't be any errors here, but handle it
+          // anyway to make ESLint happy.
+
+          // Don't let the error fail the promise,
+          // but still make it print
+          // its error like it was unhandled.
+          setTimeout(() => {
+            throw err;
+          });
+        });
     }
 
     this.emit("DebugSend", { meta }, false);
@@ -252,7 +281,7 @@ export class BatchingLayer
     const serialized = BatchingLayerMessage.encode(batchMessage).finish();
     this.send([serialized]);
 
-    // TODO: optimized encoding: unwrap inner fields as
+    // OPT: optimized encoding: unwrap inner fields as
     // multiple arrays; for labels, put in one big Uint8Array
     // (encoding strings as needed) and have a separate packed
     // array of sint32's giving the length of each one and
@@ -267,7 +296,7 @@ export class BatchingLayer
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
@@ -279,7 +308,9 @@ export class BatchingLayer
     if (meta.isLocalEcho) return;
 
     if (messagePath.length !== 1) {
-      throw new Error("messagePath.length is not 1: " + messagePath.length);
+      throw new Error(
+        `messagePath.length is not 1: ${JSON.stringify(messagePath)}`
+      );
     }
 
     const deserialized = BatchingLayerMessage.decode(
@@ -307,20 +338,24 @@ export class BatchingLayer
       this.inChildReceive = true;
       try {
         this.child.receive(childMessagePath, meta);
+      } catch (err) {
+        // Don't let the error block other messages' delivery,
+        // but still make it print
+        // its error like it was unhandled.
+        setTimeout(() => {
+          throw err;
+        });
       } finally {
         this.inChildReceive = false;
       }
     }
 
-    // Emit Change event, so that all changes have an event.
     this.emit("Change", { meta });
   }
 
   save(): Uint8Array {
-    // TODO: what to do about a pending batch? Ideally
-    // should flush it.
-    // Would be a mistake to send later, since saveData might
-    // be loaded multiple times or by different users.
+    // Need to flush before saving.
+    // Change error message to use flush() once that exists.
     if (this.pendingBatch !== null) {
       throw new Error(
         "Cannot save during pending batch (call commitBatch() first)"
@@ -342,7 +377,7 @@ export class BatchingLayer
     return this.child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
-    return !this.isBatchPending() && this.child.canGc();
+  canGC(): boolean {
+    return !this.isBatchPending() && this.child.canGC();
   }
 }

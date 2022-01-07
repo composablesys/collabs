@@ -21,7 +21,7 @@ export interface Resettable extends Collab {
    * Additionally, if all of a CRDT's operations have been
    * reset in this way (for each non-reset operation, there
    * is a causally greater reset operation),
-   * then [[Collab.canGc]] **must** return true.
+   * then [[Collab.canGC]] **must** return true.
    */
   reset(): void;
 }

@@ -7,8 +7,9 @@ import {
 } from "../../../generated/proto_compiled";
 import { createRBTree, fillRBTree, RBTree } from "../util";
 import { MessageMeta, Runtime } from "../../core";
-import { DenseLocalList } from "./dense_local_list";
 import { WeakValueMap } from "../../util";
+import { FoundLocation } from "../../data_types";
+import { DenseLocalList } from "./dense_local_list";
 
 // TODO: helper that uses an RBTree and implements everything
 // except the loc specific methods (stuff below comment
@@ -18,7 +19,8 @@ import { WeakValueMap } from "../../util";
 // (package access)
 /**
  * Note: within a replica, all RgaLoc's have a unique
- * object.  So object equality is value equality.  TODO (enforce during deserialization)
+ * object.  So object equality is value equality.
+ * This is enforced by [[RgaDenseLocalList.deserialize]].
  */
 export class RgaLoc {
   /**
@@ -40,6 +42,7 @@ export class RgaLoc {
   toString(): string {
     let ans = "[";
     for (
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       let current: RgaLoc | undefined = this;
       current !== undefined;
       current = current.parent
@@ -51,7 +54,7 @@ export class RgaLoc {
   }
 }
 
-// TODO: tombstone version?  (canGc false after any ops;
+// TODO: tombstone version?  (canGC false after any ops;
 // send last two ids instead of whole path).
 export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   private tree: RBTree<RgaLoc, T>;
@@ -62,9 +65,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
 
   private checkIndex(index: number) {
     if (index < 0 || index >= this.length) {
-      throw new Error(
-        "Index out of bounds: " + index + " (length: " + this.length + ")"
-      );
+      throw new Error(`Index out of bounds: ${index} (length: ${this.length})`);
     }
   }
 
@@ -132,7 +133,18 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     }
   }
 
-  forEach(callbackfn: (loc: RgaLoc, value: T) => void) {
+  *entries(): IterableIterator<[RgaLoc, T]> {
+    if (this.length > 0) {
+      const iter = this.tree.begin;
+      yield [iter.key!, iter.value!];
+      while (iter.hasNext) {
+        iter.next();
+        yield [iter.key!, iter.value!];
+      }
+    }
+  }
+
+  forEach(callbackfn: (value: T, loc: RgaLoc) => void) {
     this.tree.forEach(callbackfn);
   }
 
@@ -144,15 +156,14 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     return [loc.sender, loc.uniqueNumber];
   }
 
-  leftIndex(loc: RgaLoc): number {
-    return this.tree.gt(loc).index;
+  findLoc(loc: RgaLoc): FoundLocation {
+    const geIter = this.tree.ge(loc);
+    // Note this uses our guarantee that === is value equality
+    // for RgaLoc's.
+    return new FoundLocation(geIter.index, geIter.key === loc);
   }
 
-  rightIndex(loc: RgaLoc): number {
-    return this.tree.ge(loc).index;
-  }
-
-  canGc(): boolean {
+  canGC(): boolean {
     // TODO: will this work if there are dangling references
     // to RgaLocs?
     return this.length === 0;
@@ -189,7 +200,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   }
 
   private unstoreLoc(loc: RgaLoc): void {
-    let senderMap = this.locsById.get(loc.sender);
+    const senderMap = this.locsById.get(loc.sender);
     if (senderMap !== undefined) {
       senderMap.delete(loc.uniqueNumber);
       if (senderMap.size === 0) {
@@ -210,7 +221,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   }
 
   private unstoreBackupLoc(loc: RgaLoc): void {
-    let senderMap = this.backupLocsById.get(loc.sender);
+    const senderMap = this.backupLocsById.get(loc.sender);
     if (senderMap !== undefined) {
       senderMap.delete(loc.uniqueNumber);
       if (senderMap.internalSize === 0) {
@@ -269,7 +280,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     values: ArrayLike<T>
   ): [index: number, locs: RgaLoc[]] {
     const decoded = RgaDenseLocalListPrepareMessage.decode(message);
-    const parent = decoded.hasOwnProperty("parent")
+    const parent = Object.prototype.hasOwnProperty.call(decoded, "parent")
       ? this.deserializeAsMessage(RgaLocMessage.create(decoded.parent!))
       : undefined;
     const locs = this.expandNewLocArgs(
@@ -295,7 +306,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     const [parent, uniqueNumberStart] = this.getNewLocsArgs(index, count);
     return this.expandNewLocArgs(
       parent,
-      this.runtime.replicaId,
+      this.runtime.replicaID,
       uniqueNumberStart,
       count,
       false
@@ -316,7 +327,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
   /**
    * Returns arguments (namely, parent and uniqueNumberStart)
    * that, when passed to expandNewLocsArgs with the
-   * same value of count and with sender = this.runtime.replicaId,
+   * same value of count and with sender = this.runtime.replicaID,
    * yield count new locs at the given index.
    *
    * @param  index [description]
@@ -327,7 +338,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     index: number,
     count: number
   ): [parent: RgaLoc | undefined, uniqueNumberStart: number] {
-    // TODO: get both left and right with a single tree lookup
+    // OPT: get both left and right with a single tree lookup
     // in the common case.
     const left = index === 0 ? undefined : this.getLoc(index - 1);
     const right = index === this.length ? undefined : this.getLoc(index);
@@ -360,7 +371,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     let parent = origin;
     if (
       origin !== undefined &&
-      origin.sender === this.runtime.replicaId &&
+      origin.sender === this.runtime.replicaID &&
       Math.sign(origin.uniqueNumber) === sign
     ) {
       // Same sender and sign.
@@ -376,7 +387,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       } else {
         // Find the ancestor of nonOrigin at the same depth
         // as origin.
-        // TODO: this repeats work when origin = left
+        // OPT: this repeats work when origin = left
         // (the common case).
         let nonOriginAnc = nonOrigin;
         for (let i = nonOrigin.depth; i > origin.depth; i--) {
@@ -397,9 +408,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
         }
       }
     }
-    // Add 1 to this so it's always positive.  TODO: in
-    // Runtime, guarantee nonnegative (or positive, and
-    // then remove the +1 here).
+    // Add 1 to this so it's always positive.
     const uniqueNumberStart =
       sign * (this.runtime.getReplicaUniqueNumber(count) + 1);
     return [parent, uniqueNumberStart];
@@ -443,7 +452,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     // Make a map from locs to their indices.
     const indexByLoc = new Map<RgaLoc, number>();
     let j = 0;
-    this.tree.forEach((loc) => {
+    this.tree.forEach((_, loc) => {
       indexByLoc.set(loc, j);
       j++;
     });
@@ -459,7 +468,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       length: this.tree.length,
     };
     let i = 0;
-    this.tree.forEach((loc) => {
+    this.tree.forEach((_, loc) => {
       this.saveOneLoc(i, loc, imessage, indexByLoc, indexBySender);
       i++;
     });
@@ -655,8 +664,8 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
       if (aAnc === bAnc) break;
       aPrev = aAnc;
       bPrev = bAnc;
-      // TODO: this ! is improper, but it's okay
-      // because it's not consulted.
+      // This ! is improper, but it's okay
+      // because it's not consulted when ! fails.
       aAnc = aAnc.parent!;
       bAnc = bAnc.parent!;
     }

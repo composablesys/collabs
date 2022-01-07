@@ -19,7 +19,7 @@ class ContainerNetwork implements BroadcastNetwork {
 // TODO: don't use a class since it's just wrapping a single
 // function (poor JS style).
 // TODO: loading: need to coordinate with consumers so that
-// they don't do Crdt ops before loading, unless it's not
+// they don't do Collab ops before loading, unless it's not
 // going to load.
 // Unless we expect the host to block GUI input and trust
 // the container not to do ops except on GUI input?

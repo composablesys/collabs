@@ -29,16 +29,8 @@ export class GrowOnlyCCounter
   implements Resettable
 {
   /**
-   * To prevent overflow into unsafe integers, whose
-   * addition is not necessarily commutative (making
-   * eventual consistency more difficult), all operations
-   * and values are taken modulo this value.  It is
-   * half of Number.MAX_SAFE_INTEGER (rounded down),
-   * i.e., 2^52 - 1.
-   *
-   * TODO: actually this is unsafe (not monotonic).  For now,
-   * don't let any numbers get this large.  If you really
-   * are counting something, you'll be fine, it's a huge number.
+   * This was an attempt at fixing overflow issues that is
+   * not actually sound; see https://github.com/composablesys/collabs/issues/50
    */
   static readonly MODULUS = (Number.MAX_SAFE_INTEGER - 1) / 2;
 
@@ -53,22 +45,20 @@ export class GrowOnlyCCounter
     if (toAdd === 0) return;
     if (toAdd < 0) {
       throw new Error(
-        "toAdd = " +
-          toAdd +
-          "; must be nonnegative (consider using CCounter instead)"
+        `toAdd = ${toAdd}; must be nonnegative (consider using CCounter instead)`
       );
     }
     if (!Number.isInteger(toAdd)) {
-      throw new Error("toAdd = " + toAdd + "; must be an integer");
+      throw new Error(`toAdd = ${toAdd}; must be an integer`);
     }
 
     toAdd %= GrowOnlyCCounter.MODULUS;
 
-    const m = this.M.get(this.runtime.replicaId);
+    const m = this.M.get(this.runtime.replicaID);
     const idCounter =
       m === undefined ? this.runtime.getReplicaUniqueNumber() : m[2];
     const prOld = m === undefined ? 0 : m[0];
-    let message = GrowOnlyCCounterMessage.create({
+    const message = GrowOnlyCCounterMessage.create({
       add: {
         prOld,
         toAdd,
@@ -84,8 +74,8 @@ export class GrowOnlyCCounter
 
   reset() {
     const V: { [id: string]: IGrowOnlyCCounterResetEntry } = {};
-    for (let [replicaId, m] of this.M) {
-      V[replicaId] = { v: m[0], idCounter: m[2] };
+    for (const [replicaID, m] of this.M) {
+      V[replicaID] = { v: m[0], idCounter: m[2] };
     }
     const message = GrowOnlyCCounterMessage.create({
       reset: { V },
@@ -97,10 +87,10 @@ export class GrowOnlyCCounter
     message: string | Uint8Array,
     meta: CRDTMessageMeta
   ): void {
-    let decoded = GrowOnlyCCounterMessage.decode(<Uint8Array>message);
+    const decoded = GrowOnlyCCounterMessage.decode(<Uint8Array>message);
     const previousValue = this.value;
     switch (decoded.data) {
-      case "add":
+      case "add": {
         const m = this.M.get(meta.sender);
         if (m === undefined) {
           this.M.set(meta.sender, [
@@ -126,8 +116,9 @@ export class GrowOnlyCCounter
           previousValue,
         });
         break;
+      }
       case "reset":
-        for (let vEntry of Object.entries(decoded.reset!.V!)) {
+        for (const vEntry of Object.entries(decoded.reset!.V!)) {
           const m = this.M.get(vEntry[0]);
           if (m !== undefined && m[2] === vEntry[1].idCounter) {
             m[1] = Math.max(m[1], int64AsNumber(vEntry[1].v));
@@ -149,7 +140,7 @@ export class GrowOnlyCCounter
         });
         break;
       default:
-        throw new Error("Unknown decoded.data: " + decoded.data);
+        throw new Error(`Unknown decoded.data: ${decoded.data}`);
     }
   }
 
@@ -178,14 +169,14 @@ export class GrowOnlyCCounter
     return this.value.toString();
   }
 
-  canGc() {
+  canGC() {
     return this.M.size === 0;
   }
 
   save(): Uint8Array {
-    const mMessage: { [replicaId: string]: IGrowOnlyCCounterSaveEntry } = {};
-    for (const [replicaId, m] of this.M) {
-      mMessage[replicaId] = {
+    const mMessage: { [replicaID: string]: IGrowOnlyCCounterSaveEntry } = {};
+    for (const [replicaID, m] of this.M) {
+      mMessage[replicaID] = {
         p: m[0],
         n: m[1],
         idCounter: m[2],
@@ -198,8 +189,8 @@ export class GrowOnlyCCounter
   load(saveData: Uint8Array | null) {
     if (saveData === null) return;
     const message = GrowOnlyCCounterSave.decode(saveData);
-    for (const [replicaId, m] of Object.entries(message.M)) {
-      this.M.set(replicaId, [
+    for (const [replicaID, m] of Object.entries(message.M)) {
+      this.M.set(replicaID, [
         int64AsNumber(m.p),
         int64AsNumber(m.n),
         m.idCounter,

@@ -54,7 +54,7 @@ export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
     // No-op.
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     return true;
   }
 }

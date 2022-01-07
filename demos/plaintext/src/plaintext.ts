@@ -124,7 +124,7 @@ import { ContainerAppSource } from "@collabs/container";
   });
 
   // Display text changes
-  text.on("Change", () => {
+  text.on("Any", () => {
     textarea.value = text.toString();
     updateCursor();
   });

@@ -19,7 +19,11 @@
 
 ```
 git clone https://github.com/composablesys/collabs.git
-cd collabs/collabs
+cd collabs
+# To checkout a specific version, run the next command with
+# the version (e.g. v0.1.3) in place of <version>.
+git checkout tags/<version>
+cd collabs
 npm i
 npm run build
 ```

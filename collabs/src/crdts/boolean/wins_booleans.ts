@@ -59,7 +59,7 @@ export class TrueWinsCBoolean
     }
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     return this.entries.length === 0;
   }
 

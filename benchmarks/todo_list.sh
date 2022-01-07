@@ -16,12 +16,12 @@ fi
 
 if [ ! -z $5 ] && [ $5 == "--oursOnly" ]
 then
-  names=("compoResetting" "compoDeleting" "compoJson" "compoJsonText" "compoJsonOpt")
+  names=("compoResetting" "compoDeleting" "compoJSON" "compoJSONText" "compoJSONOpt")
 elif [ ! -z $5 ] && [ $5 == "--theirsOnly" ]
 then
   names=("yjs" "automerge" "automergeNoText")
 else
-  names=("compoResetting" "compoDeleting" "compoJson" "compoJsonText" "compoJsonOpt" "yjs" "automerge" "automergeNoText")
+  names=("compoResetting" "compoDeleting" "compoJSON" "compoJSONText" "compoJSONOpt" "yjs" "automerge" "automergeNoText")
 fi
 
 for frequency in "whole"
@@ -30,9 +30,9 @@ do
     do
       for name in ${names[*]}
       do
-          if [ $frequency == "rounds" ] && [ $measurement == "save" ] && [ $name == "compoJson" ]
+          if [ $frequency == "rounds" ] && [ $measurement == "save" ] && [ $name == "compoJSON" ]
           then
-            echo "Skipping todo_list compoJson save rounds"
+            echo "Skipping todo_list compoJSON save rounds"
           else
             npm start -- $1 $2 $3 $4 "todo_list" $name $measurement $frequency
           fi

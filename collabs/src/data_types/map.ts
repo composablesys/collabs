@@ -74,7 +74,7 @@ export interface CMapEventsRecord<K, V> extends CollabEventsRecord {
 export interface CMap<
   K,
   V,
-  SetArgs extends any[] = [V],
+  SetArgs extends unknown[] = [V],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 > extends Collab<Events> {
   /**
@@ -113,7 +113,7 @@ export interface CMap<
 
   forEach(
     callbackfn: (value: V, key: K, map: this) => void,
-    thisArg?: any
+    thisArg?: any //eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
 
   /**
@@ -152,9 +152,17 @@ export interface CMap<
   values(): IterableIterator<V>;
 
   /**
-   * Returns the key of some occurrence of a value in this map, or undefined if the value is not present.
+   * Returns the key of some occurrence of a value owned
+   * by this map, or undefined if the value is not present.
    * The equality semantics for comparing values is
    * implementation-dependent.
+   *
+   * In implementations where values are uniquely associated to
+   * a key (e.g., they are created by the map itself specifically
+   * for their key), if `searchElement` is a former map
+   * value but has since been deleted or replaced, this may return
+   * the key anyway, instead of `undefined`. Whether or not
+   * this happens depends on the map implementation.
    *
    * @param searchElement The value to locate in this map.
    */

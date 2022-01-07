@@ -8,7 +8,7 @@ import { Resettable } from "../abilities";
 import { MergingMutCMap } from "../map";
 import { AbstractCSetCObject, CMap, CSetEventsRecord } from "../../data_types";
 
-class MutCSetFromMapSerializer<AddArgs extends any[]>
+class MutCSetFromMapSerializer<AddArgs extends unknown[]>
   implements Serializer<[sender: string, uniqueNumber: number, args: AddArgs]>
 {
   constructor(private readonly argsSerializer: Serializer<AddArgs>) {}
@@ -36,7 +36,7 @@ class MutCSetFromMapSerializer<AddArgs extends any[]>
     // (possibly outdated) and some forum posts,
     // the proper way to check if
     // an optional field is set is to use hasOwnProperty.
-    const args = decoded.hasOwnProperty("args")
+    const args = Object.prototype.hasOwnProperty.call(decoded, "args")
       ? this.argsSerializer.deserialize(decoded.args)
       : ([] as unknown as AddArgs);
     return [decoded.sender, decoded.uniqueNumber, args];
@@ -51,7 +51,7 @@ class MutCSetFromMapSerializer<AddArgs extends any[]>
  **/
 export class MutCSetFromMap<
   C extends Collab,
-  AddArgs extends any[],
+  AddArgs extends unknown[],
   MapT extends CMap<
     [sender: string, uniqueNumber: number, args: AddArgs],
     C,
@@ -119,7 +119,7 @@ export class MutCSetFromMap<
 
   add(...args: AddArgs): C {
     return this.map.set([
-      this.runtime.replicaId,
+      this.runtime.replicaID,
       this.runtime.getReplicaUniqueNumber(),
       args,
     ]);
@@ -150,7 +150,7 @@ export class MutCSetFromMap<
  **/
 export class ResettingMutCSet<
     C extends Collab & Resettable,
-    AddArgs extends any[]
+    AddArgs extends unknown[]
   >
   extends MutCSetFromMap<
     C,

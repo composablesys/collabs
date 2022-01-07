@@ -2,7 +2,7 @@ import { CObject, CPrimitive } from "../constructions";
 import { Collab, InitToken } from "../core";
 import { CMap, CMapEventsRecord } from "./map";
 
-export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
+export declare abstract class AbstractCMap<K, V, SetArgs extends unknown[]>
   extends Collab
   implements CMap<K, V, SetArgs>
 {
@@ -22,7 +22,7 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
   clear(): void;
   forEach(
     callbackfn: (value: V, key: K, map: this) => void,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
   [Symbol.iterator](): IterableIterator<[K, V]>;
   keys(): IterableIterator<K>;
@@ -55,18 +55,18 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCMapCObject and the other examples
+ * by [[AbstractCMapCObject]] and the other examples
  * in this file.
  */
 export function MakeAbstractCMap<
   TBase extends abstract new (...args: any[]) => Collab
 >(
   Base: TBase
-): abstract new <K, V, SetArgs extends any[]>(
+): abstract new <K, V, SetArgs extends unknown[]>(
   ...args: ConstructorParameters<TBase>
 ) => AbstractCMap<K, V, SetArgs> & InstanceType<TBase> {
-  // @ts-ignore generics in mixins are not supported
-  abstract class Mixin<K, V, SetArgs extends any[]>
+  // @ts-expect-error generics in mixins are not supported
+  abstract class Mixin<K, V, SetArgs extends unknown[]>
     extends Base
     implements AbstractCMap<K, V, SetArgs>
   {
@@ -88,14 +88,14 @@ export function MakeAbstractCMap<
      * behavior.
      */
     clear(): void {
-      for (let key of this.keys()) this.delete(key);
+      for (const key of this.keys()) this.delete(key);
     }
 
     forEach(
       callbackfn: (value: V, key: K, map: this) => void,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): void {
-      // TODO: this might not give the exact same semantics
+      // Not sure if this gives the exact same semantics
       // as Map if callbackfn modifies this during the
       // loop.  (Given that Array.forEach has a rather
       // funky polyfill on MDN, I expect Map.forEach is
@@ -115,7 +115,7 @@ export function MakeAbstractCMap<
     }
 
     *values(): IterableIterator<V> {
-      for (const [_, value] of this) yield value;
+      for (const [, value] of this) yield value;
     }
 
     toString(): string {
@@ -129,13 +129,14 @@ export function MakeAbstractCMap<
       return undefined;
     }
   }
+  // eslint-disable-next-line
   return Mixin as any;
 }
 
 export const AbstractCMapCObject = MakeAbstractCMap(CObject) as abstract new <
   K,
   V,
-  SetArgs extends any[],
+  SetArgs extends unknown[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>,
   C extends Collab = Collab
 >(
@@ -147,7 +148,7 @@ export const AbstractCMapCPrimitive = MakeAbstractCMap(
 ) as abstract new <
   K,
   V,
-  SetArgs extends any[],
+  SetArgs extends unknown[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
   initToken: InitToken
@@ -156,7 +157,7 @@ export const AbstractCMapCPrimitive = MakeAbstractCMap(
 export const AbstractCMapCollab = MakeAbstractCMap(Collab) as abstract new <
   K,
   V,
-  SetArgs extends any[],
+  SetArgs extends unknown[],
   Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
 >(
   initToken: InitToken

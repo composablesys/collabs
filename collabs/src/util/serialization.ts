@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import { Runtime, Collab } from "../core/";
 import {
   ArrayMessage,
@@ -9,7 +10,6 @@ import {
   OptionalSerializerMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { Buffer } from "buffer";
 import { Optional } from "./optional";
 
 /**
@@ -34,10 +34,7 @@ export interface Serializer<T> {
  * Collab types are sent by-reference, using
  * [[Runtime.getNamePath]] to identify different replicas
  * of the same Collab.  Arrays and objects are serialized
- * recursively. Note that object classes are not preserved
- *
- * TODO: restrictions, e.g., functions. Structured clone alg,
- * like window.postMessage?
+ * recursively. Note that object classes are not preserved.
  */
 export class DefaultSerializer<T> implements Serializer<T> {
   private constructor(private readonly runtime: Runtime) {}
@@ -46,7 +43,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
   // to exist for as long as the Runtime.
   private static instancesByRuntime = new WeakMap<
     Runtime,
-    DefaultSerializer<any>
+    DefaultSerializer<unknown>
   >();
   static getInstance<U>(runtime: Runtime): DefaultSerializer<U> {
     let instance = DefaultSerializer.instancesByRuntime.get(runtime);
@@ -54,7 +51,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
       instance = new DefaultSerializer(runtime);
       DefaultSerializer.instancesByRuntime.set(runtime, instance);
     }
-    return instance;
+    return <DefaultSerializer<U>>instance;
   }
 
   serialize(value: T): Uint8Array {
@@ -113,8 +110,8 @@ export class DefaultSerializer<T> implements Serializer<T> {
   }
 
   deserialize(message: Uint8Array): T {
-    let decoded = DefaultSerializerMessage.decode(message);
-    let ans: any;
+    const decoded = DefaultSerializerMessage.decode(message);
+    let ans: unknown;
     switch (decoded.value) {
       case "stringValue":
         ans = decoded.stringValue;
@@ -144,14 +141,14 @@ export class DefaultSerializer<T> implements Serializer<T> {
         for (const [key, serialized] of Object.entries(
           decoded.objectValue!.properties!
         )) {
-          ans[key] = this.deserialize(serialized);
+          (<Record<string, unknown>>ans)[key] = this.deserialize(serialized);
         }
         break;
       case "bytesValue":
         ans = decoded.bytesValue;
         break;
       default:
-        throw new Error("Bad message format: decoded.value=" + decoded.value);
+        throw new Error(`Bad message format: decoded.value=${decoded.value}`);
     }
     // No way of checking if it's really type T.
     return ans as T;
@@ -159,7 +156,9 @@ export class DefaultSerializer<T> implements Serializer<T> {
 }
 
 export class TextSerializer implements Serializer<string> {
-  private constructor() {}
+  private constructor() {
+    // Use TextSerializer.instance instead.
+  }
   serialize(value: string): Uint8Array {
     return new Uint8Array(Buffer.from(value, "utf-8"));
   }
@@ -174,7 +173,9 @@ export class TextSerializer implements Serializer<string> {
  * single-character string).
  */
 export class TextArraySerializer implements Serializer<string[]> {
-  private constructor() {}
+  private constructor() {
+    // Use TextArraySerializer.instance instead.
+  }
   serialize(value: string[]): Uint8Array {
     return new Uint8Array(Buffer.from(value.join(""), "utf-8"));
   }
@@ -201,8 +202,8 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
 
   // Weak in both keys and values.
   private static cache = new WeakMap<
-    Serializer<any>,
-    WeakRef<SingletonSerializer<any>>
+    Serializer<unknown>,
+    WeakRef<SingletonSerializer<unknown>>
   >();
 
   static getInstance<T>(
@@ -211,7 +212,7 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
     const existingWeak = SingletonSerializer.cache.get(valueSerializer);
     if (existingWeak !== undefined) {
       const existing = existingWeak.deref();
-      if (existing !== undefined) return existing;
+      if (existing !== undefined) return <SingletonSerializer<T>>existing;
     }
     const ret = new SingletonSerializer(valueSerializer);
     SingletonSerializer.cache.set(valueSerializer, new WeakRef(ret));
@@ -228,7 +229,9 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
  * form.
  */
 export class StringAsArraySerializer implements Serializer<string> {
-  private constructor() {}
+  private constructor() {
+    // Use StringAsArraySerializer.instance instead.
+  }
 
   serialize(value: string): Uint8Array {
     return stringAsBytes(value);
@@ -241,20 +244,7 @@ export class StringAsArraySerializer implements Serializer<string> {
   static readonly instance = new StringAsArraySerializer();
 }
 
-/**
- * Compares two Uint8Array's for equality.
- *
- * TODO: optimize; delete if unused.
- */
-export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
-  if (one.length !== two.length) return false;
-  for (let i = 0; i < one.length; i++) {
-    if (one[i] !== two[i]) return false;
-  }
-  return true;
-}
-
-// TODO: cache instances?
+// OPT: cache instances?
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
     private readonly oneSerializer: Serializer<T>,
@@ -278,7 +268,7 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
   }
 }
 
-// TODO: cache instances?
+// OPT: cache instances?
 /**
  * Serializes [[Collab]]s using their name path with
  * respect to a specified
@@ -325,7 +315,7 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
 
   deserialize(message: Uint8Array): Optional<T> {
     const decoded = OptionalSerializerMessage.decode(message);
-    if (decoded.hasOwnProperty("valueIfPresent")) {
+    if (Object.hasOwnProperty.call(decoded, "valueIfPresent")) {
       return Optional.of(
         this.valueSerializer.deserialize(decoded.valueIfPresent)
       );
@@ -334,15 +324,15 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
 
   // Weak in both keys and values.
   private static cache = new WeakMap<
-    Serializer<any>,
-    WeakRef<OptionalSerializer<any>>
+    Serializer<unknown>,
+    WeakRef<OptionalSerializer<unknown>>
   >();
 
   static getInstance<T>(valueSerializer: Serializer<T>): OptionalSerializer<T> {
     const existingWeak = OptionalSerializer.cache.get(valueSerializer);
     if (existingWeak !== undefined) {
       const existing = existingWeak.deref();
-      if (existing !== undefined) return existing;
+      if (existing !== undefined) return <OptionalSerializer<T>>existing;
     }
     const ret = new OptionalSerializer(valueSerializer);
     OptionalSerializer.cache.set(valueSerializer, new WeakRef(ret));
@@ -350,12 +340,25 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
   }
 }
 
-const ENCODING: "base64" = "base64";
+const ENCODING = "base64" as const;
 export function bytesAsString(array: Uint8Array) {
   return Buffer.from(array).toString(ENCODING);
 }
 export function stringAsBytes(str: string) {
   return new Uint8Array(Buffer.from(str, ENCODING));
+}
+
+/**
+ * Compares two Uint8Array's for equality.
+ */
+export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
+  if (one.length !== two.length) return false;
+  // OPT: convert to a Uint32Array
+  // and do 4-byte comparisons at a time?
+  for (let i = 0; i < one.length; i++) {
+    if (one[i] !== two[i]) return false;
+  }
+  return true;
 }
 
 /**

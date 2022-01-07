@@ -98,7 +98,7 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
     // Ties broken arbitrarily (first in iteration order).
     let bestValue: T;
     let bestTime = Number.POSITIVE_INFINITY;
-    for (let meta of conflictsMeta.values()) {
+    for (const meta of conflictsMeta.values()) {
       if (meta.time < bestTime) {
         bestValue = meta.value;
         bestTime = meta.time;

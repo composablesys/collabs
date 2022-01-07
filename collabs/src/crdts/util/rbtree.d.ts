@@ -54,9 +54,9 @@ export interface RBTree<K, V> {
    * @returns The last value returned by the callback.
    */
   forEach: {
-    <T>(visitor: (key: K, value: V) => T): T;
+    <T>(visitor: (value: V, key: K) => T): T;
     // tslint:disable-next-line:unified-signatures
-    <T>(visitor: (key: K, value: V) => T, lo: K, hi?: K): T;
+    <T>(visitor: (value: V, key: K) => T, lo: K, hi?: K): T;
   };
 
   /** An iterator pointing to the first element in the tree. */

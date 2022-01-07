@@ -1,4 +1,5 @@
 import { MessageMeta } from "../../core";
+import { FoundLocation } from "../../data_types";
 import { Serializer } from "../../util";
 
 /**
@@ -37,9 +38,6 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * uniqueness).  If the message
    * was from this replica, it will have just been created,
    * without any intervening operations.
-   *
-   * TODO: meta -> CRDTMessageMeta? (Only if we can make
-   * requests.)
    *
    * @param  message   [description]
    * @param  meta [description]
@@ -127,14 +125,9 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
 
   locs(): IterableIterator<L>;
 
-  /**
-   * TODO: backwards from map for efficiency with
-   * rbtree; perhaps modify rbtree to reverse the
-   * key/value order.
-   * @param  callbackfn [description]
-   * @return            [description]
-   */
-  forEach(callbackfn: (loc: L, value: T) => void): void;
+  entries(): IterableIterator<[L, T]>;
+
+  forEach(callbackfn: (value: T, loc: L) => void): void;
 
   /**
    * This should be guarded against mutation
@@ -155,6 +148,8 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    */
   idOf(loc: L): [sender: string, uniqueNumber: number];
 
+  findLoc(loc: L): FoundLocation;
+
   /**
    * Returns the Loc with the given id if it is present
    * in the list, else retuns undefined.
@@ -164,7 +159,7 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    */
   getLocById(sender: string, uniqueNumber: number): L | undefined;
 
-  canGc(): boolean;
+  canGC(): boolean;
 
   /**
    * Save the locs only in a format suitable for saveData.
@@ -181,14 +176,4 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * with null if there is nothing to load.
    */
   loadLocs(saveData: Uint8Array | null, values: (index: number) => T): void;
-
-  // TODO: refactor together with Cursor.
-  // Perhaps just leftIndexOf, rightIndexOf, going
-  // along with indexOf?
-  // Also: leftIndex is wrong name because it is only the
-  // left index once you take Cursor's subtraction into
-  // account (perhaps subtract one in the answer and add one
-  // in Cursor?).
-  leftIndex(loc: L): number;
-  rightIndex(loc: L): number;
 }

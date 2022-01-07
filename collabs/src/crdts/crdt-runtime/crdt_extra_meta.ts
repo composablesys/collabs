@@ -1,12 +1,12 @@
 export interface VectorClock {
   /**
-   * The maximum senderCounter received from replicaId,
+   * The maximum senderCounter received from replicaID,
    * or 0 if none have been received.
    * Equivalently, the number of messages received from
-   * replicaId.
-   * When replicaId is sender, this is the same as senderCounter.
+   * replicaID.
+   * When replicaID is sender, this is the same as senderCounter.
    */
-  get(replicaId: string): number;
+  get(replicaID: string): number;
 }
 
 /**
@@ -18,7 +18,7 @@ export interface VectorClock {
 export class CRDTExtraMeta {
   constructor(
     readonly senderCounter: number,
-    // TODO: make these optional, need to be requested in context.
+    // OPT: make these optional, need to be requested in context.
     readonly vectorClock: VectorClock,
     readonly wallClockTime: number,
     readonly lamportTimestamp: number

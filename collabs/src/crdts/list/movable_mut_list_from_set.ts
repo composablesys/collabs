@@ -1,15 +1,22 @@
-import { DefaultSerializer, PairSerializer, Serializer } from "../../util";
+import {
+  bytesAsString,
+  DefaultSerializer,
+  PairSerializer,
+  Serializer,
+  stringAsBytes,
+} from "../../util";
 import { Collab, InitToken, isRuntime, Pre } from "../../core";
-import { DenseLocalList } from "./dense_local_list";
-import { CObject } from "../../constructions";
-import { LocatableCList } from "./cursor";
 import {
   AbstractCListCObject,
   CRegister,
   CSet,
+  FoundLocation,
+  LocatableCList,
   MovableCList,
   MovableCListEventsRecord,
 } from "../../data_types";
+import { CObject } from "../../constructions";
+import { DenseLocalList } from "./dense_local_list";
 
 export class MovableMutCListEntry<
   C extends Collab,
@@ -40,7 +47,7 @@ export class MovableMutCListEntry<
 
 export class MovableMutCListFromSet<
     C extends Collab,
-    InsertArgs extends any[],
+    InsertArgs extends unknown[],
     L,
     RegT extends CRegister<L>,
     SetT extends CSet<MovableMutCListEntry<C, L, RegT>, [L, InsertArgs]>,
@@ -48,9 +55,7 @@ export class MovableMutCListFromSet<
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCObject<C, InsertArgs, Events>
-  implements
-    MovableCList<C, InsertArgs>,
-    LocatableCList<L, C, InsertArgs, Events>
+  implements MovableCList<C, InsertArgs>, LocatableCList<C, InsertArgs, Events>
 {
   protected readonly set: SetT;
 
@@ -132,7 +137,7 @@ export class MovableMutCListFromSet<
       )
     );
 
-    // TODO: events due to initial elements get dispatched in
+    // Events due to initial values get dispatched in
     // constructor, before we add event listeners, so we miss
     // them.  Perhaps instead have initial values as a second
     // function, but considered part of initialization?
@@ -191,7 +196,7 @@ export class MovableMutCListFromSet<
    */
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
-      throw new Error("invalid count: " + count);
+      throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
     const toDelete = new Array<MovableMutCListEntry<C, L, RegT>>(count);
@@ -232,18 +237,6 @@ export class MovableMutCListFromSet<
     return this.denseLocalList.get(index).value;
   }
 
-  getLocation(index: number): L {
-    return this.denseLocalList.getLoc(index);
-  }
-
-  get locationSerializer(): Serializer<L> {
-    return this.denseLocalList;
-  }
-
-  locate(location: L): [index: number, isPresent: boolean] {
-    return this.denseLocalList.locate(location);
-  }
-
   *values(): IterableIterator<C> {
     for (const entry of this.denseLocalList.values()) {
       yield entry.value;
@@ -252,6 +245,24 @@ export class MovableMutCListFromSet<
 
   get length(): number {
     return this.set.size;
+  }
+
+  getLocation(index: number): string {
+    return bytesAsString(
+      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
+    );
+  }
+
+  *locationEntries(): IterableIterator<[string, C]> {
+    for (const [loc, entry] of this.denseLocalList.entries()) {
+      yield [bytesAsString(this.denseLocalList.serialize(loc)), entry.value];
+    }
+  }
+
+  findLocation(location: string): FoundLocation {
+    return this.denseLocalList.findLoc(
+      this.denseLocalList.deserialize(stringAsBytes(location))
+    );
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
@@ -284,10 +295,10 @@ export class MovableMutCListFromSet<
     return this.indexOf(searchElement, fromIndex) !== -1;
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // Even if the set is trivial, denseLocalList might
     // have tombstones, so we need to check for it here.
-    return super.canGc() && this.denseLocalList.canGc();
+    return super.canGC() && this.denseLocalList.canGC();
   }
 
   protected loadObject() {

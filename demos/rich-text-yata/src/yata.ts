@@ -113,7 +113,7 @@ interface YataEventsRecord<T> extends collabs.CollabEventsRecord {
 type m1Args = [ids: string[], attributes: Record<string, any>];
 type m2Args<T> = [
   uniqueNumber: number,
-  replicaId: string,
+  replicaID: string,
   leftIntent: string,
   rightIntent: string,
   content: T,
@@ -167,7 +167,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     (yata: YataLinear<T>) =>
     ({ value: newOp, meta }: collabs.CSetEvent<YataOp<T>>) => {
       // Link YataLinearOp list
-      const uid = yata.opMap.idOf(newOp);
+      const uid = yata.idOf(newOp);
       yata.op(newOp.rightId).leftId = uid;
       yata.op(newOp.leftId).rightId = uid;
       // Copy initial attributes to the attributes map
@@ -185,6 +185,8 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
       yata.emit("Insert", insertEvent);
       yata.trackM2Event("Insert", insertEvent);
     };
+
+  private readonly idSerializer: collabs.Serializer<YataOp<T>>;
 
   constructor(
     initToken: collabs.InitToken,
@@ -218,7 +220,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
       collabs.Pre(collabs.DeletingMutCSet)(
         (
           valueInitToken,
-          replicaId,
+          replicaID,
           leftIntent,
           rightIntent,
           content,
@@ -278,7 +280,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
               const o_origin = this.op(o.originId);
               if (
                 (o.pos < i_origin.pos || i_origin.pos <= o_origin.pos) &&
-                (o.originId !== originId || o.creatorId < replicaId)
+                (o.originId !== originId || o.creatorId < replicaID)
               ) {
                 leftId = o_id;
               } else {
@@ -303,7 +305,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
             }
             return new YataOp<T>(
               valueInitToken,
-              replicaId,
+              replicaID,
               originId,
               leftId,
               rightId,
@@ -319,11 +321,12 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     );
     inConstructor = false;
     this.opMap.on("Add", this.opMapAddEventHandler(this));
+    this.idSerializer = new collabs.CollabSerializer(this.opMap);
 
     // Configure the initial ops (like in valueConstructor).
-    this.START = this.opMap.idOf(startOp);
-    this.END = this.opMap.idOf(endOp);
-    const idOfFn = (c: YataOp<T>) => this.opMap.idOf(c);
+    this.START = this.idOf(startOp);
+    this.END = this.idOf(endOp);
+    const idOfFn = (c: YataOp<T>) => this.idOf(c);
     const uids = [this.START]
       .concat(initialContentOps.map(idOfFn))
       .concat([this.END]);
@@ -332,20 +335,30 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
       op.leftId = uids[idx];
       op.rightId = uids[idx + 2];
     });
-    this.opMap.getById(this.START)!.rightId = uids[1];
-    this.opMap.getById(this.END)!.originId = uids[uids.length - 2];
-    this.opMap.getById(this.END)!.leftId = uids[uids.length - 2];
+    this.getById(this.START)!.rightId = uids[1];
+    this.getById(this.END)!.originId = uids[uids.length - 2];
+    this.getById(this.END)!.leftId = uids[uids.length - 2];
 
     const addInitialContentOpEventHandlers =
       (yata: YataLinear<T>) => (op: YataOp<T>, uid: string) => {
         // Register event handler for YataOp.deleted "change" event
-        op._deleted.on("Change", yata.deletedMessageEventHandler(yata, uid));
+        op._deleted.on("Any", yata.deletedMessageEventHandler(yata, uid));
         // Register event handler for YataOp.attributes "set" event
         op.attributes.on("Set", yata.attributesSetEventHandler(yata, uid));
       };
     initialContentOps.forEach((op) =>
       addInitialContentOpEventHandlers(this)(op, idOfFn(op))
     );
+  }
+
+  // OPT: ids are actually just names converted to Uint8Arrays,
+  // so this redundantly converts string -> Uint8Array -> string.
+  private idOf(op: YataOp<T>): string {
+    return collabs.bytesAsString(this.idSerializer.serialize(op));
+  }
+
+  private getById(id: string): YataOp<T> {
+    return this.idSerializer.deserialize(collabs.stringAsBytes(id));
   }
 
   private delete(id: string): void {
@@ -394,7 +407,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   }
 
   private insert(
-    replicaId: string,
+    replicaID: string,
     leftIntent: string,
     rightIntent: string,
     content: T,
@@ -403,7 +416,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   ): void {
     this.m2(
       this.runtime.getReplicaUniqueNumber(),
-      replicaId,
+      replicaID,
       leftIntent,
       rightIntent,
       content,
@@ -455,7 +468,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   }
 
   op(id: string): YataOp<T> {
-    const yataOp = this.opMap.getById(id);
+    const yataOp = this.getById(id);
     if (!yataOp) {
       throw new Error(`There is no Yata operation with id ${id}`);
     }
@@ -487,7 +500,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   }
 
   insertByIdx(
-    replicaId: string,
+    replicaID: string,
     idx: number,
     content: T,
     attributeObj?: Record<string, any>
@@ -496,7 +509,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     console.log("idx:", idx);
     console.log("idLeftOfCursor:", idLeftOfCursor);
     this.insert(
-      replicaId,
+      replicaID,
       idLeftOfCursor,
       this.op(idLeftOfCursor).rightId,
       content,
@@ -555,7 +568,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     while (true) {
       idArray.push(op);
       if (op === this.END) break;
-      else op = this.opMap.getById(op)!.rightId;
+      else op = this.getById(op)!.rightId;
     }
     const saveData = YataSave.create({
       idArray,
@@ -570,8 +583,8 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     for (let i = 0; i < message.idArray.length - 1; i++) {
       const left = message.idArray[i];
       const right = message.idArray[i + 1];
-      this.opMap.getById(left)!.rightId = right;
-      this.opMap.getById(right)!.leftId = left;
+      this.getById(left)!.rightId = right;
+      this.getById(right)!.leftId = left;
     }
   }
 }

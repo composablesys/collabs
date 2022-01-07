@@ -12,17 +12,17 @@ import {
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
 
-export type JsonValue =
+export type JSONValue =
   | string
   | number
   | boolean
   | null
-  | JsonObject
-  | JsonArray
+  | JSONObject
+  | JSONArray
   | CText;
 
-export class JsonObject extends CObject implements Resettable {
-  private readonly internalMap: MergingMutCMap<string, JsonElement>;
+export class JSONObject extends CObject implements Resettable {
+  private readonly internalMap: MergingMutCMap<string, JSONElement>;
   /**
    * Internal use only
    */
@@ -38,13 +38,13 @@ export class JsonObject extends CObject implements Resettable {
     this.internalMap = this.addChild(
       "nestedMap",
       Pre(MergingMutCMap)(
-        (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent),
+        (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
         DefaultSerializer.getInstance(initToken.runtime)
       )
     );
   }
 
-  get(key: string): JsonElement | undefined {
+  get(key: string): JSONElement | undefined {
     return this.internalMap.get(key);
   }
 
@@ -78,12 +78,12 @@ export class JsonObject extends CObject implements Resettable {
     return this.internalMap.values();
   }
 
-  asMap(): Map<string, JsonElement> {
+  asMap(): Map<string, JSONElement> {
     return new Map(this.internalMap);
   }
 
-  asObject(): { [key: string]: JsonElement } {
-    let ans: { [key: string]: JsonElement } = {};
+  asObject(): { [key: string]: JSONElement } {
+    let ans: { [key: string]: JSONElement } = {};
     for (let entry of this.asMap()) {
       ans[entry[0]] = entry[1];
     }
@@ -91,8 +91,8 @@ export class JsonObject extends CObject implements Resettable {
   }
 }
 
-export class JsonArray extends CObject implements Resettable {
-  private readonly internalList: ResettingMutCList<JsonElement>;
+export class JSONArray extends CObject implements Resettable {
+  private readonly internalList: ResettingMutCList<JSONElement>;
   constructor(
     initToken: InitToken,
     private readonly makeThisExistent: () => void
@@ -101,19 +101,19 @@ export class JsonArray extends CObject implements Resettable {
     this.internalList = this.addChild(
       "nestedMap",
       Pre(ResettingMutCList)(
-        (valueInitToken) => new JsonElement(valueInitToken, makeThisExistent)
+        (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent)
       )
     );
   }
 
-  insert(index: number): JsonElement {
+  insert(index: number): JSONElement {
     this.makeThisExistent();
     return this.internalList.insert(index);
   }
 
-  insertRange(index: number, count: number): JsonElement[] {
+  insertRange(index: number, count: number): JSONElement[] {
     this.makeThisExistent();
-    const elements = new Array<JsonElement>(count);
+    const elements = new Array<JSONElement>(count);
     for (let i = 0; i < count; i++) {
       elements[i] = this.internalList.insert(index);
     }
@@ -126,7 +126,7 @@ export class JsonArray extends CObject implements Resettable {
     this.internalList.delete(index);
   }
 
-  get(index: number): JsonElement {
+  get(index: number): JSONElement {
     return this.internalList.get(index);
   }
 
@@ -140,7 +140,7 @@ export class JsonArray extends CObject implements Resettable {
     return this.internalList.length;
   }
 
-  asArray(): JsonElement[] {
+  asArray(): JSONElement[] {
     return this.internalList.slice();
   }
 }
@@ -153,15 +153,15 @@ export class TextWrapper {
 // E.g. currently a reset on a big object will call it once per
 // sub-reset, each causing a call up the whole chain.
 
-export class JsonElement extends CObject implements Resettable {
-  private register: LwwCRegister<JsonValue>;
-  private object: JsonObject;
-  private array: JsonArray;
+export class JSONElement extends CObject implements Resettable {
+  private register: LwwCRegister<JSONValue>;
+  private object: JSONObject;
+  private array: JSONArray;
   private text: CText;
   private makeThisExistent: () => void;
 
-  static NewJson(initToken: InitToken): JsonElement {
-    return new JsonElement(initToken, () => {});
+  static NewJSON(initToken: InitToken): JSONElement {
+    return new JSONElement(initToken, () => {});
   }
 
   /**
@@ -172,20 +172,20 @@ export class JsonElement extends CObject implements Resettable {
     this.makeThisExistent = makeThisExistent;
     this.register = this.addChild(
       "register",
-      (childInitToken) => new LwwCRegister<JsonValue>(childInitToken, null)
+      (childInitToken) => new LwwCRegister<JSONValue>(childInitToken, null)
     );
     this.object = this.addChild(
       "object",
-      Pre(JsonObject)(() => this.setIsObject())
+      Pre(JSONObject)(() => this.setIsObject())
     );
     this.array = this.addChild(
       "array",
-      Pre(JsonArray)(() => this.setIsArray())
+      Pre(JSONArray)(() => this.setIsArray())
     );
     this.text = this.addChild("text", Pre(CText)());
   }
 
-  get value(): JsonValue {
+  get value(): JSONValue {
     return this.register.value;
   }
 
@@ -194,8 +194,8 @@ export class JsonElement extends CObject implements Resettable {
     | "string"
     | "boolean"
     | "null"
-    | "JsonObject"
-    | "JsonArray"
+    | "JSONObject"
+    | "JSONArray"
     | "Text" {
     let value = this.value;
     switch (typeof value) {
@@ -207,8 +207,8 @@ export class JsonElement extends CObject implements Resettable {
         return "boolean";
       case "object":
         if (value === null) return "null";
-        if (value === this.object) return "JsonObject";
-        if (value === this.array) return "JsonArray";
+        if (value === this.object) return "JSONObject";
+        if (value === this.array) return "JSONArray";
         if (value === this.text) return "Text";
     }
     throw new Error(

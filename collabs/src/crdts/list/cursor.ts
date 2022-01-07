@@ -1,150 +1,165 @@
-import { Resettable } from "../abilities";
-import { CObject } from "../../constructions";
 import { CollabEvent, CollabEventsRecord, InitToken, Pre } from "../../core";
-import { Optional, OptionalSerializer, Serializer } from "../../util";
+import { LocatableCList } from "../../data_types";
+import { Optional } from "../../util";
+import {
+  CObject,
+  CursorCommon,
+  CursorLocation,
+  CursorLocationSerializer,
+} from "../../constructions";
 import { LwwCRegister } from "../register";
-import { CList, CListEventsRecord } from "../../data_types";
+import { Resettable } from "../abilities";
 
-export interface LocatableCList<
-  L,
-  T,
-  InsertArgs extends any[] = [T],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
-> extends CList<T, InsertArgs, Events> {
+export interface CCursorEvent extends CollabEvent {
   /**
-   * Returns a "location" L that uniquely identifies the
-   * position of this.get(index).  So if the value changes
-   * index due to insertions/deletions at earlier indices,
-   * the location will also change index.
+   * The cursor's previous index.
+   *
+   * If the underlying list doesn't
+   * emit an event every time it is changed, this might be
+   * inaccurate.
    */
-  getLocation(index: number): L;
-
+  previousIndex: number;
   /**
-   * If loc is currently present, returns [its current index,
-   * true].  Else returns [the index where it would be if
-   * it were restored, false].
+   * The reason the cursor moved.
    *
-   * Equivalently, returns [index of the least location that
-   * is >= the given location (possibly this.length), whether
-   * the location is present].
-   *
-   * A location becomes not present when its current index is
-   * deleted.
-   *
-   * @param  loc [description]
-   * @return     [description]
+   * - "set": [[CCursor.index]] was set.
+   * - "list": the list changed (e.g., an item was inserted
+   * or deleted to the left of the cursor).
    */
-  locate(location: L): [index: number, isPresent: boolean];
-
-  readonly locationSerializer: Serializer<L>;
-}
-
-class CursorCommon<L> {
-  constructor(
-    readonly list: LocatableCList<L, any, any, any>,
-    readonly binding: "left" | "right" = "left"
-  ) {}
-
-  indexToLoc(index: number): Optional<L> {
-    if (this.binding === "left") {
-      if (index === 0) return Optional.empty();
-      else {
-        return Optional.of(this.list.getLocation(index - 1));
-      }
-    } else {
-      if (index === this.list.length) return Optional.empty();
-      else return Optional.of(this.list.getLocation(index));
-    }
-  }
-
-  locToIndex(loc: Optional<L>): number {
-    if (this.binding === "left") {
-      if (!loc.isPresent) return 0;
-      else {
-        const [index, isPresent] = this.list.locate(loc.get());
-        return isPresent ? index + 1 : index;
-      }
-    } else {
-      if (!loc.isPresent) return this.list.length;
-      else {
-        return this.list.locate(loc.get())[0];
-      }
-    }
-  }
-}
-
-export class LocalCursor {
-  private readonly common: CursorCommon<any>;
-  private loc!: Optional<any>;
-
-  constructor(
-    list: LocatableCList<any, any, any, any>,
-    startIndex: number,
-    binding: "left" | "right" = "left"
-  ) {
-    this.common = new CursorCommon(list, binding);
-    this.index = startIndex;
-  }
-
-  set index(index: number) {
-    this.loc = this.common.indexToLoc(index);
-  }
-
-  get index(): number {
-    return this.common.locToIndex(this.loc);
-  }
+  reason: "set" | "list";
 }
 
 export interface CCursorEventsRecord extends CollabEventsRecord {
-  Set: CollabEvent;
+  /**
+   * Emitted when the cursor's index changes,
+   * either because it was set or because the
+   * list changed around it. This event is also emitted
+   * when the cursor is set to a new cursor location
+   * (i.e., bound to a new list item) even if that does
+   * not change the cursor's index.
+   *
+   * If the underlying list doesn't
+   * emit an event every time it is changed, this might
+   * fail to be emitted after a list change.
+   */
+  Change: CCursorEvent;
 }
 
+/**
+ * A collaborative cursor in a list.
+ *
+ * `CCursor` is mainly intended to track shared presence
+ * in a collaborative text editor (showing where each
+ * user's cursor is).
+ *
+ * A cursor exists at a "cursor location" between two list items,
+ * and it moves around as those items move around due to
+ * earlier insertions and deletions. At any moment,
+ * the cursor's current location is given by [[index]].
+ *
+ * [[index]] indicates the index of the list item immediately
+ * to cursor's right. E.g., in the list abc, using | to
+ * mark the cursor:
+ *
+ * - |abc -> index 0
+ * - a|bc -> index 1
+ * - abc| -> index 3 (the length of the list)
+ *
+ * A cursor has a "binding" of `"left"` or `"right"`. This
+ * indicates which list item the cursor sticks to when
+ * list items are inserted at the cursor's current index.
+ * For example, in a|bc, if "d" is inserted at the cursor
+ * (between "a" "b"), then the result is:
+ * - With left binding: a|dbc
+ * - With right binding: ad|bc
+ * Note that this holds regardless of whether or not the local
+ * user inserted "d". So, if you want the cursor to move in
+ * response to local user insertions (e.g., to the right of
+ * a just-typed character), you must set [[index]] manually.
+ *
+ * For a local version (not replicated),
+ * see [[LocalCursor]].
+ */
 export class CCursor
   extends CObject<CCursorEventsRecord>
   implements Resettable
 {
-  private readonly common: CursorCommon<any>;
-  // LWW is probably overkill since usually only one replica
+  private readonly common: CursorCommon;
+  // LWW is overkill since usually only one replica
   // will use this cursor, but it's easiest.
-  private readonly loc: LwwCRegister<Optional<any>>;
+  private readonly location: LwwCRegister<CursorLocation>;
+  private previousIndex: number;
 
+  /**
+   * @param list    The underlying list.
+   * @param startIndex The cursor's initial index.
+   * @param binding Whether the cursor should stick to the
+   * list item to its left or its right, in the face of
+   * insertions at the cursor's current index.
+   */
   constructor(
     initToken: InitToken,
-    list: LocatableCList<any, any, any, any>,
+    list: LocatableCList<unknown, unknown[]>,
     startIndex: number,
     binding: "left" | "right" = "left"
   ) {
     super(initToken);
 
     this.common = new CursorCommon(list, binding);
-    this.loc = this.addChild(
+    this.location = this.addChild(
       "",
       Pre(LwwCRegister)(
-        list.getLocation(startIndex),
-        OptionalSerializer.getInstance(list.locationSerializer)
+        Optional.of(list.getLocation(startIndex)),
+        CursorLocationSerializer.instance
       )
     );
-    this.loc.on("Set", (e) => this.emit("Set", e));
-    // TODO: oonly emit if index actually changed (need to cache)
-    list.on("Change", (e) => this.emit("Set", e));
+
+    // Events.
+    this.previousIndex = startIndex;
+    this.location.on("Set", (e) => this.childEvent(e, "set"));
+    // Note that we listen on "Any", not just "Insert" and
+    // "Delete", in case the list has other events that can
+    // move cursors (e.g., "Move").
+    list.on("Any", (e) => this.childEvent(e, "list"));
+  }
+
+  /**
+   * Called on child events to maybe emit our own Set event.
+   */
+  private childEvent(e: CollabEvent, reason: "set" | "list") {
+    const newIndex = this.index;
+    // Skip emitting if e is a list event that didn't change
+    // the cursor index.
+    if (reason === "list" && newIndex === this.previousIndex) return;
+
+    this.emit("Change", {
+      previousIndex: this.previousIndex,
+      reason,
+      meta: e.meta,
+    });
+    this.previousIndex = newIndex;
   }
 
   set index(index: number) {
     // Only set if changed.  This will help optimize in case
     // the user is setting index each time the user types,
-    // even if this cursor's loc doesn't change.
-    const newLoc = this.common.indexToLoc(index);
+    // even when this cursor's location doesn't change.
+    const newLocation = this.common.indexToCursorLocation(index);
     if (
-      newLoc.isPresent === this.loc.value.isPresent &&
-      (!newLoc.isPresent || newLoc.get() === this.loc.value.get())
+      newLocation.isPresent === this.location.value.isPresent &&
+      (!newLocation.isPresent ||
+        newLocation.get() === this.location.value.get())
     ) {
       return;
     }
-    this.loc.set(newLoc);
+
+    this.location.set(newLocation);
   }
 
   get index(): number {
-    return this.common.locToIndex(this.loc.value);
+    // We don't use any caching here (e.g. this.previousIndex)
+    // in case the list doesn't always emit events.
+    return this.common.cursorLocationToIndex(this.location.value);
   }
 
   /**
@@ -152,6 +167,14 @@ export class CCursor
    * necessarily starting index).
    */
   reset() {
-    this.loc.reset();
+    this.location.reset();
   }
 }
+
+// Feature: make binding mutable like the index?
+// (Only if have use case.)
+
+// Feature: generalized CCursor based on general register?
+// Then can move this construction outside of CRDT lib
+// and just have a special CRDT class (although we haven't
+// been doing that for the other generic constructions).

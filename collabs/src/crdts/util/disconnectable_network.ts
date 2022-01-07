@@ -62,6 +62,7 @@ export class DisconnectableNetwork implements BroadcastNetwork {
     throw new Error("Method not implemented.");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   load(saveData: Uint8Array | null): void {
     throw new Error("Method not implemented.");
   }

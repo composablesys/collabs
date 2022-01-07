@@ -6,7 +6,7 @@ import { Collab, ICollabParent, InitToken, MessageMeta, Pre } from "../../core";
 import { int64AsNumber } from "../../util";
 import { CRDTExtraMeta, VectorClock } from "./crdt_extra_meta";
 
-// TODO: put somewhere reasonable
+// Debug flag for causality checking.
 const DEBUG = false;
 
 /**
@@ -18,13 +18,13 @@ const DEBUG = false;
  * which grows without bound during a collaborative session.
  */
 class BasicVectorClock implements VectorClock {
-  // TODO: opt: pre-convert Longs to ints, should be more efficient?
+  // OPT: pre-convert Longs to ints, should be more efficient?
   constructor(
-    private readonly vcMap: { [replicaId: string]: number | Long.Long }
+    private readonly vcMap: { [replicaID: string]: number | Long.Long }
   ) {}
 
-  get(replicaId: string): number {
-    return int64AsNumber(this.vcMap[replicaId] ?? 0);
+  get(replicaID: string): number {
+    return int64AsNumber(this.vcMap[replicaID] ?? 0);
   }
 
   toString(): string {
@@ -41,7 +41,7 @@ class BasicVectorClock implements VectorClock {
 export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   private child!: Collab;
   /**
-   * Includes this.runtime.replicaId.
+   * Includes this.runtime.replicaID.
    */
   private currentVectorClock = new Map<string, number>();
   /**
@@ -51,7 +51,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * @param  newInitToken("",this [description]
    * @return                      [description]
    */
-  private currentLamportTimestamp: number = 0;
+  private currentLamportTimestamp = 0;
 
   // These are all cached so that === equality is valid.
   private pendingCRDTMeta: CRDTExtraMeta | null = null;
@@ -64,7 +64,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   private messageBuffer: {
     messagePath: (Uint8Array | string)[];
     meta: MessageMeta;
-    // TODO: opt: store an intermediate form here that is smaller
+    // OPT: store an intermediate form here that is smaller
     // in memory (just extract the maximal VC entries, leave
     // rest serialized).
     crdtMetaMessage: CRDTExtraMetaLayerMessage;
@@ -77,7 +77,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   constructor(initToken: InitToken) {
     super(initToken);
 
-    this.currentVectorClock.set(this.runtime.replicaId, 0);
+    this.currentVectorClock.set(this.runtime.replicaID, 0);
   }
 
   setChild<C extends Collab>(preChild: Pre<C>): C {
@@ -86,11 +86,11 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return child;
   }
 
-  getAddedContext(key: symbol): any {
+  getAddedContext(key: symbol): unknown {
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
-      ) ?? { sender: this.runtime.replicaId, isLocalEcho: true };
+      ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
       this.createPendingMeta();
       meta[CRDTExtraMeta.MESSAGE_META_KEY] = this.pendingCRDTMeta!;
       return meta;
@@ -110,9 +110,9 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     if (this.pendingCRDTMeta === null) {
       // Create and cache this.pendingCRDTMeta.
       const vectorClockForMeta = Object.fromEntries(this.currentVectorClock);
-      vectorClockForMeta[this.runtime.replicaId]++;
+      vectorClockForMeta[this.runtime.replicaID]++;
       const crdtMeta = new CRDTExtraMeta(
-        vectorClockForMeta[this.runtime.replicaId],
+        vectorClockForMeta[this.runtime.replicaID],
         new BasicVectorClock(vectorClockForMeta),
         Date.now(),
         this.currentLamportTimestamp + 1
@@ -121,23 +121,25 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
       // Also cache this.pendingCRDTMetaSerialized.
       const vectorClockForMessage = Object.fromEntries(this.currentVectorClock);
-      delete vectorClockForMessage[this.runtime.replicaId];
+      delete vectorClockForMessage[this.runtime.replicaID];
       const metaMessage = CRDTExtraMetaLayerMessage.create({
-        senderCounter: vectorClockForMeta[this.runtime.replicaId],
+        senderCounter: vectorClockForMeta[this.runtime.replicaID],
         vectorClock: vectorClockForMessage,
         wallClockTime: crdtMeta.wallClockTime,
         lamportTimestamp: crdtMeta.lamportTimestamp,
       });
       this.pendingCRDTMetaSerialized =
         CRDTExtraMetaLayerMessage.encode(metaMessage).finish();
-      // TODO: opt: if we know we're in the same
+      // OPT: if we know we're in the same
       // batch as a previous message with a different CRDTExtraMeta,
       // we can give just a diff (or reuse the serialized
       // thing entirely, if we can infer the change, i.e.,
       // it's just incrementing our senderCounter.)
-      // TODO: That is also necessary for good transaction semantics
+      // That is also necessary for good transaction semantics
       // (e.g., multiple LWW sets within a transaction all have
-      // same wall clock time).
+      // same wall clock time). Should be OK for now because wall
+      // block time is unlikely to change much in a synchronous
+      // execution thread.
     }
   }
 
@@ -148,7 +150,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
   childSend(child: Collab, messagePath: (Uint8Array | string)[]): void {
     if (child !== this.child) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     // Add the next CRDTExtraMeta, serialized, to messagePath.
@@ -213,9 +215,16 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // Add the CRDTExtraMeta to meta.
     meta[CRDTExtraMeta.MESSAGE_META_KEY] = crdtMeta;
 
-    // TODO: error handling (do here since it can be
-    // out-of-turn relative to parent's delivery).
-    this.child.receive(messagePath, meta);
+    try {
+      this.child.receive(messagePath, meta);
+    } catch (err) {
+      // Don't let the error block other messages' delivery,
+      // but still make it print
+      // its error like it was unhandled.
+      setTimeout(() => {
+        throw err;
+      });
+    }
 
     // Update our own state to reflect crdtMeta.
     this.currentVectorClock.set(meta.sender, crdtMeta.senderCounter);
@@ -245,7 +254,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
           crdtMetaMessage
         );
         // Remove from the buffer.
-        // TODO: something more efficient?  (Costly array
+        // OPT: something more efficient?  (Costly array
         // deletions).
         this.messageBuffer.splice(index, 1);
         // Set index to the end and try again, in case
@@ -289,7 +298,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
 
     // Check other entries are <= ours.
-    // TODO: opt: only need to check causally maximal entries.
+    // OPT: only need to check causally maximal entries.
     // Also, should separate this and isAlreadyDelivered from
     // VCs, since they will be optional in the future.
     for (const [id, value] of Object.entries(crdtMetaMessage.vectorClock)) {
@@ -334,10 +343,10 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       this.child.load(null);
     } else {
       const saveMessage = CRDTExtraMetaLayerSave.decode(saveData);
-      for (const [replicaId, entry] of Object.entries(
+      for (const [replicaID, entry] of Object.entries(
         saveMessage.vectorClock
       )) {
-        this.currentVectorClock.set(replicaId, int64AsNumber(entry));
+        this.currentVectorClock.set(replicaID, int64AsNumber(entry));
       }
       this.currentLamportTimestamp = int64AsNumber(
         saveMessage.lamportTimestamp
@@ -355,7 +364,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return this.child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // Vector clock state is never trivial after the
     // first message. Approximate as never trivial.
     return false;

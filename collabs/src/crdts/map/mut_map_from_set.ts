@@ -28,7 +28,7 @@ export interface ConflictsCMap<K, C> extends CMap<K, C> {
 export class MutCMapFromSet<
   K,
   C extends Collab,
-  SetArgs extends any[],
+  SetArgs extends unknown[],
   SetT extends CSet<C, [K, SetArgs]>,
   MapT extends ConflictsCMap<K, C>
 > extends AbstractCMapCObject<K, C, SetArgs> {

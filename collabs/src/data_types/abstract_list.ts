@@ -2,7 +2,7 @@ import { CObject, CPrimitive } from "../constructions";
 import { Collab, InitToken } from "../core";
 import { CList, CListEventsRecord } from "./list";
 
-export declare abstract class AbstractCList<T, InsertArgs extends any[]>
+export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
   extends Collab
   implements CList<T, InsertArgs>
 {
@@ -11,6 +11,8 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   abstract get(index: number): T;
   abstract values(): IterableIterator<T>;
   abstract readonly length: number;
+  abstract getLocation(index: number): string;
+  abstract locationEntries(): IterableIterator<[string, T]>;
 
   /**
    * Calls delete on every value in the list, in
@@ -23,38 +25,38 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
+  locations(): IterableIterator<string>;
   /**
    * @return [...this].toString()
    */
   toString(): string;
 
-  // Convenience mutators
+  // Convenience mutators.
   pop(): T;
   push(...args: InsertArgs): T;
   shift(): T;
   unshift(...args: InsertArgs): T;
 
-  // TODO: advice for range versions of mutators
-  // TODO: may want to optimize methods involving slice
+  // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
-  // TODO: optimize includes, indexOf, lastIndexOf if you know how to get
+  // OPT: optimize includes, indexOf, lastIndexOf if you know how to get
   // the index of an element immediately.
-  // TODO: optimize join for TextCollab (in particular, join('')).
+  // OPT: optimize join for TextCollab (in particular, join('')).
 
   // Convenience accessors
   concat(...items: ConcatArray<T>[]): T[];
   concat(...items: (T | ConcatArray<T>)[]): T[];
   find<S extends T>(
     predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): S | undefined;
   find(
     predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): T | undefined;
   findIndex(
     predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): number;
   flatMap<U, This = undefined>(
     callback: (
@@ -71,27 +73,27 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
   lastIndexOf(searchElement: T, fromIndex?: number): number;
   every(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): boolean;
   some(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): boolean;
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
   map<U>(
     callbackfn: (value: T, index: number, list: this) => U,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
   filter<S extends T>(
     predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): S[];
   filter(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): T[];
   join(separator?: string): string;
   reduce(
@@ -136,25 +138,31 @@ export declare abstract class AbstractCList<T, InsertArgs extends any[]>
  * methods to an arbitrary Collab base class.
  * You may override the default implementations.
  *
- * Implemented methods: clear, forEach, Symbol.iterator
+ * Implemented methods: all except insert, delete, get,
+ * values, and length.
  *
  * Due to limitations of TypeScript, this version of the
  * function sets all of Base's generic type parameters to their
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCListCObject and the other examples
+ * by [[AbstractCListCObject]] and the other examples
  * in this file.
+ *
+ * In CLists with `InsertArgs == [T]``, you
+ * wish to modify [[push]] and [[unshift]] to allow bulk insertions,
+ * like their `Array` versions.
+ * See [[PrimitiveCList]] for an example of how to do this.
  */
 export function MakeAbstractCList<
   TBase extends abstract new (...args: any[]) => Collab
 >(
   Base: TBase
-): abstract new <T, InsertArgs extends any[]>(
+): abstract new <T, InsertArgs extends unknown[]>(
   ...args: ConstructorParameters<TBase>
 ) => AbstractCList<T, InsertArgs> & InstanceType<TBase> {
-  // @ts-ignore generics in mixins are not supported
-  abstract class Mixin<T, InsertArgs extends any[]>
+  // @ts-expect-error generics in mixins are not supported
+  abstract class Mixin<T, InsertArgs extends unknown[]>
     extends Base
     implements AbstractCList<T, InsertArgs>
   {
@@ -167,6 +175,8 @@ export function MakeAbstractCList<
     abstract get(index: number): T;
     abstract values(): IterableIterator<T>;
     abstract readonly length: number;
+    abstract getLocation(index: number): string;
+    abstract locationEntries(): IterableIterator<[string, T]>;
 
     clear(): void {
       for (let i = this.length - 1; i >= 0; i--) {
@@ -184,10 +194,14 @@ export function MakeAbstractCList<
 
     *entries(): IterableIterator<[number, T]> {
       let i = 0;
-      for (let value of this) {
+      for (const value of this) {
         yield [i, value];
         i++;
       }
+    }
+
+    *locations(): IterableIterator<string> {
+      for (const [location] of this.locationEntries()) yield location;
     }
 
     toString(): string {
@@ -196,7 +210,7 @@ export function MakeAbstractCList<
 
     // Convenience mutators
     pop(): T {
-      // TODO: implementations can do this more efficiently
+      // OPT: implementations can do this more efficiently
       // (one tree lookup only) using delete's return value,
       // or by noting that it's guaranteed to be the end of
       // the list.
@@ -210,7 +224,7 @@ export function MakeAbstractCList<
     }
 
     shift(): T {
-      // TODO: implementations can do this more efficiently
+      // OPT: implementations can do this more efficiently
       // (one tree lookup only) using delete's return value,
       // or by noting that it's guaranteed to be the start of
       // the list.
@@ -229,7 +243,7 @@ export function MakeAbstractCList<
     // I would expect at least the ones that also appear
     // on TypedArray are safe.
     private asArrayLike(): ArrayLike<T> {
-      // TODO: cache the value (make a property of the
+      // OPT: cache the value (make a property of the
       // list), to prevent recreating it each time it is used?
 
       // Use a proxy to define [index] accessors
@@ -251,28 +265,29 @@ export function MakeAbstractCList<
 
     concat(...items: ConcatArray<T>[]): T[];
     concat(...items: (T | ConcatArray<T>)[]): T[] {
-      // TODO: can we use Array.call version here?
       return this.slice().concat(...items);
     }
 
     find<S extends T>(
       predicate: (this: void, value: T, index: number, obj: this) => value is S,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): S | undefined;
     find(
       predicate: (value: T, index: number, obj: this) => unknown,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): T | undefined {
-      return Array.prototype.find.call(
-        this.asArrayLike(),
-        (value, index) => predicate(value, index, this),
-        thisArg
+      return <T | undefined>(
+        Array.prototype.find.call(
+          this.asArrayLike(),
+          (value, index) => predicate(value, index, this),
+          thisArg
+        )
       );
     }
 
     findIndex(
       predicate: (value: T, index: number, obj: this) => unknown,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): number {
       return Array.prototype.findIndex.call(
         this.asArrayLike(),
@@ -290,14 +305,13 @@ export function MakeAbstractCList<
       ) => U | ReadonlyArray<U>,
       thisArg?: This
     ): U[] {
-      const thisVar = this;
+      const outerThis = this;
       return this.slice().flatMap(function (this: This, value, index) {
-        return callback.call(this, value, index, thisVar);
+        return callback.call(this, value, index, outerThis);
       }, thisArg);
     }
 
     flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[] {
-      // TODO
       return this.slice().flat(depth);
     }
 
@@ -327,13 +341,13 @@ export function MakeAbstractCList<
 
     every(
       predicate: (value: T, index: number, list: this) => unknown,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): boolean {
-      const thisVar = this;
+      const outerThis = this;
       return Array.prototype.every.call(
         this.asArrayLike(),
-        function (this: any, value, index) {
-          return predicate.call(this, value, index, thisVar);
+        function (this: unknown, value, index) {
+          return predicate.call(this, value, index, outerThis);
         },
         thisArg
       );
@@ -341,13 +355,13 @@ export function MakeAbstractCList<
 
     some(
       predicate: (value: T, index: number, list: this) => unknown,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): boolean {
-      const thisVar = this;
+      const outerThis = this;
       return Array.prototype.some.call(
         this.asArrayLike(),
-        function (this: any, value, index) {
-          return predicate.call(this, value, index, thisVar);
+        function (this: unknown, value, index) {
+          return predicate.call(this, value, index, outerThis);
         },
         thisArg
       );
@@ -355,13 +369,13 @@ export function MakeAbstractCList<
 
     forEach(
       callbackfn: (value: T, index: number, list: this) => void,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): void {
-      const thisVar = this;
+      const outerThis = this;
       return Array.prototype.forEach.call(
         this.asArrayLike(),
-        function (this: any, value, index) {
-          return callbackfn.call(this, value, index, thisVar);
+        function (this: unknown, value, index) {
+          return callbackfn.call(this, value, index, outerThis);
         },
         thisArg
       );
@@ -369,15 +383,15 @@ export function MakeAbstractCList<
 
     map<U>(
       callbackfn: (value: T, index: number, list: this) => U,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): U[] {
-      const thisVar = this;
-      // TODO: why is the cast needed here?  Type inference
+      const outerThis = this;
+      // Why is the cast needed here?  Type inference
       // seems to be failing.
       return Array.prototype.map.call(
         this.asArrayLike(),
-        function (this: any, value: T, index: number): U {
-          return callbackfn.call(this, value, index, thisVar);
+        function (this: unknown, value: T, index: number): U {
+          return callbackfn.call(this, value, index, outerThis);
         },
         thisArg
       ) as U[];
@@ -385,17 +399,17 @@ export function MakeAbstractCList<
 
     filter<S extends T>(
       predicate: (value: T, index: number, list: this) => value is S,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): S[];
     filter(
       predicate: (value: T, index: number, list: this) => unknown,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): T[] {
-      const thisVar = this;
-      return Array.prototype.filter.call(
+      const outerThis = this;
+      return <T[]>Array.prototype.filter.call(
         this.asArrayLike(),
-        function (this: any, value, index) {
-          return predicate.call(this, value, index, thisVar);
+        function (this: unknown, value, index) {
+          return predicate.call(this, value, index, outerThis);
         },
         thisArg
       );
@@ -413,7 +427,7 @@ export function MakeAbstractCList<
         list: this
       ) => T
     ): T;
-    // TODO: had to make initialValue optional here, is
+    // Had to make initialValue optional here, is
     // that okay?  Same in reduceRight.
     reduce<U>(
       callbackfn: (
@@ -424,18 +438,24 @@ export function MakeAbstractCList<
       ) => U,
       initialValue?: U
     ): U {
-      const thisVar = this;
-      // TODO: why is the cast and any needed here?  Type inference
+      const outerThis = this;
+      // Why is the cast and any needed here?  Type inference
       // seems to be failing.
       return Array.prototype.reduce.call(
         this.asArrayLike(),
-        function (this: any, previousValue: any, currentValue, currentIndex) {
+        function (
+          this: unknown,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          previousValue: any,
+          currentValue,
+          currentIndex
+        ) {
           return callbackfn.call(
             this,
             previousValue,
             currentValue,
             currentIndex,
-            thisVar
+            outerThis
           );
         },
         initialValue
@@ -459,18 +479,24 @@ export function MakeAbstractCList<
       ) => U,
       initialValue?: U
     ): U {
-      const thisVar = this;
-      // TODO: why is the cast and any needed here?  Type inference
+      const outerThis = this;
+      // Why is the cast and any needed here?  Type inference
       // seems to be failing.
       return Array.prototype.reduceRight.call(
         this.asArrayLike(),
-        function (this: any, previousValue: any, currentValue, currentIndex) {
+        function (
+          this: unknown,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          previousValue: any,
+          currentValue,
+          currentIndex
+        ) {
           return callbackfn.call(
             this,
             previousValue,
             currentValue,
             currentIndex,
-            thisVar
+            outerThis
           );
         },
         initialValue
@@ -478,17 +504,18 @@ export function MakeAbstractCList<
     }
 
     slice(start?: number, end?: number): T[] {
-      return Array.prototype.slice.call(this.asArrayLike(), start, end);
+      return <T[]>Array.prototype.slice.call(this.asArrayLike(), start, end);
     }
   }
-  // TODO: this almost works except it thinks insert's return
+  // This almost works except it thinks insert's return
   // type is unknown for some reason?
+  // eslint-disable-next-line
   return Mixin as any;
 }
 
 export const AbstractCListCObject = MakeAbstractCList(CObject) as abstract new <
   T,
-  InsertArgs extends any[],
+  InsertArgs extends unknown[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>,
   C extends Collab = Collab
 >(
@@ -499,7 +526,7 @@ export const AbstractCListCPrimitive = MakeAbstractCList(
   CPrimitive
 ) as abstract new <
   T,
-  InsertArgs extends any[],
+  InsertArgs extends unknown[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
   initToken: InitToken
@@ -507,7 +534,7 @@ export const AbstractCListCPrimitive = MakeAbstractCList(
 
 export const AbstractCListCollab = MakeAbstractCList(Collab) as abstract new <
   T,
-  InsertArgs extends any[],
+  InsertArgs extends unknown[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
   initToken: InitToken

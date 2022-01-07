@@ -112,7 +112,7 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     });
   }
 
-  canGc() {
+  canGC() {
     return (
       this.state.X1 === 0 &&
       this.state.Y1 === 0 &&
@@ -221,7 +221,7 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.rotate1 === 0 && this.state.rotate2 === 0;
   }
 
@@ -279,7 +279,7 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.reflectX1 === 1;
   }
 
@@ -335,7 +335,7 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.reflectY1 === 1 && this.state.reflectY2 === 1;
   }
 

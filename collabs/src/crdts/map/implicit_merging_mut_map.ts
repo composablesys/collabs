@@ -26,7 +26,7 @@ import { AbstractCMapCollab } from "../../data_types";
  * For the
  * purpose of the iterators and has, a key is considered
  * to be present in the map if its value is nontrivial,
- * specifically, if value.canGc() returns false.
+ * specifically, if value.canGC() returns false.
  * Note that this implies that a just-added key may
  * not be present in the map.  This unusual semantics
  * is necessary because the map does not necessarily
@@ -92,11 +92,18 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
 
         if (this.pendingChildSaves !== null) {
           // We are in this.load.
-          // We can assume value will be nontrivial once
+          // So, value.load will be called by this.load
+          // right after the value is returned;
+          // we don't need to do it here.
+          // Also, we can assume value will be nontrivial once
           // it is recursively loaded, since save only
           // returns the nontrivial children.
           this.nontrivialMap.set(keyString, value);
         } else {
+          // Since the value is new with no prior saved state,
+          // we need to call value.load(null) to indicate that
+          // loading was skipped.
+          value.load(null);
           // The value starts trivial; if it becomes nontrivial
           // due to a message, receiveInternal will move
           // it to nontrivialMap.
@@ -114,7 +121,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     messagePath: (string | Uint8Array)[]
   ): void {
     if (child.parent !== this) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
@@ -126,7 +133,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
@@ -141,8 +148,8 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     this.inReceiveKeyStr = keyString;
     try {
       // Message for a child
-      let key = this.stringAsKey(keyString);
-      let [value, nontrivialStart] = this.getInternal(key, keyString);
+      const key = this.stringAsKey(keyString);
+      const [value, nontrivialStart] = this.getInternal(key, keyString);
       this.inReceiveValue = value;
 
       messagePath.length--;
@@ -150,7 +157,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
 
       // If the value became GC-able, move it to the
       // backup map
-      if (nontrivialStart && value.canGc()) {
+      if (nontrivialStart && value.canGC()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
         this.emit("Delete", {
@@ -161,7 +168,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
       }
       // If the value became nontrivial, move it to the
       // main map
-      else if (!nontrivialStart && !value.canGc()) {
+      else if (!nontrivialStart && !value.canGC()) {
         this.trivialMap.delete(keyString);
         this.nontrivialMap.set(keyString, value);
         this.emit("Set", {
@@ -222,8 +229,8 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     if (this.inReceiveKeyStr === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
-      // Instead, use canGc directly.
-      if (!this.inReceiveValue!.canGc()) {
+      // Instead, use canGC directly.
+      if (!this.inReceiveValue!.canGC()) {
         return this.inReceiveValue!;
       } else return undefined;
     }
@@ -235,13 +242,13 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     if (this.inReceiveKeyStr === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
-      // Instead, use canGc directly.
-      return !this.inReceiveValue!.canGc();
+      // Instead, use canGC directly.
+      return !this.inReceiveValue!.canGC();
     } else return this.nontrivialMap.has(str);
   }
 
   hasValue(value: C): boolean {
-    return this.owns(value) && !value.canGc();
+    return this.owns(value) && !value.canGC();
   }
 
   /**
@@ -257,7 +264,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
   }
 
   *entries(): IterableIterator<[K, C]> {
-    for (let [keyStr, value] of this.nontrivialMap) {
+    for (const [keyStr, value] of this.nontrivialMap) {
       yield [this.stringAsKey(keyStr), value];
     }
   }
@@ -268,11 +275,15 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
   }
 
   /**
-   * Returns value's key.
+   * Returns the unique key associated to a value owned
+   * by this map. If
+   * the value is not owned by this map, returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
    */
-  keyOf(value: C): K | undefined {
-    if (!this.owns(value)) return undefined;
-    return this.stringAsKey(value.name);
+  keyOf(searchElement: C): K | undefined {
+    if (!this.owns(searchElement)) return undefined;
+    return this.stringAsKey(searchElement.name);
   }
 
   save(): Uint8Array {
@@ -335,7 +346,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     return child.getDescendant(namePath);
   }
 
-  canGc() {
+  canGC() {
     /*
      * We don't need to check here that the backup
      * map is nonempty (which would be expensive):
@@ -358,7 +369,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
  * For the
  * purpose of the iterators and has, a key is considered
  * to be present in the map if its value is nontrivial,
- * specifically, if value.canGc() returns false.
+ * specifically, if value.canGC() returns false.
  * Note that this implies that a just-added key may
  * not be present in the map.  This unusual semantics
  * is necessary because the map does not necessarily

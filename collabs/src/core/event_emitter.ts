@@ -1,4 +1,8 @@
 export interface EventsRecord {
+  // Need "any" here instead of "unknown" or else TypeScript
+  // complains about a missing index signature when you
+  // implement the interface.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [eventName: string]: any;
 }
 
@@ -25,6 +29,7 @@ export class EventEmitter<Events extends EventsRecord> {
    * that are not clear to me.
    */
   private readonly handlers: Partial<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [K in keyof Events]: Set<Handler<Events[K], any>>;
   }> = {};
 
@@ -38,6 +43,7 @@ export class EventEmitter<Events extends EventsRecord> {
     eventName: K,
     handler: Handler<Events[K], this>
   ): Unsubscribe {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const set: Set<Handler<Events[K], any>> = (this.handlers[eventName] =
       this.handlers[eventName] ?? new Set([handler]));
     set.add(handler);
@@ -68,7 +74,16 @@ export class EventEmitter<Events extends EventsRecord> {
    */
   protected emit<K extends keyof Events>(eventName: K, event: Events[K]): void {
     for (const handler of this.handlers[eventName] ?? []) {
-      handler(event, this);
+      try {
+        handler(event, this);
+      } catch (err) {
+        // Don't let the error block other event handlers
+        // or affect the emitter, but still make it print
+        // its error like it was unhandled.
+        setTimeout(() => {
+          throw err;
+        });
+      }
     }
   }
 }

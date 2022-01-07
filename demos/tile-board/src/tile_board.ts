@@ -1,4 +1,4 @@
-import * as crdts from "@collabs/collabs";
+import * as collabs from "@collabs/collabs";
 import { ContainerAppSource } from "@collabs/container";
 import { setupTiles } from "./tiles";
 import { setupWhiteboard } from "./whiteboard";
@@ -18,7 +18,7 @@ window.onload = () => {
 (async function () {
   const app = await ContainerAppSource.newApp(
     window.parent,
-    new crdts.RateLimitBatchingStrategy(200)
+    new collabs.RateLimitBatchingStrategy(200)
   );
 
   setupWhiteboard(app);

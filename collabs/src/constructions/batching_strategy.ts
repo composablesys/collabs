@@ -65,7 +65,7 @@ export class ImmediateBatchingStrategy implements BatchingStrategy {
  */
 export class RateLimitBatchingStrategy implements BatchingStrategy {
   private batchingLayer?: BatchingLayer = undefined;
-  private unsubscribeChange?: Unsubscribe = undefined;
+  private unsubscribeBatchPending?: Unsubscribe = undefined;
   private unsubscribeReceiveBlocked?: Unsubscribe = undefined;
 
   private pendingBatch = false;
@@ -84,17 +84,17 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
 
   start(batchingLayer: BatchingLayer): void {
     this.batchingLayer = batchingLayer;
-    this.unsubscribeChange = this.batchingLayer.on(
+    this.unsubscribeBatchPending = this.batchingLayer.on(
       "BatchPending",
       this.onBatchPending.bind(this)
     );
   }
 
   stop(): void {
-    this.unsubscribeChange!();
-    if (this.unsubscribeReceiveBlocked) this.unsubscribeReceiveBlocked!();
+    this.unsubscribeBatchPending!();
+    if (this.unsubscribeReceiveBlocked) this.unsubscribeReceiveBlocked();
     this.batchingLayer = undefined;
-    this.unsubscribeChange = undefined;
+    this.unsubscribeBatchPending = undefined;
     this.unsubscribeReceiveBlocked = undefined;
   }
 
@@ -130,6 +130,10 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
  * when you want to send a batch.
  */
 export class ManualBatchingStrategy implements BatchingStrategy {
-  start(_batchingLayer: BatchingLayer): void {}
-  stop(): void {}
+  start(_batchingLayer: BatchingLayer): void {
+    // Does nothing.
+  }
+  stop(): void {
+    // Does nothing.
+  }
 }

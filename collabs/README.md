@@ -14,7 +14,7 @@ Collabs is a library for building and using _collaborative data structures_. The
 
 ## Principles
 
-- **Local-first:** Users see their own changes immediately, even when offline, and sync up with other users in the background. All users see the same state once they sync up, even if they made simultaneous changes (e.g., two users typing at once).
+- **Local-first:** Each user always keeps a full copy of the state on their own device and sees their own changes immediately, even when offline. They then sync up with other users in the background. All users see the same state once they sync up, even if they made simultaneous changes (e.g., two users typing at once).
 - **Network-agnostic:** `collabs` generates messages that you must eventually broadcast to all users, but how is completely up to you and your users: your own server, WebRTC, encrypted [Matrix](matrix.org) room, etc.
 <!-- TODO: link to zero-hosting deployment options (use someone else's); links to docs on each option. Networks page with all options? -->
 - **Flexible and extensible:** At its core, `collabs` is a library _for_ collaborative data structures, not just a library _of_ them (although we provide plenty of those too). So if our data types don't meet your needs, you can create your own or get them from third-party libraries.

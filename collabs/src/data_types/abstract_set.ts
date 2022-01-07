@@ -2,7 +2,7 @@ import { CObject, CPrimitive } from "../constructions";
 import { Collab, InitToken } from "../core";
 import { CSet, CSetEventsRecord } from "./set";
 
-export declare abstract class AbstractCSet<T, AddArgs extends any[]>
+export declare abstract class AbstractCSet<T, AddArgs extends unknown[]>
   extends Collab
   implements CSet<T, AddArgs>
 {
@@ -21,7 +21,7 @@ export declare abstract class AbstractCSet<T, AddArgs extends any[]>
   clear(): void;
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
   [Symbol.iterator](): IterableIterator<T>;
   /**
@@ -42,18 +42,18 @@ export declare abstract class AbstractCSet<T, AddArgs extends any[]>
  * base type constraint (e.g., {} if they are unconstrained).
  * If you want to override this, you must make an unsafe
  * cast to the intended constructor type, as demonstrated
- * by AbstractCSetCObject and the other examples
+ * by [[AbstractCSetCObject]] and the other examples
  * in this file.
  */
 export function MakeAbstractCSet<
   TBase extends abstract new (...args: any[]) => Collab
 >(
   Base: TBase
-): abstract new <T, AddArgs extends any[]>(
+): abstract new <T, AddArgs extends unknown[]>(
   ...args: ConstructorParameters<TBase>
 ) => AbstractCSet<T, AddArgs> & InstanceType<TBase> {
-  // @ts-ignore generics in mixins are not supported
-  abstract class Mixin<T, AddArgs extends any[]>
+  // @ts-expect-error generics in mixins are not supported
+  abstract class Mixin<T, AddArgs extends unknown[]>
     extends Base
     implements AbstractCSet<T, AddArgs>
   {
@@ -68,20 +68,20 @@ export function MakeAbstractCSet<
     abstract readonly size: number;
 
     clear(): void {
-      for (let value of this) this.delete(value);
+      for (const value of this) this.delete(value);
     }
 
     forEach(
       callbackfn: (value: T, value2: T, set: this) => void,
-      thisArg?: any
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): void {
-      // TODO: this might not give the exact same semantics
+      // Not sure if this gives the exact same semantics
       // as Set if callbackfn modifies this during the
       // loop.  (Given that Array.forEach has a rather
       // funky polyfill on MDN, I expect Set.forEach is
       // similarly funky.)  Although users probably shouldn't
       // be doing that anyway.
-      for (let value of this) {
+      for (const value of this) {
         callbackfn.call(thisArg, value, value, this);
       }
     }
@@ -94,12 +94,13 @@ export function MakeAbstractCSet<
       return [...this].toString();
     }
   }
+  // eslint-disable-next-line
   return Mixin as any;
 }
 
 export const AbstractCSetCObject = MakeAbstractCSet(CObject) as abstract new <
   T,
-  AddArgs extends any[],
+  AddArgs extends unknown[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
   C extends Collab = Collab
 >(
@@ -110,7 +111,7 @@ export const AbstractCSetCPrimitive = MakeAbstractCSet(
   CPrimitive
 ) as abstract new <
   T,
-  AddArgs extends any[],
+  AddArgs extends unknown[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
   initToken: InitToken
@@ -118,7 +119,7 @@ export const AbstractCSetCPrimitive = MakeAbstractCSet(
 
 export const AbstractCSetCollab = MakeAbstractCSet(Collab) as abstract new <
   T,
-  AddArgs extends any[],
+  AddArgs extends unknown[],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 >(
   initToken: InitToken

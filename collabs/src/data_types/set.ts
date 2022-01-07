@@ -58,7 +58,7 @@ export interface CSetEventsRecord<T> extends CollabEventsRecord {
  */
 export interface CSet<
   T,
-  AddArgs extends any[] = [T],
+  AddArgs extends unknown[] = [T],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
 > extends Collab<Events> {
   /**
@@ -87,7 +87,7 @@ export interface CSet<
 
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
 
   /**

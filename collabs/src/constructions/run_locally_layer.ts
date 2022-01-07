@@ -12,7 +12,31 @@ import {
  * locally only, not as a replicated operation, by calling
  * [[runLocally]].
  *
- * TODO: use case (bulk ops, renamed ops). Use with CMessenger.
+ * Typically, you will call [[runLocally]] in response to
+ * a message broadcast to all replicas (e.g., using
+ * [[CMessenger]]), so that all replicas run the same
+ * operation. This is supposed to give the same result as
+ * if the message's sender had run `doPureOps` normally.
+ * However, ensuring this requires some care; see
+ * [[runLocally]].
+ *
+ * Use cases:
+ * - Optimizing bulk operations. For example, in a drawing tool,
+ * suppose a user draws a 1,000x1,000 filled rectangle. The easy
+ * way to implement this is by setting each of the 1,000,000
+ * pixels to the intended color as a replicated operation.
+ * However, this will result in 1,000,000 messages being sent.
+ * You can instead use a [[CMessenger]] to send a short
+ * description
+ * of the operation (e.g., the rectangle's coordinates and
+ * fill color), then each replica uses [[runLocally]] to do
+ * the actual fill operation in response to that message.
+ * - Together with [[SemidirectProductStore]]. [[SemidirectProductStore]]
+ * concerns modifying sent operations based on concurrent
+ * operations. To make this possible, it is easiest to send
+ * a high-level description of each operation using
+ * [[CMessenger]], modify it using [[SemidirectProductStore]],
+ * then perform the modified operation using [[runLocally]].
  */
 export class RunLocallyLayer extends Collab implements ICollabParent {
   private child!: Collab;
@@ -23,9 +47,6 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     this.child = child;
     return child;
   }
-
-  // TODO: permit nested runLocally calls? Then need to
-  // count nesting
 
   runLocally<T>(meta: MessageMeta, doPureOps: () => T): T {
     const oldRunLocallyMeta = this.runLocallyMeta;
@@ -40,7 +61,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     messagePath: (string | Uint8Array)[]
   ): void {
     if (child !== this.child) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     if (this.runLocallyMeta !== null) {
@@ -52,10 +73,9 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     }
   }
 
-  getAddedContext(key: symbol): any {
+  getAddedContext(key: symbol): unknown {
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       if (this.runLocallyMeta !== null) {
-        // TODO: is this appropriate/needed?
         return this.runLocallyMeta;
       } else return undefined;
     }
@@ -86,7 +106,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return this.child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
-    return this.child.canGc();
+  canGC(): boolean {
+    return this.child.canGC();
   }
 }

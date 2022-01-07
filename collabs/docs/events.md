@@ -1,6 +1,6 @@
 # Events
 
-Collaborative data types use _events_ to notify you when they change, due to either a local or remote operation. Typically, you will act on these events by updating the view (UI).
+`Collab`s use _events_ to notify you when they change, due to either a local or remote operation. Typically, you will act on these events by updating the view (UI).
 
 ## Quick Start
 
@@ -17,11 +17,11 @@ This works because a `Runtime` "Change" event is dispatched whenever the local u
 
 ## API
 
-See [`EventEmitter`](./typedoc/classes/EventEmitter.html). `Crdt` (hence all collaborative data types) and `Runtime` have `EventEmitter` as a superclass, hence they have the following methods:
+See [`EventEmitter`](./typedoc/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `Runtime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
 
 - `on` adds an event listener. Calling `on`'s return value removes the listener.
 - `nextEvent` returns a Promise that is resolved when the next event is emitted.
-- `emit` (protected) emits an event. Call this from within a custom collaborative type to emit your own events.
+- `emit` (protected) emits an event. Call this from within a custom `Collab` to emit your own events.
 
 Each class's allowed events are typed using the `Events` type parameter. This has the form of an interface mapping `string` event names to their event type:
 
@@ -35,15 +35,15 @@ interface MyEventsRecord {
 
 When calling the `EventEmitter` methods, TypeScript will force you to use a valid event name, and it will then infer the corresponding event type. In particular, your IDE should show you the proper event type in the method signature once you type the event name.
 
-## Using Collaborative Data Type Events
+## Using `Collab` Events
 
-All events emitted by collaborative data types (`Crdt` subclasses) extend [`CrdtEvent`](./typedoc/interfaces/CrdtEvent.html). This means that they have a `meta` field of type [`CrdtEventMeta`](./typedoc/interfaces/CrdtEventMeta.html). When listening on events, you can use `meta.isLocal` to filter out events from the local user.
+All events emitted by `Collab`s extend [`CollabEvent`](./typedoc/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`MessageMeta`](./typedoc/interfaces/MessageMeta.html). When listening on events, you can use `meta.isLocalEcho` to filter out events from the local user.
 
-Also, all collaborative data types have a "Change" event of type `CrdtEvent`, from [`CrdtEventsRecord`](./typedoc/interfaces/CrdtEventsRecord). This event is emitted after any other event. Thus if you just want to know when a collaborative type is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the type), then you can listen on "Change" events instead of listening on every event specifically.
+Also, all `Collab`s have a "Change" event of type `CollabEvent`, from [`CollabEventsRecord`](./typedoc/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a `Collab` is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Change" events instead of listening on every event specifically.
 
-When listening on a collaborative type's events, you should register event listeners as soon as possible - usually in the same thread as the type is constructed. For example, to listen on child events in a `CObject`, you should register listeners in the constructor. This ensures that you don't miss any events.
+When listening on a `Collab`'s events, you should register event listeners as soon as possible - usually in the same thread as the structure is constructed. For example, to listen on child events in a `CObject`, you should register listeners in the constructor. This ensures that you don't miss any events.
 
-When listening on events from a collaborative type that is created dynamically in a collection (e.g., `ResettingMutCSet`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add", "Insert", "Set", etc. event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
+When listening on events from a `Collab` that is created dynamically in a collection (e.g., `ResettingMutCSet`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add", "Insert", "Set", etc. event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
 
 TODO: not dipatched during loading. If you normally
 
@@ -56,35 +56,35 @@ If you are publishing a custom type as a third-party library, we recommend that 
 
 TODO: General advice (merge with below paragraph):
 
-- - Only emit events when your state is usable. If one of
-- your operations is made up of several sub-operations, and
-- the intermediate states are nonsensical, don't emit events
-- then, since the listeners might try to inspect the state
-- during their event handlers.
-- - Events should be sufficient to maintain a view of
-- the state. But, it is recommended to omit info
-- that the user can get from the Crdt during the event
-- listener (e.g., in CMap, events provide key but not value,
-- since the listener can get the value themselves.)
-- - Give the previous value, if it cannot be determined
-- otherwise (e.g. from the remaining state). That is useful
-- for some views that only account for part of the state,
-- e.g., the size of a CMap.
-- - Don't dispatch events redundantly if there is no way
-- to tell whether they are redundant. E.g., in CSet, only
-- dispatch Add if the value went from (not present) to (present);
-- don't dispatch it if the value was already present.
-- That is useful
-- for some views that only track part of the state,
-- e.g., the size of a CSet.
-- - If you making a non-reusable component for an app and
-- don't want to bother adding individual events, you can just
-- emit "Change" events when your state changes (e.g., on
-- your children's "Change" events). Or, you can skip events
-- entirely and either refresh the whole display on Runtime
-- "Change" events, or refresh your Crdt-specific display on
-- its children's "Change" events.
+- Only emit events when your state is usable. If one of
+  your operations is made up of several sub-operations, and
+  the intermediate states are nonsensical, don't emit events
+  then, since the listeners might try to inspect the state
+  during their event handlers.
+- Events should be sufficient to maintain a view of
+  the state. But, it is recommended to omit info
+  that the user can get from the Collab during the event
+  listener (e.g., in CMap, events provide key but not value,
+  since the listener can get the value themselves.)
+- Give the previous value, if it cannot be determined
+  otherwise (e.g. from the remaining state). That is useful
+  for some views that only account for part of the state,
+  e.g., the size of a CMap.
+- Don't dispatch events redundantly if there is no way
+  to tell whether they are redundant. E.g., in CSet, only
+  dispatch Add if the value went from (not present) to (present);
+  don't dispatch it if the value was already present.
+  That is useful
+  for some views that only track part of the state,
+  e.g., the size of a CSet.
+- If you making a non-reusable component for an app and
+  don't want to bother adding individual events, you can just
+  emit "Change" events when your state changes (e.g., on
+  your children's "Change" events). Or, you can skip events
+  entirely and either refresh the whole display on Runtime
+  "Change" events, or refresh your Collab-specific display on
+  its children's "Change" events.
 
-See [`CrdtEventsRecord`](./typedoc/interfaces/CrdtEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`CSet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
+See [`CollabEventsRecord`](./typedoc/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`CSet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
-> **Aside:** For custom types that you only plan to use in your own application, you may not need to emit events. It can be easier to just listen on events dispatched by internal collaborative types, or to just listen on `Runtime`'s "Change" event.
+> **Aside:** For custom types that you only plan to use in your own application, you may not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `Runtime`'s "Change" event.

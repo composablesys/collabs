@@ -69,7 +69,7 @@ var proto = RedBlackTree.prototype;
 Object.defineProperty(proto, "keys", {
   get: function () {
     var result = [];
-    this.forEach(function (k, v) {
+    this.forEach(function (v, k) {
       result.push(k);
     });
     return result;
@@ -79,7 +79,7 @@ Object.defineProperty(proto, "keys", {
 Object.defineProperty(proto, "values", {
   get: function () {
     var result = [];
-    this.forEach(function (k, v) {
+    this.forEach(function (v, k) {
       result.push(v);
     });
     return result;
@@ -290,7 +290,7 @@ function doVisitFull(visit, node) {
       return v;
     }
   }
-  var v = visit(node.key, node.value);
+  var v = visit(node.value, node.key);
   if (v) {
     return v;
   }
@@ -309,7 +309,7 @@ function doVisitHalf(lo, compare, visit, node) {
         return v;
       }
     }
-    var v = visit(node.key, node.value);
+    var v = visit(node.value, node.key);
     if (v) {
       return v;
     }
@@ -332,7 +332,7 @@ function doVisit(lo, hi, compare, visit, node) {
       }
     }
     if (h > 0) {
-      v = visit(node.key, node.value);
+      v = visit(node.value, node.key);
       if (v) {
         return v;
       }

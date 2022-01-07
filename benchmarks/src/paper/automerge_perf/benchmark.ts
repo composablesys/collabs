@@ -106,9 +106,9 @@ class AutomergePerfBenchmark {
         if (trial >= 0) baseMemories[trial] = baseMemory;
       }
 
-      const replicaIdRng = seedrandom(SEED);
+      const replicaIDRng = seedrandom(SEED);
       // TODO: should we include setup in the time recording?
-      this.testFactory.setup(replicaIdRng);
+      this.testFactory.setup(replicaIDRng);
 
       switch (measurement) {
         case "time":
@@ -153,7 +153,7 @@ class AutomergePerfBenchmark {
               this.testFactory.cleanup();
               await sleep(1000);
               const loadStartTime = process.hrtime.bigint();
-              this.testFactory.load(saveData, replicaIdRng);
+              this.testFactory.load(saveData, replicaIDRng);
               this.testFactory.getText(); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
@@ -227,10 +227,10 @@ class AutomergePerfBenchmark {
           // console.log("Loading repeatedly");
           // while (true) {
           //   this.testFactory.cleanup();
-          //   this.testFactory.load(saveData, replicaIdRng);
+          //   this.testFactory.load(saveData, replicaIDRng);
           // }
 
-          this.testFactory.load(saveData, replicaIdRng);
+          this.testFactory.load(saveData, replicaIDRng);
           this.testFactory.getText(); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!

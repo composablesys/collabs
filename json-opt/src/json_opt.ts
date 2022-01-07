@@ -14,14 +14,14 @@ import {
   TextSerializer,
 } from "@collabs/collabs";
 
-export interface JsonEvent extends CollabEvent {
+export interface JSONEvent extends CollabEvent {
   readonly key: string;
   readonly value: Collab;
 }
 
-export interface JsonEventsRecord extends CollabEventsRecord {
-  Add: JsonEvent;
-  Delete: JsonEvent;
+export interface JSONEventsRecord extends CollabEventsRecord {
+  Add: JSONEvent;
+  Delete: JSONEvent;
 }
 
 enum InternalType {
@@ -29,7 +29,7 @@ enum InternalType {
   List,
 }
 
-export class JsonCollab extends CObject<JsonEventsRecord> {
+export class JSONCollab extends CObject<JSONEventsRecord> {
   private readonly internalMap: MergingMutCMap<
     string,
     OptionalLwwCRegister<number | string | boolean | InternalType>
@@ -114,14 +114,14 @@ export class JsonCollab extends CObject<JsonEventsRecord> {
 
   get(
     key: string
-  ): (number | string | boolean | PrimitiveCList<string> | JsonCursor)[] {
+  ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
     let vals: any[] = [];
     let mvr = this.internalMap.get(key);
     if (mvr) {
       for (let val of mvr.conflicts()) {
         switch (val) {
           case InternalType.Nested:
-            vals.push(new JsonCursor(this, key));
+            vals.push(new JSONCursor(this, key));
             break;
 
           case InternalType.List:
@@ -163,13 +163,13 @@ export class JsonCollab extends CObject<JsonEventsRecord> {
 
   values(
     cursor: string
-  ): (number | string | boolean | PrimitiveCList<string> | JsonCursor)[] {
+  ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
     let vals: (
       | number
       | string
       | boolean
       | PrimitiveCList<string>
-      | JsonCursor
+      | JSONCursor
     )[] = [];
 
     for (let key of this.keys(cursor)) {
@@ -196,15 +196,15 @@ export class JsonCollab extends CObject<JsonEventsRecord> {
   }
 }
 
-export class JsonCursor {
-  private internal: JsonCollab;
+export class JSONCursor {
+  private internal: JSONCollab;
   private cursor: string;
 
-  static new(): Pre<JsonCursor> {
-    return (initToken: InitToken) => new JsonCursor(new JsonCollab(initToken));
+  static new(): Pre<JSONCursor> {
+    return (initToken: InitToken) => new JSONCursor(new JSONCollab(initToken));
   }
 
-  constructor(internal: JsonCollab, cursor?: string) {
+  constructor(internal: JSONCollab, cursor?: string) {
     this.internal = internal;
 
     if (!cursor) cursor = ":";
@@ -213,7 +213,7 @@ export class JsonCursor {
 
   get(
     key: string
-  ): (number | string | boolean | PrimitiveCList<string> | JsonCursor)[] {
+  ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
     return this.internal.get(this.cursor + key + ":");
   }
 
@@ -245,7 +245,7 @@ export class JsonCursor {
     | string
     | boolean
     | PrimitiveCList<string>
-    | JsonCursor
+    | JSONCursor
   )[] {
     return this.internal.values(this.cursor);
   }

@@ -145,7 +145,7 @@ export class TensorGCounterCollab
       // access to this.runtime there
       this.state.idCounter = this.runtime.getReplicaUniqueNumber();
     }
-    const ownId = this.keyString(this.runtime.replicaId, this.state.idCounter!);
+    const ownId = this.keyString(this.runtime.replicaID, this.state.idCounter!);
     const prOldValue = this.state.P.get(ownId);
     const prOldTensor = prOldValue ?? tf.zeros(this.shape);
     const prNewTensor = prOldTensor.add(toAdd);
@@ -263,7 +263,7 @@ export class TensorGCounterCollab
     );
   }
 
-  canGc() {
+  canGC() {
     return this.state.P.size === 0 && this.state.N.size === 0;
   }
 

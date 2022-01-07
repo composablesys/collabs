@@ -3,15 +3,26 @@ import { CollabEventsRecord, MessageMeta } from "../../core";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
 /**
- * Superclass for a primitive (message-passing) op-based CRDT.
+ * Superclass for a primitive (message-passing)
+ * operation-based CRDT.
  *
- * TODO: rules: sendCRDT/receiveCRDT in causal order, with
- * requested CRDT metadata. Model is of an op-based CRDT as
- * defined by TODO.
+ * Messages sent with [[sendCRDT]] are delivered to all
+ * replica's [[receiveCRDT]] methods (including the sender's)
+ * exactly once, in causal order, and tagged with
+ * [[CRDTMessageMeta]]. Sent messages are delivered to the local
+ * replica immediately. Subclasses are expected to implement
+ * an operation-based CRDT algorithm using these methods.
  *
- * TODO: context/meta/ancestor reqs.
+ * Besides renaming send and receive to sendCRDT and receiveCRDT,
+ * the only user-facing difference between [[PrimitiveCRDT]]
+ * and [[CPrimitive]] is that this class supplies
+ * [[CRDTMessageMeta]] to recipients.
  *
- * TODO: difference from CPrimitive: adds CRDT meta, that's it.
+ * To function, a [[PrimitiveCRDT]] must have an ancestor
+ * that supplies the extra [[MessageMeta]] key
+ * [[CRDTExtraMeta.MESSAGE_META_KEY]] (typically [[CRDTExtraMetaLayer]]). Also, its ancestors
+ * must deliver messages exactly once, in causal order,
+ * with sent messages delivered to the local replica immediately.
  */
 export abstract class PrimitiveCRDT<
   Events extends CollabEventsRecord = CollabEventsRecord

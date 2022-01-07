@@ -3,16 +3,11 @@ import {
   DeletingMutCSetSave,
   IDeletingMutCSetValueSave,
 } from "../../../generated/proto_compiled";
-import { bytesAsString, DefaultSerializer, Serializer } from "../../util";
-import {
-  Collab,
-  ICollabParent,
-  InitToken,
-  MessageMeta,
-  Runtime,
-} from "../../core";
+import { DefaultSerializer, Serializer } from "../../util";
+import { Collab, ICollabParent, InitToken, MessageMeta } from "../../core";
 import { Resettable } from "../abilities";
 import { AbstractCSetCollab } from "../../data_types";
+import { makeUID } from "../../util/uid";
 
 class FakeDeletedCollab extends Collab {
   private constructor(initToken: InitToken) {
@@ -39,7 +34,7 @@ class FakeDeletedCollab extends Collab {
       "Collab has been deleted from DeletingMutCSet and is frozen"
     );
   }
-  canGc(): boolean {
+  canGC(): boolean {
     throw new Error(
       "Collab has been deleted from DeletingMutCSet and is frozen"
     );
@@ -55,7 +50,7 @@ class FakeDeletedCollab extends Collab {
       get: function (target, p) {
         if (p in target) {
           // Do the behavior defined by FakeDeletedCollab.
-          return (target as any)[p];
+          return (target as unknown as Record<string | symbol, unknown>)[p];
         } else {
           throw new Error(
             "Collab has been deleted from DeletingMutCSet and is frozen"
@@ -66,7 +61,7 @@ class FakeDeletedCollab extends Collab {
       set: function (target, p, value) {
         if (p in target) {
           // Do the behavior defined by FakeDeletedCollab.
-          (target as any)[p] = value;
+          (target as unknown as Record<string | symbol, unknown>)[p] = value;
           return true;
         } else {
           throw new Error(
@@ -86,7 +81,7 @@ class FakeDeletedCollab extends Collab {
  *
  * Warning: in given constructor/its init function,
  * be careful not to use replica-specific info
- * (replicaId, runtime.getReplicaUniqueNumber()) -
+ * (replicaID, runtime.getReplicaUniqueNumber()) -
  * it won't be consistent on different replicas.
  * If you need these, you must pass them yourself as
  * constructor args.  Likewise, if you are passed in a
@@ -95,7 +90,7 @@ class FakeDeletedCollab extends Collab {
  * must instead be passed as a separate non-Collab
  * constructor arg.
  */
-export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
+export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractCSetCollab<C, AddArgs>
   implements ICollabParent, Resettable
 {
@@ -128,12 +123,10 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     // Create the initial values from initialValuesArgs.
     for (let i = 0; i < initialValuesArgs.length; i++) {
       const args = initialValuesArgs[i];
-      // TODO: Using name "INIT" is a hack; need to figure out
+      // Using name "INIT" is a hack; need to figure out
       // a proper way to do this when implementing
       // initial values generally.
-      const name = bytesAsString(
-        DeletingMutCSet.nameSerializer.serialize(["INIT", i])
-      );
+      const name = makeUID("INIT", i);
       this.receiveCreate(name, undefined, args, true);
     }
     this.initialValuesCount = initialValuesArgs.length;
@@ -141,18 +134,12 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
 
   childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
     if (child.parent !== this) {
-      throw new Error("childSend called by non-child: " + child);
+      throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
     this.send(messagePath);
   }
-
-  // TODO: less hacky way to use Default when you don't have a runtime?
-  // Although really this should have its own serializer.
-  private static nameSerializer = DefaultSerializer.getInstance<
-    [string, number]
-  >({} as unknown as Runtime);
 
   private ourCreatedValue?: C = undefined;
   protected receiveInternal(
@@ -163,7 +150,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
       // CObject.
-      let child = this.children.get(lastMessage);
+      const child = this.children.get(lastMessage);
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
@@ -181,20 +168,15 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
       messagePath.length--;
       child.receive(messagePath, meta);
     } else {
-      let decoded = DeletingMutCSetMessage.decode(lastMessage);
+      const decoded = DeletingMutCSetMessage.decode(lastMessage);
       switch (decoded.op) {
-        case "add":
-          const name = bytesAsString(
-            DeletingMutCSet.nameSerializer.serialize([
-              meta.sender,
-              decoded.add!.replicaUniqueNumber,
-            ])
-          );
+        case "add": {
+          const name = makeUID(meta.sender, decoded.add!.replicaUniqueNumber);
           const newValue = this.receiveCreate(name, decoded.add!.args);
 
           if (meta.isLocalEcho) {
-            // TODO: previously we also did this if runLocally
-            // was true.
+            // Previously we also did this if runLocally
+            // was true; see https://github.com/composablesys/collabs/issues/172
             this.ourCreatedValue = newValue;
           }
 
@@ -203,7 +185,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
             meta,
           });
           break;
-        case "delete":
+        }
+        case "delete": {
           const child = this.children.get(decoded.delete);
           if (child !== undefined) {
             this.children.delete(decoded.delete);
@@ -215,8 +198,9 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
             });
           }
           break;
+        }
         default:
-          throw new Error("Unknown decoded.op: " + decoded.op);
+          throw new Error(`Unknown decoded.op: ${decoded.op}`);
       }
     }
   }
@@ -236,9 +220,19 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
     const newValue = this.valueConstructor(new InitToken(name, this), ...args);
+
     this.children.set(name, newValue);
     if (!isInitialValue) {
-      // Initial values are not saved, since they are created
+      if (this.pendingChildSaves === null) {
+        // Not an initial value and not currently loading =>
+        // this has already been loaded.
+        // Since the value is new with no prior saved state,
+        // we need to call value.load(null) to indicate that
+        // newValue skipped loading.
+        newValue.load(null);
+      }
+      // Save the constuctor args.
+      // Not needed for initial values, since they are created
       // as part of initialization.
       this.constructorArgs.set(name, serializedArgs!);
     }
@@ -251,40 +245,48 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
    *
    * @return undefined
    */
-  getAddedContext(_key: symbol): any {
+  getAddedContext(_key: symbol): unknown {
     return undefined;
   }
 
   add(...args: AddArgs): C {
-    let message = DeletingMutCSetMessage.create({
+    const message = DeletingMutCSetMessage.create({
       add: {
         replicaUniqueNumber: this.runtime.getReplicaUniqueNumber(),
         args: this.argsSerializer.serialize(args),
       },
     });
     this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    let created = this.ourCreatedValue;
+    const created = this.ourCreatedValue;
     this.ourCreatedValue = undefined;
     return created!;
   }
 
-  // TODO
+  /**
+   * Experimental; subject to removal.
+   *
+   * This was added for the rich-text-yata demo, which
+   * requires a "pure" (in the sense of pure op-based CRDTs)
+   * add method, in order to work with runLocally.
+   *
+   * (TODO: remove or clarify.)
+   */
   pureAdd(uniqueNumber: number, ...args: AddArgs): C {
-    let message = DeletingMutCSetMessage.create({
+    const message = DeletingMutCSetMessage.create({
       add: {
         replicaUniqueNumber: uniqueNumber,
         args: this.argsSerializer.serialize(args),
       },
     });
     this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    let created = this.ourCreatedValue;
+    const created = this.ourCreatedValue;
     this.ourCreatedValue = undefined;
     return created!;
   }
 
   delete(value: C): void {
     if (this.has(value)) {
-      let message = DeletingMutCSetMessage.create({
+      const message = DeletingMutCSetMessage.create({
         delete: value.name,
       });
       this.send([DeletingMutCSetMessage.encode(message).finish()]);
@@ -319,44 +321,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     // that would happen if we processed the message history
     // consisting only of messages concurrent to this message.
     this.clear();
-  }
-
-  /**
-   * Returns a short unique identifier for value
-   * which can be passed to getById to retrieve
-   * value later.
-   *
-   * Although identifier has type
-   * string, it is properly a byte array, not
-   * necessarily valid UTF-8.  So it should be serialized
-   * as a byte array (using stringAsBytes), not a string.
-   *
-   * TODO: remove in favor of BaseSerializer(this)?
-   * Although then if you need strings like in YATA,
-   * you end up redundantly converting the string names
-   * to arrays and back.
-   *
-   * @param  value [description]
-   * @return           [description]
-   * @throws if !this.owns(value)
-   */
-  idOf(value: C): string {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
-    }
-    return value.name;
-  }
-
-  /**
-   * Returns the value with the given uid, obtained
-   * from idOf.  If value has been deleted, returns
-   * undefined.
-   *
-   * @param  uid [description]
-   * @return     [description]
-   */
-  getById(id: string): C | undefined {
-    return this.children.get(id);
   }
 
   /**
@@ -419,7 +383,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
       let i = 0;
       for (; i < saveMessage.valueSaves.length; i++) {
         const valueSave = saveMessage.valueSaves[i];
-        if (valueSave.hasOwnProperty("args")) {
+        if (Object.prototype.hasOwnProperty.call(valueSave, "args")) {
           // Reached end of initial values' saves.
           break;
         }
@@ -486,16 +450,16 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends any[]>
     return child.getDescendant(namePath);
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // To be in the initial state:
     // 1. All values except the initial ones must be deleted.
     // Such values are except those referenced by constructorArgs.
     if (this.constructorArgs.size === 0) {
       // 2. All initial values must still be present.
       if (this.size === this.initialValuesCount) {
-        // 3. All initial values must canGc().
+        // 3. All initial values must canGC().
         for (const value of this.values()) {
-          if (!value.canGc()) return false;
+          if (!value.canGC()) return false;
         }
         return true;
       }

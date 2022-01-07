@@ -13,7 +13,7 @@ import {
 } from "./movable_mut_list_from_set";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
-export class DeletingMutCList<C extends Collab, InsertArgs extends any[]>
+export class DeletingMutCList<C extends Collab, InsertArgs extends unknown[]>
   extends MovableMutCListFromSet<
     C,
     InsertArgs,
@@ -97,7 +97,4 @@ export class DeletingMutCList<C extends Collab, InsertArgs extends any[]>
       value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     )[1];
   }
-
-  // TODO: conflicts methods for move locations?
-  // Likewise for TombstoneMutCList.
 }

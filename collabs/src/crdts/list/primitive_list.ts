@@ -6,24 +6,30 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
-import { DefaultSerializer, Serializer } from "../../util";
+import {
+  bytesAsString,
+  DefaultSerializer,
+  Serializer,
+  stringAsBytes,
+} from "../../util";
 import { InitToken } from "../../core";
-import { DenseLocalList } from "./dense_local_list";
 import { Resettable } from "../abilities";
-import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
-import { LocatableCList } from "./cursor";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 import {
   AbstractCList,
   CListEventsRecord,
+  FoundLocation,
+  LocatableCList,
   MakeAbstractCList,
 } from "../../data_types";
+import { DenseLocalList } from "./dense_local_list";
+import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
 const AbstractCListPrimitiveCRDT = MakeAbstractCList(
   PrimitiveCRDT
 ) as abstract new <
   T,
-  InsertArgs extends any[],
+  InsertArgs extends unknown[],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 >(
   initToken: InitToken
@@ -35,11 +41,11 @@ export class PrimitiveCListFromDenseLocalList<
     DenseT extends DenseLocalList<L, T>
   >
   extends AbstractCListPrimitiveCRDT<T, [T]>
-  implements LocatableCList<L, T, [T]>
+  implements LocatableCList<T, [T]>
 {
-  // TODO: make senderCounters optional?  (Only needed
+  // OPT: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
-  // TODO: use uniqueNumbers (from ids) instead of
+  // OPT: use uniqueNumbers (from ids) instead of
   // senderCounters?  (Send maximum abs value of a uniqueNumber
   // present in the deleted range for each user; compare
   // to those instead of senderCounters in deleteRange;
@@ -48,7 +54,7 @@ export class PrimitiveCListFromDenseLocalList<
   // need for causality, at the expense of larger
   // deleteRange messages (since we are not piggy-backing
   // on the MessageMeta), especially in bulk messages.
-  // TODO: try putting this in the values instead of its
+  // OPT: try putting this in the values instead of its
   // own map.
   /**
    * keys are precisely the locs in the list.
@@ -136,7 +142,7 @@ export class PrimitiveCListFromDenseLocalList<
    */
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
-      throw new Error("invalid count: " + count);
+      throw new Error(`invalid count: ${count}`);
     }
     if (count === 0) return;
     if (count === 1) {
@@ -180,7 +186,7 @@ export class PrimitiveCListFromDenseLocalList<
   ): void {
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
-      case "insert":
+      case "insert": {
         const insert = PrimitiveCListInsertMessage.create(decoded.insert!);
         let values: T[];
         switch (insert.type) {
@@ -196,7 +202,7 @@ export class PrimitiveCListFromDenseLocalList<
             );
             break;
           default:
-            throw new Error("Unrecognized insert.type: " + insert.type);
+            throw new Error(`Unrecognized insert.type: ${insert.type}`);
         }
         const [index, locs] = this.denseLocalList.receiveNewLocs(
           insert.locMessage,
@@ -214,6 +220,7 @@ export class PrimitiveCListFromDenseLocalList<
           meta,
         });
         break;
+      }
       case "delete": {
         // Single delete, using id.
         const toDelete = this.denseLocalList.getLocById(
@@ -236,7 +243,7 @@ export class PrimitiveCListFromDenseLocalList<
       }
       case "deleteRange": {
         // Range delete, using start & end locs
-        // TODO: use internal iterator instead (O(1) instead
+        // OPT: use internal iterator instead (O(1) instead
         // of O(log n) to get next).  Perhaps expose slice
         // or forEach functionality on partial ranges.
         // Can also optimize by giving the startLoc instead
@@ -244,16 +251,21 @@ export class PrimitiveCListFromDenseLocalList<
         // method to remove elements without doing an
         // extra O(log n) remove each (which is most of
         // the current cost).
-        const startIndex = decoded.deleteRange!.hasOwnProperty("startLoc")
-          ? this.denseLocalList.rightIndex(
+        const startIndex = Object.prototype.hasOwnProperty.call(
+          decoded.deleteRange!,
+          "startLoc"
+        )
+          ? this.denseLocalList.findLoc(
               this.denseLocalList.deserialize(decoded.deleteRange!.startLoc!)
-            )
+            ).geIndex
           : 0;
-        // TODO: leftIndex name is improper
-        const endIndex = decoded.deleteRange!.hasOwnProperty("endLoc")
-          ? this.denseLocalList.leftIndex(
+        const endIndex = Object.prototype.hasOwnProperty.call(
+          decoded.deleteRange!,
+          "endLoc"
+        )
+          ? this.denseLocalList.findLoc(
               this.denseLocalList.deserialize(decoded.deleteRange!.endLoc!)
-            ) - 1
+            ).leIndex
           : this.length - 1;
 
         const vc = meta.vectorClock;
@@ -278,8 +290,8 @@ export class PrimitiveCListFromDenseLocalList<
           // Delete from senderCounters.
           this.senderCounters.delete(toDelete[i]);
           // Event
-          // TODO: bulk events, for efficiency.
-          // Also can we make that work with string?
+          // OPT: bulk events.
+          // Also, can we make that work with string?
           // (Use array | string for deletedValues?)
           this.emit("Delete", {
             startIndex: ret[0],
@@ -291,7 +303,7 @@ export class PrimitiveCListFromDenseLocalList<
         break;
       }
       default:
-        throw new Error("Unrecognized decoded.op: " + decoded.op);
+        throw new Error(`Unrecognized decoded.op: ${decoded.op}`);
     }
   }
 
@@ -299,16 +311,22 @@ export class PrimitiveCListFromDenseLocalList<
     return this.denseLocalList.get(index);
   }
 
-  getLocation(index: number): L {
-    return this.denseLocalList.getLoc(index);
+  getLocation(index: number): string {
+    return bytesAsString(
+      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
+    );
   }
 
-  locate(location: L): [index: number, isPresent: boolean] {
-    return this.denseLocalList.locate(location);
+  *locationEntries(): IterableIterator<[string, T]> {
+    for (const [loc, value] of this.denseLocalList.entries()) {
+      yield [bytesAsString(this.denseLocalList.serialize(loc)), value];
+    }
   }
 
-  get locationSerializer(): Serializer<L> {
-    return this.denseLocalList;
+  findLocation(location: string): FoundLocation {
+    return this.denseLocalList.findLoc(
+      this.denseLocalList.deserialize(stringAsBytes(location))
+    );
   }
 
   values(): IterableIterator<T> {
@@ -326,14 +344,14 @@ export class PrimitiveCListFromDenseLocalList<
     } else return super.slice(start, end);
   }
 
-  canGc(): boolean {
-    return this.denseLocalList.canGc();
+  canGC(): boolean {
+    return this.denseLocalList.canGC();
   }
 
   save(): Uint8Array {
     const senderCountersSave = new Array<number>(this.denseLocalList.length);
     let i = 0;
-    this.denseLocalList.forEach((loc) => {
+    this.denseLocalList.forEach((_, loc) => {
       senderCountersSave[i] = this.senderCounters.get(loc)!;
       i++;
     });
@@ -369,7 +387,7 @@ export class PrimitiveCListFromDenseLocalList<
     }
     // Load this.senderCounters.
     let i = 0;
-    this.denseLocalList.forEach((loc) => {
+    this.denseLocalList.forEach((_, loc) => {
       this.senderCounters.set(loc, decoded.senderCounters[i]);
       i++;
     });

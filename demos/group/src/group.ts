@@ -26,7 +26,7 @@ import $ from "jquery";
     imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
   };
 
-  clientGroup.on("Change", () => {
+  clientGroup.on("Any", () => {
     updateImg();
   });
 

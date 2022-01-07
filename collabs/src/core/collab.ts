@@ -63,7 +63,7 @@ export type Pre<C> = (initToken: InitToken) => C;
  * `[[Pre]]<C>` instead of requiring a [[InitToken]]
  * as its first parameter.
  */
-export function Pre<C, Args extends any[]>(
+export function Pre<C, Args extends unknown[]>(
   Class: new (initToken: InitToken, ...args: Args) => C
 ): (...args: Args) => Pre<C> {
   return (...args: Args) =>
@@ -76,12 +76,6 @@ export function Pre<C, Args extends any[]>(
  *
  * Such events are typically emitted after the Collab processes a local
  * or remote message.
- *
- * TODO: Some special events (e.g. in
- * [[CMountPoint]]) are only associated to a local operation instead
- * of a replicated one; in that case, they should still
- * extend CollabEvent, and they should always set
- * `meta: `[[CollabEventMeta]]`.local(runtime)`.
  *
  * See [[CollabEventsRecord]].
  */
@@ -117,17 +111,109 @@ export interface CollabEventsRecord {
    * Emitted right after any other event is emitted.
    *
    * Listen on this if you want to know each time the [[Collab]]
-   * is changed (e.g., so you can refresh a display based on
+   * emits an event (e.g., so you can refresh a display based on
    * its state) without having to listen on each
    * individual event type.
    *
-   * TODO: change to "Event"
+   * For Collabs that emit an event after each user-facing change,
+   * this is effectively the same as [[Runtime]]'s "Change"
+   * event, except restricted to the scope of this [[Collab]] and
+   * its descendants.
    */
-  Change: CollabEvent;
+  Any: CollabEvent;
 }
 
 /**
- * TODO
+ * The base class for collaborative data structures ("Collabs", for short).
+ *
+ * Typically, implementations will not extend this class
+ * directly, instead extending an existing subclass;
+ * see [Custom Collaborative Data Structures](../../custom_types.md).
+ *
+ * # Abstraction
+ *
+ * Fundamentally, `Collab` is an abstraction representing
+ * a data structure that is replicated across multiple
+ * replicas (i.e., a replicated data type),
+ * with the replicas kept in sync by sending messages to each
+ * other. The precise network model (causal broadcast,
+ * server-serialized order, immediate local echo, etc.)
+ * is left open, to let the library be as general as
+ * possible. Instead, each Collab should specify its network requirements,
+ * typically in the form of a specific [[Runtime]] or
+ * ancestor `Collab`s; users are then expected to meet
+ * these requirements when using the Collab.
+ *
+ * # Use Cases
+ *
+ * Potential use cases for `Collab` subclasses include operation-based CRDTs,
+ * state-based CRDTs, Operational Transformation types,
+ * and strongly consistent types with server-serialized messages.
+ * However, by default, the library only includes operation-based
+ * CRDTs, together with a [[CRDTRuntime]] needed to
+ * use them. Nonetheless, many parts of the library
+ * can be reused with more general collaborative data
+ * structures (e.g., `CObject`). These can be determined
+ * by viewing the source code: any classes in `src` and
+ * outside of `src/crdts` should be suitable for general use,
+ * while `src/crdts` includes the built-in CRDTs and CRDT-specific
+ * helpers.
+ *
+ * # Composition
+ *
+ * `Collab` natively supports *composition*: nesting
+ * `Collab`s inside of each other to form parent/child
+ * relationships, while maintaining
+ * replication in the obvious way (children of replicas
+ * are themselves replicas).
+ *
+ * Supported kinds of composition include
+ * ordinary object-oriented composition ([[CObject]]),
+ * collections of `Collab`s (e.g., [[DeletingMutCSet]]),
+ * and `Collab`s that provide a specific
+ * environment to their children (e.g., [[CrdtExtraMetaLayer]]).
+ *
+ * `Collab`s that can be a parent to other `Collab`s must
+ * implement [[ICollabParent]], so that their type is
+ * assignable to [[CollabParent]].
+ * Each parent `Collab` has full control over its children,
+ * allowing a wide range of behavior to be implemented
+ * using `Collab` ancestors (e.g., message batching
+ * ([[BatchingLayer]]), causal ordering
+ *  ([[CrdtExtraMetaLayer]]), and lazy-loading (WIP)).
+ *
+ * Internally, each `Collab` has a [[parent]] and a [[name]];
+ * the [[name]] uniquely identifies the `Collab` among its
+ * siblings. They are assigned at construction time using
+ * the [[InitToken]] constructor argument.
+ * The parent relationships form a tree of `Collab`s,
+ * rooted at the [[Runtime]].
+ *
+ * Each `Collab` is responsible
+ * for its subtree:
+ * - Messages are sent up the tree
+ * and delivered down the tree. Children call `parent.childSend`
+ * (in [[send]]) to send a message, while parents call
+ * `child.receive` to deliver a message. Ancestors may choose to
+ * modify messages during either sending or receiving.
+ * - [[save]] and [[load]] are
+ * responsible for saving and loading a `Collab`'s entire
+ * subtree. Typically, [[save]] will call [[save]] on each
+ * child, then combine those `saveData` with its own `Collab`s info
+ * to get its own `saveData`. [[load]] then reverses the process,
+ * calling [[load]] on each child.
+ *
+ * # Other Features
+ *
+ * ## Events
+ *
+ * See [Events](../../events.md) and the docs for
+ * [[CollabEventsRecord]].
+ *
+ * ## Saving and Loading
+ *
+ * See [Saving and Loading](../../saving_and_loading.md) and the docs for
+ * [[save]] and [[load]].
  */
 export abstract class Collab<
   Events extends CollabEventsRecord = CollabEventsRecord
@@ -187,9 +273,9 @@ export abstract class Collab<
    * in that message, either directly or as a field on its
    * [[MessageMeta]].
    */
-  getContext(key: symbol): any | undefined {
+  getContext(key: symbol): unknown {
     let current: CollabParent = this.parent;
-    while (true) {
+    for (;;) {
       const currentAttempt = current.getAddedContext(key);
       if (currentAttempt !== undefined) return currentAttempt;
       if (isRuntime(current)) return undefined;
@@ -199,8 +285,8 @@ export abstract class Collab<
 
   /**
    * Emits an event, which notifies all registered event handlers.
-   * After emitting event, a "Change" event with the same
-   * event.meta is emitted, unless it is already a "Change" event.  (Usually, Collabs should not emit a "Change" event
+   * After emitting event, an "Any" event with the same
+   * event.meta is emitted, unless it is already an "Any" event.  (Usually, Collabs should not emit an "Any" event
    * directly, instead emitting a more specific, custom event.)
    *
    * `event` is forced to implement [[CollabEvent]], to indirectly
@@ -212,18 +298,18 @@ export abstract class Collab<
    * @typeParam `eventName` as a string literal type.
    * @param eventName Name of the event.
    * @param event Event object to pass to the event handlers.
-   * @param emitChangeEvent = true if true (default) and the
-   * event is not a "Change" event, a "Change" event is
+   * @param emitAnyEvent = true if true (default) and the
+   * event is not an "Any" event, an "Any" event is
    * emitted immediately after `event`.
    */
   protected emit<K extends keyof Events>(
     eventName: K,
     event: Events[K] & CollabEvent,
-    emitChangeEvent = true
+    emitAnyEvent = true
   ): void {
     super.emit(eventName, event);
-    if (emitChangeEvent && eventName !== "Change") {
-      super.emit("Change", { meta: event.meta });
+    if (emitAnyEvent && eventName !== "Any") {
+      super.emit("Any", { meta: event.meta });
     }
   }
 
@@ -235,7 +321,12 @@ export abstract class Collab<
    * ancestors may choose to modify the message before delivery,
    * including possibly delivering extra messages or none at all.
    *
-   * @param  messagePath [description] TODO: will be modified
+   * @param  messagePath An array of messages to be
+   * delivered to replicas' [[receive]] method.
+   * Typically this takes the form of a child `Collab`'s
+   * sent `messagePath`, with an extra message sent by this
+   * `Collab` appended to the end. Note that the array may
+   * be modified in-place by ancestors.
    */
   protected send(messagePath: (Uint8Array | string)[]): void {
     this.parent.childSend(this, messagePath);
@@ -248,10 +339,14 @@ export abstract class Collab<
    * For implementers: do not override this method; instead, override
    * [[receiveInternal]], which is called by this method.
    *
-   * TODO: params
-   *
-   * TODO: warning: messagePath may be modified (length decreased);
-   * copy before use.
+   * @param messagePath A messagePath sent by a local or
+   * remote replica
+   * using [[send]], possibly modified by ancestor
+   * `Collab`s. This may be modified in-place. A common pattern
+   * is to read the last message, decrement the length,
+   * and then deliver it to a child `Collab`.
+   * @param meta Metadata attached to this message by
+   * ancestor `Collab`s.
    */
   receive(messagePath: (Uint8Array | string)[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
@@ -264,20 +359,96 @@ export abstract class Collab<
    * Core method used to receive messages, possibly for
    * one of this Collab's descendants.
    *
-   * TODO: params
-   *
-   * TODO: sample desc from CPrimitive:
-   * Receives messages sent by [[send]]
-   * on local and replica replicas of this [[CPrimitive]].
+   * @param messagePath A messagePath sent by a local or
+   * remote replica
+   * using [[send]], possibly modified by ancestor
+   * `Collab`s. This may be modified in-place. A common pattern
+   * is to read the last message, decrement the length,
+   * and then deliver it to a child `Collab`.
+   * @param meta Metadata attached to this message by
+   * ancestor `Collab`s.
    */
   protected abstract receiveInternal(
     messagePath: (Uint8Array | string)[],
     meta: MessageMeta
   ): void;
 
+  /**
+   * Returns `saveData` describing the current state of this
+   * `Collab` and its descendants, sufficient to restore the
+   * state on a new replica by calling [[load]]`(saveData)`.
+   *
+   * The usage pattern of `save` and [[load]] is:
+   * 1. `save` is called on one replica, returning `saveData`.
+   * 2. A new replica of this `Collab` is created using the
+   * same class and same constructor arguments
+   * (the usual [Initialization](../../initialization.md) requirements for replicas).
+   * 3. [[load]]`(saveData)` is called on that replica. This
+   * is expected to give an identical state to that when
+   * `save` was called, except that replica is different
+   * (in particular, [[Runtime.replicaID]] is different).
+   * 4. The replica proceeds normally, receiving any messages
+   * that had not yet been received before the `save` call.
+   *
+   * Before [[load]] is called, this `Collab` and its descendants
+   * must not be used to perform operations or receive messages.
+   * Behavior is undefined if that condition is violated.
+   *
+   * A special case of the usage pattern is when an app
+   * is created without any prior `saveData`. In that case,
+   * [[load]]`(null)` is called instead of [[load]]`(saveData)`,
+   * to indicate that loading has been skipped and that the
+   * `Collab` can start being used.
+   *
+   * `save` may be called multiple times throughout an app's
+   * lifecycle, and it should not affect the user-visible state.
+   * `save` may **not** be called in the middle of an operation or transaction
+   * (either being sent or received), to ensure that this
+   * `Collab` is in a reasonable, stable, user-facing state.
+   *
+   * @return `saveData`
+   */
   abstract save(): Uint8Array;
+
+  /**
+   * Loads this newly-initialized `Collab` and its descendants
+   * from `saveData` output by [[save]] on a previous replica
+   * of this `Collab`, or if `saveData === null`, indicates that
+   * loading is skipped (no prior `saveData`).
+   *
+   * See [[save]] for detailed info on saving and loading
+   * usage.
+   *
+   * This may only be called on a newly initialized `Collab`,
+   * and it must be called (exactly once) before this `Collab`
+   * can be used to perform operations or receive messages.
+   * Behavior is undefined if that condition is violated.
+   *
+   * @param saveData [description]
+   */
   abstract load(saveData: Uint8Array | null): void;
 
+  /**
+   * Returns the "name path" from `descendant` to `this`,
+   * i.e., the list of names on that path in the tree of
+   * `Collab`s.
+   *
+   * I.e., it is `[descendent.name, descendant.parent.name,
+   * descendant.parent.parent.name, ...]` continuing
+   * until `this` is reached, excluding `this.name`.
+   *
+   * [[getDescendant]] does the reverse procedure.
+   * [[getNamePath]] and [[getDescendant]] together allow
+   * one to make a serializable reference to a `Collab` that
+   * is comprehensible across replicas. That is how
+   * [[DefaultSerializer]] and [[CollabSerializer]] serialize
+   * `Collab`s.
+   *
+   * @param  descendant A `Collab` that is a descendant
+   * of `this`.
+   * @throws if `descendant` is not a descendant of `this`
+   * in the tree of `Collab`s.
+   */
   getNamePath(descendant: Collab): string[] {
     let current = descendant;
     const namePath = [];
@@ -292,24 +463,26 @@ export abstract class Collab<
   }
 
   /**
-   * Returns the  descendant of this Collab at the
-   * given `namePath`.
+   * Returns the descendant of this Collab at the
+   * given name path.
    *
-   * TODO: inclusive of this.
+   * If `namePath` is `[]`, `this` is returned.
    *
-   * TODO: needs to work even in the middle of load
-   * (so need to lazily load children before calling
-   * getDescendant on them, if the namePath goes farther).
-   * Can we implement this functionality once in an abstract
-   * ParentCollab class? Also, in general, you're guaranteed load
-   * has already been called if namePath.length > 0, but not
-   * otherwise ("this" case).
+   * This method must work even in the middle of a call
+   * to [[load]], in case one of this `Collab`'s descendants.
+   * deserializes a reference to another descendant.
+   * You are guaranteed that this method will not be called
+   * with a non-`[]` `namePath` until after [[load]] has
+   * been called (but not necessarily terminated), but
+   * it may be called with `namePath = []` at any time,
+   * in which case `this` should be returned without error.
    *
-   * TODO: error behavior (bad namePath vs no longer exists
-   * (DeletingMutCSet case)).
-   *
-   * @param  namePath [description]
-   * @return          [description]
+   * @param  namePath A name path referencing a descendant
+   * of this `Collab` (inclusive), as returned by [[getNamePath]].
+   * @return The descendant at the given name path.
+   * @throws If there is no descendant with the given name
+   * path. Note that it possible that the descendant used to
+   * exist but has since been deleted.
    */
   abstract getDescendant(namePath: string[]): Collab;
 
@@ -317,12 +490,12 @@ export abstract class Collab<
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
    *
-   * When canGc() is true, users of this Collab may safely
+   * When canGC() is true, users of this Collab may safely
    * delete it from memory ("garbage collection"),
    * recreating it using the
    * same constructor arguments if needed later.  That reduces
    * the state space of some Collab collections
    * (e.g., [[GrowOnlyImplicitMutCMap]]).
    */
-  abstract canGc(): boolean;
+  abstract canGC(): boolean;
 }

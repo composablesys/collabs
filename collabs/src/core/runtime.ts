@@ -15,7 +15,34 @@ export interface RuntimeEventsRecord {
 }
 
 /**
- * TODO: see [concrete instance]
+ * A runtime for a Collabs app, responsible for connecting
+ * replicas of [[Collab]]s and providing other whole-app
+ * functionality.
+ *
+ * [[Runtime]] is a general interface; specific use cases
+ * (e.g., op-based CRDTs, OT, server serialized types) are
+ * expected to provide their own implementations.
+ * Collabs comes with one built-in implementation,
+ * [[CRDTRuntime]], intended for use with op-based CRDTs
+ * (see also [[CRDTApp]]). When implementing [[Runtime]],
+ * consider extending [[AbstractRuntime]].
+ *
+ * In general, a runtime creates and manages the tree of [[Collab]]s
+ * for an app. In particular, it may choose specific
+ * [[Collab]]s for the top layers of the tree, to provide
+ * specific guarantees to the user-added [[Collab]]s.
+ * A runtime also delivers messages between different
+ * replicas. The exact network guarantees differ by
+ * implementation (e.g., [[CRDTRuntime]] guarantees
+ * exactly-once causal broadcast with immediate local echo).
+ *
+ * [[Collab]] users generally need not interact with the
+ * runtime, except indirectly through [[App]], which implements
+ * its methods by calling the corresponding [[Runtime]] methods.
+ *
+ * [[Collab]]s themselves may use the
+ * utility properties/methods [[replicaID]], [[getReplicaUniqueNumber]],
+ * [[getUniqueString]], [[getNamePath]], and [[getDescendant]].
  */
 export interface Runtime<
   Events extends RuntimeEventsRecord = RuntimeEventsRecord
@@ -27,25 +54,25 @@ export interface Runtime<
    * Type guard, used by [[isRuntime]].
    */
   readonly isRuntime: true;
-  readonly replicaId: string;
+  readonly replicaID: string;
 
   /**
    * @param count = 1 When set, treat this as count calls,
    * each claiming one number in sequence. Thus all numbers
    * in the range [returned number, returned number + count)
-   * will only be associated with this runtime's [[replicaId]]
+   * will only be associated with this runtime's [[replicaID]]
    * once.
-   * @return A unique number that will only be
-   * associated with this Runtime's [[replicaId]]
+   * @return A unique nonnegative number that will only be
+   * associated with this Runtime's [[replicaID]]
    * once.
    */
   getReplicaUniqueNumber(count?: number): number;
 
   /**
-   * @return A unique string that will only appear once
+   * @return A UID, i.e., a unique string that will only appear once
    * across all replicas.
    */
-  getUniqueString(): string;
+  getUID(): string;
 
   /**
    * Returns the series of names on descendant's path to this Runtime.
@@ -73,20 +100,11 @@ export interface Runtime<
   // Implementations of user-facing methods from App.
 
   registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C;
-  /**
-   * TODO: disallow calling during send/receive?
-   * Should be implied, but could point out explicitly,
-   * since it could break things in weird ways.
-   * Can likewise guarantee to Collabs. Also, don't consult
-   * nextMessageMeta() during loading/saving?
-   * (More generally: decouple these things.)
-   * @return [description]
-   */
   save(): Uint8Array;
   load(saveData: Uint8Array | null): void;
 }
 
-export function isRuntime(x: any): x is Runtime {
+export function isRuntime(x: unknown): x is Runtime {
   if (typeof x === "object") {
     if ((x as Runtime).isRuntime === true) {
       return true;

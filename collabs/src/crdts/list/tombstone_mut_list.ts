@@ -14,7 +14,7 @@ import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
 export class TombstoneMutCList<
   C extends Collab,
-  InsertArgs extends any[]
+  InsertArgs extends unknown[]
 > extends MovableMutCListFromSet<
   C,
   InsertArgs,
@@ -33,7 +33,6 @@ export class TombstoneMutCList<
       initToken.runtime
     )
   ) {
-    // TODO: initial values
     super(
       initToken,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>

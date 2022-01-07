@@ -14,8 +14,6 @@ import {
 import { ToggleCBoolean } from "../boolean";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
-// TODO: handle floating point non-commutativity
-
 export interface CNumberEvent extends CollabEvent {
   readonly arg: number;
   readonly previousValue: number;
@@ -49,14 +47,14 @@ export class AddComponent
 
   add(toAdd: number) {
     if (toAdd !== 0) {
-      let message = CNumberComponentMessage.create({ arg: toAdd });
-      let buffer = CNumberComponentMessage.encode(message).finish();
+      const message = CNumberComponentMessage.create({ arg: toAdd });
+      const buffer = CNumberComponentMessage.encode(message).finish();
       this.sendCRDT(buffer);
     }
   }
 
   protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
-    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
+    const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
     this.emit("Add", {
@@ -66,12 +64,12 @@ export class AddComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
   save(): Uint8Array {
-    let message = CNumberComponentMessage.create({
+    const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
@@ -96,14 +94,14 @@ export class MultComponent
 
   mult(toMult: number) {
     if (toMult !== 1) {
-      let message = CNumberComponentMessage.create({ arg: toMult });
-      let buffer = CNumberComponentMessage.encode(message).finish();
+      const message = CNumberComponentMessage.create({ arg: toMult });
+      const buffer = CNumberComponentMessage.encode(message).finish();
       this.sendCRDT(buffer);
     }
   }
 
   protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
-    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
+    const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
     this.emit("Mult", {
@@ -113,12 +111,12 @@ export class MultComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
   save(): Uint8Array {
-    let message = CNumberComponentMessage.create({
+    const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
@@ -142,13 +140,13 @@ export class MinComponent
   }
 
   min(toComp: number) {
-    let message = CNumberComponentMessage.create({ arg: toComp });
-    let buffer = CNumberComponentMessage.encode(message).finish();
+    const message = CNumberComponentMessage.create({ arg: toComp });
+    const buffer = CNumberComponentMessage.encode(message).finish();
     this.sendCRDT(buffer);
   }
 
   protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
-    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
+    const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
     this.emit("Min", {
@@ -158,12 +156,12 @@ export class MinComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
   save(): Uint8Array {
-    let message = CNumberComponentMessage.create({
+    const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
@@ -187,13 +185,13 @@ export class MaxComponent
   }
 
   max(toComp: number) {
-    let message = CNumberComponentMessage.create({ arg: toComp });
-    let buffer = CNumberComponentMessage.encode(message).finish();
+    const message = CNumberComponentMessage.create({ arg: toComp });
+    const buffer = CNumberComponentMessage.encode(message).finish();
     this.sendCRDT(buffer);
   }
 
   protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
-    let decoded = CNumberComponentMessage.decode(<Uint8Array>message);
+    const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);
     this.emit("Max", {
@@ -203,12 +201,12 @@ export class MaxComponent
     });
   }
 
-  canGc() {
+  canGC() {
     return this.state.value === this.state.initialValue;
   }
 
   save(): Uint8Array {
-    let message = CNumberComponentMessage.create({
+    const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
@@ -254,13 +252,13 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
     m1MessagePath: (Uint8Array | string)[],
     _m1Meta: MessageMeta | null
   ): { m1MessagePath: (Uint8Array | string)[] } | null {
-    let m2Decoded = CNumberComponentMessage.decode(
+    const m2Decoded = CNumberComponentMessage.decode(
       <Uint8Array>m2MessagePath[0]
     );
-    let m1Decoded = CNumberComponentMessage.decode(
+    const m1Decoded = CNumberComponentMessage.decode(
       <Uint8Array>m1MessagePath[0]
     );
-    var actedArg: number;
+    let actedArg: number;
     switch (m2Index) {
       case 3:
         actedArg = m2Decoded.arg * m1Decoded.arg;
@@ -274,7 +272,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
       default:
         actedArg = m1Decoded.arg;
     }
-    let acted = CNumberComponentMessage.create({
+    const acted = CNumberComponentMessage.create({
       arg: actedArg,
     });
 
@@ -289,12 +287,14 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 }
 
 /**
- * TODO: warnings:
+ * Warnings:
  * - Eventual consistency may fail due to rounding issues.
  * The only safe way is to stick to integer operands that aren't
  * large enough to overflow anything.
  * - Uses tombstones (one per operation).  So the memory
  * usage will grow without bound, unlike most of our Collabs.
+ *
+ * See https://github.com/composablesys/collabs/issues/177
  */
 export class CNumber extends CObject<CNumberEventsRecord> {
   private base: CNumberBase;
@@ -308,7 +308,7 @@ export class CNumber extends CObject<CNumberEventsRecord> {
    */
   private negated: ToggleCBoolean;
 
-  constructor(initToken: InitToken, initialValue: number = 0) {
+  constructor(initToken: InitToken, initialValue = 0) {
     super(initToken);
 
     this.base = this.addChild("", Pre(CNumberBase)(initialValue));
@@ -342,8 +342,6 @@ export class CNumber extends CObject<CNumberEventsRecord> {
       } else super.emit("Add", event);
     });
     this.base.multCRDT.on("Mult", (event) => super.emit("Mult", event));
-    // TODO: combine negative mult events so that they reflect
-    // the original arg, instead of two separate events?
     this.negated.on("Set", (event) =>
       super.emit("Mult", {
         arg: -1,
@@ -386,7 +384,7 @@ export class CNumber extends CObject<CNumberEventsRecord> {
     // -0 vs 0 from violating EC under this equality def.
     // It might be related to general floating point
     // noncommutativity and will go away once we fix that.
-    return value === -0 ? 0 : value;
+    return value === 0 ? 0 : value;
   }
 
   /**

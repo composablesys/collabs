@@ -1,3 +1,4 @@
+import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime, RuntimeEventsRecord } from "./runtime";
@@ -16,7 +17,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
    */
   protected rootCollab!: Collab;
 
-  constructor(readonly replicaId: string) {
+  constructor(readonly replicaID: string) {
     super();
   }
 
@@ -41,9 +42,8 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
     return ans;
   }
 
-  getUniqueString(): string {
-    // TODO: shorten?  (base64 instead of base10)
-    return this.getReplicaUniqueNumber() + " " + this.replicaId;
+  getUID(): string {
+    return makeUID(this.replicaID, this.getReplicaUniqueNumber());
   }
 
   getNamePath(descendant: Collab): string[] {
@@ -64,5 +64,5 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
     messagePath: (string | Uint8Array)[]
   ): void;
 
-  abstract getAddedContext(key: symbol): any;
+  abstract getAddedContext(key: symbol): unknown;
 }

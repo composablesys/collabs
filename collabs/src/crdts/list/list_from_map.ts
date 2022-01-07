@@ -1,18 +1,22 @@
 import { InitToken, Pre } from "../../core";
-import { AbstractCListCObject, CMap } from "../../data_types";
-import { Serializer } from "../../util";
-import { LocatableCList } from "./cursor";
+import {
+  AbstractCListCObject,
+  CMap,
+  FoundLocation,
+  LocatableCList,
+} from "../../data_types";
+import { bytesAsString, stringAsBytes } from "../../util";
 import { DenseLocalList } from "./dense_local_list";
 
 export class CListFromMap<
     T,
-    InsertArgs extends any[],
+    InsertArgs extends unknown[],
     L,
     MapT extends CMap<L, T, InsertArgs>,
     DenseT extends DenseLocalList<L, undefined>
   >
   extends AbstractCListCObject<T, InsertArgs>
-  implements LocatableCList<L, T, InsertArgs>
+  implements LocatableCList<T, InsertArgs>
 {
   protected readonly internalMap: MapT;
 
@@ -62,7 +66,7 @@ export class CListFromMap<
 
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
-      throw new Error("invalid count: " + count);
+      throw new Error(`invalid count: ${count}`);
     }
     // Get the locs to delete.
     const toDelete = new Array<L>(count);
@@ -79,16 +83,33 @@ export class CListFromMap<
     return this.internalMap.get(this.denseLocalList.getLoc(index))!;
   }
 
-  getLocation(index: number): L {
-    return this.denseLocalList.getLoc(index);
+  getLocation(index: number): string {
+    return bytesAsString(
+      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
+    );
   }
 
-  locate(location: L): [index: number, isPresent: boolean] {
-    return this.denseLocalList.locate(location);
+  // Override AbstractCList implementation as an optimization
+  // (avoid getting every value just to throw it away).
+  *locations(): IterableIterator<string> {
+    for (const loc of this.denseLocalList.locs()) {
+      yield bytesAsString(this.denseLocalList.serialize(loc));
+    }
   }
 
-  get locationSerializer(): Serializer<L> {
-    return this.denseLocalList;
+  *locationEntries(): IterableIterator<[string, T]> {
+    for (const loc of this.denseLocalList.locs()) {
+      yield [
+        bytesAsString(this.denseLocalList.serialize(loc)),
+        this.internalMap.get(loc)!,
+      ];
+    }
+  }
+
+  findLocation(location: string): FoundLocation {
+    return this.denseLocalList.findLoc(
+      this.denseLocalList.deserialize(stringAsBytes(location))
+    );
   }
 
   *values(): IterableIterator<T> {
@@ -101,10 +122,10 @@ export class CListFromMap<
     return this.denseLocalList.length;
   }
 
-  canGc(): boolean {
+  canGC(): boolean {
     // Even if the map is trivial, denseLocalList might
     // have tombstones, so we need to check for it here.
-    return super.canGc() && this.denseLocalList.canGc();
+    return super.canGC() && this.denseLocalList.canGC();
   }
 
   protected saveObject(): Uint8Array {

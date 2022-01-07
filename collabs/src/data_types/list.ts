@@ -66,7 +66,7 @@ export interface CListEventsRecord<T> extends CollabEventsRecord {
  */
 export interface CList<
   T,
-  InsertArgs extends any[] = [T],
+  InsertArgs extends unknown[] = [T],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
 > extends Collab<Events> {
   /**
@@ -132,6 +132,57 @@ export interface CList<
 
   // Excluding keys() since it doesn't seem useful.
   // keys(): IterableIterator<number>
+
+  // Locations
+  /**
+   * Returns a unique "location" for the current value at index.
+   *
+   * Locations are like indices in that they identify a place
+   * in the `CList`, but unlike an index, a location moves with
+   * its value. For example, suppose you have a list
+   * `[1, 4]` with corresponding locations `["foo", "bar"]`.
+   * Inserting a 3 at index 0 shifts the existing elements back
+   * to give `[3, 1, 4]`, so their locations also shift, giving e.g. `["baz", "foo", "bar"]`.
+   * This means that, while `getLocation(0)` used to return
+   * `"foo"`, now `getLocation(1)` returns `"foo"`, while
+   * `getLocation(0)` returns `"baz"`.
+   *
+   * Locations can be used to give list entries a stable
+   * string identity, for use as e.g.
+   * [React list keys](https://reactjs.org/docs/lists-and-keys.html#keys). [[locationEntries]] is especially
+   * useful for React lists.
+   *
+   * In `CList`'s that implement
+   * [[LocatableCList]], locations can also be used to
+   * find out where values are now (or would be, if not deleted),
+   * by calling [[LocatableCList.findLocation]]. You can
+   * use that to keep users' cursors in the "right" place even as
+   * items are inserted and deleted around them (see [[Cursor]]).
+   *
+   * If no reasonable indices are available, indices can
+   * be used as a fallback. However, that should be clearly
+   * stated, so that users can be aware of potential issues
+   * (e.g., [in React](https://robinpokorny.medium.com/index-as-a-key-is-an-anti-pattern-e0349aece318))
+   * or find workarounds.
+   *
+   * @param  index The desired location's current index
+   * @return A unique "location" for the current value at index
+   */
+  getLocation(index: number): string;
+
+  /**
+   * Returns an iterable of locations for every value in the list, in list order.
+   *
+   * See [[getLocation]] for a description of locations.
+   */
+  locations(): IterableIterator<string>;
+
+  /**
+   * Returns an iterable of [location, value] pairs for every value in the list, in list order.
+   *
+   * See [[getLocation]] for a description of locations.
+   */
+  locationEntries(): IterableIterator<[string, T]>;
 
   // Convenience mutators
   /**
@@ -200,11 +251,11 @@ export interface CList<
    */
   find<S extends T>(
     predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): S | undefined;
   find(
     predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): T | undefined;
 
   /**
@@ -218,7 +269,7 @@ export interface CList<
    */
   findIndex(
     predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): number;
 
   /**
@@ -241,8 +292,7 @@ export interface CList<
     thisArg?: This
   ): U[];
 
-  // TODO: modified this type by replacing A with T[],
-  // does that make sense?
+  // Note: we modified this type from the Array version by replacing A with T[].
   /**
    * Returns a new array with all sub-array elements concatenated into it recursively up to the
    * specified depth.
@@ -290,7 +340,7 @@ export interface CList<
   //  */
   // every<S extends T>(
   //   predicate: (value: T, index: number, list: this) => value is S,
-  //   thisArg?: any
+  //    thisArg?: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   // ): this is S[];
   /**
    * Determines whether all the members of this list satisfy the specified test.
@@ -302,7 +352,7 @@ export interface CList<
    */
   every(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): boolean;
   /**
    * Determines whether the specified callback function returns true for any element of this list.
@@ -314,7 +364,7 @@ export interface CList<
    */
   some(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): boolean;
   /**
    * Performs the specified action for each element in this list.
@@ -323,7 +373,7 @@ export interface CList<
    */
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
   /**
    * Calls a defined callback function on each element of this list, and returns an array that contains the results.
@@ -332,7 +382,7 @@ export interface CList<
    */
   map<U>(
     callbackfn: (value: T, index: number, list: this) => U,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
   /**
    * Returns the elements of this list that meet the condition specified in a callback function.
@@ -341,7 +391,7 @@ export interface CList<
    */
   filter<S extends T>(
     predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): S[];
   /**
    * Returns the elements of this list that meet the condition specified in a callback function.
@@ -350,7 +400,7 @@ export interface CList<
    */
   filter(
     predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): T[];
   /**
    * Adds all the elements of this list into a string, separated by the specified separator string.
@@ -435,7 +485,7 @@ export interface MovableCListEventsRecord<T> extends CListEventsRecord<T> {
 
 export interface MovableCList<
   T,
-  InsertArgs extends any[] = [T],
+  InsertArgs extends unknown[] = [T],
   Events extends MovableCListEventsRecord<T> = MovableCListEventsRecord<T>
 > extends CList<T, InsertArgs, Events> {
   /**
@@ -453,4 +503,112 @@ export interface MovableCList<
    * causes all later values to be shifted left.
    */
   move(startIndex: number, insertionIndex: number, count?: number): number;
+}
+
+/**
+ * Info about a [[CList]] location's current index,
+ * as returned by [[LocatableCList.findLocation]].
+ *
+ * See [[CList.getLocation]] for a description of locations.
+ *
+ * This class is immutable; all info is from the time
+ * [[LocatableCList.foundLocation]] was called. It does
+ * not update as the original list is mutated.
+ * For info about a location's current index that does
+ * update, see [[Cursor]].
+ */
+export class FoundLocation {
+  /**
+   * The found location's index,
+   * or `undefined` if its value is not present.
+   */
+  readonly index: number | undefined;
+
+  /**
+   * Whether the found location's value is present in the list.
+   */
+  readonly isPresent: boolean;
+
+  /**
+   * The least index `>=` the found location, or
+   * the list's length if there is no such index.
+   *
+   * If the location's value is present, this is the same
+   * as [[index]]; otherwise, it is the index where the value
+   * would be if it had not been deleted.
+   */
+  readonly geIndex: number;
+
+  /**
+   * The least index `>` the found location, or
+   * the list's length if there is no such index.
+   *
+   * If the location's value is present, this is the same
+   * as [[index]] + 1; otherwise, it is the index where the value
+   * would be if it had not been deleted.
+   */
+  readonly gtIndex: number;
+
+  /**
+   * The greatest index `<=` the found location, or
+   * -1 if there is no such index.
+   *
+   * If the location's value is present, this is the same
+   * as [[index]]; otherwise, it is (the index where the value
+   * would be if it had not been deleted) - 1.
+   */
+  readonly leIndex: number;
+
+  /**
+   * The greatest index `<` the found location, or
+   * -1 if there is no such index.
+   *
+   * If the location's value is present, this is the same
+   * as [[index]] - 1; otherwise, it is (the index where the value
+   * would be if it had not been deleted) - 1.
+   */
+  readonly ltIndex: number;
+
+  /**
+   * Constructs a `FoundLocation` given the location's
+   * [[geIndex]]
+   * (where its value would be if it were present)
+   * and whether or not its value is present.
+   *
+   * @param geIndex   Same as [[geIndex]]
+   * @param isPresent Whether the found location's value is present.
+   */
+  constructor(geIndex: number, isPresent: boolean) {
+    this.index = isPresent ? geIndex : undefined;
+    this.isPresent = isPresent;
+    this.geIndex = geIndex;
+    this.gtIndex = isPresent ? geIndex + 1 : geIndex;
+    this.leIndex = this.gtIndex - 1;
+    this.ltIndex = geIndex - 1;
+  }
+}
+
+/**
+ * A [[CList]] that supports finding the current
+ * index of a location.
+ *
+ * See [[CList.getLocation]] for a description of locations.
+ *
+ * The [[Cursor]] class uses this interface to
+ * keep users' cursors in the "right" place even as
+ * items are inserted and deleted around them.
+ */
+export interface LocatableCList<
+  T,
+  InsertArgs extends unknown[] = [T],
+  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+> extends CList<T, InsertArgs, Events> {
+  /**
+   * Finds a location's current index, or more generally,
+   * where it would be if its value was present.
+   * @param  location The location, as returned by a previous
+   * call to [[CList.getLocation]].
+   * @return A [[FoundLocation]] describing the current index.
+   */
+  findLocation(location: string): FoundLocation;
 }

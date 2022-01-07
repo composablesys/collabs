@@ -15,6 +15,11 @@ class StoredMessage<M2> {
   ) {}
 }
 
+// Currently, this doesn't need to be a Collab; it just stores
+// stuff. We'll leave it as one for now in case it requires
+// message sending later. Will reconsider the next time we
+// refactor the semidirect product API.
+
 /**
  * A bare-bones semidirect product implementation that stores
  * and acts on custom messages provided by the user, without
@@ -46,8 +51,6 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
- *
- * TODO: need this be a Collab?
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private receiptCounter = 0;
@@ -121,7 +124,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (this.runtime.replicaId === crdtMeta.sender) {
+    if (this.runtime.replicaID === crdtMeta.sender) {
       if (discardDominated) {
         // Nothing's concurrent, so clear everything
         this.history.clear();
@@ -129,15 +132,14 @@ export class SemidirectProductStore<M1, M2> extends CObject {
       return [];
     }
     // Gather up the concurrent messages.  These are all
-    // messages by each replicaId with sender counter
-    // greater than crdtMeta.vectorClock.get(replicaId).
+    // messages by each replicaID with sender counter
+    // greater than crdtMeta.vectorClock.get(replicaID).
     const concurrent: StoredMessage<M2>[] = [];
     const vc = crdtMeta.vectorClock;
-    for (const historyEntry of this.history.entries()) {
-      const senderHistory = historyEntry[1];
-      let vcEntry = vc.get(historyEntry[0]);
+    for (const [sender, senderHistory] of this.history.entries()) {
+      const vcEntry = vc.get(sender);
       if (senderHistory !== undefined) {
-        let concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
+        const concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {
           for (let i = concurrentIndexStart; i < senderHistory.length; i++) {
             concurrent.push(senderHistory[i]);
@@ -145,11 +147,14 @@ export class SemidirectProductStore<M1, M2> extends CObject {
         }
         if (discardDominated) {
           // Keep only the messages with index
-          // >= concurrentIndexStart
-          senderHistory.splice(0, concurrentIndexStart);
-          // TODO: delete it from the map if empty,
-          // as a form of garbage collection.
-          // This also makes isHistoryEmpty simpler.
+          // >= concurrentIndexStart.
+          if (concurrentIndexStart === senderHistory.length) {
+            // We want to empty senderHistory completely;
+            // delete it from this.history.
+            this.history.delete(sender);
+          } else {
+            senderHistory.splice(0, concurrentIndexStart);
+          }
         }
       }
     }
@@ -168,7 +173,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    * value.
    */
   private indexAfter(sparseArray: StoredMessage<M2>[], value: number): number {
-    // TODO: binary search when sparseArray is large
+    // OPT: binary search when sparseArray is large?
     // Note that there may be duplicate crdtMetas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
@@ -179,8 +184,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return 0;
   }
 
-  canGc(): boolean {
-    // canGc() iff the history is empty.
+  canGC(): boolean {
+    // canGC() iff the history is empty.
     for (const value of this.history.values()) {
       if (value.length !== 0) return false;
     }
