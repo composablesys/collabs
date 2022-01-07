@@ -162,35 +162,58 @@ export interface CollabEventsRecord {
  * # Composition
  *
  * `Collab` natively supports *composition*: nesting
- * `Collab`s inside of each other, while maintaining
+ * `Collab`s inside of each other to form parent/child
+ * relationships, while maintaining
  * replication in the obvious way (children of replicas
  * are themselves replicas).
  *
- * Composition includes
+ * Supported kinds of composition include
  * ordinary object-oriented composition ([[CObject]]),
  * collections of `Collab`s (e.g., [[DeletingMutCSet]]),
  * and `Collab`s that provide a specific
  * environment to their children (e.g., [[CrdtExtraMetaLayer]]).
  *
- * Each `Collab` has full control over its children,
+ * `Collab`s that can be a parent to other `Collab`s must
+ * implement [[ICollabParent]], so that their type is
+ * assignable to [[CollabParent]].
+ * Each parent `Collab` has full control over its children,
  * allowing a wide range of behavior to be implemented
  * using `Collab` ancestors (e.g., message batching
  * ([[BatchingLayer]]), causal ordering
  *  ([[CrdtExtraMetaLayer]]), and lazy-loading (WIP)).
  *
- * TODO: internals: tree of Collabs, rooted at a [[Runtime]];
- * names and parents;
- * initialization with InitToken enforces it.
+ * Internally, each `Collab` has a [[parent]] and a [[name]];
+ * the [[name]] uniquely identifies the `Collab` among its
+ * siblings. They are assigned at construction time using
+ * the [[InitToken]] constructor argument.
+ * The parent relationships form a tree of `Collab`s,
+ * rooted at the [[Runtime]].
+ *
+ * Each `Collab` is responsible
+ * for its subtree:
+ * - Messages are sent up the tree
+ * and delivered down the tree. Children call `parent.childSend`
+ * (in [[send]]) to send a message, while parents call
+ * `child.receive` to deliver a message. Ancestors may choose to
+ * modify messages during either sending or receiving.
+ * - [[save]] and [[load]] are
+ * responsible for saving and loading a `Collab`'s entire
+ * subtree. Typically, [[save]] will call [[save]] on each
+ * child, then combine those `saveData` with its own `Collab`s info
+ * to get its own `saveData`. [[load]] then reverses the process,
+ * calling [[load]] on each child.
  *
  * # Other Features
  *
  * ## Events
  *
- * TODO: events. Ref appropriate docs/methods.
+ * See [Events](../../events.md) and the docs for
+ * [[CollabEventsRecord]].
  *
  * ## Saving and Loading
  *
- * TODO: saving, loading. Ref appropriate docs/methods.
+ * See [Saving and Loading](../../saving_and_loading.md) and the docs for
+ * [[save]] and [[load]].
  */
 export abstract class Collab<
   Events extends CollabEventsRecord = CollabEventsRecord
@@ -351,13 +374,56 @@ export abstract class Collab<
   ): void;
 
   /**
-   * TODO
-   * @return [description]
+   * Returns `saveData` describing the current state of this
+   * `Collab` and its descendants, sufficient to restore the
+   * state on a new replica by calling [[load]]`(saveData)`.
+   *
+   * The usage pattern of `save` and [[load]] is:
+   * 1. `save` is called on one replica, returning `saveData`.
+   * 2. A new replica of this `Collab` is created using the
+   * same class and same constructor arguments
+   * (the usual [Initialization](../../initialization.md) requirements for replicas).
+   * 3. [[load]]`(saveData)` is called on that replica. This
+   * is expected to give an identical state to that when
+   * `save` was called, except that replica is different
+   * (in particular, [[Runtime.replicaID]] is different).
+   * 4. The replica proceeds normally, receiving any messages
+   * that had not yet been received before the `save` call.
+   *
+   * Before [[load]] is called, this `Collab` and its descendants
+   * must not be used to perform operations or receive messages.
+   * Behavior is undefined if that condition is violated.
+   *
+   * A special case of the usage pattern is when an app
+   * is created without any prior `saveData`. In that case,
+   * [[load]]`(null)` is called instead of [[load]]`(saveData)`,
+   * to indicate that loading has been skipped and that the
+   * `Collab` can start being used.
+   *
+   * `save` may be called multiple times throughout an app's
+   * lifecycle, and it should not affect the user-visible state.
+   * `save` may **not** be called in the middle of an operation or transaction
+   * (either being sent or received), to ensure that this
+   * `Collab` is in a reasonable, stable, user-facing state.
+   *
+   * @return `saveData`
    */
   abstract save(): Uint8Array;
 
   /**
-   * TODO
+   * Loads this newly-initialized `Collab` and its descendants
+   * from `saveData` output by [[save]] on a previous replica
+   * of this `Collab`, or if `saveData === null`, indicates that
+   * loading is skipped (no prior `saveData`).
+   *
+   * See [[save]] for detailed info on saving and loading
+   * usage.
+   *
+   * This may only be called on a newly initialized `Collab`,
+   * and it must be called (exactly once) before this `Collab`
+   * can be used to perform operations or receive messages.
+   * Behavior is undefined if that condition is violated.
+   *
    * @param saveData [description]
    */
   abstract load(saveData: Uint8Array | null): void;
