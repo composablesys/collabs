@@ -1,7 +1,11 @@
 import { InitToken, Pre } from "../../core";
-import { AbstractCListCObject, CMap } from "../../data_types";
-import { Serializer } from "../../util";
-import { LocatableCList } from "./cursor";
+import {
+  AbstractCListCObject,
+  CMap,
+  FoundLocation,
+  LocatableCList,
+} from "../../data_types";
+import { bytesAsString, stringAsBytes } from "../../util";
 import { DenseLocalList } from "./dense_local_list";
 
 export class CListFromMap<
@@ -12,7 +16,7 @@ export class CListFromMap<
     DenseT extends DenseLocalList<L, undefined>
   >
   extends AbstractCListCObject<T, InsertArgs>
-  implements LocatableCList<L, T, InsertArgs>
+  implements LocatableCList<T, InsertArgs>
 {
   protected readonly internalMap: MapT;
 
@@ -79,16 +83,33 @@ export class CListFromMap<
     return this.internalMap.get(this.denseLocalList.getLoc(index))!;
   }
 
-  getLocation(index: number): L {
-    return this.denseLocalList.getLoc(index);
+  getLocation(index: number): string {
+    return bytesAsString(
+      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
+    );
   }
 
-  locate(location: L): [index: number, isPresent: boolean] {
-    return this.denseLocalList.locate(location);
+  // Override AbstractCList implementation as an optimization
+  // (avoid getting every value just to throw it away).
+  *locations(): IterableIterator<string> {
+    for (const loc of this.denseLocalList.locs()) {
+      yield bytesAsString(this.denseLocalList.serialize(loc));
+    }
   }
 
-  get locationSerializer(): Serializer<L> {
-    return this.denseLocalList;
+  *locationEntries(): IterableIterator<[string, T]> {
+    for (const loc of this.denseLocalList.locs()) {
+      yield [
+        bytesAsString(this.denseLocalList.serialize(loc)),
+        this.internalMap.get(loc)!,
+      ];
+    }
+  }
+
+  findLocation(location: string): FoundLocation {
+    return this.denseLocalList.findLoc(
+      this.denseLocalList.deserialize(stringAsBytes(location))
+    );
   }
 
   *values(): IterableIterator<T> {

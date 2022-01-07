@@ -1,4 +1,5 @@
 import { MessageMeta } from "../../core";
+import { FoundLocation } from "../../data_types";
 import { Serializer } from "../../util";
 
 /**
@@ -124,6 +125,8 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
 
   locs(): IterableIterator<L>;
 
+  entries(): IterableIterator<[L, T]>;
+
   forEach(callbackfn: (value: T, loc: L) => void): void;
 
   /**
@@ -144,6 +147,8 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * @return     [description]
    */
   idOf(loc: L): [sender: string, uniqueNumber: number];
+
+  findLoc(loc: L): FoundLocation;
 
   /**
    * Returns the Loc with the given id if it is present
@@ -171,14 +176,4 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * with null if there is nothing to load.
    */
   loadLocs(saveData: Uint8Array | null, values: (index: number) => T): void;
-
-  // TODO: refactor together with Cursor/List locations.
-  // Perhaps just leftIndexOf, rightIndexOf, going
-  // along with indexOf?
-  // Also: leftIndex is wrong name because it is only the
-  // left index once you take Cursor's subtraction into
-  // account (perhaps subtract one in the answer and add one
-  // in Cursor?).
-  leftIndex(loc: L): number;
-  rightIndex(loc: L): number;
 }

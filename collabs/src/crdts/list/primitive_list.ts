@@ -6,18 +6,24 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../../generated/proto_compiled";
-import { DefaultSerializer, Serializer } from "../../util";
+import {
+  bytesAsString,
+  DefaultSerializer,
+  Serializer,
+  stringAsBytes,
+} from "../../util";
 import { InitToken } from "../../core";
 import { Resettable } from "../abilities";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 import {
   AbstractCList,
   CListEventsRecord,
+  FoundLocation,
+  LocatableCList,
   MakeAbstractCList,
 } from "../../data_types";
 import { DenseLocalList } from "./dense_local_list";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
-import { LocatableCList } from "./cursor";
 
 const AbstractCListPrimitiveCRDT = MakeAbstractCList(
   PrimitiveCRDT
@@ -35,7 +41,7 @@ export class PrimitiveCListFromDenseLocalList<
     DenseT extends DenseLocalList<L, T>
   >
   extends AbstractCListPrimitiveCRDT<T, [T]>
-  implements LocatableCList<L, T, [T]>
+  implements LocatableCList<T, [T]>
 {
   // OPT: make senderCounters optional?  (Only needed
   // if you will do deleteRange, and take up space.)
@@ -249,17 +255,17 @@ export class PrimitiveCListFromDenseLocalList<
           decoded.deleteRange!,
           "startLoc"
         )
-          ? this.denseLocalList.rightIndex(
+          ? this.denseLocalList.findLoc(
               this.denseLocalList.deserialize(decoded.deleteRange!.startLoc!)
-            )
+            ).geIndex
           : 0;
         const endIndex = Object.prototype.hasOwnProperty.call(
           decoded.deleteRange!,
           "endLoc"
         )
-          ? this.denseLocalList.leftIndex(
+          ? this.denseLocalList.findLoc(
               this.denseLocalList.deserialize(decoded.deleteRange!.endLoc!)
-            ) - 1
+            ).leIndex
           : this.length - 1;
 
         const vc = meta.vectorClock;
@@ -305,16 +311,22 @@ export class PrimitiveCListFromDenseLocalList<
     return this.denseLocalList.get(index);
   }
 
-  getLocation(index: number): L {
-    return this.denseLocalList.getLoc(index);
+  getLocation(index: number): string {
+    return bytesAsString(
+      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
+    );
   }
 
-  locate(location: L): [index: number, isPresent: boolean] {
-    return this.denseLocalList.locate(location);
+  *locationEntries(): IterableIterator<[string, T]> {
+    for (const [loc, value] of this.denseLocalList.entries()) {
+      yield [bytesAsString(this.denseLocalList.serialize(loc)), value];
+    }
   }
 
-  get locationSerializer(): Serializer<L> {
-    return this.denseLocalList;
+  findLocation(location: string): FoundLocation {
+    return this.denseLocalList.findLoc(
+      this.denseLocalList.deserialize(stringAsBytes(location))
+    );
   }
 
   values(): IterableIterator<T> {

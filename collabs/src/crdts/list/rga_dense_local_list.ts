@@ -8,6 +8,7 @@ import {
 import { createRBTree, fillRBTree, RBTree } from "../util";
 import { MessageMeta, Runtime } from "../../core";
 import { WeakValueMap } from "../../util";
+import { FoundLocation } from "../../data_types";
 import { DenseLocalList } from "./dense_local_list";
 
 // TODO: helper that uses an RBTree and implements everything
@@ -132,6 +133,17 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     }
   }
 
+  *entries(): IterableIterator<[RgaLoc, T]> {
+    if (this.length > 0) {
+      const iter = this.tree.begin;
+      yield [iter.key!, iter.value!];
+      while (iter.hasNext) {
+        iter.next();
+        yield [iter.key!, iter.value!];
+      }
+    }
+  }
+
   forEach(callbackfn: (value: T, loc: RgaLoc) => void) {
     this.tree.forEach(callbackfn);
   }
@@ -144,12 +156,11 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     return [loc.sender, loc.uniqueNumber];
   }
 
-  leftIndex(loc: RgaLoc): number {
-    return this.tree.gt(loc).index;
-  }
-
-  rightIndex(loc: RgaLoc): number {
-    return this.tree.ge(loc).index;
+  findLoc(loc: RgaLoc): FoundLocation {
+    const geIter = this.tree.ge(loc);
+    // Note this uses our guarantee that === is value equality
+    // for RgaLoc's.
+    return new FoundLocation(geIter.index, geIter.key === loc);
   }
 
   canGC(): boolean {

@@ -1,5 +1,6 @@
 export * from "./batching_layer";
 export * from "./batching_strategy";
+export * from "./local_cursor";
 export * from "./messenger";
 export * from "./object";
 export * from "./primitive";

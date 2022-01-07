@@ -354,10 +354,8 @@ export class BatchingLayer
   }
 
   save(): Uint8Array {
-    // TODO: what to do about a pending batch? Ideally
-    // should flush it.
-    // Would be a mistake to send later, since saveData might
-    // be loaded multiple times or by different users.
+    // Need to flush before saving.
+    // Change error message to use flush() once that exists.
     if (this.pendingBatch !== null) {
       throw new Error(
         "Cannot save during pending batch (call commitBatch() first)"
