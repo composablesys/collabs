@@ -14,6 +14,6 @@ On receiver: WIP. But if it errors during receipt on the sender, it won't get se
 
 Versioning?
 
-If one of your collaborative types tries to apply the wrong `ElementSerializer` to a type, it may deserialize to an unexpected value. However, the value will still be consistent on all replicas (including the sender): the user who performs an operation applies it locally by processing the message, just like all other users, and so they will end up with the same deserialized value.
+If one of your collaborative types tries to apply the wrong `Serializer` to a type, it may deserialize to an unexpected value. However, the value will still be consistent on all replicas (including the sender): the user who performs an operation applies it locally by processing the message, just like all other users, and so they will end up with the same deserialized value.
 
 In case of inconsistency: refresh the page, hope that it's not ordering related or that the order will EC eventually.  Need to avoid saving?  Try not to get into this situation (might not be recoverable). -->

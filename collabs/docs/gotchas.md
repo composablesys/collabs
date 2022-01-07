@@ -72,7 +72,7 @@ Do not make your own `InitToken`s, unless you are writing a direct `Collab` subc
 
 Only use a given `InitToken` once, in the way intended by its creator. E.g., a collection's `valueConstructor` must return the `Collab` created using its `initToken` parameter. Likewise for a [Pre-Collab](./typedoc/modules.html#Pre); this is automatic if you use the built-in [`Pre`](./typedoc/modules.html#Pre) function.
 
-In a `Collab`'s constructor, only use the `InitToken` in your `super` call or to query its `runtime` (e.g., for passing to [DefaultElementSerializer](./typedoc/classes/DefaultElementSerializer.html)'s constructor in a parameter default).
+In a `Collab`'s constructor, only use the `InitToken` in your `super` call or to query its `runtime` (e.g., for passing to [DefaultSerializer](./typedoc/classes/DefaultSerializer.html)'s constructor in a parameter default).
 
 More info: [Initialization](./initialization.md).
 
