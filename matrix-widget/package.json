@@ -1,6 +1,6 @@
 {
   "name": "@collabs/matrix-widget",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Collabs MatrixWidgetNetwork",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -33,7 +33,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.1.3",
+    "@collabs/collabs": "0.2.0",
     "buffer": "^6.0.3",
     "matrix-widget-api": "^0.1.0-beta.16",
     "tslib": "^2.0.1"
