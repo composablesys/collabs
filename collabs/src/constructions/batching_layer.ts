@@ -224,26 +224,14 @@ export class BatchingLayer
     // This notifies BatchingStrategy and also emits a Change event.
     if (!this.batchEventPending) {
       this.batchEventPending = true;
-      Promise.resolve()
-        .then(() => {
-          this.batchEventPending = false;
-          if (this.isBatchPending()) {
-            // Only emit if the batch is still pending.
-            this.emit("BatchPending", { meta });
-          }
-          this.emit("Change", { meta });
-        })
-        .catch((err) => {
-          // Shouldn't be any errors here, but handle it
-          // anyway to make ESLint happy.
-
-          // Don't let the error fail the promise,
-          // but still make it print
-          // its error like it was unhandled.
-          setTimeout(() => {
-            throw err;
-          });
-        });
+      void Promise.resolve().then(() => {
+        this.batchEventPending = false;
+        if (this.isBatchPending()) {
+          // Only emit if the batch is still pending.
+          this.emit("BatchPending", { meta });
+        }
+        this.emit("Change", { meta });
+      });
     }
 
     this.emit("DebugSend", { meta }, false);
