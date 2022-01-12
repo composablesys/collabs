@@ -21,7 +21,7 @@ import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
 
 export class CRDTRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
-  implements Runtime
+  implements Runtime 
 {
   private readonly batchingLayer: BatchingLayer;
   private readonly crdtMetaLayer: CRDTExtraMetaLayer;
@@ -160,7 +160,22 @@ export class CRDTRuntime
     return undefined;
   }
 
+  /**
+   * [save description]
+   *
+   * Note: this will commit a pending batch first.
+   * So if there is a pending batch, expect messages to
+   * be sent during this method. Those messages will
+   * be accounted for in the `saveData` (including by
+   * network, which will know not to deliver them to a
+   * future loading replica).
+   *
+   * @return [description]
+   */
   save(): Uint8Array {
+    // Commit the pending batch, as required by [[BatchingLayer.save]].
+    this.batchingLayer.commitBatch();
+
     const saveMessage = CRDTRuntimeSave.create({
       crdtSave: super.save(),
       networkSave: this.network.save(),

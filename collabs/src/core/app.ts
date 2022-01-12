@@ -40,6 +40,15 @@ export class App<
     return this.runtime.registerCollab(name, preCollab);
   }
 
+  /**
+   * [save description]
+   *
+   * Note: this may take other actions needed for saving
+   * to make sense, e.g., sending queued messages
+   * (as is done in [[CRDTApp]]).
+   *
+   * @return [description]
+   */
   save(): Uint8Array {
     return this.runtime.save();
   }
