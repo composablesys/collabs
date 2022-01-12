@@ -1,4 +1,4 @@
-import { MessageMeta, InitToken, CPrimitive } from "@collabs/collabs";
+import { MessageMeta, InitToken, CPrimitive, Optional } from "@collabs/collabs";
 
 export class ContainerHost extends CPrimitive {
   private readonly messagePort: MessagePort;
@@ -82,8 +82,11 @@ export class ContainerHost extends CPrimitive {
     throw new Error("Method not implemented.");
   }
 
-  load(saveData: Uint8Array | null): void {
-    this.messagePort.postMessage({ type: "load", saveData });
+  load(saveData: Optional<Uint8Array>): void {
+    this.messagePort.postMessage({
+      type: "load",
+      saveData: saveData.isPresent ? saveData.get() : null,
+    });
   }
 
   canGC(): boolean {

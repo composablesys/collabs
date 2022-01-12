@@ -4,7 +4,7 @@ import {
   IWidgetApiRequestData,
   Capability,
 } from "matrix-widget-api";
-import { BroadcastNetwork } from "@collabs/collabs";
+import { BroadcastNetwork, Optional } from "@collabs/collabs";
 import { Buffer } from "buffer";
 
 // TODO: size limits:
@@ -203,7 +203,7 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
     return new Uint8Array();
   }
 
-  load(saveData: Uint8Array) {
+  load(saveData: Optional<Uint8Array>) {
     // TODO: see save()
   }
 

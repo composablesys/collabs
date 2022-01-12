@@ -172,7 +172,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
                 "",
                 this.collabConstructor
               );
-              apps[0].load(saveData);
+              apps[0].load(collabs.Optional.of(saveData));
               this.getState(collabList[0]); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
@@ -247,7 +247,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
             replicaIDRng
           );
           collabList[0] = apps[0].registerCollab("", this.collabConstructor);
-          apps[0].load(saveData);
+          apps[0].load(collabs.Optional.of(saveData));
           this.getState(collabList[0]); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!

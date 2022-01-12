@@ -11,7 +11,7 @@ import {
   Runtime,
   Pre,
 } from "../../core";
-import { DefaultSerializer, Serializer } from "../../util";
+import { DefaultSerializer, Optional, Serializer } from "../../util";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
 /* eslint-disable */
@@ -528,17 +528,19 @@ export abstract class SemidirectProductRev<
     return new Uint8Array();
   }
 
-  protected loadSemidirectProductRev(saveData: Uint8Array | null) {}
+  protected loadSemidirectProductRev(saveData: Optional<Uint8Array>) {}
 
   // TODO: the children loading their own states (both
   // of them, in arbitrary order) must correctly set
   // this.internalState, whatever it is.
   // Need option to do custom loading if that's not the
   // case.
-  protected loadObject(saveData: Uint8Array | null) {
-    if (saveData === null) this.loadSemidirectProductRev(null);
+  protected loadObject(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) this.loadSemidirectProductRev(saveData);
     else {
-      this.loadSemidirectProductRev(this.history.load(saveData, this.runtime));
+      this.loadSemidirectProductRev(
+        Optional.of(this.history.load(saveData.get(), this.runtime))
+      );
     }
   }
 }

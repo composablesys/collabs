@@ -8,6 +8,7 @@ import { Resettable } from "../abilities";
 import { CObject } from "../../constructions";
 import { CollabEvent, CollabEventsRecord, InitToken, Pre } from "../../core";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { Optional } from "../../util";
 
 export interface CCounterEvent extends CollabEvent {
   readonly arg: number;
@@ -186,9 +187,9 @@ export class GrowOnlyCCounter
     return GrowOnlyCCounterSave.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    const message = GrowOnlyCCounterSave.decode(saveData);
+  load(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    const message = GrowOnlyCCounterSave.decode(saveData.get());
     for (const [replicaID, m] of Object.entries(message.M)) {
       this.M.set(replicaID, [
         int64AsNumber(m.p),

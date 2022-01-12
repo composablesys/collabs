@@ -16,12 +16,13 @@ import {
   Runtime,
   RuntimeEventsRecord,
 } from "../../core";
+import { Optional } from "../../util";
 import { BroadcastNetwork } from "./broadcast_network";
 import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
 
 export class CRDTRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
-  implements Runtime 
+  implements Runtime
 {
   private readonly batchingLayer: BatchingLayer;
   private readonly crdtMetaLayer: CRDTExtraMetaLayer;
@@ -183,15 +184,15 @@ export class CRDTRuntime
     return CRDTRuntimeSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) {
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      super.load(null);
-      this.network.load(null);
+      super.load(saveData);
+      this.network.load(saveData);
     } else {
-      const saveMessage = CRDTRuntimeSave.decode(saveData);
-      super.load(saveMessage.crdtSave);
-      this.network.load(saveMessage.networkSave);
+      const saveMessage = CRDTRuntimeSave.decode(saveData.get());
+      super.load(Optional.of(saveMessage.crdtSave));
+      this.network.load(Optional.of(saveMessage.networkSave));
     }
   }
 }

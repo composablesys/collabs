@@ -379,7 +379,7 @@ function resettingLww() {
             (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
     },
   });
 }
@@ -438,7 +438,7 @@ function deletingLww() {
             (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
     },
   });
 }
@@ -483,7 +483,7 @@ function text() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(collabs.CText)());
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
     },
   });
 }
@@ -604,7 +604,7 @@ function mapLww() {
         "text",
         (initToken) => new collabs.LwwCMap<number, string>(initToken)
       );
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
     },
   });
 }
@@ -847,7 +847,7 @@ function richText() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(RichText)());
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
     },
   });
 }

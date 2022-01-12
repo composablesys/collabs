@@ -101,9 +101,9 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
           this.nontrivialMap.set(keyString, value);
         } else {
           // Since the value is new with no prior saved state,
-          // we need to call value.load(null) to indicate that
+          // we need to call value.load(empty Optional) to indicate that
           // loading was skipped.
-          value.load(null);
+          value.load(Optional.empty());
           // The value starts trivial; if it becomes nontrivial
           // due to a message, receiveInternal will move
           // it to nontrivialMap.
@@ -306,27 +306,28 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
    */
   private pendingChildSaves: Map<string, Uint8Array> | null = null;
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) {
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) {
       // No children to notify.
-    } else {
-      const saveMessage = ImplicitMergingMutCMapSave.decode(saveData);
-      // For the child saves: it's possible that loading
-      // one child might lead to this.getDescendant being
-      // called for some other child (typically by deserializing
-      // a Collab reference). So we use this.pendingChildSaves
-      // to allow getDescendant to load children on demand.
-      this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
-      for (const [name, childSave] of this.pendingChildSaves) {
-        this.pendingChildSaves.delete(name);
-        // Note this loop will skip over children that get
-        // loaded preemptively by getDescendant, since they
-        // are deleted from this.pendingChildSaves.
-        const child = this.getInternal(this.stringAsKey(name), name)[0];
-        child.load(childSave);
-      }
-      this.pendingChildSaves = null;
+      return;
     }
+
+    const saveMessage = ImplicitMergingMutCMapSave.decode(saveData.get());
+    // For the child saves: it's possible that loading
+    // one child might lead to this.getDescendant being
+    // called for some other child (typically by deserializing
+    // a Collab reference). So we use this.pendingChildSaves
+    // to allow getDescendant to load children on demand.
+    this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
+    for (const [name, childSave] of this.pendingChildSaves) {
+      this.pendingChildSaves.delete(name);
+      // Note this loop will skip over children that get
+      // loaded preemptively by getDescendant, since they
+      // are deleted from this.pendingChildSaves.
+      const child = this.getInternal(this.stringAsKey(name), name)[0];
+      child.load(Optional.of(childSave));
+    }
+    this.pendingChildSaves = null;
   }
 
   getDescendant(namePath: string[]): Collab {
@@ -340,7 +341,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
       const childSave = this.pendingChildSaves.get(name);
       if (childSave !== undefined) {
         this.pendingChildSaves.delete(name);
-        child.load(childSave);
+        child.load(Optional.of(childSave));
       }
     }
     return child.getDescendant(namePath);

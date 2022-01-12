@@ -576,10 +576,10 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     return YataSave.encode(saveData).finish();
   }
 
-  protected loadSemidirectProductRev(saveData: Uint8Array | null) {
-    if (saveData === null) return;
+  protected loadSemidirectProductRev(saveData: collabs.Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
     // Set leftId, rightId's based on saved order.
-    const message = YataSave.decode(saveData);
+    const message = YataSave.decode(saveData.get());
     for (let i = 0; i < message.idArray.length - 1; i++) {
       const left = message.idArray[i];
       const right = message.idArray[i + 1];

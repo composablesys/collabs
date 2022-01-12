@@ -592,7 +592,7 @@ function compoResetting() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return list;
     },
   });
@@ -703,7 +703,7 @@ function compoDeleting() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return list;
     },
   });
@@ -805,7 +805,7 @@ function compoJSON() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", JSONElement.NewJSON);
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return new JSONTodoList(list.value as JSONObject);
     },
   });
@@ -903,7 +903,7 @@ function compoJSONText() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", JSONElement.NewJSON);
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return new JSONTextTodoList(list.value as JSONObject);
     },
   });
@@ -1356,7 +1356,7 @@ function compoJSONOpt() {
 
       let idGen = new collabs.RgaDenseLocalList<undefined>(app.runtime);
 
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
 
       return new JSONCollabTodoList(cursor, idGen, collab.runtime);
     },

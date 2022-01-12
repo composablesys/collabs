@@ -1,3 +1,4 @@
+import { Optional } from "../util";
 import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 import { MessageMeta } from "./message_meta";
@@ -199,8 +200,8 @@ export interface CollabEventsRecord {
  * - [[save]] and [[load]] are
  * responsible for saving and loading a `Collab`'s entire
  * subtree. Typically, [[save]] will call [[save]] on each
- * child, then combine those `saveData` with its own `Collab`s info
- * to get its own `saveData`. [[load]] then reverses the process,
+ * child, then combine those saves with its own `Collab`s info
+ * to get its own save data. [[load]] then reverses the process,
  * calling [[load]] on each child.
  *
  * # Other Features
@@ -374,12 +375,12 @@ export abstract class Collab<
   ): void;
 
   /**
-   * Returns `saveData` describing the current state of this
+   * Returns save data describing the current state of this
    * `Collab` and its descendants, sufficient to restore the
-   * state on a new replica by calling [[load]]`(saveData)`.
+   * state on a new replica by calling [[load]]`(`[[Optional.of]]`(saveData))`.
    *
    * The usage pattern of `save` and [[load]] is:
-   * 1. `save` is called on one replica, returning `saveData`.
+   * 1. `save` is called on one replica, returning save data.
    * 2. A new replica of this `Collab` is created using the
    * same class and same constructor arguments
    * (the usual [Initialization](../../initialization.md) requirements for replicas).
@@ -395,8 +396,8 @@ export abstract class Collab<
    * Behavior is undefined if that condition is violated.
    *
    * A special case of the usage pattern is when an app
-   * is created without any prior `saveData`. In that case,
-   * [[load]]`(null)` is called instead of [[load]]`(saveData)`,
+   * is created without any prior save data. In that case,
+   * [[load]]`(`[[Optional.empty]]`())` is called instead,
    * to indicate that loading has been skipped and that the
    * `Collab` can start being used.
    *
@@ -406,15 +407,16 @@ export abstract class Collab<
    * (either being sent or received), to ensure that this
    * `Collab` is in a reasonable, stable, user-facing state.
    *
-   * @return `saveData`
+   * @return save data
    */
   abstract save(): Uint8Array;
 
   /**
    * Loads this newly-initialized `Collab` and its descendants
    * from `saveData` output by [[save]] on a previous replica
-   * of this `Collab`, or if `saveData === null`, indicates that
-   * loading is skipped (no prior `saveData`).
+   * of this `Collab` (wrapped in an [[Optional]]), or if
+   * `saveData` is an empty [[Optional]], indicates that
+   * loading is skipped (no prior save data).
    *
    * See [[save]] for detailed info on saving and loading
    * usage.
@@ -426,7 +428,7 @@ export abstract class Collab<
    *
    * @param saveData [description]
    */
-  abstract load(saveData: Uint8Array | null): void;
+  abstract load(saveData: Optional<Uint8Array>): void;
 
   /**
    * Returns the "name path" from `descendant` to `this`,

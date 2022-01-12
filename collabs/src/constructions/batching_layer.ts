@@ -11,6 +11,7 @@ import {
   MessageMeta,
   Pre,
 } from "../core";
+import { Optional } from "../util";
 import { BatchingStrategy } from "./batching_strategy";
 
 export interface BatchingLayerEventsRecord extends CollabEventsRecord {
@@ -368,7 +369,7 @@ export class BatchingLayer
     return this.child.save();
   }
 
-  load(saveData: Uint8Array | null): void {
+  load(saveData: Optional<Uint8Array>): void {
     this.child.load(saveData);
   }
 

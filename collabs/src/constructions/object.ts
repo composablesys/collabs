@@ -7,6 +7,7 @@ import {
   MessageMeta,
   Pre,
 } from "../core";
+import { Optional } from "../util";
 
 /**
  * A [[Collab]] object, made of properties that
@@ -183,13 +184,13 @@ export class CObject<
    */
   private pendingChildSaves: Map<string, Uint8Array> | null = null;
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) {
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      for (const child of this.children.values()) child.load(null);
-      this.loadObject(null);
+      for (const child of this.children.values()) child.load(saveData);
+      this.loadObject(saveData);
     } else {
-      const saveMessage = CObjectSave.decode(saveData);
+      const saveMessage = CObjectSave.decode(saveData.get());
       // For the child saves: it's possible that loading
       // one child might lead to this.getDescendant being
       // called for some other child (typically by deserializing
@@ -201,14 +202,16 @@ export class CObject<
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
-        this.children.get(name)!.load(childSave);
+        this.children.get(name)!.load(Optional.of(childSave));
       }
       this.pendingChildSaves = null;
-      if (Object.prototype.hasOwnProperty.call(saveMessage, "objectSave")) {
-        this.loadObject(saveMessage.objectSave);
-      } else {
-        this.loadObject(null);
-      }
+      const objectSave = Object.prototype.hasOwnProperty.call(
+        saveMessage,
+        "objectSave"
+      )
+        ? saveMessage.objectSave
+        : null;
+      this.loadObject(Optional.of(objectSave));
     }
   }
 
@@ -225,7 +228,7 @@ export class CObject<
    * is being skipped (the app instance is new).
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected loadObject(saveData: Uint8Array | null): void {
+  protected loadObject(saveData: Optional<Uint8Array | null>): void {
     // Does nothing by default.
   }
 
@@ -248,7 +251,7 @@ export class CObject<
       const childSave = this.pendingChildSaves.get(name);
       if (childSave !== undefined) {
         this.pendingChildSaves.delete(name);
-        child.load(childSave);
+        child.load(Optional.of(childSave));
       }
     }
     return child.getDescendant(namePath);

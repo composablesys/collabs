@@ -3,7 +3,7 @@ import {
   CRDTExtraMetaLayerSave,
 } from "../../../generated/proto_compiled";
 import { Collab, ICollabParent, InitToken, MessageMeta, Pre } from "../../core";
-import { int64AsNumber } from "../../util";
+import { int64AsNumber, Optional } from "../../util";
 import { CRDTExtraMeta, VectorClock } from "./crdt_extra_meta";
 
 // Debug flag for causality checking.
@@ -337,12 +337,12 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return CRDTExtraMetaLayerSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) {
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      this.child.load(null);
+      this.child.load(saveData);
     } else {
-      const saveMessage = CRDTExtraMetaLayerSave.decode(saveData);
+      const saveMessage = CRDTExtraMetaLayerSave.decode(saveData.get());
       for (const [replicaID, entry] of Object.entries(
         saveMessage.vectorClock
       )) {
@@ -351,7 +351,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       this.currentLamportTimestamp = int64AsNumber(
         saveMessage.lamportTimestamp
       );
-      this.child.load(saveMessage.childSave);
+      this.child.load(Optional.of(saveMessage.childSave));
     }
   }
 

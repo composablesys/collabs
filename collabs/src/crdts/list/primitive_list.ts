@@ -9,6 +9,7 @@ import {
 import {
   bytesAsString,
   DefaultSerializer,
+  Optional,
   Serializer,
   stringAsBytes,
 } from "../../util";
@@ -374,9 +375,9 @@ export class PrimitiveCListFromDenseLocalList<
     return PrimitiveCListSave.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) return;
-    const decoded = PrimitiveCListSave.decode(saveData);
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) return;
+    const decoded = PrimitiveCListSave.decode(saveData.get());
     if (this.valueArraySerializer !== undefined) {
       const values = this.valueArraySerializer.deserialize(decoded.values);
       this.denseLocalList.loadLocs(decoded.locs, (index) => values[index]);

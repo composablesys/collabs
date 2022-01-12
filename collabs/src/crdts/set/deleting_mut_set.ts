@@ -3,7 +3,7 @@ import {
   DeletingMutCSetSave,
   IDeletingMutCSetValueSave,
 } from "../../../generated/proto_compiled";
-import { DefaultSerializer, Serializer } from "../../util";
+import { DefaultSerializer, Optional, Serializer } from "../../util";
 import { Collab, ICollabParent, InitToken, MessageMeta } from "../../core";
 import { Resettable } from "../abilities";
 import { AbstractCSetCollab } from "../../data_types";
@@ -229,7 +229,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
         // Since the value is new with no prior saved state,
         // we need to call value.load(null) to indicate that
         // newValue skipped loading.
-        newValue.load(null);
+        newValue.load(Optional.empty());
       }
       // Save the constuctor args.
       // Not needed for initial values, since they are created
@@ -365,12 +365,12 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    */
   private pendingChildSaves: Map<string, Uint8Array> | null = null;
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) {
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      for (const child of this.children.values()) child.load(null);
+      for (const child of this.children.values()) child.load(saveData);
     } else {
-      const saveMessage = DeletingMutCSetSave.decode(saveData);
+      const saveMessage = DeletingMutCSetSave.decode(saveData.get());
       // As in CObject, prepare this.pendingChildSaves in
       // case this.getDescendant is called during loading.
       this.pendingChildSaves = new Map();
@@ -412,7 +412,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
-        this.children.get(name)!.load(childSave);
+        this.children.get(name)!.load(Optional.of(childSave));
       }
       this.pendingChildSaves = null;
     }
@@ -444,7 +444,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       const childSave = this.pendingChildSaves.get(name);
       if (childSave !== undefined) {
         this.pendingChildSaves.delete(name);
-        child.load(childSave);
+        child.load(Optional.of(childSave));
       }
     }
     return child.getDescendant(namePath);

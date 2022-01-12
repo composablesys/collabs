@@ -175,5 +175,5 @@ export interface DenseLocalList<L, T> extends Serializer<L> {
    * saved loc array.  Like in Collab, always called, but
    * with null if there is nothing to load.
    */
-  loadLocs(saveData: Uint8Array | null, values: (index: number) => T): void;
+  loadLocs(saveData: Uint8Array, values: (index: number) => T): void;
 }

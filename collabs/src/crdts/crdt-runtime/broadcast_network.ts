@@ -1,3 +1,5 @@
+import { Optional } from "../../util";
+
 /**
  * A network that broadcasts messages to all replicas
  * exactly once in causal order with no echo.
@@ -10,6 +12,6 @@ export interface BroadcastNetwork {
 
   send(message: Uint8Array): void;
 
-  load(saveData: Uint8Array | null): void;
+  load(saveData: Optional<Uint8Array>): void;
   save(): Uint8Array;
 }

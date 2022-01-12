@@ -5,7 +5,7 @@ import {
   FoundLocation,
   LocatableCList,
 } from "../../data_types";
-import { bytesAsString, stringAsBytes } from "../../util";
+import { bytesAsString, Optional, stringAsBytes } from "../../util";
 import { DenseLocalList } from "./dense_local_list";
 
 export class CListFromMap<
@@ -132,7 +132,8 @@ export class CListFromMap<
     return this.denseLocalList.saveLocs();
   }
 
-  protected loadObject(saveData: Uint8Array | null): void {
-    this.denseLocalList.loadLocs(saveData, () => undefined);
+  protected loadObject(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) return;
+    this.denseLocalList.loadLocs(saveData.get(), () => undefined);
   }
 }

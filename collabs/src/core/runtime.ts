@@ -1,3 +1,4 @@
+import { Optional } from "../util";
 import { Collab, CollabEvent, Pre } from "./collab";
 import { ICollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
@@ -101,7 +102,7 @@ export interface Runtime<
 
   registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C;
   save(): Uint8Array;
-  load(saveData: Uint8Array | null): void;
+  load(saveData: Optional<Uint8Array>): void;
 }
 
 export function isRuntime(x: unknown): x is Runtime {

@@ -1,3 +1,4 @@
+import { Optional } from "../../util";
 import { BroadcastNetwork } from "../crdt-runtime";
 
 /**
@@ -63,7 +64,7 @@ export class DisconnectableNetwork implements BroadcastNetwork {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  load(saveData: Uint8Array | null): void {
+  load(saveData: Optional<Uint8Array>): void {
     throw new Error("Method not implemented.");
   }
 }

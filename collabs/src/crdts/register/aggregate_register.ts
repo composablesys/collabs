@@ -4,7 +4,12 @@ import {
 } from "../../../generated/proto_compiled";
 import { InitToken } from "../../core";
 import { CRegister, CRegisterEventsRecord } from "../../data_types";
-import { DefaultSerializer, Serializer, SingletonSerializer } from "../../util";
+import {
+  DefaultSerializer,
+  Optional,
+  Serializer,
+  SingletonSerializer,
+} from "../../util";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 export interface CRegisterEntryMeta<S> {
@@ -195,9 +200,9 @@ export abstract class AggregateArgsCRegister<
     return AggregateArgsCRegisterSave.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    const message = AggregateArgsCRegisterSave.decode(saveData);
+  load(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    const message = AggregateArgsCRegisterSave.decode(saveData.get());
     for (const element of message.entries) {
       this.entries.push(
         new AggregateArgsCRegisterEntry(

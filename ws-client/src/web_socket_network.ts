@@ -1,4 +1,4 @@
-import { BroadcastNetwork } from "@collabs/collabs";
+import { BroadcastNetwork, Optional } from "@collabs/collabs";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import { Buffer } from "buffer";
 
@@ -84,7 +84,7 @@ export class WebSocketNetwork implements BroadcastNetwork {
     return new Uint8Array();
   }
 
-  load(saveData: Uint8Array) {
+  load(saveData: Optional<Uint8Array>) {
     // TODO: see save()
   }
 }

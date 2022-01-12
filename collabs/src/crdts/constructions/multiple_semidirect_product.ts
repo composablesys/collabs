@@ -12,6 +12,7 @@ import {
   Pre,
   ICollabParent,
 } from "../../core";
+import { Optional } from "../../util";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
 /* eslint-disable */
@@ -467,12 +468,12 @@ export abstract class MultipleSemidirectProduct<
    * case.
    * @param saveData [description]
    */
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) {
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      for (const crdt of this.crdts) crdt.load(null);
+      for (const crdt of this.crdts) crdt.load(saveData);
     } else {
-      const saveMessage = MultiSemidirectProductSave.decode(saveData);
+      const saveMessage = MultiSemidirectProductSave.decode(saveData.get());
       // For the child saves: it's possible that loading
       // one child might lead to this.getDescendant being
       // called for some other child (typically by deserializing
@@ -484,7 +485,7 @@ export abstract class MultipleSemidirectProduct<
         // Note this loop will skip over children that get
         // loaded preemptively by getDescendant, since they
         // are deleted from this.pendingChildSaves.
-        this.crdts[idx].load(childSave);
+        this.crdts[idx].load(Optional.of(childSave));
       }
       this.pendingChildSaves = null;
       this.state.load(saveMessage.historySave);
@@ -506,7 +507,7 @@ export abstract class MultipleSemidirectProduct<
         const childSave = this.pendingChildSaves.get(idx);
         if (childSave !== undefined) {
           this.pendingChildSaves.delete(idx);
-          this.crdts[idx].load(childSave);
+          this.crdts[idx].load(Optional.of(childSave));
         }
       }
       return this.crdts[idx].getDescendant(namePath);

@@ -1,3 +1,4 @@
+import { Optional } from "../util";
 import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
@@ -31,7 +32,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
     return this.rootCollab.save();
   }
 
-  load(saveData: Uint8Array | null): void {
+  load(saveData: Optional<Uint8Array>): void {
     this.rootCollab.load(saveData);
   }
 

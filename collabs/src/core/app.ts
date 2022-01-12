@@ -1,3 +1,4 @@
+import { Optional } from "../util";
 import { Collab, CollabEvent, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime } from "./runtime";
@@ -53,7 +54,7 @@ export class App<
     return this.runtime.save();
   }
 
-  load(saveData: Uint8Array | null): void {
+  load(saveData: Optional<Uint8Array>): void {
     this.runtime.load(saveData);
   }
 }

@@ -13,6 +13,7 @@ import {
 } from "../../core";
 import { ToggleCBoolean } from "../boolean";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { Optional } from "../../util";
 
 export interface CNumberEvent extends CollabEvent {
   readonly arg: number;
@@ -75,9 +76,9 @@ export class AddComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    this.state.value = CNumberComponentMessage.decode(saveData).arg;
+  load(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
   }
 }
 
@@ -122,9 +123,9 @@ export class MultComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    this.state.value = CNumberComponentMessage.decode(saveData).arg;
+  load(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
   }
 }
 
@@ -167,9 +168,9 @@ export class MinComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    this.state.value = CNumberComponentMessage.decode(saveData).arg;
+  load(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
   }
 }
 
@@ -212,9 +213,9 @@ export class MaxComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    this.state.value = CNumberComponentMessage.decode(saveData).arg;
+  load(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
   }
 }
 

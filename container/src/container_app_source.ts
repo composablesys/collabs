@@ -1,4 +1,9 @@
-import { BatchingStrategy, BroadcastNetwork, CRDTApp } from "@collabs/collabs";
+import {
+  BatchingStrategy,
+  BroadcastNetwork,
+  CRDTApp,
+  Optional,
+} from "@collabs/collabs";
 
 class ContainerNetwork implements BroadcastNetwork {
   constructor(private readonly messagePort: MessagePort) {}
@@ -13,7 +18,7 @@ class ContainerNetwork implements BroadcastNetwork {
     return new Uint8Array(0);
   }
 
-  load(_saveData: Uint8Array): void {}
+  load(_saveData: Optional<Uint8Array>): void {}
 }
 
 // TODO: don't use a class since it's just wrapping a single
@@ -61,7 +66,12 @@ export class ContainerAppSource {
           network.onreceive(e.data.message);
           break;
         case "load":
-          app.load(<Uint8Array | null>e.data.saveData);
+          const saveData = <Uint8Array | null>e.data.saveData;
+          if (saveData === null) {
+            app.load(Optional.empty());
+          } else {
+            app.load(Optional.of(saveData));
+          }
           messagePort.postMessage({ type: "loadComplete" });
           // TODO: let this side's user know that loading is
           // complete, either by waiting to return from newApp

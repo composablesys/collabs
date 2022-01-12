@@ -4,6 +4,7 @@ import { CObject } from "../../constructions";
 import { InitToken, Pre } from "../../core";
 import { CRegisterEventsRecord, MakeAbstractCBoolean } from "../../data_types";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { Optional } from "../../util";
 
 interface WinsCBooleanEntry {
   readonly sender: string;
@@ -76,9 +77,9 @@ export class TrueWinsCBoolean
     return WinsCBooleanSave.encode(message).finish();
   }
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) return;
-    const decoded = WinsCBooleanSave.decode(saveData);
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) return;
+    const decoded = WinsCBooleanSave.decode(saveData.get());
     for (let i = 0; i < decoded.senders.length; i++) {
       this.entries.push({
         sender: decoded.senders[i],
