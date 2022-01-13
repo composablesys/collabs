@@ -32,6 +32,22 @@
     /* Use tslib to reduce generated js file sizes. */
     "importHelpers": true
   },
+  /* Here we deliberately include "generated" (CommonJS version) instead of
+   * "generated_esm", even though this config is for the ESM build.
+   * That avoids a bug where TypeScript tries to process
+   * generated_esm/proto_compiled.js, sees some JSDoc type annotations
+   * that it doesn't like, and complains, even though
+   * there are perfectly fine type annotations in
+   * generated_esm/proto_compiled.d.ts (or at least, there
+   * would be, if we didn't skip generating them during
+   * build:protobuf). Instead, both the CommonJS and ESM builds
+   * use generated/proto_compiled.d.ts, and build:ts manually copies
+   * generated_esm/proto_compiled.js over to build/esm/generated/proto_compiled.js.
+   *
+   * Note that because of this choice, tsconfig.commonjs.json
+   * doesn't need to override "include" to change "generated_esm"
+   * to "generated".
+   */
   "include": ["src", "generated"],
   /* ts-node gets confused by workspaces + allowJs=true
    * and needs some help to run the tests without error.
