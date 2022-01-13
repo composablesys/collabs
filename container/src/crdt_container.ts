@@ -32,7 +32,7 @@ class ContainerNetwork implements BroadcastNetwork {
 // (Is this possible with an IFrame, though?)
 // TODO: need to do this await before the parent receives onload.
 // Unless we add an extra message?
-export class ContainerAppSource {
+export class CRDTContainer {
   /**
    * Not instantiable.
    */
@@ -46,7 +46,7 @@ export class ContainerAppSource {
    * @param  batchOptions [description]
    * @return              [description]
    */
-  static async newApp(
+  static async newContainer(
     hostWindow: Window,
     batchingStrategy?: BatchingStrategy
   ): Promise<CRDTApp> {
