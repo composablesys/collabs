@@ -71,6 +71,12 @@ function pseudorandomReplicaId(rng: seedrandom.prng) {
 export class TestingNetworkGenerator {
   /**
    * [newApp description]
+   *
+   * Note: technically you should call [[CRDTApp.load]] on the
+   * app after registering Collabs, even if you are not loading
+   * any previous state. But if you know your Collabs don't
+   * care, there should be no harm in skipping it.
+   *
    * @param  batchingStrategy Note that the default here is
    * [[TestingBatchingStrategy]], unlike in [[CRDTApp]].
    * @return                  [description]

@@ -342,6 +342,8 @@ function resettingLww() {
             (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
+      // Since setup was called, no saveData to load.
+      app.load(collabs.Optional.empty());
     },
     cleanup() {
       generator = null;
@@ -401,6 +403,8 @@ function deletingLww() {
             (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
           )
       );
+      // Since setup was called, no saveData to load.
+      app.load(collabs.Optional.empty());
     },
     cleanup() {
       generator = null;
@@ -453,6 +457,8 @@ function text() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(collabs.CText)());
+      // Since setup was called, no saveData to load.
+      app.load(collabs.Optional.empty());
     },
     cleanup() {
       generator = null;
@@ -571,6 +577,8 @@ function mapLww() {
         "text",
         (initToken) => new collabs.LwwCMap<number, string>(initToken)
       );
+      // Since setup was called, no saveData to load.
+      app.load(collabs.Optional.empty());
     },
     cleanup() {
       generator = null;
@@ -817,6 +825,8 @@ function richText() {
       generator = new collabs.TestingNetworkGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(RichText)());
+      // Since setup was called, no saveData to load.
+      app.load(collabs.Optional.empty());
     },
     cleanup() {
       generator = null;

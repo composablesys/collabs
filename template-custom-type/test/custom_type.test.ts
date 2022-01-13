@@ -1,5 +1,10 @@
 import { assert } from "chai";
-import { Pre, TestingNetworkGenerator, CRDTApp } from "@collabs/collabs";
+import {
+  Pre,
+  TestingNetworkGenerator,
+  CRDTApp,
+  Optional,
+} from "@collabs/collabs";
 import seedrandom = require("seedrandom");
 import { CPair } from "../src";
 
@@ -28,6 +33,10 @@ describe("template-custom-type", () => {
       // Register the Collabs you want to test, like in a normal app.
       alicePair = alice.registerCollab("pair", Pre(CPair)(0, 0));
       bobPair = bob.registerCollab("pair", Pre(CPair)(0, 0));
+      // Then call load with an empty Optional to indicate skipped loading,
+      // like in a normal app with no prior saved state.
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
     });
 
     it("has initial values", () => {

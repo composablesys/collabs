@@ -562,6 +562,8 @@ function compoResetting() {
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -673,6 +675,8 @@ function compoDeleting() {
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -775,6 +779,9 @@ function compoJSON() {
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", JSONElement.NewJSON);
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
+
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JSONTodoList(list.value as JSONObject);
@@ -873,6 +880,9 @@ function compoJSONText() {
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", JSONElement.NewJSON);
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
+
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JSONTextTodoList(list.value as JSONObject);
@@ -1316,6 +1326,9 @@ function compoJSONOpt() {
 
       let collab = app.registerCollab("", collabs.Pre(JSONCollab)());
       let cursor = new JSONCursor(collab);
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
+
       this.sendNextMessage();
       cursor.setIsMap("items");
       cursor.setIsList("itemsIds");

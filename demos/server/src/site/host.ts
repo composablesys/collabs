@@ -38,8 +38,8 @@ switch (networkType) {
   default:
     throw new Error('URL "network" GET parameter invalid: "${networkType}"');
 }
-const disonnectableNetwork = new collabs.DisconnectableNetwork(network);
-const app = new collabs.CRDTApp(disonnectableNetwork, { batchingStrategy });
+const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
+const app = new collabs.CRDTApp(disconnectableNetwork, { batchingStrategy });
 
 // Add the container in an IFrame.
 const iframe = document.createElement("iframe");
@@ -60,7 +60,8 @@ iframe.addEventListener("load", () => {
 // Attach the container.
 const host = app.registerCollab("host", collabs.Pre(ContainerHost)(iframe));
 
-// TODO: loading.  Make sure to block GUI until host says it's complete.
+// Skip loading.
+app.load(collabs.Optional.empty());
 
 // App controls
 
@@ -89,8 +90,8 @@ function updateNetwork() {
     connected.checked = sendConnected.checked;
   }
   // Affect network.
-  disonnectableNetwork.receiveConnected = receiveConnected.checked;
-  disonnectableNetwork.sendConnected = sendConnected.checked;
+  disconnectableNetwork.receiveConnected = receiveConnected.checked;
+  disconnectableNetwork.sendConnected = sendConnected.checked;
 }
 
 // const saveLoad = <HTMLButtonElement>document.getElementById("saveLoad");

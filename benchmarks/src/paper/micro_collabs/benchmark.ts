@@ -109,6 +109,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
           replicaIDRng
         );
         collabList[i] = apps[i].registerCollab("", this.collabConstructor);
+        apps[i].load(collabs.Optional.empty());
       }
 
       if (measurement === "memory") {

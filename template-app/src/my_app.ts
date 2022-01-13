@@ -16,6 +16,11 @@ const app = new collabs.CRDTApp(new WebSocketNetwork(host, ""));
 // Register collaborative data types.
 const counter = app.registerCollab("counter", collabs.Pre(collabs.CCounter)());
 
+// Load prior saved state.
+// For this starter file, we don't have any prior saved state,
+// but we still have to call app.load to indicate that loading is skipped.
+app.load(collabs.Optional.empty());
+
 // Refresh the display when the Collab state changes, possibly
 // due to a message from another replica.
 const display = document.getElementById("display")!;

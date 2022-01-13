@@ -64,7 +64,8 @@ iframe.addEventListener("load", () => {
 // Attach the container.
 const host = app.registerCollab("host", collabs.Pre(ContainerHost)(iframe));
 
-// TODO: loading.  Make sure to block GUI until host says it's complete.
+// Skip loading.
+app.load(collabs.Optional.empty());
 
 // App controls
 

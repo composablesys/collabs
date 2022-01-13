@@ -3,6 +3,7 @@ import { assert } from "chai";
 import {
   Collab,
   CRDTApp,
+  Optional,
   Pre,
   TestingNetworkGenerator,
 } from "@collabs/collabs";
@@ -110,6 +111,8 @@ describe("tensor", () => {
         "counterId",
         Pre(TensorGCounterCollab)(shape, "float32")
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -234,6 +237,8 @@ describe("tensor", () => {
           "counterId2",
           Pre(TensorGCounterCollab)(shape, dtype)
         );
+        alice.load(Optional.empty());
+        bob.load(Optional.empty());
         const identity = tf.eye(shape[0], shape[1], undefined, "float32");
         const tensor1 = identity.mul(2);
         const tensor2 = identity.reverse().mul(3);
@@ -273,6 +278,8 @@ describe("tensor", () => {
         "counterId",
         Pre(TensorCounterCollab)(shape, "float32")
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -399,6 +406,8 @@ describe("tensor", () => {
         "avgId",
         Pre(TensorAverageCollab)(shape, "float32")
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceAvg, "Alice");
         addEventListeners(bobAvg, "Bob");

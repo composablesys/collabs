@@ -15,6 +15,7 @@ import {
   CCounter,
   InitToken,
   Pre,
+  Optional,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom from "seedrandom";
@@ -39,6 +40,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceFlag = alice.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
       bobFlag = bob.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -129,6 +132,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceFlag = alice.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
       bobFlag = bob.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -215,6 +220,8 @@ describe("standard", () => {
     function init(initialValue: number, name = "numberId"): void {
       aliceNumber = alice.registerCollab(name, Pre(CNumber)(initialValue));
       bobNumber = bob.registerCollab(name, Pre(CNumber)(initialValue));
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -419,6 +426,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceSet = alice.registerCollab("awSetId", Pre(AddWinsCSet)());
       bobSet = bob.registerCollab("awSetId", Pre(AddWinsCSet)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceSet, "Alice");
         addEventListeners(bobSet, "Bob");
@@ -634,6 +643,8 @@ describe("standard", () => {
         "map",
         (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -816,6 +827,9 @@ describe("standard", () => {
         let aliceSet = alice.registerCollab("valueSet", Pre(AddWinsCSet)());
         let bobSet = bob.registerCollab("valueSet", Pre(AddWinsCSet)());
 
+        alice.load(Optional.empty());
+        bob.load(Optional.empty());
+
         aliceSet.add(aliceCounter);
         assert.strictEqual(aliceSet.has(aliceCounter), true);
         appGen.releaseAll();
@@ -831,6 +845,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceMap = alice.registerCollab("lwwMap", Pre(LwwCMap)());
       bobMap = bob.registerCollab("lwwMap", Pre(LwwCMap)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -1112,6 +1128,8 @@ describe("standard", () => {
         (childInitToken) =>
           new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
     });
 
     it("returns new Collab", () => {

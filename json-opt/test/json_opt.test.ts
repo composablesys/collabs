@@ -1,6 +1,11 @@
 import { assert } from "chai";
 import { JSONCollab, JSONCursor } from "../src/json_opt";
-import { CRDTApp, Pre, TestingNetworkGenerator } from "@collabs/collabs";
+import {
+  CRDTApp,
+  Optional,
+  Pre,
+  TestingNetworkGenerator,
+} from "@collabs/collabs";
 import seedrandom from "seedrandom";
 
 describe("JSONCollab", () => {
@@ -26,6 +31,8 @@ describe("JSONCollab", () => {
     bobJSON = bob.registerCollab("cursor", Pre(JSONCollab)());
     aliceCursor = new JSONCursor(aliceJSON);
     bobCursor = new JSONCursor(bobJSON);
+    alice.load(Optional.empty());
+    bob.load(Optional.empty());
   });
 
   it("is initially empty", () => {
