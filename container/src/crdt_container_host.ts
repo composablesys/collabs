@@ -19,6 +19,9 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
    * becomes true, hence user interaction with the container
    * is allowed.
    *
+   * TODO: once this emitted, metadata is also guaranteed
+   * to be present.
+   *
    * Note that this is a local, not replicated, event: it refers
    * to conditions on the local replica related to the
    * app start cycle, not something that all replicas see

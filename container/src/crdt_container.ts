@@ -56,6 +56,11 @@ interface CRDTContainerEventsRecord {
  * (but you can rely on your host blocking user input,
  * so unless you're sending messages not in response to
  * user input, you don't need to worry).
+ *
+ * TODO: due to loading possibly delivery messages, may want
+ * to wait to add event handlers until after awaiting load.
+ * Likewise, can make double-sure to block user input by waiting
+ * to connect user input to the state until after then.
  */
 export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private readonly network: CRDTContainerNetwork;
@@ -102,6 +107,7 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
       })
     );
     this.app = new CRDTApp(this.network, options);
+    this.app.on("Change", (e) => this.emit("Change", e));
 
     // Send initial metadata.
     this.setMetadata(metadata);

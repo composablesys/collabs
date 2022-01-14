@@ -1,11 +1,7 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerHost } from "@collabs/container";
+import { CRDTContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
 import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
-
-// TODO: future features:
-// - buttons to disable sending or receiving, for testing concurrency
-// - save & load button that also reports how long it takes
 
 // From containerUrl.js, included in main script.
 // (Not including it here since it's not a real file and
@@ -50,6 +46,7 @@ const iframe = document.createElement("iframe");
 iframe.src = containerUrl;
 document.body.appendChild(iframe);
 // Set title to that of the container.
+// TODO: replace with metadata
 iframe.addEventListener("load", () => {
   // contentDocument is only non-null if IFrame is from the
   // same origin.
@@ -62,7 +59,17 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab("host", collabs.Pre(ContainerHost)(iframe));
+const host = app.registerCollab("host", collabs.Pre(CRDTContainerHost)(iframe));
+
+// Block user input until the container is ready.
+console.log("Should be blocking input");
+// TODO: block input.
+host.nextEvent("ContainerReady").then(() => {
+  // TODO: unblock input
+  console.log("Should be unblocking input");
+});
+
+// TODO: use metadata (including dynamically).
 
 // Skip loading.
 app.load(collabs.Optional.empty());
@@ -98,8 +105,16 @@ function updateNetwork() {
   disconnectableNetwork.sendConnected = sendConnected.checked;
 }
 
-// const saveLoad = <HTMLButtonElement>document.getElementById("saveLoad");
-// saveLoad.addEventListener("clicked", () => {
-//   // TODO: save, recreate, then load, without repeating
-//   // message history.
-// });
+// TODO: save/load testing: button to save; button to
+// load most recent save; allow playing with the save
+// before playing back missing messages; network needs
+// to behave properly upon loading (replay only messages
+// since the last save).
+// saving should await host.compactSaveData() before actually
+// saving the app.
+// Otherwise don't compact (to prevent bugs caused by saving
+// from happening when the user doesn't expect it, e.g.,
+// in case they haven't implemented saving and it throws
+// an error). But remark that a real app should be doing so,
+// so people looking to this code for host-programming-guidance
+// know that it's missing.

@@ -192,6 +192,8 @@ export class CRDTRuntime
     } else {
       const saveMessage = CRDTRuntimeSave.decode(saveData.get());
       super.load(Optional.of(saveMessage.crdtSave));
+      // Load the network last in case it delivers messages as
+      // part of its loading process.
       this.network.load(Optional.of(saveMessage.networkSave));
     }
   }

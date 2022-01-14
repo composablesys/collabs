@@ -1,3 +1,4 @@
+import { DisconnectableNetworkSave } from "../../../generated/proto_compiled";
 import { Optional } from "../../util";
 import { BroadcastNetwork } from "../crdt-runtime";
 
@@ -6,6 +7,21 @@ import { BroadcastNetwork } from "../crdt-runtime";
  * provides the ability to disconnect its send or
  * receive functionality.  While disconnected, messages
  * are queued until reconnected.
+ *
+ * TODO: if you save while there are queued send messages,
+ * they'll be sent during the next load---possibly resent,
+ * possibly by a different user than originally sent them.
+ * This is fine as long as the inner network treats messages
+ * as opaque; duplicate messages will get filtered by the
+ * CRDTRuntime (really CRDTExtraMetaLayer). Could still be
+ * weird, but okay because this class is just for testing anyway.
+ * If you want to prevent those messages from being dispatched
+ * during load, you'll need to disconnect this before load
+ * is called.
+ * Note that delivering messages during load can cause
+ * CRDTs to send events and stuff during load.
+ * Technically not allowed (?) for a BroadcastNetwork, so
+ * this one is special.
  */
 export class DisconnectableNetwork implements BroadcastNetwork {
   readonly onreceive!: (message: Uint8Array) => void;
@@ -60,11 +76,26 @@ export class DisconnectableNetwork implements BroadcastNetwork {
   }
 
   save(): Uint8Array {
-    throw new Error("Method not implemented.");
+    const message = DisconnectableNetworkSave.create({
+      sendQueue: this.sendQueue,
+      receiveQueue: this.receiveQueue,
+      pipedNetworkSave: this.pipedNetwork.save(),
+    });
+    return DisconnectableNetworkSave.encode(message).finish();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   load(saveData: Optional<Uint8Array>): void {
-    throw new Error("Method not implemented.");
+    if (!saveData.isPresent) {
+      // Loading skipped; pass on the message.
+      this.pipedNetwork.load(saveData);
+    } else {
+      const decoded = DisconnectableNetworkSave.decode(saveData.get());
+      this.sendQueue = decoded.sendQueue;
+      this.receiveQueue = decoded.receiveQueue;
+      this.pipedNetwork.load(Optional.of(decoded.pipedNetworkSave));
+      // Deliver queued messages if we're connected.
+      this.sendConnected = this._sendConnected;
+      this.receiveConnected = this._receiveConnected;
+    }
   }
 }

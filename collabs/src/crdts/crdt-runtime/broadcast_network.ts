@@ -12,6 +12,13 @@ export interface BroadcastNetwork {
 
   send(message: Uint8Array): void;
 
+  /**
+   * TODO: shouldn't cause you to deliver messages
+   * (they should've been delivered before)?
+   * But DisconnectableNetwork is an exception because
+   * it's special/for testing.
+   * @param saveData [description]
+   */
   load(saveData: Optional<Uint8Array>): void;
   save(): Uint8Array;
 }
