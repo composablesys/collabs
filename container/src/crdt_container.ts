@@ -9,7 +9,7 @@ import {
   Optional,
   Pre,
 } from "@collabs/collabs";
-import { ContainerMessage, HostMessage } from "./message_types";
+import { ContainerMessage, HostMessage, LoadMessage } from "./message_types";
 
 class CRDTContainerNetwork implements BroadcastNetwork {
   constructor(private readonly sendFunc: (message: Uint8Array) => void) {}
@@ -46,27 +46,30 @@ interface CRDTContainerEventsRecord {
 // (e.g. causal ordering is guaranteed for us).
 
 /**
- * [constructor description]
- *
  * Replaces CRDTApp for use in a container.
+ *
+ * TODO: usage: construct (lazily okay but not desirable),
+ * registerCollab's, then call [[load]], then start using
+ * it as with CRDTApp (draw the state, process user input). Note that unlike
+ * in App, you don't need to supply the saveData, and also
+ * loading is async. Until it's done, don't send any messages
+ * (but you can rely on your host blocking user input,
+ * so unless you're sending messages not in response to
+ * user input, you don't need to worry).
  */
 export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private readonly network: CRDTContainerNetwork;
   private readonly app: CRDTApp;
-  private messagePort: MessagePort | null = null;
+  private readonly messagePort: MessagePort;
   /**
    * The ID of the last received message (-1 if none).
    *
    * This counts messages received as a result of loading.
    */
   private lastReceivedID = -1;
-  /**
-   * Queue for messages to be sent over messagePort
-   * before it exists.
-   */
-  private sendQueue: HostMessage[] | null = [];
-  private readonly loadedPromise: Promise<boolean>;
-  private loadedResolve: ((value: boolean) => void) | null = null;
+
+  private loadEarlyMessage: LoadMessage | null = null;
+  private loadResolve: ((message: LoadMessage) => void) | null = null;
 
   /**
    * [constructor description]
@@ -85,6 +88,12 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   ) {
     super();
 
+    // Setup a channel with hostWindow.
+    const channel = new MessageChannel();
+    this.messagePort = channel.port1;
+    this.messagePort.onmessage = this.messagePortReceive.bind(this);
+    hostWindow.postMessage(null, "*", [channel.port2]);
+
     this.network = new CRDTContainerNetwork((message) =>
       this.messagePortSend({
         type: "Send",
@@ -94,37 +103,12 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     );
     this.app = new CRDTApp(this.network, options);
 
-    // Listen for this.messagePort.
-    window.addEventListener(
-      "message",
-      (e) => {
-        if (e.source !== hostWindow) return;
-        // TODO: other checks?
-        this.messagePort = e.ports[0];
-        this.messagePort.onmessage = this.messagePortReceive.bind(this);
-        // Send queued messages.
-        this.sendQueue!.forEach((message) =>
-          this.messagePort!.postMessage(message)
-        );
-      },
-      { once: true }
-    );
-
-    // Setup loadedPromise.
-    this.loadedPromise = new Promise<boolean>((resolve) => {
-      this.loadedResolve = resolve;
-    });
-
     // Send initial metadata.
     this.setMetadata(metadata);
   }
 
   private messagePortSend(message: HostMessage) {
-    if (this.messagePort === null) {
-      this.sendQueue!.push(message);
-    } else {
-      this.messagePort.postMessage(message);
-    }
+    this.messagePort.postMessage(message);
   }
 
   private messagePortReceive(e: MessageEvent<ContainerMessage>) {
@@ -134,34 +118,16 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
         this.lastReceivedID = e.data.id;
         break;
       case "Load":
-        if (e.data.skipped) {
-          this.app.load(Optional.empty());
+        // Dispatch the load message where [[load]] can get
+        // it. If [[load]] was called already, we pass the message
+        // to its Promise resolver, this.loadResolve; else
+        // we store it in this.loadMessage.
+        if (this.loadResolve !== null) {
+          this.loadResolve(e.data);
+          this.loadResolve = null;
         } else {
-          // Load latestSaveData, if present.
-          // TODO: issue: loading due to saveData won't gen
-          // events, but loading due to further messages will.
-          // In part., you might see messages before loaded()
-          // resolves, but you should (?) ignore them.
-          // Need to clarify or working around this.
-          if (e.data.latestSaveData === null) {
-            this.app.load(Optional.empty());
-          } else {
-            this.app.load(Optional.of(e.data.latestSaveData));
-          }
-          // Deliver further messages (messages in the saved
-          // state that didn't make it into latestSaveData).
-          e.data.furtherMessages.forEach((message) =>
-            this.network.onreceive(message)
-          );
-          // TODO: this could be too late if something weird
-          // happens during the above forEach?
-          this.lastReceivedID = e.data.lastID;
+          this.loadEarlyMessage = e.data;
         }
-        // Let the host and our user know that loading
-        // is complete.
-        this.messagePortSend({ type: "Ready" });
-        this.loadedResolve!(e.data.skipped);
-        this.loadedResolve = null;
         break;
       default:
         throw new Error("bad e.data.type: " + e.data.type);
@@ -173,13 +139,53 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   }
 
   /**
-   * TODO: need to await this (in place of calling load)
-   * before users can do anything!
-   * @return true if a previous save was loaded (as opposed
-   * to skip loading, for a new app instance)
+   * TODO
+   *
+   * @return whether the loaded save data was nontrivial,
+   * i.e., the container continues a prior session instead
+   * of being brand new.
    */
-  loaded(): Promise<boolean> {
-    return this.loadedPromise;
+  async load(): Promise<boolean> {
+    // Get the load message from messagePortReceive.
+    let loadMessage: LoadMessage;
+    if (this.loadEarlyMessage !== null) {
+      // loadMessage already arrived.
+      loadMessage = this.loadEarlyMessage;
+    } else {
+      // Not yet arrived; await it.
+      loadMessage = await new Promise((resolve) => {
+        this.loadResolve = resolve;
+      });
+    }
+
+    if (loadMessage.skipped) {
+      this.app.load(Optional.empty());
+    } else {
+      // Load latestSaveData, if present.
+      // TODO: issue: loading due to saveData won't gen
+      // events, but loading due to further messages will.
+      // In part., you might see messages before loaded()
+      // resolves, but you should (?) ignore them.
+      // Need to clarify or working around this.
+      if (loadMessage.latestSaveData === null) {
+        this.app.load(Optional.empty());
+      } else {
+        this.app.load(Optional.of(loadMessage.latestSaveData));
+      }
+      // Deliver further messages (messages in the saved
+      // state that didn't make it into latestSaveData).
+      loadMessage.furtherMessages.forEach((message) =>
+        this.network.onreceive(message)
+      );
+      // TODO: this could be too late if something weird
+      // happens during the above forEach?
+      this.lastReceivedID = loadMessage.lastID;
+    }
+    // Let the host know that loading
+    // is complete.
+    this.messagePortSend({ type: "Ready" });
+
+    return !loadMessage.skipped;
   }
 
   setMetadata(metadata: unknown) {

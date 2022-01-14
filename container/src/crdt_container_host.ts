@@ -15,27 +15,11 @@ import { ContainerMessage, HostMessage } from "./message_types";
 
 export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
   /**
-   * Emitted once when the container is ready to be used by the
-   * user.
+   * Emitted when [[CRDTContainerHost.isContainerReady]]
+   * becomes true, hence user interaction with the container
+   * is allowed.
    *
-   * Specifically, this is emitted once all of the following are true:
-   * - The container's IFrame is loaded.
-   * - The container's [[ContainerAppSource]] has been initialized.
-   * - `this.load` has been called (including the case that
-   * it was called with an empty Optional, i.e., there is
-   * no prior save data), the container received our message
-   * with its save data, and we received an ack from the container
-   * confirming that it finished loading that save data.
-   *
-   * Until the container is ready, it cannot perform
-   * any operations, and so user inputs must be blocked/ignored.
-   * Typically, the container will block/ignore user input
-   * itself until it determines that it is ready.
-   * However, you may also choose to do so in some way that
-   * aligns with the rest of your UX (e.g., hide the IFrame
-   * until it is ready, or display it blank with a spinner).
-   *
-   * Note this is a local, not replicated, event: it refers
+   * Note that this is a local, not replicated, event: it refers
    * to conditions on the local replica related to the
    * app start cycle, not something that all replicas see
    * in sync.
@@ -52,9 +36,21 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
   MetadataChange: CollabEvent;
 }
 
+/**
+ * TODO: usage: make sure to block user input to the container
+ * before [[isContainerReady]] / "ContainerReady" event!
+ * (Sample code with nextEvent)
+ */
 export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord> {
-  private readonly messagePort: MessagePort;
+  private messagePort: MessagePort | null = null;
+  private _isContainerReady = false;
   private _metadata: Optional<unknown> = Optional.empty();
+
+  /**
+   * Queue for messages to be sent over messagePort,
+   * before it exists.
+   */
+  private sendQueue: ContainerMessage[] | null = [];
 
   /**
    * The latest save data received from the container
@@ -71,8 +67,6 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * received messages then start where they leave off.
    */
   private nextReceivedMessageID = 0;
-  // TODO: should this also include meta? If not, don't
-  // pass it to the container either.
   /**
    * Received messages that are not accounted for in
    * latestSaveData, tagged with their IDs,
@@ -92,8 +86,9 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   private furtherSentMessages: [predID: number, message: Uint8Array][] = [];
 
   /**
-   * It is assumed that `containerIFrame`'s "load" event
-   * has not yet been triggered.
+   * TODO: timing assumptions: before container is
+   * constructed in its IFrame (e.g., in the same thread
+   * as the IFrame as created, so it's not loaded yet).
    *
    * @param containerIFrame [description]
    */
@@ -103,30 +98,43 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   ) {
     super(initToken);
 
-    const channel = new MessageChannel();
-    this.messagePort = channel.port1;
-    this.messagePort.onmessage = this.messagePortReceive.bind(this);
-    containerIFrame.addEventListener(
-      "load",
-      () => {
-        // TODO: targetOrigin (get as constructor arg?)
-        // TODO: can we guarantee contentWindow will be non-null
-        // once onload?  It happens when the IFrame is attached
-        // to the document; is that a prerequisite for loading as
-        // well?
-        containerIFrame.contentWindow!.postMessage(null, "*", [channel.port2]);
+    // Listen for this.messagePort.
+    window.addEventListener(
+      "message",
+      (e) => {
+        // TODO: what if contentWindow is not accessible, due to
+        // same-origin policy, or because it's still null
+        // for some reason?
+        if (e.source !== containerIFrame.contentWindow) return;
+        // TODO: other checks?
+        this.messagePort = e.ports[0];
+        // Send queued messages.
+        this.sendQueue!.forEach((message) =>
+          this.messagePort!.postMessage(message)
+        );
+        this.sendQueue = null;
+        // Begin receiving.
+        // Do this last just in case it starts receiving
+        // synchronously (although I'm guessing the spec doesn't
+        // actually allow that).
+        this.messagePort.onmessage = this.messagePortReceive.bind(this);
       },
       { once: true }
     );
   }
 
   private messagePortSend(message: ContainerMessage) {
-    this.messagePort.postMessage(message);
+    if (this.messagePort === null) {
+      this.sendQueue!.push(message);
+    } else {
+      this.messagePort.postMessage(message);
+    }
   }
 
   private messagePortReceive(e: MessageEvent<HostMessage>) {
     switch (e.data.type) {
       case "Ready":
+        this._isContainerReady = true;
         this.emit("ContainerReady", {
           meta: { isLocalEcho: true, sender: this.runtime.replicaID },
         });
@@ -177,6 +185,31 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
       this.furtherReceivedMessages.push([id, message]);
     }
     // Else the container already processed it.
+  }
+
+  /**
+   * Whether the container is ready to be used by the
+   * user.
+   *
+   * Specifically, this becomes true once all of the following are true:
+   * - The container's IFrame is loaded.
+   * - The container's [[ContainerAppSource]] has been initialized.
+   * - [[load]] has been called (including the case that
+   * it was called with an empty Optional, i.e., there is
+   * no prior save data), the container received our message
+   * with its save data, and we received an ack from the container
+   * confirming that it finished loading that save data.
+   *
+   * Until the container is ready, you MUST block user inputs
+   * for the container.
+   * E.g., hide the IFrame (but not in a way that prevents
+   * loading), or overlay it with a blur and a spinner.
+   *
+   * A [[CRDTContainerHostEventsRecord.ContainerReady]] event
+   * is emitted immediately after this becomes true.
+   */
+  get isContainerReady(): boolean {
+    return this._isContainerReady;
   }
 
   /**
