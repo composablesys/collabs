@@ -28,9 +28,11 @@ import { CRDTContainer } from "@collabs/container";
   // Refresh the display when the Collab state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
-  container.on("Change", () => {
+  function refreshDisplay() {
     display.innerHTML = counterCollab.value.toString();
-  });
+  }
+  container.on("Change", refreshDisplay);
+  refreshDisplay(); // Display initial state.
 
   // Change counterCollab's value on button clicks.
   // Note that we need not refresh the display here, since Change

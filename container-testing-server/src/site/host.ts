@@ -7,7 +7,98 @@ import { WebSocketNetwork } from "@collabs/ws-client";
 // Webpack will get confused.)
 declare const containerUrl: string;
 
-// Setup our app.
+const doLoad = window.location.search === "?load=true";
+if (doLoad) {
+  // Get rid of the GET parameter in the address bar,
+  // so it doesn't automatically happen on refresh.
+  window.history.pushState(
+    {},
+    document.title,
+    window.location.origin + window.location.pathname
+  );
+}
+
+// --- Host controls ---
+
+// Connectedness buttons.
+const connected = <HTMLInputElement>document.getElementById("connected");
+const sendConnected = <HTMLInputElement>(
+  document.getElementById("sendConnected")
+);
+const receiveConnected = <HTMLInputElement>(
+  document.getElementById("receiveConnected")
+);
+
+connected.addEventListener("click", () => {
+  // connected just forces the state of the others.
+  sendConnected.checked = connected.checked;
+  receiveConnected.checked = connected.checked;
+  updateNetwork();
+});
+sendConnected.addEventListener("click", updateNetwork);
+receiveConnected.addEventListener("click", updateNetwork);
+function updateNetwork() {
+  // connected state.
+  if (sendConnected.checked !== receiveConnected.checked) {
+    connected.indeterminate = true;
+  } else {
+    connected.indeterminate = false;
+    connected.checked = sendConnected.checked;
+  }
+  // Affect network.
+  disconnectableNetwork.receiveConnected = receiveConnected.checked;
+  disconnectableNetwork.sendConnected = sendConnected.checked;
+}
+
+// Save and load buttons.
+const saveButton = <HTMLButtonElement>document.getElementById("save");
+const loadButton = <HTMLButtonElement>document.getElementById("load");
+
+saveButton.addEventListener("click", async function () {
+  console.log("Saving to sessionStorage...");
+
+  // Make sure the container actually uses its save function.
+  await host.compactSaveData();
+  // Get saved state.
+  const saveData = app.save();
+  // Store in sessionStorage.
+  try {
+    window.sessionStorage.setItem(
+      containerUrl,
+      collabs.bytesAsString(saveData)
+    );
+  } catch (err) {
+    console.log("Save error: ");
+    console.log(err);
+  }
+
+  loadButton.disabled = false;
+  console.log("Saved.");
+});
+loadButton.addEventListener("click", function () {
+  // Reload the page with ?load=true.
+  window.location.href += "?load=true";
+});
+
+// Reset button.
+const resetButton = <HTMLButtonElement>document.getElementById("reset");
+resetButton.addEventListener("click", async function () {
+  // Ask for confirmation.
+  if (
+    confirm(
+      "Confirm: Reset.\nThis will delete all messages from the server, clear sessionStorage, and refresh the page."
+    )
+  ) {
+    // Fetch reset.html on the server to refresh it.
+    await fetch("reset.html");
+    // Clear sessionStorage.
+    window.sessionStorage.removeItem(containerUrl);
+    // Refresh this page.
+    window.location.reload();
+  }
+});
+
+// --- Setup our app ---
 const wsAddr = location.origin.replace(/^http/, "ws");
 const network = new WebSocketNetwork(wsAddr, "");
 const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
@@ -44,66 +135,21 @@ host.nextEvent("ContainerReady").then(() => {
 
 // TODO: use metadata (including dynamically).
 
-// Skip loading.
-app.load(collabs.Optional.empty());
+// Load if needed.
+const sessionStorageSave = window.sessionStorage.getItem(containerUrl);
+loadButton.disabled = sessionStorageSave === null;
 
-// Host controls
-
-const connected = <HTMLInputElement>document.getElementById("connected");
-const sendConnected = <HTMLInputElement>(
-  document.getElementById("sendConnected")
-);
-const receiveConnected = <HTMLInputElement>(
-  document.getElementById("receiveConnected")
-);
-
-connected.addEventListener("click", () => {
-  // connected just forces the state of the others.
-  sendConnected.checked = connected.checked;
-  receiveConnected.checked = connected.checked;
-  updateNetwork();
-});
-sendConnected.addEventListener("click", updateNetwork);
-receiveConnected.addEventListener("click", updateNetwork);
-function updateNetwork() {
-  // connected state.
-  if (sendConnected.checked !== receiveConnected.checked) {
-    connected.indeterminate = true;
+if (doLoad) {
+  console.log("Loading from sessionStorage...");
+  if (sessionStorageSave === null) {
+    console.log("Load error: no save found.");
+    app.load(collabs.Optional.empty());
   } else {
-    connected.indeterminate = false;
-    connected.checked = sendConnected.checked;
+    app.load(collabs.Optional.of(collabs.stringAsBytes(sessionStorageSave)));
+    console.log("Loaded.");
   }
-  // Affect network.
-  disconnectableNetwork.receiveConnected = receiveConnected.checked;
-  disconnectableNetwork.sendConnected = sendConnected.checked;
+} else {
+  app.load(collabs.Optional.empty());
 }
 
-const resetButton = <HTMLButtonElement>document.getElementById("reset");
-resetButton.addEventListener("click", () => {
-  // Ask for confirmation.
-  if (
-    confirm(
-      "Confirm: Reset Server.\nThis will delete all messages from the server and refresh the page."
-    )
-  ) {
-    // Fetch reset.html on the server to refresh it.
-    fetch("reset.html").then(() => {
-      // Refresh this page.
-      window.location.reload();
-    });
-  }
-});
-
-// TODO: save/load testing: button to save; button to
-// load most recent save; allow playing with the save
-// before playing back missing messages; network needs
-// to behave properly upon loading (replay only messages
-// since the last save).
-// saving should await host.compactSaveData() before actually
-// saving the app.
-// Otherwise don't compact (to prevent bugs caused by saving
-// from happening when the user doesn't expect it, e.g.,
-// in case they haven't implemented saving and it throws
-// an error). But remark that a real app should be doing so,
-// so people looking to this code for host-programming-guidance
-// know that it's missing.
+// TODO: real host should be calling compactSaveData occasionally.

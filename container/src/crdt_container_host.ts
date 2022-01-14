@@ -169,11 +169,22 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         // Resolve the Promise returned by the
         // original compactSaveData call.
         if (e.data.requestID !== undefined) {
-          const resolve = this.compactSaveDataResolves.get(e.data.requestID);
-          if (resolve !== undefined) {
+          const resolveReject = this.compactSaveDataResolves.get(
+            e.data.requestID
+          );
+          if (resolveReject !== undefined) {
             this.compactSaveDataResolves.delete(e.data.requestID);
-            resolve();
+            resolveReject[0]();
           }
+        }
+        break;
+      case "SaveRequestFailed":
+        const resolveReject = this.compactSaveDataResolves.get(
+          e.data.requestID
+        );
+        if (resolveReject !== undefined) {
+          this.compactSaveDataResolves.delete(e.data.requestID);
+          resolveReject[1](e.data.error);
         }
         break;
       default:
@@ -234,7 +245,10 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   }
 
   private nextCompactSaveDataID = 0;
-  private compactSaveDataResolves = new Map<number, () => void>();
+  private compactSaveDataResolves = new Map<
+    number,
+    [resolve: () => void, reject: (reason: unknown) => void]
+  >();
   /**
    * TODO: asks the container for its saveData and uses
    * that in our own save message instead of
@@ -248,6 +262,9 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * because the container may have sent/received more messages
    * during the async wait.
    *
+   * Rejects if the container's call to save failed, with
+   * the container's error as reason.
+   *
    * TODO: advice on when to do? Measurement methods;
    * setInterval; how to remove when done with the container?
    *
@@ -256,9 +273,9 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   compactSaveData(): Promise<void> {
     const requestID = this.nextCompactSaveDataID++;
     this.messagePortSend({ type: "SaveRequest", requestID });
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       // resolve will be called by the "saved" message handler.
-      this.compactSaveDataResolves.set(requestID, resolve);
+      this.compactSaveDataResolves.set(requestID, [resolve, reject]);
     });
   }
 

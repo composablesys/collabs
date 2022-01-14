@@ -17,14 +17,23 @@ export interface SavedMessage {
   type: "Saved";
   saveData: Uint8Array;
   lastReceivedID: number;
+  // Optional in case we later want to allow the container
+  // to save on its own initiative.
   requestID?: number;
+}
+
+export interface SaveRequestFailedMessage {
+  type: "SaveRequestFailed";
+  requestID: number;
+  error: unknown;
 }
 
 export type HostMessage =
   | ReadyMessage
   | MetadataMessage
   | SendMessage
-  | SavedMessage;
+  | SavedMessage
+  | SaveRequestFailedMessage;
 
 export interface ReceiveMessage {
   type: "Receive";

@@ -135,8 +135,25 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
           this.loadEarlyMessage = e.data;
         }
         break;
+      case "SaveRequest":
+        try {
+          const saveData = this.app.save();
+          this.messagePortSend({
+            type: "Saved",
+            saveData,
+            lastReceivedID: this.lastReceivedID,
+            requestID: e.data.requestID,
+          });
+        } catch (error) {
+          this.messagePortSend({
+            type: "SaveRequestFailed",
+            requestID: e.data.requestID,
+            error,
+          });
+        }
+        break;
       default:
-        throw new Error("bad e.data.type: " + e.data.type);
+        throw new Error("bad e.data.type: " + e.data);
     }
   }
 
