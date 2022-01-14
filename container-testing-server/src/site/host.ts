@@ -42,8 +42,10 @@ const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
 const app = new collabs.CRDTApp(disconnectableNetwork, { batchingStrategy });
 
 // Add the container in an IFrame.
+// Initially hidden so that user input is blocked.
 const iframe = document.createElement("iframe");
 iframe.src = containerUrl;
+iframe.style.display = "none";
 document.body.appendChild(iframe);
 // Set title to that of the container.
 // TODO: replace with metadata
@@ -61,12 +63,11 @@ iframe.addEventListener("load", () => {
 // Attach the container.
 const host = app.registerCollab("host", collabs.Pre(CRDTContainerHost)(iframe));
 
-// Block user input until the container is ready.
-console.log("Should be blocking input");
-// TODO: block input.
+// Show the container once it's ready.
 host.nextEvent("ContainerReady").then(() => {
-  // TODO: unblock input
-  console.log("Should be unblocking input");
+  const loadingDiv = <HTMLDivElement>document.getElementById("loading");
+  document.body.removeChild(loadingDiv);
+  iframe.style.display = "block";
 });
 
 // TODO: use metadata (including dynamically).
