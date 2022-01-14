@@ -10,9 +10,7 @@
 
 where CONTAINER is a container file (or URL, if --url is set). Then navigate to the printed link ([http://localhost:3000](http://localhost:3000) by default).
 
-The "My Container" page runs the container, using the server to connect clients. Try opening that page in multiple tabs.
-
-The Matrix command can be entered into a chat in a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)). The `--https` option is required. The command creates a widget that runs the container, using the Matrix chat to connect clients. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
+The home page (index.html) runs the container, using the server to connect clients. Try opening that page in multiple tabs.
 
 ### Options
 

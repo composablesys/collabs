@@ -34,7 +34,6 @@
   "dependencies": {
     "@collabs/collabs": "0.2.1",
     "@collabs/container": "0.2.1",
-    "@collabs/matrix-widget": "0.2.1",
     "@collabs/ws-client": "0.2.1",
     "@collabs/ws-server": "0.2.1",
     "commander": "^8.2.0",

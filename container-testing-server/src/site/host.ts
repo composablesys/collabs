@@ -1,48 +1,20 @@
 import * as collabs from "@collabs/collabs";
 import { CRDTContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
-import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
 
-// From containerUrl.js, included in main script.
+// From containerUrl.js, included in index.html.
 // (Not including it here since it's not a real file and
 // Webpack will get confused.)
 declare const containerUrl: string;
-// console.log("containerUrl: " + containerUrl);
 
-// Extract the type of network to use from the URL's
-// "network" GET parameter.
-const urlParams = new URLSearchParams(window.location.search);
-if (!urlParams.has("network")) {
-  throw new Error('URL missing "network" GET parameter.');
-}
-const networkType = urlParams.get("network")!;
-// console.log("networkType: " + networkType);
-
-// Setup Runtime.
-let network: collabs.BroadcastNetwork;
-let batchingStrategy: collabs.BatchingStrategy;
-switch (networkType) {
-  case "ws": {
-    const wsAddr = location.origin.replace(/^http/, "ws");
-    // TODO: shorter group name than containerUrl?
-    network = new WebSocketNetwork(wsAddr, "");
-    batchingStrategy = new collabs.RateLimitBatchingStrategy(0);
-    break;
-  }
-  case "matrix":
-    network = new MatrixWidgetNetwork(
-      "container-testing-server." + containerUrl
-    );
-    batchingStrategy = new collabs.RateLimitBatchingStrategy(500);
-    break;
-  default:
-    throw new Error('URL "network" GET parameter invalid: "${networkType}"');
-}
+// Setup our app.
+const wsAddr = location.origin.replace(/^http/, "ws");
+const network = new WebSocketNetwork(wsAddr, "");
 const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
-const app = new collabs.CRDTApp(disconnectableNetwork, { batchingStrategy });
+const app = new collabs.CRDTApp(disconnectableNetwork);
 
-// Add the container in an IFrame.
-// Initially hidden so that user input is blocked.
+// Add the container in an IFrame,
+// initially hidden so that user input is blocked.
 const iframe = document.createElement("iframe");
 iframe.src = containerUrl;
 iframe.style.display = "none";
@@ -75,7 +47,7 @@ host.nextEvent("ContainerReady").then(() => {
 // Skip loading.
 app.load(collabs.Optional.empty());
 
-// App controls
+// Host controls
 
 const connected = <HTMLInputElement>document.getElementById("connected");
 const sendConnected = <HTMLInputElement>(
@@ -105,6 +77,22 @@ function updateNetwork() {
   disconnectableNetwork.receiveConnected = receiveConnected.checked;
   disconnectableNetwork.sendConnected = sendConnected.checked;
 }
+
+const resetButton = <HTMLButtonElement>document.getElementById("reset");
+resetButton.addEventListener("click", () => {
+  // Ask for confirmation.
+  if (
+    confirm(
+      "Confirm: Reset Server.\nThis will delete all messages from the server and refresh the page."
+    )
+  ) {
+    // Fetch reset.html on the server to refresh it.
+    fetch("reset.html").then(() => {
+      // Refresh this page.
+      window.location.reload();
+    });
+  }
+});
 
 // TODO: save/load testing: button to save; button to
 // load most recent save; allow playing with the save
