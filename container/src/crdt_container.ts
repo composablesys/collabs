@@ -1,17 +1,23 @@
 import {
   BatchingStrategy,
   BroadcastNetwork,
+  Collab,
+  CollabEvent,
   CRDTApp,
+  CRDTRuntime,
+  EventEmitter,
   Optional,
+  Pre,
 } from "@collabs/collabs";
+import { ContainerMessage, HostMessage } from "./message_types";
 
-class ContainerNetwork implements BroadcastNetwork {
-  constructor(private readonly messagePort: MessagePort) {}
+class CRDTContainerNetwork implements BroadcastNetwork {
+  constructor(private readonly sendFunc: (message: Uint8Array) => void) {}
 
   onreceive!: (message: Uint8Array) => void;
 
   send(message: Uint8Array): void {
-    this.messagePort.postMessage({ type: "send", message });
+    this.sendFunc(message);
   }
 
   save(): Uint8Array {
@@ -21,66 +27,166 @@ class ContainerNetwork implements BroadcastNetwork {
   load(_saveData: Optional<Uint8Array>): void {}
 }
 
-// TODO: don't use a class since it's just wrapping a single
-// function (poor JS style).
-// TODO: loading: need to coordinate with consumers so that
-// they don't do Collab ops before loading, unless it's not
-// going to load.
-// Unless we expect the host to block GUI input and trust
-// the container not to do ops except on GUI input?
-// Since the host needs to wait a bit for loading anyway.
-// (Is this possible with an IFrame, though?)
-// TODO: need to do this await before the parent receives onload.
-// Unless we add an extra message?
-export class CRDTContainer {
+interface CRDTContainerEventsRecord {
   /**
-   * Not instantiable.
+   * Emitted each time the container's state is changed and
+   * is in a reasonable user-facing state
+   * (so not in the middle of a transaction).
+   *
+   * A simple way to keep a GUI in sync with the container is to
+   * do `container.on("Change", refreshDisplay)`.
+   *
+   * Identical to [[CRDTApp]]'s "Change" event.
    */
-  private constructor() {}
+  Change: CollabEvent;
+}
+
+// Opt: is replicaID needed?
+// Opt: skip expensive CRDTExtraMetadata where possible
+// (e.g. causal ordering is guaranteed for us).
+
+/**
+ * [constructor description]
+ *
+ * Replaces CRDTApp for use in a container.
+ */
+export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
+  private readonly network: CRDTContainerNetwork;
+  private readonly app: CRDTApp;
+  private messagePort: MessagePort | null = null;
+  /**
+   * The ID of the last received message (-1 if none).
+   *
+   * This counts messages received as a result of loading.
+   */
+  private lastReceivedID = -1;
+  /**
+   * Queue for messages to be sent over messagePort
+   * before it exists.
+   */
+  private sendQueue: HostMessage[] | null = [];
+  private readonly loadedPromise: Promise<boolean>;
+  private loadedResolve: ((value: boolean) => void) | null = null;
 
   /**
-   * TODO: caveat: won't return until after the window
-   * is loaded.  So don't use window.onload after awaiting
-   * this (it will never be triggered).
-   * @param  hostWindow   [description]
-   * @param  batchOptions [description]
-   * @return              [description]
+   * [constructor description]
+   * @param hostWindow [description]
+   * @param metadata   [description]
+   * @param options    [description] Default BatchingStrategy
+   * is recommended (let the host decide whether to batch more)
    */
-  static async newContainer(
+  constructor(
     hostWindow: Window,
-    batchingStrategy?: BatchingStrategy
-  ): Promise<CRDTApp> {
-    const messagePort = await new Promise<MessagePort>((resolve) => {
-      window.addEventListener("message", (e) => {
+    metadata: unknown,
+    options?: {
+      batchingStrategy?: BatchingStrategy;
+      debugReplicaId?: string;
+    }
+  ) {
+    super();
+
+    this.network = new CRDTContainerNetwork((message) =>
+      this.messagePortSend({
+        type: "Send",
+        message,
+        predID: this.lastReceivedID,
+      })
+    );
+    this.app = new CRDTApp(this.network, options);
+
+    // Listen for this.messagePort.
+    window.addEventListener(
+      "message",
+      (e) => {
         if (e.source !== hostWindow) return;
         // TODO: other checks?
-        resolve(e.ports[0]);
-        // TODO: remove listener?
-      });
+        this.messagePort = e.ports[0];
+        this.messagePort.onmessage = this.messagePortReceive.bind(this);
+        // Send queued messages.
+        this.sendQueue!.forEach((message) =>
+          this.messagePort!.postMessage(message)
+        );
+      },
+      { once: true }
+    );
+
+    // Setup loadedPromise.
+    this.loadedPromise = new Promise<boolean>((resolve) => {
+      this.loadedResolve = resolve;
     });
-    const network = new ContainerNetwork(messagePort);
-    const app = new CRDTApp(network, { batchingStrategy });
-    messagePort.onmessage = (e) => {
-      switch (e.data.type) {
-        case "receive":
-          network.onreceive(e.data.message);
-          break;
-        case "load":
-          const saveData = <Uint8Array | null>e.data.saveData;
-          if (saveData === null) {
-            app.load(Optional.empty());
+
+    // Send initial metadata.
+    this.setMetadata(metadata);
+  }
+
+  private messagePortSend(message: HostMessage) {
+    if (this.messagePort === null) {
+      this.sendQueue!.push(message);
+    } else {
+      this.messagePort.postMessage(message);
+    }
+  }
+
+  private messagePortReceive(e: MessageEvent<ContainerMessage>) {
+    switch (e.data.type) {
+      case "Receive":
+        this.network.onreceive(e.data.message);
+        this.lastReceivedID = e.data.id;
+        break;
+      case "Load":
+        if (e.data.skipped) {
+          this.app.load(Optional.empty());
+        } else {
+          // Load latestSaveData, if present.
+          // TODO: issue: loading due to saveData won't gen
+          // events, but loading due to further messages will.
+          // In part., you might see messages before loaded()
+          // resolves, but you should (?) ignore them.
+          // Need to clarify or working around this.
+          if (e.data.latestSaveData === null) {
+            this.app.load(Optional.empty());
           } else {
-            app.load(Optional.of(saveData));
+            this.app.load(Optional.of(e.data.latestSaveData));
           }
-          messagePort.postMessage({ type: "loadComplete" });
-          // TODO: let this side's user know that loading is
-          // complete, either by waiting to return from newApp
-          // until this happens, or using an event/promise.
-          break;
-        default:
-          throw new Error("bad e.data.type: " + e.data.type);
-      }
-    };
-    return app;
+          // Deliver further messages (messages in the saved
+          // state that didn't make it into latestSaveData).
+          e.data.furtherMessages.forEach((message) =>
+            this.network.onreceive(message)
+          );
+          // TODO: this could be too late if something weird
+          // happens during the above forEach?
+          this.lastReceivedID = e.data.lastID;
+        }
+        // Let the host and our user know that loading
+        // is complete.
+        this.messagePortSend({ type: "Ready" });
+        this.loadedResolve!(e.data.skipped);
+        this.loadedResolve = null;
+        break;
+      default:
+        throw new Error("bad e.data.type: " + e.data.type);
+    }
+  }
+
+  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
+    return this.app.registerCollab(name, preCollab);
+  }
+
+  /**
+   * TODO: need to await this (in place of calling load)
+   * before users can do anything!
+   * @return true if a previous save was loaded (as opposed
+   * to skip loading, for a new app instance)
+   */
+  loaded(): Promise<boolean> {
+    return this.loadedPromise;
+  }
+
+  setMetadata(metadata: unknown) {
+    this.messagePortSend({ type: "Metadata", metadata });
+  }
+
+  get runtime(): CRDTRuntime {
+    return this.app.runtime;
   }
 }

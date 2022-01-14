@@ -140,28 +140,27 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         );
         break;
       case "Send":
-        const message = <Uint8Array>e.data.message;
-        this.furtherSentMessages.push([<number>e.data.predID, message]);
+        const message = e.data.message;
+        this.furtherSentMessages.push([e.data.predID, message]);
         this.sendPrimitive(message);
         break;
       case "Saved":
-        this.latestSaveData = <Uint8Array>e.data.saveData;
+        this.latestSaveData = e.data.saveData;
         // Trim further messages that are accounted for by the
         // save: all sent messages, and all received messages
         // with id <= e.data.lastReceivedID.
         this.furtherSentMessages.splice(0);
         if (this.furtherReceivedMessages.length > 0) {
           const startID = this.furtherReceivedMessages[0][0];
-          const deleteCount = <number>e.data.lastReceivedID - startID + 1;
+          const deleteCount = e.data.lastReceivedID - startID + 1;
           this.furtherReceivedMessages.splice(0, deleteCount);
         }
         // Resolve the Promise returned by the
         // original compactSaveData call.
-        const requestID = <number | undefined>e.data.requestID;
-        if (requestID !== undefined) {
-          const resolve = this.compactSaveDataResolves.get(requestID);
+        if (e.data.requestID !== undefined) {
+          const resolve = this.compactSaveDataResolves.get(e.data.requestID);
           if (resolve !== undefined) {
-            this.compactSaveDataResolves.delete(requestID);
+            this.compactSaveDataResolves.delete(e.data.requestID);
             resolve();
           }
         }
@@ -294,6 +293,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         skipped: false,
         latestSaveData: this.latestSaveData,
         furtherMessages: decoded.furtherMessages,
+        lastID: decoded.furtherMessages.length - 1,
       });
     }
   }

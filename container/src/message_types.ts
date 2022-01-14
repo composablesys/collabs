@@ -37,12 +37,18 @@ export interface SaveRequestMessage {
   requestID: number;
 }
 
-export interface LoadMessage {
-  type: "Load";
-  skipped: boolean;
-  latestSaveData?: Uint8Array | null;
-  furtherMessages?: Uint8Array[];
-}
+export type LoadMessage =
+  | {
+      type: "Load";
+      skipped: true;
+    }
+  | {
+      type: "Load";
+      skipped: false;
+      latestSaveData: Uint8Array | null;
+      furtherMessages: Uint8Array[];
+      lastID: number;
+    };
 
 export type ContainerMessage =
   | ReceiveMessage
