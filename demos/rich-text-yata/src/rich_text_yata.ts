@@ -19,12 +19,54 @@ import Quill, { DeltaOperation } from "quill";
     collabs.Pre(YataLinear)<string>("", ["\n"])
   );
 
-  await container.load();
-
   // const Quill: any = Q;
   var quill = new Quill("#editor", {
     theme: "snow",
   });
+  let Delta = Quill.import("delta");
+
+  await container.load();
+
+  // Display loaded state by syncing it to Quill.
+  quill.updateContents(
+    new Delta({
+      ops: clientText.toArray(),
+    })
+  );
+
+  // Reflect Collab operations in Quill.
+  clientText.on(
+    "Insert",
+    ({ idx, meta, newOp, uid }: YataInsertEvent<string>) => {
+      if (!meta.isLocalEcho) {
+        const formats: Record<string, any> = {};
+        const it = newOp.attributes.entries();
+        let result = it.next();
+        while (!result.done) {
+          formats[result.value[0] as string] = result.value[1];
+          result = it.next();
+        }
+        quill.updateContents(
+          new Delta().retain(idx).insert(newOp.content, formats)
+        );
+      }
+    }
+  );
+
+  clientText.on("Delete", ({ idx, uid, meta }: YataDeleteEvent<string>) => {
+    if (!meta.isLocalEcho) {
+      quill.updateContents(new Delta().retain(idx).delete(1));
+    }
+  });
+
+  clientText.on(
+    "FormatExisting",
+    ({ idx, uid, key, value, meta }: YataFormatExistingEvent<string>) => {
+      quill.updateContents(new Delta().retain(idx).retain(1, { [key]: value }));
+    }
+  );
+
+  // Respond to user input from Quill.
   interface IDelta {
     ops: DeltaOperation[];
   }
@@ -83,44 +125,4 @@ import Quill, { DeltaOperation } from "quill";
       });
     }
   });
-
-  let Delta = Quill.import("delta");
-
-  clientText.on(
-    "Insert",
-    ({ idx, meta, newOp, uid }: YataInsertEvent<string>) => {
-      if (!meta.isLocalEcho) {
-        const formats: Record<string, any> = {};
-        const it = newOp.attributes.entries();
-        let result = it.next();
-        while (!result.done) {
-          formats[result.value[0] as string] = result.value[1];
-          result = it.next();
-        }
-        quill.updateContents(
-          new Delta().retain(idx).insert(newOp.content, formats)
-        );
-      }
-    }
-  );
-
-  clientText.on("Delete", ({ idx, uid, meta }: YataDeleteEvent<string>) => {
-    if (!meta.isLocalEcho) {
-      quill.updateContents(new Delta().retain(idx).delete(1));
-    }
-  });
-
-  clientText.on(
-    "FormatExisting",
-    ({ idx, uid, key, value, meta }: YataFormatExistingEvent<string>) => {
-      quill.updateContents(new Delta().retain(idx).retain(1, { [key]: value }));
-    }
-  );
-
-  // Display loaded state by syncing it to Quill.
-  quill.updateContents(
-    new Delta({
-      ops: clientText.toArray(),
-    })
-  );
 })();

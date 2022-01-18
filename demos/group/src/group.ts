@@ -8,8 +8,6 @@ import $ from "jquery";
 
   let clientGroup = container.registerCollab("group", collabs.Pre(GroupCRDT)());
 
-  await container.load();
-
   var ops1 = document.getElementsByClassName("btn-ops-1");
   var ops2 = document.getElementsByClassName("btn-ops-2");
   var ops3 = document.getElementsByClassName("btn-ops-3");
@@ -26,6 +24,11 @@ import $ from "jquery";
     imgCMU!.style.transform = `translate(${state.X1}px,${state.Y1}px) rotate(${state.rotate1}deg) scaleY(${state.reflectX1}) scaleX(${state.reflectY1})`; // translate(-50%, -50%)`;
     imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
   };
+
+  await container.load();
+
+  // Display loaded state.
+  updateImg();
 
   clientGroup.on("Any", () => {
     updateImg();
@@ -169,7 +172,4 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown2 = false;
     });
-
-  // Display loaded state.
-  updateImg();
 })();

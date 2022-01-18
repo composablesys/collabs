@@ -290,6 +290,13 @@ export function setupTiles(container: CRDTContainer) {
     )
   );
 
+  // Once loaded, display the loaded state and add event
+  // handlers that should only be added after loading.
+  container.nextEvent("Load").then(() => {
+    refreshAppExistingDiv();
+    existingApps.on("Any", refreshAppExistingDiv);
+  });
+
   const appExistingDiv = <HTMLDivElement>(
     document.getElementById("appExistingDiv")
   );
@@ -407,8 +414,7 @@ export function setupTiles(container: CRDTContainer) {
     tileParent.removeChild(e.value.dom);
   });
   // No need to listen on Add events; the valueConstructor
-  // handles added values (valueConstructor calls and Add events
-  // are equivalent, for DeletingMutCSet).
+  // handles added values (including ones added during loading).
 
   function addTile(app: CImmutable<{ url: string; title: string }>) {
     // TODO: set initial rect intelligently.
@@ -435,10 +441,4 @@ export function setupTiles(container: CRDTContainer) {
       return new CRDTContainerHost(contentInitToken, iframe);
     };
   }
-
-  // Once loaded, display the loaded state.
-  container.nextEvent("Load").then(() => {
-    refreshAppExistingDiv();
-    existingApps.on("Any", refreshAppExistingDiv);
-  });
 }

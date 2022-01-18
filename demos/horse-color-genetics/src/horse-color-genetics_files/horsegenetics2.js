@@ -1941,8 +1941,8 @@ async function collabsSetup() {
 
   await container.load();
 
-  container.on("Change", evaluateGenetics);
   evaluateGenetics();
+  container.on("Change", evaluateGenetics);
 }
 
 function imageSrc(filename) {

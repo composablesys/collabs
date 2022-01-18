@@ -9,7 +9,13 @@ import { CRDTContainer } from "@collabs/container";
   await container.load();
 
   const textarea = document.getElementById("textarea") as HTMLTextAreaElement;
-  textarea.value = text.toString();
+  textarea.value = text.toString(); // Use loaded state here.
+
+  // Display text changes
+  text.on("Any", () => {
+    textarea.value = text.toString();
+    updateCursor();
+  });
 
   // TODO: shared cursors
 
@@ -120,11 +126,5 @@ import { CRDTContainer } from "@collabs/container";
   });
   textarea.addEventListener("drop", (e) => {
     e.preventDefault();
-  });
-
-  // Display text changes
-  text.on("Any", () => {
-    textarea.value = text.toString();
-    updateCursor();
   });
 })();

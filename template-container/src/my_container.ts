@@ -1,42 +1,51 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 
-// Async so we can await ContainerAppSource.newApp.
 (async function () {
-  // Create a App intended for use within containers.
-  const runtime = await ContainerAppSource.newApp(window.parent);
+  // Create a CRDTContainer - like CRDTApp, but intended for
+  // use within containers.
+  const container = new CRDTContainer(window.parent, {});
 
-  // Now setup your program, using runtime.
-  // Note that you you shouldn't try to load saveData like you
-  // would in a non-container app;
-  // ContainerAppSource will do that for you.
+  // Now setup your program, using container.
 
   // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
+  // Remember to do `await container.load()` at some point
+  // and then display the resulting state.
 
   // Register collaborative data types.
-  const counter = runtime.registerCollab(
+  const counterCollab = container.registerCollab(
     "counter",
     collabs.Pre(collabs.CCounter)()
   );
 
+  // Wait for the container to load the previous saved state,
+  // if any.
+  // Note that unlike CRDTApp.load, we don't need to provide the
+  // save data ourselves.
+  await container.load();
+
+  // Display the loaded state.
+  refreshDisplay();
+
   // Refresh the display when the Collab state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
-  runtime.on("Change", () => {
-    display.innerHTML = counter.value.toString();
-  });
+  function refreshDisplay() {
+    display.innerHTML = counterCollab.value.toString();
+  }
+  container.on("Change", refreshDisplay);
 
-  // Change counter's value on button clicks.
+  // Change counterCollab's value on button clicks.
   // Note that we need not refresh the display here, since Change
   // events are also triggered by local operations.
   document.getElementById("increment")!.onclick = () => {
-    counter.add(100);
+    counterCollab.add(100);
   };
   document.getElementById("decrement")!.onclick = () => {
-    counter.add(-100);
+    counterCollab.add(-100);
   };
   document.getElementById("reset")!.onclick = () => {
-    counter.reset();
+    counterCollab.reset();
   };
 })();

@@ -371,21 +371,6 @@ class MinesweeperCollab extends collabs.CObject {
     }
   }
 
-  // Settings inputs
-  let widthInput = document.getElementById("width") as HTMLInputElement;
-  let heightInput = document.getElementById("height") as HTMLInputElement;
-  let percentMinesInput = document.getElementById(
-    "percentMines"
-  ) as HTMLInputElement;
-
-  function settingsFromInput(): GameSettings {
-    return {
-      width: widthInput.valueAsNumber,
-      height: heightInput.valueAsNumber,
-      fractionMines: percentMinesInput.valueAsNumber / 100,
-    };
-  }
-
   const container = new CRDTContainer(window.parent, {});
 
   const currentGame = container.registerCollab(
@@ -409,12 +394,29 @@ class MinesweeperCollab extends collabs.CObject {
 
   await container.load();
 
+  // Display loaded state.
+  invalidate();
+
   container.on("Change", invalidate);
 
+  // Respond to user input.
   document.getElementById("newGame")!.onclick = function () {
     currentSettings.value = settingsFromInput();
     currentState.value = currentSettings.value;
   };
 
-  invalidate();
+  let widthInput = document.getElementById("width") as HTMLInputElement;
+  let heightInput = document.getElementById("height") as HTMLInputElement;
+  let percentMinesInput = document.getElementById(
+    "percentMines"
+  ) as HTMLInputElement;
+
+  function settingsFromInput(): GameSettings {
+    return {
+      width: widthInput.valueAsNumber,
+      height: heightInput.valueAsNumber,
+      fractionMines: percentMinesInput.valueAsNumber / 100,
+    };
+  }
+  // Other event listeners are added directly refreshDisplay.
 })();

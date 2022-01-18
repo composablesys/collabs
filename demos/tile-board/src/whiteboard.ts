@@ -10,6 +10,25 @@ export function setupWhiteboard(container: CRDTContainer) {
     collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
 
+  // Once loaded, display loaded state and add event handlers.
+  container.nextEvent("Load").then(() => {
+    for (const [key, value] of boardState) {
+      ctx.fillStyle = value;
+      ctx.fillRect(key[0], key[1], GRAN, GRAN);
+    }
+
+    // Draw points
+    boardState.on("Set", (event) => {
+      ctx.fillStyle = boardState.get(event.key)!;
+      ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
+    });
+
+    // Clear points
+    boardState.on("Delete", (event) => {
+      ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
+    });
+  });
+
   const colors = document.getElementsByClassName("btn-colors");
   const clear = <HTMLButtonElement>document.getElementById("clear");
   const board = <HTMLCanvasElement>document.getElementById("board");
@@ -66,17 +85,6 @@ export function setupWhiteboard(container: CRDTContainer) {
     return pts;
   }
 
-  // Draw points
-  boardState.on("Set", (event) => {
-    ctx.fillStyle = boardState.get(event.key)!;
-    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
-  // Clear points
-  boardState.on("Delete", (event) => {
-    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
   // Mouse Event Handlers
   let color = "black";
 
@@ -116,12 +124,4 @@ export function setupWhiteboard(container: CRDTContainer) {
     .on("mouseup", function () {
       isDown = false;
     });
-
-  // Once loaded, display loaded state.
-  container.nextEvent("Load").then(() => {
-    for (const [key, value] of boardState) {
-      ctx.fillStyle = value;
-      ctx.fillRect(key[0], key[1], GRAN, GRAN);
-    }
-  });
 }

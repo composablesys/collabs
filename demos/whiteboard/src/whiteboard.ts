@@ -20,6 +20,23 @@ import $ from "jquery";
   const ctx = board.getContext("2d")!;
   const GRAN = 2;
 
+  // Display the loaded state.
+  for (const [key, value] of boardState) {
+    ctx.fillStyle = value;
+    ctx.fillRect(key[0], key[1], GRAN, GRAN);
+  }
+
+  // Draw points
+  boardState.on("Set", (event) => {
+    ctx.fillStyle = boardState.get(event.key)!;
+    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
+  });
+
+  // Clear points
+  boardState.on("Delete", (event) => {
+    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
+  });
+
   function roundGran(n: number): number {
     return Math.round(n / GRAN) * GRAN;
   }
@@ -70,17 +87,6 @@ import $ from "jquery";
     return pts;
   }
 
-  // Draw points
-  boardState.on("Set", (event) => {
-    ctx.fillStyle = boardState.get(event.key)!;
-    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
-  // Clear points
-  boardState.on("Delete", (event) => {
-    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
   // Mouse Event Handlers
   let color = "black";
 
@@ -120,10 +126,4 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown = false;
     });
-
-  // Draw the loaded state.
-  for (const [key, value] of boardState) {
-    ctx.fillStyle = value;
-    ctx.fillRect(key[0], key[1], GRAN, GRAN);
-  }
 })();

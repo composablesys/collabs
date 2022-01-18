@@ -140,8 +140,6 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     collabs.Pre(RichText)(["\n"])
   );
 
-  await container.load();
-
   const quill = new Quill("#editor", {
     theme: "snow",
     // Modules list from quilljs example, via
@@ -170,74 +168,19 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     },
   });
 
-  /**
-   * Convert delta.ops into an array of modified DeltaOperations
-   * having the form { index: first char index, ...DeltaOperation},
-   * leaving out ops that do nothing.
-   */
-  function getRelevantDeltaOperations(delta: Delta): {
-    index: number;
-    insert?: string | object;
-    delete?: number;
-    attributes?: Record<string, any>;
-    retain?: number;
-  }[] {
-    const relevantOps = [];
-    let index = 0;
-    for (const op of delta.ops) {
-      if (op.retain === undefined || op.attributes) {
-        relevantOps.push({ index, ...op });
-      }
-      // Adjust index for the next op.
-      if (op.insert !== undefined) {
-        if (typeof op.insert === "string") index += op.insert.length;
-        else index += 1; // Embed
-      } else if (op.retain !== undefined) index += op.retain;
-      // Deletes don't add to the index because we'll do the
-      // next operation after them, hence the text will already
-      // be shifted left.
-    }
-    return relevantOps;
-  }
+  await container.load();
 
-  // Convert user inputs to Collab operations.
-  quill.on("text-change", (delta) => {
-    // In theory we can listen for events with source "user",
-    // to ignore changes caused by Collab events instead of
-    // user input.  However, changes that remove formatting
-    // using the "remove formatting" button, or by toggling
-    // a link off, instead get emitted with source "api".
-    // This appears to be fixed only on a not-yet-released v2
-    // branch: https://github.com/quilljs/quill/issues/739
-    // For now, we manually keep track of whether changes are due
-    // to us or not.
-    // if (source !== "user") return;
-    if (ourChange) return;
-
-    for (const op of getRelevantDeltaOperations(delta)) {
-      // Insertion
-      if (op.insert) {
-        if (typeof op.insert === "string") {
-          for (let i = 0; i < op.insert.length; i++) {
-            clientText.insert(op.index + i, op.insert[i], op.attributes);
-          }
-        } else {
-          // Embed of object
-          clientText.insert(op.index, op.insert, op.attributes);
-        }
-      }
-      // Deletion
-      else if (op.delete) {
-        clientText.delete(op.index, op.delete);
-      }
-      // Formatting
-      else if (op.attributes && op.retain) {
-        for (let i = 0; i < op.retain; i++) {
-          clientText.format(op.index + i, op.attributes);
-        }
-      }
-    }
-  });
+  // Display loaded state by syncing it to Quill.
+  updateContents(
+    new Delta({
+      ops: clientText.text.map((richChar) => {
+        return {
+          insert: richChar.char,
+          attributes: richChar.attributes(),
+        };
+      }),
+    })
+  );
 
   // Reflect Collab operations in Quill.
   // Note that for local operations, Quill has already updated
@@ -277,17 +220,75 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     );
   });
 
-  // Display loaded state by syncing it to Quill.
-  updateContents(
-    new Delta({
-      ops: clientText.text.map((richChar) => {
-        return {
-          insert: richChar.char,
-          attributes: richChar.attributes(),
-        };
-      }),
-    })
-  );
+  // Convert user inputs to Collab operations.
+
+  /**
+   * Convert delta.ops into an array of modified DeltaOperations
+   * having the form { index: first char index, ...DeltaOperation},
+   * leaving out ops that do nothing.
+   */
+  function getRelevantDeltaOperations(delta: Delta): {
+    index: number;
+    insert?: string | object;
+    delete?: number;
+    attributes?: Record<string, any>;
+    retain?: number;
+  }[] {
+    const relevantOps = [];
+    let index = 0;
+    for (const op of delta.ops) {
+      if (op.retain === undefined || op.attributes) {
+        relevantOps.push({ index, ...op });
+      }
+      // Adjust index for the next op.
+      if (op.insert !== undefined) {
+        if (typeof op.insert === "string") index += op.insert.length;
+        else index += 1; // Embed
+      } else if (op.retain !== undefined) index += op.retain;
+      // Deletes don't add to the index because we'll do the
+      // next operation after them, hence the text will already
+      // be shifted left.
+    }
+    return relevantOps;
+  }
+
+  quill.on("text-change", (delta) => {
+    // In theory we can listen for events with source "user",
+    // to ignore changes caused by Collab events instead of
+    // user input.  However, changes that remove formatting
+    // using the "remove formatting" button, or by toggling
+    // a link off, instead get emitted with source "api".
+    // This appears to be fixed only on a not-yet-released v2
+    // branch: https://github.com/quilljs/quill/issues/739
+    // For now, we manually keep track of whether changes are due
+    // to us or not.
+    // if (source !== "user") return;
+    if (ourChange) return;
+
+    for (const op of getRelevantDeltaOperations(delta)) {
+      // Insertion
+      if (op.insert) {
+        if (typeof op.insert === "string") {
+          for (let i = 0; i < op.insert.length; i++) {
+            clientText.insert(op.index + i, op.insert[i], op.attributes);
+          }
+        } else {
+          // Embed of object
+          clientText.insert(op.index, op.insert, op.attributes);
+        }
+      }
+      // Deletion
+      else if (op.delete) {
+        clientText.delete(op.index, op.delete);
+      }
+      // Formatting
+      else if (op.attributes && op.retain) {
+        for (let i = 0; i < op.retain; i++) {
+          clientText.format(op.index + i, op.attributes);
+        }
+      }
+    }
+  });
 })();
 
 // TODO: cursor management.  Quill appears to be doing this
