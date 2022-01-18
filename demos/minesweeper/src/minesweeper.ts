@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
 
 // Minesweeper Collab
@@ -386,35 +386,34 @@ class MinesweeperCollab extends collabs.CObject {
     };
   }
 
-  const runtime = await ContainerAppSource.newApp(window.parent);
+  const container = new CRDTContainer(window.parent, {});
 
-  const currentGame = runtime.registerCollab(
+  const currentGame = container.registerCollab(
     "currentGame",
     collabs.Pre(collabs.LwwMutCRegister)(
       collabs.ConstructorAsFunction(MinesweeperCollab)
     )
   );
-  const currentSettings = runtime.registerCollab(
+  const currentSettings = container.registerCollab(
     "currentSettings",
     collabs.Pre(collabs.LwwCRegister)(settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
-  const currentState = runtime.registerCollab(
+  const currentState = container.registerCollab(
     "currentState",
-    (initToken) =>
-      new collabs.LwwCRegister<MinesweeperCollab | GameSettings>(
-        initToken,
-        currentSettings.value
-      )
+    collabs.Pre(collabs.LwwCRegister)<MinesweeperCollab | GameSettings>(
+      currentSettings.value
+    )
   );
 
-  runtime.on("Change", invalidate);
+  await container.load();
+
+  container.on("Change", invalidate);
 
   document.getElementById("newGame")!.onclick = function () {
     currentSettings.value = settingsFromInput();
     currentState.value = currentSettings.value;
-    invalidate();
   };
 
   invalidate();

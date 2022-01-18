@@ -1,12 +1,11 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
-import { ContainerHost } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
+import { CRDTContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
-  // Create a App intended for use within containers.
-  const runtime = await ContainerAppSource.newApp(window.parent);
-  const currentHost = runtime.registerCollab(
+  const container = new CRDTContainer(window.parent, {});
+  const currentHost = container.registerCollab(
     "",
     collabs.Pre(collabs.LwwMutCRegister)(
       (valueInitToken, htmlSrcGzipped: Uint8Array) => {
@@ -16,20 +15,22 @@ import pako from "pako";
         const iframe = document.createElement("iframe");
         iframe.hidden = true;
         iframe.srcdoc = htmlSrc;
-        const host = new ContainerHost(valueInitToken, iframe);
+        const host = new CRDTContainerHost(valueInitToken, iframe);
         document.body.appendChild(iframe);
         return host;
       }
     )
   );
 
-  // Selector GUI.
-  const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
-  currentHost.on("Set", (e) => {
+  await container.load();
+
+  function onCurrentHostSet(
+    previousValue: collabs.Optional<CRDTContainerHost>
+  ) {
     // Make the set value the only visible thing.
     selectorDiv.hidden = true;
-    if (e.previousValue.isPresent) {
-      e.previousValue.get().containerIFrame.hidden = true;
+    if (previousValue.isPresent) {
+      previousValue.get().containerIFrame.hidden = true;
     }
     const iframe = currentHost.value.get().containerIFrame;
     iframe.hidden = false;
@@ -40,7 +41,13 @@ import pako from "pako";
     iframe.addEventListener("load", () => {
       document.title = iframe.contentDocument!.title;
     });
-  });
+    // Show the download div.
+    downloadDiv.hidden = false;
+  }
+  currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
+
+  // Selector GUI.
+  const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
 
   function setHtmlSrc(htmlSrc: string) {
     // The container definitions can get large (100s of KB)
@@ -79,7 +86,6 @@ import pako from "pako";
   const downloadButton = <HTMLButtonElement>(
     document.getElementById("download.button")
   );
-  currentHost.on("Set", () => (downloadDiv.hidden = false));
   downloadButton.addEventListener("click", () => {
     const htmlSrcGzippedOptional = currentHost.getArgs();
     if (!htmlSrcGzippedOptional.isPresent) return;
@@ -118,5 +124,10 @@ import pako from "pako";
     w.document.body.appendChild(a);
     a.click();
     w.document.body.removeChild(a);
+  }
+
+  // Display loaded state.
+  if (currentHost.value.isPresent) {
+    onCurrentHostSet(collabs.Optional.empty());
   }
 })();

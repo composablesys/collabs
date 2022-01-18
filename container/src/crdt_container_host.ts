@@ -30,13 +30,13 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
   ContainerReady: CollabEvent;
   /**
    * Emitted when [[CRDTContainerHost.metadata]]
-   * changes, including when it first becomes present.
+   * is set (becomes present).
    *
    * Note this is a local, not replicated, event: metadata
    * is local and may differ between replicas, and so
    * replicas may not see changes in sync.
    */
-  MetadataChange: CollabEvent;
+  MetadataSet: CollabEvent;
 }
 
 /**
@@ -145,7 +145,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
       case "Metadata":
         this._metadata = Optional.of(e.data.metadata);
         this.emit(
-          "MetadataChange",
+          "MetadataSet",
           { meta: { isLocalEcho: true, sender: this.runtime.replicaID } },
           false
         );
@@ -229,13 +229,8 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   /**
    * Metadata provided by the container.
    *
-   * It is initially not present. It becomes present when
-   * we first receive metadata from the container
-   * (by receiving a message sent during
-   * [[CRDTContainer]]'s constructor), then may be changed
-   * by the container. Each change, including the first
-   * (becoming present), is signalled by a "MetadataChange"
-   * event.
+   * TODO: wait for MetadataSet event to be ready; then
+   * immutable. Guaranteed to happen by ContainerReady.
    *
    * TODO: structure/interface (e.g. default fields: name, description,
    * etc. Can even be optional.)

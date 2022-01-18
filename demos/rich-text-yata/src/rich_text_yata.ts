@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import {
   YataDeleteEvent,
   YataFormatExistingEvent,
@@ -12,15 +12,14 @@ import Quill, { DeltaOperation } from "quill";
   // Include Quill CSS
   require("quill/dist/quill.snow.css");
 
-  const app = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer(window.parent, {});
 
-  let clientText = app.registerCollab(
+  let clientText = container.registerCollab(
     "text",
     collabs.Pre(YataLinear)<string>("", ["\n"])
   );
+
+  await container.load();
 
   // const Quill: any = Q;
   var quill = new Quill("#editor", {
@@ -65,7 +64,7 @@ import Quill, { DeltaOperation } from "quill";
         if (op.insert) {
           for (let i = 0; i < op.insert.length; i++) {
             clientText.insertByIdx(
-              app.runtime.replicaID,
+              container.runtime.replicaID,
               op.idx + i,
               op.insert[i],
               op.attributes
@@ -116,5 +115,12 @@ import Quill, { DeltaOperation } from "quill";
     ({ idx, uid, key, value, meta }: YataFormatExistingEvent<string>) => {
       quill.updateContents(new Delta().retain(idx).retain(1, { [key]: value }));
     }
+  );
+
+  // Display loaded state by syncing it to Quill.
+  quill.updateContents(
+    new Delta({
+      ops: clientText.toArray(),
+    })
   );
 })();

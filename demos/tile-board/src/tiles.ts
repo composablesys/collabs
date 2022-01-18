@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerHost } from "@collabs/container";
+import { CRDTContainer, CRDTContainerHost } from "@collabs/container";
 import pako from "pako";
 import { richTextPreContent } from "./rich_text_tile";
 
@@ -64,11 +64,12 @@ class CTile extends collabs.CObject {
 
     // Keep this.dom in sync with its rect.
     this.dom.style.position = "absolute";
-    this.updateRect();
     this.left.on("Set", () => this.updateRect());
     this.top.on("Set", () => this.updateRect());
     this.width.on("Set", () => this.updateRect());
     this.height.on("Set", () => this.updateRect());
+    // updateRect() will be called in loadObject to set
+    // the initial rect.
   }
 
   private updateRect() {
@@ -263,15 +264,20 @@ class CTile extends collabs.CObject {
     const y = e.clientY - rect.top;
     return [x, y];
   }
+
+  protected loadObject() {
+    // Display loaded rect.
+    this.updateRect();
+  }
 }
 
-export function setupTiles(app: collabs.App) {
+export function setupTiles(container: CRDTContainer) {
   // --------------------------------------
   // Existing Apps
 
   // The list of known (existing) apps, in the order they
   // were added.  Each app is stored as its Blob URL.
-  const existingApps = app.registerCollab(
+  const existingApps = container.registerCollab(
     "existingApps",
     collabs.Pre(collabs.DeletingMutCList)(
       (valueInitToken, htmlSrcGzipped: Uint8Array, title: string) => {
@@ -309,11 +315,13 @@ export function setupTiles(app: collabs.App) {
       appExistingDiv.appendChild(document.createElement("br"));
     });
   }
-  refreshAppExistingDiv();
-  existingApps.on("Any", refreshAppExistingDiv);
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
+    // We add this event handler now, instead of after
+    // container's Load event, in case container load an app
+    // within Runtime.load but then delivers a further message
+    // deleting the app.
     e.deletedValues.forEach((app) => URL.revokeObjectURL(app.value.url));
   });
 
@@ -358,7 +366,7 @@ export function setupTiles(app: collabs.App) {
   // --------------------------------------
   // Tiles
   const tileParent = <HTMLDivElement>document.getElementById("boardScroller");
-  const tiles = app.registerCollab(
+  const tiles = container.registerCollab(
     "tiles",
     collabs.Pre(collabs.DeletingMutCSet)(
       (
@@ -392,6 +400,10 @@ export function setupTiles(app: collabs.App) {
     )
   );
   tiles.on("Delete", (e) => {
+    // We add this event handler now, instead of after
+    // container's Load event, in case container load an app
+    // within Runtime.load but then delivers a further message
+    // deleting the app.
     tileParent.removeChild(e.value.dom);
   });
   // No need to listen on Add events; the valueConstructor
@@ -420,7 +432,13 @@ export function setupTiles(app: collabs.App) {
       iframe.src = url;
       iframe.className = "tileIframe";
       contentDomParent.appendChild(iframe);
-      return new ContainerHost(contentInitToken, iframe);
+      return new CRDTContainerHost(contentInitToken, iframe);
     };
   }
+
+  // Once loaded, display the loaded state.
+  container.nextEvent("Load").then(() => {
+    refreshAppExistingDiv();
+    existingApps.on("Any", refreshAppExistingDiv);
+  });
 }

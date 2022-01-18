@@ -196,5 +196,9 @@ export class CRDTRuntime
       // part of its loading process.
       this.network.load(Optional.of(saveMessage.networkSave));
     }
+
+    this.emit("Load", {
+      skipped: !saveData.isPresent,
+    });
   }
 }

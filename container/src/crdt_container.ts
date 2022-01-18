@@ -6,6 +6,7 @@ import {
   CRDTApp,
   CRDTRuntime,
   EventEmitter,
+  LoadEvent,
   Optional,
   Pre,
 } from "@collabs/collabs";
@@ -39,6 +40,19 @@ interface CRDTContainerEventsRecord {
    * Identical to [[CRDTApp]]'s "Change" event.
    */
   Change: CollabEvent;
+  /**
+   * Emitted at the end of [[CRDTContainer.load]].
+   *
+   * TODO: note event emitters will be triggered before
+   * load returns (including async nextEvent ones, due to
+   * Promise queue).
+   *
+   * TODO: mention a good time to construct views (ref docs).
+   *
+   * TODO: if skipped is true, it also implies that no
+   * messages were delivered by us.
+   */
+  Load: LoadEvent;
 }
 
 // Opt: is replicaID needed?
@@ -109,8 +123,8 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     this.app = new CRDTApp(this.network, options);
     this.app.on("Change", (e) => this.emit("Change", e));
 
-    // Send initial metadata.
-    this.setMetadata(metadata);
+    // Send metadata.
+    this.messagePortSend({ type: "Metadata", metadata });
   }
 
   private messagePortSend(message: HostMessage) {
@@ -164,9 +178,8 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   /**
    * TODO
    *
-   * @return whether the loaded save data was nontrivial,
-   * i.e., the container continues a prior session instead
-   * of being brand new.
+   * @return whether loading was skipped, there was no
+   * prior save data or further messages.
    */
   async load(): Promise<boolean> {
     // Get the load message from messagePortReceive.
@@ -208,11 +221,11 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     // is complete.
     this.messagePortSend({ type: "Ready" });
 
-    return !loadMessage.skipped;
-  }
+    this.emit("Load", {
+      skipped: loadMessage.skipped,
+    });
 
-  setMetadata(metadata: unknown) {
-    this.messagePortSend({ type: "Metadata", metadata });
+    return loadMessage.skipped;
   }
 
   get runtime(): CRDTRuntime {

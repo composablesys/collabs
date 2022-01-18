@@ -3,6 +3,14 @@ import { Collab, CollabEvent, Pre } from "./collab";
 import { ICollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 
+export interface LoadEvent {
+  /**
+   * Whether loading was skipped, i.e., load was called
+   * with an empty [[Optional]].
+   */
+  skipped: boolean;
+}
+
 export interface RuntimeEventsRecord {
   /**
    * Emitted each time the app's state is changed and
@@ -13,6 +21,12 @@ export interface RuntimeEventsRecord {
    * do `runtime.on("Change", refreshDisplay)`.
    */
   Change: CollabEvent;
+  /**
+   * Emitted at the end of [[Runtime.load]].
+   *
+   * TODO: mention a good time to construct views (ref docs).
+   */
+  Load: LoadEvent;
 }
 
 /**

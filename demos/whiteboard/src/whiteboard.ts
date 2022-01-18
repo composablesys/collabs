@@ -1,19 +1,18 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 
 (async function () {
-  const runtime = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer(window.parent, {});
 
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const boardState = runtime.registerCollab(
+  const boardState = container.registerCollab(
     "whiteboard",
     collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
+
+  await container.load();
 
   const colors = document.getElementsByClassName("btn-colors");
   const clear = <HTMLButtonElement>document.getElementById("clear");
@@ -121,4 +120,10 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown = false;
     });
+
+  // Draw the loaded state.
+  for (const [key, value] of boardState) {
+    ctx.fillStyle = value;
+    ctx.fillRect(key[0], key[1], GRAN, GRAN);
+  }
 })();

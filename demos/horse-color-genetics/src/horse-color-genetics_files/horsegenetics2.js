@@ -22,7 +22,7 @@
 */
 
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 // CSS
 import css from "./horsegenetics.css";
 
@@ -1918,15 +1918,15 @@ const IRREGULAR_DEFAULTS = {
 // Maps alleleName's to their controlling LwwCRegister.
 let alleles = {};
 
-// Async so we can await ContainerAppSource.newApp.
+// Async so we can await load.
 async function collabsSetup() {
-  const app = await ContainerAppSource.newApp(window.parent);
+  const container = new CRDTContainer(window.parent, {});
 
   for (const gene of GENES) {
     for (const num of [1, 2]) {
       const alleleName = gene + num;
       const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
-      alleles[alleleName] = app.registerCollab(
+      alleles[alleleName] = container.registerCollab(
         alleleName,
         collabs.Pre(collabs.LwwCRegister)(defaultValue)
       );
@@ -1939,7 +1939,10 @@ async function collabsSetup() {
     }
   }
 
-  app.on("Change", evaluateGenetics);
+  await container.load();
+
+  container.on("Change", evaluateGenetics);
+  evaluateGenetics();
 }
 
 function imageSrc(filename) {

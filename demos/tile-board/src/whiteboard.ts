@@ -1,10 +1,11 @@
 import * as collabs from "@collabs/collabs";
+import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 
-export function setupWhiteboard(app: collabs.App) {
+export function setupWhiteboard(container: CRDTContainer) {
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const boardState = app.registerCollab(
+  const boardState = container.registerCollab(
     "whiteboard",
     collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
@@ -115,4 +116,12 @@ export function setupWhiteboard(app: collabs.App) {
     .on("mouseup", function () {
       isDown = false;
     });
+
+  // Once loaded, display loaded state.
+  container.nextEvent("Load").then(() => {
+    for (const [key, value] of boardState) {
+      ctx.fillStyle = value;
+      ctx.fillRect(key[0], key[1], GRAN, GRAN);
+    }
+  });
 }

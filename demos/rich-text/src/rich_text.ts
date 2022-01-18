@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
@@ -15,7 +15,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly attributes: collabs.LwwCMap<string, any>;
+  private readonly _attributes: collabs.LwwCMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -26,22 +26,22 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(initToken: collabs.InitToken, readonly char: string | object) {
     super(initToken);
 
-    this.attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
+    this._attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
 
     // Events
-    this.attributes.on("Set", (e) => {
+    this._attributes.on("Set", (e) => {
       this.emit("Format", {
         key: e.key,
         meta: e.meta,
       });
     });
-    this.attributes.on("Delete", (e) => {
+    this._attributes.on("Delete", (e) => {
       this.emit("Format", { key: e.key, meta: e.meta });
     });
   }
 
   getAttribute(attribute: string): any | null {
-    return this.attributes.get(attribute) ?? null;
+    return this._attributes.get(attribute) ?? null;
   }
 
   /**
@@ -49,10 +49,14 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
    */
   setAttribute(attribute: string, value: any | null) {
     if (value === null) {
-      this.attributes.delete(attribute);
+      this._attributes.delete(attribute);
     } else {
-      this.attributes.set(attribute, value);
+      this._attributes.set(attribute, value);
     }
+  }
+
+  attributes(): { [key: string]: any } {
+    return Object.fromEntries(this._attributes);
   }
 }
 
@@ -128,16 +132,15 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
 }
 
 (async function () {
-  const runtime = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer(window.parent, {});
 
   // Quill's initial content is "\n".
-  const clientText = runtime.registerCollab(
+  const clientText = container.registerCollab(
     "text",
     collabs.Pre(RichText)(["\n"])
   );
+
+  await container.load();
 
   const quill = new Quill("#editor", {
     theme: "snow",
@@ -273,6 +276,18 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
         .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
     );
   });
+
+  // Display loaded state by syncing it to Quill.
+  updateContents(
+    new Delta({
+      ops: clientText.text.map((richChar) => {
+        return {
+          insert: richChar.char,
+          attributes: richChar.attributes(),
+        };
+      }),
+    })
+  );
 })();
 
 // TODO: cursor management.  Quill appears to be doing this

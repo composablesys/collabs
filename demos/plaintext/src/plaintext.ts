@@ -1,16 +1,15 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 
 (async function () {
-  const runtime = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer(window.parent, {});
 
-  const text = runtime.registerCollab("text", collabs.Pre(collabs.CText)());
+  const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
+
+  await container.load();
 
   const textarea = document.getElementById("textarea") as HTMLTextAreaElement;
-  textarea.value = "";
+  textarea.value = text.toString();
 
   // TODO: shared cursors
 

@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 
 (async function () {
   const WIN_TEXT = (function () {
@@ -8,23 +8,22 @@ import { ContainerAppSource } from "@collabs/container";
     return ans;
   })();
 
-  const runtime = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
+  const container = new CRDTContainer(window.parent, {});
+
+  const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
+  const startTime = container.registerCollab(
+    "startTime",
+    collabs.Pre(collabs.LwwCRegister)(0)
+  );
+  const winElapsedTime = container.registerCollab(
+    "winElapsedTime",
+    collabs.Pre(collabs.LwwCRegister)(0)
   );
 
-  const text = runtime.registerCollab("text", collabs.Pre(collabs.CText)());
-  const startTime = runtime.registerCollab(
-    "startTime",
-    (initToken) => new collabs.LwwCRegister<number>(initToken, 0)
-  );
-  const winElapsedTime = runtime.registerCollab(
-    "winElapsedTime",
-    (initToken) => new collabs.LwwCRegister<number>(initToken, 0)
-  );
+  await container.load();
 
   const textInput = document.getElementById("textInput") as HTMLInputElement;
-  textInput.value = "";
+  textInput.value = text.toString();
 
   const myCursor = new collabs.LocalCursor(text, 0);
   function updateCursor() {

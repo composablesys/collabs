@@ -1,7 +1,7 @@
 import { Optional } from "../util";
 import { Collab, CollabEvent, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
-import { Runtime } from "./runtime";
+import { LoadEvent, Runtime } from "./runtime";
 
 interface AppEventsRecord {
   /**
@@ -13,6 +13,12 @@ interface AppEventsRecord {
    * do `app.on("Change", refreshDisplay)`.
    */
   Change: CollabEvent;
+  /**
+   * Emitted at the end of [[Runtime.load]].
+   *
+   * TODO: mention a good time to construct views (ref docs).
+   */
+  Load: LoadEvent;
 }
 
 /**
@@ -56,5 +62,9 @@ export class App<
 
   load(saveData: Optional<Uint8Array>): void {
     this.runtime.load(saveData);
+
+    this.emit("Load", {
+      skipped: !saveData.isPresent,
+    });
   }
 }
