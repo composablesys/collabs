@@ -100,7 +100,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
 
       // Setup
       // TODO: should this be included in memory?
-      let generator = new collabs.TestingNetworkGenerator();
+      let generator = new collabs.TestingCRDTAppGenerator();
       let apps: collabs.CRDTApp[] = [];
       let collabList: C[] = [];
       for (let i = 0; i < USERS; i++) {

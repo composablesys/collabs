@@ -326,13 +326,13 @@ function plainJsArray() {
 }
 
 function resettingLww() {
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let list: collabs.ResettingMutCList<collabs.LwwCRegister<string>> | null;
 
   return new AutomergePerfBenchmark("Resetting Lww", {
     setup(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab(
         "text",
@@ -371,7 +371,7 @@ function resettingLww() {
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab(
         "text",
@@ -387,13 +387,13 @@ function resettingLww() {
 }
 
 function deletingLww() {
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let list: collabs.DeletingMutCList<collabs.LwwCRegister<string>, []> | null;
 
   return new AutomergePerfBenchmark("Deleting Lww", {
     setup(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab(
         "text",
@@ -432,7 +432,7 @@ function deletingLww() {
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab(
         "text",
@@ -448,13 +448,13 @@ function deletingLww() {
 }
 
 function text() {
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let list: collabs.CText | null;
 
   return new AutomergePerfBenchmark("Text", {
     setup(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(collabs.CText)());
       // Since setup was called, no saveData to load.
@@ -486,7 +486,7 @@ function text() {
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(collabs.CText)());
       app.load(collabs.Optional.of(saveData));
@@ -565,13 +565,13 @@ function automerge() {
 // }
 
 function mapLww() {
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let list: collabs.LwwCMap<number, string> | null;
 
   return new AutomergePerfBenchmark("LwwMap", {
     setup(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab(
         "text",
@@ -606,7 +606,7 @@ function mapLww() {
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab(
         "text",
@@ -816,13 +816,13 @@ function richText() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let list: RichText | null;
 
   return new AutomergePerfBenchmark("RichText", {
     setup(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(RichText)());
       // Since setup was called, no saveData to load.
@@ -854,7 +854,7 @@ function richText() {
       return [saveData, saveData.byteLength];
     },
     load(saveData: Uint8Array, rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       list = app.registerCollab("text", collabs.Pre(RichText)());
       app.load(collabs.Optional.of(saveData));

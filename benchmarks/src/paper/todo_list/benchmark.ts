@@ -552,13 +552,13 @@ function compoResetting() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Resetting", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
@@ -591,7 +591,7 @@ function compoResetting() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
       app.load(collabs.Optional.of(saveData));
@@ -665,13 +665,13 @@ function compoDeleting() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Deleting", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
@@ -704,7 +704,7 @@ function compoDeleting() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
       app.load(collabs.Optional.of(saveData));
@@ -769,13 +769,13 @@ function compoJSON() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo JSON", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", JSONElement.NewJSON);
@@ -809,7 +809,7 @@ function compoJSON() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", JSONElement.NewJSON);
       app.load(collabs.Optional.of(saveData));
@@ -870,13 +870,13 @@ function compoJSONText() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo JSON Text", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", JSONElement.NewJSON);
@@ -910,7 +910,7 @@ function compoJSONText() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", JSONElement.NewJSON);
       app.load(collabs.Optional.of(saveData));
@@ -1314,13 +1314,13 @@ function compoJSONOpt() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo JSON Opt", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
 
@@ -1361,7 +1361,7 @@ function compoJSONOpt() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
 
       let collab = app.registerCollab("", collabs.Pre(JSONCollab)());

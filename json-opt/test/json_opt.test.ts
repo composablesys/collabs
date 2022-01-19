@@ -4,19 +4,19 @@ import {
   CRDTApp,
   Optional,
   Pre,
-  TestingNetworkGenerator,
+  TestingCRDTAppGenerator,
 } from "@collabs/collabs";
 import seedrandom from "seedrandom";
 
 describe("JSONCollab", () => {
-  let runtimeGen: TestingNetworkGenerator;
+  let runtimeGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    runtimeGen = new TestingNetworkGenerator();
+    runtimeGen = new TestingCRDTAppGenerator();
     alice = runtimeGen.newApp(undefined, rng);
     bob = runtimeGen.newApp(undefined, rng);
   });

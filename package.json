@@ -22,9 +22,13 @@
     "benchmarks"
   ],
   "workspacesNoTest": [
-    "template-custom-type",
     "template-container",
     "template-app"
+  ],
+  "workspacesNoFix": [
+    "template-container",
+    "template-app",
+    "template-custom-type"
   ],
   "scripts": {
     "start": "npm start --prefix demos",
