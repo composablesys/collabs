@@ -7,7 +7,7 @@ import {
   CollabEvent,
 } from "@collabs/collabs";
 import { ContainerHostSave } from "../generated/proto_compiled";
-import { ContainerMessage, HostMessage } from "./message_types";
+import { ContainerMessage, HostMessage, ReceiveMessage } from "./message_types";
 
 // TODO: ability to send our own metadata to the container
 // (e.g. user's name)?
@@ -53,7 +53,13 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * Queue for messages to be sent over messagePort,
    * before it exists.
    */
-  private sendQueue: ContainerMessage[] | null = [];
+  private messagePortQueue: ContainerMessage[] | null = [];
+
+  /**
+   * Queue for ReceiveMessages that are received
+   * (via receivePrimitive) before the container is ready.
+   */
+  private receiveMessageQueue: ReceiveMessage[] | null = [];
 
   /**
    * The latest save data received from the container
@@ -112,10 +118,10 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         // TODO: other checks?
         this.messagePort = e.ports[0];
         // Send queued messages.
-        this.sendQueue!.forEach((message) =>
+        this.messagePortQueue!.forEach((message) =>
           this.messagePort!.postMessage(message)
         );
-        this.sendQueue = null;
+        this.messagePortQueue = null;
         // Begin receiving.
         // Do this last just in case it starts receiving
         // synchronously (although I'm guessing the spec doesn't
@@ -128,7 +134,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
 
   private messagePortSend(message: ContainerMessage) {
     if (this.messagePort === null) {
-      this.sendQueue!.push(message);
+      this.messagePortQueue!.push(message);
     } else {
       this.messagePort.postMessage(message);
     }
@@ -141,6 +147,11 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         this.emit("ContainerReady", {
           meta: { isLocalEcho: true, sender: this.runtime.replicaID },
         });
+        // Deliver queued ReceiveMessages.
+        this.receiveMessageQueue!.forEach((message) =>
+          this.messagePortSend(message)
+        );
+        this.receiveMessageQueue = null;
         break;
       case "Metadata":
         this._metadata = Optional.of(e.data.metadata);
@@ -195,8 +206,13 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
     if (!meta.isLocalEcho) {
       const id = this.nextReceivedMessageID++;
-      this.messagePortSend({ type: "Receive", message, id });
       this.furtherReceivedMessages.push([id, message]);
+      const receiveMessage: ReceiveMessage = { type: "Receive", message, id };
+      if (this._isContainerReady) {
+        this.messagePortSend(receiveMessage);
+      } else {
+        this.receiveMessageQueue!.push(receiveMessage);
+      }
     }
     // Else the container already processed it.
   }
@@ -263,9 +279,17 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * TODO: advice on when to do? Measurement methods;
    * setInterval; how to remove when done with the container?
    *
+   * TODO: throws if container not yet ready. (If you want to
+   * compact the further messages "right away", wait for
+   * the ready event.)
+   *
    * @return [description]
    */
   compactSaveData(): Promise<void> {
+    if (!this._isContainerReady) {
+      throw new Error("Container is not ready yet");
+    }
+
     const requestID = this.nextCompactSaveDataID++;
     this.messagePortSend({ type: "SaveRequest", requestID });
     return new Promise((resolve, reject) => {

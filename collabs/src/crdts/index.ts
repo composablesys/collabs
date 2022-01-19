@@ -8,9 +8,4 @@ export * from "./number";
 export * from "./register";
 export * from "./set";
 // Leave out RBTree.
-export {
-  DisconnectableNetwork,
-  TestingBatchingStrategy,
-  TestingNetwork,
-  TestingNetworkGenerator,
-} from "./util";
+export { TestingBatchingStrategy, TestingCRDTAppGenerator } from "./util";

@@ -1,5 +1,0 @@
-message DisconnectableNetworkSave {
-  repeated bytes sendQueue = 1;
-  repeated bytes receiveQueue = 2;
-  required bytes pipedNetworkSave = 3;
-}

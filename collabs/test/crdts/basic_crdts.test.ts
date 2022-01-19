@@ -6,7 +6,7 @@ import {
   OptionalLwwCRegister,
   Pre,
   CRDTApp,
-  TestingNetworkGenerator,
+  TestingCRDTAppGenerator,
   Optional,
 } from "../../src";
 import seedrandom from "seedrandom";
@@ -17,14 +17,14 @@ import {
 } from "../../src/crdts/number/number";
 
 describe("basic_crdts", () => {
-  let appGen: TestingNetworkGenerator;
+  let appGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingNetworkGenerator();
+    appGen = new TestingCRDTAppGenerator();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });

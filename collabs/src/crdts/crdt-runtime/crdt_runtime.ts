@@ -1,7 +1,4 @@
-import {
-  CRDTRuntimeMessage,
-  CRDTRuntimeSave,
-} from "../../../generated/proto_compiled";
+import { CRDTRuntimeMessage } from "../../../generated/proto_compiled";
 import { BatchingLayer, PublicCObject } from "../../constructions";
 import {
   BatchingStrategy,
@@ -10,6 +7,7 @@ import {
 import {
   AbstractRuntime,
   Collab,
+  CollabEvent,
   CollabEventsRecord,
   Pre,
   randomReplicaId,
@@ -17,26 +15,47 @@ import {
   RuntimeEventsRecord,
 } from "../../core";
 import { Optional } from "../../util";
-import { BroadcastNetwork } from "./broadcast_network";
 import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
 
+export interface SendEvent {
+  message: Uint8Array;
+}
+
+export interface CRDTRuntimeEventsRecord extends RuntimeEventsRecord {
+  /**
+   * TODO: get rid of this description, just say it's a backer
+   * of the user-facing Change event in CRDTApp?
+   *
+   * Emitted each time the app's state is changed and
+   * is in a reasonable user-facing state
+   * (so not in the middle of a transaction).
+   *
+   * A simple way to keep a GUI in sync with the app is to
+   * do `runtime.on("Change", refreshDisplay)`.
+   */
+  Change: CollabEvent;
+  /**
+   * Emitted when a message is to be sent.
+   *
+   * TODO: reqs: needs to be delivered to each other replica's
+   * [[Runtime.receive]] at least once.
+   */
+  Send: SendEvent;
+}
+
 export class CRDTRuntime
-  extends AbstractRuntime<RuntimeEventsRecord>
+  extends AbstractRuntime<CRDTRuntimeEventsRecord>
   implements Runtime
 {
   private readonly batchingLayer: BatchingLayer;
   private readonly crdtMetaLayer: CRDTExtraMetaLayer;
   private readonly registry: PublicCObject;
+  private _isLoaded = false;
 
-  readonly network: BroadcastNetwork;
-
-  constructor(
-    network: BroadcastNetwork,
-    options?: {
-      batchingStrategy?: BatchingStrategy;
-      debugReplicaId?: string;
-    }
-  ) {
+  constructor(options?: {
+    batchingStrategy?: BatchingStrategy;
+    debugReplicaId?: string;
+  }) {
     super(options?.debugReplicaId ?? randomReplicaId());
 
     const batchingStrategy =
@@ -49,31 +68,12 @@ export class CRDTRuntime
     this.crdtMetaLayer = this.batchingLayer.setChild(Pre(CRDTExtraMetaLayer)());
     this.registry = this.crdtMetaLayer.setChild(Pre(PublicCObject)());
 
-    // Setup network.
-    this.network = network;
-    this.network.onreceive = this.receive.bind(this);
-
     // Events.
     this.batchingLayer.on("Change", (e) => this.emit("Change", e));
   }
 
-  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
-    return this.registry.addChild(name, preCollab);
-  }
-
-  /**
-   * Replaces the current [[BatchingStrategy]] with
-   * `batchingStrategy`.
-   *
-   * @param  batchingStrategy [description]
-   */
-  setBatchingStrategy(batchingStrategy: BatchingStrategy): void {
-    this.batchingLayer.setBatchingStrategy(batchingStrategy);
-  }
-
-  commitBatch() {
-    this.batchingLayer.commitBatch();
-  }
+  // ---Collabs-facing methods---
+  // These are implementations of AbstractRuntime's abstract methods.
 
   private inRootReceive = false;
 
@@ -83,6 +83,10 @@ export class CRDTRuntime
   ): void {
     if (child !== this.rootCollab) {
       throw new Error(`childSend called by non-root: ${child}`);
+    }
+
+    if (!this._isLoaded) {
+      throw new Error("Not yet loaded");
     }
 
     // Local echo with only mandatory MessageMeta.
@@ -120,10 +124,34 @@ export class CRDTRuntime
 
     // Send. It will be delivered to each other replica's
     // receive function, eventually at-least-once.
-    this.network.send(serialized);
+    this.emit("Send", { message: serialized });
+  }
+
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): unknown {
+    return undefined;
+  }
+
+  // ---User-facing methods---
+
+  // To make the separation between Collabs-facing methods and
+  // user-facing methods clearer, these are duplicated on
+  // CRDTApp (which is just a thin wrapper). Users are
+  // expected to use CRDTApp.
+
+  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
+    return this.registry.addChild(name, preCollab);
   }
 
   receive(message: Uint8Array): void {
+    if (!this._isLoaded) {
+      throw new Error("Not yet loaded");
+    }
+
     const deserialized = CRDTRuntimeMessage.decode(message);
 
     // Deliver to root with only mandatory MessageMeta.
@@ -131,7 +159,7 @@ export class CRDTRuntime
       // nested receive calls; not allowed (might break things).
       throw new Error(
         "Runtime.receive called during another message's receive;" +
-          " did you try to deliver a message in an event handler?"
+          " did you try to deliver a message in a Collab's event handler?"
       );
     }
     this.inRootReceive = true;
@@ -153,15 +181,6 @@ export class CRDTRuntime
   }
 
   /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
-  /**
    * [save description]
    *
    * Note: this will commit a pending batch first.
@@ -174,31 +193,52 @@ export class CRDTRuntime
    * @return [description]
    */
   save(): Uint8Array {
+    if (!this._isLoaded) {
+      throw new Error("Not yet loaded");
+    }
+
     // Commit the pending batch, as required by [[BatchingLayer.save]].
     this.batchingLayer.commitBatch();
 
-    const saveMessage = CRDTRuntimeSave.create({
-      crdtSave: super.save(),
-      networkSave: this.network.save(),
-    });
-    return CRDTRuntimeSave.encode(saveMessage).finish();
+    return this.rootCollab.save();
   }
 
   load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) {
-      // Indicates skipped loading. Pass on the message.
-      super.load(saveData);
-      this.network.load(saveData);
-    } else {
-      const saveMessage = CRDTRuntimeSave.decode(saveData.get());
-      super.load(Optional.of(saveMessage.crdtSave));
-      // Load the network last in case it delivers messages as
-      // part of its loading process.
-      this.network.load(Optional.of(saveMessage.networkSave));
+    if (this._isLoaded) {
+      throw new Error("Already loaded");
     }
+
+    this.rootCollab.load(saveData);
+    this._isLoaded = true;
 
     this.emit("Load", {
       skipped: !saveData.isPresent,
     });
+  }
+
+  // ---Less common user-facing methods---
+
+  /**
+   * Replaces the current [[BatchingStrategy]] with
+   * `batchingStrategy`.
+   *
+   * @param  batchingStrategy [description]
+   */
+  setBatchingStrategy(batchingStrategy: BatchingStrategy): void {
+    this.batchingLayer.setBatchingStrategy(batchingStrategy);
+  }
+
+  /**
+   * Immediately commits the current batch (if present).
+   *
+   * Normally, you don't need to call this method directly;
+   * instead, the set [[BatchingStrategy]] will do it for you.
+   */
+  commitBatch(): void {
+    this.batchingLayer.commitBatch();
+  }
+
+  get isLoaded(): boolean {
+    return this._isLoaded;
   }
 }

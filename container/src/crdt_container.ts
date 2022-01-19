@@ -1,32 +1,14 @@
 import {
   BatchingStrategy,
-  BroadcastNetwork,
   Collab,
   CollabEvent,
   CRDTApp,
   CRDTRuntime,
   EventEmitter,
-  LoadEvent,
   Optional,
   Pre,
 } from "@collabs/collabs";
 import { ContainerMessage, HostMessage, LoadMessage } from "./message_types";
-
-class CRDTContainerNetwork implements BroadcastNetwork {
-  constructor(private readonly sendFunc: (message: Uint8Array) => void) {}
-
-  onreceive!: (message: Uint8Array) => void;
-
-  send(message: Uint8Array): void {
-    this.sendFunc(message);
-  }
-
-  save(): Uint8Array {
-    return new Uint8Array(0);
-  }
-
-  load(_saveData: Optional<Uint8Array>): void {}
-}
 
 interface CRDTContainerEventsRecord {
   /**
@@ -40,17 +22,6 @@ interface CRDTContainerEventsRecord {
    * Identical to [[CRDTApp]]'s "Change" event.
    */
   Change: CollabEvent;
-  /**
-   * Emitted at the end of [[CRDTContainer.load]].
-   *
-   * TODO: mention a good time to construct views (ref docs).
-   * Need to do so in same event loop, since messages may
-   * be delivered in the next one.
-   *
-   * TODO: add field indicating whether further messages will
-   * be delivered? Meaning of "skipped" is confused.
-   */
-  Load: LoadEvent;
 }
 
 // Opt: is replicaID needed?
@@ -60,22 +31,9 @@ interface CRDTContainerEventsRecord {
 /**
  * Replaces CRDTApp for use in a container.
  *
- * TODO: usage: construct (lazily okay but not desirable),
- * registerCollab's, then call [[load]], then start using
- * it as with CRDTApp (draw the state, process user input). Note that unlike
- * in App, you don't need to supply the saveData, and also
- * loading is async. Until it's done, don't send any messages
- * (but you can rely on your host blocking user input,
- * so unless you're sending messages not in response to
- * user input, you don't need to worry).
- *
- * TODO: due to loading possibly delivery messages, may want
- * to wait to add event handlers until after awaiting load.
- * Likewise, can make double-sure to block user input by waiting
- * to connect user input to the state until after then.
+ * TODO: usage (ref docs)
  */
 export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
-  private readonly network: CRDTContainerNetwork;
   private readonly app: CRDTApp;
   private readonly messagePort: MessagePort;
   /**
@@ -111,15 +69,24 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     this.messagePort.onmessage = this.messagePortReceive.bind(this);
     hostWindow.postMessage(null, "*", [channel.port2]);
 
-    this.network = new CRDTContainerNetwork((message) =>
+    this.app = new CRDTApp(options);
+    this.app.on("Change", (e) => this.emit("Change", e));
+    this.app.on("Send", (e) => {
+      if (!this.isReady) {
+        if (!this.isLoaded) {
+          throw new Error(
+            "Not yet ready (pending: load, receiveFurtherMessages)"
+          );
+        } else {
+          throw new Error("Not yet ready (pending: receiveFurtherMessages)");
+        }
+      }
       this.messagePortSend({
         type: "Send",
-        message,
+        message: e.message,
         predID: this.lastReceivedID,
-      })
-    );
-    this.app = new CRDTApp(this.network, options);
-    this.app.on("Change", (e) => this.emit("Change", e));
+      });
+    });
 
     // Send metadata.
     this.messagePortSend({ type: "Metadata", metadata });
@@ -130,10 +97,9 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   }
 
   private messagePortReceive(e: MessageEvent<ContainerMessage>) {
-    this.processLoadFurtherMessages();
     switch (e.data.type) {
       case "Receive":
-        this.network.onreceive(e.data.message);
+        this.app.receive(e.data.message);
         this.lastReceivedID = e.data.id;
         break;
       case "Load":
@@ -192,7 +158,11 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     let loadMessage: LoadMessage;
     if (this.loadEarlyMessage !== null) {
       // loadMessage already arrived.
-      loadMessage = this.loadEarlyMessage;
+      // Do it in a Promise for consistency with the other
+      // case, so that if the caller does stuff in the same
+      // thread as loadSaveData (without awaiting), it will
+      // always happen before loading.
+      loadMessage = await Promise.resolve(this.loadEarlyMessage);
     } else {
       // Not yet arrived; await it.
       loadMessage = await new Promise((resolve) => {
@@ -207,47 +177,41 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
       this.app.load(Optional.of(loadMessage.latestSaveData));
     }
 
-    // Deliver further messages (messages in the saved
-    // state that didn't make it into latestSaveData),
-    // if present.
-    // We wait until the next event loop iteration to do
-    // this so that they behave like newly-delivered messages
-    // from the network. This makes container setup and testing
-    // easier, since it avoids adding an extra scenario
-    // (load w/ further messages).
-    // The setTimeout might also be preempted, if we receive
-    // another message from our host first. That prevents issues
-    // where later messages get interleaved before these.
-    if (loadMessage.furtherMessages.length > 0) {
-      this.loadFurtherMessages = loadMessage.furtherMessages;
-      setTimeout(() => this.processLoadFurtherMessages());
-    } else {
-      // Let the host know that loading is complete already.
-      this.messagePortSend({ type: "Ready" });
-    }
-
-    this.emit("Load", {
-      skipped: loadMessage.latestSaveData === null,
-    });
-
     return loadMessage.latestSaveData === null;
   }
 
-  private processLoadFurtherMessages() {
-    if (this.loadFurtherMessages !== null) {
-      this.loadFurtherMessages.forEach((message) =>
-        this.network.onreceive(message)
+  receiveFurtherMessages() {
+    if (!this.app.isLoaded) {
+      throw new Error(
+        "receiveFurtherMessages must be called after load completes"
       );
-      this.lastReceivedID = this.loadFurtherMessages.length - 1;
-      this.loadFurtherMessages = null;
-      // Let the host know that loading is complete.
-      // TODO: doc that this *does* include furtherMessages
-      // (i.e., the host's full load, but not the container's).
-      this.messagePortSend({ type: "Ready" });
     }
+    if (this.loadFurtherMessages === null) {
+      throw new Error("receiveFurtherMessages has already been called");
+    }
+
+    this.loadFurtherMessages.forEach((message) => this.app.receive(message));
+    this.lastReceivedID = this.loadFurtherMessages.length - 1;
+    this.loadFurtherMessages = null;
+    // Let the host know that loading is complete.
+    // TODO: doc that this *does* include furtherMessages
+    // (i.e., the host's full load, but not the container's).
+    this.messagePortSend({ type: "Ready" });
   }
 
+  /**
+   * TODO: normally don't access this directly; use the corresponding
+   * CRDTApp methods/events instead.
+   */
   get runtime(): CRDTRuntime {
     return this.app.runtime;
+  }
+
+  get isLoaded(): boolean {
+    return this.app.isLoaded;
+  }
+
+  get isReady(): boolean {
+    return this.isLoaded && this.receiveFurtherMessages === null;
   }
 }

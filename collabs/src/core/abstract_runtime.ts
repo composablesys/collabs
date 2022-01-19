@@ -1,16 +1,15 @@
-import { Optional } from "../util";
 import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime, RuntimeEventsRecord } from "./runtime";
 
 /**
- * Skeletal implementation of [[Runtime]] that implements
- * most behavior using a root [[Collab]].
+ * Skeletal implementation of [[Runtime]] that uses
+ * a root [[Collab]].
  */
 export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   extends EventEmitter<Events>
-  implements Runtime
+  implements Runtime<Events>
 {
   readonly isRuntime: true = true;
   /**
@@ -26,14 +25,6 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
     const rootCollab = preRootCollab(new InitToken("", this));
     this.rootCollab = rootCollab;
     return rootCollab;
-  }
-
-  save(): Uint8Array {
-    return this.rootCollab.save();
-  }
-
-  load(saveData: Optional<Uint8Array>): void {
-    this.rootCollab.load(saveData);
   }
 
   private idCounter = 0;
@@ -54,11 +45,6 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   getDescendant(namePath: string[]): Collab {
     return this.rootCollab.getDescendant(namePath);
   }
-
-  abstract registerCollab<C extends Collab<CollabEventsRecord>>(
-    name: string,
-    preCollab: Pre<C>
-  ): C;
 
   abstract childSend(
     child: Collab<CollabEventsRecord>,

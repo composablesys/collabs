@@ -8,7 +8,7 @@ import {
   LwwCRegister,
   MergingMutCMap,
   CNumber,
-  TestingNetworkGenerator,
+  TestingCRDTAppGenerator,
   DeletingMutCSet,
   CMapDeleteEvent,
   CMapSetEvent,
@@ -21,14 +21,14 @@ import { debug } from "../debug";
 import seedrandom from "seedrandom";
 
 describe("standard", () => {
-  let appGen: TestingNetworkGenerator;
+  let appGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingNetworkGenerator();
+    appGen = new TestingCRDTAppGenerator();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });
