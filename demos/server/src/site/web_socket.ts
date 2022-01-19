@@ -1,42 +1,31 @@
 import * as collabs from "@collabs/collabs";
 import { CRDTContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
-import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
 
-// Extract the container & type of network to use from the URL's
+// Extract the container to use from the URL's
 // GET parameters.
 const urlParams = new URLSearchParams(window.location.search);
 if (!urlParams.has("container")) {
   throw new Error('URL missing "container" GET parameter.');
 }
 const containerUrl = urlParams.get("container")!;
-// console.log("containerUrl: " + containerUrl);
-if (!urlParams.has("network")) {
-  throw new Error('URL missing "network" GET parameter.');
-}
-const networkType = urlParams.get("network")!;
-// console.log("networkType: " + networkType);
 
-// Setup Runtime.
-let network: collabs.BroadcastNetwork;
-let batchingStrategy: collabs.BatchingStrategy;
-switch (networkType) {
-  case "ws": {
-    const wsAddr = location.origin.replace(/^http/, "ws");
-    // TODO: shorter group name than containerUrl?
-    network = new WebSocketNetwork(wsAddr, containerUrl);
-    batchingStrategy = new collabs.RateLimitBatchingStrategy(0);
-    break;
-  }
-  case "matrix":
-    network = new MatrixWidgetNetwork("com.herokuapp.@collabs/tests.counter");
-    batchingStrategy = new collabs.RateLimitBatchingStrategy(500);
-    break;
-  default:
-    throw new Error('URL "network" GET parameter invalid: "${networkType}"');
+const doLoad = window.location.search === "?load=true";
+if (doLoad) {
+  // Get rid of the GET parameter in the address bar,
+  // so it doesn't automatically happen on refresh.
+  window.history.pushState(
+    {},
+    document.title,
+    window.location.origin + window.location.pathname
+  );
 }
-const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
-const app = new collabs.CRDTApp(disconnectableNetwork, { batchingStrategy });
+
+// --- Setup our app ---
+
+const app = new collabs.CRDTApp();
+const wsAddr = location.origin.replace(/^http/, "ws");
+const network = new WebSocketNetwork(app, wsAddr, "");
 
 // Add the container in an IFrame,
 // initially hidden so that user input is blocked.
@@ -51,7 +40,9 @@ iframe.addEventListener("load", () => {
   if (iframe.contentDocument !== null) {
     document.title = iframe.contentDocument.title;
   } else {
-    // TODO: use metadata from the container
+    // TODO: should change this whole thing to use messages
+    // from the container, since different origins is the
+    // common case.
     document.title = "Container";
   }
 });
@@ -66,11 +57,17 @@ host.nextEvent("ContainerReady").then(() => {
   iframe.style.display = "block";
 });
 
-// Skip loading.
+// Skip loading, since the demo server's state is not
+// persistent anyway.
+// See TODO (initialization docs with list of steps)
+// for what you should do in a real app.
 app.load(collabs.Optional.empty());
 
-// App controls
+// --- Host controls ---
+// This part is just for testing fun (lets users create
+// artificial concurrency).
 
+// Connectedness buttons.
 const connected = <HTMLInputElement>document.getElementById("connected");
 const sendConnected = <HTMLInputElement>(
   document.getElementById("sendConnected")
@@ -96,6 +93,6 @@ function updateNetwork() {
     connected.checked = sendConnected.checked;
   }
   // Affect network.
-  disconnectableNetwork.receiveConnected = receiveConnected.checked;
-  disconnectableNetwork.sendConnected = sendConnected.checked;
+  network.receiveConnected = receiveConnected.checked;
+  network.sendConnected = sendConnected.checked;
 }

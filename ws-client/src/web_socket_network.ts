@@ -1,90 +1,129 @@
-import { BroadcastNetwork, Optional } from "@collabs/collabs";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import { Buffer } from "buffer";
+import { CRDTApp, SendEvent } from "@collabs/collabs";
 
-export class WebSocketNetwork implements BroadcastNetwork {
-  onreceive!: (message: Uint8Array) => void;
+export class WebSocketNetwork {
   /**
-   * WebSocket for connection to server.
-   */
-  ws: ReconnectingWebSocket;
-  /**
-   * Constructor which takes in a webSocketArgs for
-   * generating a new WebSocket connection.
+   * Connection to the server.
    *
-   * @param webSocketArgs the argument that
-   * use to create a new WebSocket connection.
-   * @param group TODO (perhaps instead let multiple groups
-   * use the same WebSocketNetwork?)
+   * Use ReconnectingWebSocket so we don't have to worry about
+   * reopening closed connections.
    */
-  constructor(webSocketArgs: string, readonly group: string) {
-    /**
-     * Open WebSocket connection with server.
-     * Register EventListener with corresponding event handler.
-     */
-    this.ws = new ReconnectingWebSocket(webSocketArgs);
-    this.ws.addEventListener("message", this.receiveAction);
+  readonly ws: ReconnectingWebSocket;
 
-    // Send a new message with type == "register"
-    let message = JSON.stringify({
+  private _sendConnected = true;
+  private _receiveConnected = true;
+  private sendQueue: SendEvent[] = [];
+  private receiveQueue: MessageEvent[] = [];
+
+  /**
+   * [constructor description]
+   * @param url The url to pass to WebSocket's constructor.
+   * @param group A group name that uniquely identifies this
+   * app and group of collaborators on the server.
+   * (The server broadcasts messages between WebSocketNetworks
+   * in the same group.)
+   */
+  constructor(readonly app: CRDTApp, url: string, readonly group: string) {
+    this.ws = new ReconnectingWebSocket(url);
+    this.ws.addEventListener("message", this.wsReceive.bind(this));
+
+    this.app.on("Send", this.appSend.bind(this));
+
+    // Register with the server.
+    // TODO: wait until after "loading", so we only request
+    // messages we need, and also this won't start delivering
+    // messages before the user signals that the app is ready.
+    // Make sure server won't give us *any* messages (even new
+    // ones) until after registration, or if it does, we queue them.
+    const register = JSON.stringify({
       type: "register",
       group: group,
     });
-    this.ws.send(message);
+    this.ws.send(register);
   }
+
   /**
-   * Invoke heartbeat function to keep clients alive.
-   *
-   * TODO:
-   * The message sending to server is 'heartbeat' right now.
-   * The timeout interval is set to 5000 millionseconds.
+   * this.ws "message" event handler.
    */
-  // heartbeat() : void {
-  //     setTimeout(() => {
-  //         this.ws.send('heartbeat');
-  //         this.heartbeat();
-  //     }, 5000);
-  // }
-  /**
-   * Parse JSON format data back into myMessage type.
-   * Push the message into received message buffer.
-   * Check the casuality of all the messages and deliver to application.
-   *
-   * @param message the MessageEvent from the WebSocket.
-   */
-  receiveAction = (message: MessageEvent) => {
-    // TODO: use Uint8Array directly instead
+  private wsReceive(e: MessageEvent) {
+    if (!this._receiveConnected) {
+      this.receiveQueue.push(e);
+      return;
+    }
+
+    // Opt: use Uint8Array directly instead
     // (requires changing options + server)
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-    let parsed = JSON.parse(message.data) as { group: string; message: string };
+    let parsed = JSON.parse(e.data) as { group: string; message: string };
+    // TODO: is this check necessary?
     if (parsed.group === this.group) {
       // It's for us
-      this.onreceive(new Uint8Array(Buffer.from(parsed.message, "base64")));
+      this.app.receive(new Uint8Array(Buffer.from(parsed.message, "base64")));
     }
-  };
+  }
+
   /**
-   * The actual send function using underlying WebSocket protocol.
-   * @param group the unique string identifier of Group.
-   * @param message the message with Uint8Array type.
+   * this.app "Send" event handler.
    */
-  send(message: Uint8Array): void {
-    let encoded = Buffer.from(message).toString("base64");
+  private appSend(e: SendEvent): void {
+    if (!this._sendConnected) {
+      this.sendQueue.push(e);
+      return;
+    }
+
+    let encoded = Buffer.from(e.message).toString("base64");
     let toSend = JSON.stringify({ group: this.group, message: encoded });
-    // TODO: use Uint8Array directly instead
+    // Opt: use Uint8Array directly instead
     // (requires changing options + server)
     // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
     this.ws.send(toSend);
   }
 
-  save(): Uint8Array {
-    // TODO: save the max contiguous number (according to server order)
-    // of a message we've already received/sent.
-    // Then instead of requesting all old messages on startup,
-    // only request ones greater than that number.
-    return new Uint8Array();
+  // ---Testing utitily: disconnection methods---
+
+  /**
+   * Set this to false to (temporarily) queue messages sent
+   * by the local CRDTApp instead of sending them to the server.
+   *
+   * Intended as a testing utility (lets you artificially
+   * create concurrency).
+   *
+   * Note that this does not affect the ReconnectingWebSocket's
+   * connection state; it just causes us to queue sent messages.
+   */
+  set sendConnected(sendConnected: boolean) {
+    this._sendConnected = sendConnected;
+    if (sendConnected) {
+      this.sendQueue.forEach(this.appSend.bind(this));
+      this.sendQueue = [];
+    }
   }
 
-  load(saveData: Optional<Uint8Array>) {
-    // TODO: see save()
+  get sendConnected(): boolean {
+    return this._sendConnected;
+  }
+
+  /**
+   * Set this to false to (temporarily) queue messages received
+   * from the server instead of delivering them to the local
+   * CRDTApp.
+   *
+   * Intended as a testing utility (lets you artificially
+   * create concurrency).
+   *
+   * Note that this does not affect the ReconnectingWebSocket's
+   * connection state; it just causes us to queue received messages.
+   */
+  set receiveConnected(receiveConnected: boolean) {
+    this._receiveConnected = receiveConnected;
+    if (receiveConnected) {
+      this.receiveQueue.forEach(this.wsReceive.bind(this));
+      this.receiveQueue = [];
+    }
+  }
+
+  get receiveConnected(): boolean {
+    return this._receiveConnected;
   }
 }

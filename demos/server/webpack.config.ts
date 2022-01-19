@@ -11,9 +11,9 @@ const config: webpack.Configuration = {
     innerGraph: true,
     sideEffects: true,
   },
-  entry: "./src/site/host.ts",
+  entry: "./src/site/web_socket.ts",
   output: {
-    filename: "host.js",
+    filename: "web_socket.js",
     path: path.resolve(__dirname, "build/site"),
     clean: true,
   },
@@ -36,8 +36,8 @@ const config: webpack.Configuration = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      filename: "host.html",
-      template: "./src/site/host.html",
+      filename: "web_socket.html",
+      template: "./src/site/web_socket.html",
     }),
     new CopyWebpackPlugin({
       patterns: [

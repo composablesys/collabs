@@ -170,6 +170,9 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
       });
     }
 
+    // Store furtherMessages for receiveFurtherMessages.
+    this.loadFurtherMessages = loadMessage.furtherMessages;
+
     // Load latestSaveData, if present.
     if (loadMessage.latestSaveData === null) {
       this.app.load(Optional.empty());
@@ -212,6 +215,6 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   }
 
   get isReady(): boolean {
-    return this.isLoaded && this.receiveFurtherMessages === null;
+    return this.isLoaded && this.loadFurtherMessages === null;
   }
 }

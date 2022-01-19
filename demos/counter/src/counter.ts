@@ -24,6 +24,7 @@ import { CRDTContainer } from "@collabs/container";
   // Note that unlike CRDTApp.load, we don't need to provide the
   // save data ourselves.
   await container.load();
+  container.receiveFurtherMessages();
 
   // Display the loaded state.
   const display = document.getElementById("display")!;

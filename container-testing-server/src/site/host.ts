@@ -18,6 +18,65 @@ if (doLoad) {
   );
 }
 
+// --- Setup our app ---
+
+const app = new collabs.CRDTApp();
+const wsAddr = location.origin.replace(/^http/, "ws");
+const network = new WebSocketNetwork(app, wsAddr, "");
+
+// Add the container in an IFrame,
+// initially hidden so that user input is blocked.
+const iframe = document.createElement("iframe");
+iframe.src = containerUrl;
+iframe.style.display = "none";
+document.body.appendChild(iframe);
+// Set title to that of the container.
+iframe.addEventListener("load", () => {
+  // contentDocument is only non-null if IFrame is from the
+  // same origin.
+  if (iframe.contentDocument !== null) {
+    document.title = iframe.contentDocument.title;
+  } else {
+    // TODO: should change this whole thing to use messages
+    // from the container, since different origins is the
+    // common case.
+    document.title = "Container";
+  }
+});
+
+// Attach the container.
+const host = app.registerCollab("host", collabs.Pre(CRDTContainerHost)(iframe));
+
+// Show the container once it's ready.
+host.nextEvent("ContainerReady").then(() => {
+  const loadingDiv = <HTMLDivElement>document.getElementById("loading");
+  document.body.removeChild(loadingDiv);
+  iframe.style.display = "block";
+});
+
+// Load if needed.
+const sessionStorageSave = window.sessionStorage.getItem(containerUrl);
+
+if (doLoad) {
+  console.log("Loading from sessionStorage...");
+  if (sessionStorageSave === null) {
+    console.log("Load error: no save found.");
+    app.load(collabs.Optional.empty());
+  } else {
+    app.load(collabs.Optional.of(collabs.stringAsBytes(sessionStorageSave)));
+    console.log("Loaded.");
+  }
+} else {
+  app.load(collabs.Optional.empty());
+}
+// Note: in a real app, you should also locally persist all sent messages
+// that are not part of the save data,
+// then replay them here.
+// See TODO (initialization docs with list of steps).
+
+// TODO: here, only request messages we need from the server.
+// (Currently, network requests them all as part of its constructor).
+
 // --- Host controls ---
 
 // Connectedness buttons.
@@ -46,13 +105,14 @@ function updateNetwork() {
     connected.checked = sendConnected.checked;
   }
   // Affect network.
-  disconnectableNetwork.receiveConnected = receiveConnected.checked;
-  disconnectableNetwork.sendConnected = sendConnected.checked;
+  network.receiveConnected = receiveConnected.checked;
+  network.sendConnected = sendConnected.checked;
 }
 
 // Save and load buttons.
 const saveButton = <HTMLButtonElement>document.getElementById("save");
 const loadButton = <HTMLButtonElement>document.getElementById("load");
+loadButton.disabled = sessionStorageSave === null;
 
 saveButton.addEventListener("click", async function () {
   console.log("Saving to sessionStorage...");
@@ -97,60 +157,3 @@ resetButton.addEventListener("click", async function () {
     window.location.reload();
   }
 });
-
-// --- Setup our app ---
-const wsAddr = location.origin.replace(/^http/, "ws");
-const network = new WebSocketNetwork(wsAddr, "");
-const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
-const app = new collabs.CRDTApp(disconnectableNetwork);
-
-// Add the container in an IFrame,
-// initially hidden so that user input is blocked.
-const iframe = document.createElement("iframe");
-iframe.src = containerUrl;
-iframe.style.display = "none";
-document.body.appendChild(iframe);
-// Set title to that of the container.
-iframe.addEventListener("load", () => {
-  // contentDocument is only non-null if IFrame is from the
-  // same origin.
-  if (iframe.contentDocument !== null) {
-    document.title = iframe.contentDocument.title;
-  } else {
-    // TODO: should change this whole thing to use messages
-    // from the container, since different origins is the
-    // common case.
-    document.title = "Container";
-  }
-});
-
-// Attach the container.
-const host = app.registerCollab("host", collabs.Pre(CRDTContainerHost)(iframe));
-
-// Show the container once it's ready.
-host.nextEvent("ContainerReady").then(() => {
-  const loadingDiv = <HTMLDivElement>document.getElementById("loading");
-  document.body.removeChild(loadingDiv);
-  iframe.style.display = "block";
-});
-
-// Load if needed.
-const sessionStorageSave = window.sessionStorage.getItem(containerUrl);
-loadButton.disabled = sessionStorageSave === null;
-
-if (doLoad) {
-  console.log("Loading from sessionStorage...");
-  if (sessionStorageSave === null) {
-    console.log("Load error: no save found.");
-    app.load(collabs.Optional.empty());
-  } else {
-    app.load(collabs.Optional.of(collabs.stringAsBytes(sessionStorageSave)));
-    console.log("Loaded.");
-  }
-} else {
-  app.load(collabs.Optional.empty());
-}
-
-// Note for code readers: a real host should be calling
-// host.compactSaveData occasionally (automatically, not in response
-// to a UI button).
