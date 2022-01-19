@@ -215,17 +215,16 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     // from the network. This makes container setup and testing
     // easier, since it avoids adding an extra scenario
     // (load w/ further messages).
-    // The setTimeout can also be preempted, if we receive
-    // another message from our host first. This prevents issues
+    // The setTimeout might also be preempted, if we receive
+    // another message from our host first. That prevents issues
     // where later messages get interleaved before these.
     if (loadMessage.furtherMessages.length > 0) {
       this.loadFurtherMessages = loadMessage.furtherMessages;
       setTimeout(() => this.processLoadFurtherMessages());
+    } else {
+      // Let the host know that loading is complete already.
+      this.messagePortSend({ type: "Ready" });
     }
-
-    // Let the host know that loading is complete.
-    // TODO: doc that this doesn't include loading furtherMessages.
-    this.messagePortSend({ type: "Ready" });
 
     this.emit("Load", {
       skipped: loadMessage.latestSaveData === null,
@@ -241,6 +240,10 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
       );
       this.lastReceivedID = this.loadFurtherMessages.length - 1;
       this.loadFurtherMessages = null;
+      // Let the host know that loading is complete.
+      // TODO: doc that this *does* include furtherMessages
+      // (i.e., the host's full load, but not the container's).
+      this.messagePortSend({ type: "Ready" });
     }
   }
 

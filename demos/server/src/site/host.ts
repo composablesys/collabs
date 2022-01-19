@@ -1,10 +1,7 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerHost } from "@collabs/container";
+import { CRDTContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
 import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
-
-// TODO: future features:
-// - save & load button that also reports how long it takes
 
 // Extract the container & type of network to use from the URL's
 // GET parameters.
@@ -41,9 +38,11 @@ switch (networkType) {
 const disconnectableNetwork = new collabs.DisconnectableNetwork(network);
 const app = new collabs.CRDTApp(disconnectableNetwork, { batchingStrategy });
 
-// Add the container in an IFrame.
+// Add the container in an IFrame,
+// initially hidden so that user input is blocked.
 const iframe = document.createElement("iframe");
 iframe.src = containerUrl;
+iframe.style.display = "none";
 document.body.appendChild(iframe);
 // Set title to that of the container.
 iframe.addEventListener("load", () => {
@@ -58,7 +57,14 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab("host", collabs.Pre(ContainerHost)(iframe));
+const host = app.registerCollab("host", collabs.Pre(CRDTContainerHost)(iframe));
+
+// Show the container once it's ready.
+host.nextEvent("ContainerReady").then(() => {
+  const loadingDiv = <HTMLDivElement>document.getElementById("loading");
+  document.body.removeChild(loadingDiv);
+  iframe.style.display = "block";
+});
 
 // Skip loading.
 app.load(collabs.Optional.empty());
@@ -93,9 +99,3 @@ function updateNetwork() {
   disconnectableNetwork.receiveConnected = receiveConnected.checked;
   disconnectableNetwork.sendConnected = sendConnected.checked;
 }
-
-// const saveLoad = <HTMLButtonElement>document.getElementById("saveLoad");
-// saveLoad.addEventListener("clicked", () => {
-//   // TODO: save, recreate, then load, without repeating
-//   // message history.
-// });

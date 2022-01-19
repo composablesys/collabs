@@ -111,14 +111,15 @@ iframe.src = containerUrl;
 iframe.style.display = "none";
 document.body.appendChild(iframe);
 // Set title to that of the container.
-// TODO: replace with metadata
 iframe.addEventListener("load", () => {
   // contentDocument is only non-null if IFrame is from the
   // same origin.
   if (iframe.contentDocument !== null) {
     document.title = iframe.contentDocument.title;
   } else {
-    // TODO: use metadata from the container
+    // TODO: should change this whole thing to use messages
+    // from the container, since different origins is the
+    // common case.
     document.title = "Container";
   }
 });
@@ -132,8 +133,6 @@ host.nextEvent("ContainerReady").then(() => {
   document.body.removeChild(loadingDiv);
   iframe.style.display = "block";
 });
-
-// TODO: use metadata (including dynamically).
 
 // Load if needed.
 const sessionStorageSave = window.sessionStorage.getItem(containerUrl);
@@ -152,4 +151,6 @@ if (doLoad) {
   app.load(collabs.Optional.empty());
 }
 
-// TODO: real host should be calling compactSaveData occasionally.
+// Note for code readers: a real host should be calling
+// host.compactSaveData occasionally (automatically, not in response
+// to a UI button).
