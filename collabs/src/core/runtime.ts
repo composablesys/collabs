@@ -25,6 +25,8 @@ export interface RuntimeEventsRecord {
    * Emitted at the end of [[Runtime.load]].
    *
    * TODO: mention a good time to construct views (ref docs).
+   * Need to do so in same event loop, since messages may
+   * be delivered in the next one.
    */
   Load: LoadEvent;
 }

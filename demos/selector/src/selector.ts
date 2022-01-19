@@ -22,27 +22,18 @@ import pako from "pako";
     )
   );
 
-  // Register this event handler before calling container.load.
-  // That way, if load sets a value for currentHost, then
-  // delivers a further message that changes the value, the
-  // old value will still be cleaned up properly by
-  // new value's Set handler.
-  let hasBeenSet = false;
-  currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
-
   await container.load();
 
   // Display loaded state.
-  // If onCurrentHostSet is called during load, we don't
-  // need to call it again; hasBeenSet tracks this.
-  if (!hasBeenSet && currentHost.value.isPresent) {
+  if (currentHost.value.isPresent) {
     onCurrentHostSet(collabs.Optional.empty());
   }
+
+  currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
 
   function onCurrentHostSet(
     previousValue: collabs.Optional<CRDTContainerHost>
   ) {
-    hasBeenSet = true;
     // Make the set value the only visible thing.
     selectorDiv.hidden = true;
     if (previousValue.isPresent) {

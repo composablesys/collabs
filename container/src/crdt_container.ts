@@ -43,14 +43,12 @@ interface CRDTContainerEventsRecord {
   /**
    * Emitted at the end of [[CRDTContainer.load]].
    *
-   * TODO: note event emitters will be triggered before
-   * load returns (including async nextEvent ones, due to
-   * Promise queue).
-   *
    * TODO: mention a good time to construct views (ref docs).
+   * Need to do so in same event loop, since messages may
+   * be delivered in the next one.
    *
-   * TODO: if skipped is true, it also implies that no
-   * messages were delivered by us.
+   * TODO: add field indicating whether further messages will
+   * be delivered? Meaning of "skipped" is confused.
    */
   Load: LoadEvent;
 }
@@ -132,6 +130,7 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   }
 
   private messagePortReceive(e: MessageEvent<ContainerMessage>) {
+    this.processLoadFurtherMessages();
     switch (e.data.type) {
       case "Receive":
         this.network.onreceive(e.data.message);
@@ -175,11 +174,18 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     return this.app.registerCollab(name, preCollab);
   }
 
+  private loadFurtherMessages: Uint8Array[] | null = null;
+
   /**
-   * TODO
+   * TODO. Note "further messages" are not delivered until
+   * next event loop (as if they were newly received).
+   * (TODO: event to tell when *that* is done, in case you care?
+   * E.g. for optimization - don't construct the view until
+   * then, if you know what you're doing and when to register
+   * which event handlers.)
    *
-   * @return whether loading was skipped, there was no
-   * prior save data or further messages.
+   * @return whether loading was skipped, i.e., there was no
+   * prior save data. (TODO: what if further messages only?)
    */
   async load(): Promise<boolean> {
     // Get the load message from messagePortReceive.
@@ -194,38 +200,48 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
       });
     }
 
-    if (loadMessage.skipped) {
+    // Load latestSaveData, if present.
+    if (loadMessage.latestSaveData === null) {
       this.app.load(Optional.empty());
     } else {
-      // Load latestSaveData, if present.
-      // TODO: issue: loading due to saveData won't gen
-      // events, but loading due to further messages will.
-      // In part., you might see messages before loaded()
-      // resolves, but you should (?) ignore them.
-      // Need to clarify or working around this.
-      if (loadMessage.latestSaveData === null) {
-        this.app.load(Optional.empty());
-      } else {
-        this.app.load(Optional.of(loadMessage.latestSaveData));
-      }
-      // Deliver further messages (messages in the saved
-      // state that didn't make it into latestSaveData).
-      loadMessage.furtherMessages.forEach((message) =>
-        this.network.onreceive(message)
-      );
-      // TODO: this could be too late if something weird
-      // happens during the above forEach?
-      this.lastReceivedID = loadMessage.lastID;
+      this.app.load(Optional.of(loadMessage.latestSaveData));
     }
-    // Let the host know that loading
-    // is complete.
+
+    // Deliver further messages (messages in the saved
+    // state that didn't make it into latestSaveData),
+    // if present.
+    // We wait until the next event loop iteration to do
+    // this so that they behave like newly-delivered messages
+    // from the network. This makes container setup and testing
+    // easier, since it avoids adding an extra scenario
+    // (load w/ further messages).
+    // The setTimeout can also be preempted, if we receive
+    // another message from our host first. This prevents issues
+    // where later messages get interleaved before these.
+    if (loadMessage.furtherMessages.length > 0) {
+      this.loadFurtherMessages = loadMessage.furtherMessages;
+      setTimeout(() => this.processLoadFurtherMessages());
+    }
+
+    // Let the host know that loading is complete.
+    // TODO: doc that this doesn't include loading furtherMessages.
     this.messagePortSend({ type: "Ready" });
 
     this.emit("Load", {
-      skipped: loadMessage.skipped,
+      skipped: loadMessage.latestSaveData === null,
     });
 
-    return loadMessage.skipped;
+    return loadMessage.latestSaveData === null;
+  }
+
+  private processLoadFurtherMessages() {
+    if (this.loadFurtherMessages !== null) {
+      this.loadFurtherMessages.forEach((message) =>
+        this.network.onreceive(message)
+      );
+      this.lastReceivedID = this.loadFurtherMessages.length - 1;
+      this.loadFurtherMessages = null;
+    }
   }
 
   get runtime(): CRDTRuntime {

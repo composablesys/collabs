@@ -321,7 +321,9 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
       // as their initial values (null, []).
       this.messagePortSend({
         type: "Load",
-        skipped: true,
+        hostSkipped: true,
+        latestSaveData: null,
+        furtherMessages: [],
       });
     } else {
       const decoded = ContainerHostSave.decode(saveData.get());
@@ -338,10 +340,9 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
 
       this.messagePortSend({
         type: "Load",
-        skipped: false,
+        hostSkipped: false,
         latestSaveData: this.latestSaveData,
         furtherMessages: decoded.furtherMessages,
-        lastID: decoded.furtherMessages.length - 1,
       });
     }
   }

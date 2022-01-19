@@ -290,11 +290,9 @@ export function setupTiles(container: CRDTContainer) {
     )
   );
 
-  // Once loaded, display the loaded state and add event
-  // handlers that should only be added after loading.
+  // Once loaded, display the loaded state.
   container.nextEvent("Load").then(() => {
     refreshAppExistingDiv();
-    existingApps.on("Any", refreshAppExistingDiv);
   });
 
   const appExistingDiv = <HTMLDivElement>(
@@ -322,6 +320,7 @@ export function setupTiles(container: CRDTContainer) {
       appExistingDiv.appendChild(document.createElement("br"));
     });
   }
+  existingApps.on("Any", refreshAppExistingDiv);
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
