@@ -27,6 +27,13 @@ import Quill, { DeltaOperation } from "quill";
 
   await container.load();
 
+  // Call this before syncing the loaded state to Quill, as
+  // an optimization.
+  // That way, we can immediately give Quill the complete loaded
+  // state (including further messages), instead of syncing
+  // the further messages to Quill using a bunch of events.
+  container.receiveFurtherMessages();
+
   // Display loaded state by syncing it to Quill.
   quill.updateContents(
     new Delta({
@@ -125,4 +132,7 @@ import Quill, { DeltaOperation } from "quill";
       });
     }
   });
+
+  // Ready.
+  container.ready();
 })();

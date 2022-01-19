@@ -127,4 +127,7 @@ import { CRDTContainer } from "@collabs/container";
   textarea.addEventListener("drop", (e) => {
     e.preventDefault();
   });
+
+  // Ready.
+  container.ready();
 })();

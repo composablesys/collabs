@@ -1939,10 +1939,15 @@ async function collabsSetup() {
     }
   }
 
+  container.on("Change", evaluateGenetics);
+
   await container.load();
 
+  // Display loaded state.
   evaluateGenetics();
-  container.on("Change", evaluateGenetics);
+
+  // Ready.
+  container.ready();
 }
 
 function imageSrc(filename) {

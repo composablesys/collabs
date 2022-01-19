@@ -24,4 +24,10 @@ window.onload = () => {
 
   // The whiteboard and tiles take care of displaying
   // loaded state on their own.
+
+  // Ready. It's okay that setupWhiteboard and setupTiles do
+  // some setup in microtasks, since ready won't really
+  // take effect (start delivering messages) until the next
+  // event loop iteration.
+  container.ready();
 })();

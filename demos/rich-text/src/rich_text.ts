@@ -170,6 +170,13 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
 
   await container.load();
 
+  // Call this before syncing the loaded state to Quill, as
+  // an optimization.
+  // That way, we can immediately give Quill the complete loaded
+  // state (including further messages), instead of syncing
+  // the further messages to Quill using a bunch of events.
+  container.receiveFurtherMessages();
+
   // Display loaded state by syncing it to Quill.
   updateContents(
     new Delta({
@@ -289,6 +296,9 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
       }
     }
   });
+
+  // Ready.
+  container.ready();
 })();
 
 // TODO: cursor management.  Quill appears to be doing this

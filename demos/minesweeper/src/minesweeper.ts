@@ -392,11 +392,6 @@ class MinesweeperCollab extends collabs.CObject {
     )
   );
 
-  await container.load();
-
-  // Display loaded state.
-  invalidate();
-
   container.on("Change", invalidate);
 
   // Respond to user input.
@@ -419,4 +414,12 @@ class MinesweeperCollab extends collabs.CObject {
     };
   }
   // Other event listeners are added directly refreshDisplay.
+
+  await container.load();
+
+  // Display loaded state.
+  invalidate();
+
+  // Ready.
+  container.ready();
 })();

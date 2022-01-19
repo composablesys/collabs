@@ -14,13 +14,20 @@ import $ from "jquery";
 
   await container.load();
 
+  // Call this before displaying the loaded state, as
+  // an optimization.
+  // That way, we can immediately draw the complete loaded
+  // state (including further messages), instead of syncing
+  // the further messages to the canvas using a bunch of events.
+  container.receiveFurtherMessages();
+
   const colors = document.getElementsByClassName("btn-colors");
   const clear = <HTMLButtonElement>document.getElementById("clear");
   const board = <HTMLCanvasElement>document.getElementById("board");
   const ctx = board.getContext("2d")!;
   const GRAN = 2;
 
-  // Display the loaded state.
+  // Display loaded state.
   for (const [key, value] of boardState) {
     ctx.fillStyle = value;
     ctx.fillRect(key[0], key[1], GRAN, GRAN);
@@ -126,4 +133,7 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown = false;
     });
+
+  // Ready.
+  container.ready();
 })();

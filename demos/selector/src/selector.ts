@@ -22,13 +22,6 @@ import pako from "pako";
     )
   );
 
-  await container.load();
-
-  // Display loaded state.
-  if (currentHost.value.isPresent) {
-    onCurrentHostSet(collabs.Optional.empty());
-  }
-
   currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
 
   function onCurrentHostSet(
@@ -131,4 +124,14 @@ import pako from "pako";
     a.click();
     w.document.body.removeChild(a);
   }
+
+  await container.load();
+
+  // Display loaded state.
+  if (currentHost.value.isPresent) {
+    onCurrentHostSet(collabs.Optional.empty());
+  }
+
+  // Ready.
+  container.ready();
 })();

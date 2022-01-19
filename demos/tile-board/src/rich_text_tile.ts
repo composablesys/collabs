@@ -145,55 +145,40 @@ export function richTextPreContent(
     },
   });
 
-  // Once loaded, display loaded state and add event handlers.
-  clientText.runtime.nextEvent("Load").then(() => {
-    // Display loaded state by syncing it to Quill.
-    updateContents(
-      new Delta({
-        ops: clientText.text.map((richChar) => {
-          return {
-            insert: richChar.char,
-            attributes: richChar.attributes(),
-          };
-        }),
-      })
-    );
+  // Reflect future Collab operations in Quill.
+  // Note that for local operations, Quill has already updated
+  // its own representation, so we should skip doing so again.
+  function updateContents(delta: Delta) {
+    ourChange = true;
+    quill.updateContents(delta as any);
+    ourChange = false;
+  }
 
-    // Reflect future Collab operations in Quill.
-    // Note that for local operations, Quill has already updated
-    // its own representation, so we should skip doing so again.
-    function updateContents(delta: Delta) {
-      ourChange = true;
-      quill.updateContents(delta as any);
-      ourChange = false;
-    }
+  clientText.on("Insert", (e) => {
+    if (e.meta.isLocalEcho) return;
 
-    clientText.on("Insert", (e) => {
-      if (e.meta.isLocalEcho) return;
-
-      for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
-        // Characters start without any formatting.
-        updateContents(
-          new Delta().retain(index).insert(clientText.get(index).char)
-        );
-      }
-    });
-
-    clientText.on("Delete", (e) => {
-      if (e.meta.isLocalEcho) return;
-
-      updateContents(new Delta().retain(e.startIndex).delete(e.count));
-    });
-
-    clientText.on("Format", (e) => {
-      if (e.meta.isLocalEcho) return;
-
+    for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
+      // Characters start without any formatting.
       updateContents(
-        new Delta()
-          .retain(e.index)
-          .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
+        new Delta().retain(index).insert(clientText.get(index).char)
       );
-    });
+    }
+  });
+
+  clientText.on("Delete", (e) => {
+    if (e.meta.isLocalEcho) return;
+
+    updateContents(new Delta().retain(e.startIndex).delete(e.count));
+  });
+
+  clientText.on("Format", (e) => {
+    if (e.meta.isLocalEcho) return;
+
+    updateContents(
+      new Delta()
+        .retain(e.index)
+        .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
+    );
   });
 
   // Convert user inputs to Collab operations.
@@ -266,6 +251,21 @@ export function richTextPreContent(
         }
       }
     }
+  });
+
+  // Once loaded, display loaded state.
+  clientText.runtime.nextEvent("Load").then(() => {
+    // Display loaded state by syncing it to Quill.
+    updateContents(
+      new Delta({
+        ops: clientText.text.map((richChar) => {
+          return {
+            insert: richChar.char,
+            attributes: richChar.attributes(),
+          };
+        }),
+      })
+    );
   });
 
   return clientText;

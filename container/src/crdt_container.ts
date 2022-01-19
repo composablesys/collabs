@@ -36,6 +36,9 @@ interface CRDTContainerEventsRecord {
 export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private readonly app: CRDTApp;
   private readonly messagePort: MessagePort;
+
+  private _isReady = false;
+
   /**
    * The ID of the last received message (-1 if none).
    *
@@ -99,6 +102,13 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private messagePortReceive(e: MessageEvent<ContainerMessage>) {
     switch (e.data.type) {
       case "Receive":
+        // Make sure that loadFurtherMessages are processed
+        // before any new messages. Probably this is assured
+        // because the setTimeout in ready() should be queued
+        // before any future MessagePort messages, but it
+        // doesn't hurt to double check.
+        this.receiveFurtherMessages();
+
         this.app.receive(e.data.message);
         this.lastReceivedID = e.data.id;
         break;
@@ -116,6 +126,13 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
         break;
       case "SaveRequest":
         try {
+          // Make sure that loadFurtherMessages are processed
+          // before saving. Probably this is assured
+          // because the setTimeout in ready() should be queued
+          // before any future MessagePort messages, but it
+          // doesn't hurt to double check.
+          this.receiveFurtherMessages();
+
           const saveData = this.app.save();
           this.messagePortSend({
             type: "Saved",
@@ -183,23 +200,37 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     return loadMessage.latestSaveData === null;
   }
 
-  receiveFurtherMessages() {
-    if (!this.app.isLoaded) {
-      throw new Error(
-        "receiveFurtherMessages must be called after load completes"
-      );
+  ready(): void {
+    if (this.loadFurtherMessages !== null) {
+      setTimeout(() => this.receiveFurtherMessages());
     }
-    if (this.loadFurtherMessages === null) {
-      throw new Error("receiveFurtherMessages has already been called");
-    }
-
-    this.loadFurtherMessages.forEach((message) => this.app.receive(message));
-    this.lastReceivedID = this.loadFurtherMessages.length - 1;
-    this.loadFurtherMessages = null;
-    // Let the host know that loading is complete.
-    // TODO: doc that this *does* include furtherMessages
-    // (i.e., the host's full load, but not the container's).
     this.messagePortSend({ type: "Ready" });
+    this._isReady = true;
+  }
+
+  /**
+   * TODO: optional (just an opt); warnings; called
+   * automatically after the ready event loop and before
+   * the next message or save request, if not called manually.
+   */
+  receiveFurtherMessages(): void {
+    if (!this.app.isLoaded) {
+      throw new Error("not yet loaded");
+    }
+    if (this.loadFurtherMessages === null) return;
+
+    const furtherMessages = this.loadFurtherMessages;
+    this.loadFurtherMessages = null;
+    furtherMessages.forEach((message) => this.app.receive(message));
+    this.lastReceivedID = furtherMessages.length - 1;
+  }
+
+  get isLoaded(): boolean {
+    return this.app.isLoaded;
+  }
+
+  get isReady(): boolean {
+    return this._isReady;
   }
 
   /**
@@ -208,13 +239,5 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    */
   get runtime(): CRDTRuntime {
     return this.app.runtime;
-  }
-
-  get isLoaded(): boolean {
-    return this.app.isLoaded;
-  }
-
-  get isReady(): boolean {
-    return this.isLoaded && this.loadFurtherMessages === null;
   }
 }

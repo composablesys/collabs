@@ -19,22 +19,12 @@ import { CRDTContainer } from "@collabs/container";
     collabs.Pre(collabs.CCounter)()
   );
 
-  // Wait for the container to load the previous saved state,
-  // if any.
-  // Note that unlike CRDTApp.load, we don't need to provide the
-  // save data ourselves.
-  await container.load();
-  container.receiveFurtherMessages();
-
-  // Display the loaded state.
+  // Refresh the display when the Collab state changes, possibly
+  // due to a message from another replica.
   const display = document.getElementById("display")!;
   function refreshDisplay() {
     display.innerHTML = counterCollab.value.toString();
   }
-  refreshDisplay();
-
-  // Refresh the display when the Collab state changes, possibly
-  // due to a message from another replica.
   container.on("Change", refreshDisplay);
 
   // Change counterCollab's value on button clicks.
@@ -49,4 +39,16 @@ import { CRDTContainer } from "@collabs/container";
   document.getElementById("reset")!.onclick = () => {
     counterCollab.reset();
   };
+
+  // Wait for the container to load the previous saved state,
+  // if any.
+  // Observe that unlike CRDTApp.load, we don't need to provide
+  // the save data ourselves, and the method is async.
+  await container.load();
+
+  // Display the loaded state.
+  refreshDisplay();
+
+  // Signal that we're ready.
+  container.ready();
 })();

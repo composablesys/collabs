@@ -133,4 +133,7 @@ import { CRDTContainer } from "@collabs/container";
   function shouldType(e: KeyboardEvent): boolean {
     return e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
   }
+
+  // Ready.
+  container.ready();
 })();

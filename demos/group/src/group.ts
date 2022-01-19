@@ -25,11 +25,6 @@ import $ from "jquery";
     imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
   };
 
-  await container.load();
-
-  // Display loaded state.
-  updateImg();
-
   clientGroup.on("Any", () => {
     updateImg();
   });
@@ -172,4 +167,12 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown2 = false;
     });
+
+  await container.load();
+
+  // Display loaded state.
+  updateImg();
+
+  // Ready.
+  container.ready();
 })();

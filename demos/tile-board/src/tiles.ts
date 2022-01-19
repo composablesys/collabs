@@ -290,11 +290,6 @@ export function setupTiles(container: CRDTContainer) {
     )
   );
 
-  // Once loaded, display the loaded state.
-  container.nextEvent("Load").then(() => {
-    refreshAppExistingDiv();
-  });
-
   const appExistingDiv = <HTMLDivElement>(
     document.getElementById("appExistingDiv")
   );
@@ -440,4 +435,9 @@ export function setupTiles(container: CRDTContainer) {
       return new CRDTContainerHost(contentInitToken, iframe);
     };
   }
+
+  // Once loaded, display the loaded state.
+  container.runtime.nextEvent("Load").then(() => {
+    refreshAppExistingDiv();
+  });
 }
