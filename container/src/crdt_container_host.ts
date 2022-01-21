@@ -195,7 +195,10 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         );
         if (resolveReject !== undefined) {
           this.compactSaveDataResolves.delete(e.data.requestID);
-          resolveReject[1](e.data.error);
+          resolveReject[1](
+            "Container had error processing compactSaveData() request: " +
+              e.data.errorToString
+          );
         }
         break;
       default:

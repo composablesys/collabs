@@ -319,10 +319,6 @@ export function setupTiles(container: CRDTContainer) {
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
-    // We add this event handler now, instead of after
-    // container's Load event, in case container load an app
-    // within Runtime.load but then delivers a further message
-    // deleting the app.
     e.deletedValues.forEach((app) => URL.revokeObjectURL(app.value.url));
   });
 
@@ -400,12 +396,12 @@ export function setupTiles(container: CRDTContainer) {
       }
     )
   );
+
+  const tileDestructors = new Map<collabs.Collab, () => void>();
   tiles.on("Delete", (e) => {
-    // We add this event handler now, instead of after
-    // container's Load event, in case container load an app
-    // within Runtime.load but then delivers a further message
-    // deleting the app.
     tileParent.removeChild(e.value.dom);
+    const destructor = tileDestructors.get(e.value.contentCollab);
+    if (destructor !== undefined) destructor();
   });
   // No need to listen on Add events; the valueConstructor
   // handles added values (including ones added during loading).
@@ -431,8 +427,20 @@ export function setupTiles(container: CRDTContainer) {
       const iframe = document.createElement("iframe");
       iframe.src = url;
       iframe.className = "tileIframe";
+      // The IFrame stays hidden until its container is ready.
+      // TODO: in its place, display "Initializing..." message.
+      iframe.hidden = true;
       contentDomParent.appendChild(iframe);
-      return new CRDTContainerHost(contentInitToken, iframe);
+      const host = new CRDTContainerHost(contentInitToken, iframe);
+      host.nextEvent("ContainerReady").then(() => {
+        iframe.hidden = false;
+      });
+      // Compact host's save data when compacting our own.
+      // We save the event handler "off" function for when
+      // host is deleted.
+      const off = container.onSaveRequest(() => host.compactSaveData());
+      tileDestructors.set(host, off);
+      return host;
     };
   }
 

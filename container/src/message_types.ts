@@ -25,7 +25,7 @@ export interface SavedMessage {
 export interface SaveRequestFailedMessage {
   type: "SaveRequestFailed";
   requestID: number;
-  error: unknown;
+  errorToString: string;
 }
 
 export type HostMessage =

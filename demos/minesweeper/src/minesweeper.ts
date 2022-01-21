@@ -204,6 +204,10 @@ class MinesweeperCollab extends collabs.CObject {
     return allEmptyRevealed ? GameStatus.WON : GameStatus.IN_PROGRESS;
   }
 
+  saveObject(): Uint8Array | null {
+    throw new Error("test error");
+  }
+
   // <------- UTILITIES ------->
 
   /**
@@ -371,6 +375,20 @@ class MinesweeperCollab extends collabs.CObject {
     }
   }
 
+  const widthInput = document.getElementById("width") as HTMLInputElement;
+  const heightInput = document.getElementById("height") as HTMLInputElement;
+  const percentMinesInput = document.getElementById(
+    "percentMines"
+  ) as HTMLInputElement;
+
+  function settingsFromInput(): GameSettings {
+    return {
+      width: widthInput.valueAsNumber,
+      height: heightInput.valueAsNumber,
+      fractionMines: percentMinesInput.valueAsNumber / 100,
+    };
+  }
+
   const container = new CRDTContainer(window.parent, {});
 
   const currentGame = container.registerCollab(
@@ -399,21 +417,7 @@ class MinesweeperCollab extends collabs.CObject {
     currentSettings.value = settingsFromInput();
     currentState.value = currentSettings.value;
   };
-
-  let widthInput = document.getElementById("width") as HTMLInputElement;
-  let heightInput = document.getElementById("height") as HTMLInputElement;
-  let percentMinesInput = document.getElementById(
-    "percentMines"
-  ) as HTMLInputElement;
-
-  function settingsFromInput(): GameSettings {
-    return {
-      width: widthInput.valueAsNumber,
-      height: heightInput.valueAsNumber,
-      fractionMines: percentMinesInput.valueAsNumber / 100,
-    };
-  }
-  // Other event listeners are added directly refreshDisplay.
+  // Other event listeners are added directly in refreshDisplay.
 
   await container.load();
 

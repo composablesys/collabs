@@ -7,8 +7,14 @@ import {
   EventEmitter,
   Optional,
   Pre,
+  Unsubscribe,
 } from "@collabs/collabs";
-import { ContainerMessage, HostMessage, LoadMessage } from "./message_types";
+import {
+  ContainerMessage,
+  HostMessage,
+  LoadMessage,
+  SaveRequestMessage,
+} from "./message_types";
 
 interface CRDTContainerEventsRecord {
   /**
@@ -125,28 +131,9 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
         }
         break;
       case "SaveRequest":
-        try {
-          // Make sure that loadFurtherMessages are processed
-          // before saving. Probably this is assured
-          // because the setTimeout in ready() should be queued
-          // before any future MessagePort messages, but it
-          // doesn't hurt to double check.
-          this.receiveFurtherMessages();
-
-          const saveData = this.app.save();
-          this.messagePortSend({
-            type: "Saved",
-            saveData,
-            lastReceivedID: this.lastReceivedID,
-            requestID: e.data.requestID,
-          });
-        } catch (error) {
-          this.messagePortSend({
-            type: "SaveRequestFailed",
-            requestID: e.data.requestID,
-            error,
-          });
-        }
+        // Note we ignore the returned Promise; processSaveRequest
+        // completes independently.
+        void this.processSaveRequest(e.data);
         break;
       default:
         throw new Error("bad e.data.type: " + e.data);
@@ -239,5 +226,81 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    */
   get runtime(): CRDTRuntime {
     return this.app.runtime;
+  }
+
+  private saveRequestHandlers = new Set<
+    (caller: this) => void | Promise<void>
+  >();
+
+  /**
+   * Registers an event handler that is triggered and awaited
+   * when the host makes a save request (due to
+   * [[CRDTContainerHost.compactSaveData]] being called).
+   *
+   * The event handler will be run and awaited before
+   * calling `runtime.save()` and responding to the save
+   * request. So, you can use event handlers to make the
+   * save data nicer/smaller before `runtime.save()` is called.
+   * E.g., if you have your own [[CRDTContainerHost]],
+   * you can call its [[CRDTContainerHost.compactSaveData]]
+   * methods and return the resulting Promise, so that our save
+   * data uses the nested container's compacted save data.
+   *
+   * @param handler Callback that handles the event (possibly async)
+   * @return An "off" function that removes the event handler when called
+   */
+  onSaveRequest(handler: (caller: this) => void | Promise<void>): Unsubscribe {
+    this.saveRequestHandlers.add(handler);
+    return () => this.saveRequestHandlers.delete(handler);
+  }
+
+  private async processSaveRequest(message: SaveRequestMessage): Promise<void> {
+    try {
+      // Make sure that loadFurtherMessages are processed
+      // before saving. Probably this is assured
+      // because the setTimeout in ready() should be queued
+      // before any future MessagePort messages, but it
+      // doesn't hurt to double check.
+      this.receiveFurtherMessages();
+
+      // Wait for SaveRequest handlers to complete.
+      const toAwait: Promise<void>[] = [];
+      for (const handler of this.saveRequestHandlers) {
+        try {
+          const ret = handler(this);
+          if (ret instanceof Promise) toAwait.push(ret);
+        } catch (err) {
+          // Don't let the error block other event handlers
+          // or interrupt the save request as a whole
+          // (there's still benefit in calling runtime.save()),
+          // but still make it print
+          // its error like it was unhandled.
+          void Promise.resolve().then(() => {
+            throw err;
+          });
+        }
+      }
+      await Promise.all(toAwait);
+
+      // Save and respond to the request.
+      const saveData = this.app.save();
+      this.messagePortSend({
+        type: "Saved",
+        saveData,
+        lastReceivedID: this.lastReceivedID,
+        requestID: message.requestID,
+      });
+    } catch (error) {
+      this.messagePortSend({
+        type: "SaveRequestFailed",
+        requestID: message.requestID,
+        errorToString: String(error),
+      });
+      // Also "throw" the error separately, so it gets
+      // logged in the console.
+      void Promise.resolve().then(() => {
+        throw error;
+      });
+    }
   }
 }

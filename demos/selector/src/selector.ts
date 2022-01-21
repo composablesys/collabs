@@ -17,6 +17,16 @@ import pako from "pako";
         iframe.srcdoc = htmlSrc;
         const host = new CRDTContainerHost(valueInitToken, iframe);
         document.body.appendChild(iframe);
+        // Compact host's save data when compacting our own.
+        container.onSaveRequest(() => host.compactSaveData());
+        // If it was possible to override causally prior values
+        // (triggering currentHost "Delete" events), then we
+        // would need to call the "off" function returned by
+        // onSaveRequest, in currentHost's "Delete" event handler.
+        // Otherwise, container's handler set would keep a
+        // reference to host, preventing GC and triggering
+        // unnecessary save compaction.
+
         return host;
       }
     )
@@ -24,20 +34,34 @@ import pako from "pako";
 
   currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
 
+  const initializingDiv = <HTMLDivElement>(
+    document.getElementById("initializingDiv")
+  );
+
   function onCurrentHostSet(
     previousValue: collabs.Optional<CRDTContainerHost>
   ) {
-    // Make the set value the only visible thing.
+    // Hide other stuff.
     selectorDiv.hidden = true;
     if (previousValue.isPresent) {
       previousValue.get().containerIFrame.hidden = true;
     }
-    const iframe = currentHost.value.get().containerIFrame;
-    iframe.hidden = false;
+    const newValue = currentHost.value.get();
+    // Show "Initializing..." message until the container is
+    // ready, then show its IFrame.
+    // We know that it is not yet ready because it will have
+    // been set in the same event loop iteration (although
+    // possibly in a previous microtask), whether onCurrentHostSet
+    // was called in the Set event handler or after
+    // `await container.load()`.
+    const iframe = newValue.containerIFrame;
+    initializingDiv.hidden = false;
+    newValue.nextEvent("ContainerReady").then(() => {
+      initializingDiv.hidden = true;
+      iframe.hidden = false;
+    });
     // Set title to that of the visible IFrame.
-    // We know that it is not yet loaded because it will only
-    // be Set once, in the same thread where it is initially
-    // created.
+    // Again, we know that iframe is not yet loaded.
     iframe.addEventListener("load", () => {
       document.title = iframe.contentDocument!.title;
     });
@@ -81,9 +105,9 @@ import pako from "pako";
   });
 
   // Download button GUI.
-  const downloadDiv = document.getElementById("download.div")!;
+  const downloadDiv = document.getElementById("downloadDiv")!;
   const downloadButton = <HTMLButtonElement>(
-    document.getElementById("download.button")
+    document.getElementById("downloadButton")
   );
   downloadButton.addEventListener("click", () => {
     const htmlSrcGzippedOptional = currentHost.getArgs();

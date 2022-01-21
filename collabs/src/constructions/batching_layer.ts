@@ -332,7 +332,7 @@ export class BatchingLayer
         // Don't let the error block other messages' delivery,
         // but still make it print
         // its error like it was unhandled.
-        setTimeout(() => {
+        void Promise.resolve().then(() => {
           throw err;
         });
       } finally {
