@@ -46,22 +46,31 @@ import pako from "pako";
     if (previousValue.isPresent) {
       previousValue.get().containerIFrame.hidden = true;
     }
-    const newValue = currentHost.value.get();
+
     // Show "Initializing..." message until the container is
     // ready, then show its IFrame.
-    // We know that it is not yet ready because it will have
-    // been set in the same event loop iteration (although
-    // possibly in a previous microtask), whether onCurrentHostSet
-    // was called in the Set event handler or after
-    // `await container.load()`.
+    const newValue = currentHost.value.get();
     const iframe = newValue.containerIFrame;
-    initializingDiv.hidden = false;
-    newValue.nextEvent("ContainerReady").then(() => {
+    if (newValue.isContainerReady) {
+      // The container might already be ready if we load
+      // more slowly than it.
       initializingDiv.hidden = true;
       iframe.hidden = false;
-    });
+    } else {
+      initializingDiv.hidden = false;
+      newValue.nextEvent("ContainerReady").then(() => {
+        initializingDiv.hidden = true;
+        iframe.hidden = false;
+      });
+    }
     // Set title to that of the visible IFrame.
-    // Again, we know that iframe is not yet loaded.
+    // Not sure how to tell if the IFrame is already loaded
+    // (hence won't emit "load"); to be safe, we'll set the
+    // title if contentDocument !== null, but add the "load"
+    // listener anyway.
+    if (iframe.contentDocument !== null) {
+      document.title = iframe.contentDocument.title;
+    }
     iframe.addEventListener("load", () => {
       document.title = iframe.contentDocument!.title;
     });

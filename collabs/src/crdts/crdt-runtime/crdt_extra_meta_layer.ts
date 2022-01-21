@@ -272,8 +272,8 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
         }
         index--;
         if (DEBUG) {
-          console.log(this.currentVectorClock.toString());
-          console.log(crdtMetaMessage.toString());
+          console.log([...this.currentVectorClock]);
+          console.log(JSON.stringify(crdtMetaMessage));
         }
       }
     }

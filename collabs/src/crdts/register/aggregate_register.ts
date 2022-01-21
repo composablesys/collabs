@@ -48,17 +48,19 @@ export abstract class AggregateArgsCRegister<
   implements CRegister<T, SetArgs>
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];
-  private cachedValue?: T = undefined;
-  private cacheValid = false;
+  private _value: T;
 
   constructor(
     initToken: InitToken,
     readonly valueConstructor: (...args: SetArgs) => S,
+    initialValue: T,
     readonly argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
       initToken.runtime
     )
   ) {
     super(initToken);
+
+    this._value = initialValue;
   }
 
   set(...args: SetArgs): T {
@@ -85,9 +87,6 @@ export abstract class AggregateArgsCRegister<
     message: string | Uint8Array,
     meta: CRDTMessageMeta
   ): void {
-    // Get previousValue now
-    const previousValue = this.value;
-
     const decoded = AggregateArgsCRegisterMessage.decode(<Uint8Array>message);
     const newState = new Array<AggregateArgsCRegisterEntry<S>>();
     for (const entry of this.entries) {
@@ -116,14 +115,23 @@ export abstract class AggregateArgsCRegister<
           `AggregateCRegister: Bad decoded.data: ${decoded.data}`
         );
     }
-    this.setNewState(newState);
-    this.cacheValid = false;
-    this.cachedValue = undefined;
 
-    this.emit("Set", {
-      meta,
-      previousValue,
-    });
+    // Use newState to set entries and _value.
+    // We sort entries by sender, to make the order deterministic.
+    // Note senders are always all distinct.
+    newState.sort((a, b) => (a.sender < b.sender ? -1 : 1));
+    this.entries = newState;
+    const previousValue = this._value;
+    this._value = this.aggregate(this.entries);
+
+    // Only emit a Set event if the value has changed
+    // (under === equality).
+    if (this._value !== previousValue) {
+      this.emit("Set", {
+        meta,
+        previousValue,
+      });
+    }
   }
 
   private constructValue(argsSerialized: Uint8Array): S {
@@ -132,20 +140,8 @@ export abstract class AggregateArgsCRegister<
     );
   }
 
-  private setNewState(newState: AggregateArgsCRegisterEntry<S>[]): void {
-    // Sort by sender, to make the order deterministic.
-    // Note senders are always all distinct.
-    newState.sort((a, b) => (a.sender < b.sender ? -1 : 1));
-    // Replace this.state with newState
-    this.entries = newState;
-  }
-
   get value(): T {
-    if (!this.cacheValid) {
-      this.cachedValue = this.aggregate(this.conflictsMeta());
-      this.cacheValid = true;
-    }
-    return this.cachedValue!;
+    return this._value;
   }
 
   /**
@@ -214,6 +210,7 @@ export abstract class AggregateArgsCRegister<
         )
       );
     }
+    this._value = this.aggregate(this.entries);
   }
 
   /**
@@ -223,6 +220,13 @@ export abstract class AggregateArgsCRegister<
    * Note that conflictsMeta might be empty (initial/reset
    * state).  Order is eventually consistent, so it is okay
    * to depend on the order.
+   *
+   * If the return value is "equal" to the previous value
+   * (the current `this.value`), for some
+   * definition of equal that users would find reasonable,
+   * then you should return the literal previous value
+   * or something === to it. Otherwise, users will get spurious
+   * "Set" events.
    *
    * @param  conflictsMeta [description]
    * @return               [description]
@@ -240,6 +244,7 @@ export abstract class AggregateCRegister<
 > extends AggregateArgsCRegister<T, [T], T, Events> {
   constructor(
     initToken: InitToken,
+    initialValue: T,
     valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
       initToken.runtime
     )
@@ -247,6 +252,7 @@ export abstract class AggregateCRegister<
     super(
       initToken,
       (value) => value,
+      initialValue,
       SingletonSerializer.getInstance(valueSerializer)
     );
   }

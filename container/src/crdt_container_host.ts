@@ -108,28 +108,26 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     super(initToken);
 
     // Listen for this.messagePort.
-    window.addEventListener(
-      "message",
-      (e) => {
-        // TODO: what if contentWindow is not accessible, due to
-        // same-origin policy, or because it's still null
-        // for some reason?
-        if (e.source !== containerIFrame.contentWindow) return;
-        // TODO: other checks?
-        this.messagePort = e.ports[0];
-        // Send queued messages.
-        this.messagePortQueue!.forEach((message) =>
-          this.messagePort!.postMessage(message)
-        );
-        this.messagePortQueue = null;
-        // Begin receiving.
-        // Do this last just in case it starts receiving
-        // synchronously (although I'm guessing the spec doesn't
-        // actually allow that).
-        this.messagePort.onmessage = this.messagePortReceive.bind(this);
-      },
-      { once: true }
-    );
+    const onmessage = (e: MessageEvent<unknown>) => {
+      // TODO: what if contentWindow is not accessible, due to
+      // same-origin policy, or because it's still null
+      // for some reason?
+      if (e.source !== containerIFrame.contentWindow) return;
+      // TODO: other checks?
+      this.messagePort = e.ports[0];
+      // Send queued messages.
+      this.messagePortQueue!.forEach((message) =>
+        this.messagePort!.postMessage(message)
+      );
+      this.messagePortQueue = null;
+      // Begin receiving.
+      // Do this last just in case it starts receiving
+      // synchronously (although I'm guessing the spec doesn't
+      // actually allow that).
+      this.messagePort.onmessage = this.messagePortReceive.bind(this);
+      window.removeEventListener("message", onmessage);
+    };
+    window.addEventListener("message", onmessage);
   }
 
   private messagePortSend(message: ContainerMessage) {

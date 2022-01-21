@@ -335,9 +335,9 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
       op.leftId = uids[idx];
       op.rightId = uids[idx + 2];
     });
-    this.getById(this.START)!.rightId = uids[1];
-    this.getById(this.END)!.originId = uids[uids.length - 2];
-    this.getById(this.END)!.leftId = uids[uids.length - 2];
+    startOp.rightId = uids[1];
+    endOp.originId = uids[uids.length - 2];
+    endOp.leftId = uids[uids.length - 2];
 
     const addInitialContentOpEventHandlers =
       (yata: YataLinear<T>) => (op: YataOp<T>, uid: string) => {
@@ -432,7 +432,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   // TODO: Make iterative instead of recursive
   private toArrayNode(
     nodeId: string
-  ): { content: T; attributes: Record<string, any> }[] {
+  ): { insert: T; attributes: Record<string, any> }[] {
     const node = this.op(nodeId);
     if (node.pos === 0) return [];
     const arr = this.toArrayNode(node.leftId);
@@ -445,7 +445,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
         result = it.next();
       }
       arr.push({
-        content: node.content,
+        insert: node.content,
         attributes: formats,
       });
     }
@@ -491,7 +491,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     this.end = e;
   }
 
-  toArray(): { content: T; attributes: Record<string, any> }[] {
+  toArray(): { insert: T; attributes: Record<string, any> }[] {
     return this.toArrayNode(this.op(this.END).leftId);
   }
 

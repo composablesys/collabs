@@ -35,11 +35,15 @@ import Quill, { DeltaOperation } from "quill";
   container.receiveFurtherMessages();
 
   // Display loaded state by syncing it to Quill.
+  const loadOps = clientText.toArray();
   quill.updateContents(
     new Delta({
-      ops: clientText.toArray(),
+      ops: loadOps,
     })
   );
+  // Delete Quill's starting character (a single "\n", now
+  // pushed to the end), since it's not in clientText.
+  quill.updateContents(new Delta().retain(loadOps.length).delete(1));
 
   // Reflect Collab operations in Quill.
   clientText.on(

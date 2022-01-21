@@ -266,6 +266,9 @@ export function richTextPreContent(
         }),
       })
     );
+    // Delete Quill's starting character (a single "\n", now
+    // pushed to the end), since it's not in clientText.
+    updateContents(new Delta().retain(clientText.length).delete(1));
   });
 
   return clientText;

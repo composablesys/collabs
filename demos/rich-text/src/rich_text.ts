@@ -178,6 +178,12 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   container.receiveFurtherMessages();
 
   // Display loaded state by syncing it to Quill.
+  let ourChange = false;
+  function updateContents(delta: Delta) {
+    ourChange = true;
+    quill.updateContents(delta as any);
+    ourChange = false;
+  }
   updateContents(
     new Delta({
       ops: clientText.text.map((richChar) => {
@@ -188,17 +194,13 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
       }),
     })
   );
+  // Delete Quill's starting character (a single "\n", now
+  // pushed to the end), since it's not in clientText.
+  updateContents(new Delta().retain(clientText.length).delete(1));
 
   // Reflect Collab operations in Quill.
   // Note that for local operations, Quill has already updated
   // its own representation, so we should skip doing so again.
-
-  let ourChange = false;
-  function updateContents(delta: Delta) {
-    ourChange = true;
-    quill.updateContents(delta as any);
-    ourChange = false;
-  }
 
   clientText.on("Insert", (e) => {
     if (e.meta.isLocalEcho) return;

@@ -23,7 +23,7 @@ export class LwwCRegister<T> extends AggregateCRegister<T> {
       initToken.runtime
     )
   ) {
-    super(initToken, valueSerializer);
+    super(initToken, initialValue, valueSerializer);
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
@@ -72,7 +72,7 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
       initToken.runtime
     )
   ) {
-    super(initToken, valueSerializer);
+    super(initToken, initialValue, valueSerializer);
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
@@ -129,13 +129,22 @@ export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
     super(
       initToken,
       (value) => value,
+      Optional.empty(),
       SingletonSerializer.getInstance(valueSerializer)
     );
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
     if (conflictsMeta.length === 0) return Optional.empty();
-    else return Optional.of(LwwCRegister.aggregateNonempty(conflictsMeta));
+    else {
+      const newValue = LwwCRegister.aggregateNonempty(conflictsMeta);
+      if (this.value.isPresent && this.value.get() === newValue) {
+        // Return the previous value, so that its Optional is
+        // === instead of just deep-equals.
+        return this.value;
+      }
+      return Optional.of(newValue);
+    }
   }
 }
 
@@ -159,12 +168,21 @@ export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
     super(
       initToken,
       (value) => value,
+      Optional.empty(),
       SingletonSerializer.getInstance(valueSerializer)
     );
   }
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
     if (conflictsMeta.length === 0) return Optional.empty();
-    else return Optional.of(FwwCRegister.aggregateNonempty(conflictsMeta));
+    else {
+      const newValue = FwwCRegister.aggregateNonempty(conflictsMeta);
+      if (this.value.isPresent && this.value.get() === newValue) {
+        // Return the previous value, so that its Optional is
+        // === instead of just deep-equals.
+        return this.value;
+      }
+      return Optional.of(newValue);
+    }
   }
 }

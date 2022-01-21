@@ -35,3 +35,7 @@ Delete `dist/`.
 ## Deployment
 
 `dist/rich_text_yata.html` is a [standalone container](TODO: guide about how works offline, in sandbox, easily redistributed, etc.). It can used in any [container host](TODO).
+
+## Note
+
+This demo builds off of Collabs' `SemidirectProductRev`, which is not currently maintained while we think about replacements. So newer features might break in the demo. In particular, saving will throw an error.

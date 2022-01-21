@@ -204,10 +204,6 @@ class MinesweeperCollab extends collabs.CObject {
     return allEmptyRevealed ? GameStatus.WON : GameStatus.IN_PROGRESS;
   }
 
-  saveObject(): Uint8Array | null {
-    throw new Error("test error");
-  }
-
   // <------- UTILITIES ------->
 
   /**

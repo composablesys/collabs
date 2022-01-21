@@ -1944,6 +1944,14 @@ async function collabsSetup() {
   await container.load();
 
   // Display loaded state.
+  for (const gene of GENES) {
+    for (const num of [1, 2]) {
+      const alleleName = gene + num;
+      document.images[alleleName].src = imageSrc(
+        path + alleles[alleleName].value + ".png"
+      );
+    }
+  }
   evaluateGenetics();
 
   // Ready.

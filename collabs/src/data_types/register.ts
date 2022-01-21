@@ -8,6 +8,10 @@ export interface CRegisterEventsRecord<T> extends CollabEventsRecord {
   /**
    * Emitted whenever the value is set or otherwise
    * changed.
+   *
+   * Generally, this should only be emitted when the value
+   * actually changes under `===` equality. Implementations
+   * that behave otherwise should clearly indicate so.
    */
   Set: CRegisterEvent<T>;
 }
