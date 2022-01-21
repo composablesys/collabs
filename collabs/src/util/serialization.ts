@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { Runtime, Collab } from "../core/";
+import { Runtime, Collab, isRuntime } from "../core/";
 import {
   ArrayMessage,
   CollabReference,
@@ -276,10 +276,20 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
  * as returned by `base.getNamePath`.
  * The base must be an ancestor of all serialized Collabs.
  *
- * This is more efficient than using DefaultSerializer
- * when base is not the [[Runtime]].  It is more efficient
+ * This is more efficient (in terms of serialized size)
+ * than using DefaultSerializer
+ * when base is not the [[Runtime]].  It is better
  * the closer the serialized values are to base within
  * the Collab hierarchy, and best when base is their parent.
+ *
+ * Note that when base is not the [[Runtime]],
+ * although the serialized form contains an
+ * abbreviated path, [[deserialize]] still calls
+ * [[Runtime.getDescendant]] with the full path - it does not
+ * use `base.getDescendant`. This is because `base.getDescendant`
+ * is only meant to be called by `bases`'s parent. Doing
+ * otherwise can break invariants (e.g., `base.getDescendant`
+ * could be called before `base.load`, causing errors).
  */
 export class CollabSerializer<C extends Collab> implements Serializer<C> {
   /**
@@ -297,7 +307,13 @@ export class CollabSerializer<C extends Collab> implements Serializer<C> {
 
   deserialize(message: Uint8Array): C {
     const decoded = CollabReference.decode(message);
-    return this.base.getDescendant(decoded.namePath) as C;
+    // The full name path is decoded.namePath followed by
+    // base's name path (relative to the root).
+    const runtime = isRuntime(this.base) ? this.base : this.base.runtime;
+    const fullNamePath = isRuntime(this.base)
+      ? decoded.namePath
+      : [...decoded.namePath, ...runtime.getNamePath(this.base)];
+    return runtime.getDescendant(fullNamePath) as C;
   }
 }
 
