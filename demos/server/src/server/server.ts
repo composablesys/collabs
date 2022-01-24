@@ -32,7 +32,7 @@ app.use(
 // Serve test server files in build/site (we'll be in build/server).
 app.use((req, res) => {
   if (req.path === "/reset.html") {
-    resetMessageHistory();
+    resetMessageHistory(<string | undefined>req.query.container);
   }
   res.sendFile(req.path, { root: path.join(__dirname, "../site") });
 });
@@ -59,7 +59,7 @@ if (program.opts().https) {
 const { reset } = startWebSocketServer({ server });
 // If you replace @collabs/ws-server with something else,
 // remove resetMessageHistory() and reset.html.
-function resetMessageHistory() {
-  reset();
-  console.log("reset message history");
+function resetMessageHistory(group?: string) {
+  reset(group);
+  console.log("reset message history for " + (group || "all"));
 }

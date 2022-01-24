@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <style>
+      body {
+        max-width: 800px;
+      }
+    </style>
+    <script>
+      // Extract the container to use from the URL's
+      // GET parameters.
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has("container")) {
+        throw new Error('URL missing "container" GET parameter.');
+      }
+      const containerURL = urlParams.get("container");
+    </script>
+  </head>
+
+  <body>
+    <h2 id="name">Demo Info</h2>
+    <p id="description"></p>
+    <p id="author"></p>
+    <p id="license"></p>
+    <p id="source"></p>
+
+    <script>
+      (async function () {
+        // Replace file name with info.json.
+        const lastSlash = containerURL.lastIndexOf("/");
+        const infoURL =
+          lastSlash === -1
+            ? "info.json"
+            : containerURL.substring(0, lastSlash) + "/info.json";
+        // Get info.json.
+        let info;
+        try {
+          info = await (
+            await fetch(infoURL, {
+              credentials: "omit",
+            })
+          ).json();
+        } catch (err) {
+          throw new Error("Error fetching " + infoURL + "\n" + err.toString());
+        }
+        // Use info.
+        if (info.name) {
+          document.getElementById("name").innerHTML = info.name + " Info";
+          document.getElementById("reset").href += `&name=${info.name}`;
+        }
+        if (info.description) {
+          document.getElementById("description").innerHTML = info.description;
+        }
+        if (info.author) {
+          document.getElementById("author").innerHTML =
+            "Author: " + info.author + ".";
+        }
+        if (info.license) {
+          document.getElementById("license").innerHTML =
+            "License: " + info.license + ".";
+        }
+        if (info.source) {
+          document.getElementById(
+            "source"
+          ).innerHTML = `<a href="${info.source}">Source</a>`;
+        }
+      })();
+    </script>
+
+    <h3>Matrix widget command</h3>
+    <code id="command"></code><br />
+    <button id="copy">Copy</button>
+    <script>
+      const loc = window.location;
+      const command = document.getElementById("command");
+      const commandText = `/addwidget ${loc.protocol}//${loc.host}/matrix.html?container=${containerURL}`;
+      command.innerHTML = commandText;
+      document.getElementById("copy").addEventListener("click", () => {
+        navigator.clipboard.writeText(commandText);
+      });
+    </script>
+    <p>See the <a href="index.html">home page</a> for usage instructions.</p>
+
+    <h3>Reset demo</h3>
+    Open <a id="reset">this page</a> to reset this demo, erasing all messages
+    stored on the server. You might use this if the demo has an error that
+    persists after refreshing (since refreshing loads all messages stored on the
+    server).
+    <script>
+      document.getElementById(
+        "reset"
+      ).href = `reset.html?container=${containerURL}`;
+    </script>
+  </body>
+</html>

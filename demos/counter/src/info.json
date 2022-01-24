@@ -1,0 +1,7 @@
+{
+  "name": "Counter",
+  "description": "A simple counter that can be incremented, decremented, and (causally) reset. This was the first app made using the Collabs library.",
+  "author": "Collabs contributors",
+  "license": "Apache-2.0",
+  "source": "https://github.com/composablesys/collabs/tree/master/demos/counter"
+}

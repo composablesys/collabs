@@ -8,9 +8,13 @@ function noop() {}
 /**
  * This CRDT server will broadcast all messages that a client
  * WebSocket broadcasting to every other connected WebSocket clients, excluding itself.
+ *
+ * @returns an object { reset }, where reset(group?: string)
+ * resets the message history of group, or of all apps
+ * if group is not given.
  */
 export function startWebSocketServer(webSocketArgs: WebSocket.ServerOptions): {
-  reset(): void;
+  reset(group?: string): void;
 } {
   /**
    * Group of WebSocket users.
@@ -113,8 +117,12 @@ export function startWebSocketServer(webSocketArgs: WebSocket.ServerOptions): {
   });
 
   return {
-    reset() {
-      groupHistory.clear();
+    reset(group?: string) {
+      if (group === undefined) {
+        groupHistory.clear();
+      } else {
+        groupHistory.delete(group);
+      }
     },
   };
 }

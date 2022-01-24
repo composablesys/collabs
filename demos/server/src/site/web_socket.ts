@@ -8,7 +8,7 @@ const urlParams = new URLSearchParams(window.location.search);
 if (!urlParams.has("container")) {
   throw new Error('URL missing "container" GET parameter.');
 }
-const containerUrl = urlParams.get("container")!;
+const containerURL = urlParams.get("container")!;
 
 const doLoad = window.location.search === "?load=true";
 if (doLoad) {
@@ -25,12 +25,12 @@ if (doLoad) {
 
 const app = new collabs.CRDTApp();
 const wsAddr = location.origin.replace(/^http/, "ws");
-const network = new WebSocketNetwork(app, wsAddr, "");
+const network = new WebSocketNetwork(app, wsAddr, containerURL);
 
 // Add the container in an IFrame,
 // initially hidden so that user input is blocked.
 const iframe = document.createElement("iframe");
-iframe.src = containerUrl;
+iframe.src = containerURL;
 iframe.style.display = "none";
 document.body.appendChild(iframe);
 // Set title to that of the container.
@@ -43,7 +43,7 @@ iframe.addEventListener("load", () => {
     // TODO: should change this whole thing to use messages
     // from the container, since different origins is the
     // common case.
-    document.title = "Container";
+    document.title = "Collabs Demo";
   }
 });
 
@@ -96,3 +96,7 @@ function updateNetwork() {
   network.receiveConnected = receiveConnected.checked;
   network.sendConnected = sendConnected.checked;
 }
+
+// "More Info" link.
+const moreInfo = <HTMLAnchorElement>document.getElementById("moreInfo");
+moreInfo.href = "more_info.html?container=" + containerURL;

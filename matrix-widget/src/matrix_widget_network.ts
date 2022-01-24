@@ -37,7 +37,6 @@ interface NetworkEvent {
 export class MatrixWidgetNetwork {
   private readonly eventType: string;
   private readonly api: WidgetApi;
-  onreceive!: (message: Uint8Array) => void;
 
   private isReady = false;
   private queued: NetworkEvent[] | undefined = [];
@@ -155,7 +154,7 @@ export class MatrixWidgetNetwork {
   }
 
   private receiveString(msg: string) {
-    this.onreceive(new Uint8Array(Buffer.from(msg, "base64")));
+    this.app.receive(new Uint8Array(Buffer.from(msg, "base64")));
   }
 
   private appSend(e: SendEvent): void {
