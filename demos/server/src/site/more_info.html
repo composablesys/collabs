@@ -36,7 +36,7 @@
             ? "info.json"
             : containerURL.substring(0, lastSlash) + "/info.json";
         // Get info.json.
-        let info;
+        let info = {};
         try {
           info = await (
             await fetch(infoURL, {
@@ -48,8 +48,9 @@
         }
         // Use info.
         if (info.name) {
-          document.getElementById("name").innerHTML = info.name + " Info";
+          document.getElementById("name").innerHTML = info.name + " Demo Info";
           document.getElementById("reset").href += `&name=${info.name}`;
+          document.getElementById("download").download = info.name + ".html";
         }
         if (info.description) {
           document.getElementById("description").innerHTML = info.description;
@@ -82,19 +83,16 @@
         navigator.clipboard.writeText(commandText);
       });
     </script>
-    <p>See the <a href="index.html">home page</a> for usage instructions.</p>
+    <p>See the <a href="/#matrix">home page</a> for usage instructions.</p>
 
     <h3>Download Container</h3>
 
-    <a id="download" download="container">Link</a> to download or link to this
-    app as a Collabs container. See the <a href="index.html">home page</a> for
-    usage instructions.
+    <a id="download" download="container.html">Link</a> to download or link to
+    this app as a Collabs container. See the
+    <a href="/#containers">home page</a> for what this is about.
     <script>
       const download = document.getElementById("download");
       download.href = containerURL;
-      if (info.name) {
-        download.download = info.name;
-      }
     </script>
 
     <h3>Reset demo</h3>

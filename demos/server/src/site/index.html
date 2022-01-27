@@ -73,7 +73,7 @@
         occasionally resets when no one is using it, erasing the demos' states.
       </p>
 
-      <h2>Usage Over Matrix</h2>
+      <a id="matrix"><h2>Usage Over Matrix</h2></a>
       <p>
         You can also run the above demos over
         <a href="https://matrix.org/">Matrix</a>, using a Matrix room (group
@@ -85,7 +85,20 @@
       <ol>
         <li>
           Copy the "Matrix widget command" from the demo's "More Info" page.
-          E.g., for the rich text editor, it is TODO (copyable)
+          E.g., for the rich text editor, it is<br />
+          <code id="command"></code><br />
+          <button id="copy">Copy</button>
+          <script>
+            {
+              const loc = window.location;
+              const command = document.getElementById("command");
+              const commandText = `/addwidget ${loc.protocol}//${loc.host}/matrix.html?container=demos/rich-text/dist/rich_text.html`;
+              command.innerHTML = commandText;
+              document.getElementById("copy").addEventListener("click", () => {
+                navigator.clipboard.writeText(commandText);
+              });
+            }
+          </script>
         </li>
         <li>
           Send that command as a message to the room. This adds the widget.
@@ -115,7 +128,7 @@
         </li>
       </ul>
 
-      <h2>Demo Containers</h2>
+      <a id="containers"><h2>Demo Containers</h2></a>
 
       <p>
         All of the demos are packaged as
