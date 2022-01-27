@@ -1,0 +1,7 @@
+{
+  "name": "Shapes (Multiple Semidirect)",
+  "description": "A demo of the multiple semidirect product for manipulating shapes. To the extent possible, group operations affect not just the shapes, but also concurrent operations on those shapes. E.g., if you rotate the group, while concurrently, someone else translates (drags) one shape, then the result will be as if the whole group was rotated <i>after</i> the translation, so that the shapes maintain their relative positions.",
+  "author": "Ria Pradeep",
+  "license": "Apache-2.0",
+  "source": "https://github.com/composablesys/collabs/tree/master/demos/group"
+}

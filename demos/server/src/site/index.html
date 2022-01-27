@@ -115,6 +115,47 @@
         </li>
       </ul>
 
+      <h2>Demo Containers</h2>
+
+      <p>
+        All of the demos are packaged as
+        <a
+          href="https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md"
+          >Collabs containers</a
+        >
+        that you can run on the network of your choice. Specifically, you can
+        run the container in any "container host", which handles networking and
+        storage for the container. This is how we deploy our demos both on this
+        server and over Matrix: each runs a container host, while the demo is
+        compiled only once.
+        <a href="web_socket.html?container=demos/selector/dist/selector.html"
+          >Selector</a
+        >
+        and
+        <a
+          href="web_socket.html?container=demos/tile-board/dist/tile_board.html"
+          >Tile Board</a
+        >
+        also run nested apps this way.
+      </p>
+      <p>
+        Each demo's "More Info" page has a download link that you can use to
+        download or link to its container. You can provide this file/link to a
+        container host run by someone else, or to
+        <a href="web_socket.html?container=demos/selector/dist/selector.html"
+          >Selector</a
+        >
+        or
+        <a
+          href="web_socket.html?container=demos/tile-board/dist/tile_board.html"
+          >Tile Board</a
+        >
+        when they ask for a file/URL. Unless noted otherwise, the file is an
+        HTML file that includes all of the demo's code and dependencies. This
+        means that if you download the file now, you can use it later in a
+        (version-compatible) container host, even if this website goes down.
+      </p>
+
       <h2>About</h2>
 
       <p>

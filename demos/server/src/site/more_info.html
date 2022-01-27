@@ -84,6 +84,19 @@
     </script>
     <p>See the <a href="index.html">home page</a> for usage instructions.</p>
 
+    <h3>Download Container</h3>
+
+    <a id="download" download="container">Link</a> to download or link to this
+    app as a Collabs container. See the <a href="index.html">home page</a> for
+    usage instructions.
+    <script>
+      const download = document.getElementById("download");
+      download.href = containerURL;
+      if (info.name) {
+        download.download = info.name;
+      }
+    </script>
+
     <h3>Reset demo</h3>
     Open <a id="reset">this page</a> to reset this demo, erasing all messages
     stored on the server. You might use this if the demo has an error that
