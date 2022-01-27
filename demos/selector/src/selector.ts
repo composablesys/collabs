@@ -26,6 +26,9 @@ import pako from "pako";
         // Otherwise, container's handler set would keep a
         // reference to host, preventing GC and triggering
         // unnecessary save compaction.
+        // Opt: when a value is unset, clean it up
+        // (treat as permanently deleted), even though technically
+        // it is still a "conflict" value in currentHost.
 
         return host;
       }
@@ -51,18 +54,15 @@ import pako from "pako";
     // ready, then show its IFrame.
     const newValue = currentHost.value.get();
     const iframe = newValue.containerIFrame;
-    if (newValue.isContainerReady) {
-      // The container might already be ready if we load
-      // more slowly than it.
+    initializingDiv.hidden = false;
+    // We can assume the container is not yet ready, since
+    // onCurrentHostSet is always called in the same event loop
+    // as the IFrame is created (though possibly a later microtask),
+    // and readiness requires receiving a message from the IFrame.
+    newValue.nextEvent("ContainerReady").then(() => {
       initializingDiv.hidden = true;
       iframe.hidden = false;
-    } else {
-      initializingDiv.hidden = false;
-      newValue.nextEvent("ContainerReady").then(() => {
-        initializingDiv.hidden = true;
-        iframe.hidden = false;
-      });
-    }
+    });
     // Set title to that of the visible IFrame.
     // Not sure how to tell if the IFrame is already loaded
     // (hence won't emit "load"); to be safe, we'll set the
