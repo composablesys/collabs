@@ -12,7 +12,7 @@ import Quill, { DeltaOperation } from "quill";
   // Include Quill CSS
   require("quill/dist/quill.snow.css");
 
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   let clientText = container.registerCollab(
     "text",

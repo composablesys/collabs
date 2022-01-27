@@ -4,14 +4,16 @@ import { CRDTContainer } from "@collabs/container";
 (async function () {
   // Create a CRDTContainer - like CRDTApp, but intended for
   // use within containers.
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   // Now setup your program, using container.
 
   // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
-  // Remember to do `await container.load()` at some point
-  // and then display the resulting state.
+  // Remember, though, to do the steps at the end:
+  // 1. await container.load()
+  // 2. Display the loaded state.
+  // 3. container.ready()
 
   // Register collaborative data types.
   const counterCollab = container.registerCollab(

@@ -2,11 +2,6 @@ export interface ReadyMessage {
   type: "Ready";
 }
 
-export interface MetadataMessage {
-  type: "Metadata";
-  metadata: unknown;
-}
-
 export interface SendMessage {
   type: "Send";
   message: Uint8Array;
@@ -30,7 +25,6 @@ export interface SaveRequestFailedMessage {
 
 export type HostMessage =
   | ReadyMessage
-  | MetadataMessage
   | SendMessage
   | SavedMessage
   | SaveRequestFailedMessage;

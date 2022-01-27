@@ -4,7 +4,7 @@ import { CRDTContainer } from "@collabs/container";
 (async function () {
   // Create a CRDTContainer - like CRDTApp, but intended for
   // use within containers.
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   // Now setup your program, using container.
 

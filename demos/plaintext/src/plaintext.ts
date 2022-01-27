@@ -2,7 +2,7 @@ import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 
 (async function () {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
 

@@ -15,7 +15,7 @@ window.onload = () => {
 };
 
 (async function () {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   setupWhiteboard(container);
   setupTiles(container);

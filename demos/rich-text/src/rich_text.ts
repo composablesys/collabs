@@ -132,7 +132,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
 }
 
 (async function () {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   // Quill's initial content is "\n".
   const clientText = container.registerCollab(

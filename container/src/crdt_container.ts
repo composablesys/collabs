@@ -57,26 +57,21 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
 
   /**
    * [constructor description]
-   * @param hostWindow [description]
-   * @param metadata   [description]
    * @param options    [description] Default BatchingStrategy
-   * is recommended (let the host decide whether to batch more)
+   * is recommended (let the host decide whether to batch more).
    */
-  constructor(
-    hostWindow: Window,
-    metadata: unknown,
-    options?: {
-      batchingStrategy?: BatchingStrategy;
-      debugReplicaId?: string;
-    }
-  ) {
+  constructor(options?: {
+    batchingStrategy?: BatchingStrategy;
+    debugReplicaId?: string;
+  }) {
     super();
 
-    // Setup a channel with hostWindow.
+    // Setup a channel with our host's window.
+    // For now, this is assumed to be window.parent.
     const channel = new MessageChannel();
     this.messagePort = channel.port1;
     this.messagePort.onmessage = this.messagePortReceive.bind(this);
-    hostWindow.postMessage(null, "*", [channel.port2]);
+    window.parent.postMessage(null, "*", [channel.port2]);
 
     this.app = new CRDTApp(options);
     this.app.on("Change", (e) => this.emit("Change", e));
@@ -96,9 +91,6 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
         predID: this.lastReceivedID,
       });
     });
-
-    // Send metadata.
-    this.messagePortSend({ type: "Metadata", metadata });
   }
 
   private messagePortSend(message: HostMessage) {
@@ -199,6 +191,13 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    * TODO: optional (just an opt); warnings; called
    * automatically after the ready event loop and before
    * the next message or save request, if not called manually.
+   * Usage: loading before adding event listeners (may cause issues);
+   * waiting for GUI to process further messages before calling
+   * ready, so that (if the host hides you during loading) the
+   * user doesn't see that loading. (Although I guess they won't
+   * see funny flashing because you'll do it all sync anyway;
+   * they just might see the loaded state sit there frozen for
+   * a second).
    */
   receiveFurtherMessages(): void {
     if (!this.app.isLoaded) {

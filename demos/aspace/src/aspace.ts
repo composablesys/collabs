@@ -8,7 +8,7 @@ import { CRDTContainer } from "@collabs/container";
     return ans;
   })();
 
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
   const startTime = container.registerCollab(

@@ -19,24 +19,12 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
    * becomes true, hence user interaction with the container
    * is allowed.
    *
-   * TODO: once this emitted, metadata is also guaranteed
-   * to be present.
-   *
    * Note that this is a local, not replicated, event: it refers
    * to conditions on the local replica related to the
    * app start cycle, not something that all replicas see
    * in sync.
    */
   ContainerReady: CollabEvent;
-  /**
-   * Emitted when [[CRDTContainerHost.metadata]]
-   * is set (becomes present).
-   *
-   * Note this is a local, not replicated, event: metadata
-   * is local and may differ between replicas, and so
-   * replicas may not see changes in sync.
-   */
-  MetadataSet: CollabEvent;
 }
 
 /**
@@ -47,7 +35,6 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
 export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord> {
   private messagePort: MessagePort | null = null;
   private _isContainerReady = false;
-  private _metadata: Optional<unknown> = Optional.empty();
 
   /**
    * Queue for messages to be sent over messagePort,
@@ -100,6 +87,8 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * as the IFrame as created, so it's not loaded yet).
    *
    * @param containerIFrame [description]
+   * For now, this is assumed to be a child window, i.e.,
+   * it's window.parent is our window.
    */
   constructor(
     initToken: InitToken,
@@ -150,14 +139,6 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
           this.messagePortSend(message)
         );
         this.receiveMessageQueue = null;
-        break;
-      case "Metadata":
-        this._metadata = Optional.of(e.data.metadata);
-        this.emit(
-          "MetadataSet",
-          { meta: { isLocalEcho: true, sender: this.runtime.replicaID } },
-          false
-        );
         break;
       case "Send":
         const message = e.data.message;
@@ -241,19 +222,6 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    */
   get isContainerReady(): boolean {
     return this._isContainerReady;
-  }
-
-  /**
-   * Metadata provided by the container.
-   *
-   * TODO: wait for MetadataSet event to be ready; then
-   * immutable. Guaranteed to happen by ContainerReady.
-   *
-   * TODO: structure/interface (e.g. default fields: name, description,
-   * etc. Can even be optional.)
-   */
-  get metadata(): Optional<unknown> {
-    return this._metadata;
   }
 
   private nextCompactSaveDataID = 0;

@@ -385,7 +385,7 @@ class MinesweeperCollab extends collabs.CObject {
     };
   }
 
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   const currentGame = container.registerCollab(
     "currentGame",

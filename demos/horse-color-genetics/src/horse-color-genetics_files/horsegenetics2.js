@@ -1920,7 +1920,7 @@ let alleles = {};
 
 // Async so we can await load.
 async function collabsSetup() {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   for (const gene of GENES) {
     for (const num of [1, 2]) {

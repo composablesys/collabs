@@ -4,7 +4,7 @@ import { GroupCRDT, GroupState } from "./groupcrdt";
 import $ from "jquery";
 
 (async function () {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   let clientGroup = container.registerCollab("group", collabs.Pre(GroupCRDT)());
 

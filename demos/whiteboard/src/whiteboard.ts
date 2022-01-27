@@ -3,7 +3,7 @@ import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 
 (async function () {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
 
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.

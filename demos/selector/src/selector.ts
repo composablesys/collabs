@@ -4,7 +4,7 @@ import { CRDTContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
-  const container = new CRDTContainer(window.parent, {});
+  const container = new CRDTContainer();
   const currentHost = container.registerCollab(
     "",
     collabs.Pre(collabs.LwwMutCRegister)(
