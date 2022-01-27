@@ -31,8 +31,33 @@ app.use(
 
 // Serve test server files in build/site (we'll be in build/server).
 app.use((req, res) => {
+  if (req.path === "/host.html") {
+    // Old host.html page. Redirect to new page: either
+    // web_socket.html or matrix.html, depending on the
+    // "network" GET parameter.
+    const containerURL = encodeURIComponent(<unknown>req.query.container + "");
+    switch (<unknown>req.query.network) {
+      case "ws":
+        res.redirect(301, `/web_socket.html?container=${containerURL}`);
+        break;
+      case "matrix":
+        const widgetId = <unknown>req.query.widgetId;
+        let url = `/matrix.html?container=${containerURL}`;
+        if (typeof widgetId === "string") {
+          url += `&widgetId=${encodeURIComponent(widgetId)}`;
+        }
+        res.redirect(301, url);
+        break;
+      default:
+        // The link was broken originally; just dump them at the home page.
+        res.redirect(301, "index.html");
+    }
+    return;
+  }
   if (req.path === "/reset.html") {
+    // Reset message history functionality, linked from more_info.html.
     resetMessageHistory(<string | undefined>req.query.container);
+    // Drop through (still sendFile).
   }
   res.sendFile(req.path, { root: path.join(__dirname, "../site") });
 });
