@@ -238,7 +238,7 @@ npm run build
 
 Your finished container is now in `dist/my_container.html`. You can host this on a static site or file sharing platform, or just distribute it by word-of-mouth.
 
-Users can run your app in any container host. See [./containers.md#deployment] for some options.
+Users can run your app in any container host. See [containers](./containers.md#deployment) for some options.
 
 ## Next steps
 
