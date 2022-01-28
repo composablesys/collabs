@@ -3,8 +3,9 @@ import { assert } from "chai";
 import {
   Collab,
   CRDTApp,
+  Optional,
   Pre,
-  TestingNetworkGenerator,
+  TestingCRDTAppGenerator,
 } from "@collabs/collabs";
 import {
   conversions,
@@ -16,12 +17,12 @@ import {
 import { debug } from "./debug";
 
 describe("tensor", () => {
-  let runtimeGen: TestingNetworkGenerator;
+  let runtimeGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
 
   beforeEach(() => {
-    runtimeGen = new TestingNetworkGenerator();
+    runtimeGen = new TestingCRDTAppGenerator();
     alice = runtimeGen.newApp();
     bob = runtimeGen.newApp();
     tf.engine().startScope();
@@ -116,13 +117,22 @@ describe("tensor", () => {
       }
     });
 
+    function load() {
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
+    }
+
     it("is initially all zero", () => {
+      load();
+
       assertTensorsStrictEqual(aliceCounter.value, 0);
       assertTensorsStrictEqual(bobCounter.value, 0);
     });
 
     describe("add", () => {
       it("works for non-concurrent updates", () => {
+        load();
+
         const tensor1 = tf.zeros(shape).add(1);
         const tensor2 = tf.zeros(shape).add(2);
         const tensor3 = tf.zeros(shape).add(3);
@@ -146,6 +156,8 @@ describe("tensor", () => {
       });
 
       it("works for concurrent updates", () => {
+        load();
+
         const tensor1 = tf.zeros(shape).add(10);
         const tensor2 = tf.zeros(shape).add(20);
         const sum = tensor1.add(tensor2);
@@ -164,12 +176,16 @@ describe("tensor", () => {
       });
 
       it("throws an error for tensors containing negative values", () => {
+        load();
+
         assert.throws(() => aliceCounter.add(tf.zeros(shape).add(-1)));
       });
     });
 
     describe("reset", () => {
       it("works for non-concurrent updates", () => {
+        load();
+
         const tensor1 = tf.zeros(shape).add(5);
         const tensor2 = tf.zeros(shape).add(10);
 
@@ -190,6 +206,8 @@ describe("tensor", () => {
       });
 
       it("works for non-concurrent reset followed by add", () => {
+        load();
+
         const tensor1 = tf.zeros(shape).add(324);
         const tensor2 = tf.zeros(shape).add(213);
 
@@ -209,6 +227,8 @@ describe("tensor", () => {
       });
 
       it("lets concurrent adds survive", () => {
+        load();
+
         const tensor = tf.zeros(shape).add(10);
 
         aliceCounter.add(tensor);
@@ -234,6 +254,8 @@ describe("tensor", () => {
           "counterId2",
           Pre(TensorGCounterCollab)(shape, dtype)
         );
+        load();
+
         const identity = tf.eye(shape[0], shape[1], undefined, "float32");
         const tensor1 = identity.mul(2);
         const tensor2 = identity.reverse().mul(3);
@@ -273,6 +295,8 @@ describe("tensor", () => {
         "counterId",
         Pre(TensorCounterCollab)(shape, "float32")
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -399,6 +423,8 @@ describe("tensor", () => {
         "avgId",
         Pre(TensorAverageCollab)(shape, "float32")
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceAvg, "Alice");
         addEventListeners(bobAvg, "Bob");

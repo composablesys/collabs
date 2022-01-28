@@ -4,13 +4,28 @@
   <head>
     <meta charset="utf-8" />
 
+    <style>
+      #demoList {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .oneDemo {
+        padding: 8px;
+      }
+
+      #prose {
+        max-width: 800px;
+      }
+    </style>
+
     <title>Collabs Demos</title>
   </head>
 
   <body>
-    <h3>Collabs Demos</h3>
+    <h2>Collabs Demos</h2>
 
-    <table id="containerTable"></table>
+    <div id="demoList"></div>
 
     <script>
       // Map: file name to title
@@ -35,47 +50,148 @@
         }),
       ];
 
-      const table = document.getElementById("containerTable");
-      {
-        // Demo row
-        const tr = table.insertRow();
-        const header = tr.insertCell();
-        header.innerHTML = "<b>Demo</b>";
-        for (let x = 0; x < containers.length; x++) {
-          const td = tr.insertCell();
-          td.innerHTML = `<a href="host.html?network=ws&container=demos/${containers[x][0]}">${containers[x][1]}</a>`;
-        }
-      }
-      {
-        // Download row
-        const tr = table.insertRow();
-        const header = tr.insertCell();
-        header.innerHTML = "<b>Downloadable file</b>";
-        for (let x = 0; x < containers.length; x++) {
-          const td = tr.insertCell();
-          td.innerHTML = `<a href="demos/${containers[x][0]}" download>${containers[x][1]}</a>`;
-        }
+      const demoList = document.getElementById("demoList");
+      for (let x = 0; x < containers.length; x++) {
+        const oneDemoDiv = document.createElement("div");
+        oneDemoDiv.className = "oneDemo";
+        oneDemoDiv.innerHTML = `<a href="web_socket.html?container=demos/${containers[x][0]}">${containers[x][1]}</a>`;
+        demoList.appendChild(oneDemoDiv);
       }
     </script>
 
-    <p></p>
-    <h3>Use in Matrix Widgets</h3>
-    In a widget-aware <a href="https://matrix.org/">Matrix</a> client (e.g.
-    <a href="https://app.element.io/">Element Web</a>): Send the message
-    <br /><br /><tt
-      >/addwidget
-      https://compoventuals-tests.herokuapp.com/host.html?network=matrix&container=demos/selector/dist/selector.html</tt
-    ><br /><br />
-    Click "Room Info" in the top-right, then select "Custom Widget".<br />Finally,
-    enter the URL (or upload a copy) of a link from the "Downloadable file"
-    row.<br /><br />
-    (Shortcut: replace <tt>selector/dist/selector.html</tt> with the demo file's
-    path in the above command.)
+    <div id="prose">
+      <p>
+        Each link leads to a collaborative app. Anyone who visits that page can
+        make edits and (hopefully) see the same state. Try it out by opening a
+        demo in multiple tabs or using it at the same time as a friend.
+      </p>
+      <p>
+        <b>Note:</b> Collabs is alpha software, and the demos are prototypes. So
+        errors or inconsistencies (different users seeing different states) may
+        occur. This is especially true for demos marked "(experimental)", which
+        try out new or more complex library features. Additionally, the server
+        occasionally resets when no one is using it, erasing the demos' states.
+      </p>
 
-    <p></p>
-    <h3>Server admin</h3>
-    <p>
-      <a href="reset.html">Reset message history</a>
-    </p>
+      <a id="matrix"><h2>Usage Over Matrix</h2></a>
+      <p>
+        You can also run the above demos over
+        <a href="https://matrix.org/">Matrix</a>, using a Matrix room (group
+        chat) to communicate instead of this server.
+      </p>
+
+      <p>To add a demo to a Matrix room:</p>
+
+      <ol>
+        <li>
+          Copy the "Matrix widget command" from the demo's "More Info" page.
+          E.g., for the rich text editor, it is<br />
+          <code id="command"></code><br />
+          <button id="copy">Copy</button>
+          <script>
+            {
+              const loc = window.location;
+              const command = document.getElementById("command");
+              const commandText = `/addwidget ${loc.protocol}//${loc.host}/matrix.html?container=demos/rich-text/dist/rich_text.html`;
+              command.innerHTML = commandText;
+              document.getElementById("copy").addEventListener("click", () => {
+                navigator.clipboard.writeText(commandText);
+              });
+            }
+          </script>
+        </li>
+        <li>
+          Send that command as a message to the room. This adds the widget.
+        </li>
+        <li>
+          Now or later, open the widget using a widget-capable Matrix client.
+          E.g., in <a href="https://app.element.io/">Element Web</a>: click
+          "Room Info" in the top-right, then select "Custom Widget".
+        </li>
+      </ol>
+
+      When you use Matrix instead of the above links:
+
+      <ul>
+        <li>Your edits are private, only visible within the room.</li>
+        <li>
+          Someday in the future, the demo's state will be saved within the room,
+          so that it acts as a long-lived document. This is currently flaky, so
+          it's best to only use the demo with all collaborators online at once
+          (<a href="https://github.com/composablesys/collabs/issues/209"
+            >track progress</a
+          >).
+        </li>
+        <li>
+          You're not dependent on this site for communication, only for static
+          content.
+        </li>
+      </ul>
+
+      <a id="containers"><h2>Demo Containers</h2></a>
+
+      <p>
+        All of the demos are packaged as
+        <a
+          href="https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md"
+          >Collabs containers</a
+        >
+        that you can run on the network of your choice. Specifically, you can
+        run the container in any "container host", which handles networking and
+        storage for the container. This is how we deploy our demos both on this
+        server and over Matrix: each runs a container host, while the demo is
+        compiled only once.
+        <a href="web_socket.html?container=demos/selector/dist/selector.html"
+          >Selector</a
+        >
+        and
+        <a
+          href="web_socket.html?container=demos/tile-board/dist/tile_board.html"
+          >Tile Board</a
+        >
+        also run nested apps this way.
+      </p>
+      <p>
+        Each demo's "More Info" page has a download link that you can use to
+        download or link to its container. You can provide this file/link to a
+        container host run by someone else, or to
+        <a href="web_socket.html?container=demos/selector/dist/selector.html"
+          >Selector</a
+        >
+        or
+        <a
+          href="web_socket.html?container=demos/tile-board/dist/tile_board.html"
+          >Tile Board</a
+        >
+        when they ask for a file/URL. Unless noted otherwise, the file is an
+        HTML file that includes all of the demo's code and dependencies. This
+        means that if you download the file now, you can use it later in a
+        (version-compatible) container host, even if this website goes down.
+      </p>
+
+      <h2>About</h2>
+
+      <p>
+        Collabs (<a href="https://www.npmjs.com/package/@collabs/collabs">npm</a
+        >, <a href="https://github.com/composablesys/collabs">Github</a>) is a
+        TypeScript library for building and using
+        <i>collaborative data structures</i>. This site demos collaborative apps
+        built on top of the library, made by Collabs contributors.
+      </p>
+      <p>
+        The demos linked above connect users via this server and don't really
+        support offline editing. However, in principle, they can run on top of
+        any network (Matrix, WebRTC, someone else's server, a mix, etc.) and
+        continue working offline, syncing changes later. They can also be
+        downloaded (link on each demo's "More Info" page) and used indefinitely,
+        unlike traditional cloud-based collaborative apps, which can go away at
+        any time.
+      </p>
+      <p>
+        <a href="https://github.com/composablesys/collabs/tree/master/demos"
+          >Source code</a
+        >
+      </p>
+    </div>
   </body>
 </html>

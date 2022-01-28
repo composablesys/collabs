@@ -100,7 +100,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
 
       // Setup
       // TODO: should this be included in memory?
-      let generator = new collabs.TestingNetworkGenerator();
+      let generator = new collabs.TestingCRDTAppGenerator();
       let apps: collabs.CRDTApp[] = [];
       let collabList: C[] = [];
       for (let i = 0; i < USERS; i++) {
@@ -109,6 +109,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
           replicaIDRng
         );
         collabList[i] = apps[i].registerCollab("", this.collabConstructor);
+        apps[i].load(collabs.Optional.empty());
       }
 
       if (measurement === "memory") {
@@ -172,7 +173,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
                 "",
                 this.collabConstructor
               );
-              apps[0].load(saveData);
+              apps[0].load(collabs.Optional.of(saveData));
               this.getState(collabList[0]); // Read the state
               const loadTime = new Number(
                 process.hrtime.bigint() - loadStartTime!
@@ -247,7 +248,7 @@ class MicroCollabsBenchmark<C extends collabs.Collab> {
             replicaIDRng
           );
           collabList[0] = apps[0].registerCollab("", this.collabConstructor);
-          apps[0].load(saveData);
+          apps[0].load(collabs.Optional.of(saveData));
           this.getState(collabList[0]); // Read the state
           const loadTime = new Number(
             process.hrtime.bigint() - loadStartTime!

@@ -2,6 +2,7 @@ import * as webpack from "webpack";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import InlineChunkHtmlPlugin from "react-dev-utils/InlineChunkHtmlPlugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
+import CopyWebpackPlugin from "copy-webpack-plugin";
 
 const config: webpack.Configuration = {
   mode: "development",
@@ -69,6 +70,15 @@ const config: webpack.Configuration = {
       cleanAfterEveryBuildPatterns: ["**/*.js"],
       cleanStaleWebpackAssets: false,
       protectWebpackAssets: false,
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        // Copy info.json.
+        {
+          from: "./src/info.json",
+          to: "./[base]",
+        },
+      ],
     }),
   ],
 };

@@ -1,21 +1,26 @@
 import { assert } from "chai";
-import { Pre, TestingNetworkGenerator, CRDTApp } from "@collabs/collabs";
+import {
+  Pre,
+  TestingCRDTAppGenerator,
+  CRDTApp,
+  Optional,
+} from "@collabs/collabs";
 import seedrandom = require("seedrandom");
 import { CPair } from "../src";
 
 describe("template-custom-type", () => {
-  let runtimeGen: TestingNetworkGenerator;
+  let runtimeGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    // Use TestingNetworkGenerator to get Apps for various
+    // Use TestingCRDTAppGenerator to get Apps for various
     // test users.
     // It is recommended to use rng with a fixed seed so that
     // the tests are deterministic.
-    runtimeGen = new TestingNetworkGenerator();
+    runtimeGen = new TestingCRDTAppGenerator();
     alice = runtimeGen.newApp(undefined, rng);
     bob = runtimeGen.newApp(undefined, rng);
   });
@@ -28,6 +33,10 @@ describe("template-custom-type", () => {
       // Register the Collabs you want to test, like in a normal app.
       alicePair = alice.registerCollab("pair", Pre(CPair)(0, 0));
       bobPair = bob.registerCollab("pair", Pre(CPair)(0, 0));
+      // Then call load with an empty Optional to indicate skipped loading,
+      // like in a normal app with no prior saved state.
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
     });
 
     it("has initial values", () => {

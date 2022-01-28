@@ -4,6 +4,7 @@ import {
   CRegisterEventsRecord,
   MakeAbstractCBoolean,
 } from "../../data_types";
+import { Optional } from "../../util";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
 
 export class ToggleCBoolean
@@ -53,9 +54,9 @@ export class ToggleCBoolean
     else return ToggleCBoolean.TRUE_SAVE;
   }
 
-  load(saveData: Uint8Array | null): void {
-    if (saveData === null) return;
-    this.valueInternal = saveData.length !== 0;
+  load(saveData: Optional<Uint8Array>): void {
+    if (!saveData.isPresent) return;
+    this.valueInternal = saveData.get().length !== 0;
   }
 
   canGC(): boolean {

@@ -521,8 +521,7 @@ export class RgaDenseLocalList<T> implements DenseLocalList<RgaLoc, T> {
     }
   }
 
-  loadLocs(saveData: Uint8Array | null, values: (index: number) => T): void {
-    if (saveData === null) return;
+  loadLocs(saveData: Uint8Array, values: (index: number) => T): void {
     const decoded = RgaDenseLocalListSave.decode(saveData);
     // Since the saved entries are in sorted order, we
     // can fill the tree directly.

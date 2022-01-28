@@ -34,7 +34,6 @@
   "dependencies": {
     "@collabs/collabs": "0.2.1",
     "@collabs/container": "0.2.1",
-    "@collabs/matrix-widget": "0.2.1",
     "@collabs/ws-client": "0.2.1",
     "@collabs/ws-server": "0.2.1",
     "commander": "^8.2.0",
@@ -65,7 +64,7 @@
     "dev:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
     "dev:server": "npm run build:server",
     "build": "npm-run-all build:*",
-    "build:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "build:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool source-map",
     "build:server": "tsc --build tsconfig-server.json",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",

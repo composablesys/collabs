@@ -552,16 +552,18 @@ function compoResetting() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Resetting", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -589,10 +591,10 @@ function compoResetting() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return list;
     },
   });
@@ -663,16 +665,18 @@ function compoDeleting() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo Deleting", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
       // TODO: this seems unnecessary
       this.sendNextMessage();
       return list;
@@ -700,10 +704,10 @@ function compoDeleting() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", collabs.Pre(CollabTodoList)());
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return list;
     },
   });
@@ -765,16 +769,19 @@ function compoJSON() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo JSON", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", JSONElement.NewJSON);
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
+
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JSONTodoList(list.value as JSONObject);
@@ -802,10 +809,10 @@ function compoJSON() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", JSONElement.NewJSON);
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return new JSONTodoList(list.value as JSONObject);
     },
   });
@@ -863,16 +870,19 @@ function compoJSONText() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo JSON Text", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
       let list = app.registerCollab("", JSONElement.NewJSON);
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
+
       list.setOrdinaryJS({ items: [] });
       this.sendNextMessage();
       return new JSONTextTodoList(list.value as JSONObject);
@@ -900,10 +910,10 @@ function compoJSONText() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       let list = app.registerCollab("", JSONElement.NewJSON);
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
       return new JSONTextTodoList(list.value as JSONObject);
     },
   });
@@ -1304,18 +1314,21 @@ function compoJSONOpt() {
     }
   }
 
-  let generator: collabs.TestingNetworkGenerator | null;
+  let generator: collabs.TestingCRDTAppGenerator | null;
   let app: collabs.CRDTApp | null;
   let totalSentBytes: number;
 
   return new TodoListBenchmark("Compo JSON Opt", {
     newTodoList(rng) {
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
       totalSentBytes = 0;
 
       let collab = app.registerCollab("", collabs.Pre(JSONCollab)());
       let cursor = new JSONCursor(collab);
+      // Since newTodoList was called, no saveData to load.
+      app.load(collabs.Optional.empty());
+
       this.sendNextMessage();
       cursor.setIsMap("items");
       cursor.setIsList("itemsIds");
@@ -1348,7 +1361,7 @@ function compoJSONOpt() {
     load(saveData: Uint8Array, rng) {
       // Proceed like newTodoList, but without doing any
       // operations.
-      generator = new collabs.TestingNetworkGenerator();
+      generator = new collabs.TestingCRDTAppGenerator();
       app = generator.newApp(new collabs.ManualBatchingStrategy(), rng);
 
       let collab = app.registerCollab("", collabs.Pre(JSONCollab)());
@@ -1356,7 +1369,7 @@ function compoJSONOpt() {
 
       let idGen = new collabs.RgaDenseLocalList<undefined>(app.runtime);
 
-      app.load(saveData);
+      app.load(collabs.Optional.of(saveData));
 
       return new JSONCollabTodoList(cursor, idGen, collab.runtime);
     },

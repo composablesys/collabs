@@ -4,28 +4,31 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      // Settings to make iframe fill the screen.
-      // From https://www.geeksforgeeks.org/how-to-set-fullscreen-iframe/
-      html {
-        overflow: auto;
-      }
-
       html,
       body,
-      #selectorDiv,
       iframe {
         margin: 0px;
         padding: 0px;
-        height: 100%;
         border: none;
       }
 
-      iframe {
-        display: block;
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      iframe,
+      #selectorDiv,
+      #initializingDiv {
         width: 100%;
-        border: none;
-        overflow-y: auto;
-        overflow-x: hidden;
+        flex-grow: 1;
+      }
+
+      #selectorDiv,
+      #downloadDiv {
+        padding: 8px;
+        box-sizing: border-box;
       }
     </style>
 
@@ -48,8 +51,10 @@
       </form>
     </div>
 
-    <div id="download.div" hidden="true">
-      <button id="download.button">Download app</button>
+    <div id="downloadDiv" hidden="true">
+      <button id="downloadButton">Download app</button>
     </div>
+
+    <div id="initializingDiv" hidden="true">Initializing...</div>
   </body>
 </html>

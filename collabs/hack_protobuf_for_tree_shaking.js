@@ -1,6 +1,6 @@
 /**
- * protobuf.js's output js file (generated/proto_compiled.js)
- * is not amenable to Webpack tree-shaking, even when in ES6
+ * protobuf.js's output js file (generated_esm/proto_compiled.js)
+ * is not amenable to Webpack tree-shaking, even thought it is in ES6
  * module mode, because:
  * - it uses IIFE's to define its classes.
  * - it adds a copy of each class to the $root variable, which
@@ -27,6 +27,10 @@
  * (https://github.com/protobufjs/protobuf.js/issues/1452).
  * Also, it deletes the default export $root.  TODO: if we run
  * this before pbts, perhaps .d.ts file will reflect this.
+ *
+ * Also note that this hackery is independent of the hackery
+ * described in tsconfig.json (comment on the "includes" field),
+ * which also concerns generated_esm/proto_compiled.js.
  */
 
 const fs = require("fs");

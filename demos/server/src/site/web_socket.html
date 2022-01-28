@@ -4,40 +4,36 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      // Settings to make iframe fill the screen.
-      // From https://www.geeksforgeeks.org/how-to-set-fullscreen-iframe/
-      html {
-        overflow: auto;
-      }
-
       html,
       body,
       iframe {
         margin: 0px;
         padding: 0px;
-        height: 100%;
         border: none;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
       }
 
       iframe {
-        display: block;
         width: 100%;
-        border: none;
-        overflow-y: auto;
-        overflow-x: hidden;
+        flex-grow: 1;
       }
 
-      #appControls {
+      #hostControls {
         margin-top: 10px;
         margin-left: 10px;
       }
     </style>
 
-    <title>Loading...</title>
+    <title>Initializing...</title>
   </head>
 
   <body>
-    <div id="appControls">
+    <div id="hostControls">
       <b>App controls</b>
       <input type="checkbox" id="connected" checked="true" autocomplete="off" />
       <label for="connected">Connected</label>
@@ -55,9 +51,10 @@
         autocomplete="off"
       />
       <label for="receiveConnected">Receive connected</label>
-      <!--<button id="saveLoad">Save &amp; load</button>
-      <span id="saveLoadStatus"></span>-->
+      |
+      <a id="moreInfo">More Info</a>
       <hr />
     </div>
+    <div id="loading">Initializing...</div>
   </body>
 </html>

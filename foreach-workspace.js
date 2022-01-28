@@ -12,12 +12,12 @@ const child_process = require("child_process");
   const command = process.argv[2];
   const packageJSON = JSON.parse(fs.readFileSync("package.json").toString());
   const noTest = new Set(packageJSON.workspacesNoTest);
+  const noFix = new Set(packageJSON.workspacesNoFix);
   const commands = [];
   for (const workspace of packageJSON.workspaces) {
     if (
-      (command.startsWith("npm run test") ||
-        command.startsWith("npm run fix")) &&
-      noTest.has(workspace)
+      (command.startsWith("npm run test") && noTest.has(workspace)) ||
+      (command.startsWith("npm run fix") && noFix.has(workspace))
     ) {
       console.log("skipping " + workspace);
       continue;

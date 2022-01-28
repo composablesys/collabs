@@ -38,6 +38,7 @@ export class EventEmitter<Events extends EventsRecord> {
    *
    * @param eventName Name of the event to listen to
    * @param handler Callback that handles the event
+   * @return An "off" function that removes the event handler when called
    */
   on<K extends keyof Events>(
     eventName: K,
@@ -80,7 +81,7 @@ export class EventEmitter<Events extends EventsRecord> {
         // Don't let the error block other event handlers
         // or affect the emitter, but still make it print
         // its error like it was unhandled.
-        setTimeout(() => {
+        void Promise.resolve().then(() => {
           throw err;
         });
       }

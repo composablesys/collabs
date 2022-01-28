@@ -37,16 +37,12 @@ const config: webpack.Configuration = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      filename: "host.html",
-      template: "./src/site/host.html",
+      filename: "index.html",
+      template: "./src/site/index.html",
     }),
     new CopyWebpackPlugin({
       patterns: [
-        // Copy index.html, reset.html.
-        {
-          from: "./src/site/index.html",
-          to: "./[base]",
-        },
+        // Copy reset.html.
         {
           from: "./src/site/reset.html",
           to: "./[base]",

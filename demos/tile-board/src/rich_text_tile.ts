@@ -14,7 +14,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly attributes: collabs.LwwCMap<string, any>;
+  private readonly _attributes: collabs.LwwCMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -25,22 +25,22 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(initToken: collabs.InitToken, readonly char: string | object) {
     super(initToken);
 
-    this.attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
+    this._attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
 
     // Events
-    this.attributes.on("Set", (e) => {
+    this._attributes.on("Set", (e) => {
       this.emit("Format", {
         key: e.key,
         meta: e.meta,
       });
     });
-    this.attributes.on("Delete", (e) => {
+    this._attributes.on("Delete", (e) => {
       this.emit("Format", { key: e.key, meta: e.meta });
     });
   }
 
   getAttribute(attribute: string): any | null {
-    return this.attributes.get(attribute) ?? null;
+    return this._attributes.get(attribute) ?? null;
   }
 
   /**
@@ -48,10 +48,14 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
    */
   setAttribute(attribute: string, value: any | null) {
     if (value === null) {
-      this.attributes.delete(attribute);
+      this._attributes.delete(attribute);
     } else {
-      this.attributes.set(attribute, value);
+      this._attributes.set(attribute, value);
     }
+  }
+
+  attributes(): { [key: string]: any } {
+    return Object.fromEntries(this._attributes);
   }
 }
 
@@ -141,6 +145,44 @@ export function richTextPreContent(
     },
   });
 
+  // Reflect future Collab operations in Quill.
+  // Note that for local operations, Quill has already updated
+  // its own representation, so we should skip doing so again.
+  function updateContents(delta: Delta) {
+    ourChange = true;
+    quill.updateContents(delta as any);
+    ourChange = false;
+  }
+
+  clientText.on("Insert", (e) => {
+    if (e.meta.isLocalEcho) return;
+
+    for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
+      // Characters start without any formatting.
+      updateContents(
+        new Delta().retain(index).insert(clientText.get(index).char)
+      );
+    }
+  });
+
+  clientText.on("Delete", (e) => {
+    if (e.meta.isLocalEcho) return;
+
+    updateContents(new Delta().retain(e.startIndex).delete(e.count));
+  });
+
+  clientText.on("Format", (e) => {
+    if (e.meta.isLocalEcho) return;
+
+    updateContents(
+      new Delta()
+        .retain(e.index)
+        .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
+    );
+  });
+
+  // Convert user inputs to Collab operations.
+
   /**
    * Convert delta.ops into an array of modified DeltaOperations
    * having the form { index: first char index, ...DeltaOperation},
@@ -172,6 +214,7 @@ export function richTextPreContent(
   }
 
   // Convert user inputs to Collab operations.
+  let ourChange = false;
   quill.on("text-change", (delta) => {
     // In theory we can listen for events with source "user",
     // to ignore changes caused by Collab events instead of
@@ -210,42 +253,22 @@ export function richTextPreContent(
     }
   });
 
-  // Reflect Collab operations in Quill.
-  // Note that for local operations, Quill has already updated
-  // its own representation, so we should skip doing so again.
-
-  let ourChange = false;
-  function updateContents(delta: Delta) {
-    ourChange = true;
-    quill.updateContents(delta as any);
-    ourChange = false;
-  }
-
-  clientText.on("Insert", (e) => {
-    if (e.meta.isLocalEcho) return;
-
-    for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
-      // Characters start without any formatting.
-      updateContents(
-        new Delta().retain(index).insert(clientText.get(index).char)
-      );
-    }
-  });
-
-  clientText.on("Delete", (e) => {
-    if (e.meta.isLocalEcho) return;
-
-    updateContents(new Delta().retain(e.startIndex).delete(e.count));
-  });
-
-  clientText.on("Format", (e) => {
-    if (e.meta.isLocalEcho) return;
-
+  // Once loaded, display loaded state.
+  clientText.runtime.nextEvent("Load").then(() => {
+    // Display loaded state by syncing it to Quill.
     updateContents(
-      new Delta()
-        .retain(e.index)
-        .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
+      new Delta({
+        ops: clientText.text.map((richChar) => {
+          return {
+            insert: richChar.char,
+            attributes: richChar.attributes(),
+          };
+        }),
+      })
     );
+    // Delete Quill's starting character (a single "\n", now
+    // pushed to the end), since it's not in clientText.
+    updateContents(new Delta().retain(clientText.length).delete(1));
   });
 
   return clientText;

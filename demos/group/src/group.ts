@@ -1,13 +1,12 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import { GroupCRDT, GroupState } from "./groupcrdt";
 import $ from "jquery";
 
 (async function () {
-  // Create a App intended for use within containers.
-  const runtime = await ContainerAppSource.newApp(window.parent);
+  const container = new CRDTContainer();
 
-  let clientGroup = runtime.registerCollab("group", collabs.Pre(GroupCRDT)());
+  let clientGroup = container.registerCollab("group", collabs.Pre(GroupCRDT)());
 
   var ops1 = document.getElementsByClassName("btn-ops-1");
   var ops2 = document.getElementsByClassName("btn-ops-2");
@@ -168,4 +167,12 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown2 = false;
     });
+
+  await container.load();
+
+  // Display loaded state.
+  updateImg();
+
+  // Ready.
+  container.ready();
 })();

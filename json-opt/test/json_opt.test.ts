@@ -1,17 +1,22 @@
 import { assert } from "chai";
 import { JSONCollab, JSONCursor } from "../src/json_opt";
-import { CRDTApp, Pre, TestingNetworkGenerator } from "@collabs/collabs";
+import {
+  CRDTApp,
+  Optional,
+  Pre,
+  TestingCRDTAppGenerator,
+} from "@collabs/collabs";
 import seedrandom from "seedrandom";
 
 describe("JSONCollab", () => {
-  let runtimeGen: TestingNetworkGenerator;
+  let runtimeGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    runtimeGen = new TestingNetworkGenerator();
+    runtimeGen = new TestingCRDTAppGenerator();
     alice = runtimeGen.newApp(undefined, rng);
     bob = runtimeGen.newApp(undefined, rng);
   });
@@ -26,6 +31,8 @@ describe("JSONCollab", () => {
     bobJSON = bob.registerCollab("cursor", Pre(JSONCollab)());
     aliceCursor = new JSONCursor(aliceJSON);
     bobCursor = new JSONCursor(bobJSON);
+    alice.load(Optional.empty());
+    bob.load(Optional.empty());
   });
 
   it("is initially empty", () => {

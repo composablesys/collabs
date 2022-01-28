@@ -1,17 +1,25 @@
-import { Collab, CollabEvent, Pre } from "./collab";
+import { Collab } from "./collab";
 import { ICollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 
+export interface LoadEvent {
+  /**
+   * Whether loading was skipped, i.e., load was called
+   * with an empty [[Optional]].
+   */
+  skipped: boolean;
+}
+
 export interface RuntimeEventsRecord {
   /**
-   * Emitted each time the app's state is changed and
-   * is in a reasonable user-facing state
-   * (so not in the middle of a transaction).
+   * Emitted once all Collabs have been loaded
+   * (i.e., [[Collab.load]] completed).
    *
-   * A simple way to keep a GUI in sync with the app is to
-   * do `runtime.on("Change", refreshDisplay)`.
+   * You can listen on this event if you need to construct
+   * views of [[Collab]] state after loading and before any
+   * messages are received.
    */
-  Change: CollabEvent;
+  Load: LoadEvent;
 }
 
 /**
@@ -96,12 +104,6 @@ export interface Runtime<
    * @return          [description]
    */
   getDescendant(namePath: string[]): Collab;
-
-  // Implementations of user-facing methods from App.
-
-  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C;
-  save(): Uint8Array;
-  load(saveData: Uint8Array | null): void;
 }
 
 export function isRuntime(x: unknown): x is Runtime {

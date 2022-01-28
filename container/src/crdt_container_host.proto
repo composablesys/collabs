@@ -1,0 +1,8 @@
+message ContainerHostSave {
+  optional bytes latestSaveData = 1;
+  /**
+   * Messages sent or received by the container that
+   * are not accounted for in latestSaveData.
+   */
+  repeated bytes furtherMessages = 2;
+}

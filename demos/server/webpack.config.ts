@@ -11,9 +11,12 @@ const config: webpack.Configuration = {
     innerGraph: true,
     sideEffects: true,
   },
-  entry: "./src/site/host.ts",
+  entry: {
+    web_socket: "./src/site/web_socket.ts",
+    matrix: "./src/site/matrix.ts",
+  },
   output: {
-    filename: "host.js",
+    filename: "[name].js",
     path: path.resolve(__dirname, "build/site"),
     clean: true,
   },
@@ -36,18 +39,28 @@ const config: webpack.Configuration = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      filename: "host.html",
-      template: "./src/site/host.html",
+      chunks: ["web_socket"],
+      filename: "web_socket.html",
+      template: "./src/site/web_socket.html",
+    }),
+    new HtmlWebpackPlugin({
+      chunks: ["matrix"],
+      filename: "matrix.html",
+      template: "./src/site/matrix.html",
     }),
     new CopyWebpackPlugin({
       patterns: [
-        // Copy index.html, reset.html.
+        // Copy index.html, reset.html, more_info.html.
         {
           from: "./src/site/index.html",
           to: "./[base]",
         },
         {
           from: "./src/site/reset.html",
+          to: "./[base]",
+        },
+        {
+          from: "./src/site/more_info.html",
           to: "./[base]",
         },
       ],

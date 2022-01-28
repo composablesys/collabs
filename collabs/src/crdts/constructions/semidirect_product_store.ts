@@ -4,7 +4,7 @@ import {
 } from "../../../generated/proto_compiled";
 import { CObject } from "../../constructions";
 import { InitToken } from "../../core";
-import { Serializer, DefaultSerializer } from "../../util";
+import { Serializer, DefaultSerializer, Optional } from "../../util";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
 class StoredMessage<M2> {
@@ -214,9 +214,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return SemidirectProductStoreSave.encode(saveMessage).finish();
   }
 
-  protected loadObject(saveData: Uint8Array | null) {
-    if (saveData === null) return;
-    const saveMessage = SemidirectProductStoreSave.decode(saveData);
+  protected loadObject(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+    const saveMessage = SemidirectProductStoreSave.decode(saveData.get());
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {
       this.history.set(

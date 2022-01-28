@@ -1,5 +1,4 @@
-import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import { setupTiles } from "./tiles";
 import { setupWhiteboard } from "./whiteboard";
 
@@ -16,11 +15,19 @@ window.onload = () => {
 };
 
 (async function () {
-  const app = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer();
 
-  setupWhiteboard(app);
-  setupTiles(app);
+  setupWhiteboard(container);
+  setupTiles(container);
+
+  await container.load();
+
+  // The whiteboard and tiles take care of displaying
+  // loaded state on their own.
+
+  // Ready. It's okay that setupWhiteboard and setupTiles do
+  // some setup in microtasks, since ready won't really
+  // take effect (start delivering messages) until the next
+  // event loop iteration.
+  container.ready();
 })();

@@ -6,6 +6,7 @@ import {
   MessageMeta,
   Pre,
 } from "../core";
+import { Optional } from "../util";
 
 /**
  * Layer that allows you to run operations on its descendants
@@ -93,7 +94,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return this.child.save();
   }
 
-  load(saveData: Uint8Array | null): void {
+  load(saveData: Optional<Uint8Array>): void {
     this.child.load(saveData);
   }
 

@@ -14,7 +14,7 @@ The library is designed to make collaboration "just work". However, it's possibl
 
 So long as all users are running the same version of the code, 1 and 2 should be automatic.
 
-> Using different versions of an app within the same group (e.g., to permit updates) is not impossible, but it takes some care. We will add a guide about this eventually.
+> Using different versions of an app within the same group (e.g., to permit updates) is something we hope to allow in the future.
 
 <!-- TODO: versioning advice guide -->
 
@@ -86,6 +86,6 @@ See also: [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem).
 
 TODO: loading in general (should have own guide)
 
-- loading gotchas (performing ops before loading (block the user input in case loading takes some time); not setting up full state before loading; using ContainerRuntimeSource's auto load-after-first-thread but not setting up full state in the first thread)
+- loading gotchas (performing ops before loading (block the user input in case loading takes some time); not setting up full state before loading)
 
 Separate out things that will cause errors immediately (catchable with tests) vs subtler things? Latter are more pernicious. (Order by importance.) -->

@@ -3,23 +3,64 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <style>
+      html,
+      body,
+      iframe {
+        margin: 0px;
+        padding: 0px;
+        border: none;
+      }
 
-    <title>Container Testing Server</title>
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      iframe {
+        width: 100%;
+        flex-grow: 1;
+      }
+
+      #hostControls {
+        margin-top: 10px;
+        margin-left: 10px;
+      }
+    </style>
+
+    <!-- Set containerUrl from server cmd line args. -->
+    <script src="containerUrl.js"></script>
+
+    <title>Initializing container...</title>
   </head>
 
   <body>
-    <a href="host.html?network=ws">My Container</a>
-
-    <p></p>
-
-    <div id="matrix_div"></div>
-    <script>
-      const matrix_div = document.getElementById("matrix_div");
-      // TODO: easily copyable
-      matrix_div.innerHTML = `Matrix command (requires --https option): /addwidget ${window.origin}/host.html?network=matrix`;
-    </script>
-
-    <p></p>
-    <a href="reset.html">Reset server message history</a>
+    <div id="hostControls">
+      <b>Host controls</b>
+      <input type="checkbox" id="connected" checked="true" autocomplete="off" />
+      <label for="connected">Connected</label>
+      <input
+        type="checkbox"
+        id="sendConnected"
+        checked="true"
+        autocomplete="off"
+      />
+      <label for="sendConnected">Send connected</label>
+      <input
+        type="checkbox"
+        id="receiveConnected"
+        checked="true"
+        autocomplete="off"
+      />
+      <label for="receiveConnected">Receive connected</label>
+      |
+      <button id="save">Save to sessionStorage</button>
+      <button id="load" disabled="true">Reload from sessionStorage</button>
+      |
+      <button id="reset">Reset</button>
+      <hr />
+    </div>
+    <div id="loading">Initializing container...</div>
   </body>
 </html>

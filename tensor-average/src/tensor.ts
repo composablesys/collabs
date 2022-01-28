@@ -9,6 +9,7 @@ import {
   Pre,
   CPrimitive,
   Resettable,
+  Optional,
 } from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
@@ -271,7 +272,7 @@ export class TensorGCounterCollab
   save(): Uint8Array {
     return new Uint8Array();
   }
-  load(saveData: Uint8Array | null): void {}
+  load(saveData: Optional<Uint8Array>): void {}
 }
 
 export class TensorCounterCollab

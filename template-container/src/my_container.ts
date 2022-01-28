@@ -1,21 +1,19 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 
-// Async so we can await ContainerAppSource.newApp.
 (async function () {
-  // Create a App intended for use within containers.
-  const runtime = await ContainerAppSource.newApp(window.parent);
+  // Create a CRDTContainer, the entry point for a Collabs
+  // container.
+  // Note: in a non-container app, you would instead use collabs.CRDTApp.
+  const container = new CRDTContainer();
 
-  // Now setup your program, using runtime.
-  // Note that you you shouldn't try to load saveData like you
-  // would in a non-container app;
-  // ContainerAppSource will do that for you.
+  // Now setup your program, using container.
 
   // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
 
-  // Register collaborative data types.
-  const counter = runtime.registerCollab(
+  // Register Collabs.
+  const counter = container.registerCollab(
     "counter",
     collabs.Pre(collabs.CCounter)()
   );
@@ -23,12 +21,13 @@ import { ContainerAppSource } from "@collabs/container";
   // Refresh the display when the Collab state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
-  runtime.on("Change", () => {
+  function refreshDisplay() {
     display.innerHTML = counter.value.toString();
-  });
+  }
+  container.on("Change", refreshDisplay);
 
   // Change counter's value on button clicks.
-  // Note that we need not refresh the display here, since Change
+  // Note that we don't need to refresh the display here, since Change
   // events are also triggered by local operations.
   document.getElementById("increment")!.onclick = () => {
     counter.add(100);
@@ -39,4 +38,16 @@ import { ContainerAppSource } from "@collabs/container";
   document.getElementById("reset")!.onclick = () => {
     counter.reset();
   };
+
+  // Wait for the container to load the previous saved state,
+  // if any.
+  // Observe that unlike CRDTApp.load, we don't need to provide
+  // the save data ourselves, and the method is async.
+  await container.load();
+
+  // Display the loaded state.
+  refreshDisplay();
+
+  // Signal that we're ready.
+  container.ready();
 })();

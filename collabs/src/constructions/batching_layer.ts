@@ -11,6 +11,7 @@ import {
   MessageMeta,
   Pre,
 } from "../core";
+import { Optional } from "../util";
 import { BatchingStrategy } from "./batching_strategy";
 
 export interface BatchingLayerEventsRecord extends CollabEventsRecord {
@@ -110,6 +111,11 @@ interface BatchInfo {
  * the current [[MessageMeta]] may change during a batch,
  * causing a sending replica to see different [[MessageMeta]]'s
  * than recipients.
+ *
+ * See the note on [[save]] about calling [[commitBatch]]
+ * before saving---ideally before saving starts at the
+ * [[Runtime]]/root level, to prevent confusion due to sending
+ * messages partway through an ancestor's save.
  *
  * As an optimization, descendants of a [[BatchingLayer]] should reuse
  * [[Uint8Array]] objects (treated as immutable) when sending
@@ -224,26 +230,14 @@ export class BatchingLayer
     // This notifies BatchingStrategy and also emits a Change event.
     if (!this.batchEventPending) {
       this.batchEventPending = true;
-      Promise.resolve()
-        .then(() => {
-          this.batchEventPending = false;
-          if (this.isBatchPending()) {
-            // Only emit if the batch is still pending.
-            this.emit("BatchPending", { meta });
-          }
-          this.emit("Change", { meta });
-        })
-        .catch((err) => {
-          // Shouldn't be any errors here, but handle it
-          // anyway to make ESLint happy.
-
-          // Don't let the error fail the promise,
-          // but still make it print
-          // its error like it was unhandled.
-          setTimeout(() => {
-            throw err;
-          });
-        });
+      void Promise.resolve().then(() => {
+        this.batchEventPending = false;
+        if (this.isBatchPending()) {
+          // Only emit if the batch is still pending.
+          this.emit("BatchPending", { meta });
+        }
+        this.emit("Change", { meta });
+      });
     }
 
     this.emit("DebugSend", { meta }, false);
@@ -338,7 +332,7 @@ export class BatchingLayer
         // Don't let the error block other messages' delivery,
         // but still make it print
         // its error like it was unhandled.
-        setTimeout(() => {
+        void Promise.resolve().then(() => {
           throw err;
         });
       } finally {
@@ -349,10 +343,25 @@ export class BatchingLayer
     this.emit("Change", { meta });
   }
 
+  /**
+   * Usage note: there must not be a pending batch when this
+   * is called. I.e., you should call [[commitBatch]] first,
+   * then call `save` before any new messages might get queued.
+   *
+   * Saving with a pending batch does not make sense because
+   * the pending messages are authored by the current replica,
+   * not some future replica who might load this state
+   * (possibly none or several concurrently). We can't just
+   * ignore the pending batch or wait to commit it until
+   * after saving, since the BatchingLayer's descendants
+   * have already processed the pending messages, hence
+   * their save state will reflect those messages.
+   *
+   * @throws is [[isBatchPending]]()
+   */
   save(): Uint8Array {
     // Need to flush before saving.
-    // Change error message to use flush() once that exists.
-    if (this.pendingBatch !== null) {
+    if (this.isBatchPending()) {
       throw new Error(
         "Cannot save during pending batch (call commitBatch() first)"
       );
@@ -360,7 +369,7 @@ export class BatchingLayer
     return this.child.save();
   }
 
-  load(saveData: Uint8Array | null): void {
+  load(saveData: Optional<Uint8Array>): void {
     this.child.load(saveData);
   }
 

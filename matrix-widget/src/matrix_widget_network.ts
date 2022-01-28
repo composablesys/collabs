@@ -4,11 +4,8 @@ import {
   IWidgetApiRequestData,
   Capability,
 } from "matrix-widget-api";
-import { BroadcastNetwork } from "@collabs/collabs";
 import { Buffer } from "buffer";
-
-// TODO: size limits:
-// https://matrix.org/docs/spec/client_server/r0.6.1#size-limits
+import { CRDTApp, SendEvent } from "@collabs/collabs";
 
 // TODO: reasonable error if lacking capabilities
 
@@ -37,10 +34,9 @@ interface NetworkEvent {
   piece?: number;
 }
 
-export class MatrixWidgetNetwork implements BroadcastNetwork {
+export class MatrixWidgetNetwork {
   private readonly eventType: string;
   private readonly api: WidgetApi;
-  onreceive!: (message: Uint8Array) => void;
 
   private isReady = false;
   private queued: NetworkEvent[] | undefined = [];
@@ -61,10 +57,16 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
    * be comprehensible to end-users.
    * The actual event type used is <rootEventType>.<widgetId>.
    */
-  constructor(rootEventType: string, requestCapabilities: Capability[] = []) {
+  constructor(
+    readonly app: CRDTApp,
+    rootEventType: string,
+    requestCapabilities: Capability[] = []
+  ) {
     this.eventType = `${rootEventType}.${MatrixWidgetNetwork.widgetId}`;
     this.api = new WidgetApi(MatrixWidgetNetwork.widgetId);
     this.initializeWidgetApi(rootEventType, requestCapabilities);
+
+    this.app.on("Send", this.appSend.bind(this));
   }
 
   private initializeWidgetApi(
@@ -152,14 +154,15 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
   }
 
   private receiveString(msg: string) {
-    this.onreceive(new Uint8Array(Buffer.from(msg, "base64")));
+    this.app.receive(new Uint8Array(Buffer.from(msg, "base64")));
   }
 
-  send(message: Uint8Array): void {
-    const encoded = Buffer.from(message).toString("base64");
+  private appSend(e: SendEvent): void {
+    const encoded = Buffer.from(e.message).toString("base64");
     if (encoded.length > MAX_MSG_SIZE) {
       // Break it into chunks of length <= MAX_MSG_SIZE,
       // linked together by a random uid.
+      // TODO: rate limit these (2 per second?).
       const uid = this.longMsgUid();
       const numPieces = Math.ceil(encoded.length / MAX_MSG_SIZE);
       for (let i = 0; i < encoded.length; i += MAX_MSG_SIZE) {
@@ -194,17 +197,6 @@ export class MatrixWidgetNetwork implements BroadcastNetwork {
       uidChars[i] = 32 + (uidBytes[i] % 64);
     }
     return String.fromCharCode(...uidChars);
-  }
-
-  save(): Uint8Array {
-    // TODO: save a summary of the max messages received.
-    // Then instead of requesting all old messages on startup,
-    // only request ones greater than that number.
-    return new Uint8Array();
-  }
-
-  load(saveData: Uint8Array) {
-    // TODO: see save()
   }
 
   static isWidgetApiAvailable(): boolean {

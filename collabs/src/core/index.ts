@@ -1,5 +1,4 @@
 export * from "./abstract_runtime";
-export * from "./app";
 export * from "./collab_parent";
 export * from "./collab";
 export * from "./event_emitter";

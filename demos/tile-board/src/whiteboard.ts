@@ -1,13 +1,25 @@
 import * as collabs from "@collabs/collabs";
+import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 
-export function setupWhiteboard(app: collabs.App) {
+export function setupWhiteboard(container: CRDTContainer) {
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const boardState = app.registerCollab(
+  const boardState = container.registerCollab(
     "whiteboard",
     collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
+
+  // Draw points
+  boardState.on("Set", (event) => {
+    ctx.fillStyle = boardState.get(event.key)!;
+    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
+  });
+
+  // Clear points
+  boardState.on("Delete", (event) => {
+    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
+  });
 
   const colors = document.getElementsByClassName("btn-colors");
   const clear = <HTMLButtonElement>document.getElementById("clear");
@@ -65,17 +77,6 @@ export function setupWhiteboard(app: collabs.App) {
     return pts;
   }
 
-  // Draw points
-  boardState.on("Set", (event) => {
-    ctx.fillStyle = boardState.get(event.key)!;
-    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
-  // Clear points
-  boardState.on("Delete", (event) => {
-    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
   // Mouse Event Handlers
   let color = "black";
 
@@ -115,4 +116,12 @@ export function setupWhiteboard(app: collabs.App) {
     .on("mouseup", function () {
       isDown = false;
     });
+
+  // Once loaded, display loaded state.
+  container.runtime.nextEvent("Load").then(() => {
+    for (const [key, value] of boardState) {
+      ctx.fillStyle = value;
+      ctx.fillRect(key[0], key[1], GRAN, GRAN);
+    }
+  });
 }

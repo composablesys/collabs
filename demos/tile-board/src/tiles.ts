@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerHost } from "@collabs/container";
+import { CRDTContainer, CRDTContainerHost } from "@collabs/container";
 import pako from "pako";
 import { richTextPreContent } from "./rich_text_tile";
 
@@ -64,11 +64,12 @@ class CTile extends collabs.CObject {
 
     // Keep this.dom in sync with its rect.
     this.dom.style.position = "absolute";
-    this.updateRect();
     this.left.on("Set", () => this.updateRect());
     this.top.on("Set", () => this.updateRect());
     this.width.on("Set", () => this.updateRect());
     this.height.on("Set", () => this.updateRect());
+    // updateRect() will be called in loadObject to set
+    // the initial rect.
   }
 
   private updateRect() {
@@ -263,15 +264,20 @@ class CTile extends collabs.CObject {
     const y = e.clientY - rect.top;
     return [x, y];
   }
+
+  protected loadObject() {
+    // Display loaded rect.
+    this.updateRect();
+  }
 }
 
-export function setupTiles(app: collabs.App) {
+export function setupTiles(container: CRDTContainer) {
   // --------------------------------------
   // Existing Apps
 
   // The list of known (existing) apps, in the order they
   // were added.  Each app is stored as its Blob URL.
-  const existingApps = app.registerCollab(
+  const existingApps = container.registerCollab(
     "existingApps",
     collabs.Pre(collabs.DeletingMutCList)(
       (valueInitToken, htmlSrcGzipped: Uint8Array, title: string) => {
@@ -309,7 +315,6 @@ export function setupTiles(app: collabs.App) {
       appExistingDiv.appendChild(document.createElement("br"));
     });
   }
-  refreshAppExistingDiv();
   existingApps.on("Any", refreshAppExistingDiv);
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
@@ -358,7 +363,7 @@ export function setupTiles(app: collabs.App) {
   // --------------------------------------
   // Tiles
   const tileParent = <HTMLDivElement>document.getElementById("boardScroller");
-  const tiles = app.registerCollab(
+  const tiles = container.registerCollab(
     "tiles",
     collabs.Pre(collabs.DeletingMutCSet)(
       (
@@ -391,12 +396,15 @@ export function setupTiles(app: collabs.App) {
       }
     )
   );
+
+  const tileDestructors = new Map<collabs.Collab, () => void>();
   tiles.on("Delete", (e) => {
     tileParent.removeChild(e.value.dom);
+    const destructor = tileDestructors.get(e.value.contentCollab);
+    if (destructor !== undefined) destructor();
   });
   // No need to listen on Add events; the valueConstructor
-  // handles added values (valueConstructor calls and Add events
-  // are equivalent, for DeletingMutCSet).
+  // handles added values (including ones added during loading).
 
   function addTile(app: CImmutable<{ url: string; title: string }>) {
     // TODO: set initial rect intelligently.
@@ -419,8 +427,25 @@ export function setupTiles(app: collabs.App) {
       const iframe = document.createElement("iframe");
       iframe.src = url;
       iframe.className = "tileIframe";
+      // The IFrame stays hidden until its container is ready.
+      // TODO: in its place, display "Initializing..." message.
+      iframe.hidden = true;
       contentDomParent.appendChild(iframe);
-      return new ContainerHost(contentInitToken, iframe);
+      const host = new CRDTContainerHost(contentInitToken, iframe);
+      host.nextEvent("ContainerReady").then(() => {
+        iframe.hidden = false;
+      });
+      // Compact host's save data when compacting our own.
+      // We save the event handler "off" function for when
+      // host is deleted.
+      const off = container.onSaveRequest(() => host.compactSaveData());
+      tileDestructors.set(host, off);
+      return host;
     };
   }
+
+  // Once loaded, display the loaded state.
+  container.runtime.nextEvent("Load").then(() => {
+    refreshAppExistingDiv();
+  });
 }

@@ -1,12 +1,11 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
-import { ContainerHost } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
+import { CRDTContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
-  // Create a App intended for use within containers.
-  const runtime = await ContainerAppSource.newApp(window.parent);
-  const currentHost = runtime.registerCollab(
+  const container = new CRDTContainer();
+  const currentHost = container.registerCollab(
     "",
     collabs.Pre(collabs.LwwMutCRegister)(
       (valueInitToken, htmlSrcGzipped: Uint8Array) => {
@@ -16,31 +15,71 @@ import pako from "pako";
         const iframe = document.createElement("iframe");
         iframe.hidden = true;
         iframe.srcdoc = htmlSrc;
-        const host = new ContainerHost(valueInitToken, iframe);
+        const host = new CRDTContainerHost(valueInitToken, iframe);
         document.body.appendChild(iframe);
+        // Compact host's save data when compacting our own.
+        container.onSaveRequest(() => host.compactSaveData());
+        // If it was possible to override causally prior values
+        // (triggering currentHost "Delete" events), then we
+        // would need to call the "off" function returned by
+        // onSaveRequest, in currentHost's "Delete" event handler.
+        // Otherwise, container's handler set would keep a
+        // reference to host, preventing GC and triggering
+        // unnecessary save compaction.
+        // Opt: when a value is unset, clean it up
+        // (treat as permanently deleted), even though technically
+        // it is still a "conflict" value in currentHost.
+
         return host;
       }
     )
   );
 
-  // Selector GUI.
-  const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
-  currentHost.on("Set", (e) => {
-    // Make the set value the only visible thing.
+  currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
+
+  const initializingDiv = <HTMLDivElement>(
+    document.getElementById("initializingDiv")
+  );
+
+  function onCurrentHostSet(
+    previousValue: collabs.Optional<CRDTContainerHost>
+  ) {
+    // Hide other stuff.
     selectorDiv.hidden = true;
-    if (e.previousValue.isPresent) {
-      e.previousValue.get().containerIFrame.hidden = true;
+    if (previousValue.isPresent) {
+      previousValue.get().containerIFrame.hidden = true;
     }
-    const iframe = currentHost.value.get().containerIFrame;
-    iframe.hidden = false;
+
+    // Show "Initializing..." message until the container is
+    // ready, then show its IFrame.
+    const newValue = currentHost.value.get();
+    const iframe = newValue.containerIFrame;
+    initializingDiv.hidden = false;
+    // We can assume the container is not yet ready, since
+    // onCurrentHostSet is always called in the same event loop
+    // as the IFrame is created (though possibly a later microtask),
+    // and readiness requires receiving a message from the IFrame.
+    newValue.nextEvent("ContainerReady").then(() => {
+      initializingDiv.hidden = true;
+      iframe.hidden = false;
+    });
     // Set title to that of the visible IFrame.
-    // We know that it is not yet loaded because it will only
-    // be Set once, in the same thread where it is initially
-    // created.
+    // Not sure how to tell if the IFrame is already loaded
+    // (hence won't emit "load"); to be safe, we'll set the
+    // title if contentDocument !== null, but add the "load"
+    // listener anyway.
+    if (iframe.contentDocument !== null) {
+      document.title = iframe.contentDocument.title;
+    }
     iframe.addEventListener("load", () => {
       document.title = iframe.contentDocument!.title;
     });
-  });
+    // Show the download div.
+    downloadDiv.hidden = false;
+  }
+
+  // Selector GUI.
+  const selectorDiv = <HTMLDivElement>document.getElementById("selectorDiv")!;
 
   function setHtmlSrc(htmlSrc: string) {
     // The container definitions can get large (100s of KB)
@@ -75,11 +114,10 @@ import pako from "pako";
   });
 
   // Download button GUI.
-  const downloadDiv = document.getElementById("download.div")!;
+  const downloadDiv = document.getElementById("downloadDiv")!;
   const downloadButton = <HTMLButtonElement>(
-    document.getElementById("download.button")
+    document.getElementById("downloadButton")
   );
-  currentHost.on("Set", () => (downloadDiv.hidden = false));
   downloadButton.addEventListener("click", () => {
     const htmlSrcGzippedOptional = currentHost.getArgs();
     if (!htmlSrcGzippedOptional.isPresent) return;
@@ -119,4 +157,14 @@ import pako from "pako";
     a.click();
     w.document.body.removeChild(a);
   }
+
+  await container.load();
+
+  // Display loaded state.
+  if (currentHost.value.isPresent) {
+    onCurrentHostSet(collabs.Optional.empty());
+  }
+
+  // Ready.
+  container.ready();
 })();

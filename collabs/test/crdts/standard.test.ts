@@ -8,26 +8,27 @@ import {
   LwwCRegister,
   MergingMutCMap,
   CNumber,
-  TestingNetworkGenerator,
+  TestingCRDTAppGenerator,
   DeletingMutCSet,
   CMapDeleteEvent,
   CMapSetEvent,
   CCounter,
   InitToken,
   Pre,
+  Optional,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom from "seedrandom";
 
 describe("standard", () => {
-  let appGen: TestingNetworkGenerator;
+  let appGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingNetworkGenerator();
+    appGen = new TestingCRDTAppGenerator();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });
@@ -39,6 +40,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceFlag = alice.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
       bobFlag = bob.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -129,6 +132,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceFlag = alice.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
       bobFlag = bob.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceFlag, "Alice");
         addEventListeners(bobFlag, "Bob");
@@ -210,11 +215,11 @@ describe("standard", () => {
     let aliceNumber: CNumber;
     let bobNumber: CNumber;
 
-    beforeEach(() => init(0));
-
     function init(initialValue: number, name = "numberId"): void {
       aliceNumber = alice.registerCollab(name, Pre(CNumber)(initialValue));
       bobNumber = bob.registerCollab(name, Pre(CNumber)(initialValue));
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceNumber, "Alice");
         addEventListeners(bobNumber, "Bob");
@@ -240,12 +245,16 @@ describe("standard", () => {
     }
 
     it("is initially 0", () => {
+      init(0);
+
       assert.strictEqual(aliceNumber.value, 0);
       assert.strictEqual(bobNumber.value, 0);
     });
 
     describe("add", () => {
       it("works with non-concurrent updates", () => {
+        init(0);
+
         aliceNumber.add(3);
         appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 3);
@@ -258,6 +267,8 @@ describe("standard", () => {
       });
 
       it("works with concurrent updates", () => {
+        init(0);
+
         aliceNumber.add(3);
         bobNumber.add(-4);
         assert.strictEqual(aliceNumber.value, 3);
@@ -271,6 +282,8 @@ describe("standard", () => {
 
     describe("add and mult", () => {
       it("works with non-concurrent updates", () => {
+        init(0);
+
         aliceNumber.add(3);
         appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 3);
@@ -288,6 +301,8 @@ describe("standard", () => {
       });
 
       it("works with concurrent updates", () => {
+        init(0);
+
         aliceNumber.add(2);
         assert.strictEqual(aliceNumber.value, 2);
         assert.strictEqual(bobNumber.value, 0);
@@ -322,6 +337,8 @@ describe("standard", () => {
 
     describe("multiple ops", () => {
       it("works with non-concurrent updates", () => {
+        init(0);
+
         aliceNumber.add(3);
         appGen.releaseAll();
         assert.strictEqual(aliceNumber.value, 3);
@@ -344,6 +361,8 @@ describe("standard", () => {
       });
 
       it("works with concurrent updates", () => {
+        init(0);
+
         aliceNumber.add(2);
         assert.strictEqual(aliceNumber.value, 2);
         assert.strictEqual(bobNumber.value, 0);
@@ -419,6 +438,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceSet = alice.registerCollab("awSetId", Pre(AddWinsCSet)());
       bobSet = bob.registerCollab("awSetId", Pre(AddWinsCSet)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceSet, "Alice");
         addEventListeners(bobSet, "Bob");
@@ -640,6 +661,11 @@ describe("standard", () => {
       }
     });
 
+    function load() {
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
+    }
+
     function addEventListeners<K, V extends Object | null>(
       map: MergingMutCMap<any, any>,
       name: string
@@ -648,12 +674,15 @@ describe("standard", () => {
     }
 
     it("is initially empty", () => {
+      load();
       assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
       assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
     });
 
     describe("set", () => {
       it("works with non-concurrent updates", () => {
+        load();
+
         aliceMap.set("test");
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
@@ -663,6 +692,8 @@ describe("standard", () => {
 
     describe("has", () => {
       it("returns true if the key is in the map", () => {
+        load();
+
         aliceMap.set("test");
         assert.isTrue(aliceMap.has("test"));
         assert.isFalse(bobMap.has("test"));
@@ -673,6 +704,8 @@ describe("standard", () => {
       });
 
       it("returns false if the key is not in the map", () => {
+        load();
+
         aliceMap.set("test");
         assert.isFalse(aliceMap.has("not in map"));
         assert.isFalse(bobMap.has("not in map"));
@@ -685,6 +718,8 @@ describe("standard", () => {
 
     describe("get", () => {
       it("returns the value if the key is in the map", () => {
+        load();
+
         aliceMap.set("test");
         appGen.releaseAll();
         const aliceTest = aliceMap.get("test")!;
@@ -696,6 +731,8 @@ describe("standard", () => {
       });
 
       it("returns undefined if the key is not in the map", () => {
+        load();
+
         aliceMap.set("test");
         appGen.releaseAll();
         const aliceTest = aliceMap.get("not in map");
@@ -705,6 +742,8 @@ describe("standard", () => {
       });
 
       it("returns a CRDT that can be modified", () => {
+        load();
+
         aliceMap.set("test");
         appGen.releaseAll();
         const aliceTest = aliceMap.get("test")!;
@@ -719,6 +758,8 @@ describe("standard", () => {
 
     describe("delete", () => {
       it("deletes existing elements", () => {
+        load();
+
         bobMap.set("test");
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
@@ -732,6 +773,8 @@ describe("standard", () => {
       });
 
       it("does not delete non-existing elements", () => {
+        load();
+
         bobMap.delete("test");
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
@@ -741,6 +784,8 @@ describe("standard", () => {
       });
 
       it("lets concurrent value operation survive", () => {
+        load();
+
         aliceMap.set("register");
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
@@ -767,6 +812,8 @@ describe("standard", () => {
       let bobRegister: CCounter;
 
       beforeEach(() => {
+        load();
+
         aliceMap.set("register");
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
@@ -807,14 +854,16 @@ describe("standard", () => {
 
     describe("value CRDT", () => {
       it("can be used as values in other CRDTs", () => {
+        let aliceSet = alice.registerCollab("valueSet", Pre(AddWinsCSet)());
+        let bobSet = bob.registerCollab("valueSet", Pre(AddWinsCSet)());
+
+        load();
+
         aliceMap.set("test");
         let aliceCounter = aliceMap.get("test")!;
         bobMap.set("test");
         let bobCounter = bobMap.get("test")!;
         appGen.releaseAll();
-
-        let aliceSet = alice.registerCollab("valueSet", Pre(AddWinsCSet)());
-        let bobSet = bob.registerCollab("valueSet", Pre(AddWinsCSet)());
 
         aliceSet.add(aliceCounter);
         assert.strictEqual(aliceSet.has(aliceCounter), true);
@@ -831,6 +880,8 @@ describe("standard", () => {
     beforeEach(() => {
       aliceMap = alice.registerCollab("lwwMap", Pre(LwwCMap)());
       bobMap = bob.registerCollab("lwwMap", Pre(LwwCMap)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -1112,6 +1163,8 @@ describe("standard", () => {
         (childInitToken) =>
           new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
     });
 
     it("returns new Collab", () => {

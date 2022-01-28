@@ -6,7 +6,8 @@ import {
   OptionalLwwCRegister,
   Pre,
   CRDTApp,
-  TestingNetworkGenerator,
+  TestingCRDTAppGenerator,
+  Optional,
 } from "../../src";
 import seedrandom from "seedrandom";
 import {
@@ -16,14 +17,14 @@ import {
 } from "../../src/crdts/number/number";
 
 describe("basic_crdts", () => {
-  let appGen: TestingNetworkGenerator;
+  let appGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingNetworkGenerator();
+    appGen = new TestingCRDTAppGenerator();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });
@@ -41,6 +42,8 @@ describe("basic_crdts", () => {
         "counterId",
         Pre(AddComponent)(new CNumberState(0))
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -99,6 +102,8 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCollab("counterId", Pre(CCounter)());
       bobCounter = bob.registerCollab("counterId", Pre(CCounter)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
         addEventListeners(bobCounter, "Bob");
@@ -304,6 +309,8 @@ describe("basic_crdts", () => {
         "multId",
         Pre(MultComponent)(new CNumberState(2))
       );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceRegister, "Alice");
         addEventListeners(bobRegister, "Bob");
@@ -364,6 +371,8 @@ describe("basic_crdts", () => {
   //   beforeEach(() => {
   //     aliceGPlainSet = alice.registerCollab("gsetId", new GPlainSet());
   //     bobGPlainSet = bob.registerCollab("gsetId", new GPlainSet());
+  // alice.load(Optional.empty());
+  // bob.load(Optional.empty());
   //     if (debug) {
   //       addEventListeners(aliceGPlainSet, "Alice");
   //       addEventListeners(bobGPlainSet, "Bob");
@@ -436,6 +445,8 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceMvr = alice.registerCollab("mvrId", Pre(OptionalLwwCRegister)());
       bobMvr = bob.registerCollab("mvrId", Pre(OptionalLwwCRegister)());
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceMvr, "Alice");
         addEventListeners(bobMvr, "Bob");
@@ -577,6 +588,8 @@ describe("basic_crdts", () => {
     beforeEach(() => {
       aliceLww = alice.registerCollab("lwwId", Pre(LwwCRegister)("initial"));
       bobLww = bob.registerCollab("lwwId", Pre(LwwCRegister)("initial"));
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
       if (debug) {
         addEventListeners(aliceLww, "Alice");
         addEventListeners(bobLww, "Bob");

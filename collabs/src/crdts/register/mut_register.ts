@@ -1,6 +1,6 @@
 import { CObject } from "../../constructions";
 import { Collab, InitToken, Pre } from "../../core";
-import { CRegister, CRegisterEventsRecord } from "../../data_types";
+import { CRegister, CRegisterEventsRecord, CSetEvent } from "../../data_types";
 import {
   DefaultSerializer,
   Optional,
@@ -12,12 +12,33 @@ import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
 import { OptionalLwwCRegister } from "./wins_registers";
 
+export interface MutCRegisterEventsRecord<C extends Collab, Value>
+  extends CRegisterEventsRecord<Value> {
+  /**
+   * Emitted when a value is deleted from the value factory.
+   *
+   * This happens only when the value is overwritten by
+   * a *causally greater* value (or reset). It does not always
+   * happen when the value becomes no longer the set value,
+   * since that may be due to a concurrently set value.
+   *
+   * Listen on this event to do cleanup for value that should
+   * only happen when it's deleted from the value factory
+   * (essentially, permanently deleted),
+   * not just shadowed by a concurrently set value.
+   */
+  Delete: CSetEvent<C>;
+}
+
 export class MutCRegisterFromRegister<
     C extends Collab,
     SetArgs extends unknown[],
     Value,
     RegT extends CRegister<Value, [C]>,
-    Events extends CRegisterEventsRecord<Value> = CRegisterEventsRecord<Value>
+    Events extends MutCRegisterEventsRecord<
+      C,
+      Value
+    > = MutCRegisterEventsRecord<C, Value>
   >
   extends CObject<Events>
   implements CRegister<Value, SetArgs>
@@ -52,6 +73,7 @@ export class MutCRegisterFromRegister<
 
     // Events
     this.register.on("Set", (event) => this.emit("Set", event));
+    this.valueFactory.on("Delete", (event) => this.emit("Delete", event));
   }
 
   set(...args: SetArgs): Value {

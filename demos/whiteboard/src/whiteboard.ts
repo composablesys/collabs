@@ -1,25 +1,48 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 
 (async function () {
-  const runtime = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer();
 
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
-  const boardState = runtime.registerCollab(
+  const boardState = container.registerCollab(
     "whiteboard",
     collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
   );
+
+  await container.load();
+
+  // Call this before displaying the loaded state, as
+  // an optimization.
+  // That way, we can immediately draw the complete loaded
+  // state (including further messages), instead of syncing
+  // the further messages to the canvas using a bunch of events.
+  container.receiveFurtherMessages();
 
   const colors = document.getElementsByClassName("btn-colors");
   const clear = <HTMLButtonElement>document.getElementById("clear");
   const board = <HTMLCanvasElement>document.getElementById("board");
   const ctx = board.getContext("2d")!;
   const GRAN = 2;
+
+  // Display loaded state.
+  for (const [key, value] of boardState) {
+    ctx.fillStyle = value;
+    ctx.fillRect(key[0], key[1], GRAN, GRAN);
+  }
+
+  // Draw points
+  boardState.on("Set", (event) => {
+    ctx.fillStyle = boardState.get(event.key)!;
+    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
+  });
+
+  // Clear points
+  boardState.on("Delete", (event) => {
+    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
+  });
 
   function roundGran(n: number): number {
     return Math.round(n / GRAN) * GRAN;
@@ -71,17 +94,6 @@ import $ from "jquery";
     return pts;
   }
 
-  // Draw points
-  boardState.on("Set", (event) => {
-    ctx.fillStyle = boardState.get(event.key)!;
-    ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
-  // Clear points
-  boardState.on("Delete", (event) => {
-    ctx.clearRect(event.key[0], event.key[1], GRAN, GRAN);
-  });
-
   // Mouse Event Handlers
   let color = "black";
 
@@ -121,4 +133,7 @@ import $ from "jquery";
     .on("mouseup", function () {
       isDown = false;
     });
+
+  // Ready.
+  container.ready();
 })();

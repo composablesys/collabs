@@ -1,8 +1,8 @@
 # Container Selector
 
-Lets the user select a [Collabs container](TODO: guide link) from a link or a file, then download the container as a file for safekeeping or sharing. This project is itself a Collabs container.
+Lets the user select a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md) from a link or a file, then download the container as a file for safekeeping or sharing. This demo is itself a Collabs container.
 
-Based off of [template-container](TODO).
+Based off of [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 
 ## Installation
 
@@ -22,7 +22,7 @@ Build the container from `src/`, in [production mode](https://webpack.js.org/gui
 
 Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view. Use multiple browser windows at once to test collaboration.
 
-See [container-testing-server](TODO) for usage info.
+See [@collabs/container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) for usage info.
 
 ### `npm run clean`
 
@@ -30,4 +30,4 @@ Delete `dist/`.
 
 ## Deployment
 
-`dist/selector.html` is a [standalone container](TODO: guide about how works offline, in sandbox, easily redistributed, etc.). It can used in any [container host](TODO).
+`dist/selector.html` is the compiled container. It can used in any container host.

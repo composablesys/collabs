@@ -14,6 +14,14 @@
   </head>
 
   <body>
-    Server message history reset successfully
+    Server message history for <span id="name">demo</span> reset successfully
+    <script>
+      // Extract the name to use from the URL's
+      // GET parameters.
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has("name")) {
+        document.getElementById("name").innerHTML = urlParams.get("name");
+      }
+    </script>
   </body>
 </html>

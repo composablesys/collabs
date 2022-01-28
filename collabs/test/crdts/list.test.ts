@@ -1,17 +1,17 @@
 import { assert } from "chai";
-import { CRDTApp, TestingNetworkGenerator, RgaDenseLocalList } from "../../src";
+import { CRDTApp, TestingCRDTAppGenerator, RgaDenseLocalList } from "../../src";
 import seedrandom from "seedrandom";
 import util from "util";
 
 describe("list", () => {
-  let appGen: TestingNetworkGenerator;
+  let appGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingNetworkGenerator();
+    appGen = new TestingCRDTAppGenerator();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });

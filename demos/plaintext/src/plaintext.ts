@@ -1,16 +1,21 @@
 import * as collabs from "@collabs/collabs";
-import { ContainerAppSource } from "@collabs/container";
+import { CRDTContainer } from "@collabs/container";
 
 (async function () {
-  const runtime = await ContainerAppSource.newApp(
-    window.parent,
-    new collabs.RateLimitBatchingStrategy(200)
-  );
+  const container = new CRDTContainer();
 
-  const text = runtime.registerCollab("text", collabs.Pre(collabs.CText)());
+  const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
+
+  await container.load();
 
   const textarea = document.getElementById("textarea") as HTMLTextAreaElement;
-  textarea.value = "";
+  textarea.value = text.toString(); // Use loaded state here.
+
+  // Display text changes
+  text.on("Any", () => {
+    textarea.value = text.toString();
+    updateCursor();
+  });
 
   // TODO: shared cursors
 
@@ -123,9 +128,6 @@ import { ContainerAppSource } from "@collabs/container";
     e.preventDefault();
   });
 
-  // Display text changes
-  text.on("Any", () => {
-    textarea.value = text.toString();
-    updateCursor();
-  });
+  // Ready.
+  container.ready();
 })();
