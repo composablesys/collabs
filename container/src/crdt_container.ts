@@ -35,9 +35,41 @@ interface CRDTContainerEventsRecord {
 // (e.g. causal ordering is guaranteed for us).
 
 /**
- * Replaces CRDTApp for use in a container.
+ * Entrypoint for a Collabs container: a network-agnostic,
+ * self-contained collaborative app that is deployed using static
+ * files only.
  *
- * TODO: usage (ref docs)
+ * See [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+ *
+ * This class is similar to, and replaces, @collabs/collabs
+ * `CRDTApp` class as the Collabs entrypoint. This means that
+ * it is the first thing you construct when using Collabs,
+ * and you register your top-level (global variable) Collabs
+ * using [[registerCollab]]. Unlike `CRDTApp`, there are no
+ * methods/events for sending or receiving messages or for
+ * saving and loading; those are handled for you.
+ * Specifically, those happen via communication with an instance
+ * of [[CRDTContainerHost]] running in a separate window
+ * (currently assumed to be `window.parent`).
+ *
+ * As the name suggests, `CRDTContainer` is specifically designed for use
+ * with `Collab`s that are (op-based) CRDTs. Currently, this includes
+ * all `Collab`s that come built-in with @collabs/collabs.
+ *
+ * ## `CRDTContainer` Lifecycle
+ *
+ * After construction a `CRDTContainer`, you must first
+ * register your Collabs using [[registerCollab]].
+ * Afterwards, you must eventually call [[load]], await
+ * its Promise, and then call [[ready]]. Only then can you
+ * use the `CRDTContainer`, i.e., you can perform `Collab`
+ * operations and the container will deliver messages
+ * to the `Collab`s.
+ *
+ * See the
+ * [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md)
+ * for step-by-step instructions on when to call these methods
+ * during your app's setup.
  */
 export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private readonly app: CRDTApp;
@@ -56,9 +88,14 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private loadResolve: ((message: LoadMessage) => void) | null = null;
 
   /**
-   * [constructor description]
-   * @param options    [description] Default BatchingStrategy
-   * is recommended (let the host decide whether to batch more).
+   * Constructs a new `CRDTContainer` that connects to
+   * a `CRDTContainerHost` running in `window.parent`.
+   *
+   * @param options Options to pass to the internal [[CRDTApp]].
+   * It is recommended that you leave `batchingStrategy` as
+   * its default value (an `ImmediateBatchingStrategy`);
+   * that way, the choice of batching is left up to your
+   * container host.
    */
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
@@ -132,6 +169,20 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     }
   }
 
+  /**
+   * Constructs `preCollab` and registers it as a
+   * top-level (global variable) `Collab` with the
+   * given name.
+   *
+   * @param  name The `Collab`'s name, which must be
+   * unique among all registered `Collabs`. E.g., its name
+   * as a variable in your program.
+   * @param  preCollab The `Collab` to construct, typically
+   * created using a statement of the form
+   * `Pre(class_name)<generic types>(constructor args)`
+   * @return The registered `Collab`. You should assign
+   * this to a variable for later use.
+   */
   registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
     return this.app.registerCollab(name, preCollab);
   }
@@ -139,15 +190,14 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   private loadFurtherMessages: Uint8Array[] | null = null;
 
   /**
-   * TODO. Note "further messages" are not delivered until
-   * next event loop (as if they were newly received).
-   * (TODO: event to tell when *that* is done, in case you care?
-   * E.g. for optimization - don't construct the view until
-   * then, if you know what you're doing and when to register
-   * which event handlers.)
+   * Waits to receive prior save data from the container host,
+   * then applies it to the registered `Collab`s.
    *
-   * @return whether loading was skipped, i.e., there was no
-   * prior save data. (TODO: what if further messages only?)
+   * Analogous to `CRDTApp.load`, except that you don't have
+   * to provide the save data; the host does that for us.
+   *
+   * @return Whether loading was skipped, i.e., there was no
+   * prior save data.
    */
   async load(): Promise<boolean> {
     // Get the load message from messagePortReceive.
@@ -179,6 +229,14 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     return loadMessage.latestSaveData === null;
   }
 
+  /**
+   * Signals to your container host that you are ready.
+   *
+   * Your host will then reveal the container to the user
+   * (e.g., unhide its IFrame), allow user input, and start
+   * delivering messages - both new messages from collaborators,
+   * and old messages that didn't make it into the loaded state.
+   */
   ready(): void {
     if (this.loadFurtherMessages !== null) {
       setTimeout(() => this.receiveFurtherMessages());
@@ -188,16 +246,28 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   }
 
   /**
-   * TODO: optional (just an opt); warnings; called
-   * automatically after the ready event loop and before
-   * the next message or save request, if not called manually.
-   * Usage: loading before adding event listeners (may cause issues);
-   * waiting for GUI to process further messages before calling
-   * ready, so that (if the host hides you during loading) the
-   * user doesn't see that loading. (Although I guess they won't
-   * see funny flashing because you'll do it all sync anyway;
-   * they just might see the loaded state sit there frozen for
-   * a second).
+   * Optionally, this may be called after [[load]] to cause
+   * all "further messages" to be delivered immediately and
+   * synchronously.
+   *
+   * The "further messages" are messages that should have been
+   * part of our loaded save data (i.e., they were received
+   * before the previous instance was saved), but were
+   * not included. This can happen because
+   * `CRDTContainerHost.save` must run synchronously,
+   * so it does not have time to instruct us to call our
+   * internal analog of `CRDTApp.save`. Instead, `CRDTContainerHost`
+   * instructs us to do so occasionally, then saves any
+   * further messages as part of its own save data.
+   * (See [[onSaveRequest]].)
+   *
+   * Ordinarily, the further messages are delivered to your
+   * `Collab`s in an event loop iteration after [[ready]]
+   * is called. This makes them indistinguishable from newly
+   * received messages. However, you can instead call this
+   * method earlier (but after [[load]]). This is never
+   * necessary but can serve as an optimization; see
+   * the [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md#loading).
    */
   receiveFurtherMessages(): void {
     if (!this.app.isLoaded) {
@@ -211,17 +281,23 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     this.lastReceivedID = furtherMessages.length - 1;
   }
 
+  /**
+   * Whether [[load]] has completed (including its Promise).
+   */
   get isLoaded(): boolean {
     return this.app.isLoaded;
   }
 
+  /**
+   * Whether [[ready]] has completed.
+   */
   get isReady(): boolean {
     return this._isReady;
   }
 
   /**
-   * TODO: normally don't access this directly; use the corresponding
-   * CRDTApp methods/events instead.
+   * The internal [[CRDTRuntime]], i.e., the value of
+   * `runtime` on any `Collab`.
    */
   get runtime(): CRDTRuntime {
     return this.app.runtime;

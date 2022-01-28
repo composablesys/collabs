@@ -2,21 +2,18 @@ import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 
 (async function () {
-  // Create a CRDTContainer - like CRDTApp, but intended for
-  // use within containers.
+  // Create a CRDTContainer, the entry point for a Collabs
+  // container.
+  // Note: in a non-container app, you would instead use collabs.CRDTApp.
   const container = new CRDTContainer();
 
   // Now setup your program, using container.
 
   // We include a simple collaborative counter as an example;
   // delete the code below and replace with your own.
-  // Remember, though, to do the steps at the end:
-  // 1. await container.load()
-  // 2. Display the loaded state.
-  // 3. container.ready()
 
-  // Register collaborative data types.
-  const counterCollab = container.registerCollab(
+  // Register Collabs.
+  const counter = container.registerCollab(
     "counter",
     collabs.Pre(collabs.CCounter)()
   );
@@ -25,21 +22,21 @@ import { CRDTContainer } from "@collabs/container";
   // due to a message from another replica.
   const display = document.getElementById("display")!;
   function refreshDisplay() {
-    display.innerHTML = counterCollab.value.toString();
+    display.innerHTML = counter.value.toString();
   }
   container.on("Change", refreshDisplay);
 
-  // Change counterCollab's value on button clicks.
+  // Change counter's value on button clicks.
   // Note that we don't need to refresh the display here, since Change
   // events are also triggered by local operations.
   document.getElementById("increment")!.onclick = () => {
-    counterCollab.add(100);
+    counter.add(100);
   };
   document.getElementById("decrement")!.onclick = () => {
-    counterCollab.add(-100);
+    counter.add(-100);
   };
   document.getElementById("reset")!.onclick = () => {
-    counterCollab.reset();
+    counter.reset();
   };
 
   // Wait for the container to load the previous saved state,

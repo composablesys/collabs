@@ -15,9 +15,9 @@ export interface RuntimeEventsRecord {
    * Emitted once all Collabs have been loaded
    * (i.e., [[Collab.load]] completed).
    *
-   * TODO: mention a good time to construct views (ref docs).
-   * Need to do so in same event loop, since messages may
-   * be delivered in the next one.
+   * You can listen on this event if you need to construct
+   * views of [[Collab]] state after loading and before any
+   * messages are received.
    */
   Load: LoadEvent;
 }

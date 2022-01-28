@@ -19,6 +19,13 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
    * becomes true, hence user interaction with the container
    * is allowed.
    *
+   * This event may be emitted as soon as the next event loop
+   * iteration after you initialize the container's IFrame.
+   * So, you must either add an event handler within the same
+   * event loop iteration that you initialize the IFrame,
+   * or check [[CRDTContainerHost.isContainerReady]] before
+   * adding the handler.
+   *
    * Note that this is a local, not replicated, event: it refers
    * to conditions on the local replica related to the
    * app start cycle, not something that all replicas see
@@ -28,9 +35,35 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
 }
 
 /**
- * TODO: usage: make sure to block user input to the container
- * before [[isContainerReady]] / "ContainerReady" event!
- * (Sample code with nextEvent)
+ * A host for a Collabs container running in a child IFrame.
+ *
+ * See [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+ *
+ * A `CRDTContainerHost` connects to the `CRDTContainer`
+ * instance running in the `containerIFrame` provided to
+ * the constructor. All messages sent by the `CRDTContainer`
+ * become messages sent by this class, and likewise for
+ * received messages. This class's save data is also
+ * derived from the container's own save data, and likewise,
+ * the container is loaded based on the save data passed to [[load]].
+ *
+ * You are responsible for blocking user input to `containerIFrame`
+ * until [[isContainerReady]] is true (signalled by the
+ * "ContainerReady" event). Otherwise, the user might interact
+ * with the container before it is loaded, causing errors.
+ * Typically, you'll also want to hide the `containerIFrame`
+ * until then, so that the user doesn't see partially-initialized
+ * state. You can accomplish both by setting
+ * `containerIFrame.hidden = true`, then when it is ready,
+ * setting `containerIFrame.hidden = false`.
+ *
+ * You can use `CRDTContainerHost` to embed Collabs containers
+ * inside your own app. In particular, if you want to
+ * support a specific network/storage/UX/etc. for containers,
+ * you can do so by making a Collabs app
+ * that uses your chosen network/storage/UX/etc.,
+ * with a `CRDTContainerHost` as its single Collab, and with
+ * some way for users to specify the container.
  */
 export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord> {
   private messagePort: MessagePort | null = null;
@@ -82,13 +115,15 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   private furtherSentMessages: [predID: number, message: Uint8Array][] = [];
 
   /**
-   * TODO: timing assumptions: before container is
-   * constructed in its IFrame (e.g., in the same thread
-   * as the IFrame as created, so it's not loaded yet).
+   * Constructs a `CRDTContainerHost` that connects to the `CRDTContainer`
+   * instance running in `containerIFrame`.
    *
-   * @param containerIFrame [description]
-   * For now, this is assumed to be a child window, i.e.,
-   * it's window.parent is our window.
+   * Restrictions for now:
+   * - `containerIFrame`'s `window.parent` must be your `window`.
+   * - You should call this constructor synchronously after
+   * constructing the IFrame, so that it is not yet loaded.
+   *
+   * @param containerIFrame
    */
   constructor(
     initToken: InitToken,
@@ -203,19 +238,17 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * Whether the container is ready to be used by the
    * user.
    *
-   * Specifically, this becomes true once all of the following are true:
-   * - The container's IFrame is loaded.
-   * - The container's [[ContainerAppSource]] has been initialized.
-   * - [[load]] has been called (including the case that
-   * it was called with an empty Optional, i.e., there is
-   * no prior save data), the container received our message
-   * with its save data, and we received an ack from the container
-   * confirming that it finished loading that save data.
+   * Specifically, this becomes true once the internal
+   * container's [[CRDTContainer.ready]] method has been called.
    *
-   * Until the container is ready, you MUST block user inputs
-   * for the container.
-   * E.g., hide the IFrame (but not in a way that prevents
-   * loading), or overlay it with a blur and a spinner.
+   * Until this is true, you MUST block user input to
+   * `containerIFrame`. Otherwise, the user might interact
+   * with the container before it is loaded, causing errors.
+   * Typically, you'll also want to hide the `containerIFrame`
+   * until then, so that the user doesn't see partially-initialized
+   * state. You can accomplish both by setting
+   * `containerIFrame.hidden = true`, then when it is ready,
+   * setting `containerIFrame.hidden = false`.
    *
    * A [[CRDTContainerHostEventsRecord.ContainerReady]] event
    * is emitted immediately after this becomes true.
@@ -229,30 +262,32 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     number,
     [resolve: () => void, reject: (reason: unknown) => void]
   >();
+
   /**
-   * TODO: asks the container for its saveData and uses
-   * that in our own save message instead of
-   * (previous saveData, if any) + log of messages.
-   * I.e. log compaction.
+   * Asks the internal [[CRDTContainer]] to call its analog
+   * of [[CRDTApp.save]], generating compact save data
+   * describing its current state. This save data will then
+   * be used in future calls to our own [[save]] method,
+   * in place of a message log.
    *
-   * Resolves when done (next call to save() will include
-   * the compacted saveData due to this method call).
+   * To prevent our own save data from becoming too large
+   * (acting as an ever-growing message log), you should
+   * call this method occasionally. However, do not call it
+   * too often, since saving large documents can take some
+   * time and freezes the container.
+   *
+   * The returned Promise resolves when done, i.e., when the
+   * next call to save() will include
+   * the compacted saveData due to this method call.
    * Note it's not guaranteed that
    * the log will be empty even if you then call save() right away,
    * because the container may have sent/received more messages
    * during the async wait.
    *
-   * Rejects if the container's call to save failed, with
+   * The Promise rejects if the container's call to save failed, with
    * the container's error as reason.
    *
-   * TODO: advice on when to do? Measurement methods;
-   * setInterval; how to remove when done with the container?
-   *
-   * TODO: throws if container not yet ready. (If you want to
-   * compact the further messages "right away", wait for
-   * the ready event.)
-   *
-   * @return [description]
+   * @throws if [[isContainerReady]] is false
    */
   compactSaveData(): Promise<void> {
     if (!this._isContainerReady) {

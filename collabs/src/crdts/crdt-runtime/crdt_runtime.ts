@@ -23,22 +23,23 @@ export interface SendEvent {
 
 export interface CRDTRuntimeEventsRecord extends RuntimeEventsRecord {
   /**
-   * TODO: get rid of this description, just say it's a backer
-   * of the user-facing Change event in CRDTApp?
-   *
    * Emitted each time the app's state is changed and
    * is in a reasonable user-facing state
    * (so not in the middle of a transaction).
    *
-   * A simple way to keep a GUI in sync with the app is to
-   * do `runtime.on("Change", refreshDisplay)`.
+   * Usually, you will not listen on this event directly, insteading listening on
+   * [[CRDTApp]] or `CRDTContainer`'s "Change".
    */
   Change: CollabEvent;
   /**
    * Emitted when a message is to be sent.
    *
-   * TODO: reqs: needs to be delivered to each other replica's
-   * [[Runtime.receive]] at least once.
+   * This must be delivered to each other replica's
+   * [[CRDTRuntime.receive]] method, eventually at-least-once.
+   *
+   * Usually, you will not listen on this event directly, insteading listening on
+   * [[CRDTApp]]'s "Send" event or using a `CRDTContainer`
+   * (which listens on this event for you).
    */
   Send: SendEvent;
 }
@@ -143,10 +144,33 @@ export class CRDTRuntime
   // CRDTApp (which is just a thin wrapper). Users are
   // expected to use CRDTApp.
 
+  /**
+   * Constructs `preCollab` and registers it as a
+   * top-level (global variable) `Collab` with the
+   * given name.
+   *
+   * @param  name The `Collab`'s name, which must be
+   * unique among all registered `Collabs`. E.g., its name
+   * as a variable in your program.
+   * @param  preCollab The `Collab` to construct, typically
+   * created using a statement of the form
+   * `Pre(class_name)<generic types>(constructor args)`
+   * @return The registered `Collab`. You should assign
+   * this to a variable for later use.
+   */
   registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
     return this.registry.addChild(name, preCollab);
   }
 
+  /**
+   * Delivers `message` to the [[Collab]]s, so that they update
+   * to reflect the operation(s) that triggered this message.
+   *
+   * Usually, you will not call this method directly, insteading using
+   * [[CRDTApp.receive]] or using a `CRDTContainer` (which calls this method for you).
+   *
+   * @param message The message to receive.
+   */
   receive(message: Uint8Array): void {
     if (!this._isLoaded) {
       throw new Error("Not yet loaded");
@@ -181,16 +205,18 @@ export class CRDTRuntime
   }
 
   /**
-   * [save description]
+   * Like [[Collab.save]], but for the whole runtime and all of its
+   * registered [[Collab]]s.
+   *
+   * Usually, you will not call this method directly, insteading using
+   * [[CRDTApp.save]] or using a `CRDTContainer` (which calls this method for you).
    *
    * Note: this will commit a pending batch first.
    * So if there is a pending batch, expect messages to
    * be sent during this method. Those messages will
-   * be accounted for in the `saveData` (including by
-   * network, which will know not to deliver them to a
-   * future loading replica).
+   * be accounted for in the `saveData`.
    *
-   * @return [description]
+   * @return save data for a future instance's [[load]]
    */
   save(): Uint8Array {
     if (!this._isLoaded) {
@@ -203,6 +229,18 @@ export class CRDTRuntime
     return this.rootCollab.save();
   }
 
+  /**
+   * Like [[Collab.load]], but for the whole runtime and all of its
+   * registered [[Collab]]s.
+   *
+   * Usually, you will not call this method directly, insteading using
+   * [[CRDTApp.load]] or `CRDTContainer.load`.
+   *
+   * This must be called after registering [[Collab]]s but before
+   * calling [[receive]] or performing any [[Collab]] operations.
+   *
+   * @param saveData save data from a previous instance's call to [[save]].
+   */
   load(saveData: Optional<Uint8Array>): void {
     if (this._isLoaded) {
       throw new Error("Already loaded");

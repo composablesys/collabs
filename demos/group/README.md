@@ -1,10 +1,10 @@
 # Shapes Demo (Multiple Semidirect Product)
 
-A demo of the multiple semidirect product for manipulating shapes, as a [Collabs container](TODO: guide link).
+A demo of the multiple semidirect product for manipulating shapes, as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
 
 Author: Ria Pradeep.
 
-Based off of [template-container](TODO).
+Based off of [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 
 ## Installation
 
@@ -24,7 +24,7 @@ Build the container from `src/`, in [production mode](https://webpack.js.org/gui
 
 Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view. Use multiple browser windows at once to test collaboration.
 
-See [container-testing-server](TODO) for usage info.
+See [@collabs/container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) for usage info.
 
 ### `npm run clean`
 
@@ -32,4 +32,4 @@ Delete `dist/`.
 
 ## Deployment
 
-`dist/group.html` is a [standalone container](TODO: guide about how works offline, in sandbox, easily redistributed, etc.). It can used in any [container host](TODO).
+`dist/group.html` is the compiled container. It can used in any container host.

@@ -17,39 +17,42 @@ const network = new WebSocketNetwork(app, host, "");
 // delete the code below and replace with your own.
 
 // Register collaborative data types.
-const counterCollab = app.registerCollab(
-  "counter",
-  collabs.Pre(collabs.CCounter)()
-);
+const counter = app.registerCollab("counter", collabs.Pre(collabs.CCounter)());
 
 // Refresh the display when the Collab state changes, possibly
 // due to a message from another replica.
 const display = document.getElementById("display")!;
 function refreshDisplay() {
-  display.innerHTML = counterCollab.value.toString();
+  display.innerHTML = counter.value.toString();
 }
 app.on("Change", refreshDisplay);
 
-// Change counterCollab's value on button clicks.
+// Change counter's value on button clicks.
 // Note that we don't need to refresh the display here, since Change
 // events are also triggered by local operations.
 document.getElementById("increment")!.onclick = () => {
-  counterCollab.add(100);
+  counter.add(100);
 };
 document.getElementById("decrement")!.onclick = () => {
-  counterCollab.add(-100);
+  counter.add(-100);
 };
 document.getElementById("reset")!.onclick = () => {
-  counterCollab.reset();
+  counter.reset();
 };
 
 // Skip loading for this template.
-// In a real app, you will instead have to manage loading
-// See TODO (loading/init docs).
+// In a real app, you will instead have to manage loading.
+// See https://github.com/composablesys/collabs/blob/master/collabs/docs/saving_and_loading.md
 app.load(collabs.Optional.empty());
 
 // Display the loaded state.
 refreshDisplay();
+
+// TODO: here, load messages that we sent/received last time but
+// that didn't make it into the save data. These should be
+// persisted locally for a proper "local-first" experience:
+// the app reloads its previous state immediately, without waiting
+// for the network.
 
 // TODO: here, only request messages we need from the server.
 // (Currently, network requests them all as part of its constructor).
