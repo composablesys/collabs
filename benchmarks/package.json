@@ -1,6 +1,6 @@
 {
   "name": "@collabs/benchmarks",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Collabs benchmarks",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -19,7 +19,7 @@
   "private": true,
   "dependencies": {
     "@airbnb/node-memwatch": "^2.0.0",
-    "@collabs/collabs": "0.2.1",
+    "@collabs/collabs": "0.3.0",
     "@collabs/json": "file:../json",
     "@collabs/json-opt": "file:../json-opt",
     "@collabs/tensor-average": "file:../tensor-average",
