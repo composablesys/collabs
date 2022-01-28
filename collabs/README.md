@@ -36,6 +36,10 @@ npm run build
 
 Open `docs/typedoc/index.html` in a browser.
 
+## Community
+
+[Discuss over Matrix](https://matrix.to/#/#collabs-library:matrix.org)
+
 ## Authors and Acknowledgements
 
 Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at Carnegie Mellon University's Composable Systems Lab.
