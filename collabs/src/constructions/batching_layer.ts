@@ -1,7 +1,5 @@
-import {
-  BatchingLayerEdgeMessage,
-  BatchingLayerMessage,
-} from "../../generated/proto_compiled";
+import { util } from "protobufjs/minimal";
+import { BatchingLayerMessage } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEvent,
@@ -258,27 +256,42 @@ export class BatchingLayer
     // Serialize the batch and send it.
     // We only need to serialize batch.edges and batch.messages;
     // batch.children is redundant with batch.edges.
+    const edgeLabelLengths = new Array<number>(batch.edges.length);
+    let totalLength = 0;
+    const edgeParents = new Array<number>(batch.edges.length);
+    for (let i = 0; i < batch.edges.length; i++) {
+      const label = batch.edges[i].label;
+      if (typeof label === "string") {
+        const length = util.utf8.length(label);
+        edgeLabelLengths[i] = ~length;
+        totalLength += length;
+      } else {
+        edgeLabelLengths[i] = label.length;
+        totalLength += label.length;
+      }
+      edgeParents[i] = batch.edges[i].parent;
+    }
+    const edgeLabelsPacked = new Uint8Array(totalLength);
+    let offset = 0;
+    for (let i = 0; i < batch.edges.length; i++) {
+      const label = batch.edges[i].label;
+      if (typeof label === "string") {
+        util.utf8.write(label, edgeLabelsPacked, offset);
+        offset += ~edgeLabelLengths[i];
+      } else {
+        edgeLabelsPacked.set(label, offset);
+        offset += edgeLabelLengths[i];
+      }
+    }
+
     const batchMessage = BatchingLayerMessage.create({
-      edges: batch.edges.map((edge) => {
-        if (typeof edge.label === "string") {
-          return { stringLabel: edge.label, parent: edge.parent };
-        } else {
-          return { bytesLabel: edge.label, parent: edge.parent };
-        }
-      }),
+      edgeLabelsPacked,
+      edgeLabelLengths,
+      edgeParents,
       messages: batch.messages,
     });
     const serialized = BatchingLayerMessage.encode(batchMessage).finish();
     this.send([serialized]);
-
-    // OPT: optimized encoding: unwrap inner fields as
-    // multiple arrays; for labels, put in one big Uint8Array
-    // (encoding strings as needed) and have a separate packed
-    // array of sint32's giving the length of each one and
-    // using sign to say if it's a string or not.
-    // Will avoid overhead of field number & type markers
-    // on each label, and also gives us an easy way to encode
-    // string-or-Uint8Array.
   }
 
   /**
@@ -306,16 +319,39 @@ export class BatchingLayer
     const deserialized = BatchingLayerMessage.decode(
       <Uint8Array>messagePath[0]
     );
+    const edgeLabels = new Array<Uint8Array | string>(
+      deserialized.edgeLabelLengths.length
+    );
+    let offset = 0;
+    for (let i = 0; i < edgeLabels.length; i++) {
+      const signedLengthI = deserialized.edgeLabelLengths[i];
+      if (signedLengthI < 0) {
+        // string, actual length is ~signedLengthI.
+        const lengthI = ~signedLengthI;
+        edgeLabels[i] = util.utf8.read(
+          deserialized.edgeLabelsPacked,
+          offset,
+          offset + lengthI
+        );
+        offset += lengthI;
+      } else {
+        // Uint8Array, actual length is signedLengthI.
+        edgeLabels[i] = new Uint8Array(
+          deserialized.edgeLabelsPacked.buffer,
+          offset + deserialized.edgeLabelsPacked.byteOffset,
+          signedLengthI
+        );
+        offset += signedLengthI;
+      }
+    }
+
     for (const messageVertex of deserialized.messages) {
       // Reconstruct vertex's messagePath.
       const childMessagePath: (Uint8Array | string)[] = [];
       let vertex = messageVertex;
       while (vertex !== 0) {
-        const edge = <BatchingLayerEdgeMessage>deserialized.edges[vertex - 1];
-        childMessagePath.push(
-          edge.label === "stringLabel" ? edge.stringLabel : edge.bytesLabel
-        );
-        vertex = edge.parent;
+        childMessagePath.push(edgeLabels[vertex - 1]);
+        vertex = deserialized.edgeParents[vertex - 1];
       }
       // Deliver messagePath.
       if (this.inChildReceive) {

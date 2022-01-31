@@ -117,6 +117,8 @@ export class CRDTRuntime
 
     // Serialize messagePath. From our choice of Collab layers,
     // we know it's actually all Uint8Array's.
+    // Opt: avoid copying the inner Uint8Array's, by serializing
+    // them now instead of later, as part of the same Writer?
     const runtimeMessage = CRDTRuntimeMessage.create({
       messagePath: <Uint8Array[]>messagePath,
       sender: this.replicaID,
