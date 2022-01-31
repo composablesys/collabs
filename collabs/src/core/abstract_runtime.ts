@@ -2,6 +2,7 @@ import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime, RuntimeEventsRecord } from "./runtime";
+import { Message } from "./message";
 
 /**
  * Skeletal implementation of [[Runtime]] that uses
@@ -48,7 +49,7 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
 
   abstract childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: (string | Uint8Array)[]
+    messagePath: Message[]
   ): void;
 
   abstract getAddedContext(key: symbol): unknown;

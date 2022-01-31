@@ -2,7 +2,14 @@ import {
   CRDTExtraMetaLayerMessage,
   CRDTExtraMetaLayerSave,
 } from "../../../generated/proto_compiled";
-import { Collab, ICollabParent, InitToken, MessageMeta, Pre } from "../../core";
+import {
+  Collab,
+  ICollabParent,
+  InitToken,
+  MessageMeta,
+  Pre,
+  Message,
+} from "../../core";
 import { int64AsNumber, Optional } from "../../util";
 import { CRDTExtraMeta, VectorClock } from "./crdt_extra_meta";
 
@@ -62,7 +69,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * causally ready for delivery.
    */
   private messageBuffer: {
-    messagePath: (Uint8Array | string)[];
+    messagePath: Message[];
     meta: MessageMeta;
     // OPT: store an intermediate form here that is smaller
     // in memory (just extract the maximal VC entries, leave
@@ -148,7 +155,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     this.pendingCRDTMetaSerialized = null;
   }
 
-  childSend(child: Collab, messagePath: (Uint8Array | string)[]): void {
+  childSend(child: Collab, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -197,7 +204,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * and be causally ready.
    */
   private deliver(
-    messagePath: (Uint8Array | string)[],
+    messagePath: Message[],
     meta: MessageMeta,
     crdtMetaMessage: CRDTExtraMetaLayerMessage
   ) {

@@ -11,6 +11,8 @@ import {
   InitToken,
   Pre,
   ICollabParent,
+  Message,
+  serializeMessage,
 } from "../../core";
 import { Optional } from "../../util";
 import { CRDTMessageMeta } from "./crdt_message_meta";
@@ -45,19 +47,19 @@ export interface StatefulCRDT<S extends object> extends Collab {
 }
 
 class StoredMessage {
-  messagePath: (Uint8Array | string)[] | null;
+  messagePath: Message[] | null;
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
     readonly receiptCounter: number,
-    messagePath: (Uint8Array | string)[] | null,
+    messagePath: Message[] | null,
     readonly meta: MessageMeta | null,
     readonly arbIndex: number // arbitration number
   ) {
     this.messagePath = messagePath;
   }
 
-  setMessagePath(newMessagePath: (Uint8Array | string)[] | null) {
+  setMessagePath(newMessagePath: Message[] | null) {
     this.messagePath = newMessagePath;
   }
 }
@@ -78,11 +80,7 @@ class MultipleSemidirectState<S extends object> {
    * Add message to the history with the given meta.
    * replicaID is our replica id.
    */
-  add(
-    messagePath: (Uint8Array | string)[],
-    meta: CRDTMessageMeta,
-    arbId: number
-  ) {
+  add(messagePath: Message[], meta: CRDTMessageMeta, arbId: number) {
     let senderHistory = this.history.get(meta.sender);
     if (senderHistory === undefined) {
       senderHistory = [];
@@ -246,9 +244,10 @@ class MultipleSemidirectState<S extends object> {
             senderCounter: message.senderCounter,
             receiptCounter: message.receiptCounter,
             messagePath: message.messagePath?.map((value) => {
-              if (typeof value === "string") {
-                return { stringData: value };
-              } else return { bytesData: value };
+              const serialized = serializeMessage(value);
+              if (typeof serialized === "string") {
+                return { stringData: serialized };
+              } else return { bytesData: serialized };
             }),
             meta: null, // TODO: historyMetas not supported
             arbIndex: message.arbIndex,
@@ -311,7 +310,7 @@ export abstract class MultipleSemidirectProduct<
     this.state = new MultipleSemidirectState(historyMetas);
   }
 
-  childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
+  childSend(child: Collab, messagePath: Message[]): void {
     if (child.parent !== this) {
       throw new Error("childSend called by non-child: " + child);
     }
@@ -343,12 +342,12 @@ export abstract class MultipleSemidirectProduct<
    * @return              [description]
    */
   protected abstract action(
-    m2MessagePath: (Uint8Array | string)[],
+    m2MessagePath: Message[],
     m2Meta: MessageMeta | null,
     m2Index: number,
-    m1MessagePath: (Uint8Array | string)[],
+    m1MessagePath: Message[],
     m1Meta: MessageMeta | null
-  ): { m1MessagePath: (Uint8Array | string)[] } | null;
+  ): { m1MessagePath: Message[] } | null;
 
   protected setupState(initialState: S) {
     this.state.internalState = initialState;
@@ -369,10 +368,7 @@ export abstract class MultipleSemidirectProduct<
   // The resulting message mact is then applied to σ and added to the history.
   // It also acts on all messages in the history with lower arbitration order,
   // regardless ofwhether they are concurrent or not.
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ) {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta) {
     if (messagePath.length === 0) {
       throw new Error("TODO");
     }

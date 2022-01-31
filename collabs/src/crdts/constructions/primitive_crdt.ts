@@ -1,5 +1,5 @@
 import { CPrimitive } from "../../constructions";
-import { CollabEventsRecord, MessageMeta } from "../../core";
+import { CollabEventsRecord, MessageMeta, Message } from "../../core";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
 /**
@@ -27,7 +27,7 @@ import { CRDTMessageMeta } from "./crdt_message_meta";
 export abstract class PrimitiveCRDT<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends CPrimitive<Events> {
-  protected sendCRDT(message: string | Uint8Array): void {
+  protected sendCRDT(message: Message): void {
     super.sendPrimitive(message);
   }
 

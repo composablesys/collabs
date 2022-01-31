@@ -10,6 +10,7 @@ import {
   CollabEventsRecord,
   InitToken,
   Pre,
+  Message,
 } from "../../core";
 import { ToggleCBoolean } from "../boolean";
 import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
@@ -247,12 +248,12 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   }
 
   protected action(
-    m2MessagePath: (Uint8Array | string)[],
+    m2MessagePath: Message[],
     _m2Meta: MessageMeta,
     m2Index: number,
-    m1MessagePath: (Uint8Array | string)[],
+    m1MessagePath: Message[],
     _m1Meta: MessageMeta | null
-  ): { m1MessagePath: (Uint8Array | string)[] } | null {
+  ): { m1MessagePath: Message[] } | null {
     const m2Decoded = CNumberComponentMessage.decode(
       <Uint8Array>m2MessagePath[0]
     );

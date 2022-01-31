@@ -5,6 +5,7 @@ import {
   InitToken,
   MessageMeta,
   Pre,
+  Message,
 } from "../core";
 import { Optional } from "../util";
 
@@ -57,10 +58,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return ret;
   }
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messagePath: (string | Uint8Array)[]
-  ): void {
+  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }

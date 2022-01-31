@@ -10,6 +10,7 @@ import {
   InitToken,
   Runtime,
   Pre,
+  Message,
 } from "../../core";
 import { DefaultSerializer, Optional, Serializer } from "../../util";
 import { CRDTMessageMeta } from "./crdt_message_meta";
@@ -422,18 +423,16 @@ export abstract class SemidirectProductRev<
     return { m1TargetPath, m1Message };
   }
 
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ) {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta) {
     const crdtMeta = CRDTMessageMeta.from(meta);
 
     this.receivedMessages = this.receivedMessages || true;
     const message = messagePath[messagePath.length - 1];
     if (typeof message !== "string") {
       // Uint8Array, message for ourselves.
-      const semidirectMessage =
-        this.messageValueSerializer.deserialize(message);
+      const semidirectMessage = this.messageValueSerializer.deserialize(
+        <Uint8Array>message
+      );
       switch (true) {
         case semidirectMessage.m === 1:
           let concurrent = this.history.getConcurrent(
@@ -478,7 +477,7 @@ export abstract class SemidirectProductRev<
             this.runtime.replicaID,
             [], // TODO: not actually used/usable
             crdtMeta,
-            message
+            <Uint8Array>message
           );
           this.m2RetVal = this.runLocallyLayer.runLocally(meta, () => {
             return this._m2!(...(semidirectMessage as m2Start<m2Args>).args);

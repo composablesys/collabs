@@ -12,6 +12,7 @@ import {
   ICollabParent,
   InitToken,
   MessageMeta,
+  Message,
 } from "../../core";
 import { Resettable } from "../abilities";
 import { ImplicitMergingMutCMapSave } from "../../../generated/proto_compiled";
@@ -116,10 +117,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     } else return [value, true];
   }
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messagePath: (string | Uint8Array)[]
-  ): void {
+  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -140,10 +138,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     const keyString = <string>messagePath[messagePath.length - 1];
     this.inReceiveKeyStr = keyString;
     try {

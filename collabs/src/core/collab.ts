@@ -3,6 +3,7 @@ import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 import { MessageMeta } from "./message_meta";
 import { isRuntime, Runtime } from "./runtime";
+import { Message } from "./message";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -329,7 +330,7 @@ export abstract class Collab<
    * `Collab` appended to the end. Note that the array may
    * be modified in-place by ancestors.
    */
-  protected send(messagePath: (Uint8Array | string)[]): void {
+  protected send(messagePath: Message[]): void {
     this.parent.childSend(this, messagePath);
   }
 
@@ -349,7 +350,7 @@ export abstract class Collab<
    * @param meta Metadata attached to this message by
    * ancestor `Collab`s.
    */
-  receive(messagePath: (Uint8Array | string)[], meta: MessageMeta) {
+  receive(messagePath: Message[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
     // While we do nothing here currently, we reserve the ability
     // to do per-message processing in the future, e.g., dispatching an
@@ -370,7 +371,7 @@ export abstract class Collab<
    * ancestor `Collab`s.
    */
   protected abstract receiveInternal(
-    messagePath: (Uint8Array | string)[],
+    messagePath: Message[],
     meta: MessageMeta
   ): void;
 

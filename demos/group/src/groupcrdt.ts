@@ -1,4 +1,5 @@
 import * as collabs from "@collabs/collabs";
+import { Message } from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 
 export interface GroupTranslateEvent extends collabs.CollabEvent {
@@ -398,12 +399,12 @@ export class GroupCRDT extends collabs.MultipleSemidirectProduct<
   // Want to "add on" m2's actions to m1. Start with m1 values and
   // add reflection or rotation as needed.
   protected action(
-    m2MessagePath: (Uint8Array | string)[],
+    m2MessagePath: Message[],
     _m2Meta: collabs.MessageMeta | null,
     m2Index: number,
-    m1MessagePath: (Uint8Array | string)[],
+    m1MessagePath: Message[],
     _m1Meta: collabs.MessageMeta | null
-  ): { m1MessagePath: (Uint8Array | string)[] } | null {
+  ): { m1MessagePath: Message[] } | null {
     let m2Decoded = GroupComponentMessage.decode(<Uint8Array>m2MessagePath[0]);
     let m1Decoded = GroupComponentMessage.decode(<Uint8Array>m1MessagePath[0]);
     var XArg1: number = m1Decoded!.X1 || 0;

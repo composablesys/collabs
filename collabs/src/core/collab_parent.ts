@@ -1,5 +1,6 @@
 import { Collab } from "./collab";
 import { Runtime } from "./runtime";
+import { Message } from "./message";
 
 /**
  * Interface implemented by something that can be a parent
@@ -22,7 +23,7 @@ export interface ICollabParent {
    * @param  messagePath [description]
    * @return             [description]
    */
-  childSend(child: Collab, messagePath: (Uint8Array | string)[]): void;
+  childSend(child: Collab, messagePath: Message[]): void;
 
   /**
    * Returns context added by this particular [[CollabParent]]

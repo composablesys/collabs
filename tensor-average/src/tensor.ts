@@ -10,6 +10,7 @@ import {
   CPrimitive,
   Resettable,
   Optional,
+  Message,
 } from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
@@ -198,10 +199,7 @@ export class TensorGCounterCollab
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: MessageMeta
-  ): void {
+  protected receivePrimitive(message: Message, meta: MessageMeta): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":

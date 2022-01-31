@@ -8,6 +8,8 @@ import {
   ICollabParent,
   MessageMeta,
   Pre,
+  Message,
+  serializeMessage,
 } from "../core";
 import { Optional } from "../util";
 import { BatchingStrategy } from "./batching_strategy";
@@ -74,12 +76,12 @@ interface BatchInfo {
    * For each edge, maps from (child vertex - 1) to its label
    * and parent vertex.
    */
-  edges: { label: Uint8Array | string; parent: number }[];
+  edges: { label: Message; parent: number }[];
   /**
    * Maps each vertex with at least one child to a map
    * from edge labels to the corresponding child.
    */
-  children: Map<number, Map<Uint8Array | string, number>>;
+  children: Map<number, Map<Message, number>>;
   /**
    * The vertices corresponding to actual complete messagePaths,
    * in order of sending.
@@ -162,10 +164,7 @@ export class BatchingLayer
 
   private batchEventPending = false;
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messagePath: (Uint8Array | string)[]
-  ): void {
+  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -201,7 +200,7 @@ export class BatchingLayer
     // Don't even form the pendingBatch structure, just store
     // it as a second special case after the empty case.
 
-    // Find the vertex corresponding to messagePath, creating
+    // Find the vertex corresponding to messagePathResolved, creating
     // it if necessary.
     let vertex = 0;
     for (let i = messagePath.length - 1; i >= 0; i--) {
@@ -256,11 +255,15 @@ export class BatchingLayer
     // Serialize the batch and send it.
     // We only need to serialize batch.edges and batch.messages;
     // batch.children is redundant with batch.edges.
+    // Note that we serialize the individual labels and store
+    // them back in batch.edges[i].label, so that can later
+    // be assumed to have type Uint8Array | string.
     const edgeLabelLengths = new Array<number>(batch.edges.length);
     let totalLength = 0;
     const edgeParents = new Array<number>(batch.edges.length);
     for (let i = 0; i < batch.edges.length; i++) {
-      const label = batch.edges[i].label;
+      const label = serializeMessage(batch.edges[i].label);
+      batch.edges[i].label = label; // Store serialized form.
       if (typeof label === "string") {
         const length = util.utf8.length(label);
         edgeLabelLengths[i] = ~length;
@@ -279,7 +282,9 @@ export class BatchingLayer
         util.utf8.write(label, edgeLabelsPacked, offset);
         offset += ~edgeLabelLengths[i];
       } else {
-        edgeLabelsPacked.set(label, offset);
+        // Use assumption that label is already serialized,
+        // hence must be Uint8Array here.
+        edgeLabelsPacked.set(<Uint8Array>label, offset);
         offset += edgeLabelLengths[i];
       }
     }
@@ -303,10 +308,7 @@ export class BatchingLayer
     return undefined;
   }
 
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     // We do our own local echo.
     if (meta.isLocalEcho) return;
 
@@ -319,9 +321,7 @@ export class BatchingLayer
     const deserialized = BatchingLayerMessage.decode(
       <Uint8Array>messagePath[0]
     );
-    const edgeLabels = new Array<Uint8Array | string>(
-      deserialized.edgeLabelLengths.length
-    );
+    const edgeLabels = new Array<Message>(deserialized.edgeLabelLengths.length);
     let offset = 0;
     for (let i = 0; i < edgeLabels.length; i++) {
       const signedLengthI = deserialized.edgeLabelLengths[i];
@@ -347,7 +347,7 @@ export class BatchingLayer
 
     for (const messageVertex of deserialized.messages) {
       // Reconstruct vertex's messagePath.
-      const childMessagePath: (Uint8Array | string)[] = [];
+      const childMessagePath: Message[] = [];
       let vertex = messageVertex;
       while (vertex !== 0) {
         childMessagePath.push(edgeLabels[vertex - 1]);
