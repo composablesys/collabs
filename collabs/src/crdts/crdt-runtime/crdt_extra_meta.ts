@@ -15,18 +15,14 @@ export interface VectorClock {
  *
  * Keyed by [[CRDTExtraMeta.MESSAGE_META_KEY]].
  */
-export class CRDTExtraMeta {
-  constructor(
-    readonly senderCounter: number,
-    // OPT: make these optional, need to be requested in context.
-    readonly vectorClock: VectorClock,
-    readonly wallClockTime: number,
-    readonly lamportTimestamp: number
-  ) {}
-
-  toString(): string {
-    return JSON.stringify(this);
-  }
-
-  static readonly MESSAGE_META_KEY = Symbol();
+export interface CRDTExtraMeta {
+  readonly senderCounter: number;
+  // OPT: make these optional, need to be requested in context.
+  readonly vectorClock: VectorClock;
+  readonly wallClockTime: number;
+  readonly lamportTimestamp: number;
 }
+
+export const CRDTExtraMeta = {
+  MESSAGE_META_KEY: Symbol(),
+} as const;

@@ -9,6 +9,7 @@ import {
   MessageMeta,
   Pre,
   Message,
+  Serializable,
 } from "../../core";
 import { int64AsNumber, Optional } from "../../util";
 import { CRDTExtraMeta, VectorClock } from "./crdt_extra_meta";
@@ -25,19 +26,196 @@ const DEBUG = false;
  * which grows without bound during a collaborative session.
  */
 class BasicVectorClock implements VectorClock {
-  // OPT: pre-convert Longs to ints, should be more efficient?
-  constructor(
-    private readonly vcMap: { [replicaID: string]: number | Long.Long }
-  ) {}
+  /**
+   * @param vcMap Includes local replica
+   */
+  constructor(private readonly vcMap: Map<string, number>) {}
 
   get(replicaID: string): number {
-    return int64AsNumber(this.vcMap[replicaID] ?? 0);
+    return this.vcMap.get(replicaID) ?? 0;
   }
 
   toString(): string {
-    return JSON.stringify(
-      Object.entries(this.vcMap).map(([k, v]) => [k, int64AsNumber(v)])
-    );
+    return JSON.stringify(Object.entries(this.vcMap));
+  }
+}
+
+interface CRDTMetaSendMessageDelta {
+  index: number;
+  /**
+   * Maps each non-sender replica to the amount of increase in its
+   * VC entry, i.e., the # of received messages.
+   */
+  deltaVCEntries: Map<string, number>;
+  newWallClockTime: number;
+  /**
+   * The increase in the Lamport timestamp.
+   */
+  deltaLamportTimestamp: number;
+}
+
+class CRDTMetaSendMessage implements Serializable {
+  private readonly firstSenderCounter: number;
+  /**
+   * The number of sent messages corresponding to this
+   * CRDTMetaSendMessage.
+   */
+  private count: number;
+  /**
+   * A sparse array of deltas describing how the CRDTExtraMeta
+   * change as you go through the
+   * messages in this batch.
+   *
+   * The delta with index i describes the differences leading
+   * to the i-th message.
+   *
+   * When the i-th message only changes by incrementing
+   * senderCounter and lamportTimestamp (because there
+   * were no intervening messages from other users since
+   * the last message), the delta is
+   * implicit (not needed); this is why deltas is sparse.
+   */
+  private readonly deltas: CRDTMetaSendMessageDelta[];
+
+  private lastWallClockTime: number;
+  private lastLamportTimestamp: number;
+  private deltaLastVC = new Map<string, number>();
+
+  /**
+   * [constructor description]
+   * @param firstMeta [description]
+   * @param firstVC   Omits this replicaID.
+   */
+  constructor(
+    firstMeta: CRDTExtraMeta,
+    firstVC: Map<string, number>,
+    private readonly invalidate: () => void
+  ) {
+    this.firstSenderCounter = firstMeta.senderCounter;
+    this.count = 1;
+    this.deltas = [
+      {
+        index: 0,
+        deltaVCEntries: firstVC,
+        newWallClockTime: firstMeta.wallClockTime,
+        deltaLamportTimestamp: firstMeta.lamportTimestamp,
+      },
+    ];
+
+    this.lastWallClockTime = firstMeta.wallClockTime;
+    this.lastLamportTimestamp = firstMeta.lamportTimestamp;
+  }
+
+  /**
+   * Don't call when sender is us.
+   */
+  receivedMessageFrom(sender: string) {
+    this.deltaLastVC.set(sender, (this.deltaLastVC.get(sender) ?? 0) + 1);
+  }
+
+  addMessage(newCRDTMeta: CRDTExtraMeta) {
+    if (
+      newCRDTMeta.wallClockTime === this.lastWallClockTime &&
+      newCRDTMeta.lamportTimestamp === this.lastLamportTimestamp &&
+      this.deltaLastVC.size === 0
+    ) {
+      // Trivial delta.
+      this.count++;
+    } else {
+      this.deltas.push({
+        index: this.count,
+        deltaVCEntries: this.deltaLastVC,
+        newWallClockTime: newCRDTMeta.wallClockTime,
+        deltaLamportTimestamp:
+          newCRDTMeta.lamportTimestamp - this.lastLamportTimestamp,
+      });
+      this.count++;
+      this.deltaLastVC = new Map();
+      this.lastWallClockTime = newCRDTMeta.wallClockTime;
+      this.lastLamportTimestamp = newCRDTMeta.lamportTimestamp;
+    }
+  }
+
+  serialize(): Uint8Array {
+    const message = CRDTExtraMetaLayerMessage.create({
+      firstSenderCounter: this.firstSenderCounter,
+      count: this.count,
+      deltas: this.deltas.map((delta) => {
+        return {
+          ...delta,
+          deltaVCEntries: Object.fromEntries(delta.deltaVCEntries),
+        };
+      }),
+    });
+
+    this.invalidate();
+
+    return CRDTExtraMetaLayerMessage.encode(message).finish();
+  }
+}
+
+class CRDTMetaReceiveMessage {
+  readonly firstSenderCounter: number;
+  readonly count: number;
+  readonly deltas: CRDTMetaSendMessageDelta[];
+
+  constructor(serialized: Uint8Array) {
+    const decoded = CRDTExtraMetaLayerMessage.decode(serialized);
+    this.firstSenderCounter = int64AsNumber(decoded.firstSenderCounter);
+    this.count = decoded.count;
+    this.deltas = decoded.deltas.map((delta) => {
+      const deltaVCEntries = new Map<string, number>();
+      for (const [sender, entry] of Object.entries(delta.deltaVCEntries!)) {
+        deltaVCEntries.set(sender, int64AsNumber(entry));
+      }
+      return {
+        index: delta.index,
+        deltaVCEntries,
+        newWallClockTime: int64AsNumber(delta.newWallClockTime),
+        deltaLamportTimestamp: int64AsNumber(delta.deltaLamportTimestamp),
+      };
+    });
+  }
+}
+
+class ReceivedCRDTExtraMeta implements CRDTExtraMeta {
+  private readonly vcMap: Map<string, number>;
+  readonly senderCounter: number;
+  readonly vectorClock: VectorClock;
+  readonly wallClockTime: number;
+  readonly lamportTimestamp: number;
+
+  constructor(
+    receiveMessage: CRDTMetaReceiveMessage,
+    index: number,
+    sender: string
+  ) {
+    this.senderCounter = receiveMessage.firstSenderCounter + index;
+
+    let lastNontrivialDeltaIndex = 0;
+    this.vcMap = new Map();
+    let wallClockTime = 0;
+    let lamportTimestamp = 0;
+    for (const delta of receiveMessage.deltas) {
+      if (delta.index > index) break;
+      lastNontrivialDeltaIndex = delta.index;
+      for (const [sender, deltaEntry] of delta.deltaVCEntries) {
+        this.vcMap.set(sender, (this.vcMap.get(sender) ?? 0) + deltaEntry);
+      }
+      wallClockTime = delta.newWallClockTime;
+      lamportTimestamp += delta.deltaLamportTimestamp;
+    }
+    this.vcMap.set(sender, this.senderCounter);
+    lamportTimestamp += index - lastNontrivialDeltaIndex;
+
+    this.vectorClock = new BasicVectorClock(this.vcMap);
+    this.wallClockTime = wallClockTime;
+    this.lamportTimestamp = lamportTimestamp;
+  }
+
+  get causallyMaximalVCEntries(): IterableIterator<[string, number]> {
+    // TODO: necessary entries only
+    return this.vcMap.entries();
   }
 }
 
@@ -62,24 +240,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
   // These are all cached so that === equality is valid.
   private pendingCRDTMeta: CRDTExtraMeta | null = null;
-  private pendingCRDTMetaSerialized: Uint8Array | null = null;
-
-  /**
-   * Buffer for messages that have been received but are not
-   * causally ready for delivery.
-   */
-  private messageBuffer: {
-    messagePath: Message[];
-    meta: MessageMeta;
-    // OPT: store an intermediate form here that is smaller
-    // in memory (just extract the maximal VC entries, leave
-    // rest serialized).
-    crdtMetaMessage: CRDTExtraMetaLayerMessage;
-  }[] = [];
-  /**
-   * The first index to check for readiness in the buffer.
-   */
-  private bufferCheckIndex = 0;
+  private pendingSendMessage: CRDTMetaSendMessage | null = null;
 
   constructor(initToken: InitToken) {
     super(initToken);
@@ -98,7 +259,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
       ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
-      this.createPendingMeta();
+      this.createPendingCRDTMeta();
       meta[CRDTExtraMeta.MESSAGE_META_KEY] = this.pendingCRDTMeta!;
       return meta;
     }
@@ -113,46 +274,27 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * Note that this.pendingCRDTMeta is invalidated once we
    * receive a message (including local echos).
    */
-  private createPendingMeta(): void {
+  private createPendingCRDTMeta(): CRDTExtraMeta {
     if (this.pendingCRDTMeta === null) {
       // Create and cache this.pendingCRDTMeta.
-      const vectorClockForMeta = Object.fromEntries(this.currentVectorClock);
-      vectorClockForMeta[this.runtime.replicaID]++;
-      const crdtMeta = new CRDTExtraMeta(
-        vectorClockForMeta[this.runtime.replicaID],
-        new BasicVectorClock(vectorClockForMeta),
-        Date.now(),
-        this.currentLamportTimestamp + 1
+      const vectorClockForMeta = new Map(this.currentVectorClock);
+      vectorClockForMeta.set(
+        this.runtime.replicaID,
+        vectorClockForMeta.get(this.runtime.replicaID)! + 1
       );
+      const crdtMeta: CRDTExtraMeta = {
+        senderCounter: vectorClockForMeta.get(this.runtime.replicaID)!,
+        vectorClock: new BasicVectorClock(vectorClockForMeta),
+        wallClockTime: Date.now(),
+        lamportTimestamp: this.currentLamportTimestamp + 1,
+      };
       this.pendingCRDTMeta = crdtMeta;
-
-      // Also cache this.pendingCRDTMetaSerialized.
-      const vectorClockForMessage = Object.fromEntries(this.currentVectorClock);
-      delete vectorClockForMessage[this.runtime.replicaID];
-      const metaMessage = CRDTExtraMetaLayerMessage.create({
-        senderCounter: vectorClockForMeta[this.runtime.replicaID],
-        vectorClock: vectorClockForMessage,
-        wallClockTime: crdtMeta.wallClockTime,
-        lamportTimestamp: crdtMeta.lamportTimestamp,
-      });
-      this.pendingCRDTMetaSerialized =
-        CRDTExtraMetaLayerMessage.encode(metaMessage).finish();
-      // OPT: if we know we're in the same
-      // batch as a previous message with a different CRDTExtraMeta,
-      // we can give just a diff (or reuse the serialized
-      // thing entirely, if we can infer the change, i.e.,
-      // it's just incrementing our senderCounter.)
-      // That is also necessary for good transaction semantics
-      // (e.g., multiple LWW sets within a transaction all have
-      // same wall clock time). Should be OK for now because wall
-      // block time is unlikely to change much in a synchronous
-      // execution thread.
     }
+    return this.pendingCRDTMeta;
   }
 
-  private invalidatePendingMeta() {
+  private invalidatePendingCRDTMeta() {
     this.pendingCRDTMeta = null;
-    this.pendingCRDTMetaSerialized = null;
   }
 
   childSend(child: Collab, messagePath: Message[]): void {
@@ -160,12 +302,47 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
-    // Add the next CRDTExtraMeta, serialized, to messagePath.
-    // First call createPendingMeta() to ensure it's created.
-    this.createPendingMeta();
-    messagePath.push(this.pendingCRDTMetaSerialized!);
+    const pendingCRDTMeta = this.createPendingCRDTMeta();
+    // Add the next CRDTExtraMeta to this.pendingSendMessage.
+    if (this.pendingSendMessage === null) {
+      const vcNoSender = new Map(this.currentVectorClock);
+      vcNoSender.delete(this.runtime.replicaID);
+      this.pendingSendMessage = new CRDTMetaSendMessage(
+        pendingCRDTMeta,
+        vcNoSender,
+        () => {
+          this.pendingSendMessage = null;
+        }
+      );
+    } else {
+      this.pendingSendMessage.addMessage(pendingCRDTMeta);
+    }
+    messagePath.push(this.pendingSendMessage);
     this.send(messagePath);
   }
+
+  /**
+   * Buffer for messages that have been received but are not
+   * causally ready for delivery.
+   */
+  private messageBuffer: {
+    messagePath: Message[];
+    meta: MessageMeta;
+    // OPT: store an intermediate form here that is smaller
+    // in memory (just extract the maximal VC entries, leave
+    // rest serialized).
+    crdtExtraMeta: ReceivedCRDTExtraMeta;
+  }[] = [];
+  /**
+   * The first index to check for readiness in the buffer.
+   */
+  private bufferCheckIndex = 0;
+
+  private currentReceiveMessage: CRDTMetaReceiveMessage | null = null;
+  /**
+   * The index for the next message that you receive (if any).
+   */
+  private currentReceiveMessageIndex: number | null = null;
 
   protected receiveInternal(
     messagePath: Uint8Array[],
@@ -175,24 +352,48 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       throw new Error("messagePath.length === 0");
     }
 
-    // Deserialize messagePath[messagePath.length - 1] to get
-    // the CRDTExtraMeta.
-    const crdtMetaMessage = CRDTExtraMetaLayerMessage.decode(
-      messagePath[messagePath.length - 1]
-    );
-
-    // Remove our message.
-    messagePath.length--;
-
-    // Buffer the message and attempt to deliver it or
-    // other messages.
     if (meta.isLocalEcho) {
-      // Optimization: just deliver. No need to check the
+      // Remove our message.
+      messagePath.length--;
+      // Deliver immediately. No need to check the
       // buffer since our local echo cannot make any
       // previously received messages causally ready.
-      this.deliver(messagePath, meta, crdtMetaMessage);
+      // Also, we are guaranteed immediate local echos,
+      // so this.pendingCRDTMeta is the "deserialized" CRDTExtraMeta.
+      this.deliver(messagePath, meta, this.pendingCRDTMeta!);
     } else {
-      this.messageBuffer.push({ messagePath, meta, crdtMetaMessage });
+      if (this.currentReceiveMessage === null) {
+        // It's a new batch with a new CRDTMetaReceiveMessage.
+        this.currentReceiveMessage = new CRDTMetaReceiveMessage(
+          messagePath[messagePath.length - 1]
+        );
+        this.currentReceiveMessageIndex = 0;
+      }
+      const crdtExtraMeta = new ReceivedCRDTExtraMeta(
+        this.currentReceiveMessage,
+        this.currentReceiveMessageIndex!,
+        meta.sender
+      );
+
+      this.currentReceiveMessageIndex!++;
+      if (
+        this.currentReceiveMessageIndex! === this.currentReceiveMessage.count
+      ) {
+        // Done with the batch.
+        this.currentReceiveMessage = null;
+        this.currentReceiveMessageIndex = null;
+      }
+
+      // Remove our message.
+      messagePath.length--;
+
+      // Buffer the message and attempt to deliver it or
+      // other messages.
+      this.messageBuffer.push({
+        messagePath,
+        meta,
+        crdtExtraMeta,
+      });
       this.checkMessageBuffer();
     }
   }
@@ -206,21 +407,13 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   private deliver(
     messagePath: Message[],
     meta: MessageMeta,
-    crdtMetaMessage: CRDTExtraMetaLayerMessage
+    crdtExtraMeta: CRDTExtraMeta
   ) {
-    // Current metadata is about to change, invalidate cached copies.
-    this.invalidatePendingMeta();
-
-    crdtMetaMessage.vectorClock[meta.sender] = crdtMetaMessage.senderCounter;
-    const crdtMeta = new CRDTExtraMeta(
-      int64AsNumber(crdtMetaMessage.senderCounter),
-      new BasicVectorClock(crdtMetaMessage.vectorClock),
-      int64AsNumber(crdtMetaMessage.wallClockTime),
-      int64AsNumber(crdtMetaMessage.lamportTimestamp)
-    );
+    // Current metadata is about to change; invalidate cached copies.
+    this.invalidatePendingCRDTMeta();
 
     // Add the CRDTExtraMeta to meta.
-    meta[CRDTExtraMeta.MESSAGE_META_KEY] = crdtMeta;
+    meta[CRDTExtraMeta.MESSAGE_META_KEY] = crdtExtraMeta;
 
     try {
       this.child.receive(messagePath, meta);
@@ -234,11 +427,17 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
 
     // Update our own state to reflect crdtMeta.
-    this.currentVectorClock.set(meta.sender, crdtMeta.senderCounter);
+    this.currentVectorClock.set(meta.sender, crdtExtraMeta.senderCounter);
     this.currentLamportTimestamp = Math.max(
-      crdtMeta.lamportTimestamp,
+      crdtExtraMeta.lamportTimestamp,
       this.currentLamportTimestamp
     );
+    if (
+      this.pendingSendMessage !== null &&
+      meta.sender !== this.runtime.replicaID
+    ) {
+      this.pendingSendMessage.receivedMessageFrom(meta.sender);
+    }
   }
 
   /**
@@ -251,14 +450,14 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
     while (index >= this.bufferCheckIndex) {
       const sender = this.messageBuffer[index].meta.sender;
-      const crdtMetaMessage = this.messageBuffer[index].crdtMetaMessage;
+      const crdtExtraMeta = this.messageBuffer[index].crdtExtraMeta;
 
-      if (this.isReady(crdtMetaMessage, sender)) {
+      if (this.isReady(crdtExtraMeta, sender)) {
         // Ready for delivery.
         this.deliver(
           this.messageBuffer[index].messagePath,
           this.messageBuffer[index].meta,
-          crdtMetaMessage
+          crdtExtraMeta
         );
         // Remove from the buffer.
         // OPT: something more efficient?  (Costly array
@@ -272,7 +471,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
         if (DEBUG) {
           console.log("CRDTExtraMetaLayer.checkMessageBuffer: not ready");
         }
-        if (this.isAlreadyDelivered(crdtMetaMessage, sender)) {
+        if (this.isAlreadyDelivered(crdtExtraMeta, sender)) {
           // Remove the message from the buffer
           this.messageBuffer.splice(index, 1);
           if (DEBUG) console.log("(already received)");
@@ -280,7 +479,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
         index--;
         if (DEBUG) {
           console.log([...this.currentVectorClock]);
-          console.log(JSON.stringify(crdtMetaMessage));
+          console.log(JSON.stringify(crdtExtraMeta));
         }
       }
     }
@@ -293,13 +492,13 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * order.
    */
   private isReady(
-    crdtMetaMessage: CRDTExtraMetaLayerMessage,
+    crdtExtraMeta: ReceivedCRDTExtraMeta,
     sender: string
   ): boolean {
     // Check sender's entry is one more than ours.
     if (
       (this.currentVectorClock.get(sender) ?? 0) !==
-      int64AsNumber(crdtMetaMessage.senderCounter) - 1
+      int64AsNumber(crdtExtraMeta.senderCounter) - 1
     ) {
       return false;
     }
@@ -308,7 +507,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // OPT: only need to check causally maximal entries.
     // Also, should separate this and isAlreadyDelivered from
     // VCs, since they will be optional in the future.
-    for (const [id, value] of Object.entries(crdtMetaMessage.vectorClock)) {
+    for (const [id, value] of crdtExtraMeta.causallyMaximalVCEntries) {
       if (id === sender) continue;
       if ((this.currentVectorClock.get(id) ?? 0) < value) {
         return false;
@@ -323,12 +522,12 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * has already been delivered.
    */
   private isAlreadyDelivered(
-    crdtMetaMessage: CRDTExtraMetaLayerMessage,
+    crdtExtraMeta: ReceivedCRDTExtraMeta,
     sender: string
   ): boolean {
     const senderEntry = this.currentVectorClock.get(sender);
     if (senderEntry !== undefined) {
-      if (senderEntry >= int64AsNumber(crdtMetaMessage.senderCounter))
+      if (senderEntry >= int64AsNumber(crdtExtraMeta.senderCounter))
         return true;
     }
     return false;

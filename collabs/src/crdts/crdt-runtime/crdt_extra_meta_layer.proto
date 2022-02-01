@@ -1,9 +1,14 @@
+message CRDTExtraMetaLayerDeltaMessage {
+  required uint32 index = 1;
+  map<string, uint64> deltaVCEntries = 2;
+  required uint64 newWallClockTime = 3;
+  required uint64 deltaLamportTimestamp = 4;
+}
+
 message CRDTExtraMetaLayerMessage {
-  // Excludes this replicaId.
-  required uint64 senderCounter = 1;
-  map<string, uint64> vectorClock = 2;
-  required uint64 wallClockTime = 3;
-  required uint64 lamportTimestamp = 4;
+  required uint64 firstSenderCounter = 1;
+  required uint32 count = 2;
+  repeated CRDTExtraMetaLayerDeltaMessage deltas = 3;
 }
 
 message CRDTExtraMetaLayerSave {

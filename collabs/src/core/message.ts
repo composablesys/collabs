@@ -1,6 +1,10 @@
 export interface Serializable {
   // TODO: allow calling multiple times, possibly in different
   // states? (Shouldn't happen, but easy enough to allow?)
+  // Also: allow current CRDTExtraMetaLayer behavior, where
+  // calling this changes the state, since it makes assumptions
+  // about batching? (What exact guarantees do we need for
+  // that to make sense?)
   serialize(): Uint8Array | string;
 }
 
