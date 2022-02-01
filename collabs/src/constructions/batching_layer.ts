@@ -211,6 +211,7 @@ export class BatchingLayer
         nextVertex = vertexChildren.get(message);
       } else {
         vertexChildren = new Map();
+        pendingBatch.children.set(vertex, vertexChildren);
       }
       if (nextVertex === undefined) {
         // Create a new vertex for it.

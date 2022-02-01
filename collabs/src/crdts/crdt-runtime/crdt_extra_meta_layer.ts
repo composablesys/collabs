@@ -77,7 +77,7 @@ class CRDTMetaSendMessage implements Serializable {
    */
   private readonly deltas: CRDTMetaSendMessageDelta[];
 
-  private lastWallClockTime: number;
+  lastWallClockTime: number;
   private lastLamportTimestamp: number;
   private deltaLastVC = new Map<string, number>();
 
@@ -113,13 +113,14 @@ class CRDTMetaSendMessage implements Serializable {
     this.deltaLastVC.set(sender, (this.deltaLastVC.get(sender) ?? 0) + 1);
   }
 
+  hasReceivedMessage(): boolean {
+    return this.deltaLastVC.size > 0;
+  }
+
   addMessage(newCRDTMeta: CRDTExtraMeta) {
-    if (
-      newCRDTMeta.wallClockTime === this.lastWallClockTime &&
-      newCRDTMeta.lamportTimestamp === this.lastLamportTimestamp &&
-      this.deltaLastVC.size === 0
-    ) {
+    if (this.deltaLastVC.size === 0) {
       // Trivial delta.
+      // TODO: here we assume wallClockTime *only* changes upon received message.
       this.count++;
     } else {
       this.deltas.push({
@@ -282,10 +283,19 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
         this.runtime.replicaID,
         vectorClockForMeta.get(this.runtime.replicaID)! + 1
       );
+      let wallClockTime: number;
+      if (
+        this.pendingSendMessage !== null &&
+        !this.pendingSendMessage.hasReceivedMessage()
+      ) {
+        // Reuse previous wallClockTime, so that it's consistent
+        // within batches.
+        wallClockTime = this.pendingSendMessage.lastWallClockTime;
+      } else wallClockTime = Date.now();
       const crdtMeta: CRDTExtraMeta = {
         senderCounter: vectorClockForMeta.get(this.runtime.replicaID)!,
         vectorClock: new BasicVectorClock(vectorClockForMeta),
-        wallClockTime: Date.now(),
+        wallClockTime,
         lamportTimestamp: this.currentLamportTimestamp + 1,
       };
       this.pendingCRDTMeta = crdtMeta;
