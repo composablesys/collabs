@@ -1,5 +1,5 @@
 import { Message, MessageMeta } from "../../../core";
-import { ReceivedCRDTExtraMeta } from "./crdt_meta_receive_message";
+import { CRDTExtraMetaFromBatch } from "./crdt_extra_meta_batch";
 
 /**
  * Debug flag, enables console.log's when causality checks
@@ -22,7 +22,7 @@ export class CausalMessageBuffer {
     // OPT: store an intermediate form here that is smaller
     // in memory (just extract the maximal VC entries, leave
     // rest serialized).
-    crdtExtraMeta: ReceivedCRDTExtraMeta;
+    crdtExtraMeta: CRDTExtraMetaFromBatch;
   }[] = [];
 
   /**
@@ -42,7 +42,7 @@ export class CausalMessageBuffer {
     private readonly deliver: (
       messagePath: Message[],
       meta: MessageMeta,
-      crdtExtraMeta: ReceivedCRDTExtraMeta
+      crdtExtraMeta: CRDTExtraMetaFromBatch
     ) => void
   ) {}
 
@@ -52,7 +52,7 @@ export class CausalMessageBuffer {
   push(
     messagePath: Message[],
     meta: MessageMeta,
-    crdtExtraMeta: ReceivedCRDTExtraMeta
+    crdtExtraMeta: CRDTExtraMetaFromBatch
   ): void {
     this.buffer.push({ messagePath, meta, crdtExtraMeta });
   }
@@ -109,7 +109,7 @@ export class CausalMessageBuffer {
    * order.
    */
   private isReady(
-    crdtExtraMeta: ReceivedCRDTExtraMeta,
+    crdtExtraMeta: CRDTExtraMetaFromBatch,
     sender: string
   ): boolean {
     // Check sender's entry is one more than ours.
@@ -133,7 +133,7 @@ export class CausalMessageBuffer {
    * has already been delivered.
    */
   private isAlreadyDelivered(
-    crdtExtraMeta: ReceivedCRDTExtraMeta,
+    crdtExtraMeta: CRDTExtraMetaFromBatch,
     sender: string
   ): boolean {
     const senderEntry = this.currentVC.get(sender);

@@ -16,7 +16,7 @@ import {
   Message,
 } from "../../core";
 import { Optional } from "../../util";
-import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
+import { CRDTExtraMetaLayer } from "./crdt-extra-meta-layer";
 
 export interface SendEvent {
   message: Uint8Array;

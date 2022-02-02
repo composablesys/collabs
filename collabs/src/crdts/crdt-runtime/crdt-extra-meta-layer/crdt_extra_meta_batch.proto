@@ -1,0 +1,12 @@
+message CRDTExtraMetaDeltaMessage {
+  required uint32 index = 1;
+  map<string, uint64> deltaVCEntries = 2;
+  required uint64 newWallClockTime = 3;
+  required uint64 deltaLamportTimestamp = 4;
+}
+
+message CRDTExtraMetaBatchMessage {
+  required uint64 firstSenderCounter = 1;
+  required uint32 count = 2;
+  repeated CRDTExtraMetaDeltaMessage deltas = 3;
+}

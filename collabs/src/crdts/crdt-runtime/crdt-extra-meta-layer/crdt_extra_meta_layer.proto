@@ -1,15 +1,3 @@
-message CRDTExtraMetaLayerDeltaMessage {
-  required uint32 index = 1;
-  map<string, uint64> deltaVCEntries = 2;
-  required uint64 newWallClockTime = 3;
-  required uint64 deltaLamportTimestamp = 4;
-}
-
-message CRDTExtraMetaLayerMessage {
-  required uint64 firstSenderCounter = 1;
-  required uint32 count = 2;
-  repeated CRDTExtraMetaLayerDeltaMessage deltas = 3;
-}
 
 message CRDTExtraMetaLayerSave {
   // Includes the saving replicaId.

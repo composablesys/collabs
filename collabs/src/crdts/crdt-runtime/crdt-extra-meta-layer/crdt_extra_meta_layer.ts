@@ -9,13 +9,11 @@ import {
 } from "../../../core";
 import { int64AsNumber, Optional } from "../../../util";
 import { CRDTExtraMeta } from "../crdt_extra_meta";
-import { BasicVectorClock } from "./basic_vector_clock";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import {
-  CRDTMetaReceiveMessage,
-  ReceivedCRDTExtraMeta,
-} from "./crdt_meta_receive_message";
-import { CRDTMetaSendMessage } from "./crdt_meta_send_message";
+  CRDTExtraMetaBatch,
+  CRDTExtraMetaFromBatch,
+} from "./crdt_extra_meta_batch";
 
 /**
  * Collab that provides [[CRDTExtraMeta]] to its
@@ -42,9 +40,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
   private readonly messageBuffer: CausalMessageBuffer;
 
-  // These are all cached so that === equality is valid.
-  private cachedNextCRDTMeta: CRDTExtraMeta | null = null;
-  private pendingSendMessage: CRDTMetaSendMessage | null = null;
+  private pendingSendBatch: CRDTExtraMetaBatch | null = null;
 
   constructor(initToken: InitToken) {
     super(initToken);
@@ -63,41 +59,6 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return child;
   }
 
-  /**
-   * Returns the CRDTExtraMeta for the next sent message,
-   * assuming no other messages are received in the interim.
-   *
-   * The result is cached between calls when it doesn't change,
-   * so that === equality is valid.
-   */
-  private nextCRDTMeta(): CRDTExtraMeta {
-    if (this.cachedNextCRDTMeta === null) {
-      // Create and cache this.cachedNextCRDTMeta.
-      const vectorClockForMeta = new Map(this.currentVC);
-      vectorClockForMeta.set(
-        this.runtime.replicaID,
-        vectorClockForMeta.get(this.runtime.replicaID)! + 1
-      );
-      let wallClockTime: number;
-      if (
-        this.pendingSendMessage !== null &&
-        !this.pendingSendMessage.hasReceivedMessage()
-      ) {
-        // Reuse previous wallClockTime, so that it's consistent
-        // within batches.
-        wallClockTime = this.pendingSendMessage.lastWallClockTime;
-      } else wallClockTime = Date.now();
-      const crdtMeta: CRDTExtraMeta = {
-        senderCounter: vectorClockForMeta.get(this.runtime.replicaID)!,
-        vectorClock: new BasicVectorClock(vectorClockForMeta),
-        wallClockTime,
-        lamportTimestamp: this.currentLamportTimestamp + 1,
-      };
-      this.cachedNextCRDTMeta = crdtMeta;
-    }
-    return this.cachedNextCRDTMeta;
-  }
-
   getAddedContext(key: symbol): unknown {
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       const meta = <MessageMeta>(
@@ -109,27 +70,74 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     return undefined;
   }
 
+  /**
+   * Returns the CRDTExtraMeta for the next sent message,
+   * assuming no other messages are received in the interim.
+   *
+   * The result is cached between calls when it doesn't change,
+   * so that === equality is valid.
+   */
+  private nextCRDTMeta(): CRDTExtraMeta {
+    // TODO: rewrite to use non-custom CRDTExtraMeta?
+    // Preserve caching (=== equality and wallClockTime)?
+    // Okay to be inefficient because this should be called rarely.
+    throw new Error("Not implemented");
+    // if (this.cachedNextCRDTMeta === null) {
+    //   // Create and cache this.cachedNextCRDTMeta.
+    //   const vectorClockForMeta = new Map(this.currentVC);
+    //   vectorClockForMeta.set(
+    //     this.runtime.replicaID,
+    //     vectorClockForMeta.get(this.runtime.replicaID)! + 1
+    //   );
+    //   let wallClockTime: number;
+    //   if (
+    //     this.pendingSendBatch !== null &&
+    //     !this.pendingSendBatch.hasReceivedMessage()
+    //   ) {
+    //     // Reuse previous wallClockTime, so that it's consistent
+    //     // within batches.
+    //     wallClockTime = this.pendingSendBatch.lastWallClockTime;
+    //   } else wallClockTime = Date.now();
+    //   const crdtMeta: CRDTExtraMeta = {
+    //     senderCounter: vectorClockForMeta.get(this.runtime.replicaID)!,
+    //     vectorClock: new BasicVectorClock(vectorClockForMeta),
+    //     wallClockTime,
+    //     lamportTimestamp: this.currentLamportTimestamp + 1,
+    //   };
+    //   this.cachedNextCRDTMeta = crdtMeta;
+    // }
+    // return this.cachedNextCRDTMeta;
+  }
+
   childSend(child: Collab, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
-    const crdtMeta = this.nextCRDTMeta();
-    // Add the next CRDTExtraMeta to this.pendingSendMessage.
-    if (this.pendingSendMessage === null) {
+    // Add the next CRDTExtraMeta to this.pendingSendBatch.
+    if (this.pendingSendBatch === null) {
       const vcNoSender = new Map(this.currentVC);
       vcNoSender.delete(this.runtime.replicaID);
-      this.pendingSendMessage = new CRDTMetaSendMessage(
-        crdtMeta,
+      // TODO: use cached wallClockTime in the rare case
+      // nextMessageMeta was called lately.
+      this.pendingSendBatch = CRDTExtraMetaBatch.newForSending(
         vcNoSender,
+        this.currentVC.get(this.runtime.replicaID)! + 1,
+        Date.now(),
+        this.currentLamportTimestamp + 1,
         () => {
-          this.pendingSendMessage = null;
+          this.pendingSendBatch = null;
         }
       );
     } else {
-      this.pendingSendMessage.addMessage(crdtMeta);
+      // TODO: use cached wallClockTime in the rare case
+      // nextMessageMeta was called lately.
+      this.pendingSendBatch.addMessage(
+        Date.now(),
+        this.currentLamportTimestamp + 1
+      );
     }
-    messagePath.push(this.pendingSendMessage);
+    messagePath.push(this.pendingSendBatch);
     this.send(messagePath);
   }
 
@@ -142,58 +150,65 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * by their index within the batch.
    *
    * null if we are not in the middle of receiving a batch.
-   * Also, not used for local echos (TODO: change).
+   * Also, not used for local echos.
    */
-  private currentReceiveMessage: CRDTMetaReceiveMessage | null = null;
+  private currentReceiveBatch: CRDTExtraMetaBatch | null = null;
   /**
    * The index for the next message in the batch of messages
    * currently being received. This combines with
-   * currentReceiveMessage to fully describe the next message's
+   * currentReceiveBatch to fully describe the next message's
    * CRDTExtraMeta.
    *
    * null if we are not in the middle of receiving a batch.
-   * Also, not used for local echos (TODO: change).
+   * Also, not used for local echos.
    */
-  private currentReceiveMessageIndex: number | null = null;
+  private currentReceiveBatchIndex: number | null = null;
 
-  protected receiveInternal(
-    messagePath: Uint8Array[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
       throw new Error("messagePath.length === 0");
     }
 
     if (meta.isLocalEcho) {
+      // This should equal this.pendingSendBatch.
+      const batch = <CRDTExtraMetaBatch>messagePath[messagePath.length - 1];
+      // Due to immediate local echos, we can assume that this
+      // message corresponds to the current end of batch
+      // (batch.count - 1).
+      // Note that batch might change in the future; that is
+      // okay because crdtExtraMeta won't change as a result,
+      // since the changes only add further messages to the
+      // batch.
+      const crdtExtraMeta = new CRDTExtraMetaFromBatch(
+        batch,
+        batch.count - 1,
+        meta.sender
+      );
       // Remove our message.
       messagePath.length--;
       // Deliver immediately. No need to check the
       // buffer since our local echo cannot make any
       // previously received messages causally ready.
-      // Also, we are guaranteed immediate local echos,
-      // so this.cachedNextCRDTMeta is the "deserialized" CRDTExtraMeta.
-      this.deliver(messagePath, meta, this.cachedNextCRDTMeta!);
+      this.deliver(messagePath, meta, crdtExtraMeta);
     } else {
-      if (this.currentReceiveMessage === null) {
+      if (this.currentReceiveBatch === null) {
         // It's a new batch with a new CRDTMetaReceiveMessage.
-        this.currentReceiveMessage = new CRDTMetaReceiveMessage(
-          messagePath[messagePath.length - 1]
+        this.currentReceiveBatch = CRDTExtraMetaBatch.deserialize(
+          <Uint8Array>messagePath[messagePath.length - 1]
         );
-        this.currentReceiveMessageIndex = 0;
+        this.currentReceiveBatchIndex = 0;
       }
-      const crdtExtraMeta = new ReceivedCRDTExtraMeta(
-        this.currentReceiveMessage,
-        this.currentReceiveMessageIndex!,
+      const crdtExtraMeta = new CRDTExtraMetaFromBatch(
+        this.currentReceiveBatch,
+        this.currentReceiveBatchIndex!,
         meta.sender
       );
 
-      this.currentReceiveMessageIndex!++;
-      if (
-        this.currentReceiveMessageIndex! === this.currentReceiveMessage.count
-      ) {
-        // Done with the batch.
-        this.currentReceiveMessage = null;
-        this.currentReceiveMessageIndex = null;
+      this.currentReceiveBatchIndex!++;
+      if (this.currentReceiveBatchIndex! === this.currentReceiveBatch.count) {
+        // Done with the batch; allow GC.
+        this.currentReceiveBatch = null;
+        this.currentReceiveBatchIndex = null;
       }
 
       // Remove our message.
@@ -219,17 +234,17 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     crdtExtraMeta: CRDTExtraMeta
   ) {
     // Update our own state to reflect crdtExtraMeta.
-    this.cachedNextCRDTMeta = null; // Invalidate cached nextCRDTMeta.
+    // this.cachedNextCRDTMeta = null; // TODO Invalidate cached nextCRDTMeta.
     this.currentVC.set(meta.sender, crdtExtraMeta.senderCounter);
     this.currentLamportTimestamp = Math.max(
       crdtExtraMeta.lamportTimestamp,
       this.currentLamportTimestamp
     );
     if (
-      this.pendingSendMessage !== null &&
+      this.pendingSendBatch !== null &&
       meta.sender !== this.runtime.replicaID
     ) {
-      this.pendingSendMessage.receivedMessageFrom(meta.sender);
+      this.pendingSendBatch.receivedMessageFrom(meta.sender);
     }
 
     // Add the CRDTExtraMeta to meta.
