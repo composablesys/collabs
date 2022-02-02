@@ -8,7 +8,7 @@ import {
   Message,
 } from "../../../core";
 import { int64AsNumber, Optional } from "../../../util";
-import { CRDTExtraMeta } from "../crdt_extra_meta";
+import { CRDTExtraMeta, CRDTExtraMetaSource } from "../crdt_extra_meta";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import {
   CRDTExtraMetaBatch,
@@ -23,7 +23,10 @@ import {
  * index signature
  * keyed by [[CRDTExtraMeta.MESSAGE_META_KEY]].
  */
-export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
+export class CRDTExtraMetaLayer
+  extends Collab
+  implements ICollabParent, CRDTExtraMetaSource
+{
   private child!: Collab;
   /**
    * Includes this.runtime.replicaID.
@@ -60,6 +63,9 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   }
 
   getAddedContext(key: symbol): unknown {
+    if (key === CRDTExtraMetaSource.CONTEXT_KEY) {
+      return this;
+    }
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
@@ -109,33 +115,44 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // return this.cachedNextCRDTMeta;
   }
 
+  private wallClockTimeRequested = false;
+  requestWallClockTime(): void {
+    this.wallClockTimeRequested = true;
+  }
+
+  private lamportTimestampRequested = false;
+  requestLamportTimestamp(): void {
+    this.lamportTimestampRequested = true;
+  }
+
   childSend(child: Collab, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
     // Add the next CRDTExtraMeta to this.pendingSendBatch.
+    // TODO: use cached wallClockTime in the rare case
+    // nextMessageMeta was called lately.
+    const wallClockTime = this.wallClockTimeRequested ? Date.now() : null;
+    this.wallClockTimeRequested = false;
+    const lamportTimestamp = this.lamportTimestampRequested
+      ? this.currentLamportTimestamp + 1
+      : null;
+    this.lamportTimestampRequested = false;
     if (this.pendingSendBatch === null) {
       const vcNoSender = new Map(this.currentVC);
       vcNoSender.delete(this.runtime.replicaID);
-      // TODO: use cached wallClockTime in the rare case
-      // nextMessageMeta was called lately.
       this.pendingSendBatch = CRDTExtraMetaBatch.newForSending(
         vcNoSender,
         this.currentVC.get(this.runtime.replicaID)! + 1,
-        Date.now(),
-        this.currentLamportTimestamp + 1,
+        wallClockTime,
+        lamportTimestamp,
         () => {
           this.pendingSendBatch = null;
         }
       );
     } else {
-      // TODO: use cached wallClockTime in the rare case
-      // nextMessageMeta was called lately.
-      this.pendingSendBatch.addMessage(
-        Date.now(),
-        this.currentLamportTimestamp + 1
-      );
+      this.pendingSendBatch.addMessage(wallClockTime, lamportTimestamp);
     }
     messagePath.push(this.pendingSendBatch);
     this.send(messagePath);
@@ -236,10 +253,16 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // Update our own state to reflect crdtExtraMeta.
     // this.cachedNextCRDTMeta = null; // TODO Invalidate cached nextCRDTMeta.
     this.currentVC.set(meta.sender, crdtExtraMeta.senderCounter);
-    this.currentLamportTimestamp = Math.max(
-      crdtExtraMeta.lamportTimestamp,
-      this.currentLamportTimestamp
-    );
+    if (crdtExtraMeta.lamportTimestamp !== null) {
+      // TODO: technically this should increase regardless, for
+      // causality purposes.
+      // So we may have to give up on lamportTimestamps, if we
+      // can't make them free when unused.
+      this.currentLamportTimestamp = Math.max(
+        crdtExtraMeta.lamportTimestamp,
+        this.currentLamportTimestamp
+      );
+    }
     if (
       this.pendingSendBatch !== null &&
       meta.sender !== this.runtime.replicaID

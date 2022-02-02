@@ -17,12 +17,31 @@ export interface VectorClock {
  */
 export interface CRDTExtraMeta {
   readonly senderCounter: number;
-  // OPT: make these optional, need to be requested in context.
   readonly vectorClock: VectorClock;
-  readonly wallClockTime: number;
-  readonly lamportTimestamp: number;
+  readonly wallClockTime: number | null;
+  readonly lamportTimestamp: number | null;
 }
 
 export const CRDTExtraMeta = {
   MESSAGE_META_KEY: Symbol(),
+} as const;
+
+/**
+ * A source of [[CRDTExtraMeta]].
+ *
+ * Access via [[Collab.getContext]] key
+ * [[CRDTExtraMetaSource.CONTEXT_KEY]].
+ */
+export interface CRDTExtraMetaSource {
+  requestWallClockTime(): void;
+  requestLamportTimestamp(): void;
+}
+
+export const CRDTExtraMetaSource = {
+  /**
+   * [[Collab.getContext]] key that returns the
+   * [[CRDTExtraMetaSource]]. Use this to request fields
+   * on the next message's [[CRDTExtraMeta]].
+   */
+  CONTEXT_KEY: Symbol(),
 } as const;

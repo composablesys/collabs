@@ -1,5 +1,6 @@
 import { CPrimitive } from "../../constructions";
 import { CollabEventsRecord, MessageMeta, Message } from "../../core";
+import { CRDTExtraMetaSource } from "../crdt-runtime";
 import { CRDTMessageMeta } from "./crdt_message_meta";
 
 /**
@@ -27,7 +28,24 @@ import { CRDTMessageMeta } from "./crdt_message_meta";
 export abstract class PrimitiveCRDT<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends CPrimitive<Events> {
-  protected sendCRDT(message: Message): void {
+  protected sendCRDT(
+    message: Message,
+    requests?: {
+      wallClockTime?: boolean;
+      lamportTimestamp?: boolean;
+    }
+  ): void {
+    if (requests !== undefined) {
+      const crdtExtraMetaSource = <CRDTExtraMetaSource>(
+        this.getContext(CRDTExtraMetaSource.CONTEXT_KEY)
+      );
+      if (requests.wallClockTime === true) {
+        crdtExtraMetaSource.requestWallClockTime();
+      }
+      if (requests.lamportTimestamp === true) {
+        crdtExtraMetaSource.requestLamportTimestamp();
+      }
+    }
     super.sendPrimitive(message);
   }
 

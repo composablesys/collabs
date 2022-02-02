@@ -1,8 +1,8 @@
 message CRDTExtraMetaDeltaMessage {
   required uint32 index = 1;
   map<string, uint64> deltaVCEntries = 2;
-  required uint64 newWallClockTime = 3;
-  required uint64 deltaLamportTimestamp = 4;
+  optional uint64 newWallClockTime = 3;
+  optional uint64 newLamportTimestamp = 4;
 }
 
 message CRDTExtraMetaBatchMessage {

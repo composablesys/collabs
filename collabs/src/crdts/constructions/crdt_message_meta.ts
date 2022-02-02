@@ -14,10 +14,9 @@ import { CRDTExtraMeta, VectorClock } from "../crdt-runtime";
  */
 export interface CRDTMessageMeta extends MessageMeta {
   readonly senderCounter: number;
-  // OPT: make these optional, need to be requested in context.
   readonly vectorClock: VectorClock;
-  readonly wallClockTime: number;
-  readonly lamportTimestamp: number;
+  readonly wallClockTime: number | null;
+  readonly lamportTimestamp: number | null;
 }
 
 export const CRDTMessageMeta = {

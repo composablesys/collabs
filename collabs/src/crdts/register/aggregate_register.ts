@@ -68,7 +68,9 @@ export abstract class AggregateArgsCRegister<
       setArgs: this.argsSerializer.serialize(args),
     });
     const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-    this.sendCRDT(buffer);
+    // Opt: only request wallClockTime if actually used by
+    // aggregate().
+    this.sendCRDT(buffer, { wallClockTime: true });
     return this.value;
   }
 
@@ -101,7 +103,7 @@ export abstract class AggregateArgsCRegister<
           this.constructValue(decoded.setArgs),
           meta.sender,
           meta.senderCounter,
-          meta.wallClockTime,
+          meta.wallClockTime!,
           decoded.setArgs
         );
         newState.push(entry);
