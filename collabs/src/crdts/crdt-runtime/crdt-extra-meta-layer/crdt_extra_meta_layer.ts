@@ -124,10 +124,25 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    */
   private currentSendBatch(): CRDTExtraMetaBatch {
     if (this._currentSendBatch === null) {
-      this._currentSendBatch = new CRDTExtraMetaBatch(this.endTransaction);
+      this._currentSendBatch = new CRDTExtraMetaBatch(this.onBatchSerialize);
     }
     return this._currentSendBatch;
   }
+
+  /**
+   * Callback for _currentSendBatch's onSerialize.
+   *
+   * Defined as a var so we don't have to bind it as the
+   * CRDTExtraMetaBatch callback.
+   */
+  private onBatchSerialize = () => {
+    // End the current transaction, if any.
+    // Note this may modify the batch (pushing current
+    // transaction's meta onto batch.metas).
+    this.endTransaction();
+    // Make room for the next batch.
+    this._currentSendBatch = null;
+  };
 
   /**
    * Ends the current transaction, if any.
@@ -143,24 +158,21 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * - Just before processing a message from another user,
    * in case there is a current transaction (which gets ended
    * by the received message).
-   * - When the currentSendBatch is serialized, since that
+   * - in onBatchSerialize, since that
    * indicates the end of the batch, hence current transaction
    * (if any - it might have already been ended by a processed
    * message).
-   *
-   * Defined as a var so we don't have to bind it as the
-   * CRDTExtraMetaBatch callback.
    */
-  private endTransaction = () => {
+  private endTransaction() {
     if (this.isInTransaction) {
       this.isInTransaction = false;
-      if (this._currentSendMeta !== null) {
-        // Disallow further requests.
-        this._currentSendMeta.freeze();
-        // Make room for the next message to have a different
-        // CRDTExtraMeta.
-        this._currentSendMeta = null;
-      }
+      // Disallow further requests.
+      this._currentSendMeta!.freeze();
+      // Add the currentSendMeta to the batch.
+      this.currentSendBatch().metas.push(this._currentSendMeta!);
+      // Make room for the next transaction to have a different
+      // CRDTExtraMeta.
+      this._currentSendMeta = null;
       // Update "current" metadata to account for the end of
       // our current message.
       this.currentVC.set(
@@ -169,7 +181,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       );
       this.currentLamportTimestamp++;
     }
-  };
+  }
 
   childSend(child: Collab, messagePath: Message[]): void {
     if (child !== this.child) {
@@ -178,8 +190,6 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
     this.isInTransaction = true;
     const sendBatch = this.currentSendBatch();
-    // Add this message's meta to the batch.
-    sendBatch.metas.push(this.currentSendMeta());
 
     messagePath.push(sendBatch);
     this.send(messagePath);
@@ -188,9 +198,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   /**
    * The CRDTMetaReceiveMessage for the batch of messages
    * currently being received. All messages in the batch
-   * will have the same one (specifially, they will all
-   * have the same Uint8Array object, which deserailizes to
-   * this); their actual CRDTExtraMeta's are distinguished
+   * will have the same one; their actual CRDTExtraMeta's are distinguished
    * by their index within the batch.
    *
    * null if we are not in the middle of receiving a batch.
@@ -214,17 +222,9 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
 
     if (meta.isLocalEcho) {
-      // This should equal this.pendingSendBatch.
-      const batch = <CRDTExtraMetaBatch>messagePath[messagePath.length - 1];
       // Due to immediate local echos, we can assume that this
-      // message corresponds to the current end of batch.
-      // Note that batch might change in the future; that is
-      // okay because crdtExtraMeta won't change as a result,
-      // since the changes only add further messages to the
-      // batch.
-      const crdtExtraMeta = <SendCRDTExtraMeta>(
-        batch.metas[batch.metas.length - 1]
-      );
+      // message corresponds to the current transaction.
+      const crdtExtraMeta = this.currentSendMeta();
       // Remove our message.
       messagePath.length--;
       // Deliver immediately. No need to check the
@@ -253,7 +253,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
       this.currentReceiveBatchIndex!++;
       if (this.currentReceiveBatchIndex! === this.currentReceiveBatch.length) {
-        // Done with the batch; allow GC.
+        // Done with the batch; make room for the next one.
         this.currentReceiveBatch = null;
         this.currentReceiveBatchIndex = null;
       }

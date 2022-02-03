@@ -25,6 +25,9 @@ export class CRDTExtraMetaBatch implements Serializable {
     }
     this.alreadySerialized = true;
 
+    // Note this may change our metas (e.g., ending the
+    // current transaction, hence pushing its meta onto
+    // this.metas).
     this.onSerialize();
 
     const metasSerialized = new Array<ICRDTExtraMetaMessage>(this.metas.length);
@@ -91,7 +94,7 @@ export class CRDTExtraMetaBatch implements Serializable {
 
       ans[i] = new ReceiveCRDTExtraMeta(
         sender,
-        firstSenderCounter,
+        firstSenderCounter + i,
         vectorClock,
         wallClockTime,
         lamportTimestamp,

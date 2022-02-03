@@ -30,11 +30,15 @@ export class CausalMessageBuffer {
    */
   private bufferCheckIndex = 0;
 
+  /**
+   * Excludes localReplicaID.
+   */
   private _causallyMaximalVCKeys = new Set<string>();
 
   /**
    * @param currentVC A reference to the mutable current
-   * vector clock, which you are expected to keep up-to-date.
+   * vector clock, which you are expected to keep up-to-date,
+   * including sender's entry.
    * @param deliver Callback to deliver messages, where
    * "deliver" means "actually process since it's causally
    * ready now".

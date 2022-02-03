@@ -3,7 +3,6 @@ import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt_extra_meta";
 export class SendCRDTExtraMeta
   implements CRDTExtraMeta, CRDTExtraMetaRequestee
 {
-  readonly isLocalEcho = true;
   /**
    * The requested vector clock entries so far, excluding sender.
    *
@@ -28,8 +27,9 @@ export class SendCRDTExtraMeta
      * Sender's entry is not used, so it's okay that it
      * is inaccurate (will be 1 too small, since this
      * will just be CRDTExtraMetaLayer.currentVectorClock).
-     * TODO: need to stop using this after invalidated
-     * (should be automatic since no more requests possible).
+     * Also, this will no longer be consulted after freeze(), so
+     * it's okay to mutate it as long as you do so after freeze()
+     * (currently called in CRDTExtraMetaLayer.endTransaction).
      */
     private readonly actualVectorClock: Map<string, number>,
     private readonly actualWallClockTime: number,
@@ -37,13 +37,11 @@ export class SendCRDTExtraMeta
     /** Excludes sender. Must all be present in actualVectorClock. */
     readonly causallyMaximalVCKeys: Set<string>
   ) {
-    if (causallyMaximalVCKeys !== null) {
-      for (const replicaID of causallyMaximalVCKeys) {
-        this.vectorClockIfRequested.set(
-          replicaID,
-          actualVectorClock.get(replicaID)!
-        );
-      }
+    for (const replicaID of causallyMaximalVCKeys) {
+      this.vectorClockIfRequested.set(
+        replicaID,
+        actualVectorClock.get(replicaID)!
+      );
     }
   }
 
@@ -115,8 +113,8 @@ export class SendCRDTExtraMeta
       }
     }
     // Other requests.
-    this.requestWallClockTime();
-    this.requestLamportTimestamp();
+    this.wallClockTimeIfRequested = this.actualWallClockTime;
+    this.lamportTimestampIfRequested = this.actualLamportTimestamp;
   }
 
   toString(): string {
@@ -131,8 +129,6 @@ export class SendCRDTExtraMeta
 }
 
 export class ReceiveCRDTExtraMeta implements CRDTExtraMeta {
-  readonly isLocalEcho = false;
-
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
