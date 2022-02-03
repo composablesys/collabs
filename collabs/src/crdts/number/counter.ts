@@ -6,8 +6,14 @@ import {
 } from "../../../generated/proto_compiled";
 import { Resettable } from "../abilities";
 import { CObject } from "../../constructions";
-import { CollabEvent, CollabEventsRecord, InitToken, Pre } from "../../core";
-import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import {
+  CollabEvent,
+  CollabEventsRecord,
+  InitToken,
+  MessageMeta,
+  Pre,
+} from "../../core";
+import { PrimitiveCRDT } from "../constructions";
 import { Optional } from "../../util";
 
 export interface CCounterEvent extends CollabEvent {
@@ -84,10 +90,7 @@ export class GrowOnlyCCounter
     this.sendCRDT(GrowOnlyCCounterMessage.encode(message).finish());
   }
 
-  protected receiveCRDT(
-    message: string | Uint8Array,
-    meta: CRDTMessageMeta
-  ): void {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta): void {
     const decoded = GrowOnlyCCounterMessage.decode(<Uint8Array>message);
     const previousValue = this.value;
     switch (decoded.data) {

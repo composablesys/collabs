@@ -13,7 +13,7 @@ import {
   Message,
 } from "../../core";
 import { ToggleCBoolean } from "../boolean";
-import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { PrimitiveCRDT } from "../constructions";
 import { Optional } from "../../util";
 
 export interface CNumberEvent extends CollabEvent {
@@ -55,7 +55,7 @@ export class AddComponent
     }
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
@@ -102,7 +102,7 @@ export class MultComponent
     }
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
@@ -147,7 +147,7 @@ export class MinComponent
     this.sendCRDT(buffer);
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
@@ -192,7 +192,7 @@ export class MaxComponent
     this.sendCRDT(buffer);
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: CRDTMessageMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);

@@ -101,7 +101,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * interrupted by a received message)
    * transaction.
    */
-  private currentSendMeta(): CRDTExtraMeta {
+  private currentSendMeta(): SendCRDTExtraMeta {
     if (this._currentSendMeta === null) {
       this._currentSendMeta = new SendCRDTExtraMeta(
         this.runtime.replicaID,

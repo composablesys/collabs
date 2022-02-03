@@ -2,7 +2,7 @@ import {
   AggregateArgsCRegisterMessage,
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
-import { InitToken } from "../../core";
+import { InitToken, MessageMeta } from "../../core";
 import { CRegister, CRegisterEventsRecord } from "../../data_types";
 import {
   DefaultSerializer,
@@ -10,7 +10,8 @@ import {
   Serializer,
   SingletonSerializer,
 } from "../../util";
-import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { PrimitiveCRDT } from "../constructions";
+import { CRDTExtraMeta } from "../crdt-runtime";
 
 export interface CRegisterEntryMeta<S> {
   readonly value: S;
@@ -70,7 +71,7 @@ export abstract class AggregateArgsCRegister<
     const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
     // Opt: only request wallClockTime if actually used by
     // aggregate().
-    this.sendCRDT(buffer, { wallClockTime: true });
+    this.sendCRDT(buffer, { automatic: true });
     return this.value;
   }
 
@@ -81,18 +82,19 @@ export abstract class AggregateArgsCRegister<
         reset: true,
       }); // no value
       const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-      this.sendCRDT(buffer);
+      this.sendCRDT(buffer, { automatic: true });
     }
   }
 
   protected receiveCRDT(
     message: string | Uint8Array,
-    meta: CRDTMessageMeta
+    meta: MessageMeta,
+    crdtExtraMeta: CRDTExtraMeta
   ): void {
     const decoded = AggregateArgsCRegisterMessage.decode(<Uint8Array>message);
     const newState = new Array<AggregateArgsCRegisterEntry<S>>();
     for (const entry of this.entries) {
-      if (meta.vectorClock.get(entry.sender) < entry.senderCounter) {
+      if (crdtExtraMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
         newState.push(entry);
       }
     }
@@ -101,9 +103,9 @@ export abstract class AggregateArgsCRegister<
         // Add the new entry
         const entry = new AggregateArgsCRegisterEntry(
           this.constructValue(decoded.setArgs),
-          meta.sender,
-          meta.senderCounter,
-          meta.wallClockTime!,
+          crdtExtraMeta.sender,
+          crdtExtraMeta.senderCounter,
+          crdtExtraMeta.wallClockTime!,
           decoded.setArgs
         );
         newState.push(entry);

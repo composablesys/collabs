@@ -15,7 +15,7 @@ import {
   serializeMessage,
 } from "../../core";
 import { Optional } from "../../util";
-import { CRDTMessageMeta } from "./crdt_message_meta";
+import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt-runtime";
 
 /* eslint-disable */
 
@@ -80,7 +80,12 @@ class MultipleSemidirectState<S extends object> {
    * Add message to the history with the given meta.
    * replicaID is our replica id.
    */
-  add(messagePath: Message[], meta: CRDTMessageMeta, arbId: number) {
+  add(
+    messagePath: Message[],
+    meta: MessageMeta,
+    crdtExtraMeta: CRDTExtraMeta,
+    arbId: number
+  ) {
     let senderHistory = this.history.get(meta.sender);
     if (senderHistory === undefined) {
       senderHistory = [];
@@ -88,8 +93,8 @@ class MultipleSemidirectState<S extends object> {
     }
     senderHistory.push(
       new StoredMessage(
-        meta.sender,
-        meta.senderCounter,
+        crdtExtraMeta.sender,
+        crdtExtraMeta.senderCounter,
         this.receiptCounter,
         messagePath,
         this.historyMetas ? meta : null,
@@ -106,8 +111,12 @@ class MultipleSemidirectState<S extends object> {
    * meta.sender), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaID: string, meta: CRDTMessageMeta, arbId: number) {
-    return this.processMeta(replicaID, meta, true, arbId);
+  getConcurrent(
+    replicaID: string,
+    crdtExtraMeta: CRDTExtraMeta,
+    arbId: number
+  ) {
+    return this.processMeta(replicaID, crdtExtraMeta, true, arbId);
   }
 
   /**
@@ -124,21 +133,20 @@ class MultipleSemidirectState<S extends object> {
    */
   private processMeta(
     replicaID: string,
-    meta: CRDTMessageMeta,
+    crdtExtraMeta: CRDTExtraMeta,
     returnConcurrent: boolean,
     arbId: number
   ) {
-    if (replicaID === meta.sender) {
+    if (replicaID === crdtExtraMeta.sender) {
       return [];
     }
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
     // greater than meta.vectorClock.get(replicaID).
     let concurrent: Array<StoredMessage> = [];
-    let vc = meta.vectorClock;
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
-      let vcEntry = vc.get(historyEntry[0]);
+      let vcEntry = crdtExtraMeta.vectorClockGet(historyEntry[0]);
       if (senderHistory !== undefined) {
         let concurrentIndexStart = MultipleSemidirectState.indexAfter(
           senderHistory,
@@ -315,6 +323,13 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("childSend called by non-child: " + child);
     }
 
+    // Request all metadata.
+    const crdtExtraMetaRequestee = <CRDTExtraMetaRequestee>(
+      this.getContext(CRDTExtraMetaRequestee.CONTEXT_KEY)
+    );
+    crdtExtraMetaRequestee.requestAll();
+
+    // Send.
     messagePath.push(child.name);
     this.send(messagePath);
   }
@@ -373,7 +388,7 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("TODO");
     }
 
-    const crdtMeta = CRDTMessageMeta.from(meta);
+    const crdtExtraMeta = <CRDTExtraMeta>meta[CRDTExtraMeta.MESSAGE_META_KEY];
 
     const name = <string>messagePath[messagePath.length - 1];
     let idx: number;
@@ -388,7 +403,7 @@ export abstract class MultipleSemidirectProduct<
       // arbitration index (idx).
       let concurrent = this.state.getConcurrent(
         this.runtime.replicaID,
-        crdtMeta,
+        crdtExtraMeta,
         idx
       );
 
@@ -428,7 +443,7 @@ export abstract class MultipleSemidirectProduct<
       });
 
       // add mAct to state and history
-      this.state.add(messagePath.slice(), crdtMeta, idx);
+      this.state.add(messagePath.slice(), meta, crdtExtraMeta, idx);
 
       crdt.receive(mAct.m1MessagePath, meta);
     } else {

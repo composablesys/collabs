@@ -6,7 +6,6 @@
  */
 export interface CRDTExtraMeta {
   readonly sender: string;
-  readonly isLocalEcho: boolean;
   readonly senderCounter: number;
   /**
    * The maximum senderCounter received from replicaID,

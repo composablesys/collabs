@@ -82,6 +82,10 @@ export class SendCRDTExtraMeta
     return this.lamportTimestampIfRequested;
   }
 
+  requestAutomatic(): void {
+    this.isAutomatic = true;
+  }
+
   requestVectorClockEntry(replicaID: string): void {
     this.checkFrozen();
     if (replicaID !== this.sender) {
@@ -113,10 +117,6 @@ export class SendCRDTExtraMeta
     // Other requests.
     this.requestWallClockTime();
     this.requestLamportTimestamp();
-  }
-
-  requestAutomatic(): void {
-    this.isAutomatic = true;
   }
 
   toString(): string {

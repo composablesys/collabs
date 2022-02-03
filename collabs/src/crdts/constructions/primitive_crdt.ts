@@ -30,20 +30,33 @@ export abstract class PrimitiveCRDT<
   protected sendCRDT(
     message: Message,
     requests?: {
+      automatic?: boolean;
+      vectorClockEntries?: Iterable<string>;
       wallClockTime?: boolean;
       lamportTimestamp?: boolean;
+      all?: boolean;
     }
   ): void {
     if (requests !== undefined) {
-      // TODO: other requests (all, auto, VC)
       const crdtExtraMetaRequestee = <CRDTExtraMetaRequestee>(
         this.getContext(CRDTExtraMetaRequestee.CONTEXT_KEY)
       );
+      if (requests.automatic === true) {
+        crdtExtraMetaRequestee.requestAutomatic();
+      }
+      if (requests.vectorClockEntries !== undefined) {
+        for (const replicaID of requests.vectorClockEntries) {
+          crdtExtraMetaRequestee.requestVectorClockEntry(replicaID);
+        }
+      }
       if (requests.wallClockTime === true) {
         crdtExtraMetaRequestee.requestWallClockTime();
       }
       if (requests.lamportTimestamp === true) {
         crdtExtraMetaRequestee.requestLamportTimestamp();
+      }
+      if (requests.all === true) {
+        crdtExtraMetaRequestee.requestAll();
       }
     }
     super.sendPrimitive(message);
@@ -53,12 +66,16 @@ export abstract class PrimitiveCRDT<
     message: string | Uint8Array,
     meta: MessageMeta
   ): void {
-    this.receiveCRDT(message, CRDTMessageMeta.from(meta));
+    this.receiveCRDT(
+      message,
+      meta,
+      <CRDTExtraMeta>meta[CRDTExtraMeta.MESSAGE_META_KEY]
+    );
   }
 
   protected abstract receiveCRDT(
     message: string | Uint8Array,
-    crdtExtraMeta: CRDTExtraMeta,
-    meta: MessageMeta
+    meta: MessageMeta,
+    crdtExtraMeta: CRDTExtraMeta
   ): void;
 }

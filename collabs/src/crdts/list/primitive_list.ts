@@ -13,9 +13,9 @@ import {
   Serializer,
   stringAsBytes,
 } from "../../util";
-import { InitToken } from "../../core";
+import { InitToken, MessageMeta } from "../../core";
 import { Resettable } from "../abilities";
-import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { PrimitiveCRDT } from "../constructions";
 import {
   AbstractCList,
   CListEventsRecord,
@@ -23,6 +23,7 @@ import {
   LocatableCList,
   MakeAbstractCList,
 } from "../../data_types";
+import { CRDTExtraMeta } from "../crdt-runtime";
 import { DenseLocalList } from "./dense_local_list";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
@@ -172,7 +173,9 @@ export class PrimitiveCListFromDenseLocalList<
       const message = PrimitiveCListMessage.create({
         deleteRange: imessage,
       });
-      this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
+      this.sendCRDT(PrimitiveCListMessage.encode(message).finish(), {
+        automatic: true,
+      });
     }
   }
 
@@ -183,7 +186,8 @@ export class PrimitiveCListFromDenseLocalList<
 
   protected receiveCRDT(
     message: string | Uint8Array,
-    meta: CRDTMessageMeta
+    meta: MessageMeta,
+    crdtExtraMeta: CRDTExtraMeta
   ): void {
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
@@ -212,7 +216,7 @@ export class PrimitiveCListFromDenseLocalList<
         );
         // Store senderCounters.
         for (const loc of locs) {
-          this.senderCounters.set(loc, meta.senderCounter);
+          this.senderCounters.set(loc, crdtExtraMeta.senderCounter);
         }
         // Event
         this.emit("Insert", {
@@ -269,12 +273,13 @@ export class PrimitiveCListFromDenseLocalList<
             ).leIndex
           : this.length - 1;
 
-        const vc = meta.vectorClock;
         const toDelete: L[] = [];
         for (let i = startIndex; i <= endIndex; i++) {
           const loc = this.denseLocalList.getLoc(i);
           // Check causality
-          const vcEntry = vc.get(this.denseLocalList.idOf(loc)[0]);
+          const vcEntry = crdtExtraMeta.vectorClockGet(
+            this.denseLocalList.idOf(loc)[0]
+          );
           if (vcEntry >= this.senderCounters.get(loc)!) {
             // Store for later instead of deleting
             // immediately, so that indices don't move on
