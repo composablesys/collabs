@@ -67,12 +67,14 @@ export class TestingCRDTAppGenerator {
    */
   newApp(
     batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
-    rng: seedrandom.prng | undefined = undefined
+    rng: seedrandom.prng | undefined = undefined,
+    causalityGuaranteed = true
   ) {
     const debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
     const app = new CRDTApp({
       batchingStrategy,
       debugReplicaId,
+      causalityGuaranteed,
     });
 
     const appQueue = new Map<CRDTApp, Uint8Array[]>();

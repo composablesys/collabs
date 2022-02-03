@@ -110,7 +110,7 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
     this.messagePort.onmessage = this.messagePortReceive.bind(this);
     window.parent.postMessage(null, "*", [channel.port2]);
 
-    this.app = new CRDTApp(options);
+    this.app = new CRDTApp({ ...options, causalityGuaranteed: true });
     this.app.on("Change", (e) => this.emit("Change", e));
     this.app.on("Send", (e) => {
       if (!this.isReady) {

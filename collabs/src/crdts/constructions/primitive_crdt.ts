@@ -1,7 +1,6 @@
 import { CPrimitive } from "../../constructions";
 import { CollabEventsRecord, MessageMeta, Message } from "../../core";
-import { CRDTExtraMetaSource } from "../crdt-runtime";
-import { CRDTMessageMeta } from "./crdt_message_meta";
+import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt-runtime";
 
 /**
  * Superclass for a primitive (message-passing)
@@ -36,14 +35,15 @@ export abstract class PrimitiveCRDT<
     }
   ): void {
     if (requests !== undefined) {
-      const crdtExtraMetaSource = <CRDTExtraMetaSource>(
-        this.getContext(CRDTExtraMetaSource.CONTEXT_KEY)
+      // TODO: other requests (all, auto, VC)
+      const crdtExtraMetaRequestee = <CRDTExtraMetaRequestee>(
+        this.getContext(CRDTExtraMetaRequestee.CONTEXT_KEY)
       );
       if (requests.wallClockTime === true) {
-        crdtExtraMetaSource.requestWallClockTime();
+        crdtExtraMetaRequestee.requestWallClockTime();
       }
       if (requests.lamportTimestamp === true) {
-        crdtExtraMetaSource.requestLamportTimestamp();
+        crdtExtraMetaRequestee.requestLamportTimestamp();
       }
     }
     super.sendPrimitive(message);
@@ -58,6 +58,7 @@ export abstract class PrimitiveCRDT<
 
   protected abstract receiveCRDT(
     message: string | Uint8Array,
-    meta: CRDTMessageMeta
+    crdtExtraMeta: CRDTExtraMeta,
+    meta: MessageMeta
   ): void;
 }

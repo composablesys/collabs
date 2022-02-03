@@ -56,6 +56,7 @@ export class CRDTRuntime
 
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
+    causalityGuaranteed?: boolean;
     debugReplicaId?: string;
   }) {
     super(options?.debugReplicaId ?? randomReplicaId());
@@ -67,7 +68,11 @@ export class CRDTRuntime
     this.batchingLayer = this.setRootCollab(
       Pre(BatchingLayer)(batchingStrategy)
     );
-    this.crdtMetaLayer = this.batchingLayer.setChild(Pre(CRDTExtraMetaLayer)());
+    this.crdtMetaLayer = this.batchingLayer.setChild(
+      Pre(CRDTExtraMetaLayer)({
+        causalityGuaranteed: options?.causalityGuaranteed,
+      })
+    );
     this.registry = this.crdtMetaLayer.setChild(Pre(PublicCObject)());
 
     // Events.

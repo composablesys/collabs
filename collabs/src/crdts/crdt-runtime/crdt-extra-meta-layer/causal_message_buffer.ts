@@ -1,5 +1,5 @@
 import { Message, MessageMeta } from "../../../core";
-import { CRDTExtraMetaFromBatch } from "./crdt_extra_meta_batch";
+import { ReceiveCRDTExtraMeta } from "./crdt_extra_meta_implementations";
 
 /**
  * Debug flag, enables console.log's when causality checks
@@ -16,19 +16,21 @@ export class CausalMessageBuffer {
    * Internal buffer for messages that have been received but are not
    * causally ready for delivery.
    */
-  private buffer: {
+  private readonly buffer: {
     messagePath: Message[];
     meta: MessageMeta;
     // OPT: store an intermediate form here that is smaller
     // in memory (just extract the maximal VC entries, leave
     // rest serialized).
-    crdtExtraMeta: CRDTExtraMetaFromBatch;
+    crdtExtraMeta: ReceiveCRDTExtraMeta;
   }[] = [];
 
   /**
    * The first index to check for readiness in the buffer.
    */
   private bufferCheckIndex = 0;
+
+  private _causallyMaximalVCKeys = new Set<string>();
 
   /**
    * @param currentVC A reference to the mutable current
@@ -38,11 +40,12 @@ export class CausalMessageBuffer {
    * ready now".
    */
   constructor(
+    private readonly localReplicaID: string,
     private readonly currentVC: Map<string, number>,
     private readonly deliver: (
       messagePath: Message[],
       meta: MessageMeta,
-      crdtExtraMeta: CRDTExtraMetaFromBatch
+      crdtExtraMeta: ReceiveCRDTExtraMeta
     ) => void
   ) {}
 
@@ -52,7 +55,7 @@ export class CausalMessageBuffer {
   push(
     messagePath: Message[],
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMetaFromBatch
+    crdtExtraMeta: ReceiveCRDTExtraMeta
   ): void {
     this.buffer.push({ messagePath, meta, crdtExtraMeta });
   }
@@ -71,6 +74,7 @@ export class CausalMessageBuffer {
 
       if (this.isReady(crdtExtraMeta, sender)) {
         // Ready for delivery.
+        this.processOtherDelivery(crdtExtraMeta, sender);
         this.deliver(
           this.buffer[index].messagePath,
           this.buffer[index].meta,
@@ -109,18 +113,22 @@ export class CausalMessageBuffer {
    * order.
    */
   private isReady(
-    crdtExtraMeta: CRDTExtraMetaFromBatch,
+    crdtExtraMeta: ReceiveCRDTExtraMeta,
     sender: string
   ): boolean {
-    // Check sender's entry is one more than ours.
+    // Check that sender's entry is one more than ours.
     if ((this.currentVC.get(sender) ?? 0) !== crdtExtraMeta.senderCounter - 1) {
       return false;
     }
 
-    // Check other causally maximal entries are <= ours.
-    for (const [id, value] of crdtExtraMeta.causallyMaximalVCEntries) {
-      if (id === sender) continue;
-      if ((this.currentVC.get(id) ?? 0) < value) {
+    // Check that other causally maximal entries are <= ours.
+    // Note that this excludes sender, and it also is guaranteed
+    // that these entries are present.
+    for (const replicaID of crdtExtraMeta.causallyMaximalVCKeys) {
+      if (
+        (this.currentVC.get(replicaID) ?? 0) <
+        crdtExtraMeta.vectorClockGet(replicaID)
+      ) {
         return false;
       }
     }
@@ -133,7 +141,7 @@ export class CausalMessageBuffer {
    * has already been delivered.
    */
   private isAlreadyDelivered(
-    crdtExtraMeta: CRDTExtraMetaFromBatch,
+    crdtExtraMeta: ReceiveCRDTExtraMeta,
     sender: string
   ): boolean {
     const senderEntry = this.currentVC.get(sender);
@@ -141,5 +149,42 @@ export class CausalMessageBuffer {
       if (senderEntry >= crdtExtraMeta.senderCounter) return true;
     }
     return false;
+  }
+
+  /**
+   * crdtExtraMeta is assumed to be not from us.
+   */
+  private processOtherDelivery(
+    crdtExtraMeta: ReceiveCRDTExtraMeta,
+    sender: string
+  ) {
+    // Delete any current keys that are causally dominated by
+    // this meta.
+    for (const replicaID of crdtExtraMeta.causallyMaximalVCKeys) {
+      if (replicaID === this.localReplicaID) continue;
+      if (
+        this.currentVC.get(replicaID) ===
+        crdtExtraMeta.vectorClockGet(replicaID)
+      ) {
+        this._causallyMaximalVCKeys.delete(replicaID);
+      }
+    }
+    // Add a new key for this message.
+    this._causallyMaximalVCKeys.add(sender);
+  }
+
+  /**
+   * Call when we deliver one of our own messages.
+   */
+  processOwnDelivery() {
+    // Our own message causally dominates every current key.
+    this._causallyMaximalVCKeys.clear();
+  }
+
+  /**
+   * Excludes us.
+   */
+  getCausallyMaximalVCKeys(): Set<string> {
+    return new Set(this._causallyMaximalVCKeys);
   }
 }

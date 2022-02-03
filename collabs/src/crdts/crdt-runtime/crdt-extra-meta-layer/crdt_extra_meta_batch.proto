@@ -1,12 +1,13 @@
-message CRDTExtraMetaDeltaMessage {
-  required uint32 index = 1;
-  map<string, uint64> deltaVCEntries = 2;
-  optional uint64 newWallClockTime = 3;
-  optional uint64 newLamportTimestamp = 4;
+// Opt: delta-encode
+// Opt: flatten?
+message CRDTExtraMetaMessage {
+  map<string, uint64> causallyMaximalVectorClock = 1;
+  map<string, uint64> extraVectorClock = 2;
+  optional uint64 wallClockTime = 3;
+  optional uint64 lamportTimestamp = 4;
 }
 
 message CRDTExtraMetaBatchMessage {
   required uint64 firstSenderCounter = 1;
-  required uint32 count = 2;
-  repeated CRDTExtraMetaDeltaMessage deltas = 3;
+  repeated CRDTExtraMetaMessage metas = 2;
 }
