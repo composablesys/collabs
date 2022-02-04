@@ -1,6 +1,6 @@
 import { BatchingLayer } from "../../constructions";
 import { BatchingStrategy } from "../../constructions/batching_strategy";
-import { DEFAULT_REPLICA_ID_LENGTH, Unsubscribe } from "../../core";
+import { pseudoRandomReplicaId, Unsubscribe } from "../../core";
 import { CRDTApp } from "../crdt-runtime";
 
 /**
@@ -23,14 +23,6 @@ export class TestingBatchingStrategy implements BatchingStrategy {
     this.batchingLayer = undefined;
     this.unsubscribe = undefined;
   }
-}
-
-function pseudorandomReplicaId(rng: seedrandom.prng) {
-  const arr = new Array<number>(DEFAULT_REPLICA_ID_LENGTH);
-  for (let i = 0; i < arr.length; i++) {
-    arr[i] = Math.floor(rng() * 128);
-  }
-  return String.fromCharCode(...arr);
 }
 
 /**
@@ -70,7 +62,7 @@ export class TestingCRDTAppGenerator {
     rng: seedrandom.prng | undefined = undefined,
     causalityGuaranteed = false
   ) {
-    const debugReplicaId = rng ? pseudorandomReplicaId(rng) : undefined;
+    const debugReplicaId = rng ? pseudoRandomReplicaId(rng) : undefined;
     const app = new CRDTApp({
       batchingStrategy,
       debugReplicaId,

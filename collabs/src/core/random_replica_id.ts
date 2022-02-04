@@ -50,3 +50,26 @@ export function randomReplicaId(
   }
   return String.fromCharCode(...arr);
 }
+
+/**
+ * For debugging/testing/benchmarking purposes.
+ * Like [[randomReplicaID]] but using pseudo-randomness
+ * instead of cryptographic randomness.
+ *
+ * This can be passed to [[CRDTApp]]'s `debugReplicaID` option.
+ * It is recommended to do so for tests and benchmarks.
+ *
+ * @param rng The psuedo-random number generator, from
+ * npm package "seedrandom".
+ * @return A psueod-random replicaID made of ASCII characters
+ * (char codes 0--127, inclusive).
+ * Such replicaID's can be safely treated as either
+ * byte arrays or UTF-8 strings.
+ */
+export function pseudoRandomReplicaId(rng: seedrandom.prng) {
+  const arr = new Array<number>(DEFAULT_REPLICA_ID_LENGTH);
+  for (let i = 0; i < arr.length; i++) {
+    arr[i] = Math.floor(rng() * 128);
+  }
+  return String.fromCharCode(...arr);
+}
