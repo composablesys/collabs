@@ -1,8 +1,9 @@
 import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt_extra_meta";
 
 export class SendCRDTExtraMeta
-  implements CRDTExtraMeta, CRDTExtraMetaRequestee
+  implements CRDTExtraMeta, CRDTExtraMetaRequestee 
 {
+  count = 0;
   /**
    * The requested vector clock entries so far, excluding sender.
    *
@@ -130,6 +131,7 @@ export class SendCRDTExtraMeta
 
 export class ReceiveCRDTExtraMeta implements CRDTExtraMeta {
   constructor(
+    readonly count: number,
     readonly sender: string,
     readonly senderCounter: number,
     /**

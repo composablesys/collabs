@@ -2,14 +2,15 @@ import {
   CRDTExtraMetaBatchMessage,
   ICRDTExtraMetaMessage,
 } from "../../../../generated/proto_compiled";
-import { Serializable } from "../../../core";
+import { Message, MessageMeta, Serializable } from "../../../core";
 import { int64AsNumber } from "../../../util";
 import {
   ReceiveCRDTExtraMeta,
   SendCRDTExtraMeta,
 } from "./crdt_extra_meta_implementations";
+import { Transaction } from "./transaction";
 
-export class CRDTExtraMetaBatch implements Serializable {
+export class SendCRDTExtraMetaBatch implements Serializable {
   readonly metas: SendCRDTExtraMeta[] = [];
   private alreadySerialized = false;
 
@@ -41,6 +42,7 @@ export class CRDTExtraMetaBatch implements Serializable {
         } else extraVectorClock[replicaID] = entry;
       }
       metasSerialized[i] = {
+        count: meta.count,
         causallyMaximalVectorClock,
         extraVectorClock,
         wallClockTime: meta.wallClockTimeIfRequested,
@@ -54,15 +56,16 @@ export class CRDTExtraMetaBatch implements Serializable {
     });
     return CRDTExtraMetaBatchMessage.encode(message).finish();
   }
+}
 
-  static deserialize(
-    sender: string,
-    serialized: Uint8Array
-  ): ReceiveCRDTExtraMeta[] {
+export class ReceiveCRDTExtraMetaBatch {
+  readonly metas: ReceiveCRDTExtraMeta[];
+
+  constructor(sender: string, serialized: Uint8Array) {
     const decoded = CRDTExtraMetaBatchMessage.decode(serialized);
-    const ans = new Array<ReceiveCRDTExtraMeta>(decoded.metas.length);
+    this.metas = new Array<ReceiveCRDTExtraMeta>(decoded.metas.length);
     const firstSenderCounter = int64AsNumber(decoded.firstSenderCounter);
-    for (let i = 0; i < ans.length; i++) {
+    for (let i = 0; i < this.metas.length; i++) {
       const message = decoded.metas[i];
 
       const vectorClock = new Map<string, number>();
@@ -92,7 +95,8 @@ export class CRDTExtraMetaBatch implements Serializable {
         ? int64AsNumber(decoded.metas[i].lamportTimestamp!)
         : null;
 
-      ans[i] = new ReceiveCRDTExtraMeta(
+      this.metas[i] = new ReceiveCRDTExtraMeta(
+        message.count,
         sender,
         firstSenderCounter + i,
         vectorClock,
@@ -101,7 +105,38 @@ export class CRDTExtraMetaBatch implements Serializable {
         causallyMaximalVCKeys
       );
     }
+  }
 
-    return ans;
+  private currentTransaction = 0;
+  private nextMessage = 0;
+  private transactionMessages: { messagePath: Message[]; meta: MessageMeta }[] =
+    [];
+
+  /**
+   * [received description]
+   * @param messagePath [description]
+   * @param meta        [description]
+   * @return Whether the current transaction is complete,
+   * hence completeTransaction must be called next.
+   */
+  received(messagePath: Message[], meta: MessageMeta): boolean {
+    this.transactionMessages[this.nextMessage] = { messagePath, meta };
+    this.nextMessage++;
+    return this.nextMessage === this.metas[this.currentTransaction].count;
+  }
+
+  completeTransaction(): Transaction {
+    const ret: Transaction = {
+      crdtExtraMeta: this.metas[this.currentTransaction],
+      messages: this.transactionMessages,
+    };
+    this.currentTransaction++;
+    this.nextMessage = 0;
+    this.transactionMessages = [];
+    return ret;
+  }
+
+  isFinished() {
+    return this.currentTransaction === this.metas.length;
   }
 }

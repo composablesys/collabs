@@ -1,5 +1,6 @@
 import { Message, MessageMeta } from "../../../core";
 import { ReceiveCRDTExtraMeta } from "./crdt_extra_meta_implementations";
+import { Transaction } from "./transaction";
 
 /**
  * Debug flag, enables console.log's when causality checks
@@ -16,14 +17,7 @@ export class CausalMessageBuffer {
    * Internal buffer for messages that have been received but are not
    * causally ready for delivery.
    */
-  private readonly buffer: {
-    messagePath: Message[];
-    meta: MessageMeta;
-    // OPT: store an intermediate form here that is smaller
-    // in memory (just extract the maximal VC entries, leave
-    // rest serialized).
-    crdtExtraMeta: ReceiveCRDTExtraMeta;
-  }[] = [];
+  private readonly buffer: Transaction[] = [];
 
   /**
    * The first index to check for readiness in the buffer.
@@ -46,22 +40,14 @@ export class CausalMessageBuffer {
   constructor(
     private readonly localReplicaID: string,
     private readonly currentVC: Map<string, number>,
-    private readonly deliver: (
-      messagePath: Message[],
-      meta: MessageMeta,
-      crdtExtraMeta: ReceiveCRDTExtraMeta
-    ) => void
+    private readonly deliverTransaction: (transaction: Transaction) => void
   ) {}
 
   /**
    * Adds the given message to the buffer.
    */
-  push(
-    messagePath: Message[],
-    meta: MessageMeta,
-    crdtExtraMeta: ReceiveCRDTExtraMeta
-  ): void {
-    this.buffer.push({ messagePath, meta, crdtExtraMeta });
+  push(transaction: Transaction): void {
+    this.buffer.push(transaction);
   }
 
   /**
@@ -73,17 +59,13 @@ export class CausalMessageBuffer {
     let index = this.buffer.length - 1;
 
     while (index >= this.bufferCheckIndex) {
-      const sender = this.buffer[index].meta.sender;
+      const sender = this.buffer[index].crdtExtraMeta.sender;
       const crdtExtraMeta = this.buffer[index].crdtExtraMeta;
 
       if (this.isReady(crdtExtraMeta, sender)) {
         // Ready for delivery.
         this.processOtherDelivery(crdtExtraMeta, sender);
-        this.deliver(
-          this.buffer[index].messagePath,
-          this.buffer[index].meta,
-          crdtExtraMeta
-        );
+        this.deliverTransaction(this.buffer[index]);
         // Remove from the buffer.
         // OPT: something more efficient?  (Costly array
         // deletions).
@@ -96,7 +78,7 @@ export class CausalMessageBuffer {
         if (DEBUG) {
           console.log("CRDTExtraMetaLayer.checkMessageBuffer: not ready");
         }
-        if (this.isAlreadyDelivered(crdtExtraMeta, sender)) {
+        if (this.isAlreadyDelivered(crdtExtraMeta)) {
           // Remove the message from the buffer
           this.buffer.splice(index, 1);
           if (DEBUG) console.log("(already received)");
@@ -141,14 +123,12 @@ export class CausalMessageBuffer {
   }
 
   /**
-   * @return whether a message with the given vector clock
+   * @return whether a message with the given sender and
+   * senderCounter
    * has already been delivered.
    */
-  private isAlreadyDelivered(
-    crdtExtraMeta: ReceiveCRDTExtraMeta,
-    sender: string
-  ): boolean {
-    const senderEntry = this.currentVC.get(sender);
+  private isAlreadyDelivered(crdtExtraMeta: ReceiveCRDTExtraMeta): boolean {
+    const senderEntry = this.currentVC.get(crdtExtraMeta.sender);
     if (senderEntry !== undefined) {
       if (senderEntry >= crdtExtraMeta.senderCounter) return true;
     }
@@ -190,5 +170,14 @@ export class CausalMessageBuffer {
    */
   getCausallyMaximalVCKeys(): Set<string> {
     return new Set(this._causallyMaximalVCKeys);
+  }
+
+  save(): Uint8Array {
+    // TODO
+    return new Uint8Array();
+  }
+
+  load(_saveData: Uint8Array) {
+    // TODO
   }
 }

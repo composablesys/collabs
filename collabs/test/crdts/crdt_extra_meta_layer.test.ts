@@ -836,6 +836,7 @@ describe("CRDTExtraMetaLayer", () => {
             }
             j++;
           });
+          bob.receive(aliceMessage!);
           assert.strictEqual(j, 5);
         });
 
@@ -868,8 +869,8 @@ describe("CRDTExtraMetaLayer", () => {
             // deliver both messages and start a new transaction.
             alice.receive(bobMessage1);
             assertMetaEvent(aliceEvent, "interrupt", bobID, 2, null, null, [
+              [aliceID, 0],
               [bobID, 2],
-              [bobID, 0],
             ]);
 
             aliceInspector.sendCRDT("3");
@@ -917,7 +918,7 @@ describe("CRDTExtraMetaLayer", () => {
 
           for (let i = 1; i <= 5; i++) {
             // Start a new transaction.
-            alice.receive(bobMessages[i]);
+            alice.receive(bobMessages[i - 1]);
             let aliceMeta!: CRDTExtraMeta;
             // 6 - i messages in this transaction.
             for (let j = 1; j <= 6 - i; j++) {
@@ -953,7 +954,7 @@ describe("CRDTExtraMetaLayer", () => {
               [bobID, causalityGuaranteed ? 0 : i],
             ]);
             if (j === 1) {
-              transactionMeta = aliceEvent!.crdtExtraMeta;
+              transactionMeta = e.crdtExtraMeta;
             } else {
               assert.strictEqual(e.crdtExtraMeta, transactionMeta);
             }
@@ -983,7 +984,7 @@ describe("CRDTExtraMetaLayer", () => {
 
             for (let i = 1; i <= 5; i++) {
               // Start a new transaction.
-              alice.receive(bobMessages[i]);
+              alice.receive(bobMessages[i - 1]);
               // 6 - i messages in this transaction.
               for (let j = 1; j <= 6 - i; j++) {
                 aliceInspector.sendCRDT("alice" + i + j);
@@ -1013,6 +1014,7 @@ describe("CRDTExtraMetaLayer", () => {
             charlieInspector.on("Meta", (e) => {
               charlieEvent = e;
             });
+            charlie.load(Optional.empty());
 
             // Receive alice's batch. Nothing is ready yet.
             charlie.receive(aliceMessage!);
@@ -1060,14 +1062,16 @@ describe("CRDTExtraMetaLayer", () => {
                   assert.fail("turn = done");
                 }
               });
-              charlie.receive(bobMessages[i]);
+              charlie.receive(bobMessages[i - 1]);
               off();
             }
             assert.strictEqual(turn, "done");
             assert.strictEqual(j, 1);
 
             // Charlie's VC should now be 5, 5.
-            charlieInspector.sendCRDT("charlie");
+            charlieInspector.sendCRDT("charlie", {
+              vectorClockEntries: [aliceID, bobID],
+            });
             assertMetaEvent(charlieEvent, "charlie", charlieID, 1, null, null, [
               [charlieID, 1],
               [aliceID, 5],
@@ -1085,3 +1089,4 @@ describe("CRDTExtraMetaLayer", () => {
 // - Check causality works in general (tested before, but worth checking now that we've changed it to causally maximal entries only).
 // - Saving. In particular, causal buffer saving, and
 // delivers messages afterwards once ready.
+// - Redelivered messages are ignored, even when causalityGuaranteed. In particular, echoing your own messages.

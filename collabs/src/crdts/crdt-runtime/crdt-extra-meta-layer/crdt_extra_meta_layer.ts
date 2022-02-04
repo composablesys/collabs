@@ -10,11 +10,15 @@ import {
 import { int64AsNumber, Optional } from "../../../util";
 import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt_extra_meta";
 import { CausalMessageBuffer } from "./causal_message_buffer";
-import { CRDTExtraMetaBatch } from "./crdt_extra_meta_batch";
+import {
+  SendCRDTExtraMetaBatch,
+  ReceiveCRDTExtraMetaBatch,
+} from "./crdt_extra_meta_batches";
 import {
   ReceiveCRDTExtraMeta,
   SendCRDTExtraMeta,
 } from "./crdt_extra_meta_implementations";
+import { Transaction } from "./transaction";
 
 /**
  * Collab that provides [[CRDTExtraMeta]] to its
@@ -65,7 +69,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       this.messageBuffer = new CausalMessageBuffer(
         this.runtime.replicaID,
         this.currentVC,
-        this.deliver.bind(this)
+        this.deliverRemoteTransaction.bind(this)
       );
     } else {
       this.messageBuffer = null;
@@ -118,13 +122,15 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   /**
    * Cache for currentSendBatch().
    */
-  private _currentSendBatch: CRDTExtraMetaBatch | null = null;
+  private _currentSendBatch: SendCRDTExtraMetaBatch | null = null;
   /**
-   * The CRDTExtraMetaBatch for the current batch.
+   * The SendCRDTExtraMetaBatch for the current batch.
    */
-  private currentSendBatch(): CRDTExtraMetaBatch {
+  private currentSendBatch(): SendCRDTExtraMetaBatch {
     if (this._currentSendBatch === null) {
-      this._currentSendBatch = new CRDTExtraMetaBatch(this.onBatchSerialize);
+      this._currentSendBatch = new SendCRDTExtraMetaBatch(
+        this.onBatchSerialize
+      );
     }
     return this._currentSendBatch;
   }
@@ -189,32 +195,21 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
 
     this.isInTransaction = true;
-    const sendBatch = this.currentSendBatch();
 
-    messagePath.push(sendBatch);
+    this.currentSendMeta().count++;
+
+    messagePath.push(this.currentSendBatch());
     this.send(messagePath);
   }
 
   /**
    * The CRDTMetaReceiveMessage for the batch of messages
-   * currently being received. All messages in the batch
-   * will have the same one; their actual CRDTExtraMeta's are distinguished
-   * by their index within the batch.
+   * currently being received.
    *
    * null if we are not in the middle of receiving a batch.
    * Also, not used for local echos.
    */
-  private currentReceiveBatch: ReceiveCRDTExtraMeta[] | null = null;
-  /**
-   * The index for the next message in the batch of messages
-   * currently being received. This combines with
-   * currentReceiveBatch to fully describe the next message's
-   * CRDTExtraMeta.
-   *
-   * null if we are not in the middle of receiving a batch.
-   * Also, not used for local echos.
-   */
-  private currentReceiveBatchIndex: number | null = null;
+  private currentReceiveBatch: ReceiveCRDTExtraMetaBatch | null = null;
 
   protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
@@ -233,7 +228,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       if (!this.causalityGuaranteed) {
         this.messageBuffer!.processOwnDelivery();
       }
-      this.deliver(messagePath, meta, crdtExtraMeta);
+      this.deliverMessage(messagePath, meta, crdtExtraMeta);
 
       // Reset isAutomatic, since we're done receiving.
       // (Otherwise future messages in the transaction will
@@ -242,66 +237,97 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     } else {
       if (this.currentReceiveBatch === null) {
         // It's a new batch with a new CRDTMetaReceiveMessage.
-        this.currentReceiveBatch = CRDTExtraMetaBatch.deserialize(
+        this.currentReceiveBatch = new ReceiveCRDTExtraMetaBatch(
           meta.sender,
           <Uint8Array>messagePath[messagePath.length - 1]
         );
-        this.currentReceiveBatchIndex = 0;
-      }
-      const crdtExtraMeta =
-        this.currentReceiveBatch[this.currentReceiveBatchIndex!];
-
-      this.currentReceiveBatchIndex!++;
-      if (this.currentReceiveBatchIndex! === this.currentReceiveBatch.length) {
-        // Done with the batch; make room for the next one.
-        this.currentReceiveBatch = null;
-        this.currentReceiveBatchIndex = null;
       }
 
       // Remove our message.
       messagePath.length--;
 
-      if (this.causalityGuaranteed) {
-        // Deliver immediately.
-        this.deliver(messagePath, meta, crdtExtraMeta);
-      } else {
-        // Buffer the message and attempt to deliver it or
-        // other messages.
-        this.messageBuffer!.push(messagePath, meta, crdtExtraMeta);
-        this.messageBuffer!.check();
+      if (this.currentReceiveBatch.received(messagePath, meta)) {
+        // Deliver/buffer the current transaction.
+        const transaction = this.currentReceiveBatch.completeTransaction();
+        if (this.causalityGuaranteed) {
+          // We're assured that the transaction is causally
+          // ready; we just need to ensure that it has
+          // not already been delivered.
+          // (That includes the case of getting delivered
+          // our own message as not a local echo).
+          if (!this.isAlreadyDelivered(transaction.crdtExtraMeta)) {
+            this.deliverRemoteTransaction(transaction);
+          }
+        } else {
+          // Buffer the message and attempt to deliver it or
+          // other messages.
+          this.messageBuffer!.push(transaction);
+          this.messageBuffer!.check();
+        }
+
+        if (this.currentReceiveBatch.isFinished()) {
+          // Done with the batch; make room for the next one.
+          this.currentReceiveBatch = null;
+        }
       }
     }
   }
 
+  // TODO: deduplicate?
   /**
-   * Called when a message is ready for immediate delivery,
-   * i.e., its causality checks have passed.
-   *
-   * This is called immediately for local echos, and also
-   * given as the callback to this.messageBuffer.
+   * @return whether a message with the given sender and
+   * senderCounter
+   * has already been delivered.
    */
-  private deliver(
+  private isAlreadyDelivered(crdtExtraMeta: ReceiveCRDTExtraMeta): boolean {
+    const senderEntry = this.currentVC.get(crdtExtraMeta.sender);
+    if (senderEntry !== undefined) {
+      if (senderEntry >= crdtExtraMeta.senderCounter) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Called for non-local messages only.
+   * @param  transaction [description]
+   * @return             [description]
+   */
+  private deliverRemoteTransaction(transaction: Transaction) {
+    // End our current transaction, if any.
+    // Note this immediately updates our own VC entry and
+    // Lamport timestamp.
+    this.endTransaction();
+    // Update our own state to reflect the received crdtExtraMeta.
+    this.currentVC.set(
+      transaction.crdtExtraMeta.sender,
+      transaction.crdtExtraMeta.senderCounter
+    );
+    if (transaction.crdtExtraMeta.lamportTimestamp !== null) {
+      // TODO: note that this is a restricted kind of
+      // Lamport timestamp: only updates when you use it.
+      // I think that should still give the causality
+      // guarantees for actual uses, but need to check.
+      this.currentLamportTimestamp = Math.max(
+        transaction.crdtExtraMeta.lamportTimestamp,
+        this.currentLamportTimestamp
+      );
+    }
+
+    // Deliver messages.
+    for (const message of transaction.messages) {
+      this.deliverMessage(
+        message.messagePath,
+        message.meta,
+        transaction.crdtExtraMeta
+      );
+    }
+  }
+
+  private deliverMessage(
     messagePath: Message[],
     meta: MessageMeta,
     crdtExtraMeta: CRDTExtraMeta
   ) {
-    if (meta.sender !== this.runtime.replicaID) {
-      // End our current transaction, if any.
-      this.endTransaction();
-      // Update our own state to reflect the received crdtExtraMeta.
-      this.currentVC.set(meta.sender, crdtExtraMeta.senderCounter);
-      if (crdtExtraMeta.lamportTimestamp !== null) {
-        // TODO: note that this is a restricted kind of
-        // Lamport timestamp: only updates when you use it.
-        // I think that should still give the causality
-        // guarantees for actual uses, but need to check.
-        this.currentLamportTimestamp = Math.max(
-          crdtExtraMeta.lamportTimestamp,
-          this.currentLamportTimestamp
-        );
-      }
-    }
-
     // Add the CRDTExtraMeta to meta.
     meta[CRDTExtraMeta.MESSAGE_META_KEY] = crdtExtraMeta;
 
@@ -317,13 +343,24 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
   }
 
-  // TODO: throw error on save during a transaction.
   save(): Uint8Array {
+    if (this.isInTransaction) {
+      throw new Error(
+        "Cannot call save during a send transaction; commit the pending batch first"
+      );
+    }
+    if (this.currentReceiveBatch !== null) {
+      throw new Error(
+        "Cannot call save during a received transaction; let the current received batch be processed first"
+      );
+    }
+
     const vectorClock = Object.fromEntries(this.currentVC);
     const saveMessage = CRDTExtraMetaLayerSave.create({
       vectorClock,
       lamportTimestamp: this.currentLamportTimestamp,
       childSave: this.child.save(),
+      messageBufferSave: this.messageBuffer?.save(),
     });
     return CRDTExtraMetaLayerSave.encode(saveMessage).finish();
   }
@@ -343,6 +380,9 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
         saveMessage.lamportTimestamp
       );
       this.child.load(Optional.of(saveMessage.childSave));
+      if (this.messageBuffer !== null) {
+        this.messageBuffer.load(saveMessage.messageBufferSave);
+      }
     }
   }
 

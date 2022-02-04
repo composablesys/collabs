@@ -4,4 +4,5 @@ message CRDTExtraMetaLayerSave {
   map<string, uint64> vectorClock = 1;
   required uint64 lamportTimestamp = 2;
   required bytes childSave = 3;
+  optional bytes messageBufferSave = 4;
 }
