@@ -1,6 +1,11 @@
-import { Message, MessageMeta } from "../../../core";
+import {
+  BytesOrStringMessage,
+  CausalMessageBufferSave,
+  IReceiveTransactionSave,
+} from "../../../../generated/proto_compiled";
+import { int64AsNumber } from "../../../util";
 import { ReceiveCRDTExtraMeta } from "./crdt_extra_meta_implementations";
-import { Transaction } from "./transaction";
+import { ReceiveTransaction } from "./transaction";
 
 /**
  * Debug flag, enables console.log's when causality checks
@@ -17,7 +22,7 @@ export class CausalMessageBuffer {
    * Internal buffer for messages that have been received but are not
    * causally ready for delivery.
    */
-  private readonly buffer: Transaction[] = [];
+  private readonly buffer: ReceiveTransaction[] = [];
 
   /**
    * The first index to check for readiness in the buffer.
@@ -25,7 +30,8 @@ export class CausalMessageBuffer {
   private bufferCheckIndex = 0;
 
   /**
-   * Excludes localReplicaID.
+   * May include us, if we are causally maximal
+   * (no received messages dominate our last sent message).
    */
   private _causallyMaximalVCKeys = new Set<string>();
 
@@ -40,14 +46,24 @@ export class CausalMessageBuffer {
   constructor(
     private readonly localReplicaID: string,
     private readonly currentVC: Map<string, number>,
-    private readonly deliverTransaction: (transaction: Transaction) => void
+    private readonly deliverRemoteTransaction: (
+      transaction: ReceiveTransaction
+    ) => void
   ) {}
 
   /**
-   * Adds the given message to the buffer.
+   * Adds the given message to the buffer, if it has not
+   * already been delivered.
    */
-  push(transaction: Transaction): void {
-    this.buffer.push(transaction);
+  pushRemoteTransaction(transaction: ReceiveTransaction): void {
+    if (!this.isAlreadyDelivered(transaction.crdtExtraMeta)) {
+      this.buffer.push(transaction);
+    } else if (DEBUG) {
+      console.log("pushRemoteTransaction: not adding");
+      console.log("(already received)");
+      console.log([...this.currentVC]);
+      console.log(transaction.crdtExtraMeta);
+    }
   }
 
   /**
@@ -64,8 +80,8 @@ export class CausalMessageBuffer {
 
       if (this.isReady(crdtExtraMeta, sender)) {
         // Ready for delivery.
-        this.processOtherDelivery(crdtExtraMeta, sender);
-        this.deliverTransaction(this.buffer[index]);
+        this.processRemoteDelivery(crdtExtraMeta);
+        this.deliverRemoteTransaction(this.buffer[index]);
         // Remove from the buffer.
         // OPT: something more efficient?  (Costly array
         // deletions).
@@ -86,7 +102,7 @@ export class CausalMessageBuffer {
         index--;
         if (DEBUG) {
           console.log([...this.currentVC]);
-          console.log(JSON.stringify(crdtExtraMeta));
+          console.log(crdtExtraMeta);
         }
       }
     }
@@ -109,7 +125,7 @@ export class CausalMessageBuffer {
 
     // Check that other causally maximal entries are <= ours.
     // Note that this excludes sender, and it also is guaranteed
-    // that these entries are present.
+    // that these entries are present in crdtExtraMeta.
     for (const replicaID of crdtExtraMeta.causallyMaximalVCKeys) {
       if (
         (this.currentVC.get(replicaID) ?? 0) <
@@ -138,14 +154,10 @@ export class CausalMessageBuffer {
   /**
    * crdtExtraMeta is assumed to be not from us.
    */
-  private processOtherDelivery(
-    crdtExtraMeta: ReceiveCRDTExtraMeta,
-    sender: string
-  ) {
+  private processRemoteDelivery(crdtExtraMeta: ReceiveCRDTExtraMeta) {
     // Delete any current keys that are causally dominated by
-    // this meta.
+    // crdtExtraMeta.
     for (const replicaID of crdtExtraMeta.causallyMaximalVCKeys) {
-      if (replicaID === this.localReplicaID) continue;
       if (
         this.currentVC.get(replicaID) ===
         crdtExtraMeta.vectorClockGet(replicaID)
@@ -154,7 +166,7 @@ export class CausalMessageBuffer {
       }
     }
     // Add a new key for this message.
-    this._causallyMaximalVCKeys.add(sender);
+    this._causallyMaximalVCKeys.add(crdtExtraMeta.sender);
   }
 
   /**
@@ -163,21 +175,83 @@ export class CausalMessageBuffer {
   processOwnDelivery() {
     // Our own message causally dominates every current key.
     this._causallyMaximalVCKeys.clear();
+    this._causallyMaximalVCKeys.add(this.localReplicaID);
   }
 
   /**
-   * Excludes us.
+   * May include us, if we are causally maximal
+   * (no received messages dominate our last sent message).
    */
   getCausallyMaximalVCKeys(): Set<string> {
     return new Set(this._causallyMaximalVCKeys);
   }
 
   save(): Uint8Array {
-    // TODO
-    return new Uint8Array();
+    const bufferSave = new Array<IReceiveTransactionSave>(this.buffer.length);
+    for (let i = 0; i < this.buffer.length; i++) {
+      const crdtExtraMeta = this.buffer[i].crdtExtraMeta;
+      bufferSave[i] = {
+        count: crdtExtraMeta.count,
+        sender: crdtExtraMeta.sender,
+        senderCounter: crdtExtraMeta.senderCounter,
+        vectorClock: Object.fromEntries(crdtExtraMeta.vectorClock),
+        wallClockTime: crdtExtraMeta.wallClockTime,
+        lamportTimestamp: crdtExtraMeta.lamportTimestamp,
+        causallyMaximalVCKeys: crdtExtraMeta.causallyMaximalVCKeys,
+        messages: this.buffer[i].messages.map((messagePath) => {
+          return {
+            messagePath: messagePath.map((message) =>
+              typeof message === "string"
+                ? { asString: message }
+                : { asBytes: message }
+            ),
+          };
+        }),
+      };
+    }
+
+    const saveMessage = CausalMessageBufferSave.create({
+      buffer: bufferSave,
+      bufferCheckIndex: this.bufferCheckIndex,
+      causallyMaximalVCKeys: [...this._causallyMaximalVCKeys],
+    });
+    return CausalMessageBufferSave.encode(saveMessage).finish();
   }
 
-  load(_saveData: Uint8Array) {
-    // TODO
+  load(saveData: Uint8Array) {
+    const decoded = CausalMessageBufferSave.decode(saveData);
+    this.bufferCheckIndex = decoded.bufferCheckIndex;
+    this._causallyMaximalVCKeys = new Set(decoded.causallyMaximalVCKeys);
+
+    for (const transaction of decoded.buffer) {
+      const vectorClock = new Map<string, number>();
+      for (const [replicaID, entry] of Object.entries(
+        transaction.vectorClock!
+      )) {
+        vectorClock.set(replicaID, int64AsNumber(entry));
+      }
+
+      const crdtExtraMeta = new ReceiveCRDTExtraMeta(
+        transaction.count,
+        transaction.sender,
+        int64AsNumber(transaction.senderCounter),
+        vectorClock,
+        Object.prototype.hasOwnProperty.call(transaction, "wallClockTime")
+          ? int64AsNumber(transaction.wallClockTime!)
+          : null,
+        Object.prototype.hasOwnProperty.call(transaction, "lamportTimestamp")
+          ? int64AsNumber(transaction.lamportTimestamp!)
+          : null,
+        transaction.causallyMaximalVCKeys!
+      );
+      const messages = transaction.messages!.map((messagePathSave) =>
+        messagePathSave.messagePath!.map((messageSave) =>
+          (<BytesOrStringMessage>messageSave).type === "asString"
+            ? messageSave.asString!
+            : messageSave.asBytes!
+        )
+      );
+      this.buffer.push({ crdtExtraMeta, messages });
+    }
   }
 }

@@ -18,7 +18,7 @@ import {
   ReceiveCRDTExtraMeta,
   SendCRDTExtraMeta,
 } from "./crdt_extra_meta_implementations";
-import { Transaction } from "./transaction";
+import { ReceiveTransaction } from "./transaction";
 
 /**
  * Collab that provides [[CRDTExtraMeta]] to its
@@ -235,6 +235,14 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       // inherit isAutomatic.)
       crdtExtraMeta.isAutomatic = false;
     } else {
+      if (meta.sender === this.runtime.replicaID) {
+        // We got redelivered our own message not as a
+        // local echo. Redundant; do nothing.
+        // (In fact the calls to isAlreadyDelivered below
+        // should be sufficient to check for this.)
+        return;
+      }
+
       if (this.currentReceiveBatch === null) {
         // It's a new batch with a new CRDTMetaReceiveMessage.
         this.currentReceiveBatch = new ReceiveCRDTExtraMetaBatch(
@@ -246,7 +254,14 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       // Remove our message.
       messagePath.length--;
 
-      if (this.currentReceiveBatch.received(messagePath, meta)) {
+      // Since the message is not a local echo, we can
+      // assume messagePath is all (Uint8Array | string).
+      // Also, here we are implicitly using the assumption
+      // that meta is just `{ sender, isLocalEcho }`,
+      // by forgetting it.
+      if (
+        this.currentReceiveBatch.received(<(Uint8Array | string)[]>messagePath)
+      ) {
         // Deliver/buffer the current transaction.
         const transaction = this.currentReceiveBatch.completeTransaction();
         if (this.causalityGuaranteed) {
@@ -261,7 +276,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
         } else {
           // Buffer the message and attempt to deliver it or
           // other messages.
-          this.messageBuffer!.push(transaction);
+          this.messageBuffer!.pushRemoteTransaction(transaction);
           this.messageBuffer!.check();
         }
 
@@ -292,7 +307,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * @param  transaction [description]
    * @return             [description]
    */
-  private deliverRemoteTransaction(transaction: Transaction) {
+  private deliverRemoteTransaction(transaction: ReceiveTransaction) {
     // End our current transaction, if any.
     // Note this immediately updates our own VC entry and
     // Lamport timestamp.
@@ -316,8 +331,8 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // Deliver messages.
     for (const message of transaction.messages) {
       this.deliverMessage(
-        message.messagePath,
-        message.meta,
+        message,
+        { sender: transaction.crdtExtraMeta.sender, isLocalEcho: false },
         transaction.crdtExtraMeta
       );
     }

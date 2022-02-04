@@ -1,8 +1,33 @@
-// TODO
-// message CausalMessageBufferEntryMessage {
-//
-// }
-//
-// message CausalMessageBufferSave {
-//
-// }
+message BytesOrStringMessage {
+  oneof type {
+    bytes asBytes = 1;
+    string asString = 2;
+  }
+}
+
+message TransactionMessagePathSave {
+  repeated BytesOrStringMessage messagePath = 1;
+}
+
+message ReceiveTransactionSave {
+  required uint32 count = 1;
+  required string sender = 2;
+  required uint64 senderCounter = 3;
+  map<string, uint64> vectorClock = 4;
+  optional uint64 wallClockTime = 5;
+  optional uint64 lamportTimestamp = 6;
+  // Opt: compress this like in batches.
+  repeated string causallyMaximalVCKeys = 7;
+  // Opt: flatten.
+  // Opt: compress and streamline messagePath's like in
+  // BatchingLayer. Ideally we would just leave transactions
+  // in their original network form, but I'm not sure how to do that
+  // except by reordering the layers.
+  repeated TransactionMessagePathSave messages = 8;
+}
+
+message CausalMessageBufferSave {
+  repeated ReceiveTransactionSave buffer = 1;
+  required uint32 bufferCheckIndex = 2;
+  repeated string causallyMaximalVCKeys = 3;
+}

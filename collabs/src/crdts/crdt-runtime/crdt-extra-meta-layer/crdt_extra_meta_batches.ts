@@ -2,13 +2,13 @@ import {
   CRDTExtraMetaBatchMessage,
   ICRDTExtraMetaMessage,
 } from "../../../../generated/proto_compiled";
-import { Message, MessageMeta, Serializable } from "../../../core";
+import { Serializable } from "../../../core";
 import { int64AsNumber } from "../../../util";
 import {
   ReceiveCRDTExtraMeta,
   SendCRDTExtraMeta,
 } from "./crdt_extra_meta_implementations";
-import { Transaction } from "./transaction";
+import { ReceiveTransaction } from "./transaction";
 
 export class SendCRDTExtraMetaBatch implements Serializable {
   readonly metas: SendCRDTExtraMeta[] = [];
@@ -109,24 +109,22 @@ export class ReceiveCRDTExtraMetaBatch {
 
   private currentTransaction = 0;
   private nextMessage = 0;
-  private transactionMessages: { messagePath: Message[]; meta: MessageMeta }[] =
-    [];
+  private transactionMessages: (Uint8Array | string)[][] = [];
 
   /**
    * [received description]
    * @param messagePath [description]
-   * @param meta        [description]
    * @return Whether the current transaction is complete,
    * hence completeTransaction must be called next.
    */
-  received(messagePath: Message[], meta: MessageMeta): boolean {
-    this.transactionMessages[this.nextMessage] = { messagePath, meta };
+  received(messagePath: (Uint8Array | string)[]): boolean {
+    this.transactionMessages[this.nextMessage] = messagePath;
     this.nextMessage++;
     return this.nextMessage === this.metas[this.currentTransaction].count;
   }
 
-  completeTransaction(): Transaction {
-    const ret: Transaction = {
+  completeTransaction(): ReceiveTransaction {
+    const ret: ReceiveTransaction = {
       crdtExtraMeta: this.metas[this.currentTransaction],
       messages: this.transactionMessages,
     };

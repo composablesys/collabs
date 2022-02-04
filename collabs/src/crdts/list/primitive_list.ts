@@ -181,7 +181,9 @@ export class PrimitiveCListFromDenseLocalList<
 
   clear() {
     const message = PrimitiveCListMessage.create({ deleteRange: {} });
-    this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
+    this.sendCRDT(PrimitiveCListMessage.encode(message).finish(), {
+      automatic: true,
+    });
   }
 
   protected receiveCRDT(

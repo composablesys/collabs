@@ -1,7 +1,7 @@
 import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt_extra_meta";
 
 export class SendCRDTExtraMeta
-  implements CRDTExtraMeta, CRDTExtraMetaRequestee 
+  implements CRDTExtraMeta, CRDTExtraMetaRequestee
 {
   count = 0;
   /**
@@ -21,6 +21,10 @@ export class SendCRDTExtraMeta
   isAutomatic = false;
   private isFrozen = false;
 
+  /**
+   * @param causallyMaximalVCKeys Permitted to contain
+   * sender, but it will be deleted anyway.
+   */
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
@@ -38,6 +42,7 @@ export class SendCRDTExtraMeta
     /** Excludes sender. Must all be present in actualVectorClock. */
     readonly causallyMaximalVCKeys: Set<string>
   ) {
+    this.causallyMaximalVCKeys.delete(sender);
     for (const replicaID of causallyMaximalVCKeys) {
       this.vectorClockIfRequested.set(
         replicaID,
@@ -135,9 +140,9 @@ export class ReceiveCRDTExtraMeta implements CRDTExtraMeta {
     readonly sender: string,
     readonly senderCounter: number,
     /**
-     * sender's entry is ignored.
+     * Excludes sender.
      */
-    private readonly vectorClock: Map<string, number>,
+    readonly vectorClock: Map<string, number>,
     readonly wallClockTime: number | null,
     readonly lamportTimestamp: number | null,
     /**
