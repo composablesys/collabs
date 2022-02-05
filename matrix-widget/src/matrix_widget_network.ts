@@ -26,6 +26,11 @@ const MAX_MSG_SIZE = 32000;
  * carefully about whether 60 bits of entropy is correct.
  */
 const LONG_MSG_UID_LENGTH = 10;
+/**
+ * Delay between sending messages, in ms, to prevent
+ * Matrix from rate-limiting us.
+ */
+const MESSAGE_INTERVAL_MS = 500;
 
 interface NetworkEvent {
   msg: string;
@@ -39,7 +44,7 @@ export class MatrixWidgetNetwork {
   private readonly api: WidgetApi;
 
   private isReady = false;
-  private queued: NetworkEvent[] | undefined = [];
+  private queued: NetworkEvent[] = [];
 
   /**
    * [constructor description]
@@ -111,12 +116,7 @@ export class MatrixWidgetNetwork {
       // Allow sending messages
       this.isReady = true;
       // Send queued messages
-      if (this.queued !== undefined) {
-        this.queued.forEach((event) =>
-          this.api.sendRoomEvent(this.eventType, event)
-        );
-        this.queued = undefined;
-      }
+      this.startClearQueue();
     });
     this.api.start();
   }
@@ -166,7 +166,7 @@ export class MatrixWidgetNetwork {
       const uid = this.longMsgUid();
       const numPieces = Math.ceil(encoded.length / MAX_MSG_SIZE);
       for (let i = 0; i < encoded.length; i += MAX_MSG_SIZE) {
-        this.sendEvent({
+        this.queueEvent({
           msg: encoded.substring(i, i + MAX_MSG_SIZE),
           uid,
           numPieces,
@@ -174,18 +174,56 @@ export class MatrixWidgetNetwork {
         });
       }
     } else {
-      this.sendEvent({
+      this.queueEvent({
         msg: encoded,
       });
     }
   }
 
-  private sendEvent(event: NetworkEvent) {
+  private queueEvent(event: NetworkEvent) {
+    // Queue the message for later
+    this.queued.push(event);
     if (this.isReady) {
-      this.api.sendRoomEvent(this.eventType, event);
+      this.startClearQueue();
+    }
+  }
+
+  private currentInterval: number | null = null;
+  private startClearQueue() {
+    if (this.currentInterval !== null) {
+      // setInterval already running.
+      return;
+    }
+    if (this.sendEventFromQueue()) {
+      // There wasn't actually a message to send.
+      return;
+    }
+    // Otherwise, the above call to this.sendEventFromQueue()
+    // sent the first message in the queue; now
+    // we need to wait at least MESSAGE_INTERVAL_MS ms before sending
+    // the next one (even if there is no message
+    // currently in the queue).
+    this.currentInterval = window.setInterval(() => {
+      if (this.sendEventFromQueue()) {
+        // Queue is empty and MESSAGE_INTERVAL_MS ms has passed;
+        // unset the interval.
+        clearInterval(this.currentInterval!);
+        this.currentInterval = null;
+      }
+    }, MESSAGE_INTERVAL_MS);
+  }
+
+  /**
+   * @return Whether the queue was empty to start with.
+   */
+  private sendEventFromQueue(): boolean {
+    if (this.queued.length > 0) {
+      this.api.sendRoomEvent(this.eventType, this.queued[0]);
+      // Opt: actual queue instead of splicing
+      this.queued.splice(0, 1);
+      return false;
     } else {
-      // Queue the message for later
-      this.queued!.push(event);
+      return true;
     }
   }
 
