@@ -24,6 +24,9 @@ export class TrueWinsCBoolean
     // change the state (add another entry), but not for
     // false, because in that case setting to false
     // does nothing.
+    // Automatic mode suffices to send all of the needed
+    // vector clock entries (those corresponding to current
+    // values in this.entries).
     if (value) this.sendCRDT(new Uint8Array(), { automatic: true });
     else if (this.value) this.sendCRDT(new Uint8Array(1), { automatic: true });
   }

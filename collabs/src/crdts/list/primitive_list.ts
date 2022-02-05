@@ -173,6 +173,9 @@ export class PrimitiveCListFromDenseLocalList<
       const message = PrimitiveCListMessage.create({
         deleteRange: imessage,
       });
+      // Automatic mode suffices to send all of the needed
+      // vector clock entries (those corresponding to
+      // values being deleted).
       this.sendCRDT(PrimitiveCListMessage.encode(message).finish(), {
         automatic: true,
       });
@@ -181,6 +184,9 @@ export class PrimitiveCListFromDenseLocalList<
 
   clear() {
     const message = PrimitiveCListMessage.create({ deleteRange: {} });
+    // Automatic mode suffices to send all of the needed
+    // vector clock entries (those corresponding to
+    // values being deleted).
     this.sendCRDT(PrimitiveCListMessage.encode(message).finish(), {
       automatic: true,
     });

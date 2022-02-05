@@ -12,7 +12,7 @@ import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import { SendCRDTMetaBatch, ReceiveCRDTMetaBatch } from "./crdt_meta_batches";
 import { ReceiveCRDTMeta, SendCRDTMeta } from "./crdt_meta_implementations";
-import { ReceiveTransaction } from "./transaction";
+import { ReceiveTransaction } from "./receive_transaction";
 
 /**
  * Collab that provides [[CRDTMeta]] to its
@@ -21,6 +21,26 @@ import { ReceiveTransaction } from "./transaction";
  * The added [[CRDTMeta]] is stored in [[MessageMeta]]'s
  * index signature
  * keyed by [[CRDTMeta.MESSAGE_META_KEY]].
+ *
+ * All messages in the same transaction are assigned
+ * the same [[CRDTMeta]], where transactions are delimited
+ * (ended) by either:
+ * - Serializing the most recent [[SerializableMessage]]
+ * sent by this class.
+ * E.g., when using this class inside [[BatchingLayer]]
+ * like in [[CRDTRuntime]], this occurs when
+ * [[BatchingLayer.commitBatch]] is called. (Note that the same [[SerializableMessage]]
+ * is reused until it is serialized.
+ * E.g., when using this class inside [[BatchingLayer]]
+ * like in [[CRDTRuntime]], this occurs when
+ * [[BatchingLayer.commitBatch]] is called.)
+ * - Receiving a message from another replica.
+ *
+ * When the `causalityGuaranteed` constructor option
+ * is false (the default), it is assumed that no ancestor [[Collab]]s
+ * provide extra metadata fields. These fields will be
+ * forgotten during saving, if there are queued
+ * not-yet-causally-ready messages.
  */
 export class CRDTMetaLayer extends Collab implements ICollabParent {
   private child!: Collab;
@@ -49,6 +69,20 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
    */
   private readonly messageBuffer: CausalMessageBuffer | null;
 
+  /**
+   * `causalityGuaranteed` option: Optimization flag.
+   * If you can guarantee that messages will always be
+   * delivered in causal order (i.e., after all of their
+   * causal predecessors), then you may set this to true.
+   * Then this class will not bother attaching the
+   * vector clock entries needed to ensure causal order
+   * delivery.
+   * - Important: if any replica (not necessarily
+   * the local one), on any network, is not guaranteed
+   * causality, then this flag must be false.
+   * - When true, redundant re-deliveries are still okay -
+   * they will be filtered out as usual.
+   */
   constructor(
     initToken: InitToken,
     options?: { causalityGuaranteed?: boolean }

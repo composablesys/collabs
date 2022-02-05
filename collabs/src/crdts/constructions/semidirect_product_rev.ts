@@ -330,6 +330,9 @@ export type SemidirectMessage<m1ArgsT, m2ArgsT> =
   | m1Start<m1ArgsT>
   | m2Start<m2ArgsT>;
 
+/**
+ * # Experimental
+ */
 export abstract class SemidirectProductRev<
   Events extends CollabEventsRecord = CollabEventsRecord,
   C extends Collab = Collab,

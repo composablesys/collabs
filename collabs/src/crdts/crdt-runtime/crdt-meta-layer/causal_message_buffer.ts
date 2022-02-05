@@ -5,7 +5,7 @@ import {
 } from "../../../../generated/proto_compiled";
 import { int64AsNumber } from "../../../util";
 import { ReceiveCRDTMeta } from "./crdt_meta_implementations";
-import { ReceiveTransaction } from "./transaction";
+import { ReceiveTransaction } from "./receive_transaction";
 
 /**
  * Debug flag, enables console.log's when causality checks

@@ -1,32 +1,53 @@
+/**
+ * A message that is not serialized for sending over
+ * the network until needed.
+ *
+ * This is useful as an optimization for messages carrying whole-transaction
+ * or whole-batch metadata that might change while the
+ * transaction/batch is being assembled: instead of
+ * serializing a separate message for each version, you can
+ * wait until the last minute to serialize the final
+ * version.
+ *
+ * For local echos on the replica sending the message,
+ * this will be delivered as-is. However, for deliveries
+ * that are not local echos (in particular, deliveries
+ * to remote replicas), the output of [[serialize]] will
+ * be delivered instead.
+ */
 export interface SerializableMessage {
-  // TODO: allow calling multiple times, possibly in different
-  // states? (Shouldn't happen, but easy enough to allow?)
-  // Also: allow current CRDTMetaLayer behavior, where
-  // calling this changes the state, since it makes assumptions
-  // about batching? (What exact guarantees do we need for
-  // that to make sense?)
+  /**
+   * Serializes this message for sending over the
+   * network.
+   *
+   * This method must only be called once; after it
+   * is called, only the serialized form may be used.
+   * In particular, this should be called after all local
+   * echos involving this message have completed, just before
+   * sending it over the network.
+   */
   serialize(): Uint8Array | string;
 }
 
-// TODO: on local echo, you get back exactly what you sent
-// (same object) - in particular, can safely cast it to
-// the type of thing you sent. Otherwise, you get the serialized form.
-// (This is a promise for consumers, and a responsibility
-// for parents: if you're locally echoing, or if you do
-// inner serialization that you might deserialize during
-// a local echo, then you must preserve objects.)
-// (Put these restrictions childSend, and promises on Collab.receive.)
-// Careful when using this: it's an easy way to violate EC,
-// since the local user is seeing something different than
-// everyone else.
-// TODO: to meet this restrictions, runLocally needs to set
-// isLocalEcho = true on echoed messages (as we already suspected
-// for other reasons).
-// TODO: check that we never do inner serialization when
-// we don't locally echo.
-
+/**
+ * Type for messages sent and received by [[Collab]]s.
+ *
+ * Messages will always be sent on the network in the
+ * form `Uint8Array | string`. However, as a convenience,
+ * messages being sent (and their local echos) may instead
+ * have type [[SerializableMessage]].
+ */
 export type Message = Uint8Array | string | SerializableMessage;
 
+/**
+ * Convenience function that calls [[Serializable.serialize]]
+ * if needed, otherwise returning `message` directly.
+ *
+ * This function must only be called once on
+ * `message`, after which only the return value may
+ * be used. This is because [[Serialize.serialize]]
+ * must only be called once.
+ */
 export function serializeMessage(message: Message): Uint8Array | string {
   if (typeof message === "string" || message instanceof Uint8Array)
     return message;

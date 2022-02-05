@@ -5,7 +5,7 @@ import {
 import { SerializableMessage } from "../../../core";
 import { int64AsNumber } from "../../../util";
 import { ReceiveCRDTMeta, SendCRDTMeta } from "./crdt_meta_implementations";
-import { ReceiveTransaction } from "./transaction";
+import { ReceiveTransaction } from "./receive_transaction";
 
 export class SendCRDTMetaBatch implements SerializableMessage {
   readonly metas: SendCRDTMeta[] = [];

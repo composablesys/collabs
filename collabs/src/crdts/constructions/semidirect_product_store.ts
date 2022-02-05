@@ -21,6 +21,8 @@ class StoredMessage<M2> {
 // refactor the semidirect product API.
 
 /**
+ * # Experimental
+ *
  * A bare-bones semidirect product implementation that stores
  * and acts on custom messages provided by the user, without
  * performing any operations directly.
@@ -51,6 +53,12 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
+ *
+ * TODO: will probably need to requestAll `CRDTMeta`
+ * (via [[CRDTMetaRequestee.requestAll]], or perhaps
+ * make it easy to do this with [[CMessenger]]) when
+ * sending a message that might result in storing something
+ * here, since we need the full vector clock.
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private receiptCounter = 0;

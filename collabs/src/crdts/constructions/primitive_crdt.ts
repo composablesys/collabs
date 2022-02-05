@@ -27,6 +27,32 @@ import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 export abstract class PrimitiveCRDT<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends CPrimitive<Events> {
+  /**
+   * Send `message` to all replicas' [[receiveCRDT]] methods.
+   *
+   * [[CRDTMeta]] fields used by [[receiveCRDT]] must be requested in
+   * `requests` (except for [[CRDTMeta.sender]] and [[CRDTMeta.senderCounter]],
+   * which are always included). Possible requests are:
+   * - `vectorClockEntries`: Include the vector clock entries with the
+   * specified keys (`replicaID`'s). Non-requested entries may return 0
+   * instead of their correct value (as if no messages had been received from
+   * that replica).
+   * - `wallClockTime`: If true, include non-null [[CRDTMeta.wallClockTime]].
+   * - `lamportTimestamp`: If true, nclude non-null [[CRDTMeta.lamportTimestamp]].
+   * - `all`: If true, include all metadata, including all vector clock entries.
+   * Use this with caution, since the number of vector clock entries may be
+   * very large.
+   * - `automatic`: If true, include any metadata that are accessed during
+   * the sender's own [[receiveCRDT]] call, i.e., during the local echo.
+   * This is sufficient for most use cases, but you
+   * should think carefully through the steps that
+   * remote recipients would take, and ensure that they
+   * only need to access the same metadata as the sender.
+   * In particular, ensure that it is okay for
+   * remote replicas to see incorrect 0 entries in
+   * the vector clock, so long as that only happens with
+   * entries not accessed by the sender.
+   */
   protected sendCRDT(
     message: Message,
     requests?: {
@@ -62,6 +88,9 @@ export abstract class PrimitiveCRDT<
     super.sendPrimitive(message);
   }
 
+  /**
+   * Do not override; override [[receiveCRDT]] instead.
+   */
   protected receivePrimitive(
     message: string | Uint8Array,
     meta: MessageMeta
@@ -69,6 +98,14 @@ export abstract class PrimitiveCRDT<
     this.receiveCRDT(message, meta, <CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY]);
   }
 
+  /**
+   * Override to receive messages sent with [[sendCRDT]].
+   *
+   * This abstract method is like [[CPrimitive.receivePrimitive]] or
+   * [[Collab.receiveInternal]], except it also provides `crdtMeta`.
+   * That contains metadata useful for implementing op-based CRDTs,
+   * e.g., a vector clock.
+   */
   protected abstract receiveCRDT(
     message: string | Uint8Array,
     meta: MessageMeta,

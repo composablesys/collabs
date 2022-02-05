@@ -71,6 +71,9 @@ export abstract class AggregateArgsCRegister<
     const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
     // Opt: only request wallClockTime if actually used by
     // aggregate().
+    // Automatic mode suffices to send all of the needed
+    // vector clock entries (those corresponding to current
+    // values in this.entries).
     this.sendCRDT(buffer, { automatic: true });
     return this.value;
   }
@@ -82,6 +85,9 @@ export abstract class AggregateArgsCRegister<
         reset: true,
       }); // no value
       const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
+      // Automatic mode suffices to send all of the needed
+      // vector clock entries (those corresponding to current
+      // values in this.entries).
       this.sendCRDT(buffer, { automatic: true });
     }
   }

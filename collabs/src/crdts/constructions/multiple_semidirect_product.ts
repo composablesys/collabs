@@ -295,6 +295,9 @@ class MultipleSemidirectState<S extends object> {
   }
 }
 
+/**
+ * # Experimental
+ */
 export abstract class MultipleSemidirectProduct<
     S extends object,
     Events extends CollabEventsRecord = CollabEventsRecord
