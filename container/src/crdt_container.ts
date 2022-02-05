@@ -31,7 +31,7 @@ interface CRDTContainerEventsRecord {
 }
 
 // Opt: is replicaID needed?
-// Opt: skip expensive CRDTExtraMetadata where possible
+// Opt: skip expensive CRDTMetadata where possible
 // (e.g. causal ordering is guaranteed for us).
 
 /**

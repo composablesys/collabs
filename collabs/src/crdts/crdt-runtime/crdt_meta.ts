@@ -2,9 +2,9 @@
  * Extra field on [[MessageMeta]] that gives metadata
  * relevant to CRDTs.
  *
- * Keyed by [[CRDTExtraMeta.MESSAGE_META_KEY]].
+ * Keyed by [[CRDTMeta.MESSAGE_META_KEY]].
  */
-export interface CRDTExtraMeta {
+export interface CRDTMeta {
   readonly sender: string;
   readonly senderCounter: number;
   /**
@@ -19,7 +19,7 @@ export interface CRDTExtraMeta {
   readonly lamportTimestamp: number | null;
 }
 
-export const CRDTExtraMeta = {
+export const CRDTMeta = {
   MESSAGE_META_KEY: Symbol(),
 } as const;
 
@@ -27,9 +27,9 @@ export const CRDTExtraMeta = {
  * TODO
  *
  * Access via [[Collab.getContext]] key
- * [[CRDTExtraMetaRequestee.CONTEXT_KEY]].
+ * [[CRDTMetaRequestee.CONTEXT_KEY]].
  */
-export interface CRDTExtraMetaRequestee {
+export interface CRDTMetaRequestee {
   requestWallClockTime(): void;
   requestLamportTimestamp(): void;
   requestVectorClockEntry(replicaID: string): void;
@@ -37,11 +37,11 @@ export interface CRDTExtraMetaRequestee {
   requestAutomatic(): void;
 }
 
-export const CRDTExtraMetaRequestee = {
+export const CRDTMetaRequestee = {
   /**
    * [[Collab.getContext]] key that returns the
-   * [[CRDTExtraMetaRequestee]]. Use this to request fields
-   * on the next message's [[CRDTExtraMeta]].
+   * [[CRDTMetaRequestee]]. Use this to request fields
+   * on the next message's [[CRDTMeta]].
    */
   CONTEXT_KEY: Symbol(),
 } as const;

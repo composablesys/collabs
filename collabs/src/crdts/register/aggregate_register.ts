@@ -11,7 +11,7 @@ import {
   SingletonSerializer,
 } from "../../util";
 import { PrimitiveCRDT } from "../constructions";
-import { CRDTExtraMeta } from "../crdt-runtime";
+import { CRDTMeta } from "../crdt-runtime";
 
 export interface CRegisterEntryMeta<S> {
   readonly value: S;
@@ -89,12 +89,12 @@ export abstract class AggregateArgsCRegister<
   protected receiveCRDT(
     message: string | Uint8Array,
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMeta
+    crdtMeta: CRDTMeta
   ): void {
     const decoded = AggregateArgsCRegisterMessage.decode(<Uint8Array>message);
     const newState = new Array<AggregateArgsCRegisterEntry<S>>();
     for (const entry of this.entries) {
-      if (crdtExtraMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
+      if (crdtMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
         newState.push(entry);
       }
     }
@@ -103,9 +103,9 @@ export abstract class AggregateArgsCRegister<
         // Add the new entry
         const entry = new AggregateArgsCRegisterEntry(
           this.constructValue(decoded.setArgs),
-          crdtExtraMeta.sender,
-          crdtExtraMeta.senderCounter,
-          crdtExtraMeta.wallClockTime!,
+          crdtMeta.sender,
+          crdtMeta.senderCounter,
+          crdtMeta.wallClockTime!,
           decoded.setArgs
         );
         newState.push(entry);

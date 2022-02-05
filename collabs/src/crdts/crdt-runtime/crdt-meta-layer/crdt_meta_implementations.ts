@@ -1,8 +1,6 @@
-import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt_extra_meta";
+import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
 
-export class SendCRDTExtraMeta
-  implements CRDTExtraMeta, CRDTExtraMetaRequestee
-{
+export class SendCRDTMeta implements CRDTMeta, CRDTMetaRequestee {
   count = 0;
   /**
    * The requested vector clock entries so far, excluding sender.
@@ -15,7 +13,7 @@ export class SendCRDTExtraMeta
 
   /**
    * Note this may be toggled back and forth by
-   * [[CRDTExtraMetaLayer]], in addition to
+   * [[CRDTMetaLayer]], in addition to
    * [[requestAutomatic]].
    */
   isAutomatic = false;
@@ -31,10 +29,10 @@ export class SendCRDTExtraMeta
     /**
      * Sender's entry is not used, so it's okay that it
      * is inaccurate (will be 1 too small, since this
-     * will just be CRDTExtraMetaLayer.currentVectorClock).
+     * will just be CRDTMetaLayer.currentVectorClock).
      * Also, this will no longer be consulted after freeze(), so
      * it's okay to mutate it as long as you do so after freeze()
-     * (currently called in CRDTExtraMetaLayer.endTransaction).
+     * (currently called in CRDTMetaLayer.endTransaction).
      */
     private readonly actualVectorClock: Map<string, number>,
     private readonly actualWallClockTime: number,
@@ -134,7 +132,7 @@ export class SendCRDTExtraMeta
   }
 }
 
-export class ReceiveCRDTExtraMeta implements CRDTExtraMeta {
+export class ReceiveCRDTMeta implements CRDTMeta {
   constructor(
     readonly count: number,
     readonly sender: string,
@@ -146,7 +144,7 @@ export class ReceiveCRDTExtraMeta implements CRDTExtraMeta {
     readonly wallClockTime: number | null,
     readonly lamportTimestamp: number | null,
     /**
-     * Excludes sender. Empty if CRDTExtraMetaLayer's
+     * Excludes sender. Empty if CRDTMetaLayer's
      * causalityGuaranteed flag is true.
      */
     readonly causallyMaximalVCKeys: string[]

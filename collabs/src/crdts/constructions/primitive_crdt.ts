@@ -1,6 +1,6 @@
 import { CPrimitive } from "../../constructions";
 import { CollabEventsRecord, MessageMeta, Message } from "../../core";
-import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt-runtime";
+import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 
 /**
  * Superclass for a primitive (message-passing)
@@ -20,7 +20,7 @@ import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt-runtime";
  *
  * To function, a [[PrimitiveCRDT]] must have an ancestor
  * that supplies the extra [[MessageMeta]] key
- * [[CRDTExtraMeta.MESSAGE_META_KEY]] (typically [[CRDTExtraMetaLayer]]). Also, its ancestors
+ * [[CRDTMeta.MESSAGE_META_KEY]] (typically [[CRDTMetaLayer]]). Also, its ancestors
  * must deliver messages exactly once, in causal order,
  * with sent messages delivered to the local replica immediately.
  */
@@ -38,25 +38,25 @@ export abstract class PrimitiveCRDT<
     }
   ): void {
     if (requests !== undefined) {
-      const crdtExtraMetaRequestee = <CRDTExtraMetaRequestee>(
-        this.getContext(CRDTExtraMetaRequestee.CONTEXT_KEY)
+      const crdtMetaRequestee = <CRDTMetaRequestee>(
+        this.getContext(CRDTMetaRequestee.CONTEXT_KEY)
       );
       if (requests.automatic === true) {
-        crdtExtraMetaRequestee.requestAutomatic();
+        crdtMetaRequestee.requestAutomatic();
       }
       if (requests.vectorClockEntries !== undefined) {
         for (const replicaID of requests.vectorClockEntries) {
-          crdtExtraMetaRequestee.requestVectorClockEntry(replicaID);
+          crdtMetaRequestee.requestVectorClockEntry(replicaID);
         }
       }
       if (requests.wallClockTime === true) {
-        crdtExtraMetaRequestee.requestWallClockTime();
+        crdtMetaRequestee.requestWallClockTime();
       }
       if (requests.lamportTimestamp === true) {
-        crdtExtraMetaRequestee.requestLamportTimestamp();
+        crdtMetaRequestee.requestLamportTimestamp();
       }
       if (requests.all === true) {
-        crdtExtraMetaRequestee.requestAll();
+        crdtMetaRequestee.requestAll();
       }
     }
     super.sendPrimitive(message);
@@ -66,16 +66,12 @@ export abstract class PrimitiveCRDT<
     message: string | Uint8Array,
     meta: MessageMeta
   ): void {
-    this.receiveCRDT(
-      message,
-      meta,
-      <CRDTExtraMeta>meta[CRDTExtraMeta.MESSAGE_META_KEY]
-    );
+    this.receiveCRDT(message, meta, <CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY]);
   }
 
   protected abstract receiveCRDT(
     message: string | Uint8Array,
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMeta
+    crdtMeta: CRDTMeta
   ): void;
 }

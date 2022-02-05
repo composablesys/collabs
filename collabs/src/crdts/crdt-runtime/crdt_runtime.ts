@@ -16,7 +16,7 @@ import {
   Message,
 } from "../../core";
 import { Optional } from "../../util";
-import { CRDTExtraMetaLayer } from "./crdt-extra-meta-layer";
+import { CRDTMetaLayer } from "./crdt-meta-layer";
 
 export interface SendEvent {
   message: Uint8Array;
@@ -50,7 +50,7 @@ export class CRDTRuntime
   implements Runtime
 {
   private readonly batchingLayer: BatchingLayer;
-  private readonly crdtMetaLayer: CRDTExtraMetaLayer;
+  private readonly crdtMetaLayer: CRDTMetaLayer;
   private readonly registry: PublicCObject;
   private _isLoaded = false;
 
@@ -69,7 +69,7 @@ export class CRDTRuntime
       Pre(BatchingLayer)(batchingStrategy)
     );
     this.crdtMetaLayer = this.batchingLayer.setChild(
-      Pre(CRDTExtraMetaLayer)({
+      Pre(CRDTMetaLayer)({
         causalityGuaranteed: options?.causalityGuaranteed,
       })
     );

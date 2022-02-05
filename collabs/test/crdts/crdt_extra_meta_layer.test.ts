@@ -8,7 +8,7 @@ import {
   ManualBatchingStrategy,
   pseudoRandomReplicaId,
   PrimitiveCRDT,
-  CRDTExtraMeta,
+  CRDTMeta,
   MessageMeta,
   CollabEvent,
   CollabEventsRecord,
@@ -16,7 +16,7 @@ import {
 
 interface MetaEvent extends CollabEvent {
   message: string;
-  crdtExtraMeta: CRDTExtraMeta;
+  crdtMeta: CRDTMeta;
 }
 
 interface MetaEventsRecord extends CollabEventsRecord {
@@ -40,9 +40,9 @@ class MetaInspector extends PrimitiveCRDT<MetaEventsRecord> {
   protected receiveCRDT(
     message: string | Uint8Array,
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMeta
+    crdtMeta: CRDTMeta
   ): void {
-    this.emit("Meta", { meta, message: <string>message, crdtExtraMeta });
+    this.emit("Meta", { meta, message: <string>message, crdtMeta });
   }
 
   save(): Uint8Array {
@@ -65,17 +65,17 @@ function assertMetaEvent(
 ) {
   assert.isNotNull(e);
   assert.strictEqual(e!.message, message);
-  const crdtExtraMeta = e!.crdtExtraMeta;
-  assert.strictEqual(crdtExtraMeta.sender, sender);
-  assert.strictEqual(crdtExtraMeta.senderCounter, senderCounter);
-  assert.strictEqual(crdtExtraMeta.wallClockTime, wallClockTime);
-  assert.strictEqual(crdtExtraMeta.lamportTimestamp, lamportTimestamp);
+  const crdtMeta = e!.crdtMeta;
+  assert.strictEqual(crdtMeta.sender, sender);
+  assert.strictEqual(crdtMeta.senderCounter, senderCounter);
+  assert.strictEqual(crdtMeta.wallClockTime, wallClockTime);
+  assert.strictEqual(crdtMeta.lamportTimestamp, lamportTimestamp);
   for (const [replicaID, entry] of vc) {
-    assert.strictEqual(crdtExtraMeta.vectorClockGet(replicaID), entry);
+    assert.strictEqual(crdtMeta.vectorClockGet(replicaID), entry);
   }
 }
 
-describe("CRDTExtraMetaLayer", () => {
+describe("CRDTMetaLayer", () => {
   for (const causalityGuaranteed of [true, false]) {
     describe(`causalityGuaranteed: ${causalityGuaranteed}`, () => {
       let alice: CRDTApp;
@@ -163,7 +163,7 @@ describe("CRDTExtraMetaLayer", () => {
           assert.strictEqual(bobRegister.value, aliceRegister.value);
         });
 
-        describe("CRDTExtraMeta", () => {
+        describe("CRDTMeta", () => {
           let aliceInspector: MetaInspector;
           let bobInspector: MetaInspector;
           let aliceEvent: MetaEvent | null = null;
@@ -240,13 +240,13 @@ describe("CRDTExtraMetaLayer", () => {
           it("requests wallClockTime", () => {
             // Own receipts.
             aliceInspector.sendCRDT("1", { wallClockTime: true });
-            assert.isNotNull(aliceEvent!.crdtExtraMeta.wallClockTime);
+            assert.isNotNull(aliceEvent!.crdtMeta.wallClockTime);
             assertMetaEvent(
               aliceEvent,
               "1",
               aliceID,
               1,
-              aliceEvent!.crdtExtraMeta.wallClockTime,
+              aliceEvent!.crdtMeta.wallClockTime,
               null,
               [
                 [aliceID, 1],
@@ -265,7 +265,7 @@ describe("CRDTExtraMetaLayer", () => {
               "1",
               aliceID,
               1,
-              aliceEvent!.crdtExtraMeta.wallClockTime,
+              aliceEvent!.crdtMeta.wallClockTime,
               null,
               [
                 [aliceID, 1],
@@ -339,13 +339,13 @@ describe("CRDTExtraMetaLayer", () => {
 
             // Own receipts.
             bobInspector.sendCRDT("2", { all: true });
-            assert.isNotNull(bobEvent!.crdtExtraMeta.wallClockTime);
+            assert.isNotNull(bobEvent!.crdtMeta.wallClockTime);
             assertMetaEvent(
               bobEvent,
               "2",
               bobID,
               1,
-              bobEvent!.crdtExtraMeta.wallClockTime,
+              bobEvent!.crdtMeta.wallClockTime,
               1,
               [
                 [aliceID, 1],
@@ -364,7 +364,7 @@ describe("CRDTExtraMetaLayer", () => {
               "2",
               bobID,
               1,
-              bobEvent!.crdtExtraMeta.wallClockTime,
+              bobEvent!.crdtMeta.wallClockTime,
               1,
               [
                 [aliceID, 1],
@@ -395,21 +395,21 @@ describe("CRDTExtraMetaLayer", () => {
             // Request all, but automatically.
             // Own receipts.
             const off = bobInspector.on("Meta", (e) => {
-              assert.isNotNull(e.crdtExtraMeta.wallClockTime);
-              assert.isNotNull(e.crdtExtraMeta.lamportTimestamp);
-              assert.strictEqual(e.crdtExtraMeta.vectorClockGet(aliceID), 1);
+              assert.isNotNull(e.crdtMeta.wallClockTime);
+              assert.isNotNull(e.crdtMeta.lamportTimestamp);
+              assert.strictEqual(e.crdtMeta.vectorClockGet(aliceID), 1);
               // Requesting random extra VC entry is safe.
-              assert.strictEqual(e.crdtExtraMeta.vectorClockGet("fakeID"), 0);
+              assert.strictEqual(e.crdtMeta.vectorClockGet("fakeID"), 0);
             });
             bobInspector.sendCRDT("2", { automatic: true });
             off();
-            assert.isNotNull(bobEvent!.crdtExtraMeta.wallClockTime);
+            assert.isNotNull(bobEvent!.crdtMeta.wallClockTime);
             assertMetaEvent(
               bobEvent,
               "2",
               bobID,
               1,
-              bobEvent!.crdtExtraMeta.wallClockTime,
+              bobEvent!.crdtMeta.wallClockTime,
               1,
               [
                 [aliceID, 1],
@@ -429,7 +429,7 @@ describe("CRDTExtraMetaLayer", () => {
               "2",
               bobID,
               1,
-              bobEvent!.crdtExtraMeta.wallClockTime,
+              bobEvent!.crdtMeta.wallClockTime,
               1,
               [
                 [aliceID, 1],
@@ -477,18 +477,18 @@ describe("CRDTExtraMetaLayer", () => {
           load();
         });
 
-        it("reuses CRDTExtraMeta", () => {
+        it("reuses CRDTMeta", () => {
           aliceInspector.sendCRDT("1");
           assert.isNotNull(aliceEvent);
           assert.strictEqual(aliceEvent!.message, "1");
-          const aliceMeta1 = aliceEvent!.crdtExtraMeta;
+          const aliceMeta1 = aliceEvent!.crdtMeta;
           aliceEvent = null;
 
           for (let i = 2; i < 10; i++) {
             aliceInspector.sendCRDT(i + "");
             assert.isNotNull(aliceEvent);
             assert.strictEqual(aliceEvent!.message, i + "");
-            assert.strictEqual(aliceEvent!.crdtExtraMeta, aliceMeta1);
+            assert.strictEqual(aliceEvent!.crdtMeta, aliceMeta1);
             // Recall that senderCounter doesn't change (stays 1).
             assertMetaEvent(aliceEvent!, i + "", aliceID, 1, null, null, [
               [aliceID, 1],
@@ -499,16 +499,16 @@ describe("CRDTExtraMetaLayer", () => {
 
           // Send to bob.
           // Make sure he receives all messages (1 through 9),
-          // and they all have === CRDTExtraMeta.
+          // and they all have === CRDTMeta.
           alice.commitBatch();
           let j = 1;
-          let bobMeta1: CRDTExtraMeta;
+          let bobMeta1: CRDTMeta;
           bobInspector.on("Meta", (e) => {
             assert.strictEqual(e.message, j + "");
             if (j === 1) {
-              bobMeta1 = e.crdtExtraMeta;
+              bobMeta1 = e.crdtMeta;
             } else {
-              assert.strictEqual(e.crdtExtraMeta, bobMeta1);
+              assert.strictEqual(e.crdtMeta, bobMeta1);
             }
             assertMetaEvent(bobEvent!, j + "", aliceID, 1, null, null, [
               [aliceID, 1],
@@ -520,21 +520,21 @@ describe("CRDTExtraMetaLayer", () => {
           assert.strictEqual(j, 10);
         });
 
-        it("changes CRDTExtraMeta across batches", () => {
+        it("changes CRDTMeta across batches", () => {
           // First batch (pre).
           for (let i = 0; i < 10; i++) {
             aliceInspector.sendCRDT("pre" + i);
           }
-          const aliceMetaPre = aliceEvent!.crdtExtraMeta;
+          const aliceMetaPre = aliceEvent!.crdtMeta;
           alice.commitBatch();
           bob.receive(aliceMessage!);
-          const bobMetaPre = bobEvent!.crdtExtraMeta;
+          const bobMetaPre = bobEvent!.crdtMeta;
 
           // Second batch.
           aliceInspector.sendCRDT("1");
           assert.isNotNull(aliceEvent);
           assert.strictEqual(aliceEvent!.message, "1");
-          const aliceMeta1 = aliceEvent!.crdtExtraMeta;
+          const aliceMeta1 = aliceEvent!.crdtMeta;
           assert.notStrictEqual(aliceMeta1, aliceMetaPre);
           aliceEvent = null;
 
@@ -542,7 +542,7 @@ describe("CRDTExtraMetaLayer", () => {
             aliceInspector.sendCRDT(i + "");
             assert.isNotNull(aliceEvent);
             assert.strictEqual(aliceEvent!.message, i + "");
-            assert.strictEqual(aliceEvent!.crdtExtraMeta, aliceMeta1);
+            assert.strictEqual(aliceEvent!.crdtMeta, aliceMeta1);
             // Recall that senderCounter doesn't change (stays 1).
             assertMetaEvent(aliceEvent!, i + "", aliceID, 2, null, null, [
               [aliceID, 2],
@@ -553,17 +553,17 @@ describe("CRDTExtraMetaLayer", () => {
 
           // Send to bob.
           // Make sure he receives all messages (1 through 9),
-          // and they all have === CRDTExtraMeta.
+          // and they all have === CRDTMeta.
           alice.commitBatch();
           let j = 1;
-          let bobMeta1: CRDTExtraMeta;
+          let bobMeta1: CRDTMeta;
           bobInspector.on("Meta", (e) => {
             assert.strictEqual(e.message, j + "");
             if (j === 1) {
-              bobMeta1 = e.crdtExtraMeta;
+              bobMeta1 = e.crdtMeta;
               assert.notStrictEqual(bobMeta1, bobMetaPre);
             } else {
-              assert.strictEqual(e.crdtExtraMeta, bobMeta1);
+              assert.strictEqual(e.crdtMeta, bobMeta1);
             }
             assertMetaEvent(bobEvent!, j + "", aliceID, 2, null, null, [
               [aliceID, 2],
@@ -583,13 +583,13 @@ describe("CRDTExtraMetaLayer", () => {
           // First message in transaction requests
           // wallClockTime only.
           aliceInspector.sendCRDT("1", { wallClockTime: true });
-          assert.isNotNull(aliceEvent!.crdtExtraMeta.wallClockTime);
+          assert.isNotNull(aliceEvent!.crdtMeta.wallClockTime);
           assertMetaEvent(
             aliceEvent,
             "1",
             aliceID,
             1,
-            aliceEvent!.crdtExtraMeta.wallClockTime,
+            aliceEvent!.crdtMeta.wallClockTime,
             null,
             [
               [aliceID, 1],
@@ -604,13 +604,13 @@ describe("CRDTExtraMetaLayer", () => {
             lamportTimestamp: true,
             vectorClockEntries: [bobID],
           });
-          assert.isNotNull(aliceEvent!.crdtExtraMeta.wallClockTime);
+          assert.isNotNull(aliceEvent!.crdtMeta.wallClockTime);
           assertMetaEvent(
             aliceEvent,
             "2",
             aliceID,
             1,
-            aliceEvent!.crdtExtraMeta.wallClockTime,
+            aliceEvent!.crdtMeta.wallClockTime,
             1,
             [
               [aliceID, 1],
@@ -629,7 +629,7 @@ describe("CRDTExtraMetaLayer", () => {
               j + "",
               aliceID,
               1,
-              aliceEvent!.crdtExtraMeta.wallClockTime,
+              aliceEvent!.crdtMeta.wallClockTime,
               1,
               [
                 [aliceID, 1],
@@ -651,19 +651,19 @@ describe("CRDTExtraMetaLayer", () => {
           // The first message automatically requests wallClockTime.
           {
             const off = aliceInspector.on("Meta", (e) => {
-              assert.isNotNull(e.crdtExtraMeta.wallClockTime);
-              assert.isNotNull(e.crdtExtraMeta.wallClockTime);
+              assert.isNotNull(e.crdtMeta.wallClockTime);
+              assert.isNotNull(e.crdtMeta.wallClockTime);
               off();
             });
           }
           aliceInspector.sendCRDT("1", { automatic: true });
-          assert.isNotNull(aliceEvent!.crdtExtraMeta.wallClockTime);
+          assert.isNotNull(aliceEvent!.crdtMeta.wallClockTime);
           assertMetaEvent(
             aliceEvent,
             "1",
             aliceID,
             1,
-            aliceEvent!.crdtExtraMeta.wallClockTime,
+            aliceEvent!.crdtMeta.wallClockTime,
             null,
             [
               [aliceID, 1],
@@ -675,19 +675,19 @@ describe("CRDTExtraMetaLayer", () => {
           // request it.
           {
             const off = aliceInspector.on("Meta", (e) => {
-              assert.isNull(e.crdtExtraMeta.lamportTimestamp);
-              assert.isNull(e.crdtExtraMeta.lamportTimestamp);
+              assert.isNull(e.crdtMeta.lamportTimestamp);
+              assert.isNull(e.crdtMeta.lamportTimestamp);
               off();
             });
           }
           aliceInspector.sendCRDT("2", {});
-          assert.isNull(aliceEvent!.crdtExtraMeta.lamportTimestamp);
+          assert.isNull(aliceEvent!.crdtMeta.lamportTimestamp);
           assertMetaEvent(
             aliceEvent,
             "2",
             aliceID,
             1,
-            aliceEvent!.crdtExtraMeta.wallClockTime,
+            aliceEvent!.crdtMeta.wallClockTime,
             null,
             [
               [aliceID, 1],
@@ -698,8 +698,8 @@ describe("CRDTExtraMetaLayer", () => {
           // It requests bob's VC entry.
           {
             const off = aliceInspector.on("Meta", (e) => {
-              assert.strictEqual(e.crdtExtraMeta.vectorClockGet(bobID), 1);
-              assert.strictEqual(e.crdtExtraMeta.vectorClockGet(bobID), 1);
+              assert.strictEqual(e.crdtMeta.vectorClockGet(bobID), 1);
+              assert.strictEqual(e.crdtMeta.vectorClockGet(bobID), 1);
               off();
             });
           }
@@ -709,7 +709,7 @@ describe("CRDTExtraMetaLayer", () => {
             "3",
             aliceID,
             1,
-            aliceEvent!.crdtExtraMeta.wallClockTime,
+            aliceEvent!.crdtMeta.wallClockTime,
             null,
             [
               [aliceID, 1],
@@ -726,7 +726,7 @@ describe("CRDTExtraMetaLayer", () => {
             "3",
             aliceID,
             1,
-            aliceEvent!.crdtExtraMeta.wallClockTime,
+            aliceEvent!.crdtMeta.wallClockTime,
             null,
             [
               [aliceID, 1],
@@ -739,13 +739,13 @@ describe("CRDTExtraMetaLayer", () => {
           // request it.
           {
             const off = aliceInspector.on("Meta", (e) => {
-              assert.isNull(e.crdtExtraMeta.lamportTimestamp);
-              assert.isNull(e.crdtExtraMeta.lamportTimestamp);
+              assert.isNull(e.crdtMeta.lamportTimestamp);
+              assert.isNull(e.crdtMeta.lamportTimestamp);
               off();
             });
           }
           aliceInspector.sendCRDT("4", {});
-          assert.isNull(aliceEvent!.crdtExtraMeta.lamportTimestamp);
+          assert.isNull(aliceEvent!.crdtMeta.lamportTimestamp);
           assertMetaEvent(aliceEvent, "4", aliceID, 2, null, null, [
             [aliceID, 2],
             [bobID, 0],
@@ -771,13 +771,13 @@ describe("CRDTExtraMetaLayer", () => {
             [aliceID, 1],
             [bobID, 0],
           ]);
-          const aliceMeta1 = aliceEvent!.crdtExtraMeta;
+          const aliceMeta1 = aliceEvent!.crdtMeta;
           aliceInspector.sendCRDT("2");
           assertMetaEvent(aliceEvent, "2", aliceID, 1, null, null, [
             [aliceID, 1],
             [bobID, 0],
           ]);
-          assert.strictEqual(aliceEvent!.crdtExtraMeta, aliceMeta1);
+          assert.strictEqual(aliceEvent!.crdtMeta, aliceMeta1);
 
           // Interrupt batch with received message.
           alice.receive(bobMessage!);
@@ -788,19 +788,19 @@ describe("CRDTExtraMetaLayer", () => {
             [aliceID, 2],
             [bobID, 1],
           ]);
-          const aliceMeta3 = aliceEvent!.crdtExtraMeta;
+          const aliceMeta3 = aliceEvent!.crdtMeta;
           aliceInspector.sendCRDT("4");
           assertMetaEvent(aliceEvent, "4", aliceID, 2, null, null, [
             [aliceID, 2],
             [bobID, 1],
           ]);
-          assert.strictEqual(aliceEvent!.crdtExtraMeta, aliceMeta3);
+          assert.strictEqual(aliceEvent!.crdtMeta, aliceMeta3);
 
           // Bob should see the same.
           alice.commitBatch();
           let j = 1;
-          let bobMeta1!: CRDTExtraMeta;
-          let bobMeta3!: CRDTExtraMeta;
+          let bobMeta1!: CRDTMeta;
+          let bobMeta3!: CRDTMeta;
           bobInspector.on("Meta", (e) => {
             switch (j) {
               case 1:
@@ -808,28 +808,28 @@ describe("CRDTExtraMetaLayer", () => {
                   [aliceID, 1],
                   [bobID, 0],
                 ]);
-                bobMeta1 = e.crdtExtraMeta;
+                bobMeta1 = e.crdtMeta;
                 break;
               case 2:
                 assertMetaEvent(e, "2", aliceID, 1, null, null, [
                   [aliceID, 1],
                   [bobID, 0],
                 ]);
-                assert.strictEqual(e.crdtExtraMeta, bobMeta1);
+                assert.strictEqual(e.crdtMeta, bobMeta1);
                 break;
               case 3:
                 assertMetaEvent(e, "3", aliceID, 2, null, null, [
                   [aliceID, 2],
                   [bobID, 1],
                 ]);
-                bobMeta3 = bobEvent!.crdtExtraMeta;
+                bobMeta3 = bobEvent!.crdtMeta;
                 break;
               case 4:
                 assertMetaEvent(e, "4", aliceID, 2, null, null, [
                   [aliceID, 2],
                   [bobID, 1],
                 ]);
-                assert.strictEqual(bobEvent!.crdtExtraMeta, bobMeta3);
+                assert.strictEqual(bobEvent!.crdtMeta, bobMeta3);
                 break;
               default:
                 assert.fail(j + "");
@@ -853,7 +853,7 @@ describe("CRDTExtraMetaLayer", () => {
               [aliceID, 1],
               [bobID, 0],
             ]);
-            const aliceMeta1 = aliceEvent!.crdtExtraMeta;
+            const aliceMeta1 = aliceEvent!.crdtMeta;
 
             // Receive out-of-order message.
             alice.receive(bobMessage!);
@@ -863,7 +863,7 @@ describe("CRDTExtraMetaLayer", () => {
               [aliceID, 1],
               [bobID, 0],
             ]);
-            assert.strictEqual(aliceEvent!.crdtExtraMeta, aliceMeta1);
+            assert.strictEqual(aliceEvent!.crdtMeta, aliceMeta1);
 
             // Now receive predecessor. This should
             // deliver both messages and start a new transaction.
@@ -878,7 +878,7 @@ describe("CRDTExtraMetaLayer", () => {
               [aliceID, 2],
               [bobID, 2],
             ]);
-            assert.notStrictEqual(aliceEvent!.crdtExtraMeta, aliceMeta1);
+            assert.notStrictEqual(aliceEvent!.crdtMeta, aliceMeta1);
           });
         }
       });
@@ -919,7 +919,7 @@ describe("CRDTExtraMetaLayer", () => {
           for (let i = 1; i <= 5; i++) {
             // Start a new transaction.
             alice.receive(bobMessages[i - 1]);
-            let aliceMeta!: CRDTExtraMeta;
+            let aliceMeta!: CRDTMeta;
             // 6 - i messages in this transaction.
             for (let j = 1; j <= 6 - i; j++) {
               aliceInspector.sendCRDT("alice" + i + j);
@@ -936,9 +936,9 @@ describe("CRDTExtraMetaLayer", () => {
                 ]
               );
               if (j === 1) {
-                aliceMeta = aliceEvent!.crdtExtraMeta;
+                aliceMeta = aliceEvent!.crdtMeta;
               } else {
-                assert.strictEqual(aliceEvent!.crdtExtraMeta, aliceMeta);
+                assert.strictEqual(aliceEvent!.crdtMeta, aliceMeta);
               }
             }
           }
@@ -947,16 +947,16 @@ describe("CRDTExtraMetaLayer", () => {
           alice.commitBatch();
           let i = 1; // transaction number
           let j = 1; // message within transaction j
-          let transactionMeta!: CRDTExtraMeta;
+          let transactionMeta!: CRDTMeta;
           bobInspector.on("Meta", (e) => {
             assertMetaEvent(e, "alice" + i + j, aliceID, i, null, null, [
               [aliceID, i],
               [bobID, causalityGuaranteed ? 0 : i],
             ]);
             if (j === 1) {
-              transactionMeta = e.crdtExtraMeta;
+              transactionMeta = e.crdtMeta;
             } else {
-              assert.strictEqual(e.crdtExtraMeta, transactionMeta);
+              assert.strictEqual(e.crdtMeta, transactionMeta);
             }
 
             j++;
@@ -1028,12 +1028,12 @@ describe("CRDTExtraMetaLayer", () => {
               // We expect to see i messages in the same
               // transaction from bob, then 6 - i messages
               // in the same transaction from alice.
-              let transactionMeta!: CRDTExtraMeta;
+              let transactionMeta!: CRDTMeta;
               const off = charlieInspector.on("Meta", (e) => {
                 if (j === 1) {
-                  transactionMeta = e.crdtExtraMeta;
+                  transactionMeta = e.crdtMeta;
                 } else {
-                  assert.strictEqual(e.crdtExtraMeta, transactionMeta);
+                  assert.strictEqual(e.crdtMeta, transactionMeta);
                 }
 
                 if (turn === "bob") {

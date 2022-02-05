@@ -5,7 +5,7 @@ import { InitToken, MessageMeta, Pre } from "../../core";
 import { CRegisterEventsRecord, MakeAbstractCBoolean } from "../../data_types";
 import { PrimitiveCRDT } from "../constructions";
 import { Optional } from "../../util";
-import { CRDTExtraMeta } from "../crdt-runtime";
+import { CRDTMeta } from "../crdt-runtime";
 
 interface WinsCBooleanEntry {
   readonly sender: string;
@@ -35,13 +35,13 @@ export class TrueWinsCBoolean
   protected receiveCRDT(
     message: Uint8Array,
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMeta
+    crdtMeta: CRDTMeta
   ): void {
     const previousValue = this.value;
 
     const newEntries: WinsCBooleanEntry[] = [];
     for (const entry of this.entries) {
-      if (crdtExtraMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
+      if (crdtMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
         newEntries.push(entry);
       }
     }
@@ -49,8 +49,8 @@ export class TrueWinsCBoolean
     if (message.length === 0) {
       // It's setting to true, add a new entry.
       newEntries.push({
-        sender: crdtExtraMeta.sender,
-        senderCounter: crdtExtraMeta.senderCounter,
+        sender: crdtMeta.sender,
+        senderCounter: crdtMeta.senderCounter,
       });
     }
 

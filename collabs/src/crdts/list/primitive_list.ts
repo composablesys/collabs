@@ -23,7 +23,7 @@ import {
   LocatableCList,
   MakeAbstractCList,
 } from "../../data_types";
-import { CRDTExtraMeta } from "../crdt-runtime";
+import { CRDTMeta } from "../crdt-runtime";
 import { DenseLocalList } from "./dense_local_list";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
@@ -189,7 +189,7 @@ export class PrimitiveCListFromDenseLocalList<
   protected receiveCRDT(
     message: string | Uint8Array,
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMeta
+    crdtMeta: CRDTMeta
   ): void {
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
@@ -218,7 +218,7 @@ export class PrimitiveCListFromDenseLocalList<
         );
         // Store senderCounters.
         for (const loc of locs) {
-          this.senderCounters.set(loc, crdtExtraMeta.senderCounter);
+          this.senderCounters.set(loc, crdtMeta.senderCounter);
         }
         // Event
         this.emit("Insert", {
@@ -279,7 +279,7 @@ export class PrimitiveCListFromDenseLocalList<
         for (let i = startIndex; i <= endIndex; i++) {
           const loc = this.denseLocalList.getLoc(i);
           // Check causality
-          const vcEntry = crdtExtraMeta.vectorClockGet(
+          const vcEntry = crdtMeta.vectorClockGet(
             this.denseLocalList.idOf(loc)[0]
           );
           if (vcEntry >= this.senderCounters.get(loc)!) {

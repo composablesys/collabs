@@ -1,4 +1,4 @@
-import { ReceiveCRDTExtraMeta } from "./crdt_extra_meta_implementations";
+import { ReceiveCRDTMeta } from "./crdt_meta_implementations";
 
 /**
  * A received transaction that is not a local echo.
@@ -6,12 +6,12 @@ import { ReceiveCRDTExtraMeta } from "./crdt_extra_meta_implementations";
  * Since it is not a local echo, we know that
  * MessageMeta.isLocalEcho
  * is false, and that all messages are Uint8Array | string.
- * Also, because CRDTExtraMetaLayer assumes that its ancestors
+ * Also, because CRDTMetaLayer assumes that its ancestors
  * add no extra meta, the inherited MessageMeta is just
  * `{ sender, isLocalEcho }`.
  */
 export interface ReceiveTransaction {
-  readonly crdtExtraMeta: ReceiveCRDTExtraMeta;
+  readonly crdtMeta: ReceiveCRDTMeta;
   /**
    * Each array element is a messagePath.
    */

@@ -1,17 +1,14 @@
 import {
-  CRDTExtraMetaBatchMessage,
-  ICRDTExtraMetaMessage,
+  CRDTMetaBatchMessage,
+  ICRDTMetaMessage,
 } from "../../../../generated/proto_compiled";
-import { Serializable } from "../../../core";
+import { SerializableMessage } from "../../../core";
 import { int64AsNumber } from "../../../util";
-import {
-  ReceiveCRDTExtraMeta,
-  SendCRDTExtraMeta,
-} from "./crdt_extra_meta_implementations";
+import { ReceiveCRDTMeta, SendCRDTMeta } from "./crdt_meta_implementations";
 import { ReceiveTransaction } from "./transaction";
 
-export class SendCRDTExtraMetaBatch implements Serializable {
-  readonly metas: SendCRDTExtraMeta[] = [];
+export class SendCRDTMetaBatch implements SerializableMessage {
+  readonly metas: SendCRDTMeta[] = [];
   private alreadySerialized = false;
 
   constructor(private readonly onSerialize: () => void) {}
@@ -31,7 +28,7 @@ export class SendCRDTExtraMetaBatch implements Serializable {
     // this.metas).
     this.onSerialize();
 
-    const metasSerialized = new Array<ICRDTExtraMetaMessage>(this.metas.length);
+    const metasSerialized = new Array<ICRDTMetaMessage>(this.metas.length);
     for (let i = 0; i < metasSerialized.length; i++) {
       const meta = this.metas[i];
       const causallyMaximalVectorClock: { [replicaID: string]: number } = {};
@@ -50,20 +47,20 @@ export class SendCRDTExtraMetaBatch implements Serializable {
       };
     }
 
-    const message = CRDTExtraMetaBatchMessage.create({
+    const message = CRDTMetaBatchMessage.create({
       firstSenderCounter: this.metas[0].senderCounter,
       metas: metasSerialized,
     });
-    return CRDTExtraMetaBatchMessage.encode(message).finish();
+    return CRDTMetaBatchMessage.encode(message).finish();
   }
 }
 
-export class ReceiveCRDTExtraMetaBatch {
-  readonly metas: ReceiveCRDTExtraMeta[];
+export class ReceiveCRDTMetaBatch {
+  readonly metas: ReceiveCRDTMeta[];
 
   constructor(sender: string, serialized: Uint8Array) {
-    const decoded = CRDTExtraMetaBatchMessage.decode(serialized);
-    this.metas = new Array<ReceiveCRDTExtraMeta>(decoded.metas.length);
+    const decoded = CRDTMetaBatchMessage.decode(serialized);
+    this.metas = new Array<ReceiveCRDTMeta>(decoded.metas.length);
     const firstSenderCounter = int64AsNumber(decoded.firstSenderCounter);
     for (let i = 0; i < this.metas.length; i++) {
       const message = decoded.metas[i];
@@ -95,7 +92,7 @@ export class ReceiveCRDTExtraMetaBatch {
         ? int64AsNumber(decoded.metas[i].lamportTimestamp!)
         : null;
 
-      this.metas[i] = new ReceiveCRDTExtraMeta(
+      this.metas[i] = new ReceiveCRDTMeta(
         message.count,
         sender,
         firstSenderCounter + i,
@@ -125,7 +122,7 @@ export class ReceiveCRDTExtraMetaBatch {
 
   completeTransaction(): ReceiveTransaction {
     const ret: ReceiveTransaction = {
-      crdtExtraMeta: this.metas[this.currentTransaction],
+      crdtMeta: this.metas[this.currentTransaction],
       messages: this.transactionMessages,
     };
     this.currentTransaction++;

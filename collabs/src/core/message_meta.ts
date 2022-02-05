@@ -6,7 +6,7 @@
  * itself is that [[MessageMeta]] contains info that is not
  * specific to one [[Collab]] and can be shared between them.
  * Examples include the message's sender (included by default)
- * and a vector clock (optionally added by [[CRDTExtraMetaLayer]]).
+ * and a vector clock (optionally added by [[CRDTMetaLayer]]).
  *
  * Using [[MessageMeta]] instead of including such info
  * directly in the messages allows for efficiency improvements:
@@ -29,7 +29,7 @@
  * as a constant). It should also define the
  * [[MessageMeta.NEXT_MESSAGE_META]] key for
  * [[ICollabParent.getAddedContext]].
- * See [[CRDTExtraMetaLayer.getAddedContext]] for an example.
+ * See [[CRDTMetaLayer.getAddedContext]] for an example.
  *
  * A Collab may depend on specific extra metadata being present.
  * In that case, one of its ancestors must add the

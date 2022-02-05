@@ -173,7 +173,7 @@ export interface CollabEventsRecord {
  * ordinary object-oriented composition ([[CObject]]),
  * collections of `Collab`s (e.g., [[DeletingMutCSet]]),
  * and `Collab`s that provide a specific
- * environment to their children (e.g., [[CrdtExtraMetaLayer]]).
+ * environment to their children (e.g., [[CRDTMetaLayer]]).
  *
  * `Collab`s that can be a parent to other `Collab`s must
  * implement [[ICollabParent]], so that their type is
@@ -182,7 +182,7 @@ export interface CollabEventsRecord {
  * allowing a wide range of behavior to be implemented
  * using `Collab` ancestors (e.g., message batching
  * ([[BatchingLayer]]), causal ordering
- *  ([[CrdtExtraMetaLayer]]), and lazy-loading (WIP)).
+ *  ([[CRDTMetaLayer]]), and lazy-loading (WIP)).
  *
  * Internally, each `Collab` has a [[parent]] and a [[name]];
  * the [[name]] uniquely identifies the `Collab` among its

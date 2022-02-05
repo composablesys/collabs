@@ -1,4 +1,4 @@
-import { CRDTExtraMetaLayerSave } from "../../../../generated/proto_compiled";
+import { CRDTMetaLayerSave } from "../../../../generated/proto_compiled";
 import {
   Collab,
   ICollabParent,
@@ -8,27 +8,21 @@ import {
   Message,
 } from "../../../core";
 import { int64AsNumber, Optional } from "../../../util";
-import { CRDTExtraMeta, CRDTExtraMetaRequestee } from "../crdt_extra_meta";
+import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
 import { CausalMessageBuffer } from "./causal_message_buffer";
-import {
-  SendCRDTExtraMetaBatch,
-  ReceiveCRDTExtraMetaBatch,
-} from "./crdt_extra_meta_batches";
-import {
-  ReceiveCRDTExtraMeta,
-  SendCRDTExtraMeta,
-} from "./crdt_extra_meta_implementations";
+import { SendCRDTMetaBatch, ReceiveCRDTMetaBatch } from "./crdt_meta_batches";
+import { ReceiveCRDTMeta, SendCRDTMeta } from "./crdt_meta_implementations";
 import { ReceiveTransaction } from "./transaction";
 
 /**
- * Collab that provides [[CRDTExtraMeta]] to its
+ * Collab that provides [[CRDTMeta]] to its
  * descendants.
  *
- * The added [[CRDTExtraMeta]] is stored in [[MessageMeta]]'s
+ * The added [[CRDTMeta]] is stored in [[MessageMeta]]'s
  * index signature
- * keyed by [[CRDTExtraMeta.MESSAGE_META_KEY]].
+ * keyed by [[CRDTMeta.MESSAGE_META_KEY]].
  */
-export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
+export class CRDTMetaLayer extends Collab implements ICollabParent {
   private child!: Collab;
   /**
    * Includes this.runtime.replicaID.
@@ -83,14 +77,14 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   }
 
   getAddedContext(key: symbol): unknown {
-    if (key === CRDTExtraMetaRequestee.CONTEXT_KEY) {
+    if (key === CRDTMetaRequestee.CONTEXT_KEY) {
       return this.currentSendMeta();
     }
     if (key === MessageMeta.NEXT_MESSAGE_META) {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
       ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
-      meta[CRDTExtraMeta.MESSAGE_META_KEY] = this.currentSendMeta();
+      meta[CRDTMeta.MESSAGE_META_KEY] = this.currentSendMeta();
       return meta;
     }
     return undefined;
@@ -99,15 +93,15 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   /**
    * Cache for currentSendMeta().
    */
-  private _currentSendMeta: SendCRDTExtraMeta | null = null;
+  private _currentSendMeta: SendCRDTMeta | null = null;
   /**
-   * The CRDTExtraMeta for the current (or upcoming, if not
+   * The CRDTMeta for the current (or upcoming, if not
    * interrupted by a received message)
    * transaction.
    */
-  private currentSendMeta(): SendCRDTExtraMeta {
+  private currentSendMeta(): SendCRDTMeta {
     if (this._currentSendMeta === null) {
-      this._currentSendMeta = new SendCRDTExtraMeta(
+      this._currentSendMeta = new SendCRDTMeta(
         this.runtime.replicaID,
         this.currentVC.get(this.runtime.replicaID)! + 1,
         this.currentVC,
@@ -122,15 +116,13 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   /**
    * Cache for currentSendBatch().
    */
-  private _currentSendBatch: SendCRDTExtraMetaBatch | null = null;
+  private _currentSendBatch: SendCRDTMetaBatch | null = null;
   /**
-   * The SendCRDTExtraMetaBatch for the current batch.
+   * The SendCRDTMetaBatch for the current batch.
    */
-  private currentSendBatch(): SendCRDTExtraMetaBatch {
+  private currentSendBatch(): SendCRDTMetaBatch {
     if (this._currentSendBatch === null) {
-      this._currentSendBatch = new SendCRDTExtraMetaBatch(
-        this.onBatchSerialize
-      );
+      this._currentSendBatch = new SendCRDTMetaBatch(this.onBatchSerialize);
     }
     return this._currentSendBatch;
   }
@@ -139,7 +131,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * Callback for _currentSendBatch's onSerialize.
    *
    * Defined as a var so we don't have to bind it as the
-   * CRDTExtraMetaBatch callback.
+   * CRDTMetaBatch callback.
    */
   private onBatchSerialize = () => {
     // End the current transaction, if any.
@@ -177,7 +169,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       // Add the currentSendMeta to the batch.
       this.currentSendBatch().metas.push(this._currentSendMeta!);
       // Make room for the next transaction to have a different
-      // CRDTExtraMeta.
+      // CRDTMeta.
       this._currentSendMeta = null;
       // Update "current" metadata to account for the end of
       // our current message.
@@ -209,7 +201,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * null if we are not in the middle of receiving a batch.
    * Also, not used for local echos.
    */
-  private currentReceiveBatch: ReceiveCRDTExtraMetaBatch | null = null;
+  private currentReceiveBatch: ReceiveCRDTMetaBatch | null = null;
 
   protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
@@ -219,7 +211,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     if (meta.isLocalEcho) {
       // Due to immediate local echos, we can assume that this
       // message corresponds to the current transaction.
-      const crdtExtraMeta = this.currentSendMeta();
+      const crdtMeta = this.currentSendMeta();
       // Remove our message.
       messagePath.length--;
       // Deliver immediately. No need to check the
@@ -228,12 +220,12 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       if (!this.causalityGuaranteed) {
         this.messageBuffer!.processOwnDelivery();
       }
-      this.deliverMessage(messagePath, meta, crdtExtraMeta);
+      this.deliverMessage(messagePath, meta, crdtMeta);
 
       // Reset isAutomatic, since we're done receiving.
       // (Otherwise future messages in the transaction will
       // inherit isAutomatic.)
-      crdtExtraMeta.isAutomatic = false;
+      crdtMeta.isAutomatic = false;
     } else {
       if (meta.sender === this.runtime.replicaID) {
         // We got redelivered our own message not as a
@@ -245,7 +237,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
 
       if (this.currentReceiveBatch === null) {
         // It's a new batch with a new CRDTMetaReceiveMessage.
-        this.currentReceiveBatch = new ReceiveCRDTExtraMetaBatch(
+        this.currentReceiveBatch = new ReceiveCRDTMetaBatch(
           meta.sender,
           <Uint8Array>messagePath[messagePath.length - 1]
         );
@@ -270,7 +262,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
           // not already been delivered.
           // (That includes the case of getting delivered
           // our own message as not a local echo).
-          if (!this.isAlreadyDelivered(transaction.crdtExtraMeta)) {
+          if (!this.isAlreadyDelivered(transaction.crdtMeta)) {
             this.deliverRemoteTransaction(transaction);
           }
         } else {
@@ -294,10 +286,10 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
    * senderCounter
    * has already been delivered.
    */
-  private isAlreadyDelivered(crdtExtraMeta: ReceiveCRDTExtraMeta): boolean {
-    const senderEntry = this.currentVC.get(crdtExtraMeta.sender);
+  private isAlreadyDelivered(crdtMeta: ReceiveCRDTMeta): boolean {
+    const senderEntry = this.currentVC.get(crdtMeta.sender);
     if (senderEntry !== undefined) {
-      if (senderEntry >= crdtExtraMeta.senderCounter) return true;
+      if (senderEntry >= crdtMeta.senderCounter) return true;
     }
     return false;
   }
@@ -312,18 +304,18 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     // Note this immediately updates our own VC entry and
     // Lamport timestamp.
     this.endTransaction();
-    // Update our own state to reflect the received crdtExtraMeta.
+    // Update our own state to reflect the received crdtMeta.
     this.currentVC.set(
-      transaction.crdtExtraMeta.sender,
-      transaction.crdtExtraMeta.senderCounter
+      transaction.crdtMeta.sender,
+      transaction.crdtMeta.senderCounter
     );
-    if (transaction.crdtExtraMeta.lamportTimestamp !== null) {
+    if (transaction.crdtMeta.lamportTimestamp !== null) {
       // TODO: note that this is a restricted kind of
       // Lamport timestamp: only updates when you use it.
       // I think that should still give the causality
       // guarantees for actual uses, but need to check.
       this.currentLamportTimestamp = Math.max(
-        transaction.crdtExtraMeta.lamportTimestamp,
+        transaction.crdtMeta.lamportTimestamp,
         this.currentLamportTimestamp
       );
     }
@@ -332,8 +324,8 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     for (const message of transaction.messages) {
       this.deliverMessage(
         message,
-        { sender: transaction.crdtExtraMeta.sender, isLocalEcho: false },
-        transaction.crdtExtraMeta
+        { sender: transaction.crdtMeta.sender, isLocalEcho: false },
+        transaction.crdtMeta
       );
     }
   }
@@ -341,10 +333,10 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
   private deliverMessage(
     messagePath: Message[],
     meta: MessageMeta,
-    crdtExtraMeta: CRDTExtraMeta
+    crdtMeta: CRDTMeta
   ) {
-    // Add the CRDTExtraMeta to meta.
-    meta[CRDTExtraMeta.MESSAGE_META_KEY] = crdtExtraMeta;
+    // Add the CRDTMeta to meta.
+    meta[CRDTMeta.MESSAGE_META_KEY] = crdtMeta;
 
     try {
       this.child.receive(messagePath, meta);
@@ -371,13 +363,13 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
     }
 
     const vectorClock = Object.fromEntries(this.currentVC);
-    const saveMessage = CRDTExtraMetaLayerSave.create({
+    const saveMessage = CRDTMetaLayerSave.create({
       vectorClock,
       lamportTimestamp: this.currentLamportTimestamp,
       childSave: this.child.save(),
       messageBufferSave: this.messageBuffer?.save(),
     });
-    return CRDTExtraMetaLayerSave.encode(saveMessage).finish();
+    return CRDTMetaLayerSave.encode(saveMessage).finish();
   }
 
   load(saveData: Optional<Uint8Array>): void {
@@ -385,7 +377,7 @@ export class CRDTExtraMetaLayer extends Collab implements ICollabParent {
       // Indicates skipped loading. Pass on the message.
       this.child.load(saveData);
     } else {
-      const saveMessage = CRDTExtraMetaLayerSave.decode(saveData.get());
+      const saveMessage = CRDTMetaLayerSave.decode(saveData.get());
       for (const [replicaID, entry] of Object.entries(
         saveMessage.vectorClock
       )) {

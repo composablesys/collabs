@@ -4,7 +4,7 @@ import {
   IReceiveTransactionSave,
 } from "../../../../generated/proto_compiled";
 import { int64AsNumber } from "../../../util";
-import { ReceiveCRDTExtraMeta } from "./crdt_extra_meta_implementations";
+import { ReceiveCRDTMeta } from "./crdt_meta_implementations";
 import { ReceiveTransaction } from "./transaction";
 
 /**
@@ -15,7 +15,7 @@ const DEBUG = false;
 
 /**
  * A buffer for delivering messages in causal order, used
- * by [[CRDTExtraMetaLayer]].
+ * by [[CRDTMetaLayer]].
  */
 export class CausalMessageBuffer {
   /**
@@ -56,13 +56,13 @@ export class CausalMessageBuffer {
    * already been delivered.
    */
   pushRemoteTransaction(transaction: ReceiveTransaction): void {
-    if (!this.isAlreadyDelivered(transaction.crdtExtraMeta)) {
+    if (!this.isAlreadyDelivered(transaction.crdtMeta)) {
       this.buffer.push(transaction);
     } else if (DEBUG) {
       console.log("pushRemoteTransaction: not adding");
       console.log("(already received)");
       console.log([...this.currentVC]);
-      console.log(transaction.crdtExtraMeta);
+      console.log(transaction.crdtMeta);
     }
   }
 
@@ -75,12 +75,12 @@ export class CausalMessageBuffer {
     let index = this.buffer.length - 1;
 
     while (index >= this.bufferCheckIndex) {
-      const sender = this.buffer[index].crdtExtraMeta.sender;
-      const crdtExtraMeta = this.buffer[index].crdtExtraMeta;
+      const sender = this.buffer[index].crdtMeta.sender;
+      const crdtMeta = this.buffer[index].crdtMeta;
 
-      if (this.isReady(crdtExtraMeta, sender)) {
+      if (this.isReady(crdtMeta, sender)) {
         // Ready for delivery.
-        this.processRemoteDelivery(crdtExtraMeta);
+        this.processRemoteDelivery(crdtMeta);
         this.deliverRemoteTransaction(this.buffer[index]);
         // Remove from the buffer.
         // OPT: something more efficient?  (Costly array
@@ -92,9 +92,9 @@ export class CausalMessageBuffer {
         index = this.buffer.length - 1;
       } else {
         if (DEBUG) {
-          console.log("CRDTExtraMetaLayer.checkMessageBuffer: not ready");
+          console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
         }
-        if (this.isAlreadyDelivered(crdtExtraMeta)) {
+        if (this.isAlreadyDelivered(crdtMeta)) {
           // Remove the message from the buffer
           this.buffer.splice(index, 1);
           if (DEBUG) console.log("(already received)");
@@ -102,7 +102,7 @@ export class CausalMessageBuffer {
         index--;
         if (DEBUG) {
           console.log([...this.currentVC]);
-          console.log(crdtExtraMeta);
+          console.log(crdtMeta);
         }
       }
     }
@@ -114,22 +114,19 @@ export class CausalMessageBuffer {
    * and sender is ready for delivery, according to the causal
    * order.
    */
-  private isReady(
-    crdtExtraMeta: ReceiveCRDTExtraMeta,
-    sender: string
-  ): boolean {
+  private isReady(crdtMeta: ReceiveCRDTMeta, sender: string): boolean {
     // Check that sender's entry is one more than ours.
-    if ((this.currentVC.get(sender) ?? 0) !== crdtExtraMeta.senderCounter - 1) {
+    if ((this.currentVC.get(sender) ?? 0) !== crdtMeta.senderCounter - 1) {
       return false;
     }
 
     // Check that other causally maximal entries are <= ours.
     // Note that this excludes sender, and it also is guaranteed
-    // that these entries are present in crdtExtraMeta.
-    for (const replicaID of crdtExtraMeta.causallyMaximalVCKeys) {
+    // that these entries are present in crdtMeta.
+    for (const replicaID of crdtMeta.causallyMaximalVCKeys) {
       if (
         (this.currentVC.get(replicaID) ?? 0) <
-        crdtExtraMeta.vectorClockGet(replicaID)
+        crdtMeta.vectorClockGet(replicaID)
       ) {
         return false;
       }
@@ -143,30 +140,29 @@ export class CausalMessageBuffer {
    * senderCounter
    * has already been delivered.
    */
-  private isAlreadyDelivered(crdtExtraMeta: ReceiveCRDTExtraMeta): boolean {
-    const senderEntry = this.currentVC.get(crdtExtraMeta.sender);
+  private isAlreadyDelivered(crdtMeta: ReceiveCRDTMeta): boolean {
+    const senderEntry = this.currentVC.get(crdtMeta.sender);
     if (senderEntry !== undefined) {
-      if (senderEntry >= crdtExtraMeta.senderCounter) return true;
+      if (senderEntry >= crdtMeta.senderCounter) return true;
     }
     return false;
   }
 
   /**
-   * crdtExtraMeta is assumed to be not from us.
+   * crdtMeta is assumed to be not from us.
    */
-  private processRemoteDelivery(crdtExtraMeta: ReceiveCRDTExtraMeta) {
+  private processRemoteDelivery(crdtMeta: ReceiveCRDTMeta) {
     // Delete any current keys that are causally dominated by
-    // crdtExtraMeta.
-    for (const replicaID of crdtExtraMeta.causallyMaximalVCKeys) {
+    // crdtMeta.
+    for (const replicaID of crdtMeta.causallyMaximalVCKeys) {
       if (
-        this.currentVC.get(replicaID) ===
-        crdtExtraMeta.vectorClockGet(replicaID)
+        this.currentVC.get(replicaID) === crdtMeta.vectorClockGet(replicaID)
       ) {
         this._causallyMaximalVCKeys.delete(replicaID);
       }
     }
     // Add a new key for this message.
-    this._causallyMaximalVCKeys.add(crdtExtraMeta.sender);
+    this._causallyMaximalVCKeys.add(crdtMeta.sender);
   }
 
   /**
@@ -189,15 +185,15 @@ export class CausalMessageBuffer {
   save(): Uint8Array {
     const bufferSave = new Array<IReceiveTransactionSave>(this.buffer.length);
     for (let i = 0; i < this.buffer.length; i++) {
-      const crdtExtraMeta = this.buffer[i].crdtExtraMeta;
+      const crdtMeta = this.buffer[i].crdtMeta;
       bufferSave[i] = {
-        count: crdtExtraMeta.count,
-        sender: crdtExtraMeta.sender,
-        senderCounter: crdtExtraMeta.senderCounter,
-        vectorClock: Object.fromEntries(crdtExtraMeta.vectorClock),
-        wallClockTime: crdtExtraMeta.wallClockTime,
-        lamportTimestamp: crdtExtraMeta.lamportTimestamp,
-        causallyMaximalVCKeys: crdtExtraMeta.causallyMaximalVCKeys,
+        count: crdtMeta.count,
+        sender: crdtMeta.sender,
+        senderCounter: crdtMeta.senderCounter,
+        vectorClock: Object.fromEntries(crdtMeta.vectorClock),
+        wallClockTime: crdtMeta.wallClockTime,
+        lamportTimestamp: crdtMeta.lamportTimestamp,
+        causallyMaximalVCKeys: crdtMeta.causallyMaximalVCKeys,
         messages: this.buffer[i].messages.map((messagePath) => {
           return {
             messagePath: messagePath.map((message) =>
@@ -231,7 +227,7 @@ export class CausalMessageBuffer {
         vectorClock.set(replicaID, int64AsNumber(entry));
       }
 
-      const crdtExtraMeta = new ReceiveCRDTExtraMeta(
+      const crdtMeta = new ReceiveCRDTMeta(
         transaction.count,
         transaction.sender,
         int64AsNumber(transaction.senderCounter),
@@ -251,7 +247,7 @@ export class CausalMessageBuffer {
             : messageSave.asBytes!
         )
       );
-      this.buffer.push({ crdtExtraMeta, messages });
+      this.buffer.push({ crdtMeta, messages });
     }
   }
 }

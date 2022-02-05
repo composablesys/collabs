@@ -1,7 +1,7 @@
-export interface Serializable {
+export interface SerializableMessage {
   // TODO: allow calling multiple times, possibly in different
   // states? (Shouldn't happen, but easy enough to allow?)
-  // Also: allow current CRDTExtraMetaLayer behavior, where
+  // Also: allow current CRDTMetaLayer behavior, where
   // calling this changes the state, since it makes assumptions
   // about batching? (What exact guarantees do we need for
   // that to make sense?)
@@ -25,7 +25,7 @@ export interface Serializable {
 // TODO: check that we never do inner serialization when
 // we don't locally echo.
 
-export type Message = Uint8Array | string | Serializable;
+export type Message = Uint8Array | string | SerializableMessage;
 
 export function serializeMessage(message: Message): Uint8Array | string {
   if (typeof message === "string" || message instanceof Uint8Array)
