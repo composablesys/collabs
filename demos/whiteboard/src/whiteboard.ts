@@ -3,7 +3,9 @@ import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CRDTContainer({
+    batchingStrategy: new collabs.RateLimitBatchingStrategy(200),
+  });
 
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.

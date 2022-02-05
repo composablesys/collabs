@@ -1,7 +1,5 @@
-import {
-  BatchingLayerEdgeMessage,
-  BatchingLayerMessage,
-} from "../../generated/proto_compiled";
+import { util } from "protobufjs/minimal";
+import { BatchingLayerMessage } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEvent,
@@ -10,6 +8,8 @@ import {
   ICollabParent,
   MessageMeta,
   Pre,
+  Message,
+  serializeMessage,
 } from "../core";
 import { Optional } from "../util";
 import { BatchingStrategy } from "./batching_strategy";
@@ -76,12 +76,12 @@ interface BatchInfo {
    * For each edge, maps from (child vertex - 1) to its label
    * and parent vertex.
    */
-  edges: { label: Uint8Array | string; parent: number }[];
+  edges: { label: Message; parent: number }[];
   /**
    * Maps each vertex with at least one child to a map
    * from edge labels to the corresponding child.
    */
-  children: Map<number, Map<Uint8Array | string, number>>;
+  children: Map<number, Map<Message, number>>;
   /**
    * The vertices corresponding to actual complete messagePaths,
    * in order of sending.
@@ -164,10 +164,7 @@ export class BatchingLayer
 
   private batchEventPending = false;
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messagePath: (Uint8Array | string)[]
-  ): void {
+  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -203,7 +200,7 @@ export class BatchingLayer
     // Don't even form the pendingBatch structure, just store
     // it as a second special case after the empty case.
 
-    // Find the vertex corresponding to messagePath, creating
+    // Find the vertex corresponding to messagePathResolved, creating
     // it if necessary.
     let vertex = 0;
     for (let i = messagePath.length - 1; i >= 0; i--) {
@@ -214,6 +211,7 @@ export class BatchingLayer
         nextVertex = vertexChildren.get(message);
       } else {
         vertexChildren = new Map();
+        pendingBatch.children.set(vertex, vertexChildren);
       }
       if (nextVertex === undefined) {
         // Create a new vertex for it.
@@ -258,27 +256,48 @@ export class BatchingLayer
     // Serialize the batch and send it.
     // We only need to serialize batch.edges and batch.messages;
     // batch.children is redundant with batch.edges.
+    // Note that we serialize the individual labels and store
+    // them back in batch.edges[i].label, so that can later
+    // be assumed to have type Uint8Array | string.
+    const edgeLabelLengths = new Array<number>(batch.edges.length);
+    let totalLength = 0;
+    const edgeParents = new Array<number>(batch.edges.length);
+    for (let i = 0; i < batch.edges.length; i++) {
+      const label = serializeMessage(batch.edges[i].label);
+      batch.edges[i].label = label; // Store serialized form.
+      if (typeof label === "string") {
+        const length = util.utf8.length(label);
+        edgeLabelLengths[i] = ~length;
+        totalLength += length;
+      } else {
+        edgeLabelLengths[i] = label.length;
+        totalLength += label.length;
+      }
+      edgeParents[i] = batch.edges[i].parent;
+    }
+    const edgeLabelsPacked = new Uint8Array(totalLength);
+    let offset = 0;
+    for (let i = 0; i < batch.edges.length; i++) {
+      const label = batch.edges[i].label;
+      if (typeof label === "string") {
+        util.utf8.write(label, edgeLabelsPacked, offset);
+        offset += ~edgeLabelLengths[i];
+      } else {
+        // Use assumption that label is already serialized,
+        // hence must be Uint8Array here.
+        edgeLabelsPacked.set(<Uint8Array>label, offset);
+        offset += edgeLabelLengths[i];
+      }
+    }
+
     const batchMessage = BatchingLayerMessage.create({
-      edges: batch.edges.map((edge) => {
-        if (typeof edge.label === "string") {
-          return { stringLabel: edge.label, parent: edge.parent };
-        } else {
-          return { bytesLabel: edge.label, parent: edge.parent };
-        }
-      }),
+      edgeLabelsPacked,
+      edgeLabelLengths,
+      edgeParents,
       messages: batch.messages,
     });
     const serialized = BatchingLayerMessage.encode(batchMessage).finish();
     this.send([serialized]);
-
-    // OPT: optimized encoding: unwrap inner fields as
-    // multiple arrays; for labels, put in one big Uint8Array
-    // (encoding strings as needed) and have a separate packed
-    // array of sint32's giving the length of each one and
-    // using sign to say if it's a string or not.
-    // Will avoid overhead of field number & type markers
-    // on each label, and also gives us an easy way to encode
-    // string-or-Uint8Array.
   }
 
   /**
@@ -290,10 +309,7 @@ export class BatchingLayer
     return undefined;
   }
 
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     // We do our own local echo.
     if (meta.isLocalEcho) return;
 
@@ -306,16 +322,37 @@ export class BatchingLayer
     const deserialized = BatchingLayerMessage.decode(
       <Uint8Array>messagePath[0]
     );
+    const edgeLabels = new Array<Message>(deserialized.edgeLabelLengths.length);
+    let offset = 0;
+    for (let i = 0; i < edgeLabels.length; i++) {
+      const signedLengthI = deserialized.edgeLabelLengths[i];
+      if (signedLengthI < 0) {
+        // string, actual length is ~signedLengthI.
+        const lengthI = ~signedLengthI;
+        edgeLabels[i] = util.utf8.read(
+          deserialized.edgeLabelsPacked,
+          offset,
+          offset + lengthI
+        );
+        offset += lengthI;
+      } else {
+        // Uint8Array, actual length is signedLengthI.
+        edgeLabels[i] = new Uint8Array(
+          deserialized.edgeLabelsPacked.buffer,
+          offset + deserialized.edgeLabelsPacked.byteOffset,
+          signedLengthI
+        );
+        offset += signedLengthI;
+      }
+    }
+
     for (const messageVertex of deserialized.messages) {
       // Reconstruct vertex's messagePath.
-      const childMessagePath: (Uint8Array | string)[] = [];
+      const childMessagePath: Message[] = [];
       let vertex = messageVertex;
       while (vertex !== 0) {
-        const edge = <BatchingLayerEdgeMessage>deserialized.edges[vertex - 1];
-        childMessagePath.push(
-          edge.label === "stringLabel" ? edge.stringLabel : edge.bytesLabel
-        );
-        vertex = edge.parent;
+        childMessagePath.push(edgeLabels[vertex - 1]);
+        vertex = deserialized.edgeParents[vertex - 1];
       }
       // Deliver messagePath.
       if (this.inChildReceive) {

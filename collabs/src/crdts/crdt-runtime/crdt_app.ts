@@ -69,8 +69,28 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    */
   readonly runtime: CRDTRuntime;
 
+  /**
+   * Options:
+   *
+   * `causalityGuaranteed` option: Optimization flag.
+   * If you can guarantee that messages will always be
+   * delivered in causal order (i.e., after all of their
+   * causal predecessors), then you may set this to true.
+   * Then this class will not bother attaching the
+   * vector clock entries needed to ensure causal order
+   * delivery.
+   * - Important: if any replica (not necessarily
+   * the local one), on any network, is not guaranteed
+   * causality, then this flag must be false.
+   * - When true, redundant re-deliveries are still okay -
+   * they will be filtered out as usual.
+   * - "All causal predecessors" of a message M means all messages
+   * that were passed to [[receive]] before M's "Send"
+   * event was emitted.
+   */
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
+    causalityGuaranteed?: boolean;
     debugReplicaId?: string;
   }) {
     super();

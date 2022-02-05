@@ -3,6 +3,7 @@ import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
 import { MessageMeta } from "./message_meta";
 import { isRuntime, Runtime } from "./runtime";
+import { Message } from "./message";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -172,7 +173,7 @@ export interface CollabEventsRecord {
  * ordinary object-oriented composition ([[CObject]]),
  * collections of `Collab`s (e.g., [[DeletingMutCSet]]),
  * and `Collab`s that provide a specific
- * environment to their children (e.g., [[CrdtExtraMetaLayer]]).
+ * environment to their children (e.g., [[CRDTMetaLayer]]).
  *
  * `Collab`s that can be a parent to other `Collab`s must
  * implement [[ICollabParent]], so that their type is
@@ -181,7 +182,7 @@ export interface CollabEventsRecord {
  * allowing a wide range of behavior to be implemented
  * using `Collab` ancestors (e.g., message batching
  * ([[BatchingLayer]]), causal ordering
- *  ([[CrdtExtraMetaLayer]]), and lazy-loading (WIP)).
+ *  ([[CRDTMetaLayer]]), and lazy-loading (WIP)).
  *
  * Internally, each `Collab` has a [[parent]] and a [[name]];
  * the [[name]] uniquely identifies the `Collab` among its
@@ -329,7 +330,7 @@ export abstract class Collab<
    * `Collab` appended to the end. Note that the array may
    * be modified in-place by ancestors.
    */
-  protected send(messagePath: (Uint8Array | string)[]): void {
+  protected send(messagePath: Message[]): void {
     this.parent.childSend(this, messagePath);
   }
 
@@ -349,7 +350,7 @@ export abstract class Collab<
    * @param meta Metadata attached to this message by
    * ancestor `Collab`s.
    */
-  receive(messagePath: (Uint8Array | string)[], meta: MessageMeta) {
+  receive(messagePath: Message[], meta: MessageMeta) {
     this.receiveInternal(messagePath, meta);
     // While we do nothing here currently, we reserve the ability
     // to do per-message processing in the future, e.g., dispatching an
@@ -370,7 +371,7 @@ export abstract class Collab<
    * ancestor `Collab`s.
    */
   protected abstract receiveInternal(
-    messagePath: (Uint8Array | string)[],
+    messagePath: Message[],
     meta: MessageMeta
   ): void;
 

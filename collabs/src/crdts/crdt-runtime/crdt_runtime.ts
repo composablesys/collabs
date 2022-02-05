@@ -13,9 +13,10 @@ import {
   randomReplicaId,
   Runtime,
   RuntimeEventsRecord,
+  Message,
 } from "../../core";
 import { Optional } from "../../util";
-import { CRDTExtraMetaLayer } from "./crdt_extra_meta_layer";
+import { CRDTMetaLayer } from "./crdt-meta-layer";
 
 export interface SendEvent {
   message: Uint8Array;
@@ -49,12 +50,13 @@ export class CRDTRuntime
   implements Runtime
 {
   private readonly batchingLayer: BatchingLayer;
-  private readonly crdtMetaLayer: CRDTExtraMetaLayer;
+  private readonly crdtMetaLayer: CRDTMetaLayer;
   private readonly registry: PublicCObject;
   private _isLoaded = false;
 
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
+    causalityGuaranteed?: boolean;
     debugReplicaId?: string;
   }) {
     super(options?.debugReplicaId ?? randomReplicaId());
@@ -66,7 +68,11 @@ export class CRDTRuntime
     this.batchingLayer = this.setRootCollab(
       Pre(BatchingLayer)(batchingStrategy)
     );
-    this.crdtMetaLayer = this.batchingLayer.setChild(Pre(CRDTExtraMetaLayer)());
+    this.crdtMetaLayer = this.batchingLayer.setChild(
+      Pre(CRDTMetaLayer)({
+        causalityGuaranteed: options?.causalityGuaranteed,
+      })
+    );
     this.registry = this.crdtMetaLayer.setChild(Pre(PublicCObject)());
 
     // Events.
@@ -78,10 +84,7 @@ export class CRDTRuntime
 
   private inRootReceive = false;
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messagePath: (Uint8Array | string)[]
-  ): void {
+  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
     if (child !== this.rootCollab) {
       throw new Error(`childSend called by non-root: ${child}`);
     }
@@ -89,6 +92,10 @@ export class CRDTRuntime
     if (!this._isLoaded) {
       throw new Error("Not yet loaded");
     }
+
+    // From our choice of Collab layers,
+    // we know messagePath is actually all Uint8Array's.
+    const messagePathBytes = <Uint8Array[]>messagePath;
 
     // Local echo with only mandatory MessageMeta.
     if (this.inRootReceive) {
@@ -100,7 +107,7 @@ export class CRDTRuntime
     }
     this.inRootReceive = true;
     try {
-      this.rootCollab.receive([...messagePath], {
+      this.rootCollab.receive([...messagePathBytes], {
         sender: this.replicaID,
         isLocalEcho: true,
       });
@@ -115,10 +122,11 @@ export class CRDTRuntime
       this.inRootReceive = false;
     }
 
-    // Serialize messagePath. From our choice of Collab layers,
-    // we know it's actually all Uint8Array's.
+    // Serialize messagePathBytes.
+    // Opt: avoid copying the inner Uint8Array's, by serializing
+    // them now instead of later, as part of the same Writer?
     const runtimeMessage = CRDTRuntimeMessage.create({
-      messagePath: <Uint8Array[]>messagePath,
+      messagePath: messagePathBytes,
       sender: this.replicaID,
     });
     const serialized = CRDTRuntimeMessage.encode(runtimeMessage).finish();

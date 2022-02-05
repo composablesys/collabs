@@ -1,11 +1,11 @@
-import { InitToken } from "../../core";
+import { InitToken, MessageMeta } from "../../core";
 import {
   CBoolean,
   CRegisterEventsRecord,
   MakeAbstractCBoolean,
 } from "../../data_types";
 import { Optional } from "../../util";
-import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { PrimitiveCRDT } from "../constructions";
 
 export class ToggleCBoolean
   extends MakeAbstractCBoolean(PrimitiveCRDT)<CRegisterEventsRecord<boolean>>
@@ -32,10 +32,7 @@ export class ToggleCBoolean
     this.sendCRDT(ToggleCBoolean.MESSAGE);
   }
 
-  protected receiveCRDT(
-    message: string | Uint8Array,
-    meta: CRDTMessageMeta
-  ): void {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta): void {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
     this.valueInternal = !this.valueInternal;

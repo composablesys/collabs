@@ -5,10 +5,13 @@ import {
   InitToken,
   MessageMeta,
   Pre,
+  Message,
 } from "../core";
 import { Optional } from "../util";
 
 /**
+ * **Experimental/flaky - use with caution**
+ *
  * Layer that allows you to run operations on its descendants
  * locally only, not as a replicated operation, by calling
  * [[runLocally]].
@@ -38,6 +41,11 @@ import { Optional } from "../util";
  * a high-level description of each operation using
  * [[CMessenger]], modify it using [[SemidirectProductStore]],
  * then perform the modified operation using [[runLocally]].
+ *
+ * ## Experimental
+ * This class is experimental. Using it may break certain
+ * assumptions made by the library, due to its "magic"
+ * nature. See [https://github.com/composablesys/collabs/issues](https://github.com/composablesys/collabs/issues).
  */
 export class RunLocallyLayer extends Collab implements ICollabParent {
   private child!: Collab;
@@ -57,10 +65,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return ret;
   }
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messagePath: (string | Uint8Array)[]
-  ): void {
+  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }

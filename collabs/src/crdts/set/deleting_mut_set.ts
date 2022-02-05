@@ -4,7 +4,13 @@ import {
   IDeletingMutCSetValueSave,
 } from "../../../generated/proto_compiled";
 import { DefaultSerializer, Optional, Serializer } from "../../util";
-import { Collab, ICollabParent, InitToken, MessageMeta } from "../../core";
+import {
+  Collab,
+  ICollabParent,
+  InitToken,
+  MessageMeta,
+  Message,
+} from "../../core";
 import { Resettable } from "../abilities";
 import { AbstractCSetCollab } from "../../data_types";
 import { makeUID } from "../../util/uid";
@@ -132,7 +138,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     this.initialValuesCount = initialValuesArgs.length;
   }
 
-  childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
+  childSend(child: Collab, messagePath: Message[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -142,10 +148,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   private ourCreatedValue?: C = undefined;
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     const lastMessage = messagePath[messagePath.length - 1];
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
@@ -168,7 +171,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       messagePath.length--;
       child.receive(messagePath, meta);
     } else {
-      const decoded = DeletingMutCSetMessage.decode(lastMessage);
+      const decoded = DeletingMutCSetMessage.decode(<Uint8Array>lastMessage);
       switch (decoded.op) {
         case "add": {
           const name = makeUID(meta.sender, decoded.add!.replicaUniqueNumber);

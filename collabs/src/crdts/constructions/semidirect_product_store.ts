@@ -5,7 +5,7 @@ import {
 import { CObject } from "../../constructions";
 import { InitToken } from "../../core";
 import { Serializer, DefaultSerializer, Optional } from "../../util";
-import { CRDTMessageMeta } from "./crdt_message_meta";
+import { CRDTMeta } from "../crdt-runtime";
 
 class StoredMessage<M2> {
   constructor(
@@ -21,6 +21,8 @@ class StoredMessage<M2> {
 // refactor the semidirect product API.
 
 /**
+ * # Experimental
+ *
  * A bare-bones semidirect product implementation that stores
  * and acts on custom messages provided by the user, without
  * performing any operations directly.
@@ -51,6 +53,12 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
+ *
+ * TODO: will probably need to requestAll `CRDTMeta`
+ * (via [[CRDTMetaRequestee.requestAll]], or perhaps
+ * make it easy to do this with [[CMessenger]]) when
+ * sending a message that might result in storing something
+ * here, since we need the full vector clock.
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private receiptCounter = 0;
@@ -75,7 +83,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     super(initToken);
   }
 
-  processM2(m2: M2, crdtMeta: CRDTMessageMeta): void {
+  processM2(m2: M2, crdtMeta: CRDTMeta): void {
     // Add m2 to the history.
     if (this.discardM2Dominated) {
       this.processMeta(crdtMeta, false, true);
@@ -91,7 +99,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     this.receiptCounter++;
   }
 
-  processM1(m1: M1, crdtMeta: CRDTMessageMeta): M1 | null {
+  processM1(m1: M1, crdtMeta: CRDTMeta): M1 | null {
     // Collect concurrent messages.
     const concurrent = this.processMeta(
       crdtMeta,
@@ -120,7 +128,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    * this method.)
    */
   private processMeta(
-    crdtMeta: CRDTMessageMeta,
+    crdtMeta: CRDTMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
@@ -135,9 +143,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     // messages by each replicaID with sender counter
     // greater than crdtMeta.vectorClock.get(replicaID).
     const concurrent: StoredMessage<M2>[] = [];
-    const vc = crdtMeta.vectorClock;
     for (const [sender, senderHistory] of this.history.entries()) {
-      const vcEntry = vc.get(sender);
+      const vcEntry = crdtMeta.vectorClockGet(sender);
       if (senderHistory !== undefined) {
         const concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {

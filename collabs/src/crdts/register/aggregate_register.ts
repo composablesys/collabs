@@ -2,7 +2,7 @@ import {
   AggregateArgsCRegisterMessage,
   AggregateArgsCRegisterSave,
 } from "../../../generated/proto_compiled";
-import { InitToken } from "../../core";
+import { InitToken, MessageMeta } from "../../core";
 import { CRegister, CRegisterEventsRecord } from "../../data_types";
 import {
   DefaultSerializer,
@@ -10,7 +10,8 @@ import {
   Serializer,
   SingletonSerializer,
 } from "../../util";
-import { CRDTMessageMeta, PrimitiveCRDT } from "../constructions";
+import { PrimitiveCRDT } from "../constructions";
+import { CRDTMeta } from "../crdt-runtime";
 
 export interface CRegisterEntryMeta<S> {
   readonly value: S;
@@ -68,7 +69,12 @@ export abstract class AggregateArgsCRegister<
       setArgs: this.argsSerializer.serialize(args),
     });
     const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-    this.sendCRDT(buffer);
+    // Opt: only request wallClockTime if actually used by
+    // aggregate().
+    // Automatic mode suffices to send all of the needed
+    // vector clock entries (those corresponding to current
+    // values in this.entries).
+    this.sendCRDT(buffer, { automatic: true });
     return this.value;
   }
 
@@ -79,18 +85,22 @@ export abstract class AggregateArgsCRegister<
         reset: true,
       }); // no value
       const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
-      this.sendCRDT(buffer);
+      // Automatic mode suffices to send all of the needed
+      // vector clock entries (those corresponding to current
+      // values in this.entries).
+      this.sendCRDT(buffer, { automatic: true });
     }
   }
 
   protected receiveCRDT(
     message: string | Uint8Array,
-    meta: CRDTMessageMeta
+    meta: MessageMeta,
+    crdtMeta: CRDTMeta
   ): void {
     const decoded = AggregateArgsCRegisterMessage.decode(<Uint8Array>message);
     const newState = new Array<AggregateArgsCRegisterEntry<S>>();
     for (const entry of this.entries) {
-      if (meta.vectorClock.get(entry.sender) < entry.senderCounter) {
+      if (crdtMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
         newState.push(entry);
       }
     }
@@ -99,9 +109,9 @@ export abstract class AggregateArgsCRegister<
         // Add the new entry
         const entry = new AggregateArgsCRegisterEntry(
           this.constructValue(decoded.setArgs),
-          meta.sender,
-          meta.senderCounter,
-          meta.wallClockTime,
+          crdtMeta.sender,
+          crdtMeta.senderCounter,
+          crdtMeta.wallClockTime!,
           decoded.setArgs
         );
         newState.push(entry);

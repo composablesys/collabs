@@ -6,6 +6,7 @@ import {
   InitToken,
   MessageMeta,
   Pre,
+  Message,
 } from "../core";
 import { Optional } from "../util";
 
@@ -112,7 +113,7 @@ export class CObject<
     return child;
   }
 
-  childSend(child: Collab, messagePath: (string | Uint8Array)[]): void {
+  childSend(child: Collab, messagePath: Message[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -130,10 +131,7 @@ export class CObject<
     return undefined;
   }
 
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");

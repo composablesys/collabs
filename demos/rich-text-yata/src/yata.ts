@@ -381,11 +381,11 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
 
   protected action(
     m2TargetPath: string[],
-    m2Timestamp: collabs.MessageMeta | null,
+    m2Timestamp: collabs.CRDTMeta | null,
     m2Message: collabs.m2Start<m2Args<T>>, // User-defined
     m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
-    m1Timestamp: collabs.MessageMeta,
+    m1Timestamp: collabs.CRDTMeta,
     m1Message: collabs.m1Start<m1Args> // User-defined
   ) {
     // Conflict resolution function

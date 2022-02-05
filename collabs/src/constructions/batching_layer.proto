@@ -1,12 +1,12 @@
-message BatchingLayerEdgeMessage {
-  oneof label {
-    string stringLabel = 1;
-    bytes bytesLabel = 2;
-  }
-  required uint32 parent = 3;
-}
-
 message BatchingLayerMessage {
-  repeated BatchingLayerEdgeMessage edges = 1;
-  repeated uint32 messages = 2 [packed=true];
+  // All of the edge labels are converted to Uint8Array's (specifically,
+  // strings are converted), then packed sequentially into this one big
+  // array. Lengths are stored in the next field.
+  required bytes edgeLabelsPacked = 1;
+  // For Uint8Array's, this is length; for strings, it is ~length
+  // (bitwise NOT). That way, we store the type in the sign bit, at the
+  // cost of only one bit.
+  repeated sint32 edgeLabelLengths = 2 [packed=true];
+  repeated uint32 edgeParents = 3 [packed=true];
+  repeated uint32 messages = 4 [packed=true];
 }

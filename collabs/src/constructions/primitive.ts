@@ -1,4 +1,4 @@
-import { Collab, CollabEventsRecord, MessageMeta } from "../core";
+import { Collab, CollabEventsRecord, MessageMeta, Message } from "../core";
 
 /**
  * Convenience superclass for a primitive [[Collab]] (Collab with no children, i.e., leaf in the Collab tree).
@@ -10,7 +10,7 @@ import { Collab, CollabEventsRecord, MessageMeta } from "../core";
 export abstract class CPrimitive<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends Collab<Events> {
-  protected sendPrimitive(message: Uint8Array | string) {
+  protected sendPrimitive(message: Message) {
     this.send([message]);
   }
 
@@ -25,10 +25,7 @@ export abstract class CPrimitive<
    * @param  messagePath [description]
    * @return             [description]
    */
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ): void {
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length !== 1) {
       // We are not the target
       throw new Error("CPrimitive received message for child");
@@ -44,7 +41,7 @@ export abstract class CPrimitive<
    * @param  message    [description]
    */
   protected abstract receivePrimitive(
-    message: Uint8Array | string,
+    message: Message,
     meta: MessageMeta
   ): void;
 

@@ -10,9 +10,10 @@ import {
   InitToken,
   Runtime,
   Pre,
+  Message,
 } from "../../core";
 import { DefaultSerializer, Optional, Serializer } from "../../util";
-import { CRDTMessageMeta } from "./crdt_message_meta";
+import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 
 /* eslint-disable */
 
@@ -26,7 +27,7 @@ class StoredMessage {
     readonly senderCounter: number,
     readonly receiptCounter: number,
     readonly targetPath: string[],
-    readonly crdtMeta: CRDTMessageMeta | null,
+    readonly crdtMeta: CRDTMeta | null,
     readonly message: Uint8Array
   ) {}
 }
@@ -74,7 +75,7 @@ export class MessageHistory<Events extends CollabEventsRecord> {
   add(
     replicaID: string,
     targetPath: string[],
-    crdtMeta: CRDTMessageMeta,
+    crdtMeta: CRDTMeta,
     message: Uint8Array
   ): string {
     if (this.historyDiscard2Dominated) {
@@ -110,7 +111,7 @@ export class MessageHistory<Events extends CollabEventsRecord> {
    * crdtMeta.sender), it is assumed that the crdtMeta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaID: string, crdtMeta: CRDTMessageMeta) {
+  getConcurrent(replicaID: string, crdtMeta: CRDTMeta) {
     return this.processTimestamp(
       replicaID,
       crdtMeta,
@@ -133,7 +134,7 @@ export class MessageHistory<Events extends CollabEventsRecord> {
    */
   private processTimestamp(
     replicaID: string,
-    crdtMeta: CRDTMessageMeta,
+    crdtMeta: CRDTMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
@@ -156,10 +157,9 @@ export class MessageHistory<Events extends CollabEventsRecord> {
     // messages by each replicaID with sender counter
     // greater than crdtMeta.vectorClock.get(replicaID).
     let concurrent: Array<[string, StoredMessage]> = [];
-    let vc = crdtMeta.vectorClock;
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
-      let vcEntry = vc.get(historyEntry[0]);
+      let vcEntry = crdtMeta.vectorClockGet(historyEntry[0]);
       if (senderHistory !== undefined) {
         let concurrentIndexStart = MessageHistory.indexAfter(
           senderHistory,
@@ -330,6 +330,9 @@ export type SemidirectMessage<m1ArgsT, m2ArgsT> =
   | m1Start<m1ArgsT>
   | m2Start<m2ArgsT>;
 
+/**
+ * # Experimental
+ */
 export abstract class SemidirectProductRev<
   Events extends CollabEventsRecord = CollabEventsRecord,
   C extends Collab = Collab,
@@ -378,11 +381,23 @@ export abstract class SemidirectProductRev<
     this._m2 = this.m2;
     this.m1 = (...args: m1Args) => {
       this.m1RetVal = undefined;
+      // Request all context.
+      const crdtMetaRequestee = <CRDTMetaRequestee>(
+        this.getContext(CRDTMetaRequestee.CONTEXT_KEY)
+      );
+      crdtMetaRequestee.requestAll();
+      // Send.
       this.send([this.messageValueSerializer.serialize({ m: 1, args })]);
       return this.m1RetVal as m1Ret;
     };
     this.m2 = (...args: m2Args) => {
       this.m2RetVal = undefined;
+      // Request all context.
+      const crdtMetaRequestee = <CRDTMetaRequestee>(
+        this.getContext(CRDTMetaRequestee.CONTEXT_KEY)
+      );
+      crdtMetaRequestee.requestAll();
+      // Send.
       this.send([this.messageValueSerializer.serialize({ m: 2, args })]);
       return this.m2RetVal as m2Ret;
     };
@@ -412,28 +427,26 @@ export abstract class SemidirectProductRev<
   protected action(
     // TODO: make abstract
     m2TargetPath: string[],
-    m2Timestamp: MessageMeta | null,
+    m2Timestamp: CRDTMeta | null,
     m2Message: m2Start<m2Args>,
     m2TrackedEvents: [string, any][],
     m1TargetPath: string[],
-    m1Timestamp: MessageMeta,
+    m1Timestamp: CRDTMeta,
     m1Message: m1Start<m1Args>
   ): { m1TargetPath: string[]; m1Message: m1Start<m1Args> } | null {
     return { m1TargetPath, m1Message };
   }
 
-  protected receiveInternal(
-    messagePath: (Uint8Array | string)[],
-    meta: MessageMeta
-  ) {
-    const crdtMeta = CRDTMessageMeta.from(meta);
+  protected receiveInternal(messagePath: Message[], meta: MessageMeta) {
+    const crdtMeta = <CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY];
 
     this.receivedMessages = this.receivedMessages || true;
     const message = messagePath[messagePath.length - 1];
     if (typeof message !== "string") {
       // Uint8Array, message for ourselves.
-      const semidirectMessage =
-        this.messageValueSerializer.deserialize(message);
+      const semidirectMessage = this.messageValueSerializer.deserialize(
+        <Uint8Array>message
+      );
       switch (true) {
         case semidirectMessage.m === 1:
           let concurrent = this.history.getConcurrent(
@@ -462,7 +475,7 @@ export abstract class SemidirectProductRev<
                   )!
                   .map(({ eventName, event }) => [eventName, event]),
                 mAct.m1TargetPath,
-                meta,
+                crdtMeta,
                 mAct.m1Message as m1Start<m1Args>
               );
               if (mActOrNull === null) return;
@@ -478,7 +491,7 @@ export abstract class SemidirectProductRev<
             this.runtime.replicaID,
             [], // TODO: not actually used/usable
             crdtMeta,
-            message
+            <Uint8Array>message
           );
           this.m2RetVal = this.runLocallyLayer.runLocally(meta, () => {
             return this._m2!(...(semidirectMessage as m2Start<m2Args>).args);
