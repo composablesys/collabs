@@ -1,14 +1,11 @@
-import automergePerf from "./automerge_perf/benchmark";
-import todoList from "./todo_list/benchmark";
 import {
   setFolder,
   setRecordedTrials,
   setVersion,
   setWarmupTrials,
 } from "./record";
-import microCollabs from "./micro_collabs/benchmark";
-import microAutomerge from "./micro_automerge/benchmark";
-import microYjs from "./micro_yjs/benchmark";
+import text_trace from "./benchmarks/text_trace/benchmark";
+import todo_list from "./benchmarks/todo_list/benchmark";
 
 (async function () {
   function printUsage(exitCode: number) {
@@ -28,21 +25,22 @@ You can set both trial counts to 0 to do a test run (check that test names and a
   let testArgs = args.slice(5);
 
   switch (majorTest) {
-    case "automerge_perf":
-      await automergePerf(testArgs);
+    case "text_trace":
+      await text_trace(testArgs);
       break;
     case "todo_list":
-      await todoList(testArgs);
+      await todo_list(testArgs);
       break;
-    case "micro_collabs":
-      await microCollabs(testArgs);
-      break;
-    case "micro_automerge":
-      await microAutomerge(testArgs);
-      break;
-    case "micro_yjs":
-      await microYjs(testArgs);
-      break;
+    // TODO:
+    // case "micro_collabs":
+    //   await microCollabs(testArgs);
+    //   break;
+    // case "micro_automerge":
+    //   await microAutomerge(testArgs);
+    //   break;
+    // case "micro_yjs":
+    //   await microYjs(testArgs);
+    //   break;
     default:
       console.log("Unrecognized major test: " + majorTest);
       printUsage(2);
