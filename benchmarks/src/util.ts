@@ -50,3 +50,9 @@ export function randomChar(rng: seedrandom.prng) {
   let index = Math.floor(rng() * CHARS.length);
   return CHARS[index];
 }
+
+export type Data = Uint8Array | string;
+export function byteLength(msg: Data): number {
+  if (typeof msg === "string") return msg.length;
+  else return msg.byteLength;
+}
