@@ -68,7 +68,7 @@ const implementations: { [name: string]: Implementation<unknown> } = {
 
 (async function () {
   function printUsage(exitCode: number) {
-    console.log(`Usage: npm start -- <out folder> <version> <warmup trials> <recorded trials> <trace> <implementation> <measurement> <measurement args...>
+    console.log(`Usage: npm start -- <out folder> <version> <warmup trials> <recorded trials> <trace> <implementation> <measurement>
 If <recorded trials> is 0, no output is recorded.
 You can set both trial counts to 0 to do a test run (check that test names and args are valid without running the actual experiments).
 `);
@@ -76,8 +76,8 @@ You can set both trial counts to 0 to do a test run (check that test names and a
   }
 
   const args = process.argv.slice(2);
-  if (args.length < 7) {
-    console.log("Not enough args");
+  if (args.length !== 7) {
+    console.log("Wrong number of arguments");
     printUsage(100);
   }
 
@@ -127,29 +127,44 @@ You can set both trial counts to 0 to do a test run (check that test names and a
     case "save":
       await replicaBenchmark.save();
       break;
-    case "offlineReceiveTime":
-    case "offlineReceiveMemory":
-      const metric = measurement === "offlineReceiveTime" ? "Time" : "Memory";
-      const concType = <"coarse" | "fine">args[7];
-      const numUsers = parseInt(args[8]);
-      const concOpStart = parseInt(args[9]);
-      const concOps = parseInt(args[10]);
-      if (!(concType === "coarse" || concType === "fine") || args.length < 11) {
-        console.log(
-          "offlineReceive measurement args: <coarse | fine> <numUsers> <concOpStart> <concOps>"
-        );
-        printUsage(7);
-      }
-      await replicaBenchmark.offlineReceive(
-        metric,
-        concType,
-        numUsers,
-        concOpStart,
-        concOps
-      );
-      break;
     default:
-      console.log("Unrecognized measurement: " + measurement);
-      printUsage(6);
+      if (measurement.startsWith("concurrent")) {
+        const split = measurement.split(" ");
+        if (split.length !== 5) {
+          console.log("Wrong number of tokens in concurrentReceive arg");
+          console.log(
+            'concurrentReceive measurement format: single argument "concurrentReceive<Time | Memory> <coarse | fine> <numUsers> <concOpStart> <concOps>"'
+          );
+          printUsage(7);
+        }
+
+        const metric = <"Time" | "Memory">(
+          split[0].substring("concurrentReceive".length)
+        );
+        if (!(metric === "Time" || metric === "Memory")) {
+          console.log("Unrecognized concurrentReceive metric: " + split[1]);
+          printUsage(8);
+        }
+
+        const concType = <"coarse" | "fine">split[1];
+        if (!(concType === "coarse" || concType === "fine")) {
+          console.log("Unrecognized concurrentReceive concType: " + split[1]);
+          printUsage(9);
+        }
+
+        const numUsers = parseInt(split[2]);
+        const concOpStart = parseInt(split[3]);
+        const concOps = parseInt(split[4]);
+        await replicaBenchmark.concurrentReceive(
+          metric,
+          concType,
+          numUsers,
+          concOpStart,
+          concOps
+        );
+      } else {
+        console.log("Unrecognized measurement: " + measurement);
+        printUsage(6);
+      }
   }
 })();

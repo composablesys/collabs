@@ -35,7 +35,14 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   /**
-   * Use Automerge.from to init your doc here.
+   * Use Automerge.load with a prepared save to init
+   * your state. (Note Automerge.from does not work:
+   * it needs to be applied on one replica and shipped to
+   * the others, like a normal change.)
    */
   abstract skipLoad(): void;
+
+  static getFakeInitialSave(data: any): string {
+    return Automerge.save(Automerge.from(data));
+  }
 }

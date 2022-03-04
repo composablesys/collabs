@@ -170,7 +170,7 @@ export class ReplicaBenchmark<I> {
 
       // Check final state.
       if (this.trace.correctState !== undefined) {
-        assert.strictEqual(
+        assert.deepStrictEqual(
           this.trace.getState(sender),
           this.trace.correctState,
           "sender state does not equal trace.correctState"
@@ -255,7 +255,7 @@ export class ReplicaBenchmark<I> {
       }
 
       // Check final state.
-      assert.strictEqual(
+      assert.deepStrictEqual(
         this.trace.getState(receiver),
         senderState,
         "receiver state does not equal sender state"
@@ -349,7 +349,7 @@ export class ReplicaBenchmark<I> {
       }
 
       // Check loaded state.
-      assert.strictEqual(
+      assert.deepStrictEqual(
         this.trace.getState(loader),
         saverState,
         "loader state does not equal saver state"
@@ -365,7 +365,7 @@ export class ReplicaBenchmark<I> {
     );
   }
 
-  async offlineReceive(
+  async concurrentReceive(
     metric: "Time" | "Memory",
     /**
      * Coarse: each user sends all messages alone.
@@ -470,7 +470,7 @@ export class ReplicaBenchmark<I> {
 
     // Record measurements.
     record(
-      this.traceName + "/" + "offlineReceive" + metric,
+      this.traceName + "/" + "concurrentReceive" + metric,
       this.implementationName,
       concType + " " + numUsers + " " + concOpStart + " " + concOps,
       values,

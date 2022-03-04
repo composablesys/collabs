@@ -121,7 +121,7 @@ export class CollabsJSONOptTodoList
   private static _fakeInitialSaveData?: Uint8Array;
   private static getFakeInitialSaveData(): Uint8Array {
     if (this._fakeInitialSaveData === undefined) {
-      // TODO: This is a hack to give us initial value.
+      // This is a trick to give us an initial value.
       // Need to find a better way as part
       // of initial values generally.
       const fakeInitialApp = new collabs.CRDTApp({ debugReplicaId: "INIT" });

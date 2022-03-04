@@ -6,8 +6,12 @@ export class AutomergeText
   extends AutomergeReplica<{ text: Automerge.Text }>
   implements IText
 {
+  private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
+    text: new Automerge.Text(),
+  });
+
   skipLoad() {
-    this.doc = Automerge.from({ text: new Automerge.Text() });
+    this.doc = Automerge.load(AutomergeText.fakeInitialSave);
   }
 
   insert(index: number, char: string): void {

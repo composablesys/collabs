@@ -91,8 +91,6 @@ export class TodoListTrace implements Trace<ITodoList> {
     } else if (opChoice < 0.65) {
       // Delete text in existing item
       let item = this.randomItem(list, true, rng);
-      // TODO: skip if item.textSize is 0.  Not changing
-      // for now to avoid re-running benchmarks.
       let index = this.choice(item.textSize, rng);
       let count = Math.min(this.choice(41, rng) + 10, item.textSize - index);
       item.deleteText(index, count);

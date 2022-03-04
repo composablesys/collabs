@@ -10,12 +10,14 @@ import { edits, finalText } from "./real_text_trace_edits";
 export class RealTextTrace implements Trace<IText> {
   doOp(replica: IText, _rng: prng, opNum: number): void {
     const edit = edits[opNum];
+    // For non-sequential traces, need to cap the index at length.
+    const length = replica.length;
     if (edit[2] !== undefined) {
       // Insert edit[2] at edit[0]
-      replica.insert(edit[0], edit[2]);
+      replica.insert(Math.min(edit[0], length), edit[2]);
     } else {
       // Delete character at edit[0]
-      replica.delete(edit[0]);
+      replica.delete(Math.min(edit[0], length - 1));
     }
   }
 

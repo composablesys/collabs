@@ -72,7 +72,7 @@ export class YjsTodoList extends YjsReplica implements ITodoList {
   private static _fakeInitialSaveData?: Uint8Array;
   private static getFakeInitialSaveData(): Uint8Array {
     if (this._fakeInitialSaveData === undefined) {
-      // TODO: This is a hack to give us initial value
+      // This is a trick to give us initial value
       // { items: [] }.
       // See https://discuss.yjs.dev/t/initial-offline-value-of-a-shared-document/465/6
       const fakeInitialDoc = new Y.Doc();

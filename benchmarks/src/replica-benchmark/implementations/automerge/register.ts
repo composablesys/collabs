@@ -6,8 +6,12 @@ export class AutomergeRegister
   extends AutomergeReplica<{ v: unknown }>
   implements IRegister
 {
+  private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
+    v: 0,
+  });
+
   skipLoad() {
-    this.doc = Automerge.from({ v: 0 });
+    this.doc = Automerge.load(AutomergeRegister.fakeInitialSave);
   }
 
   set(value: unknown): void {

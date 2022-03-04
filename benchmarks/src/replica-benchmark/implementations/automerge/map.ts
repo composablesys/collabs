@@ -6,8 +6,10 @@ export class AutomergeMap
   extends AutomergeReplica<{ [key: string]: unknown }>
   implements IMap
 {
+  private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({});
+
   skipLoad() {
-    this.doc = Automerge.from({});
+    this.doc = Automerge.load(AutomergeMap.fakeInitialSave);
   }
 
   set(key: string, value: unknown): void {

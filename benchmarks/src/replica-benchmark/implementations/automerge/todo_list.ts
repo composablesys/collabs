@@ -5,83 +5,80 @@ import { AutomergeReplica } from "./replica";
 
 class AutomergeTodoListInternal implements ITodoListInternal {
   /**
-   * @param cursor series of indices to use in rootList to access this item
+   * @param cursor series of indices to use in replica to access this item
    */
   constructor(
-    private readonly rootList: AutomergeTodoList,
+    private readonly replica: AutomergeReplica<any>,
     private readonly cursor: readonly number[]
   ) {}
 
   private getThis(doc: any): any {
     let thisObj = doc;
-    for (let index of this.cursor) {
+    for (const index of this.cursor) {
       thisObj = thisObj.items[index];
     }
     return thisObj;
   }
 
   addItem(index: number, text: string): void {
-    this.rootList.doc = Automerge.change(this.rootList.doc, (doc) => {
-      let thisDoc = this.getThis(doc);
-      let textCollab = new Automerge.Text();
+    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+      const thisDoc = this.getThis(d);
+      const textCRDT = new Automerge.Text();
       thisDoc.items.insertAt(index, {
-        text: textCollab,
+        text: textCRDT,
         done: false,
         items: [],
       });
-      textCollab.insertAt!(0, ...text);
+      textCRDT.insertAt!(0, ...text);
     });
   }
 
   deleteItem(index: number): void {
-    this.rootList.doc = Automerge.change(this.rootList.doc, (doc) => {
-      let thisDoc = this.getThis(doc);
+    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+      const thisDoc = this.getThis(d);
       thisDoc.items.deleteAt(index);
     });
   }
 
   getItem(index: number): AutomergeTodoListInternal {
-    return new AutomergeTodoListInternal(this.rootList, [
-      ...this.cursor,
-      index,
-    ]);
+    return new AutomergeTodoListInternal(this.replica, [...this.cursor, index]);
   }
 
   get itemsSize(): number {
-    return this.getThis(this.rootList.doc).items.length;
+    return this.getThis(this.replica.doc).items.length;
   }
 
   get done(): boolean {
-    return this.getThis(this.rootList.doc).done;
+    return this.getThis(this.replica.doc).done;
   }
 
   set done(done: boolean) {
-    this.rootList.doc = Automerge.change(this.rootList.doc, (doc) => {
-      let thisDoc = this.getThis(doc);
+    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+      const thisDoc = this.getThis(d);
       thisDoc.done = done;
     });
   }
 
   insertText(index: number, text: string): void {
-    this.rootList.doc = Automerge.change(this.rootList.doc, (doc) => {
-      let thisDoc = this.getThis(doc);
+    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+      const thisDoc = this.getThis(d);
       (thisDoc.text as Automerge.Text).insertAt!(index, ...text);
     });
   }
 
   deleteText(index: number, count: number): void {
-    this.rootList.doc = Automerge.change(this.rootList.doc, (doc) => {
-      let thisDoc = this.getThis(doc);
+    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+      const thisDoc = this.getThis(d);
       (thisDoc.text as Automerge.Text).deleteAt!(index, count);
     });
   }
 
   get textSize(): number {
-    return (this.getThis(this.rootList.doc).text as Automerge.Text).length;
+    return (this.getThis(this.replica.doc).text as Automerge.Text).length;
   }
 
   getText(): string {
-    return (this.getThis(this.rootList.doc).text as Automerge.Text).toString();
+    return (this.getThis(this.replica.doc).text as Automerge.Text).toString();
   }
 }
 
@@ -97,8 +94,11 @@ export class AutomergeTodoList
     this.rootInternal = new AutomergeTodoListInternal(this, []);
   }
 
-  // Override
+  private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
+    items: [],
+  });
+
   skipLoad() {
-    this.doc = Automerge.from([]);
+    this.doc = Automerge.load(AutomergeTodoList.fakeInitialSave);
   }
 }
