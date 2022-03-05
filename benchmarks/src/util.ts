@@ -1,4 +1,5 @@
 import memwatch from "@airbnb/node-memwatch";
+import Automerge from "automerge";
 
 export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,8 +51,16 @@ export function randomChar(rng: seedrandom.prng) {
   return CHARS[index];
 }
 
-export type Data = Uint8Array | string;
+export type Data =
+  | Uint8Array
+  | string
+  | Automerge.BinaryChange
+  | Automerge.BinaryChange[];
 export function byteLength(msg: Data): number {
   if (typeof msg === "string") return msg.length;
-  else return msg.byteLength;
+  else if (Array.isArray(msg)) {
+    let total = 0;
+    for (const bytes of msg) total += bytes.byteLength;
+    return total;
+  } else return msg.byteLength;
 }

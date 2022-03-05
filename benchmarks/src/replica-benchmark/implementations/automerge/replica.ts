@@ -18,19 +18,22 @@ export abstract class AutomergeReplica<T> implements Replica {
   transact(doOps: () => void): void {
     const oldDoc = this.doc;
     doOps();
-    const msg = JSON.stringify(Automerge.getChanges(oldDoc, this.doc));
+    // TODO: can we use Automerge.getLastLocalChange instead?
+    // Docs say it should be faster, but it's possible doOps
+    // does multiple changes.
+    const msg = Automerge.getChanges(oldDoc, this.doc);
     this.onsend(msg);
   }
 
-  receive(msg: string): void {
-    this.doc = Automerge.applyChanges(this.doc, JSON.parse(msg));
+  receive(msg: Automerge.BinaryChange[]): void {
+    this.doc = Automerge.applyChanges(this.doc, msg)[0];
   }
 
   save(): Data {
     return Automerge.save(this.doc);
   }
 
-  load(saveData: string): void {
+  load(saveData: Automerge.BinaryDocument): void {
     this.doc = Automerge.load(saveData);
   }
 
@@ -42,7 +45,7 @@ export abstract class AutomergeReplica<T> implements Replica {
    */
   abstract skipLoad(): void;
 
-  static getFakeInitialSave(data: any): string {
+  static getFakeInitialSave(data: any) {
     return Automerge.save(Automerge.from(data));
   }
 }

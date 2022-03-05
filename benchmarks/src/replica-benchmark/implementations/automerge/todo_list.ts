@@ -23,20 +23,18 @@ class AutomergeTodoListInternal implements ITodoListInternal {
   addItem(index: number, text: string): void {
     this.replica.doc = Automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
-      const textCRDT = new Automerge.Text();
       thisDoc.items.insertAt(index, {
-        text: textCRDT,
+        text: new Automerge.Text(text),
         done: false,
         items: [],
       });
-      textCRDT.insertAt!(0, ...text);
     });
   }
 
   deleteItem(index: number): void {
     this.replica.doc = Automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
-      thisDoc.items.deleteAt(index);
+      thisDoc.items.deleteAt(index, 1);
     });
   }
 
