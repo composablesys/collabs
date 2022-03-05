@@ -13,7 +13,7 @@ export class CollabsDeletingText extends CollabsReplica implements IText {
     super(onsend, replicaIdRng);
 
     this.text = this.app.registerCollab(
-      "text",
+      "",
       collabs.Pre(collabs.DeletingMutCList)(
         (valueInitToken) => new collabs.LwwCRegister(valueInitToken, "")
       )

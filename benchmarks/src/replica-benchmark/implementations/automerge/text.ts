@@ -3,11 +3,11 @@ import { IText } from "../../interfaces/text";
 import { AutomergeReplica } from "./replica";
 
 export class AutomergeText
-  extends AutomergeReplica<{ text: Automerge.Text }>
+  extends AutomergeReplica<{ v: Automerge.Text }>
   implements IText
 {
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
-    text: new Automerge.Text(),
+    v: new Automerge.Text(),
   });
 
   skipLoad() {
@@ -15,18 +15,18 @@ export class AutomergeText
   }
 
   insert(index: number, char: string): void {
-    this.doc = Automerge.change(this.doc, (d) => d.text.insertAt!(index, char));
+    this.doc = Automerge.change(this.doc, (d) => d.v.insertAt!(index, char));
   }
 
   delete(index: number): void {
-    this.doc = Automerge.change(this.doc, (d) => d.text.deleteAt!(index, 1));
+    this.doc = Automerge.change(this.doc, (d) => d.v.deleteAt!(index, 1));
   }
 
   getText(): string {
-    return this.doc.text.toString();
+    return this.doc.v.toString();
   }
 
   get length(): number {
-    return this.doc.text.length;
+    return this.doc.v.length;
   }
 }

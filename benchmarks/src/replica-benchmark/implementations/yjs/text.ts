@@ -8,7 +8,7 @@ export class YjsText extends YjsReplica implements IText {
 
   constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
     super(onsend, replicaIdRng);
-    this.text = this.doc.getText("text");
+    this.text = this.doc.getText();
   }
 
   insert(index: number, char: string): void {

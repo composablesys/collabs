@@ -131,7 +131,7 @@ export class CollabsRichText extends CollabsReplica implements IText {
     super(onsend, replicaIdRng);
 
     this.richText = this.app.registerCollab(
-      "text",
+      "",
       collabs.Pre(RichTextInternal)()
     );
   }

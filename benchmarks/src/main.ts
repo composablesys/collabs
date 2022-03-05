@@ -116,7 +116,7 @@ You can set both trial counts to 0 to do a test run (check that test names and a
       await replicaBenchmark.send("Memory");
       break;
     case "sendNetwork":
-      await replicaBenchmark.send("Network");
+      await replicaBenchmark.sendNetwork();
       break;
     case "receiveTime":
       await replicaBenchmark.receive("Time");

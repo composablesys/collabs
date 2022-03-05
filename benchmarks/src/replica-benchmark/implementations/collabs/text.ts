@@ -9,7 +9,7 @@ export class CollabsText extends CollabsReplica implements IText {
   constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
     super(onsend, replicaIdRng);
 
-    this.text = this.app.registerCollab("text", collabs.Pre(collabs.CText)());
+    this.text = this.app.registerCollab("", collabs.Pre(collabs.CText)());
   }
 
   insert(index: number, char: string): void {

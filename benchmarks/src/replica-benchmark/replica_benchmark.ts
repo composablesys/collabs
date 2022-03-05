@@ -3,7 +3,7 @@
 import { record, getRecordedTrials, getWarmupTrials } from "../record";
 import seedrandom from "seedrandom";
 import { assert } from "chai";
-import { byteLength, Data, getMemoryUsed, sleep } from "../util";
+import { byteLength, Data, getMemoryUsed } from "../util";
 
 const SEED = "42";
 
@@ -105,27 +105,33 @@ export class ReplicaBenchmark<I> {
   /**
    * Benchmark cost of a single user's sending all the ops.
    */
-  async send(metric: "Time" | "Memory" | "Network") {
+  async send(metric: "Time" | "Memory") {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
     let bases = new Array<number>(getRecordedTrials());
     bases.fill(0);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      await sleep(1000); // Sleep between trials
+      // Between trials, force GC, even if it's not a
+      // recorded memory trial.
+      // This serves two purposes:
+      // 1. For time trials, make sure that there is not
+      // memory waiting around to be GC'd, since that can
+      // then add (GC) time to this trial.
+      // 2. For memory measurements, it's important to force
+      // GC during warmup trials: in my experiments,
+      // after a few (usually 3) forced GC's, the GC
+      // collects more memory than usual;
+      // it's important to make sure that happens during
+      // warmup instead of during a recorded trial, so
+      // it doesn't give a spuriously low (often negative)
+      // memory diff.
+      await getMemoryUsed();
+
       console.log("Starting trial " + trial);
 
-      let bytesSent: number;
-      let onSend: (msg: Data) => void = () => {};
-      if (metric === "Network") {
-        onSend = (msg) => {
-          bytesSent += byteLength(msg);
-        };
-      }
-      const sender = new this.implementation(
-        onSend,
-        seedrandom(SEED + "sender")
-      );
+      const sender = new this.implementation(() => {},
+      seedrandom(SEED + "sender"));
       sender.skipLoad();
 
       const rng = seedrandom(SEED);
@@ -139,9 +145,6 @@ export class ReplicaBenchmark<I> {
             break;
           case "Memory":
             bases[trial] = await getMemoryUsed();
-            break;
-          case "Network":
-            bytesSent = 0;
             break;
         }
       }
@@ -161,9 +164,6 @@ export class ReplicaBenchmark<I> {
             break;
           case "Memory":
             values[trial] = await getMemoryUsed();
-            break;
-          case "Network":
-            values[trial] = bytesSent!;
             break;
         }
       }
@@ -186,6 +186,35 @@ export class ReplicaBenchmark<I> {
       values,
       metric === "Memory" ? bases : undefined
     );
+  }
+
+  async sendNetwork() {
+    let bytesSent = 0;
+    const sender = new this.implementation((msg) => {
+      bytesSent += byteLength(msg);
+    }, seedrandom(SEED + "sender"));
+    sender.skipLoad();
+
+    const rng = seedrandom(SEED);
+
+    // Send all edits.
+    for (let op = 0; op < this.trace.numOps; op++) {
+      this.transactOp(sender, rng, op);
+    }
+
+    // Check final state.
+    if (this.trace.correctState !== undefined) {
+      assert.deepStrictEqual(
+        this.trace.getState(sender),
+        this.trace.correctState,
+        "sender state does not equal trace.correctState"
+      );
+    }
+
+    // Record measurements.
+    record(this.traceName + "/" + "sendNetwork", this.implementationName, "", [
+      bytesSent,
+    ]);
   }
 
   /**
@@ -215,7 +244,9 @@ export class ReplicaBenchmark<I> {
     }
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      await sleep(1000); // Sleep between trials
+      // Between trials, force GC. See comment in send().
+      await getMemoryUsed();
+
       console.log("Starting trial " + trial);
 
       const rng = seedrandom(SEED);
@@ -297,8 +328,10 @@ export class ReplicaBenchmark<I> {
     values.fill(0);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      await sleep(1000); // Sleep between trials
-      console.log("Starting time/size trial " + trial);
+      // Between trials, force GC. See comment in send().
+      await getMemoryUsed();
+
+      console.log("Starting saveTime trial " + trial);
 
       // Prep measurement.
       const startTime = process.hrtime.bigint();
@@ -328,8 +361,10 @@ export class ReplicaBenchmark<I> {
     values.fill(0);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      await sleep(1000); // Sleep between trials
-      console.log("Starting time/size trial " + trial);
+      // Between trials, force GC. See comment in send().
+      await getMemoryUsed();
+
+      console.log("Starting loadTime trial " + trial);
 
       // Prepare loader.
       const loader = new this.implementation(() => {},
@@ -426,7 +461,9 @@ export class ReplicaBenchmark<I> {
     }
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      await sleep(1000); // Sleep between trials
+      // Between trials, force GC. See comment in send().
+      await getMemoryUsed();
+
       console.log("Starting trial " + trial);
 
       const rng = seedrandom(SEED);

@@ -4,10 +4,6 @@ export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// memwatch.on("stats", (stats: memwatch.GcStats) => {
-//   console.log("stats: " + stats.used_heap_size);
-// });
-
 export async function getMemoryUsed(): Promise<number> {
   // Force the event loop to turn over fully, so that
   // all pending "stats" events are dispatched (I'm guessing
@@ -41,11 +37,14 @@ export async function getMemoryUsed(): Promise<number> {
   });
 }
 
-let s = "";
-for (var i = 32; i <= 126; i++) {
-  s += String.fromCharCode(i);
-}
-export const CHARS = s;
+export const CHARS = (function () {
+  let s = "";
+  for (let i = 32; i <= 126; i++) {
+    s += String.fromCharCode(i);
+  }
+  return s;
+})();
+
 export function randomChar(rng: seedrandom.prng) {
   let index = Math.floor(rng() * CHARS.length);
   return CHARS[index];
