@@ -83,9 +83,12 @@ export interface CList<
    * of range, an error is thrown.
    *
    * @param index the insertion index
-   * @return the inserted value
+   * @return The inserted value, or undefined if it is not
+   * yet constructed. Implementations that always construct
+   * the value immediately should get rid of the "undefined"
+   * case.
    */
-  insert(index: number, ...args: InsertArgs): T;
+  insert(index: number, ...args: InsertArgs): T | undefined;
 
   /**
    * Deletes count values starting at startIndex (inclusive).
@@ -195,9 +198,12 @@ export interface CList<
    * using the given InsertArgs.  Equivalent to
    * this.insert(this.length, ...args).
    *
-   * @return the inserted value
+   * @return The inserted value, or undefined if it is not
+   * yet constructed. Implementations that always construct
+   * the value immediately should get rid of the "undefined"
+   * case.
    */
-  push(...args: InsertArgs): T;
+  push(...args: InsertArgs): T | undefined;
 
   /**
    * Deletes the first element and returns that element.
@@ -209,9 +215,12 @@ export interface CList<
    * using the given InsertArgs.  Equivalent to
    * this.insert(0, ...args).
    *
-   * @return the inserted value
+   * @return the inserted value, or undefined if it is not
+   * yet constructed. Implementations that always construct
+   * the value immediately should get rid of the "undefined"
+   * case.
    */
-  unshift(...args: InsertArgs): T;
+  unshift(...args: InsertArgs): T | undefined;
 
   // Convenience accessors.
   // When they are O(n), maybe implement by just making

@@ -6,7 +6,7 @@ export declare abstract class AbstractCMap<K, V, SetArgs extends unknown[]>
   extends Collab
   implements CMap<K, V, SetArgs>
 {
-  abstract set(key: K, ...args: SetArgs): V;
+  abstract set(key: K, ...args: SetArgs): V | undefined;
   abstract delete(key: K): void;
   abstract get(key: K): V | undefined;
   abstract has(key: K): boolean;
@@ -74,7 +74,7 @@ export function MakeAbstractCMap<
       super(...args);
     }
 
-    abstract set(key: K, ...args: SetArgs): V;
+    abstract set(key: K, ...args: SetArgs): V | undefined;
     abstract delete(key: K): void;
     abstract get(key: K): V | undefined;
     abstract has(key: K): boolean;

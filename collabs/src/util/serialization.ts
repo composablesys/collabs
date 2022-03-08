@@ -61,7 +61,11 @@ export class DefaultSerializer<T> implements Serializer<T> {
         message = { stringValue: value };
         break;
       case "number":
-        message = { numberValue: value };
+        if (Number.isSafeInteger(value)) {
+          message = { intValue: value };
+        } else {
+          message = { doubleValue: value };
+        }
         break;
       case "boolean":
         message = { booleanValue: value };
@@ -116,8 +120,11 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "stringValue":
         ans = decoded.stringValue;
         break;
-      case "numberValue":
-        ans = decoded.numberValue;
+      case "intValue":
+        ans = int64AsNumber(decoded.intValue);
+        break;
+      case "doubleValue":
+        ans = decoded.doubleValue;
         break;
       case "booleanValue":
         ans = decoded.booleanValue;

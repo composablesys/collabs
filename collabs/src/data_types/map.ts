@@ -83,9 +83,12 @@ export interface CMap<
    * them to contruct the actual set value of type V,
    * which is set as the value at key.
    *
-   * @return the set value
+   * @return The set value, or undefined if it is not
+   * yet constructed. Implementations that always construct
+   * the value immediately should get rid of the "undefined"
+   * case.
    */
-  set(key: K, ...args: SetArgs): V;
+  set(key: K, ...args: SetArgs): V | undefined;
 
   /**
    * Deletes the given key, making it no longer present

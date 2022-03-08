@@ -66,9 +66,12 @@ export interface CSet<
    * Every replica then uses
    * them to contruct the actual added value of type T.
    *
-   * @return the added value
+   * @return The added value, or undefined if it is not
+   * yet constructed. Implementations that always construct
+   * the value immediately should get rid of the "undefined"
+   * case.
    */
-  add(...args: AddArgs): T;
+  add(...args: AddArgs): T | undefined;
 
   /**
    * Deletes the given value, making it no longer present

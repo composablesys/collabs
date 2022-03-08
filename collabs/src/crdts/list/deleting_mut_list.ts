@@ -45,6 +45,21 @@ export class DeletingMutCList<
     );
   }
 
+  // Override insertion methods to state that they definitely
+  // return a value, since this is true of DeletingMutCSet.add.
+
+  insert(index: number, ...args: InsertArgs): C {
+    return super.insert(index, ...args)!;
+  }
+
+  push(...args: InsertArgs): C {
+    return super.push(...args)!;
+  }
+
+  unshift(...args: InsertArgs): C {
+    return super.unshift(...args)!;
+  }
+
   owns(value: C): boolean {
     // Avoid errors from value.parent in case it
     // is the root.

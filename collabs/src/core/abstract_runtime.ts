@@ -8,7 +8,9 @@ import { Message } from "./message";
  * Skeletal implementation of [[Runtime]] that uses
  * a root [[Collab]].
  */
-export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
+export abstract class AbstractRuntime<
+    Events extends RuntimeEventsRecord = RuntimeEventsRecord
+  >
   extends EventEmitter<Events>
   implements Runtime<Events>
 {
@@ -20,6 +22,10 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
 
   constructor(readonly replicaID: string) {
     super();
+
+    if (replicaID === "") {
+      throw new Error('replicaID must not be ""');
+    }
   }
 
   protected setRootCollab<C extends Collab>(preRootCollab: Pre<C>): C {
@@ -53,4 +59,6 @@ export abstract class AbstractRuntime<Events extends RuntimeEventsRecord>
   ): void;
 
   abstract getAddedContext(key: symbol): unknown;
+
+  abstract readonly isLoaded: boolean;
 }

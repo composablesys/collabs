@@ -10,17 +10,6 @@ if (!urlParams.has("container")) {
 }
 const containerURL = urlParams.get("container")!;
 
-const doLoad = window.location.search === "?load=true";
-if (doLoad) {
-  // Get rid of the GET parameter in the address bar,
-  // so it doesn't automatically happen on refresh.
-  window.history.pushState(
-    {},
-    document.title,
-    window.location.origin + window.location.pathname
-  );
-}
-
 // --- Setup our app ---
 
 const app = new collabs.CRDTApp();

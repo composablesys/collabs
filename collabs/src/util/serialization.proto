@@ -13,14 +13,15 @@ message ObjectMessage {
 message DefaultSerializerMessage {
     oneof value {
         string stringValue = 1;
-        double numberValue = 2;
-        bool booleanValue = 3;
-        bool undefinedValue = 4;
-        bool nullValue = 5;
-        CollabReference collabValue = 6;
-        ArrayMessage arrayValue = 7;
-        ObjectMessage objectValue = 8;
-        bytes bytesValue = 9;
+        sint64 intValue = 2;
+        double doubleValue = 3;
+        bool booleanValue = 4;
+        bool undefinedValue = 5;
+        bool nullValue = 6;
+        CollabReference collabValue = 7;
+        ArrayMessage arrayValue = 8;
+        ObjectMessage objectValue = 9;
+        bytes bytesValue = 10;
     }
 }
 

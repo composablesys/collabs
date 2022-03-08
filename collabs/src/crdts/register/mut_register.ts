@@ -75,7 +75,7 @@ export class MutCRegisterFromRegister<
     this.valueFactory.on("Delete", (event) => this.emit("Delete", event));
   }
 
-  set(...args: SetArgs): Value {
+  set(...args: SetArgs): Value | undefined {
     this.valueFactory.clear();
     return this.register.set(this.valueFactory.add(...args));
   }
@@ -129,6 +129,13 @@ export class LWWMutCRegister<
       valueConstructor,
       argsSerializer
     );
+  }
+
+  // Override set to state that it definitely
+  // returns a value, since this is true of OptionalLWWCRegister.set.
+
+  set(...args: SetArgs): Optional<C> {
+    return super.set(...args)!;
   }
 
   conflicts(): C[] {

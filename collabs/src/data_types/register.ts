@@ -40,9 +40,12 @@ export interface CRegister<
    * Every replica then uses
    * them to contruct the actual set value of type T.
    *
-   * @return the set value
+   * @return The set value, or undefined if it is not
+   * yet constructed. Implementations that always construct
+   * the value immediately should get rid of the "undefined"
+   * case.
    */
-  set(...args: SetArgs): T;
+  set(...args: SetArgs): T | undefined;
 
   /**
    * Returns the current value.

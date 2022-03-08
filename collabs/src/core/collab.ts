@@ -205,6 +205,9 @@ export interface CollabEventsRecord {
  * to get its own save data. [[load]] then reverses the process,
  * calling [[load]] on each child.
  *
+ * Typically, [[receive]], [[load]], and [[save]] should
+ * only be called by the parent.
+ *
  * # Other Features
  *
  * ## Events

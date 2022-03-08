@@ -46,7 +46,8 @@ export class CMapFromRegister<
 
   /**
    * Register requirements:
-   * - Immediately after calling `set`, its value must
+   * - `set` must return a value (not undefined).
+   * THe value must
    * be a present `Optional`. Otherwise, [[set]] will
    * throw an error.
    * - Immediately after calling `clear()`, it
@@ -115,7 +116,7 @@ export class CMapFromRegister<
   set(key: K, ...args: SetArgs): V {
     const register = this.internalMap.get(key);
     // After setting, the register's value is present.
-    return register.set(...args).get();
+    return register.set(...args)!.get();
   }
 
   delete(key: K): void {

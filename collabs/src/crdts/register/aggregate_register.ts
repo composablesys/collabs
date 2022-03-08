@@ -49,7 +49,7 @@ export abstract class AggregateArgsCRegister<
   extends PrimitiveCRDT<Events>
   implements CRegister<T, SetArgs>, ClearableCRegister<T, SetArgs>
 {
-  protected entries: AggregateArgsCRegisterEntry<S>[] = [];
+  private entries: AggregateArgsCRegisterEntry<S>[] = [];
   private _value: T;
 
   constructor(

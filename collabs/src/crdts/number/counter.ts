@@ -24,7 +24,7 @@ export interface CCounterEventsRecord extends CollabEventsRecord {
  * in serial order. This is eventually consistent because
  * addition commutes.
  *
- * Values and addends are required to be integers, since
+ * Values and addends are required to be (safe) integers, since
  * floating-point addition is not actually commutative
  * (due to rounding errors). If you need non-integer values,
  * you should represent them as e.g. (Counter value)/100.
@@ -47,8 +47,8 @@ export class CCounter extends CPrimitive<CCounterEventsRecord> {
   }
 
   add(toAdd: number): void {
-    if (!Number.isInteger(toAdd)) {
-      throw new Error("toAdd must be an integer");
+    if (!Number.isSafeInteger(toAdd)) {
+      throw new Error("toAdd must be a safe integer");
     }
 
     const message = CCounterMessage.create(toAdd === 1 ? {} : { arg: toAdd });

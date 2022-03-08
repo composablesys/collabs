@@ -173,7 +173,7 @@ export class BatchingLayer
     if (this.inChildReceive) {
       // send inside a receive call; not allowed (might break things).
       throw new Error(
-        "BatchingLayer.send called during another message's receive;" +
+        "BatchingLayer.childSend called during another message's receive;" +
           " did you try to perform an operation in an event handler?"
       );
     }

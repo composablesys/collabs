@@ -17,7 +17,9 @@ export interface RuntimeEventsRecord {
    *
    * You can listen on this event if you need to construct
    * views of [[Collab]] state after loading and before any
-   * messages are received.
+   * messages are received. However, you should check
+   * [[Runtime.isLoaded]] first - in that case, this event
+   * has already been emitted.
    */
   Load: LoadEvent;
 }
@@ -62,6 +64,14 @@ export interface Runtime<
    * Type guard, used by [[isRuntime]].
    */
   readonly isRuntime: true;
+  /**
+   * An ID that uniquely identifies this replica among
+   * all connected replicas.
+   *
+   * Must not be `""`.
+   *
+   * See [[randomReplicaID]], [[pseudoRandomReplicaID]].
+   */
   readonly replicaID: string;
 
   /**
@@ -104,6 +114,14 @@ export interface Runtime<
    * @return          [description]
    */
   getDescendant(namePath: string[]): Collab;
+
+  /**
+   * True if all Collabs have been loaded
+   * (i.e., [[Collab.load]] completed).
+   *
+   * See [[RuntimeEventsRecord.Load]].
+   */
+  readonly isLoaded: boolean;
 }
 
 export function isRuntime(x: unknown): x is Runtime {

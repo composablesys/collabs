@@ -14,14 +14,14 @@ import { CRDTContainer } from "@collabs/container";
   // Display text changes
   text.on("Any", () => {
     textarea.value = text.toString();
-    updateCursor();
+    updateSelection();
   });
 
   // TODO: shared cursors
 
   const myStartCursor = new collabs.LocalCursor(text, 0);
   const myEndCursor = new collabs.LocalCursor(text, 0);
-  function updateSelection() {
+  function updateCursors() {
     // Need to do this on a delay because the event doesn't
     // due its default action (updating the handler) until
     // after the event handlers.
@@ -30,17 +30,17 @@ import { CRDTContainer } from "@collabs/container";
       myEndCursor.index = textarea.selectionEnd;
     }, 0);
   }
-  function updateCursor() {
+  function updateSelection() {
     textarea.selectionStart = myStartCursor.index;
     textarea.selectionEnd = myEndCursor.index;
   }
 
-  window.addEventListener("selectionchange", updateSelection);
-  textarea.addEventListener("mousedown", updateSelection);
+  window.addEventListener("selectionchange", updateCursors);
+  textarea.addEventListener("mousedown", updateCursors);
   textarea.addEventListener("mousemove", (e) => {
-    if (e.buttons === 1) updateSelection();
+    if (e.buttons === 1) updateCursors();
   });
-  textarea.addEventListener("mouseclick", updateSelection);
+  textarea.addEventListener("mouseclick", updateCursors);
 
   // Change the text when a key is pressed in textarea
   textarea.addEventListener("keydown", (e) => {
@@ -73,15 +73,15 @@ import { CRDTContainer } from "@collabs/container";
       type(e.key, startIndex, endIndex);
     } else {
       // Assume it's either irrelevant or selection related
-      updateSelection();
-      return; // Don't updateCursor or preventDefault.
+      updateCursors();
+      return; // Don't updateSelection or preventDefault.
       // Ctrl+V, Ctrl+X dispatch paste/cut events, like when
       // using the mouse menu versions, which we handle below.
       // Ctrl+C doesn't need to be handled (default works fine.)
       // So we don't need cases for these.
     }
 
-    updateCursor();
+    updateSelection();
     // Don't let the browser type the key, we do it for them
     e.preventDefault();
   });
@@ -104,7 +104,7 @@ import { CRDTContainer } from "@collabs/container";
     if (e.clipboardData) {
       const pasted = e.clipboardData.getData("text");
       type(pasted, myStartCursor.index, myEndCursor.index);
-      updateCursor();
+      updateSelection();
     }
     e.preventDefault();
   });

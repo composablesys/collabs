@@ -6,7 +6,7 @@ export declare abstract class AbstractCSet<T, AddArgs extends unknown[]>
   extends Collab
   implements CSet<T, AddArgs>
 {
-  abstract add(...args: AddArgs): T;
+  abstract add(...args: AddArgs): T | undefined;
   abstract delete(value: T): void;
   abstract has(value: T): boolean;
   abstract values(): IterableIterator<T>;
@@ -61,7 +61,7 @@ export function MakeAbstractCSet<
       super(...args);
     }
 
-    abstract add(...args: AddArgs): T;
+    abstract add(...args: AddArgs): T | undefined;
     abstract delete(value: T): void;
     abstract has(value: T): boolean;
     abstract values(): IterableIterator<T>;

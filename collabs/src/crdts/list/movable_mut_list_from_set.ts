@@ -171,9 +171,9 @@ export class MovableMutCListFromSet<
     });
   }
 
-  insert(index: number, ...args: InsertArgs): C {
+  insert(index: number, ...args: InsertArgs): C | undefined {
     const loc = this.denseLocalList.createNewLocs(index, 1)[0];
-    return this.set.add(loc, args).value;
+    return this.set.add(loc, args)?.value;
   }
 
   /**

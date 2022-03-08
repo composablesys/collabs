@@ -93,11 +93,10 @@ export class CRDTRuntime
       throw new Error("Not yet loaded");
     }
 
-    // From our choice of Collab layers,
-    // we know messagePath is actually all Uint8Array's.
-    const messagePathBytes = <Uint8Array[]>messagePath;
+    // Since BatchingLayer is the root, we know this
+    // is actually just a single Uint8Array.
+    const message = <Uint8Array>messagePath[0];
 
-    // Local echo with only mandatory MessageMeta.
     if (this.inRootReceive) {
       // send inside a receive call; not allowed (might break things).
       throw new Error(
@@ -105,28 +104,14 @@ export class CRDTRuntime
           " did you try to perform an operation in an event handler?"
       );
     }
-    this.inRootReceive = true;
-    try {
-      this.rootCollab.receive([...messagePathBytes], {
-        sender: this.replicaID,
-        isLocalEcho: true,
-      });
-    } catch (err) {
-      // Don't let the error block other messages' delivery,
-      // but still make it print
-      // its error like it was unhandled.
-      setTimeout(() => {
-        throw err;
-      });
-    } finally {
-      this.inRootReceive = false;
-    }
+
+    // No need for local echo, since BatchingLayer ignores it anyway.
 
     // Serialize messagePathBytes.
     // Opt: avoid copying the inner Uint8Array's, by serializing
     // them now instead of later, as part of the same Writer?
     const runtimeMessage = CRDTRuntimeMessage.create({
-      messagePath: messagePathBytes,
+      message,
       sender: this.replicaID,
     });
     const serialized = CRDTRuntimeMessage.encode(runtimeMessage).finish();
@@ -196,7 +181,7 @@ export class CRDTRuntime
     }
     this.inRootReceive = true;
     try {
-      this.rootCollab.receive(deserialized.messagePath, {
+      this.rootCollab.receive([deserialized.message], {
         sender: deserialized.sender,
         isLocalEcho: false,
       });

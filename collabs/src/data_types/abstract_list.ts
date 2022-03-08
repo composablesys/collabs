@@ -6,7 +6,7 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
   extends Collab
   implements CList<T, InsertArgs>
 {
-  abstract insert(index: number, ...args: InsertArgs): T;
+  abstract insert(index: number, ...args: InsertArgs): T | undefined;
   abstract delete(startIndex: number, count?: number): void;
   abstract get(index: number): T;
   abstract values(): IterableIterator<T>;
@@ -33,9 +33,9 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
 
   // Convenience mutators.
   pop(): T;
-  push(...args: InsertArgs): T;
+  push(...args: InsertArgs): T | undefined;
   shift(): T;
-  unshift(...args: InsertArgs): T;
+  unshift(...args: InsertArgs): T | undefined;
 
   // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
@@ -170,7 +170,7 @@ export function MakeAbstractCList<
       super(...args);
     }
 
-    abstract insert(index: number, ...args: InsertArgs): T;
+    abstract insert(index: number, ...args: InsertArgs): T | undefined;
     abstract delete(startIndex: number, count?: number): void;
     abstract get(index: number): T;
     abstract values(): IterableIterator<T>;
@@ -219,7 +219,7 @@ export function MakeAbstractCList<
       return value;
     }
 
-    push(...args: InsertArgs): T {
+    push(...args: InsertArgs): T | undefined {
       return this.insert(this.length, ...args);
     }
 
@@ -233,7 +233,7 @@ export function MakeAbstractCList<
       return value;
     }
 
-    unshift(...args: InsertArgs): T {
+    unshift(...args: InsertArgs): T | undefined {
       return this.insert(0, ...args);
     }
 

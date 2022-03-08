@@ -24,6 +24,8 @@ export interface ConflictsCMap<K, C> extends CMap<K, C> {
 
 /**
  * The set is used as a source of Collabs for values.
+ * Its `add` method must always return the new value
+ * (not undefined).
  */
 export class MutCMapFromSet<
   K,
@@ -88,7 +90,7 @@ export class MutCMapFromSet<
       this.valueSet.delete(value);
     }
     // Set the new value
-    const value = this.valueSet.add(key, args);
+    const value = this.valueSet.add(key, args)!;
     this.map.set(key, value);
     return value;
   }

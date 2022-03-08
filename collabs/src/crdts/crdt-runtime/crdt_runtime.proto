@@ -1,4 +1,4 @@
 message CRDTRuntimeMessage {
-  repeated bytes messagePath = 1;
+  required bytes message = 1;
   required string sender = 2;
 }
