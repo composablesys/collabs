@@ -11,10 +11,10 @@ import {
   CRegisterEntryMeta,
 } from "./aggregate_register";
 
-export class LwwCRegister<T> extends AggregateCRegister<T> {
+export class LWWCRegister<T> extends AggregateCRegister<T> {
   /**
    * If you don't have an initialValue, consider
-   * OptionalLwwCRegister<T>.
+   * OptionalLWWCRegister<T>.
    */
   constructor(
     initToken: InitToken,
@@ -28,7 +28,7 @@ export class LwwCRegister<T> extends AggregateCRegister<T> {
 
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
     if (conflictsMeta.length === 0) return this.initialValue;
-    else return LwwCRegister.aggregateNonempty(conflictsMeta);
+    else return LWWCRegister.aggregateNonempty(conflictsMeta);
   }
 
   /**
@@ -110,12 +110,12 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
 }
 
 /**
- * Like LwwCRegister, but doesn't need an initialValue
+ * Like LWWCRegister, but doesn't need an initialValue
  * for when the value is initialized / reset;
  * instead, it returns an empty Optional<T> in that
  * situation.
  */
-export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
+export class OptionalLWWCRegister<T> extends AggregateArgsCRegister<
   Optional<T>,
   [T],
   T
@@ -137,7 +137,7 @@ export class OptionalLwwCRegister<T> extends AggregateArgsCRegister<
   protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
     if (conflictsMeta.length === 0) return Optional.empty();
     else {
-      const newValue = LwwCRegister.aggregateNonempty(conflictsMeta);
+      const newValue = LWWCRegister.aggregateNonempty(conflictsMeta);
       if (this.value.isPresent && this.value.get() === newValue) {
         // Return the previous value, so that its Optional is
         // === instead of just deep-equals.

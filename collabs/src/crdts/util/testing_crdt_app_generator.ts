@@ -1,6 +1,6 @@
 import { BatchingLayer } from "../../constructions";
 import { BatchingStrategy } from "../../constructions/batching_strategy";
-import { pseudoRandomReplicaId, Unsubscribe } from "../../core";
+import { pseudoRandomReplicaID, Unsubscribe } from "../../core";
 import { CRDTApp } from "../crdt-runtime";
 
 /**
@@ -62,10 +62,10 @@ export class TestingCRDTAppGenerator {
     rng: seedrandom.prng | undefined = undefined,
     causalityGuaranteed = false
   ) {
-    const debugReplicaId = rng ? pseudoRandomReplicaId(rng) : undefined;
+    const debugReplicaID = rng ? pseudoRandomReplicaID(rng) : undefined;
     const app = new CRDTApp({
       batchingStrategy,
-      debugReplicaId,
+      debugReplicaID,
       causalityGuaranteed,
     });
 

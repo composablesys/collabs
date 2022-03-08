@@ -10,7 +10,7 @@ import {
   CollabEvent,
   CollabEventsRecord,
   Pre,
-  randomReplicaId,
+  randomReplicaID,
   Runtime,
   RuntimeEventsRecord,
   Message,
@@ -57,9 +57,9 @@ export class CRDTRuntime
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
     causalityGuaranteed?: boolean;
-    debugReplicaId?: string;
+    debugReplicaID?: string;
   }) {
-    super(options?.debugReplicaId ?? randomReplicaId());
+    super(options?.debugReplicaID ?? randomReplicaID());
 
     const batchingStrategy =
       options?.batchingStrategy ?? new ImmediateBatchingStrategy();

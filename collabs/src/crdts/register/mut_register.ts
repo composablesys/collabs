@@ -9,7 +9,7 @@ import {
 } from "../../util";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
-import { OptionalLwwCRegister } from "./wins_registers";
+import { OptionalLWWCRegister } from "./wins_registers";
 
 export interface MutCRegisterEventsRecord<C extends Collab, Value>
   extends CRegisterEventsRecord<Value> {
@@ -107,14 +107,14 @@ export class MutCRegisterFromRegister<
   }
 }
 
-export class LwwMutCRegister<
+export class LWWMutCRegister<
   C extends Collab,
   SetArgs extends unknown[]
 > extends MutCRegisterFromRegister<
   C,
   SetArgs,
   Optional<C>,
-  OptionalLwwCRegister<C>
+  OptionalLWWCRegister<C>
 > {
   constructor(
     initToken: InitToken,
@@ -125,7 +125,7 @@ export class LwwMutCRegister<
   ) {
     super(
       initToken,
-      Pre(OptionalLwwCRegister),
+      Pre(OptionalLWWCRegister),
       valueConstructor,
       argsSerializer
     );

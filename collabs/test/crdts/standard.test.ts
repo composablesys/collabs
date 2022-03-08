@@ -4,8 +4,8 @@ import {
   CRDTApp,
   FalseWinsCBoolean,
   TrueWinsCBoolean,
-  LwwCMap,
-  LwwCRegister,
+  LWWCMap,
+  LWWCRegister,
   CNumber,
   TestingCRDTAppGenerator,
   DeletingMutCSet,
@@ -737,13 +737,13 @@ describe("standard", () => {
     });
   });
 
-  describe("LwwCMap", () => {
-    let aliceMap: LwwCMap<string, number>;
-    let bobMap: LwwCMap<string, number>;
+  describe("LWWCMap", () => {
+    let aliceMap: LWWCMap<string, number>;
+    let bobMap: LWWCMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.registerCollab("lwwMap", Pre(LwwCMap)());
-      bobMap = bob.registerCollab("lwwMap", Pre(LwwCMap)());
+      aliceMap = alice.registerCollab("lwwMap", Pre(LWWCMap)());
+      bobMap = bob.registerCollab("lwwMap", Pre(LWWCMap)());
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -753,7 +753,7 @@ describe("standard", () => {
     });
 
     function addEventListeners<K, V extends Object | null>(
-      map: LwwCMap<any, any>,
+      map: LWWCMap<any, any>,
       name: string
     ): void {
       // TODO: add listeners
@@ -801,7 +801,7 @@ describe("standard", () => {
         // bobMap.on("KeyAdd", checkKeyAdd);
         function checkValueChange(
           event: CMapSetEvent<string, number>,
-          caller: LwwCMap<string, number>
+          caller: LWWCMap<string, number>
         ) {
           assert.strictEqual(event.key, "test");
           assert.strictEqual(caller.get(event.key), 7);
@@ -997,8 +997,8 @@ describe("standard", () => {
   describe("DeletingMutCSet", () => {
     let aliceSource: DeletingMutCSet<CNumber, []>;
     let bobSource: DeletingMutCSet<CNumber, []>;
-    let aliceRegister: LwwCRegister<CNumber | undefined>;
-    let bobRegister: LwwCRegister<CNumber | undefined>;
+    let aliceRegister: LWWCRegister<CNumber | undefined>;
+    let bobRegister: LWWCRegister<CNumber | undefined>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
@@ -1020,12 +1020,12 @@ describe("standard", () => {
       aliceRegister = alice.registerCollab(
         "register",
         (childInitToken) =>
-          new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
+          new LWWCRegister<CNumber | undefined>(childInitToken, undefined)
       );
       bobRegister = bob.registerCollab(
         "register",
         (childInitToken) =>
-          new LwwCRegister<CNumber | undefined>(childInitToken, undefined)
+          new LWWCRegister<CNumber | undefined>(childInitToken, undefined)
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());

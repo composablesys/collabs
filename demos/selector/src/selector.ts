@@ -7,7 +7,7 @@ import pako from "pako";
   const container = new CRDTContainer();
   const currentHost = container.registerCollab(
     "",
-    collabs.Pre(collabs.LwwMutCRegister)(
+    collabs.Pre(collabs.LWWMutCRegister)(
       (valueInitToken, htmlSrcGzipped: Uint8Array) => {
         const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
         // Create a new ContainerHost + IFrame from htmlSrc and

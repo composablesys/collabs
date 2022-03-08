@@ -7,7 +7,7 @@ import {
   CursorLocation,
   CursorLocationSerializer,
 } from "../../constructions";
-import { LwwCRegister } from "../register";
+import { LWWCRegister } from "../register";
 
 export interface CCursorEvent extends CollabEvent {
   /**
@@ -83,7 +83,7 @@ export class CCursor extends CObject<CCursorEventsRecord> {
   private readonly common: CursorCommon;
   // LWW is overkill since usually only one replica
   // will use this cursor, but it's easiest.
-  private readonly location: LwwCRegister<CursorLocation>;
+  private readonly location: LWWCRegister<CursorLocation>;
   private previousIndex: number;
 
   /**
@@ -104,7 +104,7 @@ export class CCursor extends CObject<CCursorEventsRecord> {
     this.common = new CursorCommon(list, binding);
     this.location = this.addChild(
       "",
-      Pre(LwwCRegister)(
+      Pre(LWWCRegister)(
         Optional.of(list.getLocation(startIndex)),
         CursorLocationSerializer.instance
       )

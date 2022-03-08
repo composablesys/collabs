@@ -4,7 +4,7 @@ import {
   Optional,
   Serializer,
 } from "../../util";
-import { CRegisterEntryMeta, OptionalLwwCRegister } from "../register";
+import { CRegisterEntryMeta, OptionalLWWCRegister } from "../register";
 import { InitToken, Pre } from "../../core";
 import {
   AbstractCMapCObject,
@@ -147,11 +147,11 @@ export class CMapFromRegister<
   // to use serialization equality.
 }
 
-export class LwwCMap<K, V> extends CMapFromRegister<
+export class LWWCMap<K, V> extends CMapFromRegister<
   K,
   V,
   [V],
-  OptionalLwwCRegister<V>
+  OptionalLWWCRegister<V>
 > {
   constructor(
     initToken: InitToken,
@@ -165,7 +165,7 @@ export class LwwCMap<K, V> extends CMapFromRegister<
     super(
       initToken,
       (registerInitToken) =>
-        new OptionalLwwCRegister(registerInitToken, valueSerializer),
+        new OptionalLWWCRegister(registerInitToken, valueSerializer),
       keySerializer
     );
   }

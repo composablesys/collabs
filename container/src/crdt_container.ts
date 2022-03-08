@@ -99,7 +99,7 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    */
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
-    debugReplicaId?: string;
+    debugReplicaID?: string;
   }) {
     super();
 

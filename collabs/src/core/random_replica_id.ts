@@ -20,7 +20,7 @@ export const DEFAULT_REPLICA_ID_LENGTH = 11;
  * Such replicaID's can be safely treated as either
  * byte arrays or UTF-8 strings.
  */
-export function randomReplicaId(
+export function randomReplicaID(
   length: number = DEFAULT_REPLICA_ID_LENGTH
 ): string {
   const arr = new Array<number>(length);
@@ -66,8 +66,11 @@ export function randomReplicaId(
  * Such replicaID's can be safely treated as either
  * byte arrays or UTF-8 strings.
  */
-export function pseudoRandomReplicaId(rng: seedrandom.prng) {
-  const arr = new Array<number>(DEFAULT_REPLICA_ID_LENGTH);
+export function pseudoRandomReplicaID(
+  rng: seedrandom.prng,
+  length: number = DEFAULT_REPLICA_ID_LENGTH
+) {
+  const arr = new Array<number>(length);
   for (let i = 0; i < arr.length; i++) {
     arr[i] = Math.floor(rng() * 128);
   }

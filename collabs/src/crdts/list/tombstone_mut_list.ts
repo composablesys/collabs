@@ -4,7 +4,7 @@ import {
   Serializer,
 } from "../../util";
 import { Collab, InitToken, Pre, isRuntime } from "../../core";
-import { LwwCRegister } from "../register";
+import { LWWCRegister } from "../register";
 import { TombstoneMutCSet } from "../set";
 import {
   MovableMutCListEntry,
@@ -19,12 +19,12 @@ export class TombstoneMutCList<
   C,
   InsertArgs,
   RgaLoc,
-  LwwCRegister<RgaLoc>,
+  LWWCRegister<RgaLoc>,
   TombstoneMutCSet<
-    MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>,
+    MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>,
     [RgaLoc, InsertArgs]
   >,
-  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>>
+  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>>
 > {
   constructor(
     initToken: InitToken,
@@ -37,7 +37,7 @@ export class TombstoneMutCList<
       initToken,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
         Pre(TombstoneMutCSet)(setValueConstuctor, setArgsSerializer),
-      ConstructorAsFunction(LwwCRegister),
+      ConstructorAsFunction(LWWCRegister),
       new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
       [],
@@ -51,7 +51,7 @@ export class TombstoneMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>
     );
   }
 
@@ -65,7 +65,7 @@ export class TombstoneMutCList<
       throw new Error("this.owns(value) is false");
     }
     this.set.restore(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>
     );
   }
 
@@ -74,7 +74,7 @@ export class TombstoneMutCList<
       this.get(index).parent as MovableMutCListEntry<
         C,
         RgaLoc,
-        LwwCRegister<RgaLoc>
+        LWWCRegister<RgaLoc>
       >
     )[1];
   }
@@ -93,7 +93,7 @@ export class TombstoneMutCList<
     }
 
     return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>
     )[1];
   }
 }

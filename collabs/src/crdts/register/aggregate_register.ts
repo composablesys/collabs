@@ -36,7 +36,7 @@ class AggregateArgsCRegisterEntry<S> implements CRegisterEntryMeta<S> {
  * link to demo.
  *
  * S is the type of conflicting values that get aggregated
- * to type T.  Usually S = T, but OptionalLwwCRegister
+ * to type T.  Usually S = T, but OptionalLWWCRegister
  * instead has T = Optional<S>, so that it can return
  * an empty Optional when there are no conflicting values.
  */

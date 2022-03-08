@@ -1,12 +1,12 @@
 import { assert } from "chai";
 import seedrandom = require("seedrandom");
 import {
-  LwwCRegister,
+  LWWCRegister,
   Pre,
   CRDTApp,
   Optional,
   ManualBatchingStrategy,
-  pseudoRandomReplicaId,
+  pseudoRandomReplicaID,
   PrimitiveCRDT,
   CRDTMeta,
   MessageMeta,
@@ -91,7 +91,7 @@ describe("CRDTMetaLayer", () => {
         alice = new CRDTApp({
           batchingStrategy: new ManualBatchingStrategy(),
           causalityGuaranteed,
-          debugReplicaId: pseudoRandomReplicaId(rng),
+          debugReplicaID: pseudoRandomReplicaID(rng),
         });
         aliceID = alice.runtime.replicaID;
         alice.on("Send", (e) => {
@@ -100,7 +100,7 @@ describe("CRDTMetaLayer", () => {
         bob = new CRDTApp({
           batchingStrategy: new ManualBatchingStrategy(),
           causalityGuaranteed,
-          debugReplicaId: pseudoRandomReplicaId(rng),
+          debugReplicaID: pseudoRandomReplicaID(rng),
         });
         bobID = bob.runtime.replicaID;
         bob.on("Send", (e) => {
@@ -117,11 +117,11 @@ describe("CRDTMetaLayer", () => {
         it("delivers messages immediately", () => {
           const aliceRegister = alice.registerCollab(
             "register",
-            Pre(LwwCRegister)(0)
+            Pre(LWWCRegister)(0)
           );
           const bobRegister = bob.registerCollab(
             "register",
-            Pre(LwwCRegister)(0)
+            Pre(LWWCRegister)(0)
           );
           load();
 
@@ -1003,7 +1003,7 @@ describe("CRDTMetaLayer", () => {
             const charlie = new CRDTApp({
               batchingStrategy: new ManualBatchingStrategy(),
               causalityGuaranteed,
-              debugReplicaId: pseudoRandomReplicaId(rng),
+              debugReplicaID: pseudoRandomReplicaID(rng),
             });
             const charlieID = charlie.runtime.replicaID;
             const charlieInspector = charlie.registerCollab(

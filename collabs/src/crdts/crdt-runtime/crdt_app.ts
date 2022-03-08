@@ -91,7 +91,7 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
   constructor(options?: {
     batchingStrategy?: BatchingStrategy;
     causalityGuaranteed?: boolean;
-    debugReplicaId?: string;
+    debugReplicaID?: string;
   }) {
     super();
 

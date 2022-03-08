@@ -97,7 +97,7 @@ export class CollabsJSONTodoList extends CollabsReplica implements ITodoList {
     if (this._fakeInitialSaveData === undefined) {
       // This is a trick to give us initial value
       // { items: [] }.
-      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaId: "INIT" });
+      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaID: "INIT" });
       const fakeInitialJSON = fakeInitialApp.registerCollab(
         "",
         JSONElement.NewJSON

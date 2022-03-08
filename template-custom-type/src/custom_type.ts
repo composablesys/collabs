@@ -3,7 +3,7 @@ import {
   CollabEventsRecord,
   InitToken,
   CRegisterEvent,
-  LwwCRegister,
+  LWWCRegister,
   Pre,
 } from "@collabs/collabs";
 
@@ -17,23 +17,23 @@ export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
 
 /**
  * Demo custom type: a pair (first: T, second: U).
- * first and second are implemented using separate LwwCRegisters,
+ * first and second are implemented using separate LWWCRegisters,
  * so changes to either of them are opaque writes
  * (no conflict resolution), but changing both concurrently
  * will keep both changes.
  */
 export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
-  private readonly firstReg: LwwCRegister<T>;
-  private readonly secondReg: LwwCRegister<U>;
+  private readonly firstReg: LWWCRegister<T>;
+  private readonly secondReg: LWWCRegister<U>;
 
   constructor(initToken: InitToken, firstInitial: T, secondInitial: U) {
     super(initToken);
 
     // Setup child Collabs.
-    this.firstReg = this.addChild("firstReg", Pre(LwwCRegister)(firstInitial));
+    this.firstReg = this.addChild("firstReg", Pre(LWWCRegister)(firstInitial));
     this.secondReg = this.addChild(
       "secondReg",
-      Pre(LwwCRegister)(secondInitial)
+      Pre(LWWCRegister)(secondInitial)
     );
 
     // Convert child Collab events into our own.

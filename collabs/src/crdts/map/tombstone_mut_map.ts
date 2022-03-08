@@ -9,7 +9,7 @@ import { Collab, InitToken, Pre } from "../../core";
 import { CRegisterEntryMeta } from "../register";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCObject } from "../../data_types";
-import { LwwCMap } from "./lww_map";
+import { LWWCMap } from "./lww_map";
 
 /**
  * Warning: tombstones.  Benefit is that you can
@@ -21,7 +21,7 @@ export class TombstoneMutCMap<
   SetArgs extends unknown[]
 > extends AbstractCMapCObject<K, C, SetArgs> {
   private readonly valueSet: DeletingMutCSet<C, [K, SetArgs]>;
-  private readonly map: LwwCMap<K, C>;
+  private readonly map: LWWCMap<K, C>;
   private readonly keySet: AddWinsCSet<K>;
   // Used to perform keyOf lookups in O(1) time, which are
   // necessary for restoreValue calls.
@@ -58,7 +58,7 @@ export class TombstoneMutCMap<
     );
     this.map = this.addChild(
       "0",
-      Pre(LwwCMap)(keySerializer, new CollabSerializer<C>(this.valueSet))
+      Pre(LWWCMap)(keySerializer, new CollabSerializer<C>(this.valueSet))
     );
     this.keySet = this.addChild("1", Pre(AddWinsCSet)(keySerializer));
 

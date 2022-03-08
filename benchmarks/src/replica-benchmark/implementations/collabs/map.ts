@@ -4,12 +4,12 @@ import { CollabsReplica } from "./replica";
 import * as collabs from "@collabs/collabs";
 
 export class CollabsMap extends CollabsReplica implements IMap {
-  private readonly map: collabs.LwwCMap<string, unknown>;
+  private readonly map: collabs.LWWCMap<string, unknown>;
 
   constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
     super(onsend, replicaIdRng);
 
-    this.map = this.app.registerCollab("", collabs.Pre(collabs.LwwCMap)());
+    this.map = this.app.registerCollab("", collabs.Pre(collabs.LWWCMap)());
   }
 
   set(key: string, value: unknown): void {

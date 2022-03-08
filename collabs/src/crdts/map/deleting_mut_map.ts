@@ -1,7 +1,7 @@
 import { DefaultSerializer, Serializer } from "../../util";
 import { Collab, InitToken, Pre } from "../../core";
 import { DeletingMutCSet } from "../set";
-import { LwwCMap } from "./lww_map";
+import { LWWCMap } from "./lww_map";
 import { MutCMapFromSet } from "./mut_map_from_set";
 
 export class DeletingMutCMap<
@@ -13,7 +13,7 @@ export class DeletingMutCMap<
   C,
   SetArgs,
   DeletingMutCSet<C, [K, SetArgs]>,
-  LwwCMap<K, C>
+  LWWCMap<K, C>
 > {
   constructor(
     initToken: InitToken,
@@ -33,7 +33,7 @@ export class DeletingMutCMap<
       initToken,
       (setValueConstructor, setArgsSerializer) =>
         Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
-      Pre(LwwCMap),
+      Pre(LWWCMap),
       valueConstructor,
       keySerializer,
       argsSerializer

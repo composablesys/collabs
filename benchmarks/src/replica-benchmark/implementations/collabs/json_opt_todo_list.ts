@@ -124,7 +124,7 @@ export class CollabsJSONOptTodoList
       // This is a trick to give us an initial value.
       // Need to find a better way as part
       // of initial values generally.
-      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaId: "INIT" });
+      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaID: "INIT" });
       const fakeInitialRootJSON = fakeInitialApp.registerCollab(
         "",
         collabs.Pre(JSONCollab)()

@@ -7,7 +7,7 @@ export function setupWhiteboard(container: CRDTContainer) {
   // The value is the color of the stroke.
   const boardState = container.registerCollab(
     "whiteboard",
-    collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
+    collabs.Pre(collabs.LWWCMap)<[x: number, y: number], string>()
   );
 
   // Draw points

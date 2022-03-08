@@ -2,8 +2,8 @@ import { assert } from "chai";
 import { debug } from "../debug";
 import {
   CCounter,
-  LwwCRegister,
-  OptionalLwwCRegister,
+  LWWCRegister,
+  OptionalLWWCRegister,
   Pre,
   CRDTApp,
   TestingCRDTAppGenerator,
@@ -473,13 +473,13 @@ describe("basic_crdts", () => {
   //   });
   // });
 
-  describe("OptionalLwwCRegister", () => {
-    let aliceMvr: OptionalLwwCRegister<string>;
-    let bobMvr: OptionalLwwCRegister<string>;
+  describe("OptionalLWWCRegister", () => {
+    let aliceMvr: OptionalLWWCRegister<string>;
+    let bobMvr: OptionalLWWCRegister<string>;
 
     beforeEach(() => {
-      aliceMvr = alice.registerCollab("mvrId", Pre(OptionalLwwCRegister)());
-      bobMvr = bob.registerCollab("mvrId", Pre(OptionalLwwCRegister)());
+      aliceMvr = alice.registerCollab("mvrId", Pre(OptionalLWWCRegister)());
+      bobMvr = bob.registerCollab("mvrId", Pre(OptionalLWWCRegister)());
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -489,7 +489,7 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners<T>(
-      mvr: OptionalLwwCRegister<T>,
+      mvr: OptionalLWWCRegister<T>,
       name: string
     ): void {
       mvr.on("Set", (event) =>
@@ -616,24 +616,24 @@ describe("basic_crdts", () => {
     });
   });
 
-  describe("LwwCRegister", () => {
-    let aliceLww: LwwCRegister<string>;
-    let bobLww: LwwCRegister<string>;
+  describe("LWWCRegister", () => {
+    let aliceLWW: LWWCRegister<string>;
+    let bobLWW: LWWCRegister<string>;
 
     beforeEach(() => {
-      aliceLww = alice.registerCollab("lwwId", Pre(LwwCRegister)("initial"));
-      bobLww = bob.registerCollab("lwwId", Pre(LwwCRegister)("initial"));
+      aliceLWW = alice.registerCollab("lwwId", Pre(LWWCRegister)("initial"));
+      bobLWW = bob.registerCollab("lwwId", Pre(LWWCRegister)("initial"));
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
-        addEventListeners(aliceLww, "Alice");
-        addEventListeners(bobLww, "Bob");
+        addEventListeners(aliceLWW, "Alice");
+        addEventListeners(bobLWW, "Bob");
       }
     });
 
-    function addEventListeners<T>(lww: LwwCRegister<T>, name: string): void {
+    function addEventListeners<T>(lww: LWWCRegister<T>, name: string): void {
       // TODO
-      // lww.on("Lww", (event) =>
+      // lww.on("LWW", (event) =>
       //   console.log(
       //     `${name}: ${event.meta.sender} set to ${event.value}`
       //   )
@@ -641,85 +641,85 @@ describe("basic_crdts", () => {
     }
 
     it('is initially "initial"', () => {
-      assert.strictEqual(aliceLww.value, "initial");
-      assert.strictEqual(bobLww.value, "initial");
+      assert.strictEqual(aliceLWW.value, "initial");
+      assert.strictEqual(bobLWW.value, "initial");
     });
 
     describe("setter", () => {
       it("works with non-concurrent updates", () => {
-        aliceLww.value = "second";
+        aliceLWW.value = "second";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "second");
-        assert.strictEqual(bobLww.value, "second");
+        assert.strictEqual(aliceLWW.value, "second");
+        assert.strictEqual(bobLWW.value, "second");
 
-        aliceLww.value = "third";
+        aliceLWW.value = "third";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "third");
-        assert.strictEqual(bobLww.value, "third");
+        assert.strictEqual(aliceLWW.value, "third");
+        assert.strictEqual(bobLWW.value, "third");
 
-        aliceLww.value = "third";
+        aliceLWW.value = "third";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "third");
-        assert.strictEqual(bobLww.value, "third");
+        assert.strictEqual(aliceLWW.value, "third");
+        assert.strictEqual(bobLWW.value, "third");
 
-        bobLww.value = "bob's";
+        bobLWW.value = "bob's";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "bob's");
-        assert.strictEqual(bobLww.value, "bob's");
+        assert.strictEqual(aliceLWW.value, "bob's");
+        assert.strictEqual(bobLWW.value, "bob's");
       });
 
       it("works with concurrent updates", () => {
-        aliceLww.value = "concA";
+        aliceLWW.value = "concA";
         let now = new Date().getTime();
         while (new Date().getTime() <= now) {
           // Loop; Bob will have a later time than now
         }
-        bobLww.value = "concB";
+        bobLWW.value = "concB";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "concB");
-        assert.strictEqual(bobLww.value, "concB");
+        assert.strictEqual(aliceLWW.value, "concB");
+        assert.strictEqual(bobLWW.value, "concB");
 
-        aliceLww.value = "concA2";
-        assert.strictEqual(aliceLww.value, "concA2");
+        aliceLWW.value = "concA2";
+        assert.strictEqual(aliceLWW.value, "concA2");
 
         now = new Date().getTime();
         while (new Date().getTime() <= now) {
           // Loop; Bob will have a later time than now
         }
-        bobLww.value = "concB2";
-        assert.strictEqual(bobLww.value, "concB2");
+        bobLWW.value = "concB2";
+        assert.strictEqual(bobLWW.value, "concB2");
 
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "concB2");
-        assert.strictEqual(bobLww.value, "concB2");
+        assert.strictEqual(aliceLWW.value, "concB2");
+        assert.strictEqual(bobLWW.value, "concB2");
       });
 
       it("works with redundant writes", () => {
-        aliceLww.value = "redundant";
-        bobLww.value = "redundant";
+        aliceLWW.value = "redundant";
+        bobLWW.value = "redundant";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "redundant");
-        assert.strictEqual(bobLww.value, "redundant");
+        assert.strictEqual(aliceLWW.value, "redundant");
+        assert.strictEqual(bobLWW.value, "redundant");
       });
 
       it("works with overwrites", () => {
-        aliceLww.value = "redundant";
-        aliceLww.value = "overwrite";
+        aliceLWW.value = "redundant";
+        aliceLWW.value = "overwrite";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "overwrite");
-        assert.strictEqual(bobLww.value, "overwrite");
+        assert.strictEqual(aliceLWW.value, "overwrite");
+        assert.strictEqual(bobLWW.value, "overwrite");
       });
     });
 
     describe("clear", () => {
       it("works with concurrent clear", () => {
-        aliceLww.clear();
-        assert.strictEqual(aliceLww.value, "initial");
+        aliceLWW.clear();
+        assert.strictEqual(aliceLWW.value, "initial");
 
-        bobLww.value = "conc";
+        bobLWW.value = "conc";
         appGen.releaseAll();
-        assert.strictEqual(aliceLww.value, "conc");
-        assert.strictEqual(bobLww.value, "conc");
+        assert.strictEqual(aliceLWW.value, "conc");
+        assert.strictEqual(bobLWW.value, "conc");
       });
     });
   });

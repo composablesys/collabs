@@ -61,14 +61,14 @@ class myMessage {
    * Parse serialized data back to myMessage.
    *
    * @param data serialized message
-   * @param myReplicaId the local use's replicaID
+   * @param myReplicaID the local use's replicaID
    * @returns a deserialized myMessage
    */
-  static deserialize(data: Uint8Array, myReplicaId: string): myMessage {
+  static deserialize(data: Uint8Array, myReplicaID: string): myMessage {
     let decoded = WebRtcNetworkMessage.decode(data);
     let vc = new VectorClock(
       decoded.sender,
-      myReplicaId === decoded.sender,
+      myReplicaID === decoded.sender,
       decoded.time as number
     );
     vc.vectorMap = new Map(Object.entries(decoded.vectorMap));
@@ -354,7 +354,7 @@ export class WebRtcNetwork implements CausalBroadcastNetwork {
    * (e.g., to generate unique identifiers of the form (replica id, counter)).
    *
    */
-  getReplicaId(): any {
+  getReplicaID(): any {
     return this.runtime.replicaID;
   }
   /**

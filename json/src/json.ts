@@ -3,7 +3,7 @@ import {
   InitToken,
   CText,
   DefaultSerializer,
-  LwwCRegister,
+  LWWCRegister,
   LazyMutCMap,
   Pre,
   AddWinsCSet,
@@ -165,7 +165,7 @@ export class TextWrapper {
 // sub-reset, each causing a call up the whole chain.
 
 export class JSONElement extends CObject {
-  private register: LwwCRegister<JSONValue>;
+  private register: LWWCRegister<JSONValue>;
   private object: JSONObject;
   private array: JSONArray;
   private text: CText;
@@ -183,7 +183,7 @@ export class JSONElement extends CObject {
     this.makeThisExistent = makeThisExistent;
     this.register = this.addChild(
       "register",
-      (childInitToken) => new LwwCRegister<JSONValue>(childInitToken, null)
+      (childInitToken) => new LWWCRegister<JSONValue>(childInitToken, null)
     );
     this.object = this.addChild(
       "object",

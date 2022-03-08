@@ -1,5 +1,5 @@
 /**
- * Return a UID representing the pair (replicaId,
+ * Return a UID representing the pair (replicaID,
  * replicaUniqueNumber), in string form.
  *
  * These UIDs are similar to [Lamport timestamps](https://en.wikipedia.org/wiki/Lamport_timestamp),

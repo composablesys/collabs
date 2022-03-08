@@ -17,10 +17,10 @@ export class YataOp<T> extends collabs.CObject {
   // TODO: leftId, rightId need saving
   public leftId: string;
   public rightId: string;
-  readonly _deleted: collabs.LwwCRegister<boolean>;
+  readonly _deleted: collabs.LWWCRegister<boolean>;
   readonly content: T;
   readonly pos: number;
-  readonly attributes: collabs.LwwCMap<string, any>;
+  readonly attributes: collabs.LWWCMap<string, any>;
   // Doesn't need saving because it is only used on the
   // deleting replica, and any loading replica will
   // necessarily not be the deleter.
@@ -63,14 +63,14 @@ export class YataOp<T> extends collabs.CObject {
     this.rightId = rightId;
     this._deleted = this.addChild(
       YataOp.deletedFlagCollabName,
-      collabs.Pre(collabs.LwwCRegister)<boolean>(false)
+      collabs.Pre(collabs.LWWCRegister)<boolean>(false)
     );
     this.locallyDeleted = false;
     this.content = content;
     this.pos = pos;
     this.attributes = this.addChild(
       YataOp.attributesMapCollabName,
-      collabs.Pre(collabs.LwwCMap)(undefined, undefined)
+      collabs.Pre(collabs.LWWCMap)(undefined, undefined)
     );
     this.attributesArg = attributes;
     this.originAttributesAtInput = originAttributesAtInput;
@@ -137,7 +137,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
 
   deletedMessageEventHandler =
     (yata: YataLinear<T>, uid: string) =>
-    ({ meta }: collabs.CollabEvent, caller: collabs.LwwCRegister<boolean>) => {
+    ({ meta }: collabs.CollabEvent, caller: collabs.LWWCRegister<boolean>) => {
       if (caller.value) {
         if (!yata.op(uid).locallyDeleted) {
           yata.emit("Delete", {
