@@ -1,5 +1,4 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
-import { Resettable } from "../abilities";
 import { CObject } from "../../constructions";
 import { InitToken, MessageMeta, Pre } from "../../core";
 import { CRegisterEventsRecord, MakeAbstractCBoolean } from "../../data_types";
@@ -12,10 +11,9 @@ interface WinsCBooleanEntry {
   readonly senderCounter: number;
 }
 
-export class TrueWinsCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCRDT)<CRegisterEventsRecord<boolean>>
-  implements Resettable
-{
+export class TrueWinsCBoolean extends MakeAbstractCBoolean(PrimitiveCRDT)<
+  CRegisterEventsRecord<boolean>
+> {
   private entries: WinsCBooleanEntry[] = [];
 
   set value(value: boolean) {
@@ -72,11 +70,6 @@ export class TrueWinsCBoolean
     return this.entries.length === 0;
   }
 
-  reset() {
-    // Setting to false is an observed-reset.
-    this.value = false;
-  }
-
   save(): Uint8Array {
     const message = WinsCBooleanSave.create({
       senders: this.entries.map((entry) => entry.sender),
@@ -97,10 +90,9 @@ export class TrueWinsCBoolean
   }
 }
 
-export class FalseWinsCBoolean
-  extends MakeAbstractCBoolean(CObject)<CRegisterEventsRecord<boolean>>
-  implements Resettable
-{
+export class FalseWinsCBoolean extends MakeAbstractCBoolean(CObject)<
+  CRegisterEventsRecord<boolean>
+> {
   private readonly negated: TrueWinsCBoolean;
 
   constructor(initToken: InitToken) {
@@ -122,9 +114,5 @@ export class FalseWinsCBoolean
 
   get value(): boolean {
     return !this.negated.value;
-  }
-
-  reset(): void {
-    this.negated.reset();
   }
 }

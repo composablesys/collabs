@@ -4,10 +4,10 @@ import {
   CText,
   DefaultSerializer,
   LwwCRegister,
-  MergingMutCMap,
+  LazyMutCMap,
   Pre,
-  Resettable,
-  ResettingMutCList,
+  AddWinsCSet,
+  DeletingMutCList,
 } from "@collabs/collabs";
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
@@ -21,8 +21,9 @@ export type JSONValue =
   | JSONArray
   | CText;
 
-export class JSONObject extends CObject implements Resettable {
-  private readonly internalMap: MergingMutCMap<string, JSONElement>;
+export class JSONObject extends CObject {
+  private readonly internalMap: LazyMutCMap<string, JSONElement>;
+  private readonly keySet: AddWinsCSet<string>;
   /**
    * Internal use only
    */
@@ -37,24 +38,27 @@ export class JSONObject extends CObject implements Resettable {
     // semantics.
     this.internalMap = this.addChild(
       "nestedMap",
-      Pre(MergingMutCMap)(
+      Pre(LazyMutCMap)(
         (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
         DefaultSerializer.getInstance(initToken.runtime)
       )
     );
+    this.keySet = this.addChild("keySet", Pre(AddWinsCSet)());
   }
 
   get(key: string): JSONElement | undefined {
-    return this.internalMap.get(key);
+    if (this.keySet.has(key)) {
+      return this.internalMap.get(key);
+    } else return undefined;
   }
 
   addKey(key: string): void {
     this.makeThisExistent();
-    this.internalMap.set(key);
+    this.keySet.add(key);
   }
 
   has(key: string): boolean {
-    return this.internalMap.has(key);
+    return this.keySet.has(key);
   }
 
   delete(key: string) {
@@ -67,7 +71,10 @@ export class JSONObject extends CObject implements Resettable {
   reset() {
     // TODO: comment for now to avoid recursion & expensive resets
     // this.makeThisExistent();
-    this.internalMap.reset();
+    this.keySet.clear();
+    for (const value of this.internalMap.values()) {
+      value.reset();
+    }
   }
 
   keys() {
@@ -79,7 +86,11 @@ export class JSONObject extends CObject implements Resettable {
   }
 
   asMap(): Map<string, JSONElement> {
-    return new Map(this.internalMap);
+    const entries: [string, JSONElement][] = [];
+    for (const key of this.keySet) {
+      entries.push([key, this.internalMap.get(key)]);
+    }
+    return new Map(entries);
   }
 
   asObject(): { [key: string]: JSONElement } {
@@ -91,8 +102,8 @@ export class JSONObject extends CObject implements Resettable {
   }
 }
 
-export class JSONArray extends CObject implements Resettable {
-  private readonly internalList: ResettingMutCList<JSONElement>;
+export class JSONArray extends CObject {
+  private readonly internalList: DeletingMutCList<JSONElement, []>;
   constructor(
     initToken: InitToken,
     private readonly makeThisExistent: () => void
@@ -100,7 +111,7 @@ export class JSONArray extends CObject implements Resettable {
     super(initToken);
     this.internalList = this.addChild(
       "nestedMap",
-      Pre(ResettingMutCList)(
+      Pre(DeletingMutCList)(
         (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent)
       )
     );
@@ -133,7 +144,7 @@ export class JSONArray extends CObject implements Resettable {
   reset(): void {
     // TODO: comment for now to avoid recursion & expensive resets
     // this.makeThisExistent();
-    this.internalList.reset();
+    this.internalList.clear();
   }
 
   get length(): number {
@@ -153,7 +164,7 @@ export class TextWrapper {
 // E.g. currently a reset on a big object will call it once per
 // sub-reset, each causing a call up the whole chain.
 
-export class JSONElement extends CObject implements Resettable {
+export class JSONElement extends CObject {
   private register: LwwCRegister<JSONValue>;
   private object: JSONObject;
   private array: JSONArray;
@@ -247,8 +258,8 @@ export class JSONElement extends CObject implements Resettable {
     // TODO: use generic CObject reset
     this.object.reset();
     this.array.reset();
-    this.text.reset();
-    this.register.reset();
+    this.text.clear();
+    this.register.clear();
   }
 
   asOrdinaryJS(): any {

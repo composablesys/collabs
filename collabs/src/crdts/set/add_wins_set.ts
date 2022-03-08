@@ -1,7 +1,6 @@
 import { DefaultSerializer, Serializer } from "../../util";
 import { TrueWinsCBoolean } from "../boolean";
-import { Resettable } from "../abilities";
-import { GrowOnlyImplicitMergingMutCMap } from "../map";
+import { LazyMutCMap } from "../map";
 import { InitToken, Pre } from "../../core";
 import { AbstractCSetCObject, CBoolean } from "../../data_types";
 
@@ -9,7 +8,7 @@ export class CSetFromBoolean<
   T,
   BoolT extends CBoolean
 > extends AbstractCSetCObject<T, [T]> {
-  protected readonly booleanMap: GrowOnlyImplicitMergingMutCMap<T, BoolT>;
+  protected readonly booleanMap: LazyMutCMap<T, BoolT>;
   // View of the set size, cached for efficiency.
   private cachedSize = 0;
   /**
@@ -32,7 +31,7 @@ export class CSetFromBoolean<
 
     this.booleanMap = this.addChild(
       "",
-      Pre(GrowOnlyImplicitMergingMutCMap)(
+      Pre(LazyMutCMap)(
         this.internalBooleanConstructor.bind(this),
         valueSerializer
       )
@@ -95,10 +94,7 @@ export class CSetFromBoolean<
   }
 }
 
-export class AddWinsCSet<T>
-  extends CSetFromBoolean<T, TrueWinsCBoolean>
-  implements Resettable
-{
+export class AddWinsCSet<T> extends CSetFromBoolean<T, TrueWinsCBoolean> {
   constructor(
     initToken: InitToken,
     valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
@@ -123,13 +119,5 @@ export class AddWinsCSet<T>
     // (may still change the internal state).
     const boolean = this.booleanMap.getIfPresent(value);
     if (boolean !== undefined) boolean.value = false;
-  }
-
-  reset() {
-    // For TrueWinsCBoolean, we know that setting to
-    // false is an observed-reset.  So clear, which
-    // sets every boolean to false, is semantically
-    // an observed-reset.
-    this.clear();
   }
 }

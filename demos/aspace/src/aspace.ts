@@ -56,7 +56,7 @@ import { CRDTContainer } from "@collabs/container";
       winElapsedTime.conflicts().length !== 0
     ) {
       // Reset the win time
-      winElapsedTime.reset();
+      winElapsedTime.clear();
     }
 
     if (
@@ -87,9 +87,9 @@ import { CRDTContainer } from "@collabs/container";
   textInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       // Restart the game
-      text.reset();
-      startTime.reset();
-      winElapsedTime.reset();
+      text.clear();
+      startTime.clear();
+      winElapsedTime.clear();
     } else if (textInput.selectionStart !== null) {
       const index = textInput.selectionStart;
       if (e.key === "Backspace") {

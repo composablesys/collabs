@@ -6,7 +6,6 @@ import {
   TrueWinsCBoolean,
   LwwCMap,
   LwwCRegister,
-  MergingMutCMap,
   CNumber,
   TestingCRDTAppGenerator,
   DeletingMutCSet,
@@ -16,9 +15,11 @@ import {
   InitToken,
   Pre,
   Optional,
+  LazyMutCMap,
+  ResettableCCounter,
 } from "../../src";
 import { debug } from "../debug";
-import seedrandom from "seedrandom";
+import seedrandom = require("seedrandom");
 
 describe("standard", () => {
   let appGen: TestingCRDTAppGenerator;
@@ -524,38 +525,7 @@ describe("standard", () => {
       });
     });
 
-    describe("strongDelete", () => {
-      it.skip("deletes existing elements", () => {
-        // aliceSet.add("element");
-        // appGen.releaseAll();
-        // assert.deepStrictEqual(new Set(aliceSet), new Set(["element"]));
-        // assert.deepStrictEqual(new Set(bobSet), new Set(["element"]));
-        //
-        // aliceSet.strongDelete("element");
-        // appGen.releaseAll();
-        // assert.deepStrictEqual(new Set(aliceSet), new Set([]));
-        // assert.deepStrictEqual(new Set(bobSet), new Set([]));
-      });
-
-      it.skip("does not delete non-existing elements", () => {
-        // bobSet.strongDelete("nonexistent");
-        // appGen.releaseAll();
-        // assert.deepStrictEqual(new Set(aliceSet), new Set([]));
-        // assert.deepStrictEqual(new Set(bobSet), new Set([]));
-      });
-
-      it.skip("deletes concurrently added elements", () => {
-        // // Deletes win over adds
-        // aliceSet.add("concurrent");
-        // aliceSet.strongDelete("concurrent");
-        // bobSet.add("concurrent");
-        // appGen.releaseAll();
-        // assert.deepStrictEqual(new Set(aliceSet), new Set([]));
-        // assert.deepStrictEqual(new Set(bobSet), new Set([]));
-      });
-    });
-
-    describe("reset", () => {
+    describe("clear", () => {
       it("lets concurrent adds survive", () => {
         bobSet.add("first");
         bobSet.add("second");
@@ -563,7 +533,7 @@ describe("standard", () => {
         assert.deepStrictEqual(new Set(aliceSet), new Set(["first", "second"]));
         assert.deepStrictEqual(new Set(bobSet), new Set(["first", "second"]));
 
-        bobSet.reset();
+        bobSet.clear();
         aliceSet.add("survivor");
         assert.deepStrictEqual(
           new Set(aliceSet),
@@ -577,25 +547,6 @@ describe("standard", () => {
       });
     });
 
-    // TODO: test strong reset once it is implemented.
-    //   describe("strongReset", () => {
-    //     it("does not let concurrent adds survive", () => {
-    //       bobSet.add("first");
-    //       bobSet.add("second");
-    //       appGen.releaseAll();
-    //       assert.deepStrictEqual(new Set(aliceSet), new Set(["first", "second"]));
-    //       assert.deepStrictEqual(new Set(bobSet), new Set(["first", "second"]));
-    //
-    //       bobSet.strongReset();
-    //       aliceSet.add("survivor");
-    //       assert.deepStrictEqual(new Set(aliceSet), new Set(["survivor"]));
-    //       assert.deepStrictEqual(new Set(bobSet), new Set([]));
-    //
-    //       appGen.releaseAll();
-    //       assert.deepStrictEqual(new Set(aliceSet), new Set([]));
-    //       assert.deepStrictEqual(new Set(bobSet), new Set([]));
-    //     });
-    //   });
     describe("gc", () => {
       it.skip("garbage collects deleted entries", async () => {
         for (let i = 0; i < 100; i++) {
@@ -640,21 +591,18 @@ describe("standard", () => {
     });
   });
 
-  describe("MergingMutCMap", () => {
-    let aliceMap: MergingMutCMap<string, CCounter>;
-    let bobMap: MergingMutCMap<string, CCounter>;
+  describe("LazyMutCMap", () => {
+    let aliceMap: LazyMutCMap<string, ResettableCCounter>;
+    let bobMap: LazyMutCMap<string, ResettableCCounter>;
 
     beforeEach(() => {
       const valueConstructor = (valueInitToken: InitToken) =>
-        new CCounter(valueInitToken);
+        new ResettableCCounter(valueInitToken);
       aliceMap = alice.registerCollab(
         "map",
-        (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
+        Pre(LazyMutCMap)(valueConstructor)
       );
-      bobMap = bob.registerCollab(
-        "map",
-        (childInitToken) => new MergingMutCMap(childInitToken, valueConstructor)
-      );
+      bobMap = bob.registerCollab("map", Pre(LazyMutCMap)(valueConstructor));
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -667,10 +615,10 @@ describe("standard", () => {
     }
 
     function addEventListeners<K, V extends Object | null>(
-      map: MergingMutCMap<any, any>,
+      map: LazyMutCMap<any, any>,
       name: string
     ): void {
-      // TODO: add listeners once map supports them.
+      // TODO: add listeners
     }
 
     it("is initially empty", () => {
@@ -679,22 +627,11 @@ describe("standard", () => {
       assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
     });
 
-    describe("set", () => {
-      it("works with non-concurrent updates", () => {
-        load();
-
-        aliceMap.set("test");
-        appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["test"]));
-      });
-    });
-
     describe("has", () => {
-      it("returns true if the key is in the map", () => {
+      it("returns true if the key is nontrivial", () => {
         load();
 
-        aliceMap.set("test");
+        aliceMap.get("test").add(1); // Mutate it nontrivially
         assert.isTrue(aliceMap.has("test"));
         assert.isFalse(bobMap.has("test"));
 
@@ -703,42 +640,29 @@ describe("standard", () => {
         assert.isTrue(bobMap.has("test"));
       });
 
-      it("returns false if the key is not in the map", () => {
+      it("returns false if the key is trivial", () => {
         load();
 
-        aliceMap.set("test");
-        assert.isFalse(aliceMap.has("not in map"));
-        assert.isFalse(bobMap.has("not in map"));
+        aliceMap.get("test"); // Don't actually mutate it
+        assert.isFalse(aliceMap.has("test"));
+        assert.isFalse(bobMap.has("test"));
 
         appGen.releaseAll();
-        assert.isFalse(aliceMap.has("not in map"));
-        assert.isFalse(bobMap.has("not in map"));
+        assert.isFalse(aliceMap.has("test"));
+        assert.isFalse(bobMap.has("test"));
       });
     });
 
     describe("get", () => {
-      it("returns the value if the key is in the map", () => {
+      it("returns the value", () => {
         load();
 
-        aliceMap.set("test");
-        appGen.releaseAll();
-        const aliceTest = aliceMap.get("test")!;
-        const bobTest = bobMap.get("test")!;
+        const aliceTest = aliceMap.get("test");
+        const bobTest = bobMap.get("test");
         assert.isOk(aliceTest);
         assert.isOk(bobTest);
         assert.strictEqual(aliceTest.value, 0);
         assert.strictEqual(bobTest.value, 0);
-      });
-
-      it("returns undefined if the key is not in the map", () => {
-        load();
-
-        aliceMap.set("test");
-        appGen.releaseAll();
-        const aliceTest = aliceMap.get("not in map");
-        const bobTest = bobMap.get("not in map");
-        assert.isUndefined(aliceTest);
-        assert.isUndefined(bobTest);
       });
 
       it("returns a CRDT that can be modified", () => {
@@ -756,99 +680,39 @@ describe("standard", () => {
       });
     });
 
-    describe("delete", () => {
-      it("deletes existing elements", () => {
+    describe("gc", () => {
+      it("deletes elements that canGC", () => {
         load();
 
-        bobMap.set("test");
+        bobMap.get("test").add(1); // Make nontrivial.
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["test"]));
 
-        bobMap.delete("test");
+        bobMap.get("test").reset();
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
-        assert.isUndefined(aliceMap.get("test"));
-        assert.isUndefined(bobMap.get("test"));
-      });
-
-      it("does not delete non-existing elements", () => {
-        load();
-
-        bobMap.delete("test");
-        appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));
-        assert.isUndefined(aliceMap.get("test"));
-        assert.isUndefined(bobMap.get("test"));
       });
 
       it("lets concurrent value operation survive", () => {
         load();
 
-        aliceMap.set("register");
+        aliceMap.get("register").add(1);
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
 
         const bobRegister = bobMap.get("register");
-        assert.isFalse(bobRegister === undefined);
 
-        aliceMap.delete("register");
-        bobRegister!.add(3);
+        aliceMap.get("register").reset();
+        bobRegister.add(3);
         appGen.releaseAll();
         assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
         assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
-        assert.strictEqual(bobRegister!.value, 3);
+        assert.strictEqual(bobRegister.value, 3);
 
         const aliceRegister = aliceMap.get("register");
-        assert.isFalse(aliceRegister === undefined);
-        assert.strictEqual(aliceRegister!.value, 3);
-      });
-    });
-
-    describe("reset", () => {
-      let aliceRegister: CCounter;
-      let bobRegister: CCounter;
-
-      beforeEach(() => {
-        load();
-
-        aliceMap.set("register");
-        appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
-
-        bobRegister = bobMap.get("register")!;
-        assert.isFalse(bobRegister === undefined);
-        aliceRegister = aliceMap.get("register")!;
-        assert.isFalse(aliceRegister === undefined);
-      });
-
-      it("lets concurrent add survive", () => {
-        aliceMap.reset();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
-        assert.strictEqual(aliceMap.get("register"), undefined);
-        assert.strictEqual(aliceRegister!.value, 0);
-
-        bobRegister!.add(5);
-        appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
-        assert.strictEqual(bobRegister!.value, 5);
-        assert.strictEqual(aliceRegister, aliceMap.get("register"));
-        assert.strictEqual(aliceRegister!.value, 5);
-      });
-
-      it("lets causally later op survive", () => {
-        bobMap.reset();
-        bobRegister.add(7);
-        appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
-        assert.strictEqual(bobRegister.value, 7);
-        assert.strictEqual(aliceRegister, aliceMap.get("register"));
-        assert.strictEqual(aliceRegister.value, 7);
+        assert.strictEqual(aliceRegister.value, 3);
       });
     });
 
@@ -1215,66 +1079,3 @@ describe("standard", () => {
     // TODO: test deletion, freezing, getDescendant
   });
 });
-
-//
-// function testOrthogonal() {
-//     console.log("testOrthogonal()...");
-//
-//     let aliceOrthogonal = new OrthogonalCrdt("orthogonalId", alice);
-//     aliceOrthogonal.onchange = (event => console.log(
-//         "Alice: " + event.meta.sender + " set to " +
-//         event.description));
-//     let bobOrthogonal = new OrthogonalCrdt("orthogonalId", bob);
-//     bobOrthogonal.onchange = (event => console.log(
-//         "Bob: " + event.meta.sender + " set to " +
-//         event.description));
-//     assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
-//
-//     aliceOrthogonal.rotate(1);
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [1, false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [1, false]);
-//
-//     aliceOrthogonal.rotate(10);
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [11 % (2*Math.PI), false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [11 % (2*Math.PI), false]);
-//     aliceOrthogonal.rotate(-10);
-//     appGen.releaseAll();
-//
-//     bobOrthogonal.reflectHorizontalAxis();
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [2*Math.PI - 1, true]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [2*Math.PI - 1, true]);
-//
-//     aliceOrthogonal.rotate(1.5);
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [0.5, true]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [0.5, true]);
-//
-//     bobOrthogonal.reflect(0.5);
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [0.5, false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [0.5, false]);
-//
-//     // Out of order tests
-//     aliceOrthogonal.reset();
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [0, false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
-//
-//     aliceOrthogonal.rotate(Math.PI/2);
-//     assert.deepStrictEqual(aliceOrthogonal.value, [Math.PI/2, false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [0, false]);
-//
-//     bobOrthogonal.reflectHorizontalAxis();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [Math.PI/2, false]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [0, true]);
-//
-//     appGen.releaseAll();
-//     assert.deepStrictEqual(aliceOrthogonal.value, [3*Math.PI/2, true]);
-//     assert.deepStrictEqual(bobOrthogonal.value, [3*Math.PI/2, true]);
-//     console.log("...ok");
-// }
-//

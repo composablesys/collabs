@@ -14,7 +14,6 @@ import {
   stringAsBytes,
 } from "../../util";
 import { InitToken, MessageMeta } from "../../core";
-import { Resettable } from "../abilities";
 import { PrimitiveCRDT } from "../constructions";
 import {
   AbstractCList,
@@ -419,10 +418,11 @@ export class PrimitiveCListFromDenseLocalList<
   }
 }
 
-export class PrimitiveCList<T>
-  extends PrimitiveCListFromDenseLocalList<T, RgaLoc, RgaDenseLocalList<T>>
-  implements Resettable
-{
+export class PrimitiveCList<T> extends PrimitiveCListFromDenseLocalList<
+  T,
+  RgaLoc,
+  RgaDenseLocalList<T>
+> {
   constructor(
     initToken: InitToken,
     valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
@@ -436,11 +436,5 @@ export class PrimitiveCList<T>
       valueSerializer,
       valueArraySerializer
     );
-  }
-
-  reset() {
-    // Since RgaDenseLocalList has no tombstones,
-    // clear is an observed-reset.
-    this.clear();
   }
 }

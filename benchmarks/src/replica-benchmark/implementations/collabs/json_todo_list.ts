@@ -102,6 +102,7 @@ export class CollabsJSONTodoList extends CollabsReplica implements ITodoList {
         "",
         JSONElement.NewJSON
       );
+      fakeInitialApp.load(collabs.Optional.empty());
       fakeInitialJSON.setOrdinaryJS({ items: [] });
       this._fakeInitialSaveData = fakeInitialApp.save();
     }

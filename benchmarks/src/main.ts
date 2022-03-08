@@ -11,11 +11,10 @@ import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge
 import { CollabsDeletingText } from "./replica-benchmark/implementations/collabs/deleting_text";
 import { CollabsDeletingTodoList } from "./replica-benchmark/implementations/collabs/deleting_todo_list";
 import { CollabsJSONOptTodoList } from "./replica-benchmark/implementations/collabs/json_opt_todo_list";
+import { CollabsJSONTextTodoList } from "./replica-benchmark/implementations/collabs/json_text_todo_list";
 import { CollabsJSONTodoList } from "./replica-benchmark/implementations/collabs/json_todo_list";
 import { CollabsMap } from "./replica-benchmark/implementations/collabs/map";
 import { CollabsRegister } from "./replica-benchmark/implementations/collabs/register";
-import { CollabsResettingText } from "./replica-benchmark/implementations/collabs/resetting_text";
-import { CollabsResettingTodoList } from "./replica-benchmark/implementations/collabs/resetting_todo_list";
 import { CollabsRichText } from "./replica-benchmark/implementations/collabs/rich_text";
 import { CollabsText } from "./replica-benchmark/implementations/collabs/text";
 import { YjsMap } from "./replica-benchmark/implementations/yjs/map";
@@ -53,11 +52,10 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   CollabsDeletingText: CollabsDeletingText,
   CollabsDeletingTodoList: CollabsDeletingTodoList,
   CollabsJSONOptTodoList: CollabsJSONOptTodoList,
+  CollabsJSONTextTodoList: CollabsJSONTextTodoList,
   CollabsJSONTodoList: CollabsJSONTodoList,
   CollabsMap: CollabsMap,
   CollabsRegister: CollabsRegister,
-  CollabsResettingText: CollabsResettingText,
-  CollabsResettingTodoList: CollabsResettingTodoList,
   CollabsRichText: CollabsRichText,
   CollabsText: CollabsText,
   YjsMap: YjsMap,

@@ -8,7 +8,6 @@ import {
   CursorLocationSerializer,
 } from "../../constructions";
 import { LwwCRegister } from "../register";
-import { Resettable } from "../abilities";
 
 export interface CCursorEvent extends CollabEvent {
   /**
@@ -80,10 +79,7 @@ export interface CCursorEventsRecord extends CollabEventsRecord {
  * For a local version (not replicated),
  * see [[LocalCursor]].
  */
-export class CCursor
-  extends CObject<CCursorEventsRecord>
-  implements Resettable
-{
+export class CCursor extends CObject<CCursorEventsRecord> {
   private readonly common: CursorCommon;
   // LWW is overkill since usually only one replica
   // will use this cursor, but it's easiest.
@@ -160,14 +156,6 @@ export class CCursor
     // We don't use any caching here (e.g. this.previousIndex)
     // in case the list doesn't always emit events.
     return this.common.cursorLocationToIndex(this.location.value);
-  }
-
-  /**
-   * Resets this CCursor to its starting location (not
-   * necessarily starting index).
-   */
-  reset() {
-    this.location.reset();
   }
 }
 

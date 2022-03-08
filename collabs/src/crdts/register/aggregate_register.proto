@@ -1,7 +1,7 @@
 message AggregateArgsCRegisterMessage {
     oneof data {
       bytes setArgs = 1;
-      bool reset = 2;
+      bool clear = 2;
     }
 }
 

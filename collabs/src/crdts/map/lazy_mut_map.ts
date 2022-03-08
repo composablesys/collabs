@@ -14,15 +14,31 @@ import {
   MessageMeta,
   Message,
 } from "../../core";
-import { Resettable } from "../abilities";
-import { ImplicitMergingMutCMapSave } from "../../../generated/proto_compiled";
+import { LazyMutCMapSave } from "../../../generated/proto_compiled";
 import { AbstractCMapCollab } from "../../data_types";
 
 /**
- * A basic CMap of mutable values that implicitly manages membership.
- * Its main purpose is to manage Collabs sorted by key,
- * in such a way that concurrent operations on the same
- * key's value are merged.
+ * A CMap of mutable values where every key is
+ * implicitly always present, although only nontrivial
+ * values are actually stored in memory.
+ *
+ * Alternatively, you can think of this like a [[CObject]]
+ * with one property/child per key (potentially infinitely
+ * many).
+ *
+ * The "always exists" nature means that, unlike in
+ * [[DeletingMutCMap]] and [[TombstoneMutCMap]], there
+ * is no conflict when two users concurrently "create"
+ * values with the same key. Instead, they are just accessing
+ * the same value. If they perform operations on that
+ * value concurrently, then those operations will all
+ * apply to the value, effectively merging their changes.
+ *
+ * The name "LazyMap" references the [Apache Commons
+ * LazyMap](https://commons.apache.org/proper/commons-collections/apidocs/org/apache/commons/collections4/map/LazyMap.html).
+ * That map likewise creates values on demand using a
+ * factory method, to give the impression that all
+ * keys are always present.
  *
  * For the
  * purpose of the iterators and has, a key is considered
@@ -39,7 +55,7 @@ import { AbstractCMapCollab } from "../../data_types";
  * set has no effect, just
  * returning a value by calling get.
  */
-export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
+export class LazyMutCMap<K, C extends Collab>
   extends AbstractCMapCollab<K, C, []>
   implements ICollabParent
 {
@@ -288,10 +304,10 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
     for (const [name, child] of this.nontrivialMap) {
       childSaves[name] = child.save();
     }
-    const saveMessage = ImplicitMergingMutCMapSave.create({
+    const saveMessage = LazyMutCMapSave.create({
       childSaves,
     });
-    return ImplicitMergingMutCMapSave.encode(saveMessage).finish();
+    return LazyMutCMapSave.encode(saveMessage).finish();
   }
 
   /**
@@ -307,7 +323,7 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
       return;
     }
 
-    const saveMessage = ImplicitMergingMutCMapSave.decode(saveData.get());
+    const saveMessage = LazyMutCMapSave.decode(saveData.get());
     // For the child saves: it's possible that loading
     // one child might lead to this.getDescendant being
     // called for some other child (typically by deserializing
@@ -353,56 +369,5 @@ export class GrowOnlyImplicitMergingMutCMap<K, C extends Collab>
      * backup map being empty(able).
      */
     return this.nontrivialMap.size === 0;
-  }
-}
-
-/**
- * A basic CMap that implicitly manages membership.
- * Its main purpose is to manage Collabs sorted by key,
- * in such a way that concurrent operations on the same
- * key's value are merged.
- *
- * For the
- * purpose of the iterators and has, a key is considered
- * to be present in the map if its value is nontrivial,
- * specifically, if value.canGC() returns false.
- * Note that this implies that a just-added key may
- * not be present in the map.  This unusual semantics
- * is necessary because the map does not necessarily
- * maintain all elements internally, only the nontrivial
- * ones, and so the iterators are unable to consistently return
- * all trivial elements.
- *
- * delete and clear reset the affected values, making
- * them no longer present, as one would expect.
- *
- * set has no effect, just
- * returning a value by calling get.
- */
-export class ImplicitMergingMutCMap<
-  K,
-  C extends Collab & Resettable
-> extends GrowOnlyImplicitMergingMutCMap<K, C> {
-  constructor(
-    initToken: InitToken,
-    valueConstructor: (valueInitToken: InitToken, key: K) => C,
-    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
-  ) {
-    super(initToken, valueConstructor, keySerializer);
-  }
-
-  delete(key: K): void {
-    this.getIfPresent(key)?.reset();
-  }
-
-  clear() {
-    for (const value of this.values()) value.reset();
-  }
-
-  reset() {
-    // Clear is an observed-reset
-    this.clear();
   }
 }

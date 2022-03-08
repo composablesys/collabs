@@ -55,19 +55,6 @@ export class GroupState {
     this.reflectY2 = 1;
     this.rotate2 = 0;
   }
-
-  resetLocalState(): void {
-    this.X1 = 0;
-    this.Y1 = 0;
-    this.reflectX1 = 1;
-    this.reflectY1 = 1;
-    this.rotate1 = 0;
-    this.X2 = 0;
-    this.Y2 = 0;
-    this.reflectX2 = 1;
-    this.reflectY2 = 1;
-    this.rotate2 = 0;
-  }
 }
 
 export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {

@@ -11,7 +11,6 @@ import {
   MessageMeta,
   Message,
 } from "../../core";
-import { Resettable } from "../abilities";
 import { AbstractCSetCollab } from "../../data_types";
 import { makeUID } from "../../util/uid";
 
@@ -98,7 +97,7 @@ class FakeDeletedCollab extends Collab {
  */
 export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractCSetCollab<C, AddArgs>
-  implements ICollabParent, Resettable
+  implements ICollabParent
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
@@ -314,16 +313,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
   get size(): number {
     return this.children.size;
-  }
-
-  reset(): void {
-    // This is semantically an observed-reset: it removes
-    // all causally prior add operations from the history.
-    // It is also causes any messages on those
-    // added values to be ignored, but that is the same thing
-    // that would happen if we processed the message history
-    // consisting only of messages concurrent to this message.
-    this.clear();
   }
 
   /**

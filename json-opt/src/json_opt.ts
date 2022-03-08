@@ -6,12 +6,12 @@ import {
   InitToken,
   DefaultSerializer,
   Serializer,
-  ImplicitMergingMutCMap,
-  MergingMutCMap,
+  LazyMutCMap,
   OptionalLwwCRegister,
   Pre,
   PrimitiveCList,
   TextSerializer,
+  AddWinsCSet,
 } from "@collabs/collabs";
 
 export interface JSONEvent extends CollabEvent {
@@ -30,14 +30,12 @@ enum InternalType {
 }
 
 export class JSONCollab extends CObject<JSONEventsRecord> {
-  private readonly internalMap: MergingMutCMap<
+  private readonly internalMap: LazyMutCMap<
     string,
     OptionalLwwCRegister<number | string | boolean | InternalType>
   >;
-  private readonly ImplicitMergingMutCMap: ImplicitMergingMutCMap<
-    string,
-    PrimitiveCList<string>
-  >;
+  private readonly LazyMutCMap: LazyMutCMap<string, PrimitiveCList<string>>;
+  private readonly keySet: AddWinsCSet<string>;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
   constructor(initToken: InitToken) {
@@ -48,37 +46,36 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     );
     this.internalMap = this.addChild(
       "internalMap",
-      Pre(MergingMutCMap)(
+      Pre(LazyMutCMap)(
         Pre(OptionalLwwCRegister)<string | number | boolean>(keySerializer)
       )
     );
 
-    this.ImplicitMergingMutCMap = this.addChild(
-      "ImplicitMergingMutCMap",
+    this.LazyMutCMap = this.addChild(
+      "LazyMutCMap",
       (childInitToken) =>
-        new ImplicitMergingMutCMap(
+        new LazyMutCMap(
           childInitToken,
           (valueInitToken) =>
             new PrimitiveCList(valueInitToken, TextSerializer.instance),
           keySerializer
         )
     );
+    this.keySet = this.addChild("keySet", Pre(AddWinsCSet)(keySerializer));
 
     this.internalNestedKeys = new Map();
 
-    // Update ImplicitMergingMutCMap if any keys are added or deleted
-    this.internalMap.on("Set", (event) => {
-      if (!event.previousValue.isPresent) {
-        let keys = event.key.split(":");
-        keys?.pop();
-        let key = keys.pop() || "";
-        let cursor = keys.join(":");
-        this.addKey(cursor + ":", key);
-      }
+    // Update LazyMutCMap if any keys are added or deleted
+    this.keySet.on("Add", (event) => {
+      let keys = event.value.split(":");
+      keys?.pop();
+      let key = keys.pop() || "";
+      let cursor = keys.join(":");
+      this.addKey(cursor + ":", key);
     });
 
-    this.internalMap.on("Delete", (event) => {
-      let keys = event.key.split(":");
+    this.keySet.on("Delete", (event) => {
+      let keys = event.value.split(":");
       keys?.pop();
       let key = keys.pop() || "";
       let cursor = keys.join(":");
@@ -104,11 +101,11 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     // Reset an existing map or list
     this.deleteSubKeys(key);
     if (val === InternalType.List) {
-      this.ImplicitMergingMutCMap.delete(key);
+      this.LazyMutCMap.delete(key);
     }
 
-    if (!this.internalMap.has(key)) this.internalMap.set(key);
-    let mvr = this.internalMap.get(key)!;
+    if (!this.keySet.has(key)) this.keySet.add(key);
+    let mvr = this.internalMap.get(key);
     mvr.set(val);
   }
 
@@ -116,8 +113,8 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     key: string
   ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
     let vals: any[] = [];
-    let mvr = this.internalMap.get(key);
-    if (mvr) {
+    if (this.keySet.has(key)) {
+      let mvr = this.internalMap.get(key);
       for (let val of mvr.conflicts()) {
         switch (val) {
           case InternalType.Nested:
@@ -125,7 +122,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
             break;
 
           case InternalType.List:
-            vals.push(this.ImplicitMergingMutCMap.get(key));
+            vals.push(this.LazyMutCMap.get(key));
             break;
 
           default:
@@ -148,7 +145,8 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   }
 
   delete(key: string) {
-    this.internalMap.delete(key);
+    this.keySet.delete(key);
+    this.internalMap.getIfPresent(key)?.clear();
     this.deleteSubKeys(key);
   }
 
@@ -180,7 +178,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   }
 
   hasKey(key: string): boolean {
-    return this.internalMap.has(key);
+    return this.keySet.has(key);
   }
 
   setIsMap(key: string) {

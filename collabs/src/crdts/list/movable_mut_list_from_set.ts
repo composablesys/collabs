@@ -33,18 +33,6 @@ export class MovableMutCListEntry<
   }
 }
 
-// Note that we do not use this construction with ResettingMutCSet.
-// This is because deletes would do a reset on the whole
-// entry, including loc, causing deleted-then-restored
-// values to show up in their original location, instead
-// of their most recent moved-to location.  (In terms
-// of events, one would see a Move event immediately
-// before each Delete event, moving the value back to
-// its original location.)  For now, we just make
-// ResettingMutCList be immovable.  A movable
-// version is mathematically possible but tricky
-// to implement within the library.
-
 export class MovableMutCListFromSet<
     C extends Collab,
     InsertArgs extends unknown[],

@@ -89,7 +89,7 @@ export function setupWhiteboard(container: CRDTContainer) {
   });
 
   $(clear).on("click", function () {
-    boardState.reset();
+    boardState.clear();
   });
 
   // Draw on board

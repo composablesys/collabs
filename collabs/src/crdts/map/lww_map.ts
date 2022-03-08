@@ -4,7 +4,6 @@ import {
   Optional,
   Serializer,
 } from "../../util";
-import { Resettable } from "../abilities";
 import { CRegisterEntryMeta, OptionalLwwCRegister } from "../register";
 import { InitToken, Pre } from "../../core";
 import {
@@ -12,23 +11,56 @@ import {
   CMapEventsRecord,
   CRegister,
 } from "../../data_types";
-import { ImplicitMergingMutCMap } from "./implicit_merging_mut_map";
+import { LazyMutCMap } from "./lazy_mut_map";
+
+export interface ClearableCRegister<T, SetArgs extends unknown[]>
+  extends CRegister<T, SetArgs> {
+  /**
+   * Sets the state to its initial value.
+   *
+   * This method is called by [[CMapFromRegister.delete]]
+   * when this value's key is deleted.
+   *
+   * This may have different semantics than literally
+   * setting the register to its initial value
+   * (using [[CRegister.set]]).
+   * In particular:
+   * - To allow garbage-collecting deleted values when
+   * this is used in a [[CMapFromRegister]],
+   * this should restore the register to a state where
+   * [[Collab.canGC]] is true.
+   * - As a consequence, in the face of
+   * concurrent calls to [[clear]] and [[CRegister.set]],
+   * the `set` should win.
+   */
+  clear(): void;
+}
 
 export class CMapFromRegister<
-    K,
-    V,
-    SetArgs extends unknown[],
-    RegT extends CRegister<Optional<V>, SetArgs> & Resettable
-  >
-  extends AbstractCMapCObject<K, V, SetArgs, CMapEventsRecord<K, V>>
-  implements Resettable
-{
-  protected readonly internalMap: ImplicitMergingMutCMap<K, RegT>;
+  K,
+  V,
+  SetArgs extends unknown[],
+  RegT extends ClearableCRegister<Optional<V>, SetArgs>
+> extends AbstractCMapCObject<K, V, SetArgs, CMapEventsRecord<K, V>> {
+  protected readonly internalMap: LazyMutCMap<K, RegT>;
 
   /**
-   * register is assumed to have value Optional.empty()
-   * iff it is in the initial/reset state.  In particular,
-   * value must be present right after a set() call.
+   * Register requirements:
+   * - Immediately after calling `set`, its value must
+   * be a present `Optional`. Otherwise, [[set]] will
+   * throw an error.
+   * - Immediately after calling `clear()`, it
+   * should have value [[Optional.empty]]`()`.
+   * Otherwise, [[delete]] will not actually delete.
+   * - It should have value [[Optional.empty]]`()`
+   * in its initial state. Otherwise, not-yet-used keys
+   * will be considered not present, contrary
+   * to the register's state.
+   * - Calling `clear` in its initial state should
+   * do nothing. Otherwise, when you call [[delete]] on
+   * a key whose value is in its initial state, you will
+   * expect us to do something by calling `clear`, but
+   * actually we will skip calling it.
    */
   constructor(
     initToken: InitToken,
@@ -44,7 +76,7 @@ export class CMapFromRegister<
 
     this.internalMap = this.addChild(
       "",
-      Pre(ImplicitMergingMutCMap)(
+      Pre(LazyMutCMap)(
         this.internalRegisterConstructor.bind(this),
         keySerializer
       )
@@ -87,7 +119,8 @@ export class CMapFromRegister<
   }
 
   delete(key: K): void {
-    this.internalMap.delete(key);
+    const register = this.internalMap.getIfPresent(key);
+    if (register !== undefined) register.clear();
   }
 
   get(key: K): V | undefined {
@@ -112,15 +145,6 @@ export class CMapFromRegister<
   // Use inherited keyOf with === comparisons.
   // In case SetArgs = [V], you should override keyOf
   // to use serialization equality.
-
-  clear(): void {
-    this.internalMap.clear();
-  }
-
-  reset(): void {
-    // This should be equivalent to clear.
-    this.internalMap.reset();
-  }
 }
 
 export class LwwCMap<K, V> extends CMapFromRegister<

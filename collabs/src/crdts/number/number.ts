@@ -289,7 +289,9 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 }
 
 /**
- * Warnings:
+ * TODO: experimental.
+ *
+ * Experimental warnings:
  * - Eventual consistency may fail due to rounding issues.
  * The only safe way is to stick to integer operands that aren't
  * large enough to overflow anything.

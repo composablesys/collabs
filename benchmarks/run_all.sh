@@ -85,14 +85,14 @@ go
 
 trace="RealText"
 concArgs=("10 10000 10000")
-ours=("CollabsDeletingText" "CollabsResettingText" "CollabsRichText" "CollabsText")
+ours=("CollabsDeletingText" "CollabsRichText" "CollabsText")
 others=("AutomergeText" "YjsText")
 go
 
 trace="TodoList"
 concArgs=("10 1000 1000")
-# TODO: JSON
-#ours=("CollabsDeletingTodoList" "CollabsJSONOptTodoList" "CollabsJSONTodoList" "CollabsResettingTodoList")
-ours=("CollabsDeletingTodoList" "CollabsResettingTodoList")
+# TODO: JSON, JSONOpt
+#ours=("CollabsDeletingTodoList" "CollabsJSONOptTodoList" "CollabsJSONTodoList")
+ours=("CollabsDeletingTodoList" "CollabsJSONTextTodoList")
 others=("AutomergeTodoList" "YjsTodoList")
 go

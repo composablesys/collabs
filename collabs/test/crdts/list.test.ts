@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { CRDTApp, TestingCRDTAppGenerator, RgaDenseLocalList } from "../../src";
-import seedrandom from "seedrandom";
-import util from "util";
+import seedrandom = require("seedrandom");
+import util = require("util");
 
 describe("list", () => {
   let appGen: TestingCRDTAppGenerator;

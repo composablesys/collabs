@@ -1,4 +1,3 @@
-import { Resettable } from "../abilities";
 import { Collab, InitToken, Pre, isRuntime } from "../../core";
 import {
   ConstructorAsFunction,
@@ -13,20 +12,20 @@ import {
 } from "./movable_mut_list_from_set";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
-export class DeletingMutCList<C extends Collab, InsertArgs extends unknown[]>
-  extends MovableMutCListFromSet<
-    C,
-    InsertArgs,
-    RgaLoc,
-    LwwCRegister<RgaLoc>,
-    DeletingMutCSet<
-      MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>,
-      [RgaLoc, InsertArgs]
-    >,
-    RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>>
-  >
-  implements Resettable
-{
+export class DeletingMutCList<
+  C extends Collab,
+  InsertArgs extends unknown[]
+> extends MovableMutCListFromSet<
+  C,
+  InsertArgs,
+  RgaLoc,
+  LwwCRegister<RgaLoc>,
+  DeletingMutCSet<
+    MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>,
+    [RgaLoc, InsertArgs]
+  >,
+  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>>
+> {
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
@@ -64,12 +63,6 @@ export class DeletingMutCList<C extends Collab, InsertArgs extends unknown[]>
     return this.set.has(
       value.parent as MovableMutCListEntry<C, RgaLoc, LwwCRegister<RgaLoc>>
     );
-  }
-
-  reset() {
-    // This is a proper observed-reset since RgaDenseLocalList
-    // has no tombstones.
-    super.set.reset();
   }
 
   getArgs(index: number): InsertArgs {

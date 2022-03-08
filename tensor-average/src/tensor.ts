@@ -1,6 +1,5 @@
 import * as tf from "@tensorflow/tfjs";
 import {
-  CCounter,
   CObject,
   CollabEvent,
   CollabEventsRecord,
@@ -8,9 +7,9 @@ import {
   MessageMeta,
   Pre,
   CPrimitive,
-  Resettable,
   Optional,
   Message,
+  ResettableCCounter,
 } from "@collabs/collabs";
 import * as proto from "../generated/proto_compiled";
 
@@ -121,10 +120,7 @@ function tensorsEqual<R extends tf.Rank>(
   return tf.tidy(() => (tf.equal(a, b).all().arraySync() as number) === 1);
 }
 
-export class TensorGCounterCollab
-  extends CPrimitive<TensorCounterEventsRecord>
-  implements Resettable
-{
+export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> {
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
@@ -273,10 +269,7 @@ export class TensorGCounterCollab
   load(saveData: Optional<Uint8Array>): void {}
 }
 
-export class TensorCounterCollab
-  extends CObject<TensorCounterEventsRecord>
-  implements Resettable
-{
+export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
   private readonly plus: TensorGCounterCollab;
   private readonly minus: TensorGCounterCollab;
 
@@ -331,12 +324,9 @@ export class TensorCounterCollab
   }
 }
 
-export class TensorAverageCollab
-  extends CObject<TensorCounterEventsRecord>
-  implements Resettable
-{
+export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
   private readonly numerator: TensorCounterCollab;
-  private readonly denominator: CCounter;
+  private readonly denominator: ResettableCCounter;
 
   constructor(
     initToken: InitToken,
@@ -345,7 +335,7 @@ export class TensorAverageCollab
   ) {
     super(initToken);
     this.numerator = this.addChild("1", Pre(TensorCounterCollab)(shape, dtype));
-    this.denominator = this.addChild("2", Pre(CCounter)());
+    this.denominator = this.addChild("2", Pre(ResettableCCounter)());
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));
   }

@@ -1,4 +1,4 @@
-message ImplicitMergingMutCMapSave {
+message LazyMutCMapSave {
   // OPT: use an array instead of a map. That way, children
   // are stored in nontrivialMap's iterator order, which is
   // compatible with their creation order. Then if keys

@@ -1,4 +1,3 @@
-export * from "./abilities";
 export * from "./boolean";
 export * from "./constructions";
 export * from "./crdt-runtime";

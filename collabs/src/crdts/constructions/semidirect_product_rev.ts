@@ -18,9 +18,6 @@ import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 /* eslint-disable */
 
 // TODO: revise this file.
-// In particular, separate out resettable version?
-// (Currently has weird conditional types.)
-// Better yet, move that to resettable.ts
 
 class StoredMessage {
   constructor(
@@ -460,8 +457,7 @@ export abstract class SemidirectProductRev<
           if (concurrent.length > 0) {
             for (let i = 0; i < concurrent.length; i++) {
               // TODO: can we avoid serializing and
-              // deserializing each time?  Like
-              // with ResetComponent.
+              // deserializing each time?
               let mActOrNull = this.action(
                 concurrent[i][1].targetPath,
                 concurrent[i][1].crdtMeta,

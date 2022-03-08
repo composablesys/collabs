@@ -8,8 +8,9 @@ import {
   CRDTApp,
   TestingCRDTAppGenerator,
   Optional,
+  ResettableCCounter,
 } from "../../src";
-import seedrandom from "seedrandom";
+import seedrandom = require("seedrandom");
 import {
   AddComponent,
   CNumberState,
@@ -112,15 +113,87 @@ describe("basic_crdts", () => {
 
     function addEventListeners(counter: CCounter, name: string): void {
       counter.on("Add", (event) =>
+        console.log(`${name}: ${event.meta.sender} added ${event.added}`)
+      );
+    }
+
+    it("is initially 0", () => {
+      assert.strictEqual(aliceCounter.value, 0);
+      assert.strictEqual(bobCounter.value, 0);
+    });
+
+    describe("add", () => {
+      it("works for non-concurrent updates", () => {
+        aliceCounter.add(3);
+        appGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, 3);
+        assert.strictEqual(bobCounter.value, 3);
+
+        bobCounter.add(-4);
+        appGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, -1);
+        assert.strictEqual(bobCounter.value, -1);
+
+        aliceCounter.add(-3);
+        appGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, -4);
+        assert.strictEqual(bobCounter.value, -4);
+
+        bobCounter.add(4);
+        appGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, 0);
+        assert.strictEqual(bobCounter.value, 0);
+      });
+
+      it("works for concurrent updates", () => {
+        aliceCounter.add(2);
+        aliceCounter.add(-7);
+        assert.strictEqual(aliceCounter.value, -5);
+        assert.strictEqual(bobCounter.value, 0);
+
+        bobCounter.add(-5);
+        bobCounter.add(4);
+        assert.strictEqual(aliceCounter.value, -5);
+        assert.strictEqual(bobCounter.value, -1);
+
+        appGen.releaseAll();
+        assert.strictEqual(aliceCounter.value, -6);
+        assert.strictEqual(bobCounter.value, -6);
+      });
+    });
+  });
+
+  describe("ResettableCCounter", () => {
+    let aliceCounter: ResettableCCounter;
+    let bobCounter: ResettableCCounter;
+
+    beforeEach(() => {
+      aliceCounter = alice.registerCollab(
+        "resettableCounterId",
+        Pre(ResettableCCounter)()
+      );
+      bobCounter = bob.registerCollab(
+        "resettableCounterId",
+        Pre(ResettableCCounter)()
+      );
+      alice.load(Optional.empty());
+      bob.load(Optional.empty());
+      if (debug) {
+        addEventListeners(aliceCounter, "Alice");
+        addEventListeners(bobCounter, "Bob");
+      }
+    });
+
+    function addEventListeners(
+      counter: ResettableCCounter,
+      name: string
+    ): void {
+      counter.on("Add", (event) =>
         console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
       );
       counter.on("Reset", (event) =>
         console.log(`${name}: ${event.meta.sender} reset`)
       );
-      // TODO
-      // counter.on("StrongReset", (event) =>
-      //   console.log(`${name}: ${event.meta.sender} strong reset`)
-      // );
     }
 
     it("is initially 0", () => {
@@ -248,38 +321,6 @@ describe("basic_crdts", () => {
       });
     });
 
-    describe("strong reset", () => {
-      it.skip("works with non-concurrent updates", () => {
-        // aliceCounter.add(10);
-        // appGen.releaseAll();
-        // assert.strictEqual(aliceCounter.value, 10);
-        // assert.strictEqual(bobCounter.value, 10);
-        //
-        // bobCounter.strongReset();
-        // appGen.releaseAll();
-        // assert.strictEqual(aliceCounter.value, 0);
-        // assert.strictEqual(bobCounter.value, 0);
-        //
-        // aliceCounter.add(6);
-        // appGen.releaseAll();
-        // assert.strictEqual(aliceCounter.value, 6);
-        // assert.strictEqual(bobCounter.value, 6);
-      });
-
-      it.skip("wins over concurrent add", () => {
-        // aliceCounter.add(10);
-        // appGen.releaseAll();
-        // assert.strictEqual(aliceCounter.value, 10);
-        // assert.strictEqual(bobCounter.value, 10);
-        //
-        // aliceCounter.strongReset();
-        // bobCounter.add(20);
-        // appGen.releaseAll();
-        // assert.strictEqual(aliceCounter.value, 0);
-        // assert.strictEqual(bobCounter.value, 0);
-      });
-    });
-
     it("works with lots of concurrency", () => {
       aliceCounter.add(3);
       bobCounter.add(7);
@@ -287,12 +328,6 @@ describe("basic_crdts", () => {
       appGen.release(bob);
       assert.strictEqual(aliceCounter.value, 7);
       assert.strictEqual(bobCounter.value, 7);
-
-      // TODO
-      // bobCounter.strongReset();
-      // appGen.releaseAll();
-      // assert.strictEqual(aliceCounter.value, 0);
-      // assert.strictEqual(bobCounter.value, 0);
     });
   });
 
@@ -561,9 +596,9 @@ describe("basic_crdts", () => {
       });
     });
 
-    describe("reset", () => {
+    describe("clear", () => {
       it("works with concurrent updates", () => {
-        aliceMvr.reset();
+        aliceMvr.clear();
         assert.deepStrictEqual(new Set(aliceMvr.conflicts()), new Set([]));
 
         bobMvr.set("conc");
@@ -576,8 +611,8 @@ describe("basic_crdts", () => {
       });
 
       // TODO
-      it("works with concurrent resets");
-      it("lets concurrent writes survive");
+      it.skip("works with concurrent clears");
+      it.skip("lets concurrent writes survive");
     });
   });
 
@@ -676,9 +711,9 @@ describe("basic_crdts", () => {
       });
     });
 
-    describe("reset", () => {
-      it("works with concurrent reset", () => {
-        aliceLww.reset();
+    describe("clear", () => {
+      it("works with concurrent clear", () => {
+        aliceLww.clear();
         assert.strictEqual(aliceLww.value, "initial");
 
         bobLww.value = "conc";

@@ -97,6 +97,7 @@ export class CollabsJSONTextTodoList
         "",
         JSONElement.NewJSON
       );
+      fakeInitialApp.load(collabs.Optional.empty());
       fakeInitialJSON.setOrdinaryJS({ items: [] });
       this._fakeInitialSaveData = fakeInitialApp.save();
     }

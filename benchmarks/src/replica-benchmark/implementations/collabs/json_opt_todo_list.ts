@@ -129,6 +129,7 @@ export class CollabsJSONOptTodoList
         "",
         collabs.Pre(JSONCollab)()
       );
+      fakeInitialApp.load(collabs.Optional.empty());
       const fakeInitialRootCursor = new JSONCursor(fakeInitialRootJSON);
       fakeInitialRootCursor.setIsMap("items");
       fakeInitialRootCursor.setIsList("itemsIds");

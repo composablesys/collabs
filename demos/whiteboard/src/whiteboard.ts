@@ -108,7 +108,7 @@ import $ from "jquery";
   });
 
   $(clear).on("click", function () {
-    boardState.reset();
+    boardState.clear();
   });
 
   // Draw on board

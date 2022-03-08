@@ -12,6 +12,7 @@ import {
 } from "../../util";
 import { PrimitiveCRDT } from "../constructions";
 import { CRDTMeta } from "../crdt-runtime";
+import { ClearableCRegister } from "../map";
 
 export interface CRegisterEntryMeta<S> {
   readonly value: S;
@@ -46,7 +47,7 @@ export abstract class AggregateArgsCRegister<
     Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
   >
   extends PrimitiveCRDT<Events>
-  implements CRegister<T, SetArgs>
+  implements CRegister<T, SetArgs>, ClearableCRegister<T, SetArgs>
 {
   protected entries: AggregateArgsCRegisterEntry<S>[] = [];
   private _value: T;
@@ -78,11 +79,25 @@ export abstract class AggregateArgsCRegister<
     return this.value;
   }
 
-  reset(): void {
-    // Only reset if needed
+  /**
+   * Clears the register, resetting it to its initial value.
+   *
+   * Like [[set]], this overwrites all causally prior values,
+   * but unlike [[set]], it does not provide a new value.
+   * Hence after calling this method, the conflicts set
+   * is empty.
+   *
+   * As a consequence, in the face of concurrent calls to
+   * [[clear]] and [[set]], the [[set]] always wins.
+   *
+   * Also, immediately after calling this method,
+   * [[canGC]] will be true.
+   */
+  clear(): void {
+    // Only clear if needed
     if (!this.canGC()) {
       const message = AggregateArgsCRegisterMessage.create({
-        reset: true,
+        clear: true,
       }); // no value
       const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
       // Automatic mode suffices to send all of the needed
@@ -117,7 +132,7 @@ export abstract class AggregateArgsCRegister<
         newState.push(entry);
         break;
       }
-      case "reset":
+      case "clear":
         // Add nothing new to newState
         break;
       default:
@@ -159,7 +174,7 @@ export abstract class AggregateArgsCRegister<
    * non-overwritten values.  This may have
    * more than one element due to concurrent writes,
    * or it may have zero elements because the register is
-   * newly initialized or has been reset.
+   * newly initialized or has been [[clear]]ed.
    *
    * The array is guaranteed to contain
    * values in the same order on all replicas, namely,
@@ -227,7 +242,7 @@ export abstract class AggregateArgsCRegister<
    * Aggregate the current conflicting (causally maximal)
    * values, with metadata, returning the actual value.
    *
-   * Note that conflictsMeta might be empty (initial/reset
+   * Note that conflictsMeta might be empty (initial/[[clear]]ed
    * state).  Order is eventually consistent, so it is okay
    * to depend on the order.
    *

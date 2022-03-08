@@ -89,7 +89,7 @@ Efficiency of sending big object every time -->
 
 ### Mutable Value Collection Variants
 
-Types of mutable collections (Deleting, Resetting, Tombstone). Note downsides of each: resetting message size for all ops; tombstones; non-revivable/destroying/inconsisten on deleting (can get confusing if you store it elsewhere, need to check); resetting needs resetting. Also extras (merging map, move on deleting list, ?)
+Types of mutable collections (Deleting, Tombstone). Note downsides of each: tombstones; non-revivable/destroying/inconsisten on deleting (can get confusing if you store it elsewhere, need to check). Also extras (merging map, move on deleting list, ?)
 
 ### `CObject`s vs Ordinary Objects
 

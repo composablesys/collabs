@@ -7,7 +7,6 @@ import {
   CollabSerializer,
   Serializer,
 } from "../../util";
-import { Resettable } from "../abilities";
 import { DeletingMutCSet } from "../set";
 import { CRegisterEntryMeta } from "./aggregate_register";
 import { OptionalLwwCRegister } from "./wins_registers";
@@ -18,7 +17,7 @@ export interface MutCRegisterEventsRecord<C extends Collab, Value>
    * Emitted when a value is deleted from the value factory.
    *
    * This happens only when the value is overwritten by
-   * a *causally greater* value (or reset). It does not always
+   * a *causally greater* value (or cleared). It does not always
    * happen when the value becomes no longer the set value,
    * since that may be due to a concurrently set value.
    *
@@ -108,15 +107,15 @@ export class MutCRegisterFromRegister<
   }
 }
 
-export class LwwMutCRegister<C extends Collab, SetArgs extends unknown[]>
-  extends MutCRegisterFromRegister<
-    C,
-    SetArgs,
-    Optional<C>,
-    OptionalLwwCRegister<C>
-  >
-  implements Resettable
-{
+export class LwwMutCRegister<
+  C extends Collab,
+  SetArgs extends unknown[]
+> extends MutCRegisterFromRegister<
+  C,
+  SetArgs,
+  Optional<C>,
+  OptionalLwwCRegister<C>
+> {
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: SetArgs) => C,
@@ -140,9 +139,9 @@ export class LwwMutCRegister<C extends Collab, SetArgs extends unknown[]>
     return this.register.conflictsMeta();
   }
 
-  reset() {
-    this.valueFactory.reset();
-    this.register.reset();
+  clear() {
+    this.valueFactory.clear();
+    this.register.clear();
   }
 
   /**
