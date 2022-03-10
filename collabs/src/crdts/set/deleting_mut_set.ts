@@ -74,7 +74,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
   /**
    * A deleted child that is sending a message. This var is used to
-   * pass the child from childSend to receiveInternal so that we
+   * pass the child from childSend to receive so that we
    * can deliver the message successfully despite not keeping the
    * child around in this.children.
    */
@@ -96,7 +96,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   private ourCreatedValue?: C = undefined;
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Message[], meta: MessageMeta): void {
     const lastMessage = messagePath[messagePath.length - 1];
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in

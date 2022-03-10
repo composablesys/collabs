@@ -382,7 +382,7 @@ export abstract class MultipleSemidirectProduct<
   // The resulting message mact is then applied to σ and added to the history.
   // It also acts on all messages in the history with lower arbitration order,
   // regardless ofwhether they are concurrent or not.
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta) {
+  receive(messagePath: Message[], meta: MessageMeta) {
     if (messagePath.length === 0) {
       throw new Error("TODO");
     }

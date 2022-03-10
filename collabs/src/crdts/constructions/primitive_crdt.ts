@@ -102,7 +102,7 @@ export abstract class PrimitiveCRDT<
    * Override to receive messages sent with [[sendCRDT]].
    *
    * This abstract method is like [[CPrimitive.receivePrimitive]] or
-   * [[Collab.receiveInternal]], except it also provides `crdtMeta`.
+   * [[Collab.receive]], except it also provides `crdtMeta`.
    * That contains metadata useful for implementing op-based CRDTs,
    * e.g., a vector clock.
    */

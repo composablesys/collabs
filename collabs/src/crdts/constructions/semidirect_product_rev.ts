@@ -432,7 +432,7 @@ export abstract class SemidirectProductRev<
     return { m1TargetPath, m1Message };
   }
 
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta) {
+  receive(messagePath: Message[], meta: MessageMeta) {
     const crdtMeta = <CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY];
 
     this.receivedMessages = this.receivedMessages || true;

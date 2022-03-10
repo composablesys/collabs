@@ -321,6 +321,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     );
     inConstructor = false;
     this.opMap.on("Add", this.opMapAddEventHandler(this));
+    // Using CollabSerializer is okay because we never delete from this.opMap.
     this.idSerializer = new collabs.CollabSerializer(this.opMap);
 
     // Configure the initial ops (like in valueConstructor).

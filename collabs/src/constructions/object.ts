@@ -131,7 +131,7 @@ export class CObject<
     return undefined;
   }
 
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");

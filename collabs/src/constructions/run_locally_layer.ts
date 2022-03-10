@@ -88,10 +88,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return undefined;
   }
 
-  protected receiveInternal(
-    messagePath: (string | Uint8Array)[],
-    meta: MessageMeta
-  ): void {
+  receive(messagePath: (string | Uint8Array)[], meta: MessageMeta): void {
     this.child.receive(messagePath, meta);
   }
 

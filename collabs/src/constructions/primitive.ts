@@ -25,7 +25,7 @@ export abstract class CPrimitive<
    * @param  messagePath [description]
    * @return             [description]
    */
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length !== 1) {
       // We are not the target
       throw new Error("CPrimitive received message for child");

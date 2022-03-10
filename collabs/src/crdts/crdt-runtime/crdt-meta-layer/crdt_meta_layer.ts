@@ -237,7 +237,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
    */
   private currentReceiveBatch: ReceiveCRDTMetaBatch | null = null;
 
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
       throw new Error("messagePath.length === 0");
     }

@@ -122,7 +122,7 @@ export class LazyMutCMap<K, C extends Collab>
           // we need to indicate that loading was skipped.
           value.load(Optional.empty());
           // The value starts trivial; if it becomes nontrivial
-          // due to a message, receiveInternal will move
+          // due to a message, receive will move
           // it to nontrivialMap.
           this.trivialMap.set(keyString, value);
         }
@@ -154,7 +154,7 @@ export class LazyMutCMap<K, C extends Collab>
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Message[], meta: MessageMeta): void {
     const keyString = <string>messagePath[messagePath.length - 1];
     this.inReceiveKeyStr = keyString;
     try {

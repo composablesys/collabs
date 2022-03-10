@@ -7,7 +7,7 @@
  * The easiest way to access this extra metadata is by
  * subclassing [[PrimitiveCRDT]]. It provides an abstract
  * method [[PrimitiveCRDT.receiveCRDT]] in place of
- * [[Collab.receiveInternal]], which receives the [[CRDTMeta]]
+ * [[Collab.receive]], which receives the [[CRDTMeta]]
  * as an argument.
  *
  * To ensure access to [[CRDTMeta]], a [[Collab]] must

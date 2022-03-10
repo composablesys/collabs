@@ -309,7 +309,7 @@ export class BatchingLayer
     return undefined;
   }
 
-  protected receiveInternal(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Message[], meta: MessageMeta): void {
     // We do our own local echo.
     if (meta.isLocalEcho) return;
 

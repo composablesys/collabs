@@ -341,9 +341,6 @@ export abstract class Collab<
    * Callback used by this Collab's parent to deliver
    * a message, possibly for one of this Collab's descendants.
    *
-   * For implementers: do not override this method; instead, override
-   * [[receiveInternal]], which is called by this method.
-   *
    * @param messagePath A messagePath sent by a local or
    * remote replica
    * using [[send]], possibly modified by ancestor
@@ -353,30 +350,7 @@ export abstract class Collab<
    * @param meta Metadata attached to this message by
    * ancestor `Collab`s.
    */
-  receive(messagePath: Message[], meta: MessageMeta) {
-    this.receiveInternal(messagePath, meta);
-    // While we do nothing here currently, we reserve the ability
-    // to do per-message processing in the future, e.g., dispatching an
-    // event or marking the Collab as needing saving.
-  }
-
-  /**
-   * Core method used to receive messages, possibly for
-   * one of this Collab's descendants.
-   *
-   * @param messagePath A messagePath sent by a local or
-   * remote replica
-   * using [[send]], possibly modified by ancestor
-   * `Collab`s. This may be modified in-place. A common pattern
-   * is to read the last message, decrement the length,
-   * and then deliver it to a child `Collab`.
-   * @param meta Metadata attached to this message by
-   * ancestor `Collab`s.
-   */
-  protected abstract receiveInternal(
-    messagePath: Message[],
-    meta: MessageMeta
-  ): void;
+  abstract receive(messagePath: Message[], meta: MessageMeta): void;
 
   /**
    * Returns save data describing the current state of this
