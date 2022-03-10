@@ -12,8 +12,8 @@ describe("Runtime", () => {
       appGen.newApp();
     });
 
-    it("has length 11", () => {
-      assert.strictEqual(appGen.newApp().runtime.replicaID.length, 11);
+    it("has length 10", () => {
+      assert.strictEqual(appGen.newApp().runtime.replicaID.length, 10);
     });
 
     it("is different each time", () => {

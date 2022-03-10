@@ -1,29 +1,31 @@
 import * as crypto from "crypto";
 
+const BASE64CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 /**
  * The default length of a replicaID, in characters.
  *
- * Rationale for value 11:
- * Each character of the replicaID gives us 7 bits of entropy,
- * for a total of 77 bits.  This gives a < 1%
+ * Rationale for value 10:
+ * Each character of the replicaID gives us 6 bits of entropy,
+ * for a total of 60 bits.  This gives a < 1%
  * probability that two replicas in the same conversation
  * will ever choose the same replicaID's, even if we
- * consider the total probability across 1 billion
- * conversations with 1 million replicaIDs each
- * (= 100 users * 1000 days * 10 replicas/user/day).
+ * consider the total probability across 100,000,000
+ * conversations with 10,000 replicaIDs each
+ * (= 10 users * 1,000 days * 1 replica/user/day).
  */
-export const DEFAULT_REPLICA_ID_LENGTH = 11;
+export const DEFAULT_REPLICA_ID_LENGTH = 10;
 
 /**
- * @return A random replicaID made of ASCII characters
- * (char codes 0--127, inclusive).
+ * @return A random replicaID made of base64 characters.
  * Such replicaID's can be safely treated as either
- * byte arrays or UTF-8 strings.
+ * byte arrays or UTF-8 strings, and they are printable.
  */
 export function randomReplicaID(
   length: number = DEFAULT_REPLICA_ID_LENGTH
 ): string {
-  const arr = new Array<number>(length);
+  const arr = new Array<string>(length);
   let randomValues = new Uint8Array(length);
   if (typeof window === "undefined") {
     // Use Node crypto library.
@@ -46,9 +48,9 @@ export function randomReplicaID(
   for (let i = 0; i < length; i++) {
     // Here we exploit the fact that 128 divides 256.
     // This would be biased otherwise.
-    arr[i] = randomValues[i] % 128;
+    arr[i] = BASE64CHARS[randomValues[i] % 64];
   }
-  return String.fromCharCode(...arr);
+  return arr.join("");
 }
 
 /**
@@ -61,18 +63,17 @@ export function randomReplicaID(
  *
  * @param rng The psuedo-random number generator, from
  * npm package "seedrandom".
- * @return A psueod-random replicaID made of ASCII characters
- * (char codes 0--127, inclusive).
+ * @return A psueod-random replicaID made of base64 characters.
  * Such replicaID's can be safely treated as either
- * byte arrays or UTF-8 strings.
+ * byte arrays or UTF-8 strings, and they are printable.
  */
 export function pseudoRandomReplicaID(
   rng: seedrandom.prng,
   length: number = DEFAULT_REPLICA_ID_LENGTH
 ) {
-  const arr = new Array<number>(length);
+  const arr = new Array<string>(length);
   for (let i = 0; i < arr.length; i++) {
-    arr[i] = Math.floor(rng() * 128);
+    arr[i] = BASE64CHARS[Math.floor(rng() * 64)];
   }
-  return String.fromCharCode(...arr);
+  return arr.join("");
 }
