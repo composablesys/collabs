@@ -56,9 +56,7 @@ export class MutCRegisterFromRegister<
     initToken: InitToken,
     registerCallback: (valueSerializer: Serializer<C>) => Pre<RegT>,
     valueConstructor: (valueInitToken: InitToken, ...args: SetArgs) => C,
-    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
     this.valueFactory = this.addChild(
@@ -67,6 +65,11 @@ export class MutCRegisterFromRegister<
     );
     this.register = this.addChild(
       "0",
+      // CollabSerializer is safe here because we never perform set
+      // operations referencing deleted values, hence this will never try to
+      // deserialize a deleted value.
+      // Note that would cease to be true if we added e.g. a restore op -
+      // we would then need to use a TombstoneMutCSet instead.
       registerCallback(new CollabSerializer(this.valueFactory))
     );
 
@@ -119,9 +122,7 @@ export class LWWMutCRegister<
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: SetArgs) => C,
-    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

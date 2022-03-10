@@ -56,9 +56,7 @@ export abstract class AggregateArgsCRegister<
     initToken: InitToken,
     readonly valueConstructor: (...args: SetArgs) => S,
     initialValue: T,
-    readonly argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    readonly argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
@@ -270,9 +268,7 @@ export abstract class AggregateCRegister<
   constructor(
     initToken: InitToken,
     initialValue: T,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

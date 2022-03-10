@@ -41,9 +41,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   constructor(initToken: InitToken) {
     super(initToken);
 
-    let keySerializer: Serializer<string> = DefaultSerializer.getInstance(
-      initToken.runtime
-    );
+    let keySerializer: Serializer<string> = DefaultSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
       Pre(LazyMutCMap)(

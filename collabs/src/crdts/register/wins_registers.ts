@@ -19,9 +19,7 @@ export class LWWCRegister<T> extends AggregateCRegister<T> {
   constructor(
     initToken: InitToken,
     private readonly initialValue: T,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(initToken, initialValue, valueSerializer);
   }
@@ -68,9 +66,7 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
   constructor(
     initToken: InitToken,
     private readonly initialValue: T,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(initToken, initialValue, valueSerializer);
   }
@@ -122,9 +118,7 @@ export class OptionalLWWCRegister<T> extends AggregateArgsCRegister<
 > {
   constructor(
     initToken: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,
@@ -161,9 +155,7 @@ export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
 > {
   constructor(
     initToken: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

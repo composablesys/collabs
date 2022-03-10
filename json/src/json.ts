@@ -40,7 +40,7 @@ export class JSONObject extends CObject {
       "nestedMap",
       Pre(LazyMutCMap)(
         (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
-        DefaultSerializer.getInstance(initToken.runtime)
+        DefaultSerializer.getInstance()
       )
     );
     this.keySet = this.addChild("keySet", Pre(AddWinsCSet)());

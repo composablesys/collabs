@@ -484,6 +484,7 @@ export abstract class MultipleSemidirectProduct<
       for (const crdt of this.crdts) crdt.load(saveData);
     } else {
       const saveMessage = MultiSemidirectProductSave.decode(saveData.get());
+      // TODO: get rid of pending saves (not needed since CollabID refactor).
       // For the child saves: it's possible that loading
       // one child might lead to this.getDescendant being
       // called for some other child (typically by deserializing
@@ -502,7 +503,7 @@ export abstract class MultipleSemidirectProduct<
     }
   }
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
 
     const name = namePath[namePath.length - 1];

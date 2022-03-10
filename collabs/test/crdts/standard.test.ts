@@ -11,12 +11,13 @@ import {
   DeletingMutCSet,
   CMapDeleteEvent,
   CMapSetEvent,
-  CCounter,
   InitToken,
   Pre,
   Optional,
   LazyMutCMap,
   ResettableCCounter,
+  CollabSerializer,
+  OptionalLWWCRegister,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom = require("seedrandom");
@@ -718,8 +719,14 @@ describe("standard", () => {
 
     describe("value CRDT", () => {
       it("can be used as values in other CRDTs", () => {
-        let aliceSet = alice.registerCollab("valueSet", Pre(AddWinsCSet)());
-        let bobSet = bob.registerCollab("valueSet", Pre(AddWinsCSet)());
+        let aliceSet = alice.registerCollab(
+          "valueSet",
+          Pre(AddWinsCSet)(new CollabSerializer(aliceMap))
+        );
+        let bobSet = bob.registerCollab(
+          "valueSet",
+          Pre(AddWinsCSet)(new CollabSerializer(bobMap))
+        );
 
         load();
 
@@ -997,35 +1004,25 @@ describe("standard", () => {
   describe("DeletingMutCSet", () => {
     let aliceSource: DeletingMutCSet<CNumber, []>;
     let bobSource: DeletingMutCSet<CNumber, []>;
-    let aliceRegister: LWWCRegister<CNumber | undefined>;
-    let bobRegister: LWWCRegister<CNumber | undefined>;
+    let aliceRegister: OptionalLWWCRegister<CNumber>;
+    let bobRegister: OptionalLWWCRegister<CNumber>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
         "source",
-        (childInitToken) =>
-          new DeletingMutCSet(
-            childInitToken,
-            (valueInitToken) => new CNumber(valueInitToken)
-          )
+        Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
       );
       bobSource = bob.registerCollab(
         "source",
-        (childInitToken) =>
-          new DeletingMutCSet(
-            childInitToken,
-            (valueInitToken) => new CNumber(valueInitToken)
-          )
+        Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
       );
       aliceRegister = alice.registerCollab(
         "register",
-        (childInitToken) =>
-          new LWWCRegister<CNumber | undefined>(childInitToken, undefined)
+        Pre(OptionalLWWCRegister)(new CollabSerializer(aliceSource))
       );
       bobRegister = bob.registerCollab(
         "register",
-        (childInitToken) =>
-          new LWWCRegister<CNumber | undefined>(childInitToken, undefined)
+        Pre(OptionalLWWCRegister)(new CollabSerializer(bobSource))
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -1037,12 +1034,12 @@ describe("standard", () => {
     });
 
     it("transfers new Collab via register", () => {
-      aliceRegister.value = aliceSource.add();
-      aliceRegister.value.add(7);
-      assert.strictEqual(aliceRegister.value.value, 7);
+      aliceRegister.set(aliceSource.add());
+      aliceRegister.value.get().add(7);
+      assert.strictEqual(aliceRegister.value.get().value, 7);
 
       appGen.releaseAll();
-      assert.strictEqual(bobRegister.value!.value, 7);
+      assert.strictEqual(bobRegister.value.get().value, 7);
     });
 
     it("allows sequential creation", () => {
@@ -1066,12 +1063,12 @@ describe("standard", () => {
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
-      aliceRegister.value = new1;
+      aliceRegister.set(new1);
       appGen.releaseAll();
-      let new1Bob = bobRegister.value!;
-      bobRegister.value = new2;
+      let new1Bob = bobRegister.value.get();
+      bobRegister.set(new2);
       appGen.releaseAll();
-      let new2Alice = aliceRegister.value!;
+      let new2Alice = aliceRegister.value.get();
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
     });

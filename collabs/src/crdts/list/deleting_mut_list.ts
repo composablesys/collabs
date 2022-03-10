@@ -30,9 +30,7 @@ export class DeletingMutCList<
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
-    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

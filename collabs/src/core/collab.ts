@@ -278,7 +278,7 @@ export abstract class Collab<
    * in that message, either directly or as a field on its
    * [[MessageMeta]].
    */
-  getContext(key: symbol): unknown {
+  protected getContext(key: symbol): unknown {
     let current: CollabParent = this.parent;
     for (;;) {
       const currentAttempt = current.getAddedContext(key);
@@ -446,9 +446,9 @@ export abstract class Collab<
    * [[getDescendant]] does the reverse procedure.
    * [[getNamePath]] and [[getDescendant]] together allow
    * one to make a serializable reference to a `Collab` that
-   * is comprehensible across replicas. That is how
-   * [[DefaultSerializer]] and [[CollabSerializer]] serialize
-   * `Collab`s.
+   * is comprehensible across replicas.
+   *
+   * See also: [[CollabID]].
    *
    * @param  descendant A `Collab` that is a descendant
    * of `this`.
@@ -470,27 +470,25 @@ export abstract class Collab<
 
   /**
    * Returns the descendant of this Collab at the
-   * given name path.
+   * given name path, or `undefined`
+   * if it no longer exists.
    *
    * If `namePath` is `[]`, `this` is returned.
    *
-   * This method must work even in the middle of a call
-   * to [[load]], in case one of this `Collab`'s descendants.
-   * deserializes a reference to another descendant.
-   * You are guaranteed that this method will not be called
-   * with a non-`[]` `namePath` until after [[load]] has
-   * been called (but not necessarily terminated), but
-   * it may be called with `namePath = []` at any time,
-   * in which case `this` should be returned without error.
+   * This method should not be called before [[load]] has completed.
+   * Otherwise, its behavior is unspecified.
+   *
+   * See also: [[CollabID]].
    *
    * @param  namePath A name path referencing a descendant
    * of this `Collab` (inclusive), as returned by [[getNamePath]].
-   * @return The descendant at the given name path.
-   * @throws If there is no descendant with the given name
-   * path. Note that it possible that the descendant used to
-   * exist but has since been deleted.
+   * @return The descendant at the given name path, or `undefined`
+   * if it no longer exists.
+   * @throws If no descendant with the given `namePath` could possibly
+   * exist, e.g., this has a fixed set of children and the child name
+   * is not one of them.
    */
-  abstract getDescendant(namePath: string[]): Collab;
+  abstract getDescendant(namePath: string[]): Collab | undefined;
 
   /**
    * If this Collab is in its initial, post-constructor state, then
@@ -501,7 +499,7 @@ export abstract class Collab<
    * recreating it using the
    * same constructor arguments if needed later.  That reduces
    * the state space of some Collab collections
-   * (e.g., [[GrowOnlyImplicitMutCMap]]).
+   * (in particular, [[LazyMutCMap]]).
    */
   abstract canGC(): boolean;
 }

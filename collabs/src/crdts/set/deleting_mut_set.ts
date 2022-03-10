@@ -14,75 +14,12 @@ import {
 import { AbstractCSetCollab } from "../../data_types";
 import { makeUID } from "../../util/uid";
 
-class FakeDeletedCollab extends Collab {
-  private constructor(initToken: InitToken) {
-    super(initToken);
-  }
-
-  protected receiveInternal(): void {
-    throw new Error(
-      "Collab has been deleted from DeletingMutCSet and is frozen"
-    );
-  }
-  save(): Uint8Array {
-    throw new Error(
-      "Collab has been deleted from DeletingMutCSet and is frozen"
-    );
-  }
-  load(): void {
-    throw new Error(
-      "Collab has been deleted from DeletingMutCSet and is frozen"
-    );
-  }
-  getDescendant(): Collab {
-    throw new Error(
-      "Collab has been deleted from DeletingMutCSet and is frozen"
-    );
-  }
-  canGC(): boolean {
-    throw new Error(
-      "Collab has been deleted from DeletingMutCSet and is frozen"
-    );
-  }
-
-  /**
-   * Used in getChild when the requested Collab is deleted/
-   * frozen.  See the comment there.
-   */
-  static of(initToken: InitToken): FakeDeletedCollab {
-    const fakeDeletedCollab = new FakeDeletedCollab(initToken);
-    return new Proxy(fakeDeletedCollab, {
-      get: function (target, p) {
-        if (p in target) {
-          // Do the behavior defined by FakeDeletedCollab.
-          return (target as unknown as Record<string | symbol, unknown>)[p];
-        } else {
-          throw new Error(
-            "Collab has been deleted from DeletingMutCSet and is frozen"
-          );
-        }
-      },
-
-      set: function (target, p, value) {
-        if (p in target) {
-          // Do the behavior defined by FakeDeletedCollab.
-          (target as unknown as Record<string | symbol, unknown>)[p] = value;
-          return true;
-        } else {
-          throw new Error(
-            "Collab has been deleted from DeletingMutCSet and is frozen"
-          );
-        }
-      },
-    });
-  }
-}
-
 /**
- * Warning: when you delete a Collab, it is "frozen" -
- * no longer receives ops, doing ops locally causes an
- * error, not guaranteed EC.  Use has to check if it's
- * frozen.  Restore not allowed (2P-set semantics).
+ * Warning: when you delete a Collab, it is "frozen":
+ * local ops will go through locally but not be replicated.
+ * (Specifically, messages will be sent as usual, but remote replicas
+ * of this set won't deliver to the child if they think it's deleted.)
+ * Restore not allowed (2P-set semantics).
  *
  * Warning: in given constructor/its init function,
  * be careful not to use replica-specific info
@@ -119,9 +56,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       ...args: AddArgs
     ) => C,
     initialValuesArgs: AddArgs[] = [],
-    private readonly argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    private readonly argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
@@ -132,14 +67,28 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       // a proper way to do this when implementing
       // initial values generally.
       const name = makeUID("INIT", i);
-      this.receiveCreate(name, undefined, args, true);
+      this.receiveCreate(name, undefined, args, true, false);
     }
     this.initialValuesCount = initialValuesArgs.length;
   }
 
+  /**
+   * A deleted child that is sending a message. This var is used to
+   * pass the child from childSend to receiveInternal so that we
+   * can deliver the message successfully despite not keeping the
+   * child around in this.children.
+   */
+  private deletedSendingChild?: C = undefined;
+
   childSend(child: Collab, messagePath: Message[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
+    }
+
+    // OPT: Should we avoid this redundant Map lookup by storing the child
+    // regardless?
+    if (!this.children.has(child.name)) {
+      this.deletedSendingChild = <C>child;
     }
 
     messagePath.push(child.name);
@@ -152,18 +101,23 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
       // CObject.
-      const child = this.children.get(lastMessage);
+      let child = this.children.get(lastMessage);
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
         if (meta.isLocalEcho) {
-          throw new Error(
-            "Operation performed on deleted " +
-              "(hence frozen) child of DeletingMutCSet, name: " +
-              lastMessage
-          );
+          // Deliver the message locally so that the child ops go through,
+          // preventing errors from chained ops.
+          if (this.deletedSendingChild !== undefined) {
+            child = this.deletedSendingChild;
+            this.deletedSendingChild = undefined;
+          } else {
+            throw new Error(
+              "Received local echo for deleted child, but this.deletedSendingChild is undefined"
+            );
+          }
         } else {
-          // Ignore
+          // Ignore.
           return;
         }
       }
@@ -174,7 +128,13 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       switch (decoded.op) {
         case "add": {
           const name = makeUID(meta.sender, decoded.add!.replicaUniqueNumber);
-          const newValue = this.receiveCreate(name, decoded.add!.args);
+          const newValue = this.receiveCreate(
+            name,
+            decoded.add!.args,
+            undefined,
+            false,
+            false
+          );
 
           if (meta.isLocalEcho) {
             // Previously we also did this if runLocally
@@ -211,7 +171,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     name: string,
     serializedArgs: Uint8Array | undefined,
     args: AddArgs | undefined = undefined,
-    isInitialValue = false
+    isInitialValue: boolean,
+    inLoad: boolean
   ): C {
     if (args === undefined) {
       args = this.argsSerializer.deserialize(serializedArgs!);
@@ -225,7 +186,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
     this.children.set(name, newValue);
     if (!isInitialValue) {
-      if (this.pendingChildSaves === null) {
+      if (!inLoad) {
         // Not an initial value and not currently loading =>
         // this has already been loaded.
         // Since the value is new with no prior saved state,
@@ -350,25 +311,12 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return DeletingMutCSetSave.encode(saveMessage).finish();
   }
 
-  /**
-   * Map from child names to their saveData, containing
-   * precisely the children that have not yet initiated loading.
-   * null if we are not currently loading children.
-   */
-  private pendingChildSaves: Map<string, Uint8Array> | null = null;
-
   load(saveData: Optional<Uint8Array>): void {
     if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
       for (const child of this.children.values()) child.load(saveData);
     } else {
       const saveMessage = DeletingMutCSetSave.decode(saveData.get());
-      // As in CObject, prepare this.pendingChildSaves in
-      // case this.getDescendant is called during loading.
-      this.pendingChildSaves = new Map();
-      for (const valueSave of saveMessage.valueSaves) {
-        this.pendingChildSaves.set(valueSave.name, valueSave.saveData);
-      }
       // Delete initial values (our current values) that
       // were deleted before the save.
       const remainingInitialValues = new Set<string>();
@@ -386,59 +334,36 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
           this.children.delete(initialValue);
         }
       }
-      // Construct the non-initial children in the order given in
-      // saveMessage, which is the same as the order they
-      // were created on the saved replica, since Map
-      // iterators run in insertion order.  That means that
-      // if deserializing the createArgs causes getDescendant
-      // to be called on this, the relevant child will have
-      // already been initialized, so the call will
-      // succeed uneventfully.
+      // Create non-initial values.
       for (; i < saveMessage.valueSaves.length; i++) {
         const valueSave = saveMessage.valueSaves[i];
-        this.receiveCreate(valueSave.name, valueSave.args!);
+        this.receiveCreate(
+          valueSave.name,
+          valueSave.args!,
+          undefined,
+          false,
+          true
+        );
       }
-      // Load children that have not already been loaded.
-      for (const [name, childSave] of this.pendingChildSaves) {
-        this.pendingChildSaves.delete(name);
-        // Note this loop will skip over children that get
-        // loaded preemptively by getDescendant, since they
-        // are deleted from this.pendingChildSaves.
-        this.children.get(name)!.load(Optional.of(childSave));
+      // Load all children (initial or not).
+      for (const valueSave of saveMessage.valueSaves) {
+        this.children
+          .get(valueSave.name)!
+          .load(Optional.of(valueSave.saveData));
       }
-      this.pendingChildSaves = null;
     }
   }
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
 
     const name = namePath[namePath.length - 1];
     const child = this.children.get(name);
     if (child === undefined) {
       // Assume it is a deleted (frozen) child.
-      // It seems hard to prevent getDescendant calls
-      // concurrent to a delete (e.g. due to an operation
-      // putting a Collab into a register concurrent to a
-      // delete), which we want to return
-      // a frozen Collab instead of an immediate error.
-      // For now, we return a Proxy that throws an error when
-      // you do anything with it except the predefined
-      // Collab operations (name, runtime, parent); these
-      // are defined properly in case the Collab gets
-      // re-serialized (e.g. during saving of whatever
-      // holds a reference to it).
-      return FakeDeletedCollab.of(new InitToken(name, this));
+      return undefined;
     }
     namePath.length--;
-    if (this.pendingChildSaves !== null && namePath.length > 0) {
-      // Ensure child is loaded.
-      const childSave = this.pendingChildSaves.get(name);
-      if (childSave !== undefined) {
-        this.pendingChildSaves.delete(name);
-        child.load(Optional.of(childSave));
-      }
-    }
     return child.getDescendant(namePath);
   }
 

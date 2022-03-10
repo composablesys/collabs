@@ -100,7 +100,12 @@ export interface Runtime<
    * public-facing Collab's will be descendants of a given
    * Collab (e.g., a distinguished root).
    *
-   * See [[getDescendant]].
+   * [[getDescendant]] does the reverse procedure.
+   * [[getNamePath]] and [[getDescendant]] together allow
+   * one to make a serializable reference to a `Collab` that
+   * is comprehensible across replicas.
+   *
+   * See also: [[CollabID]]
    *
    * @param  descendant [description]
    * @return            [description]
@@ -108,12 +113,25 @@ export interface Runtime<
   getNamePath(descendant: Collab): string[];
 
   /**
-   * Returns the descendant with the given `namePath`,
-   * as returned by [[getNamePath]].
-   * @param  namePath [description]
-   * @return          [description]
+   * Returns the descendant of this Runtime at the
+   * given name path, or `undefined`
+   * if it no longer exists.
+   *
+   * If `namePath` is `[]`, `this` is returned.
+   *
+   * This method should not be called before [[load]] has completed.
+   * Otherwise, its behavior is unspecified.
+   *
+   * See also: [[CollabID]].
+   *
+   * @param  namePath A name path referencing a descendant
+   * of this `Runtime`, as returned by [[getNamePath]].
+   * @return The descendant at the given name path, or `undefined`
+   * if it no longer exists.
+   * @throws If no descendant with the given `namePath` could possibly
+   * exist.
    */
-  getDescendant(namePath: string[]): Collab;
+  getDescendant(namePath: string[]): Collab | undefined;
 
   /**
    * True if all Collabs have been loaded

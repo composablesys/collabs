@@ -24,9 +24,7 @@ export class TombstoneMutCSet<
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
-    argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
@@ -34,8 +32,8 @@ export class TombstoneMutCSet<
       "",
       Pre(DeletingMutCSet)(valueConstructor, undefined, argsSerializer)
     );
-    // Use a custom serializer that uses mutSet's ids instead
-    // of full pathToRoot's, for network efficiency.
+    // CollabSerializer is safe here because we never call mutSet.delete
+    // or mutSet.clear.
     this.members = this.addChild(
       "0",
       Pre(AddWinsCSet)(new CollabSerializer<C>(this.mutSet))

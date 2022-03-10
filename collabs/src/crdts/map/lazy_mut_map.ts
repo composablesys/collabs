@@ -80,9 +80,7 @@ export class LazyMutCMap<K, C extends Collab>
   constructor(
     initToken: InitToken,
     private readonly valueConstructor: (valueInitToken: InitToken, key: K) => C,
-    private readonly keySerializer: Serializer<K> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    private readonly keySerializer: Serializer<K> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
   }
@@ -96,7 +94,8 @@ export class LazyMutCMap<K, C extends Collab>
 
   private getInternal(
     key: K,
-    keyString: string
+    keyString: string,
+    inLoad: boolean
   ): [value: C, nontrivial: boolean] {
     let value = this.nontrivialMap.get(keyString);
     if (value === undefined) {
@@ -107,7 +106,7 @@ export class LazyMutCMap<K, C extends Collab>
         // since it is currently GC-able
         value = this.valueConstructor(new InitToken(keyString, this), key);
 
-        if (this.pendingChildSaves !== null) {
+        if (inLoad) {
           // We are in this.load.
           // So, value.load will be called by this.load
           // right after the value is returned;
@@ -117,9 +116,10 @@ export class LazyMutCMap<K, C extends Collab>
           // returns the nontrivial children.
           this.nontrivialMap.set(keyString, value);
         } else {
-          // Since the value is new with no prior saved state,
-          // we need to call value.load(empty Optional) to indicate that
-          // loading was skipped.
+          // We assume that [[load]] has already finished, since this
+          // isn't supposed to be used (e.g. calling [[get]]) until then.
+          // Thus this value will never be loaded directly (by [[load]]), so
+          // we need to indicate that loading was skipped.
           value.load(Optional.empty());
           // The value starts trivial; if it becomes nontrivial
           // due to a message, receiveInternal will move
@@ -160,7 +160,7 @@ export class LazyMutCMap<K, C extends Collab>
     try {
       // Message for a child
       const key = this.stringAsKey(keyString);
-      const [value, nontrivialStart] = this.getInternal(key, keyString);
+      const [value, nontrivialStart] = this.getInternal(key, keyString, false);
       this.inReceiveValue = value;
 
       messagePath.length--;
@@ -232,7 +232,7 @@ export class LazyMutCMap<K, C extends Collab>
    * @return     [description]
    */
   get(key: K): C {
-    return this.getInternal(key, this.keyAsString(key))[0];
+    return this.getInternal(key, this.keyAsString(key), false)[0];
   }
 
   getIfPresent(key: K): C | undefined {
@@ -310,13 +310,6 @@ export class LazyMutCMap<K, C extends Collab>
     return LazyMutCMapSave.encode(saveMessage).finish();
   }
 
-  /**
-   * Map from child names to their saveData, containing
-   * precisely the children that have not yet initiated loading.
-   * null if we are not currently loading children.
-   */
-  private pendingChildSaves: Map<string, Uint8Array> | null = null;
-
   load(saveData: Optional<Uint8Array>): void {
     if (!saveData.isPresent) {
       // No children to notify.
@@ -324,37 +317,18 @@ export class LazyMutCMap<K, C extends Collab>
     }
 
     const saveMessage = LazyMutCMapSave.decode(saveData.get());
-    // For the child saves: it's possible that loading
-    // one child might lead to this.getDescendant being
-    // called for some other child (typically by deserializing
-    // a Collab reference). So we use this.pendingChildSaves
-    // to allow getDescendant to load children on demand.
-    this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
-    for (const [name, childSave] of this.pendingChildSaves) {
-      this.pendingChildSaves.delete(name);
-      // Note this loop will skip over children that get
-      // loaded preemptively by getDescendant, since they
-      // are deleted from this.pendingChildSaves.
-      const child = this.getInternal(this.stringAsKey(name), name)[0];
+    for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
+      const child = this.getInternal(this.stringAsKey(name), name, true)[0];
       child.load(Optional.of(childSave));
     }
-    this.pendingChildSaves = null;
   }
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
 
     const name = namePath[namePath.length - 1];
-    const child = this.getInternal(this.stringAsKey(name), name)[0];
+    const child = this.getInternal(this.stringAsKey(name), name, false)[0];
     namePath.length--;
-    if (this.pendingChildSaves !== null && namePath.length > 0) {
-      // Ensure child is loaded.
-      const childSave = this.pendingChildSaves.get(name);
-      if (childSave !== undefined) {
-        this.pendingChildSaves.delete(name);
-        child.load(Optional.of(childSave));
-      }
-    }
     return child.getDescendant(namePath);
   }
 

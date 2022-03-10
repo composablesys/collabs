@@ -49,7 +49,7 @@ export abstract class AbstractRuntime<
     return this.rootCollab.getNamePath(descendant);
   }
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     return this.rootCollab.getDescendant(namePath);
   }
 

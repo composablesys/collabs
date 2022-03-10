@@ -72,9 +72,7 @@ export class MovableMutCListFromSet<
     protected readonly denseLocalList: DenseT,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
-    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 

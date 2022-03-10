@@ -361,9 +361,7 @@ export abstract class SemidirectProductRev<
     this.runLocallyLayer = super.addChild("", Pre(RunLocallyLayer)());
     this.internalCObject = this.runLocallyLayer.setChild(Pre(PublicCObject)());
 
-    this.messageValueSerializer = DefaultSerializer.getInstance(
-      initToken.runtime
-    );
+    this.messageValueSerializer = DefaultSerializer.getInstance();
 
     this.history = new MessageHistory(
       historyTimestamps,

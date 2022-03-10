@@ -103,7 +103,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     this.child.load(saveData);
   }
 
-  getDescendant(namePath: string[]): Collab<CollabEventsRecord> {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
     if (namePath[namePath.length - 1] !== "") {
       throw new Error("Unrecognized child: " + namePath[namePath.length - 1]);

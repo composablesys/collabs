@@ -23,9 +23,7 @@ export class CSetFromBoolean<
     protected readonly booleanConstructor: (
       booleanInitToken: InitToken
     ) => BoolT,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
@@ -97,9 +95,7 @@ export class CSetFromBoolean<
 export class AddWinsCSet<T> extends CSetFromBoolean<T, TrueWinsCBoolean> {
   constructor(
     initToken: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

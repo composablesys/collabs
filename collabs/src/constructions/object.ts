@@ -175,13 +175,6 @@ export class CObject<
     return null;
   }
 
-  /**
-   * Map from child names to their saveData, containing
-   * precisely the children that have not yet initiated loading.
-   * null if we are not currently loading children.
-   */
-  private pendingChildSaves: Map<string, Uint8Array> | null = null;
-
   load(saveData: Optional<Uint8Array>): void {
     if (!saveData.isPresent) {
       // Indicates skipped loading. Pass on the message.
@@ -189,20 +182,9 @@ export class CObject<
       this.loadObject(saveData);
     } else {
       const saveMessage = CObjectSave.decode(saveData.get());
-      // For the child saves: it's possible that loading
-      // one child might lead to this.getDescendant being
-      // called for some other child (typically by deserializing
-      // a Collab reference). So we use this.pendingChildSaves
-      // to allow getDescendant to load children on demand.
-      this.pendingChildSaves = new Map(Object.entries(saveMessage.childSaves));
-      for (const [name, childSave] of this.pendingChildSaves) {
-        this.pendingChildSaves.delete(name);
-        // Note this loop will skip over children that get
-        // loaded preemptively by getDescendant, since they
-        // are deleted from this.pendingChildSaves.
+      for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
         this.children.get(name)!.load(Optional.of(childSave));
       }
-      this.pendingChildSaves = null;
       const objectSave = Object.prototype.hasOwnProperty.call(
         saveMessage,
         "objectSave"
@@ -230,7 +212,7 @@ export class CObject<
     // Does nothing by default.
   }
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
 
     const name = namePath[namePath.length - 1];
@@ -244,14 +226,6 @@ export class CObject<
       );
     }
     namePath.length--;
-    if (this.pendingChildSaves !== null && namePath.length > 0) {
-      // Ensure child is loaded.
-      const childSave = this.pendingChildSaves.get(name);
-      if (childSave !== undefined) {
-        this.pendingChildSaves.delete(name);
-        child.load(Optional.of(childSave));
-      }
-    }
     return child.getDescendant(namePath);
   }
 

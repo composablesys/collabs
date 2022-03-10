@@ -1,8 +1,8 @@
 import { Buffer } from "buffer";
-import { Runtime, Collab, isRuntime } from "../core/";
+import { Runtime, Collab } from "../core/";
 import {
   ArrayMessage,
-  CollabReference,
+  CollabIDMessage,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
   IOptionalSerializerMessage,
@@ -11,6 +11,7 @@ import {
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Optional } from "./optional";
+import { CollabID } from "./collab_id";
 
 /**
  * A serializer for values of type `T` (e.g., elements
@@ -30,28 +31,25 @@ export interface Serializer<T> {
 
 /**
  * Default serializer.
- * string, number, boolean, undefined, and null types are passed by-value.
- * Collab types are sent by-reference, using
- * [[Runtime.getNamePath]] to identify different replicas
- * of the same Collab.  Arrays and objects are serialized
- * recursively. Note that object classes are not preserved.
+ *
+ * Supported types:
+ * - Primitive types (string, number, boolean, undefined, null)
+ * - [[CollabID]]s
+ * - Arrays and plain (non-class) objects, serialized recursively.
+ *
+ * All other types cause an error during [[serialize]].
  */
 export class DefaultSerializer<T> implements Serializer<T> {
-  private constructor(private readonly runtime: Runtime) {}
+  private constructor() {
+    // Constructor is just here to mark it as private.
+  }
 
   // Only weak in keys, since we expect a Runtime's DefaultSerializer
   // to exist for as long as the Runtime.
-  private static instancesByRuntime = new WeakMap<
-    Runtime,
-    DefaultSerializer<unknown>
-  >();
-  static getInstance<U>(runtime: Runtime): DefaultSerializer<U> {
-    let instance = DefaultSerializer.instancesByRuntime.get(runtime);
-    if (instance === undefined) {
-      instance = new DefaultSerializer(runtime);
-      DefaultSerializer.instancesByRuntime.set(runtime, instance);
-    }
-    return <DefaultSerializer<U>>instance;
+  private static instance = new DefaultSerializer();
+
+  static getInstance<T>(): DefaultSerializer<T> {
+    return <DefaultSerializer<T>>this.instance;
   }
 
   serialize(value: T): Uint8Array {
@@ -73,20 +71,20 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "undefined":
         message = { undefinedValue: true };
         break;
-      default:
+      case "object":
         if (value === null) {
           message = { nullValue: true };
-        } else if (value instanceof Collab) {
+        } else if (value instanceof CollabID) {
           message = {
-            collabValue: CollabReference.create({
-              namePath: this.runtime.getNamePath(value),
+            collabIDValue: CollabIDMessage.create({
+              pathToBase: value.namePath(),
             }),
           };
         } else if (value instanceof Uint8Array) {
           message = {
             bytesValue: value,
           };
-        } else if (value instanceof Array) {
+        } else if (Array.isArray(value)) {
           // Technically types are bad for recursive
           // call to this.serialize, but it's okay because
           // we ignore our generic type.
@@ -96,19 +94,35 @@ export class DefaultSerializer<T> implements Serializer<T> {
             }),
           };
         } else {
-          // Technically types are bad for recursive
-          // call to this.serialize, but it's okay because
-          // we ignore our generic type.
-          const properties: { [key: string]: Uint8Array } = {};
-          for (const [key, property] of Object.entries(value)) {
-            properties[key] = this.serialize(property);
+          const constructor = (<object>(<unknown>value)).constructor;
+          if (constructor === Object) {
+            // Technically types are bad for recursive
+            // call to this.serialize, but it's okay because
+            // we ignore our generic type.
+            const properties: { [key: string]: Uint8Array } = {};
+            for (const [key, property] of Object.entries(value)) {
+              properties[key] = this.serialize(property);
+            }
+            message = {
+              objectValue: ObjectMessage.create({
+                properties,
+              }),
+            };
+          } else if (value instanceof Collab) {
+            throw new Error(
+              "Collab serialization is not supported; serialize a CollabID instead"
+            );
+          } else {
+            throw new Error(
+              `Unsupported class type for DefaultSerializer: ${constructor.name}; you must use a custom serializer or a plain (non-class) Object`
+            );
           }
-          message = {
-            objectValue: ObjectMessage.create({
-              properties,
-            }),
-          };
         }
+        break;
+      default:
+        throw new Error(
+          `Unsupported type for DefaultSerializer: ${typeof value}; you must use a custom Serializer`
+        );
     }
     return DefaultSerializerMessage.encode(message).finish();
   }
@@ -135,8 +149,8 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "nullValue":
         ans = null;
         break;
-      case "collabValue":
-        ans = this.runtime.getDescendant(decoded.collabValue!.namePath!);
+      case "collabIDValue":
+        ans = new CollabID(decoded.collabIDValue!.pathToBase!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
@@ -277,11 +291,50 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
 
 // OPT: cache instances?
 /**
+ * Serializes [[CollabID]]s using their [[Collab]]'s name path with
+ * respect to a specified
+ * base [[Collab]] or [[Runtime]].
+ *
+ * The base must be an ancestor of all serialized `CollabID`s' `Collab`s.
+ *
+ * This is more efficient (in terms of serialized size)
+ * than using DefaultSerializer
+ * when base is not the [[Runtime]].  It is better
+ * the closer the serialized values are to base within
+ * the Collab hierarchy, and best when base is their parent.
+ */
+export class CollabIDSerializer<C extends Collab>
+  implements Serializer<CollabID<C>>
+{
+  constructor(private readonly base?: Collab) {}
+
+  serialize(value: CollabID<C>): Uint8Array {
+    // OPT: interface with CollabID to cache this.base's namePath.length,
+    // instead of recalculating its whole namePath each time?
+    // Although then we lose the ability to check ancestry.
+    const message = CollabIDMessage.create({
+      pathToBase: value.namePath(this.base),
+    });
+    return CollabIDMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array): CollabID<C> {
+    const decoded = CollabIDMessage.decode(message);
+    return new CollabID(decoded.pathToBase, this.base);
+  }
+}
+
+// OPT: cache instances?
+/**
  * Serializes [[Collab]]s using their name path with
  * respect to a specified
- * base Collab or the [[Runtime]] (the default),
- * as returned by `base.getNamePath`.
- * The base must be an ancestor of all serialized Collabs.
+ * base [[Collab]] or [[Runtime]], assuming that serialized `Collab`s
+ * always exist (see warning below)).
+ *
+ * Specifically, [[serialize]] uses `base.getNamePath` while
+ * [[deserialize]] uses `base.getDescendant`.
+ *
+ * The base must be an ancestor of all serialized `Collab`s.
  *
  * This is more efficient (in terms of serialized size)
  * than using DefaultSerializer
@@ -289,38 +342,38 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
  * the closer the serialized values are to base within
  * the Collab hierarchy, and best when base is their parent.
  *
- * Note that when base is not the [[Runtime]],
- * although the serialized form contains an
- * abbreviated path, [[deserialize]] still calls
- * [[Runtime.getDescendant]] with the full path - it does not
- * use `base.getDescendant`. This is because `base.getDescendant`
- * is only meant to be called by `bases`'s parent. Doing
- * otherwise can break invariants (e.g., `base.getDescendant`
- * could be called before `base.load`, causing errors).
+ * **Warning:** It is assumed that `base.getDescendant` always returns
+ * a non-undefined value, i.e., serialized `Collab`s always exist from
+ * its perspective. This can fail if `base`, or a `Collab` between `base`
+ * and a serialized `Collab`, makes children non-existent
+ * (e.g., [[DeletingMutCSet.delete]] and similar methods do so.)
+ * Even if the serialized `Collab` exists at the time of sending, concurrent
+ * operations could make it no longer exist for receivers.
+ * If you cannot guarantee existence, you must use
+ * [[CollabIDSerializer]] instead.
+ *
+ * See: [[Collab.getNamePath]], [[Collab.getDescendant]],
+ * [[Runtime.getNamePath]], [[Runtime.getNamePath]].
  */
 export class CollabSerializer<C extends Collab> implements Serializer<C> {
-  /**
-   * [constructor description]
-   * @param base
-   */
   constructor(private readonly base: Collab | Runtime) {}
 
   serialize(value: C): Uint8Array {
-    const message = CollabReference.create({
-      namePath: this.base.getNamePath(value),
+    const message = CollabIDMessage.create({
+      pathToBase: this.base.getNamePath(value),
     });
-    return CollabReference.encode(message).finish();
+    return CollabIDMessage.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): C {
-    const decoded = CollabReference.decode(message);
-    // The full name path is decoded.namePath followed by
-    // base's name path (relative to the root).
-    const runtime = isRuntime(this.base) ? this.base : this.base.runtime;
-    const fullNamePath = isRuntime(this.base)
-      ? decoded.namePath
-      : [...decoded.namePath, ...runtime.getNamePath(this.base)];
-    return runtime.getDescendant(fullNamePath) as C;
+    const decoded = CollabIDMessage.decode(message);
+    const ans = <C | undefined>this.base.getDescendant(decoded.pathToBase);
+    if (ans === undefined) {
+      throw new Error(
+        "The serialized Collab no longer exists; consider using CollabIDSerializer instead"
+      );
+    }
+    return ans;
   }
 }
 

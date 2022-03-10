@@ -69,9 +69,7 @@ export class CMapFromRegister<
       registerInitToken: InitToken,
       key: K
     ) => RegT,
-    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
@@ -156,12 +154,8 @@ export class LWWCMap<K, V> extends CMapFromRegister<
 > {
   constructor(
     initToken: InitToken,
-    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
-      initToken.runtime
-    ),
-    private readonly valueSerializer: Serializer<V> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(),
+    private readonly valueSerializer: Serializer<V> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

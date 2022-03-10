@@ -427,7 +427,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     }
   }
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
     if (namePath[namePath.length - 1] !== "") {
       throw new Error("Unrecognized child: " + namePath[namePath.length - 1]);

@@ -73,9 +73,7 @@ export class PrimitiveCListFromDenseLocalList<
   constructor(
     initToken: InitToken,
     protected readonly denseLocalList: DenseT,
-    protected readonly valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    ),
+    protected readonly valueSerializer: Serializer<T> = DefaultSerializer.getInstance(),
     protected readonly valueArraySerializer:
       | Serializer<T[]>
       | undefined = undefined
@@ -425,9 +423,7 @@ export class PrimitiveCList<T> extends PrimitiveCListFromDenseLocalList<
 > {
   constructor(
     initToken: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(
-      initToken.runtime
-    ),
+    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(),
     valueArraySerializer: Serializer<T[]> | undefined = undefined
   ) {
     super(

@@ -34,12 +34,8 @@ export class TombstoneMutCMap<
       key: K,
       ...args: SetArgs
     ) => C,
-    keySerializer: Serializer<K> = DefaultSerializer.getInstance(
-      initToken.runtime
-    ),
-    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    keySerializer: Serializer<K> = DefaultSerializer.getInstance(),
+    argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
@@ -56,6 +52,8 @@ export class TombstoneMutCMap<
         new PairSerializer(keySerializer, argsSerializer)
       )
     );
+    // CollabSerializer is safe here because we never call valueSet.delete
+    // or valueSet.clear.
     this.map = this.addChild(
       "0",
       Pre(LWWCMap)(keySerializer, new CollabSerializer<C>(this.valueSet))

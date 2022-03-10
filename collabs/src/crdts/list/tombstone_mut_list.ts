@@ -29,9 +29,7 @@ export class TombstoneMutCList<
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
-    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance(
-      initToken.runtime
-    )
+    argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,

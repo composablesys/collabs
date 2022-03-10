@@ -45,7 +45,7 @@ export abstract class CPrimitive<
     meta: MessageMeta
   ): void;
 
-  getDescendant(namePath: string[]): Collab {
+  getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length !== 0) {
       throw new Error(
         `CPrimitive has no descendants, but namePath = ${namePath}`
