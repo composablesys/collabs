@@ -5,7 +5,7 @@ import {
   Serializer,
   stringAsBytes,
   WeakValueMap,
-} from "../../util";
+} from "../util";
 import {
   Collab,
   CollabEventsRecord,
@@ -13,9 +13,13 @@ import {
   InitToken,
   MessageMeta,
   Message,
-} from "../../core";
-import { LazyMutCMapSave } from "../../../generated/proto_compiled";
-import { AbstractCMapCollab } from "../../data_types";
+} from "../core";
+import { LazyMutCMapSave } from "../../generated/proto_compiled";
+// Import AbstractCMapCollab from its specific file;
+// with whole-folder imports, AbstractCMapCObject and LazyMutCMap
+// create a circular dependency between constructions
+// and data_types.
+import { AbstractCMapCollab } from "../data_types/abstract_map";
 
 /**
  * A CMap of mutable values where every key is
@@ -24,7 +28,8 @@ import { AbstractCMapCollab } from "../../data_types";
  *
  * Alternatively, you can think of this like a [[CObject]]
  * with one property/child per key (potentially infinitely
- * many).
+ * many). Like a [[CObject]], it makes sense for general
+ * Collabs, not just CRDTs.
  *
  * The "always exists" nature means that, unlike in
  * [[DeletingMutCMap]] and [[ArchivingMutCMap]], there
@@ -34,11 +39,15 @@ import { AbstractCMapCollab } from "../../data_types";
  * value concurrently, then those operations will all
  * apply to the value, effectively merging their changes.
  *
+ * ## Laziness
+ *
  * The name "LazyMap" references the [Apache Commons
  * LazyMap](https://commons.apache.org/proper/commons-collections/apidocs/org/apache/commons/collections4/map/LazyMap.html).
  * That map likewise creates values on demand using a
  * factory method, to give the impression that all
  * keys are always present.
+ *
+ * ## Key Presence
  *
  * For the
  * purpose of the iterators and has, a key is considered
@@ -51,9 +60,34 @@ import { AbstractCMapCollab } from "../../data_types";
  * ones, and so the iterators are unable to consistently return
  * all trivial elements.
  *
- * delete and clear throw errors (grow-only semantics).
- * set has no effect, just
- * returning a value by calling get.
+ * [[delete]] and [[clear]] throw errors (grow-only semantics).
+ * [[set]] has no effect; it just returns the same value
+ * as [[get]].
+ *
+ * "Set" and "Delete" events respect these key presence
+ * rules: "Set" is emitted for a key when its value
+ * goes from trivial to nontrivial, and "Delete"
+ * is emitted when its vale goes from nontrivial to trivial.
+ * Since this is a bit weird, we expect these events to
+ * be used rarely.
+ *
+ * Since a value can be created without emitting a
+ * "Set" event (in case it remains trivial), you should
+ * register event handlers on values in `valueConstructor`,
+ * not in a "Set" handler.
+ *
+ * ## Garbage Collection
+ *
+ * A value may be garbage collected if:
+ * (1) `value.canGC` returns false ([[Collab.canGC]])
+ * (2) There are no other references to the value.
+ *
+ * In this case, the JavaScript garbage collector is
+ * allowed to reclaim the value. If the value is
+ * referenced later (either by calling [[get]] locally
+ * or because it receives a message), then it is
+ * recreated using `valueConstructor`. This is okay
+ * by the contract of [[Collab.canGC]].
  */
 export class LazyMutCMap<K, C extends Collab>
   extends AbstractCMapCollab<K, C, []>
@@ -62,20 +96,10 @@ export class LazyMutCMap<K, C extends Collab>
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
   /**
-   * @param valueConstructor A function used to initialize
-   * values when initKey() or getForce() is called on
-   * their key.  The Collab must have given the parent and id.
-   * In the simplest usage, this function just calls C's
-   * constructor with the given parent and id, and default
-   * values otherwise (independent of key).
-   * If desired,
-   * the result can instead depend on key (e.g., using
-   * varying subclasses of C, or performing local operations
-   * to drive the Collab to a desired state depending on K).
-   * However, the result must be identical on all replicas,
-   * even if they are in different global states.  The
-   * easiest way to ensure this is to have the result be
-   * a function of the given arguments only.
+   * @param valueConstructor Used to construct the
+   * value with the given key. For each key, the constructed values
+   * must be the same on all replicas, i.e., the
+   * same class and constructor arguments.
    */
   constructor(
     initToken: InitToken,
@@ -102,8 +126,7 @@ export class LazyMutCMap<K, C extends Collab>
       // Check the backup map
       value = this.trivialMap.get(keyString);
       if (value === undefined) {
-        // Create it, but only in the backup map,
-        // since it is currently GC-able
+        // Create it.
         value = this.valueConstructor(new InitToken(keyString, this), key);
 
         if (inLoad) {
@@ -116,9 +139,9 @@ export class LazyMutCMap<K, C extends Collab>
           // returns the nontrivial children.
           this.nontrivialMap.set(keyString, value);
         } else {
-          // We assume that [[load]] has already finished, since this
+          // We assume that [[load]] has already finished, since this map
           // isn't supposed to be used (e.g. calling [[get]]) until then.
-          // Thus this value will never be loaded directly (by [[load]]), so
+          // Thus value will never be loaded directly (by [[load]]), so
           // we need to indicate that loading was skipped.
           value.load(Optional.empty());
           // The value starts trivial; if it becomes nontrivial
@@ -189,9 +212,9 @@ export class LazyMutCMap<K, C extends Collab>
           previousValue: Optional.empty<C>(),
           meta,
         });
-        // We won't dispatch Set events when the value
+        // We don't dispatch Set events when the value
         // is not new because there can only ever be one
-        // value at a given key, due to Merging semantics.
+        // value at a given key.
         // An exception is replacement due to GC-ing, but
         // we consider such values "the same"; if users care
         // about the distinction (e.g. because they need
@@ -275,13 +298,15 @@ export class LazyMutCMap<K, C extends Collab>
   }
 
   *entries(): IterableIterator<[K, C]> {
+    // Note: this doesn't check inReceiveValue. Should document.
     for (const [keyStr, value] of this.nontrivialMap) {
       yield [this.stringAsKey(keyStr), value];
     }
   }
 
   values(): IterableIterator<C> {
-    // Override for efficiency
+    // Override for efficiency.
+    // Note: this doesn't check inReceiveValue. Should document.
     return this.nontrivialMap.values();
   }
 

@@ -1,5 +1,10 @@
-import { CObject, CPrimitive } from "../constructions";
 import { Collab, InitToken } from "../core";
+// Import CObject and CPrimitive from their specific files;
+// with whole-folder imports, AbstractCMapCObject and LazyMutCMap
+// create a circular dependency between constructions
+// and data_types.
+import { CObject } from "../constructions/object";
+import { CPrimitive } from "../constructions/primitive";
 import { CMap, CMapEventsRecord } from "./map";
 
 export declare abstract class AbstractCMap<K, V, SetArgs extends unknown[]>

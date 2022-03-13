@@ -1,5 +1,6 @@
 export * from "./batching_layer";
 export * from "./batching_strategy";
+export * from "./lazy_mut_map";
 export * from "./local_cursor";
 export * from "./messenger";
 export * from "./object";

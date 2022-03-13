@@ -1,6 +1,6 @@
 import { DefaultSerializer, Serializer } from "../../util";
 import { TrueWinsCBoolean } from "../boolean";
-import { LazyMutCMap } from "../map";
+import { LazyMutCMap } from "../../constructions";
 import { InitToken, Pre } from "../../core";
 import { AbstractCSetCObject, CBoolean } from "../../data_types";
 

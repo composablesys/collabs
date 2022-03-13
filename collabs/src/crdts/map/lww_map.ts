@@ -11,7 +11,7 @@ import {
   CMapEventsRecord,
   CVariable,
 } from "../../data_types";
-import { LazyMutCMap } from "./lazy_mut_map";
+import { LazyMutCMap } from "../../constructions";
 
 export interface ClearableCVariable<T, SetArgs extends unknown[]>
   extends CVariable<T, SetArgs> {

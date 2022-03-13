@@ -468,7 +468,8 @@ export abstract class Collab<
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
    *
-   * When canGC() is true, users of this Collab may safely
+   * When canGC() is true and there are no non-weak
+   * references to this Collab, users of this Collab may safely
    * delete it from memory ("garbage collection"),
    * recreating it using the
    * same constructor arguments if needed later.  That reduces
