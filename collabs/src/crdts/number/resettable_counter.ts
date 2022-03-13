@@ -30,13 +30,21 @@ export interface ResettableCCounterEventsRecord extends CollabEventsRecord {
   Reset: ResettableCCounterEvent;
 }
 
+/**
+ * A grow-only counter CRDT with an "observed-reset" operation
+ * [[reset]], which restores the counter to its initial
+ * state by undoing all *causally* prior operations.
+ *
+ * Based on ["An Oblivious Observed-Reset Embeddable Replicated Counter"](https://doi.org/10.1145/3517209.3524084)
+ * by Matthew Weidner and Paulo Sérgio Almeida,
+ * PaPoC 2022.
+ *
+ * Values are restricted to safe integers. More generally,
+ * the sum of all additions by any one replica is restricted
+ * to be a safe integer. Otherwise, results are not
+ * guaranteed to be correct or eventually consistent.
+ */
 export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounterEventsRecord> {
-  /**
-   * This was an attempt at fixing overflow issues that is
-   * not actually sound; see https://github.com/composablesys/collabs/issues/50
-   */
-  static readonly MODULUS = (Number.MAX_SAFE_INTEGER - 1) / 2;
-
   // M entry format: [p, n, idCounter]
   private readonly M = new Map<string, [number, number, number]>();
   /**
@@ -51,11 +59,9 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
         `toAdd = ${toAdd}; must be nonnegative (consider using ResettableCCounter instead)`
       );
     }
-    if (!Number.isInteger(toAdd)) {
-      throw new Error(`toAdd = ${toAdd}; must be an integer`);
+    if (!Number.isSafeInteger(toAdd)) {
+      throw new Error(`toAdd = ${toAdd}; must be a safe integer`);
     }
-
-    toAdd %= GrowOnlyResettableCCounter.MODULUS;
 
     const m = this.M.get(this.runtime.replicaID);
     const idCounter =
@@ -93,27 +99,23 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
     const previousValue = this.value;
     switch (decoded.data) {
       case "add": {
+        const prOld = int64AsNumber(decoded.add!.prOld);
+        const toAdd = int64AsNumber(decoded.add!.toAdd);
         const m = this.M.get(meta.sender);
         if (m === undefined) {
           this.M.set(meta.sender, [
-            (int64AsNumber(decoded.add!.prOld) +
-              int64AsNumber(decoded.add!.toAdd)) %
-              GrowOnlyResettableCCounter.MODULUS,
-            int64AsNumber(decoded.add!.prOld),
+            prOld + toAdd,
+            prOld,
             decoded.add!.idCounter,
           ]);
         } else {
           // We are guaranteed m[2] === decoded.add!.idCounter.
-          m[0] =
-            (m[0] + int64AsNumber(decoded.add!.toAdd)) %
-            GrowOnlyResettableCCounter.MODULUS;
+          m[0] += toAdd;
         }
         // Update the cached value.
-        this.valueInternal =
-          (this.valueInternal + int64AsNumber(decoded.add!.toAdd)) %
-          GrowOnlyResettableCCounter.MODULUS;
+        this.valueInternal += toAdd;
         this.emit("Add", {
-          arg: int64AsNumber(decoded.add!.toAdd),
+          arg: toAdd,
           meta,
           previousValue,
         });
@@ -152,11 +154,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
   private computeValue(): void {
     this.valueInternal = 0;
     for (const m of this.M.values()) {
-      // Since m[1] <= m[0], m[0] - m[1] is within
-      // the safe range, so we don't need an extra
-      // modulo for it.
-      this.valueInternal =
-        (this.valueInternal + m[0] - m[1]) % GrowOnlyResettableCCounter.MODULUS;
+      this.valueInternal += m[0] - m[1];
     }
   }
 
@@ -205,10 +203,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
   }
 }
 
-// TODO: revise to use latest paper version.
 /**
- * TODO: experimental.
- *
  * A counter CRDT with an "observed-reset" operation
  * [[reset]], which restores the counter to its initial
  * state by undoing all *causally* prior operations.
@@ -216,23 +211,13 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
  * Based on ["An Oblivious Observed-Reset Embeddable Replicated Counter"](https://doi.org/10.1145/3517209.3524084)
  * by Matthew Weidner and Paulo Sérgio Almeida,
  * PaPoC 2022.
+ *
+ * Values are restricted to safe integers. More generally,
+ * the sum of all additions by any one replica is restricted
+ * to be a safe integer. Otherwise, results are not
+ * guaranteed to be correct or eventually consistent.
  */
 export class ResettableCCounter extends CObject<ResettableCCounterEventsRecord> {
-  /**
-   * To prevent overflow into unsafe integers, whose
-   * addition is not necessarily commutative (making
-   * eventual consistency more difficult), all operations
-   * and values are taken modulo this value, separately
-   * for positive and negative additions.  So the
-   * range of ResettableCCounter is (-MODULUS, MODULUS), with positive
-   * additions overflowing within [0, MODULUS) and negative
-   * additions underflowing within (-MODULUS, 0].
-   * MODULUS is
-   * half of Number.MAX_SAFE_INTEGER (rounded down),
-   * i.e., 2^52 - 1.
-   */
-  static readonly MODULUS = GrowOnlyResettableCCounter.MODULUS;
-
   private readonly plus: GrowOnlyResettableCCounter;
   private readonly minus: GrowOnlyResettableCCounter;
 
