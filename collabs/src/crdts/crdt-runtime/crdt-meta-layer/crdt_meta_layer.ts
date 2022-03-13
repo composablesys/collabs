@@ -375,12 +375,18 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     try {
       this.child.receive(messagePath, meta);
     } catch (err) {
-      // Don't let the error block other event handlers
-      // or affect the emitter, but still make it print
-      // its error like it was unhandled.
-      void Promise.resolve().then(() => {
+      if (meta.isLocalEcho) {
+        // Propagate the error back to the original
+        // operation.
         throw err;
-      });
+      } else {
+        // Don't let the error block other messages'
+        // delivery or affect the deliverer, but still make it print
+        // its error like it was unhandled.
+        void Promise.resolve().then(() => {
+          throw err;
+        });
+      }
     }
   }
 

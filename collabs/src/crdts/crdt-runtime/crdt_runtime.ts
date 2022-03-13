@@ -186,10 +186,12 @@ export class CRDTRuntime
         isLocalEcho: false,
       });
     } catch (err) {
-      // Don't let the error block other messages' delivery,
+      // Don't let the error block other messages' delivery
+      // or affect the deliverer,
       // but still make it print
       // its error like it was unhandled.
-      setTimeout(() => {
+      // Note we know the message is not a local echo.
+      void Promise.resolve().then(() => {
         throw err;
       });
     } finally {
