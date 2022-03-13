@@ -1,9 +1,9 @@
 import {
-  AggregateArgsCRegisterMessage,
-  AggregateArgsCRegisterSave,
+  AggregateArgsCVariableMessage,
+  AggregateArgsCVariableSave,
 } from "../../../generated/proto_compiled";
 import { InitToken, MessageMeta } from "../../core";
-import { CRegister, CRegisterEventsRecord } from "../../data_types";
+import { CVariable, CVariableEventsRecord } from "../../data_types";
 import {
   DefaultSerializer,
   Optional,
@@ -12,16 +12,16 @@ import {
 } from "../../util";
 import { PrimitiveCRDT } from "../constructions";
 import { CRDTMeta } from "../crdt-runtime";
-import { ClearableCRegister } from "../map";
+import { ClearableCVariable } from "../map";
 
-export interface CRegisterEntryMeta<S> {
+export interface CVariableEntryMeta<S> {
   readonly value: S;
   readonly sender: string;
   readonly senderCounter: number;
   readonly time: number;
 }
 
-class AggregateArgsCRegisterEntry<S> implements CRegisterEntryMeta<S> {
+class AggregateArgsCVariableEntry<S> implements CVariableEntryMeta<S> {
   constructor(
     readonly value: S,
     readonly sender: string,
@@ -36,20 +36,20 @@ class AggregateArgsCRegisterEntry<S> implements CRegisterEntryMeta<S> {
  * link to demo.
  *
  * S is the type of conflicting values that get aggregated
- * to type T.  Usually S = T, but OptionalLWWCRegister
+ * to type T.  Usually S = T, but OptionalLWWCVariable
  * instead has T = Optional<S>, so that it can return
  * an empty Optional when there are no conflicting values.
  */
-export abstract class AggregateArgsCRegister<
+export abstract class AggregateArgsCVariable<
     T,
     SetArgs extends unknown[],
     S = T,
-    Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
+    Events extends CVariableEventsRecord<T> = CVariableEventsRecord<T>
   >
   extends PrimitiveCRDT<Events>
-  implements CRegister<T, SetArgs>, ClearableCRegister<T, SetArgs>
+  implements CVariable<T, SetArgs>, ClearableCVariable<T, SetArgs>
 {
-  private entries: AggregateArgsCRegisterEntry<S>[] = [];
+  private entries: AggregateArgsCVariableEntry<S>[] = [];
   private _value: T;
 
   constructor(
@@ -64,10 +64,10 @@ export abstract class AggregateArgsCRegister<
   }
 
   set(...args: SetArgs): T {
-    const message = AggregateArgsCRegisterMessage.create({
+    const message = AggregateArgsCVariableMessage.create({
       setArgs: this.argsSerializer.serialize(args),
     });
-    const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
+    const buffer = AggregateArgsCVariableMessage.encode(message).finish();
     // Opt: only request wallClockTime if actually used by
     // aggregate().
     // Automatic mode suffices to send all of the needed
@@ -94,10 +94,10 @@ export abstract class AggregateArgsCRegister<
   clear(): void {
     // Only clear if needed
     if (!this.canGC()) {
-      const message = AggregateArgsCRegisterMessage.create({
+      const message = AggregateArgsCVariableMessage.create({
         clear: true,
       }); // no value
-      const buffer = AggregateArgsCRegisterMessage.encode(message).finish();
+      const buffer = AggregateArgsCVariableMessage.encode(message).finish();
       // Automatic mode suffices to send all of the needed
       // vector clock entries (those corresponding to current
       // values in this.entries).
@@ -110,8 +110,8 @@ export abstract class AggregateArgsCRegister<
     meta: MessageMeta,
     crdtMeta: CRDTMeta
   ): void {
-    const decoded = AggregateArgsCRegisterMessage.decode(<Uint8Array>message);
-    const newState = new Array<AggregateArgsCRegisterEntry<S>>();
+    const decoded = AggregateArgsCVariableMessage.decode(<Uint8Array>message);
+    const newState = new Array<AggregateArgsCVariableEntry<S>>();
     for (const entry of this.entries) {
       if (crdtMeta.vectorClockGet(entry.sender) < entry.senderCounter) {
         newState.push(entry);
@@ -120,7 +120,7 @@ export abstract class AggregateArgsCRegister<
     switch (decoded.data) {
       case "setArgs": {
         // Add the new entry
-        const entry = new AggregateArgsCRegisterEntry(
+        const entry = new AggregateArgsCVariableEntry(
           this.constructValue(decoded.setArgs),
           crdtMeta.sender,
           crdtMeta.senderCounter,
@@ -135,7 +135,7 @@ export abstract class AggregateArgsCRegister<
         break;
       default:
         throw new Error(
-          `AggregateCRegister: Bad decoded.data: ${decoded.data}`
+          `AggregateCVariable: Bad decoded.data: ${decoded.data}`
         );
     }
 
@@ -189,7 +189,7 @@ export abstract class AggregateArgsCRegister<
    * values in the same order on all replicas, namely,
    * in lexicographic order by sender.
    */
-  conflictsMeta(): CRegisterEntryMeta<S>[] {
+  conflictsMeta(): CVariableEntryMeta<S>[] {
     // Defensive copy
     return this.entries.slice();
   }
@@ -206,7 +206,7 @@ export abstract class AggregateArgsCRegister<
   }
 
   save(): Uint8Array {
-    const message = AggregateArgsCRegisterSave.create({
+    const message = AggregateArgsCVariableSave.create({
       entries: this.entries.map((entry) => {
         return {
           setArgs: entry.argsSerialized,
@@ -216,15 +216,15 @@ export abstract class AggregateArgsCRegister<
         };
       }),
     });
-    return AggregateArgsCRegisterSave.encode(message).finish();
+    return AggregateArgsCVariableSave.encode(message).finish();
   }
 
   load(saveData: Optional<Uint8Array>) {
     if (!saveData.isPresent) return;
-    const message = AggregateArgsCRegisterSave.decode(saveData.get());
+    const message = AggregateArgsCVariableSave.decode(saveData.get());
     for (const element of message.entries) {
       this.entries.push(
-        new AggregateArgsCRegisterEntry(
+        new AggregateArgsCVariableEntry(
           this.constructValue(element.setArgs),
           element.sender,
           element.senderCounter,
@@ -254,17 +254,17 @@ export abstract class AggregateArgsCRegister<
    * @param  conflictsMeta [description]
    * @return               [description]
    */
-  protected abstract aggregate(conflictsMeta: CRegisterEntryMeta<S>[]): T;
+  protected abstract aggregate(conflictsMeta: CVariableEntryMeta<S>[]): T;
 }
 
 /**
  * Version where set directly sets the (conflicting)
  * value (SetArgs = [T], S = T).
  */
-export abstract class AggregateCRegister<
+export abstract class AggregateCVariable<
   T,
-  Events extends CRegisterEventsRecord<T> = CRegisterEventsRecord<T>
-> extends AggregateArgsCRegister<T, [T], T, Events> {
+  Events extends CVariableEventsRecord<T> = CVariableEventsRecord<T>
+> extends AggregateArgsCVariable<T, [T], T, Events> {
   constructor(
     initToken: InitToken,
     initialValue: T,

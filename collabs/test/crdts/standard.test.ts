@@ -5,7 +5,7 @@ import {
   FalseWinsCBoolean,
   TrueWinsCBoolean,
   LWWCMap,
-  LWWCRegister,
+  LWWCVariable,
   CNumber,
   TestingCRDTAppGenerator,
   DeletingMutCSet,
@@ -17,7 +17,7 @@ import {
   LazyMutCMap,
   ResettableCCounter,
   CollabSerializer,
-  OptionalLWWCRegister,
+  OptionalLWWCVariable,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom = require("seedrandom");
@@ -698,22 +698,22 @@ describe("standard", () => {
       it("lets concurrent value operation survive", () => {
         load();
 
-        aliceMap.get("register").add(1);
+        aliceMap.get("variable").add(1);
         appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["variable"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["variable"]));
 
-        const bobRegister = bobMap.get("register");
+        const bobVariable = bobMap.get("variable");
 
-        aliceMap.get("register").reset();
-        bobRegister.add(3);
+        aliceMap.get("variable").reset();
+        bobVariable.add(3);
         appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
-        assert.strictEqual(bobRegister.value, 3);
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["variable"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["variable"]));
+        assert.strictEqual(bobVariable.value, 3);
 
-        const aliceRegister = aliceMap.get("register");
-        assert.strictEqual(aliceRegister.value, 3);
+        const aliceVariable = aliceMap.get("variable");
+        assert.strictEqual(aliceVariable.value, 3);
       });
     });
 
@@ -901,24 +901,24 @@ describe("standard", () => {
       // TODO: for future observed-remove semantics,
       // this should no longer need the time interval
       it("lets later set survive", () => {
-        aliceMap.set("register", 7);
+        aliceMap.set("variable", 7);
         appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["variable"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["variable"]));
 
-        assert.strictEqual(bobMap.get("register"), 7);
+        assert.strictEqual(bobMap.get("variable"), 7);
 
-        aliceMap.delete("register");
+        aliceMap.delete("variable");
         let now = new Date().getTime();
         while (new Date().getTime() <= now) {
           // Loop; Bob will have a later time than now
         }
-        bobMap.set("register", 3);
+        bobMap.set("variable", 3);
         appGen.releaseAll();
-        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["register"]));
-        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["register"]));
-        assert.strictEqual(bobMap.get("register"), 3);
-        assert.strictEqual(aliceMap.get("register"), 3);
+        assert.deepStrictEqual(new Set(aliceMap.keys()), new Set(["variable"]));
+        assert.deepStrictEqual(new Set(bobMap.keys()), new Set(["variable"]));
+        assert.strictEqual(bobMap.get("variable"), 3);
+        assert.strictEqual(aliceMap.get("variable"), 3);
       });
 
       it("emits right events", async () => {
@@ -1004,8 +1004,8 @@ describe("standard", () => {
   describe("DeletingMutCSet", () => {
     let aliceSource: DeletingMutCSet<CNumber, []>;
     let bobSource: DeletingMutCSet<CNumber, []>;
-    let aliceRegister: OptionalLWWCRegister<CNumber>;
-    let bobRegister: OptionalLWWCRegister<CNumber>;
+    let aliceVariable: OptionalLWWCVariable<CNumber>;
+    let bobVariable: OptionalLWWCVariable<CNumber>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
@@ -1016,13 +1016,13 @@ describe("standard", () => {
         "source",
         Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
       );
-      aliceRegister = alice.registerCollab(
-        "register",
-        Pre(OptionalLWWCRegister)(new CollabSerializer(aliceSource))
+      aliceVariable = alice.registerCollab(
+        "variable",
+        Pre(OptionalLWWCVariable)(new CollabSerializer(aliceSource))
       );
-      bobRegister = bob.registerCollab(
-        "register",
-        Pre(OptionalLWWCRegister)(new CollabSerializer(bobSource))
+      bobVariable = bob.registerCollab(
+        "variable",
+        Pre(OptionalLWWCVariable)(new CollabSerializer(bobSource))
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -1033,13 +1033,13 @@ describe("standard", () => {
       assert.strictEqual(newCollab.value, 0);
     });
 
-    it("transfers new Collab via register", () => {
-      aliceRegister.set(aliceSource.add());
-      aliceRegister.value.get().add(7);
-      assert.strictEqual(aliceRegister.value.get().value, 7);
+    it("transfers new Collab via variable", () => {
+      aliceVariable.set(aliceSource.add());
+      aliceVariable.value.get().add(7);
+      assert.strictEqual(aliceVariable.value.get().value, 7);
 
       appGen.releaseAll();
-      assert.strictEqual(bobRegister.value.get().value, 7);
+      assert.strictEqual(bobVariable.value.get().value, 7);
     });
 
     it("allows sequential creation", () => {
@@ -1063,12 +1063,12 @@ describe("standard", () => {
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
-      aliceRegister.set(new1);
+      aliceVariable.set(new1);
       appGen.releaseAll();
-      let new1Bob = bobRegister.value.get();
-      bobRegister.set(new2);
+      let new1Bob = bobVariable.value.get();
+      bobVariable.set(new2);
       appGen.releaseAll();
-      let new2Alice = aliceRegister.value.get();
+      let new2Alice = aliceVariable.value.get();
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
     });

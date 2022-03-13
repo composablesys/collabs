@@ -7,7 +7,7 @@ import {
   Serializer,
 } from "../../util";
 import { Collab, InitToken, Pre } from "../../core";
-import { CRegisterEntryMeta } from "../register";
+import { CVariableEntryMeta } from "../variable";
 import { AbstractCMapCObject, CMap, CSet } from "../../data_types";
 
 export interface ConflictsCMap<K, V> extends CMap<K, V> {
@@ -21,7 +21,7 @@ export interface ConflictsCMap<K, V> extends CMap<K, V> {
    * Return the causally maximal concurrent values set
    * for key, with metadata.
    */
-  getConflictsMeta(key: K): CRegisterEntryMeta<V>[];
+  getConflictsMeta(key: K): CVariableEntryMeta<V>[];
 }
 
 /**
@@ -162,7 +162,7 @@ export class MutCMapFromSet<
       .map((valueID) => valueID.get(this.valueSet)!);
   }
 
-  getConflictsMeta(key: K): CRegisterEntryMeta<C>[] {
+  getConflictsMeta(key: K): CVariableEntryMeta<C>[] {
     return this.map.getConflictsMeta(key).map((valueIDMeta) => {
       return { ...valueIDMeta, value: valueIDMeta.value.get(this.valueSet)! };
     });

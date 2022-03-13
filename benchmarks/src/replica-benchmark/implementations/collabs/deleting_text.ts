@@ -5,7 +5,7 @@ import { CollabsReplica } from "./replica";
 
 export class CollabsDeletingText extends CollabsReplica implements IText {
   protected readonly text: collabs.DeletingMutCList<
-    collabs.LWWCRegister<string>,
+    collabs.LWWCVariable<string>,
     []
   >;
 
@@ -15,7 +15,7 @@ export class CollabsDeletingText extends CollabsReplica implements IText {
     this.text = this.app.registerCollab(
       "",
       collabs.Pre(collabs.DeletingMutCList)(
-        (valueInitToken) => new collabs.LWWCRegister(valueInitToken, "")
+        (valueInitToken) => new collabs.LWWCVariable(valueInitToken, "")
       )
     );
   }

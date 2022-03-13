@@ -5,5 +5,5 @@ export * from "./abstract_set";
 export * from "./boolean";
 export * from "./list";
 export * from "./map";
-export * from "./register";
 export * from "./set";
+export * from "./variable";

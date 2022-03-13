@@ -3,7 +3,7 @@ import {
   InitToken,
   CText,
   DefaultSerializer,
-  LWWCRegister,
+  LWWCVariable,
   LazyMutCMap,
   Pre,
   AddWinsCSet,
@@ -165,7 +165,7 @@ export class TextWrapper {
 // sub-reset, each causing a call up the whole chain.
 
 export class JSONElement extends CObject {
-  private register: LWWCRegister<JSONValue>;
+  private variable: LWWCVariable<JSONValue>;
   private object: JSONObject;
   private array: JSONArray;
   private text: CText;
@@ -181,9 +181,9 @@ export class JSONElement extends CObject {
   constructor(initToken: InitToken, makeThisExistent: () => void) {
     super(initToken);
     this.makeThisExistent = makeThisExistent;
-    this.register = this.addChild(
-      "register",
-      (childInitToken) => new LWWCRegister<JSONValue>(childInitToken, null)
+    this.variable = this.addChild(
+      "variable",
+      (childInitToken) => new LWWCVariable<JSONValue>(childInitToken, null)
     );
     this.object = this.addChild(
       "object",
@@ -197,7 +197,7 @@ export class JSONElement extends CObject {
   }
 
   get value(): JSONValue {
-    return this.register.value;
+    return this.variable.value;
   }
 
   get type():
@@ -233,25 +233,25 @@ export class JSONElement extends CObject {
     this.makeThisExistent();
     this.object.reset();
     this.array.reset();
-    this.register.value = value;
+    this.variable.value = value;
   }
 
   setIsObject() {
     this.makeThisExistent();
     this.array.reset();
-    this.register.value = this.object;
+    this.variable.value = this.object;
   }
 
   setIsArray() {
     this.makeThisExistent();
     this.object.reset();
-    this.register.value = this.array;
+    this.variable.value = this.array;
   }
 
   setIsText() {
     this.makeThisExistent();
     this.object.reset();
-    this.register.value = this.text;
+    this.variable.value = this.text;
   }
 
   reset() {
@@ -259,7 +259,7 @@ export class JSONElement extends CObject {
     this.object.reset();
     this.array.reset();
     this.text.clear();
-    this.register.clear();
+    this.variable.clear();
   }
 
   asOrdinaryJS(): any {

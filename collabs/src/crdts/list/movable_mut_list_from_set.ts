@@ -8,7 +8,7 @@ import {
 import { Collab, InitToken, isRuntime, Pre } from "../../core";
 import {
   AbstractCListCObject,
-  CRegister,
+  CVariable,
   CSet,
   FoundLocation,
   LocatableCList,
@@ -21,7 +21,7 @@ import { DenseLocalList } from "./dense_local_list";
 export class MovableMutCListEntry<
   C extends Collab,
   L,
-  R extends CRegister<L>
+  R extends CVariable<L>
 > extends CObject {
   readonly value: C;
   readonly loc: R;
@@ -37,9 +37,9 @@ export class MovableMutCListFromSet<
     C extends Collab,
     InsertArgs extends unknown[],
     L,
-    RegT extends CRegister<L>,
-    SetT extends CSet<MovableMutCListEntry<C, L, RegT>, [L, InsertArgs]>,
-    DenseT extends DenseLocalList<L, MovableMutCListEntry<C, L, RegT>>,
+    VarT extends CVariable<L>,
+    SetT extends CSet<MovableMutCListEntry<C, L, VarT>, [L, InsertArgs]>,
+    DenseT extends DenseLocalList<L, MovableMutCListEntry<C, L, VarT>>,
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCObject<C, InsertArgs, Events>
@@ -48,9 +48,9 @@ export class MovableMutCListFromSet<
   protected readonly set: SetT;
 
   /**
-   * registerConstructor should make sure that the
-   * register's initial value is initialValue, without
-   * dispatching a Set event (i.e., pass it in RegT's
+   * variableConstructor should make sure that the
+   * variable's initial value is initialValue, without
+   * dispatching a Set event (i.e., pass it in VarT's
    * constructor, not as an operation, which wouldn't
    * make sense anyway).
    */
@@ -60,15 +60,15 @@ export class MovableMutCListFromSet<
       setValueConstructor: (
         setValueInitToken: InitToken,
         ...setValueArgs: [L, InsertArgs]
-      ) => MovableMutCListEntry<C, L, RegT>,
+      ) => MovableMutCListEntry<C, L, VarT>,
       setInitialValuesArgs: [L, InsertArgs][],
       setArgsSerializer: Serializer<[L, InsertArgs]>
     ) => Pre<SetT>,
-    registerConstructor: (
-      registerInitToken: InitToken,
+    variableConstructor: (
+      variableInitToken: InitToken,
       initialValue: L,
-      registerSerializer: Serializer<L>
-    ) => RegT,
+      variableSerializer: Serializer<L>
+    ) => VarT,
     protected readonly denseLocalList: DenseT,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
@@ -86,21 +86,21 @@ export class MovableMutCListFromSet<
       "",
       setCallback(
         (setValueInitToken, loc, args) => {
-          const entry = new MovableMutCListEntry<C, L, RegT>(
+          const entry = new MovableMutCListEntry<C, L, VarT>(
             setValueInitToken,
             (valueInitToken) => valueConstructor(valueInitToken, ...args),
-            (registerInitToken) =>
-              registerConstructor(registerInitToken, loc, denseLocalList)
+            (variableInitToken) =>
+              variableConstructor(variableInitToken, loc, denseLocalList)
           );
           entry.loc.on("Set", (event) => {
             // Maintain denseLocalList's key set as a cache
             // of the currently set locations, mapping to
             // the corresponding entry.
             // Also dispatch our own events.
-            // Note that move is the only time register.set
+            // Note that move is the only time variable.set
             // is called; setting the initial state is done
-            // in the registerConstructor, not as a
-            // register.set operation, so it will not emit
+            // in the variableConstructor, not as a
+            // variable.set operation, so it will not emit
             // a Set event.
             const startIndex = this.denseLocalList.delete(
               event.previousValue
@@ -185,7 +185,7 @@ export class MovableMutCListFromSet<
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
-    const toDelete = new Array<MovableMutCListEntry<C, L, RegT>>(count);
+    const toDelete = new Array<MovableMutCListEntry<C, L, VarT>>(count);
     for (let i = 0; i < count; i++) {
       toDelete[i] = this.denseLocalList.get(startIndex + i);
     }
@@ -207,7 +207,7 @@ export class MovableMutCListFromSet<
     // Locations to insert at.
     const locs = this.denseLocalList.createNewLocs(insertionIndex, count);
     // Values to move.
-    const toMove = new Array<MovableMutCListEntry<C, L, RegT>>(count);
+    const toMove = new Array<MovableMutCListEntry<C, L, VarT>>(count);
     for (let i = 0; i < count; i++) {
       toMove[i] = this.denseLocalList.get(startIndex + i);
     }
@@ -257,9 +257,9 @@ export class MovableMutCListFromSet<
     if (isRuntime(searchElement.parent)) return -1;
 
     if (
-      this.set.has(searchElement.parent as MovableMutCListEntry<C, L, RegT>)
+      this.set.has(searchElement.parent as MovableMutCListEntry<C, L, VarT>)
     ) {
-      const loc = (searchElement.parent as MovableMutCListEntry<C, L, RegT>).loc
+      const loc = (searchElement.parent as MovableMutCListEntry<C, L, VarT>).loc
         .value;
       const index = this.denseLocalList.locate(loc)[0];
       if (fromIndex < 0) fromIndex += this.length;

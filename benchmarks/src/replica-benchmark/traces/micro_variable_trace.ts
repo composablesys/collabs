@@ -1,12 +1,12 @@
-import { IRegister } from "../interfaces/register";
+import { IVariable } from "../interfaces/variable";
 import { MicroTrace } from "./micro_trace";
 
-export class MicroRegisterTrace extends MicroTrace<IRegister> {
+export class MicroVariableTrace extends MicroTrace<IVariable> {
   constructor() {
     super({ Set: [(replica, rng) => replica.set(rng()), 1] });
   }
 
-  getState(replica: IRegister): unknown {
+  getState(replica: IVariable): unknown {
     return replica.get();
   }
 }

@@ -16,7 +16,7 @@ const network = new WebSocketNetwork(app, host, "");
 // We include a simple collaborative counter as an example;
 // delete the code below and replace with your own.
 
-// Register collaborative data types.
+// Variable collaborative data types.
 const counter = app.registerCollab(
   "counter",
   collabs.Pre(collabs.ResettableCCounter)()

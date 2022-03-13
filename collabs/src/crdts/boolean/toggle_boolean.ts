@@ -1,14 +1,14 @@
 import { InitToken, MessageMeta } from "../../core";
 import {
   CBoolean,
-  CRegisterEventsRecord,
+  CVariableEventsRecord,
   MakeAbstractCBoolean,
 } from "../../data_types";
 import { Optional } from "../../util";
 import { PrimitiveCRDT } from "../constructions";
 
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCRDT)<CRegisterEventsRecord<boolean>>
+  extends MakeAbstractCBoolean(PrimitiveCRDT)<CVariableEventsRecord<boolean>>
   implements CBoolean
 {
   private valueInternal: boolean;

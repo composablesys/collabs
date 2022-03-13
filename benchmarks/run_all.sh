@@ -70,9 +70,9 @@ go
 trace="MicroMap"
 go
 
-trace="MicroRegister"
-ours=("CollabsRegister")
-others=("AutomergeRegister" "YjsRegister")
+trace="MicroVariable"
+ours=("CollabsVariable")
+others=("AutomergeVariable" "YjsVariable")
 go
 
 trace="MicroTextLtr"

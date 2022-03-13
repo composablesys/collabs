@@ -6,7 +6,7 @@ import {
   Serializer,
 } from "../../util";
 import { Collab, InitToken, Pre } from "../../core";
-import { CRegisterEntryMeta } from "../register";
+import { CVariableEntryMeta } from "../variable";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { AbstractCMapCObject } from "../../data_types";
 import { LWWCMap } from "./lww_map";
@@ -153,7 +153,7 @@ export class ArchivingMutCMap<
     return this.map.getConflicts(key);
   }
 
-  getConflictsMeta(key: K): CRegisterEntryMeta<C>[] {
+  getConflictsMeta(key: K): CVariableEntryMeta<C>[] {
     return this.map.getConflictsMeta(key);
   }
 

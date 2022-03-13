@@ -26,7 +26,7 @@ enum TileStatus {
 
 class TileCollab extends collabs.CObject {
   private readonly revealed: collabs.TrueWinsCBoolean;
-  private readonly flag: collabs.LWWCRegister<FlagStatus>;
+  private readonly flag: collabs.LWWCVariable<FlagStatus>;
   number: number = 0;
 
   constructor(initToken: collabs.InitToken, readonly isMine: boolean) {
@@ -37,7 +37,7 @@ class TileCollab extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      collabs.Pre(collabs.LWWCRegister)<FlagStatus>(FlagStatus.NONE)
+      collabs.Pre(collabs.LWWCVariable)<FlagStatus>(FlagStatus.NONE)
     );
   }
 
@@ -389,19 +389,19 @@ class MinesweeperCollab extends collabs.CObject {
 
   const currentGame = container.registerCollab(
     "currentGame",
-    collabs.Pre(collabs.LWWMutCRegister)(
+    collabs.Pre(collabs.LWWMutCVariable)(
       collabs.ConstructorAsFunction(MinesweeperCollab)
     )
   );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    collabs.Pre(collabs.LWWCRegister)(settingsFromInput())
+    collabs.Pre(collabs.LWWCVariable)(settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    collabs.Pre(collabs.LWWCRegister)<MinesweeperCollab | GameSettings>(
+    collabs.Pre(collabs.LWWCVariable)<MinesweeperCollab | GameSettings>(
       currentSettings.value
     )
   );

@@ -1,6 +1,6 @@
-import { CRegister } from "./register";
+import { CVariable } from "./variable";
 
-export interface CBoolean extends CRegister<boolean, [boolean]> {
+export interface CBoolean extends CVariable<boolean, [boolean]> {
   /**
    * Toggle the value, i.e., negate it.
    *

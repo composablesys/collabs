@@ -42,7 +42,7 @@ import { Collab, isRuntime, Runtime } from "../core";
  * For example, after [[DeletingMutCSet.delete]] is called, the deleted value
  * and its descendants no longer exist. This is because [[DeletingMutCSet]]
  * forgets deleted values. The same is true of [[DeletingMutCList]],
- * [[DeletingMutCMap]], and (causally) overwritten values in [[MutCRegister]].
+ * [[DeletingMutCMap]], and (causally) overwritten values in [[MutCVariable]].
  *
  * Warnings:
  * - When you send a `CollabID` over the network (e.g., by adding it to

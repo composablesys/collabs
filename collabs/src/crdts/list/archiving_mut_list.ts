@@ -4,7 +4,7 @@ import {
   Serializer,
 } from "../../util";
 import { Collab, InitToken, Pre, isRuntime } from "../../core";
-import { LWWCRegister } from "../register";
+import { LWWCVariable } from "../variable";
 import { ArchivingMutCSet } from "../set";
 import {
   MovableMutCListEntry,
@@ -29,12 +29,12 @@ export class ArchivingMutCList<
   C,
   InsertArgs,
   RgaLoc,
-  LWWCRegister<RgaLoc>,
+  LWWCVariable<RgaLoc>,
   ArchivingMutCSet<
-    MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>,
+    MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>,
     [RgaLoc, InsertArgs]
   >,
-  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>>
+  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>>
 > {
   constructor(
     initToken: InitToken,
@@ -45,7 +45,7 @@ export class ArchivingMutCList<
       initToken,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
         Pre(ArchivingMutCSet)(setValueConstuctor, setArgsSerializer),
-      ConstructorAsFunction(LWWCRegister),
+      ConstructorAsFunction(LWWCVariable),
       new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
       [],
@@ -74,7 +74,7 @@ export class ArchivingMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>
     );
   }
 
@@ -88,7 +88,7 @@ export class ArchivingMutCList<
       throw new Error("this.owns(value) is false");
     }
     this.set.restore(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>
     );
   }
 
@@ -97,7 +97,7 @@ export class ArchivingMutCList<
       this.get(index).parent as MovableMutCListEntry<
         C,
         RgaLoc,
-        LWWCRegister<RgaLoc>
+        LWWCVariable<RgaLoc>
       >
     )[1];
   }
@@ -116,7 +116,7 @@ export class ArchivingMutCList<
     }
 
     return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>
     )[1];
   }
 }

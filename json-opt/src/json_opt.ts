@@ -7,7 +7,7 @@ import {
   DefaultSerializer,
   Serializer,
   LazyMutCMap,
-  OptionalLWWCRegister,
+  OptionalLWWCVariable,
   Pre,
   PrimitiveCList,
   TextSerializer,
@@ -32,7 +32,7 @@ enum InternalType {
 export class JSONCollab extends CObject<JSONEventsRecord> {
   private readonly internalMap: LazyMutCMap<
     string,
-    OptionalLWWCRegister<number | string | boolean | InternalType>
+    OptionalLWWCVariable<number | string | boolean | InternalType>
   >;
   private readonly LazyMutCMap: LazyMutCMap<string, PrimitiveCList<string>>;
   private readonly keySet: AddWinsCSet<string>;
@@ -45,7 +45,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     this.internalMap = this.addChild(
       "internalMap",
       Pre(LazyMutCMap)(
-        Pre(OptionalLWWCRegister)<string | number | boolean>(keySerializer)
+        Pre(OptionalLWWCVariable)<string | number | boolean>(keySerializer)
       )
     );
 

@@ -23,7 +23,7 @@ import { Optional } from "../util";
  * object-oriented programming techniques like encapsulation
  * and inheritance.  It can be useful even with just a single
  * child.  For example, [[LWWCMap]] has a single child, a mutable
- * map with [[LWWCRegister]] values; its contribution is to
+ * map with [[LWWCVariable]] values; its contribution is to
  * provide a simple [[CMap]]-compliant API for the wrapped type.
  *
  * Unlike a normal object or a `Collab` with normal

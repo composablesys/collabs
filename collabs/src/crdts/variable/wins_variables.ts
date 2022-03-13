@@ -6,15 +6,15 @@ import {
   SingletonSerializer,
 } from "../../util";
 import {
-  AggregateArgsCRegister,
-  AggregateCRegister,
-  CRegisterEntryMeta,
-} from "./aggregate_register";
+  AggregateArgsCVariable,
+  AggregateCVariable,
+  CVariableEntryMeta,
+} from "./aggregate_variable";
 
-export class LWWCRegister<T> extends AggregateCRegister<T> {
+export class LWWCVariable<T> extends AggregateCVariable<T> {
   /**
    * If you don't have an initialValue, consider
-   * OptionalLWWCRegister<T>.
+   * OptionalLWWCVariable<T>.
    */
   constructor(
     initToken: InitToken,
@@ -24,9 +24,9 @@ export class LWWCRegister<T> extends AggregateCRegister<T> {
     super(initToken, initialValue, valueSerializer);
   }
 
-  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
+  protected aggregate(conflictsMeta: CVariableEntryMeta<T>[]) {
     if (conflictsMeta.length === 0) return this.initialValue;
-    else return LWWCRegister.aggregateNonempty(conflictsMeta);
+    else return LWWCVariable.aggregateNonempty(conflictsMeta);
   }
 
   /**
@@ -39,7 +39,7 @@ export class LWWCRegister<T> extends AggregateCRegister<T> {
    * @return                                [description]
    * @throws if conflictsMeta.length === 0
    */
-  static aggregateNonempty<T>(conflictsMeta: CRegisterEntryMeta<T>[]): T {
+  static aggregateNonempty<T>(conflictsMeta: CVariableEntryMeta<T>[]): T {
     if (conflictsMeta.length === 0) {
       throw new Error("conflictsMeta is empty");
     }
@@ -58,10 +58,10 @@ export class LWWCRegister<T> extends AggregateCRegister<T> {
   }
 }
 
-export class FwwCRegister<T> extends AggregateCRegister<T> {
+export class FwwCVariable<T> extends AggregateCVariable<T> {
   /**
    * If you don't have an initialValue, consider
-   * OptionalFwwCRegister<T>.
+   * OptionalFwwCVariable<T>.
    */
   constructor(
     initToken: InitToken,
@@ -71,9 +71,9 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
     super(initToken, initialValue, valueSerializer);
   }
 
-  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]) {
+  protected aggregate(conflictsMeta: CVariableEntryMeta<T>[]) {
     if (conflictsMeta.length === 0) return this.initialValue;
-    else return FwwCRegister.aggregateNonempty(conflictsMeta);
+    else return FwwCVariable.aggregateNonempty(conflictsMeta);
   }
 
   /**
@@ -86,7 +86,7 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
    * @return                                [description]
    * @throws if conflictsMeta.length === 0
    */
-  static aggregateNonempty<T>(conflictsMeta: CRegisterEntryMeta<T>[]): T {
+  static aggregateNonempty<T>(conflictsMeta: CVariableEntryMeta<T>[]): T {
     if (conflictsMeta.length === 0) {
       throw new Error("conflictsMeta is empty");
     }
@@ -106,12 +106,12 @@ export class FwwCRegister<T> extends AggregateCRegister<T> {
 }
 
 /**
- * Like LWWCRegister, but doesn't need an initialValue
+ * Like LWWCVariable, but doesn't need an initialValue
  * for when the value is initialized / reset;
  * instead, it returns an empty Optional<T> in that
  * situation.
  */
-export class OptionalLWWCRegister<T> extends AggregateArgsCRegister<
+export class OptionalLWWCVariable<T> extends AggregateArgsCVariable<
   Optional<T>,
   [T],
   T
@@ -128,10 +128,10 @@ export class OptionalLWWCRegister<T> extends AggregateArgsCRegister<
     );
   }
 
-  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
+  protected aggregate(conflictsMeta: CVariableEntryMeta<T>[]): Optional<T> {
     if (conflictsMeta.length === 0) return Optional.empty();
     else {
-      const newValue = LWWCRegister.aggregateNonempty(conflictsMeta);
+      const newValue = LWWCVariable.aggregateNonempty(conflictsMeta);
       if (this.value.isPresent && this.value.get() === newValue) {
         // Return the previous value, so that its Optional is
         // === instead of just deep-equals.
@@ -143,12 +143,12 @@ export class OptionalLWWCRegister<T> extends AggregateArgsCRegister<
 }
 
 /**
- * Like FwwCRegister, but doesn't need an initialValue
+ * Like FwwCVariable, but doesn't need an initialValue
  * for when the value is initialized / reset;
  * instead, it returns an empty Optional<T> in that
  * situation.
  */
-export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
+export class OptionalFwwCVariable<T> extends AggregateArgsCVariable<
   Optional<T>,
   [T],
   T
@@ -165,10 +165,10 @@ export class OptionalFwwCRegister<T> extends AggregateArgsCRegister<
     );
   }
 
-  protected aggregate(conflictsMeta: CRegisterEntryMeta<T>[]): Optional<T> {
+  protected aggregate(conflictsMeta: CVariableEntryMeta<T>[]): Optional<T> {
     if (conflictsMeta.length === 0) return Optional.empty();
     else {
-      const newValue = FwwCRegister.aggregateNonempty(conflictsMeta);
+      const newValue = FwwCVariable.aggregateNonempty(conflictsMeta);
       if (this.value.isPresent && this.value.get() === newValue) {
         // Return the previous value, so that its Optional is
         // === instead of just deep-equals.

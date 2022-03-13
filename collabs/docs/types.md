@@ -17,8 +17,8 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | `Map<K, V>`, `V` mutable                | [`DeletingMutCMap<K, C(V)>`](./typedoc/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](./typedoc/interfaces/CMap.html) implementations        |
 | `Array<T>`, `T` immutable               | [`PrimitiveCList<T>`](./typedoc/classes/PrimitiveCList.html)         | [`CList<T>`](./typedoc/interfaces/CList.html) implementations            |
 | `Array<T>`, `T` mutable                 | [`DeletingMutCList<T>`](./typedoc/classes/DeletingMutCList.html)     | [`CList<C(T)>`](./typedoc/interfaces/CList.html) implementations         |
-| \*(Any immutable `T`) (as opaque value) | [`LwwCRegister<T>`](./typedoc/classes/LwwCRegister.html)             | [`CRegister<T>`](./typedoc/interfaces/CRegister.html) implementations    |
-| \*(Any mutable `T`) (as opaque value)   | [`LwwMutCRegister<C(T)>`](./typedoc/classes/LwwMutCRegister.html)    | [`CRegister<C(T)>`](./typedoc/interfaces/CRegister.html) implementations |
+| \*(Any immutable `T`) (as opaque value) | [`LwwCVariable<T>`](./typedoc/classes/LwwCVariable.html)             | [`CVariable<T>`](./typedoc/interfaces/CVariable.html) implementations    |
+| \*(Any mutable `T`) (as opaque value)   | [`LwwMutCVariable<C(T)>`](./typedoc/classes/LwwMutCVariable.html)    | [`CVariable<C(T)>`](./typedoc/interfaces/CVariable.html) implementations |
 | \*`boolean`                             | [`TrueWinsCBoolean`](./typedoc/classes/TrueWinsCBoolean.html)        | [`CBoolean`](./typedoc/interfaces/CBoolean.html) implementations         |
 | \*`number` (for counting or adding)     | [`CCounter`](./typedoc/classes/CCounter.html)                        |
 | \*`number` (for general arithmetic)     | [`CNumber`](./typedoc/classes/CNumber.html)                          |
@@ -28,11 +28,11 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 ## Collection Types
 
-The collection types (`CSet`, `CMap`, `CList`, and `CRegister`) all contain values that can have arbitrary types - possibly collaborative themselves. This section goes over general rules that apply to all collection types.
+The collection types (`CSet`, `CMap`, `CList`, and `CVariable`) all contain values that can have arbitrary types - possibly collaborative themselves. This section goes over general rules that apply to all collection types.
 
 ### Immutable vs Mutable Values
 
-Each collection type has two classes of implementations, depending on whether the values are _immutable_ or _mutable_. Of course, the collections themselves are always mutable, e.g., you can always add and remove values from a `CSet` or set the value of `CRegister`. The question is whether those values can be mutated internally.
+Each collection type has two classes of implementations, depending on whether the values are _immutable_ or _mutable_. Of course, the collections themselves are always mutable, e.g., you can always add and remove values from a `CSet` or set the value of `CVariable`. The question is whether those values can be mutated internally.
 
 > **Example.** In a shopping list app, suppose you want each item to be immutable: users can add items to the list or delete them, but they can't edit an existing item. You can model this with the ordinary data type `Array<string>`. Since the `string` items are immutable, the collaborative version should be a `CList<string>` with immutable values, e.g., `PrimitiveCList<string>`.
 >
@@ -44,7 +44,7 @@ In some situations, the immutable vs. mutable distinction is subtle:
 
 1. `LwwCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LwwCMap` and a map with mutable values is that in `LwwCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
 2. You can use `Collab`s as immutable values. In that case, the immutable value acts as a _reference_ to the original `Collab`, like the \* types above.
-   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LwwCRegister<CPerson>` to store a reference to the project lead, chosen from the set's values.
+   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LwwCVariable<CPerson>` to store a reference to the project lead, chosen from the set's values.
 
 **Caution:** The library will not prevent you from internally mutating a value that you used in an immutable collection. Instead, you must take care not to do this. If you do mutate a value stored in an immutable collection, then that mutation will not be replicated to other users. Thus the mutating user will see the mutated state, while the other users will not, violating consistency.
 
@@ -77,13 +77,13 @@ To allow you to create `Collab`s dynamically, mutable values collections work a 
 
 Often you can choose between several collaborative data structures. Different choices may support different operations, or different semantics in the face of conflicting concurrent operations. This section describes some common choices and how the options differ.
 
-### Registers vs Everything Else
+### Variables vs Everything Else
 
-`LwwCRegister` is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
+`LwwCVariable` is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
 
-<!-- register vs whatever else in general. Lww is always a good choice, but changes the granularity of editing.
+<!-- variable vs whatever else in general. Lww is always a good choice, but changes the granularity of editing.
 
-> **Example.** TODO: setting value vs editing internally, on bulk object. Also applies to maps. string as text vs register (granularity of editing)
+> **Example.** TODO: setting value vs editing internally, on bulk object. Also applies to maps. string as text vs variable (granularity of editing)
 
 Efficiency of sending big object every time -->
 
@@ -93,7 +93,7 @@ Types of mutable collections (Deleting, Archiving). Note downsides of each: tomb
 
 ### `CObject`s vs Ordinary Objects
 
-Similar to register discussion (granularity of edits)
+Similar to variable discussion (granularity of edits)
 
 ### `CObject`s vs `CMap`s
 

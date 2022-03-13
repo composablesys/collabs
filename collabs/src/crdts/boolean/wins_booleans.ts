@@ -1,7 +1,7 @@
 import { WinsCBooleanSave } from "../../../generated/proto_compiled";
 import { CObject } from "../../constructions";
 import { InitToken, MessageMeta, Pre } from "../../core";
-import { CRegisterEventsRecord, MakeAbstractCBoolean } from "../../data_types";
+import { CVariableEventsRecord, MakeAbstractCBoolean } from "../../data_types";
 import { PrimitiveCRDT } from "../constructions";
 import { Optional } from "../../util";
 import { CRDTMeta } from "../crdt-runtime";
@@ -12,7 +12,7 @@ interface WinsCBooleanEntry {
 }
 
 export class TrueWinsCBoolean extends MakeAbstractCBoolean(PrimitiveCRDT)<
-  CRegisterEventsRecord<boolean>
+  CVariableEventsRecord<boolean>
 > {
   private entries: WinsCBooleanEntry[] = [];
 
@@ -91,7 +91,7 @@ export class TrueWinsCBoolean extends MakeAbstractCBoolean(PrimitiveCRDT)<
 }
 
 export class FalseWinsCBoolean extends MakeAbstractCBoolean(CObject)<
-  CRegisterEventsRecord<boolean>
+  CVariableEventsRecord<boolean>
 > {
   private readonly negated: TrueWinsCBoolean;
 

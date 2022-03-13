@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import seedrandom = require("seedrandom");
 import {
-  LWWCRegister,
+  LWWCVariable,
   Pre,
   CRDTApp,
   Optional,
@@ -115,52 +115,52 @@ describe("CRDTMetaLayer", () => {
 
       describe("no batching", () => {
         it("delivers messages immediately", () => {
-          const aliceRegister = alice.registerCollab(
-            "register",
-            Pre(LWWCRegister)(0)
+          const aliceVariable = alice.registerCollab(
+            "variable",
+            Pre(LWWCVariable)(0)
           );
-          const bobRegister = bob.registerCollab(
-            "register",
-            Pre(LWWCRegister)(0)
+          const bobVariable = bob.registerCollab(
+            "variable",
+            Pre(LWWCVariable)(0)
           );
           load();
 
-          assert.strictEqual(aliceRegister.value, 0);
-          assert.strictEqual(bobRegister.value, 0);
+          assert.strictEqual(aliceVariable.value, 0);
+          assert.strictEqual(bobVariable.value, 0);
 
-          aliceRegister.value = 3;
+          aliceVariable.value = 3;
           alice.commitBatch();
           assert.isNotNull(aliceMessage);
-          assert.strictEqual(aliceRegister.value, 3);
-          assert.strictEqual(bobRegister.value, 0);
+          assert.strictEqual(aliceVariable.value, 3);
+          assert.strictEqual(bobVariable.value, 0);
 
           bob.receive(aliceMessage!);
-          assert.strictEqual(bobRegister.value, 3);
+          assert.strictEqual(bobVariable.value, 3);
           aliceMessage = null;
 
-          bobRegister.value = 5;
+          bobVariable.value = 5;
           bob.commitBatch();
           assert.isNotNull(bobMessage);
-          assert.strictEqual(aliceRegister.value, 3);
-          assert.strictEqual(bobRegister.value, 5);
+          assert.strictEqual(aliceVariable.value, 3);
+          assert.strictEqual(bobVariable.value, 5);
 
           alice.receive(bobMessage!);
-          assert.strictEqual(aliceRegister.value, 5);
-          assert.strictEqual(bobRegister.value, 5);
+          assert.strictEqual(aliceVariable.value, 5);
+          assert.strictEqual(bobVariable.value, 5);
           bobMessage = null;
 
-          aliceRegister.value = 10;
+          aliceVariable.value = 10;
           alice.commitBatch();
           assert.isNotNull(aliceMessage);
-          bobRegister.value = 11;
+          bobVariable.value = 11;
           bob.commitBatch();
           assert.isNotNull(bobMessage);
-          assert.strictEqual(aliceRegister.value, 10);
-          assert.strictEqual(bobRegister.value, 11);
+          assert.strictEqual(aliceVariable.value, 10);
+          assert.strictEqual(bobVariable.value, 11);
 
           alice.receive(bobMessage!);
           bob.receive(aliceMessage!);
-          assert.strictEqual(bobRegister.value, aliceRegister.value);
+          assert.strictEqual(bobVariable.value, aliceVariable.value);
         });
 
         describe("CRDTMeta", () => {

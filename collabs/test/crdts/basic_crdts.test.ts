@@ -2,8 +2,8 @@ import { assert } from "chai";
 import { debug } from "../debug";
 import {
   CCounter,
-  LWWCRegister,
-  OptionalLWWCRegister,
+  LWWCVariable,
+  OptionalLWWCVariable,
   Pre,
   CRDTApp,
   TestingCRDTAppGenerator,
@@ -332,62 +332,62 @@ describe("basic_crdts", () => {
   });
 
   describe("MultComponent", () => {
-    let aliceRegister: MultComponent;
-    let bobRegister: MultComponent;
+    let aliceVariable: MultComponent;
+    let bobVariable: MultComponent;
 
     beforeEach(() => {
-      aliceRegister = alice.registerCollab(
+      aliceVariable = alice.registerCollab(
         "multId",
         Pre(MultComponent)(new CNumberState(2))
       );
-      bobRegister = bob.registerCollab(
+      bobVariable = bob.registerCollab(
         "multId",
         Pre(MultComponent)(new CNumberState(2))
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
-        addEventListeners(aliceRegister, "Alice");
-        addEventListeners(bobRegister, "Bob");
+        addEventListeners(aliceVariable, "Alice");
+        addEventListeners(bobVariable, "Bob");
       }
     });
 
-    function addEventListeners(register: MultComponent, name: string): void {
-      register.on("Mult", (event) =>
+    function addEventListeners(comp: MultComponent, name: string): void {
+      comp.on("Mult", (event) =>
         console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
       );
     }
 
     it("is initially 2", () => {
-      assert.strictEqual(aliceRegister.state.value, 2);
-      assert.strictEqual(bobRegister.state.value, 2);
+      assert.strictEqual(aliceVariable.state.value, 2);
+      assert.strictEqual(bobVariable.state.value, 2);
     });
 
     describe("mult", () => {
       it("works for non-concurrent updates", () => {
-        aliceRegister.mult(3);
+        aliceVariable.mult(3);
         appGen.releaseAll();
-        assert.strictEqual(aliceRegister.state.value, 6);
-        assert.strictEqual(bobRegister.state.value, 6);
+        assert.strictEqual(aliceVariable.state.value, 6);
+        assert.strictEqual(bobVariable.state.value, 6);
 
-        bobRegister.mult(-4);
+        bobVariable.mult(-4);
         appGen.releaseAll();
-        assert.strictEqual(aliceRegister.state.value, -24);
-        assert.strictEqual(bobRegister.state.value, -24);
+        assert.strictEqual(aliceVariable.state.value, -24);
+        assert.strictEqual(bobVariable.state.value, -24);
       });
 
       it("works with concurrent updates", () => {
-        aliceRegister.mult(2);
-        assert.strictEqual(aliceRegister.state.value, 4);
-        assert.strictEqual(bobRegister.state.value, 2);
+        aliceVariable.mult(2);
+        assert.strictEqual(aliceVariable.state.value, 4);
+        assert.strictEqual(bobVariable.state.value, 2);
 
-        bobRegister.mult(-8);
-        assert.strictEqual(aliceRegister.state.value, 4);
-        assert.strictEqual(bobRegister.state.value, -16);
+        bobVariable.mult(-8);
+        assert.strictEqual(aliceVariable.state.value, 4);
+        assert.strictEqual(bobVariable.state.value, -16);
 
         appGen.releaseAll();
-        assert.strictEqual(aliceRegister.state.value, -32);
-        assert.strictEqual(bobRegister.state.value, -32);
+        assert.strictEqual(aliceVariable.state.value, -32);
+        assert.strictEqual(bobVariable.state.value, -32);
       });
     });
 
@@ -473,13 +473,13 @@ describe("basic_crdts", () => {
   //   });
   // });
 
-  describe("OptionalLWWCRegister", () => {
-    let aliceMvr: OptionalLWWCRegister<string>;
-    let bobMvr: OptionalLWWCRegister<string>;
+  describe("OptionalLWWCVariable", () => {
+    let aliceMvr: OptionalLWWCVariable<string>;
+    let bobMvr: OptionalLWWCVariable<string>;
 
     beforeEach(() => {
-      aliceMvr = alice.registerCollab("mvrId", Pre(OptionalLWWCRegister)());
-      bobMvr = bob.registerCollab("mvrId", Pre(OptionalLWWCRegister)());
+      aliceMvr = alice.registerCollab("mvrId", Pre(OptionalLWWCVariable)());
+      bobMvr = bob.registerCollab("mvrId", Pre(OptionalLWWCVariable)());
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -489,7 +489,7 @@ describe("basic_crdts", () => {
     });
 
     function addEventListeners<T>(
-      mvr: OptionalLWWCRegister<T>,
+      mvr: OptionalLWWCVariable<T>,
       name: string
     ): void {
       mvr.on("Set", (event) =>
@@ -616,13 +616,13 @@ describe("basic_crdts", () => {
     });
   });
 
-  describe("LWWCRegister", () => {
-    let aliceLWW: LWWCRegister<string>;
-    let bobLWW: LWWCRegister<string>;
+  describe("LWWCVariable", () => {
+    let aliceLWW: LWWCVariable<string>;
+    let bobLWW: LWWCVariable<string>;
 
     beforeEach(() => {
-      aliceLWW = alice.registerCollab("lwwId", Pre(LWWCRegister)("initial"));
-      bobLWW = bob.registerCollab("lwwId", Pre(LWWCRegister)("initial"));
+      aliceLWW = alice.registerCollab("lwwId", Pre(LWWCVariable)("initial"));
+      bobLWW = bob.registerCollab("lwwId", Pre(LWWCVariable)("initial"));
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -631,7 +631,7 @@ describe("basic_crdts", () => {
       }
     });
 
-    function addEventListeners<T>(lww: LWWCRegister<T>, name: string): void {
+    function addEventListeners<T>(lww: LWWCVariable<T>, name: string): void {
       // TODO
       // lww.on("LWW", (event) =>
       //   console.log(

@@ -57,7 +57,7 @@ class DeletingTodoListInternal
     this.text.delete(index, count);
   }
   get textSize(): number {
-    return this.text.length; // Assumes all text registers are one char
+    return this.text.length; // Assumes all text variables are one char
   }
   getText(): string {
     return this.text.join("");

@@ -1,6 +1,6 @@
 import { CObject } from "../../constructions";
 import { Collab, InitToken, Pre } from "../../core";
-import { CRegister, CRegisterEventsRecord, CSetEvent } from "../../data_types";
+import { CVariable, CVariableEventsRecord, CSetEvent } from "../../data_types";
 import {
   DefaultSerializer,
   Optional,
@@ -8,11 +8,11 @@ import {
   Serializer,
 } from "../../util";
 import { DeletingMutCSet } from "../set";
-import { CRegisterEntryMeta } from "./aggregate_register";
-import { OptionalLWWCRegister } from "./wins_registers";
+import { CVariableEntryMeta } from "./aggregate_variable";
+import { OptionalLWWCVariable } from "./wins_variables";
 
-export interface MutCRegisterEventsRecord<C extends Collab, Value>
-  extends CRegisterEventsRecord<Value> {
+export interface MutCVariableEventsRecord<C extends Collab, Value>
+  extends CVariableEventsRecord<Value> {
   /**
    * Emitted when a value is deleted from the value factory.
    *
@@ -29,32 +29,32 @@ export interface MutCRegisterEventsRecord<C extends Collab, Value>
   Delete: CSetEvent<C>;
 }
 
-export class MutCRegisterFromRegister<
+export class MutCVariableFromVariable<
     C extends Collab,
     SetArgs extends unknown[],
     Value,
-    RegT extends CRegister<Value, [C]>,
-    Events extends MutCRegisterEventsRecord<
+    VarT extends CVariable<Value, [C]>,
+    Events extends MutCVariableEventsRecord<
       C,
       Value
-    > = MutCRegisterEventsRecord<C, Value>
+    > = MutCVariableEventsRecord<C, Value>
   >
   extends CObject<Events>
-  implements CRegister<Value, SetArgs>
+  implements CVariable<Value, SetArgs>
 {
   protected readonly valueFactory: DeletingMutCSet<C, SetArgs>;
-  protected readonly register: RegT;
+  protected readonly variable: VarT;
 
   /**
    * Note initial value behavior
-   * depends on that of the register returned by
-   * registerCallback.
+   * depends on that of the variable returned by
+   * variableCallback.
    *
-   * @param registerCallback [description]
+   * @param variableCallback [description]
    */
   constructor(
     initToken: InitToken,
-    registerCallback: (valueSerializer: Serializer<C>) => Pre<RegT>,
+    variableCallback: (valueSerializer: Serializer<C>) => Pre<VarT>,
     valueConstructor: (valueInitToken: InitToken, ...args: SetArgs) => C,
     argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
@@ -63,28 +63,28 @@ export class MutCRegisterFromRegister<
       "",
       Pre(DeletingMutCSet)(valueConstructor, [], argsSerializer)
     );
-    this.register = this.addChild(
+    this.variable = this.addChild(
       "0",
       // CollabSerializer is safe here because we never perform set
       // operations referencing deleted values, hence this will never try to
       // deserialize a deleted value.
       // Note that would cease to be true if we added e.g. a restore op -
       // we would then need to use a ArchivingMutCSet instead.
-      registerCallback(new CollabSerializer(this.valueFactory))
+      variableCallback(new CollabSerializer(this.valueFactory))
     );
 
     // Events
-    this.register.on("Set", (event) => this.emit("Set", event));
+    this.variable.on("Set", (event) => this.emit("Set", event));
     this.valueFactory.on("Delete", (event) => this.emit("Delete", event));
   }
 
   set(...args: SetArgs): Value | undefined {
     this.valueFactory.clear();
-    return this.register.set(this.valueFactory.add(...args));
+    return this.variable.set(this.valueFactory.add(...args));
   }
 
   get value(): Value {
-    return this.register.value;
+    return this.variable.value;
   }
 
   owns(value: C): boolean {
@@ -110,14 +110,14 @@ export class MutCRegisterFromRegister<
   }
 }
 
-export class LWWMutCRegister<
+export class LWWMutCVariable<
   C extends Collab,
   SetArgs extends unknown[]
-> extends MutCRegisterFromRegister<
+> extends MutCVariableFromVariable<
   C,
   SetArgs,
   Optional<C>,
-  OptionalLWWCRegister<C>
+  OptionalLWWCVariable<C>
 > {
   constructor(
     initToken: InitToken,
@@ -126,30 +126,30 @@ export class LWWMutCRegister<
   ) {
     super(
       initToken,
-      Pre(OptionalLWWCRegister),
+      Pre(OptionalLWWCVariable),
       valueConstructor,
       argsSerializer
     );
   }
 
   // Override set to state that it definitely
-  // returns a value, since this is true of OptionalLWWCRegister.set.
+  // returns a value, since this is true of OptionalLWWCVariable.set.
 
   set(...args: SetArgs): Optional<C> {
     return super.set(...args)!;
   }
 
   conflicts(): C[] {
-    return this.register.conflicts();
+    return this.variable.conflicts();
   }
 
-  conflictsMeta(): CRegisterEntryMeta<C>[] {
-    return this.register.conflictsMeta();
+  conflictsMeta(): CVariableEntryMeta<C>[] {
+    return this.variable.conflictsMeta();
   }
 
   clear() {
     this.valueFactory.clear();
-    this.register.clear();
+    this.variable.clear();
   }
 
   /**

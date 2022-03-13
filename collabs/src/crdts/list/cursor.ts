@@ -7,7 +7,7 @@ import {
   CursorLocation,
   CursorLocationSerializer,
 } from "../../constructions";
-import { LWWCRegister } from "../register";
+import { LWWCVariable } from "../variable";
 
 export interface CCursorEvent extends CollabEvent {
   /**
@@ -83,7 +83,7 @@ export class CCursor extends CObject<CCursorEventsRecord> {
   private readonly common: CursorCommon;
   // LWW is overkill since usually only one replica
   // will use this cursor, but it's easiest.
-  private readonly location: LWWCRegister<CursorLocation>;
+  private readonly location: LWWCVariable<CursorLocation>;
   private previousIndex: number;
 
   /**
@@ -104,7 +104,7 @@ export class CCursor extends CObject<CCursorEventsRecord> {
     this.common = new CursorCommon(list, binding);
     this.location = this.addChild(
       "",
-      Pre(LWWCRegister)(
+      Pre(LWWCVariable)(
         Optional.of(list.getLocation(startIndex)),
         CursorLocationSerializer.instance
       )
@@ -162,7 +162,7 @@ export class CCursor extends CObject<CCursorEventsRecord> {
 // Feature: make binding mutable like the index?
 // (Only if have use case.)
 
-// Feature: generalized CCursor based on general register?
+// Feature: generalized CCursor based on general variable?
 // Then can move this construction outside of CRDT lib
 // and just have a special CRDT class (although we haven't
 // been doing that for the other generic constructions).

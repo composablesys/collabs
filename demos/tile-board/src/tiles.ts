@@ -14,10 +14,10 @@ class CImmutable<T> extends collabs.CObject {
 
 class CTile extends collabs.CObject {
   readonly contentCollab: collabs.Collab;
-  readonly left: collabs.LWWCRegister<number>;
-  readonly top: collabs.LWWCRegister<number>;
-  readonly width: collabs.LWWCRegister<number>;
-  readonly height: collabs.LWWCRegister<number>;
+  readonly left: collabs.LWWCVariable<number>;
+  readonly top: collabs.LWWCVariable<number>;
+  readonly width: collabs.LWWCVariable<number>;
+  readonly height: collabs.LWWCVariable<number>;
 
   readonly dom: HTMLDivElement;
   readonly innerDiv: HTMLDivElement;
@@ -51,15 +51,15 @@ class CTile extends collabs.CObject {
     this.contentCollab = this.addChild("", (contentInitToken) =>
       preContent(contentInitToken, this.innerDiv)
     );
-    this.left = this.addChild("x", collabs.Pre(collabs.LWWCRegister)(initialX));
-    this.top = this.addChild("y", collabs.Pre(collabs.LWWCRegister)(initialY));
+    this.left = this.addChild("x", collabs.Pre(collabs.LWWCVariable)(initialX));
+    this.top = this.addChild("y", collabs.Pre(collabs.LWWCVariable)(initialY));
     this.width = this.addChild(
       "width",
-      collabs.Pre(collabs.LWWCRegister)(initialWidth)
+      collabs.Pre(collabs.LWWCVariable)(initialWidth)
     );
     this.height = this.addChild(
       "height",
-      collabs.Pre(collabs.LWWCRegister)(initialHeight)
+      collabs.Pre(collabs.LWWCVariable)(initialHeight)
     );
 
     // Keep this.dom in sync with its rect.

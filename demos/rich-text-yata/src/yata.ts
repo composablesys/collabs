@@ -17,7 +17,7 @@ export class YataOp<T> extends collabs.CObject {
   // TODO: leftId, rightId need saving
   public leftId: string;
   public rightId: string;
-  readonly _deleted: collabs.LWWCRegister<boolean>;
+  readonly _deleted: collabs.LWWCVariable<boolean>;
   readonly content: T;
   readonly pos: number;
   readonly attributes: collabs.LWWCMap<string, any>;
@@ -63,7 +63,7 @@ export class YataOp<T> extends collabs.CObject {
     this.rightId = rightId;
     this._deleted = this.addChild(
       YataOp.deletedFlagCollabName,
-      collabs.Pre(collabs.LWWCRegister)<boolean>(false)
+      collabs.Pre(collabs.LWWCVariable)<boolean>(false)
     );
     this.locallyDeleted = false;
     this.content = content;
@@ -137,7 +137,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
 
   deletedMessageEventHandler =
     (yata: YataLinear<T>, uid: string) =>
-    ({ meta }: collabs.CollabEvent, caller: collabs.LWWCRegister<boolean>) => {
+    ({ meta }: collabs.CollabEvent, caller: collabs.LWWCVariable<boolean>) => {
       if (caller.value) {
         if (!yata.op(uid).locallyDeleted) {
           yata.emit("Delete", {

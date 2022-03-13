@@ -1,17 +1,17 @@
 import Automerge from "automerge";
-import { IRegister } from "../../interfaces/register";
+import { IVariable } from "../../interfaces/variable";
 import { AutomergeReplica } from "./replica";
 
-export class AutomergeRegister
+export class AutomergeVariable
   extends AutomergeReplica<{ v: unknown }>
-  implements IRegister
+  implements IVariable
 {
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
     v: 0,
   });
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeRegister.fakeInitialSave);
+    this.doc = Automerge.load(AutomergeVariable.fakeInitialSave);
   }
 
   set(value: unknown): void {

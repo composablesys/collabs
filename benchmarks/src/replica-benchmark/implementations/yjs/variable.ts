@@ -1,9 +1,9 @@
 import { YMap } from "yjs/dist/src/types/YMap";
 import { Data } from "../../../util";
-import { IRegister } from "../../interfaces/register";
+import { IVariable } from "../../interfaces/variable";
 import { YjsReplica } from "./replica";
 
-export class YjsRegister extends YjsReplica implements IRegister {
+export class YjsVariable extends YjsReplica implements IVariable {
   private readonly map: YMap<unknown>;
 
   constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
