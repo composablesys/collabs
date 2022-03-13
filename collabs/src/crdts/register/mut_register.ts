@@ -69,7 +69,7 @@ export class MutCRegisterFromRegister<
       // operations referencing deleted values, hence this will never try to
       // deserialize a deleted value.
       // Note that would cease to be true if we added e.g. a restore op -
-      // we would then need to use a TombstoneMutCSet instead.
+      // we would then need to use a ArchivingMutCSet instead.
       registerCallback(new CollabSerializer(this.valueFactory))
     );
 

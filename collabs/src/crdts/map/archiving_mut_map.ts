@@ -12,10 +12,16 @@ import { AbstractCMapCObject } from "../../data_types";
 import { LWWCMap } from "./lww_map";
 
 /**
- * Warning: tombstones.  Benefit is that you can
- * restoreKey and restoreValue.
+ * Collab-valued [[CMap]] where deletions only "archive"
+ * values.
+ *
+ * Archived values can continue being used on their own
+ * and later be restored in the map, unlike in
+ * [[DeletingMutCMap]]. Note that this comes at the
+ * cost of increased memory usage: since deleted values
+ * stick around forever, they consume memory forever.
  */
-export class TombstoneMutCMap<
+export class ArchivingMutCMap<
   K,
   C extends Collab,
   SetArgs extends unknown[]

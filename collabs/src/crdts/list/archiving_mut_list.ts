@@ -5,14 +5,24 @@ import {
 } from "../../util";
 import { Collab, InitToken, Pre, isRuntime } from "../../core";
 import { LWWCRegister } from "../register";
-import { TombstoneMutCSet } from "../set";
+import { ArchivingMutCSet } from "../set";
 import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
 import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
 
-export class TombstoneMutCList<
+/**
+ * Collab-valued [[CList]] where deletions only "archive"
+ * values.
+ *
+ * Archived values can continue being used on their own
+ * and later be restored in the list, unlike in
+ * [[DeletingMutCList]]. Note that this comes at the
+ * cost of increased memory usage: since deleted values
+ * stick around forever, they consume memory forever.
+ */
+export class ArchivingMutCList<
   C extends Collab,
   InsertArgs extends unknown[]
 > extends MovableMutCListFromSet<
@@ -20,7 +30,7 @@ export class TombstoneMutCList<
   InsertArgs,
   RgaLoc,
   LWWCRegister<RgaLoc>,
-  TombstoneMutCSet<
+  ArchivingMutCSet<
     MovableMutCListEntry<C, RgaLoc, LWWCRegister<RgaLoc>>,
     [RgaLoc, InsertArgs]
   >,
@@ -34,7 +44,7 @@ export class TombstoneMutCList<
     super(
       initToken,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
-        Pre(TombstoneMutCSet)(setValueConstuctor, setArgsSerializer),
+        Pre(ArchivingMutCSet)(setValueConstuctor, setArgsSerializer),
       ConstructorAsFunction(LWWCRegister),
       new RgaDenseLocalList(initToken.runtime),
       valueConstructor,

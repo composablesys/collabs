@@ -27,7 +27,7 @@ import { AbstractCMapCollab } from "../../data_types";
  * many).
  *
  * The "always exists" nature means that, unlike in
- * [[DeletingMutCMap]] and [[TombstoneMutCMap]], there
+ * [[DeletingMutCMap]] and [[ArchivingMutCMap]], there
  * is no conflict when two users concurrently "create"
  * values with the same key. Instead, they are just accessing
  * the same value. If they perform operations on that

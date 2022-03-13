@@ -20,7 +20,7 @@ import { Collab, isRuntime, Runtime } from "../core";
  * on the `AddWinsCSet` will change which IDs (hence notes) are present,
  * without affecting the `CNote`s themselves - unlike [[DeletingMutCSet.delete]]
  * on the original set, which deletes `CNote`s permanently (making them
- * unusable). This is precisely how [[TombstoneMutCSet]] works.
+ * unusable). This is precisely how [[ArchivingMutCSet]] works.
  *
  * A [[CollabID]] from one [[Runtime]] can be used within
  * another. Continuing the `CNote` example, perhaps the [[AddWinsCSet]]

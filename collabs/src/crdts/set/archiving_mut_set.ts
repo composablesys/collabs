@@ -5,12 +5,16 @@ import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
 
 /**
- * Warning: tombstones, so uses ever-growing memory.  Use
- * with caution (e.g. only if it is itself in a
- * DeletingMut collection and will be deleted later).
- * Discuss alternatives.
+ * Collab-valued [[CSet]] where deletions only "archive"
+ * values.
+ *
+ * Archived values can continue being used on their own
+ * and later be restored in the set, unlike in
+ * [[DeletingMutCSet]]. Note that this comes at the
+ * cost of increased memory usage: since deleted values
+ * stick around forever, they consume memory forever.
  */
-export class TombstoneMutCSet<
+export class ArchivingMutCSet<
   C extends Collab,
   AddArgs extends unknown[]
 > extends AbstractCSetCObject<C, AddArgs> {
