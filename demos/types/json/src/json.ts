@@ -8,6 +8,10 @@ import {
   Pre,
   AddWinsCSet,
   DeletingMutCList,
+  CollabID,
+  Serializer,
+  Collab,
+  Runtime,
 } from "@collabs/collabs";
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
@@ -20,6 +24,44 @@ export type JSONValue =
   | JSONObject
   | JSONArray
   | CText;
+
+type SerializableJSONValue =
+  | string
+  | number
+  | boolean
+  | null
+  | CollabID<JSONObject | JSONArray | CText>;
+
+class JSONValueSerializer implements Serializer<JSONValue> {
+  private readonly internalSerializer =
+    DefaultSerializer.getInstance<SerializableJSONValue>();
+
+  private constructor(private readonly runtime: Runtime) {}
+
+  serialize(value: JSONValue): Uint8Array {
+    const serializableValue: SerializableJSONValue =
+      value instanceof Collab ? CollabID.fromCollab(value) : value;
+    return this.internalSerializer.serialize(serializableValue);
+  }
+
+  deserialize(message: Uint8Array): JSONValue {
+    const serializableValue = this.internalSerializer.deserialize(message);
+    if (serializableValue instanceof CollabID) {
+      return serializableValue.get(this.runtime)!;
+    } else return serializableValue;
+  }
+
+  static instancesByRuntime = new Map<Runtime, JSONValueSerializer>();
+
+  static getInstance(runtime: Runtime) {
+    let instance = this.instancesByRuntime.get(runtime);
+    if (instance === undefined) {
+      instance = new JSONValueSerializer(runtime);
+      this.instancesByRuntime.set(runtime, instance);
+    }
+    return instance;
+  }
+}
 
 export class JSONObject extends CObject {
   private readonly internalMap: LazyMutCMap<string, JSONElement>;
@@ -183,7 +225,12 @@ export class JSONElement extends CObject {
     this.makeThisExistent = makeThisExistent;
     this.variable = this.addChild(
       "variable",
-      (childInitToken) => new LWWCVariable<JSONValue>(childInitToken, null)
+      (childInitToken) =>
+        new LWWCVariable<JSONValue>(
+          childInitToken,
+          null,
+          JSONValueSerializer.getInstance(this.runtime)
+        )
     );
     this.object = this.addChild(
       "object",
