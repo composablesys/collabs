@@ -1,7 +1,5 @@
 {
-  "name": "@collabs/demos",
-  "version": "0.4.0",
-  "description": "Collabs demos",
+  "description": "Collabs demo apps",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
   "private": true,

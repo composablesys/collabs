@@ -9,9 +9,6 @@
     "core",
     "crdts",
     "collabs",
-    "json",
-    "json-opt",
-    "tensor-average",
     "container",
     "ws-client",
     "ws-server",
@@ -20,7 +17,10 @@
     "template-custom-type",
     "template-container",
     "template-app",
-    "demos",
+    "demos/types/json",
+    "demos/types/json-opt",
+    "demos/types/tensor-average",
+    "demos/apps",
     "benchmarks"
   ],
   "workspacesNoTest": [

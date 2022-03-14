@@ -1,13 +1,13 @@
 {
-  "name": "@collabs/json",
+  "name": "@collabs/json-opt",
   "version": "0.4.0",
-  "description": "Collabs example - JSON CRDT",
+  "description": "Collabs custom type demo - optimized JSON CRDT",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/collabs/tree/master/json#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/json-opt#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/collabs.git"
@@ -43,6 +43,7 @@
     "pkg-ok": "^2.3.1",
     "prettier": "^2.2.1",
     "rimraf": "^2.7.1",
+    "seedrandom": "^3.0.5",
     "ts-node": "^10.1.0",
     "typedoc": "^0.22.11",
     "typescript": "^4.3.5"
