@@ -8,7 +8,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly _attributes: collabs.LwwCMap<string, any>;
+  private readonly _attributes: collabs.LWWCMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -19,7 +19,7 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(initToken: collabs.InitToken, readonly char: string | object) {
     super(initToken);
 
-    this._attributes = this.addChild("", collabs.Pre(collabs.LwwCMap)());
+    this._attributes = this.addChild("", collabs.Pre(collabs.LWWCMap)());
 
     // Events
     this._attributes.on("Set", (e) => {

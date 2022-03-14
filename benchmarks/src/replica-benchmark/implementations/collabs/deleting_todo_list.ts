@@ -5,7 +5,7 @@ import { CollabsReplica } from "./replica";
 
 class DeletingTodoListInternal
   extends collabs.CObject
-  implements ITodoListInternal, collabs.Resettable
+  implements ITodoListInternal
 {
   private readonly text: collabs.CText;
   private readonly doneCollab: collabs.TrueWinsCBoolean;
@@ -57,16 +57,10 @@ class DeletingTodoListInternal
     this.text.delete(index, count);
   }
   get textSize(): number {
-    return this.text.length; // Assumes all text registers are one char
+    return this.text.length; // Assumes all text variables are one char
   }
   getText(): string {
     return this.text.join("");
-  }
-
-  reset() {
-    this.text.reset();
-    this.doneCollab.reset();
-    this.items.reset();
   }
 }
 

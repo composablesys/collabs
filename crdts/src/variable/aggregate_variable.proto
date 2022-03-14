@@ -1,0 +1,17 @@
+message AggregateArgsCVariableMessage {
+    oneof data {
+      bytes setArgs = 1;
+      bool clear = 2;
+    }
+}
+
+message AggregateArgsCVariableEntrySave {
+  required bytes setArgs = 1;
+  required string sender = 2;
+  required uint32 senderCounter = 3;
+  required double time = 4;
+}
+
+message AggregateArgsCVariableSave {
+  repeated AggregateArgsCVariableEntrySave entries = 1;
+}

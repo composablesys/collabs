@@ -5,21 +5,20 @@ import {
   setWarmupTrials,
 } from "./record";
 import { AutomergeMap } from "./replica-benchmark/implementations/automerge/map";
-import { AutomergeRegister } from "./replica-benchmark/implementations/automerge/register";
+import { AutomergeVariable } from "./replica-benchmark/implementations/automerge/variable";
 import { AutomergeText } from "./replica-benchmark/implementations/automerge/text";
 import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge/todo_list";
 import { CollabsDeletingText } from "./replica-benchmark/implementations/collabs/deleting_text";
 import { CollabsDeletingTodoList } from "./replica-benchmark/implementations/collabs/deleting_todo_list";
 import { CollabsJSONOptTodoList } from "./replica-benchmark/implementations/collabs/json_opt_todo_list";
+import { CollabsJSONTextTodoList } from "./replica-benchmark/implementations/collabs/json_text_todo_list";
 import { CollabsJSONTodoList } from "./replica-benchmark/implementations/collabs/json_todo_list";
 import { CollabsMap } from "./replica-benchmark/implementations/collabs/map";
-import { CollabsRegister } from "./replica-benchmark/implementations/collabs/register";
-import { CollabsResettingText } from "./replica-benchmark/implementations/collabs/resetting_text";
-import { CollabsResettingTodoList } from "./replica-benchmark/implementations/collabs/resetting_todo_list";
+import { CollabsVariable } from "./replica-benchmark/implementations/collabs/variable";
 import { CollabsRichText } from "./replica-benchmark/implementations/collabs/rich_text";
 import { CollabsText } from "./replica-benchmark/implementations/collabs/text";
 import { YjsMap } from "./replica-benchmark/implementations/yjs/map";
-import { YjsRegister } from "./replica-benchmark/implementations/yjs/register";
+import { YjsVariable } from "./replica-benchmark/implementations/yjs/variable";
 import { YjsText } from "./replica-benchmark/implementations/yjs/text";
 import { YjsTodoList } from "./replica-benchmark/implementations/yjs/todo_list";
 import {
@@ -29,7 +28,7 @@ import {
 } from "./replica-benchmark/replica_benchmark";
 import { MicroMapRollingTrace } from "./replica-benchmark/traces/micro_map_rolling_trace";
 import { MicroMapTrace } from "./replica-benchmark/traces/micro_map_trace";
-import { MicroRegisterTrace } from "./replica-benchmark/traces/micro_register_trace";
+import { MicroVariableTrace } from "./replica-benchmark/traces/micro_variable_trace";
 import { MicroTextLtrTrace } from "./replica-benchmark/traces/micro_text_ltr_trace";
 import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_random_trace";
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
@@ -38,7 +37,7 @@ import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
   MicroMap: new MicroMapTrace(),
-  MicroRegister: new MicroRegisterTrace(),
+  MicroVariable: new MicroVariableTrace(),
   MicroTextLtr: new MicroTextLtrTrace(),
   MicroTextRandom: new MicroTextRandomTrace(),
   RealText: new RealTextTrace(),
@@ -47,21 +46,20 @@ const traces: { [name: string]: Trace<unknown> } = {
 
 const implementations: { [name: string]: Implementation<unknown> } = {
   AutomergeMap: AutomergeMap,
-  AutomergeRegister: AutomergeRegister,
+  AutomergeVariable: AutomergeVariable,
   AutomergeText: AutomergeText,
   AutomergeTodoList: AutomergeTodoList,
   CollabsDeletingText: CollabsDeletingText,
   CollabsDeletingTodoList: CollabsDeletingTodoList,
   CollabsJSONOptTodoList: CollabsJSONOptTodoList,
+  CollabsJSONTextTodoList: CollabsJSONTextTodoList,
   CollabsJSONTodoList: CollabsJSONTodoList,
   CollabsMap: CollabsMap,
-  CollabsRegister: CollabsRegister,
-  CollabsResettingText: CollabsResettingText,
-  CollabsResettingTodoList: CollabsResettingTodoList,
+  CollabsVariable: CollabsVariable,
   CollabsRichText: CollabsRichText,
   CollabsText: CollabsText,
   YjsMap: YjsMap,
-  YjsRegister: YjsRegister,
+  YjsVariable: YjsVariable,
   YjsText: YjsText,
   YjsTodoList: YjsTodoList,
 };

@@ -92,11 +92,12 @@ export class CollabsJSONTextTodoList
     if (this._fakeInitialSaveData === undefined) {
       // This is a trick to give us initial value
       // { items: [] }.
-      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaId: "INIT" });
+      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaID: "INIT" });
       const fakeInitialJSON = fakeInitialApp.registerCollab(
         "",
         JSONElement.NewJSON
       );
+      fakeInitialApp.load(collabs.Optional.empty());
       fakeInitialJSON.setOrdinaryJS({ items: [] });
       this._fakeInitialSaveData = fakeInitialApp.save();
     }

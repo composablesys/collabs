@@ -1,0 +1,9 @@
+message LazyMutCMapSave {
+  // OPT: use an array instead of a map. That way, children
+  // are stored in nontrivialMap's iterator order, which is
+  // compatible with their creation order. Then if keys
+  // reference other values, during loading, the referenced
+  // values will always already exist when requested, preventing
+  // too-deep recursion (like in DeletingMutCSet).
+  map<string, bytes> childSaves = 1;
+}

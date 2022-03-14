@@ -85,14 +85,14 @@ Next, we register our "global variable" `Collab`s - data structures that exist o
 ```ts
 const counter = container.registerCollab(
   "counter",
-  collabs.Pre(collabs.CCounter)()
+  collabs.Pre(collabs.ResettableCCounter)()
 );
 ```
 
 A few things to note here:
 
 - The first argument to `registerCollab` is a _name_ for the `Collab`, used to identify it across different users. This can be arbitrary, but it's easiest to use the same name as the variable used to store the `Collab`. Each call to `registerCollab` must use a unique name.
-- We don't call `CCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.CCounter)` with the rest of `CCounter`'s constructor arguments - in this case, `()`. `registerCollab` then returns the actual constructed `CCounter`.
+- We don't call `ResettableCCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.ResettableCCounter)` with the rest of `ResettableCCounter`'s constructor arguments - in this case, `()`. `registerCollab` then returns the actual constructed `ResettableCCounter`.
   In general, when constructing `Collab`s, you use `Pre` instead of `new` in this way. I.e.:
   ```ts
   Pre(class_name)<generic types>(constructor args)
@@ -173,7 +173,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    collabs.Pre(collabs.CCounter)()
+    collabs.Pre(collabs.ResettableCCounter)()
   );
 
   // Refresh the display when the Collab state changes, possibly

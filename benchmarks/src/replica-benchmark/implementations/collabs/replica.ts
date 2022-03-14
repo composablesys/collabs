@@ -10,7 +10,7 @@ export class CollabsReplica implements Replica {
     replicaIdRng: seedrandom.prng
   ) {
     this.app = new collabs.CRDTApp({
-      debugReplicaId: collabs.pseudoRandomReplicaId(replicaIdRng),
+      debugReplicaID: collabs.pseudoRandomReplicaID(replicaIdRng),
       batchingStrategy: new collabs.ManualBatchingStrategy(),
     });
     this.app.on("Send", (e) => this.onsend(e.message));

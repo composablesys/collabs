@@ -151,7 +151,7 @@ The app's top-level state is a variable `currentGame: Minesweeper`. When the use
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
 - `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `TrueWinsCBoolean` satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./types.md) suggests `LwwCRegister<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./types.md) suggests `LwwCVariable<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
@@ -159,7 +159,7 @@ Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That le
 ```ts
 class CTile extends collabs.CObject {
   readonly revealed: collabs.TrueWinsCBoolean;
-  readonly flag: collabs.LwwCRegister<FlagStatus>;
+  readonly flag: collabs.LwwCVariable<FlagStatus>;
   readonly isMine: boolean;
   readonly number: number;
 
@@ -171,7 +171,7 @@ class CTile extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      collabs.Pre(collabs.LwwCRegister)<FlagStatus>(FlagStatus.NONE)
+      collabs.Pre(collabs.LwwCVariable)<FlagStatus>(FlagStatus.NONE)
     );
     this.isMine = isMine;
     this.number = number;
@@ -226,12 +226,12 @@ class MinesweeperCollab extends collabs.CObject {
 }
 ```
 
-Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LwwMutCRegister<CMinesweeper>` because the game is internally mutable:
+Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LwwMutCVariable<CMinesweeper>` because the game is internally mutable:
 
 ```ts
 const currentGame = runtime.registerCollab(
   "currentGame",
-  collabs.Pre(collabs.LwwMutCRegister)(
+  collabs.Pre(collabs.LwwMutCVariable)(
     collabs.ConstructorAsFunction(CMinesweeper)
   )
 );
@@ -252,7 +252,7 @@ runtime.on("Change", () => {
 
 TODO
 
-Point out registers general usefulness (again), for spreadsheet cell.
+Point out variables general usefulness (again), for spreadsheet cell.
 
 
 ### Sorted Set

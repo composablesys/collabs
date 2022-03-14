@@ -13,7 +13,7 @@ Transactions (more generally, batches) have some useful properties:
 - For a given operation `o` and transaction `t`, `o` will be either causally greater (/lesser/concurrent) to all operations in `t`, or to none of them.
 - All operations in a batch get identical [`CRDTMeta`](./typedoc/interfaces/CRDTMeta.html)s. In particular, they all have identical wall-clock times, set according to the wall-clock time of the first operation.
 
-One consequence of these properties is that if you set multiple `LwwCRegister`s or `LwwCMap` values in a single transaction, and a concurrent transaction also sets all of the same values, then one of the transactions will win completely: all of the resulting values will come from one transaction or the other, not a mix of the two.
+One consequence of these properties is that if you set multiple `LwwCVariable`s or `LwwCMap` values in a single transaction, and a concurrent transaction also sets all of the same values, then one of the transactions will win completely: all of the resulting values will come from one transaction or the other, not a mix of the two.
 
 ## Ending Transactions
 

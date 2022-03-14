@@ -1,0 +1,35 @@
+message CollabIDMessage {
+    repeated string pathToBase = 1;
+}
+
+message ArrayMessage {
+    repeated bytes elements = 1;
+}
+
+message ObjectMessage {
+    map<string, bytes> properties = 1;
+}
+
+message DefaultSerializerMessage {
+    oneof value {
+        string stringValue = 1;
+        sint64 intValue = 2;
+        double doubleValue = 3;
+        bool booleanValue = 4;
+        bool undefinedValue = 5;
+        bool nullValue = 6;
+        CollabIDMessage collabIDValue = 7;
+        ArrayMessage arrayValue = 8;
+        ObjectMessage objectValue = 9;
+        bytes bytesValue = 10;
+    }
+}
+
+message PairSerializerMessage {
+  required bytes one = 1;
+  required bytes two = 2;
+}
+
+message OptionalSerializerMessage {
+  optional bytes valueIfPresent = 1;
+}

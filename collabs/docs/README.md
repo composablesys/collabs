@@ -12,6 +12,7 @@
 - [User Presence](./user_presence.md)
 - [Serialization](./serialization.md)
 - [Internals](./internals.md)
+- [Packages](./packages.md)
 - [Related Work](./related_work.md)
 - [Why Make Collabs?](./why.md)
 

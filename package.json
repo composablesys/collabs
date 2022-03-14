@@ -6,10 +6,9 @@
   },
   "comment": "workspaces must be in build order, and workspace names must not include spaces or otherwise fail to be proper bash args",
   "workspaces": [
+    "core",
+    "crdts",
     "collabs",
-    "json",
-    "json-opt",
-    "tensor-average",
     "container",
     "ws-client",
     "ws-server",
@@ -18,7 +17,10 @@
     "template-custom-type",
     "template-container",
     "template-app",
-    "demos",
+    "demos/types/json",
+    "demos/types/json-opt",
+    "demos/types/tensor-average",
+    "demos/apps",
     "benchmarks"
   ],
   "workspacesNoTest": [
@@ -31,7 +33,7 @@
     "template-custom-type"
   ],
   "scripts": {
-    "start": "npm start --prefix demos",
+    "start": "npm start --prefix demos/apps",
     "foreach-workspace": "node foreach-workspace.js",
     "build": "npm run foreach-workspace \"npm run build --prefix\"",
     "test": "npm run foreach-workspace \"npm run test --prefix\"",

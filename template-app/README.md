@@ -57,7 +57,7 @@ You can easily modify the testing server for testing with these other `Broadcast
   3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/my_app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
   <!--
 
-- `WebRtcNetwork` from [@collabs/webrtc-client](TODO):
-  1. Install the WebRTC server: `npm i --save Collabs-webrtc-server`.
-  2. Replace the call to `startWebSocketServer` in `server/testing_server.ts` with a call to `startWebRtcServer`, imported from `Collabs-webrtc-server`.
+- `WebRtcNetwork` from [@collabs/webrtc-client](https://www.npmjs.com/package/@collabs/webrtc-client):
+  1. Install the WebRTC server: `npm i --save @collabs/webrtc-server`.
+  2. Replace the call to `startWebSocketServer` in `server/testing_server.ts` with a call to `startWebRtcServer`, imported from `@collabs/webrtc-server`.
   3. Start the server and navigate to your app as usual. -->
