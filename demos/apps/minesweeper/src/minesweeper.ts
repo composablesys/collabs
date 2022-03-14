@@ -245,7 +245,10 @@ class MinesweeperCollab extends collabs.CObject {
   function refreshDisplay() {
     // @ts-ignore
     board.innerHTML = "";
-    let state = currentState.value;
+    let state =
+      currentState.value === "settings"
+        ? currentSettings.value
+        : currentGame.value.get();
 
     for (let y = 0; y < state.height; y++) {
       let row = document.createElement("tr");
@@ -256,7 +259,7 @@ class MinesweeperCollab extends collabs.CObject {
         box.setAttribute("col", x.toString());
         box.className = "cell";
         box.id = "row_" + y.toString() + "_" + x.toString();
-        if (state instanceof MinesweeperCollab) {
+        if (currentState.value === "game") {
           let game = state as MinesweeperCollab;
           let tile = game.tiles[x][y];
           box.addEventListener("click", (event) => {
@@ -329,7 +332,7 @@ class MinesweeperCollab extends collabs.CObject {
                   Math.random() + ""
                 )
                 .get();
-              currentState.value = newGame;
+              currentState.value = "game";
               newGame.leftClick(x, y);
             }
           });
@@ -401,9 +404,7 @@ class MinesweeperCollab extends collabs.CObject {
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    collabs.Pre(collabs.LWWCVariable)<MinesweeperCollab | GameSettings>(
-      currentSettings.value
-    )
+    collabs.Pre(collabs.LWWCVariable)<"game" | "settings">("settings")
   );
 
   container.on("Change", invalidate);
@@ -411,7 +412,7 @@ class MinesweeperCollab extends collabs.CObject {
   // Respond to user input.
   document.getElementById("newGame")!.onclick = function () {
     currentSettings.value = settingsFromInput();
-    currentState.value = currentSettings.value;
+    currentState.value = "settings";
   };
   // Other event listeners are added directly in refreshDisplay.
 

@@ -1915,7 +1915,7 @@ const IRREGULAR_DEFAULTS = {
   f2: "f",
 };
 
-// Maps alleleName's to their controlling LWWCRegister.
+// Maps alleleName's to their controlling LWWCVariable.
 let alleles = {};
 
 // Async so we can await load.
@@ -1928,7 +1928,7 @@ async function collabsSetup() {
       const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
       alleles[alleleName] = container.registerCollab(
         alleleName,
-        collabs.Pre(collabs.LWWCRegister)(defaultValue)
+        collabs.Pre(collabs.LWWCVariable)(defaultValue)
       );
       alleles[alleleName].on("Set", () => {
         // Reflect the change in the GUI.

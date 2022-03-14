@@ -33,7 +33,7 @@
     "template-custom-type"
   ],
   "scripts": {
-    "start": "npm start --prefix demos",
+    "start": "npm start --prefix demos/apps",
     "foreach-workspace": "node foreach-workspace.js",
     "build": "npm run foreach-workspace \"npm run build --prefix\"",
     "test": "npm run foreach-workspace \"npm run test --prefix\"",
