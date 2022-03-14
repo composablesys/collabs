@@ -20,8 +20,8 @@
   "dependencies": {
     "@airbnb/node-memwatch": "^2.0.0",
     "@collabs/collabs": "0.4.0",
-    "@collabs/json": "file:../demos/types/json",
-    "@collabs/json-opt": "file:../demos/types/json-opt",
+    "@collabs/json": "file:demos/types/json",
+    "@collabs/json-opt": "file:demos/types/json-opt",
     "@types/node": "^15.6.1",
     "automerge": "^1.0.1-preview.7",
     "benchmark": "^2.1.4",
