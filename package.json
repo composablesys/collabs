@@ -6,6 +6,8 @@
   },
   "comment": "workspaces must be in build order, and workspace names must not include spaces or otherwise fail to be proper bash args",
   "workspaces": [
+    "core",
+    "crdts",
     "collabs",
     "json",
     "json-opt",

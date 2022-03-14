@@ -1,22 +1,20 @@
 {
-  "name": "@collabs/collabs",
+  "name": "@collabs/core",
   "version": "0.4.0",
-  "description": "A collections library for collaborative data structures",
+  "description": "A collections library for collaborative data structures (core)",
   "author": "collabs contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/collabs/tree/master/collabs#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/core#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/collabs.git"
   },
   "keywords": [
     "Collabs",
-    "CRDT",
     "collaboration",
-    "local-first",
     "collections",
     "data structures"
   ],
@@ -28,20 +26,23 @@
     "/build"
   ],
   "directories": {
-    "lib": "src"
+    "lib": "src",
+    "test": "test"
   },
   "publishConfig": {
     "access": "public"
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/core": "0.4.0",
-    "@collabs/crdts": "0.4.0",
+    "seedrandom": "^3.0.5",
+    "buffer": "^6.0.3",
+    "protobufjs": "~6.9.0",
     "tslib": "^2.0.1"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
     "@types/mocha": "^9.1.0",
+    "@types/seedrandom": "^2.4.28",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "chai": "^4.2.0",
@@ -49,6 +50,7 @@
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-import": "~2.24.2",
+    "mkdirp": "^1.0.4",
     "mocha": "^9.2.0",
     "npm-run-all": "^4.1.5",
     "pkg-ok": "^2.3.1",
@@ -61,15 +63,20 @@
   "scripts": {
     "prepack": "npm run clean && npm run build && npm run test",
     "build": "npm-run-all build:*",
-    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
-    "build:typedoc": "typedoc --out docs/typedoc src/index.ts --tsconfig tsconfig.json",
+    "build:protobuf": "npm-run-all build:protobuf:*",
+    "build:protobuf:prepare": "mkdirp generated_esm generated build/esm/generated",
+    "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find src -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
+    "build:protobuf:hack": "node hack_protobuf_for_tree_shaking.js generated_esm/proto_compiled.js",
+    "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
+    "build:typedoc": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
     "test:lint": "eslint --ext .ts,.js .",
-    "test:unit": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' TS_NODE_SCOPE=true mocha",
+    "test:unit": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf generated generated_esm build docs/typedoc"
+    "clean": "rimraf generated generated_esm build docs"
   }
 }

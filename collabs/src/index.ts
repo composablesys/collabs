@@ -1,5 +1,2 @@
-export * from "./core";
-export * from "./util";
-export * from "./data_types";
-export * from "./constructions";
-export * from "./crdts";
+export * from "@collabs/core";
+export * from "@collabs/crdts";

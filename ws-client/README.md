@@ -1,4 +1,4 @@
-# @collabs/ws-server
+# @collabs/ws-client
 
 **Collabs WebSocket client**
 

@@ -1,7 +1,9 @@
 .DS_Store
 node_modules
 build
-docs/typedoc
+docs
+generated
+generated_esm
 .vscode/
 .idea/
 *.tsbuildinfo
