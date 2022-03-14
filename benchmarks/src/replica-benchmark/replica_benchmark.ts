@@ -168,6 +168,10 @@ export class ReplicaBenchmark<I> {
         }
       }
 
+      // // For profiling memory usage:
+      // console.log("Ready to profile");
+      // await new Promise((resolve) => setTimeout(resolve, 1000 * 1000));
+
       // Check final state.
       if (this.trace.correctState !== undefined) {
         assert.deepStrictEqual(

@@ -1,106 +1,200 @@
 import {
-  bytesAsString,
-  DefaultSerializer,
-  Optional,
-  Serializer,
-  stringAsBytes,
-  AbstractCList,
-  CListEventsRecord,
+  InitToken,
+  Message,
+  MessageMeta,
+  AbstractCListCPrimitive,
   FoundLocation,
   LocatableCList,
-  MakeAbstractCList,
-  InitToken,
-  MessageMeta,
+  DefaultSerializer,
+  int64AsNumber,
+  Optional,
+  Serializer,
 } from "@collabs/core";
 import {
-  IPrimitiveCListDeleteRangeMessage,
   IPrimitiveCListInsertMessage,
   IPrimitiveCListSave,
-  PrimitiveCListInsertMessage,
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../generated/proto_compiled";
-import { PrimitiveCRDT } from "../constructions";
-import { CRDTMeta } from "../crdt-runtime";
-import { DenseLocalList } from "./dense_local_list";
-import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
+import { Position, PositionSource } from "./position_source";
 
-const AbstractCListPrimitiveCRDT = MakeAbstractCList(
-  PrimitiveCRDT
-) as abstract new <
-  T,
-  InsertArgs extends unknown[],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
->(
-  initToken: InitToken
-) => AbstractCList<T, InsertArgs> & PrimitiveCRDT<Events>;
-
-export class PrimitiveCListFromDenseLocalList<
-    T,
-    L extends object,
-    DenseT extends DenseLocalList<L, T>
-  >
-  extends AbstractCListPrimitiveCRDT<T, [T]>
-  implements LocatableCList<T, [T]>
+export class PrimitiveCList<T>
+  extends AbstractCListCPrimitive<T, [T]>
+  implements LocatableCList<T>
 {
-  // OPT: make senderCounters optional?  (Only needed
-  // if you will do deleteRange, and take up space.)
-  // OPT: use uniqueNumbers (from ids) instead of
-  // senderCounters?  (Send maximum abs value of a uniqueNumber
-  // present in the deleted range for each user; compare
-  // to those instead of senderCounters in deleteRange;
-  // get rid of this map).  Would reduce memory by 4MB,
-  // save size by 200-300KB, save & load time, and
-  // need for causality, at the expense of larger
-  // deleteRange messages (since we are not piggy-backing
-  // on the MessageMeta), especially in bulk messages.
-  // OPT: try putting this in the values instead of its
-  // own map.
-  /**
-   * keys are precisely the locs in the list.
-   */
-  protected readonly senderCounters = new Map<L, number>();
+  private readonly positionSource: PositionSource;
+  private readonly _values: Map<string, T[][]>;
 
-  /**
-   * @param denseLocalList                   [description]
-   * @param valueSerializer [description]
-   * @param valueArraySerializer (optional) optimized
-   * serializer for arrays of values during range ops.
-   * If undefined, then valueSerializer is used on each
-   * value instead.
-   */
   constructor(
     initToken: InitToken,
-    protected readonly denseLocalList: DenseT,
     protected readonly valueSerializer: Serializer<T> = DefaultSerializer.getInstance(),
     protected readonly valueArraySerializer:
       | Serializer<T[]>
       | undefined = undefined
   ) {
     super(initToken);
+
+    this.positionSource = new PositionSource(this.runtime.replicaID);
+    this._values = new Map();
+    this._values.set("", []);
   }
+
+  // TODO: optimize bulk methods.
 
   insert(index: number, value: T): T;
   insert(index: number, ...values: T[]): T | undefined;
   insert(index: number, ...values: T[]): T | undefined {
     if (values.length === 0) return undefined;
 
-    const locMessage = this.denseLocalList.prepareNewLocs(index, values.length);
-    const imessage: IPrimitiveCListInsertMessage = { locMessage };
+    const prevPos = index === 0 ? null : this.positionSource.get(index - 1);
+    const [counter, startValueIndex, metadata] =
+      this.positionSource.createPositions(prevPos);
+
+    const imessage: IPrimitiveCListInsertMessage = {
+      counter,
+      startValueIndex,
+      metadata,
+    };
     if (values.length === 1) {
       imessage.value = this.valueSerializer.serialize(values[0]);
     } else if (this.valueArraySerializer !== undefined) {
-      imessage.values = this.valueArraySerializer.serialize(values);
+      imessage.valuesArray = this.valueArraySerializer.serialize(values);
     } else {
-      imessage.valuesArray = {
-        values: values.map((oneValue) =>
-          this.valueSerializer.serialize(oneValue)
-        ),
-      };
+      imessage.values = values.map((value) =>
+        this.valueSerializer.serialize(value)
+      );
     }
-    const message = PrimitiveCListMessage.create({ insert: imessage });
-    this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
+
+    const message = PrimitiveCListMessage.create({
+      insert: imessage,
+    });
+    this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+
     return values[0];
+  }
+
+  delete(startIndex: number, count = 1): void {
+    if (startIndex < 0) {
+      throw new Error(`startIndex out of bounds: ${startIndex}`);
+    }
+    if (startIndex + count > this.length) {
+      throw new Error(
+        `(startIndex + count) out of bounds: ${startIndex} + ${count} (length: ${this.length})`
+      );
+    }
+
+    // TODO: native range deletes? E.g. compress waypoint valueIndex ranges.
+    // TODO: optimize range iteration (back to front).
+    // Delete from back to front, so indices make sense.
+    for (let i = startIndex + count - 1; i >= startIndex; i--) {
+      const pos = this.positionSource.get(i);
+      const message = PrimitiveCListMessage.create({
+        delete: {
+          sender: pos[0] === this.runtime.replicaID ? null : pos[0],
+          counter: pos[1],
+          valueIndex: pos[2],
+        },
+      });
+      this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+    }
+  }
+
+  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+    // TODO: events
+    const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
+    switch (decoded.op) {
+      case "insert": {
+        const counter = int64AsNumber(decoded.insert!.counter);
+        const startValueIndex = decoded.insert!.startValueIndex;
+        const metadata = Object.prototype.hasOwnProperty.call(
+          decoded.insert!,
+          "metadata"
+        )
+          ? decoded.insert!.metadata!
+          : null;
+
+        let values: T[];
+        if (Object.prototype.hasOwnProperty.call(decoded.insert!, "value")) {
+          values = [this.valueSerializer.deserialize(decoded.insert!.value!)];
+        } else if (this.valueArraySerializer !== undefined) {
+          values = this.valueArraySerializer.deserialize(
+            decoded.insert!.valuesArray!
+          );
+        } else {
+          values = decoded.insert!.values!.map((value) =>
+            this.valueSerializer.deserialize(value)
+          );
+        }
+
+        const pos: Position = [meta.sender, counter, startValueIndex];
+        this.positionSource.receiveAndAddPositions(
+          pos,
+          values.length,
+          metadata
+        );
+
+        const bySender = this._values.get(meta.sender);
+        if (bySender === undefined) {
+          this._values.set(meta.sender, [values]);
+        } else if (counter === bySender.length) {
+          bySender.push(values);
+        } else {
+          bySender[counter].push(...values);
+        }
+
+        // Here we exploit the LtR non-interleaving property
+        // to assert that the inserted values are contiguous.
+        this.emit("Insert", {
+          startIndex: this.positionSource.find(pos)[0],
+          count: values.length,
+          meta,
+        });
+
+        break;
+      }
+      case "delete": {
+        const sender = Object.prototype.hasOwnProperty.call(
+          decoded.delete!,
+          "sender"
+        )
+          ? decoded.delete!.sender!
+          : meta.sender;
+        const counter = int64AsNumber(decoded.delete!.counter);
+        const valueIndex = decoded.delete!.valueIndex;
+        const pos: Position = [sender, counter, valueIndex];
+        if (this.positionSource.delete(pos)) {
+          const byCounter = this._values.get(sender)![counter];
+          const deletedValues = [byCounter[valueIndex]];
+          delete byCounter[valueIndex];
+
+          this.emit("Delete", {
+            startIndex: this.positionSource.find(pos)[0],
+            count: 1,
+            deletedValues,
+            meta,
+          });
+        }
+        break;
+      }
+      default:
+        throw new Error(`Unrecognized decoded.op: ${decoded.op}`);
+    }
+  }
+
+  get(index: number): T {
+    const pos = this.positionSource.get(index);
+    return this._values.get(pos[0])![pos[1]][pos[2]];
+  }
+
+  *values(): IterableIterator<T> {
+    // TODO: use positionsOpt.
+    for (const pos of this.positionSource.positions()) {
+      yield this._values.get(pos[0])![pos[1]][pos[2]];
+    }
+  }
+
+  get length(): number {
+    return this.positionSource.length;
   }
 
   // Override alias insert methods so we can accept
@@ -130,306 +224,90 @@ export class PrimitiveCListFromDenseLocalList<
     }
   }
 
-  /**
-   * Note: event will show as varying bulk deletes,
-   * since the deleted values may not be contiguous anymore
-   * on other replicas.
-   *
-   * @param index   [description]
-   * @param count=1 [description]
-   */
-  delete(startIndex: number, count = 1): void {
-    if (count < 0 || !Number.isInteger(count)) {
-      throw new Error(`invalid count: ${count}`);
-    }
-    if (count === 0) return;
-    if (count === 1) {
-      const id = this.denseLocalList.idOf(
-        this.denseLocalList.getLoc(startIndex)
-      );
-      const message = PrimitiveCListMessage.create({
-        delete: {
-          sender: id[0],
-          uniqueNumber: id[1],
-        },
-      });
-      this.sendCRDT(PrimitiveCListMessage.encode(message).finish());
-    } else {
-      const imessage: IPrimitiveCListDeleteRangeMessage = {};
-      if (startIndex !== 0) {
-        imessage.startLoc = this.denseLocalList.serialize(
-          this.denseLocalList.getLoc(startIndex)
-        );
-      }
-      if (startIndex + count !== this.length) {
-        imessage.endLoc = this.denseLocalList.serialize(
-          this.denseLocalList.getLoc(startIndex + count - 1)
-        );
-      }
-      const message = PrimitiveCListMessage.create({
-        deleteRange: imessage,
-      });
-      // Automatic mode suffices to send all of the needed
-      // vector clock entries (those corresponding to
-      // values being deleted).
-      this.sendCRDT(PrimitiveCListMessage.encode(message).finish(), {
-        automatic: true,
-      });
-    }
-  }
-
-  clear() {
-    const message = PrimitiveCListMessage.create({ deleteRange: {} });
-    // Automatic mode suffices to send all of the needed
-    // vector clock entries (those corresponding to
-    // values being deleted).
-    this.sendCRDT(PrimitiveCListMessage.encode(message).finish(), {
-      automatic: true,
-    });
-  }
-
-  protected receiveCRDT(
-    message: string | Uint8Array,
-    meta: MessageMeta,
-    crdtMeta: CRDTMeta
-  ): void {
-    const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
-    switch (decoded.op) {
-      case "insert": {
-        const insert = PrimitiveCListInsertMessage.create(decoded.insert!);
-        let values: T[];
-        switch (insert.type) {
-          case "value":
-            values = [this.valueSerializer.deserialize(insert.value)];
-            break;
-          case "values":
-            values = this.valueArraySerializer!.deserialize(insert.values);
-            break;
-          case "valuesArray":
-            values = insert.valuesArray!.values!.map((oneValue) =>
-              this.valueSerializer.deserialize(oneValue)
-            );
-            break;
-          default:
-            throw new Error(`Unrecognized insert.type: ${insert.type}`);
-        }
-        const [index, locs] = this.denseLocalList.receiveNewLocs(
-          insert.locMessage,
-          meta,
-          values
-        );
-        // Store senderCounters.
-        for (const loc of locs) {
-          this.senderCounters.set(loc, crdtMeta.senderCounter);
-        }
-        // Event
-        this.emit("Insert", {
-          startIndex: index,
-          count: values.length,
-          meta,
-        });
-        break;
-      }
-      case "delete": {
-        // Single delete, using id.
-        const toDelete = this.denseLocalList.getLocById(
-          decoded.delete!.sender,
-          decoded.delete!.uniqueNumber
-        );
-        if (toDelete !== undefined) {
-          const ret = this.denseLocalList.delete(toDelete)!;
-          // Delete from senderCounters.
-          this.senderCounters.delete(toDelete);
-          // Event
-          this.emit("Delete", {
-            startIndex: ret[0],
-            count: 1,
-            deletedValues: [ret[1]],
-            meta,
-          });
-        } // Else already deleted
-        break;
-      }
-      case "deleteRange": {
-        // Range delete, using start & end locs
-        // OPT: use internal iterator instead (O(1) instead
-        // of O(log n) to get next).  Perhaps expose slice
-        // or forEach functionality on partial ranges.
-        // Can also optimize by giving the startLoc instead
-        // of startIndex.  Also, can use RBTree's iter.remove
-        // method to remove elements without doing an
-        // extra O(log n) remove each (which is most of
-        // the current cost).
-        const startIndex = Object.prototype.hasOwnProperty.call(
-          decoded.deleteRange!,
-          "startLoc"
-        )
-          ? this.denseLocalList.findLoc(
-              this.denseLocalList.deserialize(decoded.deleteRange!.startLoc!)
-            ).geIndex
-          : 0;
-        const endIndex = Object.prototype.hasOwnProperty.call(
-          decoded.deleteRange!,
-          "endLoc"
-        )
-          ? this.denseLocalList.findLoc(
-              this.denseLocalList.deserialize(decoded.deleteRange!.endLoc!)
-            ).leIndex
-          : this.length - 1;
-
-        const toDelete: L[] = [];
-        for (let i = startIndex; i <= endIndex; i++) {
-          const loc = this.denseLocalList.getLoc(i);
-          // Check causality
-          const vcEntry = crdtMeta.vectorClockGet(
-            this.denseLocalList.idOf(loc)[0]
-          );
-          if (vcEntry >= this.senderCounters.get(loc)!) {
-            // Store for later instead of deleting
-            // immediately, so that indices don't move on
-            // us unexpectedly.
-            toDelete.push(loc);
-          }
-        }
-        // Delete in reverse order, so that indices
-        // are valid both before and at the time of
-        // deletion.  This isn't necessary but may
-        // avoid confusion.
-        for (let i = toDelete.length - 1; i >= 0; i--) {
-          const ret = this.denseLocalList.delete(toDelete[i])!;
-          // Delete from senderCounters.
-          this.senderCounters.delete(toDelete[i]);
-          // Event
-          // OPT: bulk events.
-          // Also, can we make that work with string?
-          // (Use array | string for deletedValues?)
-          this.emit("Delete", {
-            startIndex: ret[0],
-            count: 1,
-            deletedValues: [ret[1]],
-            meta,
-          });
-        }
-        break;
-      }
-      default:
-        throw new Error(`Unrecognized decoded.op: ${decoded.op}`);
-    }
-  }
-
-  get(index: number): T {
-    return this.denseLocalList.get(index);
-  }
-
-  getLocation(index: number): string {
-    return bytesAsString(
-      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
-    );
-  }
-
-  *locationEntries(): IterableIterator<[string, T]> {
-    for (const [loc, value] of this.denseLocalList.entries()) {
-      yield [bytesAsString(this.denseLocalList.serialize(loc)), value];
-    }
-  }
-
-  findLocation(location: string): FoundLocation {
-    return this.denseLocalList.findLoc(
-      this.denseLocalList.deserialize(stringAsBytes(location))
-    );
-  }
-
-  values(): IterableIterator<T> {
-    return this.denseLocalList.values();
-  }
-
-  get length(): number {
-    return this.denseLocalList.length;
-  }
-
   slice(start?: number, end?: number): T[] {
     // Optimize common case (slice())
     if (start === undefined && end === undefined) {
-      return this.denseLocalList.valuesArray();
+      return [...this.values()];
     } else return super.slice(start, end);
   }
 
-  canGC(): boolean {
-    return this.denseLocalList.canGC();
+  getLocation(index: number): string {
+    const pos = this.positionSource.get(index);
+    // TODO: shorter encoding? Also in locationEntries().
+    return JSON.stringify(pos);
+  }
+
+  findLocation(location: string): FoundLocation {
+    const pos = <Position>JSON.parse(location);
+    return new FoundLocation(...this.positionSource.find(pos));
+  }
+
+  *locationEntries(): IterableIterator<[string, T]> {
+    // TODO: use positionsOpt.
+    for (const pos of this.positionSource.positions()) {
+      yield [JSON.stringify(pos), this._values.get(pos[0])![pos[1]][pos[2]]];
+    }
   }
 
   save(): Uint8Array {
-    const senderCountersSave = new Array<number>(this.denseLocalList.length);
-    let i = 0;
-    this.denseLocalList.forEach((_, loc) => {
-      senderCountersSave[i] = this.senderCounters.get(loc)!;
-      i++;
-    });
     const imessage: IPrimitiveCListSave = {
-      locs: this.denseLocalList.saveLocs(),
-      senderCounters: senderCountersSave,
+      positionSourceSave: this.positionSource.save(),
     };
     if (this.valueArraySerializer !== undefined) {
-      imessage.values = this.valueArraySerializer.serialize(
-        this.denseLocalList.valuesArray()
+      imessage.valuesArraySave = this.valueArraySerializer.serialize(
+        this.slice()
       );
     } else {
-      imessage.valuesArray = {
-        values: this.denseLocalList
-          .valuesArray()
-          .map((oneValue) => this.valueSerializer.serialize(oneValue)),
-      };
+      imessage.valuesSave = new Array(this.length);
+      let i = 0;
+      for (const value of this.values()) {
+        imessage.valuesSave[i] = this.valueSerializer.serialize(value);
+        i++;
+      }
     }
     const message = PrimitiveCListSave.create(imessage);
     return PrimitiveCListSave.encode(message).finish();
   }
 
   load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) return;
-    const decoded = PrimitiveCListSave.decode(saveData.get());
-    if (this.valueArraySerializer !== undefined) {
-      const values = this.valueArraySerializer.deserialize(decoded.values);
-      this.denseLocalList.loadLocs(decoded.locs, (index) => values[index]);
-    } else {
-      this.denseLocalList.loadLocs(decoded.locs, (index) =>
-        this.valueSerializer.deserialize(decoded.valuesArray!.values![index])
-      );
-    }
-    // Load this.senderCounters.
-    let i = 0;
-    this.denseLocalList.forEach((_, loc) => {
-      this.senderCounters.set(loc, decoded.senderCounters[i]);
-      i++;
-    });
-    // for (const loc of this.denseLocalList.locs()) {
-    //   const id = this.denseLocalList.idOf(loc);
-    //   let senderLocsById = this.locsById.get(id[0]);
-    //   if (senderLocsById === undefined) {
-    //     senderLocsById = new Map();
-    //     this.locsById.set(id[0], senderLocsById);
-    //   }
-    //   senderLocsById.set(id[1], loc);
-    //   this.senderCounters.set(loc, decoded.senderCounters[i]);
-    //   i++;
-    // }
-  }
-}
+    if (saveData.isPresent) {
+      const decoded = PrimitiveCListSave.decode(saveData.get());
+      this.positionSource.load(decoded.positionSourceSave);
+      let values: T[];
+      if (this.valueArraySerializer !== undefined) {
+        values = this.valueArraySerializer.deserialize(decoded.valuesArraySave);
+      } else {
+        values = decoded.valuesSave.map((value) =>
+          this.valueSerializer.deserialize(value)
+        );
+      }
 
-export class PrimitiveCList<T> extends PrimitiveCListFromDenseLocalList<
-  T,
-  RgaLoc,
-  RgaDenseLocalList<T>
-> {
-  constructor(
-    initToken: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance(),
-    valueArraySerializer: Serializer<T[]> | undefined = undefined
-  ) {
-    super(
-      initToken,
-      new RgaDenseLocalList(initToken.runtime),
-      valueSerializer,
-      valueArraySerializer
-    );
+      // Fill values into this._values according to positionSource.
+      let i = 0;
+      for (const pos of this.positionSource.positions()) {
+        let bySender = this._values.get(pos[0]);
+        if (bySender === undefined) {
+          bySender = new Array(this.positionSource.countersFor(pos[0]));
+          this._values.set(pos[0], bySender);
+        }
+        let byCounter = bySender[pos[1]];
+        if (byCounter === undefined) {
+          byCounter = [];
+          bySender[pos[1]] = byCounter;
+        }
+        byCounter[pos[2]] = values[i];
+        i++;
+      }
+    }
+  }
+
+  canGC(): boolean {
+    // TODO: return true if not yet mutated
+    return false;
+  }
+
+  // TODO: remove
+  printTreeWalk() {
+    this.positionSource.printTreeWalk();
   }
 }

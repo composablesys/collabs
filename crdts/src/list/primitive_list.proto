@@ -1,40 +1,29 @@
-message PrimitiveCListValueArrayMessage {
-  repeated bytes values = 1;
-}
-
 message PrimitiveCListInsertMessage {
-  required bytes locMessage = 1;
-  oneof type {
-    bytes value = 2;
-    bytes values = 3;
-    PrimitiveCListValueArrayMessage valuesArray = 4;
-  }
+  required uint64 counter = 1;
+  required uint32 startValueIndex = 2;
+  optional bytes metadata = 3;
+  // oneof these next 3.
+  optional bytes value = 4;
+  optional bytes valuesArray = 5;
+  repeated bytes values = 6;
 }
 
 message PrimitiveCListDeleteMessage {
-  required string sender = 1;
-  required sint32 uniqueNumber = 2;
-}
-
-message PrimitiveCListDeleteRangeMessage {
-  // Unset start/end mean to go to the list start/end
-  optional bytes startLoc = 1;
-  optional bytes endLoc = 2;
+  // Not set if same as message sender.
+  optional string sender = 1;
+  required uint64 counter = 2;
+  required uint32 valueIndex = 3;
 }
 
 message PrimitiveCListMessage {
   oneof op {
     PrimitiveCListInsertMessage insert = 1;
-    PrimitiveCListDeleteMessage delete = 2;
-    PrimitiveCListDeleteRangeMessage deleteRange = 3;
+    PrimitiveCListDeleteMessage delete = 3;
   }
 }
 
 message PrimitiveCListSave {
-  required bytes locs = 1;
-  repeated uint32 senderCounters = 2 [packed=true];
-  oneof valueType {
-    bytes values = 3;
-    PrimitiveCListValueArrayMessage valuesArray = 4;
-  }
+  required bytes positionSourceSave = 1;
+  optional bytes valuesArraySave = 2;
+  repeated bytes valuesSave = 3;
 }
