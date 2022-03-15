@@ -7,9 +7,70 @@ import {
 export type Position = [sender: string, counter: number, valueIndex: number];
 
 /**
+ * TODO.
+ *
+ * Okay to modify input items directly and return them so long as you don't keep
+ * references outside that might be affected (including args before and
+ * after a method call). (TODO: check our use of this.)
+ *
+ * @type I The "Item" type, which holds a range of values (e.g., string, array,
+ * number indicating number of values).
+ */
+export interface ItemManager<I> {
+  /**
+   * Return item's length.
+   */
+  length(item: I): number;
+
+  /**
+   * Return a singleton item containing just the value at the given index in item.
+   *
+   * TODO: use value type instead?
+   */
+  get(item: I, index: number): I;
+
+  /**
+   * Return an item containing the contents of a followed by the contents
+   * of b.
+   */
+  merge(a: I, b: I): I;
+
+  /**
+   * Return an item containing the contents of a followed by b and then c.
+   * Can assume b is a singleton.
+   */
+  merge3(a: I, b: I, c: I): I;
+
+  /**
+   * Split item at index, returning items representing values:
+   * - left: item[:index]
+   * - right: item[index:]
+   */
+  split(item: I, index: number): [left: I, right: I];
+
+  /**
+   * Split item at index and also delete the value at index,
+   * returning items representing values:
+   * - left: item[:index]
+   * - right: item[index + 1:]
+   */
+  splitDelete(item: I, index: number): [left: I, right: I];
+
+  /**
+   * Return item with its first value trimmed, i.e., item[1:].
+   */
+  trimFirst(item: I): I;
+
+  /**
+   * Return item with its last value trimmed, i.e., item[:length-1].
+   */
+  trimLast(item: I): I;
+}
+
+/**
  * Every non-root waypoint must have at least one value.
  */
-class Waypoint {
+class Waypoint<I> {
   constructor(
     /**
      * "" for the root.
@@ -26,7 +87,7 @@ class Waypoint {
      * Mutable only for during loading (then is temporarily
      * null while we construct everything).
      */
-    public parentWaypoint: Waypoint | null,
+    public parentWaypoint: Waypoint<I> | null,
     /**
      * The valueIndex of our true parent (a value within
      * parentWaypoint).
@@ -47,25 +108,52 @@ class Waypoint {
    * A child is one of:
    * - A child waypoint, i.e., a waypoint that is a true
    * child of one of this waypoint's values.
-   * - A positive number, indicating a number of present values.
+   * - An item of type I, containing a contiguous sequence of present values.
    * - A negative number, indicating a number of unpresent values
    * equal to its absolute value.
    *
    * Since every waypoint must have at least one value (including the root's
-   * fake value), this has at least one number.
+   * fake value), this has at least non-waypoint (item or negative number).
    */
-  children: (Waypoint | number)[] = [];
+  children: (Waypoint<I> | I | number)[] = [];
 }
 
-export class PositionSource {
+function isWaypoint<I>(child: Waypoint<I> | I | number): child is Waypoint<I> {
+  return typeof child === "object" && (<object>child).constructor === Waypoint;
+}
+
+function isItem<I>(child: I | number): child is I {
+  return !(typeof child === "number" && child < 0);
+}
+
+function isDeletedValue<I>(child: Waypoint<I> | I | number) {
+  return typeof child === "number" && child < 0;
+}
+
+/**
+ * @return 1 for item, -1 for deleted values (negative number), 0 for waypoint.
+ */
+function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
+  if (isWaypoint(child)) return 0;
+  else if (isDeletedValue(child)) return -1;
+  else return 1;
+}
+
+/**
+ * TODO: items. May not be negative numbers or null.
+ *
+ * @type I The "Item" type, which holds a range of values (e.g., string, array,
+ * number indicating number of values).
+ */
+export class PositionSource<I> {
   /**
    * Map key is waypoint.sender, index in the array is waypoint.counter.
    */
-  private readonly waypointsByID = new Map<string, Waypoint[]>();
+  private readonly waypointsByID = new Map<string, Waypoint<I>[]>();
   /**
    * Root waypoint.
    */
-  private readonly rootWaypoint: Waypoint;
+  private readonly rootWaypoint: Waypoint<I>;
 
   /**
    * Used for assigning unique counters to our Waypoints.
@@ -78,14 +166,19 @@ export class PositionSource {
    * [constructor description]
    * @param replicaID TODO: uniqueness, reusability;
    * must not be "".
-   * @param initialValuesCount=0 The number of initial
+   * @param initialItem An item consistent of the initial
    * values in the list, i.e., values that are present
    * at the list's creation before any operations are
-   * performed. The initial values are assigned the positions
-   * ["", 0, i] for i in [0, initialValuesCount),
+   * performed, or undefined if there are no such values.
+   * The initial values are assigned the positions
+   * ["", 0, i] for i in [0, itemManager.length(initialItem)),
    * i.e., you should store them keyed by those positions.
    */
-  constructor(readonly replicaID: string, initialValuesCount = 0) {
+  constructor(
+    readonly replicaID: string,
+    private readonly itemManager: ItemManager<I>,
+    initialItem?: I
+  ) {
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
     }
@@ -94,16 +187,23 @@ export class PositionSource {
     // Fake leftmost value, marked as unpresent.
     this.rootWaypoint.children.push(-1);
     // Initial values.
-    if (initialValuesCount > 0) {
-      this.rootWaypoint.children.push(initialValuesCount);
-      this.rootWaypoint.totalPresentValues = initialValuesCount;
+    if (initialItem !== undefined) {
+      this.rootWaypoint.children.push(initialItem);
+      this.rootWaypoint.totalPresentValues =
+        this.itemManager.length(initialItem);
     }
+  }
+
+  private valueChildLength(valueChild: number | I): number {
+    return typeof valueChild === "number" && valueChild < 0
+      ? -valueChild
+      : this.itemManager.length(<I>valueChild);
   }
 
   /**
    * Includes error checking.
    */
-  private getWaypoint(sender: string, counter: number): Waypoint {
+  private getWaypoint(sender: string, counter: number): Waypoint<I> {
     const bySender = this.waypointsByID.get(sender);
     if (bySender === undefined) {
       throw new Error(
@@ -122,14 +222,15 @@ export class PositionSource {
     return bySender[counter];
   }
 
-  // TODO: if we plan to use Maps instead of arrays for values, go back to
-  // allowing negative valueIndex?
+  // TODO: Go back to allowing negative valueIndex? See how well it helps
+  // performance (e.g. by reducing waypoints and tree depth).
+  // Should be fine now that we are storing values for the user
+  // (and they can use a map or two arrays to DIY).
 
-  // TODO: in interface version, take an extra arg "count" just in case?
   // TODO: opt getting valueIndex in case where startPos comes from get().
   /**
    * [createPositions description]
-   * @param  startPos position to the left of where you want to insert, or
+   * @param  prevPos position to the left of where you want to insert, or
    * null for the beginning of the list.
    * @return          [description]
    */
@@ -164,8 +265,13 @@ export class PositionSource {
         leftChildIndex++
       ) {
         const child = leftWaypoint.children[leftChildIndex];
-        if (typeof child === "number") {
-          const count = Math.abs(child);
+        if (isDeletedValue(child)) {
+          const count = -child;
+          if (leftOffset < count) break;
+          leftOffset -= count;
+        } else if (!isWaypoint(child)) {
+          // Item case.
+          const count = this.itemManager.length(<I>child);
           if (leftOffset < count) break;
           leftOffset -= count;
         }
@@ -176,7 +282,8 @@ export class PositionSource {
       leftValueIndex = prevPos[2];
     }
 
-    const leftChild = <number>leftWaypoint.children[leftChildIndex];
+    const leftChild = <number | I>leftWaypoint.children[leftChildIndex];
+    const leftChildCount = this.valueChildLength(leftChild);
 
     // The created position will be a new true right child
     // of left neighbor, unless left neighbor already has a
@@ -193,11 +300,11 @@ export class PositionSource {
 
     // See if leftWaypoint has no values after leftNeighbor.
     let isLastValue = true;
-    if (leftOffset !== Math.abs(leftChild) - 1) {
+    if (leftOffset !== leftChildCount - 1) {
       isLastValue = false;
     } else {
       for (let i = leftWaypoint.children.length - 1; i > leftChildIndex; i--) {
-        if (typeof leftWaypoint.children[i] === "number") {
+        if (!isWaypoint(leftWaypoint.children[i])) {
           isLastValue = false;
           break;
         }
@@ -208,7 +315,9 @@ export class PositionSource {
       // However, it is possible that the next leftWaypoint
       // child is a true right child of leftNeighbor.
       if (leftChildIndex + 1 < leftWaypoint.children.length) {
-        const nextChild = <Waypoint>leftWaypoint.children[leftChildIndex + 1];
+        const nextChild = <Waypoint<I>>(
+          leftWaypoint.children[leftChildIndex + 1]
+        );
         if (nextChild.parentValueIndex === leftValueIndex) {
           // Become the new leftmost descendant of nextChild.
           return this.createLeftmostDescendant(nextChild);
@@ -227,10 +336,10 @@ export class PositionSource {
     // If we get here, then leftNeighbor already has a right
     // child; find rightNeighbor and become its new
     // leftmost descendant.
-    if (leftOffset === Math.abs(leftChild) - 1) {
+    if (leftOffset === leftChildCount - 1) {
       // rightNeighbor comes from the next child.
       const nextChild = leftWaypoint.children[leftChildIndex + 1];
-      if (typeof nextChild !== "number") {
+      if (isWaypoint(nextChild)) {
         // Become the new leftmost descendant of nextChild.
         return this.createLeftmostDescendant(nextChild);
       }
@@ -241,27 +350,27 @@ export class PositionSource {
   }
 
   private createLeftmostDescendant(
-    waypoint: Waypoint
+    waypoint: Waypoint<I>
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
     let curWaypoint = waypoint;
     for (;;) {
       const firstChild = curWaypoint.children[0];
-      if (typeof firstChild === "number") {
+      if (isWaypoint(firstChild)) {
+        // firstChild is a waypoint; "recurse".
+        curWaypoint = firstChild;
+      } else {
         // The leftmost child of curWaypoint is a value.
         // That is necessarily the leftmost descendant of
         // waypoint.
         // Note because we are a left child, there is no
         // chance to reuse curWaypoint, even if we sent it.
         return this.createNewWaypoint(curWaypoint, 0, "left");
-      } else {
-        // firstChild is a waypoint; "recurse".
-        curWaypoint = firstChild;
       }
     }
   }
 
   private createNewWaypoint(
-    parentWaypoint: Waypoint,
+    parentWaypoint: Waypoint<I>,
     parentValueIndex: number,
     childSide: "left" | "right"
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
@@ -282,7 +391,8 @@ export class PositionSource {
 
   // TODO: in receivePositions and add/delete, optimize the (common) case where
   // the user calls find right afterward? Can try to avoid looping over
-  // waypoint children twice.
+  // waypoint children twice. (Perhaps that is what makes our sendTime
+  // twice as slow as receiveTime, unlike in Yjs.)
 
   receivePositions(
     startPos: Position,
@@ -294,17 +404,32 @@ export class PositionSource {
 
   receiveAndAddPositions(
     startPos: Position,
-    count: number,
+    item: I,
     metadata: Uint8Array | null
   ): void {
-    this.receivePositionsInternal(startPos, count, metadata, 1);
+    this.receivePositionsInternal(
+      startPos,
+      this.itemManager.length(item),
+      metadata,
+      1,
+      item
+    );
   }
 
+  /**
+   * [receivePositionsInternal description]
+   * @param startPos [description]
+   * @param count    [description]
+   * @param metadata [description]
+   * @param sign     [description]
+   * @param item     Only present for additions (sign = 1).
+   */
   private receivePositionsInternal(
     startPos: Position,
     count: number,
     metadata: Uint8Array | null,
-    sign: 1 | -1
+    sign: 1 | -1,
+    item?: I
   ): void {
     // TODO: wait to change anything until after all checks have passed (so error = no effect)
 
@@ -325,14 +450,27 @@ export class PositionSource {
         childIndex--
       ) {
         const child = waypoint.children[childIndex];
-        if (typeof child === "number") {
+        if (!isWaypoint(child)) {
           // Found the last value child.
-          if (child * sign > 0) {
-            // Increase child's absolute value by count.
-            waypoint.children[childIndex] = child + sign * count;
+          if (sign === 1) {
+            if (isItem(child)) {
+              // Merge.
+              waypoint.children[childIndex] = this.itemManager.merge(
+                child,
+                item!
+              );
+            } else {
+              // Insert new item.
+              waypoint.children.splice(childIndex + 1, 0, item!);
+            }
           } else {
-            // Need to create a new child after.
-            waypoint.children.splice(childIndex + 1, 0, sign * count);
+            if (isItem(child)) {
+              // Insert new deleted values.
+              waypoint.children.splice(childIndex + 1, 0, -count);
+            } else {
+              // Merge.
+              waypoint.children[childIndex] = child - count;
+            }
           }
           break;
         }
@@ -375,7 +513,7 @@ export class PositionSource {
         parentWaypoint,
         decoded.parentValueIndex
       );
-      newWaypoint.children.push(sign * count);
+      newWaypoint.children.push(sign === 1 ? item! : -count);
       if (startPos[0] === this.replicaID) this.nextCounter++;
 
       // Store newWaypoint in this.waypoints.
@@ -429,7 +567,7 @@ export class PositionSource {
         ) {
           const child = parentWaypoint.children[childIndex];
           if (
-            typeof child === "number" ||
+            !isWaypoint(child) ||
             child.parentValueIndex > newWaypoint.parentValueIndex ||
             (child.parentValueIndex === newWaypoint.parentValueIndex &&
               child.sender < newWaypoint.sender)
@@ -459,8 +597,8 @@ export class PositionSource {
             childIndex++
           ) {
             const child = parentWaypoint.children[childIndex];
-            if (typeof child === "number") {
-              childCount = Math.abs(child);
+            if (!isWaypoint(child)) {
+              childCount = this.valueChildLength(child);
               if (remaining <= childCount) break;
               else remaining -= childCount;
             }
@@ -472,15 +610,25 @@ export class PositionSource {
           }
           if (remaining < childCount) {
             // Need to split child.
-            const child = <number>parentWaypoint.children[childIndex];
-            const childSign = Math.sign(child);
-            parentWaypoint.children.splice(
-              childIndex,
-              1,
-              childSign * remaining,
-              newWaypoint,
-              childSign * (childCount - remaining)
-            );
+            const child = <number | I>parentWaypoint.children[childIndex];
+            if (isItem(child)) {
+              const [left, right] = this.itemManager.split(child, remaining);
+              parentWaypoint.children.splice(
+                childIndex,
+                1,
+                left,
+                newWaypoint,
+                right
+              );
+            } else {
+              parentWaypoint.children.splice(
+                childIndex,
+                1,
+                -remaining,
+                newWaypoint,
+                -(childCount - remaining)
+              );
+            }
           } else {
             // newWaypoint goes after child.
             // Remains to sort newWaypoint among any
@@ -504,8 +652,8 @@ export class PositionSource {
    * (or the end), in order by sender.
    */
   private insertLeftChild(
-    parentWaypoint: Waypoint,
-    newWaypoint: Waypoint,
+    parentWaypoint: Waypoint<I>,
+    newWaypoint: Waypoint<I>,
     searchStart: number
   ) {
     for (
@@ -518,7 +666,7 @@ export class PositionSource {
       // of newWaypoint.parentValueIndex - 1; we
       // are greater than those.
       if (
-        typeof nextChild === "number" ||
+        !isWaypoint(nextChild) ||
         (nextChild.parentValueIndex === newWaypoint.parentValueIndex &&
           nextChild.sender > newWaypoint.sender)
       ) {
@@ -533,12 +681,21 @@ export class PositionSource {
 
   /**
    * [add description]
+   *
+   * Note: does nothing if pos is already present (doesn't replace the
+   * existing value).
+   *
    * @param  pos [description]
+   * @param singletonItem An item containing just the added value.
    * @return     Whether pos was actually added, i.e., it
    * was previously not present.
+   * @throws If singletonItem's length is not 1.
    */
-  add(pos: Position): boolean {
-    return this.addOrDelete(pos, 1);
+  add(pos: Position, singletonItem: I): boolean {
+    if (this.itemManager.length(singletonItem) !== 1) {
+      throw new Error("add only supports singleton items (length 1)");
+    }
+    return this.addOrDelete(pos, 1, singletonItem) !== null;
   }
 
   // TODO: how to do optimized delete range?
@@ -548,14 +705,22 @@ export class PositionSource {
   /**
    * [delete description]
    * @param  pos [description]
-   * @return     Whether pos was actually added, i.e., it
-   * was previously present.
+   * @return     A singleton item containing the deleted value, or null
+   * if nothing happened (pos was already not present).
    */
-  delete(pos: Position): boolean {
+  delete(pos: Position): I | null {
     return this.addOrDelete(pos, -1);
   }
 
-  private addOrDelete(pos: Position, sign: 1 | -1): boolean {
+  /**
+   * [addOrDelete description]
+   * @param  pos  [description]
+   * @param  sign [description]
+   * @param  item [description]
+   * @return A singleton item containing the added/deleted value, or undefined
+   * if nothing changed (pos's presence already matched sign).
+   */
+  private addOrDelete(pos: Position, sign: 1 | -1, item?: I): I | null {
     // Find waypoint.
     const bySender = this.waypointsByID.get(pos[0]);
     if (bySender === undefined) {
@@ -580,12 +745,13 @@ export class PositionSource {
     }
     let remaining = pos[2];
     let childIndex: number;
+    let childCount!: number;
     for (childIndex = 0; childIndex < waypoint.children.length; childIndex++) {
       const child = waypoint.children[childIndex];
-      if (typeof child === "number") {
-        const count = Math.abs(child);
-        if (remaining < count) break;
-        remaining -= count;
+      if (!isWaypoint(child)) {
+        childCount = this.valueChildLength(child);
+        if (remaining < childCount) break;
+        remaining -= childCount;
       }
     }
     if (childIndex === waypoint.children.length) {
@@ -593,86 +759,139 @@ export class PositionSource {
         "Unknown position, did you forget to receivePositions/receiveAndAddPositions? (reason: valueIndex)"
       );
     }
-    const child = <number>waypoint.children[childIndex];
+    const child = <number | I>waypoint.children[childIndex];
 
     // Add it if needed.
-    if (sign * child > 0) return false;
+    const childSign = isItem(child) ? 1 : -1;
+    if (childSign === sign) return null;
 
     const mergePrev =
       remaining === 0 &&
       childIndex - 1 >= 0 &&
-      typeof waypoint.children[childIndex - 1] === "number" &&
-      sign * <number>waypoint.children[childIndex - 1] > 0;
+      signOf(waypoint.children[childIndex - 1]) === sign;
     const mergeNext =
-      remaining === Math.abs(child) - 1 &&
+      remaining === childCount - 1 &&
       childIndex + 1 < waypoint.children.length &&
-      typeof waypoint.children[childIndex + 1] === "number" &&
-      sign * <number>waypoint.children[childIndex + 1] > 0;
+      signOf(waypoint.children[childIndex + 1]) === sign;
+
+    const toReturn =
+      sign === 1 ? item! : this.itemManager.get(<I>child, remaining);
 
     // TODO: test every case
-    if (remaining === 0 && Math.abs(child) === 1) {
+    if (remaining === 0 && childCount === 1) {
       if (mergePrev && mergeNext) {
-        waypoint.children.splice(
-          childIndex - 1,
-          3,
-          <number>waypoint.children[childIndex - 1] +
-            sign +
-            <number>waypoint.children[childIndex + 1]
-        );
+        const newChild =
+          sign === 1
+            ? this.itemManager.merge3(
+                <I>waypoint.children[childIndex - 1],
+                item!,
+                <I>waypoint.children[childIndex + 1]
+              )
+            : <number>waypoint.children[childIndex - 1] +
+              -1 +
+              <number>waypoint.children[childIndex + 1];
+        waypoint.children.splice(childIndex - 1, 3, newChild);
       } else if (mergePrev) {
-        waypoint.children.splice(
-          childIndex - 1,
-          2,
-          <number>waypoint.children[childIndex - 1] + sign
-        );
+        const newChild =
+          sign === 1
+            ? this.itemManager.merge(
+                <I>waypoint.children[childIndex - 1],
+                item!
+              )
+            : <number>waypoint.children[childIndex - 1] - 1;
+        waypoint.children.splice(childIndex - 1, 2, newChild);
       } else if (mergeNext) {
-        waypoint.children.splice(
-          childIndex,
-          2,
-          sign + <number>waypoint.children[childIndex + 1]
-        );
+        const newChild =
+          sign === 1
+            ? this.itemManager.merge(
+                item!,
+                <I>waypoint.children[childIndex + 1]
+              )
+            : -1 + <number>waypoint.children[childIndex + 1];
+        waypoint.children.splice(childIndex, 2, newChild);
       } else {
-        waypoint.children[childIndex] = sign;
+        waypoint.children[childIndex] = sign === 1 ? item! : -1;
       }
     } else if (remaining === 0) {
       if (mergePrev) {
-        (<number>waypoint.children[childIndex - 1]) += sign;
-        (<number>waypoint.children[childIndex]) += sign;
+        if (sign === 1) {
+          waypoint.children[childIndex - 1] = this.itemManager.merge(
+            <I>waypoint.children[childIndex - 1],
+            item!
+          );
+          (<number>waypoint.children[childIndex]) += 1; // -(-1)
+        } else {
+          (<number>waypoint.children[childIndex - 1]) -= 1; // -(+1)
+          waypoint.children[childIndex] = this.itemManager.trimFirst(<I>child);
+        }
       } else {
-        waypoint.children.splice(childIndex, 1, sign, child + sign);
+        if (sign === 1) {
+          // Subtract 1 length from child (a deleted value) by adding 1 = -(-1).
+          waypoint.children.splice(childIndex, 1, item!, <number>child + 1);
+        } else {
+          waypoint.children.splice(
+            childIndex,
+            1,
+            -1,
+            this.itemManager.trimFirst(<I>child)
+          );
+        }
       }
-    } else if (remaining === Math.abs(child) - 1) {
+    } else if (remaining === childCount - 1) {
       if (mergeNext) {
-        (<number>waypoint.children[childIndex]) += sign;
-        (<number>waypoint.children[childIndex + 1]) += sign;
+        if (sign === 1) {
+          (<number>waypoint.children[childIndex]) += 1; // -(-1)
+          waypoint.children[childIndex + 1] = this.itemManager.merge(
+            item!,
+            <I>waypoint.children[childIndex + 1]
+          );
+        } else {
+          waypoint.children[childIndex] = this.itemManager.trimLast(<I>child);
+          (<number>waypoint.children[childIndex + 1]) -= 1; // -(+1)
+        }
       } else {
-        waypoint.children.splice(childIndex, 1, child + sign, sign);
+        if (sign === 1) {
+          // Subtract 1 length from child (a deleted value) by adding 1 = -(-1).
+          waypoint.children.splice(childIndex, 1, <number>child + 1, item!);
+        } else {
+          waypoint.children.splice(
+            childIndex,
+            1,
+            this.itemManager.trimLast(<I>child),
+            -1
+          );
+        }
       }
     } else {
       // Split child.
-      waypoint.children.splice(
-        childIndex,
-        1,
-        -sign * remaining,
-        sign,
-        child + sign * (remaining + 1) // -sign * (abs(child) - (remaining + 1))
-      );
+      if (sign === 1) {
+        waypoint.children.splice(
+          childIndex,
+          1,
+          -remaining,
+          item!,
+          -(childCount - remaining - 1)
+        );
+      } else {
+        const [left, right] = this.itemManager.splitDelete(<I>child, remaining);
+        waypoint.children.splice(childIndex, 1, left, -1, right);
+      }
     }
 
     this.updateTotalPresentValues(waypoint, sign);
 
-    return true;
+    return toReturn;
   }
 
   /**
    * Updates totalPresentValues on waypoint and its ancestors, adding delta.
    */
   private updateTotalPresentValues(
-    startWaypoint: Waypoint,
+    startWaypoint: Waypoint<I>,
     delta: number
   ): void {
     for (
-      let curWaypoint: Waypoint | null = startWaypoint;
+      let curWaypoint: Waypoint<I> | null = startWaypoint;
       curWaypoint !== null;
       curWaypoint = curWaypoint.parentWaypoint
     ) {
@@ -691,8 +910,8 @@ export class PositionSource {
     let childIndex: number;
     for (childIndex = 0; childIndex < waypoint.children.length; childIndex++) {
       const child = waypoint.children[childIndex];
-      if (typeof child === "number") {
-        const count = Math.abs(child);
+      if (!isWaypoint(child)) {
+        const count = this.valueChildLength(child);
         if (remaining < count) {
           // pos is within child.
           return child > 0;
@@ -705,14 +924,19 @@ export class PositionSource {
     );
   }
 
-  get(index: number): Position {
+  getPosition(index: number): Position {
     if (index < 0 || index >= this.length) {
       throw new Error(`index out of bounds: ${index} (length: ${this.length})`);
     }
 
-    const [waypoint, childIndex, offset] = this.getInternal(index);
+    const [waypoint, childIndex, , offset] = this.getInternal(index);
     const valueIndex = this.getValueIndex(waypoint, childIndex, offset);
     return [waypoint.sender, waypoint.counter, valueIndex];
+  }
+
+  getItem(index: number): [item: I, offset: number] {
+    const [, , child, offset] = this.getInternal(index);
+    return [child, offset];
   }
 
   // TODO: optimize forward/backwards loop access
@@ -725,7 +949,7 @@ export class PositionSource {
    */
   private getInternal(
     index: number
-  ): [waypoint: Waypoint, childIndex: number, offset: number] {
+  ): [waypoint: Waypoint<I>, childIndex: number, child: I, offset: number] {
     // Tree walk.
     let remaining = index;
     let curWaypoint = this.rootWaypoint;
@@ -738,17 +962,7 @@ export class PositionSource {
           childIndex++
         ) {
           const child = curWaypoint.children[childIndex];
-          if (typeof child === "number") {
-            if (child > 0) {
-              // Present values.
-              if (remaining < child) {
-                // Found the value; return.
-                return [curWaypoint, childIndex, remaining];
-              }
-              remaining -= child;
-            }
-            // else unpresent values; skip over.
-          } else {
+          if (isWaypoint(child)) {
             if (remaining < child.totalPresentValues) {
               // child contains the value, "recurse" by
               // going to the next outer loop iteration.
@@ -756,7 +970,14 @@ export class PositionSource {
               break child_loop;
             }
             remaining -= child.totalPresentValues;
-          }
+          } else if (isItem(child)) {
+            const count = this.itemManager.length(child);
+            if (remaining < count) {
+              // Found the value; return.
+              return [curWaypoint, childIndex, child, remaining];
+            }
+            remaining -= count;
+          } // else unpresent values; skip over.
         }
         // End of for loop, but didn't find index among children.
         throw new Error("Internal error: failed to find valid index");
@@ -765,14 +986,14 @@ export class PositionSource {
   }
 
   private getValueIndex(
-    waypoint: Waypoint,
+    waypoint: Waypoint<I>,
     childIndex: number,
     offset: number
   ) {
     let subtotal = 0;
     for (let i = 0; i < childIndex; i++) {
       const child = waypoint.children[i];
-      if (typeof child === "number") subtotal += Math.abs(child);
+      if (!isWaypoint(child)) subtotal += this.valueChildLength(child);
     }
     return subtotal + offset;
   }
@@ -795,13 +1016,15 @@ export class PositionSource {
       // Loop through curParent's children until we find
       // curWaypoint, adding up their indices.
       for (const child of curParent.children) {
-        if (typeof child === "number") {
-          if (child > 0) geIndex += child;
-        } else if (child === curWaypoint) {
-          // Done looping over children.
-          break;
-        } else {
-          geIndex += child.totalPresentValues;
+        if (isWaypoint(child)) {
+          if (child === curWaypoint) {
+            // Done looping over children.
+            break;
+          } else {
+            geIndex += child.totalPresentValues;
+          }
+        } else if (isItem(child)) {
+          geIndex += this.itemManager.length(child);
         }
       }
 
@@ -818,7 +1041,7 @@ export class PositionSource {
    * waypoint's subtree, whether it is present]
    */
   private findWithinSubtree(
-    waypoint: Waypoint,
+    waypoint: Waypoint<I>,
     valueIndex: number
   ): [geIndex: number, isPresent: boolean] {
     if (valueIndex < 0) {
@@ -828,23 +1051,25 @@ export class PositionSource {
     let geIndex = 0;
     let remaining = valueIndex;
     for (const child of waypoint.children) {
-      if (typeof child === "number") {
-        const count = Math.abs(child);
+      if (isWaypoint(child)) {
+        geIndex += child.totalPresentValues;
+      } else if (isItem(child)) {
+        const count = this.itemManager.length(child);
         if (remaining < count) {
           // Found valueIndex.
-          if (child > 0) {
-            // Present.
-            return [geIndex + remaining, true];
-          } else {
-            // Unpresent.
-            return [geIndex, false];
-          }
+          return [geIndex + remaining, true];
         } else {
           remaining -= count;
-          if (child > 0) geIndex += count;
+          geIndex += count;
         }
       } else {
-        geIndex += child.totalPresentValues;
+        const count = -child;
+        if (remaining < count) {
+          // Found valueIndex.
+          return [geIndex, false];
+        } else {
+          remaining -= count;
+        }
       }
     }
 
@@ -858,9 +1083,61 @@ export class PositionSource {
    * TODO: concurrent mutation is unsafe.
    */
   *positions(): IterableIterator<Position> {
+    for (const [
+      waypoint,
+      ,
+      startValueIndex,
+      count,
+    ] of this.itemPositionsInternal()) {
+      for (let i = 0; i < count; i++) {
+        yield [waypoint.sender, waypoint.counter, startValueIndex + i];
+      }
+    }
+  }
+
+  /**
+   * TODO: concurrent mutation is unsafe.
+   */
+  *items(): IterableIterator<I> {
+    for (const [, , , , item] of this.itemPositionsInternal()) {
+      yield item;
+    }
+  }
+
+  *itemPositions(): IterableIterator<
+    [startPos: Position, length: number, item: I]
+  > {
+    for (const [
+      waypoint,
+      ,
+      startValueIndex,
+      count,
+      item,
+    ] of this.itemPositionsInternal()) {
+      yield [[waypoint.sender, waypoint.counter, startValueIndex], count, item];
+    }
+  }
+
+  /**
+   * TODO: concurrent mutation (besides replacing children directly) is unsafe.
+   *
+   * @param inLoad Set to true during load(), when the items are actually
+   * replaced with their lengths (as positive numbers).
+   */
+  private *itemPositionsInternal(
+    inLoad = false
+  ): IterableIterator<
+    [
+      waypoint: Waypoint<I>,
+      childIndex: number,
+      startValueIndex: number,
+      count: number,
+      item: I
+    ]
+  > {
     // Walk the tree.
     const stack: [
-      waypoint: Waypoint,
+      waypoint: Waypoint<I>,
       childIndex: number,
       valueIndex: number
     ][] = [];
@@ -880,19 +1157,8 @@ export class PositionSource {
       }
 
       const child = waypoint.children[childIndex];
-      if (typeof child === "number") {
-        if (child > 0) {
-          // Yield child values.
-          for (let i = 0; i < child; i++) {
-            yield [waypoint.sender, waypoint.counter, valueIndex];
-            valueIndex++;
-          }
-        } else {
-          // Deleted values; skip.
-          valueIndex += -child;
-        }
-      } else {
-        // Waypoint child. Recurse if nonempty, else skip.
+      if (isWaypoint(child)) {
+        // Recurse if nonempty, else skip.
         if (child.totalPresentValues > 0) {
           stack.push([waypoint, childIndex, valueIndex]);
           waypoint = child;
@@ -900,6 +1166,16 @@ export class PositionSource {
           valueIndex = 0;
           continue;
         }
+      } else if (isItem(child)) {
+        // Yield child.
+        const count = inLoad
+          ? <number>(<unknown>child)
+          : this.itemManager.length(child);
+        yield [waypoint, childIndex, valueIndex, count, child];
+        valueIndex += count;
+      } else {
+        // Deleted values; skip.
+        valueIndex += -child;
       }
 
       // Move to the next child.
@@ -907,26 +1183,13 @@ export class PositionSource {
     }
   }
 
-  // TODO
-  // *positionsOpt(
-  //   startIndex = 0
-  // ): IterableIterator<
-  //   [
-  //     sender: string | null,
-  //     counter: string | null,
-  //     startIndex: number,
-  //     count: number
-  //   ]
-  // > {
-  // }
-
   // TODO: remove/private
   printTreeWalk() {
     let numNodes = 1;
     let maxDepth = 1;
     // Walk the tree.
     console.log("Tree walk by " + this.replicaID);
-    const stack: [waypoint: Waypoint, childIndex: number][] = [];
+    const stack: [waypoint: Waypoint<I>, childIndex: number][] = [];
     let waypoint = this.rootWaypoint;
     let childIndex = 0;
     console.log(`Root (${waypoint.totalPresentValues}):`);
@@ -950,9 +1213,7 @@ export class PositionSource {
       }
 
       const child = waypoint.children[childIndex];
-      if (typeof child === "number") {
-        process.stdout.write(`${child}, `);
-      } else {
+      if (isWaypoint(child)) {
         // Waypoint child. Recurse.
         process.stdout.write("\n");
         for (let i = 0; i < stack.length + 1; i++) {
@@ -970,6 +1231,10 @@ export class PositionSource {
         numNodes++;
         maxDepth = Math.max(maxDepth, stack.length + 1);
         continue;
+      } else if (isItem(child)) {
+        process.stdout.write(`${this.itemManager.length(child)}, `);
+      } else {
+        process.stdout.write(`${child}, `);
       }
 
       // Move to the next child.
@@ -987,6 +1252,11 @@ export class PositionSource {
     return this.waypointsByID.get(sender)?.length ?? 0;
   }
 
+  /**
+   * This only saves the positions; you must save values separately.
+   * It's easiest to do that by extracting the (non-CRDT) array of values
+   * and saving that directly; you'll need that for load anyway.
+   */
   save(): Uint8Array {
     const replicaIDs: string[] = [];
     const replicaCounts: number[] = [];
@@ -1032,17 +1302,15 @@ export class PositionSource {
         ) {
           const startTag = childIndex === waypoint.children.length - 1 ? 4 : 0;
           const child = waypoint.children[childIndex];
-          if (typeof child === "number") {
-            if (child > 0) {
-              children.push(child);
-              childTypes.push(0 + startTag);
-            } else {
-              children.push(-child);
-              childTypes.push(1 + startTag);
-            }
-          } else {
+          if (isWaypoint(child)) {
             children.push(startIndices.get(child.sender)! + child.counter);
             childTypes.push(2 + startTag);
+          } else if (isItem(child)) {
+            children.push(this.itemManager.length(child));
+            childTypes.push(0 + startTag);
+          } else {
+            children.push(-child);
+            childTypes.push(1 + startTag);
           }
         }
       }
@@ -1062,7 +1330,15 @@ export class PositionSource {
     return PositionSourceSave.encode(message).finish();
   }
 
-  load(saveData: Uint8Array): void {
+  /**
+   * [load description]
+   * @param saveData [description]
+   * @param nextItem A function that returns an item containing the
+   * `count` next values when called repeatedly.
+   * This must only be null if you are using NumberItemManager
+   * (when it's null, we skip a step that is redundant for NumberItemManager).
+   */
+  load(saveData: Uint8Array, nextItem: ((count: number) => I) | null): void {
     const decoded = PositionSourceSave.decode(saveData);
 
     if (decoded.oldReplicaID === this.replicaID) {
@@ -1074,7 +1350,7 @@ export class PositionSource {
     // All waypoints, in order [root, then same order
     // as parentWaypoints].
     // I.e., indices = values in parentWaypoints.
-    const allWaypoints: Waypoint[] = [this.rootWaypoint];
+    const allWaypoints: Waypoint<I>[] = [this.rootWaypoint];
 
     // Fill in this.waypointsByID and allWaypoints.
     let i = 0; // Index into parentWaypoints.
@@ -1084,7 +1360,7 @@ export class PositionSource {
       replicaIDIndex++
     ) {
       const replicaID = decoded.replicaIDs[replicaIDIndex];
-      const bySender: Waypoint[] = [];
+      const bySender: Waypoint<I>[] = [];
       this.waypointsByID.set(replicaID, bySender);
 
       for (
@@ -1092,7 +1368,7 @@ export class PositionSource {
         counter < decoded.replicaCounts[replicaIDIndex];
         counter++
       ) {
-        const waypoint = new Waypoint(
+        const waypoint = new Waypoint<I>(
           replicaID,
           counter,
           null, // parentWaypoint is set later.
@@ -1111,8 +1387,13 @@ export class PositionSource {
     }
 
     // Set waypoint children.
+    // At first, we leave out items, instead putting their length in their
+    // place (as if this.itemManager was NumberItemManager). We fill in items
+    // in the next loop below.
+
     // For root, we have to remove its initial children first.
     this.rootWaypoint.children.splice(0);
+
     let childrenIndex = 0;
     for (let j = 0; j < allWaypoints.length; j++) {
       const waypoint = allWaypoints[j];
@@ -1124,7 +1405,7 @@ export class PositionSource {
         const childType = decoded.childTypes[childrenIndex];
         childrenIndex++;
         switch (childType & 3) {
-          case 0: // Positive number.
+          case 0: // Positive number (length of the actual item).
             waypoint.children.push(child);
             break;
           case 1: // Negative number.
@@ -1135,6 +1416,16 @@ export class PositionSource {
             break;
         }
         if ((childType & 4) === 4) break;
+      }
+    }
+
+    // Replace the item placeholders (their lengths) with the actual items,
+    // by looping over both the values and positions in order.
+    if (nextItem !== null) {
+      for (const [waypoint, childIndex, , count] of this.itemPositionsInternal(
+        true
+      )) {
+        waypoint.children[childIndex] = nextItem(count);
       }
     }
   }

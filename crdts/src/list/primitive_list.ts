@@ -16,14 +16,14 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../generated/proto_compiled";
+import { ArrayItemManager } from "./array_item_manager";
 import { Position, PositionSource } from "./position_source";
 
 export class PrimitiveCList<T>
   extends AbstractCListCPrimitive<T, [T]>
   implements LocatableCList<T>
 {
-  private readonly positionSource: PositionSource;
-  private readonly _values: Map<string, T[][]>;
+  private readonly positionSource: PositionSource<T[]>;
 
   constructor(
     initToken: InitToken,
@@ -34,9 +34,10 @@ export class PrimitiveCList<T>
   ) {
     super(initToken);
 
-    this.positionSource = new PositionSource(this.runtime.replicaID);
-    this._values = new Map();
-    this._values.set("", []);
+    this.positionSource = new PositionSource(
+      this.runtime.replicaID,
+      ArrayItemManager.getInstance()
+    );
   }
 
   // TODO: optimize bulk methods.
@@ -46,7 +47,8 @@ export class PrimitiveCList<T>
   insert(index: number, ...values: T[]): T | undefined {
     if (values.length === 0) return undefined;
 
-    const prevPos = index === 0 ? null : this.positionSource.get(index - 1);
+    const prevPos =
+      index === 0 ? null : this.positionSource.getPosition(index - 1);
     const [counter, startValueIndex, metadata] =
       this.positionSource.createPositions(prevPos);
 
@@ -87,7 +89,7 @@ export class PrimitiveCList<T>
     // TODO: optimize range iteration (back to front).
     // Delete from back to front, so indices make sense.
     for (let i = startIndex + count - 1; i >= startIndex; i--) {
-      const pos = this.positionSource.get(i);
+      const pos = this.positionSource.getPosition(i);
       const message = PrimitiveCListMessage.create({
         delete: {
           sender: pos[0] === this.runtime.replicaID ? null : pos[0],
@@ -100,7 +102,6 @@ export class PrimitiveCList<T>
   }
 
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
-    // TODO: events
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
       case "insert": {
@@ -127,20 +128,7 @@ export class PrimitiveCList<T>
         }
 
         const pos: Position = [meta.sender, counter, startValueIndex];
-        this.positionSource.receiveAndAddPositions(
-          pos,
-          values.length,
-          metadata
-        );
-
-        const bySender = this._values.get(meta.sender);
-        if (bySender === undefined) {
-          this._values.set(meta.sender, [values]);
-        } else if (counter === bySender.length) {
-          bySender.push(values);
-        } else {
-          bySender[counter].push(...values);
-        }
+        this.positionSource.receiveAndAddPositions(pos, values, metadata);
 
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
@@ -162,11 +150,8 @@ export class PrimitiveCList<T>
         const counter = int64AsNumber(decoded.delete!.counter);
         const valueIndex = decoded.delete!.valueIndex;
         const pos: Position = [sender, counter, valueIndex];
-        if (this.positionSource.delete(pos)) {
-          const byCounter = this._values.get(sender)![counter];
-          const deletedValues = [byCounter[valueIndex]];
-          delete byCounter[valueIndex];
-
+        const deletedValues = this.positionSource.delete(pos);
+        if (deletedValues !== null) {
           this.emit("Delete", {
             startIndex: this.positionSource.find(pos)[0],
             count: 1,
@@ -182,14 +167,13 @@ export class PrimitiveCList<T>
   }
 
   get(index: number): T {
-    const pos = this.positionSource.get(index);
-    return this._values.get(pos[0])![pos[1]][pos[2]];
+    const [item, offset] = this.positionSource.getItem(index);
+    return item[offset];
   }
 
   *values(): IterableIterator<T> {
-    // TODO: use positionsOpt.
-    for (const pos of this.positionSource.positions()) {
-      yield this._values.get(pos[0])![pos[1]][pos[2]];
+    for (const item of this.positionSource.items()) {
+      yield* item;
     }
   }
 
@@ -228,11 +212,14 @@ export class PrimitiveCList<T>
     // Optimize common case (slice())
     if (start === undefined && end === undefined) {
       return [...this.values()];
-    } else return super.slice(start, end);
+    } else {
+      // TODO: optimize using items() iterator or similar.
+      return super.slice(start, end);
+    }
   }
 
   getLocation(index: number): string {
-    const pos = this.positionSource.get(index);
+    const pos = this.positionSource.getPosition(index);
     // TODO: shorter encoding? Also in locationEntries().
     return JSON.stringify(pos);
   }
@@ -243,9 +230,11 @@ export class PrimitiveCList<T>
   }
 
   *locationEntries(): IterableIterator<[string, T]> {
-    // TODO: use positionsOpt.
-    for (const pos of this.positionSource.positions()) {
-      yield [JSON.stringify(pos), this._values.get(pos[0])![pos[1]][pos[2]]];
+    for (const [pos, length, item] of this.positionSource.itemPositions()) {
+      for (let i = 0; i < length; i++) {
+        yield [JSON.stringify(pos), item[i]];
+        pos[2]++;
+      }
     }
   }
 
@@ -272,7 +261,6 @@ export class PrimitiveCList<T>
   load(saveData: Optional<Uint8Array>): void {
     if (saveData.isPresent) {
       const decoded = PrimitiveCListSave.decode(saveData.get());
-      this.positionSource.load(decoded.positionSourceSave);
       let values: T[];
       if (this.valueArraySerializer !== undefined) {
         values = this.valueArraySerializer.deserialize(decoded.valuesArraySave);
@@ -281,23 +269,12 @@ export class PrimitiveCList<T>
           this.valueSerializer.deserialize(value)
         );
       }
-
-      // Fill values into this._values according to positionSource.
-      let i = 0;
-      for (const pos of this.positionSource.positions()) {
-        let bySender = this._values.get(pos[0]);
-        if (bySender === undefined) {
-          bySender = new Array(this.positionSource.countersFor(pos[0]));
-          this._values.set(pos[0], bySender);
-        }
-        let byCounter = bySender[pos[1]];
-        if (byCounter === undefined) {
-          byCounter = [];
-          bySender[pos[1]] = byCounter;
-        }
-        byCounter[pos[2]] = values[i];
-        i++;
-      }
+      let index = 0;
+      this.positionSource.load(decoded.positionSourceSave, (count) => {
+        const ans = values.slice(index, index + count);
+        index += count;
+        return ans;
+      });
     }
   }
 

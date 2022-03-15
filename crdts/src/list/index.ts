@@ -1,4 +1,5 @@
 export * from "./archiving_mut_list";
+export * from "./array_item_manager";
 export * from "./cursor";
 export * from "./deleting_mut_list";
 export * from "./dense_local_list";
