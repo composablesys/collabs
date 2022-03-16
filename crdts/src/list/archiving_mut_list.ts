@@ -13,7 +13,7 @@ import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import { Position } from "./position_source";
+import { ListPosition } from "./list_position_source";
 
 /**
  * Collab-valued [[CList]] where deletions only "archive"
@@ -31,10 +31,10 @@ export class ArchivingMutCList<
 > extends MovableMutCListFromSet<
   C,
   InsertArgs,
-  LWWCVariable<Position>,
+  LWWCVariable<ListPosition>,
   ArchivingMutCSet<
-    MovableMutCListEntry<C, LWWCVariable<Position>>,
-    [Position, InsertArgs]
+    MovableMutCListEntry<C, LWWCVariable<ListPosition>>,
+    [ListPosition, InsertArgs]
   >
 > {
   constructor(
@@ -74,7 +74,7 @@ export class ArchivingMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<Position>>
+      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
   }
 
@@ -88,13 +88,16 @@ export class ArchivingMutCList<
       throw new Error("this.owns(value) is false");
     }
     this.set.restore(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<Position>>
+      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
   }
 
   getArgs(index: number): InsertArgs {
     return this.set.getArgs(
-      this.get(index).parent as MovableMutCListEntry<C, LWWCVariable<Position>>
+      this.get(index).parent as MovableMutCListEntry<
+        C,
+        LWWCVariable<ListPosition>
+      >
     )[1];
   }
 
@@ -112,7 +115,7 @@ export class ArchivingMutCList<
     }
 
     return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<Position>>
+      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     )[1];
   }
 }

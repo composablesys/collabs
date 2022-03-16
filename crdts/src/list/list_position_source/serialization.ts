@@ -1,33 +1,33 @@
 import { int64AsNumber, Serializer } from "@collabs/core";
 import {
-  CreatedPositionSerializerMessage,
-  PositionSerializerMessage,
+  CreatedListPositionSerializerMessage,
+  ListPositionSerializerMessage,
 } from "../../../generated/proto_compiled";
-import { Position } from "./position_source";
+import { ListPosition } from "./list_position_source";
 
-export class PositionSerializer implements Serializer<Position> {
+export class ListPositionSerializer implements Serializer<ListPosition> {
   private constructor() {
     // Private constructor, use instance instead.
   }
 
-  static instance = new PositionSerializer();
+  static instance = new ListPositionSerializer();
 
-  serialize(value: Position): Uint8Array {
-    const message = PositionSerializerMessage.create({
+  serialize(value: ListPosition): Uint8Array {
+    const message = ListPositionSerializerMessage.create({
       sender: value[0],
       counter: value[1],
       valueIndex: value[2],
     });
-    return PositionSerializerMessage.encode(message).finish();
+    return ListPositionSerializerMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array): Position {
-    const decoded = PositionSerializerMessage.decode(message);
+  deserialize(message: Uint8Array): ListPosition {
+    const decoded = ListPositionSerializerMessage.decode(message);
     return [decoded.sender, int64AsNumber(decoded.counter), decoded.valueIndex];
   }
 }
 
-export class CreatedPositionSerializer
+export class CreatedListPositionSerializer
   implements
     Serializer<
       [counter: number, startValueIndex: number, metadata: Uint8Array | null]
@@ -37,7 +37,7 @@ export class CreatedPositionSerializer
     // Private constructor, use instance instead.
   }
 
-  static instance = new CreatedPositionSerializer();
+  static instance = new CreatedListPositionSerializer();
 
   serialize(
     value: [
@@ -46,18 +46,18 @@ export class CreatedPositionSerializer
       metadata: Uint8Array | null
     ]
   ): Uint8Array {
-    const message = CreatedPositionSerializerMessage.create({
+    const message = CreatedListPositionSerializerMessage.create({
       counter: value[0],
       startValueIndex: value[1],
       metadata: value[2],
     });
-    return CreatedPositionSerializerMessage.encode(message).finish();
+    return CreatedListPositionSerializerMessage.encode(message).finish();
   }
 
   deserialize(
     message: Uint8Array
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
-    const decoded = CreatedPositionSerializerMessage.decode(message);
+    const decoded = CreatedListPositionSerializerMessage.decode(message);
     const metadata = Object.prototype.hasOwnProperty.call(decoded, "metadata")
       ? decoded.metadata
       : null;

@@ -1,24 +1,28 @@
 import { int64AsNumber } from "@collabs/core";
 import {
-  PositionSourceMetadataMessage,
-  PositionSourceSave,
+  ListPositionSourceMetadataMessage,
+  ListPositionSourceSave,
 } from "../../../generated/proto_compiled";
 
-export type Position = [sender: string, counter: number, valueIndex: number];
+export type ListPosition = [
+  sender: string,
+  counter: number,
+  valueIndex: number
+];
 
 /**
- * Manages "items" (contiguous blocks of values) for a PositionSource.
+ * Manages "items" (contiguous blocks of values) for a ListPositionSource.
  *
  * Implementation advice:
  * - Okay to modify input items directly and return them so long as the
- * PositionSource's user doesn't
+ * ListPositionSource's user doesn't
  * keep references outside that might be affected (including args before and
  * after a method call).
  *
  * @type I The "Item" type, which holds a range of values (e.g., string, array,
  * number indicating number of values).
  */
-export interface ItemManager<I> {
+export interface ListItemManager<I> {
   /**
    * Return item's length.
    */
@@ -145,7 +149,7 @@ function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
  * number indicating number of values). For implementation reasons,
  * items may not be negative numbers or null.
  */
-export class PositionSource<I> {
+export class ListPositionSource<I> {
   /**
    * Map key is waypoint.sender, index in the array is waypoint.counter.
    */
@@ -176,7 +180,7 @@ export class PositionSource<I> {
    */
   constructor(
     readonly replicaID: string,
-    private readonly itemManager: ItemManager<I>,
+    private readonly itemManager: ListItemManager<I>,
     initialItem?: I
   ) {
     if (replicaID === "") {
@@ -238,7 +242,7 @@ export class PositionSource<I> {
    * @return          [description]
    */
   createPositions(
-    prevPos: Position | null
+    prevPos: ListPosition | null
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
     // Find the position to the left of our insertion point
     // ("leftNeighbor") - prevPos if non-null, else the fake leftmost value.
@@ -377,7 +381,7 @@ export class PositionSource<I> {
     parentValueIndex: number,
     childSide: "left" | "right"
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
-    const message = PositionSourceMetadataMessage.create({
+    const message = ListPositionSourceMetadataMessage.create({
       parentWaypointSender:
         parentWaypoint.sender === this.replicaID
           ? undefined
@@ -388,7 +392,7 @@ export class PositionSource<I> {
           : ~parentWaypoint.counter,
       parentValueIndex,
     });
-    const metadata = PositionSourceMetadataMessage.encode(message).finish();
+    const metadata = ListPositionSourceMetadataMessage.encode(message).finish();
     return [this.nextCounter, 0, metadata];
   }
 
@@ -398,7 +402,7 @@ export class PositionSource<I> {
   // twice as slow as receiveTime, unlike in Yjs.)
 
   receivePositions(
-    startPos: Position,
+    startPos: ListPosition,
     count: number,
     metadata: Uint8Array | null
   ): void {
@@ -406,7 +410,7 @@ export class PositionSource<I> {
   }
 
   receiveAndAddPositions(
-    startPos: Position,
+    startPos: ListPosition,
     item: I,
     metadata: Uint8Array | null
   ): void {
@@ -428,7 +432,7 @@ export class PositionSource<I> {
    * @param item     Only present for additions (sign = 1).
    */
   private receivePositionsInternal(
-    startPos: Position,
+    startPos: ListPosition,
     count: number,
     metadata: Uint8Array | null,
     sign: 1 | -1,
@@ -480,7 +484,7 @@ export class PositionSource<I> {
       }
       if (sign === 1) this.updateTotalPresentValues(waypoint, count);
     } else {
-      const decoded = PositionSourceMetadataMessage.decode(metadata);
+      const decoded = ListPositionSourceMetadataMessage.decode(metadata);
 
       // Get parentWaypoint.
       const parentWaypointSender = Object.prototype.hasOwnProperty.call(
@@ -694,7 +698,7 @@ export class PositionSource<I> {
    * was previously not present.
    * @throws If singletonItem's length is not 1.
    */
-  add(pos: Position, singletonItem: I): boolean {
+  add(pos: ListPosition, singletonItem: I): boolean {
     if (this.itemManager.length(singletonItem) !== 1) {
       throw new Error("add only supports singleton items (length 1)");
     }
@@ -711,7 +715,7 @@ export class PositionSource<I> {
    * @return     A singleton item containing the deleted value, or null
    * if nothing happened (pos was already not present).
    */
-  delete(pos: Position): I | null {
+  delete(pos: ListPosition): I | null {
     return this.addOrDelete(pos, -1);
   }
 
@@ -723,7 +727,7 @@ export class PositionSource<I> {
    * @return A singleton item containing the added/deleted value, or undefined
    * if nothing changed (pos's presence already matched sign).
    */
-  private addOrDelete(pos: Position, sign: 1 | -1, item?: I): I | null {
+  private addOrDelete(pos: ListPosition, sign: 1 | -1, item?: I): I | null {
     // Find waypoint.
     const bySender = this.waypointsByID.get(pos[0]);
     if (bySender === undefined) {
@@ -902,7 +906,7 @@ export class PositionSource<I> {
     }
   }
 
-  has(pos: Position): boolean {
+  has(pos: ListPosition): boolean {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // Find valueIndex in waypoint.children.
@@ -927,7 +931,7 @@ export class PositionSource<I> {
     );
   }
 
-  getPosition(index: number): Position {
+  getPosition(index: number): ListPosition {
     if (index < 0 || index >= this.length) {
       throw new Error(`index out of bounds: ${index} (length: ${this.length})`);
     }
@@ -1005,7 +1009,7 @@ export class PositionSource<I> {
     return this.rootWaypoint.totalPresentValues;
   }
 
-  find(pos: Position): [geIndex: number, isPresent: boolean] {
+  find(pos: ListPosition): [geIndex: number, isPresent: boolean] {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // geIndex within waypoint's subtree.
@@ -1083,9 +1087,9 @@ export class PositionSource<I> {
   }
 
   /**
-   * Mutating the PositionSource while iterating is unsafe.
+   * Mutating the ListPositionSource while iterating is unsafe.
    */
-  *positions(): IterableIterator<Position> {
+  *positions(): IterableIterator<ListPosition> {
     for (const [
       waypoint,
       ,
@@ -1099,7 +1103,7 @@ export class PositionSource<I> {
   }
 
   /**
-   * Mutating the PositionSource while iterating is unsafe.
+   * Mutating the ListPositionSource while iterating is unsafe.
    */
   *items(): IterableIterator<I> {
     for (const [, , , , item] of this.itemPositionsInternal()) {
@@ -1108,7 +1112,7 @@ export class PositionSource<I> {
   }
 
   *itemPositions(): IterableIterator<
-    [startPos: Position, length: number, item: I]
+    [startPos: ListPosition, length: number, item: I]
   > {
     for (const [
       waypoint,
@@ -1122,7 +1126,7 @@ export class PositionSource<I> {
   }
 
   /**
-   * Mutating the PositionSource while iterating is unsafe, except for
+   * Mutating the ListPositionSource while iterating is unsafe, except for
    * directly replacing waypoint children (i.e., setting an index).
    *
    * @param inLoad Set to true during load(), when the items are actually
@@ -1320,7 +1324,7 @@ export class PositionSource<I> {
       }
     }
 
-    const message = PositionSourceSave.create({
+    const message = ListPositionSourceSave.create({
       oldReplicaID: this.replicaID,
       oldNextCounter: this.nextCounter,
       replicaIDs,
@@ -1331,7 +1335,7 @@ export class PositionSource<I> {
       children,
       childTypes,
     });
-    return PositionSourceSave.encode(message).finish();
+    return ListPositionSourceSave.encode(message).finish();
   }
 
   /**
@@ -1344,9 +1348,9 @@ export class PositionSource<I> {
    */
   load(
     saveData: Uint8Array,
-    nextItem: ((count: number, startPos: Position) => I) | null
+    nextItem: ((count: number, startPos: ListPosition) => I) | null
   ): void {
-    const decoded = PositionSourceSave.decode(saveData);
+    const decoded = ListPositionSourceSave.decode(saveData);
 
     if (decoded.oldReplicaID === this.replicaID) {
       this.nextCounter = decoded.oldNextCounter;

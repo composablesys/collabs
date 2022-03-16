@@ -1,4 +1,4 @@
-message PositionSourceMetadataMessage {
+message ListPositionSourceMetadataMessage {
   // Omitted if it's the same as the position's sender.
   optional string parentWaypointSender = 1;
   // Sign gives side (R child = +1); actual counter is
@@ -7,7 +7,7 @@ message PositionSourceMetadataMessage {
   required uint32 parentValueIndex = 3;
 }
 
-message PositionSourceSave {
+message ListPositionSourceSave {
   required string oldReplicaID = 1;
   required uint32 oldNextCounter = 2;
   // Excludes root ("").

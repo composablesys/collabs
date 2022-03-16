@@ -10,7 +10,11 @@ import {
   CollabEventsRecord,
 } from "@collabs/core";
 import { CTextMessage, CTextSave } from "../../generated/proto_compiled";
-import { Position, PositionSource, StringItemManager } from "./position_source";
+import {
+  ListPosition,
+  ListPositionSource,
+  StringListItemManager,
+} from "./list_position_source";
 
 export interface CTextInsertEvent extends CollabEvent {
   startIndex: number;
@@ -29,7 +33,7 @@ export interface CTextEventsRecord extends CollabEventsRecord {
 }
 
 export class CText extends CPrimitive<CTextEventsRecord> {
-  private readonly positionSource: PositionSource<string>;
+  private readonly positionSource: ListPositionSource<string>;
   /**
    * Used for local operations, to store the index where the operation is
    * happening, so we don't have to find() the relevant position twice.
@@ -42,9 +46,9 @@ export class CText extends CPrimitive<CTextEventsRecord> {
   constructor(initToken: InitToken) {
     super(initToken);
 
-    this.positionSource = new PositionSource(
+    this.positionSource = new ListPositionSource(
       this.runtime.replicaID,
-      StringItemManager.instance
+      StringListItemManager.instance
     );
   }
 
@@ -113,7 +117,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
           ? decoded.insert!.metadata!
           : null;
 
-        const pos: Position = [meta.sender, counter, startValueIndex];
+        const pos: ListPosition = [meta.sender, counter, startValueIndex];
         this.positionSource.receiveAndAddPositions(pos, values, metadata);
 
         const startIndex =
@@ -139,7 +143,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
           : meta.sender;
         const counter = int64AsNumber(decoded.delete!.counter);
         const valueIndex = decoded.delete!.valueIndex;
-        const pos: Position = [sender, counter, valueIndex];
+        const pos: ListPosition = [sender, counter, valueIndex];
         const deletedValues = this.positionSource.delete(pos);
         if (deletedValues !== null) {
           const startIndex =
@@ -195,7 +199,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
   }
 
   findLocation(location: string): FoundLocation {
-    const pos = <Position>JSON.parse(location);
+    const pos = <ListPosition>JSON.parse(location);
     return new FoundLocation(...this.positionSource.find(pos));
   }
 
@@ -234,7 +238,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
     return false;
   }
 
-  // // For debugging PositionSource.
+  // // For debugging ListPositionSource.
   // printTreeWalk() {
   //   this.positionSource.printTreeWalk();
   // }

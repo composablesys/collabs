@@ -1,14 +1,14 @@
-import { ItemManager } from "./position_source";
+import { ListItemManager } from "./list_position_source";
 
-export class ArrayItemManager<T> implements ItemManager<T[]> {
+export class ArrayListItemManager<T> implements ListItemManager<T[]> {
   private constructor() {
     // Private constructor, use getInstance instead.
   }
 
-  private static instance = new ArrayItemManager();
+  private static instance = new ArrayListItemManager();
 
-  static getInstance<T>(): ArrayItemManager<T> {
-    return <ArrayItemManager<T>>this.instance;
+  static getInstance<T>(): ArrayListItemManager<T> {
+    return <ArrayListItemManager<T>>this.instance;
   }
 
   length(item: T[]): number {

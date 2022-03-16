@@ -1,11 +1,11 @@
-import { ItemManager } from "./position_source";
+import { ListItemManager } from "./list_position_source";
 
-export class NumberItemManager implements ItemManager<number> {
+export class NumberListItemManager implements ListItemManager<number> {
   private constructor() {
     // Private constructor, use instance instead.
   }
 
-  static instance = new NumberItemManager();
+  static instance = new NumberListItemManager();
 
   length(item: number): number {
     return item;

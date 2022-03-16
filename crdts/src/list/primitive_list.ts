@@ -16,13 +16,17 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../generated/proto_compiled";
-import { ArrayItemManager, Position, PositionSource } from "./position_source";
+import {
+  ArrayListItemManager,
+  ListPosition,
+  ListPositionSource,
+} from "./list_position_source";
 
 export class PrimitiveCList<T>
   extends AbstractCListCPrimitive<T, [T]>
   implements LocatableCList<T>
 {
-  private readonly positionSource: PositionSource<T[]>;
+  private readonly positionSource: ListPositionSource<T[]>;
   /**
    * Used for local operations, to store the index where the operation is
    * happening, so we don't have to find() the relevant position twice.
@@ -41,9 +45,9 @@ export class PrimitiveCList<T>
   ) {
     super(initToken);
 
-    this.positionSource = new PositionSource(
+    this.positionSource = new ListPositionSource(
       this.runtime.replicaID,
-      ArrayItemManager.getInstance()
+      ArrayListItemManager.getInstance()
     );
   }
 
@@ -138,7 +142,7 @@ export class PrimitiveCList<T>
           );
         }
 
-        const pos: Position = [meta.sender, counter, startValueIndex];
+        const pos: ListPosition = [meta.sender, counter, startValueIndex];
         this.positionSource.receiveAndAddPositions(pos, values, metadata);
 
         const startIndex =
@@ -164,7 +168,7 @@ export class PrimitiveCList<T>
           : meta.sender;
         const counter = int64AsNumber(decoded.delete!.counter);
         const valueIndex = decoded.delete!.valueIndex;
-        const pos: Position = [sender, counter, valueIndex];
+        const pos: ListPosition = [sender, counter, valueIndex];
         const deletedValues = this.positionSource.delete(pos);
         if (deletedValues !== null) {
           const startIndex =
@@ -243,7 +247,7 @@ export class PrimitiveCList<T>
   }
 
   findLocation(location: string): FoundLocation {
-    const pos = <Position>JSON.parse(location);
+    const pos = <ListPosition>JSON.parse(location);
     return new FoundLocation(...this.positionSource.find(pos));
   }
 
