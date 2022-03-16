@@ -7,6 +7,7 @@ import {
   Message,
   int64AsNumber,
   Optional,
+  BatchingLayer,
 } from "@collabs/core";
 import { CRDTMetaLayerSave } from "../../../generated/proto_compiled";
 import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
@@ -42,6 +43,8 @@ import { ReceiveTransaction } from "./receive_transaction";
  * provide extra metadata fields. These fields will be
  * forgotten during saving, if there are queued
  * not-yet-causally-ready messages.
+ * (Exception: BatchingLayer.BATCH_SIZE_KEY, which we extract and don't need
+ * after loading.)
  */
 export class CRDTMetaLayer extends Collab implements ICollabParent {
   private child!: Collab;
@@ -274,6 +277,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
         // It's a new batch with a new CRDTMetaReceiveMessage.
         this.currentReceiveBatch = new ReceiveCRDTMetaBatch(
           meta.sender,
+          <number | undefined>meta[BatchingLayer.BATCH_SIZE_KEY] ?? 1,
           <Uint8Array>messagePath[messagePath.length - 1]
         );
       }
@@ -315,7 +319,6 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     }
   }
 
-  // TODO: deduplicate?
   /**
    * @return whether a message with the given sender and
    * senderCounter

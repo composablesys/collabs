@@ -7,6 +7,10 @@ message BatchingLayerMessage {
   // (bitwise NOT). That way, we store the type in the sign bit, at the
   // cost of only one bit.
   repeated sint32 edgeLabelLengths = 2 [packed=true];
+  // When the batch contains a single message, edgeParents and messages
+  // are []. Instead, just use the edge labels in order (given by
+  // edgeLabelsPacked and edgeLabelLengths) as the single
+  // messagePath.
   repeated uint32 edgeParents = 3 [packed=true];
   repeated uint32 messages = 4 [packed=true];
 }

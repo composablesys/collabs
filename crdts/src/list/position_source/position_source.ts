@@ -7,11 +7,13 @@ import {
 export type Position = [sender: string, counter: number, valueIndex: number];
 
 /**
- * TODO.
+ * Manages "items" (contiguous blocks of values) for a PositionSource.
  *
- * Okay to modify input items directly and return them so long as you don't keep
- * references outside that might be affected (including args before and
- * after a method call). (TODO: check our use of this.)
+ * Implementation advice:
+ * - Okay to modify input items directly and return them so long as the
+ * PositionSource's user doesn't
+ * keep references outside that might be affected (including args before and
+ * after a method call).
  *
  * @type I The "Item" type, which holds a range of values (e.g., string, array,
  * number indicating number of values).
@@ -23,9 +25,8 @@ export interface ItemManager<I> {
   length(item: I): number;
 
   /**
-   * Return a singleton item containing just the value at the given index in item.
-   *
-   * TODO: use value type instead?
+   * Return a singleton item containing just the value at the given index in
+   * item.
    */
   get(item: I, index: number): I;
 
@@ -140,10 +141,9 @@ function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
 }
 
 /**
- * TODO: items. May not be negative numbers or null.
- *
  * @type I The "Item" type, which holds a range of values (e.g., string, array,
- * number indicating number of values).
+ * number indicating number of values). For implementation reasons,
+ * items may not be negative numbers or null.
  */
 export class PositionSource<I> {
   /**
@@ -164,8 +164,8 @@ export class PositionSource<I> {
 
   /**
    * [constructor description]
-   * @param replicaID TODO: uniqueness, reusability;
-   * must not be "".
+   * @param replicaID A unique ID for the local replica.
+   * Must not be "".
    * @param initialItem An item consistent of the initial
    * values in the list, i.e., values that are present
    * at the list's creation before any operations are
@@ -225,12 +225,12 @@ export class PositionSource<I> {
     return bySender[counter];
   }
 
-  // TODO: Go back to allowing negative valueIndex? See how well it helps
+  // OPT: Go back to allowing negative valueIndex? See how well it helps
   // performance (e.g. by reducing waypoints and tree depth).
   // Should be fine now that we are storing values for the user
   // (and they can use a map or two arrays to DIY).
 
-  // TODO: opt getting valueIndex in case where startPos comes from get().
+  // OPT: opt getting valueIndex in case where startPos comes from get().
   /**
    * [createPositions description]
    * @param  prevPos position to the left of where you want to insert, or
@@ -392,7 +392,7 @@ export class PositionSource<I> {
     return [this.nextCounter, 0, metadata];
   }
 
-  // TODO: in receivePositions and add/delete, optimize the (common) case where
+  // OPT: in receivePositions and add/delete, optimize the (common) case where
   // the user calls find right afterward? Can try to avoid looping over
   // waypoint children twice. (Perhaps that is what makes our sendTime
   // twice as slow as receiveTime, unlike in Yjs.)
@@ -701,7 +701,7 @@ export class PositionSource<I> {
     return this.addOrDelete(pos, 1, singletonItem) !== null;
   }
 
-  // TODO: how to do optimized delete range?
+  // OPT: how to do optimized delete range?
   // (Finding first and last indices, then looping over
   // them and deleting some but not all.)
 
@@ -942,7 +942,7 @@ export class PositionSource<I> {
     return [child, offset];
   }
 
-  // TODO: optimize forward/backwards loop access
+  // OPT: optimize forward/backwards loop access
 
   /**
    * index must be valid; else may infinite loop.
@@ -1083,7 +1083,7 @@ export class PositionSource<I> {
   }
 
   /**
-   * TODO: concurrent mutation is unsafe.
+   * Mutating the PositionSource while iterating is unsafe.
    */
   *positions(): IterableIterator<Position> {
     for (const [
@@ -1099,7 +1099,7 @@ export class PositionSource<I> {
   }
 
   /**
-   * TODO: concurrent mutation is unsafe.
+   * Mutating the PositionSource while iterating is unsafe.
    */
   *items(): IterableIterator<I> {
     for (const [, , , , item] of this.itemPositionsInternal()) {
@@ -1122,7 +1122,8 @@ export class PositionSource<I> {
   }
 
   /**
-   * TODO: concurrent mutation (besides replacing children directly) is unsafe.
+   * Mutating the PositionSource while iterating is unsafe, except for
+   * directly replacing waypoint children (i.e., setting an index).
    *
    * @param inLoad Set to true during load(), when the items are actually
    * replaced with their lengths (as positive numbers).
@@ -1186,64 +1187,64 @@ export class PositionSource<I> {
     }
   }
 
-  // TODO: remove/private
-  printTreeWalk() {
-    let numNodes = 1;
-    let maxDepth = 1;
-    // Walk the tree.
-    console.log("Tree walk by " + this.replicaID);
-    const stack: [waypoint: Waypoint<I>, childIndex: number][] = [];
-    let waypoint = this.rootWaypoint;
-    let childIndex = 0;
-    console.log(`Root (${waypoint.totalPresentValues}):`);
-    process.stdout.write("  ");
-    for (;;) {
-      if (childIndex === waypoint.children.length) {
-        // Done with this waypoint; pop the stack.
-        console.log("");
-        if (stack.length === 0) {
-          // Completely done.
-          console.log(`Nodes: ${numNodes}`);
-          console.log(`Depth: ${maxDepth}`);
-          return;
-        }
-        [waypoint, childIndex] = stack.pop()!;
-        childIndex++;
-        for (let i = 0; i < stack.length + 1; i++) {
-          process.stdout.write("  ");
-        }
-        continue;
-      }
-
-      const child = waypoint.children[childIndex];
-      if (isWaypoint(child)) {
-        // Waypoint child. Recurse.
-        process.stdout.write("\n");
-        for (let i = 0; i < stack.length + 1; i++) {
-          process.stdout.write("  ");
-        }
-        stack.push([waypoint, childIndex]);
-        waypoint = child;
-        childIndex = 0;
-        process.stdout.write(
-          `[${waypoint.sender}, ${waypoint.counter}] (${waypoint.totalPresentValues}):\n`
-        );
-        for (let i = 0; i < stack.length + 1; i++) {
-          process.stdout.write("  ");
-        }
-        numNodes++;
-        maxDepth = Math.max(maxDepth, stack.length + 1);
-        continue;
-      } else if (isItem(child)) {
-        process.stdout.write(`${this.itemManager.length(child)}, `);
-      } else {
-        process.stdout.write(`${child}, `);
-      }
-
-      // Move to the next child.
-      childIndex++;
-    }
-  }
+  // // For debugging.
+  // printTreeWalk() {
+  //   let numNodes = 1;
+  //   let maxDepth = 1;
+  //   // Walk the tree.
+  //   console.log("Tree walk by " + this.replicaID);
+  //   const stack: [waypoint: Waypoint<I>, childIndex: number][] = [];
+  //   let waypoint = this.rootWaypoint;
+  //   let childIndex = 0;
+  //   console.log(`Root (${waypoint.totalPresentValues}):`);
+  //   process.stdout.write("  ");
+  //   for (;;) {
+  //     if (childIndex === waypoint.children.length) {
+  //       // Done with this waypoint; pop the stack.
+  //       console.log("");
+  //       if (stack.length === 0) {
+  //         // Completely done.
+  //         console.log(`Nodes: ${numNodes}`);
+  //         console.log(`Depth: ${maxDepth}`);
+  //         return;
+  //       }
+  //       [waypoint, childIndex] = stack.pop()!;
+  //       childIndex++;
+  //       for (let i = 0; i < stack.length + 1; i++) {
+  //         process.stdout.write("  ");
+  //       }
+  //       continue;
+  //     }
+  //
+  //     const child = waypoint.children[childIndex];
+  //     if (isWaypoint(child)) {
+  //       // Waypoint child. Recurse.
+  //       process.stdout.write("\n");
+  //       for (let i = 0; i < stack.length + 1; i++) {
+  //         process.stdout.write("  ");
+  //       }
+  //       stack.push([waypoint, childIndex]);
+  //       waypoint = child;
+  //       childIndex = 0;
+  //       process.stdout.write(
+  //         `[${waypoint.sender}, ${waypoint.counter}] (${waypoint.totalPresentValues}):\n`
+  //       );
+  //       for (let i = 0; i < stack.length + 1; i++) {
+  //         process.stdout.write("  ");
+  //       }
+  //       numNodes++;
+  //       maxDepth = Math.max(maxDepth, stack.length + 1);
+  //       continue;
+  //     } else if (isItem(child)) {
+  //       process.stdout.write(`${this.itemManager.length(child)}, `);
+  //     } else {
+  //       process.stdout.write(`${child}, `);
+  //     }
+  //
+  //     // Move to the next child.
+  //     childIndex++;
+  //   }
+  // }
 
   /**
    * Useful during loading.
@@ -1350,8 +1351,6 @@ export class PositionSource<I> {
     if (decoded.oldReplicaID === this.replicaID) {
       this.nextCounter = decoded.oldNextCounter;
     }
-
-    // TODO: loading root properly (including initial values: check which are deleted).
 
     // All waypoints, in order [root, then same order
     // as parentWaypoints].

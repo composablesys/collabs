@@ -23,6 +23,14 @@ export class PrimitiveCList<T>
   implements LocatableCList<T>
 {
   private readonly positionSource: PositionSource<T[]>;
+  /**
+   * Used for local operations, to store the index where the operation is
+   * happening, so we don't have to find() the relevant position twice.
+   * Reset to -1 (indicating not valid) whenever we receive a remote message.
+   * That implies that this is still reliable even if we don't get immediate
+   * local echos, i.e., the CText is used in a non-CRDT fashion.
+   */
+  private indexHint = -1;
 
   constructor(
     initToken: InitToken,
@@ -39,13 +47,14 @@ export class PrimitiveCList<T>
     );
   }
 
-  // TODO: optimize bulk methods.
+  // OPT: optimize bulk methods.
 
   insert(index: number, value: T): T;
   insert(index: number, ...values: T[]): T | undefined;
   insert(index: number, ...values: T[]): T | undefined {
     if (values.length === 0) return undefined;
 
+    this.indexHint = index;
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
     const [counter, startValueIndex, metadata] =
@@ -84,10 +93,11 @@ export class PrimitiveCList<T>
       );
     }
 
-    // TODO: native range deletes? E.g. compress waypoint valueIndex ranges.
-    // TODO: optimize range iteration (back to front).
+    // OPT: native range deletes? E.g. compress waypoint valueIndex ranges.
+    // OPT: optimize range iteration (back to front).
     // Delete from back to front, so indices make sense.
     for (let i = startIndex + count - 1; i >= startIndex; i--) {
+      this.indexHint = i;
       const pos = this.positionSource.getPosition(i);
       const message = PrimitiveCListMessage.create({
         delete: {
@@ -101,6 +111,8 @@ export class PrimitiveCList<T>
   }
 
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
+    if (!meta.isLocalEcho) this.indexHint = -1;
+
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
       case "insert": {
@@ -129,10 +141,14 @@ export class PrimitiveCList<T>
         const pos: Position = [meta.sender, counter, startValueIndex];
         this.positionSource.receiveAndAddPositions(pos, values, metadata);
 
+        const startIndex =
+          this.indexHint !== -1
+            ? this.indexHint
+            : this.positionSource.find(pos)[0];
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
-          startIndex: this.positionSource.find(pos)[0],
+          startIndex,
           count: values.length,
           meta,
         });
@@ -151,8 +167,12 @@ export class PrimitiveCList<T>
         const pos: Position = [sender, counter, valueIndex];
         const deletedValues = this.positionSource.delete(pos);
         if (deletedValues !== null) {
+          const startIndex =
+            this.indexHint !== -1
+              ? this.indexHint
+              : this.positionSource.find(pos)[0];
           this.emit("Delete", {
-            startIndex: this.positionSource.find(pos)[0],
+            startIndex,
             count: 1,
             deletedValues,
             meta,
@@ -212,14 +232,13 @@ export class PrimitiveCList<T>
     if (start === undefined && end === undefined) {
       return [...this.values()];
     } else {
-      // TODO: optimize using items() iterator or similar.
+      // OPT: optimize using items() iterator or similar.
       return super.slice(start, end);
     }
   }
 
   getLocation(index: number): string {
     const pos = this.positionSource.getPosition(index);
-    // TODO: shorter encoding? Also in locationEntries().
     return JSON.stringify(pos);
   }
 
@@ -278,13 +297,14 @@ export class PrimitiveCList<T>
   }
 
   canGC(): boolean {
-    // TODO: return true if not yet mutated.
-    // Also, note that this won't be false even if empty, due to tombstones.
+    // OPT: return true if not yet mutated.
+    // Also, note in docs that this won't be true even if empty, due to
+    // tombstones.
     return false;
   }
 
-  // TODO: remove
-  printTreeWalk() {
-    this.positionSource.printTreeWalk();
-  }
+  // // For debugging positionSource.
+  // printTreeWalk() {
+  //   this.positionSource.printTreeWalk();
+  // }
 }

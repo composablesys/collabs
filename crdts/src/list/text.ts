@@ -30,6 +30,14 @@ export interface CTextEventsRecord extends CollabEventsRecord {
 
 export class CText extends CPrimitive<CTextEventsRecord> {
   private readonly positionSource: PositionSource<string>;
+  /**
+   * Used for local operations, to store the index where the operation is
+   * happening, so we don't have to find() the relevant position twice.
+   * Reset to -1 (indicating not valid) whenever we receive a remote message.
+   * That implies that this is still reliable even if we don't get immediate
+   * local echos, i.e., the CText is used in a non-CRDT fashion.
+   */
+  private indexHint = -1;
 
   constructor(initToken: InitToken) {
     super(initToken);
@@ -40,11 +48,12 @@ export class CText extends CPrimitive<CTextEventsRecord> {
     );
   }
 
-  // TODO: optimize bulk methods.
+  // OPT: optimize bulk methods.
 
   insert(index: number, values: string): void {
     if (values.length === 0) return undefined;
 
+    this.indexHint = index;
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
     const [counter, startValueIndex, metadata] =
@@ -71,10 +80,11 @@ export class CText extends CPrimitive<CTextEventsRecord> {
       );
     }
 
-    // TODO: native range deletes? E.g. compress waypoint valueIndex ranges.
-    // TODO: optimize range iteration (back to front).
+    // OPT: native range deletes? E.g. compress waypoint valueIndex ranges.
+    // OPT: optimize range iteration (back to front).
     // Delete from back to front, so indices make sense.
     for (let i = startIndex + count - 1; i >= startIndex; i--) {
+      this.indexHint = i;
       const pos = this.positionSource.getPosition(i);
       const message = CTextMessage.create({
         delete: {
@@ -88,6 +98,8 @@ export class CText extends CPrimitive<CTextEventsRecord> {
   }
 
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
+    if (!meta.isLocalEcho) this.indexHint = -1;
+
     const decoded = CTextMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
       case "insert": {
@@ -104,10 +116,14 @@ export class CText extends CPrimitive<CTextEventsRecord> {
         const pos: Position = [meta.sender, counter, startValueIndex];
         this.positionSource.receiveAndAddPositions(pos, values, metadata);
 
+        const startIndex =
+          this.indexHint !== -1
+            ? this.indexHint
+            : this.positionSource.find(pos)[0];
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
-          startIndex: this.positionSource.find(pos)[0],
+          startIndex,
           count: values.length,
           meta,
         });
@@ -126,8 +142,12 @@ export class CText extends CPrimitive<CTextEventsRecord> {
         const pos: Position = [sender, counter, valueIndex];
         const deletedValues = this.positionSource.delete(pos);
         if (deletedValues !== null) {
+          const startIndex =
+            this.indexHint !== -1
+              ? this.indexHint
+              : this.positionSource.find(pos)[0];
           this.emit("Delete", {
-            startIndex: this.positionSource.find(pos)[0],
+            startIndex,
             count: 1,
             deletedValues: deletedValues.charAt(0),
             meta,
@@ -139,9 +159,6 @@ export class CText extends CPrimitive<CTextEventsRecord> {
         throw new Error(`Unrecognized decoded.op: ${decoded.op}`);
     }
   }
-
-  // TODO: string convenience methods, instead of array methods.
-  // TODO: rename for string version (e.g. get -> charAt).
 
   charAt(index: number): string {
     const [item, offset] = this.positionSource.getItem(index);
@@ -158,7 +175,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
     return this.values();
   }
 
-  // TODO: items() version of iterator? Likewise for PrimitiveCList?
+  // OPT: items() version of iterator? Likewise for PrimitiveCList?
 
   get length(): number {
     return this.positionSource.length;
@@ -174,7 +191,6 @@ export class CText extends CPrimitive<CTextEventsRecord> {
 
   getLocation(index: number): string {
     const pos = this.positionSource.getPosition(index);
-    // TODO: shorter encoding? Also in locationEntries().
     return JSON.stringify(pos);
   }
 
@@ -214,12 +230,12 @@ export class CText extends CPrimitive<CTextEventsRecord> {
   }
 
   canGC(): boolean {
-    // TODO: return true if not yet mutated
+    // OPT: return true if not yet mutated
     return false;
   }
 
-  // TODO: remove
-  printTreeWalk() {
-    this.positionSource.printTreeWalk();
-  }
+  // // For debugging PositionSource.
+  // printTreeWalk() {
+  //   this.positionSource.printTreeWalk();
+  // }
 }

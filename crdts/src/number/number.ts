@@ -289,7 +289,8 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 }
 
 /**
- * TODO: experimental.
+ * Experimental; stable alternatives are [[CCounter]], [[ResettableCCounter]],
+ * and [[LwwCVariable]]`<number>`.
  *
  * Experimental warnings:
  * - Eventual consistency may fail due to rounding issues.

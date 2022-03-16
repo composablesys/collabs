@@ -28,7 +28,7 @@ message PositionSourceSave {
   repeated uint32 children = 8 [packed=true];
   // For each child, gives type (0 = positive number, 1 = negative number,
   // 2 = waypoint) plus 4 if the child ends the current waypoint.
-  // TODO: pack bits? (3 bits per child).
+  // OPT: pack bits? (3 bits per child). Low priority (already quite compact).
   // Or, could use children sign bit to help out, so we only need 2 bits each.
   repeated uint32 childTypes = 9 [packed=true];
 }

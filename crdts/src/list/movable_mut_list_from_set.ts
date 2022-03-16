@@ -63,6 +63,10 @@ export class MovableMutCListFromSet<
    * dispatching a Set event (i.e., pass it in VarT's
    * constructor, not as an operation, which wouldn't
    * make sense anyway).
+   *
+   * The set returned by setCallback must satisfy:
+   * - Immediately after constructing with initial values,
+   * values() returns them in the order corresponding to setInitialValuesArgs.
    */
   constructor(
     initToken: InitToken,
@@ -102,14 +106,14 @@ export class MovableMutCListFromSet<
     // For initial values, note that this.set Add events don't get dispatched.
     // Thus we don't have to worry that positionSource is not yet created for
     // them.
-    // TODO: needs assumption that set iterator goes in order for initialValues.
+    // Here we use the assumption (stated in constructor docs) that values()
+    // are in order.
     this.positionSource = new PositionSource(
       this.runtime.replicaID,
       ArrayItemManager.getInstance(),
       [...this.set]
     );
 
-    //TODO: createdPositionMessenger.
     this.createdPositionMessenger = this.addChild(
       "m",
       Pre(CMessenger)(CreatedPositionSerializer.instance)
@@ -193,9 +197,6 @@ export class MovableMutCListFromSet<
       startValueIndex,
       metadata,
     ]);
-    // TODO: instead of this, mandate set.add returns value immediately?
-    // Since we only expect to use this for CRDTs anyway.
-    // Then don't need to override in subclasses.
     return this.set.add(pos, args)?.value;
   }
 
@@ -245,7 +246,7 @@ export class MovableMutCListFromSet<
     // Values to move.
     const toMove = new Array<MovableMutCListEntry<C, VarT>>(count);
     for (let i = 0; i < count; i++) {
-      // TODO: actually use items here.
+      // OPT: actually use items here.
       const [item, offset] = this.positionSource.getItem(startIndex + i);
       toMove[i] = item[offset];
     }
@@ -284,7 +285,6 @@ export class MovableMutCListFromSet<
 
   getLocation(index: number): string {
     const pos = this.positionSource.getPosition(index);
-    // TODO: shorter encoding? Also in locationEntries().
     return JSON.stringify(pos);
   }
 
@@ -331,8 +331,9 @@ export class MovableMutCListFromSet<
   }
 
   canGC(): boolean {
-    // TODO: return true if not yet mutated.
-    // Also, note that this won't be false even if empty, due to tombstones.
+    // OPT: return true if not yet mutated.
+    // Also, note in docs that this won't be true even if empty, due to
+    // tombstones.
     return false;
   }
 
