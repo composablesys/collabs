@@ -10,8 +10,7 @@ import {
   CollabEventsRecord,
 } from "@collabs/core";
 import { CTextMessage, CTextSave } from "../../generated/proto_compiled";
-import { Position, PositionSource } from "./position_source";
-import { StringItemManager } from "./string_item_manager";
+import { Position, PositionSource, StringItemManager } from "./position_source";
 
 export interface CTextInsertEvent extends CollabEvent {
   startIndex: number;

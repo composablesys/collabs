@@ -2,7 +2,7 @@ import { int64AsNumber } from "@collabs/core";
 import {
   PositionSourceMetadataMessage,
   PositionSourceSave,
-} from "../../generated/proto_compiled";
+} from "../../../generated/proto_compiled";
 
 export type Position = [sender: string, counter: number, valueIndex: number];
 
@@ -187,7 +187,10 @@ export class PositionSource<I> {
     // Fake leftmost value, marked as unpresent.
     this.rootWaypoint.children.push(-1);
     // Initial values.
-    if (initialItem !== undefined) {
+    if (
+      initialItem !== undefined &&
+      this.itemManager.length(initialItem) !== 0
+    ) {
       this.rootWaypoint.children.push(initialItem);
       this.rootWaypoint.totalPresentValues =
         this.itemManager.length(initialItem);
@@ -1338,7 +1341,10 @@ export class PositionSource<I> {
    * This must only be null if you are using NumberItemManager
    * (when it's null, we skip a step that is redundant for NumberItemManager).
    */
-  load(saveData: Uint8Array, nextItem: ((count: number) => I) | null): void {
+  load(
+    saveData: Uint8Array,
+    nextItem: ((count: number, startPos: Position) => I) | null
+  ): void {
     const decoded = PositionSourceSave.decode(saveData);
 
     if (decoded.oldReplicaID === this.replicaID) {
@@ -1422,10 +1428,17 @@ export class PositionSource<I> {
     // Replace the item placeholders (their lengths) with the actual items,
     // by looping over both the values and positions in order.
     if (nextItem !== null) {
-      for (const [waypoint, childIndex, , count] of this.itemPositionsInternal(
-        true
-      )) {
-        waypoint.children[childIndex] = nextItem(count);
+      for (const [
+        waypoint,
+        childIndex,
+        startValueIndex,
+        count,
+      ] of this.itemPositionsInternal(true)) {
+        waypoint.children[childIndex] = nextItem(count, [
+          waypoint.sender,
+          waypoint.counter,
+          startValueIndex,
+        ]);
       }
     }
   }

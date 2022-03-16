@@ -16,8 +16,7 @@ import {
   PrimitiveCListMessage,
   PrimitiveCListSave,
 } from "../../generated/proto_compiled";
-import { ArrayItemManager } from "./array_item_manager";
-import { Position, PositionSource } from "./position_source";
+import { ArrayItemManager, Position, PositionSource } from "./position_source";
 
 export class PrimitiveCList<T>
   extends AbstractCListCPrimitive<T, [T]>
@@ -279,7 +278,8 @@ export class PrimitiveCList<T>
   }
 
   canGC(): boolean {
-    // TODO: return true if not yet mutated
+    // TODO: return true if not yet mutated.
+    // Also, note that this won't be false even if empty, due to tombstones.
     return false;
   }
 
