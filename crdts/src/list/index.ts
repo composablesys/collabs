@@ -7,4 +7,5 @@ export * from "./movable_mut_list_from_set";
 export * from "./position_source";
 export * from "./primitive_list";
 export * from "./rga_dense_local_list";
+export * from "./string_item_manager";
 export * from "./text";

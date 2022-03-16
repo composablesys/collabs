@@ -41,7 +41,7 @@ class JSONTextTodoListInternal implements ITodoListInternal {
 
   insertText(index: number, text: string): void {
     let textArray = this.jsonObj.get("text")!.value as collabs.CText;
-    textArray.insert(index, ...text);
+    textArray.insert(index, text);
   }
 
   deleteText(index: number, count: number): void {
@@ -54,7 +54,7 @@ class JSONTextTodoListInternal implements ITodoListInternal {
   }
 
   getText(): string {
-    return (this.jsonObj.get("text")!.value as collabs.CText).join("");
+    return (this.jsonObj.get("text")!.value as collabs.CText).toString();
   }
 }
 
