@@ -33,6 +33,7 @@ import { MicroTextLtrTrace } from "./replica-benchmark/traces/micro_text_ltr_tra
 import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_random_trace";
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
+import { RealText100Trace } from "./replica-benchmark/traces/real_text_100_trace";
 
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
@@ -41,6 +42,7 @@ const traces: { [name: string]: Trace<unknown> } = {
   MicroTextLtr: new MicroTextLtrTrace(),
   MicroTextRandom: new MicroTextRandomTrace(),
   RealText: new RealTextTrace(),
+  RealText100: new RealText100Trace(),
   TodoList: new TodoListTrace(),
 };
 
