@@ -31,7 +31,7 @@ import { CRDTContainer } from "@collabs/container";
     updateCursor();
   });
 
-  const myCursor = new collabs.LocalCursor(text, 0);
+  let myCursor = collabs.Cursor.fromIndex(text, 0);
   function updateCursor() {
     const index = myCursor.index;
     textInput.selectionStart = index;
@@ -95,7 +95,7 @@ import { CRDTContainer } from "@collabs/container";
       if (e.key === "Backspace") {
         if (index > 0) {
           text.delete(index - 1);
-          myCursor.index = index - 1;
+          myCursor = collabs.Cursor.fromIndex(text, index - 1);
           updateCursor();
         }
       } else if (e.key === "Delete") {
@@ -104,23 +104,23 @@ import { CRDTContainer } from "@collabs/container";
         }
       } else if (e.key === "ArrowLeft") {
         if (index > 0) {
-          myCursor.index = index - 1;
+          myCursor = collabs.Cursor.fromIndex(text, index - 1);
           updateCursor();
         }
       } else if (e.key === "ArrowRight") {
         if (index < textInput.value.length) {
-          myCursor.index = index + 1;
+          myCursor = collabs.Cursor.fromIndex(text, index + 1);
           updateCursor();
         }
       } else if (e.key === "End") {
-        myCursor.index = textInput.value.length;
+        myCursor = collabs.Cursor.fromIndex(text, textInput.value.length);
         updateCursor();
       } else if (e.key === "Home") {
-        myCursor.index = 0;
+        myCursor = collabs.Cursor.fromIndex(text, 0);
         updateCursor();
       } else if (shouldType(e)) {
         text.insert(index, e.key);
-        myCursor.index = index + 1;
+        myCursor = collabs.Cursor.fromIndex(text, index + 1);
         updateCursor();
         if (startTime.conflicts().length === 0) startTime.value = Date.now();
       }

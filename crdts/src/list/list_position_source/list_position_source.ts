@@ -175,8 +175,9 @@ export class ListPositionSource<I> {
    * at the list's creation before any operations are
    * performed, or undefined if there are no such values.
    * The initial values are assigned the positions
-   * ["", 0, i] for i in [0, itemManager.length(initialItem)),
+   * ["", 0, i] for i in [1, itemManager.length(initialItem)],
    * i.e., you should store them keyed by those positions.
+   * (Note 1-indexed, not 0-indexed.)
    */
   constructor(
     readonly replicaID: string,
@@ -190,11 +191,11 @@ export class ListPositionSource<I> {
     this.waypointsByID.set("", [this.rootWaypoint]);
     // Fake leftmost value, marked as unpresent.
     this.rootWaypoint.children.push(-1);
-    // Initial values.
     if (
       initialItem !== undefined &&
       this.itemManager.length(initialItem) !== 0
     ) {
+      // Initial values.
       this.rootWaypoint.children.push(initialItem);
       this.rootWaypoint.totalPresentValues =
         this.itemManager.length(initialItem);
@@ -1009,7 +1010,7 @@ export class ListPositionSource<I> {
     return this.rootWaypoint.totalPresentValues;
   }
 
-  find(pos: ListPosition): [geIndex: number, isPresent: boolean] {
+  findPosition(pos: ListPosition): [geIndex: number, isPresent: boolean] {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // geIndex within waypoint's subtree.

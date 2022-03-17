@@ -19,15 +19,15 @@ import { CRDTContainer } from "@collabs/container";
 
   // TODO: shared cursors
 
-  const myStartCursor = new collabs.LocalCursor(text, 0);
-  const myEndCursor = new collabs.LocalCursor(text, 0);
+  let myStartCursor = collabs.Cursor.fromIndex(text, 0);
+  let myEndCursor = collabs.Cursor.fromIndex(text, 0);
   function updateCursors() {
     // Need to do this on a delay because the event doesn't
     // due its default action (updating the handler) until
     // after the event handlers.
     setTimeout(() => {
-      myStartCursor.index = textarea.selectionStart;
-      myEndCursor.index = textarea.selectionEnd;
+      myStartCursor = collabs.Cursor.fromIndex(text, textarea.selectionStart);
+      myEndCursor = collabs.Cursor.fromIndex(text, textarea.selectionEnd);
     }, 0);
   }
   function updateSelection() {
@@ -49,15 +49,15 @@ import { CRDTContainer } from "@collabs/container";
     if (e.key === "Backspace") {
       if (endIndex > startIndex) {
         text.delete(startIndex, endIndex - startIndex);
-        myEndCursor.index = startIndex;
+        myEndCursor = collabs.Cursor.fromIndex(text, startIndex);
       } else if (endIndex === startIndex && startIndex > 0) {
         text.delete(startIndex - 1);
-        myStartCursor.index = startIndex - 1;
+        myStartCursor = collabs.Cursor.fromIndex(text, startIndex - 1);
       }
     } else if (e.key === "Delete") {
       if (endIndex > startIndex) {
         text.delete(startIndex, endIndex - startIndex);
-        myEndCursor.index = startIndex;
+        myEndCursor = collabs.Cursor.fromIndex(text, startIndex);
       } else if (
         endIndex === startIndex &&
         startIndex < textarea.value.length
@@ -91,9 +91,9 @@ import { CRDTContainer } from "@collabs/container";
       // Delete current selection
       text.delete(startIndex, endIndex - startIndex);
     }
-    text.insert(startIndex, ...str);
-    myStartCursor.index = startIndex + str.length;
-    myEndCursor.index = startIndex + str.length;
+    text.insert(startIndex, str);
+    myStartCursor = collabs.Cursor.fromIndex(text, startIndex + str.length);
+    myEndCursor = collabs.Cursor.fromIndex(text, startIndex + str.length);
   }
 
   function shouldType(e: KeyboardEvent): boolean {

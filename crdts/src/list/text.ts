@@ -2,12 +2,12 @@ import {
   InitToken,
   Message,
   MessageMeta,
-  FoundLocation,
   int64AsNumber,
   Optional,
   CPrimitive,
   CollabEvent,
   CollabEventsRecord,
+  PositionedList,
 } from "@collabs/core";
 import { CTextMessage, CTextSave } from "../../generated/proto_compiled";
 import {
@@ -32,11 +32,14 @@ export interface CTextEventsRecord extends CollabEventsRecord {
   Delete: CTextDeleteEvent;
 }
 
-export class CText extends CPrimitive<CTextEventsRecord> {
+export class CText
+  extends CPrimitive<CTextEventsRecord>
+  implements PositionedList
+{
   private readonly positionSource: ListPositionSource<string>;
   /**
    * Used for local operations, to store the index where the operation is
-   * happening, so we don't have to find() the relevant position twice.
+   * happening, so we don't have to findPosition() twice.
    * Reset to -1 (indicating not valid) whenever we receive a remote message.
    * That implies that this is still reliable even if we don't get immediate
    * local echos, i.e., the CText is used in a non-CRDT fashion.
@@ -101,6 +104,10 @@ export class CText extends CPrimitive<CTextEventsRecord> {
     }
   }
 
+  clear(): void {
+    this.delete(0, this.length);
+  }
+
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
     if (!meta.isLocalEcho) this.indexHint = -1;
 
@@ -123,7 +130,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
         const startIndex =
           this.indexHint !== -1
             ? this.indexHint
-            : this.positionSource.find(pos)[0];
+            : this.positionSource.findPosition(pos)[0];
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
@@ -149,7 +156,7 @@ export class CText extends CPrimitive<CTextEventsRecord> {
           const startIndex =
             this.indexHint !== -1
               ? this.indexHint
-              : this.positionSource.find(pos)[0];
+              : this.positionSource.findPosition(pos)[0];
           this.emit("Delete", {
             startIndex,
             count: 1,
@@ -193,23 +200,14 @@ export class CText extends CPrimitive<CTextEventsRecord> {
     return ans;
   }
 
-  getLocation(index: number): string {
+  getPosition(index: number): string {
     const pos = this.positionSource.getPosition(index);
     return JSON.stringify(pos);
   }
 
-  findLocation(location: string): FoundLocation {
-    const pos = <ListPosition>JSON.parse(location);
-    return new FoundLocation(...this.positionSource.find(pos));
-  }
-
-  *locationEntries(): IterableIterator<[string, string]> {
-    for (const [pos, length, item] of this.positionSource.itemPositions()) {
-      for (let i = 0; i < length; i++) {
-        yield [JSON.stringify(pos), item[i]];
-        pos[2]++;
-      }
-    }
+  findPosition(position: string): [geIndex: number, isPresent: boolean] {
+    const pos = <ListPosition>JSON.parse(position);
+    return this.positionSource.findPosition(pos);
   }
 
   save(): Uint8Array {

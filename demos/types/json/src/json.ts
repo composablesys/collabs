@@ -324,7 +324,7 @@ export class JSONElement extends CObject {
         }
         return ansList;
       case this.text:
-        return new TextWrapper(this.text.join(""));
+        return new TextWrapper(this.text.toString());
       default:
         return this.value;
     }
@@ -347,7 +347,7 @@ export class JSONElement extends CObject {
         if (value === null) this.setPrimitive(null);
         else if (value instanceof TextWrapper) {
           this.setIsText();
-          if (value.text.length > 0) this.text.insert(0, ...value.text);
+          if (value.text.length > 0) this.text.insert(0, value.text);
         } else if (Array.isArray(value)) {
           this.setIsArray();
           this.array.insertRange(0, value.length);

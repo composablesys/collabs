@@ -11,8 +11,6 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
   abstract get(index: number): T;
   abstract values(): IterableIterator<T>;
   abstract readonly length: number;
-  abstract getLocation(index: number): string;
-  abstract locationEntries(): IterableIterator<[string, T]>;
 
   /**
    * Calls delete on every value in the list, in
@@ -25,7 +23,6 @@ export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
   readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
-  locations(): IterableIterator<string>;
   /**
    * @return [...this].toString()
    */
@@ -175,8 +172,6 @@ export function MakeAbstractCList<
     abstract get(index: number): T;
     abstract values(): IterableIterator<T>;
     abstract readonly length: number;
-    abstract getLocation(index: number): string;
-    abstract locationEntries(): IterableIterator<[string, T]>;
 
     clear(): void {
       for (let i = this.length - 1; i >= 0; i--) {
@@ -198,10 +193,6 @@ export function MakeAbstractCList<
         yield [i, value];
         i++;
       }
-    }
-
-    *locations(): IterableIterator<string> {
-      for (const [location] of this.locationEntries()) yield location;
     }
 
     toString(): string {

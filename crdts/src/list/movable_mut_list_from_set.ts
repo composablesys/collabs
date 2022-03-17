@@ -9,13 +9,12 @@ import {
   AbstractCListCObject,
   CVariable,
   CSet,
-  FoundLocation,
-  LocatableCList,
   MovableCList,
   MovableCListEventsRecord,
   CObject,
   CMessenger,
   Optional,
+  PositionedList,
 } from "@collabs/core";
 import {
   ArrayListItemManager,
@@ -50,7 +49,7 @@ export class MovableMutCListFromSet<
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCObject<C, InsertArgs, Events>
-  implements MovableCList<C, InsertArgs>, LocatableCList<C, InsertArgs, Events>
+  implements MovableCList<C, InsertArgs>, PositionedList
 {
   protected readonly set: SetT;
   protected readonly createdPositionMessenger: CMessenger<
@@ -96,7 +95,7 @@ export class MovableMutCListFromSet<
     super(initToken);
 
     const setInitialValuesArgs: [ListPosition, InsertArgs][] =
-      initialValuesArgs.map((args, index) => [["", 0, index], args]);
+      initialValuesArgs.map((args, index) => [["", 0, index + 1], args]);
     this.set = this.addChild(
       "",
       setCallback(
@@ -134,7 +133,9 @@ export class MovableMutCListFromSet<
     this.set.on("Add", (event) => {
       this.positionSource.add(event.value.position.value, [event.value]);
       this.emit("Insert", {
-        startIndex: this.positionSource.find(event.value.position.value)[0],
+        startIndex: this.positionSource.findPosition(
+          event.value.position.value
+        )[0],
         count: 1,
         meta: event.meta,
       });
@@ -142,7 +143,9 @@ export class MovableMutCListFromSet<
     this.set.on("Delete", (event) => {
       this.positionSource.delete(event.value.position.value);
       this.emit("Delete", {
-        startIndex: this.positionSource.find(event.value.position.value)[0],
+        startIndex: this.positionSource.findPosition(
+          event.value.position.value
+        )[0],
         count: 1,
         deletedValues: [event.value.value],
         meta: event.meta,
@@ -178,9 +181,11 @@ export class MovableMutCListFromSet<
       this.positionSource.delete(event.previousValue);
       this.positionSource.add(entry.position.value, [entry]);
       this.emit("Move", {
-        startIndex: this.positionSource.find(event.previousValue)[0],
+        startIndex: this.positionSource.findPosition(event.previousValue)[0],
         count: 1,
-        resultingStartIndex: this.positionSource.find(entry.position.value)[0],
+        resultingStartIndex: this.positionSource.findPosition(
+          entry.position.value
+        )[0],
         meta: event.meta,
       });
     });
@@ -266,7 +271,7 @@ export class MovableMutCListFromSet<
       ]);
     }
     // Return the new index of toMove[0].
-    return this.positionSource.find([
+    return this.positionSource.findPosition([
       this.runtime.replicaID,
       counter,
       startValueIndex,
@@ -290,23 +295,14 @@ export class MovableMutCListFromSet<
     return this.set.size;
   }
 
-  getLocation(index: number): string {
+  getPosition(index: number): string {
     const pos = this.positionSource.getPosition(index);
     return JSON.stringify(pos);
   }
 
-  findLocation(location: string): FoundLocation {
-    const pos = <ListPosition>JSON.parse(location);
-    return new FoundLocation(...this.positionSource.find(pos));
-  }
-
-  *locationEntries(): IterableIterator<[string, C]> {
-    for (const [pos, length, item] of this.positionSource.itemPositions()) {
-      for (let i = 0; i < length; i++) {
-        yield [JSON.stringify(pos), item[i].value];
-        pos[2]++;
-      }
-    }
+  findPosition(position: string): [geIndex: number, isPresent: boolean] {
+    const pos = <ListPosition>JSON.parse(position);
+    return this.positionSource.findPosition(pos);
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
@@ -317,7 +313,7 @@ export class MovableMutCListFromSet<
     if (this.set.has(searchElement.parent as MovableMutCListEntry<C, VarT>)) {
       const position = (searchElement.parent as MovableMutCListEntry<C, VarT>)
         .position.value;
-      const index = this.positionSource.find(position)[0];
+      const index = this.positionSource.findPosition(position)[0];
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }
@@ -335,6 +331,17 @@ export class MovableMutCListFromSet<
 
   includes(searchElement: C, fromIndex = 0): boolean {
     return this.indexOf(searchElement, fromIndex) !== -1;
+  }
+
+  /**
+   * Returns a string "key" that uniquely identifies value and that does
+   * not change when the value moves (either due to insertions/deletions
+   * in front of it, or due to move operations).
+   *
+   * Useful for e.g. React lists - use the return value as the key.
+   */
+  getKey(value: C): string {
+    return (<Collab>value.parent).name;
   }
 
   canGC(): boolean {

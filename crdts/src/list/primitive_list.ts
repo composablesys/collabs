@@ -3,12 +3,11 @@ import {
   Message,
   MessageMeta,
   AbstractCListCPrimitive,
-  FoundLocation,
-  LocatableCList,
   DefaultSerializer,
   int64AsNumber,
   Optional,
   Serializer,
+  PositionedList,
 } from "@collabs/core";
 import {
   IPrimitiveCListInsertMessage,
@@ -24,12 +23,12 @@ import {
 
 export class PrimitiveCList<T>
   extends AbstractCListCPrimitive<T, [T]>
-  implements LocatableCList<T>
+  implements PositionedList
 {
   private readonly positionSource: ListPositionSource<T[]>;
   /**
    * Used for local operations, to store the index where the operation is
-   * happening, so we don't have to find() the relevant position twice.
+   * happening, so we don't have to findPosition() twice.
    * Reset to -1 (indicating not valid) whenever we receive a remote message.
    * That implies that this is still reliable even if we don't get immediate
    * local echos, i.e., the CText is used in a non-CRDT fashion.
@@ -148,7 +147,7 @@ export class PrimitiveCList<T>
         const startIndex =
           this.indexHint !== -1
             ? this.indexHint
-            : this.positionSource.find(pos)[0];
+            : this.positionSource.findPosition(pos)[0];
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
@@ -174,7 +173,7 @@ export class PrimitiveCList<T>
           const startIndex =
             this.indexHint !== -1
               ? this.indexHint
-              : this.positionSource.find(pos)[0];
+              : this.positionSource.findPosition(pos)[0];
           this.emit("Delete", {
             startIndex,
             count: 1,
@@ -241,17 +240,23 @@ export class PrimitiveCList<T>
     }
   }
 
-  getLocation(index: number): string {
+  getPosition(index: number): string {
     const pos = this.positionSource.getPosition(index);
     return JSON.stringify(pos);
   }
 
-  findLocation(location: string): FoundLocation {
-    const pos = <ListPosition>JSON.parse(location);
-    return new FoundLocation(...this.positionSource.find(pos));
+  findPosition(position: string): [geIndex: number, isPresent: boolean] {
+    const pos = <ListPosition>JSON.parse(position);
+    return this.positionSource.findPosition(pos);
   }
 
-  *locationEntries(): IterableIterator<[string, T]> {
+  /**
+   * Returns an iterator over pairs [position, value] (where "position" is
+   * in the sense of [[getPosition]] and [[findPosition]]).
+   *
+   * Useful for e.g. React lists - use the position as the key.
+   */
+  *positionEntries(): IterableIterator<[string, T]> {
     for (const [pos, length, item] of this.positionSource.itemPositions()) {
       for (let i = 0; i < length; i++) {
         yield [JSON.stringify(pos), item[i]];
