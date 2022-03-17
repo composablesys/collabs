@@ -51,7 +51,7 @@ class DeletingTodoListInternal
   }
 
   insertText(index: number, text: string): void {
-    this.text.insert(index, ...text);
+    this.text.insert(index, text);
   }
   deleteText(index: number, count: number): void {
     this.text.delete(index, count);
@@ -60,7 +60,7 @@ class DeletingTodoListInternal
     return this.text.length; // Assumes all text variables are one char
   }
   getText(): string {
-    return this.text.join("");
+    return this.text.toString();
   }
 }
 

@@ -87,6 +87,17 @@ interface BatchInfo {
    * in order of sending.
    */
   messages: number[];
+
+  /**
+   * Type guard.
+   */
+  isBatchInfo: true;
+}
+
+function isBatchInfo(
+  pendingBatch: BatchInfo | Message[]
+): pendingBatch is BatchInfo {
+  return (<BatchInfo>pendingBatch).isBatchInfo === true;
 }
 
 /**
@@ -128,7 +139,11 @@ export class BatchingLayer
 {
   private child!: Collab;
 
-  private pendingBatch: BatchInfo | null = null;
+  /**
+   * The first message is stored as a plain Message[]; if another message
+   * appears, it is converted to BatchInfo. null when no send batch is pending.
+   */
+  private pendingBatch: BatchInfo | Message[] | null = null;
 
   constructor(
     initToken: InitToken,
@@ -160,6 +175,12 @@ export class BatchingLayer
     return this.pendingBatch !== null;
   }
 
+  /**
+   * [[MessageMeta]] extra metadata that gives the number of messages
+   * in the current batch.
+   */
+  static BATCH_SIZE_KEY = Symbol();
+
   private inChildReceive = false;
 
   private batchEventPending = false;
@@ -189,16 +210,47 @@ export class BatchingLayer
       this.inChildReceive = false;
     }
 
-    let pendingBatch = this.pendingBatch;
-    if (pendingBatch === null) {
-      pendingBatch = { edges: [], children: new Map(), messages: [] };
-      this.pendingBatch = pendingBatch;
+    if (this.pendingBatch === null) {
+      this.pendingBatch = messagePath;
+    } else if (isBatchInfo(this.pendingBatch)) {
+      this.addToPendingBatch(messagePath);
+    } else {
+      // pendingBatch is a single messagePath. Creating a new BatchInfo
+      // with both messages.
+      const previousMessagePath = this.pendingBatch;
+      this.pendingBatch = {
+        edges: [],
+        children: new Map(),
+        messages: [],
+        isBatchInfo: true,
+      };
+      this.addToPendingBatch(previousMessagePath);
+      this.addToPendingBatch(messagePath);
     }
 
-    // OPT: for single (non-batched) messages, optimize by
-    // not doing anything fancy, just using the literal path?
-    // Don't even form the pendingBatch structure, just store
-    // it as a second special case after the empty case.
+    // Schedule a BatchPending event as a microtask, if there
+    // is not one pending already.
+    // This notifies BatchingStrategy and also emits a Change event.
+    if (!this.batchEventPending) {
+      this.batchEventPending = true;
+      void Promise.resolve().then(() => {
+        this.batchEventPending = false;
+        if (this.isBatchPending()) {
+          // Only emit if the batch is still pending.
+          this.emit("BatchPending", { meta });
+        }
+        this.emit("Change", { meta });
+      });
+    }
+
+    this.emit("DebugSend", { meta }, false);
+  }
+
+  /**
+   * Assumes this.pendingBatch has type BatchInfo.
+   */
+  private addToPendingBatch(messagePath: Message[]) {
+    const pendingBatch = <BatchInfo>this.pendingBatch;
 
     // Find the vertex corresponding to messagePathResolved, creating
     // it if necessary.
@@ -222,23 +274,6 @@ export class BatchingLayer
       vertex = nextVertex;
     }
     pendingBatch.messages.push(vertex);
-
-    // Schedule a BatchPending event as a microtask, if there
-    // is not one pending already.
-    // This notifies BatchingStrategy and also emits a Change event.
-    if (!this.batchEventPending) {
-      this.batchEventPending = true;
-      void Promise.resolve().then(() => {
-        this.batchEventPending = false;
-        if (this.isBatchPending()) {
-          // Only emit if the batch is still pending.
-          this.emit("BatchPending", { meta });
-        }
-        this.emit("Change", { meta });
-      });
-    }
-
-    this.emit("DebugSend", { meta }, false);
   }
 
   /**
@@ -254,48 +289,89 @@ export class BatchingLayer
     this.pendingBatch = null;
 
     // Serialize the batch and send it.
-    // We only need to serialize batch.edges and batch.messages;
-    // batch.children is redundant with batch.edges.
-    // Note that we serialize the individual labels and store
-    // them back in batch.edges[i].label, so that can later
-    // be assumed to have type Uint8Array | string.
-    const edgeLabelLengths = new Array<number>(batch.edges.length);
-    let totalLength = 0;
-    const edgeParents = new Array<number>(batch.edges.length);
-    for (let i = 0; i < batch.edges.length; i++) {
-      const label = serializeMessage(batch.edges[i].label);
-      batch.edges[i].label = label; // Store serialized form.
-      if (typeof label === "string") {
-        const length = util.utf8.length(label);
-        edgeLabelLengths[i] = ~length;
-        totalLength += length;
-      } else {
-        edgeLabelLengths[i] = label.length;
-        totalLength += label.length;
+    let batchMessage: BatchingLayerMessage;
+    if (isBatchInfo(batch)) {
+      // We only need to serialize batch.edges and batch.messages;
+      // batch.children is redundant with batch.edges.
+      // Note that we serialize the individual labels and store
+      // them back in batch.edges[i].label, so that can later
+      // be assumed to have type Uint8Array | string.
+      const edgeLabelLengths = new Array<number>(batch.edges.length);
+      let totalLength = 0;
+      const edgeParents = new Array<number>(batch.edges.length);
+      for (let i = 0; i < batch.edges.length; i++) {
+        const label = serializeMessage(batch.edges[i].label);
+        batch.edges[i].label = label; // Store serialized form.
+        if (typeof label === "string") {
+          const length = util.utf8.length(label);
+          edgeLabelLengths[i] = ~length;
+          totalLength += length;
+        } else {
+          edgeLabelLengths[i] = label.length;
+          totalLength += label.length;
+        }
+        edgeParents[i] = batch.edges[i].parent;
       }
-      edgeParents[i] = batch.edges[i].parent;
-    }
-    const edgeLabelsPacked = new Uint8Array(totalLength);
-    let offset = 0;
-    for (let i = 0; i < batch.edges.length; i++) {
-      const label = batch.edges[i].label;
-      if (typeof label === "string") {
-        util.utf8.write(label, edgeLabelsPacked, offset);
-        offset += ~edgeLabelLengths[i];
-      } else {
-        // Use assumption that label is already serialized,
-        // hence must be Uint8Array here.
-        edgeLabelsPacked.set(<Uint8Array>label, offset);
-        offset += edgeLabelLengths[i];
+      const edgeLabelsPacked = new Uint8Array(totalLength);
+      let offset = 0;
+      for (let i = 0; i < batch.edges.length; i++) {
+        const label = batch.edges[i].label;
+        if (typeof label === "string") {
+          util.utf8.write(label, edgeLabelsPacked, offset);
+          offset += ~edgeLabelLengths[i];
+        } else {
+          // Use assumption that label is already serialized,
+          // hence must be Uint8Array here.
+          edgeLabelsPacked.set(<Uint8Array>label, offset);
+          offset += edgeLabelLengths[i];
+        }
       }
+
+      batchMessage = BatchingLayerMessage.create({
+        edgeLabelsPacked,
+        edgeLabelLengths,
+        edgeParents,
+        messages: batch.messages,
+      });
+    } else {
+      // batch is a single messagePath. Store it using edgeLabelsPacked
+      // and edgeLabelLengths like before, but just in order, and leave
+      // out edgeParents & messages.
+      const messageLengths = new Array<number>(batch.length);
+      let totalLength = 0;
+      for (let i = 0; i < batch.length; i++) {
+        const message = serializeMessage(batch[i]);
+        batch[i] = message; // Store serialized form.
+        if (typeof message === "string") {
+          const length = util.utf8.length(message);
+          messageLengths[i] = ~length;
+          totalLength += length;
+        } else {
+          messageLengths[i] = message.length;
+          totalLength += message.length;
+        }
+      }
+      const messagesPacked = new Uint8Array(totalLength);
+      let offset = 0;
+      for (let i = 0; i < batch.length; i++) {
+        const message = batch[i];
+        if (typeof message === "string") {
+          util.utf8.write(message, messagesPacked, offset);
+          offset += ~messageLengths[i];
+        } else {
+          // Use assumption that message is already serialized,
+          // hence must be Uint8Array here.
+          messagesPacked.set(<Uint8Array>message, offset);
+          offset += messageLengths[i];
+        }
+      }
+
+      batchMessage = BatchingLayerMessage.create({
+        edgeLabelsPacked: messagesPacked,
+        edgeLabelLengths: messageLengths,
+      });
     }
 
-    const batchMessage = BatchingLayerMessage.create({
-      edgeLabelsPacked,
-      edgeLabelLengths,
-      edgeParents,
-      messages: batch.messages,
-    });
     const serialized = BatchingLayerMessage.encode(batchMessage).finish();
     this.send([serialized]);
   }
@@ -322,7 +398,9 @@ export class BatchingLayer
     const deserialized = BatchingLayerMessage.decode(
       <Uint8Array>messagePath[0]
     );
-    const edgeLabels = new Array<Message>(deserialized.edgeLabelLengths.length);
+    const edgeLabels = new Array<string | Uint8Array>(
+      deserialized.edgeLabelLengths.length
+    );
     let offset = 0;
     for (let i = 0; i < edgeLabels.length; i++) {
       const signedLengthI = deserialized.edgeLabelLengths[i];
@@ -346,40 +424,54 @@ export class BatchingLayer
       }
     }
 
-    for (const messageVertex of deserialized.messages) {
-      // Reconstruct vertex's messagePath.
-      const childMessagePath: Message[] = [];
-      let vertex = messageVertex;
-      while (vertex !== 0) {
-        childMessagePath.push(edgeLabels[vertex - 1]);
-        vertex = deserialized.edgeParents[vertex - 1];
-      }
-      // Deliver messagePath.
-      if (this.inChildReceive) {
-        // nested receive calls; not allowed (might break things).
-        throw new Error(
-          "BatchingLayer.receive called during another message's receive;" +
-            " did you try to deliver a message in an event handler?"
-        );
-      }
-      this.inChildReceive = true;
-      try {
-        this.child.receive(childMessagePath, meta);
-      } catch (err) {
-        // Don't let the error block other messages' delivery
-        // or affect the deliverer,
-        // but still make it print
-        // its error like it was unhandled.
-        // Note we know the message is not a local echo.
-        void Promise.resolve().then(() => {
-          throw err;
-        });
-      } finally {
-        this.inChildReceive = false;
+    if (deserialized.messages.length === 0) {
+      // Single message case. edgeLabels is the literal single message.
+      meta[BatchingLayer.BATCH_SIZE_KEY] = 1;
+      this.deliver(edgeLabels, meta);
+    } else {
+      // BatchInfo case. Use full deserialized message.
+      meta[BatchingLayer.BATCH_SIZE_KEY] = deserialized.messages.length;
+      for (const messageVertex of deserialized.messages) {
+        // Reconstruct vertex's messagePath.
+        const childMessagePath: (Uint8Array | string)[] = [];
+        let vertex = messageVertex;
+        while (vertex !== 0) {
+          childMessagePath.push(edgeLabels[vertex - 1]);
+          vertex = deserialized.edgeParents[vertex - 1];
+        }
+        this.deliver(childMessagePath, meta);
       }
     }
 
     this.emit("Change", { meta });
+  }
+
+  private deliver(
+    childMessagePath: (Uint8Array | string)[],
+    meta: MessageMeta
+  ): void {
+    if (this.inChildReceive) {
+      // nested receive calls; not allowed (might break things).
+      throw new Error(
+        "BatchingLayer.receive called during another message's receive;" +
+          " did you try to deliver a message in an event handler?"
+      );
+    }
+    this.inChildReceive = true;
+    try {
+      this.child.receive(childMessagePath, meta);
+    } catch (err) {
+      // Don't let the error block other messages' delivery
+      // or affect the deliverer,
+      // but still make it print
+      // its error like it was unhandled.
+      // Note we know the message is not a local echo.
+      void Promise.resolve().then(() => {
+        throw err;
+      });
+    } finally {
+      this.inChildReceive = false;
+    }
   }
 
   /**

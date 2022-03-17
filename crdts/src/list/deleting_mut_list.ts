@@ -13,7 +13,7 @@ import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import { RgaDenseLocalList, RgaLoc } from "./rga_dense_local_list";
+import { ListPosition } from "./list_position_source";
 
 export class DeletingMutCList<
   C extends Collab,
@@ -21,13 +21,11 @@ export class DeletingMutCList<
 > extends MovableMutCListFromSet<
   C,
   InsertArgs,
-  RgaLoc,
-  LWWCVariable<RgaLoc>,
+  LWWCVariable<ListPosition>,
   DeletingMutCSet<
-    MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>,
-    [RgaLoc, InsertArgs]
-  >,
-  RgaDenseLocalList<MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>>
+    MovableMutCListEntry<C, LWWCVariable<ListPosition>>,
+    [ListPosition, InsertArgs]
+  >
 > {
   constructor(
     initToken: InitToken,
@@ -39,7 +37,6 @@ export class DeletingMutCList<
       initToken,
       Pre(DeletingMutCSet),
       ConstructorAsFunction(LWWCVariable),
-      new RgaDenseLocalList(initToken.runtime),
       valueConstructor,
       initialValuesArgs,
       argsSerializer
@@ -67,7 +64,7 @@ export class DeletingMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.owns(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
   }
 
@@ -77,7 +74,7 @@ export class DeletingMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.has(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
   }
 
@@ -85,8 +82,7 @@ export class DeletingMutCList<
     return this.set.getArgs(
       this.get(index).parent as MovableMutCListEntry<
         C,
-        RgaLoc,
-        LWWCVariable<RgaLoc>
+        LWWCVariable<ListPosition>
       >
     )[1];
   }
@@ -103,7 +99,7 @@ export class DeletingMutCList<
     }
 
     return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, RgaLoc, LWWCVariable<RgaLoc>>
+      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     )[1];
   }
 }

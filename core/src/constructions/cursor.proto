@@ -1,0 +1,4 @@
+message CursorMessage {
+  optional string position = 1;
+  required bool bindingIsLeft = 2;
+}

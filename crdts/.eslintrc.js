@@ -73,5 +73,13 @@ module.exports = {
         allowedNames: ["outerThis"],
       },
     ],
+    "prefer-const": [
+      "error",
+      {
+        // Allow "let" destructuring assignments when not all
+        // vars can be const.
+        destructuring: "all",
+      },
+    ],
   },
 };

@@ -168,6 +168,10 @@ export class ReplicaBenchmark<I> {
         }
       }
 
+      // // For profiling memory usage:
+      // console.log("Ready to profile");
+      // await new Promise((resolve) => setTimeout(resolve, 1000 * 1000));
+
       // Check final state.
       if (this.trace.correctState !== undefined) {
         assert.deepStrictEqual(
@@ -419,6 +423,7 @@ export class ReplicaBenchmark<I> {
     // Prepare messages to receive.
     let saveData: Data;
     const msgs: Data[] = [];
+    let finalState: unknown;
     {
       // Initial concOpStart.
       const setupRng = seedrandom(SEED + "setup");
@@ -457,7 +462,17 @@ export class ReplicaBenchmark<I> {
         }
       }
 
-      // TODO: check all states are equal.
+      if (concType === "fine") {
+        // Check all states are equal.
+        finalState = this.trace.getState(concurrers[0]);
+        for (let i = 1; i < concurrers.length; i++) {
+          assert.deepStrictEqual(
+            this.trace.getState(concurrers[i]),
+            finalState,
+            "unequal concurrer states"
+          );
+        }
+      }
     }
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
@@ -502,7 +517,14 @@ export class ReplicaBenchmark<I> {
         }
       }
 
-      // TODO: check state equals common concurrer state.
+      if (concType === "fine") {
+        // Check state equals concurrer state.
+        assert.deepStrictEqual(
+          this.trace.getState(receiver),
+          finalState,
+          "unequal concurrer states"
+        );
+      }
     }
 
     // Record measurements.

@@ -5,7 +5,7 @@ export class SendCRDTMeta implements CRDTMeta, CRDTMetaRequestee {
   /**
    * The requested vector clock entries so far, excluding sender.
    *
-   * This always incldues the causallyMaximalVCKeys.
+   * This always includes the causallyMaximalVCKeys.
    */
   readonly vectorClockIfRequested = new Map<string, number>();
   wallClockTimeIfRequested: number | null = null;

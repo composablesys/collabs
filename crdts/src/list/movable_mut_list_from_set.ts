@@ -1,9 +1,7 @@
 import {
-  bytesAsString,
   DefaultSerializer,
   PairSerializer,
   Serializer,
-  stringAsBytes,
   Collab,
   InitToken,
   isRuntime,
@@ -11,42 +9,55 @@ import {
   AbstractCListCObject,
   CVariable,
   CSet,
-  FoundLocation,
-  LocatableCList,
   MovableCList,
   MovableCListEventsRecord,
   CObject,
+  CMessenger,
+  Optional,
+  PositionedList,
 } from "@collabs/core";
-import { DenseLocalList } from "./dense_local_list";
+import {
+  ArrayListItemManager,
+  CreatedListPositionSerializer,
+  ListPosition,
+  ListPositionSerializer,
+  ListPositionSource,
+} from "./list_position_source";
 
 export class MovableMutCListEntry<
   C extends Collab,
-  L,
-  R extends CVariable<L>
+  VarT extends CVariable<ListPosition>
 > extends CObject {
   readonly value: C;
-  readonly loc: R;
+  readonly position: VarT;
 
-  constructor(initToken: InitToken, value: Pre<C>, loc: Pre<R>) {
+  constructor(initToken: InitToken, value: Pre<C>, position: Pre<VarT>) {
     super(initToken);
     this.value = this.addChild("", value);
-    this.loc = this.addChild("0", loc);
+    this.position = this.addChild("0", position);
   }
 }
 
 export class MovableMutCListFromSet<
     C extends Collab,
     InsertArgs extends unknown[],
-    L,
-    VarT extends CVariable<L>,
-    SetT extends CSet<MovableMutCListEntry<C, L, VarT>, [L, InsertArgs]>,
-    DenseT extends DenseLocalList<L, MovableMutCListEntry<C, L, VarT>>,
+    VarT extends CVariable<ListPosition>,
+    SetT extends CSet<
+      MovableMutCListEntry<C, VarT>,
+      [ListPosition, InsertArgs]
+    >,
     Events extends MovableCListEventsRecord<C> = MovableCListEventsRecord<C>
   >
   extends AbstractCListCObject<C, InsertArgs, Events>
-  implements MovableCList<C, InsertArgs>, LocatableCList<C, InsertArgs, Events>
+  implements MovableCList<C, InsertArgs>, PositionedList
 {
   protected readonly set: SetT;
+  protected readonly createdPositionMessenger: CMessenger<
+    [counter: number, startValueIndex: number, metadata: Uint8Array | null]
+  >;
+  protected readonly positionSource: ListPositionSource<
+    MovableMutCListEntry<C, VarT>[]
+  >;
 
   /**
    * variableConstructor should make sure that the
@@ -54,115 +65,87 @@ export class MovableMutCListFromSet<
    * dispatching a Set event (i.e., pass it in VarT's
    * constructor, not as an operation, which wouldn't
    * make sense anyway).
+   *
+   * The set returned by setCallback must satisfy:
+   * - Immediately after constructing with initial values,
+   * values() returns them in the order corresponding to setInitialValuesArgs.
    */
   constructor(
     initToken: InitToken,
     setCallback: (
       setValueConstructor: (
         setValueInitToken: InitToken,
-        ...setValueArgs: [L, InsertArgs]
-      ) => MovableMutCListEntry<C, L, VarT>,
-      setInitialValuesArgs: [L, InsertArgs][],
-      setArgsSerializer: Serializer<[L, InsertArgs]>
+        ...setValueArgs: [ListPosition, InsertArgs]
+      ) => MovableMutCListEntry<C, VarT>,
+      setInitialValuesArgs: [ListPosition, InsertArgs][],
+      setArgsSerializer: Serializer<[ListPosition, InsertArgs]>
     ) => Pre<SetT>,
-    variableConstructor: (
+    private readonly variableConstructor: (
       variableInitToken: InitToken,
-      initialValue: L,
-      variableSerializer: Serializer<L>
+      initialValue: ListPosition,
+      variableSerializer: Serializer<ListPosition>
     ) => VarT,
-    protected readonly denseLocalList: DenseT,
-    valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
+    private readonly valueConstructor: (
+      valueInitToken: InitToken,
+      ...args: InsertArgs
+    ) => C,
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
-    const initialLocs = this.denseLocalList.createInitialLocs(
-      initialValuesArgs.length
-    );
-    const setInitialValuesArgs: [L, InsertArgs][] = initialLocs.map(
-      (loc, index) => [loc, initialValuesArgs[index]]
-    );
+    const setInitialValuesArgs: [ListPosition, InsertArgs][] =
+      initialValuesArgs.map((args, index) => [["", 0, index + 1], args]);
     this.set = this.addChild(
       "",
       setCallback(
-        (setValueInitToken, loc, args) => {
-          const entry = new MovableMutCListEntry<C, L, VarT>(
-            setValueInitToken,
-            (valueInitToken) => valueConstructor(valueInitToken, ...args),
-            (variableInitToken) =>
-              variableConstructor(variableInitToken, loc, denseLocalList)
-          );
-          entry.loc.on("Set", (event) => {
-            // Maintain denseLocalList's key set as a cache
-            // of the currently set locations, mapping to
-            // the corresponding entry.
-            // Also dispatch our own events.
-            // Note that move is the only time variable.set
-            // is called; setting the initial state is done
-            // in the variableConstructor, not as a
-            // variable.set operation, so it will not emit
-            // a Set event.
-            const startIndex = this.denseLocalList.delete(
-              event.previousValue
-            )![0];
-            const resultingStartIndex = this.denseLocalList.set(
-              entry.loc.value,
-              entry
-            );
-            this.emit("Move", {
-              startIndex,
-              count: 1,
-              resultingStartIndex,
-              meta: event.meta,
-            });
-          });
-          return entry;
-        },
+        this.setValueConstructor.bind(this),
         setInitialValuesArgs,
-        new PairSerializer(denseLocalList, argsSerializer)
+        new PairSerializer(ListPositionSerializer.instance, argsSerializer)
       )
     );
 
-    // Events due to initial values get dispatched in
-    // constructor, before we add event listeners, so we miss
-    // them.  Perhaps instead have initial values as a second
-    // function, but considered part of initialization?
-    // Then could even do elements one at a time and get them
-    // returned, which would make YATA easier.
-    // For now we just hack in the effect of the "Add" events.
-    for (const value of this.set) {
-      this.denseLocalList.set(value.loc.value, value);
-    }
+    // For initial values, note that this.set Add events don't get dispatched.
+    // Thus we don't have to worry that positionSource is not yet created for
+    // them.
+    // Here we use the assumption (stated in constructor docs) that values()
+    // are in order.
+    this.positionSource = new ListPositionSource(
+      this.runtime.replicaID,
+      ArrayListItemManager.getInstance(),
+      [...this.set]
+    );
 
-    // Maintain denseLocalList's key set as a cache
+    this.createdPositionMessenger = this.addChild(
+      "m",
+      Pre(CMessenger)(CreatedListPositionSerializer.instance)
+    );
+    this.createdPositionMessenger.on("Message", (e) => {
+      const [counter, startValueIndex, metadata] = e.message;
+      const pos: ListPosition = [e.meta.sender, counter, startValueIndex];
+      this.positionSource.receivePositions(pos, 1, metadata);
+    });
+
+    // Maintain positionSource's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.
     this.set.on("Add", (event) => {
-      // Note that it is safe to do the set here, instead
-      // of in valueConstructor, because:
-      // - For any set (in particular ResettingMutCSet),
-      // values are only recreated after being GC'd,
-      // and denseLocalList prevents any of our values from
-      // being GC'd.  So Add events are the same as
-      // calls to valueConstructor, except during loading...
-      // - And during loading, we manually fill in
-      // denseLocalList.  This is more efficient since
-      // it avoids filling it first with the initial
-      // locations and then with the actual locations
-      // (due to move operations before saving).
-      const index = this.denseLocalList.set(event.value.loc.value, event.value);
+      this.positionSource.add(event.value.position.value, [event.value]);
       this.emit("Insert", {
-        startIndex: index,
+        startIndex: this.positionSource.findPosition(
+          event.value.position.value
+        )[0],
         count: 1,
         meta: event.meta,
       });
     });
     this.set.on("Delete", (event) => {
-      const index = this.denseLocalList.delete(event.value.loc.value)![0];
+      this.positionSource.delete(event.value.position.value);
       this.emit("Delete", {
-        startIndex: index,
+        startIndex: this.positionSource.findPosition(
+          event.value.position.value
+        )[0],
         count: 1,
         deletedValues: [event.value.value],
         meta: event.meta,
@@ -170,9 +153,63 @@ export class MovableMutCListFromSet<
     });
   }
 
+  private setValueConstructor(
+    setValueInitToken: InitToken,
+    position: ListPosition,
+    args: InsertArgs
+  ) {
+    const entry = new MovableMutCListEntry<C, VarT>(
+      setValueInitToken,
+      (valueInitToken) => this.valueConstructor(valueInitToken, ...args),
+      (variableInitToken) =>
+        this.variableConstructor(
+          variableInitToken,
+          position,
+          ListPositionSerializer.instance
+        )
+    );
+    entry.position.on("Set", (event) => {
+      // Maintain positionSource's values as a cache of
+      // of the currently set locations, mapping to
+      // the corresponding entry.
+      // Also dispatch our own events.
+      // Note that move is the only time variable.set
+      // is called; setting the initial state is done
+      // in the variableConstructor, not as a
+      // variable.set operation, so it will not emit
+      // a Set event.
+      this.positionSource.delete(event.previousValue);
+      this.positionSource.add(entry.position.value, [entry]);
+      this.emit("Move", {
+        startIndex: this.positionSource.findPosition(event.previousValue)[0],
+        count: 1,
+        resultingStartIndex: this.positionSource.findPosition(
+          entry.position.value
+        )[0],
+        meta: event.meta,
+      });
+    });
+    return entry;
+  }
+
   insert(index: number, ...args: InsertArgs): C | undefined {
-    const loc = this.denseLocalList.createNewLocs(index, 1)[0];
-    return this.set.add(loc, args)?.value;
+    const prevPos =
+      index === 0 ? null : this.positionSource.getPosition(index - 1);
+    // OPT: bulk inserts? Can just do createPositions once and deliver the
+    // count on other side.
+    const [counter, startValueIndex, metadata] =
+      this.positionSource.createPositions(prevPos);
+    const pos: ListPosition = [
+      this.runtime.replicaID,
+      counter,
+      startValueIndex,
+    ];
+    this.createdPositionMessenger.sendMessage([
+      counter,
+      startValueIndex,
+      metadata,
+    ]);
+    return this.set.add(pos, args)?.value;
   }
 
   /**
@@ -186,9 +223,10 @@ export class MovableMutCListFromSet<
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
-    const toDelete = new Array<MovableMutCListEntry<C, L, VarT>>(count);
+    const toDelete = new Array<MovableMutCListEntry<C, VarT>>(count);
     for (let i = 0; i < count; i++) {
-      toDelete[i] = this.denseLocalList.get(startIndex + i);
+      const [item, offset] = this.positionSource.getItem(startIndex + i);
+      toDelete[i] = item[offset];
     }
     // Delete them.
     for (const value of toDelete) {
@@ -205,28 +243,51 @@ export class MovableMutCListFromSet<
    * @return                [description]
    */
   move(startIndex: number, insertionIndex: number, count = 1): number {
-    // Locations to insert at.
-    const locs = this.denseLocalList.createNewLocs(insertionIndex, count);
+    // Positions to insert at.
+    const prevPos =
+      insertionIndex === 0
+        ? null
+        : this.positionSource.getPosition(insertionIndex - 1);
+    const [counter, startValueIndex, metadata] =
+      this.positionSource.createPositions(prevPos);
+    this.createdPositionMessenger.sendMessage([
+      counter,
+      startValueIndex,
+      metadata,
+    ]);
     // Values to move.
-    const toMove = new Array<MovableMutCListEntry<C, L, VarT>>(count);
+    const toMove = new Array<MovableMutCListEntry<C, VarT>>(count);
     for (let i = 0; i < count; i++) {
-      toMove[i] = this.denseLocalList.get(startIndex + i);
+      // OPT: actually use items here.
+      const [item, offset] = this.positionSource.getItem(startIndex + i);
+      toMove[i] = item[offset];
     }
     // Move them.
     for (let i = 0; i < count; i++) {
-      toMove[i].loc.set(locs[i]);
+      toMove[i].position.set([
+        this.runtime.replicaID,
+        counter,
+        startValueIndex + i,
+      ]);
     }
     // Return the new index of toMove[0].
-    return this.denseLocalList.locate(locs[0])[0];
+    return this.positionSource.findPosition([
+      this.runtime.replicaID,
+      counter,
+      startValueIndex,
+    ])[0];
   }
 
   get(index: number): C {
-    return this.denseLocalList.get(index).value;
+    const [item, offset] = this.positionSource.getItem(index);
+    return item[offset].value;
   }
 
   *values(): IterableIterator<C> {
-    for (const entry of this.denseLocalList.values()) {
-      yield entry.value;
+    for (const item of this.positionSource.items()) {
+      for (const entry of item) {
+        yield entry.value;
+      }
     }
   }
 
@@ -234,22 +295,14 @@ export class MovableMutCListFromSet<
     return this.set.size;
   }
 
-  getLocation(index: number): string {
-    return bytesAsString(
-      this.denseLocalList.serialize(this.denseLocalList.getLoc(index))
-    );
+  getPosition(index: number): string {
+    const pos = this.positionSource.getPosition(index);
+    return JSON.stringify(pos);
   }
 
-  *locationEntries(): IterableIterator<[string, C]> {
-    for (const [loc, entry] of this.denseLocalList.entries()) {
-      yield [bytesAsString(this.denseLocalList.serialize(loc)), entry.value];
-    }
-  }
-
-  findLocation(location: string): FoundLocation {
-    return this.denseLocalList.findLoc(
-      this.denseLocalList.deserialize(stringAsBytes(location))
-    );
+  findPosition(position: string): [geIndex: number, isPresent: boolean] {
+    const pos = <ListPosition>JSON.parse(position);
+    return this.positionSource.findPosition(pos);
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
@@ -257,12 +310,10 @@ export class MovableMutCListFromSet<
     // is the root.
     if (isRuntime(searchElement.parent)) return -1;
 
-    if (
-      this.set.has(searchElement.parent as MovableMutCListEntry<C, L, VarT>)
-    ) {
-      const loc = (searchElement.parent as MovableMutCListEntry<C, L, VarT>).loc
-        .value;
-      const index = this.denseLocalList.locate(loc)[0];
+    if (this.set.has(searchElement.parent as MovableMutCListEntry<C, VarT>)) {
+      const position = (searchElement.parent as MovableMutCListEntry<C, VarT>)
+        .position.value;
+      const index = this.positionSource.findPosition(position)[0];
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }
@@ -282,16 +333,64 @@ export class MovableMutCListFromSet<
     return this.indexOf(searchElement, fromIndex) !== -1;
   }
 
-  canGC(): boolean {
-    // Even if the set is trivial, denseLocalList might
-    // have tombstones, so we need to check for it here.
-    return super.canGC() && this.denseLocalList.canGC();
+  /**
+   * Returns a string "key" that uniquely identifies value and that does
+   * not change when the value moves (either due to insertions/deletions
+   * in front of it, or due to move operations).
+   *
+   * Useful for e.g. React lists - use the return value as the key.
+   */
+  getKey(value: C): string {
+    return (<Collab>value.parent).name;
   }
 
-  protected loadObject() {
-    // Fill in denseLocalList, which starts empty.
-    for (const value of this.set) {
-      this.denseLocalList.set(value.loc.value, value);
+  canGC(): boolean {
+    // OPT: return true if not yet mutated.
+    // Also, note in docs that this won't be true even if empty, due to
+    // tombstones.
+    return false;
+  }
+
+  protected saveObject(): Uint8Array {
+    return this.positionSource.save();
+  }
+
+  protected loadObject(saveData: Optional<Uint8Array>) {
+    if (!saveData.isPresent) return;
+
+    // Note this.set is already loaded. Just need to load positionSource.
+
+    // For filling in positionSource's values, create a map from positions
+    // to entries.
+    const entriesByPosition = new Map<
+      string,
+      Map<number, MovableMutCListEntry<C, VarT>>[]
+    >();
+    for (const entry of this.set) {
+      const pos = entry.position.value;
+      let bySender = entriesByPosition.get(pos[0]);
+      if (bySender === undefined) {
+        bySender = [];
+        entriesByPosition.set(pos[0], bySender);
+      }
+      let byCounter = bySender[pos[1]];
+      if (byCounter === undefined) {
+        byCounter = new Map();
+        bySender[pos[1]] = byCounter;
+      }
+      byCounter.set(pos[2], entry);
     }
+
+    function nextItem(count: number, startPos: ListPosition) {
+      const bySender = entriesByPosition.get(startPos[0])!;
+      const byCounter = bySender[startPos[1]];
+      const item = new Array<MovableMutCListEntry<C, VarT>>(count);
+      for (let i = 0; i < count; i++) {
+        item[i] = byCounter.get(startPos[2] + i)!;
+      }
+      return item;
+    }
+
+    this.positionSource.load(saveData.get(), nextItem);
   }
 }
