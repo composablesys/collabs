@@ -34,6 +34,7 @@ import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_rand
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
 import { RealText100Trace } from "./replica-benchmark/traces/real_text_100_trace";
+import { CollabsTextCausalityGuaranteed } from "./replica-benchmark/implementations/collabs/text_causality_guaranteed";
 
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
@@ -60,6 +61,7 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   CollabsVariable: CollabsVariable,
   CollabsRichText: CollabsRichText,
   CollabsText: CollabsText,
+  CollabsTextCausalityGuaranteed: CollabsTextCausalityGuaranteed,
   YjsMap: YjsMap,
   YjsVariable: YjsVariable,
   YjsText: YjsText,
@@ -128,7 +130,7 @@ You can set both trial counts to 0 to do a test run (check that test names and a
       await replicaBenchmark.save();
       break;
     default:
-      if (measurement.startsWith("concurrent")) {
+      if (measurement.startsWith("concurrentReceive")) {
         const split = measurement.split(" ");
         if (split.length !== 5) {
           console.log("Wrong number of tokens in concurrentReceive arg");
@@ -162,9 +164,27 @@ You can set both trial counts to 0 to do a test run (check that test names and a
           concOpStart,
           concOps
         );
+      } else if (measurement.startsWith("concurrentSendNetwork ")) {
+        const split = measurement.split(" ");
+        if (split.length !== 4) {
+          console.log("Wrong number of tokens in concurrentSendNetwork arg");
+          console.log(
+            'concurrentSendNetwork measurement format: single argument "concurrentSendNetwork <numUsers> <concOpStart> <concOps>"'
+          );
+          printUsage(10);
+        }
+
+        const numUsers = parseInt(split[1]);
+        const concOpStart = parseInt(split[2]);
+        const concOps = parseInt(split[3]);
+        await replicaBenchmark.concurrentSendNetwork(
+          numUsers,
+          concOpStart,
+          concOps
+        );
       } else {
         console.log("Unrecognized measurement: " + measurement);
-        printUsage(6);
+        printUsage(100);
       }
   }
 })();

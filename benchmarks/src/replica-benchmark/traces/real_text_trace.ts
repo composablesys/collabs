@@ -17,6 +17,11 @@ export class RealTextTrace implements Trace<IText> {
       replica.insert(Math.min(edit[0], length), edit[2]);
     } else {
       // Delete character at edit[0]
+      if (length === 0) {
+        // Do an insert instead, so we have something to do.
+        replica.insert(0, "X");
+        return;
+      }
       replica.delete(Math.min(edit[0], length - 1));
     }
   }

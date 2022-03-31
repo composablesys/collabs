@@ -54,6 +54,7 @@ function go {
           npm start -- $in1 $in2 $in3 $in4 $trace $implementation "concurrentReceive$concurrentReceiveMetric $concurrentReceiveType $concArg"
         done
       done
+      npm start -- $in1 $in2 $in3 $in4 $trace $implementation "concurrentSendNetwork $concArg"
     done
   done
 }

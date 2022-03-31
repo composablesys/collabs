@@ -536,4 +536,77 @@ export class ReplicaBenchmark<I> {
       metric === "Memory" ? bases : undefined
     );
   }
+
+  /**
+   * Measures network bytes sent by numUsers during concOps rounds in which
+   * each user sends one message concurrently, after a setup phase of one
+   * user sending concOps.
+   *
+   * This is the same sending pattern as the setup phase of concurrentReceive
+   * "fine", but we measure the bytes sent during the concurrent part of
+   * the setup phase instead of measuring receive cost.
+   */
+  async concurrentSendNetwork(
+    numUsers: number,
+    concOpStart: number,
+    concOps: number
+  ) {
+    const setupRng = seedrandom(SEED + "setup");
+    const rng = seedrandom(SEED);
+
+    // Initial concOpStart.
+    let saveData: Data;
+    {
+      const sender = new this.implementation(() => {}, setupRng);
+      sender.skipLoad();
+      for (let op = 0; op < concOpStart; op++) {
+        this.transactOp(sender, rng, op);
+      }
+      saveData = sender.save();
+    }
+
+    // Further replicas each send concOps concurrently, in rounds.
+    let bytesSent = 0;
+    const concurrers: (Replica & I)[] = [];
+    const lastMsgs = new Array<Data>(numUsers);
+    for (let i = 0; i < numUsers; i++) {
+      const concurrerI = new this.implementation((msg) => {
+        bytesSent += byteLength(msg);
+        lastMsgs[i] = msg;
+      }, setupRng);
+      concurrerI.load(saveData);
+      concurrers.push(concurrerI);
+    }
+    for (let j = 0; j < concOps; j++) {
+      for (let i = 0; i < numUsers; i++) {
+        this.transactOp(concurrers[i], rng, concOpStart + i * concOps + j);
+      }
+      // Everyone receives each others' messages.
+      for (let sender = 0; sender < numUsers; sender++) {
+        for (let receiver = 0; receiver < numUsers; receiver++) {
+          if (sender !== receiver) {
+            concurrers[receiver].receive(lastMsgs[sender]);
+          }
+        }
+      }
+    }
+
+    // Check all states are equal.
+    const finalState = this.trace.getState(concurrers[0]);
+    for (let i = 1; i < concurrers.length; i++) {
+      assert.deepStrictEqual(
+        this.trace.getState(concurrers[i]),
+        finalState,
+        "unequal concurrer states"
+      );
+    }
+
+    // Record measurement.
+    record(
+      this.traceName + "/" + "concurrentSendNetwork",
+      this.implementationName,
+      numUsers + " " + concOpStart + " " + concOps,
+      [bytesSent]
+    );
+  }
 }
