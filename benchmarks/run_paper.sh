@@ -2,7 +2,7 @@
 
 if [ -z "$4" ]
 then
-  echo "Usage: ./run_all.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
+  echo "Usage: ./run_paper.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
   echo "If --oursOnly is set, only our library's tests are run."
   echo "If --othersOnly is set, only other libraries' tests are run."
   exit 1
@@ -73,14 +73,12 @@ go
 trace="MicroTextRandom"
 go
 
-trace="RealText"
-ours=("CollabsDeletingText" "CollabsRichText" "CollabsText")
-others=("AutomergeText" "YjsText")
+trace="TodoList"
+ours=("CollabsDeletingTodoList")
+others=("AutomergeTodoList" "YjsTodoList")
 go
 
-trace="TodoList"
-# TODO: JSON, JSONOpt
-#ours=("CollabsDeletingTodoList" "CollabsJSONOptTodoList" "CollabsJSONTodoList")
-ours=("CollabsDeletingTodoList" "CollabsJSONTextTodoList")
-others=("AutomergeTodoList" "YjsTodoList")
+ours=("CollabsText")
+others=("AutomergeText" "YjsText")
+trace="RealText"
 go
