@@ -2,7 +2,7 @@ import { prng } from "seedrandom";
 import { Trace } from "../replica_benchmark";
 
 /**
- * Number of ops to do in one-replica benchmarks.
+ * Number of ops to do.
  */
 const OPS = 10000;
 

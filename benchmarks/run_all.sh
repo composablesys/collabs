@@ -110,3 +110,10 @@ oursMulti=("CollabsTodoList" "CollabsCGTodoList" "CollabsJSONTextTodoList" "Coll
 othersSingle=("AutomergeTodoList" "YjsTodoList")
 othersMulti=("YjsTodoList")
 go
+
+trace="Noop"
+oursSingle=("CollabsNoop" "CollabsNestedNoop")
+oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
+othersSingle=()
+othersMulti=()
+go

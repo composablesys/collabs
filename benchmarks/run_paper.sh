@@ -62,6 +62,8 @@ function go {
   done
 }
 
+# 1. Individual CRDT benchmarks.
+
 # Skip "rotate" and "concurrent" modes for Automerge, so the benchmarks
 # don't take too long to run.
 # Skip "single" mode for CollabsCG, since it's not interesting.
@@ -92,4 +94,13 @@ oursSingle=("CollabsText")
 oursMulti=("CollabsText" "CollabsCGText")
 othersSingle=("AutomergeText" "YjsText")
 othersMulti=("YjsText")
+go
+
+# 2. Collabs overhead benchmarks.
+
+trace="Noop"
+oursSingle=("CollabsNoop" "CollabsNestedNoop")
+oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
+othersSingle=()
+othersMulti=()
 go

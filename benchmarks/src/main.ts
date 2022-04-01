@@ -35,6 +35,9 @@ import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_rand
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
 import { RealText100Trace } from "./replica-benchmark/traces/real_text_100_trace";
+import { CollabsNoop } from "./replica-benchmark/implementations/collabs/noop";
+import { CollabsNestedNoop } from "./replica-benchmark/implementations/collabs/nested_noop";
+import { NoopTrace } from "./replica-benchmark/traces/noop_trace";
 
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
@@ -45,6 +48,7 @@ const traces: { [name: string]: Trace<unknown> } = {
   RealText: new RealTextTrace(),
   RealText100: new RealText100Trace(),
   TodoList: new TodoListTrace(),
+  Noop: new NoopTrace(),
 };
 
 const implementations: { [name: string]: Implementation<unknown> } = {
@@ -73,6 +77,10 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   CollabsCGRichText: CollabsRichText(true),
   CollabsText: CollabsText(false),
   CollabsCGText: CollabsText(true),
+  CollabsNoop: CollabsNoop(false),
+  CollabsCGNoop: CollabsNoop(true),
+  CollabsNestedNoop: CollabsNestedNoop(false),
+  CollabsCGNestedNoop: CollabsNestedNoop(true),
   YjsMap: YjsMap,
   YjsVariable: YjsVariable,
   YjsText: YjsText,
