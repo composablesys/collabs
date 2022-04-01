@@ -20,15 +20,19 @@ fi
 
 echo "Which implementations: $which"
 
+# Suffixes refer to Mode. Multi refers to rotate & concurrent modes.
 function setImpls {
   if [ $which == "ours" ]
   then
-    implementations=("${ours[@]}")
+    implsSingle=("${oursSingle[@]}")
+    implsMulti=("${oursMulti[@]}")
   elif [ $which == "others" ]
   then
-    implementations=("${others[@]}")
+    implsSingle=("${othersSingle[@]}")
+    implsMulti=("${othersMulti[@]}")
   else
-    implementations=("${ours[@]}" "${others[@]}")
+    implsSingle=("${oursSingle[@]}" "${othersSingle[@]}")
+    implsMulti=("${oursMulti[@]}" "${othersMulti[@]}")
   fi
 }
 
@@ -39,48 +43,70 @@ in4=$4
 
 function go {
   setImpls
-  for implementation in ${implementations[*]}
+  for implementation in ${implsSingle[*]}
   do
     for measurement in "sendTime" "sendMemory" "sendNetwork" "receiveTime" "receiveMemory" "receiveSave"
     do
       npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation single
     done
-    for measurement in "sendNetwork" "receiveTime" "receiveMemory" "receiveSave"
+  done
+  for implementation in ${implsMulti[*]}
+  do
+    for mode in "rotate" "concurrent"
     do
-      npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation multi
+      for measurement in "sendNetwork" "receiveTime" "receiveMemory" "receiveSave"
+      do
+        npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation $mode
+      done
     done
   done
 }
 
-trace="MicroMapRolling"
-ours=("CollabsMap")
-others=("AutomergeMap" "YjsMap")
-go
+# Skip "rotate" and "concurrent" modes for Automerge, so the benchmarks
+# don't take too long to run.
+# Skip "single" mode for CollabsCG, since it's not interesting.
 
 trace="MicroMap"
+oursSingle=("CollabsMap")
+oursMulti=("CollabsMap" "CollabsCGMap")
+othersSingle=("AutomergeMap" "YjsMap")
+othersMulti=("YjsMap")
+go
+
+trace="MicroMapRolling"
 go
 
 trace="MicroVariable"
-ours=("CollabsVariable")
-others=("AutomergeVariable" "YjsVariable")
+oursSingle=("CollabsVariable")
+oursMulti=("CollabsVariable" "CollabsCGVariable")
+othersSingle=("AutomergeVariable" "YjsVariable")
+othersMulti=("YjsVariable")
+go
+
+trace="TodoList"
+oursSingle=("CollabsTodoList")
+oursMulti=("CollabsTodoList" "CollabsCGTodoList")
+othersSingle=("AutomergeTodoList" "YjsTodoList")
+othersMulti=("YjsTodoList")
+go
+
+trace="RealText"
+oursSingle=("CollabsText" "CollabsDeletingText" "CollabsRichText")
+oursMulti=("CollabsText" "CollabsCGText" "CollabsDeletingText" "CollabsDeletingTextCG" "CollabsRichText" "CollabsRichTextCG")
+othersSingle=("AutomergeText" "YjsText")
+othersMulti=("YjsText")
 go
 
 trace="MicroTextLtr"
-ours=("CollabsText")
-others=("AutomergeText" "YjsText")
 go
 
 trace="MicroTextRandom"
 go
 
-trace="RealText"
-ours=("CollabsDeletingText" "CollabsRichText" "CollabsText")
-others=("AutomergeText" "YjsText")
-go
-
 trace="TodoList"
 # TODO: JSON, JSONOpt
-#ours=("CollabsDeletingTodoList" "CollabsJSONOptTodoList" "CollabsJSONTodoList")
-ours=("CollabsDeletingTodoList" "CollabsJSONTextTodoList")
-others=("AutomergeTodoList" "YjsTodoList")
+oursSingle=("CollabsTodoList" "CollabsJSONTextTodoList")
+oursMulti=("CollabsTodoList" "CollabsCGTodoList" "CollabsJSONTextTodoList" "CollabsCGJSONTextTodoList")
+othersSingle=("AutomergeTodoList" "YjsTodoList")
+othersMulti=("YjsTodoList")
 go

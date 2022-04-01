@@ -124,31 +124,35 @@ class RichTextInternal extends collabs.CObject<RichTextEventsRecord> {
   }
 }
 
-export class CollabsRichText extends CollabsReplica implements IText {
-  private readonly richText: RichTextInternal;
+export function CollabsRichText(causalityGuaranteed: boolean) {
+  return class CollabsRichText extends CollabsReplica implements IText {
+    private readonly richText: RichTextInternal;
 
-  constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
-    super(onsend, replicaIdRng);
+    constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
+      super(onsend, replicaIdRng, causalityGuaranteed);
 
-    this.richText = this.app.registerCollab(
-      "",
-      collabs.Pre(RichTextInternal)()
-    );
-  }
+      this.richText = this.app.registerCollab(
+        "",
+        collabs.Pre(RichTextInternal)()
+      );
+    }
 
-  insert(index: number, char: string): void {
-    this.richText.insert(index, char);
-  }
+    insert(index: number, char: string): void {
+      this.richText.insert(index, char);
+    }
 
-  delete(index: number): void {
-    this.richText.delete(index, 1);
-  }
+    delete(index: number): void {
+      this.richText.delete(index, 1);
+    }
 
-  getText(): string {
-    return this.richText.text.map((richChar) => <string>richChar.char).join("");
-  }
+    getText(): string {
+      return this.richText.text
+        .map((richChar) => <string>richChar.char)
+        .join("");
+    }
 
-  get length(): number {
-    return this.richText.length;
-  }
+    get length(): number {
+      return this.richText.length;
+    }
+  };
 }

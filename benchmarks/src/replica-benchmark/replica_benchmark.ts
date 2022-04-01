@@ -6,8 +6,8 @@ import { assert } from "chai";
 import { byteLength, Data, getMemoryUsed } from "../util";
 
 const SEED = "42";
-const MULTI_NUM_CONCURRENT = 100;
-const MULTI_NUM_ROTATED = 1000;
+const CONCURRENT_NUM_DEVICES = 100;
+const ROTATE_NUM_DEVICES = 1000;
 
 export interface Replica {
   /**
@@ -69,6 +69,8 @@ export interface Trace<I> {
   readonly correctState: unknown;
 }
 
+export type Mode = "single" | "rotate" | "concurrent";
+
 export class ReplicaBenchmark<I> {
   // TODO: mention measurement.csv used as file name
   // (e.g. sendTime.csv). Method name convention (lowerCamelCase).
@@ -108,97 +110,89 @@ export class ReplicaBenchmark<I> {
    * Returns the sent messages for the given mode, which are to be received
    * during "receive" benchmarks.
    *
-   * For Multi-Sender mode, the first half (rounded down) of the messages are
-   * from Device Rotation, while the second half are from Concurrency.
-   *
    * Also returns the intended finalState, for checking against the receiver's
-   * final state. Before returning, it is checked that all of the concurrent
-   * senders are also in this finalState.
+   * final state. Before returning, it is checked that all
+   * senders are also in this finalState (if applicable).
    */
   private async getSentMessages(
-    mode: "single" | "multi"
+    mode: Mode
   ): Promise<[msgs: Data[], finalState: unknown]> {
+    const senderRng = seedrandom(SEED + "sender");
+    const rng = seedrandom(SEED);
+    const msgs: Data[] = [];
     if (mode === "single") {
-      const msgs: Data[] = [];
+      // Single device: The ops are performed by one device, sequentially.
       const sender = new this.implementation((msg) => {
         msgs.push(msg);
-      }, seedrandom(SEED + "sender"));
+      }, senderRng);
       sender.skipLoad();
       const rng = seedrandom(SEED);
       for (let op = 0; op < this.trace.numOps; op++) {
         this.transactOp(sender, rng, op);
       }
-      const finalState = this.trace.getState(sender);
-      return [msgs, finalState];
-    } else {
-      const msgs: Data[] = [];
-      const deviceRotationOps = Math.floor(this.trace.numOps / 2);
-      const concurrencyOps = this.trace.numOps - deviceRotationOps;
-      const rng = seedrandom(SEED);
-      const senderRng = seedrandom(SEED + "sender");
-
-      // 1. Device Rotation: The ops are performed by MULTI_NUM_ROTATED
-      // devices, sequentially.
-      let saveData: Data;
-      {
-        const opsPerSender = Math.floor(deviceRotationOps / MULTI_NUM_ROTATED);
-        let sender = new this.implementation((msg) => {
-          msgs.push(msg);
-        }, senderRng);
-        sender.skipLoad();
-        for (let op = 0; op < deviceRotationOps; op++) {
-          // Each device performs opsPerSender ops, except the last, who performs
-          // the remainder if the ops do not divide evenly.
-          if (
-            op % opsPerSender === 0 &&
-            op !== 0 &&
-            op / opsPerSender < MULTI_NUM_ROTATED
-          ) {
-            if ((op / opsPerSender) % 100 === 0) {
-              console.log(
-                "Setup: Rotating device " +
-                  op / opsPerSender +
-                  "/" +
-                  MULTI_NUM_ROTATED
-              );
-              // Force GC, to prevent OOM errors (Node doesn't seem to GC
-              // very well during sync code).
-              await getMemoryUsed();
-            }
-            const saveData = sender.save();
-            sender = new this.implementation((msg) => {
-              msgs.push(msg);
-            }, senderRng);
-
-            sender.load(saveData);
+      return [msgs, this.trace.getState(sender)];
+    } else if (mode === "rotate") {
+      // Device rotation: The ops are performed by ROTATE_NUM_DEVICES
+      // devices, sequentially. The ops are divided equally between devices.
+      const opsPerSender = Math.floor(this.trace.numOps / ROTATE_NUM_DEVICES);
+      let sender = new this.implementation((msg) => {
+        msgs.push(msg);
+      }, senderRng);
+      sender.skipLoad();
+      for (let op = 0; op < this.trace.numOps; op++) {
+        // Each device performs opsPerSender ops, except the last, who performs
+        // the remainder if the ops do not divide evenly.
+        if (
+          op % opsPerSender === 0 &&
+          op !== 0 &&
+          op / opsPerSender < ROTATE_NUM_DEVICES
+        ) {
+          if ((op / opsPerSender) % 100 === 0) {
+            console.log(
+              "Setup: Rotating device " +
+                op / opsPerSender +
+                "/" +
+                ROTATE_NUM_DEVICES
+            );
+            // Force GC, to prevent OOM errors (Node doesn't seem to GC
+            // very well during sync code).
+            await getMemoryUsed();
           }
+          const saveData = sender.save();
+          sender = new this.implementation((msg) => {
+            msgs.push(msg);
+          }, senderRng);
 
-          this.transactOp(sender, rng, op);
+          sender.load(saveData);
         }
-        saveData = sender.save();
-      }
 
-      // 2. Concurrency: Ops are performed by MULTI_NUM_CONCURRENT devices
+        this.transactOp(sender, rng, op);
+      }
+      return [msgs, this.trace.getState(sender)];
+    } else if (mode === "concurrent") {
+      // Concurrency: Ops are performed by CONCURRENT_NUM_DEVICES devices
       // acting concurrently.
       const concurrers: (Replica & I)[] = [];
-      const lastMsgs = new Array<Data>(MULTI_NUM_CONCURRENT);
-      for (let i = 0; i < MULTI_NUM_CONCURRENT; i++) {
+      const lastMsgs = new Array<Data>(CONCURRENT_NUM_DEVICES);
+      for (let i = 0; i < CONCURRENT_NUM_DEVICES; i++) {
         const concurrerI = new this.implementation((msg) => {
           msgs.push(msg);
           lastMsgs[i] = msg;
         }, senderRng);
-        concurrerI.load(saveData);
+        concurrerI.skipLoad();
         concurrers.push(concurrerI);
       }
 
       // Each device performs a contiguous range of ops. If the ops do not
       // divide evenly, then the last concurrer performs fewer ops.
-      const numRounds = Math.ceil(concurrencyOps / MULTI_NUM_CONCURRENT);
+      const numRounds = Math.ceil(this.trace.numOps / CONCURRENT_NUM_DEVICES);
       const lastConcurrerOps =
-        concurrencyOps - numRounds * (MULTI_NUM_CONCURRENT - 1);
+        this.trace.numOps - numRounds * (CONCURRENT_NUM_DEVICES - 1);
+
+      const roundsPerPrint = Math.floor(numRounds / 10);
 
       for (let round = 0; round < numRounds; round++) {
-        if (round % 100 === 0) {
+        if (round % roundsPerPrint === 0) {
           console.log("Setup: Concurrency round " + round + "/" + numRounds);
           // Force GC, to prevent OOM errors (Node doesn't seem to GC
           // very well during sync code).
@@ -207,18 +201,22 @@ export class ReplicaBenchmark<I> {
         // For the last round, might not have enough messages for all senders.
         const numSenders =
           round >= lastConcurrerOps
-            ? MULTI_NUM_CONCURRENT - 1
-            : MULTI_NUM_CONCURRENT;
+            ? CONCURRENT_NUM_DEVICES - 1
+            : CONCURRENT_NUM_DEVICES;
         for (let i = 0; i < numSenders; i++) {
           this.transactOp(
             concurrers[i],
             rng,
-            deviceRotationOps + i * numRounds + round
+            this.trace.numOps + i * numRounds + round
           );
         }
         // Everyone receives each others' messages.
         for (let sender = 0; sender < numSenders; sender++) {
-          for (let receiver = 0; receiver < MULTI_NUM_CONCURRENT; receiver++) {
+          for (
+            let receiver = 0;
+            receiver < CONCURRENT_NUM_DEVICES;
+            receiver++
+          ) {
             if (sender !== receiver) {
               concurrers[receiver].receive(lastMsgs[sender]);
             }
@@ -237,15 +235,17 @@ export class ReplicaBenchmark<I> {
       }
 
       return [msgs, finalState];
+    } else {
+      throw new Error("Unrecognized mode: " + mode);
     }
   }
 
   /**
    * Benchmark time to send all the ops.
    */
-  async sendTime(mode: "single" | "multi") {
-    if (mode === "multi") {
-      throw new Error("Not implemented: sendTime multi");
+  async sendTime(mode: Mode) {
+    if (mode !== "single") {
+      throw new Error("Not implemented: sendTime " + mode);
     }
 
     const values = new Array<number>(getRecordedTrials());
@@ -298,7 +298,8 @@ export class ReplicaBenchmark<I> {
     record(
       "sendTime/" + this.traceName,
       this.implementationName,
-      "single",
+      mode,
+      this.trace.numOps,
       values
     );
   }
@@ -306,9 +307,9 @@ export class ReplicaBenchmark<I> {
   /**
    * Benchmark memory of a sender after sending all the ops.
    */
-  async sendMemory(mode: "single" | "multi") {
-    if (mode === "multi") {
-      throw new Error("Not implemented: sendMemory multi");
+  async sendMemory(mode: Mode) {
+    if (mode !== "single") {
+      throw new Error("Not implemented: sendTime " + mode);
     }
 
     const values = new Array<number>(getRecordedTrials());
@@ -363,7 +364,8 @@ export class ReplicaBenchmark<I> {
     record(
       "sendMemory/" + this.traceName,
       this.implementationName,
-      "single",
+      mode,
+      this.trace.numOps,
       values,
       bases
     );
@@ -372,15 +374,19 @@ export class ReplicaBenchmark<I> {
   /**
    * Benchmark network bytes of sending all the ops.
    */
-  async sendNetwork(mode: "single" | "multi") {
+  async sendNetwork(mode: Mode) {
     const [msgs] = await this.getSentMessages(mode);
     let bytesSent = 0;
     for (const msg of msgs) bytesSent += byteLength(msg);
 
     // Record measurements.
-    record("sendNetwork/" + this.traceName, this.implementationName, mode, [
-      bytesSent,
-    ]);
+    record(
+      "sendNetwork/" + this.traceName,
+      this.implementationName,
+      mode,
+      this.trace.numOps,
+      [bytesSent]
+    );
   }
 
   /**
@@ -388,7 +394,7 @@ export class ReplicaBenchmark<I> {
    * the ops, which were generated (off the clock)
    * by other user(s) according to the mode.
    */
-  async receiveTime(mode: "single" | "multi") {
+  async receiveTime(mode: Mode) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
 
@@ -434,6 +440,7 @@ export class ReplicaBenchmark<I> {
       "receiveTime/" + this.traceName,
       this.implementationName,
       mode,
+      this.trace.numOps,
       values
     );
   }
@@ -443,7 +450,7 @@ export class ReplicaBenchmark<I> {
    * the ops, which were generated (off the clock)
    * by other user(s) according to the mode.
    */
-  async receiveMemory(mode: "single" | "multi") {
+  async receiveMemory(mode: Mode) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
     let bases = new Array<number>(getRecordedTrials());
@@ -489,12 +496,13 @@ export class ReplicaBenchmark<I> {
       "receiveMemory/" + this.traceName,
       this.implementationName,
       mode,
+      this.trace.numOps,
       values,
       bases
     );
   }
 
-  async receiveSave(mode: "single" | "multi") {
+  async receiveSave(mode: Mode) {
     // Get messages to receive.
     const [msgs, senderState] = await this.getSentMessages(mode);
 
@@ -510,9 +518,13 @@ export class ReplicaBenchmark<I> {
     await this.saveTime(receiver, "receiveSaveTime", mode);
 
     const saveData = receiver.save();
-    record("receiveSaveSize/" + this.traceName, this.implementationName, mode, [
-      byteLength(saveData),
-    ]);
+    record(
+      "receiveSaveSize/" + this.traceName,
+      this.implementationName,
+      mode,
+      this.trace.numOps,
+      [byteLength(saveData)]
+    );
 
     await this.loadTime(saveData, senderState, "receiveLoadTime", mode);
   }
@@ -546,6 +558,7 @@ export class ReplicaBenchmark<I> {
       metric + "/" + this.traceName,
       this.implementationName,
       label,
+      this.trace.numOps,
       values
     );
   }
@@ -595,6 +608,7 @@ export class ReplicaBenchmark<I> {
       metric + "/" + this.traceName,
       this.implementationName,
       label,
+      this.trace.numOps,
       values
     );
   }

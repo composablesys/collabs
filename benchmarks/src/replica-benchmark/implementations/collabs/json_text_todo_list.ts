@@ -58,49 +58,51 @@ class JSONTextTodoListInternal implements ITodoListInternal {
   }
 }
 
-export class CollabsJSONTextTodoList
-  extends CollabsReplica
-  implements ITodoList
-{
-  rootInternal!: ITodoListInternal;
-  private readonly rootJSON: JSONElement;
+export function CollabsJSONTextTodoList(causalityGuaranteed: boolean) {
+  return class CollabsJSONTextTodoList
+    extends CollabsReplica
+    implements ITodoList
+  {
+    rootInternal!: ITodoListInternal;
+    private readonly rootJSON: JSONElement;
 
-  constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
-    super(onsend, replicaIdRng);
+    constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
+      super(onsend, replicaIdRng, causalityGuaranteed);
 
-    this.rootJSON = this.app.registerCollab("", JSONElement.NewJSON);
-  }
-
-  skipLoad() {
-    this.app.load(
-      collabs.Optional.of(CollabsJSONTextTodoList.getFakeInitialSaveData())
-    );
-    this.rootInternal = new JSONTextTodoListInternal(
-      this.rootJSON.value as JSONObject
-    );
-  }
-
-  load(saveData: Uint8Array): void {
-    super.load(saveData);
-    this.rootInternal = new JSONTextTodoListInternal(
-      this.rootJSON.value as JSONObject
-    );
-  }
-
-  private static _fakeInitialSaveData?: Uint8Array;
-  private static getFakeInitialSaveData(): Uint8Array {
-    if (this._fakeInitialSaveData === undefined) {
-      // This is a trick to give us initial value
-      // { items: [] }.
-      const fakeInitialApp = new collabs.CRDTApp({ debugReplicaID: "INIT" });
-      const fakeInitialJSON = fakeInitialApp.registerCollab(
-        "",
-        JSONElement.NewJSON
-      );
-      fakeInitialApp.load(collabs.Optional.empty());
-      fakeInitialJSON.setOrdinaryJS({ items: [] });
-      this._fakeInitialSaveData = fakeInitialApp.save();
+      this.rootJSON = this.app.registerCollab("", JSONElement.NewJSON);
     }
-    return this._fakeInitialSaveData;
-  }
+
+    skipLoad() {
+      this.app.load(
+        collabs.Optional.of(CollabsJSONTextTodoList.getFakeInitialSaveData())
+      );
+      this.rootInternal = new JSONTextTodoListInternal(
+        this.rootJSON.value as JSONObject
+      );
+    }
+
+    load(saveData: Uint8Array): void {
+      super.load(saveData);
+      this.rootInternal = new JSONTextTodoListInternal(
+        this.rootJSON.value as JSONObject
+      );
+    }
+
+    private static _fakeInitialSaveData?: Uint8Array;
+    private static getFakeInitialSaveData(): Uint8Array {
+      if (this._fakeInitialSaveData === undefined) {
+        // This is a trick to give us initial value
+        // { items: [] }.
+        const fakeInitialApp = new collabs.CRDTApp({ debugReplicaID: "INIT" });
+        const fakeInitialJSON = fakeInitialApp.registerCollab(
+          "",
+          JSONElement.NewJSON
+        );
+        fakeInitialApp.load(collabs.Optional.empty());
+        fakeInitialJSON.setOrdinaryJS({ items: [] });
+        this._fakeInitialSaveData = fakeInitialApp.save();
+      }
+      return this._fakeInitialSaveData;
+    }
+  };
 }

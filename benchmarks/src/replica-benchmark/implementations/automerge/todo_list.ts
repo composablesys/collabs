@@ -97,6 +97,6 @@ export class AutomergeTodoList
   });
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeTodoList.fakeInitialSave);
+    this.doc = Automerge.load(AutomergeTodoList.fakeInitialSave, this.actorId);
   }
 }

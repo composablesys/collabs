@@ -9,7 +9,7 @@ export class AutomergeMap
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({});
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeMap.fakeInitialSave);
+    this.doc = Automerge.load(AutomergeMap.fakeInitialSave, this.actorId);
   }
 
   set(key: string, value: unknown): void {

@@ -1,5 +1,6 @@
 import memwatch from "@airbnb/node-memwatch";
 import Automerge from "automerge";
+import { v4 } from "uuid";
 
 export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,6 +50,16 @@ export const CHARS = (function () {
 export function randomChar(rng: seedrandom.prng) {
   let index = Math.floor(rng() * CHARS.length);
   return CHARS[index];
+}
+
+/**
+ * Returns a UUID v4 (in the format of the npm uuid library),
+ * but pseudorandomly generated.
+ */
+export function uuidv4(rng: seedrandom.prng): string {
+  const randBytes = new Array<number>(16);
+  for (let i = 0; i < 16; i++) randBytes[i] = Math.floor(rng() * 256);
+  return v4({ random: randBytes });
 }
 
 export type Data =

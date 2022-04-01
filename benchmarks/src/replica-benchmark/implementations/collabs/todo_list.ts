@@ -3,16 +3,10 @@ import { Data } from "../../../util";
 import { ITodoListInternal, ITodoList } from "../../interfaces/todo_list";
 import { CollabsReplica } from "./replica";
 
-class DeletingTodoListInternal
-  extends collabs.CObject
-  implements ITodoListInternal
-{
+class TodoListInternal extends collabs.CObject implements ITodoListInternal {
   private readonly text: collabs.CText;
   private readonly doneCollab: collabs.TrueWinsCBoolean;
-  private readonly items: collabs.DeletingMutCList<
-    DeletingTodoListInternal,
-    []
-  >;
+  private readonly items: collabs.DeletingMutCList<TodoListInternal, []>;
 
   constructor(initToken: collabs.InitToken) {
     super(initToken);
@@ -24,7 +18,7 @@ class DeletingTodoListInternal
     this.items = this.addChild(
       "items",
       collabs.Pre(collabs.DeletingMutCList)(
-        collabs.ConstructorAsFunction(DeletingTodoListInternal)
+        collabs.ConstructorAsFunction(TodoListInternal)
       )
     );
   }
@@ -36,7 +30,7 @@ class DeletingTodoListInternal
   deleteItem(index: number): void {
     this.items.delete(index);
   }
-  getItem(index: number): DeletingTodoListInternal {
+  getItem(index: number): TodoListInternal {
     return this.items.get(index);
   }
   get itemsSize(): number {
@@ -64,18 +58,17 @@ class DeletingTodoListInternal
   }
 }
 
-export class CollabsDeletingTodoList
-  extends CollabsReplica
-  implements ITodoList
-{
-  readonly rootInternal: DeletingTodoListInternal;
+export function CollabsTodoList(causalityGuaranteed: boolean) {
+  return class CollabsTodoList extends CollabsReplica implements ITodoList {
+    readonly rootInternal: TodoListInternal;
 
-  constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
-    super(onsend, replicaIdRng);
+    constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
+      super(onsend, replicaIdRng, causalityGuaranteed);
 
-    this.rootInternal = this.app.registerCollab(
-      "",
-      collabs.Pre(DeletingTodoListInternal)()
-    );
-  }
+      this.rootInternal = this.app.registerCollab(
+        "",
+        collabs.Pre(TodoListInternal)()
+      );
+    }
+  };
 }

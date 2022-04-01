@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import { Data } from "../../../util";
+import { Data, uuidv4 } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export class YjsReplica implements Replica {
@@ -11,8 +11,10 @@ export class YjsReplica implements Replica {
     private readonly onsend: (msg: Data) => void,
     replicaIdRng: seedrandom.prng
   ) {
-    // TODO: use rng.
-    this.doc = new Y.Doc();
+    this.doc = new Y.Doc({ guid: uuidv4(replicaIdRng) });
+    // clientID is normally set with lib0/random.uint32(), so we
+    // need to get a PRNG uint32 instead.
+    this.doc.clientID = replicaIdRng.int32() + (2 << 31);
     this.doc.on("update", (update: Uint8Array) => {
       // Yjs dispatches update events not just when this sends
       // a message, but also when it receives one for

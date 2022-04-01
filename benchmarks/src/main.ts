@@ -9,7 +9,7 @@ import { AutomergeVariable } from "./replica-benchmark/implementations/automerge
 import { AutomergeText } from "./replica-benchmark/implementations/automerge/text";
 import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge/todo_list";
 import { CollabsDeletingText } from "./replica-benchmark/implementations/collabs/deleting_text";
-import { CollabsDeletingTodoList } from "./replica-benchmark/implementations/collabs/deleting_todo_list";
+import { CollabsTodoList } from "./replica-benchmark/implementations/collabs/todo_list";
 // import { CollabsJSONOptTodoList } from "./replica-benchmark/implementations/collabs/json_opt_todo_list";
 import { CollabsJSONTextTodoList } from "./replica-benchmark/implementations/collabs/json_text_todo_list";
 import { CollabsJSONTodoList } from "./replica-benchmark/implementations/collabs/json_todo_list";
@@ -23,6 +23,7 @@ import { YjsText } from "./replica-benchmark/implementations/yjs/text";
 import { YjsTodoList } from "./replica-benchmark/implementations/yjs/todo_list";
 import {
   Implementation,
+  Mode,
   ReplicaBenchmark,
   Trace,
 } from "./replica-benchmark/replica_benchmark";
@@ -34,7 +35,6 @@ import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_rand
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
 import { RealText100Trace } from "./replica-benchmark/traces/real_text_100_trace";
-import { CollabsTextCausalityGuaranteed } from "./replica-benchmark/implementations/collabs/text_causality_guaranteed";
 
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
@@ -52,16 +52,27 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   AutomergeVariable: AutomergeVariable,
   AutomergeText: AutomergeText,
   AutomergeTodoList: AutomergeTodoList,
-  CollabsDeletingText: CollabsDeletingText,
-  CollabsDeletingTodoList: CollabsDeletingTodoList,
+  // For Collabs, we have two versions of each benchmark:
+  // a default version that enforces causal ordering, and a
+  // CG ("causality guaranteed") version that does not, i.e., it
+  // assumes the network guarantees causal ordering.
+  CollabsDeletingText: CollabsDeletingText(false),
+  CollabsCGDeletingText: CollabsDeletingText(true),
+  CollabsTodoList: CollabsTodoList(false),
+  CollabsCGTodoList: CollabsTodoList(true),
   // CollabsJSONOptTodoList: CollabsJSONOptTodoList,
-  CollabsJSONTextTodoList: CollabsJSONTextTodoList,
-  CollabsJSONTodoList: CollabsJSONTodoList,
-  CollabsMap: CollabsMap,
-  CollabsVariable: CollabsVariable,
-  CollabsRichText: CollabsRichText,
-  CollabsText: CollabsText,
-  CollabsTextCausalityGuaranteed: CollabsTextCausalityGuaranteed,
+  CollabsJSONTextTodoList: CollabsJSONTextTodoList(false),
+  CollabsCGJSONTextTodoList: CollabsJSONTextTodoList(true),
+  CollabsJSONTodoList: CollabsJSONTodoList(false),
+  CollabsCGJSONTodoList: CollabsJSONTodoList(true),
+  CollabsMap: CollabsMap(false),
+  CollabsCGMap: CollabsMap(true),
+  CollabsVariable: CollabsVariable(false),
+  CollabsCGVariable: CollabsVariable(true),
+  CollabsRichText: CollabsRichText(false),
+  CollabsCGRichText: CollabsRichText(true),
+  CollabsText: CollabsText(false),
+  CollabsCGText: CollabsText(true),
   YjsMap: YjsMap,
   YjsVariable: YjsVariable,
   YjsText: YjsText,
@@ -109,9 +120,11 @@ You can set both trial counts to 0 to do a test run (check that test names and a
     implementationName
   );
 
-  const mode = <"single" | "multi">args[7];
-  if (!(mode === "single" || mode === "multi")) {
-    console.log('Invalid mode (must be "single" or "multi"): ' + mode);
+  const mode = <Mode>args[7];
+  if (!(mode === "single" || mode === "rotate" || mode === "concurrent")) {
+    console.log(
+      "Invalid mode (expected: single | rotate | concurrent): " + mode
+    );
     printUsage(7);
   }
 

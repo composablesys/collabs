@@ -8,7 +8,7 @@ export class CollabsReplica implements Replica {
   constructor(
     private readonly onsend: (msg: Data) => void,
     replicaIdRng: seedrandom.prng,
-    causalityGuaranteed = false
+    causalityGuaranteed: boolean
   ) {
     this.app = new collabs.CRDTApp({
       debugReplicaID: collabs.pseudoRandomReplicaID(replicaIdRng),
