@@ -6,7 +6,7 @@ import { assert } from "chai";
 import { byteLength, Data, getMemoryUsed } from "../util";
 
 const SEED = "42";
-const MULTI_NUM_CONCURRENT = 10;
+const MULTI_NUM_CONCURRENT = 100;
 const MULTI_NUM_ROTATED = 1000;
 
 export interface Replica {
@@ -115,9 +115,9 @@ export class ReplicaBenchmark<I> {
    * final state. Before returning, it is checked that all of the concurrent
    * senders are also in this finalState.
    */
-  private getSentMessages(
+  private async getSentMessages(
     mode: "single" | "multi"
-  ): [msgs: Data[], finalState: unknown] {
+  ): Promise<[msgs: Data[], finalState: unknown]> {
     if (mode === "single") {
       const msgs: Data[] = [];
       const sender = new this.implementation((msg) => {
@@ -151,20 +151,25 @@ export class ReplicaBenchmark<I> {
           // the remainder if the ops do not divide evenly.
           if (
             op % opsPerSender === 0 &&
+            op !== 0 &&
             op / opsPerSender < MULTI_NUM_ROTATED
           ) {
             if ((op / opsPerSender) % 100 === 0) {
               console.log(
-                "Setup: Rotated device " +
+                "Setup: Rotating device " +
                   op / opsPerSender +
                   "/" +
                   MULTI_NUM_ROTATED
               );
+              // Force GC, to prevent OOM errors (Node doesn't seem to GC
+              // very well during sync code).
+              await getMemoryUsed();
             }
             const saveData = sender.save();
             sender = new this.implementation((msg) => {
               msgs.push(msg);
             }, senderRng);
+
             sender.load(saveData);
           }
 
@@ -195,6 +200,9 @@ export class ReplicaBenchmark<I> {
       for (let round = 0; round < numRounds; round++) {
         if (round % 100 === 0) {
           console.log("Setup: Concurrency round " + round + "/" + numRounds);
+          // Force GC, to prevent OOM errors (Node doesn't seem to GC
+          // very well during sync code).
+          await getMemoryUsed();
         }
         // For the last round, might not have enough messages for all senders.
         const numSenders =
@@ -277,7 +285,7 @@ export class ReplicaBenchmark<I> {
       // await new Promise((resolve) => setTimeout(resolve, 1000 * 1000));
 
       // Check final state.
-      if (this.trace.correctState !== undefined) {
+      if (mode === "single" && this.trace.correctState !== undefined) {
         assert.deepStrictEqual(
           this.trace.getState(sender),
           this.trace.correctState,
@@ -342,7 +350,7 @@ export class ReplicaBenchmark<I> {
       }
 
       // Check final state.
-      if (this.trace.correctState !== undefined) {
+      if (mode === "single" && this.trace.correctState !== undefined) {
         assert.deepStrictEqual(
           this.trace.getState(sender),
           this.trace.correctState,
@@ -365,7 +373,7 @@ export class ReplicaBenchmark<I> {
    * Benchmark network bytes of sending all the ops.
    */
   async sendNetwork(mode: "single" | "multi") {
-    const [msgs] = this.getSentMessages(mode);
+    const [msgs] = await this.getSentMessages(mode);
     let bytesSent = 0;
     for (const msg of msgs) bytesSent += byteLength(msg);
 
@@ -385,7 +393,7 @@ export class ReplicaBenchmark<I> {
     values.fill(0);
 
     // Get messages to receive.
-    const [msgs, senderState] = this.getSentMessages(mode);
+    const [msgs, senderState] = await this.getSentMessages(mode);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
       // Between trials, force GC.
@@ -442,7 +450,7 @@ export class ReplicaBenchmark<I> {
     bases.fill(0);
 
     // Get messages to receive.
-    const [msgs, senderState] = this.getSentMessages(mode);
+    const [msgs, senderState] = await this.getSentMessages(mode);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
       // Between trials, force GC.
@@ -488,7 +496,7 @@ export class ReplicaBenchmark<I> {
 
   async receiveSave(mode: "single" | "multi") {
     // Get messages to receive.
-    const [msgs, senderState] = this.getSentMessages(mode);
+    const [msgs, senderState] = await this.getSentMessages(mode);
 
     // Receive all messages.
     const receiver = new this.implementation(() => {},

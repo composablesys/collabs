@@ -14,7 +14,7 @@ export class YjsReplica implements Replica {
     // TODO: use rng.
     this.doc = new Y.Doc();
     this.doc.on("update", (update: Uint8Array) => {
-      // Yjs dispatches update events not just when i sends
+      // Yjs dispatches update events not just when this sends
       // a message, but also when it receives one for
       // the first time.  We only care when they actually
       // send the message.

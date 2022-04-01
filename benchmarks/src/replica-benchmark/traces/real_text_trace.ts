@@ -20,9 +20,9 @@ export class RealTextTrace implements Trace<IText> {
       if (length === 0) {
         // Do an insert instead, so we have something to do.
         replica.insert(0, "X");
-        return;
+      } else {
+        replica.delete(Math.min(edit[0], length - 1));
       }
-      replica.delete(Math.min(edit[0], length - 1));
     }
   }
 
