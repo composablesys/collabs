@@ -139,23 +139,47 @@ You can set both trial counts to 0 to do a test run (check that test names and a
   const measurement = args[4];
   switch (measurement) {
     case "sendTime":
-      await replicaBenchmark.sendTime(mode);
+      if (mode !== "single") {
+        throw new Error('sendTime only supports "single" mode');
+      }
+      await replicaBenchmark.sendTimeSingle();
       break;
     case "sendMemory":
-      await replicaBenchmark.sendMemory(mode);
+      if (mode !== "single") {
+        throw new Error('sendTime only supports "single" mode');
+      }
+      await replicaBenchmark.sendMemorySingle();
       break;
-    case "sendNetwork":
-      await replicaBenchmark.sendNetwork(mode);
+    case "receiveNetwork": {
+      const [msgs, finalState] = await replicaBenchmark.getSentMessages(mode);
+      await replicaBenchmark.receiveNetwork(mode, msgs, finalState);
       break;
-    case "receiveTime":
-      await replicaBenchmark.receiveTime(mode);
+    }
+    case "receiveTime": {
+      const [msgs, finalState] = await replicaBenchmark.getSentMessages(mode);
+      await replicaBenchmark.receiveTime(mode, msgs, finalState);
       break;
-    case "receiveMemory":
-      await replicaBenchmark.receiveMemory(mode);
+    }
+    case "receiveMemory": {
+      const [msgs, finalState] = await replicaBenchmark.getSentMessages(mode);
+      await replicaBenchmark.receiveMemory(mode, msgs, finalState);
       break;
-    case "receiveSave":
-      await replicaBenchmark.receiveSave(mode);
+    }
+    case "receiveSave": {
+      const [msgs, finalState] = await replicaBenchmark.getSentMessages(mode);
+      await replicaBenchmark.receiveSave(mode, msgs, finalState);
       break;
+    }
+    case "receiveAll": {
+      // All receive benchmarks, with a single call to getSentMessages
+      // to save time.
+      const [msgs, finalState] = await replicaBenchmark.getSentMessages(mode);
+      await replicaBenchmark.receiveNetwork(mode, msgs, finalState);
+      await replicaBenchmark.receiveTime(mode, msgs, finalState);
+      await replicaBenchmark.receiveMemory(mode, msgs, finalState);
+      await replicaBenchmark.receiveSave(mode, msgs, finalState);
+      break;
+    }
     default:
       console.log("Unrecognized measurement: " + measurement);
       printUsage(4);

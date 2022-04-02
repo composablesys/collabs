@@ -114,7 +114,7 @@ export class ReplicaBenchmark<I> {
    * final state. Before returning, it is checked that all
    * senders are also in this finalState (if applicable).
    */
-  private async getSentMessages(
+  async getSentMessages(
     mode: Mode
   ): Promise<[msgs: Data[], finalState: unknown]> {
     const senderRng = seedrandom(SEED + "sender");
@@ -239,11 +239,7 @@ export class ReplicaBenchmark<I> {
   /**
    * Benchmark time to send all the ops.
    */
-  async sendTime(mode: Mode) {
-    if (mode !== "single") {
-      throw new Error("Not implemented: sendTime " + mode);
-    }
-
+  async sendTimeSingle() {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
 
@@ -281,7 +277,7 @@ export class ReplicaBenchmark<I> {
       // await new Promise((resolve) => setTimeout(resolve, 1000 * 1000));
 
       // Check final state.
-      if (mode === "single" && this.trace.correctState !== undefined) {
+      if (this.trace.correctState !== undefined) {
         assert.deepStrictEqual(
           this.trace.getState(sender),
           this.trace.correctState,
@@ -294,7 +290,7 @@ export class ReplicaBenchmark<I> {
     record(
       "sendTime/" + this.traceName,
       this.implementationName,
-      mode,
+      "single",
       this.trace.numOps,
       values
     );
@@ -303,11 +299,7 @@ export class ReplicaBenchmark<I> {
   /**
    * Benchmark memory of a sender after sending all the ops.
    */
-  async sendMemory(mode: Mode) {
-    if (mode !== "single") {
-      throw new Error("Not implemented: sendTime " + mode);
-    }
-
+  async sendMemorySingle() {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
     let bases = new Array<number>(getRecordedTrials());
@@ -347,7 +339,7 @@ export class ReplicaBenchmark<I> {
       }
 
       // Check final state.
-      if (mode === "single" && this.trace.correctState !== undefined) {
+      if (this.trace.correctState !== undefined) {
         assert.deepStrictEqual(
           this.trace.getState(sender),
           this.trace.correctState,
@@ -360,7 +352,7 @@ export class ReplicaBenchmark<I> {
     record(
       "sendMemory/" + this.traceName,
       this.implementationName,
-      mode,
+      "single",
       this.trace.numOps,
       values,
       bases
@@ -368,16 +360,15 @@ export class ReplicaBenchmark<I> {
   }
 
   /**
-   * Benchmark network bytes of sending all the ops.
+   * Benchmark network bytes of receiving all the ops.
    */
-  async sendNetwork(mode: Mode) {
-    const [msgs] = await this.getSentMessages(mode);
+  async receiveNetwork(mode: Mode, msgs: Data[], _finalState: unknown) {
     let bytesSent = 0;
     for (const msg of msgs) bytesSent += byteLength(msg);
 
     // Record measurements.
     record(
-      "sendNetwork/" + this.traceName,
+      "receiveNetwork/" + this.traceName,
       this.implementationName,
       mode,
       this.trace.numOps,
@@ -390,12 +381,9 @@ export class ReplicaBenchmark<I> {
    * the ops, which were generated (off the clock)
    * by other user(s) according to the mode.
    */
-  async receiveTime(mode: Mode) {
+  async receiveTime(mode: Mode, msgs: Data[], finalState: unknown) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
-
-    // Get messages to receive.
-    const [msgs, senderState] = await this.getSentMessages(mode);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
       // Between trials, force GC.
@@ -426,7 +414,7 @@ export class ReplicaBenchmark<I> {
       // Check final state.
       assert.deepStrictEqual(
         this.trace.getState(receiver),
-        senderState,
+        finalState,
         "receiver state does not equal sender state"
       );
     }
@@ -446,14 +434,11 @@ export class ReplicaBenchmark<I> {
    * the ops, which were generated (off the clock)
    * by other user(s) according to the mode.
    */
-  async receiveMemory(mode: Mode) {
+  async receiveMemory(mode: Mode, msgs: Data[], finalState: unknown) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
     let bases = new Array<number>(getRecordedTrials());
     bases.fill(0);
-
-    // Get messages to receive.
-    const [msgs, senderState] = await this.getSentMessages(mode);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
       // Between trials, force GC.
@@ -482,7 +467,7 @@ export class ReplicaBenchmark<I> {
       // Check final state.
       assert.deepStrictEqual(
         this.trace.getState(receiver),
-        senderState,
+        finalState,
         "receiver state does not equal sender state"
       );
     }
@@ -498,10 +483,7 @@ export class ReplicaBenchmark<I> {
     );
   }
 
-  async receiveSave(mode: Mode) {
-    // Get messages to receive.
-    const [msgs, senderState] = await this.getSentMessages(mode);
-
+  async receiveSave(mode: Mode, msgs: Data[], finalState: unknown) {
     // Receive all messages.
     const receiver = new this.implementation(() => {},
     seedrandom(SEED + "receiver"));
@@ -522,7 +504,7 @@ export class ReplicaBenchmark<I> {
       [byteLength(saveData)]
     );
 
-    await this.loadTime(saveData, senderState, "receiveLoadTime", mode);
+    await this.loadTime(saveData, finalState, "receiveLoadTime", mode);
   }
 
   private async saveTime(saver: Replica, metric: string, label: string) {

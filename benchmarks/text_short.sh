@@ -7,7 +7,7 @@ then
   exit 1
 fi
 
-for measurement in "sendTime" "sendMemory" "sendNetwork" "receiveTime" "receiveMemory" "receiveSave"
+for measurement in "sendTime" "sendMemory" "receiveAll"
 do
   npm start -- $1 $2 $3 $4 $measurement RealText $5 single
 done

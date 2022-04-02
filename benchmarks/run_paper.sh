@@ -1,4 +1,4 @@
-#/usr/bin/bash
+#!/bin/bash
 
 if [ -z "$4" ]
 then
@@ -45,7 +45,7 @@ function go {
   setImpls
   for implementation in ${implsSingle[*]}
   do
-    for measurement in "sendTime" "sendMemory" "sendNetwork" "receiveTime" "receiveMemory" "receiveSave"
+    for measurement in "sendTime" "sendMemory" "receiveAll"
     do
       npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation single
     done
@@ -54,7 +54,7 @@ function go {
   do
     for mode in "rotate" "concurrent"
     do
-      for measurement in "sendNetwork" "receiveTime" "receiveMemory" "receiveSave"
+      for measurement in "receiveAll"
       do
         npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation $mode
       done
