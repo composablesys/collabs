@@ -204,11 +204,7 @@ export class ReplicaBenchmark<I> {
             ? CONCURRENT_NUM_DEVICES - 1
             : CONCURRENT_NUM_DEVICES;
         for (let i = 0; i < numSenders; i++) {
-          this.transactOp(
-            concurrers[i],
-            rng,
-            this.trace.numOps + i * numRounds + round
-          );
+          this.transactOp(concurrers[i], rng, i * numRounds + round);
         }
         // Everyone receives each others' messages.
         for (let sender = 0; sender < numSenders; sender++) {
