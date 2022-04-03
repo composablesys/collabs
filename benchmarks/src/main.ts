@@ -8,14 +8,12 @@ import { AutomergeMap } from "./replica-benchmark/implementations/automerge/map"
 import { AutomergeVariable } from "./replica-benchmark/implementations/automerge/variable";
 import { AutomergeText } from "./replica-benchmark/implementations/automerge/text";
 import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge/todo_list";
-import { CollabsDeletingText } from "./replica-benchmark/implementations/collabs/deleting_text";
 import { CollabsTodoList } from "./replica-benchmark/implementations/collabs/todo_list";
 // import { CollabsJSONOptTodoList } from "./replica-benchmark/implementations/collabs/json_opt_todo_list";
 import { CollabsJSONTextTodoList } from "./replica-benchmark/implementations/collabs/json_text_todo_list";
 import { CollabsJSONTodoList } from "./replica-benchmark/implementations/collabs/json_todo_list";
 import { CollabsMap } from "./replica-benchmark/implementations/collabs/map";
 import { CollabsVariable } from "./replica-benchmark/implementations/collabs/variable";
-import { CollabsRichText } from "./replica-benchmark/implementations/collabs/rich_text";
 import { CollabsText } from "./replica-benchmark/implementations/collabs/text";
 import { YjsMap } from "./replica-benchmark/implementations/yjs/map";
 import { YjsVariable } from "./replica-benchmark/implementations/yjs/variable";
@@ -34,10 +32,13 @@ import { MicroTextLtrTrace } from "./replica-benchmark/traces/micro_text_ltr_tra
 import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_random_trace";
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
-import { RealText100Trace } from "./replica-benchmark/traces/real_text_100_trace";
 import { CollabsNoop } from "./replica-benchmark/implementations/collabs/noop";
 import { CollabsNestedNoop } from "./replica-benchmark/implementations/collabs/nested_noop";
 import { NoopTrace } from "./replica-benchmark/traces/noop_trace";
+import { CollabsRichTextWithCursor } from "./replica-benchmark/implementations/collabs/rich_text_with_cursor";
+import { CollabsTextWithCursor } from "./replica-benchmark/implementations/collabs/text_with_cursor";
+import { YjsTextWithCursor } from "./replica-benchmark/implementations/yjs/text_with_cursor";
+import { AutomergeTextWithCursor } from "./replica-benchmark/implementations/automerge/text_with_cursor";
 
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
@@ -46,7 +47,6 @@ const traces: { [name: string]: Trace<unknown> } = {
   MicroTextLtr: new MicroTextLtrTrace(),
   MicroTextRandom: new MicroTextRandomTrace(),
   RealText: new RealTextTrace(),
-  RealText100: new RealText100Trace(),
   TodoList: new TodoListTrace(),
   Noop: new NoopTrace(),
 };
@@ -55,13 +55,12 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   AutomergeMap: AutomergeMap,
   AutomergeVariable: AutomergeVariable,
   AutomergeText: AutomergeText,
+  AutomergeTextWithCursor: AutomergeTextWithCursor,
   AutomergeTodoList: AutomergeTodoList,
   // For Collabs, we have two versions of each benchmark:
   // a default version that enforces causal ordering, and a
   // CG ("causality guaranteed") version that does not, i.e., it
   // assumes the network guarantees causal ordering.
-  CollabsDeletingText: CollabsDeletingText(false),
-  CollabsCGDeletingText: CollabsDeletingText(true),
   CollabsTodoList: CollabsTodoList(false),
   CollabsCGTodoList: CollabsTodoList(true),
   // CollabsJSONOptTodoList: CollabsJSONOptTodoList,
@@ -73,10 +72,12 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   CollabsCGMap: CollabsMap(true),
   CollabsVariable: CollabsVariable(false),
   CollabsCGVariable: CollabsVariable(true),
-  CollabsRichText: CollabsRichText(false),
-  CollabsCGRichText: CollabsRichText(true),
+  CollabsRichTextWithCursor: CollabsRichTextWithCursor(false),
+  CollabsCGRichTextWithCursor: CollabsRichTextWithCursor(true),
   CollabsText: CollabsText(false),
   CollabsCGText: CollabsText(true),
+  CollabsTextWithCursor: CollabsTextWithCursor(false),
+  CollabsCGTextWithCursor: CollabsTextWithCursor(true),
   CollabsNoop: CollabsNoop(false),
   CollabsCGNoop: CollabsNoop(true),
   CollabsNestedNoop: CollabsNestedNoop(false),
@@ -84,6 +85,7 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   YjsMap: YjsMap,
   YjsVariable: YjsVariable,
   YjsText: YjsText,
+  YjsTextWithCursor: YjsTextWithCursor,
   YjsTodoList: YjsTodoList,
 };
 

@@ -90,10 +90,10 @@ othersMulti=("YjsTodoList")
 go
 
 trace="RealText"
-oursSingle=("CollabsText")
-oursMulti=("CollabsText" "CollabsCGText")
-othersSingle=("AutomergeText" "YjsText")
-othersMulti=("YjsText")
+oursSingle=("CollabsTextWithCursor")
+oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor")
+othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
+othersMulti=("YjsTextWithCursor")
 go
 
 # 2. Collabs overhead benchmarks.

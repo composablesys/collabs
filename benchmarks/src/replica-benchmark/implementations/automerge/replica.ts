@@ -29,8 +29,15 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   receive(msg: Automerge.BinaryChange[]): void {
-    this.doc = Automerge.applyChanges(this.doc, msg)[0];
+    const ans = Automerge.applyChanges(this.doc, msg);
+    this.doc = ans[0];
+    this.onRemoteChange(ans[1]);
   }
+
+  /**
+   * Override to get the patch from each remote message.
+   */
+  protected onRemoteChange(patch: Automerge.Patch): void {}
 
   save(): Data {
     return Automerge.save(this.doc);

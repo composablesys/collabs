@@ -83,24 +83,11 @@ othersSingle=("AutomergeVariable" "YjsVariable")
 othersMulti=("YjsVariable")
 go
 
-trace="TodoList"
-oursSingle=("CollabsTodoList")
-oursMulti=("CollabsTodoList" "CollabsCGTodoList")
-othersSingle=("AutomergeTodoList" "YjsTodoList")
-othersMulti=("YjsTodoList")
-go
-
 trace="RealText"
-oursSingle=("CollabsText" "CollabsDeletingText" "CollabsRichText")
-oursMulti=("CollabsText" "CollabsCGText" "CollabsDeletingText" "CollabsDeletingTextCG" "CollabsRichText" "CollabsRichTextCG")
-othersSingle=("AutomergeText" "YjsText")
-othersMulti=("YjsText")
-go
-
-trace="MicroTextLtr"
-go
-
-trace="MicroTextRandom"
+oursSingle=("CollabsTextWithCursor" "CollabsRichTextWithCursor")
+oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor" "CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
+othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
+othersMulti=("YjsTextWithCursor")
 go
 
 trace="TodoList"
@@ -116,4 +103,14 @@ oursSingle=("CollabsNoop" "CollabsNestedNoop")
 oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
 othersSingle=()
 othersMulti=()
+go
+
+trace="MicroTextLtr"
+oursSingle=("CollabsText")
+oursMulti=("CollabsText" "CollabsCGText")
+othersSingle=("AutomergeText" "YjsText")
+othersMulti=("YjsText")
+go
+
+trace="MicroTextRandom"
 go

@@ -1,6 +1,6 @@
 import * as collabs from "@collabs/collabs";
 import { Data } from "../../../util";
-import { IText } from "../../interfaces/text";
+import { ITextWithCursor } from "../../interfaces/text_with_cursor";
 import { CollabsReplica } from "./replica";
 
 interface RichCharEventsRecord extends collabs.CollabEventsRecord {
@@ -124,9 +124,13 @@ class RichTextInternal extends collabs.CObject<RichTextEventsRecord> {
   }
 }
 
-export function CollabsRichText(causalityGuaranteed: boolean) {
-  return class CollabsRichText extends CollabsReplica implements IText {
+export function CollabsRichTextWithCursor(causalityGuaranteed: boolean) {
+  return class CollabsRichTextWithCursor
+    extends CollabsReplica
+    implements ITextWithCursor
+  {
     private readonly richText: RichTextInternal;
+    private cursor = -1;
 
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
@@ -135,14 +139,35 @@ export function CollabsRichText(causalityGuaranteed: boolean) {
         "",
         collabs.Pre(RichTextInternal)()
       );
+
+      // Maintain cursor position.
+      // We use the fact that all ops are single character insertions/deletions.
+      // TODO: use built-in Cursor instead? Matches our plain text demo,
+      // but unstable API and also probably slower.
+      this.richText.on("Insert", (e) => {
+        if (!e.meta.isLocalEcho && e.startIndex < this.cursor) this.cursor++;
+      });
+      this.richText.on("Delete", (e) => {
+        if (!e.meta.isLocalEcho && e.startIndex < this.cursor) this.cursor--;
+      });
     }
 
-    insert(index: number, char: string): void {
-      this.richText.insert(index, char);
+    moveCursor(index: number) {
+      this.cursor = index;
     }
 
-    delete(index: number): void {
-      this.richText.delete(index, 1);
+    needsCursor() {
+      return this.cursor === -1;
+    }
+
+    insert(char: string): void {
+      this.richText.insert(this.cursor, char);
+      this.cursor++;
+    }
+
+    delete(): void {
+      this.richText.delete(this.cursor, 1);
+      this.cursor--;
     }
 
     getText(): string {

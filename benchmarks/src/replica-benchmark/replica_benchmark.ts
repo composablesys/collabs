@@ -247,7 +247,7 @@ export class ReplicaBenchmark<I> {
       // Between trials, force GC.
       await getMemoryUsed();
 
-      console.log("Starting trial " + trial);
+      console.log("Starting sendTimeSingle trial " + trial);
 
       const sender = new this.implementation(() => {},
       seedrandom(SEED + "sender"));
@@ -315,7 +315,7 @@ export class ReplicaBenchmark<I> {
       // with sufficiently many warmup trials, we avoid that happening.
       await getMemoryUsed();
 
-      console.log("Starting trial " + trial);
+      console.log("Starting sendMemorySingle trial " + trial);
 
       const sender = new this.implementation(() => {},
       seedrandom(SEED + "sender"));
@@ -390,7 +390,7 @@ export class ReplicaBenchmark<I> {
       // See comment in sendMemorySingle().
       await getMemoryUsed();
 
-      console.log("Starting trial " + trial);
+      console.log("Starting receiveTime trial " + trial);
 
       const receiver = new this.implementation(() => {},
       seedrandom(SEED + "receiver"));
@@ -445,7 +445,7 @@ export class ReplicaBenchmark<I> {
       // See comment in sendMemorySingle().
       await getMemoryUsed();
 
-      console.log("Starting trial " + trial);
+      console.log("Starting receiveMemory trial " + trial);
 
       const receiver = new this.implementation(() => {},
       seedrandom(SEED + "receiver"));
