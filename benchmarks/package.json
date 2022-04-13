@@ -32,7 +32,7 @@
     "seedrandom": "^3.0.5",
     "tslib": "^2.0.1",
     "uuid": "^8.3.2",
-    "yjs": "^13.5.3"
+    "yjs": "^13.5.34"
   },
   "devDependencies": {
     "@types/airbnb__node-memwatch": "^2.0.0",
@@ -48,8 +48,8 @@
     "typescript": "^4.3.5"
   },
   "scripts": {
-    "start": "node --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/main.js",
-    "inspect": "node --inspect --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/main.js",
+    "start": "node --expose-gc build/src/main.js",
+    "inspect": "node --inspect --expose-gc --enable-source-maps build/src/main.js",
     "build": "npm-run-all build:*",
     "build:ts": "tsc -p tsconfig.json",
     "test": "npm-run-all test:*",
