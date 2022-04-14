@@ -134,9 +134,9 @@ export class CollabID<C extends Collab = Collab> {
    */
   get(ancestor: Runtime | Collab): C | undefined {
     if (ancestor === this.base) {
-      return <C | undefined>this.base.getDescendant(this.pathToBase);
+      return <C | undefined>this.base.getDescendant(this.pathToBase.slice());
     } else if (isRuntime(ancestor)) {
-      return <C | undefined>ancestor.getDescendant(this.namePath());
+      return <C | undefined>ancestor.getDescendant(this.namePath().slice());
     } else {
       const namePath = this.namePath();
       const ancestorNamePath = ancestor.runtime.getNamePath(ancestor);
