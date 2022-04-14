@@ -1,6 +1,6 @@
 {
   "name": "@collabs/json-opt",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Collabs custom type demo - optimized JSON CRDT",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -30,7 +30,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.5.0",
+    "@collabs/collabs": "0.5.1",
     "tslib": "^2.0.1"
   },
   "devDependencies": {
