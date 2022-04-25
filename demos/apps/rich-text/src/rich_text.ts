@@ -16,6 +16,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
 
 class RichChar extends collabs.CObject<RichCharEventsRecord> {
   private readonly _attributes: collabs.LWWCMap<string, any>;
+  readonly ignoreAttrsSet: Set<string>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -23,10 +24,17 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
    * a single char, or (for an embed) a JSON-serializable
    * object with a single property.
    */
-  constructor(initToken: collabs.InitToken, readonly char: string | object) {
+  constructor(
+    initToken: collabs.InitToken,
+    readonly char: string | object,
+    readonly origin: RichChar | null,
+    ignoreAttrs: string[]
+  ) {
     super(initToken);
 
     this._attributes = this.addChild("", collabs.Pre(collabs.LWWCMap)());
+
+    this.ignoreAttrsSet = new Set(ignoreAttrs);
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -58,6 +66,23 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   attributes(): { [key: string]: any } {
     return Object.fromEntries(this._attributes);
   }
+
+  loadObject(saveData: collabs.Optional<Uint8Array>) {
+    if (!saveData.isPresent && this.origin !== null) {
+      // Copy non-ignored attrs.
+      this._attributes.load(
+        collabs.Optional.of(this.origin._attributes.save())
+      );
+      for (const key of this.ignoreAttrsSet) {
+        this._attributes.getVariable(key).fullClear();
+      }
+    }
+  }
+}
+
+interface FormatOp {
+  target: RichChar;
+  attribute: string;
 }
 
 interface RichTextEventsRecord extends collabs.CollabEventsRecord {
@@ -67,7 +92,16 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichText extends collabs.CObject<RichTextEventsRecord> {
-  readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
+  readonly text: collabs.ArchivingMutCList<
+    RichChar,
+    [
+      char: string | object,
+      originID: collabs.CollabID<RichChar> | null,
+      ignoreAttrs: string[]
+    ]
+  >;
+  private readonly sdpStore: collabs.SemidirectProductStore<FormatOp, RichChar>;
+  private readonly runLocallyLayer: collabs.RunLocallyLayer;
 
   constructor(
     initToken: collabs.InitToken,
@@ -75,23 +109,75 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   ) {
     super(initToken);
 
-    this.text = this.addChild(
+    this.runLocallyLayer = this.addChild(
       "",
-      collabs.Pre(collabs.DeletingMutCList)(
-        (valueInitToken, char) => {
-          const richChar = new RichChar(valueInitToken, char);
+      collabs.Pre(collabs.RunLocallyLayer)()
+    );
+    this.text = this.runLocallyLayer.setChild(
+      collabs.Pre(collabs.ArchivingMutCList)(
+        (valueInitToken, char, originID, ignoreAttrs) => {
+          const origin = originID === null ? null : originID.get(this.text)!;
+          const richChar = new RichChar(
+            valueInitToken,
+            char,
+            origin,
+            ignoreAttrs
+          );
           richChar.on("Format", (e) => {
+            const acted = this.sdpStore.processM1(
+              {
+                target: richChar,
+                attribute: e.key,
+              },
+              <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
+            );
+            if (acted !== null) {
+              // Also format the new target indicated by acted.
+              const value = richChar.getAttribute(e.key);
+              this.runLocallyLayer.runLocally(e.meta, () => {
+                acted.target.setAttribute(acted.attribute, value);
+              });
+            }
             this.emit("Format", { index: this.text.indexOf(richChar), ...e });
           });
           return richChar;
         },
-        initialChars.map((value) => [value])
+        initialChars.map((value) => [
+          value,
+          <collabs.CollabID<RichChar> | null>null,
+          [],
+        ])
       )
     );
+    this.sdpStore = this.addChild(
+      "1",
+      collabs.Pre(collabs.SemidirectProductStore)(
+        this.action.bind(this),
+        new collabs.CollabSerializer(this.text)
+      )
+    );
+
+    // Events.
     this.text.on("Insert", (e) => {
+      this.sdpStore.processM2(
+        this.text.get(e.startIndex),
+        <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
+      );
       this.emit("Insert", e);
     });
     this.text.on("Delete", (e) => this.emit("Delete", e));
+  }
+
+  private action(m2: RichChar, m1: FormatOp): FormatOp | null {
+    // Action: transfer the formatting to m2 if:
+    // - m1.target is m2's origin
+    // - m1.key is not one of m2's ignoreAttrs.
+    if (m1.target === m2.origin) {
+      if (!m2.ignoreAttrsSet.has(m1.attribute)) {
+        return { target: m2, attribute: m1.attribute };
+      }
+    }
+    return null;
   }
 
   get(index: number): RichChar {
@@ -107,8 +193,32 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     char: string | object,
     attributes?: Record<string, any>
   ) {
-    const richChar = this.text.insert(index, char);
-    this.formatChar(richChar, attributes);
+    const origin = index === 0 ? null : this.text.get(index - 1);
+    if (origin !== null) {
+      const originID = collabs.CollabID.fromCollab(origin, this.text);
+      // ignoreAttrs that differ between this and origin.
+      const ignoreAttrs: string[] = [];
+      const keys = new Set(Object.keys(attributes ?? {}));
+      for (const key of Object.keys(origin.attributes())) keys.add(key);
+      for (const key of keys) {
+        if ((attributes ?? {})[key] !== origin.getAttribute(key)) {
+          console.log("diff: " + key);
+          console.log((attributes ?? {})[key]);
+          console.log(origin.getAttribute(key));
+          ignoreAttrs.push(key);
+        }
+      }
+      const richChar = this.text.insert(index, char, originID, ignoreAttrs);
+      // Only format the new ignoreAttrs.
+      if (attributes) {
+        for (const key of ignoreAttrs) {
+          richChar.setAttribute(key, attributes[key]);
+        }
+      }
+    } else {
+      const richChar = this.text.insert(index, char, null, []);
+      this.formatChar(richChar, attributes);
+    }
   }
 
   delete(startIndex: number, count: number) {

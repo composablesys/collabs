@@ -30,6 +30,7 @@ enum InternalType {
 }
 
 export class JSONCollab extends CObject<JSONEventsRecord> {
+  // TODO: use LwwCMap instead, or update text.
   private readonly internalMap: LazyMutCMap<
     string,
     OptionalLWWCVariable<number | string | boolean | InternalType>

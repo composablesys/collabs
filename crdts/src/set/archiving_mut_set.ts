@@ -26,6 +26,9 @@ export class ArchivingMutCSet<
 > extends AbstractCSetCObject<C, AddArgs> {
   private readonly mutSet: DeletingMutCSet<C, AddArgs>;
   private readonly members: AddWinsCSet<C>;
+  private readonly initialValues: Set<C>;
+  // OPT: doesn't need to be an add-wins set, it's just an "add once" set.
+  private readonly deletedInitialValues: AddWinsCSet<C>;
 
   /**
    * [constructor description]
@@ -34,13 +37,14 @@ export class ArchivingMutCSet<
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
+    initialValuesArgs: AddArgs[] = [],
     argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
     super(initToken);
 
     this.mutSet = this.addChild(
       "",
-      Pre(DeletingMutCSet)(valueConstructor, undefined, argsSerializer)
+      Pre(DeletingMutCSet)(valueConstructor, initialValuesArgs, argsSerializer)
     );
     // CollabSerializer is safe here because we never call mutSet.delete
     // or mutSet.clear.
@@ -48,6 +52,11 @@ export class ArchivingMutCSet<
       "0",
       Pre(AddWinsCSet)(new CollabSerializer<C>(this.mutSet))
     );
+    this.deletedInitialValues = this.addChild(
+      "1",
+      Pre(AddWinsCSet)(new CollabSerializer<C>(this.mutSet))
+    );
+    this.initialValues = new Set(this.mutSet);
 
     // Events
     this.members.on("Add", (event) => this.emit("Add", event));
@@ -68,6 +77,12 @@ export class ArchivingMutCSet<
   }
 
   delete(value: C) {
+    if (
+      this.initialValues.has(value) &&
+      !this.deletedInitialValues.has(value)
+    ) {
+      this.deletedInitialValues.add(value);
+    }
     this.members.delete(value);
   }
 
@@ -76,6 +91,9 @@ export class ArchivingMutCSet<
   }
 
   has(value: C) {
+    if (this.initialValues.has(value)) {
+      if (!this.deletedInitialValues.has(value)) return true;
+    }
     return this.members.has(value);
   }
 

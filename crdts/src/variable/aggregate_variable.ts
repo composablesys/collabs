@@ -49,7 +49,7 @@ export abstract class AggregateArgsCVariable<
     Events extends CVariableEventsRecord<T> = CVariableEventsRecord<T>
   >
   extends PrimitiveCRDT<Events>
-  implements CVariable<T, SetArgs>, ClearableCVariable<T, SetArgs>
+  implements CVariable<T, SetArgs>, ClearableCVariable<T, SetArgs> 
 {
   private entries: AggregateArgsCVariableEntry<S>[] = [];
   private _value: T;
@@ -194,6 +194,15 @@ export abstract class AggregateArgsCVariable<
   conflictsMeta(): CVariableEntryMeta<S>[] {
     // Defensive copy
     return this.entries.slice();
+  }
+
+  // TODO: is this wise?
+  /**
+   * Like clear, but not as a CRDT op - local op.
+   */
+  fullClear() {
+    this.entries = [];
+    this._value = this.aggregate(this.entries);
   }
 
   /**
