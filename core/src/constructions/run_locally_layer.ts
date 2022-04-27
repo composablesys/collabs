@@ -57,9 +57,28 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     return child;
   }
 
-  runLocally<T>(meta: MessageMeta, doPureOps: () => T): T {
+  /**
+   * Runs the pure operations doPureOps locally, as if they have the given
+   * meta.
+   *
+   * Usually you will do this during processing on another message, in which
+   * case you supply its meta. You can instead pass null to do the ops
+   * with a new operation by the local user.
+   */
+  runLocally<T>(meta: MessageMeta | null, doPureOps: () => T): T {
     const oldRunLocallyMeta = this.runLocallyMeta;
-    const metaCopy: MessageMeta = { ...meta, isLocalEcho: true };
+    let metaCopy: MessageMeta;
+    if (meta === null) {
+      metaCopy = <MessageMeta>this.getContext(MessageMeta.NEXT_MESSAGE_META);
+      if (metaCopy === undefined) {
+        throw new Error(
+          "Cannot use null meta: " +
+            "no ancestor provided MessageMeta.NEXT_MESSAGE_META context"
+        );
+      }
+    } else {
+      metaCopy = { ...meta, isLocalEcho: true };
+    }
     this.runLocallyMeta = metaCopy;
     const ret = doPureOps();
     this.runLocallyMeta = oldRunLocallyMeta;

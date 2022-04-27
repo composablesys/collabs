@@ -126,11 +126,6 @@ export class CMapFromVariable<
     return variable === undefined ? undefined : variable.value.get();
   }
 
-  // TODO: not sure about this.
-  getVariable(key: K): VarT {
-    return this.internalMap.get(key);
-  }
-
   has(key: K): boolean {
     return this.internalMap.has(key);
   }
