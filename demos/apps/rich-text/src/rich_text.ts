@@ -140,7 +140,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
       collabs.Pre(collabs.ArchivingMutCList)(
         (valueInitToken, char, originID, ignoreAttrs) => {
           const origin = originID === null ? null : originID.get(this.text)!;
-          const richChar = new CRichChar(
+          const richChar: CRichChar = new CRichChar(
             valueInitToken,
             char,
             origin,
@@ -157,19 +157,13 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
                   },
                   <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
                 )!;
-                console.log("transferring formatting to: ");
-                console.log(acted.targets);
                 if (acted.targets.size > 1) {
                   // Also format the new targets indicated by acted.
                   const value = richChar.getAttribute(e.key);
                   this.runLocallyLayer.runLocally(e.meta, () => {
                     for (const target of acted.targets) {
                       if (target !== richChar) {
-                        console.log("Set to " + value + ":");
                         target.setAttribute(acted.attribute, value);
-                        console.log(
-                          "  " + target.getAttribute(acted.attribute)
-                        );
                       }
                     }
                   });
@@ -220,14 +214,12 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
 
   private action(m2: collabs.CollabID<CRichChar>, m1: FormatOp): FormatOp {
     const m2Char = m2.get(this.text)!;
-    console.log("action: " + m2Char);
     // Action: transfer the formatting to m2 if:
     // - m2's origin is one of m1's existing targets
     // - m1.key is not one of m2's ignoreAttrs.
     if (m2Char.origin !== null && m1.targets.has(m2Char.origin)) {
       if (!m2Char.ignoreAttrsSet.has(m1.attribute)) {
         // Okay to mutate and reuse m1 here.
-        console.log("  success");
         m1.targets.add(m2Char);
       }
     }
@@ -256,9 +248,6 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
       for (const key of Object.keys(origin.attributes())) keys.add(key);
       for (const key of keys) {
         if ((attributes ?? {})[key] !== origin.getAttribute(key)) {
-          console.log("diff: " + key);
-          console.log((attributes ?? {})[key]);
-          console.log(origin.getAttribute(key));
           ignoreAttrs.push(key);
         }
       }
@@ -370,7 +359,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   // its own representation, so we should skip doing so again.
 
   clientText.on("Insert", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.sender === container.runtime.replicaID) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
       const richChar = clientText.get(index);
@@ -381,13 +370,13 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.sender === container.runtime.replicaID) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.sender === container.runtime.replicaID) return;
 
     updateContents(
       new Delta()
