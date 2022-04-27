@@ -77,8 +77,7 @@ export class MutCMapFromSet<
     );
     // We use a map of CollabIDs instead of Collabs since concurrent delete
     // ops could result in attempting to deserialize a Collab that is
-    // already deleted, which would cause an error if we used
-    // CollabSerializer. However, by the design of our ops,
+    // already deleted. However, by the design of our ops,
     // we know that outside of delete operations, IDs present in the map
     // correspond to Collabs that still exist in valueSet.
     // Hence it is safe to call ID.get() in our get, etc. methods.

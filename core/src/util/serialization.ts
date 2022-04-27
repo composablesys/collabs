@@ -324,59 +324,6 @@ export class CollabIDSerializer<C extends Collab>
   }
 }
 
-// OPT: cache instances?
-/**
- * Serializes [[Collab]]s using their name path with
- * respect to a specified
- * base [[Collab]] or [[Runtime]], assuming that serialized `Collab`s
- * always exist (see warning below)).
- *
- * Specifically, [[serialize]] uses `base.getNamePath` while
- * [[deserialize]] uses `base.getDescendant`.
- *
- * The base must be an ancestor of all serialized `Collab`s.
- *
- * This is more efficient (in terms of serialized size)
- * than using DefaultSerializer
- * when base is not the [[Runtime]].  It is better
- * the closer the serialized values are to base within
- * the Collab hierarchy, and best when base is their parent.
- *
- * **Warning:** It is assumed that `base.getDescendant` always returns
- * a non-undefined value, i.e., serialized `Collab`s always exist from
- * its perspective. This can fail if `base`, or a `Collab` between `base`
- * and a serialized `Collab`, makes children non-existent
- * (e.g., [[DeletingMutCSet.delete]] and similar methods do so.)
- * Even if the serialized `Collab` exists at the time of sending, concurrent
- * operations could make it no longer exist for receivers.
- * If you cannot guarantee existence, you must use
- * [[CollabIDSerializer]] instead.
- *
- * See: [[Collab.getNamePath]], [[Collab.getDescendant]],
- * [[Runtime.getNamePath]], [[Runtime.getNamePath]].
- */
-export class CollabSerializer<C extends Collab> implements Serializer<C> {
-  constructor(private readonly base: Collab | Runtime) {}
-
-  serialize(value: C): Uint8Array {
-    const message = CollabIDMessage.create({
-      pathToBase: this.base.getNamePath(value),
-    });
-    return CollabIDMessage.encode(message).finish();
-  }
-
-  deserialize(message: Uint8Array): C {
-    const decoded = CollabIDMessage.decode(message);
-    const ans = <C | undefined>this.base.getDescendant(decoded.pathToBase);
-    if (ans === undefined) {
-      throw new Error(
-        "The serialized Collab no longer exists; consider using CollabIDSerializer instead"
-      );
-    }
-    return ans;
-  }
-}
-
 export class OptionalSerializer<T> implements Serializer<Optional<T>> {
   private constructor(private readonly valueSerializer: Serializer<T>) {}
 

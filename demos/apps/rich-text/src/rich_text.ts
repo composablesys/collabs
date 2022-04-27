@@ -76,28 +76,27 @@ class CRichChar extends collabs.CObject<CRichCharEventsRecord> {
   copyOriginAttributes(runLocallyLayer: collabs.RunLocallyLayer) {
     if (this.origin !== null) {
       this.inCopyOriginAttributes = true;
-      console.log("copyOriginAttributes");
-      console.log([...this.origin._attributes.entries()]);
-      // Copy attributes from origin...
-      this._attributes.load(
-        collabs.Optional.of(this.origin._attributes.save())
-      );
-      console.log([...this._attributes.entries()]);
-      // ...except for ignored ones, which are locally deleted, to reset them
-      // to the initial state.
-      runLocallyLayer.runLocally(null, () => {
-        for (const key of this.ignoreAttrsSet) {
-          this._attributes.delete(key);
-        }
-      });
-      console.log([...this._attributes.entries()]);
-      this.inCopyOriginAttributes = false;
+      try {
+        // Copy attributes from origin...
+        this._attributes.load(
+          collabs.Optional.of(this.origin._attributes.save())
+        );
+        // ...except for ignored ones, which are locally deleted, to reset them
+        // to the initial state.
+        runLocallyLayer.runLocally(null, () => {
+          for (const key of this.ignoreAttrsSet) {
+            this._attributes.delete(key);
+          }
+        });
+      } finally {
+        this.inCopyOriginAttributes = false;
+      }
     }
   }
 }
 
 interface FormatOp {
-  target: CRichChar;
+  targets: Set<CRichChar>;
   attribute: string;
 }
 
@@ -118,9 +117,14 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   >;
   private readonly sdpStore: collabs.SemidirectProductStore<
     FormatOp,
-    CRichChar
+    collabs.CollabID<CRichChar>
   >;
   private readonly runLocallyLayer: collabs.RunLocallyLayer;
+  /**
+   * Used to distinguish normal formatting ops from those due to the
+   * concurrent-insert-format SDP behavior.
+   */
+  private inNormalFormat = false;
 
   constructor(
     initToken: collabs.InitToken,
@@ -143,22 +147,38 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
             ignoreAttrs
           );
           richChar.on("Format", (e) => {
-            const acted = this.sdpStore.processM1(
-              {
-                target: richChar,
-                attribute: e.key,
-              },
-              <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
-            );
-            if (acted !== null) {
-              // Also format the new target indicated by acted.
-              const value = richChar.getAttribute(e.key);
-              // TODO: this could create deep recursion if many chars get
-              // formatted.
-              this.runLocallyLayer.runLocally(e.meta, () => {
-                acted.target.setAttribute(acted.attribute, value);
-              });
+            if (!this.inNormalFormat) {
+              this.inNormalFormat = true;
+              try {
+                const acted = this.sdpStore.processM1(
+                  {
+                    targets: new Set([richChar]),
+                    attribute: e.key,
+                  },
+                  <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
+                )!;
+                console.log("transferring formatting to: ");
+                console.log(acted.targets);
+                if (acted.targets.size > 1) {
+                  // Also format the new targets indicated by acted.
+                  const value = richChar.getAttribute(e.key);
+                  this.runLocallyLayer.runLocally(e.meta, () => {
+                    for (const target of acted.targets) {
+                      if (target !== richChar) {
+                        console.log("Set to " + value + ":");
+                        target.setAttribute(acted.attribute, value);
+                        console.log(
+                          "  " + target.getAttribute(acted.attribute)
+                        );
+                      }
+                    }
+                  });
+                }
+              } finally {
+                this.inNormalFormat = false;
+              }
             }
+            // Emit event even for concurrent-insert formats.
             this.emit("Format", { index: this.text.indexOf(richChar), ...e });
           });
           return richChar;
@@ -174,7 +194,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
       "1",
       collabs.Pre(collabs.SemidirectProductStore)(
         this.action.bind(this),
-        new collabs.CollabSerializer(this.text)
+        new collabs.CollabIDSerializer(this.text)
       )
     );
 
@@ -189,7 +209,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
       // valueConstructor.
       char.copyOriginAttributes(this.runLocallyLayer);
       this.sdpStore.processM2(
-        char,
+        collabs.CollabID.fromCollab(char, this.text),
         <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
       );
       // Own event.
@@ -198,16 +218,20 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
     this.text.on("Delete", (e) => this.emit("Delete", e));
   }
 
-  private action(m2: CRichChar, m1: FormatOp): FormatOp | null {
+  private action(m2: collabs.CollabID<CRichChar>, m1: FormatOp): FormatOp {
+    const m2Char = m2.get(this.text)!;
+    console.log("action: " + m2Char);
     // Action: transfer the formatting to m2 if:
-    // - m1.target is m2's origin
+    // - m2's origin is one of m1's existing targets
     // - m1.key is not one of m2's ignoreAttrs.
-    if (m1.target === m2.origin) {
-      if (!m2.ignoreAttrsSet.has(m1.attribute)) {
-        return { target: m2, attribute: m1.attribute };
+    if (m2Char.origin !== null && m1.targets.has(m2Char.origin)) {
+      if (!m2Char.ignoreAttrsSet.has(m1.attribute)) {
+        // Okay to mutate and reuse m1 here.
+        console.log("  success");
+        m1.targets.add(m2Char);
       }
     }
-    return null;
+    return m1;
   }
 
   get(index: number): CRichChar {

@@ -80,9 +80,11 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
       metaCopy = { ...meta, isLocalEcho: true };
     }
     this.runLocallyMeta = metaCopy;
-    const ret = doPureOps();
-    this.runLocallyMeta = oldRunLocallyMeta;
-    return ret;
+    try {
+      return doPureOps();
+    } finally {
+      this.runLocallyMeta = oldRunLocallyMeta;
+    }
   }
 
   childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {

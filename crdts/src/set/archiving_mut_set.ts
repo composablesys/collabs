@@ -1,11 +1,12 @@
 import {
-  CollabSerializer,
+  CollabIDSerializer,
   DefaultSerializer,
   Serializer,
   Collab,
   InitToken,
   Pre,
   AbstractCSetCObject,
+  CollabID,
 } from "@collabs/core";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
@@ -25,10 +26,10 @@ export class ArchivingMutCSet<
   AddArgs extends unknown[]
 > extends AbstractCSetCObject<C, AddArgs> {
   private readonly mutSet: DeletingMutCSet<C, AddArgs>;
-  private readonly members: AddWinsCSet<C>;
+  private readonly members: AddWinsCSet<CollabID<C>>;
   private readonly initialValues: Set<C>;
   // OPT: doesn't need to be an add-wins set, it's just an "add once" set.
-  private readonly deletedInitialValues: AddWinsCSet<C>;
+  private readonly deletedInitialValues: AddWinsCSet<CollabID<C>>;
 
   /**
    * [constructor description]
@@ -46,26 +47,34 @@ export class ArchivingMutCSet<
       "",
       Pre(DeletingMutCSet)(valueConstructor, initialValuesArgs, argsSerializer)
     );
-    // CollabSerializer is safe here because we never call mutSet.delete
-    // or mutSet.clear.
     this.members = this.addChild(
       "0",
-      Pre(AddWinsCSet)(new CollabSerializer<C>(this.mutSet))
+      Pre(AddWinsCSet)(new CollabIDSerializer<C>(this.mutSet))
     );
     this.deletedInitialValues = this.addChild(
       "1",
-      Pre(AddWinsCSet)(new CollabSerializer<C>(this.mutSet))
+      Pre(AddWinsCSet)(new CollabIDSerializer<C>(this.mutSet))
     );
     this.initialValues = new Set(this.mutSet);
 
     // Events
-    this.members.on("Add", (event) => this.emit("Add", event));
-    this.members.on("Delete", (event) => this.emit("Delete", event));
+    this.members.on("Add", (event) =>
+      this.emit("Add", {
+        value: event.value.get(this.mutSet)!,
+        meta: event.meta,
+      })
+    );
+    this.members.on("Delete", (event) =>
+      this.emit("Delete", {
+        value: event.value.get(this.mutSet)!,
+        meta: event.meta,
+      })
+    );
   }
 
   add(...args: AddArgs): C {
     const value = this.mutSet.add(...args);
-    this.members.add(value);
+    this.members.add(CollabID.fromCollab(value, this.mutSet));
     return value;
   }
 
@@ -73,17 +82,17 @@ export class ArchivingMutCSet<
     if (!this.owns(value)) {
       throw new Error("this.owns(value) is false");
     }
-    this.members.add(value);
+    this.members.add(CollabID.fromCollab(value, this.mutSet));
   }
 
   delete(value: C) {
     if (
       this.initialValues.has(value) &&
-      !this.deletedInitialValues.has(value)
+      !this.deletedInitialValues.has(CollabID.fromCollab(value, this.mutSet))
     ) {
-      this.deletedInitialValues.add(value);
+      this.deletedInitialValues.add(CollabID.fromCollab(value, this.mutSet));
     }
-    this.members.delete(value);
+    this.members.delete(CollabID.fromCollab(value, this.mutSet));
   }
 
   owns(value: C) {
@@ -92,9 +101,12 @@ export class ArchivingMutCSet<
 
   has(value: C) {
     if (this.initialValues.has(value)) {
-      if (!this.deletedInitialValues.has(value)) return true;
+      if (
+        !this.deletedInitialValues.has(CollabID.fromCollab(value, this.mutSet))
+      )
+        return true;
     }
-    return this.members.has(value);
+    return this.members.has(CollabID.fromCollab(value, this.mutSet));
   }
 
   /**
@@ -109,8 +121,9 @@ export class ArchivingMutCSet<
     return this.mutSet.getArgs(value);
   }
 
-  values() {
-    return this.members.values();
+  *values() {
+    for (const valueID of this.members.values())
+      yield valueID.get(this.mutSet)!;
   }
 
   get size(): number {
