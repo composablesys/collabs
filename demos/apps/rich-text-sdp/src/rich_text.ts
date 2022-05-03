@@ -173,7 +173,11 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
               }
             }
             // Emit event even for concurrent-insert formats.
-            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+            // We skip emitting if richChar is deleted.
+            const index = this.text.indexOf(richChar);
+            if (index !== -1) {
+              this.emit("Format", { index, ...e });
+            }
           });
           return richChar;
         },
