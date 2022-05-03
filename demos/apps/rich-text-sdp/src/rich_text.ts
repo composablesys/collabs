@@ -10,12 +10,17 @@ declare type Delta = {
   ops: DeltaOperation[];
 };
 
-interface RichCharEventsRecord extends collabs.CollabEventsRecord {
+interface CRichCharEventsRecord extends collabs.CollabEventsRecord {
   Format: { key: string } & collabs.CollabEvent;
 }
 
-class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly _attributes: collabs.LWWCMap<string, any>;
+// TODO: restrict attributes which can be transferred by SDP.
+
+class CRichChar extends collabs.CObject<CRichCharEventsRecord> {
+  private readonly _attributes: collabs.LWWCMap<string, unknown>;
+  readonly ignoreAttrsSet: Set<string>;
+  /** Used to suppress formatting events during copyOriginAttributes. */
+  private inCopyOriginAttributes = false;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -23,10 +28,17 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
    * a single char, or (for an embed) a JSON-serializable
    * object with a single property.
    */
-  constructor(initToken: collabs.InitToken, readonly char: string | object) {
+  constructor(
+    initToken: collabs.InitToken,
+    readonly char: string | object,
+    readonly origin: CRichChar | null,
+    ignoreAttrs: string[]
+  ) {
     super(initToken);
 
     this._attributes = this.addChild("", collabs.Pre(collabs.LWWCMap)());
+
+    this.ignoreAttrsSet = new Set(ignoreAttrs);
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -36,18 +48,20 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
       });
     });
     this._attributes.on("Delete", (e) => {
-      this.emit("Format", { key: e.key, meta: e.meta });
+      if (!this.inCopyOriginAttributes) {
+        this.emit("Format", { key: e.key, meta: e.meta });
+      }
     });
   }
 
-  getAttribute(attribute: string): any | null {
+  getAttribute(attribute: string): unknown | null {
     return this._attributes.get(attribute) ?? null;
   }
 
   /**
    * null attribute deletes the existing one.
    */
-  setAttribute(attribute: string, value: any | null) {
+  setAttribute(attribute: string, value: unknown | null) {
     if (value === null) {
       this._attributes.delete(attribute);
     } else {
@@ -55,19 +69,62 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
     }
   }
 
-  attributes(): { [key: string]: any } {
+  attributes(): { [key: string]: unknown } {
     return Object.fromEntries(this._attributes);
+  }
+
+  copyOriginAttributes(runLocallyLayer: collabs.RunLocallyLayer) {
+    if (this.origin !== null) {
+      this.inCopyOriginAttributes = true;
+      try {
+        // Copy attributes from origin...
+        this._attributes.load(
+          collabs.Optional.of(this.origin._attributes.save())
+        );
+        // ...except for ignored ones, which are locally deleted, to reset them
+        // to the initial state.
+        runLocallyLayer.runLocally(null, () => {
+          for (const key of this.ignoreAttrsSet) {
+            this._attributes.delete(key);
+          }
+        });
+      } finally {
+        this.inCopyOriginAttributes = false;
+      }
+    }
   }
 }
 
-interface RichTextEventsRecord extends collabs.CollabEventsRecord {
+interface FormatOp {
+  targets: Set<CRichChar>;
+  attribute: string;
+}
+
+interface CRichTextEventsRecord extends collabs.CollabEventsRecord {
   Insert: { startIndex: number; count: number } & collabs.CollabEvent;
   Delete: { startIndex: number; count: number } & collabs.CollabEvent;
   Format: { index: number; key: string } & collabs.CollabEvent;
 }
 
-class RichText extends collabs.CObject<RichTextEventsRecord> {
-  readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
+class CRichText extends collabs.CObject<CRichTextEventsRecord> {
+  readonly text: collabs.ArchivingMutCList<
+    CRichChar,
+    [
+      char: string | object,
+      originID: collabs.CollabID<CRichChar> | null,
+      ignoreAttrs: string[]
+    ]
+  >;
+  private readonly sdpStore: collabs.SemidirectProductStore<
+    FormatOp,
+    collabs.CollabID<CRichChar>
+  >;
+  private readonly runLocallyLayer: collabs.RunLocallyLayer;
+  /**
+   * Used to distinguish normal formatting ops from those due to the
+   * concurrent-insert-format SDP behavior.
+   */
+  private inNormalFormat = false;
 
   constructor(
     initToken: collabs.InitToken,
@@ -75,26 +132,101 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   ) {
     super(initToken);
 
-    this.text = this.addChild(
+    this.runLocallyLayer = this.addChild(
       "",
-      collabs.Pre(collabs.DeletingMutCList)(
-        (valueInitToken, char) => {
-          const richChar = new RichChar(valueInitToken, char);
+      collabs.Pre(collabs.RunLocallyLayer)()
+    );
+    this.text = this.runLocallyLayer.setChild(
+      collabs.Pre(collabs.ArchivingMutCList)(
+        (valueInitToken, char, originID, ignoreAttrs) => {
+          const origin = originID === null ? null : originID.get(this.text)!;
+          const richChar: CRichChar = new CRichChar(
+            valueInitToken,
+            char,
+            origin,
+            ignoreAttrs
+          );
           richChar.on("Format", (e) => {
+            if (!this.inNormalFormat) {
+              this.inNormalFormat = true;
+              try {
+                const acted = this.sdpStore.processM1(
+                  {
+                    targets: new Set([richChar]),
+                    attribute: e.key,
+                  },
+                  <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
+                )!;
+                if (acted.targets.size > 1) {
+                  // Also format the new targets indicated by acted.
+                  const value = richChar.getAttribute(e.key);
+                  this.runLocallyLayer.runLocally(e.meta, () => {
+                    for (const target of acted.targets) {
+                      if (target !== richChar) {
+                        target.setAttribute(acted.attribute, value);
+                      }
+                    }
+                  });
+                }
+              } finally {
+                this.inNormalFormat = false;
+              }
+            }
+            // Emit event even for concurrent-insert formats.
             this.emit("Format", { index: this.text.indexOf(richChar), ...e });
           });
           return richChar;
         },
-        initialChars.map((value) => [value])
+        initialChars.map((value) => [
+          value,
+          <collabs.CollabID<CRichChar> | null>null,
+          [],
+        ])
       )
     );
+    this.sdpStore = this.addChild(
+      "1",
+      collabs.Pre(collabs.SemidirectProductStore)(
+        this.action.bind(this),
+        new collabs.CollabIDSerializer(this.text)
+      )
+    );
+
+    // Events.
     this.text.on("Insert", (e) => {
+      const char = this.text.get(e.startIndex);
+      // Concurrent formatting logic: copy formatting from the new char's
+      // origin to itself, and store it in sdpStore.
+      // It is okay to do so here because we never un-archive chars, hence
+      // Insert events correspond exactly to new char operations. Note that
+      // we don't want to do this during loading, hence we can't do it in the
+      // valueConstructor.
+      char.copyOriginAttributes(this.runLocallyLayer);
+      this.sdpStore.processM2(
+        collabs.CollabID.fromCollab(char, this.text),
+        <collabs.CRDTMeta>e.meta[collabs.CRDTMeta.MESSAGE_META_KEY]
+      );
+      // Own event.
       this.emit("Insert", e);
     });
     this.text.on("Delete", (e) => this.emit("Delete", e));
   }
 
-  get(index: number): RichChar {
+  private action(m2: collabs.CollabID<CRichChar>, m1: FormatOp): FormatOp {
+    const m2Char = m2.get(this.text)!;
+    // Action: transfer the formatting to m2 if:
+    // - m2's origin is one of m1's existing targets
+    // - m1.key is not one of m2's ignoreAttrs.
+    if (m2Char.origin !== null && m1.targets.has(m2Char.origin)) {
+      if (!m2Char.ignoreAttrsSet.has(m1.attribute)) {
+        // Okay to mutate and reuse m1 here.
+        m1.targets.add(m2Char);
+      }
+    }
+    return m1;
+  }
+
+  get(index: number): CRichChar {
     return this.text.get(index);
   }
 
@@ -105,10 +237,31 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   insert(
     index: number,
     char: string | object,
-    attributes?: Record<string, any>
+    attributes?: Record<string, unknown>
   ) {
-    const richChar = this.text.insert(index, char);
-    this.formatChar(richChar, attributes);
+    const origin = index === 0 ? null : this.text.get(index - 1);
+    if (origin !== null) {
+      const originID = collabs.CollabID.fromCollab(origin, this.text);
+      // ignoreAttrs that differ between this and origin.
+      const ignoreAttrs: string[] = [];
+      const keys = new Set(Object.keys(attributes ?? {}));
+      for (const key of Object.keys(origin.attributes())) keys.add(key);
+      for (const key of keys) {
+        if ((attributes ?? {})[key] !== origin.getAttribute(key)) {
+          ignoreAttrs.push(key);
+        }
+      }
+      const richChar = this.text.insert(index, char, originID, ignoreAttrs);
+      // Only format the new ignoreAttrs.
+      if (attributes) {
+        for (const key of ignoreAttrs) {
+          richChar.setAttribute(key, attributes[key]);
+        }
+      }
+    } else {
+      const richChar = this.text.insert(index, char, null, []);
+      this.formatChar(richChar, attributes);
+    }
   }
 
   delete(startIndex: number, count: number) {
@@ -118,11 +271,14 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   /**
    * null attribute deletes the existing one.
    */
-  format(index: number, newAttributes?: Record<string, any>) {
+  format(index: number, newAttributes?: Record<string, unknown>) {
     this.formatChar(this.get(index), newAttributes);
   }
 
-  private formatChar(richChar: RichChar, newAttributes?: Record<string, any>) {
+  private formatChar(
+    richChar: CRichChar,
+    newAttributes?: Record<string, unknown>
+  ) {
     if (newAttributes) {
       for (const entry of Object.entries(newAttributes)) {
         richChar.setAttribute(...entry);
@@ -137,7 +293,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // Quill's initial content is "\n".
   const clientText = container.registerCollab(
     "text",
-    collabs.Pre(RichText)(["\n"])
+    collabs.Pre(CRichText)(["\n"])
   );
 
   const quill = new Quill("#editor", {
@@ -203,24 +359,24 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // its own representation, so we should skip doing so again.
 
   clientText.on("Insert", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.sender === container.runtime.replicaID) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
-      // Characters start without any formatting.
+      const richChar = clientText.get(index);
       updateContents(
-        new Delta().retain(index).insert(clientText.get(index).char)
+        new Delta().retain(index).insert(richChar.char, richChar.attributes())
       );
     }
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.sender === container.runtime.replicaID) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.sender === container.runtime.replicaID) return;
 
     updateContents(
       new Delta()
@@ -240,7 +396,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     index: number;
     insert?: string | object;
     delete?: number;
-    attributes?: Record<string, any>;
+    attributes?: Record<string, unknown>;
     retain?: number;
   }[] {
     const relevantOps = [];
@@ -302,6 +458,3 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // Ready.
   container.ready();
 })();
-
-// TODO: cursor management.  Quill appears to be doing this
-// for us, but should verify.
