@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "@collabs/collabs": "0.5.x",
-    "@collabs/ws-client": "0.5.x",
-    "@collabs/ws-server": "0.5.x"
+    "@collabs/collabs": "0.6.x",
+    "@collabs/ws-client": "0.6.x",
+    "@collabs/ws-server": "0.6.x"
   },
   "devDependencies": {
     "@types/node": "^15.6.1",
