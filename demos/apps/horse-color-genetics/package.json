@@ -1,11 +1,11 @@
 {
   "license": "CC-BY-NC-SA-3.0",
   "dependencies": {
-    "@collabs/collabs": "0.5.0",
-    "@collabs/container": "0.5.0"
+    "@collabs/collabs": "0.5.1",
+    "@collabs/container": "0.5.1"
   },
   "devDependencies": {
-    "@collabs/container-testing-server": "0.5.0",
+    "@collabs/container-testing-server": "0.5.1",
     "@types/node": "^15.6.1",
     "@types/react-dev-utils": "^9.0.8",
     "@types/webpack": "^5.28.0",
