@@ -11,7 +11,7 @@ export class AutomergeText
   });
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeText.fakeInitialSave);
+    this.doc = Automerge.load(AutomergeText.fakeInitialSave, this.actorId);
   }
 
   insert(index: number, char: string): void {

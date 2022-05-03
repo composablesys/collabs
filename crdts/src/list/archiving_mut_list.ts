@@ -40,15 +40,20 @@ export class ArchivingMutCList<
   constructor(
     initToken: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
+    initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
       initToken,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
-        Pre(ArchivingMutCSet)(setValueConstuctor, setArgsSerializer),
+        Pre(ArchivingMutCSet)(
+          setValueConstuctor,
+          setInitialValuesArgs,
+          setArgsSerializer
+        ),
       ConstructorAsFunction(LWWCVariable),
       valueConstructor,
-      [],
+      initialValuesArgs,
       argsSerializer
     );
   }

@@ -3,11 +3,11 @@
 if [ -z "$5" ]
 then
   echo "Usage: ./text_short.sh <out folder> <version> <warmup trials> <recorded trials> <text implementation>"
-  echo "Runs select RealText benchmarks for the given implementation."
+  echo "Runs RealText Single-Sender benchmarks for the given implementation."
   exit 1
 fi
 
-for measurement in "sendTime" "sendMemory" "sendNetwork" "receiveTime" "receiveMemory" "save"
+for measurement in "sendTime" "sendMemory" "receiveAll"
 do
-  npm start -- $1 $2 $3 $4 RealText $5 $measurement
+  npm start -- $1 $2 $3 $4 $measurement RealText $5 single
 done

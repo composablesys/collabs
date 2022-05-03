@@ -9,8 +9,6 @@ import { Collab, isRuntime, Runtime } from "../core";
  * can serialize [[CollabID]]s.
  * Those serializers allow you to add `CollabID`s to collections, as a way of
  * adding (pointers to) `Collab`s to collections beside their parents.
- * (See also [[CollabSerializer]], which is a more convenient option when
- * you guarantee that your `Collab`s will never be deleted.)
  *
  * For example, suppose you have a `Collab` class `CNote` representing a note
  * on a collaborative note board. You can use a [[DeletingMutCSet]] to

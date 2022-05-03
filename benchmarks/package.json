@@ -31,7 +31,8 @@
     "memory-streams": "^0.1.3",
     "seedrandom": "^3.0.5",
     "tslib": "^2.0.1",
-    "yjs": "^13.5.3"
+    "uuid": "^8.3.2",
+    "yjs": "^13.5.34"
   },
   "devDependencies": {
     "@types/airbnb__node-memwatch": "^2.0.0",
@@ -39,6 +40,7 @@
     "@types/chai": "^4.2.14",
     "@types/mathjs": "^6.0.11",
     "@types/seedrandom": "^2.4.28",
+    "@types/uuid": "^8.3.4",
     "npm-run-all": "^4.1.5",
     "pkg-ok": "^2.3.1",
     "prettier": "^2.2.1",
@@ -46,8 +48,8 @@
     "typescript": "^4.3.5"
   },
   "scripts": {
-    "start": "node --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/main.js",
-    "inspect": "node --inspect --expose-gc --max-old-space-size=3000 --enable-source-maps build/src/main.js",
+    "start": "node --expose-gc build/src/main.js",
+    "inspect": "node --inspect --expose-gc --enable-source-maps build/src/main.js",
     "build": "npm-run-all build:*",
     "build:ts": "tsc -p tsconfig.json",
     "test": "npm-run-all test:*",

@@ -186,7 +186,9 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
       yata.trackM2Event("Insert", insertEvent);
     };
 
-  private readonly idSerializer: collabs.Serializer<YataOp<T>>;
+  private readonly idSerializer: collabs.Serializer<
+    collabs.CollabID<YataOp<T>>
+  >;
 
   constructor(
     initToken: collabs.InitToken,
@@ -321,8 +323,7 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
     );
     inConstructor = false;
     this.opMap.on("Add", this.opMapAddEventHandler(this));
-    // Using CollabSerializer is okay because we never delete from this.opMap.
-    this.idSerializer = new collabs.CollabSerializer(this.opMap);
+    this.idSerializer = new collabs.CollabIDSerializer(this.opMap);
 
     // Configure the initial ops (like in valueConstructor).
     this.START = this.idOf(startOp);
@@ -355,11 +356,18 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   // OPT: ids are actually just names converted to Uint8Arrays,
   // so this redundantly converts string -> Uint8Array -> string.
   private idOf(op: YataOp<T>): string {
-    return collabs.bytesAsString(this.idSerializer.serialize(op));
+    return collabs.bytesAsString(
+      this.idSerializer.serialize(collabs.CollabID.fromCollab(op, this.opMap))
+    );
   }
 
   private getById(id: string): YataOp<T> {
-    return this.idSerializer.deserialize(collabs.stringAsBytes(id));
+    return (
+      this.idSerializer
+        .deserialize(collabs.stringAsBytes(id))
+        // Existence assertion is okay because we never delete from opMap.
+        .get(this.opMap)!
+    );
   }
 
   private delete(id: string): void {

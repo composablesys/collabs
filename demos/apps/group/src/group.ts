@@ -16,13 +16,13 @@ import $ from "jquery";
   var deg3 = <HTMLInputElement>document.getElementById("rotate-deg3");
   var groupdX = <HTMLInputElement>document.getElementById("translateX3");
   var groupdY = <HTMLInputElement>document.getElementById("translateY3");
-  var imgCMU = <HTMLCanvasElement>document.getElementById("cmu");
-  var imgISR = <HTMLCanvasElement>document.getElementById("isr");
+  var img1 = <HTMLCanvasElement>document.getElementById("shape2");
+  var img2 = <HTMLCanvasElement>document.getElementById("shape1");
 
   let updateImg = function () {
     let state: GroupState = clientGroup.getState();
-    imgCMU!.style.transform = `translate(${state.X1}px,${state.Y1}px) rotate(${state.rotate1}deg) scaleY(${state.reflectX1}) scaleX(${state.reflectY1})`; // translate(-50%, -50%)`;
-    imgISR!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
+    img1!.style.transform = `translate(${state.X1}px,${state.Y1}px) rotate(${state.rotate1}deg) scaleY(${state.reflectX1}) scaleX(${state.reflectY1})`; // translate(-50%, -50%)`;
+    img2!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
   };
 
   clientGroup.on("Any", () => {
@@ -131,7 +131,7 @@ import $ from "jquery";
   // Move CMU image around screen
   var isDown1 = false;
   var X1: number, Y1: number;
-  $(imgCMU)
+  $(img1)
     .on("mousedown", function (e: JQuery.MouseDownEvent) {
       isDown1 = true;
       X1 = e.pageX;
@@ -151,7 +151,7 @@ import $ from "jquery";
   // Move ISR image around screen
   var isDown2 = false;
   var X2: number, Y2: number;
-  $(imgISR)
+  $(img2)
     .on("mousedown", function (e: JQuery.MouseDownEvent) {
       isDown2 = true;
       X2 = e.pageX;

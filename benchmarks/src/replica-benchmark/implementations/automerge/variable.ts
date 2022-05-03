@@ -11,7 +11,7 @@ export class AutomergeVariable
   });
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeVariable.fakeInitialSave);
+    this.doc = Automerge.load(AutomergeVariable.fakeInitialSave, this.actorId);
   }
 
   set(value: unknown): void {

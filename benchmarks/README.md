@@ -1,9 +1,9 @@
 # Collabs benchmarks
 
-Macro- and micro-benchmarks for Collabs, with comparisons to [Yjs](https://docs.yjs.dev/) and [Automerge](https://github.com/automerge/).
+Benchmarks for Collabs, with comparisons to [Yjs](https://docs.yjs.dev/) and [Automerge](https://github.com/automerge/).
 
 ## Usage
 
-All benchmarks: `./run_all.sh`.
+Paper benchmarks: `./run_paper.sh`.
 
 Individual benchmarks: `npm start` (run with no args for usage info).

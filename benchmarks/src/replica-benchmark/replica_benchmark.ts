@@ -6,6 +6,8 @@ import { assert } from "chai";
 import { byteLength, Data, getMemoryUsed } from "../util";
 
 const SEED = "42";
+const CONCURRENT_NUM_DEVICES = 100;
+const ROTATE_NUM_DEVICES = 1000;
 
 export interface Replica {
   /**
@@ -67,6 +69,8 @@ export interface Trace<I> {
   readonly correctState: unknown;
 }
 
+export type Mode = "single" | "rotate" | "concurrent";
+
 export class ReplicaBenchmark<I> {
   // TODO: mention measurement.csv used as file name
   // (e.g. sendTime.csv). Method name convention (lowerCamelCase).
@@ -103,32 +107,147 @@ export class ReplicaBenchmark<I> {
   }
 
   /**
-   * Benchmark cost of a single user's sending all the ops.
+   * Returns the sent messages for the given mode, which are to be received
+   * during "receive" benchmarks.
+   *
+   * Also returns the intended finalState, for checking against the receiver's
+   * final state. Before returning, it is checked that all
+   * senders are also in this finalState (if applicable).
    */
-  async send(metric: "Time" | "Memory") {
+  async getSentMessages(
+    mode: Mode
+  ): Promise<[msgs: Data[], finalState: unknown]> {
+    const senderRng = seedrandom(SEED + "sender");
+    const rng = seedrandom(SEED);
+    const msgs: Data[] = [];
+    if (mode === "single") {
+      // Single device: The ops are performed by one device, sequentially.
+      const sender = new this.implementation((msg) => {
+        msgs.push(msg);
+      }, senderRng);
+      sender.skipLoad();
+      const rng = seedrandom(SEED);
+      for (let op = 0; op < this.trace.numOps; op++) {
+        this.transactOp(sender, rng, op);
+      }
+      return [msgs, this.trace.getState(sender)];
+    } else if (mode === "rotate") {
+      // Device rotation: The ops are performed by ROTATE_NUM_DEVICES
+      // devices, sequentially. The ops are divided equally between devices.
+      const opsPerSender = Math.floor(this.trace.numOps / ROTATE_NUM_DEVICES);
+      let sender = new this.implementation((msg) => {
+        msgs.push(msg);
+      }, senderRng);
+      sender.skipLoad();
+      for (let op = 0; op < this.trace.numOps; op++) {
+        // Each device performs opsPerSender ops, except the last, who performs
+        // the remainder if the ops do not divide evenly.
+        if (
+          op % opsPerSender === 0 &&
+          op !== 0 &&
+          op / opsPerSender < ROTATE_NUM_DEVICES
+        ) {
+          if ((op / opsPerSender) % 100 === 0) {
+            console.log(
+              "Setup: Rotating device " +
+                op / opsPerSender +
+                "/" +
+                ROTATE_NUM_DEVICES
+            );
+            // Force GC, to prevent OOM errors (Node doesn't seem to GC
+            // very well during sync code).
+            await getMemoryUsed();
+          }
+          const saveData = sender.save();
+          sender = new this.implementation((msg) => {
+            msgs.push(msg);
+          }, senderRng);
+
+          sender.load(saveData);
+        }
+
+        this.transactOp(sender, rng, op);
+      }
+      return [msgs, this.trace.getState(sender)];
+    } else if (mode === "concurrent") {
+      // Concurrency: Ops are performed by CONCURRENT_NUM_DEVICES devices
+      // acting concurrently.
+      const concurrers: (Replica & I)[] = [];
+      const lastMsgs = new Array<Data>(CONCURRENT_NUM_DEVICES);
+      for (let i = 0; i < CONCURRENT_NUM_DEVICES; i++) {
+        const concurrerI = new this.implementation((msg) => {
+          msgs.push(msg);
+          lastMsgs[i] = msg;
+        }, senderRng);
+        concurrerI.skipLoad();
+        concurrers.push(concurrerI);
+      }
+
+      // Each device performs a contiguous range of ops. If the ops do not
+      // divide evenly, then the last concurrer performs fewer ops.
+      const numRounds = Math.ceil(this.trace.numOps / CONCURRENT_NUM_DEVICES);
+      const lastConcurrerOps =
+        this.trace.numOps - numRounds * (CONCURRENT_NUM_DEVICES - 1);
+
+      const roundsPerPrint = Math.floor(numRounds / 10);
+
+      for (let round = 0; round < numRounds; round++) {
+        if (round % roundsPerPrint === 0) {
+          console.log("Setup: Concurrency round " + round + "/" + numRounds);
+          // Force GC, to prevent OOM errors (Node doesn't seem to GC
+          // very well during sync code).
+          await getMemoryUsed();
+        }
+        // For the last round, might not have enough messages for all senders.
+        const numSenders =
+          round >= lastConcurrerOps
+            ? CONCURRENT_NUM_DEVICES - 1
+            : CONCURRENT_NUM_DEVICES;
+        for (let i = 0; i < numSenders; i++) {
+          this.transactOp(concurrers[i], rng, i * numRounds + round);
+        }
+        // Everyone receives each others' messages.
+        for (let sender = 0; sender < numSenders; sender++) {
+          for (
+            let receiver = 0;
+            receiver < CONCURRENT_NUM_DEVICES;
+            receiver++
+          ) {
+            if (sender !== receiver) {
+              concurrers[receiver].receive(lastMsgs[sender]);
+            }
+          }
+        }
+      }
+
+      // Check all states are equal.
+      const finalState = this.trace.getState(concurrers[0]);
+      for (let i = 1; i < concurrers.length; i++) {
+        assert.deepStrictEqual(
+          this.trace.getState(concurrers[i]),
+          finalState,
+          "unequal concurrer states"
+        );
+      }
+
+      return [msgs, finalState];
+    } else {
+      throw new Error("Unrecognized mode: " + mode);
+    }
+  }
+
+  /**
+   * Benchmark time to send all the ops.
+   */
+  async sendTimeSingle() {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
-    let bases = new Array<number>(getRecordedTrials());
-    bases.fill(0);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      // Between trials, force GC, even if it's not a
-      // recorded memory trial.
-      // This serves two purposes:
-      // 1. For time trials, make sure that there is not
-      // memory waiting around to be GC'd, since that can
-      // then add (GC) time to this trial.
-      // 2. For memory measurements, it's important to force
-      // GC during warmup trials: in my experiments,
-      // after a few (usually 3) forced GC's, the GC
-      // collects more memory than usual;
-      // it's important to make sure that happens during
-      // warmup instead of during a recorded trial, so
-      // it doesn't give a spuriously low (often negative)
-      // memory diff.
+      // Between trials, force GC.
       await getMemoryUsed();
 
-      console.log("Starting trial " + trial);
+      console.log("Starting sendTimeSingle trial " + trial);
 
       const sender = new this.implementation(() => {},
       seedrandom(SEED + "sender"));
@@ -137,35 +256,20 @@ export class ReplicaBenchmark<I> {
       const rng = seedrandom(SEED);
 
       // Prep measurement.
-      let startTime: bigint;
-      if (trial >= 0) {
-        switch (metric) {
-          case "Time":
-            startTime = process.hrtime.bigint();
-            break;
-          case "Memory":
-            bases[trial] = await getMemoryUsed();
-            break;
-        }
-      }
+      const startTime = process.hrtime.bigint();
 
       // Send all edits.
+      // We don't use getSentMessages here because it adds overhead that we
+      // don't want to measure (e.g., recording the messages).
       for (let op = 0; op < this.trace.numOps; op++) {
         this.transactOp(sender, rng, op);
       }
 
       // Take measurement.
       if (trial >= 0) {
-        switch (metric) {
-          case "Time":
-            values[trial] = new Number(
-              process.hrtime.bigint() - startTime!
-            ).valueOf();
-            break;
-          case "Memory":
-            values[trial] = await getMemoryUsed();
-            break;
-        }
+        values[trial] = new Number(
+          process.hrtime.bigint() - startTime!
+        ).valueOf();
       }
 
       // // For profiling memory usage:
@@ -184,91 +288,116 @@ export class ReplicaBenchmark<I> {
 
     // Record measurements.
     record(
-      this.traceName + "/" + "send" + metric,
+      "sendTime/" + this.traceName,
       this.implementationName,
-      "",
-      values,
-      metric === "Memory" ? bases : undefined
+      "single",
+      this.trace.numOps,
+      values
     );
   }
 
-  async sendNetwork() {
-    let bytesSent = 0;
-    const sender = new this.implementation((msg) => {
-      bytesSent += byteLength(msg);
-    }, seedrandom(SEED + "sender"));
-    sender.skipLoad();
-
-    const rng = seedrandom(SEED);
-
-    // Send all edits.
-    for (let op = 0; op < this.trace.numOps; op++) {
-      this.transactOp(sender, rng, op);
-    }
-
-    // Check final state.
-    if (this.trace.correctState !== undefined) {
-      assert.deepStrictEqual(
-        this.trace.getState(sender),
-        this.trace.correctState,
-        "sender state does not equal trace.correctState"
-      );
-    }
-
-    // Record measurements.
-    record(this.traceName + "/" + "sendNetwork", this.implementationName, "", [
-      bytesSent,
-    ]);
-  }
-
   /**
-   * Benchmark cost of a single user's receiving all
-   * the ops, which were generated (off the clock)
-   * by a different user.
+   * Benchmark memory of a sender after sending all the ops.
    */
-  async receive(metric: "Time" | "Memory") {
+  async sendMemorySingle() {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
     let bases = new Array<number>(getRecordedTrials());
     bases.fill(0);
 
-    // Prepare messages to receive.
-    const msgs: Data[] = [];
-    let senderState: any;
-    {
-      const sender = new this.implementation((msg) => {
-        msgs.push(msg);
-      }, seedrandom(SEED + "sender"));
+    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
+      // Between trials, force GC.
+      // We do this even for warmup trials because empirically, after the first
+      // few GCs (usually 3), the memory usage suddenly gets smaller.
+      // Presumably this is due to some Node internal optimization.
+      // If that happens during a recorded trial, it gives a spuriously
+      // low (often negative) memory measurement. By forcing GC's during warmup,
+      // with sufficiently many warmup trials, we avoid that happening.
+      await getMemoryUsed();
+
+      console.log("Starting sendMemorySingle trial " + trial);
+
+      const sender = new this.implementation(() => {},
+      seedrandom(SEED + "sender"));
       sender.skipLoad();
+
       const rng = seedrandom(SEED);
+
+      // Prep measurement.
+      bases[trial] = await getMemoryUsed();
+
+      // Send all edits.
+      // We don't use getSentMessages here because it adds overhead that we
+      // don't want to measure (e.g., recording the messages).
       for (let op = 0; op < this.trace.numOps; op++) {
         this.transactOp(sender, rng, op);
       }
-      senderState = this.trace.getState(sender);
+
+      // Take measurement.
+      if (trial >= 0) {
+        values[trial] = await getMemoryUsed();
+      }
+
+      // Check final state.
+      if (this.trace.correctState !== undefined) {
+        assert.deepStrictEqual(
+          this.trace.getState(sender),
+          this.trace.correctState,
+          "sender state does not equal trace.correctState"
+        );
+      }
     }
 
+    // Record measurements.
+    record(
+      "sendMemory/" + this.traceName,
+      this.implementationName,
+      "single",
+      this.trace.numOps,
+      values,
+      bases
+    );
+  }
+
+  /**
+   * Benchmark network bytes of receiving all the ops.
+   */
+  async receiveNetwork(mode: Mode, msgs: Data[], _finalState: unknown) {
+    let bytesSent = 0;
+    for (const msg of msgs) bytesSent += byteLength(msg);
+
+    // Record measurements.
+    record(
+      "receiveNetwork/" + this.traceName,
+      this.implementationName,
+      mode,
+      this.trace.numOps,
+      [bytesSent]
+    );
+  }
+
+  /**
+   * Benchmark time of a user's receiving all
+   * the ops, which were generated (off the clock)
+   * by other user(s) according to the mode.
+   */
+  async receiveTime(mode: Mode, msgs: Data[], finalState: unknown) {
+    const values = new Array<number>(getRecordedTrials());
+    values.fill(0);
+
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      // Between trials, force GC. See comment in send().
+      // Between trials, force GC.
+      // See comment in sendMemorySingle().
       await getMemoryUsed();
 
-      console.log("Starting trial " + trial);
+      console.log("Starting receiveTime trial " + trial);
 
-      const rng = seedrandom(SEED);
-      const receiver = new this.implementation(() => {}, rng);
+      const receiver = new this.implementation(() => {},
+      seedrandom(SEED + "receiver"));
       receiver.skipLoad();
 
       // Prep measurement.
-      let startTime: bigint;
-      if (trial >= 0) {
-        switch (metric) {
-          case "Time":
-            startTime = process.hrtime.bigint();
-            break;
-          case "Memory":
-            bases[trial] = await getMemoryUsed();
-            break;
-        }
-      }
+      const startTime = process.hrtime.bigint();
 
       // Receive all edits.
       for (let i = 0; i < msgs.length; i++) {
@@ -277,62 +406,113 @@ export class ReplicaBenchmark<I> {
 
       // Take measurement.
       if (trial >= 0) {
-        switch (metric) {
-          case "Time":
-            values[trial] = new Number(
-              process.hrtime.bigint() - startTime!
-            ).valueOf();
-            break;
-          case "Memory":
-            values[trial] = await getMemoryUsed();
-            break;
-        }
+        values[trial] = new Number(
+          process.hrtime.bigint() - startTime!
+        ).valueOf();
       }
 
       // Check final state.
       assert.deepStrictEqual(
         this.trace.getState(receiver),
-        senderState,
+        finalState,
         "receiver state does not equal sender state"
       );
     }
 
     // Record measurements.
     record(
-      this.traceName + "/" + "receive" + metric,
+      "receiveTime/" + this.traceName,
       this.implementationName,
-      "",
-      values,
-      metric === "Memory" ? bases : undefined
+      mode,
+      this.trace.numOps,
+      values
     );
   }
 
-  async save() {
-    // Prepare saver.
-    const saver = new this.implementation(() => {}, seedrandom(SEED + "saver"));
-    saver.skipLoad();
-    const rng = seedrandom(SEED);
-    for (let op = 0; op < this.trace.numOps; op++) {
-      this.transactOp(saver, rng, op);
+  /**
+   * Benchmark memory of a user after receiving all
+   * the ops, which were generated (off the clock)
+   * by other user(s) according to the mode.
+   */
+  async receiveMemory(mode: Mode, msgs: Data[], finalState: unknown) {
+    const values = new Array<number>(getRecordedTrials());
+    values.fill(0);
+    let bases = new Array<number>(getRecordedTrials());
+    bases.fill(0);
+
+    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
+      // Between trials, force GC.
+      // See comment in sendMemorySingle().
+      await getMemoryUsed();
+
+      console.log("Starting receiveMemory trial " + trial);
+
+      const receiver = new this.implementation(() => {},
+      seedrandom(SEED + "receiver"));
+      receiver.skipLoad();
+
+      // Prep measurement.
+      bases[trial] = await getMemoryUsed();
+
+      // Receive all edits.
+      for (let i = 0; i < msgs.length; i++) {
+        receiver.receive(msgs[i]);
+      }
+
+      // Take measurement.
+      if (trial >= 0) {
+        values[trial] = await getMemoryUsed();
+      }
+
+      // Check final state.
+      assert.deepStrictEqual(
+        this.trace.getState(receiver),
+        finalState,
+        "receiver state does not equal sender state"
+      );
     }
 
-    await this.saveTime(saver);
-
-    const saveData = saver.save();
-    record(this.traceName + "/" + "saveSize", this.implementationName, "", [
-      byteLength(saveData),
-    ]);
-
-    const saverState = this.trace.getState(saver);
-    await this.loadTime(saveData, saverState);
+    // Record measurements.
+    record(
+      "receiveMemory/" + this.traceName,
+      this.implementationName,
+      mode,
+      this.trace.numOps,
+      values,
+      bases
+    );
   }
 
-  private async saveTime(saver: Replica) {
+  async receiveSave(mode: Mode, msgs: Data[], finalState: unknown) {
+    // Receive all messages.
+    const receiver = new this.implementation(() => {},
+    seedrandom(SEED + "receiver"));
+    receiver.skipLoad();
+    for (let i = 0; i < msgs.length; i++) {
+      receiver.receive(msgs[i]);
+    }
+
+    // Measure save time, save size, and load time for receiver.
+    await this.saveTime(receiver, "receiveSaveTime", mode);
+
+    const saveData = receiver.save();
+    record(
+      "receiveSaveSize/" + this.traceName,
+      this.implementationName,
+      mode,
+      this.trace.numOps,
+      [byteLength(saveData)]
+    );
+
+    await this.loadTime(saveData, finalState, "receiveLoadTime", mode);
+  }
+
+  private async saveTime(saver: Replica, metric: string, label: string) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      // Between trials, force GC. See comment in send().
+      // Between trials, force GC.
       await getMemoryUsed();
 
       console.log("Starting saveTime trial " + trial);
@@ -353,19 +533,25 @@ export class ReplicaBenchmark<I> {
 
     // Record measurements.
     record(
-      this.traceName + "/" + "saveTime",
+      metric + "/" + this.traceName,
       this.implementationName,
-      "",
+      label,
+      this.trace.numOps,
       values
     );
   }
 
-  private async loadTime(saveData: Data, saverState: unknown) {
+  private async loadTime(
+    saveData: Data,
+    saverState: unknown,
+    metric: string,
+    label: string
+  ) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
 
     for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      // Between trials, force GC. See comment in send().
+      // Between trials, force GC.
       await getMemoryUsed();
 
       console.log("Starting loadTime trial " + trial);
@@ -397,143 +583,11 @@ export class ReplicaBenchmark<I> {
 
     // Record measurements.
     record(
-      this.traceName + "/" + "loadTime",
+      metric + "/" + this.traceName,
       this.implementationName,
-      "",
+      label,
+      this.trace.numOps,
       values
-    );
-  }
-
-  async concurrentReceive(
-    metric: "Time" | "Memory",
-    /**
-     * Coarse: each user sends all messages alone.
-     * Fine: rounds in which each user sends one message concurrently.
-     */
-    concType: "coarse" | "fine",
-    numUsers: number,
-    concOpStart: number,
-    concOps: number
-  ) {
-    const values = new Array<number>(getRecordedTrials());
-    values.fill(0);
-    let bases = new Array<number>(getRecordedTrials());
-    bases.fill(0);
-
-    // Prepare messages to receive.
-    let saveData: Data;
-    const msgs: Data[] = [];
-    let finalState: unknown;
-    {
-      // Initial concOpStart.
-      const setupRng = seedrandom(SEED + "setup");
-      const sender = new this.implementation(() => {}, setupRng);
-      sender.skipLoad();
-      const rng = seedrandom(SEED);
-      for (let op = 0; op < concOpStart; op++) {
-        this.transactOp(sender, rng, op);
-      }
-      saveData = sender.save();
-
-      // Further replicas each send concOps concurrently.
-      const concurrers: (Replica & I)[] = [];
-      const lastMsgs = new Array<Data>(numUsers);
-      for (let i = 0; i < numUsers; i++) {
-        const concurrerI = new this.implementation((msg) => {
-          msgs.push(msg);
-          lastMsgs[i] = msg;
-        }, setupRng);
-        concurrerI.load(saveData);
-        concurrers.push(concurrerI);
-      }
-      for (let j = 0; j < concOps; j++) {
-        for (let i = 0; i < numUsers; i++) {
-          this.transactOp(concurrers[i], rng, concOpStart + i * concOps + j);
-        }
-        if (concType === "fine") {
-          // Everyone receives each others' messages.
-          for (let sender = 0; sender < numUsers; sender++) {
-            for (let receiver = 0; receiver < numUsers; receiver++) {
-              if (sender !== receiver) {
-                concurrers[receiver].receive(lastMsgs[sender]);
-              }
-            }
-          }
-        }
-      }
-
-      if (concType === "fine") {
-        // Check all states are equal.
-        finalState = this.trace.getState(concurrers[0]);
-        for (let i = 1; i < concurrers.length; i++) {
-          assert.deepStrictEqual(
-            this.trace.getState(concurrers[i]),
-            finalState,
-            "unequal concurrer states"
-          );
-        }
-      }
-    }
-
-    for (let trial = -getWarmupTrials(); trial < getRecordedTrials(); trial++) {
-      // Between trials, force GC. See comment in send().
-      await getMemoryUsed();
-
-      console.log("Starting trial " + trial);
-
-      const rng = seedrandom(SEED);
-      const receiver = new this.implementation(() => {}, rng);
-      receiver.load(saveData);
-
-      // Prep measurement.
-      let startTime: bigint;
-      if (trial >= 0) {
-        switch (metric) {
-          case "Time":
-            startTime = process.hrtime.bigint();
-            break;
-          case "Memory":
-            bases[trial] = await getMemoryUsed();
-            break;
-        }
-      }
-
-      // Receive all edits.
-      for (let i = 0; i < msgs.length; i++) {
-        receiver.receive(msgs[i]);
-      }
-
-      // Take measurement.
-      if (trial >= 0) {
-        switch (metric) {
-          case "Time":
-            values[trial] = new Number(
-              process.hrtime.bigint() - startTime!
-            ).valueOf();
-            break;
-          case "Memory":
-            values[trial] = await getMemoryUsed();
-            break;
-        }
-      }
-
-      if (concType === "fine") {
-        // Check state equals concurrer state.
-        assert.deepStrictEqual(
-          this.trace.getState(receiver),
-          finalState,
-          "unequal concurrer states"
-        );
-      }
-    }
-
-    // Record measurements.
-    record(
-      this.traceName + "/" + "concurrentReceive" + metric,
-      this.implementationName,
-      concType + " " + numUsers + " " + concOpStart + " " + concOps,
-      values,
-      metric === "Memory" ? bases : undefined
     );
   }
 }

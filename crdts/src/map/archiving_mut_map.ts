@@ -1,5 +1,5 @@
 import {
-  CollabSerializer,
+  CollabIDSerializer,
   DefaultSerializer,
   Optional,
   PairSerializer,
@@ -8,6 +8,7 @@ import {
   Collab,
   InitToken,
   Pre,
+  CollabID,
 } from "@collabs/core";
 import { CVariableEntryMeta } from "../variable";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
@@ -29,7 +30,7 @@ export class ArchivingMutCMap<
   SetArgs extends unknown[]
 > extends AbstractCMapCObject<K, C, SetArgs> {
   private readonly valueSet: DeletingMutCSet<C, [K, SetArgs]>;
-  private readonly map: LWWCMap<K, C>;
+  private readonly map: LWWCMap<K, CollabID<C>>;
   private readonly keySet: AddWinsCSet<K>;
   // Used to perform keyOf lookups in O(1) time, which are
   // necessary for restoreValue calls.
@@ -60,11 +61,9 @@ export class ArchivingMutCMap<
         new PairSerializer(keySerializer, argsSerializer)
       )
     );
-    // CollabSerializer is safe here because we never call valueSet.delete
-    // or valueSet.clear.
     this.map = this.addChild(
       "0",
-      Pre(LWWCMap)(keySerializer, new CollabSerializer<C>(this.valueSet))
+      Pre(LWWCMap)(keySerializer, new CollabIDSerializer<C>(this.valueSet))
     );
     this.keySet = this.addChild("1", Pre(AddWinsCSet)(keySerializer));
 
@@ -97,7 +96,14 @@ export class ArchivingMutCMap<
         // However, that is okay because in that case,
         // we will first emit a Set event from "not present"
         // to event.previousValue, during the Add handler.
-        this.emit("Set", event);
+        const previousValue = event.previousValue.isPresent
+          ? Optional.of(event.previousValue.get().get(this.valueSet)!)
+          : Optional.empty<C>();
+        this.emit("Set", {
+          key: event.key,
+          previousValue,
+          meta: event.meta,
+        });
       }
     });
     // Listen on case 3 without being redundant, and also
@@ -129,7 +135,7 @@ export class ArchivingMutCMap<
     this.keySet.on("Delete", (event) => {
       this.emit("Delete", {
         key: event.value,
-        deletedValue: this.map.get(event.value)!,
+        deletedValue: this.map.get(event.value)!.get(this.valueSet)!,
         meta: event.meta,
       });
     });
@@ -138,7 +144,7 @@ export class ArchivingMutCMap<
   set(key: K, ...args: SetArgs): C {
     const value = this.valueSet.add(key, args);
     this.keySet.add(key);
-    this.map.set(key, value);
+    this.map.set(key, CollabID.fromCollab(value, this.valueSet));
     return value;
   }
 
@@ -147,16 +153,18 @@ export class ArchivingMutCMap<
   }
 
   get(key: K): C | undefined {
-    if (this.has(key)) return this.map.get(key);
+    if (this.has(key)) return this.map.get(key)!.get(this.valueSet)!;
     else return undefined;
   }
 
   getConflicts(key: K): C[] {
-    return this.map.getConflicts(key);
+    return this.map.getConflicts(key).map((value) => value.get(this.valueSet)!);
   }
 
   getConflictsMeta(key: K): CVariableEntryMeta<C>[] {
-    return this.map.getConflictsMeta(key);
+    return this.map.getConflictsMeta(key).map((meta) => {
+      return { ...meta, value: meta.value.get(this.valueSet)! };
+    });
   }
 
   has(key: K): boolean {
@@ -177,7 +185,7 @@ export class ArchivingMutCMap<
       // this.keySet only adds if there is a value
       // already/nearly present, we can be sure that if
       // key is present, then this.map.get(key) exists.
-      yield [key, this.map.get(key)!];
+      yield [key, this.map.get(key)!.get(this.valueSet)!];
     }
   }
 
@@ -218,7 +226,7 @@ export class ArchivingMutCMap<
   }
 
   /**
-   * Set the value at key to a previous value for key.
+   * Restore the given value to be its key's value.
    *
    * A typical use case is if multiple users set the
    * value concurrently and each do some work on their
@@ -229,7 +237,6 @@ export class ArchivingMutCMap<
    * using the usual conflict resolution rule (LWW or FWW)
    * for this map.
    *
-   * @param key    [description]
    * @param  value [description]
    * @return       [description]
    * @throws if value is not owned by this map, or it was
@@ -241,7 +248,7 @@ export class ArchivingMutCMap<
     }
     const key = this.keyOf(value)!;
     this.keySet.add(key);
-    this.map.set(key, value);
+    this.map.set(key, CollabID.fromCollab(value, this.valueSet));
   }
 
   /**

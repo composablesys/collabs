@@ -1,5 +1,5 @@
 import { prng } from "seedrandom";
-import { IText } from "../interfaces/text";
+import { ITextWithCursor } from "../interfaces/text_with_cursor";
 import { Trace } from "../replica_benchmark";
 import { edits, finalText } from "./real_text_trace_edits";
 
@@ -7,21 +7,51 @@ import { edits, finalText } from "./real_text_trace_edits";
  * Uses a real text editing trace by Martin Kleppmann
  * (via https://github.com/automerge/automerge-perf).
  */
-export class RealTextTrace implements Trace<IText> {
-  doOp(replica: IText, _rng: prng, opNum: number): void {
+export class RealTextTrace implements Trace<ITextWithCursor> {
+  doOp(replica: ITextWithCursor, _rng: prng, opNum: number): void {
     const edit = edits[opNum];
-    // For non-sequential traces, need to cap the index at length.
     const length = replica.length;
+
+    // Infer whether the edit requires a cursor movement.
+    // In principle we can get this info from the other automerge-perf data
+    // file, but this code is easier than trying to parse that file
+    // (which is in Automerge's change format).
+    let cursorMovement = true;
+    if (!replica.needsCursor() && opNum !== 0) {
+      const prevEdit = edits[opNum - 1];
+      if (prevEdit[2] !== undefined) {
+        // Insert.
+        if (edit[0] === prevEdit[0] + 1) cursorMovement = false;
+      } else {
+        // Delete.
+        if (edit[0] === prevEdit[0] - 1) cursorMovement = false;
+      }
+    }
+    if (cursorMovement) {
+      // For non-sequential traces, need to cap the index to the max
+      // at which we can insert/delete.
+      // We do so with a modulus instead of a max, to prevent unrealistically
+      // moving all users to the end too often.
+      const cap = edit[2] !== undefined || length === 0 ? length + 1 : length;
+      replica.moveCursor(edit[0] % cap);
+    }
+
     if (edit[2] !== undefined) {
       // Insert edit[2] at edit[0]
-      replica.insert(Math.min(edit[0], length), edit[2]);
+      replica.insert(edit[2]);
     } else {
       // Delete character at edit[0]
-      replica.delete(Math.min(edit[0], length - 1));
+      if (length === 0) {
+        // Nothing to delete;
+        // do an insert instead, so we have something to do.
+        replica.insert("X");
+      } else {
+        replica.delete();
+      }
     }
   }
 
-  getState(replica: IText) {
+  getState(replica: ITextWithCursor) {
     return replica.getText();
   }
 

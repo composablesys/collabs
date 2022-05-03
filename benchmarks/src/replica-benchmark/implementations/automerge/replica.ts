@@ -1,15 +1,18 @@
 import Automerge from "automerge";
-import { Data } from "../../../util";
+import { Data, uuidv4 } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export abstract class AutomergeReplica<T> implements Replica {
   doc!: Automerge.FreezeObject<T>;
+  protected readonly actorId: string;
 
   constructor(
     private readonly onsend: (msg: Data) => void,
     replicaIdRng: seedrandom.prng
   ) {
-    // TODO: use replicaIdRng.
+    // actorId is usually set with uuid.v4().replace(/-/g, ""),
+    // so we need to do a PRNG version instead.
+    this.actorId = uuidv4(replicaIdRng).replace(/-/g, "");
   }
 
   /**
@@ -26,20 +29,28 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   receive(msg: Automerge.BinaryChange[]): void {
-    this.doc = Automerge.applyChanges(this.doc, msg)[0];
+    const ans = Automerge.applyChanges(this.doc, msg);
+    this.doc = ans[0];
+    this.onRemoteChange(ans[1]);
   }
+
+  /**
+   * Override to get the patch from each remote message.
+   */
+  protected onRemoteChange(patch: Automerge.Patch): void {}
 
   save(): Data {
     return Automerge.save(this.doc);
   }
 
   load(saveData: Automerge.BinaryDocument): void {
-    this.doc = Automerge.load(saveData);
+    this.doc = Automerge.load(saveData, this.actorId);
   }
 
   /**
    * Use Automerge.load with a prepared save to init
-   * your state. (Note Automerge.from does not work:
+   * your state. Make sure to use this.actorId as the "options" arg.
+   * (Note Automerge.from does not work:
    * it needs to be applied on one replica and shipped to
    * the others, like a normal change.)
    */

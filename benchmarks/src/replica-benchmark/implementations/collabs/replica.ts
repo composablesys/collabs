@@ -7,11 +7,13 @@ export class CollabsReplica implements Replica {
 
   constructor(
     private readonly onsend: (msg: Data) => void,
-    replicaIdRng: seedrandom.prng
+    replicaIdRng: seedrandom.prng,
+    causalityGuaranteed: boolean
   ) {
     this.app = new collabs.CRDTApp({
       debugReplicaID: collabs.pseudoRandomReplicaID(replicaIdRng),
       batchingStrategy: new collabs.ManualBatchingStrategy(),
+      causalityGuaranteed,
     });
     this.app.on("Send", (e) => this.onsend(e.message));
   }

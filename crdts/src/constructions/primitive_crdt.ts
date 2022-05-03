@@ -67,6 +67,8 @@ export abstract class PrimitiveCRDT<
       all?: boolean;
     }
   ): void {
+    // TODO: need to not do this if inside runLocally call. (Probably won't
+    // break anything, but is inefficient and abstraction-busting.)
     if (requests !== undefined) {
       const crdtMetaRequestee = <CRDTMetaRequestee>(
         this.getContext(CRDTMetaRequestee.CONTEXT_KEY)

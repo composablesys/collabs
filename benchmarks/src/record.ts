@@ -9,7 +9,8 @@ let folder = ".";
 export function record(
   fileBase: string,
   implementationName: string,
-  label: string, // E.g. "Send", round number
+  label: string, // E.g. mode
+  ops: number, // The number of ops to divide by, or 1 if irrelevant.
   values: number[],
   // If defined, these are subtracted from values in the average
   // (but the raw data is also recorded).
@@ -24,6 +25,7 @@ export function record(
     "Version",
     "Implementation",
     "Label",
+    "Ops",
     "Mean",
     "StdDev",
     "Count",
@@ -71,6 +73,7 @@ export function record(
     Version: version,
     Implementation: implementationName,
     Label: label,
+    Ops: ops,
     Mean: mean,
     StdDev: stddev,
     Count: results.length,

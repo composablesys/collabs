@@ -198,9 +198,7 @@ export class BatchingLayer
           " did you try to perform an operation in an event handler?"
       );
     }
-    const meta = <MessageMeta>(
-      this.getContext(MessageMeta.NEXT_MESSAGE_META)
-    ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
+    const meta = this.getMessageMeta();
     this.inChildReceive = true;
     try {
       // Need to copy messagePath since receive mutates it but
@@ -244,6 +242,15 @@ export class BatchingLayer
     }
 
     this.emit("DebugSend", { meta }, false);
+  }
+
+  private getMessageMeta(): MessageMeta {
+    return (
+      <MessageMeta>this.getContext(MessageMeta.NEXT_MESSAGE_META) ?? {
+        sender: this.runtime.replicaID,
+        isLocalEcho: true,
+      }
+    );
   }
 
   /**
@@ -377,11 +384,12 @@ export class BatchingLayer
   }
 
   /**
-   * No added context.
-   *
-   * @return undefined
+   * Added context: [[MessageMeta.NEXT_MESSAGE_META]].
    */
-  getAddedContext(_key: symbol): unknown {
+  getAddedContext(key: symbol): unknown {
+    if (key === MessageMeta.NEXT_MESSAGE_META) {
+      return this.getMessageMeta();
+    }
     return undefined;
   }
 

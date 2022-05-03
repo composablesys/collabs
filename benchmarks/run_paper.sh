@@ -2,7 +2,7 @@
 
 if [ -z "$4" ]
 then
-  echo "Usage: ./run_all.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
+  echo "Usage: ./run_paper.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
   echo "If --oursOnly is set, only our library's tests are run."
   echo "If --othersOnly is set, only other libraries' tests are run."
   exit 1
@@ -62,6 +62,18 @@ function go {
   done
 }
 
+# 2. Collabs overhead benchmarks.
+
+trace="Noop"
+oursSingle=("CollabsNoop" "CollabsNestedNoop")
+oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
+othersSingle=()
+othersMulti=()
+go
+
+
+# 1. Individual CRDT benchmarks.
+
 # Skip "rotate" and "concurrent" modes for Automerge, so the benchmarks
 # don't take too long to run.
 # Skip "single" mode for CollabsCG, since it's not interesting.
@@ -73,9 +85,6 @@ othersSingle=("AutomergeMap" "YjsMap")
 othersMulti=("YjsMap")
 go
 
-trace="MicroMapRolling"
-go
-
 trace="MicroVariable"
 oursSingle=("CollabsVariable")
 oursMulti=("CollabsVariable" "CollabsCGVariable")
@@ -83,34 +92,16 @@ othersSingle=("AutomergeVariable" "YjsVariable")
 othersMulti=("YjsVariable")
 go
 
-trace="RealText"
-oursSingle=("CollabsTextWithCursor" "CollabsRichTextWithCursor")
-oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor" "CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
-othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
-othersMulti=("YjsTextWithCursor")
-go
-
 trace="TodoList"
-# TODO: JSON, JSONOpt
-oursSingle=("CollabsTodoList" "CollabsJSONTextTodoList")
-oursMulti=("CollabsTodoList" "CollabsCGTodoList" "CollabsJSONTextTodoList" "CollabsCGJSONTextTodoList")
+oursSingle=("CollabsTodoList")
+oursMulti=("CollabsTodoList" "CollabsCGTodoList")
 othersSingle=("AutomergeTodoList" "YjsTodoList")
 othersMulti=("YjsTodoList")
 go
 
-trace="Noop"
-oursSingle=("CollabsNoop" "CollabsNestedNoop")
-oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
-othersSingle=()
-othersMulti=()
-go
-
-trace="MicroTextLtr"
-oursSingle=("CollabsText")
-oursMulti=("CollabsText" "CollabsCGText")
-othersSingle=("AutomergeText" "YjsText")
-othersMulti=("YjsText")
-go
-
-trace="MicroTextRandom"
+trace="RealText"
+oursSingle=("CollabsTextWithCursor")
+oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor")
+othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
+othersMulti=("YjsTextWithCursor")
 go

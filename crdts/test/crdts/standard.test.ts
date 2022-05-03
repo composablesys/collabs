@@ -12,13 +12,14 @@ import {
   OptionalLWWCVariable,
 } from "../../src";
 import {
-  CollabSerializer,
   CMapDeleteEvent,
   CMapSetEvent,
   InitToken,
   Pre,
   Optional,
   LazyMutCMap,
+  CollabIDSerializer,
+  CollabID,
 } from "@collabs/core";
 import { debug } from "../debug";
 import seedrandom = require("seedrandom");
@@ -722,11 +723,11 @@ describe("standard", () => {
       it("can be used as values in other CRDTs", () => {
         let aliceSet = alice.registerCollab(
           "valueSet",
-          Pre(AddWinsCSet)(new CollabSerializer(aliceMap))
+          Pre(AddWinsCSet)(new CollabIDSerializer(aliceMap))
         );
         let bobSet = bob.registerCollab(
           "valueSet",
-          Pre(AddWinsCSet)(new CollabSerializer(bobMap))
+          Pre(AddWinsCSet)(new CollabIDSerializer(bobMap))
         );
 
         load();
@@ -737,10 +738,13 @@ describe("standard", () => {
         let bobCounter = bobMap.get("test")!;
         appGen.releaseAll();
 
-        aliceSet.add(aliceCounter);
-        assert.strictEqual(aliceSet.has(aliceCounter), true);
+        aliceSet.add(CollabID.fromCollab(aliceCounter));
+        assert.strictEqual(
+          aliceSet.has(CollabID.fromCollab(aliceCounter)),
+          true
+        );
         appGen.releaseAll();
-        assert.strictEqual(bobSet.has(bobCounter), true);
+        assert.strictEqual(bobSet.has(CollabID.fromCollab(bobCounter)), true);
       });
     });
   });
@@ -1005,8 +1009,8 @@ describe("standard", () => {
   describe("DeletingMutCSet", () => {
     let aliceSource: DeletingMutCSet<CNumber, []>;
     let bobSource: DeletingMutCSet<CNumber, []>;
-    let aliceVariable: OptionalLWWCVariable<CNumber>;
-    let bobVariable: OptionalLWWCVariable<CNumber>;
+    let aliceVariable: OptionalLWWCVariable<CollabID<CNumber>>;
+    let bobVariable: OptionalLWWCVariable<CollabID<CNumber>>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
@@ -1019,11 +1023,11 @@ describe("standard", () => {
       );
       aliceVariable = alice.registerCollab(
         "variable",
-        Pre(OptionalLWWCVariable)(new CollabSerializer(aliceSource))
+        Pre(OptionalLWWCVariable)(new CollabIDSerializer(aliceSource))
       );
       bobVariable = bob.registerCollab(
         "variable",
-        Pre(OptionalLWWCVariable)(new CollabSerializer(bobSource))
+        Pre(OptionalLWWCVariable)(new CollabIDSerializer(bobSource))
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -1035,12 +1039,15 @@ describe("standard", () => {
     });
 
     it("transfers new Collab via variable", () => {
-      aliceVariable.set(aliceSource.add());
-      aliceVariable.value.get().add(7);
-      assert.strictEqual(aliceVariable.value.get().value, 7);
+      aliceVariable.set(CollabID.fromCollab(aliceSource.add()));
+      aliceVariable.value.get().get(alice.runtime)!.add(7);
+      assert.strictEqual(
+        aliceVariable.value.get().get(alice.runtime)!.value,
+        7
+      );
 
       appGen.releaseAll();
-      assert.strictEqual(bobVariable.value.get().value, 7);
+      assert.strictEqual(bobVariable.value.get().get(bob.runtime)!.value, 7);
     });
 
     it("allows sequential creation", () => {
@@ -1064,12 +1071,12 @@ describe("standard", () => {
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
-      aliceVariable.set(new1);
+      aliceVariable.set(CollabID.fromCollab(new1));
       appGen.releaseAll();
-      let new1Bob = bobVariable.value.get();
-      bobVariable.set(new2);
+      let new1Bob = bobVariable.value.get().get(bob.runtime)!;
+      bobVariable.set(CollabID.fromCollab(new2));
       appGen.releaseAll();
-      let new2Alice = aliceVariable.value.get();
+      let new2Alice = aliceVariable.value.get().get(alice.runtime)!;
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
     });
