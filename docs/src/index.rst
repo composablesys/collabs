@@ -10,6 +10,8 @@ Welcome to Collabs's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   api/index
+
 
 Indices and tables
 ==================
@@ -17,10 +19,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-
-
-API
-=======
-
-`@collabs/collabs <api/collabs/index.html>`_
