@@ -3,6 +3,8 @@
     "typedoc": "^0.22.15"
   },
   "scripts": {
-    "start": "./typedoc.sh"
+    "start": "./typedoc.sh",
+    "build": "echo TODO",
+    "clean": "echo TODO"
   }
 }

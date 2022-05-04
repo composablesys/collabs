@@ -56,7 +56,7 @@ html_extra_path = ["../generated"]
 
 print("\n--- Building Typedoc... -----------------------\n")
 import os
-result = os.system("npm ci && npm start")
-if result is not 0:
+result = os.system("cd ../.. && npm ci && cd docs && npm start")
+if result != 0:
     raise Exception("`npm ci && npm start` exited with non-zero code " + str(result))
 print("\n--- Done building Typedoc. --------------------\n")

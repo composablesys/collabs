@@ -21,16 +21,19 @@
     "demos/types/json-opt",
     "demos/types/tensor-average",
     "demos/apps",
-    "benchmarks"
+    "benchmarks",
+    "docs"
   ],
   "workspacesNoTest": [
     "template-container",
-    "template-app"
+    "template-app",
+    "docs"
   ],
   "workspacesNoFix": [
     "template-container",
     "template-app",
-    "template-custom-type"
+    "template-custom-type",
+    "docs"
   ],
   "scripts": {
     "start": "npm start --prefix demos/apps",
