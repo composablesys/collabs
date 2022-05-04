@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "typedoc": "^0.22.15"
+  },
+  "scripts": {
+    "start": "npm run collabs",
+    "collabs": "typedoc --out generated/api/collabs ../collabs/src/index.ts --tsconfig ../collabs/tsconfig.json"
+  }
+}

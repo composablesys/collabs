@@ -2,6 +2,7 @@
 node_modules
 .vscode/
 .idea/
-# Only include top-level package-lock.json.
+# Only include top-level and docs package-lock.json.
 package-lock.json
 !/package-lock.json
+!/docs/package-lock.json
