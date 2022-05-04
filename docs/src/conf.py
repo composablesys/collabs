@@ -56,7 +56,8 @@ html_extra_path = ["../generated"]
 
 print("\n--- Building Typedoc... -----------------------\n")
 import os
-result = os.system("cd ../.. && npm ci && cd docs && npm start")
+# Need to build core and crdts since @collabs/collabs depends on them.
+result = os.system("cd ../.. && npm ci && npm run build -w core && npm run build -w crdts && cd docs && npm start")
 if result != 0:
     raise Exception("`npm ci && npm start` exited with non-zero code " + str(result))
 print("\n--- Done building Typedoc. --------------------\n")
