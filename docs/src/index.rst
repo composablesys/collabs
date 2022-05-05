@@ -10,6 +10,11 @@ Welcome to Collabs's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   guide/index
+   advanced/index
+   internals
+   further_info/index
+   packages
    api/index
 
 
@@ -19,3 +24,6 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+
+TODO: this file (see old README)
