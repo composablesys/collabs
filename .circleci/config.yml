@@ -7,6 +7,7 @@ orbs:
   # Orbs reduce the amount of configuration required for common tasks.
   # See the orb documentation here: https://circleci.com/developer/orbs/orb/circleci/node
   node: circleci/node@4.1
+  python: circleci/python@2.0.3
 
 jobs:
   # Below is the definition of your job to build and test your app, you can rename and customize it as you want.
@@ -14,8 +15,11 @@ jobs:
     # These next lines define a docker executor: https://circleci.com/docs/2.0/executor-types/
     # You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # A list of available CircleCI docker Convenience Images are available here: https://circleci.com/developer/images/image/cimg/node
+    # We need python3 to build docs/, so we use a python+node image.
+    # Make sure to keep the python version in sync between here and
+    # .readthedocs.yaml's build.tools.python value.
     docker:
-      - image: cimg/node:16.13
+      - image: cimg/python:3.10-node
     # Then run your tests!
     # CircleCI will report the results back to your VCS provider.
     steps:
@@ -26,6 +30,10 @@ jobs:
       #- node/install-packages:
       #  override-ci-command: npm install
       - node/install-packages
+      # Install python packages for docs/.
+      - python/install-packages:
+          pip-dependency-file: docs/requirements.txt
+          pkg-manager: pip
       # If you are using yarn instead npm, remove the line above and uncomment the two lines below.
       # - node/install-packages:
       #     pkg-manager: yarn
