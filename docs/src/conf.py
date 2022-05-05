@@ -51,13 +51,3 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 
 html_extra_path = ["../generated"]
-
-# -- Build Typedoc using npm start. -------------
-
-print("\n--- Building Typedoc... -----------------------\n")
-import os
-# Need to build core and crdts since @collabs/collabs depends on them.
-result = os.system("cd ../.. && npm ci && cd docs && npm start")
-if result != 0:
-    raise Exception("`npm ci && npm start` exited with non-zero code " + str(result))
-print("\n--- Done building Typedoc. --------------------\n")

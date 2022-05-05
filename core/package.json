@@ -57,7 +57,6 @@
     "prettier": "^2.2.1",
     "rimraf": "^2.7.1",
     "ts-node": "^10.1.0",
-    "typedoc": "^0.22.11",
     "typescript": "^4.4.3"
   },
   "scripts": {
@@ -69,7 +68,6 @@
     "build:protobuf:hack": "node hack_protobuf_for_tree_shaking.js generated_esm/proto_compiled.js",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
-    "build:typedoc": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
     "test:lint": "eslint --ext .ts,.js .",
     "test:unit": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
@@ -77,6 +75,6 @@
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf generated generated_esm build docs"
+    "clean": "rimraf generated generated_esm build"
   }
 }
