@@ -1,37 +1,16 @@
-# Getting Started: Container
+# Quick Start Walkthrough
 
-## Setup
+In this page, we will walk through the app from the [Quick Start](../quick_start.md). The app's code is [here](TODO) and a live demo is [here](TODO).
 
-1. Clone the template
+## Repository Setup
 
-- Download [https://github.com/composablesys/collabs/archive/refs/heads/master.zip](https://github.com/composablesys/collabs/archive/refs/heads/master.zip)
-- Extract the `template-container` folder as your project folder
-- `cd` into that folder
+TODO: build environment
 
-2. Install dependencies
-
-We assume you have `npm` installed ([https://nodejs.org/](https://nodejs.org/)).
-
-In the template-container folder, run
-
-```
-npm i
-```
-
-3. Build and run starter container
-
-```
-npm run dev
-npm start
-```
-
-Go to [http://localhost:3000/](http://localhost:3000/). You should see a simple collaborative counter. Try using it in multiple windows at once.
-
-<!-- TODO: screenshot showing two windows. -->
-
-## Walkthrough
+## Code
 
 Let's take a look at `src/my_container.ts`.
+
+TODO: change file names in quick start solution? Or could change in template, to e.g. index.html and app.ts (or whatever webpack's defaults are).
 
 We import the library, plus the container-specific `CRDTContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
 

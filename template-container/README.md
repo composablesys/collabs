@@ -1,10 +1,14 @@
-# Collabs template-container
+# Collabs Container Starter Template
 
-Template for a Collabs container. Containers are network agnostic and can be run in any "host".
+Template for a [Collabs container](https://collabs.readthedocs.io/en/latest/guide/containers.html).
 
-[Guide](https://github.com/composablesys/collabs/tree/master/collabs/docs/getting_started_guide.md)
+[Walkthrough using this template](https://collabs.readthedocs.io/en/latest/guide/walkthrough.html)
 
-See also [template-app](https://github.com/composablesys/collabs/tree/master/template-app).
+[Collabs Docs](https://collabs.readthedocs.io/en/latest/)
+
+[@collabs/collabs API](https://collabs.readthedocs.io/en/latest/api/collabs/index.html)
+
+[@collabs/container API](https://collabs.readthedocs.io/en/latest/api/container/index.html)
 
 ## Installation
 
@@ -18,7 +22,7 @@ Build the container from `src/`, in [development mode](https://webpack.js.org/gu
 
 ### `npm run build`
 
-Build the container from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; no source maps).
+Build the container from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; source maps have line numbers only).
 
 ### `npm start`
 
@@ -30,18 +34,18 @@ See [container-testing-server](https://www.npmjs.com/package/@collabs/container-
 
 Delete `dist/`.
 
-## Starter Files
+## Development
 
-- `src/`: Client-side app source files. If you rename the files in here, also rename their uses in `webpack.config.ts` and `package.json`.
-- `webpack.config.ts`: Webpack config for the client-side app.
-- `tsconfig.json`: TypeScript config for the client-side app.
+Start by filling in the `TODO`s in `src/index.html`, `src/app.ts`, and `webpack.config.ts`.
+
+If you add assets, you may need to add rules in `webpack.config.ts` to bundle and inline them. In particular, see the commented out rules, which inline some common asset types.
 
 ## Deployment
 
-See the [Guide](https://github.com/composablesys/collabs/tree/master/collabs/docs/getting_started_guide.md) for deployment options.
+See [Deployment](https://collabs.readthedocs.io/en/latest/guide/containers.html#deployment) for deployment options. Your container's built HTML file is placed in `dist/` when you run `npm run dev` or `npm run build`.
 
-## Licensing
+## Template Setup
 
-Coming soon: how to add license info and credits to your output file.
+This template sets up a fairly standard [npm](https://docs.npmjs.com/cli/) + [TypeScript](https://www.typescriptlang.org/) + [Webpack](https://webpack.js.org/) browser app. The HTML entrypoint is `src/index.html` and the TypeScript entrypoint is `src/app.ts`.
 
-Note that if you build your container as a single file with no external dependencies (recommended), then users can easily redistribute your container. Hence a permissive license is recommended.
+The only unusual part is that Webpack is configured to output a single HTML file (`dist/MY_CONTAINER.html`) with all assets inlined, including the compiled and bundled JavaScript code, TypeScript source maps, and other assets (once you uncomment the relevant rules in `webpack.config.ts`). See the comments in `webpack.config.ts` to understand how this is done, and see [Containers](https://collabs.readthedocs.io/en/latest/guide/containers.html) for the rationale behind this setup. If you don't want to inline assets, you can change the settings in `webpack.config.ts` and the `--devtool inline-nosources-source-map` option in `package.json`'s `build` script.

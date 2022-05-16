@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+borimport * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 import $ from "jquery";
 

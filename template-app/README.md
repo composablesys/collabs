@@ -1,4 +1,4 @@
-# Collabs template-app
+# Collabs App Starter Template
 
 Template for a Collabs app with a specific network (e.g., your own server).
 
@@ -54,7 +54,7 @@ You can easily modify the testing server for testing with these other `Broadcast
 
   1. Remove the call to `startWebSocketServer` in `server/testing_server.ts`.
   2. Start the server in https mode (`npm start -- --https`).
-  3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/my_app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
+  3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
   <!--
 
 - `WebRtcNetwork` from [@collabs/webrtc-client](https://www.npmjs.com/package/@collabs/webrtc-client):

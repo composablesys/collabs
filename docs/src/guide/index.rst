@@ -6,7 +6,7 @@ Guide
    :maxdepth: 1
    :caption: Contents:
 
-   getting_started/index
+   walkthrough
    concepts
    containers
    types

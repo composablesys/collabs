@@ -10,6 +10,8 @@ Welcome to Collabs's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   what_is_collabs
+   quick_start
    guide/index
    advanced/index
    internals

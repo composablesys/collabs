@@ -2,15 +2,8 @@ import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 
 (async function () {
-  // Create a CRDTContainer, the entry point for a Collabs
-  // container.
-  // Note: in a non-container app, you would instead use collabs.CRDTApp.
+  // Create a CRDTContainer, the entry point for a Collabs container.
   const container = new CRDTContainer();
-
-  // Now setup your program, using container.
-
-  // We include a simple collaborative counter as an example;
-  // delete the code below and replace with your own.
 
   // Register Collabs.
   const counter = container.registerCollab(
@@ -18,7 +11,7 @@ import { CRDTContainer } from "@collabs/container";
     collabs.Pre(collabs.ResettableCCounter)()
   );
 
-  // Refresh the display when the Collab state changes, possibly
+  // Refresh the display when the Collabs state changes, possibly
   // due to a message from another replica.
   const display = document.getElementById("display")!;
   function refreshDisplay() {
@@ -30,24 +23,15 @@ import { CRDTContainer } from "@collabs/container";
   // Note that we don't need to refresh the display here, since Change
   // events are also triggered by local operations.
   document.getElementById("increment")!.onclick = () => {
-    counter.add(100);
-  };
-  document.getElementById("decrement")!.onclick = () => {
-    counter.add(-100);
-  };
-  document.getElementById("reset")!.onclick = () => {
-    counter.reset();
+    counter.add(1);
   };
 
-  // Wait for the container to load the previous saved state,
-  // if any.
-  // Observe that unlike CRDTApp.load, we don't need to provide
-  // the save data ourselves, and the method is async.
+  // Wait for the container to load the previous saved state, if any.
   await container.load();
 
   // Display the loaded state.
   refreshDisplay();
 
-  // Signal that we're ready.
+  // Signal to the container host that we're ready for use.
   container.ready();
 })();
