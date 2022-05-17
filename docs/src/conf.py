@@ -41,6 +41,12 @@ exclude_patterns = []
 # https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html#syntax-header-anchors
 myst_heading_anchors = 2
 
+# Stop being annoyed at links to the Typedoc that are broken until after
+# copying it in.
+# Note this also disables clever processing of internal links, hence you
+# will have to use .html links instead of .md or .rst links.
+myst_all_links_external=True
+
 
 # -- Options for HTML output -------------------------------------------------
 
