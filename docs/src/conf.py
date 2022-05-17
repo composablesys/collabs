@@ -37,6 +37,10 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# Make Markdown-style anchor links for h1 and h2
+# https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html#syntax-header-anchors
+myst_heading_anchors = 2
+
 
 # -- Options for HTML output -------------------------------------------------
 

@@ -16,7 +16,7 @@ import {
   SaveRequestMessage,
 } from "./message_types";
 
-interface CRDTContainerEventsRecord {
+export interface CRDTContainerEventsRecord {
   /**
    * Emitted each time the container's state is changed and
    * is in a reasonable user-facing state

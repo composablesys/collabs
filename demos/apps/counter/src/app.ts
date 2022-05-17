@@ -8,7 +8,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    collabs.Pre(collabs.ResettableCCounter)()
+    collabs.Pre(collabs.CCounter)()
   );
 
   // Refresh the display when the Collabs state changes, possibly

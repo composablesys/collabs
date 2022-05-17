@@ -7,6 +7,7 @@ Welcome to Collabs's documentation!
 ===================================
 
 .. toctree::
+   :titlesonly:
    :maxdepth: 2
    :caption: Contents:
 

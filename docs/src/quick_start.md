@@ -25,7 +25,7 @@ First `TODO` replacement:
 // Register Collabs.
 const counter = container.registerCollab(
   "counter",
-  collabs.Pre(collabs.ResettableCCounter)()
+  collabs.Pre(collabs.CCounter)()
 );
 
 // Refresh the display when the Collabs state changes, possibly
@@ -62,4 +62,4 @@ refreshDisplay();
 
 ## Next Steps
 
-Head over to the [Guide](./guide) for a walkthrough of this app and to learn how to create your own Collabs apps.
+Head over to the [Guide](./guide/index) to begin learning how to create your own Collabs apps, starting with a walkthrough of the code you copy-pasted here.

@@ -33,7 +33,7 @@ Starting from scratch, the steps are:
 
 4. Test your compiled app using the `container-testing-server` command provided by @collabs/container-testing-server. It takes the path to your compiled HTML file as an argument.
 
-## <a id="deployment"></a> Deployment
+## Deployment
 
 You deploy your container merely by distributing your compiled HTML file. You can host this on a static site or file sharing platform, or just distribute it by word-of-mouth.
 

@@ -1,18 +1,78 @@
-# Quick Start Walkthrough
+# Walkthrough of Quick Start
 
-In this page, we will walk through the app from the [Quick Start](../quick_start.md). The app's code is [here](TODO) and a live demo is [here](TODO).
+In this page, we will walk through the [Quick Start](../quick_start.md)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](../what_is_collabs.md).
 
-## Repository Setup
+## Project Setup
 
-TODO: build environment
+The project is set up as a **Collabs container**: a Collabs app that does not connect to other collaborators over the network directly, but instead expects a **Collabs container host** to do that for it. For us, what this means is that the compiled app is a normal HTML page, but if you open it in a browser directly, it won't work; instead, you have to give the page to a container host, which will open it in a special IFrame. The `npm start` command does that for you, so you don't have to worry about it for now. We will revisit Collabs containers [later in the guide](./containers.md).
+
+Compilation and bundling uses a fairly standard [npm](https://docs.npmjs.com/cli/) + [TypeScript](https://www.typescriptlang.org/) + [Webpack](https://webpack.js.org/) toolchain. The HTML entrypoint is `src/index.html` and the TypeScript entrypoint is `src/app.ts`. The only unusual part is that Webpack is configured to output a single HTML file (`dist/MY_CONTAINER.html`) with all assets inlined, including the compiled and bundled JavaScript code and TypeScript source maps. This makes it easy to distribute the app without hosting it on a web server, like in the Quick Start's optional last step.
+
+The project setup comes from the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container) that we copied at the beginning of the Quick Start.
 
 ## Code
 
-Let's take a look at `src/my_container.ts`.
+The HTML file, `src/index.html`, is self-explanatory: it creates a display area for the counter value and an increment button labeled "+1".
 
-TODO: change file names in quick start solution? Or could change in template, to e.g. index.html and app.ts (or whatever webpack's defaults are).
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Counter</title>
+  </head>
 
-We import the library, plus the container-specific `CRDTContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
+  <body>
+    <p id="display">0</p>
+    <button id="increment">+1</button>
+  </body>
+</html>
+```
+
+The interesting part of the app is `src/app.ts`. We will go through this file top-down.
+
+```ts
+import * as collabs from "@collabs/collabs";
+import { CRDTContainer } from "@collabs/container";
+
+(async function () {
+  // Create a CRDTContainer, the entry point for a Collabs container.
+  const container = new CRDTContainer();
+
+  // Register Collabs.
+  const counter = container.registerCollab(
+    "counter",
+    collabs.Pre(collabs.CCounter)()
+  );
+
+  // Refresh the display when the Collabs state changes, possibly
+  // due to a message from another replica.
+  const display = document.getElementById("display")!;
+  function refreshDisplay() {
+    display.innerHTML = counter.value.toString();
+  }
+  container.on("Change", refreshDisplay);
+
+  // Change counter's value on button clicks.
+  // Note that we don't need to refresh the display here, since Change
+  // events are also triggered by local operations.
+  document.getElementById("increment")!.onclick = () => {
+    counter.add(1);
+  };
+
+  // Wait for the container to load the previous saved state, if any.
+  await container.load();
+
+  // Display the loaded state.
+  refreshDisplay();
+
+  // Signal to the container host that we're ready for use.
+  container.ready();
+})();
+```
+
+### 0. Imports and Async Wrapper
+
+To start, we import the Collabs library, plus the container-specific `CRDTContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
 
 ```ts
 import * as collabs from "@collabs/collabs";
@@ -27,25 +87,31 @@ To let us use `await` later, the rest of the file is wrapped in an `async` IIFE.
 })();
 ```
 
-Our first real task is to get an instance of `CRDTContainer`. This is the entry point for a Collabs container; it connects your collaborative data structures (`Collab`s, for short) to the container host, hence to the network.
+### 1. Create `CRDTContainer`
+
+Our first real task is to get an instance of `CRDTContainer`. This is the entry point for a Collabs container; it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
 
 ```ts
 const container = new CRDTContainer();
 ```
 
-Next, we register our "global variable" `Collab`s - data structures that exist outside of any scope. These must together encompass the whole collaborative state. We register each one using `container.registerCollab`.
+### 2. Register "Global Variable" `Collab`s
+
+Next, we register/create our "global variable" `Collab`s - data structures that exist outside of any scope. These must together encompass the whole collaborative state. We register each one using `container.registerCollab`.
+
+For this simple app, there is just one `Collab`, a `CCounter`.
 
 ```ts
 const counter = container.registerCollab(
   "counter",
-  collabs.Pre(collabs.ResettableCCounter)()
+  collabs.Pre(collabs.CCounter)()
 );
 ```
 
 A few things to note here:
 
 - The first argument to `registerCollab` is a _name_ for the `Collab`, used to identify it across different users. This can be arbitrary, but it's easiest to use the same name as the variable used to store the `Collab`. Each call to `registerCollab` must use a unique name.
-- We don't call `ResettableCCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.ResettableCCounter)` with the rest of `ResettableCCounter`'s constructor arguments - in this case, `()`. `registerCollab` then returns the actual constructed `ResettableCCounter`.
+- We don't call `CCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.CCounter)` with the rest of `CCounter`'s constructor arguments - in this case, `()`. `registerCollab` then returns the actual constructed `CCounter`.
   In general, when constructing `Collab`s, you use `Pre` instead of `new` in this way. I.e.:
   ```ts
   Pre(class_name)<generic types>(constructor args)
@@ -54,9 +120,15 @@ A few things to note here:
   ```ts
   new class_name<generic types>(constructor args)
   ```
-  See [Initialization](./initialization.md) for more info.
+  [Initialization](./initialization.md) goes into more detail later in the guide.
 
-Now that we have our `counter`, we need to observe changes to it and update the state. Here we use the catch-all `CRDTContainer` "Change" event, which is fired whenever any `Collab` changes, including due to local user input. See [Events](./events.md) for more info.
+### 3. Update Display on Events
+
+Now that we have our `counter`, we need to observe changes to it and update the GUI. This ensures that the GUI always reflects the current collaborative state.
+
+In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./events.md) goes into more detail later in the guide.
+
+Here we listen on `CRDTContainer`'s "Change" event and refresh the entire display whenever it is emitted.
 
 ```ts
 const display = document.getElementById("display")!;
@@ -66,29 +138,25 @@ function refreshDisplay() {
 container.on("Change", refreshDisplay);
 ```
 
-Next, we convert user inputs into operations on `counter`. Since `counter` is a `Collab`, these operations will eventually show up for all users. Furthermore, everyone will eventually end up in the same state even if multiple users do operations concurrently.
+### 4. Convert User Inputs into `Collab` Operations
+
+Next, we convert user inputs into operations on `counter`. Since `counter` is a `Collab`, these operations will eventually show up for all users. Furthermore, everyone will eventually end up in the same state even if multiple users do operations concurrently. Note that we do not need to update the display directly because events are also emitted for local operations.
 
 ```ts
 document.getElementById("increment")!.onclick = () => {
-  counter.add(100);
-};
-document.getElementById("decrement")!.onclick = () => {
-  counter.add(-100);
-};
-document.getElementById("reset")!.onclick = () => {
-  counter.reset();
+  counter.add(1);
 };
 ```
 
-Now that our setup is complete, we load previous saved state (if any).
+### 5. Last Steps
+
+Now that our app is set up, we load previous saved state, if any.
 
 ```ts
 await container.load();
 ```
 
-Basically, the container host can periodically save snapshots of the container's state, then use one to restart it quickly later. It can even send snapshots to new collaborators, so that they can load the current state without replaying every past message.
-
-Because saving and loading is the host's job, we don't have to provide any save data here; we just wait for the host to provide it. Once the `await` completes, your Collabs will be filled in with the save data.
+This "previous saved state" might come from the last time this user used the app, or it might come from a different collaborator who sent us a snapshot. The details are left up to our container host; we just wait for loading finish, using `await`.
 
 Next, we display the loaded state.
 
@@ -98,103 +166,35 @@ refreshDisplay();
 
 We have to explicitly call `refreshDisplay()` here because events, including "Change" events, aren't emitted during loading.
 
-Finally, our container is ready to use: we've setup our Collabs, connected them to GUI (display + user input), loaded the previous saved state, and displayed the loaded state. We call `container.ready()` to signal this to our host.
+Finally, our container is ready to use: we've registered our Collabs, connected them to the GUI (display + user input), loaded the previous saved state, and displayed the loaded state. We call `container.ready()` to start the app.
 
 ```ts
 container.ready();
 ```
 
-The host will then reveal the container to the user, allow user input, and start delivering messages - both new messages from collaborators, and old messages that didn't make it into the loaded state.
-
-The complete `src/my_container.ts` appears below.
-
-```ts
-import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
-
-(async function () {
-  // Create a CRDTContainer, the entry point for a Collabs
-  // container.
-  // Note: in a non-container app, you would instead use collabs.CRDTApp.
-  const container = new CRDTContainer();
-
-  // Now setup your program, using container.
-
-  // We include a simple collaborative counter as an example;
-  // delete the code below and replace with your own.
-
-  // Register Collabs.
-  const counter = container.registerCollab(
-    "counter",
-    collabs.Pre(collabs.ResettableCCounter)()
-  );
-
-  // Refresh the display when the Collab state changes, possibly
-  // due to a message from another replica.
-  const display = document.getElementById("display")!;
-  function refreshDisplay() {
-    display.innerHTML = counter.value.toString();
-  }
-  container.on("Change", refreshDisplay);
-
-  // Change counter's value on button clicks.
-  // Note that we don't need to refresh the display here, since Change
-  // events are also triggered by local operations.
-  document.getElementById("increment")!.onclick = () => {
-    counter.add(100);
-  };
-  document.getElementById("decrement")!.onclick = () => {
-    counter.add(-100);
-  };
-  document.getElementById("reset")!.onclick = () => {
-    counter.reset();
-  };
-
-  // Wait for the container to load the previous saved state,
-  // if any.
-  // Observe that unlike CRDTApp.load, we don't need to provide
-  // the save data ourselves, and the method is async.
-  await container.load();
-
-  // Display the loaded state.
-  refreshDisplay();
-
-  // Signal that we're ready.
-  container.ready();
-})();
-```
-
-## Testing
-
-To test your container, build and run it.
-
-```
-npm run dev
-npm start
-```
-
-Then go to [http://localhost:3000/](http://localhost:3000/) (or whatever link `npm start` prints out). This runs your app using [@collabs/container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server).
-
-To test collaboration, open the link in multiple windows/tabs at once. You can simulate concurrency (multiple user making changes at the same time) by unchecking one window's "Connected" checkbox, making some changes in that window and another one, then re-checking the box. Doing so temporarily isolates the disconnected window, then reconnects it, delivering all messages queued during disconnection (sent + receivd). Unless something has gone wrong, all windows will end up in the same state. Ideally, that state will also be a reasonable merge of the concurrent changes.
-
-You can also test that saving and loading doesn't corrupt the state. Click "Save to sessionStorage" to save the current state in the browser, then "Reload from sessionStorage" to load that state followed by replaying any further messages. Unless you write your own Collabs with custom load/save functions, you should only need to worry about bugs due to improperly displaying the loaded state.
+Our container's host will then reveal the container to the user, allow user input, and start delivering messages.
 
 ## Deployment
 
-Now that you have a collaborative app, it's time to deploy it for your users. Unlike a traditional app, this doesn't require running any servers of your own - you just need to distribute your build file.
+To deploy the app, we need to give our compiled file, `dist/counter.html` to a Collabs container host, as mentioned [above](#project-setup). The container host will then run `dist/counter.html` in an IFrame and communicate with it using [cross-window communication](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage). In turn, the container host communicates with other collaborators over a network of its choice.
 
-First, build the container in production mode instead of development mode (this makes the output file a lot smaller):
+One such container host is built into `npm start`---specifically, the [container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) command that it uses. The command launches a server whose home page includes a container host and that automatically loads `dist/counter.html` into that host. The host connects collaborators to its server using WebSockets.
 
-```
-npm run build
-```
+The Quick Start's optional last step mentions another container host, [Collabs's Container Selector demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). That one uses our demo server to connect collaborators, again using WebSockets.
 
-Your finished container is now in `dist/my_container.html`. You can host this on a static site or file sharing platform, or just distribute it by word-of-mouth.
-
-Users can run your app in any container host. See [containers](./containers.md#deployment) for some options.
+For more container hosts, see [Containers](./containers.md#deployment) later in the guide.
 
 ## Next steps
 
-To start building more complex apps, check out [Collaborative Data Structures](./types.md), [Data Modeling](./data_modeling.md), and [Events](./events.md). Or, learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).
+You've now seen the basic structure of a Collabs app (specifically, a Collabs container). By following the steps above and using the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container) if desired, you can start building your own collaborative apps!
 
-For more info on configuration and deployment, including adding dependencies and assets (e.g. images), see [Containers](./containers.md).
+<!-- TODO: per-step links to the above -->
+
+Specifically, to make your own Collabs app, your main tasks are:
+
+- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [](./collaborative_data_structures.md), [](./data_modeling).
+- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [](./events).
+- In Step 4, convert user inputs onto operations on your `Collab`s.
+- In Step 5, display the loaded state, i.e., update your display to reflect your `Collab`s' current states.
+
+For more info, continue following the guide with [](./collaborative_data_structures.md), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).

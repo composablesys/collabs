@@ -3,15 +3,15 @@ Guide
 =======================
 
 .. toctree::
+   :titlesonly:
    :maxdepth: 1
    :caption: Contents:
 
    walkthrough
-   concepts
-   containers
-   types
+   collaborative_data_structures
    data_modeling
    events
+   containers
    initialization
    user_presence
    gotchas
