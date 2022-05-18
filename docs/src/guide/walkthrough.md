@@ -1,10 +1,10 @@
 # Walkthrough of Quick Start
 
-In this page, we will walk through the [Quick Start](../quick_start.md)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](../what_is_collabs.md).
+In this page, we will walk through the [Quick Start](../quick_start.html)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](../what_is_collabs.html).
 
 ## Project Setup
 
-The project is set up as a **Collabs container**: a Collabs app that does not connect to other collaborators over the network directly, but instead expects a **Collabs container host** to do that for it. For us, what this means is that the compiled app is a normal HTML page, but if you open it in a browser directly, it won't work; instead, you have to give the page to a container host, which will open it in a special IFrame. The `npm start` command does that for you, so you don't have to worry about it for now. We will revisit Collabs containers [later in the guide](./containers.md).
+The project is set up as a **Collabs container**: a Collabs app that does not connect to other collaborators over the network directly, but instead expects a **Collabs container host** to do that for it. For us, what this means is that the compiled app is a normal HTML page, but if you open it in a browser directly, it won't work; instead, you have to give the page to a container host, which will open it in a special IFrame. The `npm start` command does that for you, so you don't have to worry about it for now. We will revisit Collabs containers [later in the guide](./containers.html).
 
 Compilation and bundling uses a fairly standard [npm](https://docs.npmjs.com/cli/) + [TypeScript](https://www.typescriptlang.org/) + [Webpack](https://webpack.js.org/) toolchain. The HTML entrypoint is `src/index.html` and the TypeScript entrypoint is `src/app.ts`. The only unusual part is that Webpack is configured to output a single HTML file (`dist/MY_CONTAINER.html`) with all assets inlined, including the compiled and bundled JavaScript code and TypeScript source maps. This makes it easy to distribute the app without hosting it on a web server, like in the Quick Start's optional last step.
 
@@ -120,13 +120,13 @@ A few things to note here:
   ```ts
   new class_name<generic types>(constructor args)
   ```
-  [Initialization](./initialization.md) goes into more detail later in the guide.
+  [Initialization](./initialization.html) goes into more detail later in the guide.
 
 ### 3. Update Display on Events
 
 Now that we have our `counter`, we need to observe changes to it and update the GUI. This ensures that the GUI always reflects the current collaborative state.
 
-In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./events.md) goes into more detail later in the guide.
+In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./events.html) goes into more detail later in the guide.
 
 Here we listen on `CRDTContainer`'s "Change" event and refresh the entire display whenever it is emitted.
 
@@ -182,19 +182,19 @@ One such container host is built into `npm start`---specifically, the [container
 
 The Quick Start's optional last step mentions another container host, [Collabs's Container Selector demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). That one uses our demo server to connect collaborators, again using WebSockets.
 
-For more container hosts, see [Containers](./containers.md#deployment) later in the guide.
+For more container hosts, see [Container Deployment](./containers.html#deployment) later in the guide.
 
 ## Next steps
 
-You've now seen the basic structure of a Collabs app (specifically, a Collabs container). By following the steps above and using the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container) if desired, you can start building your own collaborative apps!
+You've now seen the basic structure of a Collabs app (specifically, a Collabs container). By following the steps above and using the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container) (if desired), you can start building your own collaborative apps!
 
 <!-- TODO: per-step links to the above -->
 
 Specifically, to make your own Collabs app, your main tasks are:
 
-- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [](./collaborative_data_structures.md), [](./data_modeling).
-- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [](./events).
+- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [Built-in Collabs](./collaborative_data_structures.html), [Data Modeling](./data_modeling.html).
+- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [Events](./events.html).
 - In Step 4, convert user inputs onto operations on your `Collab`s.
 - In Step 5, display the loaded state, i.e., update your display to reflect your `Collab`s' current states.
 
-For more info, continue following the guide with [](./collaborative_data_structures.md), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).
+For more info, continue following the guide with [Built-in Collabs](./collaborative_data_structures.html), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).

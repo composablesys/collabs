@@ -6,6 +6,10 @@
 Welcome to Collabs's documentation!
 ===================================
 
+`https://www.npmjs.com/package/@collabs/collabs <https://www.npmjs.com/package/@collabs/collabs>`_
+
+`https://github.com/composablesys/collabs <https://github.com/composablesys/collabs>`_
+
 .. toctree::
    :titlesonly:
    :maxdepth: 2
