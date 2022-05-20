@@ -4,7 +4,7 @@ Some collaborative types send values of arbitrary types to all replicas. These v
 
 For example, when you add `foo: T` to an `AddWinsCSet<T>`, `foo` is serialized and sent to all replicas. Each replica then deserializes `foo` and adds it to their own copy of the set.
 
-Collaborative types that need to serialize values of an arbitrary type `T` take an argument of type [`Serializer<T>`](./typedoc/interfaces/Serializer.html) in their constructor. These serializer arguments default to an instance of [`DefaultSerializer`](./typedoc/classes/DefaultSerializer), which works for the following types (an extension of JSON):
+Collaborative types that need to serialize values of an arbitrary type `T` take an argument of type [`Serializer<T>`](../api/collabs/interfaces/Serializer.html) in their constructor. These serializer arguments default to an instance of [`DefaultSerializer`](../api/collabs/classes/DefaultSerializer), which works for the following types (an extension of JSON):
 
 - Primitive values, including `undefined` and `null`
 - References to collaborative types (these deserialize as a reference to the recipient's version of the collaborative type)

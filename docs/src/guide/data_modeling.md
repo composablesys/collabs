@@ -13,7 +13,7 @@ We recommend creating collaborative data models using the following general proc
 
 1. Create a single-user (non-collaborative) version of your data model, using ES6 classes and strong typing.
 2. Replace collection types (`Set`, etc.) and primitive types (`boolean`, etc.) with collaborative versions, following the advice in [Collaborative Data Structures](./types.md).
-3. Replace your custom classes with subclasses of [`CObject`](./typedoc/classes/CObject.html), whose children are their instance variables.
+3. Replace your custom classes with subclasses of [`CObject`](../api/collabs/classes/CObject.html), whose children are their instance variables.
 
 We illustrate this process with examples below.
 
@@ -60,12 +60,12 @@ boardState.set([x, y], color);
 
 <!-- We also must integrate this model with the view, i.e., update the Canvas when map keys are set or deleted, to reflect the corresponding pixel's new color (not shown). -->
 
-**Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `LwwCMap<[x: number, y: number], string>`:
+**Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `LWWCMap<[x: number, y: number], string>`:
 
 ```ts
 const boardState = runtime.registerCollab(
   "whiteboard",
-  collabs.Pre(collabs.LwwCMap)<[x: number, y: number], string>()
+  collabs.Pre(collabs.LWWCMap)<[x: number, y: number], string>()
 );
 ```
 
@@ -151,7 +151,7 @@ The app's top-level state is a variable `currentGame: Minesweeper`. When the use
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
 - `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `TrueWinsCBoolean` satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./types.md) suggests `LwwCVariable<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./types.md) suggests `LWWCVariable<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
@@ -159,7 +159,7 @@ Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That le
 ```ts
 class CTile extends collabs.CObject {
   readonly revealed: collabs.TrueWinsCBoolean;
-  readonly flag: collabs.LwwCVariable<FlagStatus>;
+  readonly flag: collabs.LWWCVariable<FlagStatus>;
   readonly isMine: boolean;
   readonly number: number;
 
@@ -171,7 +171,7 @@ class CTile extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      collabs.Pre(collabs.LwwCVariable)<FlagStatus>(FlagStatus.NONE)
+      collabs.Pre(collabs.LWWCVariable)<FlagStatus>(FlagStatus.NONE)
     );
     this.isMine = isMine;
     this.number = number;
@@ -226,12 +226,12 @@ class MinesweeperCollab extends collabs.CObject {
 }
 ```
 
-Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LwwMutCVariable<CMinesweeper>` because the game is internally mutable:
+Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LWWMutCVariable<CMinesweeper>` because the game is internally mutable:
 
 ```ts
 const currentGame = runtime.registerCollab(
   "currentGame",
-  collabs.Pre(collabs.LwwMutCVariable)(
+  collabs.Pre(collabs.LWWMutCVariable)(
     collabs.ConstructorAsFunction(CMinesweeper)
   )
 );

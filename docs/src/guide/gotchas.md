@@ -8,7 +8,7 @@ The library is designed to make collaboration "just work". However, it's possibl
 
 `Collab`s must be initialized identically for all users. In particular:
 
-1. All users must make the same calls to [`runtime.registerCollab`](./typedoc/classes/Runtime.html#registerCollab), with the same names, types, and constructor arguments.
+1. All users must make the same calls to [`runtime.registerCollab`](../api/collabs/classes/Runtime.html#registerCollab), with the same names, types, and constructor arguments.
 2. Likewise for calls to `addChild` within a `CObject`.
 3. Constructor arguments, and the logic inside `Collab` constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or `runtime.replicaId`.
 
@@ -22,7 +22,7 @@ More info: [Initialization](./initialization.md).
 
 ## Delayed Initialization
 
-All calls to [`runtime.registerCollab`](./typedoc/classes/Runtime.html#registerCollab) must happen before any messages are received from other users or any prior state is loaded. Typically, you accomplish this by making all of these calls immediately after constructing `runtime`, in the same thread. Otherwise, you may receive a message or save data that references a `Collab` you haven't registered yet, which will cause an error.
+All calls to [`runtime.registerCollab`](../api/collabs/classes/Runtime.html#registerCollab) must happen before any messages are received from other users or any prior state is loaded. Typically, you accomplish this by making all of these calls immediately after constructing `runtime`, in the same thread. Otherwise, you may receive a message or save data that references a `Collab` you haven't registered yet, which will cause an error.
 
 Likewise, within a `CObject`, you should make all calls to `addChild` within the constructor. (If you need to add children dynamically, you should instead use a built-in collection type to do so, e.g., `DeletingMutCSet`.)
 
@@ -30,7 +30,7 @@ More info: [Initialization](./initialization.md).
 
 ## Non-unique Names
 
-All names passed to [`runtime.registerCollab`](./typedoc/classes/Runtime.html#registerCollab) must be unique. Likewise, within a `CObject`, all names passed to `addChild` must be unique. A simple way to ensure this is to use the corresponding variable's name. Note, however, that there is a network cost to longer names, so you might instead prefer to assign names in order of length ("", "0", "1", etc.).
+All names passed to [`runtime.registerCollab`](../api/collabs/classes/Runtime.html#registerCollab) must be unique. Likewise, within a `CObject`, all names passed to `addChild` must be unique. A simple way to ensure this is to use the corresponding variable's name. Note, however, that there is a network cost to longer names, so you might instead prefer to assign names in order of length ("", "0", "1", etc.).
 
 ## Non-Serializable Types
 
@@ -47,7 +47,7 @@ Although the _state_ of a `Collab` is eventually consistent, the _events_ that i
 Examples:
 
 - When using an `AddWinsCSet` named `set`, one user calls `set.add("foo")` while another concurrently calls `set.add("bar")`. Then some users may see an "Add" event for "foo" followed by an "Add" event for "bar", while other users see the opposite order.
-- When using a `LwwCVariable` named `reg`, one user sets `reg.value = "foo"` while another concurrently sets `reg.value = "bar"`. Suppose "foo" wins under the last-writer-wins rule (its operation has a later wall clock time). Then users who receive the "bar" message and then the "foo" message will see two "Set" events: one for "bar", then one for "foo". Meanwhile, users who receive the "foo" message and then the "bar" message will only see one "Set" event, for "foo".
+- When using a `LWWCVariable` named `reg`, one user sets `reg.value = "foo"` while another concurrently sets `reg.value = "bar"`. Suppose "foo" wins under the last-writer-wins rule (its operation has a later wall clock time). Then users who receive the "bar" message and then the "foo" message will see two "Set" events: one for "bar", then one for "foo". Meanwhile, users who receive the "foo" message and then the "bar" message will only see one "Set" event, for "foo".
 
 ## Treating Iterator Orders as Consistent
 
@@ -70,9 +70,9 @@ When listening on events from a `Collab` that is created dynamically in a collec
 
 Do not make your own `InitToken`s, unless you are writing a direct `Collab` subclass that manages its own children.
 
-Only use a given `InitToken` once, in the way intended by its creator. E.g., a collection's `valueConstructor` must return the `Collab` created using its `initToken` parameter. Likewise for a [Pre-Collab](./typedoc/modules.html#Pre); this is automatic if you use the built-in [`Pre`](./typedoc/modules.html#Pre) function.
+Only use a given `InitToken` once, in the way intended by its creator. E.g., a collection's `valueConstructor` must return the `Collab` created using its `initToken` parameter. Likewise for a [Pre-Collab](../api/collabs/modules.html#Pre); this is automatic if you use the built-in [`Pre`](../api/collabs/modules.html#Pre) function.
 
-In a `Collab`'s constructor, only use the `InitToken` in your `super` call or to query its `runtime` (e.g., for passing to [DefaultSerializer](./typedoc/classes/DefaultSerializer.html)'s constructor in a parameter default).
+In a `Collab`'s constructor, only use the `InitToken` in your `super` call or to query its `runtime` (e.g., for passing to [DefaultSerializer](../api/collabs/classes/DefaultSerializer.html)'s constructor in a parameter default).
 
 More info: [Initialization](./initialization.md).
 

@@ -8,21 +8,22 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 <!-- TODO: interface "of" methods as shortcut. -->
 
-| Ordinary type `X`                       | Collaborative version `C(X)`                                         | Alternatives                                                             |
-| --------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Custom class w/ fixed properties        | [`CObject`](./typedoc/classes/CObject.html)                          |
-| `Set<T>`, `T` immutable                 | [`AddWinsCSet<T>`](./typedoc/classes/AddWinsCSet.html)               | [`CSet<T>`](./typedoc/interfaces/CSet.html) implementations              |
-| `Set<T>`, `T` mutable                   | [`DeletingMutCSet<C(T)>`](./typedoc/classes/DeletingMutCSet.html)    | [`CSet<C(T)>`](./typedoc/interfaces/CSet.html) implementations           |
-| `Map<K, V>`, `V` immutable              | [`LwwCMap<K, V>`](./typedoc/classes/LwwCMap.html)                    | [`CMap<K, V>`](./typedoc/interfaces/CMap.html) implementations           |
-| `Map<K, V>`, `V` mutable                | [`DeletingMutCMap<K, C(V)>`](./typedoc/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](./typedoc/interfaces/CMap.html) implementations        |
-| `Array<T>`, `T` immutable               | [`PrimitiveCList<T>`](./typedoc/classes/PrimitiveCList.html)         | [`CList<T>`](./typedoc/interfaces/CList.html) implementations            |
-| `Array<T>`, `T` mutable                 | [`DeletingMutCList<T>`](./typedoc/classes/DeletingMutCList.html)     | [`CList<C(T)>`](./typedoc/interfaces/CList.html) implementations         |
-| \*(Any immutable `T`) (as opaque value) | [`LwwCVariable<T>`](./typedoc/classes/LwwCVariable.html)             | [`CVariable<T>`](./typedoc/interfaces/CVariable.html) implementations    |
-| \*(Any mutable `T`) (as opaque value)   | [`LwwMutCVariable<C(T)>`](./typedoc/classes/LwwMutCVariable.html)    | [`CVariable<C(T)>`](./typedoc/interfaces/CVariable.html) implementations |
-| \*`boolean`                             | [`TrueWinsCBoolean`](./typedoc/classes/TrueWinsCBoolean.html)        | [`CBoolean`](./typedoc/interfaces/CBoolean.html) implementations         |
-| \*`number` (for counting or adding)     | [`CCounter`](./typedoc/classes/CCounter.html)                        |
-| \*`number` (for general arithmetic)     | [`CNumber`](./typedoc/classes/CNumber.html)                          |
-| \*`string` (as text)                    | [`CText`](./typedoc/classes/CText.html)                              |
+| Ordinary type `X`                                | Collaborative version `C(X)`                                              | Alternatives                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Custom class w/ fixed properties                 | [`CObject`](../api/collabs/classes/CObject.html)                          |
+| `Set<T>`, `T` immutable                          | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               | [`CSet<T>`](../api/collabs/interfaces/CSet.html) implementations              |
+| `Set<T>`, `T` mutable                            | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    | [`CSet<C(T)>`](../api/collabs/interfaces/CSet.html) implementations           |
+| `Map<K, V>`, `V` immutable                       | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    | [`CMap<K, V>`](../api/collabs/interfaces/CMap.html) implementations           |
+| `Map<K, V>`, `V` mutable                         | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](../api/collabs/interfaces/CMap.html) implementations        |
+| `Array<T>`, `T` immutable                        | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         | [`CList<T>`](../api/collabs/interfaces/CList.html) implementations            |
+| `Array<T>`, `T` mutable                          | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)     | [`CList<C(T)>`](../api/collabs/interfaces/CList.html) implementations         |
+| \*(Any immutable `T`) (as opaque value)          | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)             | [`CVariable<T>`](../api/collabs/interfaces/CVariable.html) implementations    |
+| \*(Any mutable `T`) (as opaque value)            | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)    | [`CVariable<C(T)>`](../api/collabs/interfaces/CVariable.html) implementations |
+| \*`boolean`                                      | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        | [`CBoolean`](../api/collabs/interfaces/CBoolean.html) implementations         |
+| \*`number` (for counting or adding)              | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
+| \*`number` (for counting, adding, and resetting) | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html)    |
+| \*`number` (for general arithmetic)              | [`CNumber`](../api/collabs/classes/CNumber.html)                          |
+| \*`string` (as text)                             | [`CText`](../api/collabs/classes/CText.html)                              |
 
 \*`X` denotes a _variable holding type `X`_, or alternatively a mutable wrapper object `{ value: X }`. E.g., `CCounter` is the collaborative version of an object that you can mutate in-place by calling e.g. `obj.add(3)` and that you can read by calling `obj.value`.
 
@@ -42,9 +43,9 @@ We distinguish mutable value collections by including `Mut` in their names, e.g.
 
 In some situations, the immutable vs. mutable distinction is subtle:
 
-1. `LwwCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LwwCMap` and a map with mutable values is that in `LwwCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
+1. `LWWCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LWWCMap` and a map with mutable values is that in `LWWCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
 2. You can use `Collab`s as immutable values. In that case, the immutable value acts as a _reference_ to the original `Collab`, like the \* types above.
-   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LwwCVariable<CPerson>` to store a reference to the project lead, chosen from the set's values.
+   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LWWCVariable<CPerson>` to store a reference to the project lead, chosen from the set's values.
 
 **Caution:** The library will not prevent you from internally mutating a value that you used in an immutable collection. Instead, you must take care not to do this. If you do mutate a value stored in an immutable collection, then that mutation will not be replicated to other users. Thus the mutating user will see the mutated state, while the other users will not, violating consistency.
 
@@ -54,7 +55,7 @@ Immutable value collections have straightforward interfaces, similar to their or
 
 Besides ensuring that the values are not mutated internally, ensure that they can be serialized - see [./serialization.md](Serialization). Primitive values, JSON-like objects or arrays, and references to `Collab`s are all serializable by default.
 
-**Semantic difference with ES6 `Set` and `Map`:** when comparing `AddWinsCSet` values or `CMap` keys, we use _serialization equality_ instead of `===` equality. That is, `x` and `y` are considered equal if they serialize to the same `Uint8Array`. With the default serializer, this is equivalent to _deep `===` equality_. See [`ReferenceCSet`](./typedoc/classes/ReferenceCSet.html) for a collaborative set that instead compares object values using `===`.
+**Semantic difference with ES6 `Set` and `Map`:** when comparing `AddWinsCSet` values or `CMap` keys, we use _serialization equality_ instead of `===` equality. That is, `x` and `y` are considered equal if they serialize to the same `Uint8Array`. With the default serializer, this is equivalent to _deep `===` equality_. See [`ReferenceCSet`](../api/collabs/classes/ReferenceCSet.html) for a collaborative set that instead compares object values using `===`.
 
 > **Example.** Let `set` be an `AddWinsCSet<[number, number]>` with the default serializer. If one user does `set.add([0, 0]); set.add([0, 0]);`, then `set` contains a single value `[0, 0]` that is a distinct object from either added value. In contrast, an ES6 `Set<[number, number]`> would contain both of the original arrays.
 
@@ -71,7 +72,7 @@ To allow you to create `Collab`s dynamically, mutable values collections work a 
 
 <!-- > **Example:** TODO -->
 
-> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `DeletingMutCSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `DeletingMutCSet` and then setting them as values in a `LwwCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`DeletingMutCSet`](./typedoc/classes/DeletingMutCSet.html) and [`GrowOnlyImplicitMergingMutCMap`](./typedoc/classes/GrowOnlyImplicitMergingMutCMap.html).
+> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `DeletingMutCSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `DeletingMutCSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`DeletingMutCSet`](../api/collabs/classes/DeletingMutCSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
 
 ## Choices
 
@@ -79,9 +80,9 @@ Often you can choose between several collaborative data structures. Different ch
 
 ### Variables vs Everything Else
 
-`LwwCVariable` is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
+`LWWCVariable` is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
 
-<!-- variable vs whatever else in general. Lww is always a good choice, but changes the granularity of editing.
+<!-- variable vs whatever else in general. LWW is always a good choice, but changes the granularity of editing.
 
 > **Example.** TODO: setting value vs editing internally, on bulk object. Also applies to maps. string as text vs variable (granularity of editing)
 
