@@ -19,7 +19,7 @@ jobs:
     # Make sure to keep the python version in sync between here and
     # .readthedocs.yaml's build.tools.python value.
     docker:
-      - image: cimg/python:3.10-node
+      - image: cimg/python:3.10.1-node
     # Then run your tests!
     # CircleCI will report the results back to your VCS provider.
     steps:
