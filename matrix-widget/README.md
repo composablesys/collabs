@@ -1,20 +1,13 @@
-# @collabs/matrix-widget
+# `@collabs/matrix-widget`
 
-**Collabs MatrixWidgetNetwork**
+Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-[https://www.npmjs.com/package/@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget)
-
-A Collabs `BroadcastNetwork` implementation that uses [matrix-widget-api](https://www.npmjs.com/package/matrix-widget-api).
+**@collabs/matrix-widget** contains the `MatrixWidgetNetwork` class. It connects a `CRDTApp` to a [Matrix](matrix.org) room, assuming that its web page is run inside a [Matrix widget](https://matrix.org/blog/2017/08/23/introducing-matrix-widgets). Internally, it uses [matrix-widget-api](https://www.npmjs.com/package/matrix-widget-api).
 
 ## Docs
 
-### API
+<!-- TODO: Link to specific docs page instead of whole site -->
 
-```
-git clone https://github.com/composablesys/collabs.git
-cd collabs/matrix-widget
-npm i
-npm run build
-```
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-Open `docs/index.html.`
+[API](https://collabs.readthedocs.io/en/latest/api/matrix-widget)

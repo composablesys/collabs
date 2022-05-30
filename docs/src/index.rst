@@ -1,14 +1,11 @@
-.. Collabs documentation master file, created by
-   sphinx-quickstart on Wed May  4 09:37:56 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to Collabs's documentation!
+Collabs Documentation
 ===================================
 
-`https://www.npmjs.com/package/@collabs/collabs <https://www.npmjs.com/package/@collabs/collabs>`_
+..
+   Not sure how to do the index page in markdown, so instead we just
+   put the necessary RST stuff here and include index_markdown.md for the rest.
 
-`https://github.com/composablesys/collabs <https://github.com/composablesys/collabs>`_
+.. include:: index_markdown.md
 
 .. toctree::
    :titlesonly:
@@ -24,13 +21,6 @@ Welcome to Collabs's documentation!
    packages
    api/index
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
 
 TODO: this file (see old README)

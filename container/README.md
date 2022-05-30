@@ -1,20 +1,13 @@
-# @collabs/container
+# `@collabs/container`
 
-**Tools for Collabs containers (network-agnostic collaborative apps)**
+Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-[https://www.npmjs.com/package/@collabs/container](https://www.npmjs.com/package/@collabs/container)
+**@collabs/container** contains tools for [Collabs containers](https://collabs.readthedocs.io/en/latest/guide/containers.html) (network-agnostic collaborative apps). In particular, it contains the `CRDTContainer` entry point.
 
 ## Docs
 
-[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/containers.md)
+<!-- TODO: Link to specific docs page instead of whole site -->
 
-### API
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-```
-git clone https://github.com/composablesys/collabs.git
-cd collabs/container
-npm i
-npm run build
-```
-
-Open `docs/index.html.`
+[API](https://collabs.readthedocs.io/en/latest/api/container)

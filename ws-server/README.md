@@ -1,18 +1,13 @@
-# @collabs/ws-server
+# `@collabs/ws-server`
 
-**Collabs WebSocket server**
+Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-[https://www.npmjs.com/package/@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server)
+**@collabs/ws-server** contains the `startWebSocketServer` function. When called on a NodeJS server, it starts a WebSocket server that listens to connections from [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) `WebSocketNetwork` clients.
 
 ## Docs
 
-### API
+<!-- TODO: Link to specific docs page instead of whole site -->
 
-```
-git clone https://github.com/composablesys/collabs.git
-cd collabs/ws-server
-npm i
-npm run build
-```
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-Open `docs/index.html.`
+[API](https://collabs.readthedocs.io/en/latest/api/ws-server)

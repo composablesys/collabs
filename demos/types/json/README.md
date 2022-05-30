@@ -1,4 +1,4 @@
-# @collabs/json
+# Collabs json
 
 Example JSON CRDT built on top of the Collabs library.
 

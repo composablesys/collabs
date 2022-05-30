@@ -1,6 +1,6 @@
-# Collabs demos
+# Collabs Demo Server
 
-Demo apps using [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs). Source of [https://compoventuals-tests.herokuapp.com/](https://compoventuals-tests.herokuapp.com/).
+Demo server for [Collabs](https://collabs.readthedocs.io/). Source of [compoventuals-tests.herokuapp.com/](compoventuals-tests.herokuapp.com/).
 
 ## Usage
 

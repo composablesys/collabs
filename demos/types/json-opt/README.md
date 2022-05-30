@@ -1,4 +1,4 @@
-# @collabs/json-opt
+# Collabs json-opt
 
 Example JSON CRDT built on top of the Collabs library---optimized version.
 

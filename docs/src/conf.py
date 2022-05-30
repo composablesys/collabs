@@ -16,9 +16,9 @@
 
 
 # -- Project information -----------------------------------------------------
-
+import datetime
 project = 'Collabs'
-copyright = '2022, Collabs contributors'
+copyright = str(datetime.date.today().year) + ', Collabs contributors'
 author = 'Collabs contributors'
 
 

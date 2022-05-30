@@ -1,8 +1,12 @@
-# @collabs/container-testing-server
+# `@collabs/container-testing-server`
 
-**Simple server for testing Collabs containers**
+Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-[https://www.npmjs.com/package/@collabs/container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server)
+**@collabs/container** provides the `container-testing-server` npm command, which runs a simple server for testing [Collabs containers](https://collabs.readthedocs.io/en/latest/guide/containers.html).
+
+## Docs
+
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
 ## Usage
 

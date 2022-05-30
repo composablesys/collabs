@@ -1,4 +1,4 @@
-# Packages
+# All Packages
 
 List on npm: [Collabs org](https://www.npmjs.com/org/collabs)
 

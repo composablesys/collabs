@@ -1,15 +1,28 @@
-# Collabs Monorepo
+# Collabs
 
-You're probably looking for [@collabs/collabs](https://github.com/composablesys/collabs/tree/master/collabs#readme).
+**Collabs** is a collections library for **collaborative data structures**. These are data structures that look like `Set`, `Map`, `Array`, etc., except they are synchronized between multiple users: when one user changes a collaborative data structure, their changes show up for every other user. You can use them to quickly build collaborative apps along the lines of Google Docs/Sheets/Slides, shared whiteboards, etc.
 
-## Packages in this repo
+## Docs
 
-See folders in this directory.
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-## Developing
+- [API](https://collabs.readthedocs.io/en/latest/api/)
+- [Published packages](https://collabs.readthedocs.io/en/latest/packages.html)
+
+## Source Code
+
+This monorepo has a folder for each [published package](https://collabs.readthedocs.io/en/latest/packages.html) plus related code. In particular:
+
+- [collabs](https://github.com/composablesys/collabs/tree/master/collabs) is the source for the main package, [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs). However, the actual code lives in the [core](https://github.com/composablesys/collabs/tree/master/core) and [crdts](https://github.com/composablesys/collabs/tree/master/crdts) folders, which are the sources of [@collabs/core](https://www.npmjs.com/package/@collabs/core) and [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts), respectively; @collabs/collabs merely re-exports those two packages.
+- [demos/apps](https://github.com/composablesys/collabs/tree/master/demos/apps) is the source of our [demo site](compoventuals-tests.herokuapp.com/).
+- [docs](https://github.com/composablesys/collabs/tree/master/docs) is the source of our [documentation site](https://collabs.readthedocs.io/).
+
+### Developing
 
 Run `npm i` (or `npm ci`, to use pinned package versions) in this folder. That will install all packages in this repo as an [npm workspace](https://docs.npmjs.com/cli/v7/using-npm/workspaces), symlinked so that updates to one package are automatically made available to other packages (once they are built).
 
 When installing dependencies, instead of running `npm i <dependency>` in the relevant package's folder, you should run `npm i <dependency> -w <package>` in this top-level folder. That will ensure that the dependency is installed in the workspace's top-level `node_modules` folder, but it is recorded in the correct package's `package.json`. See [https://docs.npmjs.com/cli/v7/using-npm/workspaces#adding-dependencies-to-a-workspace](https://docs.npmjs.com/cli/v7/using-npm/workspaces#adding-dependencies-to-a-workspace).
 
-If you wish to develop using the published package versions instead of those in this repo, you can skip running `npm i` in this directory and instead do it only in the directory for the package you are working on.
+If you are only making changes to one package, you can skip running `npm i` in this directory and instead do it only in the directory for the package you are working on.
+
+> **Node version** Until [https://github.com/npm/cli/issues/4618](https://github.com/npm/cli/issues/4618) is fixed, you will need to use a slightly old version of NodeJS/npm in order to run top-level commands like `npm run build`. [NodeJS v16.13.1](https://nodejs.org/download/release/v16.13.1/) works.
