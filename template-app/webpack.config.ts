@@ -55,7 +55,7 @@ const config: webpack.Configuration = {
       filename: "index.html",
       // Uses src/index.html as the HTML file.
       // Delete this line if you want to instead use the plugin's default file.
-      template: "./src/app.html",
+      template: "./src/index.html",
     }),
   ],
 };

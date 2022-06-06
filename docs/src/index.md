@@ -1,3 +1,19 @@
+# Collabs Documentation
+
+```{toctree}
+---
+titlesonly:
+hidden:
+maxdepth: 2
+---
+quick_start
+guide/index
+advanced/index
+further_info/index
+packages
+api/index
+```
+
 **Collabs** is a collections library for **collaborative data structures**. These are data structures that look like `Set`, `Map`, `Array`, etc., except they are synchronized between multiple users: when one user changes a collaborative data structure, their changes show up for every other user. You can use them to quickly build collaborative apps along the lines of Google Docs/Sheets/Slides, shared whiteboards, etc.
 
 - [@collabs/collabs npm package](https://www.npmjs.com/package/@collabs/collabs) (see also [All Packages](./packages.html))
