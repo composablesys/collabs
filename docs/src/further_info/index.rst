@@ -8,4 +8,3 @@ Further Info
 
    why
    related_work
-   performance

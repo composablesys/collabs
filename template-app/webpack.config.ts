@@ -48,12 +48,13 @@ const config: webpack.Configuration = {
     extensions: [".tsx", ".ts", ".js"],
   },
   plugins: [
-    // Create an HTML file as the entry point, instead of just
+    // Creates an HTML file as the entry point, instead of just
     // a .js file.
+    // Docs: https://webpack.js.org/plugins/html-webpack-plugin/
     new HtmlWebpackPlugin({
-      filename: "app.html",
-      // Use app.html as the HTML file, instead of
-      // the plugin's default file.
+      filename: "index.html",
+      // Uses src/index.html as the HTML file.
+      // Delete this line if you want to instead use the plugin's default file.
       template: "./src/app.html",
     }),
   ],

@@ -38,7 +38,7 @@ export interface CRDTAppEventsRecord {
  *
  * For networking, whenever this replica sends a message
  * (the "Send" event), that message must be delivered
- * to every other replica's [[recieve]] method, eventually
+ * to every other replica's [[receive]] method, eventually
  * at-least-once.
  *
  * For storage, you must ensure that when a new replica

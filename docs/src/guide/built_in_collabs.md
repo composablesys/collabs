@@ -1,4 +1,4 @@
-# Built-in Collabs
+# Built-In `Collab`s
 
 This page gives an overview of the library's built-in `Collab`s. More detailed info about each data structure can be found in the [API docs](../api/collabs/index.html).
 

@@ -3,5 +3,5 @@
   "description": "A collaborative plain text editor.",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/plaintext"
+  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/plaintext"
 }

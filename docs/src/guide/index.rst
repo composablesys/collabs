@@ -7,11 +7,12 @@ Guide
    :maxdepth: 1
    :caption: Contents:
 
-   walkthrough
-   collaborative_data_structures
-   data_modeling
-   events
-   containers
+   introduction
+   entry_points
    initialization
-   user_presence
+   handling_changes
+   walkthrough
+   built_in_collabs
+   data_modeling
+   containers
    gotchas

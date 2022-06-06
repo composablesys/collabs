@@ -3,5 +3,5 @@
   "description": "A collaborative rich text editor using <a href=\"https://quilljs.com/\">Quill</a>.",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/rich-text"
+  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/rich-text"
 }
