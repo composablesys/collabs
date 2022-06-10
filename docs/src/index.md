@@ -22,6 +22,12 @@ api/index
 - [API](./api/)
 - [Github](https://github.com/composablesys/collabs)
 
+## Install
+
+Using [npm](https://docs.npmjs.com/cli/v8/commands/npm): `npm i --save @collabs/collabs`
+
+Collabs is written in TypeScript and should work in any JavaScript environment (browser, NodeJS, etc.).
+
 ## Demos
 
 [Live demos](https://compoventuals-tests.herokuapp.com/) of collaborative apps built on top of Collabs. [Source code](https://github.com/composablesys/collabs/tree/master/demos)

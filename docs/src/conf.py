@@ -61,3 +61,5 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 
 html_extra_path = ["../generated"]
+
+html_favicon = 'favicon.ico'
