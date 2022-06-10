@@ -3,5 +3,5 @@
   "description": "A collaborative board where you can add tiles containing arbitrary other Collabs apps. E.g., for any app on this site, use the Download link on its More Info page to get a URL/file that you can use to add it as a tile.",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/tile-board"
+  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/tile-board"
 }

@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    /* Target reasonably modern browsers. Downgrade this to e.g. ES6
+        if you need to run on older browsers. */
     "target": "ES2021",
     /* Recommend by Webpack.  If you use dynamic import()
         statements, you should upgrade this to ES2020. */

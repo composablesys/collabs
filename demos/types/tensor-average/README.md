@@ -1,4 +1,4 @@
-# @collabs/tensor-average
+# Collabs tensor-average
 
 Example TensorFlow tensor average CRDT built on top of the Collabs library.
 

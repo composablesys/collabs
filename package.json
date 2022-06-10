@@ -21,24 +21,43 @@
     "demos/types/json-opt",
     "demos/types/tensor-average",
     "demos/apps",
-    "benchmarks"
+    "benchmarks",
+    "docs"
   ],
-  "workspacesNoTest": [
-    "template-container",
-    "template-app"
-  ],
-  "workspacesNoFix": [
-    "template-container",
-    "template-app",
-    "template-custom-type"
-  ],
+  "workspaceLists": {
+    "publish": [
+      "core",
+      "crdts",
+      "collabs",
+      "container",
+      "ws-client",
+      "ws-server",
+      "matrix-widget",
+      "container-testing-server"
+    ],
+    "publishNoTypedoc": [
+      "container-testing-server"
+    ],
+    "noTest": [
+      "template-container",
+      "template-app",
+      "docs"
+    ],
+    "noFix": [
+      "template-container",
+      "template-app",
+      "template-custom-type",
+      "docs"
+    ]
+  },
   "scripts": {
     "start": "npm start --prefix demos/apps",
-    "foreach-workspace": "node foreach-workspace.js",
-    "build": "npm run foreach-workspace \"npm run build --prefix\"",
-    "test": "npm run foreach-workspace \"npm run test --prefix\"",
-    "fix": "npm run foreach-workspace \"npm run fix --prefix\"",
-    "clean": "npm run foreach-workspace \"npm run clean --prefix\"",
+    "build": "node foreach-workspace.js all \"npm run build -w\"",
+    "buildForTypedoc": "node foreach-workspace.js publish -s publishNoTypedoc \"npm run build -w\"",
+    "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
+    "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
+    "publish": "node foreach-workspace.js publish \"npm publish -w\"",
+    "clean": "node foreach-workspace.js all \"npm run clean -w\"",
     "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
   },
   "engines": {

@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
+    /* Target reasonably modern browsers. Downgrade this to e.g. ES6
+        if you need to run on older browsers. */
     "target": "ES2021",
-    /* Recommend by Webpack. */
+    /* Recommend by Webpack.  If you use dynamic import()
+        statements, you should upgrade this to ES2020. */
     "module": "ES6",
     /* Needed with module: ES6 or else compilation breaks. */
     "moduleResolution": "node",

@@ -65,14 +65,21 @@
     "tile-board",
     "server"
   ],
+  "workspaceLists": {
+    "noTest": [
+      "counter"
+    ],
+    "noFix": [
+      "counter"
+    ]
+  },
   "scripts": {
     "start": "npm start --prefix server",
-    "foreach-workspace": "node foreach-workspace.js",
-    "dev": "npm run foreach-workspace \"npm run dev --prefix\"",
-    "build": "npm run foreach-workspace \"npm run build --prefix\"",
-    "test": "npm run foreach-workspace \"npm run test --prefix\"",
-    "fix": "npm run foreach-workspace \"npm run fix --prefix\"",
-    "clean": "npm run foreach-workspace \"npm run clean --prefix\"",
+    "dev": "node foreach-workspace.js all \"npm run dev -w\"",
+    "build": "node foreach-workspace.js all \"npm run build -w\"",
+    "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
+    "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
+    "clean": "node foreach-workspace.js all \"npm run clean -w\"",
     "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
   },
   "engines": {

@@ -1,47 +1,15 @@
-# Collabs
+# `@collabs/collabs`
 
-**A collections library for collaborative data structures**
+**Collabs** is a collections library for **collaborative data structures**. These are data structures that look like `Set`, `Map`, `Array`, etc., except they are synchronized between multiple users: when one user changes a collaborative data structure, their changes show up for every other user. You can use them to quickly build collaborative apps along the lines of Google Docs/Sheets/Slides, shared whiteboards, etc.
 
-[https://www.npmjs.com/package/@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs)
-
-Collabs is a library for building and using _collaborative data structures_. These are data structures that look like `Set`, `Map`, `Array`, etc., except they are synchronized between multiple users: when one user changes a collaborative data structure, their changes show up for every other user. You can use them to quickly build collaborative apps along the lines of Google Docs/Sheets/Slides, shared whiteboards, etc.
-
-## Quick Start
-
-[Live demos](https://compoventuals-tests.herokuapp.com/) ([source](https://github.com/composablesys/collabs/tree/master/demos))
-
-[Getting Started Guide](https://github.com/composablesys/collabs/tree/master/collabs/docs/getting_started_guide.md)
-
-## Principles
-
-- **Local-first:** Each user always keeps a full copy of the state on their own device and sees their own changes immediately, even when offline. They can then sync up with other users in the background. All users see the same state once they sync up, even if they made simultaneous changes (e.g., two users typing at once).
-- **Network-agnostic:** `collabs` generates messages that you must eventually broadcast to all users, but how is completely up to you and your users: your own server, WebRTC, encrypted [Matrix](matrix.org) room, etc.
-<!-- TODO: link to zero-hosting deployment options (use someone else's); links to docs on each option. Networks page with all options? -->
-- **Flexible and extensible:** At its core, `collabs` is a library _for_ collaborative data structures, not just a library _of_ them (although we provide plenty of those too). So if our data types don't meet your needs, you can create your own or get them from third-party libraries.
-- **Composable**: In particular, we provide techniques to create new types by composing existing ones. Correctness properties compose too!
-- **Keep your data model and type safety:** A core feature of Collabs is that you can organize your collaborative state using reusable, strongly-typed classes. In particular, you can make a single-user app collaborative while preserving its data model and type safety, by directly replacing its frontend data types with collaborative versions.
+**@collabs/collabs** is Collabs's main package. It contains Collabs's core and its built-in collaborative data structures, which are all operation-based [Conflict-free Replicated Data Types (CRDTs)](https://crdt.tech/).
 
 ## Docs
 
-[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs#readme)
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-### API
+[API](https://collabs.readthedocs.io/en/latest/api/collabs)
 
-```
-git clone https://github.com/composablesys/collabs.git
-cd collabs/collabs
-npm i
-npm run build
-```
+## Source Code
 
-Open `docs/typedoc/index.html` in a browser.
-
-## Community
-
-[Discuss over Matrix](https://matrix.to/#/#collabs-library:matrix.org)
-
-## Authors and Acknowledgements
-
-Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at Carnegie Mellon University's Composable Systems Lab.
-
-Matthew Weidner's work on the project is supported by an NDSEG Fellowship sponsored by the US Office of Naval Research.
+This package merely re-exports [@collabs/core](https://www.npmjs.com/package/@collabs/core) and [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts). The actual code lives in their source folders elsewhere in the monorepo: [core](https://github.com/composablesys/collabs/tree/master/core), [crdts](https://github.com/composablesys/collabs/tree/master/crdts).

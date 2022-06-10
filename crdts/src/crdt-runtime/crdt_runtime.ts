@@ -151,6 +151,9 @@ export class CRDTRuntime
    * this to a variable for later use.
    */
   registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
+    if (this._isLoaded) {
+      throw new Error("Already loaded");
+    }
     return this.registry.addChild(name, preCollab);
   }
 

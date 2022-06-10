@@ -1,6 +1,6 @@
 # Collabs benchmarks
 
-Benchmarks for Collabs, with comparisons to [Yjs](https://docs.yjs.dev/) and [Automerge](https://github.com/automerge/).
+Benchmarks for [Collabs](https://collabs.readthedocs.io/), with comparisons to [Yjs](https://docs.yjs.dev/) and [Automerge](https://github.com/automerge/).
 
 ## Usage
 

@@ -1,18 +1,13 @@
-# @collabs/ws-client
+# `@collabs/ws-client`
 
-**Collabs WebSocket client**
+Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-[https://www.npmjs.com/package/@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client)
+**@collabs/ws-client** contains the `WebSocketNetwork` class. It connects a `CRDTApp` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server using a WebSocket.
 
 ## Docs
 
-### API
+<!-- TODO: Link to specific docs page instead of whole site -->
 
-```
-git clone https://github.com/composablesys/collabs.git
-cd collabs/ws-client
-npm i
-npm run build
-```
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-Open `docs/index.html.`
+[API](https://collabs.readthedocs.io/en/latest/api/ws-client)

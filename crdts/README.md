@@ -1,24 +1,13 @@
-# @collabs/crdts
+# `@collabs/crdts`
 
-**Collabs CRDTs**
+Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-[https://www.npmjs.com/package/@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts)
-
-This package includes the Collabs library's built-in Conflict-free Replicated Data Types (CRDTs).
+**@collabs/crdts** includes the library's built-in built-in collaborative data structures, which are all operation-based [Conflict-free Replicated Data Types (CRDTs)](https://crdt.tech/).
 
 For local-first collaborative apps (Collabs's main use case), it is easier to import [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs), which re-exports this package plus [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts). This package exists to separate out the CRDTs from [@collabs/core](https://www.npmjs.com/package/@collabs/core), which contains the parts of Collabs that generalize beyond CRDTs.
 
 ## Docs
 
-[Docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/)
+See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-### API
-
-```
-git clone https://github.com/composablesys/collabs.git
-cd collabs/CRDTs
-npm i
-npm run build
-```
-
-Open `docs/index.html.`
+[API](https://collabs.readthedocs.io/en/latest/api/crdts)

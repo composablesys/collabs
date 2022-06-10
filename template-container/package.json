@@ -22,9 +22,9 @@
     "webpack-cli": "^4.8.0"
   },
   "scripts": {
-    "start": "container-testing-server dist/my_container.html",
+    "start": "container-testing-server dist/MY_CONTAINER.html",
     "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool inline-nosources-source-map",
     "clean": "rimraf dist"
   }
 }

@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^3.0.2",
+    "typedoc": "^0.22.15"
+  },
+  "scripts": {
+    "build": "npm-run-all build:*",
+    "build:typedoc": "node ../foreach-workspace.js publish -s publishNoTypedoc \"npm run build:typedoc:one --\"",
+    "build:typedoc:one": "bash -c 'typedoc --options typedoc.json --out generated/api/${1} ../${1}/src/index.ts --tsconfig ../${1}/tsconfig.json' @",
+    "build:sphinx": "make html",
+    "clean": "npm-run-all clean:*",
+    "clean:typedoc": "rimraf generated",
+    "clean:sphinx": "make clean"
+  }
+}

@@ -10,7 +10,7 @@ const config: webpack.Configuration = {
     innerGraph: true,
     sideEffects: true,
   },
-  entry: "./src/my_app.ts",
+  entry: "./src/app.ts",
   output: {
     filename: "[name].js",
     path: path.resolve(__dirname, "dist"),
@@ -48,13 +48,14 @@ const config: webpack.Configuration = {
     extensions: [".tsx", ".ts", ".js"],
   },
   plugins: [
-    // Create an HTML file as the entry point, instead of just
+    // Creates an HTML file as the entry point, instead of just
     // a .js file.
+    // Docs: https://webpack.js.org/plugins/html-webpack-plugin/
     new HtmlWebpackPlugin({
-      filename: "my_app.html",
-      // Use my_app.html as the HTML file, instead of
-      // the plugin's default file.
-      template: "./src/my_app.html",
+      filename: "index.html",
+      // Uses src/index.html as the HTML file.
+      // Delete this line if you want to instead use the plugin's default file.
+      template: "./src/index.html",
     }),
   ],
 };

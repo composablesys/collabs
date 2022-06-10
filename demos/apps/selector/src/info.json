@@ -3,5 +3,5 @@
   "description": "Lets the user select a <a href=\"https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md\">Collabs container</a> from a link or a file, then download the container as a file for safekeeping or sharing.",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/selector"
+  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/selector"
 }
