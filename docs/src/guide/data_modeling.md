@@ -4,8 +4,12 @@ Collabs is designed to let you create custom type-safe collaborative data models
 
 In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. You can even publish them as [Custom Types](./custom_types.md) for others to use.
 
-> **Aside:** Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data structures", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.  
-> Of course, from the library's perspective, there is no difference. Indeed, many of our built-in "data structures" are actually implemented on top of other data structures using the techniques described here.
+<details>
+<summary>Aside</summary>
+Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data structures", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.  
+
+ Of course, from the library's perspective, there is no difference. Indeed, many of our built-in "data structures" are actually implemented on top of other data structures using the techniques described here.
+</details>
 
 ## Process
 
