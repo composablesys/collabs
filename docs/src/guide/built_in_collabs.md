@@ -10,9 +10,9 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 | Ordinary type `X`                                | Collaborative version `C(X)`                                              | Alternatives (Interface)                                                               |
 | ------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [Custom class w/ fixed properties](#cobjects-vs-ordinary-objects)                 | [`CObject`](../api/collabs/classes/CObject.html)                          |
+| Custom class w/ fixed properties               | [`CObject`](../api/collabs/classes/CObject.html)                          |
 | `Set<T>`, `T` [immutable](#immutable-value-collections)                          | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               | [`CSet<T>`](../api/collabs/interfaces/CSet.html) implementations              |
-| `Set<T>`, `T` mutable                            | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    | [`CSet<C(T)>`](../api/collabs/interfaces/CSet.html) implementations           |
+| `Set<T>`, `T` [mutable](#mutable-value-collections)                           | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    | [`CSet<C(T)>`](../api/collabs/interfaces/CSet.html) implementations           |
 | `Map<K, V>`, `V` [immutable](#immutable-value-collections)                       | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    | [`CMap<K, V>`](../api/collabs/interfaces/CMap.html) implementations           |
 | `Map<K, V>`, `V` [mutable](#mutable-value-collections)                         | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](../api/collabs/interfaces/CMap.html) implementations        |
 | [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)                        | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         | [`CList<T>`](../api/collabs/interfaces/CList.html) implementations            |
