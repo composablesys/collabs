@@ -1,4 +1,4 @@
-# Built-In `Collab`s
+# Built-In `Collab`s and Typess
 
 This page gives an overview of the library's built-in `Collab`s. More detailed info about each data structure can be found in the [API docs](../api/collabs/index.html).
 
@@ -8,22 +8,22 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 <!-- TODO: interface "of" methods as shortcut. -->
 
-| Ordinary type `X`                                | Collaborative version `C(X)`                                              | Alternatives                                                                  |
+| Ordinary type `X`                                | Collaborative version `C(X)`                                              | Alternatives (Interface)                                                               |
 | ------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Custom class w/ fixed properties                 | [`CObject`](../api/collabs/classes/CObject.html)                          |
-| `Set<T>`, `T` immutable                          | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               | [`CSet<T>`](../api/collabs/interfaces/CSet.html) implementations              |
+| [Custom class w/ fixed properties](#cobjects-vs-ordinary-objects)                 | [`CObject`](../api/collabs/classes/CObject.html)                          |
+| `Set<T>`, `T` [immutable](#immutable-value-collections)                          | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               | [`CSet<T>`](../api/collabs/interfaces/CSet.html) implementations              |
 | `Set<T>`, `T` mutable                            | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    | [`CSet<C(T)>`](../api/collabs/interfaces/CSet.html) implementations           |
-| `Map<K, V>`, `V` immutable                       | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    | [`CMap<K, V>`](../api/collabs/interfaces/CMap.html) implementations           |
-| `Map<K, V>`, `V` mutable                         | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](../api/collabs/interfaces/CMap.html) implementations        |
-| `Array<T>`, `T` immutable                        | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         | [`CList<T>`](../api/collabs/interfaces/CList.html) implementations            |
-| `Array<T>`, `T` mutable                          | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)     | [`CList<C(T)>`](../api/collabs/interfaces/CList.html) implementations         |
-| \*(Any immutable `T`) (as opaque value)          | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)             | [`CVariable<T>`](../api/collabs/interfaces/CVariable.html) implementations    |
-| \*(Any mutable `T`) (as opaque value)            | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)    | [`CVariable<C(T)>`](../api/collabs/interfaces/CVariable.html) implementations |
+| `Map<K, V>`, `V` [immutable](#immutable-value-collections)                       | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    | [`CMap<K, V>`](../api/collabs/interfaces/CMap.html) implementations           |
+| `Map<K, V>`, `V` [mutable](#mutable-value-collections)                         | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](../api/collabs/interfaces/CMap.html) implementations        |
+| [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)                        | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         | [`CList<T>`](../api/collabs/interfaces/CList.html) implementations            |
+| [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)                          | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)     | [`CList<C(T)>`](../api/collabs/interfaces/CList.html) implementations         |
+| \*(Any [immutable](#immutable-value-collections)   `T`) (as opaque value)          | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)             | [`CVariable<T>`](../api/collabs/interfaces/CVariable.html) implementations    |
+| \*(Any [mutable](#mutable-value-collections) `T`) (as opaque value)            | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)    | [`CVariable<C(T)>`](../api/collabs/interfaces/CVariable.html) implementations |
 | \*`boolean`                                      | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        | [`CBoolean`](../api/collabs/interfaces/CBoolean.html) implementations         |
 | \*`number` (for counting or adding)              | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
 | \*`number` (for counting, adding, and resetting) | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html)    |
 | \*`number` (for general arithmetic)              | [`CNumber`](../api/collabs/classes/CNumber.html)                          |
-| \*`string` (as text)                             | [`CText`](../api/collabs/classes/CText.html)                              |
+| \*`string` (as texts in a text box with cursor)                             | [`CText`](../api/collabs/classes/CText.html)                              |
 
 \*`X` denotes a _variable holding type `X`_, or alternatively a mutable wrapper object `{ value: X }`. E.g., `CCounter` is the collaborative version of an object that you can mutate in-place by calling e.g. `obj.add(3)` and that you can read by calling `obj.value`.
 
