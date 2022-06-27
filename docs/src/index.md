@@ -7,6 +7,7 @@ hidden:
 maxdepth: 2
 ---
 quick_start
+walkthrough
 guide/index
 advanced/index
 further_info/index
