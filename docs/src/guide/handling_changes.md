@@ -44,4 +44,4 @@ Sometimes you want to know not just that _something_ changed, but _what specific
 
 We've finished describing the three [wrinkles](./introduction.html#using-collabs) from the introduction. You now know enough to start using Collabs for real - congrats!
 
-The [Walkthrough of Quick Start](./walkthrough.html) puts everything together. After that, the Guide continues with some pages that are not necessary but often useful.
+The [Walkthrough of Quick Start](../walkthrough.html) puts everything together. After that, the Guide continues with some pages that are not necessary but often useful.

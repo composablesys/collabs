@@ -87,4 +87,4 @@ There are a few extra wrinkles when using Collabs, relative to using ordinary (n
 
 Continue following the Guide with [Entry Points](./entry_points.html).
 
-Or, if you are impatient, skip to the [Walkthrough of Quick Start](./walkthrough.html) to see how everything fits together in a complete app.
+Or, if you are impatient, skip to the [Walkthrough of Quick Start](../walkthrough.html) to see how everything fits together in a complete app.
