@@ -1,0 +1,3 @@
+message CollabIDMessage {
+    repeated string pathToBase = 1;
+}
