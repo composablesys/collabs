@@ -17,26 +17,22 @@ import {
 } from "../../generated/proto_compiled";
 
 /**
- * Warning: when you delete a Collab, it is "frozen":
- * local ops will go through locally but not be replicated.
- * (Specifically, messages will be sent as usual, but remote replicas
- * of this set won't deliver to the child if they think it's deleted.)
- * Restore not allowed (2P-set semantics).
+ * A set of mutable values, each represented by a [[Collab]] of type `C`.
  *
- * Warning: in given constructor/its init function,
- * be careful not to use replica-specific info
- * (replicaID, runtime.getReplicaUniqueNumber()) -
- * it won't be consistent on different replicas.
- * If you need these, you must pass them yourself as
- * constructor args.  Likewise, if you are passed in a
- * reference to another Collab, don't use its state to
- * set other parts of your own state; any such state
- * must instead be passed as a separate non-Collab
- * constructor arg.
+ * Because the values are Collabs, you can't add a new value by sending
+ * it over the network directly. Instead, you supply arbitrary AddArgs
+ * to [[add]], which sends those values over the network. Then all replicas
+ * construct the actual value - replicas of a new Collab - by calling
+ * the `valueConstructor` callback that you supply in the constructor.
+ * See the constructor's docs for an example.
+ *
+ * When a value is deleted with [[delete]], it is deleted permanently and
+ * can no longer be used; future and concurrent operations on that value
+ * are ignored. See [[ArchivingMutCSet]] for an alternative semantics.
  */
 export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractCSetCollab<C, AddArgs>
-  implements ICollabParent
+  implements ICollabParent 
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
@@ -44,12 +40,40 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   private readonly initialValuesCount: number;
 
   /**
-   * [constructor description]
-   * @param initToken                [description]
-   * @param valueConstructor [description]
-   * @param initialValues TODO: experimental. To get the created values,
-   * call this.value() right after construction.  The
-   * iterator will return them in the order given by initialValuesArgs.
+   * Constructs a [[DeletingMutCSet]] with the given valueConstructor and
+   * optional arguments.
+   *
+   * The valueConstructor is a callback used to construct newly inserted
+   * values. It takes arbitrary AddArgs, plus an [[InitToken]], and returns
+   * a new value replica. For example, with value type [[CCounter]],
+   * and taking an initial value as
+   * the AddArgs (`AddArgs = [initialValue: number]`):
+   * ```
+   * import * as collabs from "@collabs/collabs";
+   * // ...
+   *
+   * function valueConstructor(valueInitToken: collabs.InitToken, initialValue: number) {
+   *   return new collabs.CCounter(valueInitToken, initialValue);
+   * }
+   * // app is a CRDTApp or CRDTContainer
+   * const set = app.registerCollab(
+   *   "set",
+   *   (initToken) => new collabs.DeletingMutCSet(initToken, valueConstructor)
+   * );
+   * ```
+   * Then when any replica calls `list.add(initialValue)`, e.g. in response to
+   * a user button click, all replicas run `valueConstructor` to create
+   * a new counter value. These values are all linked, i.e., they
+   * start with the same value (`initialValue`) and replicate each other's operations.
+   *
+   * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
+   *
+   * @param initToken         [description]
+   * @param valueConstructor  [description]
+   * @param initialValuesArgs = [] Optional, use this to specify AddArgs for
+   * initial values that are present when the list is created.
+   * @param argsSerializer = DefaultSerializer.getInstance() Optional,
+   * use this to specify a custom [[Serializer]] for InsertArgs.
    */
   constructor(
     initToken: InitToken,
