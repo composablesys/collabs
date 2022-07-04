@@ -1,6 +1,7 @@
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
 export interface CVariableEvent<T> extends CollabEvent {
+  value: T;
   previousValue: T;
 }
 
@@ -46,8 +47,8 @@ export interface CVariable<
    *
    * @return The set value, or undefined if it is not
    * yet constructed. Implementations that always construct
-   * the value immediately should get rid of the "undefined"
-   * case.
+   * the value immediately should override this method and remove
+   * the "undefined" case.
    */
   set(...args: SetArgs): T | undefined;
 
@@ -55,13 +56,12 @@ export interface CVariable<
    * Returns the current value.
    *
    * Implementations in which set takes the actual set
-   * value of type T (i.e., SetArgs = [T]) should make
-   * value writable, so that this.value = x is an alias
-   * for this.set(x).  Note that if you add that setter
-   * in a subclass of a class defining this getter, you
-   * must also define the getter as "return super.value".
-   * Otherwise, the setter will cover it up, causing the getter
-   * to always return undefined.
+   * value of type T (i.e., SetArgs = [T]) should add a
+   * property setter for value, so that `this.value = x` is an alias
+   * for `this.set(x)`. Note that when adding such a setter,
+   * you must also add a getter even if your superclass already defines
+   * one (e.g., `get value() { return super.value; }`); see
+   * [here](https://stackoverflow.com/questions/28950760/).
    */
   readonly value: T;
 }

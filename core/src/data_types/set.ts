@@ -30,13 +30,12 @@ export interface CSetEvent<T> extends CollabEvent {
 
 export interface CSetEventsRecord<T> extends CollabEventsRecord {
   /**
-   * Only emit when the value is actually new
+   * Only emitted when the value is actually new
    * (was not previously present).
    */
   Add: CSetEvent<T>;
   /**
-   * Only emit when the value is actually gotten
-   * rid of
+   * Only emitted when the value is actually deleted
    * (was previously present).
    */
   Delete: CSetEvent<T>;
@@ -108,25 +107,4 @@ export interface CSet<
    * it may differ on replicas with the same state.
    */
   values(): IterableIterator<T>;
-
-  // entries() and keys() are excluded because they are redundant and don't
-  // seem useful, even though they are included in the ES6 Set class.
-  // /**
-  //  * Returns an iterable of [v,v] pairs for every value `v` in the set. Order is not eventually consistent.
-  //  */
-  // entries(): IterableIterator<[T, T]>;
-  //
-  // /**
-  //  * Despite its name, returns an iterable of the values in the set. Order is not eventually consistent.
-  //  */
-  // keys(): IterableIterator<T>;
-
-  // Only include this in implementations where it makes sense.
-  // /**
-  //  * Makes the given value present in the set.
-  //  *
-  //  * This method can be used to restore deleted elements, but
-  //  * it cannot add new elements to the set.
-  //  */
-  // restore(value: T): this;
 }
