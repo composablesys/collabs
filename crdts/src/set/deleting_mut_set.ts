@@ -32,7 +32,7 @@ import {
  */
 export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractCSetCollab<C, AddArgs>
-  implements ICollabParent 
+  implements ICollabParent
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls

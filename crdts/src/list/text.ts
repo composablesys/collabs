@@ -34,7 +34,7 @@ export interface CTextEventsRecord extends CollabEventsRecord {
 
 export class CText
   extends CPrimitive<CTextEventsRecord>
-  implements PositionedList 
+  implements PositionedList
 {
   private readonly positionSource: ListPositionSource<string>;
   /**
