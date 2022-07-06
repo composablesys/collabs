@@ -57,6 +57,15 @@ export class CText
 
   // OPT: optimize bulk methods.
 
+  /**
+   * Insert the given substring starting at index.
+   *
+   * Existing characters at `>= index` are shifted `values.length`
+   * spots to the right.
+   *
+   * @param index   [description]
+   * @param values  [description]
+   */
   insert(index: number, values: string): void {
     if (values.length === 0) return undefined;
 
@@ -77,6 +86,16 @@ export class CText
     this.sendPrimitive(CTextMessage.encode(message).finish());
   }
 
+  /**
+   * Delete count characters starting at startIndex, i.e., characters
+   * [startIndex, startIndex + count - 1).
+   *
+   * Characters at `>= startIndex + count` are shifted count spots to the
+   * left.
+   *
+   * @param startIndex  [description]
+   * @param count=1     [description]
+   */
   delete(startIndex: number, count = 1): void {
     if (startIndex < 0) {
       throw new Error(`startIndex out of bounds: ${startIndex}`);
@@ -192,6 +211,9 @@ export class CText
     return this.positionSource.length;
   }
 
+  /**
+   * @return the text as an ordinary string
+   */
   toString(): string {
     let ans = "";
     for (const item of this.positionSource.items()) {

@@ -41,7 +41,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    collabs.Pre(collabs.CCounter)()
+    (initToken) => new collabs.CCounter(initToken)
   );
 
   // Refresh the display when the Collabs state changes, possibly
@@ -104,23 +104,14 @@ For this simple app, there is just one `Collab`, a `CCounter`.
 ```ts
 const counter = container.registerCollab(
   "counter",
-  collabs.Pre(collabs.CCounter)()
+  (initToken) => new collabs.CCounter(initToken)
 );
 ```
 
 A few things to note here:
 
 - The first argument to `registerCollab` is a _name_ for the `Collab`, used to identify it across different users. This can be arbitrary, but it's easiest to use the same name as the variable used to store the `Collab`. Each call to `registerCollab` must use a unique name.
-- We don't call `CCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.CCounter)` with the rest of `CCounter`'s constructor arguments - in this case, `()`. `registerCollab` then returns the actual constructed `CCounter`.
-  In general, when constructing `Collab`s, you use `Pre` instead of `new` in this way. I.e.:
-  ```ts
-  Pre(class_name)<generic types>(constructor args)
-  ```
-  instead of
-  ```ts
-  new class_name<generic types>(constructor args)
-  ```
-  [Initialization](./guide/initialization.md) goes into more detail later in the guide.
+- We don't call `CCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we provide a callback function that gets the `InitToken`, _then_ constructs (and returns) the `CCounter`. `registerCollab` calls this function internally and returns the constructed `CCounter`, which we store in `counter`. [Initialization](./guide/initialization.md) explains the rationale for this pattern later in the guide.
 
 ### 3. Update Display on Events
 

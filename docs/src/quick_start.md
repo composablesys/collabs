@@ -19,8 +19,6 @@ In this quick start, you will make a collaborative counter app: a webpage where 
 
 4. Open `src/app.ts`. Replace the file with the TypeScript code below. This code connects the display area and increment button to a Collabs `CCounter`---a collaborative counter.
 
-
-
 ```ts
 import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
@@ -34,7 +32,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    collabs.Pre(collabs.CCounter)()
+    (initToken) => new collabs.CCounter(initToken)
   );
 
   // Refresh the display when the Collabs state changes, possibly
@@ -62,10 +60,7 @@ import { CRDTContainer } from "@collabs/container";
   // Signal to the container host that we're ready for use.
   container.ready();
 })();
-
-
 ```
-
 
 5. Save both files, then in the terminal (still in the template's root folder), build your app in development mode: `npm run dev`.
 

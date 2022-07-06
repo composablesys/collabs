@@ -6,9 +6,10 @@ In addition to making data models for entire apps, you can make reusable data mo
 
 <details>
 <summary>Aside</summary>
-Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data structures", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.  
+Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data structures", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.
 
- Of course, from the library's perspective, there is no difference. Indeed, many of our built-in "data structures" are actually implemented on top of other data structures using the techniques described here.
+Of course, from the library's perspective, there is no difference. Indeed, many of our built-in "data structures" are actually implemented on top of other data structures using the techniques described here.
+
 </details>
 
 ## Process
@@ -67,9 +68,9 @@ boardState.set([x, y], color);
 **Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `LWWCMap<[x: number, y: number], string>`:
 
 ```ts
-const boardState = runtime.registerCollab(
+const boardState = container.registerCollab(
   "whiteboard",
-  collabs.Pre(collabs.LWWCMap)<[x: number, y: number], string>()
+  (initToken) => new collabs.LWWCMap<[x: number, y: number], string>(initToken)
 );
 ```
 
@@ -162,23 +163,23 @@ Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That le
 
 ```ts
 class CTile extends collabs.CObject {
-  readonly revealed: collabs.TrueWinsCBoolean;
-  readonly flag: collabs.LWWCVariable<FlagStatus>;
+  private readonly revealed: collabs.TrueWinsCBoolean;
+  private readonly flag: collabs.LWWCVariable<FlagStatus>;
   readonly isMine: boolean;
-  readonly number: number;
+  number: number = 0;
 
-  constructor(initToken: collabs.InitToken, isMine: boolean, number: number) {
+  constructor(initToken: collabs.InitToken, isMine: boolean) {
     super(initToken);
     this.revealed = this.addChild(
       "revealed",
-      collabs.Pre(collabs.TrueWinsCBoolean)()
+      (initToken) => new collabs.TrueWinsCBoolean(initToken)
     );
     this.flag = this.addChild(
       "flag",
-      collabs.Pre(collabs.LWWCVariable)<FlagStatus>(FlagStatus.NONE)
+      (initToken) =>
+        new collabs.LWWCVariable<FlagStatus>(initToken, FlagStatus.NONE)
     );
     this.isMine = isMine;
-    this.number = number;
   }
 
   // Methods...
@@ -192,7 +193,7 @@ First, we cannot use randomness in the constructor: per [Initialization](./initi
 Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` implementations, there is actually no need for us to use a `CList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./types.md).)
 
 ```ts
-class MinesweeperCollab extends collabs.CObject {
+class CMinesweeper extends collabs.CObject {
   readonly tiles: CTile[][];
   readonly width: number;
   readonly height: number;
@@ -207,20 +208,24 @@ class MinesweeperCollab extends collabs.CObject {
     seed: string
   ) {
     super(initToken);
-    const rng = seedrandom(seed);
-    // Use rng to plan out a width X height board having
-    // fractionMines mines and with the starting tile
-    // (startX, startY) guaranteed safe, accessed using
-    // this.isMine(x, y) and this.number(x, y).
-    // ...
-    // Setup tiles.
+
+    this.width = width;
+    this.height = height;
+
+    // Adjust fractionMines to account for fact that start
+    // won't be a mine
+    const size = width * height;
+    if (size > 1) fractionMines *= size / (size - 1);
+    // Place mines and init tiles
     this.tiles = new Array<CTile[]>(width);
     for (let x = 0; x < width; x++) {
       this.tiles[x] = new Array<CTile>(height);
       for (let y = 0; y < height; y++) {
+        const isMine =
+          x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
-          x + ":" + y, // Unique name
-          collabs.Pre(CTile)(this.isMine(x, y), this.number(x, y))
+          x + ":" + y,
+          (initToken) => new CTile(initToken, isMine)
         );
       }
     }
@@ -233,11 +238,13 @@ class MinesweeperCollab extends collabs.CObject {
 Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LWWMutCVariable<CMinesweeper>` because the game is internally mutable:
 
 ```ts
-const currentGame = runtime.registerCollab(
+const currentGame = container.registerCollab(
   "currentGame",
-  collabs.Pre(collabs.LWWMutCVariable)(
-    collabs.ConstructorAsFunction(CMinesweeper)
-  )
+  (initToken) =>
+    new collabs.LWWMutCVariable(
+      initToken,
+      collabs.ConstructorAsFunction(CMinesweeper)
+    )
 );
 ```
 

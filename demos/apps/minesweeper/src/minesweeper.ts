@@ -24,21 +24,24 @@ enum TileStatus {
   REVEALED_MINE,
 }
 
-class TileCollab extends collabs.CObject {
+class CTile extends collabs.CObject {
   private readonly revealed: collabs.TrueWinsCBoolean;
   private readonly flag: collabs.LWWCVariable<FlagStatus>;
+  readonly isMine: boolean;
   number: number = 0;
 
-  constructor(initToken: collabs.InitToken, readonly isMine: boolean) {
+  constructor(initToken: collabs.InitToken, isMine: boolean) {
     super(initToken);
     this.revealed = this.addChild(
       "revealed",
-      collabs.Pre(collabs.TrueWinsCBoolean)()
+      (initToken) => new collabs.TrueWinsCBoolean(initToken)
     );
     this.flag = this.addChild(
       "flag",
-      collabs.Pre(collabs.LWWCVariable)<FlagStatus>(FlagStatus.NONE)
+      (initToken) =>
+        new collabs.LWWCVariable<FlagStatus>(initToken, FlagStatus.NONE)
     );
+    this.isMine = isMine;
   }
 
   reveal() {
@@ -90,34 +93,40 @@ enum GameStatus {
   LOST,
 }
 
-class MinesweeperCollab extends collabs.CObject {
-  readonly tiles: TileCollab[][];
+class CMinesweeper extends collabs.CObject {
+  readonly tiles: CTile[][];
+  readonly width: number;
+  readonly height: number;
 
   constructor(
     initToken: collabs.InitToken,
-    readonly width: number,
-    readonly height: number,
+    width: number,
+    height: number,
     fractionMines: number,
     startX: number,
     startY: number,
     seed: string
   ) {
     super(initToken);
+
+    this.width = width;
+    this.height = height;
+
     // Adjust fractionMines to account for fact that start
     // won't be a mine
     const size = width * height;
     if (size > 1) fractionMines *= size / (size - 1);
     // Place mines and init tiles
     const rng = seedrandom(seed);
-    this.tiles = new Array<TileCollab[]>(width);
+    this.tiles = new Array<CTile[]>(width);
     for (let x = 0; x < width; x++) {
-      this.tiles[x] = new Array<TileCollab>(height);
+      this.tiles[x] = new Array<CTile>(height);
       for (let y = 0; y < height; y++) {
         const isMine =
           x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
           x + ":" + y,
-          collabs.Pre(TileCollab)(isMine)
+          (initToken) => new CTile(initToken, isMine)
         );
       }
     }
@@ -260,7 +269,7 @@ class MinesweeperCollab extends collabs.CObject {
         box.className = "cell";
         box.id = "row_" + y.toString() + "_" + x.toString();
         if (currentState.value === "game") {
-          let game = state as MinesweeperCollab;
+          let game = state as CMinesweeper;
           let tile = game.tiles[x][y];
           box.addEventListener("click", (event) => {
             if (event.button === 0) game.leftClick(x, y);
@@ -346,8 +355,8 @@ class MinesweeperCollab extends collabs.CObject {
       board.appendChild(row);
     }
 
-    if (state instanceof MinesweeperCollab) {
-      let game = state as MinesweeperCollab;
+    if (state instanceof CMinesweeper) {
+      let game = state as CMinesweeper;
       switch (game.winStatus()) {
         case GameStatus.WON:
           winText.innerHTML = "You won!";
@@ -392,19 +401,22 @@ class MinesweeperCollab extends collabs.CObject {
 
   const currentGame = container.registerCollab(
     "currentGame",
-    collabs.Pre(collabs.LWWMutCVariable)(
-      collabs.ConstructorAsFunction(MinesweeperCollab)
-    )
+    (initToken) =>
+      new collabs.LWWMutCVariable(
+        initToken,
+        collabs.ConstructorAsFunction(CMinesweeper)
+      )
   );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    collabs.Pre(collabs.LWWCVariable)(settingsFromInput())
+    (initToken) => new collabs.LWWCVariable(initToken, settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    collabs.Pre(collabs.LWWCVariable)<"game" | "settings">("settings")
+    (initToken) =>
+      new collabs.LWWCVariable<"game" | "settings">(initToken, "settings")
   );
 
   container.on("Change", invalidate);
