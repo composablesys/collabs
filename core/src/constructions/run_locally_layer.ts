@@ -70,14 +70,8 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     let metaCopy: MessageMeta;
     if (meta === null) {
       metaCopy = <MessageMeta>this.getContext(MessageMeta.NEXT_MESSAGE_META);
-      if (metaCopy === undefined) {
-        throw new Error(
-          "Cannot use null meta: " +
-            "no ancestor provided MessageMeta.NEXT_MESSAGE_META context"
-        );
-      }
     } else {
-      metaCopy = { ...meta, isLocalEcho: true };
+      metaCopy = meta.setIsEcho(true);
     }
     this.runLocallyMeta = metaCopy;
     try {

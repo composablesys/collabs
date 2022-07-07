@@ -69,6 +69,19 @@ export class MessageMeta {
   }
 
   /**
+   * Set [[isEcho]]]], returning a new [[MessageMeta]]
+   * while leaving this unchanged.
+   */
+  setIsEcho(isEcho: boolean): MessageMeta {
+    return new MessageMeta(
+      this.sender,
+      this.isLocalUser,
+      isEcho,
+      new Map(this.extra)
+    );
+  }
+
+  /**
    * Returns a new [[MessageMeta]] with the given metadata and no
    * extra metadata keys.
    */

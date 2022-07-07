@@ -145,11 +145,8 @@ export class BatchingLayer
    */
   private pendingBatch: BatchInfo | Message[] | null = null;
 
-  constructor(
-    initToken: InitToken,
-    private batchingStrategy: BatchingStrategy
-  ) {
-    super(initToken);
+  constructor(init: InitToken, private batchingStrategy: BatchingStrategy) {
+    super(init);
     this.batchingStrategy.start(this);
   }
 
@@ -198,7 +195,7 @@ export class BatchingLayer
           " did you try to perform an operation in an event handler?"
       );
     }
-    const meta = this.getMessageMeta();
+    const meta = <MessageMeta>this.getContext(MessageMeta.NEXT_MESSAGE_META);
     this.inChildReceive = true;
     try {
       // Need to copy messagePath since receive mutates it but
@@ -244,15 +241,6 @@ export class BatchingLayer
     this.emit("DebugSend", { meta }, false);
   }
 
-  private getMessageMeta(): MessageMeta {
-    return (
-      <MessageMeta>this.getContext(MessageMeta.NEXT_MESSAGE_META) ?? {
-        sender: this.runtime.replicaID,
-        isLocalEcho: true,
-      }
-    );
-  }
-
   /**
    * Assumes this.pendingBatch has type BatchInfo.
    */
@@ -281,6 +269,15 @@ export class BatchingLayer
       vertex = nextVertex;
     }
     pendingBatch.messages.push(vertex);
+  }
+
+  /**
+   * No added context.
+   *
+   * @return undefined
+   */
+  getAddedContext(_key: symbol): unknown {
+    return undefined;
   }
 
   /**
@@ -383,19 +380,9 @@ export class BatchingLayer
     this.send([serialized]);
   }
 
-  /**
-   * Added context: [[MessageMeta.NEXT_MESSAGE_META]].
-   */
-  getAddedContext(key: symbol): unknown {
-    if (key === MessageMeta.NEXT_MESSAGE_META) {
-      return this.getMessageMeta();
-    }
-    return undefined;
-  }
-
   receive(messagePath: Message[], meta: MessageMeta): void {
     // We do our own local echo.
-    if (meta.isLocalEcho) return;
+    if (meta.isEcho) return;
 
     if (messagePath.length !== 1) {
       throw new Error(
@@ -434,11 +421,14 @@ export class BatchingLayer
 
     if (deserialized.messages.length === 0) {
       // Single message case. edgeLabels is the literal single message.
-      meta[BatchingLayer.BATCH_SIZE_KEY] = 1;
+      meta = meta.set(BatchingLayer.BATCH_SIZE_KEY, 1);
       this.deliver(edgeLabels, meta);
     } else {
       // BatchInfo case. Use full deserialized message.
-      meta[BatchingLayer.BATCH_SIZE_KEY] = deserialized.messages.length;
+      meta = meta.set(
+        BatchingLayer.BATCH_SIZE_KEY,
+        deserialized.messages.length
+      );
       for (const messageVertex of deserialized.messages) {
         // Reconstruct vertex's messagePath.
         const childMessagePath: (Uint8Array | string)[] = [];
@@ -469,17 +459,9 @@ export class BatchingLayer
     try {
       this.child.receive(childMessagePath, meta);
     } catch (err) {
-      // Don't let the error block other messages' delivery
-      // or affect the deliverer,
-      // but still make it print
-      // its error like it was unhandled.
-      // Note we know the message is not a local echo.
-      void Promise.resolve().then(() => {
-        throw err;
-      });
-    } finally {
-      this.inChildReceive = false;
+      console.error("Error while receiving remote Collabs message:\n", err);
     }
+    this.inChildReceive = false;
   }
 
   /**
