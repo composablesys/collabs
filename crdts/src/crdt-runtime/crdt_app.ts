@@ -4,7 +4,6 @@ import {
   CollabEvent,
   EventEmitter,
   Optional,
-  Pre,
   InitToken,
 } from "@collabs/core";
 import { CRDTRuntime, SendEvent } from "./crdt_runtime";
