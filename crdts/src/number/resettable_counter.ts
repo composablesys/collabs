@@ -16,19 +16,20 @@ import {
 } from "../../generated/proto_compiled";
 import { PrimitiveCRDT } from "../constructions";
 
-export interface ResettableCCounterEvent extends CollabEvent {
-  readonly arg: number;
+export interface ResettableCCounterAddEvent extends CollabEvent {
+  readonly added: number;
+  readonly value: number;
+  readonly previousValue: number;
+}
+
+export interface ResettableCCounterResetEvent extends CollabEvent {
+  readonly value: number;
   readonly previousValue: number;
 }
 
 export interface ResettableCCounterEventsRecord extends CollabEventsRecord {
-  Add: ResettableCCounterEvent;
-  /**
-   * arg gives the value "added" to the state
-   * as a result of the reset (e.g., -this.value, if
-   * the reset affected all operations).
-   */
-  Reset: ResettableCCounterEvent;
+  Add: ResettableCCounterAddEvent;
+  Reset: ResettableCCounterResetEvent;
 }
 
 /**
@@ -51,7 +52,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
   /**
    * The current value, cached for efficiency.
    */
-  private valueInternal = 0;
+  private _value = 0;
 
   add(toAdd: number) {
     if (toAdd === 0) return;
@@ -76,10 +77,6 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
       },
     });
     this.sendCRDT(GrowOnlyResettableCCounterMessage.encode(message).finish());
-  }
-
-  inc() {
-    this.add(1);
   }
 
   reset() {
@@ -114,11 +111,12 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
           m[0] += toAdd;
         }
         // Update the cached value.
-        this.valueInternal += toAdd;
+        this._value += toAdd;
         this.emit("Add", {
-          arg: toAdd,
-          meta,
+          added: toAdd,
           previousValue,
+          value: this.value,
+          meta,
         });
         break;
       }
@@ -139,9 +137,9 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
         this.computeValue();
 
         this.emit("Reset", {
-          arg: this.value - previousValue,
-          meta,
+          value: this.value,
           previousValue,
+          meta,
         });
         break;
       default:
@@ -150,17 +148,17 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
   }
 
   /**
-   * Set this.valueInternal directly from this.state.
+   * Set this._value directly from this.state.
    */
   private computeValue(): void {
-    this.valueInternal = 0;
+    this._value = 0;
     for (const m of this.M.values()) {
-      this.valueInternal += m[0] - m[1];
+      this._value += m[0] - m[1];
     }
   }
 
   get value(): number {
-    return this.valueInternal;
+    return this._value;
   }
 
   /**
@@ -222,24 +220,26 @@ export class ResettableCCounter extends CObject<ResettableCCounterEventsRecord> 
   private readonly plus: GrowOnlyResettableCCounter;
   private readonly minus: GrowOnlyResettableCCounter;
 
-  private plusResetEvent?: ResettableCCounterEvent = undefined;
+  private plusResetEvent?: ResettableCCounterResetEvent = undefined;
 
-  constructor(initToken: InitToken) {
-    super(initToken);
+  constructor(init: InitToken) {
+    super(init);
     this.plus = this.addChild("", Pre(GrowOnlyResettableCCounter)());
     this.minus = this.addChild("0", Pre(GrowOnlyResettableCCounter)());
 
     // Events
     this.plus.on("Add", (event) => {
       this.emit("Add", {
-        arg: event.arg,
+        added: event.added,
+        value: this.value,
         previousValue: event.previousValue - this.minus.value,
         meta: event.meta,
       });
     });
     this.minus.on("Add", (event) => {
       this.emit("Add", {
-        arg: -event.arg,
+        added: -event.added,
+        value: this.value,
         previousValue: this.plus.value - event.previousValue,
         meta: event.meta,
       });
@@ -251,10 +251,7 @@ export class ResettableCCounter extends CObject<ResettableCCounterEventsRecord> 
     });
     this.minus.on("Reset", (event) => {
       this.emit("Reset", {
-        // Subtraction without modulo is okay because each
-        // value is in the range [0, MODULUS), so the
-        // difference is in the safe range (-MODULUS, MODULUS).
-        arg: this.plusResetEvent!.arg - event.arg,
+        value: this.value,
         previousValue: this.plusResetEvent!.previousValue - event.previousValue,
         meta: event.meta,
       });
@@ -267,23 +264,12 @@ export class ResettableCCounter extends CObject<ResettableCCounterEventsRecord> 
     else if (toAdd < 0) this.minus.add(-toAdd);
   }
 
-  inc() {
-    this.plus.inc();
-  }
-
-  dec() {
-    this.minus.inc();
-  }
-
   reset() {
     this.plus.reset();
     this.minus.reset();
   }
 
   get value(): number {
-    // Subtraction without modulo is okay because each
-    // value is in the range [0, MODULUS), so the
-    // difference is in the safe range (-MODULUS, MODULUS).
     return this.plus.value - this.minus.value;
   }
 

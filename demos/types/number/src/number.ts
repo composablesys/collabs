@@ -7,14 +7,14 @@ import {
   Pre,
   Message,
   Optional,
-} from "@collabs/core";
-import { CNumberComponentMessage } from "../../generated/proto_compiled";
+  PrimitiveCRDT,
+  ToggleCBoolean,
+} from "@collabs/collabs";
+import { CNumberComponentMessage } from "../generated/proto_compiled";
 import {
   MultipleSemidirectProduct,
   StatefulCRDT,
-} from "../constructions/multiple_semidirect_product";
-import { ToggleCBoolean } from "../boolean";
-import { PrimitiveCRDT } from "../constructions";
+} from "./multiple_semidirect_product";
 
 export interface CNumberEvent extends CollabEvent {
   readonly arg: number;
@@ -42,8 +42,8 @@ export class AddComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -89,8 +89,8 @@ export class MultComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -136,8 +136,8 @@ export class MinComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -181,8 +181,8 @@ export class MaxComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -229,8 +229,8 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   maxCRDT: MaxComponent;
   addCRDT: AddComponent;
   multCRDT: MultComponent;
-  constructor(initToken: InitToken, initialValue: number) {
-    super(initToken);
+  constructor(init: InitToken, initialValue: number) {
+    super(init);
 
     const state = new CNumberState(initialValue);
     super.setupState(state);
@@ -313,8 +313,8 @@ export class CNumber extends CObject<CNumberEventsRecord> {
    */
   private negated: ToggleCBoolean;
 
-  constructor(initToken: InitToken, initialValue = 0) {
-    super(initToken);
+  constructor(init: InitToken, initialValue = 0) {
+    super(init);
 
     this.base = this.addChild("", Pre(CNumberBase)(initialValue));
     this.negated = this.addChild("0", Pre(ToggleCBoolean)());
