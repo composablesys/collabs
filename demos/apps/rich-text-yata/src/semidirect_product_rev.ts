@@ -16,7 +16,7 @@ import {
 import {
   ISemidirectProductRevSenderHistory,
   SemidirectProductRevSave,
-} from "../../generated/proto_compiled";
+} from "../generated/proto_compiled";
 import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 
 /* eslint-disable */
@@ -355,12 +355,12 @@ export abstract class SemidirectProductRev<
   private readonly internalCObject: PublicCObject;
 
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     historyTimestamps: boolean = false,
     historyDiscard1Dominated: boolean = false,
     historyDiscard2Dominated: boolean = false
   ) {
-    super(initToken);
+    super(init);
 
     this.runLocallyLayer = super.addChild("", Pre(RunLocallyLayer)());
     this.internalCObject = this.runLocallyLayer.setChild(Pre(PublicCObject)());

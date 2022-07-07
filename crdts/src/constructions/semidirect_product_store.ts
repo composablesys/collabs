@@ -76,13 +76,13 @@ export class SemidirectProductStore<M1, M2> extends CObject {
   private history: Map<string, StoredMessage<M2>[]> = new Map();
 
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly action: (m2: M2, m1: M1) => M1 | null,
     private readonly m2Serializer: Serializer<M2> = DefaultSerializer.getInstance(),
     private readonly discardM1Dominated = false,
     private readonly discardM2Dominated = false
   ) {
-    super(initToken);
+    super(init);
   }
 
   processM2(m2: M2, crdtMeta: CRDTMeta): void {

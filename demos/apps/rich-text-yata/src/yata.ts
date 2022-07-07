@@ -1,5 +1,6 @@
 import * as collabs from "@collabs/collabs";
 import { YataSave } from "../generated/proto_compiled";
+import { SemidirectProductRev } from "./semidirect_product_rev";
 
 type YataOpArgs<T> = [
   string,
@@ -46,7 +47,7 @@ export class YataOp<T> extends collabs.CObject {
   }
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     creatorId: string,
     originId: string,
     leftId: string,
@@ -56,7 +57,7 @@ export class YataOp<T> extends collabs.CObject {
     originAttributesAtInput: Record<string, any>,
     attributes: [string, any][] = []
   ) {
-    super(initToken);
+    super(init);
     this.creatorId = creatorId;
     this.originId = originId;
     this.leftId = leftId;
@@ -121,7 +122,7 @@ type m2Args<T> = [
   attributeEntries?: Record<string, any>
 ];
 
-export class YataLinear<T> extends collabs.SemidirectProductRev<
+export class YataLinear<T> extends SemidirectProductRev<
   YataEventsRecord<T>,
   collabs.Collab,
   m1Args,
@@ -191,11 +192,11 @@ export class YataLinear<T> extends collabs.SemidirectProductRev<
   >;
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     defaultContent: T,
     initialContents: T[]
   ) {
-    super(initToken);
+    super(init);
     this.defaultContent = defaultContent;
 
     // 0

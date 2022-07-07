@@ -14,7 +14,7 @@ import {
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
   MultiSemidirectProductSave,
-} from "../../generated/proto_compiled";
+} from "../generated/proto_compiled";
 
 import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 
@@ -312,8 +312,8 @@ export abstract class MultipleSemidirectProduct<
    * TODO
    * @param historyMetas=false        [description]
    */
-  constructor(initToken: InitToken, historyMetas = false) {
-    super(initToken);
+  constructor(init: InitToken, historyMetas = false) {
+    super(init);
     // Types are hacked a bit here to make implementation simpler
     this.state = new MultipleSemidirectState(historyMetas);
   }
