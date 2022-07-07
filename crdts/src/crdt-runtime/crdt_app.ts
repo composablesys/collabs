@@ -121,7 +121,7 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * @return The registered [[Collab]]. You should assign
    * this to a variable for later use.
    */
-  registerCollab<C extends Collab>(name: string, preCollab: (initToken: InitToken) => C): C {
+  registerCollab<C extends Collab>(name: string, preCollab: (initToken: Collab.InitToken) => C): C {
     return this.runtime.registerCollab(name, preCollab);
   }
 
