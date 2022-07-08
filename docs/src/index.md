@@ -3,7 +3,6 @@
 ```{toctree}
 ---
 titlesonly:
-hidden:
 maxdepth: 2
 ---
 quick_start

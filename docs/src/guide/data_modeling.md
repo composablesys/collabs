@@ -1,4 +1,4 @@
-# Data Modeling
+# Data Modeling and Using CObjects
 
 Collabs is designed to let you create custom type-safe collaborative data models. By _data model_, we mean the model in a model-view-\* architecture: the part that holds the application state. A _collaborative data model_ is then the shared state in a collaborative app, which all users can edit, and which automatically propagates these edits to all users.
 
@@ -33,13 +33,13 @@ Notes:
 
 ## Using `CObject`
 
-Coming Soon. For now, see the example in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type).
+Coming Soon. For now, see the example in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type). You can also refer to the example in [Minesweeper](#minesweeper) below.
 
 <!-- TODO: here, or ref elsewhere? (Extra guide page? Custom types? CObject typedoc?) -->
 
 ## Examples
 
-For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos).
+There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos).
 
 ### Whiteboard
 
