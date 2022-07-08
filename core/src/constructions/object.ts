@@ -103,7 +103,10 @@ export class CObject<
    *
    * @return child
    */
-  protected addChild<D extends C>(name: string, preChild: (initToken: InitToken) => D): D {
+  protected addChild<D extends C>(
+    name: string,
+    preChild: (initToken: InitToken) => D
+  ): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
