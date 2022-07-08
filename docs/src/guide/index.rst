@@ -4,9 +4,9 @@ Guide
 
 .. toctree::
    :titlesonly:
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
-
+   
    introduction
    entry_points
    initialization

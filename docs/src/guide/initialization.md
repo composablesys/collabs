@@ -10,7 +10,7 @@ Don't try to make [InitToken](../api/collabs/classes/InitToken.html)s directly; 
 
 ## "Global Variable" `Collab`s
 
-Every Collabs app must have some **"global variable" `Collab`**s, whose parents are the [entry point](./entry_points.html). They together must contain the entire collaborative state of your app, either directly or via their own children (e.g., a "global variable" [DeletingMutCSet](../api/collabs/classes/DeletingMutCSet.html) contains [dynamically-created `Collab`s](#dynamically-created-collabs) as children).
+Every Collabs app must have some **"global variable"** `Collab`s, whose parents are the [entry point](./entry_points.html). They together must contain the entire collaborative state of your app, either directly or via their own children (e.g., a "global variable" [DeletingMutCSet](../api/collabs/classes/DeletingMutCSet.html) contains [dynamically-created `Collab`s](#dynamically-created-collabs) as children).
 
 We call them "global variables" because they exist in the top-level scope from Collabs's perspective, although you don't have to store them as literal global variables (hence the "scare quotes").
 

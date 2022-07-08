@@ -3,6 +3,7 @@
 ```{toctree}
 ---
 titlesonly:
+hidden:
 maxdepth: 2
 ---
 quick_start
@@ -21,6 +22,7 @@ api/index
 - [Docs](./guide/)
 - [API](./api/)
 - [Github](https://github.com/composablesys/collabs)
+
 
 ## Install
 

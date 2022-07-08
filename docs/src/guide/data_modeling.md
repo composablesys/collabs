@@ -33,13 +33,79 @@ Notes:
 
 ## Using `CObject`
 
-Coming Soon. For now, see the example in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type). You can also refer to the example in [Minesweeper](#minesweeper) below.
+Coming Soon. For now, see the example in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type). You can also refer to the examples below.
 
 <!-- TODO: here, or ref elsewhere? (Extra guide page? Custom types? CObject typedoc?) -->
 
 ## Examples
 
 There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos).
+
+### [CPairs](https://github.com/composablesys/collabs/blob/master/template-custom-type/src/custom_type.ts)
+**App:** We want to create a pair of variables.
+
+**Single-user data model:** We start by thinking a single-user pairs. 
+```ts
+class CPair<T, U>{
+  private readonly firstReg: T;
+  private readonly secondReg: U;
+
+  constructor(firstInitial: T, secondInitial: U) {
+    this.fitstReg = firstInitial;
+    this.secondReg = secondInitial;
+  }
+  get first(): T {
+    return this.firstReg;
+  }
+
+  set first(first: T) {
+    this.firstReg = first;
+  }
+
+  get second(): U {
+    return this.secondReg;
+  }
+
+  set second(second: U) {
+    this.secondReg = second;
+  }
+}
+```
+**Collaborative data model:** We now give out an example of custom data class `CPair` and hope it can record a pair collaboratively.
+```ts
+class CPair<T, U> extends CObject{
+  //first declear the variables. Notice we have two private variables and they are both collabs instead of local variables.
+  private readonly firstReg: LWWCVariable<T>;
+  private readonly secondReg: LWWCVariable<U>;
+
+  constructor(initToken: InitToken, firstInitial: T, secondInitial: U) {
+    super(initToken);
+
+    // Setup child Collabs.
+    this.firstReg = this.addChild(
+      "firstReg", 
+      (initToken) => new Collabs.LWWCVariable(initToken, firstInitial));
+    this.secondReg = this.addChild(
+      "secondReg",
+      (initToken) => new Collabs.LWWCVariable(initToken, firstInitial));
+  }
+
+  // Convert our own methods into child methods.
+  get first(): T {
+    return this.firstReg.value;
+  }
+  set first(first: T) {
+    this.firstReg.value = first;
+  }
+  get second(): U {
+    return this.secondReg.value;
+  }
+  set second(second: U) {
+    this.secondReg.value = second;
+  }
+}
+```
+
 
 ### Whiteboard
 
