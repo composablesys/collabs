@@ -148,7 +148,7 @@ When the user draws on a point, we set that point's color in `boardState`, which
 boardState.set([x, y], color);
 ```
 
-This completes our data model. To actually use this data model, we also have to integrate it with the view (Canvas), by updating the view in response to [Events](./events.md) (either from the local user or other collaborators). For example:
+This completes our data model. To actually use this data model, we also have to integrate it with the view (Canvas), by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). For example:
 
 ```ts
 // ctx is the Canvas's getContext("2d").
@@ -224,7 +224,7 @@ The app's top-level state is a variable `currentGame: Minesweeper`. When the use
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
 - `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `TrueWinsCBoolean` satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./types.md) suggests `LWWCVariable<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `LWWCVariable<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
@@ -256,9 +256,9 @@ class CTile extends collabs.CObject {
 
 We must likewise transform the `Minesweeper` class. This deviates from the usual process in two ways.
 
-First, we cannot use randomness in the constructor: per [Initialization](./initialization.md), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
+First, we cannot use randomness in the constructor: per [Initialization](./initialization.html), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
-Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` implementations, there is actually no need for us to use a `CList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./types.md).)
+Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` implementations, there is actually no need for us to use a `CList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
 
 ```ts
 class CMinesweeper extends collabs.CObject {
@@ -303,7 +303,7 @@ class CMinesweeper extends collabs.CObject {
 }
 ```
 
-Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./types.md) suggests `LWWMutCVariable<CMinesweeper>` because the game is internally mutable:
+Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./built_in_collabs/html) suggests `LWWMutCVariable<CMinesweeper>` because the game is internally mutable:
 
 ```ts
 const currentGame = container.registerCollab(
@@ -318,7 +318,7 @@ const currentGame = container.registerCollab(
 
 To start a new game, we call `currentGame.set` with `CMinesweeper`'s constructor arguments (except `initToken`).
 
-This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [Events](./events.md) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
+This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
 
 ```ts
 runtime.on("Change", () => {
