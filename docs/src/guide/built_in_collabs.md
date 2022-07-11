@@ -10,8 +10,8 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 | Ordinary type `X`                                | Collaborative version `C(X)`                                                                                                      |
 | ------------------------------------------------ | -------------------------------------------------------------------------  |
-| Any [immutable](#immutable-value-collections)   `T`     | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)            |
-| Any [mutable](#mutable-value-collections) `T`           | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)     |
+| Any immutable  `T`     | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)            |
+| Any mutable `T`           | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)     |
 | `boolean`                                               | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        | 
 | `number` (for counting or adding)                       | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
 | `number` (for counting, adding, and resetting)          | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html)    |

@@ -2,7 +2,9 @@
 
 Collabs is designed to let you create custom type-safe collaborative data models. By _data model_, we mean the model in a model-view-\* architecture: the part that holds the application state. A _collaborative data model_ is then the shared state in a collaborative app, which all users can edit, and which automatically propagates these edits to all users.
 
-In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. You can even publish them as [Custom Types](./custom_types.md) for others to use.
+In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. 
+
+<!-- TODO: You can even publish them as [Custom Types](./custom_types.md) for others to use. -->
 
 <details>
 <summary>Aside</summary>

@@ -92,7 +92,7 @@ export class CObject<
    *
    * It is recomend that you use this in the style
    * ```ts
-   * this.foo = this.addChild("foo", (initToken) => new FooClass(initTiken, constructor args...));
+   * this.foo = this.addChild("foo", (initToken) => new FooClass(initToken, constructor args...));
    * ```
    * In particular, the created child should be stored as an ordinary
    * object property.  Each child must be assigned
