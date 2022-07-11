@@ -19,7 +19,7 @@ Of course, from the library's perspective, there is no difference. Indeed, many 
 We recommend creating collaborative data models using the following general process:
 
 1. Create a single-user (non-collaborative) version of your data model, using ES6 classes and strong typing.
-2. Replace collection types (`Set`, etc.) and primitive types (`boolean`, etc.) with collaborative versions, following the advice in [Collaborative Data Structures](./types.md).
+2. Replace collection types (`Set`, etc.) and primitive types (`Boolean`, etc.) with collaborative versions, following the advice in [Built In Collabs](./built_in_collabs.html).
 3. Replace your custom classes with subclasses of [`CObject`](../api/collabs/classes/CObject.html), whose children are their instance variables.
 
 We illustrate this process with examples below.
@@ -27,7 +27,7 @@ We illustrate this process with examples below.
 Notes:
 
 - In practice, steps 2 and 3 are not sequential, but instead are a back-and-forth. Don't expect your program to compile until you have finished both of them together.
-- You may find that you need to revise your choice of collaborative data structures or your class structure, in order to support the right operations or obtain the right semantics (see [Choices](./built_in_collabs.html) for some common choice points).
+- You may find that you need to revise your choice of collaborative data structures or your class structure, in order to support the right operations or obtain the right semantics (see [Built In Collabs](./built_in_collabs.html) for some common choice points).
 - You don't need to replace variables with collaborative versions if they are never mutated after being set (`readonly`/`const` and internally immutable).
 <!-- - TODO: For advanced scenarios, like supporting new primitive types or novel behavior in the face of concurrent operations, you may need to use more advanced techniques for creating [Custom Types](./custom_types.md). -->
 
