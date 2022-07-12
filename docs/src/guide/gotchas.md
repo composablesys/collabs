@@ -18,7 +18,7 @@ So long as all users are running the same version of the code, 1 and 2 should be
 
 <!-- TODO: versioning advice guide -->
 
-More info: [Initialization](./initialization.md).
+More info: [Initialization](./initialization.html).
 
 ## Delayed Initialization
 
@@ -26,7 +26,7 @@ All calls to [`runtime.registerCollab`](../api/collabs/classes/Runtime.html#regi
 
 Likewise, within a `CObject`, you should make all calls to `addChild` within the constructor. (If you need to add children dynamically, you should instead use a built-in collection type to do so, e.g., `DeletingMutCSet`.)
 
-More info: [Initialization](./initialization.md).
+More info: [Initialization](./initialization.html).
 
 ## Non-unique Names
 
@@ -38,7 +38,7 @@ Not all values can be serialized with the default serializer (e.g., functions). 
 
 You can work around any serialization issues by using a custom serializer.
 
-More info: [Serialization](./serialization.md).
+More info: [Serialization](./serialization.html).
 
 ## Treating Events as Consistent
 
@@ -64,7 +64,7 @@ You might be tempted into doing this because you are trying to set the initial v
 
 ## Adding Event Listeners during Events
 
-When listening on events from a `Collab` that is created dynamically in a collection (e.g., `ResettingMutCSet`), you should register event listeners within the `valueConstructor` callback, **not** during the new value's "Add"/"Set"/"Insert" event. See [Events](./events.md).
+When listening on events from a `Collab` that is created dynamically in a collection (e.g., `ResettingMutCSet`), you should register event listeners within the `valueConstructor` callback, **not** during the new value's "Add"/"Set"/"Insert" event. See [Events](../advanced/events.html).
 
 ## Misusing `InitToken`s
 
@@ -74,7 +74,7 @@ Only use a given `InitToken` once, in the way intended by its creator. E.g., a c
 
 In a `Collab`'s constructor, only use the `InitToken` in your `super` call or to query its `runtime` (e.g., for passing to [DefaultSerializer](../api/collabs/classes/DefaultSerializer.html)'s constructor in a parameter default).
 
-More info: [Initialization](./initialization.md).
+More info: [Initialization](./initialization.html).
 
 ## Expecting Strong Consistency (Database-Style Transactions)
 

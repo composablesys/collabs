@@ -89,7 +89,7 @@ To let us use `await` later, the rest of the file is wrapped in an `async` IIFE.
 
 ### 1. Create [`CRDTContainer`](./guide/containers.html)
 
-Our first real task is to get an instance of [`CRDTContainer`](./guide/containers.html). This is the entry point for a Collabs [container](./guide/containers.html); it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
+Our first real task is to get an instance of [`CRDTContainer`](https://www.npmjs.com/package/@collabs/container). This is the entry point for a Collabs [container](./guide/containers.html); it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
 
 ```ts
 const container = new CRDTContainer();
@@ -117,7 +117,7 @@ A few things to note here:
 
 Now that we have our `counter`, we need to observe changes to it and update the GUI. This ensures that the GUI always reflects the current collaborative state.
 
-In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./guide/events.html) goes into more detail later in the guide.
+In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./advanced/events.html) goes into more detail later in the guide.
 
 Here we listen on `CRDTContainer`'s "Change" event and refresh the entire display whenever it is emitted.
 
@@ -183,9 +183,9 @@ You've now seen the basic structure of a Collabs app (specifically, a Collabs co
 
 Specifically, to make your own Collabs app, your main tasks are:
 
-- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [Built-in Collabs](./guide/collaborative_data_structures.html), [Data Modeling](./guide/data_modeling.html).
-- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [Events](./events.html).
+- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [Built-in Collabs](./guide/built_in_collabs.html), [Data Modeling](./guide/data_modeling.html).
+- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [Events](./advanced/events.html).
 - In Step 4, convert user inputs onto operations on your `Collab`s.
 - In Step 5, display the loaded state, i.e., update your display to reflect your `Collab`s' current states.
 
-For more info, continue following the guide with [Built-in Collabs](./guide/collaborative_data_structures.html), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).
+For more info, continue following the guide with [Built-in Collabs](./guide/built_in_collabs.html), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).

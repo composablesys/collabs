@@ -33,22 +33,19 @@ Notes:
 
 <!-- TODO: events somewhere (how to connect model with the view); perhaps also mention ops in each example (controller -> model). -->
 
-## Using `CObject`
-
-Coming Soon. For now, see the example in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type). You can also refer to the examples below.
 
 <!-- TODO: here, or ref elsewhere? (Extra guide page? Custom types? CObject typedoc?) -->
 
 ## Examples
 
-There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos).
+There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos). You may also find exampls in  [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type) be helpful.
 
 ### [CPairs](https://github.com/composablesys/collabs/blob/master/template-custom-type/src/custom_type.ts)
 **App:** We want to create a pair of variables.
 
-**Single-user data model:** We start by thinking a single-user pairs. 
+**Single-user data model:** We start by thinking about a single-user pairs. 
 ```ts
-class CPair<T, U>{
+class Pair<T, U>{
   private readonly firstReg: T;
   private readonly secondReg: U;
 
@@ -73,10 +70,10 @@ class CPair<T, U>{
   }
 }
 ```
-**Collaborative data model:** We now give out an example of custom data class `CPair` and hope it can record a pair collaboratively.
+**Collaborative data model:** We now give a collaborative version in the form of a custom `Collab` that is called `CPair`, which can hold a pair collaboratively.
 ```ts
 class CPair<T, U> extends CObject{
-  //first declear the variables. Notice we have two private variables and they are both collabs instead of local variables.
+  //first declare the variables. Notice we have two private variables and they are both collabs instead of local variables.
   private readonly firstReg: LWWCVariable<T>;
   private readonly secondReg: LWWCVariable<U>;
 

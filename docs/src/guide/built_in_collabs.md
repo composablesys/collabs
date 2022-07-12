@@ -76,7 +76,7 @@ In some situations, the immutable vs. mutable distinction is subtle:
 
 Immutable value collections have straightforward interfaces, similar to their ordinary versions. E.g., `AddWinsCSet<T>` has methods `add(value: T)`, `delete(value: T)`, values()`, etc., just like ES6 `Set<T>`.
 
-Besides ensuring that the values are not mutated internally, ensure that they can be serialized - see [./serialization.md](Serialization). Primitive values, JSON-like objects or arrays, and references to `Collab`s are all serializable by default.
+Besides ensuring that the values are not mutated internally, ensure that they can be serialized. Primitive values, JSON-like objects or arrays, and references to `Collab`s are all serializable by default.
 
 **Semantic difference with ES6 `Set` and `Map`:** when comparing `AddWinsCSet` values or `CMap` keys, we use _serialization equality_ instead of `===` equality. That is, `x` and `y` are considered equal if they serialize to the same `Uint8Array`. With the default serializer, this is equivalent to _deep `===` equality_. See [`ReferenceCSet`](../api/collabs/classes/ReferenceCSet.html) for a collaborative set that instead compares object values using `===`.
 
@@ -90,7 +90,7 @@ The values are created dynamically at runtime, in response to operations on the 
 
 To allow you to create `Collab`s dynamically, mutable values collections work a bit differently from the immutable versions. E.g., in a `CSet<CCounter>`, you can't create a new instance `foo` of `CCounter` and then call `set.add(foo)`: constructing `foo` is impossible without a `InitToken`. Instead:
 
-- Operations that create a new value (e.g., `CSet.add`, `CMap.set`, `CList.insert`) input arbitrary arguments. The arguments' type (as an array) is specified using a generic type on the relevant interface, e.g., `CSet`'s `AddArgs`. They must be serializable - see [./serialization.md](Serialization). When such an operation is called, it serializes its arguments and sends them to every replica.
+- Operations that create a new value (e.g., `CSet.add`, `CMap.set`, `CList.insert`) input arbitrary arguments. The arguments' type (as an array) is specified using a generic type on the relevant interface, e.g., `CSet`'s `AddArgs`. They must be serializable. When such an operation is called, it serializes its arguments and sends them to every replica.
 - You must specify a callback, `valueConstructor`, as a constructor argument when creating the collection. This callback is called with the arguments received from an `add`/`set`/`insert`/etc. operation (deserialized), plus a `InitToken`. The callback must use these to construct a new value, perform any per-value setup like adding event listeners, then return the value.
 
 <!-- > **Example:** TODO -->

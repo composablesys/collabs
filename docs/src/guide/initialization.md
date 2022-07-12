@@ -2,7 +2,7 @@
 
 To ensure that your `Collab`s are connected to the network, they need to know about your [entry point](./entry_points.html). We enforce this by not letting you initialize `Collab`s in isolation by calling their constructor directly. Instead, you must use one of the techniques on this page.
 
-In more detail, each `Collab` must be assigned a **parent** and a **name** when it is constructed, by passing an [InitToken](../api/collabs/classes/InitToken.html) as its first constructor argument. Its **parent** can be either the [entry point](../entry_point.md)[^runtime] or another `Collab` that implements [ICRDTParent](../api/collabs/interfaces/ICollabParent.html). Its **name** is an arbitrary string that must be unique among all `Collab`s with the same parent.
+In more detail, each `Collab` must be assigned a **parent** and a **name** when it is constructed, by passing an [InitToken](../api/collabs/classes/InitToken.html) as its first constructor argument. Its **parent** can be either the [entry point](./entry_points.html)[^runtime] or another `Collab` that implements [ICRDTParent](../api/collabs/interfaces/ICollabParent.html). Its **name** is an arbitrary string that must be unique among all `Collab`s with the same parent.
 
 > The parents arrange your `Collab`s into a tree, with the entry point as the root. The parents and names let us identify each `Collab` in a way that makes sense across devices: each `Collab` is identified by the series of names leading from it to the root entry point. Replicas of a `Collab` on different collaborating devices get the same identifier, which is how we know to connect them to each other, instead of to some other `Collab` in your app.
 
