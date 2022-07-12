@@ -5,7 +5,6 @@ import {
   ICollabParent,
   InitToken,
   MessageMeta,
-  Pre,
   Message,
 } from "../core";
 import { Optional } from "../util";
@@ -93,7 +92,7 @@ export class CObject<
    *
    * It is recomend that you use this in the style
    * ```ts
-   * this.foo = this.addChild("foo", Pre(FooClass)(constructor args...));
+   * this.foo = this.addChild("foo", (initToken) => new FooClass(initToken, constructor args...));
    * ```
    * In particular, the created child should be stored as an ordinary
    * object property.  Each child must be assigned
@@ -104,7 +103,10 @@ export class CObject<
    *
    * @return child
    */
-  protected addChild<D extends C>(name: string, preChild: Pre<D>): D {
+  protected addChild<D extends C>(
+    name: string,
+    preChild: (initToken: InitToken) => D
+  ): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }

@@ -1,4 +1,4 @@
-# Built-In `Collab`s
+# Built-In `Collab`s and Types
 
 This page gives an overview of the library's built-in `Collab`s. More detailed info about each data structure can be found in the [API docs](../api/collabs/index.html).
 
@@ -8,24 +8,47 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 <!-- TODO: interface "of" methods as shortcut. -->
 
-| Ordinary type `X`                                | Collaborative version `C(X)`                                              | Alternatives                                                                  |
-| ------------------------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Custom class w/ fixed properties                 | [`CObject`](../api/collabs/classes/CObject.html)                          |
-| `Set<T>`, `T` immutable                          | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               | [`CSet<T>`](../api/collabs/interfaces/CSet.html) implementations              |
-| `Set<T>`, `T` mutable                            | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    | [`CSet<C(T)>`](../api/collabs/interfaces/CSet.html) implementations           |
-| `Map<K, V>`, `V` immutable                       | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    | [`CMap<K, V>`](../api/collabs/interfaces/CMap.html) implementations           |
-| `Map<K, V>`, `V` mutable                         | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) | [`CMap<K, C(V)>`](../api/collabs/interfaces/CMap.html) implementations        |
-| `Array<T>`, `T` immutable                        | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         | [`CList<T>`](../api/collabs/interfaces/CList.html) implementations            |
-| `Array<T>`, `T` mutable                          | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)     | [`CList<C(T)>`](../api/collabs/interfaces/CList.html) implementations         |
-| \*(Any immutable `T`) (as opaque value)          | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)             | [`CVariable<T>`](../api/collabs/interfaces/CVariable.html) implementations    |
-| \*(Any mutable `T`) (as opaque value)            | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)    | [`CVariable<C(T)>`](../api/collabs/interfaces/CVariable.html) implementations |
-| \*`boolean`                                      | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        | [`CBoolean`](../api/collabs/interfaces/CBoolean.html) implementations         |
-| \*`number` (for counting or adding)              | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
-| \*`number` (for counting, adding, and resetting) | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html)    |
-| \*`number` (for general arithmetic)              | [`CNumber`](../api/collabs/classes/CNumber.html)                          |
-| \*`string` (as text)                             | [`CText`](../api/collabs/classes/CText.html)                              |
+| Ordinary type `X`                                | Collaborative version `C(X)`                                                                                                      |
+| ------------------------------------------------ | -------------------------------------------------------------------------  |
+| Any immutable  `T`     | [`LWWCVariable<T>`](../api/collabs/classes/LWWCVariable.html)            |
+| Any mutable `T`           | [`LWWMutCVariable<C(T)>`](../api/collabs/classes/LWWMutCVariable.html)     |
+| `boolean`                                               | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        | 
+| `number` (for counting or adding)                       | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
+| `number` (for counting, adding, and resetting)          | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html)    |
+| `number` (for general arithmetic)                       | [`CNumber`](../api/collabs/classes/CNumber.html)                          |
+| `string` (as texts in a text box with cursor)                             | [`CText`](../api/collabs/classes/CText.html)                              |
+| Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html)              | [`CObject`](../api/collabs/classes/CObject.html)                          |
+| `Set<T>`, `T` [immutable](#immutable-value-collections)                          | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               | 
+| `Set<T>`, `T` [mutable](#mutable-value-collections)                           | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    | 
+| `Map<K, V>`, `V` [immutable](#immutable-value-collections)                       | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    |
+| `Map<K, V>`, `V` [mutable](#mutable-value-collections)                         | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) | 
+| [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)                        | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         |
+| [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)                          | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)     |
 
-\*`X` denotes a _variable holding type `X`_, or alternatively a mutable wrapper object `{ value: X }`. E.g., `CCounter` is the collaborative version of an object that you can mutate in-place by calling e.g. `obj.add(3)` and that you can read by calling `obj.value`.
+
+<!-- ## Choices
+
+Often you can choose between several collaborative data structures. Different choices may support different operations, or different semantics in the face of conflicting concurrent operations. This section describes some common choices and how the options differ. -->
+
+## Variables vs Everything Else
+
+[`LWWCVariable`](../api/collabs/classes/LWWCVariable.html) is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
+Alternatively, you may use a more specific Collab (later rows in the table) to get type-specific conflict resolution.
+
+> **Example.** If you store a `Set<T>` as an [`LWWCVariable<Set<T>>`](../api/collabs/classes/LWWCVariable.html) and two users add elements concurrently, then one of their new sets will "win" and overwrite the other, dropping the losing user's element. If you instead store the set as an [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html), then when two users add elements concurrently, their changes will be merged: both elements will be added.
+
+<!-- ### `CObject`s vs Ordinary Objects
+
+Similar to variable discussion (granularity of edits)
+
+### `CObject`s vs `CMap`s
+
+Use CObject, unless it's really dynamic (props not known at compile time).
+
+### Arrays vs `CLists`
+
+Lists are not like ordinary arrays (designed for insertion/deletion like a list); if you want a more ordinary array (fixed length at constructor time), use a normal array (shorthand for a bunch of individual vars), or maybe in some situations a map with numeric keys. -->
+
 
 ## Collection Types
 
@@ -53,7 +76,7 @@ In some situations, the immutable vs. mutable distinction is subtle:
 
 Immutable value collections have straightforward interfaces, similar to their ordinary versions. E.g., `AddWinsCSet<T>` has methods `add(value: T)`, `delete(value: T)`, values()`, etc., just like ES6 `Set<T>`.
 
-Besides ensuring that the values are not mutated internally, ensure that they can be serialized - see [./serialization.md](Serialization). Primitive values, JSON-like objects or arrays, and references to `Collab`s are all serializable by default.
+Besides ensuring that the values are not mutated internally, ensure that they can be serialized. Primitive values, JSON-like objects or arrays, and references to `Collab`s are all serializable by default.
 
 **Semantic difference with ES6 `Set` and `Map`:** when comparing `AddWinsCSet` values or `CMap` keys, we use _serialization equality_ instead of `===` equality. That is, `x` and `y` are considered equal if they serialize to the same `Uint8Array`. With the default serializer, this is equivalent to _deep `===` equality_. See [`ReferenceCSet`](../api/collabs/classes/ReferenceCSet.html) for a collaborative set that instead compares object values using `===`.
 
@@ -67,42 +90,18 @@ The values are created dynamically at runtime, in response to operations on the 
 
 To allow you to create `Collab`s dynamically, mutable values collections work a bit differently from the immutable versions. E.g., in a `CSet<CCounter>`, you can't create a new instance `foo` of `CCounter` and then call `set.add(foo)`: constructing `foo` is impossible without a `InitToken`. Instead:
 
-- Operations that create a new value (e.g., `CSet.add`, `CMap.set`, `CList.insert`) input arbitrary arguments. The arguments' type (as an array) is specified using a generic type on the relevant interface, e.g., `CSet`'s `AddArgs`. They must be serializable - see [./serialization.md](Serialization). When such an operation is called, it serializes its arguments and sends them to every replica.
+- Operations that create a new value (e.g., `CSet.add`, `CMap.set`, `CList.insert`) input arbitrary arguments. The arguments' type (as an array) is specified using a generic type on the relevant interface, e.g., `CSet`'s `AddArgs`. They must be serializable. When such an operation is called, it serializes its arguments and sends them to every replica.
 - You must specify a callback, `valueConstructor`, as a constructor argument when creating the collection. This callback is called with the arguments received from an `add`/`set`/`insert`/etc. operation (deserialized), plus a `InitToken`. The callback must use these to construct a new value, perform any per-value setup like adding event listeners, then return the value.
 
 <!-- > **Example:** TODO -->
 
 > **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `DeletingMutCSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `DeletingMutCSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`DeletingMutCSet`](../api/collabs/classes/DeletingMutCSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
 
-## Choices
 
-Often you can choose between several collaborative data structures. Different choices may support different operations, or different semantics in the face of conflicting concurrent operations. This section describes some common choices and how the options differ.
-
-### Variables vs Everything Else
-
-`LWWCVariable` is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
-
-<!-- variable vs whatever else in general. LWW is always a good choice, but changes the granularity of editing.
-
-> **Example.** TODO: setting value vs editing internally, on bulk object. Also applies to maps. string as text vs variable (granularity of editing)
-
-Efficiency of sending big object every time -->
-
+<!-- 
 ### Mutable Value Collection Variants
 
-Types of mutable collections (Deleting, Archiving). Note downsides of each: tombstones; non-revivable/destroying/inconsisten on deleting (can get confusing if you store it elsewhere, need to check). Also extras (merging map, move on deleting list, ?)
-
-### `CObject`s vs Ordinary Objects
-
-Similar to variable discussion (granularity of edits)
-
-### `CObject`s vs `CMap`s
-
-Use CObject, unless it's really dynamic (props not known at compile time).
-
-### Arrays vs `CLists`
-
-Lists are not like ordinary arrays (designed for insertion/deletion like a list); if you want a more ordinary array (fixed length at constructor time), use a normal array (shorthand for a bunch of individual vars), or maybe in some situations a map with numeric keys. Actually this applies generally to any collection (e.g. our use of a map object in the horse demo) - change title?.
+Types of mutable collections (Deleting, Archiving). Note downsides of each: tombstones; non-revivable/destroying/inconsisten on deleting (can get confusing if you store it elsewhere, need to check). Also extras (merging map, move on deleting list, ?) -->
 
 <!-- ### Treating Immutable Values as Mutable
 

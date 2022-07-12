@@ -9,11 +9,11 @@ Our intent is that containers can make it easier to develop and use collaborativ
 - They should free users to use whatever network they prefer: a public provider, a self-hosted server, a compatible group chat service, etc. Users can also nest containers inside other Collabs apps (e.g., our [Tile Board demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/tile-board/dist/tile_board.html)).
 - They should guarantee longevity for users: once a user has a copy of the container, they can use it forever, so long as they have access to a (version-compatible) container host.
 
-See also: [Why Make Collabs?](./why.md).
+See also: [Why Make Collabs?](../further_info/why.html).
 
 ## Development
 
-The easiest way to develop a container is by following the [Getting Started Guide](./getting_started_guide.md), which walks through our [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
+The easiest way to develop a container is by following the [Getting Started Guide](../quick_start.html), which walks through our [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 
 Starting from scratch, the steps are:
 
@@ -23,7 +23,7 @@ Starting from scratch, the steps are:
 
    a. Start by creating an instance of `CRDTContainer` from @collabs/container. We'll assume it's named `container`.
 
-   b. Setup your app: register your top-level Collabs using `container.registerCollabs`, connect them to your GUI using [event listeners](./events.md), and connect user input to them.
+   b. Setup your app: register your top-level Collabs using `container.registerCollabs`, connect them to your GUI using [event listeners](../advanced/events.html), and connect user input to them.
 
    c. `await container.load()`. Basically, the container host can periodically save snapshots of the container's state, then use one to restart it quickly later. It can even send snapshots to new collaborators, so that they can load the current state without replaying every past message. `container.load()` waits to receive this save data from the host, uses it to fill in your Collabs' state, then resolves its Promise.
 

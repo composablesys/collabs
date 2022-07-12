@@ -7,6 +7,7 @@ hidden:
 maxdepth: 2
 ---
 quick_start
+walkthrough
 guide/index
 advanced/index
 further_info/index
@@ -21,6 +22,7 @@ api/index
 - [Docs](./guide/)
 - [API](./api/)
 - [Github](https://github.com/composablesys/collabs)
+
 
 ## Install
 
@@ -54,4 +56,4 @@ We also publish a core subset of Collabs, [@collabs/core](https://www.npmjs.com/
 
 ## Authors
 
-Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at Carnegie Mellon University's Composable Systems Lab.
+Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, Benito Geordie, and Yicheng Zhang at Carnegie Mellon University's Composable Systems Lab.

@@ -1,10 +1,10 @@
-# Walkthrough of Quick Start
+# Walkthrough
 
-In this page, we will walk through the [Quick Start](../quick_start.html)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](../what_is_collabs.html).
+In this page, we will walk through the [Quick Start](./quick_start.html)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](./what_is_collabs.html).
 
 ## Project Setup
 
-The project is set up as a **Collabs container**: a Collabs app that does not connect to other collaborators over the network directly, but instead expects a **Collabs container host** to do that for it. For us, what this means is that the compiled app is a normal HTML page, but if you open it in a browser directly, it won't work; instead, you have to give the page to a container host, which will open it in a special IFrame. The `npm start` command does that for you, so you don't have to worry about it for now. We will revisit Collabs containers [later in the guide](./containers.html).
+The project is set up as a [**Collabs container**](./guide/containers.html): a Collabs app that does not connect to other collaborators over the network directly, but instead expects a **Collabs container host** to do that for it. For us, what this means is that the compiled app is a normal HTML page, but if you open it in a browser directly, it won't work; instead, you have to give the page to a container host, which will open it in a special IFrame. The `npm start` command does that for you, so you don't have to worry about it for now. We will revisit Collabs containers [later in the guide](./guide/containers.html).
 
 Compilation and bundling uses a fairly standard [npm](https://docs.npmjs.com/cli/) + [TypeScript](https://www.typescriptlang.org/) + [Webpack](https://webpack.js.org/) toolchain. The HTML entrypoint is `src/index.html` and the TypeScript entrypoint is `src/app.ts`. The only unusual part is that Webpack is configured to output a single HTML file (`dist/MY_CONTAINER.html`) with all assets inlined, including the compiled and bundled JavaScript code and TypeScript source maps. This makes it easy to distribute the app without hosting it on a web server, like in the Quick Start's optional last step.
 
@@ -41,7 +41,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    collabs.Pre(collabs.CCounter)()
+    (initToken) => new collabs.CCounter(initToken)
   );
 
   // Refresh the display when the Collabs state changes, possibly
@@ -87,9 +87,9 @@ To let us use `await` later, the rest of the file is wrapped in an `async` IIFE.
 })();
 ```
 
-### 1. Create `CRDTContainer`
+### 1. Create [`CRDTContainer`](./guide/containers.html)
 
-Our first real task is to get an instance of `CRDTContainer`. This is the entry point for a Collabs container; it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
+Our first real task is to get an instance of [`CRDTContainer`](https://www.npmjs.com/package/@collabs/container). This is the entry point for a Collabs [container](./guide/containers.html); it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
 
 ```ts
 const container = new CRDTContainer();
@@ -97,36 +97,27 @@ const container = new CRDTContainer();
 
 ### 2. Register "Global Variable" `Collab`s
 
-Next, we register/create our "global variable" `Collab`s - data structures that exist outside of any scope. These must together encompass the whole collaborative state. We register each one using `container.registerCollab`.
+Next, we register/create our "global variable" [`Collab`s](./guide/built_in_collabs.html) - data structures that exist outside of any scope. These must together encompass the whole collaborative state. We register each one using `container.registerCollab`.
 
-For this simple app, there is just one `Collab`, a `CCounter`.
+For this simple app, there is just one `Collab`, a [`CCounter`](./guide/built_in_collabs.html).
 
 ```ts
 const counter = container.registerCollab(
   "counter",
-  collabs.Pre(collabs.CCounter)()
+  (initToken) => new collabs.CCounter(initToken)
 );
 ```
 
 A few things to note here:
 
 - The first argument to `registerCollab` is a _name_ for the `Collab`, used to identify it across different users. This can be arbitrary, but it's easiest to use the same name as the variable used to store the `Collab`. Each call to `registerCollab` must use a unique name.
-- We don't call `CCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we call the function `collabs.Pre(collabs.CCounter)` with the rest of `CCounter`'s constructor arguments - in this case, `()`. `registerCollab` then returns the actual constructed `CCounter`.
-  In general, when constructing `Collab`s, you use `Pre` instead of `new` in this way. I.e.:
-  ```ts
-  Pre(class_name)<generic types>(constructor args)
-  ```
-  instead of
-  ```ts
-  new class_name<generic types>(constructor args)
-  ```
-  [Initialization](./initialization.html) goes into more detail later in the guide.
+- We don't call `CCounter`'s constructor directly. Indeed, that constructor's first argument, of type `InitToken`, is something we don't have (and shouldn't create ourselves). Instead, we provide a callback function that gets the `InitToken`, _then_ constructs (and returns) the `CCounter`. `registerCollab` calls this function internally and returns the constructed `CCounter`, which we store in `counter`. [Initialization](./guide/initialization.html) explains the rationale for this pattern later in the guide.
 
 ### 3. Update Display on Events
 
 Now that we have our `counter`, we need to observe changes to it and update the GUI. This ensures that the GUI always reflects the current collaborative state.
 
-In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./events.html) goes into more detail later in the guide.
+In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./advanced/events.html) goes into more detail later in the guide.
 
 Here we listen on `CRDTContainer`'s "Change" event and refresh the entire display whenever it is emitted.
 
@@ -164,7 +155,7 @@ Next, we display the loaded state.
 refreshDisplay();
 ```
 
-We have to explicitly call `refreshDisplay()` here because events, including "Change" events, aren't emitted during loading.
+We have to explicitly call `refreshDisplay()` here because events, including "Change" events, aren't emitted during loading. See more at [handling changes](./guide/handling_changes.html).
 
 Finally, our container is ready to use: we've registered our Collabs, connected them to the GUI (display + user input), loaded the previous saved state, and displayed the loaded state. We call `container.ready()` to start the app.
 
@@ -182,7 +173,7 @@ One such container host is built into `npm start`---specifically, the [container
 
 The Quick Start's optional last step mentions another container host, [Collabs's Container Selector demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). That one uses our demo server to connect collaborators, again using WebSockets.
 
-For more container hosts, see [Container Deployment](./containers.html#deployment) later in the guide.
+For more container hosts, see [Container Deployment](./guide/containers.html#deployment) later in the guide.
 
 ## Next steps
 
@@ -192,9 +183,9 @@ You've now seen the basic structure of a Collabs app (specifically, a Collabs co
 
 Specifically, to make your own Collabs app, your main tasks are:
 
-- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [Built-in Collabs](./collaborative_data_structures.html), [Data Modeling](./data_modeling.html).
-- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [Events](./events.html).
+- In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [Built-in Collabs](./guide/built_in_collabs.html), [Data Modeling](./guide/data_modeling.html).
+- In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [Events](./advanced/events.html).
 - In Step 4, convert user inputs onto operations on your `Collab`s.
 - In Step 5, display the loaded state, i.e., update your display to reflect your `Collab`s' current states.
 
-For more info, continue following the guide with [Built-in Collabs](./collaborative_data_structures.html), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).
+For more info, continue following the guide with [Built-in Collabs](./guide/built_in_collabs.html), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).

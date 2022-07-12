@@ -1,6 +1,6 @@
 # Quick Start
 
-In this quick start, you will make a collaborative counter app: a webpage where anyone can view and change a shared counter value. The finished app's code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). The [TODO part of the guide](../guide/walkthrough.html) will walk through the code that you copy and paste here.
+In this quick start, you will make a collaborative counter app: a webpage where anyone can view and change a shared counter value. The finished app's code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). The [walkthrough part](./walkthrough.html) will walk through the code that you copy and paste here.
 
 1. Download the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container).
 2. Open the template's root folder in a terminal, then run `npm i` to install dependencies.
@@ -17,38 +17,49 @@ In this quick start, you will make a collaborative counter app: a webpage where 
 </body>
 ```
 
-4. Open `src/app.ts`. Replace the two `TODO` comments with the TypeScript code below. This code connects the display area and increment button to a Collabs `CCounter`---a collaborative counter.
-
-First `TODO` replacement:
+4. Open `src/app.ts`. Replace the file with the TypeScript code below. This code connects the display area and increment button to a Collabs `CCounter`---a collaborative counter.
 
 ```ts
-// Register Collabs.
-const counter = container.registerCollab(
-  "counter",
-  collabs.Pre(collabs.CCounter)()
-);
+import * as collabs from "@collabs/collabs";
+import { CRDTContainer } from "@collabs/container";
 
-// Refresh the display when the Collabs state changes, possibly
-// due to a message from another replica.
-const display = document.getElementById("display")!;
-function refreshDisplay() {
-  display.innerHTML = counter.value.toString();
-}
-container.on("Change", refreshDisplay);
+(async function () {
+  // Create a CRDTContainer, the entry point for a Collabs container.
+  const container = new CRDTContainer();
 
-// Change counter's value on button clicks.
-// Note that we don't need to refresh the display here, since Change
-// events are also triggered by local operations.
-document.getElementById("increment")!.onclick = () => {
-  counter.add(1);
-};
-```
+  // Setup your app, using container.registerCollab to create
+  // Collabs state variables.
+  // Register Collabs.
+  const counter = container.registerCollab(
+    "counter",
+    (initToken) => new collabs.CCounter(initToken)
+  );
 
-Second `TODO` replacement:
+  // Refresh the display when the Collabs state changes, possibly
+  // due to a message from another replica.
+  const display = document.getElementById("display")!;
+  function refreshDisplay() {
+    display.innerHTML = counter.value.toString();
+  }
+  container.on("Change", refreshDisplay);
 
-```ts
-// Display the loaded state.
-refreshDisplay();
+  // Change counter's value on button clicks.
+  // Note that we don't need to refresh the display here, since Change
+  // events are also triggered by local operations.
+  document.getElementById("increment")!.onclick = () => {
+    counter.add(1);
+  };
+
+  // Wait for the container to load the previous saved state, if any.
+  await container.load();
+
+  // Display the loaded state, i.e., sync it from your Collabs state
+  // variables to the GUI.
+  refreshDisplay();
+
+  // Signal to the container host that we're ready for use.
+  container.ready();
+})();
 ```
 
 5. Save both files, then in the terminal (still in the template's root folder), build your app in development mode: `npm run dev`.
@@ -64,4 +75,4 @@ refreshDisplay();
 
 TODO: walkthrough last (fast track option only), start with Guide Intro.
 
-Head over to the [Guide](./guide/index.html) to begin learning how to create your own Collabs apps, starting with a walkthrough of the code you copy-pasted here.
+Head over to the [Guide](./guide/index.html) to begin learning how to create your own Collabs apps, starting with a [walkthrough](./walkthrough.html) of the code you copy-pasted here.

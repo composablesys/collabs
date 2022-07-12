@@ -11,7 +11,8 @@ import $ from "jquery";
   // The value is the color of the stroke.
   const boardState = container.registerCollab(
     "whiteboard",
-    collabs.Pre(collabs.LWWCMap)<[x: number, y: number], string>()
+    (initToken) =>
+      new collabs.LWWCMap<[x: number, y: number], string>(initToken)
   );
 
   await container.load();
