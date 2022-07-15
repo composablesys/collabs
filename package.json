@@ -1,6 +1,7 @@
 {
   "author": "Collabs contributors",
   "license": "Apache-2.0",
+  "private": true,
   "devDependencies": {
     "rimraf": "^2.7.1"
   },
