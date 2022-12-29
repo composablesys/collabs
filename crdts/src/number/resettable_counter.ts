@@ -3,7 +3,6 @@ import {
   CollabEventsRecord,
   InitToken,
   MessageMeta,
-  Pre,
   int64AsNumber,
   Optional,
   CObject,
@@ -224,8 +223,14 @@ export class ResettableCCounter extends CObject<ResettableCCounterEventsRecord> 
 
   constructor(init: InitToken) {
     super(init);
-    this.plus = this.addChild("", Pre(GrowOnlyResettableCCounter)());
-    this.minus = this.addChild("0", Pre(GrowOnlyResettableCCounter)());
+    this.plus = this.addChild(
+      "",
+      (init) => new GrowOnlyResettableCCounter(init)
+    );
+    this.minus = this.addChild(
+      "0",
+      (init) => new GrowOnlyResettableCCounter(init)
+    );
 
     // Events
     this.plus.on("Add", (event) => {

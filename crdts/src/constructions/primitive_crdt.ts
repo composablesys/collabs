@@ -1,6 +1,12 @@
 import {
+  CListEventsRecord,
+  CMapEventsRecord,
   CollabEventsRecord,
   CPrimitive,
+  CSetEventsRecord,
+  MakeAbstractCList,
+  MakeAbstractCMap,
+  MakeAbstractCSet,
   Message,
   MessageMeta,
 } from "@collabs/core";
@@ -97,11 +103,12 @@ export abstract class PrimitiveCRDT<
   /**
    * Do not override; override [[receiveCRDT]] instead.
    */
-  protected receivePrimitive(
-    message: string | Uint8Array,
-    meta: MessageMeta
-  ): void {
-    this.receiveCRDT(message, meta, <CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY]);
+  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+    this.receiveCRDT(
+      message,
+      meta,
+      <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY)
+    );
   }
 
   /**
@@ -113,8 +120,75 @@ export abstract class PrimitiveCRDT<
    * e.g., a vector clock.
    */
   protected abstract receiveCRDT(
-    message: string | Uint8Array,
+    message: Message,
     meta: MessageMeta,
     crdtMeta: CRDTMeta
   ): void;
 }
+
+/**
+ * [[AbstractCList]] as a subclass of [[PrimitiveCRDT]].
+ *
+ * It is recommend to subclass in the form
+ * ```
+ * class Foo<T, InsertArgs, ...> extends AbstractCListPrimitiveCRDT<T, InsertArgs, ...>
+ * implements CList<T, InsertArgs>
+ * ```
+ * with a redundant `implements CList<T, InsertArgs>`, since otherwise TypeScript
+ * will not force you to use the actual types `T` and `InsertArgs` in your
+ * method signatures. This is due to a hack that we use to get those generic
+ * types into the mixin that defines this class, working around
+ * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
+ */
+export abstract class AbstractCListPrimitiveCRDT<
+    T,
+    InsertArgs extends unknown[],
+    Events extends CListEventsRecord<T> = CListEventsRecord<T>
+  >
+  // @ts-expect-error No good way to pass generics T & InsertArgs to mixin
+  extends MakeAbstractCList(PrimitiveCRDT)<T, InsertArgs>()<Events> {}
+
+/**
+ * [[AbstractCMap]] as a subclass of [[PrimitiveCRDT]].
+ *
+ * It is recommend to subclass in the form
+ * ```
+ * class Foo<K, V, SetArgs, ...> extends AbstractCMapPrimitiveCRDT<K, V, SetArgs, ...>
+ * implements CMap<K, V, SetArgs>
+ * ```
+ * with a redundant `implements CMap<K, V, SetArgs>`, since otherwise TypeScript
+ * will not force you to use the actual types `K`, `V`, `SetArgs` in your
+ * method signatures. This is due to a hack that we use to get those generic
+ * types into the mixin that defines this class, working around
+ * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
+ */
+export abstract class AbstractCMapPrimitiveCRDT<
+    K,
+    V,
+    SetArgs extends unknown[],
+    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+  >
+  // @ts-expect-error No good way to pass generics K, V, SetArgs to mixin
+  extends MakeAbstractCMap(PrimitiveCRDT)<K, V, SetArgs>()<Events> {}
+
+/**
+ * [[AbstractCSet]] as a subclass of [[PrimitiveCRDT]].
+ *
+ * It is recommend to subclass in the form
+ * ```
+ * class Foo<T, AddArgs, ...> extends AbstractCSetPrimitiveCRDT<T, AddArgs, ...>
+ * implements CSet<T, AddArgs>
+ * ```
+ * with a redundant `implements CSet<T, AddArgs>`, since otherwise TypeScript
+ * will not force you to use the actual types `T` and `AddArgs` in your
+ * method signatures. This is due to a hack that we use to get those generic
+ * types into the mixin that defines this class, working around
+ * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
+ */
+export abstract class AbstractCSetPrimitiveCRDT<
+    T,
+    AddArgs extends unknown[],
+    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+  >
+  // @ts-expect-error No good way to pass generics T & AddArgs to mixin
+  extends MakeAbstractCSet(PrimitiveCRDT)<T, AddArgs>()<Events> {}
