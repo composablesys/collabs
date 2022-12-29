@@ -2,7 +2,7 @@ import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
 import { CSet, CSetEventsRecord } from "./set";
 
-export declare abstract class AbstractCSet<T, AddArgs extends unknown[]>
+export declare abstract class AbstractCSet<T, AddArgs extends unknown[] = [T]>
   extends Collab
   implements CSet<T, AddArgs>
 {
@@ -115,7 +115,7 @@ export function MakeAbstractCSet<
  */
 export abstract class AbstractCSetCObject<
     T,
-    AddArgs extends unknown[],
+    AddArgs extends unknown[] = [T],
     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
     C extends Collab = Collab
   >
@@ -138,7 +138,7 @@ export abstract class AbstractCSetCObject<
  */
 export abstract class AbstractCSetCPrimitive<
     T,
-    AddArgs extends unknown[],
+    AddArgs extends unknown[] = [T],
     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
   >
   // @ts-expect-error No good way to pass generics T & AddArgs to mixin
@@ -160,7 +160,7 @@ export abstract class AbstractCSetCPrimitive<
  */
 export abstract class AbstractCSetCollab<
     T,
-    AddArgs extends unknown[],
+    AddArgs extends unknown[] = [T],
     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
   >
   // @ts-expect-error No good way to pass generics T & AddArgs to mixin

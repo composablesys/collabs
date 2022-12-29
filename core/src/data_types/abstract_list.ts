@@ -2,7 +2,10 @@ import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
 import { CList, CListEventsRecord } from "./list";
 
-export declare abstract class AbstractCList<T, InsertArgs extends unknown[]>
+export declare abstract class AbstractCList<
+    T,
+    InsertArgs extends unknown[] = [T]
+  >
   extends Collab
   implements CList<T, InsertArgs>
 {
@@ -522,7 +525,7 @@ export function MakeAbstractCList<
  */
 export abstract class AbstractCListCObject<
     T,
-    InsertArgs extends unknown[],
+    InsertArgs extends unknown[] = [T],
     Events extends CListEventsRecord<T> = CListEventsRecord<T>,
     C extends Collab = Collab
   >
@@ -545,7 +548,7 @@ export abstract class AbstractCListCObject<
  */
 export abstract class AbstractCListCPrimitive<
     T,
-    InsertArgs extends unknown[],
+    InsertArgs extends unknown[] = [T],
     Events extends CListEventsRecord<T> = CListEventsRecord<T>
   >
   // @ts-expect-error No good way to pass generics T & InsertArgs to mixin
@@ -567,7 +570,7 @@ export abstract class AbstractCListCPrimitive<
  */
 export abstract class AbstractCListCollab<
     T,
-    InsertArgs extends unknown[],
+    InsertArgs extends unknown[] = [T],
     Events extends CListEventsRecord<T> = CListEventsRecord<T>
   >
   // @ts-expect-error No good way to pass generics T & InsertArgs to mixin

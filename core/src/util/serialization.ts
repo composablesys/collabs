@@ -33,7 +33,6 @@ export interface Serializer<T> {
  *
  * Supported types:
  * - Primitive types (string, number, boolean, undefined, null)
- * - [[CollabID]]s
  * - Arrays and plain (non-class) objects, serialized recursively.
  *
  * All other types cause an error during [[serialize]].
@@ -73,12 +72,6 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "object":
         if (value === null) {
           message = { nullValue: true };
-        } else if (value instanceof CollabID) {
-          message = {
-            collabIDValue: CollabIDMessage.create({
-              pathToBase: value.namePath(),
-            }),
-          };
         } else if (value instanceof Uint8Array) {
           message = {
             bytesValue: value,
@@ -147,9 +140,6 @@ export class DefaultSerializer<T> implements Serializer<T> {
         break;
       case "nullValue":
         ans = null;
-        break;
-      case "collabIDValue":
-        ans = new CollabID(decoded.collabIDValue!.pathToBase!);
         break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
@@ -244,6 +234,20 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
       this.oneSerializer.deserialize(decoded.one),
       this.twoSerializer.deserialize(decoded.two),
     ];
+  }
+}
+
+const emptyUint8Array = new Uint8Array();
+
+export class TrivialSerializer<T> implements Serializer<T> {
+  constructor(readonly value: T) {}
+
+  serialize(_value: T): Uint8Array {
+    return emptyUint8Array;
+  }
+
+  deserialize(_message: Uint8Array): T {
+    return this.value;
   }
 }
 

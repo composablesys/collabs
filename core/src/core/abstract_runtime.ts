@@ -1,5 +1,5 @@
 import { makeUID } from "../util/uid";
-import { Collab, CollabEventsRecord, InitToken, Pre } from "./collab";
+import { Collab, CollabEventsRecord, InitToken } from "./collab";
 import { EventEmitter } from "./event_emitter";
 import { Runtime, RuntimeEventsRecord } from "./runtime";
 import { Message } from "./message";
@@ -13,7 +13,7 @@ export abstract class AbstractRuntime<
     Events extends RuntimeEventsRecord = RuntimeEventsRecord
   >
   extends EventEmitter<Events>
-  implements Runtime<Events> 
+  implements Runtime<Events>
 {
   readonly isRuntime: true = true;
   /**
@@ -29,8 +29,10 @@ export abstract class AbstractRuntime<
     }
   }
 
-  protected setRootCollab<C extends Collab>(preRootCollab: Pre<C>): C {
-    const rootCollab = preRootCollab(new InitToken("", this));
+  protected setRootCollab<C extends Collab>(
+    rootCallback: (init: InitToken) => C
+  ): C {
+    const rootCollab = rootCallback(new InitToken("", this));
     this.rootCollab = rootCollab;
     return rootCollab;
   }

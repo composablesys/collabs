@@ -47,8 +47,7 @@ export interface CVariable<
    *
    * @return The set value, or undefined if it is not
    * yet constructed. Implementations that always construct
-   * the value immediately should override this method and remove
-   * the "undefined" case.
+   * the value immediately should get rid of the "undefined" case.
    */
   set(...args: SetArgs): T | undefined;
 

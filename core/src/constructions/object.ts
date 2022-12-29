@@ -5,7 +5,6 @@ import {
   ICollabParent,
   InitToken,
   MessageMeta,
-  Pre,
   Message,
 } from "../core";
 import { Optional } from "../util";
@@ -104,11 +103,14 @@ export class CObject<
    *
    * @return child
    */
-  protected addChild<D extends C>(name: string, preChild: Pre<D>): D {
+  protected addChild<D extends C>(
+    name: string,
+    childCallback: (init: InitToken) => D
+  ): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
-    const child = preChild(new InitToken(name, this));
+    const child = childCallback(new InitToken(name, this));
     this.children.set(name, child);
     return child;
   }

@@ -1,5 +1,5 @@
 import { CollabIDMessage } from "../../generated/proto_compiled";
-import { Collab, Runtime } from "../core";
+import { CollabParent, Collab } from "../core";
 import { Serializer } from "./serialization";
 
 /**
@@ -24,7 +24,7 @@ export class CollabID<C extends Collab> {
    * @param base An ancestor of the referenced Collab, used in [[get]]
    * and serialization.
    */
-  constructor(readonly pathToBase: string[], readonly base: Collab | Runtime) {}
+  constructor(readonly pathToBase: string[], readonly base: CollabParent) {}
 
   /**
    * Returns this replica's instance of the [[Collab]] with ID, or
@@ -48,7 +48,7 @@ export class CollabID<C extends Collab> {
    * @param  base An ancestor of the referenced Collab, used in [[get]]
    * and serialization.
    */
-  static of<C extends Collab>(collab: C, base: Collab | Runtime): CollabID<C> {
+  static of<C extends Collab>(collab: C, base: CollabParent): CollabID<C> {
     return new CollabID(base.getNamePath(collab), base);
   }
 }
@@ -65,7 +65,7 @@ export class CollabID<C extends Collab> {
 export class CollabIDSerializer<C extends Collab>
   implements Serializer<CollabID<C>>
 {
-  constructor(readonly base: Collab | Runtime) {}
+  constructor(readonly base: CollabParent) {}
 
   /**
    * Returns a [[CollabID]] for `collab`, using [[base]] as the base.

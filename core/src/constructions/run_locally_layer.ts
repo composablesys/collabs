@@ -4,7 +4,6 @@ import {
   ICollabParent,
   InitToken,
   MessageMeta,
-  Pre,
   Message,
 } from "../core";
 import { Optional } from "../util";
@@ -51,8 +50,8 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
   private child!: Collab;
   private runLocallyMeta: MessageMeta | null = null;
 
-  setChild<C extends Collab>(preChild: Pre<C>): C {
-    const child = preChild(new InitToken("", this));
+  setChild<C extends Collab>(childCallback: (init: InitToken) => C): C {
+    const child = childCallback(new InitToken("", this));
     this.child = child;
     return child;
   }

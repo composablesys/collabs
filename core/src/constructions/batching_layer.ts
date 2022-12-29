@@ -7,7 +7,6 @@ import {
   InitToken,
   ICollabParent,
   MessageMeta,
-  Pre,
   Message,
   serializeMessage,
 } from "../core";
@@ -150,8 +149,8 @@ export class BatchingLayer
     this.batchingStrategy.start(this);
   }
 
-  setChild<C extends Collab>(preChild: Pre<C>): C {
-    const child = preChild(new InitToken("", this));
+  setChild<C extends Collab>(childCallback: (init: InitToken) => C): C {
+    const child = childCallback(new InitToken("", this));
     this.child = child;
     return child;
   }

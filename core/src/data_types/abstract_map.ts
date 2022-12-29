@@ -7,7 +7,11 @@ import { CObject } from "../constructions/object";
 import { CPrimitive } from "../constructions/primitive";
 import { CMap, CMapEventsRecord } from "./map";
 
-export declare abstract class AbstractCMap<K, V, SetArgs extends unknown[]>
+export declare abstract class AbstractCMap<
+    K,
+    V,
+    SetArgs extends unknown[] = [V]
+  >
   extends Collab
   implements CMap<K, V, SetArgs>
 {
@@ -157,7 +161,7 @@ export function MakeAbstractCMap<
 export abstract class AbstractCMapCObject<
     K,
     V,
-    SetArgs extends unknown[],
+    SetArgs extends unknown[] = [V],
     Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>,
     C extends Collab = Collab
   >
@@ -181,7 +185,7 @@ export abstract class AbstractCMapCObject<
 export abstract class AbstractCMapCPrimitive<
     K,
     V,
-    SetArgs extends unknown[],
+    SetArgs extends unknown[] = [V],
     Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
   >
   // @ts-expect-error No good way to pass generics K, V, SetArgs to mixin
@@ -204,7 +208,7 @@ export abstract class AbstractCMapCPrimitive<
 export abstract class AbstractCMapCollab<
     K,
     V,
-    SetArgs extends unknown[],
+    SetArgs extends unknown[] = [V],
     Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
   >
   // @ts-expect-error No good way to pass generics K, V, SetArgs to mixin

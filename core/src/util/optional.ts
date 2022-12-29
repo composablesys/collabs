@@ -61,7 +61,7 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
 
   deserialize(message: Uint8Array): Optional<T> {
     const decoded = OptionalSerializerMessage.decode(message);
-    if (Object.hasOwnProperty.call(decoded, "valueIfPresent")) {
+    if (Object.prototype.hasOwnProperty.call(decoded, "valueIfPresent")) {
       return Optional.of(
         this.valueSerializer.deserialize(decoded.valueIfPresent)
       );
