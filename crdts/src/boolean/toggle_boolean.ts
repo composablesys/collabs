@@ -1,22 +1,26 @@
 import {
-  CBoolean,
+  CVariable,
   CVariableEventsRecord,
   InitToken,
-  MakeAbstractCBoolean,
   MessageMeta,
   Optional,
 } from "@collabs/core";
 import { PrimitiveCRDT } from "../constructions";
 
 export class ToggleCBoolean
-  extends MakeAbstractCBoolean(PrimitiveCRDT)<CVariableEventsRecord<boolean>>
-  implements CBoolean
+  extends PrimitiveCRDT<CVariableEventsRecord<boolean>>
+  implements CVariable<boolean>
 {
   private valueInternal: boolean;
 
-  constructor(initToken: InitToken, private readonly initialValue = false) {
-    super(initToken);
+  constructor(init: InitToken, private readonly initialValue = false) {
+    super(init);
     this.valueInternal = initialValue;
+  }
+
+  set(value: boolean): boolean {
+    this.value = value;
+    return value;
   }
 
   set value(value: boolean) {
@@ -39,6 +43,7 @@ export class ToggleCBoolean
     this.valueInternal = !this.valueInternal;
     this.emit("Set", {
       meta,
+      value: this.valueInternal,
       previousValue: !this.valueInternal,
     });
   }
