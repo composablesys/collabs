@@ -172,10 +172,6 @@ export class ArchivingMutCMap<
     return this.keySet.has(key);
   }
 
-  owns(value: C): boolean {
-    return this.valueSet.owns(value);
-  }
-
   get size(): number {
     return this.keySet.size;
   }
@@ -207,25 +203,6 @@ export class ArchivingMutCMap<
     return this.keyByValue.get(searchElement);
   }
 
-  getArgs(key: K): SetArgs | undefined {
-    const value = this.get(key);
-    if (value === undefined) return undefined;
-    else return this.valueSet.getArgs(value)[1];
-  }
-
-  /**
-   * [getArgs description]
-   * @param  value [description]
-   * @return the SetArgs used to set value
-   * @throws if this.owns(value) is false
-   */
-  getArgsByValue(value: C): SetArgs {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
-    }
-    return this.valueSet.getArgs(value)[1];
-  }
-
   /**
    * Restore the given value to be its key's value.
    *
@@ -240,14 +217,13 @@ export class ArchivingMutCMap<
    *
    * @param  value [description]
    * @return       [description]
-   * @throws if value is not owned by this map, or it was
-   * not a previous value at key
+   * @throws if value does not belong to this map
    */
   restoreValue(value: C) {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
+    const key = this.keyOf(value);
+    if (key === undefined) {
+      throw new Error("value does not belong to this map");
     }
-    const key = this.keyOf(value)!;
     this.keySet.add(key);
     this.map.set(key, CollabID.of(value, this.valueSet));
   }

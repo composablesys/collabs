@@ -26,7 +26,10 @@ export class MultiValueMap<K, V>
   extends AbstractCMapPrimitiveCRDT<K, MultiValueMapItem<V>[], [V]>
   implements CMap<K, MultiValueMapItem<V>[], [V]>
 {
-  // TODO: explain/profile array opt (trying to avoid singleton array memory)
+  // In the common case (no concurrent sets on a given key), that key has
+  // just one value. We store it as such, instead of as a singleton array,
+  // in the hopes of reducing memory usage & (un)boxing time.
+  // OPT: profile this to see if it's actually useful.
   private readonly state = new Map<
     K,
     MultiValueMapItem<V> | MultiValueMapItem<V>[]
