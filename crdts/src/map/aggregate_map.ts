@@ -32,6 +32,7 @@ export class AggregateCMap<K, V>
       (init) =>
         new MultiValueMap(init, wallClockTime, keySerializer, valueSerializer)
     );
+
     this.mvMap.on("Delete", (e) => {
       this.emit("Delete", {
         key: e.key,

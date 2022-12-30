@@ -107,7 +107,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
-        if (meta.isLocalEcho) {
+        if (meta.isEcho) {
           // Deliver the message locally so that the child ops go through,
           // preventing errors from chained ops.
           if (this.deletedSendingChild !== undefined) {
@@ -138,9 +138,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
             false
           );
 
-          if (meta.isLocalEcho) {
-            // Previously we also did this if runLocally
-            // was true; see https://github.com/composablesys/collabs/issues/172
+          if (meta.isEcho) {
             this.ourCreatedValue = newValue;
           }
 
@@ -227,28 +225,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return created!;
   }
 
-  /**
-   * Experimental; subject to removal.
-   *
-   * This was added for the rich-text-yata demo, which
-   * requires a "pure" (in the sense of pure op-based CRDTs)
-   * add method, in order to work with runLocally.
-   *
-   * (TODO: remove or clarify.)
-   */
-  pureAdd(uniqueNumber: number, ...args: AddArgs): C {
-    const message = DeletingMutCSetMessage.create({
-      add: {
-        replicaUniqueNumber: uniqueNumber,
-        args: this.argsSerializer.serialize(args),
-      },
-    });
-    this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    const created = this.ourCreatedValue;
-    this.ourCreatedValue = undefined;
-    return created!;
-  }
-
   delete(value: C): void {
     if (this.has(value)) {
       const message = DeletingMutCSetMessage.create({
@@ -258,16 +234,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     }
   }
 
-  /**
-   * Returns whether the given value was created by this
-   * set, regardless of whether it is still present.
-   */
-  owns(value: C): boolean {
-    return value.parent === this;
-  }
-
   has(value: C): boolean {
-    return this.owns(value) && this.children.has(value.name);
+    return value.parent === this && this.children.has(value.name);
   }
 
   values(): IterableIterator<C> {
@@ -276,23 +244,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
   get size(): number {
     return this.children.size;
-  }
-
-  /**
-   * @param  value [description]
-   * @return the AddArgs used to add value
-   * @throws if !this.has(value) or if value is an initialValue
-   * (those args aren't retained, for efficiency)
-   */
-  getArgs(value: C): AddArgs {
-    if (!this.has(value)) {
-      throw new Error("this.has(value) is false");
-    }
-    const argsSerialized = this.constructorArgs.get(value.name);
-    if (argsSerialized === undefined) {
-      throw new Error("Cannot call argsOf on initial value");
-    }
-    return this.argsSerializer.deserialize(argsSerialized);
   }
 
   save(): Uint8Array {
@@ -372,7 +323,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   canGC(): boolean {
     // To be in the initial state:
     // 1. All values except the initial ones must be deleted.
-    // Such values are except those referenced by constructorArgs.
+    // The present non-initial values are precisely
+    // those referenced by constructorArgs.
     if (this.constructorArgs.size === 0) {
       // 2. All initial values must still be present.
       if (this.size === this.initialValuesCount) {
