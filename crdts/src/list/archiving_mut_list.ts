@@ -38,13 +38,13 @@ export class ArchivingMutCList<
   >
 > {
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
+      init,
       (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
         Pre(ArchivingMutCSet)(
           setValueConstuctor,

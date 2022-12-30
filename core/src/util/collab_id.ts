@@ -1,5 +1,5 @@
 import { CollabIDMessage } from "../../generated/proto_compiled";
-import { CollabParent, Collab } from "../core";
+import { Collab, Runtime } from "../core";
 import { Serializer } from "./serialization";
 
 /**
@@ -24,7 +24,13 @@ export class CollabID<C extends Collab> {
    * @param base An ancestor of the referenced Collab, used in [[get]]
    * and serialization.
    */
-  constructor(readonly pathToBase: string[], readonly base: CollabParent) {}
+  constructor(
+    readonly pathToBase: string[],
+    // Technically this should be CollabParent. However, that is sometimes
+    // annoying when you make a CollabID with a generic base, since then you
+    // have to add (or cast) the CollabParent constraint to the generic type.
+    readonly base: Collab | Runtime
+  ) {}
 
   /**
    * Returns this replica's instance of the [[Collab]] with ID, or
@@ -42,13 +48,26 @@ export class CollabID<C extends Collab> {
   }
 
   /**
+   * Returns whether this is equivalent to other: they have the same
+   * `base` and identify the same [[Collab]].
+   */
+  equals(other: CollabID<C>): boolean {
+    if (this.base !== other.base) return false;
+    if (this.pathToBase.length !== other.pathToBase.length) return false;
+    for (let i = 0; i < this.pathToBase.length; i++) {
+      if (this.pathToBase[i] !== other.pathToBase[i]) return false;
+    }
+    return true;
+  }
+
+  /**
    * Returns a [[CollabID]] for `collab`.
    *
    * @param collab
    * @param  base An ancestor of the referenced Collab, used in [[get]]
    * and serialization.
    */
-  static of<C extends Collab>(collab: C, base: CollabParent): CollabID<C> {
+  static of<C extends Collab>(collab: C, base: Collab | Runtime): CollabID<C> {
     return new CollabID(base.getNamePath(collab), base);
   }
 }
@@ -65,24 +84,7 @@ export class CollabID<C extends Collab> {
 export class CollabIDSerializer<C extends Collab>
   implements Serializer<CollabID<C>>
 {
-  constructor(readonly base: CollabParent) {}
-
-  /**
-   * Returns a [[CollabID]] for `collab`, using [[base]] as the base.
-   */
-  id(collab: C): CollabID<C> {
-    return CollabID.of(collab, this.base);
-  }
-
-  /**
-   * Returns this replica's instance of the [[Collab]] with ID, or
-   * undefined if it no longer exists relative to this.base.
-   *
-   * See [[CollabID.get]].
-   */
-  collab(id: CollabID<C>): C | undefined {
-    return id.get();
-  }
+  constructor(readonly base: Collab | Runtime) {}
 
   serialize(value: CollabID<C>): Uint8Array {
     if (value.base !== this.base) {

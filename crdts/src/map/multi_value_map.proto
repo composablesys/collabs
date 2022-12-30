@@ -1,0 +1,26 @@
+message MultiValueMapMessage {
+  required bytes key = 1;
+  // Present iff it's a set operation.
+  optional bytes value = 2;
+}
+
+// Save data for one sender's items.
+// These are in map order, which is the same as send order in the common
+// case of no concurrency; however, keys with multiple concurrent items
+// are ordered by their last change, hence this sender's item at that key
+// might not be in send order. So we optimize for the case that
+// senderCounter's and wallClockTime's are ordered by using diffs, but
+// still allow unordered values (negative diffs).
+message MultiValueMapSenderSave {
+  repeated bytes keys = 1;
+  repeated bytes values = 2;
+  // First is actual senderCounter, rest are diffs over previous value.
+  repeated sint64 senderCounterDiffs = 3 [packed=true];
+  // First is actual wallClockTime, rest are diffs over previous value.
+  // Not present if the map doesn't use wallClockTime.
+  repeated sint64 wallClockTimeDiffs = 4 [packed=true];
+}
+
+message MultiValueMapSave {
+  map<string, MultiValueMapSenderSave> stateBySender = 1;
+}

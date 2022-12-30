@@ -11,11 +11,17 @@ import {
   BatchingStrategy,
   Optional,
   BatchingLayer,
-  PublicCObject,
   ImmediateBatchingStrategy,
+  CObject,
 } from "@collabs/core";
 import { CRDTRuntimeMessage } from "../../generated/proto_compiled";
 import { CRDTMetaLayer } from "./crdt-meta-layer";
+
+class PublicCObject extends CObject {
+  addChild<C extends Collab>(name: string, preChild: Pre<C>): C {
+    return super.addChild(name, preChild);
+  }
+}
 
 export interface SendEvent {
   message: Uint8Array;
@@ -188,17 +194,9 @@ export class CRDTRuntime
         isLocalEcho: false,
       });
     } catch (err) {
-      // Don't let the error block other messages' delivery
-      // or affect the deliverer,
-      // but still make it print
-      // its error like it was unhandled.
-      // Note we know the message is not a local echo.
-      void Promise.resolve().then(() => {
-        throw err;
-      });
-    } finally {
-      this.inRootReceive = false;
+      console.error("Error while receiving remote Collabs message:\n", err);
     }
+    this.inRootReceive = false;
   }
 
   /**

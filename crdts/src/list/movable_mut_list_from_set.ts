@@ -31,8 +31,8 @@ export class MovableMutCListEntry<
   readonly value: C;
   readonly position: VarT;
 
-  constructor(initToken: InitToken, value: Pre<C>, position: Pre<VarT>) {
-    super(initToken);
+  constructor(init: InitToken, value: Pre<C>, position: Pre<VarT>) {
+    super(init);
     this.value = this.addChild("", value);
     this.position = this.addChild("0", position);
   }
@@ -71,7 +71,7 @@ export class MovableMutCListFromSet<
    * values() returns them in the order corresponding to setInitialValuesArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     setCallback: (
       setValueConstructor: (
         setValueInitToken: InitToken,
@@ -92,7 +92,7 @@ export class MovableMutCListFromSet<
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     const setInitialValuesArgs: [ListPosition, InsertArgs][] =
       initialValuesArgs.map((args, index) => [["", 0, index + 1], args]);

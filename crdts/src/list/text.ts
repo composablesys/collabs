@@ -46,8 +46,8 @@ export class CText
    */
   private indexHint = -1;
 
-  constructor(initToken: InitToken) {
-    super(initToken);
+  constructor(init: InitToken) {
+    super(init);
 
     this.positionSource = new ListPositionSource(
       this.runtime.replicaID,

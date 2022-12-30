@@ -45,14 +45,14 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
   /**
    * [constructor description]
-   * @param initToken                [description]
+   * @param init                [description]
    * @param valueConstructor [description]
    * @param initialValues TODO: experimental. To get the created values,
    * call this.value() right after construction.  The
    * iterator will return them in the order given by initialValuesArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly valueConstructor: (
       valueInitToken: InitToken,
       ...args: AddArgs
@@ -60,7 +60,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     initialValuesArgs: AddArgs[] = [],
     private readonly argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     // Create the initial values from initialValuesArgs.
     for (let i = 0; i < initialValuesArgs.length; i++) {

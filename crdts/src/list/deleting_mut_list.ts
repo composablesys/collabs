@@ -28,13 +28,13 @@ export class DeletingMutCList<
   >
 > {
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
+      init,
       Pre(DeletingMutCSet),
       ConstructorAsFunction(LWWCVariable),
       valueConstructor,

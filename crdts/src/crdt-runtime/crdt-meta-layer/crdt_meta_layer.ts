@@ -87,11 +87,8 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
    * - When true, redundant re-deliveries are still okay -
    * they will be filtered out as usual.
    */
-  constructor(
-    initToken: InitToken,
-    options?: { causalityGuaranteed?: boolean }
-  ) {
-    super(initToken);
+  constructor(init: InitToken, options?: { causalityGuaranteed?: boolean }) {
+    super(init);
 
     this.causalityGuaranteed = options?.causalityGuaranteed ?? false;
 
@@ -384,12 +381,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
         // operation.
         throw err;
       } else {
-        // Don't let the error block other messages'
-        // delivery or affect the deliverer, but still make it print
-        // its error like it was unhandled.
-        void Promise.resolve().then(() => {
-          throw err;
-        });
+        console.error("Error while receiving remote Collabs message:\n", err);
       }
     }
   }

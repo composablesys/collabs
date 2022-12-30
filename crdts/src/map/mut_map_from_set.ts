@@ -7,12 +7,10 @@ import {
   Serializer,
   Collab,
   InitToken,
-  Pre,
   AbstractCMapCObject,
   CMap,
   CSet,
 } from "@collabs/core";
-import { CVariableEntryMeta } from "../variable";
 
 export interface ConflictsCMap<K, V> extends CMap<K, V> {
   /**
@@ -20,12 +18,6 @@ export interface ConflictsCMap<K, V> extends CMap<K, V> {
    * for key.
    */
   getConflicts(key: K): V[];
-
-  /**
-   * Return the causally maximal concurrent values set
-   * for key, with metadata.
-   */
-  getConflictsMeta(key: K): CVariableEntryMeta<V>[];
 }
 
 /**
@@ -46,34 +38,35 @@ export class MutCMapFromSet<
   private justDeletedValues: C[] = [];
 
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     setCallback: (
+      setInit: InitToken,
       setValueConstructor: (
-        setValueInitToken: InitToken,
+        setValueInit: InitToken,
         key: K,
         args: SetArgs
       ) => C,
       setArgsSerializer: Serializer<[K, SetArgs]>
-    ) => Pre<SetT>,
+    ) => SetT,
     mapCallback: (
+      mapInit: InitToken,
       mapKeySerializer: Serializer<K>,
       mapValueSerializer: Serializer<CollabID<C>>
-    ) => Pre<MapT>,
-    valueConstructor: (
-      valueInitToken: InitToken,
-      key: K,
-      ...args: SetArgs
-    ) => C,
+    ) => MapT,
+    valueConstructor: (valueInit: InitToken, key: K, ...args: SetArgs) => C,
     keySerializer: Serializer<K> = DefaultSerializer.getInstance(),
     argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
-    this.valueSet = this.addChild(
-      "",
-      setCallback((valueInitToken, key, args) => {
-        return valueConstructor(valueInitToken, key, ...args);
-      }, new PairSerializer(keySerializer, argsSerializer))
+    this.valueSet = this.addChild("", (setInit) =>
+      setCallback(
+        setInit,
+        (valueInit, key, args) => {
+          return valueConstructor(valueInit, key, ...args);
+        },
+        new PairSerializer(keySerializer, argsSerializer)
+      )
     );
     // We use a map of CollabIDs instead of Collabs since concurrent delete
     // ops could result in attempting to deserialize a Collab that is
@@ -81,9 +74,8 @@ export class MutCMapFromSet<
     // we know that outside of delete operations, IDs present in the map
     // correspond to Collabs that still exist in valueSet.
     // Hence it is safe to call ID.get() in our get, etc. methods.
-    this.map = this.addChild(
-      "0",
-      mapCallback(keySerializer, new CollabIDSerializer(this.valueSet))
+    this.map = this.addChild("0", (mapInit) =>
+      mapCallback(mapInit, keySerializer, new CollabIDSerializer(this.valueSet))
     );
 
     // Events.
@@ -99,12 +91,14 @@ export class MutCMapFromSet<
         const previousID = event.previousValue.get();
         this.emit("Set", {
           key: event.key,
+          value: event.value.get()!,
           previousValue: Optional.of(this.getJustDeletedValue(previousID)),
           meta: event.meta,
         });
       } else {
         this.emit("Set", {
           key: event.key,
+          value: event.value.get()!,
           previousValue: Optional.empty<C>(),
           meta: event.meta,
         });
@@ -113,7 +107,7 @@ export class MutCMapFromSet<
     this.map.on("Delete", (event) => {
       this.emit("Delete", {
         key: event.key,
-        deletedValue: this.getJustDeletedValue(event.deletedValue),
+        value: this.getJustDeletedValue(event.value),
         meta: event.meta,
       });
     });
@@ -125,7 +119,7 @@ export class MutCMapFromSet<
    */
   private getJustDeletedValue(id: CollabID<C>): C {
     for (const justDeletedValue of this.justDeletedValues) {
-      if (id.equals(CollabID.fromCollab(justDeletedValue, this.valueSet))) {
+      if (id.equals(CollabID.of(justDeletedValue, this.valueSet))) {
         this.justDeletedValues = [];
         return justDeletedValue;
       }
@@ -138,7 +132,7 @@ export class MutCMapFromSet<
     this.deleteConflicts(key);
     // Set the new value.
     const value = this.valueSet.add(key, args)!;
-    this.map.set(key, CollabID.fromCollab(value, this.valueSet));
+    this.map.set(key, CollabID.of(value, this.valueSet));
     return value;
   }
 
@@ -151,24 +145,16 @@ export class MutCMapFromSet<
 
   private deleteConflicts(key: K): void {
     for (const valueID of this.map.getConflicts(key)) {
-      this.valueSet.delete(valueID.get(this.valueSet)!);
+      this.valueSet.delete(valueID.get()!);
     }
   }
 
   get(key: K): C | undefined {
-    return this.map.get(key)?.get(this.valueSet);
+    return this.map.get(key)?.get();
   }
 
   getConflicts(key: K): C[] {
-    return this.map
-      .getConflicts(key)
-      .map((valueID) => valueID.get(this.valueSet)!);
-  }
-
-  getConflictsMeta(key: K): CVariableEntryMeta<C>[] {
-    return this.map.getConflictsMeta(key).map((valueIDMeta) => {
-      return { ...valueIDMeta, value: valueIDMeta.value.get(this.valueSet)! };
-    });
+    return this.map.getConflicts(key).map((valueID) => valueID.get()!);
   }
 
   has(key: K): boolean {
@@ -181,7 +167,7 @@ export class MutCMapFromSet<
 
   *entries(): IterableIterator<[K, C]> {
     for (const [key, valueID] of this.map.entries()) {
-      yield [key, valueID.get(this.valueSet)!];
+      yield [key, valueID.get()!];
     }
   }
 
@@ -191,8 +177,4 @@ export class MutCMapFromSet<
     this.map.clear();
     this.valueSet.clear();
   }
-
-  // Use inherited (O(n)) keyOf implementation.  If you
-  // want this to run in O(1), you should use store WeakMap
-  // from values to keys, set during valueConstructor.
 }

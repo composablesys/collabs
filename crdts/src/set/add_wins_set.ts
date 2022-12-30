@@ -24,13 +24,13 @@ export class CSetFromBoolean<
    * to start containing some elements but not others).
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     protected readonly booleanConstructor: (
       booleanInitToken: InitToken
     ) => BoolT,
     valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     this.booleanMap = this.addChild(
       "",
@@ -99,11 +99,11 @@ export class CSetFromBoolean<
 
 export class AddWinsCSet<T> extends CSetFromBoolean<T, TrueWinsCBoolean> {
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
+      init,
       (booleanInitToken) => new TrueWinsCBoolean(booleanInitToken),
       valueSerializer
     );

@@ -36,13 +36,13 @@ export class PrimitiveCList<T>
   private indexHint = -1;
 
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     protected readonly valueSerializer: Serializer<T> = DefaultSerializer.getInstance(),
     protected readonly valueArraySerializer:
       | Serializer<T[]>
       | undefined = undefined
   ) {
-    super(initToken);
+    super(init);
 
     this.positionSource = new ListPositionSource(
       this.runtime.replicaID,

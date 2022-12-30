@@ -1,7 +1,6 @@
 import {
   Collab,
   InitToken,
-  Pre,
   CollabID,
   DefaultSerializer,
   Serializer,
@@ -22,7 +21,7 @@ export class DeletingMutCMap<
   LWWCMap<K, CollabID<C>>
 > {
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (
       valueInitToken: InitToken,
       key: K,
@@ -32,10 +31,15 @@ export class DeletingMutCMap<
     argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
-      (setValueConstructor, setArgsSerializer) =>
-        Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
-      Pre(LWWCMap),
+      init,
+      (setInit, setValueConstructor, setArgsSerializer) =>
+        new DeletingMutCSet(
+          setInit,
+          setValueConstructor,
+          undefined,
+          setArgsSerializer
+        ),
+      (mapInit) => new LWWCMap(mapInit),
       valueConstructor,
       keySerializer,
       argsSerializer

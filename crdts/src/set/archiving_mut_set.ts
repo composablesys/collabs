@@ -36,12 +36,12 @@ export class ArchivingMutCSet<
    * @param valueConstructor [description]
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
     initialValuesArgs: AddArgs[] = [],
     argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     this.mutSet = this.addChild(
       "",
