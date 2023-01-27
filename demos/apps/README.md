@@ -1,6 +1,6 @@
 # Collabs Demo Server
 
-Demo server for [Collabs](https://collabs.readthedocs.io/). Source of [compoventuals-tests.herokuapp.com/](compoventuals-tests.herokuapp.com/).
+Demo server for [Collabs](https://collabs.readthedocs.io/). Source of [collabs-demos.herokuapp.com/](collabs-demos.herokuapp.com/).
 
 ## Usage
 

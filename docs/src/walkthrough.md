@@ -1,6 +1,6 @@
 # Walkthrough
 
-In this page, we will walk through the [Quick Start](./quick_start.html)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](./what_is_collabs.html).
+In this page, we will walk through the [Quick Start](./quick_start.html)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](./what_is_collabs.html).
 
 ## Project Setup
 
@@ -171,7 +171,7 @@ To deploy the app, we need to give our compiled file, `dist/counter.html` to a C
 
 One such container host is built into `npm start`---specifically, the [container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) command that it uses. The command launches a server whose home page includes a container host and that automatically loads `dist/counter.html` into that host. The host connects collaborators to its server using WebSockets.
 
-The Quick Start's optional last step mentions another container host, [Collabs's Container Selector demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). That one uses our demo server to connect collaborators, again using WebSockets.
+The Quick Start's optional last step mentions another container host, [Collabs's Container Selector demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). That one uses our demo server to connect collaborators, again using WebSockets.
 
 For more container hosts, see [Container Deployment](./guide/containers.html#deployment) later in the guide.
 

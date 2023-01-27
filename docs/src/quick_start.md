@@ -1,6 +1,6 @@
 # Quick Start
 
-In this quick start, you will make a collaborative counter app: a webpage where anyone can view and change a shared counter value. The finished app's code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). The [walkthrough part](./walkthrough.html) will walk through the code that you copy and paste here.
+In this quick start, you will make a collaborative counter app: a webpage where anyone can view and change a shared counter value. The finished app's code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). The [walkthrough part](./walkthrough.html) will walk through the code that you copy and paste here.
 
 1. Download the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container).
 2. Open the template's root folder in a terminal, then run `npm i` to install dependencies.
@@ -69,7 +69,7 @@ import { CRDTContainer } from "@collabs/container";
 7. (Optional) Deploy your app to the web:
    a. Rename the output file: At the `TODO` in `webpack.config.ts`, replace `MY_CONTAINER.html` with `counter.html`. Do the same replacement in `package.json`.
    b. Build your app in production mode: `npm run build`. This is essentially the same as `npm run dev`, but it makes a smaller output file.
-   c. Take the output file, `dist/counter.html`, and upload it to [Collabs's Container Selector demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html) in the "By file" category. (If you don't see the option to upload a file, you'll need to reset the demo from the "More Info" page linked at the top.) After clicking "Go", you should see your counter, and anyone who visits that page can collaboratively increment the value. Under the hood, Collabs is using our demo server to connect collaborators.
+   c. Take the output file, `dist/counter.html`, and upload it to [Collabs's Container Selector demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html) in the "By file" category. (If you don't see the option to upload a file, you'll need to reset the demo from the "More Info" page linked at the top.) After clicking "Go", you should see your counter, and anyone who visits that page can collaboratively increment the value. Under the hood, Collabs is using our demo server to connect collaborators.
 
 ## Next Steps
 

@@ -3,7 +3,7 @@ import {
   CausalBroadcastNetwork,
   CausalTimestamp,
   VectorClock,
-} from "compoventuals";
+} from "collabs";
 import { WebRtcNetworkMessage } from "../generated/proto_compiled";
 import { Buffer } from "buffer";
 

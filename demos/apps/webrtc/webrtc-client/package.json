@@ -1,16 +1,16 @@
 {
-  "name": "compoventuals-webrtc-client",
+  "name": "collabs-webrtc-client",
   "version": "0.1.3",
   "description": "CRDTs designed compositionally (WebRTC network client)",
   "author": "Compoventuals contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
+    "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "homepage": "https://github.com/composablesys/collabs#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/composablesys/compoventuals.git"
+    "url": "git+https://github.com/composablesys/collabs.git"
   },
   "keywords": [
     "crdts"
@@ -28,7 +28,7 @@
   "sideEffects": false,
   "dependencies": {
     "tslib": "^2.0.1",
-    "compoventuals": "^0.1.0",
+    "collabs": "^0.1.0",
     "buffer": "^6.0.3",
     "protobufjs": "~6.10.1",
     "ws": "^7.4.6",

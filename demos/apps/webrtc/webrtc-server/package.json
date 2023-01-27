@@ -1,16 +1,16 @@
 {
-  "name": "compoventuals-webrtc-server",
+  "name": "collabs-webrtc-server",
   "version": "0.1.3",
   "description": "CRDTs designed compositionally (WebRTC network signalling server)",
   "author": "Compoventuals contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/composablesys/compoventuals/issues"
+    "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/compoventuals#readme",
+  "homepage": "https://github.com/composablesys/collabs#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/composablesys/compoventuals.git"
+    "url": "git+https://github.com/composablesys/collabs.git"
   },
   "keywords": [
     "crdts"

@@ -32,7 +32,7 @@ Collabs is written in TypeScript and should work in any JavaScript environment (
 
 ## Demos
 
-[Live demos](https://compoventuals-tests.herokuapp.com/) of collaborative apps built on top of Collabs. [Source code](https://github.com/composablesys/collabs/tree/master/demos)
+[Live demos](https://collabs-demos.herokuapp.com/) of collaborative apps built on top of Collabs. [Source code](https://github.com/composablesys/collabs/tree/master/demos)
 
 ## Principles
 
