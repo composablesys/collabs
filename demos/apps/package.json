@@ -83,6 +83,6 @@
     "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
   },
   "engines": {
-    "node": ">=16"
+    "node": "16.x"
   }
 }
