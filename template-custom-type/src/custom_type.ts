@@ -1,10 +1,9 @@
 import {
   CObject,
   CollabEventsRecord,
-  InitToken,
   CVariableEvent,
+  InitToken,
   LWWCVariable,
-  Pre,
 } from "@collabs/collabs";
 
 // Since you're exporting your type for reuse, it's a good
@@ -30,10 +29,13 @@ export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
     super(init);
 
     // Setup child Collabs.
-    this.firstReg = this.addChild("firstReg", Pre(LWWCVariable)(firstInitial));
+    this.firstReg = this.addChild(
+      "firstReg",
+      (init) => new LWWCVariable(init, firstInitial)
+    );
     this.secondReg = this.addChild(
       "secondReg",
-      Pre(LWWCVariable)(secondInitial)
+      (init) => new LWWCVariable(init, secondInitial)
     );
 
     // Convert child Collab events into our own.

@@ -8,7 +8,6 @@ import {
   Message,
   MessageMeta,
   Optional,
-  Pre,
   serializeMessage,
 } from "@collabs/collabs";
 import {
@@ -372,8 +371,10 @@ export abstract class MultipleSemidirectProduct<
    * Must be called after setupState, and in arbitration order
    * (ascending).
    */
-  protected setupOneCRDT<C extends StatefulCRDT<S>>(preCRDT: Pre<C>): C {
-    const crdt = preCRDT(new InitToken("crdt" + this.crdts.length, this));
+  protected setupOneCRDT<C extends StatefulCRDT<S>>(
+    crdtCallback: (init: InitToken) => C
+  ): C {
+    const crdt = crdtCallback(new InitToken("crdt" + this.crdts.length, this));
     // @ts-ignore Ignore readonly
     crdt.state = this.state.internalState;
     this.crdts.push(crdt);
@@ -388,13 +389,13 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("TODO");
     }
 
-    const crdtMeta = <CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY];
+    const crdtMeta = <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY);
 
     const name = <string>messagePath[messagePath.length - 1];
     let idx: number;
     if (
-      name.substr(0, 4) == "crdt" &&
-      (idx = parseInt(name.substr(4))) !== NaN
+      name.substring(0, 4) == "crdt" &&
+      !Number.isNaN((idx = parseInt(name.substring(4))))
     ) {
       messagePath.length--;
       let crdt = this.crdts[idx];
@@ -510,8 +511,8 @@ export abstract class MultipleSemidirectProduct<
     const name = namePath[namePath.length - 1];
     let idx: number;
     if (
-      name.substr(0, 4) == "crdt" &&
-      (idx = parseInt(name.substr(4))) !== NaN
+      name.substring(0, 4) == "crdt" &&
+      !Number.isNaN((idx = parseInt(name.substring(4))))
     ) {
       namePath.length--;
       if (this.pendingChildSaves !== null && namePath.length > 0) {

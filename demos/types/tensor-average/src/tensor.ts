@@ -1,16 +1,15 @@
-import * as tf from "@tensorflow/tfjs";
 import {
   CObject,
   CollabEvent,
   CollabEventsRecord,
-  InitToken,
-  MessageMeta,
-  Pre,
   CPrimitive,
-  Optional,
+  InitToken,
   Message,
+  MessageMeta,
+  Optional,
   ResettableCCounter,
 } from "@collabs/collabs";
+import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
 
 export interface TensorCounterEventsRecord extends CollabEventsRecord {
@@ -279,8 +278,14 @@ export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
     private readonly dtype: tf.NumericDataType
   ) {
     super(init);
-    this.plus = this.addChild("1", Pre(TensorGCounterCollab)(shape, dtype));
-    this.minus = this.addChild("2", Pre(TensorGCounterCollab)(shape, dtype));
+    this.plus = this.addChild(
+      "1",
+      (init) => new TensorGCounterCollab(init, shape, dtype)
+    );
+    this.minus = this.addChild(
+      "2",
+      (init) => new TensorGCounterCollab(init, shape, dtype)
+    );
     this.plus.on("Add", (event) => this.emit("Add", event));
     this.minus.on("Add", (event) =>
       tf.tidy(() =>
@@ -334,8 +339,14 @@ export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
     private readonly dtype: tf.NumericDataType
   ) {
     super(init);
-    this.numerator = this.addChild("1", Pre(TensorCounterCollab)(shape, dtype));
-    this.denominator = this.addChild("2", Pre(ResettableCCounter)());
+    this.numerator = this.addChild(
+      "1",
+      (init) => new TensorCounterCollab(init, shape, dtype)
+    );
+    this.denominator = this.addChild(
+      "2",
+      (init) => new ResettableCCounter(init)
+    );
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));
   }

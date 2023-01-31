@@ -1,4 +1,5 @@
 import * as collabs from "@collabs/collabs";
+import { InitToken } from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
 
@@ -33,11 +34,11 @@ class TileCollab extends collabs.CObject {
     super(init);
     this.revealed = this.addChild(
       "revealed",
-      collabs.Pre(collabs.TrueWinsCBoolean)()
+      (init) => new collabs.TrueWinsCBoolean(init)
     );
     this.flag = this.addChild(
       "flag",
-      collabs.Pre(collabs.LWWCVariable)<FlagStatus>(FlagStatus.NONE)
+      (init) => new collabs.LWWCVariable(init, FlagStatus.NONE)
     );
   }
 
@@ -117,7 +118,7 @@ class MinesweeperCollab extends collabs.CObject {
           x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
           x + ":" + y,
-          collabs.Pre(TileCollab)(isMine)
+          (init) => new TileCollab(init, isMine)
         );
       }
     }
@@ -392,19 +393,38 @@ class MinesweeperCollab extends collabs.CObject {
 
   const currentGame = container.registerCollab(
     "currentGame",
-    collabs.Pre(collabs.LWWMutCVariable)(
-      collabs.ConstructorAsFunction(MinesweeperCollab)
-    )
+    (init) =>
+      new collabs.LWWMutCVariable(
+        init,
+        (
+          valueInit: InitToken,
+          width: number,
+          height: number,
+          fractionMines: number,
+          startX: number,
+          startY: number,
+          seed: string
+        ) =>
+          new MinesweeperCollab(
+            valueInit,
+            width,
+            height,
+            fractionMines,
+            startX,
+            startY,
+            seed
+          )
+      )
   );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    collabs.Pre(collabs.LWWCVariable)(settingsFromInput())
+    (init) => new collabs.LWWCVariable(init, settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    collabs.Pre(collabs.LWWCVariable)<"game" | "settings">("settings")
+    (init) => new collabs.LWWCVariable<"game" | "settings">(init, "settings")
   );
 
   container.on("Change", invalidate);

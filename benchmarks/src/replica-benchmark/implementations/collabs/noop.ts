@@ -1,7 +1,7 @@
+import * as collabs from "@collabs/collabs";
 import { Data } from "../../../util";
 import { INoop } from "../../interfaces/noop";
 import { CollabsReplica } from "./replica";
-import * as collabs from "@collabs/collabs";
 
 export class NoopCRDT extends collabs.PrimitiveCRDT {
   noop() {
@@ -30,7 +30,7 @@ export function CollabsNoop(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.noopCRDT = this.app.registerCollab("", collabs.Pre(NoopCRDT)());
+      this.noopCRDT = this.app.registerCollab("", (init) => new NoopCRDT(init));
     }
 
     noop() {

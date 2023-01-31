@@ -1,16 +1,16 @@
 import {
+  CObject,
+  Collab,
+  CollabID,
+  CollabIDSerializer,
+  CSetEvent,
   CVariable,
   CVariableEventsRecord,
-  CSetEvent,
   DefaultSerializer,
-  Collab,
   InitToken,
-  CObject,
   Optional,
-  CollabIDSerializer,
-  Serializer,
-  CollabID,
   OptionalSerializer,
+  Serializer,
 } from "@collabs/core";
 import { DeletingMutCSet } from "../set";
 import { LWWCVariable } from "./lww_variable";
@@ -88,6 +88,13 @@ export class LWWMutCVariable<C extends Collab, SetArgs extends unknown[]>
 
   conflicts(): C[] {
     return this.variable.conflicts().map((valueID) => valueID.get().get()!);
+  }
+
+  // TODO: would like to remove this, but it's used by the selector demo.
+  getArgs(): Optional<SetArgs> {
+    return this.variable.value.map((value) =>
+      this.valueFactory.getArgs(value.get()!)
+    );
   }
 
   clear() {

@@ -1,17 +1,16 @@
 import {
+  AddWinsCSet,
   CObject,
-  InitToken,
+  Collab,
+  CollabID,
   CText,
   DefaultSerializer,
-  LWWCVariable,
-  LazyMutCMap,
-  Pre,
-  AddWinsCSet,
   DeletingMutCList,
-  CollabID,
-  Serializer,
-  Collab,
+  InitToken,
+  LazyMutCMap,
+  LWWCVariable,
   Runtime,
+  Serializer,
 } from "@collabs/collabs";
 
 // TODO: remove makeExistent stuff?  Very expensive and rarely useful.
@@ -40,14 +39,14 @@ class JSONValueSerializer implements Serializer<JSONValue> {
 
   serialize(value: JSONValue): Uint8Array {
     const serializableValue: SerializableJSONValue =
-      value instanceof Collab ? CollabID.fromCollab(value) : value;
+      value instanceof Collab ? CollabID.of(value, this.runtime) : value;
     return this.internalSerializer.serialize(serializableValue);
   }
 
   deserialize(message: Uint8Array): JSONValue {
     const serializableValue = this.internalSerializer.deserialize(message);
     if (serializableValue instanceof CollabID) {
-      return serializableValue.get(this.runtime)!;
+      return serializableValue.get()!;
     } else return serializableValue;
   }
 
@@ -69,10 +68,7 @@ export class JSONObject extends CObject {
   /**
    * Internal use only
    */
-  constructor(
-    init: InitToken,
-    private readonly makeThisExistent: () => void
-  ) {
+  constructor(init: InitToken, private readonly makeThisExistent: () => void) {
     super(init);
     // Note that adding the key explicitly is redundant, since a value
     // only ever calls makeThisExistent as part of an operation, and
@@ -80,12 +76,14 @@ export class JSONObject extends CObject {
     // semantics.
     this.internalMap = this.addChild(
       "nestedMap",
-      Pre(LazyMutCMap)(
-        (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
-        DefaultSerializer.getInstance()
-      )
+      (init) =>
+        new LazyMutCMap(
+          init,
+          (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
+          DefaultSerializer.getInstance()
+        )
     );
-    this.keySet = this.addChild("keySet", Pre(AddWinsCSet)());
+    this.keySet = this.addChild("keySet", (init) => new AddWinsCSet(init));
   }
 
   get(key: string): JSONElement | undefined {
@@ -146,16 +144,15 @@ export class JSONObject extends CObject {
 
 export class JSONArray extends CObject {
   private readonly internalList: DeletingMutCList<JSONElement, []>;
-  constructor(
-    init: InitToken,
-    private readonly makeThisExistent: () => void
-  ) {
+  constructor(init: InitToken, private readonly makeThisExistent: () => void) {
     super(init);
     this.internalList = this.addChild(
       "nestedMap",
-      Pre(DeletingMutCList)(
-        (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent)
-      )
+      (init) =>
+        new DeletingMutCList(
+          init,
+          (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent)
+        )
     );
   }
 
@@ -234,13 +231,13 @@ export class JSONElement extends CObject {
     );
     this.object = this.addChild(
       "object",
-      Pre(JSONObject)(() => this.setIsObject())
+      (init) => new JSONObject(init, () => this.setIsObject())
     );
     this.array = this.addChild(
       "array",
-      Pre(JSONArray)(() => this.setIsArray())
+      (init) => new JSONArray(init, () => this.setIsArray())
     );
-    this.text = this.addChild("text", Pre(CText)());
+    this.text = this.addChild("text", (init) => new CText(init));
   }
 
   get value(): JSONValue {

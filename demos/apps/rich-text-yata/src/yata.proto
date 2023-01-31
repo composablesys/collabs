@@ -1,3 +1,0 @@
-message YataSave {
-  repeated string idArray = 1;
-}

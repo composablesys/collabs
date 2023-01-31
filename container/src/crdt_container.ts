@@ -5,8 +5,8 @@ import {
   CRDTApp,
   CRDTRuntime,
   EventEmitter,
+  InitToken,
   Optional,
-  Pre,
   Unsubscribe,
 } from "@collabs/collabs";
 import {
@@ -183,8 +183,11 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    * @return The registered `Collab`. You should assign
    * this to a variable for later use.
    */
-  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
-    return this.app.registerCollab(name, preCollab);
+  registerCollab<C extends Collab>(
+    name: string,
+    collabCallback: (init: InitToken) => C
+  ): C {
+    return this.app.registerCollab(name, collabCallback);
   }
 
   private loadFurtherMessages: Uint8Array[] | null = null;

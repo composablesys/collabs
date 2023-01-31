@@ -1,13 +1,8 @@
+import { CRDTApp, Optional, TestingCRDTAppGenerator } from "@collabs/collabs";
 import { assert } from "chai";
-import seedrandom = require("seedrandom");
-import {
-  Pre,
-  Optional,
-  CRDTApp,
-  TestingCRDTAppGenerator,
-} from "@collabs/collabs";
 import { CNumber } from "../src";
 import { debug } from "./debug";
+import seedrandom = require("seedrandom");
 
 describe("Number", () => {
   let appGen: TestingCRDTAppGenerator;
@@ -25,8 +20,14 @@ describe("Number", () => {
   });
 
   function init(initialValue: number, name = "numberId"): void {
-    aliceNumber = alice.registerCollab(name, Pre(CNumber)(initialValue));
-    bobNumber = bob.registerCollab(name, Pre(CNumber)(initialValue));
+    aliceNumber = alice.registerCollab(
+      name,
+      (init) => new CNumber(init, initialValue)
+    );
+    bobNumber = bob.registerCollab(
+      name,
+      (init) => new CNumber(init, initialValue)
+    );
     alice.load(Optional.empty());
     bob.load(Optional.empty());
     if (debug) {

@@ -1,38 +1,39 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
-import { CRDTContainerHost } from "@collabs/container";
+import { CRDTContainer, CRDTContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
   const container = new CRDTContainer();
   const currentHost = container.registerCollab(
     "",
-    collabs.Pre(collabs.LWWMutCVariable)(
-      (valueInitToken, htmlSrcGzipped: Uint8Array) => {
-        const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
-        // Create a new ContainerHost + IFrame from htmlSrc and
-        // attach it to the document, invisible for now.
-        const iframe = document.createElement("iframe");
-        iframe.hidden = true;
-        iframe.srcdoc = htmlSrc;
-        const host = new CRDTContainerHost(valueInitToken, iframe);
-        document.body.appendChild(iframe);
-        // Compact host's save data when compacting our own.
-        container.onSaveRequest(() => host.compactSaveData());
-        // If it was possible to override causally prior values
-        // (triggering currentHost "Delete" events), then we
-        // would need to call the "off" function returned by
-        // onSaveRequest, in currentHost's "Delete" event handler.
-        // Otherwise, container's handler set would keep a
-        // reference to host, preventing GC and triggering
-        // unnecessary save compaction.
-        // Opt: when a value is unset, clean it up
-        // (treat as permanently deleted), even though technically
-        // it is still a "conflict" value in currentHost.
+    (init) =>
+      new collabs.LWWMutCVariable(
+        init,
+        (valueInitToken, htmlSrcGzipped: Uint8Array) => {
+          const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+          // Create a new ContainerHost + IFrame from htmlSrc and
+          // attach it to the document, invisible for now.
+          const iframe = document.createElement("iframe");
+          iframe.hidden = true;
+          iframe.srcdoc = htmlSrc;
+          const host = new CRDTContainerHost(valueInitToken, iframe);
+          document.body.appendChild(iframe);
+          // Compact host's save data when compacting our own.
+          container.onSaveRequest(() => host.compactSaveData());
+          // If it was possible to override causally prior values
+          // (triggering currentHost "Delete" events), then we
+          // would need to call the "off" function returned by
+          // onSaveRequest, in currentHost's "Delete" event handler.
+          // Otherwise, container's handler set would keep a
+          // reference to host, preventing GC and triggering
+          // unnecessary save compaction.
+          // Opt: when a value is unset, clean it up
+          // (treat as permanently deleted), even though technically
+          // it is still a "conflict" value in currentHost.
 
-        return host;
-      }
-    )
+          return host;
+        }
+      )
   );
 
   currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));

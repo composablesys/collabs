@@ -1,6 +1,6 @@
 import * as collabs from "@collabs/collabs";
 import { Data } from "../../../util";
-import { ITodoListInternal, ITodoList } from "../../interfaces/todo_list";
+import { ITodoList, ITodoListInternal } from "../../interfaces/todo_list";
 import { CollabsReplica } from "./replica";
 
 class TodoListInternal extends collabs.CObject implements ITodoListInternal {
@@ -10,16 +10,18 @@ class TodoListInternal extends collabs.CObject implements ITodoListInternal {
 
   constructor(init: collabs.InitToken) {
     super(init);
-    this.text = this.addChild("text", collabs.Pre(collabs.CText)());
+    this.text = this.addChild("text", (init) => new collabs.CText(init));
     this.doneCollab = this.addChild(
       "done",
-      collabs.Pre(collabs.TrueWinsCBoolean)()
+      (init) => new collabs.TrueWinsCBoolean(init)
     );
     this.items = this.addChild(
       "items",
-      collabs.Pre(collabs.DeletingMutCList)(
-        collabs.ConstructorAsFunction(TodoListInternal)
-      )
+      (init) =>
+        new collabs.DeletingMutCList(
+          init,
+          (valueInit) => new TodoListInternal(valueInit)
+        )
     );
   }
 
@@ -67,7 +69,7 @@ export function CollabsTodoList(causalityGuaranteed: boolean) {
 
       this.rootInternal = this.app.registerCollab(
         "",
-        collabs.Pre(TodoListInternal)()
+        (init) => new TodoListInternal(init)
       );
     }
   };

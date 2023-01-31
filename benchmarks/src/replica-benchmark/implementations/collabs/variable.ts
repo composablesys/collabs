@@ -1,7 +1,7 @@
+import * as collabs from "@collabs/collabs";
 import { Data } from "../../../util";
 import { IVariable } from "../../interfaces/variable";
 import { CollabsReplica } from "./replica";
-import * as collabs from "@collabs/collabs";
 
 export function CollabsVariable(causalityGuaranteed: boolean) {
   return class CollabsVariable extends CollabsReplica implements IVariable {
@@ -12,7 +12,7 @@ export function CollabsVariable(causalityGuaranteed: boolean) {
 
       this.variable = this.app.registerCollab(
         "",
-        collabs.Pre(collabs.LWWCVariable)<unknown>(0)
+        (init) => new collabs.LWWCVariable(init, 0)
       );
     }
 

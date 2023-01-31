@@ -1,12 +1,7 @@
+import { CRDTApp, Optional, TestingCRDTAppGenerator } from "@collabs/collabs";
 import { assert } from "chai";
-import { JSONCollab, JSONCursor } from "../src/json_opt";
-import {
-  CRDTApp,
-  Optional,
-  Pre,
-  TestingCRDTAppGenerator,
-} from "@collabs/collabs";
 import seedrandom from "seedrandom";
+import { JSONCollab, JSONCursor } from "../src/json_opt";
 
 describe("JSONCollab", () => {
   let runtimeGen: TestingCRDTAppGenerator;
@@ -27,8 +22,8 @@ describe("JSONCollab", () => {
   let bobCursor: JSONCursor;
 
   beforeEach(() => {
-    aliceJSON = alice.registerCollab("cursor", Pre(JSONCollab)());
-    bobJSON = bob.registerCollab("cursor", Pre(JSONCollab)());
+    aliceJSON = alice.registerCollab("cursor", (init) => new JSONCollab(init));
+    bobJSON = bob.registerCollab("cursor", (init) => new JSONCollab(init));
     aliceCursor = new JSONCursor(aliceJSON);
     bobCursor = new JSONCursor(bobJSON);
     alice.load(Optional.empty());

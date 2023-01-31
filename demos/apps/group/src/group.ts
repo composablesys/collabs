@@ -1,12 +1,14 @@
-import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
-import { GroupCRDT, GroupState } from "./groupcrdt";
 import $ from "jquery";
+import { GroupCRDT, GroupState } from "./groupcrdt";
 
 (async function () {
   const container = new CRDTContainer();
 
-  let clientGroup = container.registerCollab("group", collabs.Pre(GroupCRDT)());
+  let clientGroup = container.registerCollab(
+    "group",
+    (init) => new GroupCRDT(init)
+  );
 
   var ops1 = document.getElementsByClassName("btn-ops-1");
   var ops2 = document.getElementsByClassName("btn-ops-2");
