@@ -3,25 +3,11 @@ import {
   DefaultSerializer,
   InitToken,
   Serializer,
+  TrivialSerializer,
 } from "@collabs/core";
 import { MultiValueMap } from "../map";
 
-class TrueSerializer implements Serializer<true> {
-  private constructor() {
-    // Only one instance.
-  }
-
-  private static readonly MESSAGE = new Uint8Array();
-
-  serialize(_value: true): Uint8Array {
-    return TrueSerializer.MESSAGE;
-  }
-  deserialize(_message: Uint8Array): true {
-    return true;
-  }
-
-  static INSTANCE = new TrueSerializer();
-}
+const trueSerializer = new TrivialSerializer<true>(true);
 
 export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
   /**
@@ -40,8 +26,7 @@ export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
 
     this.mvMap = super.addChild(
       "",
-      (init) =>
-        new MultiValueMap(init, false, valueSerializer, TrueSerializer.INSTANCE)
+      (init) => new MultiValueMap(init, false, valueSerializer, trueSerializer)
     );
 
     this.mvMap.on("Delete", (e) => {

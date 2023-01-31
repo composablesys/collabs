@@ -44,6 +44,7 @@ export class MessageMeta {
     return this.extra.get(key);
   }
 
+  // TODO: rename to suggest that it's not mutating (persistent style)
   /**
    * Set extra metadata with the given key, returning a new [[MessageMeta]]
    * while leaving this unchanged.

@@ -23,7 +23,8 @@ export class TrueWinsCBoolean extends AggregateCVariable<boolean> {
   constructor(init: InitToken) {
     super(
       init,
-      (items) => items.length !== 0,
+      // True if there are any "true" values.
+      (items) => items.find((item) => item.value) !== undefined,
       false,
       BooleanSerializer.INSTANCE
     );
@@ -34,7 +35,8 @@ export class FalseWinsCBoolean extends AggregateCVariable<boolean> {
   constructor(init: InitToken) {
     super(
       init,
-      (items) => items.length === 0,
+      // False if there are any "false" values.
+      (items) => items.find((item) => !item.value) === undefined,
       false,
       BooleanSerializer.INSTANCE
     );

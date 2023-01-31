@@ -1,28 +1,28 @@
-import { assert } from "chai";
-import {
-  AddWinsCSet,
-  CRDTApp,
-  FalseWinsCBoolean,
-  TrueWinsCBoolean,
-  LWWCMap,
-  CNumber,
-  TestingCRDTAppGenerator,
-  DeletingMutCSet,
-  ResettableCCounter,
-  OptionalLWWCVariable,
-} from "../../src";
 import {
   CMapDeleteEvent,
   CMapSetEvent,
-  InitToken,
-  Pre,
-  Optional,
-  LazyMutCMap,
-  CollabIDSerializer,
   CollabID,
-  EventsRecord,
+  CollabIDSerializer,
   EventEmitter,
+  EventsRecord,
+  InitToken,
+  LazyMutCMap,
+  Optional,
+  OptionalSerializer,
 } from "@collabs/core";
+import { assert } from "chai";
+import {
+  AddWinsCSet,
+  CCounter,
+  CRDTApp,
+  DeletingMutCSet,
+  FalseWinsCBoolean,
+  LWWCMap,
+  LWWCVariable,
+  ResettableCCounter,
+  TestingCRDTAppGenerator,
+  TrueWinsCBoolean,
+} from "../../src";
 import { debug } from "../debug";
 import seedrandom = require("seedrandom");
 
@@ -53,8 +53,14 @@ describe("standard", () => {
     let bobFlag: TrueWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
-      bobFlag = bob.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
+      aliceFlag = alice.registerCollab(
+        "ewFlagId",
+        (init) => new TrueWinsCBoolean(init)
+      );
+      bobFlag = bob.registerCollab(
+        "ewFlagId",
+        (init) => new TrueWinsCBoolean(init)
+      );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -145,8 +151,14 @@ describe("standard", () => {
     let bobFlag: FalseWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
-      bobFlag = bob.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
+      aliceFlag = alice.registerCollab(
+        "dwFlagId",
+        (init) => new FalseWinsCBoolean(init)
+      );
+      bobFlag = bob.registerCollab(
+        "dwFlagId",
+        (init) => new FalseWinsCBoolean(init)
+      );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -231,8 +243,11 @@ describe("standard", () => {
     let bobSet: AddWinsCSet<string>;
 
     beforeEach(() => {
-      aliceSet = alice.registerCollab("awSetId", Pre(AddWinsCSet)());
-      bobSet = bob.registerCollab("awSetId", Pre(AddWinsCSet)());
+      aliceSet = alice.registerCollab(
+        "awSetId",
+        (init) => new AddWinsCSet(init)
+      );
+      bobSet = bob.registerCollab("awSetId", (init) => new AddWinsCSet(init));
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -394,9 +409,12 @@ describe("standard", () => {
         new ResettableCCounter(valueInitToken);
       aliceMap = alice.registerCollab(
         "map",
-        Pre(LazyMutCMap)(valueConstructor)
+        (init) => new LazyMutCMap(init, valueConstructor)
       );
-      bobMap = bob.registerCollab("map", Pre(LazyMutCMap)(valueConstructor));
+      bobMap = bob.registerCollab(
+        "map",
+        (init) => new LazyMutCMap(init, valueConstructor)
+      );
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -514,28 +532,25 @@ describe("standard", () => {
       it("can be used as values in other CRDTs", () => {
         let aliceSet = alice.registerCollab(
           "valueSet",
-          Pre(AddWinsCSet)(new CollabIDSerializer(aliceMap))
+          (init) => new AddWinsCSet(init, new CollabIDSerializer(aliceMap))
         );
         let bobSet = bob.registerCollab(
           "valueSet",
-          Pre(AddWinsCSet)(new CollabIDSerializer(bobMap))
+          (init) => new AddWinsCSet(init, new CollabIDSerializer(bobMap))
         );
 
         load();
 
-        aliceMap.set("test");
-        let aliceCounter = aliceMap.get("test")!;
-        bobMap.set("test");
-        let bobCounter = bobMap.get("test")!;
-        appGen.releaseAll();
+        let aliceCounter = aliceMap.get("test");
+        let bobCounter = bobMap.get("test");
 
-        aliceSet.add(CollabID.fromCollab(aliceCounter));
+        aliceSet.add(CollabID.of(aliceCounter, aliceMap));
         assert.strictEqual(
-          aliceSet.has(CollabID.fromCollab(aliceCounter)),
+          aliceSet.has(CollabID.of(aliceCounter, aliceMap)),
           true
         );
         appGen.releaseAll();
-        assert.strictEqual(bobSet.has(CollabID.fromCollab(bobCounter)), true);
+        assert.strictEqual(bobSet.has(CollabID.of(bobCounter, bobMap)), true);
       });
     });
   });
@@ -545,8 +560,8 @@ describe("standard", () => {
     let bobMap: LWWCMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.registerCollab("lwwMap", Pre(LWWCMap)());
-      bobMap = bob.registerCollab("lwwMap", Pre(LWWCMap)());
+      aliceMap = alice.registerCollab("lwwMap", (init) => new LWWCMap(init));
+      bobMap = bob.registerCollab("lwwMap", (init) => new LWWCMap(init));
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -798,27 +813,45 @@ describe("standard", () => {
   });
 
   describe("DeletingMutCSet", () => {
-    let aliceSource: DeletingMutCSet<CNumber, []>;
-    let bobSource: DeletingMutCSet<CNumber, []>;
-    let aliceVariable: OptionalLWWCVariable<CollabID<CNumber>>;
-    let bobVariable: OptionalLWWCVariable<CollabID<CNumber>>;
+    let aliceSource: DeletingMutCSet<CCounter, []>;
+    let bobSource: DeletingMutCSet<CCounter, []>;
+    let aliceVariable: LWWCVariable<Optional<CollabID<CCounter>>>;
+    let bobVariable: LWWCVariable<Optional<CollabID<CCounter>>>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
         "source",
-        Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
+        (init) =>
+          new DeletingMutCSet(
+            init,
+            (valueInitToken) => new CCounter(valueInitToken)
+          )
       );
       bobSource = bob.registerCollab(
         "source",
-        Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
+        (init) =>
+          new DeletingMutCSet(
+            init,
+            (valueInitToken) => new CCounter(valueInitToken)
+          )
       );
       aliceVariable = alice.registerCollab(
         "variable",
-        Pre(OptionalLWWCVariable)(new CollabIDSerializer(aliceSource))
+        (init) =>
+          new LWWCVariable(
+            init,
+            Optional.empty(),
+            OptionalSerializer.getInstance(new CollabIDSerializer(aliceSource))
+          )
       );
       bobVariable = bob.registerCollab(
         "variable",
-        Pre(OptionalLWWCVariable)(new CollabIDSerializer(bobSource))
+        (init) =>
+          new LWWCVariable(
+            init,
+            Optional.empty(),
+            OptionalSerializer.getInstance(new CollabIDSerializer(bobSource))
+          )
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -830,15 +863,14 @@ describe("standard", () => {
     });
 
     it("transfers new Collab via variable", () => {
-      aliceVariable.set(CollabID.fromCollab(aliceSource.add()));
-      aliceVariable.value.get().get(alice.runtime)!.add(7);
-      assert.strictEqual(
-        aliceVariable.value.get().get(alice.runtime)!.value,
-        7
+      aliceVariable.set(
+        Optional.of(CollabID.of(aliceSource.add(), aliceSource))
       );
+      aliceVariable.value.get().get()!.add(7);
+      assert.strictEqual(aliceVariable.value.get().get()!.value, 7);
 
       appGen.releaseAll();
-      assert.strictEqual(bobVariable.value.get().get(bob.runtime)!.value, 7);
+      assert.strictEqual(bobVariable.value.get().get()!.value, 7);
     });
 
     it("allows sequential creation", () => {
@@ -862,12 +894,12 @@ describe("standard", () => {
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
-      aliceVariable.set(CollabID.fromCollab(new1));
+      aliceVariable.set(Optional.of(CollabID.of(new1, aliceSource)));
       appGen.releaseAll();
-      let new1Bob = bobVariable.value.get().get(bob.runtime)!;
-      bobVariable.set(CollabID.fromCollab(new2));
+      let new1Bob = bobVariable.value.get().get()!;
+      bobVariable.set(Optional.of(CollabID.of(new2, bobSource)));
       appGen.releaseAll();
-      let new2Alice = aliceVariable.value.get().get(alice.runtime)!;
+      let new2Alice = aliceVariable.value.get().get()!;
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
     });

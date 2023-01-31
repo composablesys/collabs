@@ -133,15 +133,6 @@ export class CRDTRuntime
     this.emit("Send", { message: serialized });
   }
 
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
   // ---User-facing methods---
 
   // To make the separation between Collabs-facing methods and

@@ -115,10 +115,10 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
       return this.currentSendMeta();
     }
     if (key === MessageMeta.NEXT_MESSAGE_META) {
-      const meta = <MessageMeta>(
+      let meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
       ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
-      meta.set(CRDTMeta.MESSAGE_META_KEY, this.currentSendMeta());
+      meta = meta.set(CRDTMeta.MESSAGE_META_KEY, this.currentSendMeta());
       return meta;
     }
     return undefined;
@@ -370,7 +370,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     crdtMeta: CRDTMeta
   ) {
     // Add the CRDTMeta to meta.
-    meta.set(CRDTMeta.MESSAGE_META_KEY, crdtMeta);
+    meta = meta.set(CRDTMeta.MESSAGE_META_KEY, crdtMeta);
 
     try {
       this.child.receive(messagePath, meta);

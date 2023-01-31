@@ -1,4 +1,5 @@
 import {
+  bytesAsString,
   CMap,
   DefaultSerializer,
   InitToken,
@@ -7,6 +8,7 @@ import {
   MessageMeta,
   Optional,
   Serializer,
+  stringAsBytes,
 } from "@collabs/core";
 import {
   MultiValueMapMessage,
@@ -30,8 +32,9 @@ export class MultiValueMap<K, V>
   // just one value. We store it as such, instead of as a singleton array,
   // in the hopes of reducing memory usage & (un)boxing time.
   // OPT: profile this to see if it's actually useful.
+  // The map key is keyAsString.
   private readonly state = new Map<
-    K,
+    string,
     MultiValueMapItem<V> | MultiValueMapItem<V>[]
   >();
 
@@ -55,6 +58,7 @@ export class MultiValueMap<K, V>
       // items in this.get(key)) and optional wallClockTime.
       automatic: true,
     });
+    // OPT: don't re-serialize here
     return this.get(key)!;
   }
 
@@ -77,7 +81,9 @@ export class MultiValueMap<K, V>
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);
     const key = this.keySerializer.deserialize(decoded.key);
+    const keyAsString = bytesAsString(decoded.key);
 
+    // OPT: don't re-serialize here
     const previousValueLiteral = this.get(key);
 
     const newItems: MultiValueMapItem<V>[] = [];
@@ -106,12 +112,15 @@ export class MultiValueMap<K, V>
     }
 
     if (newItems.length === 0) {
-      this.state.delete(key);
+      this.state.delete(keyAsString);
       if (previousValueLiteral !== undefined) {
         this.emit("Delete", { key, value: previousValueLiteral, meta });
       }
     } else {
-      this.state.set(key, newItems.length === 1 ? newItems[0] : newItems);
+      this.state.set(
+        keyAsString,
+        newItems.length === 1 ? newItems[0] : newItems
+      );
       this.emit("Set", {
         key,
         value: newItems,
@@ -141,12 +150,14 @@ export class MultiValueMap<K, V>
    * Items ordered lexicographically by sender.
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
-    const value = this.state.get(key);
+    const value = this.state.get(
+      bytesAsString(this.keySerializer.serialize(key))
+    );
     return value === undefined ? undefined : this.asArray(value);
   }
 
   has(key: K): boolean {
-    return this.state.has(key);
+    return this.state.has(bytesAsString(this.keySerializer.serialize(key)));
   }
 
   get size(): number {
@@ -158,7 +169,10 @@ export class MultiValueMap<K, V>
    */
   *entries(): IterableIterator<[K, MultiValueMapItem<V>[]]> {
     for (const [key, value] of this.state.entries()) {
-      yield [key, this.asArray(value)];
+      yield [
+        this.keySerializer.deserialize(stringAsBytes(key)),
+        this.asArray(value),
+      ];
     }
   }
 
@@ -174,8 +188,8 @@ export class MultiValueMap<K, V>
     > = {};
     const lastItems = new Map<string, MultiValueMapItem<V>>();
 
-    for (const [key, items] of this.state) {
-      const keySerialized = this.keySerializer.serialize(key);
+    for (const [keyAsString, items] of this.state) {
+      const keySerialized = stringAsBytes(keyAsString);
       for (const item of this.asArray(items)) {
         let senderSave = stateBySender[item.sender];
         if (senderSave === undefined) {
@@ -217,7 +231,7 @@ export class MultiValueMap<K, V>
       let senderCounter = 0;
       let wallClockTime = 0;
       for (let i = 0; i < senderSave.keys!.length; i++) {
-        const key = this.keySerializer.deserialize(senderSave.keys![i]);
+        const keyAsString = bytesAsString(senderSave.keys![i]);
         senderCounter += int64AsNumber(senderSave.senderCounterDiffs![i]);
         if (this.wallClockTime) {
           wallClockTime += int64AsNumber(senderSave.wallClockTimeDiffs![i]);
@@ -229,13 +243,13 @@ export class MultiValueMap<K, V>
           ...(this.wallClockTime ? { wallClockTime } : {}),
         };
 
-        const previousValue = this.state.get(key);
+        const previousValue = this.state.get(keyAsString);
         if (previousValue === undefined) {
-          this.state.set(key, newItem);
+          this.state.set(keyAsString, newItem);
         } else if (Array.isArray(previousValue)) {
           previousValue.push(newItem);
         } else {
-          this.state.set(key, [previousValue, newItem]);
+          this.state.set(keyAsString, [previousValue, newItem]);
         }
       }
     }

@@ -44,7 +44,8 @@ export class CollabID<C extends Collab> {
    * was deleted.
    */
   get(): C | undefined {
-    return <C | undefined>this.base.getDescendant(this.pathToBase);
+    // TODO: document this: need to copy in case getDescendant modifies it.
+    return <C | undefined>this.base.getDescendant([...this.pathToBase]);
   }
 
   /**

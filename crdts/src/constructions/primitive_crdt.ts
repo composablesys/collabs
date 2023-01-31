@@ -104,11 +104,11 @@ export abstract class PrimitiveCRDT<
    * Do not override; override [[receiveCRDT]] instead.
    */
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
-    this.receiveCRDT(
-      message,
-      meta,
-      <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY)
-    );
+    const crdtMeta = <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY);
+    if (crdtMeta === undefined) {
+      throw new Error("No CRDTMeta supplied; ensure you are using CRDTApp");
+    }
+    this.receiveCRDT(message, meta, crdtMeta);
   }
 
   /**

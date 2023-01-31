@@ -7,7 +7,8 @@ import {
   Serializer,
   TrivialSerializer,
 } from "@collabs/core";
-import { MultiValueMap, MultiValueMapItem } from "../map";
+// Import from exact file to avoid circular dependencies with ../map/index.ts.
+import { MultiValueMap, MultiValueMapItem } from "../map/multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 
@@ -36,7 +37,7 @@ export class AggregateCVariable<T>
     );
     this.mvMap.on("Any", (e) => {
       const previousValue = this._value;
-      this._value = aggregate([]);
+      this._value = aggregate(this.mvMap.get(null) ?? []);
       this.emit("Set", { value: this._value, previousValue, meta: e.meta });
     });
 
