@@ -4,8 +4,8 @@ import {
   CollabEventsRecord,
   ICollabParent,
   InitToken,
-  MessageMeta,
   Message,
+  MessageMeta,
 } from "../core";
 import { Optional } from "../util";
 
@@ -92,7 +92,7 @@ export class CObject<
    *
    * It is recomend that you use this in the style
    * ```ts
-   * this.foo = this.addChild("foo", Pre(FooClass)(constructor args...));
+   * this.foo = this.addChild("foo", (init) => new FooClass(init, constructor args...));
    * ```
    * In particular, the created child should be stored as an ordinary
    * object property.  Each child must be assigned

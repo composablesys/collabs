@@ -1,6 +1,6 @@
 {
   "name": "@collabs/container-testing-server",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Simple server for testing Collabs containers",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -32,10 +32,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@collabs/collabs": "0.6.0",
-    "@collabs/container": "0.6.0",
-    "@collabs/ws-client": "0.6.0",
-    "@collabs/ws-server": "0.6.0",
+    "@collabs/collabs": "0.6.1",
+    "@collabs/container": "0.6.1",
+    "@collabs/ws-client": "0.6.1",
+    "@collabs/ws-server": "0.6.1",
     "commander": "^8.2.0",
     "express": "^4.17.1"
   },

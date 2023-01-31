@@ -115,7 +115,9 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * as a variable in your program.
    * @param  preCollab The [[Collab]] to construct, typically
    * created using a statement of the form
-   * `Pre(class_name)<generic types>(constructor args)`
+   * `(init) => new collabs.constructor(init, [constructor args])`.
+   * For example, `(init) => new collabs.CCounter(init)`
+   *
    * @return The registered [[Collab]]. You should assign
    * this to a variable for later use.
    */

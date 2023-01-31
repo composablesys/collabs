@@ -1,6 +1,7 @@
 {
   "author": "Collabs contributors",
   "license": "Apache-2.0",
+  "private": true,
   "devDependencies": {
     "rimraf": "^2.7.1"
   },
@@ -48,12 +49,17 @@
       "template-app",
       "template-custom-type",
       "docs"
+    ],
+    "noHeroku": [
+      "benchmarks",
+      "docs"
     ]
   },
   "scripts": {
     "start": "npm start --prefix demos/apps",
     "build": "node foreach-workspace.js all \"npm run build -w\"",
     "buildForTypedoc": "node foreach-workspace.js publish -s publishNoTypedoc \"npm run build -w\"",
+    "heroku-postbuild": "node foreach-workspace.js all -s noHeroku \"npm run build -w\"",
     "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
     "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
     "publish": "node foreach-workspace.js publish \"npm publish -w\"",
@@ -61,6 +67,7 @@
     "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
   },
   "engines": {
-    "node": ">=16"
+    "node": "16.x",
+    "npm": "8.1.2"
   }
 }

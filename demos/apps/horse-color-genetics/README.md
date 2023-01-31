@@ -3,7 +3,7 @@
 A collaborative app where you edit a horse's genes and observe the effects on its coat color, as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
 
 This is a collaborative version of an app by [Jennifer Hoffman](http://www.jenniferhoffman.net/). Original app:
-[https://horse.jenniferhoffman.net/horse-color-genetics.html](https://horse.jenniferhoffman.net/horse-color-genetics.html). Since the original app is CC-BY-NC-SA-3.0 licensed, so is this version.
+[http://horse.jenniferhoffman.net/horse-color-genetics.html](http://horse.jenniferhoffman.net/horse-color-genetics.html). Since the original app is CC-BY-NC-SA-3.0 licensed, so is this version.
 
 Container organization based off of [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 

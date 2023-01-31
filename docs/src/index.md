@@ -7,6 +7,7 @@ hidden:
 maxdepth: 2
 ---
 quick_start
+walkthrough
 guide/index
 advanced/index
 further_info/index
@@ -22,6 +23,7 @@ api/index
 - [API](./api/)
 - [Github](https://github.com/composablesys/collabs)
 
+
 ## Install
 
 Using [npm](https://docs.npmjs.com/cli/v8/commands/npm): `npm i --save @collabs/collabs`
@@ -30,7 +32,7 @@ Collabs is written in TypeScript and should work in any JavaScript environment (
 
 ## Demos
 
-[Live demos](https://compoventuals-tests.herokuapp.com/) of collaborative apps built on top of Collabs. [Source code](https://github.com/composablesys/collabs/tree/master/demos)
+[Live demos](https://collabs-demos.herokuapp.com/) of collaborative apps built on top of Collabs. [Source code](https://github.com/composablesys/collabs/tree/master/demos)
 
 ## Principles
 
@@ -54,4 +56,4 @@ We also publish a core subset of Collabs, [@collabs/core](https://www.npmjs.com/
 
 ## Authors
 
-Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, and Benito Geordie at Carnegie Mellon University's Composable Systems Lab.
+Collabs was created by Matthew Weidner, Heather Miller, Huairui Qi, Maxime Kjaer, Ria Pradeep, Ignacio Maronna, Benito Geordie, and Yicheng Zhang at Carnegie Mellon University's Composable Systems Lab.

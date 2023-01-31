@@ -177,9 +177,10 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    * @param  name The `Collab`'s name, which must be
    * unique among all registered `Collabs`. E.g., its name
    * as a variable in your program.
-   * @param  preCollab The `Collab` to construct, typically
+   @param  preCollab The [[Collab]] to construct, typically
    * created using a statement of the form
-   * `Pre(class_name)<generic types>(constructor args)`
+   * `(initToken) => new collabs.constructor(initToken, [constructor args])`.
+   * For example, `(initToken) => new collabs.CCounter(initToken)`
    * @return The registered `Collab`. You should assign
    * this to a variable for later use.
    */

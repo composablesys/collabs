@@ -8,7 +8,7 @@ We sometimes use `Collab` as an abbreviation for "collaborative data structure".
 
 ## Example: Counter
 
-For example, the [Quick Start](../quick_start.html) (live demo [here](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html)) uses a [`CCounter`](../api/collabs/classes/CCounter.html) collaborative data structure. This is an object that has an API like a `number`:
+For example, the [Quick Start](../quick_start.html) (live demo [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html)) uses a [`CCounter`](../api/collabs/classes/CCounter.html) collaborative data structure. This is an object that has an API like a `number`:
 
 ```ts
 class CCounter {
@@ -20,7 +20,7 @@ class CCounter {
 
 But unlike an ordinary number, when one user calls `counter.add(1)`, 1 is added to _every_ user's `counter.value`, not just theirs. If multiple users call `counter.add(1)` at the same time, all of their additions go through, increasing their shared value by the total number of calls. In this way, everyone eventually (after network delay) ends up seeing the same `counter.value`, as you'd expect.
 
-You can try this out in the [live demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
+You can try this out in the [live demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
 
 You can also try disconnecting one tab by unchecking the box at the top. Verify that if you disconnect one tab, increment both tabs, then reconnect the first tab, all tabs end up seeing both increments.
 
@@ -28,7 +28,7 @@ You can also try disconnecting one tab by unchecking the box at the top. Verify 
 
 `CCounter` is simple but not especially useful. Collection types, like maps, are more useful.
 
-For example, our [whiteboard demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`LWWCMap`](../api/collabs/classes/LWWCMap.html) from coordinates `[x: number, y: number]` to HTML color strings:
+For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`LWWCMap`](../api/collabs/classes/LWWCMap.html) from coordinates `[x: number, y: number]` to HTML color strings:
 
 ```
 const boardState: collabs.LWWCMap<[x: number, y: number], string>
@@ -87,4 +87,4 @@ There are a few extra wrinkles when using Collabs, relative to using ordinary (n
 
 Continue following the Guide with [Entry Points](./entry_points.html).
 
-Or, if you are impatient, skip to the [Walkthrough of Quick Start](./walkthrough.html) to see how everything fits together in a complete app.
+Or, if you are impatient, skip to the [Walkthrough of Quick Start](../walkthrough.html) to see how everything fits together in a complete app.

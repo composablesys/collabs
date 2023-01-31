@@ -1,5 +1,4 @@
 import * as collabs from "@collabs/collabs";
-import { InitToken } from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
 
@@ -25,12 +24,13 @@ enum TileStatus {
   REVEALED_MINE,
 }
 
-class TileCollab extends collabs.CObject {
+class CTile extends collabs.CObject {
   private readonly revealed: collabs.TrueWinsCBoolean;
   private readonly flag: collabs.LWWCVariable<FlagStatus>;
+  readonly isMine: boolean;
   number: number = 0;
 
-  constructor(init: collabs.InitToken, readonly isMine: boolean) {
+  constructor(init: collabs.InitToken, isMine: boolean) {
     super(init);
     this.revealed = this.addChild(
       "revealed",
@@ -38,8 +38,9 @@ class TileCollab extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      (init) => new collabs.LWWCVariable(init, FlagStatus.NONE)
+      (init) => new collabs.LWWCVariable<FlagStatus>(init, FlagStatus.NONE)
     );
+    this.isMine = isMine;
   }
 
   reveal() {
@@ -91,34 +92,40 @@ enum GameStatus {
   LOST,
 }
 
-class MinesweeperCollab extends collabs.CObject {
-  readonly tiles: TileCollab[][];
+class CMinesweeper extends collabs.CObject {
+  readonly tiles: CTile[][];
+  readonly width: number;
+  readonly height: number;
 
   constructor(
     init: collabs.InitToken,
-    readonly width: number,
-    readonly height: number,
+    width: number,
+    height: number,
     fractionMines: number,
     startX: number,
     startY: number,
     seed: string
   ) {
     super(init);
+
+    this.width = width;
+    this.height = height;
+
     // Adjust fractionMines to account for fact that start
     // won't be a mine
     const size = width * height;
     if (size > 1) fractionMines *= size / (size - 1);
     // Place mines and init tiles
     const rng = seedrandom(seed);
-    this.tiles = new Array<TileCollab[]>(width);
+    this.tiles = new Array<CTile[]>(width);
     for (let x = 0; x < width; x++) {
-      this.tiles[x] = new Array<TileCollab>(height);
+      this.tiles[x] = new Array<CTile>(height);
       for (let y = 0; y < height; y++) {
         const isMine =
           x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
           x + ":" + y,
-          (init) => new TileCollab(init, isMine)
+          (init) => new CTile(init, isMine)
         );
       }
     }
@@ -212,7 +219,6 @@ class MinesweeperCollab extends collabs.CObject {
    * A neighbor is defined as the 8 surrounding cells (unless on the border,
    * which would be any surrounding cell not outside the board).
    * Source: https://stackoverflow.com/questions/652106/finding-neighbours-in-a-two-dimensional-array
-   * PD.: Sorry for being lazy and looking this up.
    */
   private neighbors(x: number, y: number): Array<[number, number]> {
     let neighbors: Array<[number, number]> = [];
@@ -261,7 +267,7 @@ class MinesweeperCollab extends collabs.CObject {
         box.className = "cell";
         box.id = "row_" + y.toString() + "_" + x.toString();
         if (currentState.value === "game") {
-          let game = state as MinesweeperCollab;
+          let game = state as CMinesweeper;
           let tile = game.tiles[x][y];
           box.addEventListener("click", (event) => {
             if (event.button === 0) game.leftClick(x, y);
@@ -347,8 +353,8 @@ class MinesweeperCollab extends collabs.CObject {
       board.appendChild(row);
     }
 
-    if (state instanceof MinesweeperCollab) {
-      let game = state as MinesweeperCollab;
+    if (state instanceof CMinesweeper) {
+      let game = state as CMinesweeper;
       switch (game.winStatus()) {
         case GameStatus.WON:
           winText.innerHTML = "You won!";
@@ -397,7 +403,7 @@ class MinesweeperCollab extends collabs.CObject {
       new collabs.LWWMutCVariable(
         init,
         (
-          valueInit: InitToken,
+          valueInit: collabs.InitToken,
           width: number,
           height: number,
           fractionMines: number,
@@ -405,7 +411,7 @@ class MinesweeperCollab extends collabs.CObject {
           startY: number,
           seed: string
         ) =>
-          new MinesweeperCollab(
+          new CMinesweeper(
             valueInit,
             width,
             height,

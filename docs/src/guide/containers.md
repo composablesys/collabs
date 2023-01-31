@@ -6,14 +6,14 @@ Our intent is that containers can make it easier to develop and use collaborativ
 
 - They should be easy to deploy, since the container author only needs to distribute a file, either on a static site or just as a file. Dedicated container hosts would handle the parts that are hard to deploy (networking, backup storage, etc.).
 - They should be easy to write, since the author only needs to write frontend code: a data model made of `Collabs`, a GUI view of that data model, a controller that updates the model in response to user input, and a bit of boilerplate to connect to the host.
-- They should free users to use whatever network they prefer: a public provider, a self-hosted server, a compatible group chat service, etc. Users can also nest containers inside other Collabs apps (e.g., our [Tile Board demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/tile-board/dist/tile_board.html)).
+- They should free users to use whatever network they prefer: a public provider, a self-hosted server, a compatible group chat service, etc. Users can also nest containers inside other Collabs apps (e.g., our [Tile Board demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/tile-board/dist/tile_board.html)).
 - They should guarantee longevity for users: once a user has a copy of the container, they can use it forever, so long as they have access to a (version-compatible) container host.
 
-See also: [Why Make Collabs?](./why.md).
+See also: [Why Make Collabs?](../further_info/why.html).
 
 ## Development
 
-The easiest way to develop a container is by following the [Getting Started Guide](./getting_started_guide.md), which walks through our [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
+The easiest way to develop a container is by following the [Getting Started Guide](../quick_start.html), which walks through our [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 
 Starting from scratch, the steps are:
 
@@ -23,7 +23,7 @@ Starting from scratch, the steps are:
 
    a. Start by creating an instance of `CRDTContainer` from @collabs/container. We'll assume it's named `container`.
 
-   b. Setup your app: register your top-level Collabs using `container.registerCollabs`, connect them to your GUI using [event listeners](./events.md), and connect user input to them.
+   b. Setup your app: register your top-level Collabs using `container.registerCollabs`, connect them to your GUI using [event listeners](../advanced/events.html), and connect user input to them.
 
    c. `await container.load()`. Basically, the container host can periodically save snapshots of the container's state, then use one to restart it quickly later. It can even send snapshots to new collaborators, so that they can load the current state without replaying every past message. `container.load()` waits to receive this save data from the host, uses it to fill in your Collabs' state, then resolves its Promise.
 
@@ -39,19 +39,19 @@ You deploy your container merely by distributing your compiled HTML file. You ca
 
 Users can then run your app in any container host. Some options:
 
-- For a quick public test, upload your build file to our [Selector demo](https://compoventuals-tests.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). Anyone who visits that link will then see your container (until the demo gets reset). Note that if someone else is currently using the selector demo, you'll see their container instead.
+- For a quick public test, upload your build file to our [Selector demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html). Anyone who visits that link will then see your container (until the demo gets reset). Note that if someone else is currently using the selector demo, you'll see their container instead.
 - For a private (but still networked) test, upload your build file to the Matrix version of our Selector demo.
 
-  [Instructions](https://compoventuals-tests.herokuapp.com/#matrix)
+  [Instructions](https://collabs-demos.herokuapp.com/#matrix)
 
-  Matrix widget command: `/addwidget https://compoventuals-tests.herokuapp.com/matrix.html?container=demos/selector/dist/selector.html`
+  Matrix widget command: `/addwidget https://collabs-demos.herokuapp.com/matrix.html?container=demos/selector/dist/selector.html`
 
   This option has the most longevity for users: once they hit "Go" at the beginning, the container code is stored in the Matrix chat, so they no longer need the original file/URL; and as long as they have a copy of your compiled HTML file, they can start new sessions using your app, with their choice of collaborators.
 
 - For a more permanent public test, host your build file on a static site or file sharing platform and give users the URL:
 
 ```
-https://compoventuals-tests.herokuapp.com/web_socket.html?container=<your file URL>
+https://collabs-demos.herokuapp.com/web_socket.html?container=<your file URL>
 ```
 
 This will run your container like our demos: anyone who visits that page can make edits, and the server will occasionally reset its state when no use is using it.
@@ -61,10 +61,10 @@ For this to work, `<your file URL>` must be configured to return the CORS header
 - For practical use, host your build file on a static site or file sharing platform and give users the Matrix widget command:
 
 ```
-/addwidget https://compoventuals-tests.herokuapp.com/matrix.html?container=<your file URL>
+/addwidget https://collabs-demos.herokuapp.com/matrix.html?container=<your file URL>
 ```
 
-[Instructions](https://compoventuals-tests.herokuapp.com/#matrix)
+[Instructions](https://collabs-demos.herokuapp.com/#matrix)
 
 For this to work, `<your file URL>` must be configured to return the CORS header ["Access-Control-Allow-Origin: \*"](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin). Note that this the container will stop working for users if your URL stops working or changes content. (In particular, your URL should include a version, so you can upload new versions without affecting existing users.)
 
