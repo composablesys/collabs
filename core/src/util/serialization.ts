@@ -1,14 +1,12 @@
 import { Buffer } from "buffer";
-import { Collab } from "../core/";
 import {
   ArrayMessage,
-  CollabIDMessage,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
   ObjectMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { CollabID } from "./collab_id";
+import { Collab } from "../core/";
 
 /**
  * A serializer for values of type `T` (e.g., elements

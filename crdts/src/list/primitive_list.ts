@@ -235,6 +235,8 @@ export class PrimitiveCList<T>
       return [...this.values()];
     } else {
       // OPT: optimize using items() iterator or similar.
+      // TODO: mixin issues confusing eslint
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return super.slice(start, end);
     }
   }

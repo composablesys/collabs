@@ -80,8 +80,8 @@ export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
   }
 
   values(): IterableIterator<T> {
-    // TODO: mixin confusion here due to ts-expect error.
-    // Maybe give up on the mixins with higher-kinded types?
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.mvMap.keys();
   }
 }

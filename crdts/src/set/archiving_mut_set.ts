@@ -1,11 +1,11 @@
 import {
+  AbstractCSetCObject,
+  Collab,
+  CollabID,
   CollabIDSerializer,
   DefaultSerializer,
-  Serializer,
-  Collab,
   InitToken,
-  AbstractCSetCObject,
-  CollabID,
+  Serializer,
 } from "@collabs/core";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
@@ -60,6 +60,8 @@ export class ArchivingMutCSet<
       "1",
       (init) => new AddWinsCSet(init, new CollabIDSerializer<C>(this.mutSet))
     );
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.initialValues = new Set(this.mutSet);
 
     // Events
