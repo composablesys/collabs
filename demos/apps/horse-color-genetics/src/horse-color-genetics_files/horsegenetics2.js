@@ -24,6 +24,8 @@
 import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 // CSS
+import css from "./horsegenetics.css";
+void css;
 
 //set file path constant, if required
 export const path = "";
