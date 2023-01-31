@@ -1,19 +1,17 @@
 import {
   Collab,
-  InitToken,
-  Pre,
-  isRuntime,
-  ConstructorAsFunction,
   DefaultSerializer,
+  InitToken,
+  isRuntime,
   Serializer,
 } from "@collabs/core";
-import { LWWCVariable } from "../variable";
 import { DeletingMutCSet } from "../set";
+import { LWWCVariable } from "../variable";
+import { ListPosition } from "./list_position_source";
 import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import { ListPosition } from "./list_position_source";
 
 export class DeletingMutCList<
   C extends Collab,
@@ -35,8 +33,15 @@ export class DeletingMutCList<
   ) {
     super(
       init,
-      Pre(DeletingMutCSet),
-      ConstructorAsFunction(LWWCVariable),
+      (setInit, setValueConstructor, setInitialValuesArgs, setArgsSerializer) =>
+        new DeletingMutCSet(
+          setInit,
+          setValueConstructor,
+          setInitialValuesArgs,
+          setArgsSerializer
+        ),
+      (variableInit, initialValue, variableSerializer) =>
+        new LWWCVariable(variableInit, initialValue, variableSerializer),
       valueConstructor,
       initialValuesArgs,
       argsSerializer
@@ -58,16 +63,6 @@ export class DeletingMutCList<
     return super.unshift(...args)!;
   }
 
-  owns(value: C): boolean {
-    // Avoid errors from value.parent in case it
-    // is the root.
-    if (isRuntime(value.parent)) return false;
-
-    return this.set.owns(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
-    );
-  }
-
   hasValue(value: C): boolean {
     // Avoid errors from value.parent in case it
     // is the root.
@@ -76,30 +71,5 @@ export class DeletingMutCList<
     return this.set.has(
       value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
-  }
-
-  getArgs(index: number): InsertArgs {
-    return this.set.getArgs(
-      this.get(index).parent as MovableMutCListEntry<
-        C,
-        LWWCVariable<ListPosition>
-      >
-    )[1];
-  }
-
-  /**
-   * [getArgsByValue description]
-   * @param  value [description]
-   * @return       [description]
-   * @throws if !this.hasValue(value)
-   */
-  getArgsByValue(value: C): InsertArgs {
-    if (!this.hasValue(value)) {
-      throw new Error("this.hasValue(value) is false");
-    }
-
-    return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
-    )[1];
   }
 }

@@ -1,14 +1,14 @@
 import {
+  AbstractCSetCollab,
   Collab,
+  DefaultSerializer,
   ICollabParent,
   InitToken,
-  MessageMeta,
-  Message,
-  AbstractCSetCollab,
-  Serializer,
-  DefaultSerializer,
   makeUID,
+  Message,
+  MessageMeta,
   Optional,
+  Serializer,
 } from "@collabs/core";
 import {
   DeletingMutCSetMessage,
@@ -244,6 +244,25 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
   get size(): number {
     return this.children.size;
+  }
+
+  // TODO: include this method in the "base" class but not the default one.
+  // Need it for map's optimized keyOf.
+  /**
+   * @param  value [description]
+   * @return the AddArgs used to add value
+   * @throws if !this.has(value) or if value is an initialValue
+   * (those args aren't retained, for efficiency)
+   */
+  getArgs(value: C): AddArgs {
+    if (!this.has(value)) {
+      throw new Error("this.has(value) is false");
+    }
+    const argsSerialized = this.constructorArgs.get(value.name);
+    if (argsSerialized === undefined) {
+      throw new Error("Cannot call argsOf on initial value");
+    }
+    return this.argsSerializer.deserialize(argsSerialized);
   }
 
   save(): Uint8Array {

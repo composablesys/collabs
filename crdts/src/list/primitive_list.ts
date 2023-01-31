@@ -1,13 +1,13 @@
 import {
-  InitToken,
-  Message,
-  MessageMeta,
   AbstractCListCPrimitive,
   DefaultSerializer,
+  InitToken,
   int64AsNumber,
+  Message,
+  MessageMeta,
   Optional,
-  Serializer,
   PositionedList,
+  Serializer,
 } from "@collabs/core";
 import {
   IPrimitiveCListInsertMessage,
@@ -114,7 +114,7 @@ export class PrimitiveCList<T>
   }
 
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
-    if (!meta.isLocalEcho) this.indexHint = -1;
+    if (!meta.isEcho) this.indexHint = -1;
 
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
@@ -151,8 +151,8 @@ export class PrimitiveCList<T>
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
-          startIndex,
-          count: values.length,
+          index: startIndex,
+          values,
           meta,
         });
 
@@ -175,9 +175,8 @@ export class PrimitiveCList<T>
               ? this.indexHint
               : this.positionSource.findPosition(pos)[0];
           this.emit("Delete", {
-            startIndex,
-            count: 1,
-            deletedValues,
+            index: startIndex,
+            values: deletedValues,
             meta,
           });
         }
