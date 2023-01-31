@@ -29,12 +29,12 @@ class CRichChar extends collabs.CObject<CRichCharEventsRecord> {
    * object with a single property.
    */
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     readonly char: string | object,
     readonly origin: CRichChar | null,
     ignoreAttrs: string[]
   ) {
-    super(initToken);
+    super(init);
 
     this._attributes = this.addChild("", collabs.Pre(collabs.LWWCMap)());
 
@@ -127,10 +127,10 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   private inNormalFormat = false;
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     initialChars: (string | object)[] = []
   ) {
-    super(initToken);
+    super(init);
 
     this.runLocallyLayer = this.addChild(
       "",

@@ -7,7 +7,7 @@
   "bugs": {
     "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/collabs/tree/master/json#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/demos/types/json#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/collabs.git"

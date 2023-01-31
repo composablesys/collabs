@@ -126,10 +126,10 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * @param containerIFrame
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     readonly containerIFrame: HTMLIFrameElement
   ) {
-    super(initToken);
+    super(init);
 
     // Listen for this.messagePort.
     const onmessage = (e: MessageEvent<unknown>) => {

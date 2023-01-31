@@ -124,11 +124,11 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
-    super(initToken);
+    super(init);
     this.state = new TensorGCounterState();
   }
 
@@ -274,11 +274,11 @@ export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
   private readonly minus: TensorGCounterCollab;
 
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
-    super(initToken);
+    super(init);
     this.plus = this.addChild("1", Pre(TensorGCounterCollab)(shape, dtype));
     this.minus = this.addChild("2", Pre(TensorGCounterCollab)(shape, dtype));
     this.plus.on("Add", (event) => this.emit("Add", event));
@@ -329,11 +329,11 @@ export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
   private readonly denominator: ResettableCCounter;
 
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly shape: number[],
     private readonly dtype: tf.NumericDataType
   ) {
-    super(initToken);
+    super(init);
     this.numerator = this.addChild("1", Pre(TensorCounterCollab)(shape, dtype));
     this.denominator = this.addChild("2", Pre(ResettableCCounter)());
     this.numerator.on("Add", (event) => this.emit("Add", event));

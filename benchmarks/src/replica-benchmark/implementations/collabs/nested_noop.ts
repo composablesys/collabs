@@ -9,8 +9,8 @@ const NESTED_PARENTS = 10;
 class NestedNoopCRDT extends collabs.CObject {
   private readonly child: NestedNoopCRDT | NoopCRDT;
 
-  constructor(initToken: collabs.InitToken, parentsRemaining: number) {
-    super(initToken);
+  constructor(init: collabs.InitToken, parentsRemaining: number) {
+    super(init);
 
     if (parentsRemaining === 0) {
       this.child = this.addChild(

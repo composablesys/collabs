@@ -1,6 +1,8 @@
 import {
   Collab,
   CollabEventsRecord,
+  CRDTMeta,
+  CRDTMetaRequestee,
   ICollabParent,
   InitToken,
   Message,
@@ -8,15 +10,13 @@ import {
   Optional,
   Pre,
   serializeMessage,
-} from "@collabs/core";
+} from "@collabs/collabs";
 import {
   BytesOrString,
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
   MultiSemidirectProductSave,
 } from "../generated/proto_compiled";
-
-import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 
 /* eslint-disable */
 

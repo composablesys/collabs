@@ -8,8 +8,8 @@ class TodoListInternal extends collabs.CObject implements ITodoListInternal {
   private readonly doneCollab: collabs.TrueWinsCBoolean;
   private readonly items: collabs.DeletingMutCList<TodoListInternal, []>;
 
-  constructor(initToken: collabs.InitToken) {
-    super(initToken);
+  constructor(init: collabs.InitToken) {
+    super(init);
     this.text = this.addChild("text", collabs.Pre(collabs.CText)());
     this.doneCollab = this.addChild(
       "done",

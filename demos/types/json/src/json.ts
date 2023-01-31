@@ -70,10 +70,10 @@ export class JSONObject extends CObject {
    * Internal use only
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly makeThisExistent: () => void
   ) {
-    super(initToken);
+    super(init);
     // Note that adding the key explicitly is redundant, since a value
     // only ever calls makeThisExistent as part of an operation, and
     // that operation suffices to revive its map key, due to MergingMutCMap's
@@ -147,10 +147,10 @@ export class JSONObject extends CObject {
 export class JSONArray extends CObject {
   private readonly internalList: DeletingMutCList<JSONElement, []>;
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly makeThisExistent: () => void
   ) {
-    super(initToken);
+    super(init);
     this.internalList = this.addChild(
       "nestedMap",
       Pre(DeletingMutCList)(
@@ -213,15 +213,15 @@ export class JSONElement extends CObject {
   private text: CText;
   private makeThisExistent: () => void;
 
-  static NewJSON(initToken: InitToken): JSONElement {
-    return new JSONElement(initToken, () => {});
+  static NewJSON(init: InitToken): JSONElement {
+    return new JSONElement(init, () => {});
   }
 
   /**
    * Internal use only
    */
-  constructor(initToken: InitToken, makeThisExistent: () => void) {
-    super(initToken);
+  constructor(init: InitToken, makeThisExistent: () => void) {
+    super(init);
     this.makeThisExistent = makeThisExistent;
     this.variable = this.addChild(
       "variable",

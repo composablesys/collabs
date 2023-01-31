@@ -7,8 +7,8 @@ import { richTextPreContent } from "./rich_text_tile";
  * A Collab that holds an immutable value passed to the constructor.
  */
 class CImmutable<T> extends collabs.CObject {
-  constructor(initToken: collabs.InitToken, readonly value: T) {
-    super(initToken);
+  constructor(init: collabs.InitToken, readonly value: T) {
+    super(init);
   }
 }
 
@@ -23,7 +23,7 @@ class CTile extends collabs.CObject {
   readonly innerDiv: HTMLDivElement;
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     private readonly domParent: HTMLElement,
     preContent: (
       contentInitToken: collabs.InitToken,
@@ -34,7 +34,7 @@ class CTile extends collabs.CObject {
     initialWidth: number,
     initialHeight: number
   ) {
-    super(initToken);
+    super(init);
 
     // Create DOM.
     this.dom = document.createElement("div");
@@ -432,7 +432,7 @@ export function setupTiles(container: CRDTContainer) {
       iframe.hidden = true;
       contentDomParent.appendChild(iframe);
       const host = new CRDTContainerHost(contentInitToken, iframe);
-      host.nextEvent("ContainerReady").then(() => {
+      host.once("ContainerReady", () => {
         iframe.hidden = false;
       });
       // Compact host's save data when compacting our own.
@@ -445,7 +445,7 @@ export function setupTiles(container: CRDTContainer) {
   }
 
   // Once loaded, display the loaded state.
-  container.runtime.nextEvent("Load").then(() => {
+  container.runtime.once("Load", () => {
     refreshAppExistingDiv();
   });
 }

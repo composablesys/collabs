@@ -39,8 +39,8 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   private readonly keySet: AddWinsCSet<string>;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
-  constructor(initToken: InitToken) {
-    super(initToken);
+  constructor(init: InitToken) {
+    super(init);
 
     let keySerializer: Serializer<string> = DefaultSerializer.getInstance();
     this.internalMap = this.addChild(
@@ -198,7 +198,7 @@ export class JSONCursor {
   private cursor: string;
 
   static new(): Pre<JSONCursor> {
-    return (initToken: InitToken) => new JSONCursor(new JSONCollab(initToken));
+    return (init: InitToken) => new JSONCursor(new JSONCollab(init));
   }
 
   constructor(internal: JSONCollab, cursor?: string) {

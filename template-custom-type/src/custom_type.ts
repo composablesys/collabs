@@ -26,8 +26,8 @@ export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
   private readonly firstReg: LWWCVariable<T>;
   private readonly secondReg: LWWCVariable<U>;
 
-  constructor(initToken: InitToken, firstInitial: T, secondInitial: U) {
-    super(initToken);
+  constructor(init: InitToken, firstInitial: T, secondInitial: U) {
+    super(init);
 
     // Setup child Collabs.
     this.firstReg = this.addChild("firstReg", Pre(LWWCVariable)(firstInitial));

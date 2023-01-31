@@ -59,7 +59,7 @@ import pako from "pako";
     // onCurrentHostSet is always called in the same event loop
     // as the IFrame is created (though possibly a later microtask),
     // and readiness requires receiving a message from the IFrame.
-    newValue.nextEvent("ContainerReady").then(() => {
+    newValue.once("ContainerReady", () => {
       initializingDiv.hidden = true;
       iframe.hidden = false;
     });

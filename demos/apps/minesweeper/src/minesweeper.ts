@@ -29,8 +29,8 @@ class TileCollab extends collabs.CObject {
   private readonly flag: collabs.LWWCVariable<FlagStatus>;
   number: number = 0;
 
-  constructor(initToken: collabs.InitToken, readonly isMine: boolean) {
-    super(initToken);
+  constructor(init: collabs.InitToken, readonly isMine: boolean) {
+    super(init);
     this.revealed = this.addChild(
       "revealed",
       collabs.Pre(collabs.TrueWinsCBoolean)()
@@ -94,7 +94,7 @@ class MinesweeperCollab extends collabs.CObject {
   readonly tiles: TileCollab[][];
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     readonly width: number,
     readonly height: number,
     fractionMines: number,
@@ -102,7 +102,7 @@ class MinesweeperCollab extends collabs.CObject {
     startY: number,
     seed: string
   ) {
-    super(initToken);
+    super(init);
     // Adjust fractionMines to account for fact that start
     // won't be a mine
     const size = width * height;

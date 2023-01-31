@@ -20,7 +20,7 @@ This works because a `Runtime` "Change" event is dispatched whenever the local u
 See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `Runtime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
 
 - `on` adds an event listener. Calling `on`'s return value removes the listener.
-- `nextEvent` returns a Promise that is resolved when the next event is emitted.
+- `once` adds an event listener that is called only once, on the next event. Calling `once`'s return value before the next event removes the listener.
 - `emit` (protected) emits an event. Call this from within a custom `Collab` to emit your own events.
 
 Each class's allowed events are typed using the `Events` type parameter. This has the form of an interface mapping `string` event names to their event type:

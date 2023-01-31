@@ -22,8 +22,8 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
    * a single char, or (for an embed) a JSON-serializable
    * object with a single property.
    */
-  constructor(initToken: collabs.InitToken, readonly char: string | object) {
-    super(initToken);
+  constructor(init: collabs.InitToken, readonly char: string | object) {
+    super(init);
 
     this._attributes = this.addChild("", collabs.Pre(collabs.LWWCMap)());
 
@@ -68,11 +68,8 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
 class RichText extends collabs.CObject<RichTextEventsRecord> {
   readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
 
-  constructor(
-    initToken: collabs.InitToken,
-    initialChars: (string | object)[] = []
-  ) {
-    super(initToken);
+  constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
+    super(init);
 
     this.text = this.addChild(
       "",
@@ -254,7 +251,7 @@ export function richTextPreContent(
   });
 
   // Once loaded, display loaded state.
-  clientText.runtime.nextEvent("Load").then(() => {
+  clientText.runtime.once("Load", () => {
     // Display loaded state by syncing it to Quill.
     updateContents(
       new Delta({

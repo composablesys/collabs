@@ -345,14 +345,7 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
           const ret = handler(this);
           if (ret instanceof Promise) toAwait.push(ret);
         } catch (err) {
-          // Don't let the error block other event handlers
-          // or interrupt the save request as a whole
-          // (there's still benefit in calling runtime.save()),
-          // but still make it print
-          // its error like it was unhandled.
-          void Promise.resolve().then(() => {
-            throw err;
-          });
+          console.error("Error in SaveRequest event handler:\n", err);
         }
       }
       await Promise.all(toAwait);
@@ -365,17 +358,13 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
         lastReceivedID: this.lastReceivedID,
         requestID: message.requestID,
       });
-    } catch (error) {
+    } catch (err) {
       this.messagePortSend({
         type: "SaveRequestFailed",
         requestID: message.requestID,
-        errorToString: String(error),
+        errorToString: String(err),
       });
-      // Also "throw" the error separately, so it gets
-      // logged in the console.
-      void Promise.resolve().then(() => {
-        throw error;
-      });
+      throw err;
     }
   }
 }
