@@ -3,8 +3,8 @@ import {
   Collab,
   CollabEvent,
   EventEmitter,
+  InitToken,
   Optional,
-  Pre,
 } from "@collabs/core";
 import { CRDTRuntime, SendEvent } from "./crdt_runtime";
 
@@ -119,8 +119,11 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * @return The registered [[Collab]]. You should assign
    * this to a variable for later use.
    */
-  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
-    return this.runtime.registerCollab(name, preCollab);
+  registerCollab<C extends Collab>(
+    name: string,
+    collabCallback: (init: InitToken) => C
+  ): C {
+    return this.runtime.registerCollab(name, collabCallback);
   }
 
   /**

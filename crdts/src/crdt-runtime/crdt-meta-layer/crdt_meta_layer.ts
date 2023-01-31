@@ -1,18 +1,17 @@
 import {
+  BatchingLayer,
   Collab,
   ICollabParent,
   InitToken,
-  MessageMeta,
-  Pre,
-  Message,
   int64AsNumber,
+  Message,
+  MessageMeta,
   Optional,
-  BatchingLayer,
 } from "@collabs/core";
 import { CRDTMetaLayerSave } from "../../../generated/proto_compiled";
 import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
 import { CausalMessageBuffer } from "./causal_message_buffer";
-import { SendCRDTMetaBatch, ReceiveCRDTMetaBatch } from "./crdt_meta_batches";
+import { ReceiveCRDTMetaBatch, SendCRDTMetaBatch } from "./crdt_meta_batches";
 import { ReceiveCRDTMeta, SendCRDTMeta } from "./crdt_meta_implementations";
 import { ReceiveTransaction } from "./receive_transaction";
 
@@ -105,8 +104,8 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     }
   }
 
-  setChild<C extends Collab>(preChild: Pre<C>): C {
-    const child = preChild(new InitToken("", this));
+  setChild<C extends Collab>(childCallback: (init: InitToken) => C): C {
+    const child = childCallback(new InitToken("", this));
     this.child = child;
     return child;
   }
@@ -119,7 +118,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
       const meta = <MessageMeta>(
         this.getContext(MessageMeta.NEXT_MESSAGE_META)
       ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
-      meta[CRDTMeta.MESSAGE_META_KEY] = this.currentSendMeta();
+      meta.set(CRDTMeta.MESSAGE_META_KEY, this.currentSendMeta());
       return meta;
     }
     return undefined;
@@ -243,7 +242,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
       throw new Error("messagePath.length === 0");
     }
 
-    if (meta.isLocalEcho) {
+    if (meta.isEcho) {
       // Due to immediate local echos, we can assume that this
       // message corresponds to the current transaction.
       const crdtMeta = this.currentSendMeta();
@@ -274,7 +273,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
         // It's a new batch with a new CRDTMetaReceiveMessage.
         this.currentReceiveBatch = new ReceiveCRDTMetaBatch(
           meta.sender,
-          <number | undefined>meta[BatchingLayer.BATCH_SIZE_KEY] ?? 1,
+          <number | undefined>meta.get(BatchingLayer.BATCH_SIZE_KEY) ?? 1,
           <Uint8Array>messagePath[messagePath.length - 1]
         );
       }
@@ -359,7 +358,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     for (const message of transaction.messages) {
       this.deliverMessage(
         message,
-        { sender: transaction.crdtMeta.sender, isLocalEcho: false },
+        MessageMeta.new(transaction.crdtMeta.sender, false, false),
         transaction.crdtMeta
       );
     }
@@ -371,12 +370,12 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     crdtMeta: CRDTMeta
   ) {
     // Add the CRDTMeta to meta.
-    meta[CRDTMeta.MESSAGE_META_KEY] = crdtMeta;
+    meta.set(CRDTMeta.MESSAGE_META_KEY, crdtMeta);
 
     try {
       this.child.receive(messagePath, meta);
     } catch (err) {
-      if (meta.isLocalEcho) {
+      if (meta.isEcho) {
         // Propagate the error back to the original
         // operation.
         throw err;
