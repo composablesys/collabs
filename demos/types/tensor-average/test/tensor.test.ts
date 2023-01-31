@@ -1,12 +1,11 @@
-import * as tf from "@tensorflow/tfjs-node";
-import { assert } from "chai";
 import {
   Collab,
   CRDTApp,
   Optional,
-  Pre,
   TestingCRDTAppGenerator,
 } from "@collabs/collabs";
+import * as tf from "@tensorflow/tfjs-node";
+import { assert } from "chai";
 import {
   conversions,
   TensorAverageCollab,
@@ -105,11 +104,11 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCollab(
         "counterId",
-        Pre(TensorGCounterCollab)(shape, "float32")
+        (init) => new TensorGCounterCollab(init, shape, "float32")
       );
       bobCounter = bob.registerCollab(
         "counterId",
-        Pre(TensorGCounterCollab)(shape, "float32")
+        (init) => new TensorGCounterCollab(init, shape, "float32")
       );
       if (debug) {
         addEventListeners(aliceCounter, "Alice");
@@ -248,11 +247,11 @@ describe("tensor", () => {
         const dtype = "float32";
         const aliceCounter = alice.registerCollab(
           "counterId2",
-          Pre(TensorGCounterCollab)(shape, dtype)
+          (init) => new TensorGCounterCollab(init, shape, dtype)
         );
         const bobCounter = bob.registerCollab(
           "counterId2",
-          Pre(TensorGCounterCollab)(shape, dtype)
+          (init) => new TensorGCounterCollab(init, shape, dtype)
         );
         load();
 
@@ -289,11 +288,11 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceCounter = alice.registerCollab(
         "counterId",
-        Pre(TensorCounterCollab)(shape, "float32")
+        (init) => new TensorCounterCollab(init, shape, "float32")
       );
       bobCounter = bob.registerCollab(
         "counterId",
-        Pre(TensorCounterCollab)(shape, "float32")
+        (init) => new TensorCounterCollab(init, shape, "float32")
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -417,11 +416,11 @@ describe("tensor", () => {
     beforeEach(() => {
       aliceAvg = alice.registerCollab(
         "avgId",
-        Pre(TensorAverageCollab)(shape, "float32")
+        (init) => new TensorAverageCollab(init, shape, "float32")
       );
       bobAvg = bob.registerCollab(
         "avgId",
-        Pre(TensorAverageCollab)(shape, "float32")
+        (init) => new TensorAverageCollab(init, shape, "float32")
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
