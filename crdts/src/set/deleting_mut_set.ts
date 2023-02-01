@@ -68,7 +68,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify AddArgs for
    * initial values that are present when the list is created.

@@ -77,16 +77,16 @@ class CPair<T, U> extends CObject{
   private readonly firstReg: LWWCVariable<T>;
   private readonly secondReg: LWWCVariable<U>;
 
-  constructor(initToken: InitToken, firstInitial: T, secondInitial: U) {
-    super(initToken);
+  constructor(init: InitToken, firstInitial: T, secondInitial: U) {
+    super(init);
 
     // Setup child Collabs.
     this.firstReg = this.addChild(
       "firstReg", 
-      (initToken) => new Collabs.LWWCVariable(initToken, firstInitial));
+      (init) => new Collabs.LWWCVariable(init, firstInitial));
     this.secondReg = this.addChild(
       "secondReg",
-      (initToken) => new Collabs.LWWCVariable(initToken, firstInitial));
+      (init) => new Collabs.LWWCVariable(init, firstInitial));
   }
 
   // Convert our own methods into child methods.
@@ -135,7 +135,7 @@ boardState.set([x, y], color);
 ```ts
 const boardState = container.registerCollab(
   "whiteboard",
-  (initToken) => new collabs.LWWCMap<[x: number, y: number], string>(initToken)
+  (init) => new collabs.LWWCMap<[x: number, y: number], string>(init)
 );
 ```
 
@@ -233,16 +233,16 @@ class CTile extends collabs.CObject {
   readonly isMine: boolean;
   number: number = 0;
 
-  constructor(initToken: collabs.InitToken, isMine: boolean) {
-    super(initToken);
+  constructor(init: collabs.InitToken, isMine: boolean) {
+    super(init);
     this.revealed = this.addChild(
       "revealed",
-      (initToken) => new collabs.TrueWinsCBoolean(initToken)
+      (init) => new collabs.TrueWinsCBoolean(init)
     );
     this.flag = this.addChild(
       "flag",
-      (initToken) =>
-        new collabs.LWWCVariable<FlagStatus>(initToken, FlagStatus.NONE)
+      (init) =>
+        new collabs.LWWCVariable<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }
@@ -264,7 +264,7 @@ class CMinesweeper extends collabs.CObject {
   readonly height: number;
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     width: number,
     height: number,
     fractionMines: number,
@@ -272,7 +272,7 @@ class CMinesweeper extends collabs.CObject {
     startY: number,
     seed: string
   ) {
-    super(initToken);
+    super(init);
 
     this.width = width;
     this.height = height;
@@ -290,7 +290,7 @@ class CMinesweeper extends collabs.CObject {
           x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
           x + ":" + y,
-          (initToken) => new CTile(initToken, isMine)
+          (init) => new CTile(init, isMine)
         );
       }
     }
@@ -305,15 +305,15 @@ Finally, we need to convert the variable `currentGame: Minesweeper` that holds t
 ```ts
 const currentGame = container.registerCollab(
   "currentGame",
-  (initToken) =>
+  (init) =>
     new collabs.LWWMutCVariable(
-      initToken,
+      init,
       collabs.ConstructorAsFunction(CMinesweeper)
     )
 );
 ```
 
-To start a new game, we call `currentGame.set` with `CMinesweeper`'s constructor arguments (except `initToken`).
+To start a new game, we call `currentGame.set` with `CMinesweeper`'s constructor arguments (except `init`).
 
 This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
 

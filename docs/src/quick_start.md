@@ -32,7 +32,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    (initToken) => new collabs.CCounter(initToken)
+    (init) => new collabs.CCounter(init)
   );
 
   // Refresh the display when the Collabs state changes, possibly

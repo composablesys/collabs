@@ -55,7 +55,7 @@ export class ArchivingMutCSet<
    * // app is a CRDTApp or CRDTContainer
    * const set = app.registerCollab(
    *   "set",
-   *   (initToken) => new collabs.ArchivingMutCSet(initToken, valueConstructor)
+   *   (init) => new collabs.ArchivingMutCSet(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.add(initialValue)`, e.g. in response to
@@ -65,7 +65,7 @@ export class ArchivingMutCSet<
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify AddArgs for
    * initial values that are present when the list is created.

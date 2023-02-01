@@ -58,7 +58,7 @@ export class DeletingMutCList<
    * // app is a CRDTApp or CRDTContainer
    * const list = app.registerCollab(
    *   "list",
-   *   (initToken) => new collabs.DeletingMutCList(initToken, valueConstructor)
+   *   (init) => new collabs.DeletingMutCList(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.insert(index, initialValue)`, e.g. in response to
@@ -68,7 +68,7 @@ export class DeletingMutCList<
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify InsertArgs for
    * initial values that are present when the list is created.

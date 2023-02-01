@@ -59,7 +59,7 @@ export class ArchivingMutCList<
    * // app is a CRDTApp or CRDTContainer
    * const list = app.registerCollab(
    *   "list",
-   *   (initToken) => new collabs.ArchivingMutCList(initToken, valueConstructor)
+   *   (init) => new collabs.ArchivingMutCList(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.insert(index, initialValue)`, e.g. in response to
@@ -69,7 +69,7 @@ export class ArchivingMutCList<
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify InsertArgs for
    * initial values that are present when the list is created.
