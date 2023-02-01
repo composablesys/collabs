@@ -33,7 +33,7 @@
     "@tensorflow/tfjs": "^3.8.0",
     "@tensorflow/tfjs-node": "^3.8.0",
     "dotenv": "^8.2.0",
-    "protobufjs": "~6.10.1",
+    "protobufjs": "~6.10.3",
     "tslib": "^2.0.1"
   },
   "devDependencies": {
