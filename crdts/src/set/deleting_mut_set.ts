@@ -296,10 +296,11 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     const valueSaves = new Array<IDeletingMutCSetValueSave>(this.children.size);
     let i = 0;
     for (const [name, child] of this.children) {
+      const args = this.constructorArgs.get(name);
       valueSaves[i] = {
         name,
         saveData: child.save(),
-        args: this.constructorArgs.get(name),
+        ...(args === undefined ? {} : { args }),
       };
       i++;
     }

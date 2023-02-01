@@ -149,10 +149,19 @@ export class ArchivingMutCSet<
   }
 
   *values() {
+    for (const value of this.initialValues) {
+      if (!this.deletedInitialValues.has(CollabID.of(value, this.mutSet))) {
+        yield value;
+      }
+    }
     for (const valueID of this.members.values()) yield valueID.get()!;
   }
 
   get size(): number {
-    return this.members.size;
+    return (
+      this.members.size +
+      this.initialValues.size -
+      this.deletedInitialValues.size
+    );
   }
 }

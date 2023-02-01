@@ -199,6 +199,7 @@ export class MultiValueMap<K, V>
             senderCounterDiffs: [],
             wallClockTimeDiffs: [],
           };
+          stateBySender[item.sender] = senderSave;
         }
 
         const lastItem = lastItems.get(item.sender);
