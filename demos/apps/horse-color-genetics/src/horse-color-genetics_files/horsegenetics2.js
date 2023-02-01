@@ -25,6 +25,7 @@ import * as collabs from "@collabs/collabs";
 import { CRDTContainer } from "@collabs/container";
 // CSS
 import css from "./horsegenetics.css";
+void css;
 
 //set file path constant, if required
 export const path = "";
@@ -1928,7 +1929,7 @@ async function collabsSetup() {
       const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
       alleles[alleleName] = container.registerCollab(
         alleleName,
-        collabs.Pre(collabs.LWWCVariable)(defaultValue)
+        (init) => new collabs.LWWCVariable(init, defaultValue)
       );
       alleles[alleleName].on("Set", () => {
         // Reflect the change in the GUI.

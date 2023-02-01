@@ -25,10 +25,10 @@ export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
  */
 export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly messageSerializer: Serializer<M> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
   }
 
   sendMessage(message: M): void {

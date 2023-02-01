@@ -7,8 +7,8 @@ import { richTextPreContent } from "./rich_text_tile";
  * A Collab that holds an immutable value passed to the constructor.
  */
 class CImmutable<T> extends collabs.CObject {
-  constructor(initToken: collabs.InitToken, readonly value: T) {
-    super(initToken);
+  constructor(init: collabs.InitToken, readonly value: T) {
+    super(init);
   }
 }
 
@@ -23,7 +23,7 @@ class CTile extends collabs.CObject {
   readonly innerDiv: HTMLDivElement;
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     private readonly domParent: HTMLElement,
     preContent: (
       contentInitToken: collabs.InitToken,
@@ -34,7 +34,7 @@ class CTile extends collabs.CObject {
     initialWidth: number,
     initialHeight: number
   ) {
-    super(initToken);
+    super(init);
 
     // Create DOM.
     this.dom = document.createElement("div");
@@ -51,15 +51,21 @@ class CTile extends collabs.CObject {
     this.contentCollab = this.addChild("", (contentInitToken) =>
       preContent(contentInitToken, this.innerDiv)
     );
-    this.left = this.addChild("x", collabs.Pre(collabs.LWWCVariable)(initialX));
-    this.top = this.addChild("y", collabs.Pre(collabs.LWWCVariable)(initialY));
+    this.left = this.addChild(
+      "x",
+      (init) => new collabs.LWWCVariable(init, initialX)
+    );
+    this.top = this.addChild(
+      "y",
+      (init) => new collabs.LWWCVariable(init, initialY)
+    );
     this.width = this.addChild(
       "width",
-      collabs.Pre(collabs.LWWCVariable)(initialWidth)
+      (init) => new collabs.LWWCVariable(init, initialWidth)
     );
     this.height = this.addChild(
       "height",
-      collabs.Pre(collabs.LWWCVariable)(initialHeight)
+      (init) => new collabs.LWWCVariable(init, initialHeight)
     );
 
     // Keep this.dom in sync with its rect.
@@ -279,15 +285,17 @@ export function setupTiles(container: CRDTContainer) {
   // were added.  Each app is stored as its Blob URL.
   const existingApps = container.registerCollab(
     "existingApps",
-    collabs.Pre(collabs.DeletingMutCList)(
-      (valueInitToken, htmlSrcGzipped: Uint8Array, title: string) => {
-        const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
-        const url = URL.createObjectURL(
-          new Blob([htmlSrc], { type: "text/html" })
-        );
-        return new CImmutable(valueInitToken, { url, title });
-      }
-    )
+    (init) =>
+      new collabs.DeletingMutCList(
+        init,
+        (valueInitToken, htmlSrcGzipped: Uint8Array, title: string) => {
+          const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+          const url = URL.createObjectURL(
+            new Blob([htmlSrc], { type: "text/html" })
+          );
+          return new CImmutable(valueInitToken, { url, title });
+        }
+      )
   );
 
   const appExistingDiv = <HTMLDivElement>(
@@ -319,7 +327,7 @@ export function setupTiles(container: CRDTContainer) {
   existingApps.on("Delete", (e) => {
     // Release blob URLs, as requested by
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
-    e.deletedValues.forEach((app) => URL.revokeObjectURL(app.value.url));
+    e.values.forEach((app) => URL.revokeObjectURL(app.value.url));
   });
 
   // Add apps to existingApps using the forms.
@@ -365,36 +373,38 @@ export function setupTiles(container: CRDTContainer) {
   const tileParent = <HTMLDivElement>document.getElementById("boardScroller");
   const tiles = container.registerCollab(
     "tiles",
-    collabs.Pre(collabs.DeletingMutCSet)(
-      (
-        valueInitToken,
-        // We use app as an argument instead of url so that
-        // it can be serialized properly.  url is a Blob URL
-        // meaningful only to the local replica, and using
-        // the raw HTML src would be expensive.
-        app: "richText" | CImmutable<{ url: string; title: string }>,
-        initialX: number,
-        initialY: number,
-        initialWidth: number,
-        initialHeight: number
-      ) => {
-        // Add a tile with the given app and initial rect.
-        const preContent =
-          app === "richText"
-            ? richTextPreContent
-            : iframeFromUrl(app.value.url);
-        const tile = new CTile(
+    (init) =>
+      new collabs.DeletingMutCSet(
+        init,
+        (
           valueInitToken,
-          tileParent,
-          preContent,
-          initialX,
-          initialY,
-          initialWidth,
-          initialHeight
-        );
-        return tile;
-      }
-    )
+          // We use app as an argument instead of url so that
+          // it can be serialized properly.  url is a Blob URL
+          // meaningful only to the local replica, and using
+          // the raw HTML src would be expensive.
+          app: "richText" | CImmutable<{ url: string; title: string }>,
+          initialX: number,
+          initialY: number,
+          initialWidth: number,
+          initialHeight: number
+        ) => {
+          // Add a tile with the given app and initial rect.
+          const preContent =
+            app === "richText"
+              ? richTextPreContent
+              : iframeFromUrl(app.value.url);
+          const tile = new CTile(
+            valueInitToken,
+            tileParent,
+            preContent,
+            initialX,
+            initialY,
+            initialWidth,
+            initialHeight
+          );
+          return tile;
+        }
+      )
   );
 
   const tileDestructors = new Map<collabs.Collab, () => void>();
@@ -432,7 +442,7 @@ export function setupTiles(container: CRDTContainer) {
       iframe.hidden = true;
       contentDomParent.appendChild(iframe);
       const host = new CRDTContainerHost(contentInitToken, iframe);
-      host.nextEvent("ContainerReady").then(() => {
+      host.once("ContainerReady", () => {
         iframe.hidden = false;
       });
       // Compact host's save data when compacting our own.
@@ -445,7 +455,7 @@ export function setupTiles(container: CRDTContainer) {
   }
 
   // Once loaded, display the loaded state.
-  container.runtime.nextEvent("Load").then(() => {
+  container.runtime.once("Load", () => {
     refreshAppExistingDiv();
   });
 }

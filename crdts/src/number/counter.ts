@@ -12,6 +12,7 @@ import { CCounterMessage } from "../../generated/proto_compiled";
 
 export interface CCounterAddEvent extends CollabEvent {
   added: number;
+  value: number;
 }
 
 export interface CCounterEventsRecord extends CollabEventsRecord {
@@ -33,18 +34,10 @@ export interface CCounterEventsRecord extends CollabEventsRecord {
 export class CCounter extends CPrimitive<CCounterEventsRecord> {
   private _value: number;
 
-  constructor(initToken: InitToken, private readonly initialValue = 0) {
-    super(initToken);
+  constructor(init: InitToken, private readonly initialValue = 0) {
+    super(init);
 
     this._value = initialValue;
-  }
-
-  inc(): void {
-    this.add(1);
-  }
-
-  dec(): void {
-    this.add(-1);
   }
 
   add(toAdd: number): void {
@@ -61,7 +54,7 @@ export class CCounter extends CPrimitive<CCounterEventsRecord> {
     const toAdd = int64AsNumber(decoded.arg);
     this._value += toAdd;
 
-    this.emit("Add", { added: toAdd, meta });
+    this.emit("Add", { added: toAdd, value: this.value, meta });
   }
 
   get value(): number {

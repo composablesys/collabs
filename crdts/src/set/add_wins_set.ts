@@ -1,124 +1,72 @@
 import {
   AbstractCSetCObject,
-  CBoolean,
   DefaultSerializer,
   InitToken,
-  LazyMutCMap,
-  Pre,
   Serializer,
+  TrivialSerializer,
 } from "@collabs/core";
-import { TrueWinsCBoolean } from "../boolean";
+import { MultiValueMap } from "../map";
 
-export class CSetFromBoolean<
-  T,
-  BoolT extends CBoolean
-> extends AbstractCSetCObject<T, [T]> {
-  protected readonly booleanMap: LazyMutCMap<T, BoolT>;
-  // View of the set size, cached for efficiency.
-  private cachedSize = 0;
+const trueSerializer = new TrivialSerializer<true>(true);
+
+export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
   /**
-   * Booleans must start false.  If you want
-   * different behavior, you should wrap around this
-   * set (e.g., negate has to make everything start
-   * in the set, or do something else if you want it
-   * to start containing some elements but not others).
+   * Maps from set values to true. A value is present in this set
+   * iff it is present as a map key. This essentially implements
+   * the classic observed-remove set: a set containing one
+   * (value, causal dot) entry per add operation.
    */
+  private readonly mvMap: MultiValueMap<T, true>;
+
   constructor(
-    initToken: InitToken,
-    protected readonly booleanConstructor: (
-      booleanInitToken: InitToken
-    ) => BoolT,
+    init: InitToken,
     valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
-    this.booleanMap = this.addChild(
+    this.mvMap = super.addChild(
       "",
-      Pre(LazyMutCMap)(
-        this.internalBooleanConstructor.bind(this),
-        valueSerializer
-      )
+      (init) => new MultiValueMap(init, false, valueSerializer, trueSerializer)
     );
-    // Events emitters are setup by internalBooleanConstructor
-  }
 
-  private internalBooleanConstructor(
-    booleanInitToken: InitToken,
-    key: T
-  ): BoolT {
-    const bool = this.booleanConstructor(booleanInitToken);
-    // Add event listeners
-    bool.on("Set", (event) => {
-      if (!event.previousValue && bool.value) {
-        this.cachedSize++;
-        this.emit("Add", { value: key, meta: event.meta });
-      } else if (event.previousValue && !bool.value) {
-        this.cachedSize--;
-        this.emit("Delete", {
-          value: key,
-          meta: event.meta,
-        });
-      }
+    this.mvMap.on("Delete", (e) => {
+      this.emit("Delete", {
+        value: e.key,
+        meta: e.meta,
+      });
     });
-    return bool;
+    this.mvMap.on("Set", (e) => {
+      // Ensure the value actually went from not-present to present.
+      if (e.previousValue.isPresent) return;
+      this.emit("Add", {
+        value: e.key,
+        meta: e.meta,
+      });
+    });
   }
 
   add(value: T): T {
-    this.booleanMap.get(value).value = true;
+    this.mvMap.set(value, true);
     return value;
   }
 
   delete(value: T): void {
-    this.booleanMap.get(value).value = false;
+    this.mvMap.delete(value);
   }
 
   // Use inherited clear implementation (delete every value).
 
   has(value: T): boolean {
-    const bool = this.booleanMap.getIfPresent(value);
-    return bool === undefined ? false : bool.value;
+    return this.mvMap.has(value);
   }
 
   get size(): number {
-    return this.cachedSize;
+    return this.mvMap.size;
   }
 
-  *values(): IterableIterator<T> {
-    for (const [key, valueBool] of this.booleanMap) {
-      if (valueBool.value) yield key;
-    }
-  }
-
-  protected loadObject() {
-    // Set this.cachedSize as a view of the set's size.
-    for (const value of this.booleanMap.values()) {
-      if (value.value) this.cachedSize++;
-    }
-  }
-}
-
-export class AddWinsCSet<T> extends CSetFromBoolean<T, TrueWinsCBoolean> {
-  constructor(
-    initToken: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
-  ) {
-    super(
-      initToken,
-      (booleanInitToken) => new TrueWinsCBoolean(booleanInitToken),
-      valueSerializer
-    );
-  }
-
-  delete(value: T): void {
-    // Optimize to avoid creating the value if it's
-    // not present, in which case deleting is a
-    // no-op.
-    // Note that we don't do this in the superclass,
-    // even though then we are also guaranteed that the
-    // value is false, because it is not necessarily a
-    // no-op for arbitrary CBoolean's
-    // (may still change the internal state).
-    const boolean = this.booleanMap.getIfPresent(value);
-    if (boolean !== undefined) boolean.value = false;
+  values(): IterableIterator<T> {
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.mvMap.keys();
   }
 }

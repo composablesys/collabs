@@ -52,19 +52,24 @@ export class EventEmitter<Events extends EventsRecord> {
   }
 
   /**
-   * Returns a promise that will be resolved exactly once, next time the event
-   * is emitted. If the event never happens, the promise is neither resolved nor
-   * rejected.
+   * Registers an event handler that is triggered *only once*, the next
+   * time the event happens, then unsubscribed.
    *
    * @param eventName Name of the event to listen to
+   * @param handler Callback that handles the event
+   * @return An "off" function that removes the event handler when called.
+   * Use this to remove the handler before the next event (which removes
+   * it automatically).
    */
-  nextEvent<K extends keyof Events>(eventName: K): Promise<Events[K]> {
-    return new Promise((resolve) => {
-      const unsubscribe = this.on(eventName, (event) => {
-        unsubscribe();
-        resolve(event);
-      });
+  once<K extends keyof Events>(
+    eventName: K,
+    handler: Handler<Events[K], this>
+  ): Unsubscribe {
+    const unsubscribe = this.on(eventName, (event, caller) => {
+      unsubscribe();
+      handler(event, caller);
     });
+    return unsubscribe;
   }
 
   /**
@@ -78,12 +83,7 @@ export class EventEmitter<Events extends EventsRecord> {
       try {
         handler(event, this);
       } catch (err) {
-        // Don't let the error block other event handlers
-        // or affect the emitter, but still make it print
-        // its error like it was unhandled.
-        void Promise.resolve().then(() => {
-          throw err;
-        });
+        console.error("Error in Collabs event handler:\n", err);
       }
     }
   }

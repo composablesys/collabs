@@ -1,7 +1,3 @@
-message CollabIDMessage {
-    repeated string pathToBase = 1;
-}
-
 message ArrayMessage {
     repeated bytes elements = 1;
 }
@@ -18,18 +14,13 @@ message DefaultSerializerMessage {
         bool booleanValue = 4;
         bool undefinedValue = 5;
         bool nullValue = 6;
-        CollabIDMessage collabIDValue = 7;
-        ArrayMessage arrayValue = 8;
-        ObjectMessage objectValue = 9;
-        bytes bytesValue = 10;
+        ArrayMessage arrayValue = 7;
+        ObjectMessage objectValue = 8;
+        bytes bytesValue = 9;
     }
 }
 
 message PairSerializerMessage {
   required bytes one = 1;
   required bytes two = 2;
-}
-
-message OptionalSerializerMessage {
-  optional bytes valueIfPresent = 1;
 }

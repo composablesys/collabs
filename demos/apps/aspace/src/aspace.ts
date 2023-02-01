@@ -10,14 +10,17 @@ import { CRDTContainer } from "@collabs/container";
 
   const container = new CRDTContainer();
 
-  const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
+  const text = container.registerCollab(
+    "text",
+    (init) => new collabs.CText(init)
+  );
   const startTime = container.registerCollab(
     "startTime",
-    collabs.Pre(collabs.LWWCVariable)(0)
+    (init) => new collabs.LWWCVariable(init, 0)
   );
   const winElapsedTime = container.registerCollab(
     "winElapsedTime",
-    collabs.Pre(collabs.LWWCVariable)(0)
+    (init) => new collabs.LWWCVariable(init, 0)
   );
 
   await container.load();

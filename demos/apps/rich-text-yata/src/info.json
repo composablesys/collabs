@@ -1,7 +1,0 @@
-{
-  "name": "Rich Text (YATA + Semidirect)",
-  "description": "A collaborative rich text editor using <a href=\"https://quilljs.com/\">Quill</a>.<p>This demo uses YATA instead of the built-in CRDT sequence algorithm, and it uses a semidirect product to better preserver user intention: if you type in the middle of a block of text while someone else changes its formatting, your new text will get the block formatting.</p>",
-  "author": "Benito Geordie",
-  "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/rich-text-yata"
-}

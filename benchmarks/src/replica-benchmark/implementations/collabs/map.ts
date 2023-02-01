@@ -1,7 +1,7 @@
+import * as collabs from "@collabs/collabs";
 import { Data } from "../../../util";
 import { IMap } from "../../interfaces/map";
 import { CollabsReplica } from "./replica";
-import * as collabs from "@collabs/collabs";
 
 export function CollabsMap(causalityGuaranteed: boolean) {
   return class CollabsMap extends CollabsReplica implements IMap {
@@ -10,7 +10,10 @@ export function CollabsMap(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.map = this.app.registerCollab("", collabs.Pre(collabs.LWWCMap)());
+      this.map = this.app.registerCollab(
+        "",
+        (init) => new collabs.LWWCMap(init)
+      );
     }
 
     set(key: string, value: unknown): void {

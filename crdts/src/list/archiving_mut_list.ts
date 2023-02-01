@@ -1,19 +1,16 @@
 import {
   Collab,
-  InitToken,
-  Pre,
-  isRuntime,
-  ConstructorAsFunction,
   DefaultSerializer,
+  InitToken,
   Serializer,
 } from "@collabs/core";
-import { LWWCVariable } from "../variable";
 import { ArchivingMutCSet } from "../set";
+import { LWWCVariable } from "../variable";
+import { ListPosition } from "./list_position_source";
 import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import { ListPosition } from "./list_position_source";
 
 /**
  * A list of mutable values, each represented by a [[Collab]] of type `C`.
@@ -62,7 +59,7 @@ export class ArchivingMutCList<
    * // app is a CRDTApp or CRDTContainer
    * const list = app.registerCollab(
    *   "list",
-   *   (initToken) => new collabs.ArchivingMutCList(initToken, valueConstructor)
+   *   (init) => new collabs.ArchivingMutCList(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.insert(index, initialValue)`, e.g. in response to
@@ -72,7 +69,7 @@ export class ArchivingMutCList<
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify InsertArgs for
    * initial values that are present when the list is created.
@@ -80,20 +77,22 @@ export class ArchivingMutCList<
    * use this to specify a custom [[Serializer]] for InsertArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
-      (setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
-        Pre(ArchivingMutCSet)(
+      init,
+      (setInit, setValueConstuctor, setInitialValuesArgs, setArgsSerializer) =>
+        new ArchivingMutCSet(
+          setInit,
           setValueConstuctor,
           setInitialValuesArgs,
           setArgsSerializer
         ),
-      ConstructorAsFunction(LWWCVariable),
+      (variableInit, initialValue, variableSerializer) =>
+        new LWWCVariable(variableInit, initialValue, variableSerializer),
       valueConstructor,
       initialValuesArgs,
       argsSerializer
@@ -108,21 +107,15 @@ export class ArchivingMutCList<
   }
 
   push(...args: InsertArgs): C {
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return super.push(...args)!;
   }
 
   unshift(...args: InsertArgs): C {
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return super.unshift(...args)!;
-  }
-
-  owns(value: C): boolean {
-    // Avoid errors from value.parent in case it
-    // is the root.
-    if (isRuntime(value.parent)) return false;
-
-    return this.set.owns(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
-    );
   }
 
   /**
@@ -131,38 +124,8 @@ export class ArchivingMutCList<
    * @param value [description]
    */
   restore(value: C): void {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
-    }
     this.set.restore(
       value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
-  }
-
-  getArgs(index: number): InsertArgs {
-    return this.set.getArgs(
-      this.get(index).parent as MovableMutCListEntry<
-        C,
-        LWWCVariable<ListPosition>
-      >
-    )[1];
-  }
-
-  /**
-   * [getArgsByValue description]
-   * @param  value [description]
-   * @return       [description]
-   * @throws if this.owns(value) is false
-   */
-  getArgsByValue(value: C): InsertArgs {
-    // Avoid errors from value.parent in case it
-    // is the root.
-    if (isRuntime(value.parent)) {
-      throw new Error("this.owns(value) is false");
-    }
-
-    return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
-    )[1];
   }
 }

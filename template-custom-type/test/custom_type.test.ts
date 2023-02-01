@@ -1,12 +1,7 @@
+import { CRDTApp, Optional, TestingCRDTAppGenerator } from "@collabs/collabs";
 import { assert } from "chai";
-import {
-  Pre,
-  TestingCRDTAppGenerator,
-  CRDTApp,
-  Optional,
-} from "@collabs/collabs";
-import seedrandom = require("seedrandom");
 import { CPair } from "../src";
+import seedrandom = require("seedrandom");
 
 describe("template-custom-type", () => {
   let runtimeGen: TestingCRDTAppGenerator;
@@ -31,8 +26,8 @@ describe("template-custom-type", () => {
 
     beforeEach(() => {
       // Register the Collabs you want to test, like in a normal app.
-      alicePair = alice.registerCollab("pair", Pre(CPair)(0, 0));
-      bobPair = bob.registerCollab("pair", Pre(CPair)(0, 0));
+      alicePair = alice.registerCollab("pair", (init) => new CPair(init, 0, 0));
+      bobPair = bob.registerCollab("pair", (init) => new CPair(init, 0, 0));
       // Then call load with an empty Optional to indicate skipped loading,
       // like in a normal app with no prior saved state.
       alice.load(Optional.empty());

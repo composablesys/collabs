@@ -27,6 +27,7 @@ import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
 export interface CMapSetEvent<K, V> extends CollabEvent {
   key: K;
+  value: V;
   /**
    * Present if there was a value set previously at key.
    */
@@ -38,7 +39,7 @@ export interface CMapDeleteEvent<K, V> extends CollabEvent {
   /**
    * The previously set value at key.
    */
-  deletedValue: V;
+  value: V;
 }
 
 export interface CMapEventsRecord<K, V> extends CollabEventsRecord {

@@ -1,20 +1,21 @@
 {
-  "name": "collabs-webrtc-client",
-  "version": "0.1.3",
-  "description": "CRDTs designed compositionally (WebRTC network client)",
-  "author": "Compoventuals contributors",
+  "name": "@collabs/number",
+  "version": "0.6.0",
+  "description": "Collabs custom type demo - number via semidirect product",
+  "author": "Collabs contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/collabs#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/demos/types/number#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/collabs.git"
   },
   "keywords": [
-    "crdts"
+    "CRDT"
   ],
+  "private": true,
   "module": "build/esm/src/index.js",
   "browser": "build/esm/src/index.js",
   "types": "build/esm/src/index.d.ts",
@@ -23,25 +24,30 @@
     "/build"
   ],
   "directories": {
-    "lib": "src"
+    "lib": "src",
+    "test": "test"
   },
   "sideEffects": false,
   "dependencies": {
-    "tslib": "^2.0.1",
-    "collabs": "^0.1.0",
-    "buffer": "^6.0.3",
+    "@collabs/collabs": "0.6.0",
     "protobufjs": "~6.10.1",
-    "ws": "^7.4.6",
-    "@types/ws": "^7.2.6",
-    "reconnecting-websocket": "^4.4.0"
+    "tslib": "^2.0.1"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5",
+    "@types/chai": "^4.2.14",
+    "@types/mocha": "^9.1.0",
+    "chai": "^4.2.0",
+    "cross-env": "^7.0.3",
     "mkdirp": "^1.0.4",
-    "typescript": "^4.3.5",
+    "mocha": "^9.2.0",
+    "npm-run-all": "^4.1.5",
     "pkg-ok": "^2.3.1",
     "prettier": "^2.2.1",
-    "rimraf": "^2.7.1"
+    "rimraf": "^2.7.1",
+    "seedrandom": "^3.0.5",
+    "ts-node": "^10.1.0",
+    "typedoc": "^0.22.11",
+    "typescript": "^4.3.5"
   },
   "scripts": {
     "build": "npm-run-all build:*",
@@ -50,11 +56,13 @@
     "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find src -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
+    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
+    "test:unit": "mocha",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf generated generated_esm build"
+    "clean": "rimraf generated generated_esm build docs"
   }
 }

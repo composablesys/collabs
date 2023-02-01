@@ -102,11 +102,11 @@ export class LazyMutCMap<K, C extends Collab>
    * same class and constructor arguments.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly valueConstructor: (valueInitToken: InitToken, key: K) => C,
     private readonly keySerializer: Serializer<K> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
   }
 
   private keyAsString(key: K) {
@@ -194,11 +194,7 @@ export class LazyMutCMap<K, C extends Collab>
       if (nontrivialStart && value.canGC()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
-        this.emit("Delete", {
-          key,
-          deletedValue: value,
-          meta,
-        });
+        this.emit("Delete", { key, value, meta });
       }
       // If the value became nontrivial, move it to the
       // main map
@@ -207,8 +203,7 @@ export class LazyMutCMap<K, C extends Collab>
         this.nontrivialMap.set(keyString, value);
         this.emit("Set", {
           key,
-          // Empty to emphasize that the previous value was
-          // not present.
+          value,
           previousValue: Optional.empty<C>(),
           meta,
         });
@@ -281,18 +276,6 @@ export class LazyMutCMap<K, C extends Collab>
     } else return this.nontrivialMap.has(str);
   }
 
-  hasValue(value: C): boolean {
-    return this.owns(value) && !value.canGC();
-  }
-
-  /**
-   * Returns true if value is owned by this
-   * map, i.e., it is an output of this.get.
-   */
-  owns(value: C): boolean {
-    return value.parent === this;
-  }
-
   get size(): number {
     return this.nontrivialMap.size;
   }
@@ -318,7 +301,7 @@ export class LazyMutCMap<K, C extends Collab>
    * @param searchElement The value to locate in this map.
    */
   keyOf(searchElement: C): K | undefined {
-    if (!this.owns(searchElement)) return undefined;
+    if (searchElement.parent !== this) return undefined;
     return this.stringAsKey(searchElement.name);
   }
 

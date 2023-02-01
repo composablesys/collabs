@@ -1,7 +1,6 @@
 import {
   Collab,
   InitToken,
-  Pre,
   CollabID,
   DefaultSerializer,
   Serializer,
@@ -22,7 +21,7 @@ export class DeletingMutCMap<
   LWWCMap<K, CollabID<C>>
 > {
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (
       valueInitToken: InitToken,
       key: K,
@@ -32,18 +31,19 @@ export class DeletingMutCMap<
     argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
-      (setValueConstructor, setArgsSerializer) =>
-        Pre(DeletingMutCSet)(setValueConstructor, undefined, setArgsSerializer),
-      Pre(LWWCMap),
+      init,
+      (setInit, setValueConstructor, setArgsSerializer) =>
+        new DeletingMutCSet(
+          setInit,
+          setValueConstructor,
+          undefined,
+          setArgsSerializer
+        ),
+      (mapInit) => new LWWCMap(mapInit),
       valueConstructor,
       keySerializer,
       argsSerializer
     );
-  }
-
-  owns(value: C): boolean {
-    return this.valueSet.owns(value);
   }
 
   /**
@@ -58,24 +58,5 @@ export class DeletingMutCMap<
       return undefined;
     }
     return this.valueSet.getArgs(searchElement)[0];
-  }
-
-  getArgs(key: K): SetArgs | undefined {
-    const value = this.get(key);
-    if (value === undefined) return undefined;
-    else return this.valueSet.getArgs(value)[1];
-  }
-
-  /**
-   * [getArgs description]
-   * @param  value [description]
-   * @return the SetArgs used to set value
-   * @throws if value is not a current value or conflict
-   */
-  getArgsByValue(value: C): SetArgs {
-    if (!this.valueSet.has(value)) {
-      throw new Error("value is not a current value or conflict");
-    }
-    return this.valueSet.getArgs(value)[1];
   }
 }

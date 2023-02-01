@@ -1,6 +1,7 @@
 import * as collabs from "@collabs/collabs";
 import { Message } from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
+import { MultipleSemidirectProduct } from "./multiple_semidirect_product";
 
 export interface GroupTranslateEvent extends collabs.CollabEvent {
   readonly dX1: number;
@@ -60,8 +61,8 @@ export class GroupState {
 export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: collabs.InitToken, initialState: GroupState) {
-    super(initToken);
+  constructor(init: collabs.InitToken, initialState: GroupState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -131,8 +132,8 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
 export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: collabs.InitToken, initialState: GroupState) {
-    super(initToken);
+  constructor(init: collabs.InitToken, initialState: GroupState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -232,8 +233,8 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
 export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: collabs.InitToken, initialState: GroupState) {
-    super(initToken);
+  constructor(init: collabs.InitToken, initialState: GroupState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -291,8 +292,8 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
 export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(initToken: collabs.InitToken, initialState: GroupState) {
-    super(initToken);
+  constructor(init: collabs.InitToken, initialState: GroupState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -351,7 +352,7 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
   }
 }
 
-export class GroupCRDT extends collabs.MultipleSemidirectProduct<
+export class GroupCRDT extends MultipleSemidirectProduct<
   GroupState,
   GroupEventsRecord
 > {
@@ -360,19 +361,21 @@ export class GroupCRDT extends collabs.MultipleSemidirectProduct<
   private reflectXCrdt: ReflectXComponent;
   private reflectYCrdt: ReflectYComponent;
 
-  constructor(initToken: collabs.InitToken) {
-    super(initToken, false);
+  constructor(init: collabs.InitToken) {
+    super(init, false);
     const state = new GroupState();
     super.setupState(state);
     this.translateCrdt = super.setupOneCRDT(
-      collabs.Pre(TranslateComponent)(state)
+      (init) => new TranslateComponent(init, state)
     );
-    this.rotateCrdt = super.setupOneCRDT(collabs.Pre(RotateComponent)(state));
+    this.rotateCrdt = super.setupOneCRDT(
+      (init) => new RotateComponent(init, state)
+    );
     this.reflectXCrdt = super.setupOneCRDT(
-      collabs.Pre(ReflectXComponent)(state)
+      (init) => new ReflectXComponent(init, state)
     );
     this.reflectYCrdt = super.setupOneCRDT(
-      collabs.Pre(ReflectYComponent)(state)
+      (init) => new ReflectYComponent(init, state)
     );
 
     this.translateCrdt.on("Translate", (event) =>

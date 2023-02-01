@@ -1,10 +1,10 @@
 import {
-  MessageMeta,
-  InitToken,
-  CPrimitive,
-  Optional,
-  CollabEventsRecord,
   CollabEvent,
+  CollabEventsRecord,
+  CPrimitive,
+  InitToken,
+  MessageMeta,
+  Optional,
 } from "@collabs/collabs";
 import { ContainerHostSave } from "../generated/proto_compiled";
 import { ContainerMessage, HostMessage, ReceiveMessage } from "./message_types";
@@ -125,11 +125,8 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    *
    * @param containerIFrame
    */
-  constructor(
-    initToken: InitToken,
-    readonly containerIFrame: HTMLIFrameElement
-  ) {
-    super(initToken);
+  constructor(init: InitToken, readonly containerIFrame: HTMLIFrameElement) {
+    super(init);
 
     // Listen for this.messagePort.
     const onmessage = (e: MessageEvent<unknown>) => {
@@ -167,7 +164,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
       case "Ready":
         this._isContainerReady = true;
         this.emit("ContainerReady", {
-          meta: { isLocalEcho: true, sender: this.runtime.replicaID },
+          meta: MessageMeta.new(this.runtime.replicaID, true, true),
         });
         // Deliver queued ReceiveMessages.
         this.receiveMessageQueue!.forEach((message) =>
@@ -221,7 +218,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   }
 
   protected receivePrimitive(message: Uint8Array, meta: MessageMeta): void {
-    if (!meta.isLocalEcho) {
+    if (!meta.isEcho) {
       const id = this.nextReceivedMessageID++;
       this.furtherReceivedMessages.push([id, message]);
       const receiveMessage: ReceiveMessage = { type: "Receive", message, id };

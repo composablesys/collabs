@@ -75,6 +75,15 @@ export interface Runtime<
   readonly replicaID: string;
 
   /**
+   * Returns context added by this Runtime
+   * for the given key, or undefined if not added.
+   *
+   * The context key [[MessageMeta.NEXT_MESSAGE_META]] must be
+   * implemented.
+   */
+  getAddedContext(key: symbol): unknown;
+
+  /**
    * @param count = 1 When set, treat this as count calls,
    * each claiming one number in sequence. Thus all numbers
    * in the range [returned number, returned number + count)

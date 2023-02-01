@@ -4,8 +4,8 @@ import {
   CollabEventsRecord,
   ICollabParent,
   InitToken,
-  MessageMeta,
   Message,
+  MessageMeta,
 } from "../core";
 import { Optional } from "../util";
 
@@ -92,7 +92,7 @@ export class CObject<
    *
    * It is recomend that you use this in the style
    * ```ts
-   * this.foo = this.addChild("foo", (initToken) => new FooClass(initToken, constructor args...));
+   * this.foo = this.addChild("foo", (init) => new FooClass(init, constructor args...));
    * ```
    * In particular, the created child should be stored as an ordinary
    * object property.  Each child must be assigned
@@ -105,12 +105,12 @@ export class CObject<
    */
   protected addChild<D extends C>(
     name: string,
-    preChild: (initToken: InitToken) => D
+    childCallback: (init: InitToken) => D
   ): D {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
-    const child = preChild(new InitToken(name, this));
+    const child = childCallback(new InitToken(name, this));
     this.children.set(name, child);
     return child;
   }

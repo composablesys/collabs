@@ -1,12 +1,11 @@
 import {
+  AbstractCSetCObject,
+  Collab,
+  CollabID,
   CollabIDSerializer,
   DefaultSerializer,
-  Serializer,
-  Collab,
   InitToken,
-  Pre,
-  AbstractCSetCObject,
-  CollabID,
+  Serializer,
 } from "@collabs/core";
 import { AddWinsCSet } from "./add_wins_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
@@ -56,7 +55,7 @@ export class ArchivingMutCSet<
    * // app is a CRDTApp or CRDTContainer
    * const set = app.registerCollab(
    *   "set",
-   *   (initToken) => new collabs.ArchivingMutCSet(initToken, valueConstructor)
+   *   (init) => new collabs.ArchivingMutCSet(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.add(initialValue)`, e.g. in response to
@@ -66,7 +65,7 @@ export class ArchivingMutCSet<
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify AddArgs for
    * initial values that are present when the list is created.
@@ -74,37 +73,45 @@ export class ArchivingMutCSet<
    * use this to specify a custom [[Serializer]] for InsertArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: AddArgs) => C,
     initialValuesArgs: AddArgs[] = [],
     argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     this.mutSet = this.addChild(
       "",
-      Pre(DeletingMutCSet)(valueConstructor, initialValuesArgs, argsSerializer)
+      (init) =>
+        new DeletingMutCSet(
+          init,
+          valueConstructor,
+          initialValuesArgs,
+          argsSerializer
+        )
     );
     this.members = this.addChild(
       "0",
-      Pre(AddWinsCSet)(new CollabIDSerializer<C>(this.mutSet))
+      (init) => new AddWinsCSet(init, new CollabIDSerializer<C>(this.mutSet))
     );
     this.deletedInitialValues = this.addChild(
       "1",
-      Pre(AddWinsCSet)(new CollabIDSerializer<C>(this.mutSet))
+      (init) => new AddWinsCSet(init, new CollabIDSerializer<C>(this.mutSet))
     );
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.initialValues = new Set(this.mutSet);
 
     // Events
     this.members.on("Add", (event) =>
       this.emit("Add", {
-        value: event.value.get(this.mutSet)!,
+        value: event.value.get()!,
         meta: event.meta,
       })
     );
     this.members.on("Delete", (event) =>
       this.emit("Delete", {
-        value: event.value.get(this.mutSet)!,
+        value: event.value.get()!,
         meta: event.meta,
       })
     );
@@ -112,59 +119,49 @@ export class ArchivingMutCSet<
 
   add(...args: AddArgs): C {
     const value = this.mutSet.add(...args);
-    this.members.add(CollabID.fromCollab(value, this.mutSet));
+    this.members.add(CollabID.of(value, this.mutSet));
     return value;
   }
 
   restore(value: C) {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
+    if (!this.mutSet.has(value)) {
+      throw new Error("value did not originate from this set");
     }
-    this.members.add(CollabID.fromCollab(value, this.mutSet));
+    this.members.add(CollabID.of(value, this.mutSet));
   }
 
   delete(value: C) {
     if (
       this.initialValues.has(value) &&
-      !this.deletedInitialValues.has(CollabID.fromCollab(value, this.mutSet))
+      !this.deletedInitialValues.has(CollabID.of(value, this.mutSet))
     ) {
-      this.deletedInitialValues.add(CollabID.fromCollab(value, this.mutSet));
+      this.deletedInitialValues.add(CollabID.of(value, this.mutSet));
     }
-    this.members.delete(CollabID.fromCollab(value, this.mutSet));
-  }
-
-  owns(value: C) {
-    return this.mutSet.owns(value);
+    this.members.delete(CollabID.of(value, this.mutSet));
   }
 
   has(value: C) {
     if (this.initialValues.has(value)) {
-      if (
-        !this.deletedInitialValues.has(CollabID.fromCollab(value, this.mutSet))
-      )
+      if (!this.deletedInitialValues.has(CollabID.of(value, this.mutSet)))
         return true;
     }
-    return this.members.has(CollabID.fromCollab(value, this.mutSet));
-  }
-
-  /**
-   * @param  value [description]
-   * @return the AddArgs used to add value
-   * @throws if !this.owns(value)
-   */
-  getArgs(value: C): AddArgs {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
-    }
-    return this.mutSet.getArgs(value);
+    return this.members.has(CollabID.of(value, this.mutSet));
   }
 
   *values() {
-    for (const valueID of this.members.values())
-      yield valueID.get(this.mutSet)!;
+    for (const value of this.initialValues) {
+      if (!this.deletedInitialValues.has(CollabID.of(value, this.mutSet))) {
+        yield value;
+      }
+    }
+    for (const valueID of this.members.values()) yield valueID.get()!;
   }
 
   get size(): number {
-    return this.members.size;
+    return (
+      this.members.size +
+      this.initialValues.size -
+      this.deletedInitialValues.size
+    );
   }
 }

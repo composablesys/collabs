@@ -1,17 +1,16 @@
 import {
+  AddWinsCSet,
   CObject,
   Collab,
   CollabEvent,
   CollabEventsRecord,
-  InitToken,
   DefaultSerializer,
-  Serializer,
+  InitToken,
   LazyMutCMap,
-  OptionalLWWCVariable,
-  Pre,
+  LWWCVariable,
   PrimitiveCList,
+  Serializer,
   TextSerializer,
-  AddWinsCSet,
 } from "@collabs/collabs";
 
 export interface JSONEvent extends CollabEvent {
@@ -33,21 +32,24 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   // TODO: use LwwCMap instead, or update text.
   private readonly internalMap: LazyMutCMap<
     string,
-    OptionalLWWCVariable<number | string | boolean | InternalType>
+    LWWCVariable<number | string | boolean | InternalType | undefined>
   >;
   private readonly LazyMutCMap: LazyMutCMap<string, PrimitiveCList<string>>;
   private readonly keySet: AddWinsCSet<string>;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
-  constructor(initToken: InitToken) {
-    super(initToken);
+  constructor(init: InitToken) {
+    super(init);
 
     let keySerializer: Serializer<string> = DefaultSerializer.getInstance();
     this.internalMap = this.addChild(
       "internalMap",
-      Pre(LazyMutCMap)(
-        Pre(OptionalLWWCVariable)<string | number | boolean>(keySerializer)
-      )
+      (init) =>
+        new LazyMutCMap(
+          init,
+          (valueInit) => new LWWCVariable(valueInit, undefined),
+          keySerializer
+        )
     );
 
     this.LazyMutCMap = this.addChild(
@@ -60,7 +62,10 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
           keySerializer
         )
     );
-    this.keySet = this.addChild("keySet", Pre(AddWinsCSet)(keySerializer));
+    this.keySet = this.addChild(
+      "keySet",
+      (init) => new AddWinsCSet(init, keySerializer)
+    );
 
     this.internalNestedKeys = new Map();
 
@@ -188,7 +193,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     this.set(key, InternalType.List);
   }
 
-  addExtChild(name: string, child: Pre<Collab>) {
+  addExtChild(name: string, child: (init: InitToken) => Collab) {
     this.addChild(name, child);
   }
 }
@@ -197,8 +202,8 @@ export class JSONCursor {
   private internal: JSONCollab;
   private cursor: string;
 
-  static new(): Pre<JSONCursor> {
-    return (initToken: InitToken) => new JSONCursor(new JSONCollab(initToken));
+  static new() {
+    return (init: InitToken) => new JSONCursor(new JSONCollab(init));
   }
 
   constructor(internal: JSONCollab, cursor?: string) {

@@ -1,26 +1,26 @@
+import * as collabs from "@collabs/collabs";
 import { Data } from "../../../util";
 import { INoop } from "../../interfaces/noop";
-import { CollabsReplica } from "./replica";
-import * as collabs from "@collabs/collabs";
 import { NoopCRDT } from "./noop";
+import { CollabsReplica } from "./replica";
 
 const NESTED_PARENTS = 10;
 
 class NestedNoopCRDT extends collabs.CObject {
   private readonly child: NestedNoopCRDT | NoopCRDT;
 
-  constructor(initToken: collabs.InitToken, parentsRemaining: number) {
-    super(initToken);
+  constructor(init: collabs.InitToken, parentsRemaining: number) {
+    super(init);
 
     if (parentsRemaining === 0) {
       this.child = this.addChild(
         "" + parentsRemaining,
-        collabs.Pre(NoopCRDT)()
+        (init) => new NoopCRDT(init)
       );
     } else {
       this.child = this.addChild(
         "" + parentsRemaining,
-        collabs.Pre(NestedNoopCRDT)(parentsRemaining - 1)
+        (init) => new NestedNoopCRDT(init, parentsRemaining - 1)
       );
     }
   }
@@ -39,7 +39,7 @@ export function CollabsNestedNoop(causalityGuaranteed: boolean) {
 
       this.nestedNoopCRDT = this.app.registerCollab(
         "",
-        collabs.Pre(NestedNoopCRDT)(NESTED_PARENTS)
+        (init) => new NestedNoopCRDT(init, NESTED_PARENTS)
       );
     }
 

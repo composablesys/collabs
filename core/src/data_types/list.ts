@@ -24,30 +24,27 @@ and limitations under the License.
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
-export interface CListInsertEvent extends CollabEvent {
+export interface CListEvent<T> extends CollabEvent {
   /**
-   * The index of the first newly inserted value.
+   * The index of the first affected value.
+   *
+   * For [[CListEventsRecord.Delete]] events, this is the former
+   * index of the first deleted value.
    */
-  startIndex: number;
-  count: number;
-}
-
-export interface CListDeleteEvent<T> extends CollabEvent {
+  index: number;
   /**
-   * The former index (immediately before
-   * deleting) of the first newly deleted value
+   * The affected values. For bulk operations, there may be more than
+   * one, in list order.
+   *
+   * For [[CListEventsRecord.Delete]] events, these are the former
+   * values at the deleted indices.
    */
-  startIndex: number;
-  count: number;
-  /**
-   * The previously set values at startIndex...(startIndex + count - 1).
-   */
-  deletedValues: T[];
+  values: T[];
 }
 
 export interface CListEventsRecord<T> extends CollabEventsRecord {
-  Insert: CListInsertEvent;
-  Delete: CListDeleteEvent<T>;
+  Insert: CListEvent<T>;
+  Delete: CListEvent<T>;
 }
 
 /**

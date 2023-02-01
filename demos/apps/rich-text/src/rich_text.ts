@@ -23,10 +23,10 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
    * a single char, or (for an embed) a JSON-serializable
    * object with a single property.
    */
-  constructor(initToken: collabs.InitToken, readonly char: string | object) {
-    super(initToken);
+  constructor(init: collabs.InitToken, readonly char: string | object) {
+    super(init);
 
-    this._attributes = this.addChild("", collabs.Pre(collabs.LWWCMap)());
+    this._attributes = this.addChild("", (init) => new collabs.LWWCMap(init));
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -69,29 +69,38 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
 class RichText extends collabs.CObject<RichTextEventsRecord> {
   readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
 
-  constructor(
-    initToken: collabs.InitToken,
-    initialChars: (string | object)[] = []
-  ) {
-    super(initToken);
+  constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
+    super(init);
 
     this.text = this.addChild(
       "",
-      collabs.Pre(collabs.DeletingMutCList)(
-        (valueInitToken, char) => {
-          const richChar = new RichChar(valueInitToken, char);
-          richChar.on("Format", (e) => {
-            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
-          });
-          return richChar;
-        },
-        initialChars.map((value) => [value])
-      )
+      (init) =>
+        new collabs.DeletingMutCList(
+          init,
+          (valueInitToken, char) => {
+            const richChar = new RichChar(valueInitToken, char);
+            richChar.on("Format", (e) => {
+              this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+            });
+            return richChar;
+          },
+          initialChars.map((value) => [value])
+        )
     );
     this.text.on("Insert", (e) => {
-      this.emit("Insert", e);
+      this.emit("Insert", {
+        startIndex: e.index,
+        count: e.values.length,
+        meta: e.meta,
+      });
     });
-    this.text.on("Delete", (e) => this.emit("Delete", e));
+    this.text.on("Delete", (e) =>
+      this.emit("Delete", {
+        startIndex: e.index,
+        count: e.values.length,
+        meta: e.meta,
+      })
+    );
   }
 
   get(index: number): RichChar {
@@ -137,7 +146,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // Quill's initial content is "\n".
   const clientText = container.registerCollab(
     "text",
-    collabs.Pre(RichText)(["\n"])
+    (init) => new RichText(init, ["\n"])
   );
 
   const quill = new Quill("#editor", {
@@ -203,7 +212,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // its own representation, so we should skip doing so again.
 
   clientText.on("Insert", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.isLocalUser) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
       // Characters start without any formatting.
@@ -214,13 +223,13 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.isLocalUser) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.isLocalEcho) return;
+    if (e.meta.isLocalUser) return;
 
     updateContents(
       new Delta()

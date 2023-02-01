@@ -5,9 +5,9 @@ import {
   CRDTApp,
   CRDTRuntime,
   EventEmitter,
+  InitToken,
   Optional,
   Unsubscribe,
-  InitToken,
 } from "@collabs/collabs";
 import {
   ContainerMessage,
@@ -179,16 +179,16 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
    * as a variable in your program.
    @param  preCollab The [[Collab]] to construct, typically
    * created using a statement of the form
-   * `(initToken) => new collabs.constructor(initToken, [constructor args])`.
-   * For example, `(initToken) => new collabs.CCounter(initToken)`
+   * `(init) => new collabs.constructor(init, [constructor args])`.
+   * For example, `(init) => new collabs.CCounter(init)`
    * @return The registered `Collab`. You should assign
    * this to a variable for later use.
    */
   registerCollab<C extends Collab>(
     name: string,
-    preCollab: (initToken: InitToken) => C
+    collabCallback: (init: InitToken) => C
   ): C {
-    return this.app.registerCollab(name, preCollab);
+    return this.app.registerCollab(name, collabCallback);
   }
 
   private loadFurtherMessages: Uint8Array[] | null = null;
@@ -349,14 +349,7 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
           const ret = handler(this);
           if (ret instanceof Promise) toAwait.push(ret);
         } catch (err) {
-          // Don't let the error block other event handlers
-          // or interrupt the save request as a whole
-          // (there's still benefit in calling runtime.save()),
-          // but still make it print
-          // its error like it was unhandled.
-          void Promise.resolve().then(() => {
-            throw err;
-          });
+          console.error("Error in SaveRequest event handler:\n", err);
         }
       }
       await Promise.all(toAwait);
@@ -369,17 +362,13 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
         lastReceivedID: this.lastReceivedID,
         requestID: message.requestID,
       });
-    } catch (error) {
+    } catch (err) {
       this.messagePortSend({
         type: "SaveRequestFailed",
         requestID: message.requestID,
-        errorToString: String(error),
+        errorToString: String(err),
       });
-      // Also "throw" the error separately, so it gets
-      // logged in the console.
-      void Promise.resolve().then(() => {
-        throw error;
-      });
+      throw err;
     }
   }
 }

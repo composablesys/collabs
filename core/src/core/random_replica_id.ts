@@ -46,7 +46,7 @@ export function randomReplicaID(
     window.crypto.getRandomValues(randomValues);
   }
   for (let i = 0; i < length; i++) {
-    // Here we exploit the fact that 128 divides 256.
+    // Here we exploit the fact that 64 divides 256.
     // This would be biased otherwise.
     arr[i] = BASE64CHARS[randomValues[i] % 64];
   }

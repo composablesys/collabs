@@ -7,10 +7,8 @@ import {
   Serializer,
   Collab,
   InitToken,
-  Pre,
   CollabID,
 } from "@collabs/core";
-import { CVariableEntryMeta } from "../variable";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { LWWCMap } from "./lww_map";
 
@@ -37,35 +35,41 @@ export class ArchivingMutCMap<
   private readonly keyByValue: WeakMap<C, K> = new WeakMap();
 
   constructor(
-    initToken: InitToken,
-    valueConstructor: (
-      valueInitToken: InitToken,
-      key: K,
-      ...args: SetArgs
-    ) => C,
+    init: InitToken,
+    valueConstructor: (valueInit: InitToken, key: K, ...args: SetArgs) => C,
     keySerializer: Serializer<K> = DefaultSerializer.getInstance(),
     argsSerializer: Serializer<SetArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     this.valueSet = this.addChild(
       "",
-      Pre(DeletingMutCSet)(
-        (valueInitToken, key, args) => {
-          const value = valueConstructor(valueInitToken, key, ...args);
-          // Cache
-          this.keyByValue.set(value, key);
-          return value;
-        },
-        undefined,
-        new PairSerializer(keySerializer, argsSerializer)
-      )
+      (setInit) =>
+        new DeletingMutCSet(
+          setInit,
+          (valueInit, key, args) => {
+            const value = valueConstructor(valueInit, key, ...args);
+            // Cache
+            this.keyByValue.set(value, key);
+            return value;
+          },
+          undefined,
+          new PairSerializer(keySerializer, argsSerializer)
+        )
     );
     this.map = this.addChild(
       "0",
-      Pre(LWWCMap)(keySerializer, new CollabIDSerializer<C>(this.valueSet))
+      (mapInit) =>
+        new LWWCMap(
+          mapInit,
+          keySerializer,
+          new CollabIDSerializer<C>(this.valueSet)
+        )
     );
-    this.keySet = this.addChild("1", Pre(AddWinsCSet)(keySerializer));
+    this.keySet = this.addChild(
+      "1",
+      (keySetInit) => new AddWinsCSet(keySetInit, keySerializer)
+    );
 
     // Events
 
@@ -97,10 +101,11 @@ export class ArchivingMutCMap<
         // we will first emit a Set event from "not present"
         // to event.previousValue, during the Add handler.
         const previousValue = event.previousValue.isPresent
-          ? Optional.of(event.previousValue.get().get(this.valueSet)!)
+          ? Optional.of(event.previousValue.get().get()!)
           : Optional.empty<C>();
         this.emit("Set", {
           key: event.key,
+          value: event.value.get()!,
           previousValue,
           meta: event.meta,
         });
@@ -111,14 +116,16 @@ export class ArchivingMutCMap<
     // (emitting the first half of the event, from
     // "not present" to the value pre-restore).
     this.keySet.on("Add", (event) => {
+      const key = event.value;
       // In case 1, we'll get this event before this.map
       // has a value, in which case we are in a nonsense
       // transient state (key present but no value).
       // So we don't want to dispatch an event then,
       // instead waiting for the Set event.
-      if (this.map.has(event.value)) {
+      if (this.map.has(key)) {
         this.emit("Set", {
-          key: event.value,
+          key,
+          value: this.map.get(key)!.get()!,
           previousValue: Optional.empty<C>(),
           meta: event.meta,
         });
@@ -135,7 +142,7 @@ export class ArchivingMutCMap<
     this.keySet.on("Delete", (event) => {
       this.emit("Delete", {
         key: event.value,
-        deletedValue: this.map.get(event.value)!.get(this.valueSet)!,
+        value: this.map.get(event.value)!.get()!,
         meta: event.meta,
       });
     });
@@ -144,7 +151,7 @@ export class ArchivingMutCMap<
   set(key: K, ...args: SetArgs): C {
     const value = this.valueSet.add(key, args);
     this.keySet.add(key);
-    this.map.set(key, CollabID.fromCollab(value, this.valueSet));
+    this.map.set(key, CollabID.of(value, this.valueSet));
     return value;
   }
 
@@ -153,26 +160,16 @@ export class ArchivingMutCMap<
   }
 
   get(key: K): C | undefined {
-    if (this.has(key)) return this.map.get(key)!.get(this.valueSet)!;
+    if (this.has(key)) return this.map.get(key)!.get()!;
     else return undefined;
   }
 
   getConflicts(key: K): C[] {
-    return this.map.getConflicts(key).map((value) => value.get(this.valueSet)!);
-  }
-
-  getConflictsMeta(key: K): CVariableEntryMeta<C>[] {
-    return this.map.getConflictsMeta(key).map((meta) => {
-      return { ...meta, value: meta.value.get(this.valueSet)! };
-    });
+    return this.map.getConflicts(key).map((value) => value.get()!);
   }
 
   has(key: K): boolean {
     return this.keySet.has(key);
-  }
-
-  owns(value: C): boolean {
-    return this.valueSet.owns(value);
   }
 
   get size(): number {
@@ -185,7 +182,7 @@ export class ArchivingMutCMap<
       // this.keySet only adds if there is a value
       // already/nearly present, we can be sure that if
       // key is present, then this.map.get(key) exists.
-      yield [key, this.map.get(key)!.get(this.valueSet)!];
+      yield [key, this.map.get(key)!.get()!];
     }
   }
 
@@ -206,25 +203,6 @@ export class ArchivingMutCMap<
     return this.keyByValue.get(searchElement);
   }
 
-  getArgs(key: K): SetArgs | undefined {
-    const value = this.get(key);
-    if (value === undefined) return undefined;
-    else return this.valueSet.getArgs(value)[1];
-  }
-
-  /**
-   * [getArgs description]
-   * @param  value [description]
-   * @return the SetArgs used to set value
-   * @throws if this.owns(value) is false
-   */
-  getArgsByValue(value: C): SetArgs {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
-    }
-    return this.valueSet.getArgs(value)[1];
-  }
-
   /**
    * Restore the given value to be its key's value.
    *
@@ -239,16 +217,15 @@ export class ArchivingMutCMap<
    *
    * @param  value [description]
    * @return       [description]
-   * @throws if value is not owned by this map, or it was
-   * not a previous value at key
+   * @throws if value does not belong to this map
    */
   restoreValue(value: C) {
-    if (!this.owns(value)) {
-      throw new Error("this.owns(value) is false");
+    const key = this.keyOf(value);
+    if (key === undefined) {
+      throw new Error("value does not belong to this map");
     }
-    const key = this.keyOf(value)!;
     this.keySet.add(key);
-    this.map.set(key, CollabID.fromCollab(value, this.valueSet));
+    this.map.set(key, CollabID.of(value, this.valueSet));
   }
 
   /**

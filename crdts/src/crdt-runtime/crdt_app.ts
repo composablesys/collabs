@@ -3,8 +3,8 @@ import {
   Collab,
   CollabEvent,
   EventEmitter,
-  Optional,
   InitToken,
+  Optional,
 } from "@collabs/core";
 import { CRDTRuntime, SendEvent } from "./crdt_runtime";
 
@@ -115,17 +115,17 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * as a variable in your program.
    * @param  preCollab The [[Collab]] to construct, typically
    * created using a statement of the form
-   * `(initToken) => new collabs.constructor(initToken, [constructor args])`.
-   * For example, `(initToken) => new collabs.CCounter(initToken)`
+   * `(init) => new collabs.constructor(init, [constructor args])`.
+   * For example, `(init) => new collabs.CCounter(init)`
    *
    * @return The registered [[Collab]]. You should assign
    * this to a variable for later use.
    */
   registerCollab<C extends Collab>(
     name: string,
-    preCollab: (initToken: InitToken) => C
+    collabCallback: (init: InitToken) => C
   ): C {
-    return this.runtime.registerCollab(name, preCollab);
+    return this.runtime.registerCollab(name, collabCallback);
   }
 
   /**

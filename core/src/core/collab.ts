@@ -14,63 +14,12 @@ import { Message } from "./message";
  * a Collab that it is adding as a child.
  */
 export class InitToken {
-  constructor(readonly name: string, readonly parent: CollabParent) {}
-
   /**
-   * @return `parent`'s [[Runtime]].
+   * Type guard, to prevent Collab from being an InitToken.
    */
-  get runtime(): Runtime {
-    if (isRuntime(this.parent)) return this.parent;
-    else return this.parent.runtime;
-  }
-}
+  readonly isInitToken = true;
 
-/**
- * A callback used to construct a `C`, i.e., a "Pre-`C`".
- *
- * `Pre<C>`s are passed to methods like [[Runtime.registerCollab]]
- * or [[CObject.addChild]] that construct a new [[Collab]] using
- * their own [[InitToken]].  Typically `C` extends [[Collab]].
- *
- * You can use the [[Pre]] function to easily construct
- * `Pre<C>`s based on `C`'s constructor.  See
- * [Initialization](../initialization.md) for examples.
- *
- * Calling a callback a `Pre<C>`` indicates that it is one-use.
- * Multi-use callbacks should instead have their types written
- * out explicitly (as a function).
- *
- * @typeParam C The type of the object to be constructed.
- */
-export type Pre<C> = (initToken: InitToken) => C;
-
-/**
- * Given a class, outputs a function that acts like the
- * class's constructor, except that the function outputs a
- * `[[Pre]]<C>` instead of requiring a [[InitToken]]
- * as its first parameter.
- *
- * In other words, `Pre` curries the constructor, shifting
- * the first argument to instead be the input of a second
- * function.
- *
- * Typical usage looks like `Pre(Class name)<generic types>(constructor arguments omitting the first)`,
- * where `Class`'s constructor takes a [[InitToken]]
- * as its first argument.  See [Initialization](../initialization.md) for explicit
- * examples and use cases.
- *
- * @param Class
- * @return A function that is like `Class`'s constructor,
- * except that the function outputs a
- * `[[Pre]]<C>` instead of requiring a [[InitToken]]
- * as its first parameter.
- */
-export function Pre<C, Args extends unknown[]>(
-  Class: new (initToken: InitToken, ...args: Args) => C
-): (...args: Args) => Pre<C> {
-  return (...args: Args) =>
-    (initToken: InitToken) =>
-      new Class(initToken, ...args);
+  constructor(readonly name: string, readonly parent: CollabParent) {}
 }
 
 /**
@@ -240,14 +189,14 @@ export abstract class Collab<
   /**
    * Uses the given [[InitToken]] to register this Collab
    * with its parent, thus attaching it to the tree of Collabs.
-   * @param initToken A [[InitToken]] given by
-   * `initToken.parent` for use in constructing this Collab.
+   * @param init A [[InitToken]] given by
+   * `init.parent` for use in constructing this Collab.
    */
-  constructor(initToken: InitToken) {
+  constructor(init: InitToken) {
     super();
-    this.runtime = initToken.runtime;
-    this.parent = initToken.parent;
-    this.name = initToken.name;
+    this.runtime = isRuntime(init.parent) ? init.parent : init.parent.runtime;
+    this.parent = init.parent;
+    this.name = init.name;
   }
 
   /**

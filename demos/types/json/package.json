@@ -1,13 +1,13 @@
 {
   "name": "@collabs/json",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Collabs custom type demo - JSON CRDT",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/collabs/tree/master/json#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/demos/types/json#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/collabs.git"
@@ -30,7 +30,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.6.1",
+    "@collabs/collabs": "0.7.0",
     "tslib": "^2.0.1"
   },
   "devDependencies": {

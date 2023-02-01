@@ -1,20 +1,19 @@
 import {
-  DefaultSerializer,
-  PairSerializer,
-  Serializer,
+  AbstractCListCObject,
+  CMessenger,
+  CObject,
   Collab,
+  CSet,
+  CVariable,
+  DefaultSerializer,
   InitToken,
   isRuntime,
-  Pre,
-  AbstractCListCObject,
-  CVariable,
-  CSet,
   MovableCList,
   MovableCListEventsRecord,
-  CObject,
-  CMessenger,
   Optional,
+  PairSerializer,
   PositionedList,
+  Serializer,
 } from "@collabs/core";
 import {
   ArrayListItemManager,
@@ -31,10 +30,14 @@ export class MovableMutCListEntry<
   readonly value: C;
   readonly position: VarT;
 
-  constructor(initToken: InitToken, value: Pre<C>, position: Pre<VarT>) {
-    super(initToken);
-    this.value = this.addChild("", value);
-    this.position = this.addChild("0", position);
+  constructor(
+    init: InitToken,
+    valueCallback: (init: InitToken) => C,
+    positionCallback: (init: InitToken) => VarT
+  ) {
+    super(init);
+    this.value = this.addChild("", valueCallback);
+    this.position = this.addChild("0", positionCallback);
   }
 }
 
@@ -71,34 +74,35 @@ export class MovableMutCListFromSet<
    * values() returns them in the order corresponding to setInitialValuesArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     setCallback: (
+      setInit: InitToken,
       setValueConstructor: (
         setValueInitToken: InitToken,
         ...setValueArgs: [ListPosition, InsertArgs]
       ) => MovableMutCListEntry<C, VarT>,
       setInitialValuesArgs: [ListPosition, InsertArgs][],
       setArgsSerializer: Serializer<[ListPosition, InsertArgs]>
-    ) => Pre<SetT>,
+    ) => SetT,
     private readonly variableConstructor: (
-      variableInitToken: InitToken,
+      variableInit: InitToken,
       initialValue: ListPosition,
       variableSerializer: Serializer<ListPosition>
     ) => VarT,
     private readonly valueConstructor: (
-      valueInitToken: InitToken,
+      valueInit: InitToken,
       ...args: InsertArgs
     ) => C,
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     const setInitialValuesArgs: [ListPosition, InsertArgs][] =
       initialValuesArgs.map((args, index) => [["", 0, index + 1], args]);
-    this.set = this.addChild(
-      "",
+    this.set = this.addChild("", (setInit) =>
       setCallback(
+        setInit,
         this.setValueConstructor.bind(this),
         setInitialValuesArgs,
         new PairSerializer(ListPositionSerializer.instance, argsSerializer)
@@ -118,7 +122,7 @@ export class MovableMutCListFromSet<
 
     this.createdPositionMessenger = this.addChild(
       "m",
-      Pre(CMessenger)(CreatedListPositionSerializer.instance)
+      (init) => new CMessenger(init, CreatedListPositionSerializer.instance)
     );
     this.createdPositionMessenger.on("Message", (e) => {
       const [counter, startValueIndex, metadata] = e.message;
@@ -133,21 +137,16 @@ export class MovableMutCListFromSet<
     this.set.on("Add", (event) => {
       this.positionSource.add(event.value.position.value, [event.value]);
       this.emit("Insert", {
-        startIndex: this.positionSource.findPosition(
-          event.value.position.value
-        )[0],
-        count: 1,
+        index: this.positionSource.findPosition(event.value.position.value)[0],
+        values: [event.value.value],
         meta: event.meta,
       });
     });
     this.set.on("Delete", (event) => {
       this.positionSource.delete(event.value.position.value);
       this.emit("Delete", {
-        startIndex: this.positionSource.findPosition(
-          event.value.position.value
-        )[0],
-        count: 1,
-        deletedValues: [event.value.value],
+        index: this.positionSource.findPosition(event.value.position.value)[0],
+        values: [event.value.value],
         meta: event.meta,
       });
     });

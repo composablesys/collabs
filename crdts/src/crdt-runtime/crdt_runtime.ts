@@ -1,21 +1,31 @@
 import {
   AbstractRuntime,
+  BatchingLayer,
+  BatchingStrategy,
+  CObject,
   Collab,
   CollabEvent,
   CollabEventsRecord,
-  Pre,
+  ImmediateBatchingStrategy,
+  InitToken,
+  Message,
+  MessageMeta,
+  Optional,
   randomReplicaID,
   Runtime,
   RuntimeEventsRecord,
-  Message,
-  BatchingStrategy,
-  Optional,
-  BatchingLayer,
-  PublicCObject,
-  ImmediateBatchingStrategy,
 } from "@collabs/core";
 import { CRDTRuntimeMessage } from "../../generated/proto_compiled";
 import { CRDTMetaLayer } from "./crdt-meta-layer";
+
+class PublicCObject extends CObject {
+  addChild<C extends Collab>(
+    name: string,
+    childCallback: (init: InitToken) => C
+  ): C {
+    return super.addChild(name, childCallback);
+  }
+}
 
 export interface SendEvent {
   message: Uint8Array;
@@ -65,14 +75,17 @@ export class CRDTRuntime
 
     // Setup Collab tree.
     this.batchingLayer = this.setRootCollab(
-      Pre(BatchingLayer)(batchingStrategy)
+      (init) => new BatchingLayer(init, batchingStrategy)
     );
     this.crdtMetaLayer = this.batchingLayer.setChild(
-      Pre(CRDTMetaLayer)({
-        causalityGuaranteed: options?.causalityGuaranteed,
-      })
+      (init) =>
+        new CRDTMetaLayer(init, {
+          causalityGuaranteed: options?.causalityGuaranteed,
+        })
     );
-    this.registry = this.crdtMetaLayer.setChild(Pre(PublicCObject)());
+    this.registry = this.crdtMetaLayer.setChild(
+      (init) => new PublicCObject(init)
+    );
 
     // Events.
     this.batchingLayer.on("Change", (e) => this.emit("Change", e));
@@ -120,15 +133,6 @@ export class CRDTRuntime
     this.emit("Send", { message: serialized });
   }
 
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
   // ---User-facing methods---
 
   // To make the separation between Collabs-facing methods and
@@ -150,11 +154,14 @@ export class CRDTRuntime
    * @return The registered `Collab`. You should assign
    * this to a variable for later use.
    */
-  registerCollab<C extends Collab>(name: string, preCollab: Pre<C>): C {
+  registerCollab<C extends Collab>(
+    name: string,
+    collabCallback: (init: InitToken) => C
+  ): C {
     if (this._isLoaded) {
       throw new Error("Already loaded");
     }
-    return this.registry.addChild(name, preCollab);
+    return this.registry.addChild(name, collabCallback);
   }
 
   /**
@@ -183,22 +190,18 @@ export class CRDTRuntime
     }
     this.inRootReceive = true;
     try {
-      this.rootCollab.receive([deserialized.message], {
-        sender: deserialized.sender,
-        isLocalEcho: false,
-      });
+      this.rootCollab.receive(
+        [deserialized.message],
+        MessageMeta.new(
+          deserialized.sender,
+          deserialized.sender === this.replicaID,
+          false
+        )
+      );
     } catch (err) {
-      // Don't let the error block other messages' delivery
-      // or affect the deliverer,
-      // but still make it print
-      // its error like it was unhandled.
-      // Note we know the message is not a local echo.
-      void Promise.resolve().then(() => {
-        throw err;
-      });
-    } finally {
-      this.inRootReceive = false;
+      console.error("Error while receiving remote Collabs message:\n", err);
     }
+    this.inRootReceive = false;
   }
 
   /**

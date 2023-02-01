@@ -20,7 +20,7 @@ To initialize a "global variable" `Collab`, use your entry point's `registerColl
 // app is a CRDTApp or CRDTContainer
 const counter = app.registerCollab(
   "counter", // name
-  (initToken) => new collabs.CCounter(initToken) // constructor callback
+  (init) => new collabs.CCounter(init) // constructor callback
 );
 ```
 
@@ -69,7 +69,7 @@ You then use it as a constructor argument when initializing your `DeletingMutCSe
 // app is a CRDTApp or CRDTContainer
 const set = app.registerCollab(
   "set",
-  (initToken) => new collabs.DeletingMutCSet(initToken, valueConstructor)
+  (init) => new collabs.DeletingMutCSet(init, valueConstructor)
 );
 ```
 

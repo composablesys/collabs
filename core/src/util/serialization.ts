@@ -1,24 +1,21 @@
 import { Buffer } from "buffer";
-import { Collab } from "../core/";
 import {
   ArrayMessage,
-  CollabIDMessage,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
-  IOptionalSerializerMessage,
   ObjectMessage,
-  OptionalSerializerMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { Optional } from "./optional";
-import { CollabID } from "./collab_id";
+import { Collab } from "../core/";
 
 /**
  * A serializer for values of type `T` (e.g., elements
  * in Collabs collections), so that they can
  * be sent to other replicas in Collabs operations.
  *
- * [[DefaultSerializer.getInstance]]`(runtime)` should suffice for most uses.
+ * [[DefaultSerializer.getInstance]]`()` should suffice for most uses.
+ * An exception is serializing [[CollabID]]s, which requires
+ * [[CollabIDSerializer]].
  */
 export interface Serializer<T> {
   serialize(value: T): Uint8Array;
@@ -34,7 +31,6 @@ export interface Serializer<T> {
  *
  * Supported types:
  * - Primitive types (string, number, boolean, undefined, null)
- * - [[CollabID]]s
  * - Arrays and plain (non-class) objects, serialized recursively.
  *
  * All other types cause an error during [[serialize]].
@@ -74,12 +70,6 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "object":
         if (value === null) {
           message = { nullValue: true };
-        } else if (value instanceof CollabID) {
-          message = {
-            collabIDValue: CollabIDMessage.create({
-              pathToBase: value.namePath(),
-            }),
-          };
         } else if (value instanceof Uint8Array) {
           message = {
             bytesValue: value,
@@ -149,9 +139,6 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "nullValue":
         ans = null;
         break;
-      case "collabIDValue":
-        ans = new CollabID(decoded.collabIDValue!.pathToBase!);
-        break;
       case "arrayValue":
         ans = decoded.arrayValue!.elements!.map((serialized) =>
           this.deserialize(serialized)
@@ -190,23 +177,6 @@ export class TextSerializer implements Serializer<string> {
 }
 
 /**
- * Only works on char arrays (each element must be a
- * single-character string).
- */
-export class TextArraySerializer implements Serializer<string[]> {
-  private constructor() {
-    // Use TextArraySerializer.instance instead.
-  }
-  serialize(value: string[]): Uint8Array {
-    return new Uint8Array(Buffer.from(value.join(""), "utf-8"));
-  }
-  deserialize(message: Uint8Array): string[] {
-    return [...Buffer.from(message).toString("utf-8")];
-  }
-  static readonly instance = new TextArraySerializer();
-}
-
-/**
  * Serializes [T] using a serializer for T.  This is slightly more efficient
  * than the default serializer, and also works with arbitrary T.
  */
@@ -241,30 +211,6 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
   }
 }
 
-/**
- * Serializes strings that are outputs of
- * [[bytesAsString]], using [[stringAsBytes]].
- *
- * This is more efficient than using a literal string
- * encoding, since we know the strings have a restricted
- * form.
- */
-export class StringAsArraySerializer implements Serializer<string> {
-  private constructor() {
-    // Use StringAsArraySerializer.instance instead.
-  }
-
-  serialize(value: string): Uint8Array {
-    return stringAsBytes(value);
-  }
-
-  deserialize(message: Uint8Array): string {
-    return bytesAsString(message);
-  }
-
-  static readonly instance = new StringAsArraySerializer();
-}
-
 // OPT: cache instances?
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
@@ -289,77 +235,17 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
   }
 }
 
-// OPT: cache instances?
-/**
- * Serializes [[CollabID]]s using their [[Collab]]'s name path with
- * respect to a specified
- * base [[Collab]] or [[Runtime]].
- *
- * The base must be an ancestor of all serialized `CollabID`s' `Collab`s.
- *
- * This is more efficient (in terms of serialized size)
- * than using DefaultSerializer
- * when base is not the [[Runtime]].  It is better
- * the closer the serialized values are to base within
- * the Collab hierarchy, and best when base is their parent.
- */
-export class CollabIDSerializer<C extends Collab>
-  implements Serializer<CollabID<C>>
-{
-  constructor(private readonly base?: Collab) {}
+const emptyUint8Array = new Uint8Array();
 
-  serialize(value: CollabID<C>): Uint8Array {
-    // OPT: interface with CollabID to cache this.base's namePath.length,
-    // instead of recalculating its whole namePath each time?
-    // Although then we lose the ability to check ancestry.
-    const message = CollabIDMessage.create({
-      pathToBase: value.namePath(this.base),
-    });
-    return CollabIDMessage.encode(message).finish();
+export class TrivialSerializer<T> implements Serializer<T> {
+  constructor(readonly value: T) {}
+
+  serialize(_value: T): Uint8Array {
+    return emptyUint8Array;
   }
 
-  deserialize(message: Uint8Array): CollabID<C> {
-    const decoded = CollabIDMessage.decode(message);
-    return new CollabID(decoded.pathToBase, this.base);
-  }
-}
-
-export class OptionalSerializer<T> implements Serializer<Optional<T>> {
-  private constructor(private readonly valueSerializer: Serializer<T>) {}
-
-  serialize(value: Optional<T>): Uint8Array {
-    const imessage: IOptionalSerializerMessage = {};
-    if (value.isPresent) {
-      imessage.valueIfPresent = this.valueSerializer.serialize(value.get());
-    }
-    const message = OptionalSerializerMessage.create(imessage);
-    return OptionalSerializerMessage.encode(message).finish();
-  }
-
-  deserialize(message: Uint8Array): Optional<T> {
-    const decoded = OptionalSerializerMessage.decode(message);
-    if (Object.hasOwnProperty.call(decoded, "valueIfPresent")) {
-      return Optional.of(
-        this.valueSerializer.deserialize(decoded.valueIfPresent)
-      );
-    } else return Optional.empty();
-  }
-
-  // Weak in both keys and values.
-  private static cache = new WeakMap<
-    Serializer<unknown>,
-    WeakRef<OptionalSerializer<unknown>>
-  >();
-
-  static getInstance<T>(valueSerializer: Serializer<T>): OptionalSerializer<T> {
-    const existingWeak = OptionalSerializer.cache.get(valueSerializer);
-    if (existingWeak !== undefined) {
-      const existing = existingWeak.deref();
-      if (existing !== undefined) return <OptionalSerializer<T>>existing;
-    }
-    const ret = new OptionalSerializer(valueSerializer);
-    OptionalSerializer.cache.set(valueSerializer, new WeakRef(ret));
-    return ret;
+  deserialize(_message: Uint8Array): T {
+    return this.value;
   }
 }
 

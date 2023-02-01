@@ -1,28 +1,39 @@
-import { assert } from "chai";
-import {
-  AddWinsCSet,
-  CRDTApp,
-  FalseWinsCBoolean,
-  TrueWinsCBoolean,
-  LWWCMap,
-  CNumber,
-  TestingCRDTAppGenerator,
-  DeletingMutCSet,
-  ResettableCCounter,
-  OptionalLWWCVariable,
-} from "../../src";
 import {
   CMapDeleteEvent,
   CMapSetEvent,
-  InitToken,
-  Pre,
-  Optional,
-  LazyMutCMap,
-  CollabIDSerializer,
   CollabID,
+  CollabIDSerializer,
+  EventEmitter,
+  EventsRecord,
+  InitToken,
+  LazyMutCMap,
+  Optional,
+  OptionalSerializer,
 } from "@collabs/core";
+import { assert } from "chai";
+import {
+  AddWinsCSet,
+  CCounter,
+  CRDTApp,
+  DeletingMutCSet,
+  FalseWinsCBoolean,
+  LWWCMap,
+  LWWCVariable,
+  ResettableCCounter,
+  TestingCRDTAppGenerator,
+  TrueWinsCBoolean,
+} from "../../src";
 import { debug } from "../debug";
 import seedrandom = require("seedrandom");
+
+function nextEvent<Events extends EventsRecord, K extends keyof Events>(
+  emitter: EventEmitter<Events>,
+  eventName: keyof Events
+) {
+  return new Promise<K>((resolve) => {
+    emitter.once(eventName, resolve);
+  });
+}
 
 describe("standard", () => {
   let appGen: TestingCRDTAppGenerator;
@@ -42,8 +53,14 @@ describe("standard", () => {
     let bobFlag: TrueWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
-      bobFlag = bob.registerCollab("ewFlagId", Pre(TrueWinsCBoolean)());
+      aliceFlag = alice.registerCollab(
+        "ewFlagId",
+        (init) => new TrueWinsCBoolean(init)
+      );
+      bobFlag = bob.registerCollab(
+        "ewFlagId",
+        (init) => new TrueWinsCBoolean(init)
+      );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -100,8 +117,8 @@ describe("standard", () => {
     describe("enable", () => {
       it("emits a Set event", async () => {
         const promise = Promise.all([
-          aliceFlag.nextEvent("Set"),
-          bobFlag.nextEvent("Set"),
+          nextEvent(aliceFlag, "Set"),
+          nextEvent(bobFlag, "Set"),
         ]);
 
         aliceFlag.value = true;
@@ -117,8 +134,8 @@ describe("standard", () => {
         appGen.releaseAll();
 
         const promise = Promise.all([
-          aliceFlag.nextEvent("Set"),
-          bobFlag.nextEvent("Set"),
+          nextEvent(aliceFlag, "Set"),
+          nextEvent(bobFlag, "Set"),
         ]);
 
         aliceFlag.value = false;
@@ -134,8 +151,14 @@ describe("standard", () => {
     let bobFlag: FalseWinsCBoolean;
 
     beforeEach(() => {
-      aliceFlag = alice.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
-      bobFlag = bob.registerCollab("dwFlagId", Pre(FalseWinsCBoolean)());
+      aliceFlag = alice.registerCollab(
+        "dwFlagId",
+        (init) => new FalseWinsCBoolean(init)
+      );
+      bobFlag = bob.registerCollab(
+        "dwFlagId",
+        (init) => new FalseWinsCBoolean(init)
+      );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -189,8 +212,8 @@ describe("standard", () => {
         appGen.releaseAll();
 
         const promise = Promise.all([
-          aliceFlag.nextEvent("Set"),
-          bobFlag.nextEvent("Set"),
+          nextEvent(aliceFlag, "Set"),
+          nextEvent(bobFlag, "Set"),
         ]);
 
         aliceFlag.value = true;
@@ -203,8 +226,8 @@ describe("standard", () => {
     describe("disable", () => {
       it("emits a Set event", async () => {
         const promise = Promise.all([
-          aliceFlag.nextEvent("Set"),
-          bobFlag.nextEvent("Set"),
+          nextEvent(aliceFlag, "Set"),
+          nextEvent(bobFlag, "Set"),
         ]);
 
         aliceFlag.value = false;
@@ -215,233 +238,16 @@ describe("standard", () => {
     });
   });
 
-  describe("Number", () => {
-    let aliceNumber: CNumber;
-    let bobNumber: CNumber;
-
-    function init(initialValue: number, name = "numberId"): void {
-      aliceNumber = alice.registerCollab(name, Pre(CNumber)(initialValue));
-      bobNumber = bob.registerCollab(name, Pre(CNumber)(initialValue));
-      alice.load(Optional.empty());
-      bob.load(Optional.empty());
-      if (debug) {
-        addEventListeners(aliceNumber, "Alice");
-        addEventListeners(bobNumber, "Bob");
-      }
-    }
-
-    function addEventListeners(number: CNumber, name: string): void {
-      number.on("Add", (event) =>
-        console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
-      );
-
-      number.on("Mult", (event) =>
-        console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
-      );
-
-      number.on("Min", (event) =>
-        console.log(`${name}: ${event.meta.sender} minned ${event.arg}`)
-      );
-
-      number.on("Max", (event) =>
-        console.log(`${name}: ${event.meta.sender} maxed ${event.arg}`)
-      );
-    }
-
-    it("is initially 0", () => {
-      init(0);
-
-      assert.strictEqual(aliceNumber.value, 0);
-      assert.strictEqual(bobNumber.value, 0);
-    });
-
-    describe("add", () => {
-      it("works with non-concurrent updates", () => {
-        init(0);
-
-        aliceNumber.add(3);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 3);
-
-        bobNumber.add(-4);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -1);
-        assert.strictEqual(bobNumber.value, -1);
-      });
-
-      it("works with concurrent updates", () => {
-        init(0);
-
-        aliceNumber.add(3);
-        bobNumber.add(-4);
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, -4);
-
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -1);
-        assert.strictEqual(bobNumber.value, -1);
-      });
-    });
-
-    describe("add and mult", () => {
-      it("works with non-concurrent updates", () => {
-        init(0);
-
-        aliceNumber.add(3);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 3);
-
-        bobNumber.mult(-4);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -12);
-        assert.strictEqual(bobNumber.value, -12);
-
-        aliceNumber.add(7);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -5);
-        assert.strictEqual(bobNumber.value, -5);
-      });
-
-      it("works with concurrent updates", () => {
-        init(0);
-
-        aliceNumber.add(2);
-        assert.strictEqual(aliceNumber.value, 2);
-        assert.strictEqual(bobNumber.value, 0);
-
-        bobNumber.add(1);
-        bobNumber.mult(5);
-        assert.strictEqual(aliceNumber.value, 2);
-        assert.strictEqual(bobNumber.value, 5);
-
-        // Arbitration order places multiplication last
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 15);
-        assert.strictEqual(bobNumber.value, 15);
-      });
-
-      it("works with the example from the paper", () => {
-        // See https://arxiv.org/abs/2004.04303, §3.1
-        init(1, "numberIdPaper");
-
-        aliceNumber.mult(2);
-        aliceNumber.add(1);
-        bobNumber.mult(3);
-        bobNumber.add(4);
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 7);
-
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 17);
-        assert.strictEqual(bobNumber.value, 17);
-      });
-    });
-
-    describe("multiple ops", () => {
-      it("works with non-concurrent updates", () => {
-        init(0);
-
-        aliceNumber.add(3);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 3);
-        assert.strictEqual(bobNumber.value, 3);
-
-        bobNumber.mult(-4);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -12);
-        assert.strictEqual(bobNumber.value, -12);
-
-        aliceNumber.min(10);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -12);
-        assert.strictEqual(bobNumber.value, -12);
-
-        aliceNumber.max(-5);
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, -5);
-        assert.strictEqual(bobNumber.value, -5);
-      });
-
-      it("works with concurrent updates", () => {
-        init(0);
-
-        aliceNumber.add(2);
-        assert.strictEqual(aliceNumber.value, 2);
-        assert.strictEqual(bobNumber.value, 0);
-
-        bobNumber.add(1);
-        bobNumber.mult(5);
-        assert.strictEqual(aliceNumber.value, 2);
-        assert.strictEqual(bobNumber.value, 5);
-
-        // Arbitration order places multiplication last
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 15);
-        assert.strictEqual(bobNumber.value, 15);
-
-        aliceNumber.min(2);
-        bobNumber.mult(5);
-        assert.strictEqual(aliceNumber.value, 2);
-        assert.strictEqual(bobNumber.value, 75);
-
-        // Arbitration order places multiplication last
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 10);
-        assert.strictEqual(bobNumber.value, 10);
-
-        aliceNumber.max(3);
-        bobNumber.add(5);
-        assert.strictEqual(aliceNumber.value, 10);
-        assert.strictEqual(bobNumber.value, 15);
-
-        // Arbitration order places addition last
-        appGen.releaseAll();
-        assert.strictEqual(aliceNumber.value, 15);
-        assert.strictEqual(bobNumber.value, 15);
-      });
-    });
-
-    // describe("reset", () => {
-    //   it("resets to the initial value", () => {
-    //     aliceNumber.add(1);
-    //     aliceNumber.reset();
-    //     appGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 0);
-    //     assert.strictEqual(bobNumber.value, 0);
-    //   });
-
-    //   it("works with non-concurrent updates", () => {
-    //     aliceNumber.add(3);
-    //     appGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 3);
-    //     assert.strictEqual(bobNumber.value, 3);
-
-    //     aliceNumber.reset();
-    //     aliceNumber.add(11);
-    //     appGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 11);
-    //     assert.strictEqual(bobNumber.value, 11);
-    //   });
-
-    //   it("lets concurrent adds survive", () => {
-    //     aliceNumber.reset();
-    //     bobNumber.add(10);
-    //     appGen.releaseAll();
-    //     assert.strictEqual(aliceNumber.value, 10);
-    //     assert.strictEqual(bobNumber.value, 10);
-    //   });
-    // });
-  });
-
   describe("AddWinsCSet", () => {
     let aliceSet: AddWinsCSet<string>;
     let bobSet: AddWinsCSet<string>;
 
     beforeEach(() => {
-      aliceSet = alice.registerCollab("awSetId", Pre(AddWinsCSet)());
-      bobSet = bob.registerCollab("awSetId", Pre(AddWinsCSet)());
+      aliceSet = alice.registerCollab(
+        "awSetId",
+        (init) => new AddWinsCSet(init)
+      );
+      bobSet = bob.registerCollab("awSetId", (init) => new AddWinsCSet(init));
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -603,9 +409,12 @@ describe("standard", () => {
         new ResettableCCounter(valueInitToken);
       aliceMap = alice.registerCollab(
         "map",
-        Pre(LazyMutCMap)(valueConstructor)
+        (init) => new LazyMutCMap(init, valueConstructor)
       );
-      bobMap = bob.registerCollab("map", Pre(LazyMutCMap)(valueConstructor));
+      bobMap = bob.registerCollab(
+        "map",
+        (init) => new LazyMutCMap(init, valueConstructor)
+      );
       if (debug) {
         addEventListeners(aliceMap, "Alice");
         addEventListeners(bobMap, "Bob");
@@ -723,28 +532,25 @@ describe("standard", () => {
       it("can be used as values in other CRDTs", () => {
         let aliceSet = alice.registerCollab(
           "valueSet",
-          Pre(AddWinsCSet)(new CollabIDSerializer(aliceMap))
+          (init) => new AddWinsCSet(init, new CollabIDSerializer(aliceMap))
         );
         let bobSet = bob.registerCollab(
           "valueSet",
-          Pre(AddWinsCSet)(new CollabIDSerializer(bobMap))
+          (init) => new AddWinsCSet(init, new CollabIDSerializer(bobMap))
         );
 
         load();
 
-        aliceMap.set("test");
-        let aliceCounter = aliceMap.get("test")!;
-        bobMap.set("test");
-        let bobCounter = bobMap.get("test")!;
-        appGen.releaseAll();
+        let aliceCounter = aliceMap.get("test");
+        let bobCounter = bobMap.get("test");
 
-        aliceSet.add(CollabID.fromCollab(aliceCounter));
+        aliceSet.add(CollabID.of(aliceCounter, aliceMap));
         assert.strictEqual(
-          aliceSet.has(CollabID.fromCollab(aliceCounter)),
+          aliceSet.has(CollabID.of(aliceCounter, aliceMap)),
           true
         );
         appGen.releaseAll();
-        assert.strictEqual(bobSet.has(CollabID.fromCollab(bobCounter)), true);
+        assert.strictEqual(bobSet.has(CollabID.of(bobCounter, bobMap)), true);
       });
     });
   });
@@ -754,8 +560,8 @@ describe("standard", () => {
     let bobMap: LWWCMap<string, number>;
 
     beforeEach(() => {
-      aliceMap = alice.registerCollab("lwwMap", Pre(LWWCMap)());
-      bobMap = bob.registerCollab("lwwMap", Pre(LWWCMap)());
+      aliceMap = alice.registerCollab("lwwMap", (init) => new LWWCMap(init));
+      bobMap = bob.registerCollab("lwwMap", (init) => new LWWCMap(init));
       alice.load(Optional.empty());
       bob.load(Optional.empty());
       if (debug) {
@@ -799,8 +605,8 @@ describe("standard", () => {
       });
       it("emits right events", async () => {
         const promise = Promise.all([
-          aliceMap.nextEvent("Set"),
-          bobMap.nextEvent("Set"),
+          nextEvent(aliceMap, "Set"),
+          nextEvent(bobMap, "Set"),
         ]);
         // function checkKeyAdd(event: KeyEvent<string>) {
         //   assert.strictEqual(event.key, "test");
@@ -931,8 +737,8 @@ describe("standard", () => {
         appGen.releaseAll();
 
         const promise = Promise.all([
-          aliceMap.nextEvent("Delete"),
-          bobMap.nextEvent("Delete"),
+          nextEvent(aliceMap, "Delete"),
+          nextEvent(bobMap, "Delete"),
         ]);
         function checkKeyDelete(event: CMapDeleteEvent<string, number>) {
           assert.strictEqual(event.key, "test");
@@ -1007,27 +813,45 @@ describe("standard", () => {
   });
 
   describe("DeletingMutCSet", () => {
-    let aliceSource: DeletingMutCSet<CNumber, []>;
-    let bobSource: DeletingMutCSet<CNumber, []>;
-    let aliceVariable: OptionalLWWCVariable<CollabID<CNumber>>;
-    let bobVariable: OptionalLWWCVariable<CollabID<CNumber>>;
+    let aliceSource: DeletingMutCSet<CCounter, []>;
+    let bobSource: DeletingMutCSet<CCounter, []>;
+    let aliceVariable: LWWCVariable<Optional<CollabID<CCounter>>>;
+    let bobVariable: LWWCVariable<Optional<CollabID<CCounter>>>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
         "source",
-        Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
+        (init) =>
+          new DeletingMutCSet(
+            init,
+            (valueInitToken) => new CCounter(valueInitToken)
+          )
       );
       bobSource = bob.registerCollab(
         "source",
-        Pre(DeletingMutCSet)((valueInitToken) => new CNumber(valueInitToken))
+        (init) =>
+          new DeletingMutCSet(
+            init,
+            (valueInitToken) => new CCounter(valueInitToken)
+          )
       );
       aliceVariable = alice.registerCollab(
         "variable",
-        Pre(OptionalLWWCVariable)(new CollabIDSerializer(aliceSource))
+        (init) =>
+          new LWWCVariable(
+            init,
+            Optional.empty(),
+            OptionalSerializer.getInstance(new CollabIDSerializer(aliceSource))
+          )
       );
       bobVariable = bob.registerCollab(
         "variable",
-        Pre(OptionalLWWCVariable)(new CollabIDSerializer(bobSource))
+        (init) =>
+          new LWWCVariable(
+            init,
+            Optional.empty(),
+            OptionalSerializer.getInstance(new CollabIDSerializer(bobSource))
+          )
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -1039,15 +863,14 @@ describe("standard", () => {
     });
 
     it("transfers new Collab via variable", () => {
-      aliceVariable.set(CollabID.fromCollab(aliceSource.add()));
-      aliceVariable.value.get().get(alice.runtime)!.add(7);
-      assert.strictEqual(
-        aliceVariable.value.get().get(alice.runtime)!.value,
-        7
+      aliceVariable.set(
+        Optional.of(CollabID.of(aliceSource.add(), aliceSource))
       );
+      aliceVariable.value.get().get()!.add(7);
+      assert.strictEqual(aliceVariable.value.get().get()!.value, 7);
 
       appGen.releaseAll();
-      assert.strictEqual(bobVariable.value.get().get(bob.runtime)!.value, 7);
+      assert.strictEqual(bobVariable.value.get().get()!.value, 7);
     });
 
     it("allows sequential creation", () => {
@@ -1071,12 +894,12 @@ describe("standard", () => {
       assert.strictEqual(new1.value, 7);
       assert.strictEqual(new2.value, -3);
 
-      aliceVariable.set(CollabID.fromCollab(new1));
+      aliceVariable.set(Optional.of(CollabID.of(new1, aliceSource)));
       appGen.releaseAll();
-      let new1Bob = bobVariable.value.get().get(bob.runtime)!;
-      bobVariable.set(CollabID.fromCollab(new2));
+      let new1Bob = bobVariable.value.get().get()!;
+      bobVariable.set(Optional.of(CollabID.of(new2, bobSource)));
       appGen.releaseAll();
-      let new2Alice = aliceVariable.value.get().get(alice.runtime)!;
+      let new2Alice = aliceVariable.value.get().get()!;
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
     });

@@ -1,20 +1,19 @@
 import {
   CObject,
-  MessageMeta,
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  Pre,
   Message,
+  MessageMeta,
   Optional,
-} from "@collabs/core";
-import { CNumberComponentMessage } from "../../generated/proto_compiled";
+  PrimitiveCRDT,
+  ToggleCBoolean,
+} from "@collabs/collabs";
+import { CNumberComponentMessage } from "../generated/proto_compiled";
 import {
   MultipleSemidirectProduct,
   StatefulCRDT,
-} from "../constructions/multiple_semidirect_product";
-import { ToggleCBoolean } from "../boolean";
-import { PrimitiveCRDT } from "../constructions";
+} from "./multiple_semidirect_product";
 
 export interface CNumberEvent extends CollabEvent {
   readonly arg: number;
@@ -42,8 +41,8 @@ export class AddComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -89,8 +88,8 @@ export class MultComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -136,8 +135,8 @@ export class MinComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -181,8 +180,8 @@ export class MaxComponent
 {
   readonly state: CNumberState;
 
-  constructor(initToken: InitToken, initialState: CNumberState) {
-    super(initToken);
+  constructor(init: InitToken, initialState: CNumberState) {
+    super(init);
     this.state = initialState;
   }
 
@@ -229,8 +228,8 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   maxCRDT: MaxComponent;
   addCRDT: AddComponent;
   multCRDT: MultComponent;
-  constructor(initToken: InitToken, initialValue: number) {
-    super(initToken);
+  constructor(init: InitToken, initialValue: number) {
+    super(init);
 
     const state = new CNumberState(initialValue);
     super.setupState(state);
@@ -241,10 +240,12 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
      * 2: add
      * 3: mult
      */
-    this.minCRDT = super.setupOneCRDT(Pre(MinComponent)(state));
-    this.maxCRDT = super.setupOneCRDT(Pre(MaxComponent)(state));
-    this.addCRDT = super.setupOneCRDT(Pre(AddComponent)(state));
-    this.multCRDT = super.setupOneCRDT(Pre(MultComponent)(state));
+    this.minCRDT = super.setupOneCRDT((init) => new MinComponent(init, state));
+    this.maxCRDT = super.setupOneCRDT((init) => new MaxComponent(init, state));
+    this.addCRDT = super.setupOneCRDT((init) => new AddComponent(init, state));
+    this.multCRDT = super.setupOneCRDT(
+      (init) => new MultComponent(init, state)
+    );
   }
 
   protected action(
@@ -313,11 +314,14 @@ export class CNumber extends CObject<CNumberEventsRecord> {
    */
   private negated: ToggleCBoolean;
 
-  constructor(initToken: InitToken, initialValue = 0) {
-    super(initToken);
+  constructor(init: InitToken, initialValue = 0) {
+    super(init);
 
-    this.base = this.addChild("", Pre(CNumberBase)(initialValue));
-    this.negated = this.addChild("0", Pre(ToggleCBoolean)());
+    this.base = this.addChild(
+      "",
+      (init) => new CNumberBase(init, initialValue)
+    );
+    this.negated = this.addChild("0", (init) => new ToggleCBoolean(init));
 
     this.base.minCRDT.on("Min", (event) => {
       if (this.negated.value) {

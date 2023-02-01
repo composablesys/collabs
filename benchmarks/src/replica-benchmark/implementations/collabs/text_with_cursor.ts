@@ -1,7 +1,7 @@
-import { Data } from "../../../util";
-import { CollabsReplica } from "./replica";
 import * as collabs from "@collabs/collabs";
+import { Data } from "../../../util";
 import { ITextWithCursor } from "../../interfaces/text_with_cursor";
+import { CollabsReplica } from "./replica";
 
 export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
   return class CollabsTextWithCursor
@@ -14,14 +14,17 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.text = this.app.registerCollab("", collabs.Pre(collabs.CText)());
+      this.text = this.app.registerCollab(
+        "",
+        (init) => new collabs.CText(init)
+      );
 
       // Maintain cursor position.
       // We use the fact that all ops are single character insertions/deletions.
       // TODO: use built-in Cursor instead? Matches our plain text demo,
       // but unstable API and also probably slower.
       this.text.on("Insert", (e) => {
-        if (!e.meta.isLocalEcho && e.startIndex < this.cursor) {
+        if (!e.meta.isLocalUser && e.startIndex < this.cursor) {
           this.cursor++;
         }
         if (this.cursor > this.length) {
@@ -31,7 +34,7 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
         }
       });
       this.text.on("Delete", (e) => {
-        if (!e.meta.isLocalEcho && e.startIndex < this.cursor) {
+        if (!e.meta.isLocalUser && e.startIndex < this.cursor) {
           this.cursor--;
         }
         if (this.cursor > this.length) {

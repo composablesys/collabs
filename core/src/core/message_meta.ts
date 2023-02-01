@@ -2,99 +2,103 @@
  * Metadata attached to a received message in
  * [[Collab.receive]].
  *
- * The distinction between [[MessageMeta]] and the message
- * itself is that [[MessageMeta]] contains info that is not
- * specific to one [[Collab]] and can be shared between them.
- * Examples include the message's sender (included by default)
- * and a vector clock (optionally added by [[CRDTMetaLayer]]).
+ * By default, the metadata is [[sender]], [[isLocalUser]], and [[isEcho]].
+ * However, ancestor Collabs may add extra metadata using [[set]] before
+ * delivering messages to their children, allowing all descendants to
+ * access that metadata using [[get]]. Some Collabs expect specific such
+ * extra metadata, in which case they must be instantiated as descendants
+ * of a Collab that supplies it.
  *
- * Using [[MessageMeta]] instead of including such info
- * directly in the messages allows for efficiency improvements:
- * - Collabs don't need to store any state needed for
- * construction metadata (e.g., a current vector clock).
- * This deduplicates state, and also allows Collabs to be
- * garbage collected even if they depend on nontrivial
- * global state.
- * - If multiple Collabs send messages that depend on the same
- * metadata, and those messages get batched together
- * by [[BatchingLayer]], the batch need only include
- * the metadata once, instead of once within each message.
- *
- * By default, [[MessageMeta]] only includes the metadata
- * specified here. However, a Collab may choose to add
- * extra metadata before delivering messages to its
- * descendants. To do so, it should set values in the
- * index signature, keyed by a Symbol unique to that type
- * of metadata (e.g., specified in the metadata's class
- * as a constant). It should also define the
- * [[MessageMeta.NEXT_MESSAGE_META]] key for
- * [[ICollabParent.getAddedContext]].
- * See [[CRDTMetaLayer.getAddedContext]] for an example.
- *
- * A Collab may depend on specific extra metadata being present.
- * In that case, one of its ancestors must add the
- * metadata to each MessageMeta before delivering it to
- * the descendant. If required extra metadata is
- * missing (`undefined`), the Collab should throw an error
- * describing how to supply it, e.g.,, what ancestor class is
- * needed.
- *
- * Except for adding values to the index signature, [[MessageMeta]] should
- * be treated as immutable.
+ * MessageMeta instances are immutable; [[set]] returns a new value.
  */
-export interface MessageMeta {
+export class MessageMeta {
   /**
-   * The message sender's replicaID.
+   * [constructor description]
+   * @param sender The message sender's [[Runtime.replicaID]].
+   * @param isLocalUser Whether the message was sent by the local user.
+   * Equivalent to this.sender === (ambient Runtime).replicaID.
+   * @param isEcho Whether the message is an internal echo, i.e., it was
+   * sent within the current replica and delivered to a [[Collab]] internally.
+   * This field is mostly for internal use by Collabs; for determining
+   * if the message is from the local user, use [[isLocalUser]] instead,
+   * which may differ in case some Collab generates a local echo while
+   * processing a remote message (e.g., [[RunLocallyLayer]] does so).
+   * @param extra
    */
-  readonly sender: string;
-  /**
-   * Whether the message is an internal echo of a message
-   * sent by the local user.
-   *
-   * For Collabs that process their own messages immediately
-   * (CRDTs and other highly available data structures),
-   * this is equivalent to `this.sender === (relevant Runtime).replicaID`.
-   * For data structures that wait to process messages until
-   * later (e.g., when signalled by a server), each message
-   * may be delivered twice: once as a local echo
-   * which should be ignored (`isLocalEcho === true`),
-   * and once when it should actually be processed (`isLocalEcho === false`).
-   */
-  readonly isLocalEcho: boolean;
+  private constructor(
+    readonly sender: string,
+    readonly isLocalUser: boolean,
+    readonly isEcho: boolean,
+    private readonly extra: Map<symbol, unknown>
+  ) {}
 
   /**
-   * Record type for any extra metadata, indexed by a `symbol`.
+   * Get extra metadata with the given key, or `undefined` if the
+   * key has not been set.
    *
-   * For more info, see the interface description.
+   * If you require metadata with the given key but it is not present,
+   * you should throw an error with a description of what ancestor
+   * Collab is needed to set that metadata.
    */
-  [key: symbol]: unknown;
-}
+  get(key: symbol): unknown {
+    return this.extra.get(key);
+  }
 
-export const MessageMeta = {
+  // TODO: rename to suggest that it's not mutating (persistent style)
   /**
-   * [[Collab.getContext]] key with value type [[MessageMeta]] that returns
-   * the next [[MessageMeta]] for a locally echoed message, or
+   * Set extra metadata with the given key, returning a new [[MessageMeta]]
+   * while leaving this unchanged.
+   *
+   * Receipients can get the value by calling [[get]] with the same key
+   * on the returned MessageMeta.
+   *
+   * @param  key A Symbol created to identify the extra metadata.
+   * @param  value The set value.
+   * @return A new MessageMeta with the same properties as this plus the
+   * extra set value.
+   */
+  set(key: symbol, value: unknown): MessageMeta {
+    // OPT: persistent map implementation instead of copy
+    const newExtra = new Map(this.extra);
+    newExtra.set(key, value);
+    return new MessageMeta(
+      this.sender,
+      this.isLocalUser,
+      this.isEcho,
+      newExtra
+    );
+  }
+
+  /**
+   * Set [[isEcho]]]], returning a new [[MessageMeta]]
+   * while leaving this unchanged.
+   */
+  setIsEcho(isEcho: boolean): MessageMeta {
+    return new MessageMeta(
+      this.sender,
+      this.isLocalUser,
+      isEcho,
+      new Map(this.extra)
+    );
+  }
+
+  /**
+   * Returns a new [[MessageMeta]] with the given metadata and no
+   * extra metadata keys.
+   */
+  static new(
+    sender: string,
+    isLocalUser: boolean,
+    isEcho: boolean
+  ): MessageMeta {
+    return new MessageMeta(sender, isLocalUser, isEcho, new Map());
+  }
+
+  /**
+   * [[Collab.getContext]] key that returns
+   * the next [[MessageMeta]] for a locally sent message's echo, or
    * undefined if the next [[MessageMeta]] is just the default
-   * `{ sender: (local replicaID), isLocalEcho: true }`
-   *
-   * The next [[MessageMeta]] will be passed along with
-   * the locally echoed message corresponding to the next
-   * [[ICollabParent.childSend]]
-   * call, assuming there are no intervening messages
-   * that change the [[MessageMeta]]
-   * (within the whole [[Runtime]]). This can be used by children
-   * to get the [[MessageMeta]] for messages that they echo internally.
-   *
-   * If [[Collab.getContext]] returns undefined (no ancestor
-   * supplied the [[MessageMeta]]).
-   *
-   * A Collab that adds extra metadata to [[MessageMeta]]
-   * (via the index signature) generally should define
-   * this key in [[ICollabParent.getAddedContext]],
-   * so that descendants' [[Collab.getContext]] calls
-   * return the correct [[MessageMeta]]. An exception is if
-   * you know descendants will ignore locally echoed messages,
-   * in which case it does not matter.
+   * `{ sender: (local replicaID), isLocalEcho: true }`.
    */
-  NEXT_MESSAGE_META: Symbol(),
-} as const;
+  static NEXT_MESSAGE_META = Symbol();
+}

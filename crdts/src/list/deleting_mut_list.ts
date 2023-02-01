@@ -1,19 +1,17 @@
 import {
   Collab,
-  InitToken,
-  Pre,
-  isRuntime,
-  ConstructorAsFunction,
   DefaultSerializer,
+  InitToken,
+  isRuntime,
   Serializer,
 } from "@collabs/core";
-import { LWWCVariable } from "../variable";
 import { DeletingMutCSet } from "../set";
+import { LWWCVariable } from "../variable";
+import { ListPosition } from "./list_position_source";
 import {
   MovableMutCListEntry,
   MovableMutCListFromSet,
 } from "./movable_mut_list_from_set";
-import { ListPosition } from "./list_position_source";
 
 /**
  * A list of mutable values, each represented by a [[Collab]] of type `C`.
@@ -60,7 +58,7 @@ export class DeletingMutCList<
    * // app is a CRDTApp or CRDTContainer
    * const list = app.registerCollab(
    *   "list",
-   *   (initToken) => new collabs.DeletingMutCList(initToken, valueConstructor)
+   *   (init) => new collabs.DeletingMutCList(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.insert(index, initialValue)`, e.g. in response to
@@ -70,7 +68,7 @@ export class DeletingMutCList<
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify InsertArgs for
    * initial values that are present when the list is created.
@@ -78,15 +76,22 @@ export class DeletingMutCList<
    * use this to specify a custom [[Serializer]] for InsertArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     valueConstructor: (valueInitToken: InitToken, ...args: InsertArgs) => C,
     initialValuesArgs: InsertArgs[] = [],
     argsSerializer: Serializer<InsertArgs> = DefaultSerializer.getInstance()
   ) {
     super(
-      initToken,
-      Pre(DeletingMutCSet),
-      ConstructorAsFunction(LWWCVariable),
+      init,
+      (setInit, setValueConstructor, setInitialValuesArgs, setArgsSerializer) =>
+        new DeletingMutCSet(
+          setInit,
+          setValueConstructor,
+          setInitialValuesArgs,
+          setArgsSerializer
+        ),
+      (variableInit, initialValue, variableSerializer) =>
+        new LWWCVariable(variableInit, initialValue, variableSerializer),
       valueConstructor,
       initialValuesArgs,
       argsSerializer
@@ -101,21 +106,15 @@ export class DeletingMutCList<
   }
 
   push(...args: InsertArgs): C {
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return super.push(...args)!;
   }
 
   unshift(...args: InsertArgs): C {
+    // TODO: mixin issues confusing eslint
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return super.unshift(...args)!;
-  }
-
-  owns(value: C): boolean {
-    // Avoid errors from value.parent in case it
-    // is the root.
-    if (isRuntime(value.parent)) return false;
-
-    return this.set.owns(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
-    );
   }
 
   hasValue(value: C): boolean {
@@ -126,30 +125,5 @@ export class DeletingMutCList<
     return this.set.has(
       value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
     );
-  }
-
-  getArgs(index: number): InsertArgs {
-    return this.set.getArgs(
-      this.get(index).parent as MovableMutCListEntry<
-        C,
-        LWWCVariable<ListPosition>
-      >
-    )[1];
-  }
-
-  /**
-   * [getArgsByValue description]
-   * @param  value [description]
-   * @return       [description]
-   * @throws if !this.hasValue(value)
-   */
-  getArgsByValue(value: C): InsertArgs {
-    if (!this.hasValue(value)) {
-      throw new Error("this.hasValue(value) is false");
-    }
-
-    return this.set.getArgs(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
-    )[1];
   }
 }

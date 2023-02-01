@@ -1,14 +1,14 @@
 import {
+  AbstractCSetCollab,
   Collab,
+  DefaultSerializer,
   ICollabParent,
   InitToken,
-  MessageMeta,
-  Message,
-  AbstractCSetCollab,
-  Serializer,
-  DefaultSerializer,
   makeUID,
+  Message,
+  MessageMeta,
   Optional,
+  Serializer,
 } from "@collabs/core";
 import {
   DeletingMutCSetMessage,
@@ -52,13 +52,13 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    * import * as collabs from "@collabs/collabs";
    * // ...
    *
-   * function valueConstructor(valueInitToken: collabs.InitToken, initialValue: number) {
-   *   return new collabs.CCounter(valueInitToken, initialValue);
+   * function valueConstructor(valueInit: collabs.InitToken, initialValue: number) {
+   *   return new collabs.CCounter(valueInit, initialValue);
    * }
    * // app is a CRDTApp or CRDTContainer
    * const set = app.registerCollab(
    *   "set",
-   *   (initToken) => new collabs.DeletingMutCSet(initToken, valueConstructor)
+   *   (init) => new collabs.DeletingMutCSet(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.add(initialValue)`, e.g. in response to
@@ -68,7 +68,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    *
    * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
    *
-   * @param initToken         [description]
+   * @param init         [description]
    * @param valueConstructor  [description]
    * @param initialValuesArgs = [] Optional, use this to specify AddArgs for
    * initial values that are present when the list is created.
@@ -76,7 +76,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    * use this to specify a custom [[Serializer]] for InsertArgs.
    */
   constructor(
-    initToken: InitToken,
+    init: InitToken,
     private readonly valueConstructor: (
       valueInitToken: InitToken,
       ...args: AddArgs
@@ -84,7 +84,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     initialValuesArgs: AddArgs[] = [],
     private readonly argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
   ) {
-    super(initToken);
+    super(init);
 
     // Create the initial values from initialValuesArgs.
     for (let i = 0; i < initialValuesArgs.length; i++) {
@@ -131,7 +131,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
-        if (meta.isLocalEcho) {
+        if (meta.isEcho) {
           // Deliver the message locally so that the child ops go through,
           // preventing errors from chained ops.
           if (this.deletedSendingChild !== undefined) {
@@ -162,9 +162,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
             false
           );
 
-          if (meta.isLocalEcho) {
-            // Previously we also did this if runLocally
-            // was true; see https://github.com/composablesys/collabs/issues/172
+          if (meta.isEcho) {
             this.ourCreatedValue = newValue;
           }
 
@@ -251,28 +249,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return created!;
   }
 
-  /**
-   * Experimental; subject to removal.
-   *
-   * This was added for the rich-text-yata demo, which
-   * requires a "pure" (in the sense of pure op-based CRDTs)
-   * add method, in order to work with runLocally.
-   *
-   * (TODO: remove or clarify.)
-   */
-  pureAdd(uniqueNumber: number, ...args: AddArgs): C {
-    const message = DeletingMutCSetMessage.create({
-      add: {
-        replicaUniqueNumber: uniqueNumber,
-        args: this.argsSerializer.serialize(args),
-      },
-    });
-    this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    const created = this.ourCreatedValue;
-    this.ourCreatedValue = undefined;
-    return created!;
-  }
-
   delete(value: C): void {
     if (this.has(value)) {
       const message = DeletingMutCSetMessage.create({
@@ -282,16 +258,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     }
   }
 
-  /**
-   * Returns whether the given value was created by this
-   * set, regardless of whether it is still present.
-   */
-  owns(value: C): boolean {
-    return value.parent === this;
-  }
-
   has(value: C): boolean {
-    return this.owns(value) && this.children.has(value.name);
+    return value.parent === this && this.children.has(value.name);
   }
 
   values(): IterableIterator<C> {
@@ -302,6 +270,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return this.children.size;
   }
 
+  // TODO: include this method in the "base" class but not the default one.
+  // Need it for map's optimized keyOf.
   /**
    * @param  value [description]
    * @return the AddArgs used to add value
@@ -326,10 +296,11 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     const valueSaves = new Array<IDeletingMutCSetValueSave>(this.children.size);
     let i = 0;
     for (const [name, child] of this.children) {
+      const args = this.constructorArgs.get(name);
       valueSaves[i] = {
         name,
         saveData: child.save(),
-        args: this.constructorArgs.get(name),
+        ...(args === undefined ? {} : { args }),
       };
       i++;
     }
@@ -396,7 +367,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   canGC(): boolean {
     // To be in the initial state:
     // 1. All values except the initial ones must be deleted.
-    // Such values are except those referenced by constructorArgs.
+    // The present non-initial values are precisely
+    // those referenced by constructorArgs.
     if (this.constructorArgs.size === 0) {
       // 2. All initial values must still be present.
       if (this.size === this.initialValuesCount) {

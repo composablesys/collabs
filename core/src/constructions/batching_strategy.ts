@@ -73,12 +73,6 @@ export class RateLimitBatchingStrategy implements BatchingStrategy {
 
   /**
    * @param periodMs The length of the time period in ms
-   * @param commitOnReceive If true, whenever `batchingLayer`
-   * would receive a message from another replica
-   * except that there is a pending batch ("ReceiveBlocked" event),
-   * this commits the batch immediately, so that the received message can be processed
-   * immediately afterwards.  This may cause the rate limit to be
-   * exceeded.
    */
   constructor(readonly periodMs: number) {}
 

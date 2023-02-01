@@ -30,16 +30,15 @@ class CTile extends collabs.CObject {
   readonly isMine: boolean;
   number: number = 0;
 
-  constructor(initToken: collabs.InitToken, isMine: boolean) {
-    super(initToken);
+  constructor(init: collabs.InitToken, isMine: boolean) {
+    super(init);
     this.revealed = this.addChild(
       "revealed",
-      (initToken) => new collabs.TrueWinsCBoolean(initToken)
+      (init) => new collabs.TrueWinsCBoolean(init)
     );
     this.flag = this.addChild(
       "flag",
-      (initToken) =>
-        new collabs.LWWCVariable<FlagStatus>(initToken, FlagStatus.NONE)
+      (init) => new collabs.LWWCVariable<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }
@@ -99,7 +98,7 @@ class CMinesweeper extends collabs.CObject {
   readonly height: number;
 
   constructor(
-    initToken: collabs.InitToken,
+    init: collabs.InitToken,
     width: number,
     height: number,
     fractionMines: number,
@@ -107,7 +106,7 @@ class CMinesweeper extends collabs.CObject {
     startY: number,
     seed: string
   ) {
-    super(initToken);
+    super(init);
 
     this.width = width;
     this.height = height;
@@ -126,7 +125,7 @@ class CMinesweeper extends collabs.CObject {
           x === startX && y === startY ? false : rng() < fractionMines;
         this.tiles[x][y] = this.addChild(
           x + ":" + y,
-          (initToken) => new CTile(initToken, isMine)
+          (init) => new CTile(init, isMine)
         );
       }
     }
@@ -220,7 +219,6 @@ class CMinesweeper extends collabs.CObject {
    * A neighbor is defined as the 8 surrounding cells (unless on the border,
    * which would be any surrounding cell not outside the board).
    * Source: https://stackoverflow.com/questions/652106/finding-neighbours-in-a-two-dimensional-array
-   * PD.: Sorry for being lazy and looking this up.
    */
   private neighbors(x: number, y: number): Array<[number, number]> {
     let neighbors: Array<[number, number]> = [];
@@ -401,22 +399,38 @@ class CMinesweeper extends collabs.CObject {
 
   const currentGame = container.registerCollab(
     "currentGame",
-    (initToken) =>
+    (init) =>
       new collabs.LWWMutCVariable(
-        initToken,
-        collabs.ConstructorAsFunction(CMinesweeper)
+        init,
+        (
+          valueInit: collabs.InitToken,
+          width: number,
+          height: number,
+          fractionMines: number,
+          startX: number,
+          startY: number,
+          seed: string
+        ) =>
+          new CMinesweeper(
+            valueInit,
+            width,
+            height,
+            fractionMines,
+            startX,
+            startY,
+            seed
+          )
       )
   );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    (initToken) => new collabs.LWWCVariable(initToken, settingsFromInput())
+    (init) => new collabs.LWWCVariable(init, settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    (initToken) =>
-      new collabs.LWWCVariable<"game" | "settings">(initToken, "settings")
+    (init) => new collabs.LWWCVariable<"game" | "settings">(init, "settings")
   );
 
   container.on("Change", invalidate);

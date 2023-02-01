@@ -4,7 +4,10 @@ import { CRDTContainer } from "@collabs/container";
 (async function () {
   const container = new CRDTContainer();
 
-  const text = container.registerCollab("text", collabs.Pre(collabs.CText)());
+  const text = container.registerCollab(
+    "text",
+    (init) => new collabs.CText(init)
+  );
 
   await container.load();
 

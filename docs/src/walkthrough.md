@@ -41,7 +41,7 @@ import { CRDTContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    (initToken) => new collabs.CCounter(initToken)
+    (init) => new collabs.CCounter(init)
   );
 
   // Refresh the display when the Collabs state changes, possibly
@@ -104,7 +104,7 @@ For this simple app, there is just one `Collab`, a [`CCounter`](./guide/built_in
 ```ts
 const counter = container.registerCollab(
   "counter",
-  (initToken) => new collabs.CCounter(initToken)
+  (init) => new collabs.CCounter(init)
 );
 ```
 

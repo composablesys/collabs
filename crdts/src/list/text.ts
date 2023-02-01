@@ -1,12 +1,12 @@
 import {
-  InitToken,
-  Message,
-  MessageMeta,
-  int64AsNumber,
-  Optional,
-  CPrimitive,
   CollabEvent,
   CollabEventsRecord,
+  CPrimitive,
+  InitToken,
+  int64AsNumber,
+  Message,
+  MessageMeta,
+  Optional,
   PositionedList,
 } from "@collabs/core";
 import { CTextMessage, CTextSave } from "../../generated/proto_compiled";
@@ -46,8 +46,8 @@ export class CText
    */
   private indexHint = -1;
 
-  constructor(initToken: InitToken) {
-    super(initToken);
+  constructor(init: InitToken) {
+    super(init);
 
     this.positionSource = new ListPositionSource(
       this.runtime.replicaID,
@@ -128,7 +128,7 @@ export class CText
   }
 
   protected receivePrimitive(message: Message, meta: MessageMeta): void {
-    if (!meta.isLocalEcho) this.indexHint = -1;
+    if (!meta.isEcho) this.indexHint = -1;
 
     const decoded = CTextMessage.decode(<Uint8Array>message);
     switch (decoded.op) {

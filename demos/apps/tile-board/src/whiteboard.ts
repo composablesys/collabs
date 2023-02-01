@@ -7,7 +7,7 @@ export function setupWhiteboard(container: CRDTContainer) {
   // The value is the color of the stroke.
   const boardState = container.registerCollab(
     "whiteboard",
-    collabs.Pre(collabs.LWWCMap)<[x: number, y: number], string>()
+    (init) => new collabs.LWWCMap<[x: number, y: number], string>(init)
   );
 
   // Draw points
@@ -118,7 +118,7 @@ export function setupWhiteboard(container: CRDTContainer) {
     });
 
   // Once loaded, display loaded state.
-  container.runtime.nextEvent("Load").then(() => {
+  container.runtime.once("Load", () => {
     for (const [key, value] of boardState) {
       ctx.fillStyle = value;
       ctx.fillRect(key[0], key[1], GRAN, GRAN);

@@ -54,10 +54,13 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab("host", collabs.Pre(CRDTContainerHost)(iframe));
+const host = app.registerCollab(
+  "host",
+  (init) => new CRDTContainerHost(init, iframe)
+);
 
 // Show the container once it's ready.
-host.nextEvent("ContainerReady").then(() => {
+host.once("ContainerReady", () => {
   const loadingDiv = <HTMLDivElement>document.getElementById("loading");
   document.body.removeChild(loadingDiv);
   iframe.style.display = "block";
