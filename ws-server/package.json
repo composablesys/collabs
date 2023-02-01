@@ -1,6 +1,6 @@
 {
   "name": "@collabs/ws-server",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Collabs WebSocket server",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
