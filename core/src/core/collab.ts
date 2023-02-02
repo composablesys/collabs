@@ -242,6 +242,7 @@ export abstract class Collab<
    * sent `messagePath`, with an extra message sent by this
    * `Collab` appended to the end. Note that the array may
    * be modified in-place by ancestors.
+   * @param metaRequests need not align with messagePath
    */
   protected send(messagePath: Message[], metaRequests: MetaRequest[]): void {
     this.parent.childSend(this, messagePath, metaRequests);
@@ -300,6 +301,9 @@ export abstract class Collab<
    * @return save data
    */
   abstract save(): Message;
+
+  // OPT: tree-aware format (e.g. map plus this-data), like send/receive.
+  abstract load(saveData: Message, meta: MessageMeta): void;
 
   /**
    * Returns the "name path" from `descendant` to `this`,

@@ -5,8 +5,8 @@ import {
   InitToken,
   Message,
   MessageMeta,
-} from "../core";
-import { Optional } from "../util";
+} from "../../core/src/core";
+import { Optional } from "../../core/src/util";
 
 /**
  * **Experimental/flaky - use with caution**

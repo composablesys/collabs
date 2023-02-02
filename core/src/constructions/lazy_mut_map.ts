@@ -14,8 +14,8 @@ import {
   Serializer,
   WeakValueMap,
 } from "../util";
-// Import AbstractCMapCollab from its specific file;
-// with whole-folder imports, AbstractCMapCObject and LazyMutCMap
+// Import AbstractCMapCollab from its specific file.
+// Otherwise, AbstractCMapCObject and LazyMutCMap
 // create a circular dependency between constructions
 // and data_types.
 import { AbstractCMapCollab } from "../data_types/abstract_map";

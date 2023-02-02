@@ -1,8 +1,8 @@
 import {
-  MessageMeta,
   CollabEvent,
   CollabEventsRecord,
   InitToken,
+  MessageMeta,
 } from "../core";
 import { DefaultSerializer, Serializer } from "../util";
 import { CPrimitive } from "./primitive";
@@ -16,11 +16,13 @@ export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
 }
 
 /**
- * A Collab that merely sends and receives messages.
+ * A collaborative messenger.
  *
- * When a message is received, a Message event is emitted.
+ * This Collab has no state; it merely broadcasts messages between replicas.
+ * To receive messages, listen on Message events.
+ *
  * Note that depending on the [[Runtime]],
- * messages may arrive in different orders on
+ * messages may be received in different orders on
  * different replicas.
  */
 export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
@@ -48,7 +50,7 @@ export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
     return new Uint8Array();
   }
 
-  load(): void {
+  load() {
     // No-op.
   }
 

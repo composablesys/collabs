@@ -6,12 +6,13 @@ import {
   InitToken,
   Message,
   MessageMeta,
+  MetaRequest,
 } from "../core";
 import { Optional } from "../util";
 
 /**
- * A [[Collab]] object, made of properties that
- * are themselves Collabs.
+ * A collaborating object, consisting of properties that
+ * are themselves [[Collab]]s.
  *
  * The Collab properties are its *children*.
  *
@@ -66,10 +67,7 @@ import { Optional } from "../util";
  *
  * See [template-custom-type](../../../../template-custom-type).
  */
-export class CObject<
-    Events extends CollabEventsRecord = CollabEventsRecord,
-    C extends Collab = Collab
-  >
+export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   extends Collab<Events>
   implements ICollabParent
 {
@@ -84,7 +82,7 @@ export class CObject<
    * is exposed mainly as a convenience for methods that
    * act on all children, in the style of [[canGC]].
    */
-  protected readonly children: Map<string, C> = new Map();
+  protected readonly children: Map<string, Collab> = new Map();
 
   /**
    * Add child as a child of this Collab with the given
@@ -103,10 +101,10 @@ export class CObject<
    *
    * @return child
    */
-  protected addChild<D extends C>(
+  protected addChild<C extends Collab>(
     name: string,
-    childCallback: (init: InitToken) => D
-  ): D {
+    childCallback: (init: InitToken) => C
+  ): C {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
@@ -115,13 +113,17 @@ export class CObject<
     return child;
   }
 
-  childSend(child: Collab, messagePath: Message[]): void {
+  childSend(
+    child: Collab,
+    messagePath: Message[],
+    metaRequests: MetaRequest[]
+  ): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
-    this.send(messagePath);
+    this.send(messagePath, metaRequests);
   }
 
   receive(messagePath: Message[], meta: MessageMeta): void {

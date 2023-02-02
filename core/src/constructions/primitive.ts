@@ -1,4 +1,10 @@
-import { Collab, CollabEventsRecord, MessageMeta, Message } from "../core";
+import {
+  Collab,
+  CollabEventsRecord,
+  Message,
+  MessageMeta,
+  MetaRequest,
+} from "../core";
 
 /**
  * Convenience superclass for a primitive [[Collab]] (Collab with no children, i.e., leaf in the Collab tree).
@@ -10,16 +16,24 @@ import { Collab, CollabEventsRecord, MessageMeta, Message } from "../core";
 export abstract class CPrimitive<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends Collab<Events> {
-  protected sendPrimitive(message: Message) {
-    this.send([message]);
+  /**
+   * Broadcast a message to other replicas of this Collab.
+   *
+   * Use this method instead of [[Collab.send]].
+   *
+   * @param message
+   * @param metaRequest
+   */
+  protected sendPrimitive(message: Message, metaRequest?: MetaRequest) {
+    this.send([message], metaRequest === undefined ? [] : [metaRequest]);
   }
 
   /**
    * Do not override this method; instead override
-   * [[sendPrimitive]].
+   * [[receivePrimitive]].
    *
    * If you need to override this method instead of
-   * [[sendPrimitive]], consider extending [[Collab]]
+   * [[receivePrimitive]], consider extending [[Collab]]
    * directly instead of this class.
    *
    * @param  messagePath [description]
@@ -45,10 +59,11 @@ export abstract class CPrimitive<
     meta: MessageMeta
   ): void;
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    if (namePath.length !== 0) {
+  getDescendant(namePath: Iterable<string>): Collab | undefined {
+    const fullPath = [...namePath];
+    if (fullPath.length !== 0) {
       throw new Error(
-        `CPrimitive has no descendants, but namePath = ${namePath}`
+        `CPrimitive has no descendants, but namePath = ${fullPath}`
       );
     }
     return this;

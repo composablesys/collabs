@@ -1,6 +1,8 @@
 import { CursorMessage } from "../../generated/proto_compiled";
 import { Serializer } from "../util";
 
+// TODO: revise
+
 /**
  * A list with a concept of "positions" that are tied to particular values,
  * moving with them.
@@ -97,6 +99,9 @@ export class Cursor {
     }
   }
 }
+
+// TODO: add to DefaultSerializer? Change Cursor into a JSON-able object or string?
+// Cf. Yjs's relative/absolute positions.
 
 /**
  * A [[Serializer]] for cursors from a given list.

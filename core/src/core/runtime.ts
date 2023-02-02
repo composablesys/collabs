@@ -46,6 +46,9 @@ export interface Runtime extends ICollabParent {
   // more optimized compression for message logs, like in default
   // state-based impl. That also requires actually optimizing the
   // serializer.
+  // TODO: remove? Unless have use case, besides PrimitiveCRDT
+  // (which can do it itself - integrated with CRDTRuntime).
+  // If so, also remove in AbstractRuntime.
   /**
    * Serializer for [[MessageMeta]].
    *
