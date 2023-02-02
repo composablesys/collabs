@@ -1,35 +1,6 @@
-import { Serializer } from "../util";
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
-import { Message, MessageMeta, MetaRequest } from "./message";
+import { Message, MetaRequest } from "./message";
 import { Runtime } from "./runtime";
-
-class MetaSerializer implements Serializer<MessageMeta> {
-  constructor(readonly runtimeSpecificSerializer: Serializer<unknown>) {}
-
-  serialize(value: MessageMeta): Uint8Array {
-    // OPT: protobuf version
-    const msg = {
-      type: value.type,
-      creator: value.creator,
-      runtimeSpecific: this.runtimeSpecificSerializer.serialize(
-        value.runtimeSpecific
-      ),
-    };
-    return new Uint8Array(Buffer.from(JSON.stringify(msg)));
-  }
-  deserialize(message: Uint8Array): MessageMeta {
-    const msg = <
-      { type: "op" | "save"; creator: string; runtimeSpecific: Uint8Array }
-    >JSON.parse(Buffer.from(message).toString());
-    return {
-      type: msg.type,
-      creator: msg.creator,
-      runtimeSpecific: this.runtimeSpecificSerializer.deserialize(
-        msg.runtimeSpecific
-      ),
-    };
-  }
-}
 
 /**
  * Skeletal implementation of [[Runtime]] that uses
@@ -37,7 +8,6 @@ class MetaSerializer implements Serializer<MessageMeta> {
  */
 export abstract class AbstractRuntime implements Runtime {
   readonly isRuntime: true = true;
-  readonly metaSerializer: Serializer<MessageMeta>;
   /**
    * Readonly. Set with setRootCollab.
    */
@@ -45,16 +15,11 @@ export abstract class AbstractRuntime implements Runtime {
 
   /**
    * @param replicaID This replica's [[replicaID]].
-   * @param runtimeSpecificSerializer Serializer for this Runtime's [[MessageMeta.runtimeSpecific]] type.
    */
-  constructor(
-    readonly replicaID: string,
-    runtimeSpecificSerializer: Serializer<unknown>
-  ) {
+  constructor(readonly replicaID: string) {
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
     }
-    this.metaSerializer = new MetaSerializer(runtimeSpecificSerializer);
   }
 
   protected setRootCollab<C extends Collab>(

@@ -1,7 +1,5 @@
-import { Serializer } from "../util";
 import { Collab } from "./collab";
 import { ICollabParent } from "./collab_parent";
-import { MessageMeta } from "./message";
 
 /**
  * A runtime for a Collabs app, responsible for connecting
@@ -41,21 +39,6 @@ export interface Runtime extends ICollabParent {
    * See [[randomReplicaID]], [[pseudoRandomReplicaID]].
    */
   readonly replicaID: string;
-
-  // TODO: explicitly require unknown serializer only? To allow
-  // more optimized compression for message logs, like in default
-  // state-based impl. That also requires actually optimizing the
-  // serializer.
-  // TODO: remove? Unless have use case, besides PrimitiveCRDT
-  // (which can do it itself - integrated with CRDTRuntime).
-  // If so, also remove in AbstractRuntime.
-  /**
-   * Serializer for [[MessageMeta]].
-   *
-   * A [[Runtime]] implementation should customize this to handle
-   * its [[MessageMeta.runtimeSpecific]] type.
-   */
-  readonly metaSerializer: Serializer<MessageMeta>;
 
   /**
    * Returns a nonnegative counter value that will only be
