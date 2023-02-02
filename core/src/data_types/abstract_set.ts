@@ -2,8 +2,13 @@ import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
 import { CSetEventsRecord, ISet } from "./iset";
 
-export declare abstract class AbstractCSet<T, AddArgs extends unknown[] = [T]>
-  extends Collab
+// TODO: C first; underscore after Set
+declare abstract class AbstractCSetCollab_declaration<
+    T,
+    AddArgs extends unknown[] = [T],
+    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+  >
+  extends Collab<Events>
   implements ISet<T, AddArgs>
 {
   abstract add(...args: AddArgs): T | undefined;
@@ -42,126 +47,148 @@ export declare abstract class AbstractCSet<T, AddArgs extends unknown[] = [T]>
  *
  * Example of how to apply to a new base class:
  * ```ts
-   export abstract class AbstractCSetCObject<
-     T,
-     AddArgs extends unknown[],
-     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
-     C extends Collab = Collab
-   >
-   // @ts-expect-error No good way to pass generics T & AddArgs to mixin
-   extends MakeAbstractCSet(CObject)<T, AddArgs>()<Events, C> {}
+   TODO
  * ```
  */
 export function MakeAbstractCSet<
-  TBase extends abstract new (...args: any[]) => Collab
->(Base: TBase) {
-  return function <T, AddArgs extends unknown[]>(): TBase &
-    (abstract new (...args: any[]) => AbstractCSet<T, AddArgs>) {
-    abstract class Mixin extends Base implements AbstractCSet<T, AddArgs> {
-      constructor(...args: any[]) {
-        super(...args);
-      }
+  T,
+  AddArgs extends unknown[],
+  Events extends CSetEventsRecord<T>,
+  TBase extends abstract new (...args: any[]) => Collab<Events>
+>(
+  Base: TBase
+): TBase &
+  (abstract new (...args: any[]) => AbstractCSetCollab_declaration<
+    T,
+    AddArgs,
+    Events
+  >) {
+  abstract class Mixin
+    extends Base
+    implements AbstractCSetCollab_declaration<T, AddArgs, Events>
+  {
+    constructor(...args: any[]) {
+      super(...args);
+    }
 
-      abstract add(...args: AddArgs): T | undefined;
-      abstract delete(value: T): void;
-      abstract has(value: T): boolean;
-      abstract values(): IterableIterator<T>;
-      abstract readonly size: number;
+    abstract add(...args: AddArgs): T | undefined;
+    abstract delete(value: T): void;
+    abstract has(value: T): boolean;
+    abstract values(): IterableIterator<T>;
+    abstract readonly size: number;
 
-      clear(): void {
-        for (const value of this) this.delete(value);
-      }
+    clear(): void {
+      for (const value of this) this.delete(value);
+    }
 
-      forEach(
-        callbackfn: (value: T, value2: T, set: this) => void,
-        thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-      ): void {
-        // Not sure if this gives the exact same semantics
-        // as Set if callbackfn modifies this during the
-        // loop.  (Given that Array.forEach has a rather
-        // funky polyfill on MDN, I expect Set.forEach is
-        // similarly funky.)  Although users probably shouldn't
-        // be doing that anyway.
-        for (const value of this) {
-          callbackfn.call(thisArg, value, value, this);
-        }
-      }
-
-      [Symbol.iterator](): IterableIterator<T> {
-        return this.values();
-      }
-
-      toString(): string {
-        return [...this].toString();
+    forEach(
+      callbackfn: (value: T, value2: T, set: this) => void,
+      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
+    ): void {
+      // Not sure if this gives the exact same semantics
+      // as Set if callbackfn modifies this during the
+      // loop.  (Given that Array.forEach has a rather
+      // funky polyfill on MDN, I expect Set.forEach is
+      // similarly funky.)  Although users probably shouldn't
+      // be doing that anyway.
+      for (const value of this) {
+        callbackfn.call(thisArg, value, value, this);
       }
     }
-    return Mixin;
-  };
+
+    [Symbol.iterator](): IterableIterator<T> {
+      return this.values();
+    }
+
+    toString(): string {
+      return [...this].toString();
+    }
+  }
+  return Mixin;
 }
 
-/**
- * [[AbstractCSet]] as a subclass of [[CObject]].
- *
- * It is recommend to subclass in the form
- * ```
- * class Foo<T, AddArgs, ...> extends AbstractCSetCObject<T, AddArgs, ...>
- * implements ISet<T, AddArgs>
- * ```
- * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
- * will not force you to use the actual types `T` and `AddArgs` in your
- * method signatures. This is due to a hack that we use to get those generic
- * types into the mixin that defines this class, working around
- * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
- */
-export abstract class AbstractCSetCObject<
+// TODO: check typedocs for these (make sure shows generic types,
+// abstract method names & docs, implemented method names & docs,
+// and inherited Collab method docs), then delete.
+// Also check eslint TODOs and see if it is un-confused.
+// This is still suboptimal when you mouseover the const, e.g.
+// while extending - doesn't show you the type parameters.
+// I guess can fix with dummy subclass?
+// Check that method list/autocomplete works in subclass and has correct
+// generic types.
+export const AbstractCSetCollab = MakeAbstractCSet(
+  Collab
+) as typeof AbstractCSetCollab_declaration;
+
+declare abstract class AbstractCSetCObject_declaration<
     T,
     AddArgs extends unknown[] = [T],
     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
     C extends Collab = Collab
   >
-  // @ts-expect-error No good way to pass generics T & AddArgs to mixin
-  extends MakeAbstractCSet(CObject)<T, AddArgs>()<Events, C> {}
+  extends CObject<Events, C>
+  implements ISet<T, AddArgs>
+{
+  abstract add(...args: AddArgs): T | undefined;
+  abstract delete(value: T): void;
+  abstract has(value: T): boolean;
+  abstract values(): IterableIterator<T>;
+  abstract readonly size: number;
 
-/**
- * [[AbstractCSet]] as a subclass of [[CPrimitive]].
- *
- * It is recommend to subclass in the form
- * ```
- * class Foo<T, AddArgs, ...> extends AbstractCSetCPrimitive<T, AddArgs, ...>
- * implements ISet<T, AddArgs>
- * ```
- * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
- * will not force you to use the actual types `T` and `AddArgs` in your
- * method signatures. This is due to a hack that we use to get those generic
- * types into the mixin that defines this class, working around
- * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
- */
-export abstract class AbstractCSetCPrimitive<
+  /**
+   * Calls delete on every value in the set.
+   *
+   * Override this method if you want to optimize this
+   * behavior.
+   */
+  clear(): void;
+  forEach(
+    callbackfn: (value: T, value2: T, set: this) => void,
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  ): void;
+  [Symbol.iterator](): IterableIterator<T>;
+  /**
+   * @return [...this].toString()
+   */
+  toString(): string;
+}
+
+export const AbstractCSetCObject = MakeAbstractCSet(
+  Collab
+) as typeof AbstractCSetCObject_declaration;
+
+declare abstract class AbstractCSetCPrimitive_declaration<
     T,
     AddArgs extends unknown[] = [T],
     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
   >
-  // @ts-expect-error No good way to pass generics T & AddArgs to mixin
-  extends MakeAbstractCSet(CPrimitive)<T, AddArgs>()<Events> {}
+  extends CPrimitive<Events>
+  implements ISet<T, AddArgs>
+{
+  abstract add(...args: AddArgs): T | undefined;
+  abstract delete(value: T): void;
+  abstract has(value: T): boolean;
+  abstract values(): IterableIterator<T>;
+  abstract readonly size: number;
 
-/**
- * [[AbstractCSet]] as a subclass of [[Collab]].
- *
- * It is recommend to subclass in the form
- * ```
- * class Foo<T, AddArgs, ...> extends AbstractCSetCollab<T, AddArgs, ...>
- * implements ISet<T, AddArgs>
- * ```
- * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
- * will not force you to use the actual types `T` and `AddArgs` in your
- * method signatures. This is due to a hack that we use to get those generic
- * types into the mixin that defines this class, working around
- * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
- */
-export abstract class AbstractCSetCollab<
-    T,
-    AddArgs extends unknown[] = [T],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
-  >
-  // @ts-expect-error No good way to pass generics T & AddArgs to mixin
-  extends MakeAbstractCSet(Collab)<T, AddArgs>()<Events> {}
+  /**
+   * Calls delete on every value in the set.
+   *
+   * Override this method if you want to optimize this
+   * behavior.
+   */
+  clear(): void;
+  forEach(
+    callbackfn: (value: T, value2: T, set: this) => void,
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  ): void;
+  [Symbol.iterator](): IterableIterator<T>;
+  /**
+   * @return [...this].toString()
+   */
+  toString(): string;
+}
+
+export const AbstractCSetCPrimitive = MakeAbstractCSet(
+  Collab
+) as typeof AbstractCSetCPrimitive_declaration;

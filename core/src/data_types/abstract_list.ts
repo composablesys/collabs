@@ -36,6 +36,7 @@ export declare abstract class AbstractCList<
   push(...args: InsertArgs): T | undefined;
   shift(): T;
   unshift(...args: InsertArgs): T | undefined;
+  // TODO: splice
 
   // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
