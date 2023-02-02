@@ -1,5 +1,4 @@
 import { Serializer } from "../util";
-import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
 import { Message, MessageMeta, MetaRequest } from "./message";
 import { Runtime } from "./runtime";
@@ -74,7 +73,13 @@ export abstract class AbstractRuntime implements Runtime {
   }
 
   getUID(): string {
-    return makeUID(this.replicaID, this.getLocalCounter());
+    // For UID, use a pair (replicaID, replicaUniqueNumber).
+    // These are sometimes called "causal dots".
+    // They are similar to Lamport timestamps,
+    // except that the number is a per-replica counter instead
+    // of a logical clock.
+    // OPT: shorten (base128 instead of base36)
+    return `${this.getLocalCounter().toString(36)},${this.replicaID}`;
   }
 
   getNamePath(descendant: Collab): string[] {

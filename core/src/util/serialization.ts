@@ -26,12 +26,16 @@ export interface Serializer<T> {
 // element of a collection constructs a derived serializer
 // from a fixed given one.
 
+// TODO: support Optional, CollabID, ??
+// TODO: allow extending dynamically?
+
 /**
  * Default serializer.
  *
  * Supported types:
  * - Primitive types (string, number, boolean, undefined, null)
- * - Arrays and plain (non-class) objects, serialized recursively.
+ * - Arrays and plain (non-class) objects, serialized recursively
+ * - Uint8Array
  *
  * All other types cause an error during [[serialize]].
  */
@@ -211,7 +215,6 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
   }
 }
 
-// OPT: cache instances?
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
     private readonly oneSerializer: Serializer<T>,
@@ -283,3 +286,6 @@ export function int64AsNumber(num: number | Long): number {
   if (typeof num === "number") return num;
   else return num.toNumber();
 }
+
+// TODO: get rid of (non-singleton) instance caching? Seems overcomplicated.
+// In a collection, you can work around by only making one serializer for the whole thing.

@@ -299,7 +299,7 @@ export abstract class Collab<
    *
    * @return save data
    */
-  abstract save(): Uint8Array;
+  abstract save(): Message;
 
   /**
    * Returns the "name path" from `descendant` to `this`,

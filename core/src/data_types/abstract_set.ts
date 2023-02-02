@@ -50,7 +50,7 @@ declare abstract class AbstractCSetCollab_declaration<
    TODO
  * ```
  */
-export function MakeAbstractCSet<
+function withBaseClass<
   T,
   AddArgs extends unknown[],
   Events extends CSetEventsRecord<T>,
@@ -107,19 +107,6 @@ export function MakeAbstractCSet<
   return Mixin;
 }
 
-// TODO: check typedocs for these (make sure shows generic types,
-// abstract method names & docs, implemented method names & docs,
-// and inherited Collab method docs), then delete.
-// Also check eslint TODOs and see if it is un-confused.
-// This is still suboptimal when you mouseover the const, e.g.
-// while extending - doesn't show you the type parameters.
-// I guess can fix with dummy subclass?
-// Check that method list/autocomplete works in subclass and has correct
-// generic types.
-export const AbstractCSetCollab = MakeAbstractCSet(
-  Collab
-) as typeof AbstractCSetCollab_declaration;
-
 declare abstract class AbstractCSetCObject_declaration<
     T,
     AddArgs extends unknown[] = [T],
@@ -153,10 +140,6 @@ declare abstract class AbstractCSetCObject_declaration<
   toString(): string;
 }
 
-export const AbstractCSetCObject = MakeAbstractCSet(
-  Collab
-) as typeof AbstractCSetCObject_declaration;
-
 declare abstract class AbstractCSetCPrimitive_declaration<
     T,
     AddArgs extends unknown[] = [T],
@@ -189,6 +172,23 @@ declare abstract class AbstractCSetCPrimitive_declaration<
   toString(): string;
 }
 
-export const AbstractCSetCPrimitive = MakeAbstractCSet(
-  Collab
-) as typeof AbstractCSetCPrimitive_declaration;
+// TODO: check typedocs for these (make sure shows generic types,
+// abstract method names & docs, implemented method names & docs,
+// and inherited Collab method docs), then delete.
+// Also check eslint TODOs and see if it is un-confused.
+// This is still suboptimal when you mouseover the const, e.g.
+// while extending - doesn't show you the type parameters.
+// I guess can fix with dummy subclass?
+// Check that method list/autocomplete works in subclass and has correct
+// generic types.
+
+// TODO: If it works, do same for map, list. At least do namespacing?
+
+export const AbstractCSet = {
+  withBaseClass,
+  Collab: withBaseClass(Collab) as typeof AbstractCSetCollab_declaration,
+  CObject: withBaseClass(CObject) as typeof AbstractCSetCObject_declaration,
+  CPrimitive: withBaseClass(
+    CPrimitive
+  ) as typeof AbstractCSetCPrimitive_declaration,
+} as const;
