@@ -3,6 +3,7 @@ export {
   AbstractCList,
   AbstractCMap,
   AbstractCSet,
+  Bytes,
   CListEvent,
   CListEventsRecord,
   CMapDeleteEvent,

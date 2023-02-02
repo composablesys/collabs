@@ -25,7 +25,7 @@
 //   addItem(index: number, text: string): void {
 //     // Generate new id for this index
 //     let id = this.idGen.createNewLocs(index, 1)[0];
-//     let key: string = collabs.bytesAsString(this.idGen.serialize(id));
+//     let key: string = collabs.Bytes.stringify(this.idGen.serialize(id));
 //     this.ids.insert(index, key);
 //
 //     // Update JSON Collab with new item

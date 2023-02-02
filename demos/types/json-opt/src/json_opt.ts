@@ -10,7 +10,7 @@ import {
   LWWCVar,
   PrimitiveCList,
   Serializer,
-  TextSerializer,
+  StringSerializer,
 } from "@collabs/collabs";
 
 export interface JSONEvent extends CollabEvent {
@@ -58,7 +58,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
         new LazyMutCMap(
           childInitToken,
           (valueInitToken) =>
-            new PrimitiveCList(valueInitToken, TextSerializer.instance),
+            new PrimitiveCList(valueInitToken, StringSerializer.instance),
           keySerializer
         )
     );

@@ -8,11 +8,10 @@ import {
   MessageMeta,
 } from "../core";
 import {
-  bytesAsString,
+  Bytes,
   DefaultSerializer,
   Optional,
   Serializer,
-  stringAsBytes,
   WeakValueMap,
 } from "../util";
 // Import AbstractCMapCollab from its specific file;
@@ -110,10 +109,10 @@ export class LazyMutCMap<K, C extends Collab>
   }
 
   private keyAsString(key: K) {
-    return bytesAsString(this.keySerializer.serialize(key));
+    return Bytes.stringify(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(stringAsBytes(str));
+    return this.keySerializer.deserialize(Bytes.parse(str));
   }
 
   private getInternal(

@@ -1,5 +1,5 @@
 import {
-  bytesAsString,
+  Bytes,
   DefaultSerializer,
   IMap,
   InitToken,
@@ -8,7 +8,6 @@ import {
   MessageMeta,
   Optional,
   Serializer,
-  stringAsBytes,
 } from "@collabs/core";
 import {
   MultiValueMapMessage,
@@ -81,7 +80,7 @@ export class MultiValueMap<K, V>
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);
     const key = this.keySerializer.deserialize(decoded.key);
-    const keyAsString = bytesAsString(decoded.key);
+    const keyAsString = Bytes.stringify(decoded.key);
 
     // OPT: don't re-serialize here
     const previousValueLiteral = this.get(key);
@@ -151,13 +150,13 @@ export class MultiValueMap<K, V>
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
     const value = this.state.get(
-      bytesAsString(this.keySerializer.serialize(key))
+      Bytes.stringify(this.keySerializer.serialize(key))
     );
     return value === undefined ? undefined : this.asArray(value);
   }
 
   has(key: K): boolean {
-    return this.state.has(bytesAsString(this.keySerializer.serialize(key)));
+    return this.state.has(Bytes.stringify(this.keySerializer.serialize(key)));
   }
 
   get size(): number {
@@ -170,7 +169,7 @@ export class MultiValueMap<K, V>
   *entries(): IterableIterator<[K, MultiValueMapItem<V>[]]> {
     for (const [key, value] of this.state.entries()) {
       yield [
-        this.keySerializer.deserialize(stringAsBytes(key)),
+        this.keySerializer.deserialize(Bytes.parse(key)),
         this.asArray(value),
       ];
     }
@@ -189,7 +188,7 @@ export class MultiValueMap<K, V>
     const lastItems = new Map<string, MultiValueMapItem<V>>();
 
     for (const [keyAsString, items] of this.state) {
-      const keySerialized = stringAsBytes(keyAsString);
+      const keySerialized = Bytes.parse(keyAsString);
       for (const item of this.asArray(items)) {
         let senderSave = stateBySender[item.sender];
         if (senderSave === undefined) {
@@ -232,7 +231,7 @@ export class MultiValueMap<K, V>
       let senderCounter = 0;
       let wallClockTime = 0;
       for (let i = 0; i < senderSave.keys!.length; i++) {
-        const keyAsString = bytesAsString(senderSave.keys![i]);
+        const keyAsString = Bytes.stringify(senderSave.keys![i]);
         senderCounter += int64AsNumber(senderSave.senderCounterDiffs![i]);
         if (this.wallClockTime) {
           wallClockTime += int64AsNumber(senderSave.wallClockTimeDiffs![i]);

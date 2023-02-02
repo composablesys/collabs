@@ -66,7 +66,7 @@ if (doLoad) {
     console.log("Load error: no save found.");
     app.load(collabs.Optional.empty());
   } else {
-    app.load(collabs.Optional.of(collabs.stringAsBytes(sessionStorageSave)));
+    app.load(collabs.Optional.of(collabs.Bytes.parse(sessionStorageSave)));
     console.log("Loaded.");
   }
 } else {
@@ -128,7 +128,7 @@ saveButton.addEventListener("click", async function () {
   try {
     window.sessionStorage.setItem(
       containerUrl,
-      collabs.bytesAsString(saveData)
+      collabs.Bytes.stringify(saveData)
     );
   } catch (err) {
     console.log("Save error: ");

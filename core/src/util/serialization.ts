@@ -167,9 +167,10 @@ export class DefaultSerializer<T> implements Serializer<T> {
   }
 }
 
-export class TextSerializer implements Serializer<string> {
+// TODO: const object instead of singleton class? Same for DefaultSerializer.
+export class StringSerializer implements Serializer<string> {
   private constructor() {
-    // Use TextSerializer.instance instead.
+    // Use StringSerializer.instance instead.
   }
   serialize(value: string): Uint8Array {
     return new Uint8Array(Buffer.from(value, "utf-8"));
@@ -177,7 +178,7 @@ export class TextSerializer implements Serializer<string> {
   deserialize(message: Uint8Array): string {
     return Buffer.from(message).toString("utf-8");
   }
-  static readonly instance = new TextSerializer();
+  static readonly instance = new StringSerializer();
 }
 
 /**
@@ -252,27 +253,6 @@ export class TrivialSerializer<T> implements Serializer<T> {
   }
 }
 
-const ENCODING = "base64" as const;
-export function bytesAsString(array: Uint8Array) {
-  return Buffer.from(array).toString(ENCODING);
-}
-export function stringAsBytes(str: string) {
-  return new Uint8Array(Buffer.from(str, ENCODING));
-}
-
-/**
- * Compares two Uint8Array's for equality.
- */
-export function byteArrayEquals(one: Uint8Array, two: Uint8Array): boolean {
-  if (one.length !== two.length) return false;
-  // OPT: convert to a Uint32Array
-  // and do 4-byte comparisons at a time?
-  for (let i = 0; i < one.length; i++) {
-    if (one[i] !== two[i]) return false;
-  }
-  return true;
-}
-
 /**
  * Apply this function to protobuf.js uint64 and sint64 output values
  * to convert them to the nearest JS number (double).
@@ -288,4 +268,5 @@ export function int64AsNumber(num: number | Long): number {
 }
 
 // TODO: get rid of (non-singleton) instance caching? Seems overcomplicated.
-// In a collection, you can work around by only making one serializer for the whole thing.
+// In a collection, you can work around by only making one serializer for the whole thing,
+// unless it's a child object making the serializer.
