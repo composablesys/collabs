@@ -271,15 +271,6 @@ export class BatchingLayer
   }
 
   /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
-  /**
    * [commitBatch description]
    * @return [description]
    */

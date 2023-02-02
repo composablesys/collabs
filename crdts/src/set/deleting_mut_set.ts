@@ -227,19 +227,10 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return newValue;
   }
 
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
   add(...args: AddArgs): C {
     const message = DeletingMutCSetMessage.create({
       add: {
-        replicaUniqueNumber: this.runtime.getReplicaUniqueNumber(),
+        replicaUniqueNumber: this.runtime.getLocalCounter(),
         args: this.argsSerializer.serialize(args),
       },
     });

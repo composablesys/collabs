@@ -9,7 +9,7 @@ import {
   Optional,
 } from "@collabs/core";
 import { CRDTMetaLayerSave } from "../../../generated/proto_compiled";
-import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
+import { CRDTMeta } from "../crdt_meta";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import { ReceiveCRDTMetaBatch, SendCRDTMetaBatch } from "./crdt_meta_batches";
 import { ReceiveCRDTMeta, SendCRDTMeta } from "./crdt_meta_implementations";
@@ -108,20 +108,6 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     const child = childCallback(new InitToken("", this));
     this.child = child;
     return child;
-  }
-
-  getAddedContext(key: symbol): unknown {
-    if (key === CRDTMetaRequestee.CONTEXT_KEY) {
-      return this.currentSendMeta();
-    }
-    if (key === MessageMeta.NEXT_MESSAGE_META) {
-      let meta = <MessageMeta>(
-        this.getContext(MessageMeta.NEXT_MESSAGE_META)
-      ) ?? { sender: this.runtime.replicaID, isLocalEcho: true };
-      meta = meta.set(CRDTMeta.MESSAGE_META_KEY, this.currentSendMeta());
-      return meta;
-    }
-    return undefined;
   }
 
   /**

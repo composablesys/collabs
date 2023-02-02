@@ -1,69 +1,37 @@
+import { Serializer } from "../util";
 import { Collab } from "./collab";
 import { ICollabParent } from "./collab_parent";
-import { EventEmitter } from "./event_emitter";
-
-export interface LoadEvent {
-  /**
-   * Whether loading was skipped, i.e., load was called
-   * with an empty [[Optional]].
-   */
-  skipped: boolean;
-}
-
-export interface RuntimeEventsRecord {
-  /**
-   * Emitted once all Collabs have been loaded
-   * (i.e., [[Collab.load]] completed).
-   *
-   * You can listen on this event if you need to construct
-   * views of [[Collab]] state after loading and before any
-   * messages are received. However, you should check
-   * [[Runtime.isLoaded]] first - in that case, this event
-   * has already been emitted.
-   */
-  Load: LoadEvent;
-}
+import { MessageMeta } from "./message";
 
 /**
  * A runtime for a Collabs app, responsible for connecting
  * replicas of [[Collab]]s and providing other whole-app
  * functionality.
  *
- * [[Runtime]] is a general interface; specific use cases
- * (e.g., op-based CRDTs, OT, server serialized types) are
- * expected to provide their own implementations.
- * Collabs comes with one built-in implementation,
- * [[CRDTRuntime]], intended for use with op-based CRDTs
- * (see also [[CRDTApp]]). When implementing [[Runtime]],
- * consider extending [[AbstractRuntime]].
+ * [[Runtime]] is a general interface; specific network models are
+ * expected to provide their own implementations, such as
+ * [[CRDTRuntime]] for CRDTs.
  *
- * In general, a runtime creates and manages the tree of [[Collab]]s
- * for an app. In particular, it may choose specific
- * [[Collab]]s for the top layers of the tree, to provide
- * specific guarantees to the user-added [[Collab]]s.
+ * A runtime creates and manages the tree of Collabs
+ * for an app, and it provides utilities for those Collabs
+ * via [[Collab.runtime]] (e.g., [[replicaID]]).
  * A runtime also delivers messages between different
  * replicas. The exact network guarantees differ by
- * implementation (e.g., [[CRDTRuntime]] guarantees
+ * implementation; for example, CRDTRuntime guarantees
  * exactly-once causal broadcast with immediate local echo).
  *
- * [[Collab]] users generally need not interact with the
- * runtime, except indirectly through [[App]], which implements
- * its methods by calling the corresponding [[Runtime]] methods.
- *
- * [[Collab]]s themselves may use the
- * utility properties/methods [[replicaID]], [[getReplicaUniqueNumber]],
- * [[getUniqueString]], [[getNamePath]], and [[getDescendant]].
+ * Apps should not create or use a runtime directly. Instead, they
+ * should use wrappers like [[CRDTApp]] or [[CRDTContainer]],
+ * which hide the Collab-internal utilities.
  */
-export interface Runtime<
-  Events extends RuntimeEventsRecord = RuntimeEventsRecord
-> extends ICollabParent,
-    EventEmitter<Events> {
-  // Utilities for internal use by Collabs, serializers, etc.
-
+export interface Runtime extends ICollabParent {
   /**
    * Type guard, used by [[isRuntime]].
    */
   readonly isRuntime: true;
+
+  // Utilities for internal use by Collabs, serializers, etc.
+
   /**
    * An ID that uniquely identifies this replica among
    * all connected replicas.
@@ -74,26 +42,31 @@ export interface Runtime<
    */
   readonly replicaID: string;
 
+  // TODO: explicitly require unknown serializer only? To allow
+  // more optimized compression for message logs, like in default
+  // state-based impl. That also requires actually optimizing the
+  // serializer.
   /**
-   * Returns context added by this Runtime
-   * for the given key, or undefined if not added.
+   * Serializer for [[MessageMeta]].
    *
-   * The context key [[MessageMeta.NEXT_MESSAGE_META]] must be
-   * implemented.
+   * A [[Runtime]] implementation should customize this to handle
+   * its [[MessageMeta.runtimeSpecific]] type.
    */
-  getAddedContext(key: symbol): unknown;
+  readonly metaSerializer: Serializer<MessageMeta>;
 
   /**
-   * @param count = 1 When set, treat this as count calls,
+   * Returns a nonnegative counter value that will only be
+   * associated with this Runtime's [[replicaID]]
+   * once.
+   *
+   * @param count = 1 When set, treat this as `count` calls,
    * each claiming one number in sequence. Thus all numbers
    * in the range [returned number, returned number + count)
    * will only be associated with this runtime's [[replicaID]]
    * once.
-   * @return A unique nonnegative number that will only be
-   * associated with this Runtime's [[replicaID]]
-   * once.
+   * @return local counter
    */
-  getReplicaUniqueNumber(count?: number): number;
+  getLocalCounter(count?: number): number;
 
   /**
    * @return A UID, i.e., a unique string that will only appear once
@@ -102,19 +75,18 @@ export interface Runtime<
   getUID(): string;
 
   /**
-   * Returns the series of names on descendant's path to this Runtime.
+   * Returns the series of names on descendant's path to this Runtime
+   * in the tree of [[Collab]]s.
+   *
+   * [[getDescendant]] does the reverse procedure. They are used to
+   * implement [[CollabID]]s.
    *
    * The path may be truncated if this Runtime guarantees
    * that all
    * public-facing Collab's will be descendants of a given
    * Collab (e.g., a distinguished root).
    *
-   * [[getDescendant]] does the reverse procedure.
-   * [[getNamePath]] and [[getDescendant]] together allow
-   * one to make a serializable reference to a `Collab` that
-   * is comprehensible across replicas.
-   *
-   * See also: [[CollabID]]
+   * See also: [[CollabID.getNamePath]]
    *
    * @param  descendant [description]
    * @return            [description]
@@ -126,29 +98,17 @@ export interface Runtime<
    * given name path, or `undefined`
    * if it no longer exists.
    *
-   * If `namePath` is `[]`, `this` is returned.
-   *
-   * This method should not be called before [[load]] has completed.
-   * Otherwise, its behavior is unspecified.
-   *
-   * See also: [[CollabID]].
+   * See also: [[CollabID.getNamePath]].
    *
    * @param  namePath A name path referencing a descendant
    * of this `Runtime`, as returned by [[getNamePath]].
+   * It is iterated, consuming the iterator.
    * @return The descendant at the given name path, or `undefined`
    * if it no longer exists.
    * @throws If no descendant with the given `namePath` could possibly
    * exist.
    */
-  getDescendant(namePath: string[]): Collab | undefined;
-
-  /**
-   * True if all Collabs have been loaded
-   * (i.e., [[Collab.load]] completed).
-   *
-   * See [[RuntimeEventsRecord.Load]].
-   */
-  readonly isLoaded: boolean;
+  getDescendant(namePath: Iterable<string>): Collab | undefined;
 }
 
 export function isRuntime(x: unknown): x is Runtime {

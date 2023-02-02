@@ -3,8 +3,8 @@ import {
   CollabEventsRecord,
   ICollabParent,
   InitToken,
-  MessageMeta,
   Message,
+  MessageMeta,
 } from "../core";
 import { Optional } from "../util";
 
@@ -92,15 +92,6 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
       // Normal send.
       this.send(messagePath);
     }
-  }
-
-  getAddedContext(key: symbol): unknown {
-    if (key === MessageMeta.NEXT_MESSAGE_META) {
-      if (this.runLocallyMeta !== null) {
-        return this.runLocallyMeta;
-      } else return undefined;
-    }
-    return undefined;
   }
 
   receive(messagePath: (string | Uint8Array)[], meta: MessageMeta): void {

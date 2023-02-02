@@ -1,55 +1,50 @@
 /**
- * A message that is not serialized for sending over
- * the network until needed.
- *
- * This is useful as an optimization for messages carrying whole-transaction
- * or whole-batch metadata that might change while the
- * transaction/batch is being assembled: instead of
- * serializing a separate message for each version, you can
- * wait until the last minute to serialize the final
- * version.
- *
- * For local echos on the replica sending the message,
- * this will be delivered as-is. However, for deliveries
- * that are not local echos (in particular, deliveries
- * to remote replicas), the output of [[serialize]] will
- * be delivered instead.
+ * Type for messages sent and received by [[Collab]]s.
  */
-export interface SerializableMessage {
+export type Message = Uint8Array | string;
+
+// TODO: CRDTMessageMeta users: assert runtime in constructor? E.g. PrimitiveCRDT.
+/**
+ * Metadata for a received message, attached by the [[Runtime]].
+ */
+export interface MessageMeta {
   /**
-   * Serializes this message for sending over the
-   * network.
-   *
-   * This method must only be called once; after it
-   * is called, only the serialized form may be used.
-   * In particular, this should be called after all local
-   * echos involving this message have completed, just before
-   * sending it over the network.
+   * The message's type: an operation sent with [[Collab.send]],
+   * or a saved state returned by [[Collab.save]].
    */
-  serialize(): Uint8Array | string;
+  type: "op" | "save";
+  /**
+   * The replicaID that created the message.
+   */
+  creator: string;
+  /**
+   * Optionally, a [[Runtime]] implementation may include extra metadata
+   * in this field.
+   *
+   * [[Collab]]s that require specific metadata should cast this
+   * to the appropriate type. Note that such a Collab can only be used with
+   * the corresponding Runtime implementation.
+   *
+   * For example, [[CRDTRuntime]] puts [[CRDTMeta]] here. To access that in a
+   * CRDT implementation, consider extending [[PrimitiveCRDT]].
+   */
+  runtimeSpecific: unknown;
 }
 
+// TODO: rename to MessageMetaRequest?
 /**
- * Type for messages sent and received by [[Collab]]s.
+ * A [[Runtime]] may extend this interface to allow [[Collab]]s to configure
+ * the content of [[MessageMeta.runtimeSpecific]].
  *
- * Messages will always be sent on the network in the
- * form `Uint8Array | string`. However, as a convenience,
- * messages being sent (and their local echos) may instead
- * have type [[SerializableMessage]].
- */
-export type Message = Uint8Array | string | SerializableMessage;
-
-/**
- * Convenience function that calls [[Serializable.serialize]]
- * if needed, otherwise returning `message` directly.
+ * Specifically, a Collab makes a request in [[Collab.send]]; this affects
+ * the MessageMeta passed to [[Collab.receive]] with the sent message.
  *
- * This function must only be called once on
- * `message`, after which only the return value may
- * be used. This is because [[Serialize.serialize]]
- * must only be called once.
+ * For example, [[CRDTRuntime]] accepts requests of type [[CRDTMetaRequest]].
+ * A Collab can use them to request e.g. vector clock entries; that is
+ * often more network-efficient than sending the entries in the Collab's own message.
+ * To use CRDTMetaRequest in a CRDT implementation, consider extending [[PrimitiveCRDT]].
  */
-export function serializeMessage(message: Message): Uint8Array | string {
-  if (typeof message === "string" || message instanceof Uint8Array)
-    return message;
-  else return message.serialize();
+export interface MetaRequest {
+  /** Type guard. */
+  readonly isMetaRequest: true;
 }

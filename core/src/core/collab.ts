@@ -1,9 +1,7 @@
-import { Optional } from "../util";
 import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
-import { MessageMeta } from "./message_meta";
+import { Message, MessageMeta, MetaRequest } from "./message";
 import { isRuntime, Runtime } from "./runtime";
-import { Message } from "./message";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -68,12 +66,13 @@ export interface CollabEventsRecord {
    *
    * For Collabs that emit an event after each user-facing change,
    * this is effectively the same as [[Runtime]]'s "Change"
-   * event, except restricted to the scope of this [[Collab]] and
+   * event (TODO: removed), except restricted to the scope of this [[Collab]] and
    * its descendants.
    */
   Any: CollabEvent;
 }
 
+// TODO: revise all docstrings
 /**
  * The base class for collaborative data structures ("Collabs", for short).
  *
@@ -188,7 +187,7 @@ export abstract class Collab<
 
   /**
    * Uses the given [[InitToken]] to register this Collab
-   * with its parent, thus attaching it to the tree of Collabs.
+   * with its parent, attaching it to the tree of Collabs.
    * @param init A [[InitToken]] given by
    * `init.parent` for use in constructing this Collab.
    */
@@ -197,44 +196,6 @@ export abstract class Collab<
     this.runtime = isRuntime(init.parent) ? init.parent : init.parent.runtime;
     this.parent = init.parent;
     this.name = init.name;
-  }
-
-  /**
-   * Returns context for the given key as supplied by
-   * some ancestor, or undefined if not supplied.
-   *
-   * Keys are queried by [[Collab.getContext]] in
-   * a call chain (like in object inheritance): first, the [[Collab]]
-   * calls `getAddedContext(key)` on the parent;
-   * if that returns undefined, it calls on the grandparent,
-   * etc., ending with the [[Runtime]].
-   *
-   * As in object inheritance, a key present in one [[Collab]]
-   * overshadows its ancestors' values for that key,
-   * but that [[Collab]] may choose to consult the next
-   * higher up value, accessed through its own [[Collab.getContext]]
-   * method.
-   *
-   * The returned context may be a value or a function.
-   * The value case is analogous to a property,
-   * while the function case is analogous to a method.
-   *
-   * Typically, context values are local to this replica
-   * and should not be consulted when receiving messages.
-   * Otherwise, the received message
-   * may be processed inconsistently on different replicas.
-   * Context necessary for a message should instead be included
-   * in that message, either directly or as a field on its
-   * [[MessageMeta]].
-   */
-  protected getContext(key: symbol): unknown {
-    let current: CollabParent = this.parent;
-    for (;;) {
-      const currentAttempt = current.getAddedContext(key);
-      if (currentAttempt !== undefined) return currentAttempt;
-      if (isRuntime(current)) return undefined;
-      current = current.parent;
-    }
   }
 
   /**
@@ -282,8 +243,8 @@ export abstract class Collab<
    * `Collab` appended to the end. Note that the array may
    * be modified in-place by ancestors.
    */
-  protected send(messagePath: Message[]): void {
-    this.parent.childSend(this, messagePath);
+  protected send(messagePath: Message[], metaRequests: MetaRequest[]): void {
+    this.parent.childSend(this, messagePath, metaRequests);
   }
 
   /**
@@ -301,6 +262,8 @@ export abstract class Collab<
    */
   abstract receive(messagePath: Message[], meta: MessageMeta): void;
 
+  // TODO: give context/meta? Take meta requests? I guess in worst case,
+  // you could ask Runtime.
   /**
    * Returns save data describing the current state of this
    * `Collab` and its descendants, sufficient to restore the
@@ -337,25 +300,6 @@ export abstract class Collab<
    * @return save data
    */
   abstract save(): Uint8Array;
-
-  /**
-   * Loads this newly-initialized `Collab` and its descendants
-   * from `saveData` output by [[save]] on a previous replica
-   * of this `Collab` (wrapped in an [[Optional]]), or if
-   * `saveData` is an empty [[Optional]], indicates that
-   * loading is skipped (no prior save data).
-   *
-   * See [[save]] for detailed info on saving and loading
-   * usage.
-   *
-   * This may only be called on a newly initialized `Collab`,
-   * and it must be called (exactly once) before this `Collab`
-   * can be used to perform operations or receive messages.
-   * Behavior is undefined if that condition is violated.
-   *
-   * @param saveData [description]
-   */
-  abstract load(saveData: Optional<Uint8Array>): void;
 
   /**
    * Returns the "name path" from `descendant` to `this`,
@@ -398,20 +342,18 @@ export abstract class Collab<
    *
    * If `namePath` is `[]`, `this` is returned.
    *
-   * This method should not be called before [[load]] has completed.
-   * Otherwise, its behavior is unspecified.
-   *
    * See also: [[CollabID]].
    *
    * @param  namePath A name path referencing a descendant
    * of this `Collab` (inclusive), as returned by [[getNamePath]].
+   * It is iterated, consuming the iterator.
    * @return The descendant at the given name path, or `undefined`
    * if it no longer exists.
    * @throws If no descendant with the given `namePath` could possibly
    * exist, e.g., this has a fixed set of children and the child name
    * is not one of them.
    */
-  abstract getDescendant(namePath: string[]): Collab | undefined;
+  abstract getDescendant(namePath: Iterable<string>): Collab | undefined;
 
   /**
    * If this Collab is in its initial, post-constructor state, then

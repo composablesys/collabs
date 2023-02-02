@@ -6,6 +6,7 @@ export interface EventsRecord {
   [eventName: string]: any;
 }
 
+// TODO: remove/don't export these types?
 export type Unsubscribe = () => void;
 export type Handler<T, C> = (event: T, caller: C) => void;
 

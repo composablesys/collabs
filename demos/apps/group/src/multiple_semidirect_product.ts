@@ -333,15 +333,6 @@ export abstract class MultipleSemidirectProduct<
     this.send(messagePath);
   }
 
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): any {
-    return undefined;
-  }
-
   protected crdts: Array<StatefulCRDT<S>> = [];
 
   /**

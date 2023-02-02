@@ -1,32 +1,61 @@
+import { Serializer } from "../util";
 import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
-import { EventEmitter } from "./event_emitter";
-import { Runtime, RuntimeEventsRecord } from "./runtime";
-import { Message } from "./message";
-import { MessageMeta } from "./message_meta";
+import { Message, MessageMeta, MetaRequest } from "./message";
+import { Runtime } from "./runtime";
+
+class MetaSerializer implements Serializer<MessageMeta> {
+  constructor(readonly runtimeSpecificSerializer: Serializer<unknown>) {}
+
+  serialize(value: MessageMeta): Uint8Array {
+    // OPT: protobuf version
+    const msg = {
+      type: value.type,
+      creator: value.creator,
+      runtimeSpecific: this.runtimeSpecificSerializer.serialize(
+        value.runtimeSpecific
+      ),
+    };
+    return new Uint8Array(Buffer.from(JSON.stringify(msg)));
+  }
+  deserialize(message: Uint8Array): MessageMeta {
+    const msg = <
+      { type: "op" | "save"; creator: string; runtimeSpecific: Uint8Array }
+    >JSON.parse(Buffer.from(message).toString());
+    return {
+      type: msg.type,
+      creator: msg.creator,
+      runtimeSpecific: this.runtimeSpecificSerializer.deserialize(
+        msg.runtimeSpecific
+      ),
+    };
+  }
+}
 
 /**
  * Skeletal implementation of [[Runtime]] that uses
  * a root [[Collab]].
  */
-export abstract class AbstractRuntime<
-    Events extends RuntimeEventsRecord = RuntimeEventsRecord
-  >
-  extends EventEmitter<Events>
-  implements Runtime<Events>
-{
+export abstract class AbstractRuntime implements Runtime {
   readonly isRuntime: true = true;
+  readonly metaSerializer: Serializer<MessageMeta>;
   /**
    * Readonly. Set with setRootCollab.
    */
   protected rootCollab!: Collab;
 
-  constructor(readonly replicaID: string) {
-    super();
-
+  /**
+   * @param replicaID This replica's [[replicaID]].
+   * @param runtimeSpecificSerializer Serializer for this Runtime's [[MessageMeta.runtimeSpecific]] type.
+   */
+  constructor(
+    readonly replicaID: string,
+    runtimeSpecificSerializer: Serializer<unknown>
+  ) {
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
     }
+    this.metaSerializer = new MetaSerializer(runtimeSpecificSerializer);
   }
 
   protected setRootCollab<C extends Collab>(
@@ -38,14 +67,14 @@ export abstract class AbstractRuntime<
   }
 
   private idCounter = 0;
-  getReplicaUniqueNumber(count = 1): number {
+  getLocalCounter(count = 1): number {
     const ans = this.idCounter;
     this.idCounter += count;
     return ans;
   }
 
   getUID(): string {
-    return makeUID(this.replicaID, this.getReplicaUniqueNumber());
+    return makeUID(this.replicaID, this.getLocalCounter());
   }
 
   getNamePath(descendant: Collab): string[] {
@@ -56,25 +85,9 @@ export abstract class AbstractRuntime<
     return this.rootCollab.getDescendant(namePath);
   }
 
-  /**
-   * Returns context added by this Runtime
-   * for the given key, or undefined if not added.
-   *
-   * By default, this only implements the context key
-   * [[MessageMeta.NEXT_MESSAGE_META]]. Subclasses may add other context keys
-   * or overwrite that one, but they must ensure that
-   * [[MessageMeta.NEXT_MESSAGE_META]] remains implemented.
-   */
-  getAddedContext(key: symbol): unknown {
-    if (key === MessageMeta.NEXT_MESSAGE_META) {
-      return MessageMeta.new(this.replicaID, true, true);
-    } else return undefined;
-  }
-
   abstract childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Message[]
+    messagePath: Message[],
+    metaRequests: MetaRequest[]
   ): void;
-
-  abstract readonly isLoaded: boolean;
 }

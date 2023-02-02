@@ -124,15 +124,6 @@ export class CObject<
     this.send(messagePath);
   }
 
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
   receive(messagePath: Message[], meta: MessageMeta): void {
     if (messagePath.length === 0) {
       // We are the target

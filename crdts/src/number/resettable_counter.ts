@@ -1,11 +1,11 @@
 import {
+  CObject,
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  MessageMeta,
   int64AsNumber,
+  MessageMeta,
   Optional,
-  CObject,
 } from "@collabs/core";
 import {
   GrowOnlyResettableCCounterMessage,
@@ -65,8 +65,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
     }
 
     const m = this.M.get(this.runtime.replicaID);
-    const idCounter =
-      m === undefined ? this.runtime.getReplicaUniqueNumber() : m[2];
+    const idCounter = m === undefined ? this.runtime.getLocalCounter() : m[2];
     const prOld = m === undefined ? 0 : m[0];
     const message = GrowOnlyResettableCCounterMessage.create({
       add: {

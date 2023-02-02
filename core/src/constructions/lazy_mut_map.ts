@@ -165,15 +165,6 @@ export class LazyMutCMap<K, C extends Collab>
     this.send(messagePath);
   }
 
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): unknown {
-    return undefined;
-  }
-
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 

@@ -20,7 +20,7 @@
  * [[senderCounter]] and [[lamportTimestamp]] may be repeated
  * for the same sender, so they cannot be
  * used as part of a unique identifer
- * (see [[Runtime.getReplicaUniqueNumber]] instead).
+ * (see [[Runtime.getLocalCounter]] instead).
  *
  * [[vectorClockGet]] values, [[wallClockTime]],
  * and [[lamportTimestamp]] are not included by default.

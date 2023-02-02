@@ -36,6 +36,8 @@ export function randomReplicaID(
     // but that is not working, and besides, every user
     // of this package would have to remember to do so.
     // See https://github.com/webpack/webpack/issues/8826
+    // TODO: this does make an annoying warning with e.g. Rollup,
+    // for every consumer.
     const cryptoReal = <typeof crypto>(
       (<typeof require>eval("require"))("crypto")
     );
