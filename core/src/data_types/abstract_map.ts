@@ -5,7 +5,7 @@ import { Collab } from "../core";
 // and data_types.
 import { CObject } from "../constructions/object";
 import { CPrimitive } from "../constructions/primitive";
-import { CMap, CMapEventsRecord } from "./map";
+import { CMapEventsRecord, IMap } from "./imap";
 
 export declare abstract class AbstractCMap<
     K,
@@ -13,7 +13,7 @@ export declare abstract class AbstractCMap<
     SetArgs extends unknown[] = [V]
   >
   extends Collab
-  implements CMap<K, V, SetArgs>
+  implements IMap<K, V, SetArgs>
 {
   abstract set(key: K, ...args: SetArgs): V | undefined;
   abstract delete(key: K): void;
@@ -52,7 +52,7 @@ export declare abstract class AbstractCMap<
 }
 
 /**
- * This mixin adds default implementations of CMap
+ * This mixin adds default implementations of IMap
  * methods to an arbitrary Collab base class.
  * You may override the default implementations.
  *
@@ -150,9 +150,9 @@ export function MakeAbstractCMap<
  * It is recommend to subclass in the form
  * ```
  * class Foo<K, V, SetArgs, ...> extends AbstractCMapCObject<K, V, SetArgs, ...>
- * implements CMap<K, V, SetArgs>
+ * implements IMap<K, V, SetArgs>
  * ```
- * with a redundant `implements CMap<K, V, SetArgs>`, since otherwise TypeScript
+ * with a redundant `implements IMap<K, V, SetArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `K`, `V`, `SetArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -174,9 +174,9 @@ export abstract class AbstractCMapCObject<
  * It is recommend to subclass in the form
  * ```
  * class Foo<K, V, SetArgs, ...> extends AbstractCMapCPrimitive<K, V, SetArgs, ...>
- * implements CMap<K, V, SetArgs>
+ * implements IMap<K, V, SetArgs>
  * ```
- * with a redundant `implements CMap<K, V, SetArgs>`, since otherwise TypeScript
+ * with a redundant `implements IMap<K, V, SetArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `K`, `V`, `SetArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -197,9 +197,9 @@ export abstract class AbstractCMapCPrimitive<
  * It is recommend to subclass in the form
  * ```
  * class Foo<K, V, SetArgs, ...> extends AbstractCMapCollab<K, V, SetArgs, ...>
- * implements CMap<K, V, SetArgs>
+ * implements IMap<K, V, SetArgs>
  * ```
- * with a redundant `implements CMap<K, V, SetArgs>`, since otherwise TypeScript
+ * with a redundant `implements IMap<K, V, SetArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `K`, `V`, `SetArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around

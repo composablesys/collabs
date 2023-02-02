@@ -1,5 +1,5 @@
 /**
- * Some methods in CSet are copied or modified from methods on
+ * Some methods in ISet are copied or modified from methods on
  * JavaScript's Set class, in which case their
  * type annotations and docstrings are copied or modified from
  * those used in TypeScript, found in various files in
@@ -55,7 +55,7 @@ export interface CSetEventsRecord<T> extends CollabEventsRecord {
  * their presence in the set, using any semantics to
  * resolve conflicts.
  */
-export interface CSet<
+export interface ISet<
   T,
   AddArgs extends unknown[] = [T],
   Events extends CSetEventsRecord<T> = CSetEventsRecord<T>

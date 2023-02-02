@@ -1,7 +1,7 @@
 import {
   bytesAsString,
-  CMap,
   DefaultSerializer,
+  IMap,
   InitToken,
   int64AsNumber,
   Message,
@@ -26,7 +26,7 @@ export interface MultiValueMapItem<V> {
 
 export class MultiValueMap<K, V>
   extends AbstractCMapPrimitiveCRDT<K, MultiValueMapItem<V>[], [V]>
-  implements CMap<K, MultiValueMapItem<V>[], [V]>
+  implements IMap<K, MultiValueMapItem<V>[], [V]>
 {
   // In the common case (no concurrent sets on a given key), that key has
   // just one value. We store it as such, instead of as a singleton array,

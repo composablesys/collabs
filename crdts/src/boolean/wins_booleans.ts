@@ -1,5 +1,5 @@
 import { InitToken, Serializer } from "@collabs/core";
-import { AggregateCVariable } from "../variable";
+import { AggregateCVar } from "../variable";
 
 class BooleanSerializer implements Serializer<boolean> {
   private static readonly TRUE = new Uint8Array();
@@ -19,7 +19,7 @@ class BooleanSerializer implements Serializer<boolean> {
   static readonly INSTANCE = new BooleanSerializer();
 }
 
-export class TrueWinsCBoolean extends AggregateCVariable<boolean> {
+export class TrueWinsCBoolean extends AggregateCVar<boolean> {
   constructor(init: InitToken) {
     super(
       init,
@@ -31,7 +31,7 @@ export class TrueWinsCBoolean extends AggregateCVariable<boolean> {
   }
 }
 
-export class FalseWinsCBoolean extends AggregateCVariable<boolean> {
+export class FalseWinsCBoolean extends AggregateCVar<boolean> {
   constructor(init: InitToken) {
     super(
       init,

@@ -1,3 +1,12 @@
+import { LazyMutCMapSave } from "../../generated/proto_compiled";
+import {
+  Collab,
+  CollabEventsRecord,
+  ICollabParent,
+  InitToken,
+  Message,
+  MessageMeta,
+} from "../core";
 import {
   bytesAsString,
   DefaultSerializer,
@@ -6,15 +15,6 @@ import {
   stringAsBytes,
   WeakValueMap,
 } from "../util";
-import {
-  Collab,
-  CollabEventsRecord,
-  ICollabParent,
-  InitToken,
-  MessageMeta,
-  Message,
-} from "../core";
-import { LazyMutCMapSave } from "../../generated/proto_compiled";
 // Import AbstractCMapCollab from its specific file;
 // with whole-folder imports, AbstractCMapCObject and LazyMutCMap
 // create a circular dependency between constructions
@@ -22,7 +22,7 @@ import { LazyMutCMapSave } from "../../generated/proto_compiled";
 import { AbstractCMapCollab } from "../data_types/abstract_map";
 
 /**
- * A CMap of mutable values where every key is
+ * A IMap of mutable values where every key is
  * implicitly always present, although only nontrivial
  * values are actually stored in memory.
  *

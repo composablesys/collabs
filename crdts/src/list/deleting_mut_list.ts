@@ -6,7 +6,7 @@ import {
   Serializer,
 } from "@collabs/core";
 import { DeletingMutCSet } from "../set";
-import { LWWCVariable } from "../variable";
+import { LWWCVar } from "../variable";
 import { ListPosition } from "./list_position_source";
 import {
   MovableMutCListEntry,
@@ -33,9 +33,9 @@ export class DeletingMutCList<
 > extends MovableMutCListFromSet<
   C,
   InsertArgs,
-  LWWCVariable<ListPosition>,
+  LWWCVar<ListPosition>,
   DeletingMutCSet<
-    MovableMutCListEntry<C, LWWCVariable<ListPosition>>,
+    MovableMutCListEntry<C, LWWCVar<ListPosition>>,
     [ListPosition, InsertArgs]
   >
 > {
@@ -91,7 +91,7 @@ export class DeletingMutCList<
           setArgsSerializer
         ),
       (variableInit, initialValue, variableSerializer) =>
-        new LWWCVariable(variableInit, initialValue, variableSerializer),
+        new LWWCVar(variableInit, initialValue, variableSerializer),
       valueConstructor,
       initialValuesArgs,
       argsSerializer
@@ -123,7 +123,7 @@ export class DeletingMutCList<
     if (isRuntime(value.parent)) return false;
 
     return this.set.has(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
+      value.parent as MovableMutCListEntry<C, LWWCVar<ListPosition>>
     );
   }
 }

@@ -1,6 +1,6 @@
-import { InitToken, DefaultSerializer, Serializer } from "@collabs/core";
+import { DefaultSerializer, InitToken, Serializer } from "@collabs/core";
 import { MultiValueMapItem } from "../map";
-import { AggregateCVariable } from "./aggregate_variable";
+import { AggregateCVar } from "./aggregate_variable";
 
 /**
  * Assumes items.length > 0, and that the input is eventually consistent
@@ -16,7 +16,7 @@ export function lastWriter<T>(items: MultiValueMapItem<T>[]): T {
   return last.value;
 }
 
-export class LWWCVariable<T> extends AggregateCVariable<T> {
+export class LWWCVar<T> extends AggregateCVar<T> {
   constructor(
     init: InitToken,
     initialValue: T,

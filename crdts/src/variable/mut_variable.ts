@@ -4,19 +4,19 @@ import {
   CollabID,
   CollabIDSerializer,
   CSetEvent,
-  CVariable,
-  CVariableEventsRecord,
+  CVarEventsRecord,
   DefaultSerializer,
   InitToken,
+  IVar,
   Optional,
   OptionalSerializer,
   Serializer,
 } from "@collabs/core";
 import { DeletingMutCSet } from "../set";
-import { LWWCVariable } from "./lww_variable";
+import { LWWCVar } from "./lww_variable";
 
-export interface LWWMutCVariableEventsRecord<C extends Collab>
-  extends CVariableEventsRecord<Optional<C>> {
+export interface LWWMutCVarEventsRecord<C extends Collab>
+  extends CVarEventsRecord<Optional<C>> {
   /**
    * Emitted when a value is deleted from the value factory.
    *
@@ -33,12 +33,12 @@ export interface LWWMutCVariableEventsRecord<C extends Collab>
   Delete: CSetEvent<C>;
 }
 
-export class LWWMutCVariable<C extends Collab, SetArgs extends unknown[]>
-  extends CObject<LWWMutCVariableEventsRecord<C>>
-  implements CVariable<Optional<C>, SetArgs>
+export class LWWMutCVar<C extends Collab, SetArgs extends unknown[]>
+  extends CObject<LWWMutCVarEventsRecord<C>>
+  implements IVar<Optional<C>, SetArgs>
 {
   private readonly valueFactory: DeletingMutCSet<C, SetArgs>;
-  private readonly variable: LWWCVariable<Optional<CollabID<C>>>;
+  private readonly variable: LWWCVar<Optional<CollabID<C>>>;
 
   constructor(
     init: InitToken,
@@ -53,7 +53,7 @@ export class LWWMutCVariable<C extends Collab, SetArgs extends unknown[]>
     this.variable = this.addChild(
       "0",
       (init) =>
-        new LWWCVariable(
+        new LWWCVar(
           init,
           Optional.empty(),
           OptionalSerializer.getInstance(

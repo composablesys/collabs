@@ -47,11 +47,11 @@ Although the _state_ of a `Collab` is eventually consistent, the _events_ that i
 Examples:
 
 - When using an `AddWinsCSet` named `set`, one user calls `set.add("foo")` while another concurrently calls `set.add("bar")`. Then some users may see an "Add" event for "foo" followed by an "Add" event for "bar", while other users see the opposite order.
-- When using a `LWWCVariable` named `reg`, one user sets `reg.value = "foo"` while another concurrently sets `reg.value = "bar"`. Suppose "foo" wins under the last-writer-wins rule (its operation has a later wall clock time). Then users who receive the "bar" message and then the "foo" message will see two "Set" events: one for "bar", then one for "foo". Meanwhile, users who receive the "foo" message and then the "bar" message will only see one "Set" event, for "foo".
+- When using a `LWWCVar` named `reg`, one user sets `reg.value = "foo"` while another concurrently sets `reg.value = "bar"`. Suppose "foo" wins under the last-writer-wins rule (its operation has a later wall clock time). Then users who receive the "bar" message and then the "foo" message will see two "Set" events: one for "bar", then one for "foo". Meanwhile, users who receive the "foo" message and then the "bar" message will only see one "Set" event, for "foo".
 
 ## Treating Iterator Orders as Consistent
 
-`CSet` and `CMap` iterators might not yield elements in the same orders on different users, even when the `CSet`/`CMap`'s states are consistent. Instead, the iterators will yield elements in the order they were added/set locally. If you need a consistent iterator order, either use a `CList`, or maintain a sorted view of the collection.
+`ISet` and `IMap` iterators might not yield elements in the same orders on different users, even when the `ISet`/`IMap`'s states are consistent. Instead, the iterators will yield elements in the order they were added/set locally. If you need a consistent iterator order, either use a `IList`, or maintain a sorted view of the collection.
 
 ## Operations in Event Handlers or Initializers
 

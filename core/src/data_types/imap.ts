@@ -1,5 +1,5 @@
 /**
- * Some methods in CMap are copied or modified from methods on
+ * Some methods in IMap are copied or modified from methods on
  * JavaScript's Map class, in which case their
  * type annotations and docstrings are copied or modified from
  * those used in TypeScript, found in various files in
@@ -22,8 +22,8 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
-import { Optional } from "../util/optional";
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
+import { Optional } from "../util/optional";
 
 export interface CMapSetEvent<K, V> extends CollabEvent {
   key: K;
@@ -72,7 +72,7 @@ export interface CMapEventsRecord<K, V> extends CollabEventsRecord {
  * their presence in the map, using any semantics to
  * resolve conflicts.
  */
-export interface CMap<
+export interface IMap<
   K,
   V,
   SetArgs extends unknown[] = [V],

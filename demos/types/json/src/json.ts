@@ -8,7 +8,7 @@ import {
   DeletingMutCList,
   InitToken,
   LazyMutCMap,
-  LWWCVariable,
+  LWWCVar,
   Runtime,
   Serializer,
 } from "@collabs/collabs";
@@ -204,7 +204,7 @@ export class TextWrapper {
 // sub-reset, each causing a call up the whole chain.
 
 export class JSONElement extends CObject {
-  private variable: LWWCVariable<JSONValue>;
+  private variable: LWWCVar<JSONValue>;
   private object: JSONObject;
   private array: JSONArray;
   private text: CText;
@@ -223,7 +223,7 @@ export class JSONElement extends CObject {
     this.variable = this.addChild(
       "variable",
       (childInitToken) =>
-        new LWWCVariable<JSONValue>(
+        new LWWCVar<JSONValue>(
           childInitToken,
           null,
           JSONValueSerializer.getInstance(this.runtime)

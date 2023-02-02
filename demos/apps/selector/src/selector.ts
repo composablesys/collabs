@@ -7,7 +7,7 @@ import pako from "pako";
   const currentHost = container.registerCollab(
     "",
     (init) =>
-      new collabs.LWWMutCVariable(
+      new collabs.LWWMutCVar(
         init,
         (valueInitToken, htmlSrcGzipped: Uint8Array) => {
           const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });

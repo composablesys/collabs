@@ -1,19 +1,19 @@
 import {
+  AbstractCMapCObject,
+  Collab,
+  CollabID,
   CollabIDSerializer,
   DefaultSerializer,
+  InitToken,
   Optional,
   PairSerializer,
-  AbstractCMapCObject,
   Serializer,
-  Collab,
-  InitToken,
-  CollabID,
 } from "@collabs/core";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
 import { LWWCMap } from "./lww_map";
 
 /**
- * Collab-valued [[CMap]] where deletions only "archive"
+ * Collab-valued [[IMap]] where deletions only "archive"
  * values.
  *
  * Archived values can continue being used on their own

@@ -1,29 +1,29 @@
 import {
   CObject,
   CollabEventsRecord,
-  CVariableEvent,
+  CVarEvent,
   InitToken,
-  LWWCVariable,
+  LWWCVar,
 } from "@collabs/collabs";
 
 // Since you're exporting your type for reuse, it's a good
 // idea to expose meaningful events.
 // See the Collabs docs (https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md) for advice on what events to include.
 export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
-  FirstSet: CVariableEvent<T>;
-  SecondSet: CVariableEvent<U>;
+  FirstSet: CVarEvent<T>;
+  SecondSet: CVarEvent<U>;
 }
 
 /**
  * Demo custom type: a pair (first: T, second: U).
- * first and second are implemented using separate LWWCVariables,
+ * first and second are implemented using separate LWWCVars,
  * so changes to either of them are opaque writes
  * (no conflict resolution), but changing both concurrently
  * will keep both changes.
  */
 export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
-  private readonly firstReg: LWWCVariable<T>;
-  private readonly secondReg: LWWCVariable<U>;
+  private readonly firstReg: LWWCVar<T>;
+  private readonly secondReg: LWWCVar<U>;
 
   constructor(init: InitToken, firstInitial: T, secondInitial: U) {
     super(init);
@@ -31,11 +31,11 @@ export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
     // Setup child Collabs.
     this.firstReg = this.addChild(
       "firstReg",
-      (init) => new LWWCVariable(init, firstInitial)
+      (init) => new LWWCVar(init, firstInitial)
     );
     this.secondReg = this.addChild(
       "secondReg",
-      (init) => new LWWCVariable(init, secondInitial)
+      (init) => new LWWCVar(init, secondInitial)
     );
 
     // Convert child Collab events into our own.

@@ -10,12 +10,12 @@ import { Serializer } from "./serialization";
  * a (reference to a) Collab as a value in another Collab, and give that
  * other Collab a [[CollabIDSerializer]] so it can serialize them.
  *
- * For example, suppose you have a team of people represented as a [[CSet]]
+ * For example, suppose you have a team of people represented as a [[ISet]]
  * of custom `CPerson` Collabs, and you want to use a separate
- * [[CVariable]] to indicate the team leader. Then your CVariable should
+ * [[IVar]] to indicate the team leader. Then your IVar should
  * store a CollabID of the leader's CPerson, i.e., it should be a
- * `CVariable<CollabID<CPerson>>`.
- * Do not use a `CVariable<CPerson>` (without the CollabID) because this will
+ * `IVar<CollabID<CPerson>>`.
+ * Do not use a `IVar<CPerson>` (without the CollabID) because this will
  * cause serialization issues: you cannot serialize Collabs, only CollabIDs.
  */
 export class CollabID<C extends Collab> {

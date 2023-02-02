@@ -64,19 +64,19 @@ TODO: General advice (merge with below paragraph):
 - Events should be sufficient to maintain a view of
   the state. But, it is recommended to omit info
   that the user can get from the Collab during the event
-  listener (e.g., in CMap, events provide key but not value,
+  listener (e.g., in IMap, events provide key but not value,
   since the listener can get the value themselves.)
 - Give the previous value, if it cannot be determined
   otherwise (e.g. from the remaining state). That is useful
   for some views that only account for part of the state,
-  e.g., the size of a CMap.
+  e.g., the size of a IMap.
 - Don't dispatch events redundantly if there is no way
-  to tell whether they are redundant. E.g., in CSet, only
+  to tell whether they are redundant. E.g., in ISet, only
   dispatch Add if the value went from (not present) to (present);
   don't dispatch it if the value was already present.
   That is useful
   for some views that only track part of the state,
-  e.g., the size of a CSet.
+  e.g., the size of a ISet.
 - If you making a non-reusable component for an app and
   don't want to bother adding individual events, you can just
   emit "Change" events when your state changes (e.g., on
@@ -85,6 +85,6 @@ TODO: General advice (merge with below paragraph):
   "Change" events, or refresh your Collab-specific display on
   its children's "Change" events.
 
-See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`CSet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
+See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`ISet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
 > **Aside:** For custom types that you only plan to use in your own application, you may not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `Runtime`'s "Change" event.

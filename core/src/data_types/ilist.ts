@@ -1,5 +1,5 @@
 /**
- * Some methods in CList are copied or modified from methods on
+ * Some methods in IList are copied or modified from methods on
  * JavaScript's Array class, in which case their
  * type annotations and docstrings are copied or modified from
  * those used in TypeScript, found in various files in
@@ -61,7 +61,7 @@ export interface CListEventsRecord<T> extends CollabEventsRecord {
  * their presence in the list, using any semantics to
  * resolve conflicts.
  */
-export interface CList<
+export interface IList<
   T,
   InsertArgs extends unknown[] = [T],
   Events extends CListEventsRecord<T> = CListEventsRecord<T>
@@ -442,7 +442,7 @@ export interface MovableCList<
   T,
   InsertArgs extends unknown[] = [T],
   Events extends MovableCListEventsRecord<T> = MovableCListEventsRecord<T>
-> extends CList<T, InsertArgs, Events> {
+> extends IList<T, InsertArgs, Events> {
   /**
    * Move count values starting at startIndex
    * so the end up as if they were just inserted

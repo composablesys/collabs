@@ -1,18 +1,18 @@
 import {
-  CollabIDSerializer,
+  AbstractCMapCObject,
+  Collab,
   CollabID,
+  CollabIDSerializer,
   DefaultSerializer,
+  IMap,
+  InitToken,
+  ISet,
   Optional,
   PairSerializer,
   Serializer,
-  Collab,
-  InitToken,
-  AbstractCMapCObject,
-  CMap,
-  CSet,
 } from "@collabs/core";
 
-export interface ConflictsCMap<K, V> extends CMap<K, V> {
+export interface ConflictsCMap<K, V> extends IMap<K, V> {
   /**
    * Return the causally maximal concurrent values set
    * for key.
@@ -29,7 +29,7 @@ export class MutCMapFromSet<
   K,
   C extends Collab,
   SetArgs extends unknown[],
-  SetT extends CSet<C, [K, SetArgs]>,
+  SetT extends ISet<C, [K, SetArgs]>,
   MapT extends ConflictsCMap<K, CollabID<C>>
 > extends AbstractCMapCObject<K, C, SetArgs> {
   protected readonly valueSet: SetT;

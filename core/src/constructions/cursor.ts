@@ -11,7 +11,7 @@ import { Serializer } from "../util";
  * index as well.
  *
  * By "list", we mean any sequential data structure, not necessarily a
- * [[CList]] (e.g., [[CText]]).
+ * [[IList]] (e.g., [[CText]]).
  */
 export interface PositionedList {
   /**

@@ -132,9 +132,9 @@ export abstract class PrimitiveCRDT<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, InsertArgs, ...> extends AbstractCListPrimitiveCRDT<T, InsertArgs, ...>
- * implements CList<T, InsertArgs>
+ * implements IList<T, InsertArgs>
  * ```
- * with a redundant `implements CList<T, InsertArgs>`, since otherwise TypeScript
+ * with a redundant `implements IList<T, InsertArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `InsertArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -154,9 +154,9 @@ export abstract class AbstractCListPrimitiveCRDT<
  * It is recommend to subclass in the form
  * ```
  * class Foo<K, V, SetArgs, ...> extends AbstractCMapPrimitiveCRDT<K, V, SetArgs, ...>
- * implements CMap<K, V, SetArgs>
+ * implements IMap<K, V, SetArgs>
  * ```
- * with a redundant `implements CMap<K, V, SetArgs>`, since otherwise TypeScript
+ * with a redundant `implements IMap<K, V, SetArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `K`, `V`, `SetArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -177,9 +177,9 @@ export abstract class AbstractCMapPrimitiveCRDT<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, AddArgs, ...> extends AbstractCSetPrimitiveCRDT<T, AddArgs, ...>
- * implements CSet<T, AddArgs>
+ * implements ISet<T, AddArgs>
  * ```
- * with a redundant `implements CSet<T, AddArgs>`, since otherwise TypeScript
+ * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `AddArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around

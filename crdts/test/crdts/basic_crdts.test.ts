@@ -3,7 +3,7 @@ import { assert } from "chai";
 import {
   CCounter,
   CRDTApp,
-  LWWCVariable,
+  LWWCVar,
   ResettableCCounter,
   TestingCRDTAppGenerator,
 } from "../../src";
@@ -330,18 +330,18 @@ describe("basic_crdts", () => {
     });
   });
 
-  describe("LWWCVariable", () => {
-    let aliceLWW: LWWCVariable<string>;
-    let bobLWW: LWWCVariable<string>;
+  describe("LWWCVar", () => {
+    let aliceLWW: LWWCVar<string>;
+    let bobLWW: LWWCVar<string>;
 
     beforeEach(() => {
       aliceLWW = alice.registerCollab(
         "lwwId",
-        (init) => new LWWCVariable(init, "initial")
+        (init) => new LWWCVar(init, "initial")
       );
       bobLWW = bob.registerCollab(
         "lwwId",
-        (init) => new LWWCVariable(init, "initial")
+        (init) => new LWWCVar(init, "initial")
       );
       alice.load(Optional.empty());
       bob.load(Optional.empty());
@@ -351,7 +351,7 @@ describe("basic_crdts", () => {
       }
     });
 
-    function addEventListeners<T>(lww: LWWCVariable<T>, name: string): void {
+    function addEventListeners<T>(lww: LWWCVar<T>, name: string): void {
       // TODO
       // lww.on("LWW", (event) =>
       //   console.log(

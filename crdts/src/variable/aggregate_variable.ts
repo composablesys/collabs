@@ -1,9 +1,9 @@
 import {
   CObject,
-  CVariable,
-  CVariableEventsRecord,
+  CVarEventsRecord,
   DefaultSerializer,
   InitToken,
+  IVar,
   Serializer,
   TrivialSerializer,
 } from "@collabs/core";
@@ -12,9 +12,9 @@ import { MultiValueMap, MultiValueMapItem } from "../map/multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 
-export class AggregateCVariable<T>
-  extends CObject<CVariableEventsRecord<T>>
-  implements CVariable<T>
+export class AggregateCVar<T>
+  extends CObject<CVarEventsRecord<T>>
+  implements IVar<T>
 {
   private readonly mvMap: MultiValueMap<null, T>;
   private _value: T;

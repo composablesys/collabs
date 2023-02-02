@@ -1,10 +1,10 @@
 import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
-import { CSet, CSetEventsRecord } from "./set";
+import { CSetEventsRecord, ISet } from "./iset";
 
 export declare abstract class AbstractCSet<T, AddArgs extends unknown[] = [T]>
   extends Collab
-  implements CSet<T, AddArgs>
+  implements ISet<T, AddArgs>
 {
   abstract add(...args: AddArgs): T | undefined;
   abstract delete(value: T): void;
@@ -31,7 +31,7 @@ export declare abstract class AbstractCSet<T, AddArgs extends unknown[] = [T]>
 }
 
 /**
- * This mixin adds default implementations of CSet
+ * This mixin adds default implementations of ISet
  * methods to an arbitrary Collab base class.
  * You may override the default implementations.
  *
@@ -105,9 +105,9 @@ export function MakeAbstractCSet<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, AddArgs, ...> extends AbstractCSetCObject<T, AddArgs, ...>
- * implements CSet<T, AddArgs>
+ * implements ISet<T, AddArgs>
  * ```
- * with a redundant `implements CSet<T, AddArgs>`, since otherwise TypeScript
+ * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `AddArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -128,9 +128,9 @@ export abstract class AbstractCSetCObject<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, AddArgs, ...> extends AbstractCSetCPrimitive<T, AddArgs, ...>
- * implements CSet<T, AddArgs>
+ * implements ISet<T, AddArgs>
  * ```
- * with a redundant `implements CSet<T, AddArgs>`, since otherwise TypeScript
+ * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `AddArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -150,9 +150,9 @@ export abstract class AbstractCSetCPrimitive<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, AddArgs, ...> extends AbstractCSetCollab<T, AddArgs, ...>
- * implements CSet<T, AddArgs>
+ * implements ISet<T, AddArgs>
  * ```
- * with a redundant `implements CSet<T, AddArgs>`, since otherwise TypeScript
+ * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `AddArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around

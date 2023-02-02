@@ -2,7 +2,7 @@
 
 Collabs is designed to let you create custom type-safe collaborative data models. By _data model_, we mean the model in a model-view-\* architecture: the part that holds the application state. A _collaborative data model_ is then the shared state in a collaborative app, which all users can edit, and which automatically propagates these edits to all users.
 
-In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. 
+In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI.
 
 <!-- TODO: You can even publish them as [Custom Types](./custom_types.md) for others to use. -->
 
@@ -33,19 +33,20 @@ Notes:
 
 <!-- TODO: events somewhere (how to connect model with the view); perhaps also mention ops in each example (controller -> model). -->
 
-
 <!-- TODO: here, or ref elsewhere? (Extra guide page? Custom types? CObject typedoc?) -->
 
 ## Examples
 
-There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos). You may also find exampls in  [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type) be helpful.
+There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos). You may also find exampls in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type) be helpful.
 
 ### [CPairs](https://github.com/composablesys/collabs/blob/master/template-custom-type/src/custom_type.ts)
+
 **App:** We want to create a pair of variables.
 
-**Single-user data model:** We start by thinking about a single-user pairs. 
+**Single-user data model:** We start by thinking about a single-user pairs.
+
 ```ts
-class Pair<T, U>{
+class Pair<T, U> {
   private readonly firstReg: T;
   private readonly secondReg: U;
 
@@ -70,23 +71,27 @@ class Pair<T, U>{
   }
 }
 ```
+
 **Collaborative data model:** We now give a collaborative version in the form of a custom `Collab` that is called `CPair`, which can hold a pair collaboratively.
+
 ```ts
-class CPair<T, U> extends CObject{
+class CPair<T, U> extends CObject {
   //first declare the variables. Notice we have two private variables and they are both collabs instead of local variables.
-  private readonly firstReg: LWWCVariable<T>;
-  private readonly secondReg: LWWCVariable<U>;
+  private readonly firstReg: LWWCVar<T>;
+  private readonly secondReg: LWWCVar<U>;
 
   constructor(init: InitToken, firstInitial: T, secondInitial: U) {
     super(init);
 
     // Setup child Collabs.
     this.firstReg = this.addChild(
-      "firstReg", 
-      (init) => new Collabs.LWWCVariable(init, firstInitial));
+      "firstReg",
+      (init) => new Collabs.LWWCVar(init, firstInitial)
+    );
     this.secondReg = this.addChild(
       "secondReg",
-      (init) => new Collabs.LWWCVariable(init, firstInitial));
+      (init) => new Collabs.LWWCVar(init, firstInitial)
+    );
   }
 
   // Convert our own methods into child methods.
@@ -104,7 +109,6 @@ class CPair<T, U> extends CObject{
   }
 }
 ```
-
 
 ### Whiteboard
 
@@ -221,7 +225,7 @@ The app's top-level state is a variable `currentGame: Minesweeper`. When the use
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
 - `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `TrueWinsCBoolean` satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `LWWCVariable<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `LWWCVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
@@ -229,7 +233,7 @@ Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That le
 ```ts
 class CTile extends collabs.CObject {
   private readonly revealed: collabs.TrueWinsCBoolean;
-  private readonly flag: collabs.LWWCVariable<FlagStatus>;
+  private readonly flag: collabs.LWWCVar<FlagStatus>;
   readonly isMine: boolean;
   number: number = 0;
 
@@ -241,8 +245,7 @@ class CTile extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      (init) =>
-        new collabs.LWWCVariable<FlagStatus>(init, FlagStatus.NONE)
+      (init) => new collabs.LWWCVar<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }
@@ -255,7 +258,7 @@ We must likewise transform the `Minesweeper` class. This deviates from the usual
 
 First, we cannot use randomness in the constructor: per [Initialization](./initialization.html), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
-Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` implementations, there is actually no need for us to use a `CList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
+Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `IList` implementations, there is actually no need for us to use a `IList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
 
 ```ts
 class CMinesweeper extends collabs.CObject {
@@ -300,16 +303,13 @@ class CMinesweeper extends collabs.CObject {
 }
 ```
 
-Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./built_in_collabs/html) suggests `LWWMutCVariable<CMinesweeper>` because the game is internally mutable:
+Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./built_in_collabs/html) suggests `LWWMutCVar<CMinesweeper>` because the game is internally mutable:
 
 ```ts
 const currentGame = container.registerCollab(
   "currentGame",
   (init) =>
-    new collabs.LWWMutCVariable(
-      init,
-      collabs.ConstructorAsFunction(CMinesweeper)
-    )
+    new collabs.LWWMutCVar(init, collabs.ConstructorAsFunction(CMinesweeper))
 );
 ```
 
@@ -337,4 +337,4 @@ TODO: Views (example with sorted set): not directly replicated, but still EC so 
 
 ### Rich Text (Quill)
 
-TODO: rich text? To point out need for adjusting the original data model to fit the known operations (no good "split" op on CList, which you'd need to match Quill's exact data model). -->
+TODO: rich text? To point out need for adjusting the original data model to fit the known operations (no good "split" op on IList, which you'd need to match Quill's exact data model). -->

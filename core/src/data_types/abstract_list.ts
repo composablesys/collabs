@@ -1,13 +1,13 @@
 import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
-import { CList, CListEventsRecord } from "./list";
+import { CListEventsRecord, IList } from "./ilist";
 
 export declare abstract class AbstractCList<
     T,
     InsertArgs extends unknown[] = [T]
   >
   extends Collab
-  implements CList<T, InsertArgs>
+  implements IList<T, InsertArgs>
 {
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
   abstract delete(startIndex: number, count?: number): void;
@@ -134,7 +134,7 @@ export declare abstract class AbstractCList<
 }
 
 /**
- * This mixin adds default implementations of CList
+ * This mixin adds default implementations of IList
  * methods to an arbitrary Collab base class.
  * You may override the default implementations.
  *
@@ -515,9 +515,9 @@ export function MakeAbstractCList<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, InsertArgs, ...> extends AbstractCListCObject<T, InsertArgs, ...>
- * implements CList<T, InsertArgs>
+ * implements IList<T, InsertArgs>
  * ```
- * with a redundant `implements CList<T, InsertArgs>`, since otherwise TypeScript
+ * with a redundant `implements IList<T, InsertArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `InsertArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -538,9 +538,9 @@ export abstract class AbstractCListCObject<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, InsertArgs, ...> extends AbstractCListCPrimitive<T, InsertArgs, ...>
- * implements CList<T, InsertArgs>
+ * implements IList<T, InsertArgs>
  * ```
- * with a redundant `implements CList<T, InsertArgs>`, since otherwise TypeScript
+ * with a redundant `implements IList<T, InsertArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `InsertArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around
@@ -560,9 +560,9 @@ export abstract class AbstractCListCPrimitive<
  * It is recommend to subclass in the form
  * ```
  * class Foo<T, InsertArgs, ...> extends AbstractCListCollab<T, InsertArgs, ...>
- * implements CList<T, InsertArgs>
+ * implements IList<T, InsertArgs>
  * ```
- * with a redundant `implements CList<T, InsertArgs>`, since otherwise TypeScript
+ * with a redundant `implements IList<T, InsertArgs>`, since otherwise TypeScript
  * will not force you to use the actual types `T` and `InsertArgs` in your
  * method signatures. This is due to a hack that we use to get those generic
  * types into the mixin that defines this class, working around

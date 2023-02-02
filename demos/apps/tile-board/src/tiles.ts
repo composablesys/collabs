@@ -14,10 +14,10 @@ class CImmutable<T> extends collabs.CObject {
 
 class CTile extends collabs.CObject {
   readonly contentCollab: collabs.Collab;
-  readonly left: collabs.LWWCVariable<number>;
-  readonly top: collabs.LWWCVariable<number>;
-  readonly width: collabs.LWWCVariable<number>;
-  readonly height: collabs.LWWCVariable<number>;
+  readonly left: collabs.LWWCVar<number>;
+  readonly top: collabs.LWWCVar<number>;
+  readonly width: collabs.LWWCVar<number>;
+  readonly height: collabs.LWWCVar<number>;
 
   readonly dom: HTMLDivElement;
   readonly innerDiv: HTMLDivElement;
@@ -53,19 +53,19 @@ class CTile extends collabs.CObject {
     );
     this.left = this.addChild(
       "x",
-      (init) => new collabs.LWWCVariable(init, initialX)
+      (init) => new collabs.LWWCVar(init, initialX)
     );
     this.top = this.addChild(
       "y",
-      (init) => new collabs.LWWCVariable(init, initialY)
+      (init) => new collabs.LWWCVar(init, initialY)
     );
     this.width = this.addChild(
       "width",
-      (init) => new collabs.LWWCVariable(init, initialWidth)
+      (init) => new collabs.LWWCVar(init, initialWidth)
     );
     this.height = this.addChild(
       "height",
-      (init) => new collabs.LWWCVariable(init, initialHeight)
+      (init) => new collabs.LWWCVar(init, initialHeight)
     );
 
     // Keep this.dom in sync with its rect.

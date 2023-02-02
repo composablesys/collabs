@@ -5,7 +5,7 @@ import {
   Serializer,
 } from "@collabs/core";
 import { ArchivingMutCSet } from "../set";
-import { LWWCVariable } from "../variable";
+import { LWWCVar } from "../variable";
 import { ListPosition } from "./list_position_source";
 import {
   MovableMutCListEntry,
@@ -34,9 +34,9 @@ export class ArchivingMutCList<
 > extends MovableMutCListFromSet<
   C,
   InsertArgs,
-  LWWCVariable<ListPosition>,
+  LWWCVar<ListPosition>,
   ArchivingMutCSet<
-    MovableMutCListEntry<C, LWWCVariable<ListPosition>>,
+    MovableMutCListEntry<C, LWWCVar<ListPosition>>,
     [ListPosition, InsertArgs]
   >
 > {
@@ -92,7 +92,7 @@ export class ArchivingMutCList<
           setArgsSerializer
         ),
       (variableInit, initialValue, variableSerializer) =>
-        new LWWCVariable(variableInit, initialValue, variableSerializer),
+        new LWWCVar(variableInit, initialValue, variableSerializer),
       valueConstructor,
       initialValuesArgs,
       argsSerializer
@@ -125,7 +125,7 @@ export class ArchivingMutCList<
    */
   restore(value: C): void {
     this.set.restore(
-      value.parent as MovableMutCListEntry<C, LWWCVariable<ListPosition>>
+      value.parent as MovableMutCListEntry<C, LWWCVar<ListPosition>>
     );
   }
 }

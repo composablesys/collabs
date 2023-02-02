@@ -3,11 +3,11 @@ import {
   CMessenger,
   CObject,
   Collab,
-  CSet,
-  CVariable,
   DefaultSerializer,
   InitToken,
+  ISet,
   isRuntime,
+  IVar,
   MovableCList,
   MovableCListEventsRecord,
   Optional,
@@ -25,7 +25,7 @@ import {
 
 export class MovableMutCListEntry<
   C extends Collab,
-  VarT extends CVariable<ListPosition>
+  VarT extends IVar<ListPosition>
 > extends CObject {
   readonly value: C;
   readonly position: VarT;
@@ -44,8 +44,8 @@ export class MovableMutCListEntry<
 export class MovableMutCListFromSet<
     C extends Collab,
     InsertArgs extends unknown[],
-    VarT extends CVariable<ListPosition>,
-    SetT extends CSet<
+    VarT extends IVar<ListPosition>,
+    SetT extends ISet<
       MovableMutCListEntry<C, VarT>,
       [ListPosition, InsertArgs]
     >,

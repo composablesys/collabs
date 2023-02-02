@@ -1,11 +1,11 @@
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
-export interface CVariableEvent<T> extends CollabEvent {
+export interface CVarEvent<T> extends CollabEvent {
   value: T;
   previousValue: T;
 }
 
-export interface CVariableEventsRecord<T> extends CollabEventsRecord {
+export interface CVarEventsRecord<T> extends CollabEventsRecord {
   /**
    * Emitted whenever the value is set or otherwise
    * changed.
@@ -14,7 +14,7 @@ export interface CVariableEventsRecord<T> extends CollabEventsRecord {
    * actually changes under `===` equality. Implementations
    * that behave otherwise should clearly indicate so.
    */
-  Set: CVariableEvent<T>;
+  Set: CVarEvent<T>;
 }
 
 /**
@@ -27,7 +27,7 @@ export interface CVariableEventsRecord<T> extends CollabEventsRecord {
  * them to contruct the actual added value of type T,
  * e.g., using a user-supplied callback in the constructor.
  *
- * There are no CVariable-specific events; instead, listen
+ * There are no IVar-specific events; instead, listen
  * on the generic Message event and use this.value to read
  * the changed value, if needed.
  *
@@ -35,10 +35,10 @@ export interface CVariableEventsRecord<T> extends CollabEventsRecord {
  * are usually called "registers" instead of "variables",
  * e.g., "last-writer wins register".
  */
-export interface CVariable<
+export interface IVar<
   T,
   SetArgs extends unknown[] = [T],
-  Events extends CVariableEventsRecord<T> = CVariableEventsRecord<T>
+  Events extends CVarEventsRecord<T> = CVarEventsRecord<T>
 > extends Collab<Events> {
   /**
    * Sends args to every replica in serialized form.

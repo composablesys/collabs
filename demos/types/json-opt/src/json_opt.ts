@@ -7,7 +7,7 @@ import {
   DefaultSerializer,
   InitToken,
   LazyMutCMap,
-  LWWCVariable,
+  LWWCVar,
   PrimitiveCList,
   Serializer,
   TextSerializer,
@@ -32,7 +32,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   // TODO: use LwwCMap instead, or update text.
   private readonly internalMap: LazyMutCMap<
     string,
-    LWWCVariable<number | string | boolean | InternalType | undefined>
+    LWWCVar<number | string | boolean | InternalType | undefined>
   >;
   private readonly LazyMutCMap: LazyMutCMap<string, PrimitiveCList<string>>;
   private readonly keySet: AddWinsCSet<string>;
@@ -47,7 +47,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
       (init) =>
         new LazyMutCMap(
           init,
-          (valueInit) => new LWWCVariable(valueInit, undefined),
+          (valueInit) => new LWWCVar(valueInit, undefined),
           keySerializer
         )
     );

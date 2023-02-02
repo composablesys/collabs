@@ -1,7 +1,7 @@
 import {
   AbstractCMapCObject,
-  CMap,
   DefaultSerializer,
+  IMap,
   InitToken,
   Serializer,
 } from "@collabs/core";
@@ -9,7 +9,7 @@ import { MultiValueMap, MultiValueMapItem } from "../map";
 
 export class AggregateCMap<K, V>
   extends AbstractCMapCObject<K, V>
-  implements CMap<K, V>
+  implements IMap<K, V>
 {
   private readonly mvMap: MultiValueMap<K, V>;
 

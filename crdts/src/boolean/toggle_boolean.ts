@@ -1,15 +1,15 @@
 import {
-  CVariable,
-  CVariableEventsRecord,
+  CVarEventsRecord,
   InitToken,
+  IVar,
   MessageMeta,
   Optional,
 } from "@collabs/core";
 import { PrimitiveCRDT } from "../constructions";
 
 export class ToggleCBoolean
-  extends PrimitiveCRDT<CVariableEventsRecord<boolean>>
-  implements CVariable<boolean>
+  extends PrimitiveCRDT<CVarEventsRecord<boolean>>
+  implements IVar<boolean>
 {
   private valueInternal: boolean;
 
