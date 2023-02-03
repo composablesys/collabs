@@ -13,8 +13,6 @@ export interface MakeAbstractList_Methods<
    * behavior.
    */
   clear(): void;
-  // TODO: why? Leave out of public interface if only for iterator stuff.
-  readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
   /**
@@ -27,7 +25,10 @@ export interface MakeAbstractList_Methods<
   push(...args: InsertArgs): T | undefined;
   shift(): T;
   unshift(...args: InsertArgs): T | undefined;
-  // TODO: splice
+  // Splice omitted because in InsertArgs form, it is hard to
+  // allow multiple new values. However, implementations with
+  // InsertArgs = [T] may choose to add splice in the obvious way
+  // (e.g., see PrimitiveCList).
 
   // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
@@ -125,7 +126,19 @@ export interface MakeAbstractList_Methods<
   slice(start?: number, end?: number): T[];
 }
 
-// TODO: try removing casts, unknowns below.
+const proxyHandler: ProxyHandler<
+  IList<unknown, unknown[], CListEventsRecord<unknown>>
+> = {
+  get: function (target, p) {
+    if (p === "length") return target.length;
+    else return target.get(Number.parseInt(p as string));
+  },
+  has(_target, _p) {
+    // Let the Array methods know that we do indeed
+    // have properties for all of the indices.
+    return true;
+  },
+};
 
 /**
  * This mixin adds default implementations of [[IList]]
@@ -172,10 +185,6 @@ export function MakeAbstractList<
       for (let i = this.length - 1; i >= 0; i--) {
         this.delete(i);
       }
-    }
-
-    get size(): number {
-      return this.length;
     }
 
     [Symbol.iterator](): IterableIterator<T> {
@@ -233,17 +242,7 @@ export function MakeAbstractList<
       // list), to prevent recreating it each time it is used?
 
       // Use a proxy to define [index] accessors
-      return new Proxy(this, {
-        get: function (target, p) {
-          if (p === "length") return target.length;
-          else return target.get(Number.parseInt(p as string));
-        },
-        has(_target, _p) {
-          // Let the Array methods know that we do indeed
-          // have properties for all of the indices.
-          return true;
-        },
-      }) as unknown as {
+      return new Proxy(this, proxyHandler as ProxyHandler<this>) as unknown as {
         readonly length: number;
         readonly [index: number]: T;
       };

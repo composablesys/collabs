@@ -17,7 +17,6 @@ export declare abstract class AbstractList_Collab<
   implements IList<T, InsertArgs, Events>
 {
   clear(): void;
-  readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
   toString(): string;
@@ -135,7 +134,6 @@ export declare abstract class AbstractList_CObject<
   implements IList<T, InsertArgs, Events>
 {
   clear(): void;
-  readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
   toString(): string;
@@ -253,7 +251,6 @@ export declare abstract class AbstractList_CPrimitive<
   implements IList<T, InsertArgs, Events>
 {
   clear(): void;
-  readonly size: number;
   [Symbol.iterator](): IterableIterator<T>;
   entries(): IterableIterator<[number, T]>;
   toString(): string;
