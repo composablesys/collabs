@@ -1,9 +1,12 @@
+// TODO: rename to Update? Since it's not just send/receive.
+// Update CRDTRuntime, CRDTApp to match.
 /**
  * Type for messages sent and received by [[Collab]]s.
  */
 export type Message = Uint8Array | string;
 
 // TODO: CRDTMessageMeta users: assert runtime in constructor? E.g. PrimitiveCRDT.
+// TODO: separate out Message vs Event meta?
 /**
  * Metadata for a received message, attached by the [[Runtime]].
  */
@@ -11,8 +14,13 @@ export interface MessageMeta {
   /**
    * The message's type: an operation sent with [[Collab.send]],
    * or a saved state returned by [[Collab.save]].
+   *
+   * This field is mostly useful for event listeners.
+   * In a Collab implementation,
+   * messages delivered to [[Collab.receive]] always have type "send",
+   * and messages delivered to [[Collab.load]] always have type "save".
    */
-  type: "op" | "save";
+  method: "send" | "save";
   /**
    * The replicaID that created the message.
    */

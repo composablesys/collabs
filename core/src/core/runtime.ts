@@ -94,7 +94,7 @@ export interface Runtime extends ICollabParent {
    * @throws If no descendant with the given `namePath` could possibly
    * exist.
    */
-  getDescendant(namePath: Iterable<string>): Collab | undefined;
+  getDescendant(namePath: Iterator<string>): Collab | undefined;
 }
 
 export function isRuntime(x: unknown): x is Runtime {

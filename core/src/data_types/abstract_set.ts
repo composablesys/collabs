@@ -110,10 +110,9 @@ function withBaseClass<
 declare abstract class AbstractCSetCObject_declaration<
     T,
     AddArgs extends unknown[] = [T],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>,
-    C extends Collab = Collab
+    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
   >
-  extends CObject<Events, C>
+  extends CObject<Events>
   implements ISet<T, AddArgs>
 {
   abstract add(...args: AddArgs): T | undefined;

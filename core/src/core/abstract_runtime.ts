@@ -51,7 +51,7 @@ export abstract class AbstractRuntime implements Runtime {
     return this.rootCollab.getNamePath(descendant);
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
+  getDescendant(namePath: Iterator<string>): Collab | undefined {
     return this.rootCollab.getDescendant(namePath);
   }
 

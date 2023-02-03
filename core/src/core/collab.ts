@@ -300,10 +300,10 @@ export abstract class Collab<
    *
    * @return save data
    */
-  abstract save(): Message;
+  abstract save(): Uint8Array;
 
   // OPT: tree-aware format (e.g. map plus this-data), like send/receive.
-  abstract load(saveData: Message, meta: MessageMeta): void;
+  abstract load(saveData: Uint8Array, meta: MessageMeta): void;
 
   /**
    * Returns the "name path" from `descendant` to `this`,
@@ -336,6 +336,7 @@ export abstract class Collab<
       }
       current = current.parent;
     }
+    namePath.reverse();
     return namePath;
   }
 
@@ -357,7 +358,7 @@ export abstract class Collab<
    * exist, e.g., this has a fixed set of children and the child name
    * is not one of them.
    */
-  abstract getDescendant(namePath: Iterable<string>): Collab | undefined;
+  abstract getDescendant(namePath: Iterator<string>): Collab | undefined;
 
   /**
    * If this Collab is in its initial, post-constructor state, then

@@ -59,11 +59,11 @@ export abstract class CPrimitive<
     meta: MessageMeta
   ): void;
 
-  getDescendant(namePath: Iterable<string>): Collab | undefined {
-    const fullPath = [...namePath];
-    if (fullPath.length !== 0) {
+  getDescendant(namePath: Iterator<string>): Collab | undefined {
+    const next = namePath.next();
+    if (!next.done) {
       throw new Error(
-        `CPrimitive has no descendants, but namePath = ${fullPath}`
+        `CPrimitive has no descendants, but namePath starts with "${next.value}"`
       );
     }
     return this;

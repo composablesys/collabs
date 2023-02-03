@@ -8,7 +8,6 @@ import {
   MessageMeta,
   MetaRequest,
 } from "../core";
-import { Optional } from "../util";
 
 /**
  * A collaborating object, consisting of properties that
@@ -170,24 +169,21 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     return null;
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) {
-      // Indicates skipped loading. Pass on the message.
-      for (const child of this.children.values()) child.load(saveData);
-      this.loadObject(saveData);
-    } else {
-      const saveMessage = CObjectSave.decode(saveData.get());
-      for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
-        this.children.get(name)!.load(Optional.of(childSave));
-      }
-      const objectSave = Object.prototype.hasOwnProperty.call(
-        saveMessage,
-        "objectSave"
-      )
-        ? saveMessage.objectSave
-        : null;
-      this.loadObject(Optional.of(objectSave));
+  load(saveData: Uint8Array, meta: MessageMeta): void {
+    const saveMessage = CObjectSave.decode(saveData);
+    for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
+      const child = this.children.get(name);
+      // For versioning purposes, skip loading children that no longer exist.
+      // TODO: document
+      if (child !== undefined) child.load(childSave, meta);
     }
+    const objectSave = Object.prototype.hasOwnProperty.call(
+      saveMessage,
+      "objectSave"
+    )
+      ? saveMessage.objectSave
+      : null;
+    this.loadObject(objectSave);
   }
 
   /**
@@ -203,14 +199,17 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * is being skipped (the app instance is new).
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected loadObject(saveData: Optional<Uint8Array | null>): void {
+  protected loadObject(saveData: Uint8Array | null): void {
     // Does nothing by default.
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    if (namePath.length === 0) return this;
+  getDescendant(namePath: IterableIterator<string>): Collab | undefined {
+    const iter = namePath[Symbol.iterator]();
+    const next = iter.next();
 
-    const name = namePath[namePath.length - 1];
+    if (next.done) return this;
+
+    const name = next.value;
     const child = this.children.get(name);
     if (child === undefined) {
       throw new Error(
@@ -220,8 +219,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
           JSON.stringify([...this.children.keys()])
       );
     }
-    namePath.length--;
-    return child.getDescendant(namePath);
+    return child.getDescendant(iter);
   }
 
   /**

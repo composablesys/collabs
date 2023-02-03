@@ -6,6 +6,7 @@ import {
   InitToken,
   Message,
   MessageMeta,
+  MetaRequest,
 } from "../core";
 import {
   Bytes,
@@ -138,11 +139,6 @@ export class LazyMutCMap<K, C extends Collab>
           // returns the nontrivial children.
           this.nontrivialMap.set(keyString, value);
         } else {
-          // We assume that [[load]] has already finished, since this map
-          // isn't supposed to be used (e.g. calling [[get]]) until then.
-          // Thus value will never be loaded directly (by [[load]]), so
-          // we need to indicate that loading was skipped.
-          value.load(Optional.empty());
           // The value starts trivial; if it becomes nontrivial
           // due to a message, receive will move
           // it to nontrivialMap.
@@ -155,13 +151,17 @@ export class LazyMutCMap<K, C extends Collab>
     } else return [value, true];
   }
 
-  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
+  childSend(
+    child: Collab<CollabEventsRecord>,
+    messagePath: Message[],
+    metaRequests: MetaRequest[]
+  ): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
     messagePath.push(child.name);
-    this.send(messagePath);
+    this.send(messagePath, metaRequests);
   }
 
   private inReceiveKeyStr?: string = undefined;
@@ -308,25 +308,21 @@ export class LazyMutCMap<K, C extends Collab>
     return LazyMutCMapSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) {
-      // No children to notify.
-      return;
-    }
-
-    const saveMessage = LazyMutCMapSave.decode(saveData.get());
+  load(saveData: Uint8Array, meta: MessageMeta): void {
+    const saveMessage = LazyMutCMapSave.decode(saveData);
     for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
       const child = this.getInternal(this.stringAsKey(name), name, true)[0];
-      child.load(Optional.of(childSave));
+      child.load(childSave, meta);
     }
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    if (namePath.length === 0) return this;
+  getDescendant(namePath: Iterator<string>): Collab | undefined {
+    const next = namePath.next();
 
-    const name = namePath[namePath.length - 1];
+    if (next.done) return this;
+
+    const name = next.value;
     const child = this.getInternal(this.stringAsKey(name), name, false)[0];
-    namePath.length--;
     return child.getDescendant(namePath);
   }
 

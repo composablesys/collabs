@@ -4,6 +4,7 @@ export {
   AbstractCMap,
   AbstractCSet,
   Bytes,
+  CConst,
   CLazyMap,
   CListEvent,
   CListEventsRecord,

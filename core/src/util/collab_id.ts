@@ -45,7 +45,9 @@ export class CollabID<C extends Collab> {
    */
   get(): C | undefined {
     // TODO: document this: need to copy in case getDescendant modifies it.
-    return <C | undefined>this.base.getDescendant([...this.pathToBase]);
+    return <C | undefined>(
+      this.base.getDescendant(this.pathToBase[Symbol.iterator]())
+    );
   }
 
   /**
