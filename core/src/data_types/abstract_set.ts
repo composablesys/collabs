@@ -4,17 +4,22 @@ import { CSetEventsRecord, ISet } from "./iset";
 /**
  * Utility type for [[MakeAbstractSet]]'s type signature.
  */
-export interface MakeAbstractSet_Methods<
-  T,
-  AddArgs extends unknown[] = [T],
-  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
-> {
+export interface MakeAbstractSet_Methods<T, AddArgs extends unknown[] = [T]> {
+  /**
+   * Calls delete on every value in the set.
+   *
+   * Override this method if you want to optimize this
+   * behavior.
+   */
   clear(): void;
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
   [Symbol.iterator](): IterableIterator<T>;
+  /**
+   * @return [...this].toString()
+   */
   toString(): string;
 }
 
@@ -34,40 +39,10 @@ export interface MakeAbstractSet_Methods<
  * If you do need to apply this mixin to a different `Base`, beware that
  * it tricky to use in TypeScript. Specifically, the mixin requires generic type
  * parameters, but you cannot pass a class's generic type parameters to
- * a mixin that it extends. To work around this, we recommend:
- * 1. Define your mixin's concrete instance in a `.js` file:
- * ```js
- * export const AbstractSet_MyBase = MakeAbstractSet(MyBase);
- * ```
- * 2. Declare your instance's type in a matching `.d.ts` file as follows
- * (copy-paste and replace "MyBase"):
- * ```ts
- * export declare abstract class AbstractSet_MyBase<
- *     T,
- *     AddArgs extends unknown[],
- *     Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
- *   >
- *   extends MyBase<Events>
- *   implements ISet<T, AddArgs, Events>
- * {
- *   clear(): void;
- *   forEach(
- *     callbackfn: (value: T, value2: T, set: this) => void,
- *     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
- *   ): void;
- *   [Symbol.iterator](): IterableIterator<T>;
- *   toString(): string;
- *
- *   // OPTIONAL: If MyBase does not already implement the other ISet methods
- *   // (the ones not added by MakeAbstractSet), you should
- *   // make them abstract, like so:
- *   abstract add(...args: AddArgs): T | undefined;
- *   abstract delete(value: T): void;
- *   abstract has(value: T): boolean;
- *   abstract values(): IterableIterator<T>;
- *   abstract readonly size: number;
- * }
- * ```
+ * a mixin that it extends. To work around this, we recommend
+ * declaring the mixin usage and its type separately, in `.js`
+ * and `.d.ts` files. See the source of [[AbstractSet_Collab]]
+ * for an example.
  */
 export function MakeAbstractSet<
   T,
@@ -83,11 +58,7 @@ export function MakeAbstractSet<
 >(
   Base: TBase
 ): TBase &
-  (abstract new (...args: any[]) => MakeAbstractSet_Methods<
-    T,
-    AddArgs,
-    Events
-  >) {
+  (abstract new (...args: any[]) => MakeAbstractSet_Methods<T, AddArgs>) {
   abstract class Mixin extends Base implements ISet<T, AddArgs, Events> {
     constructor(...args: any[]) {
       super(...args);
