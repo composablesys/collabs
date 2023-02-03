@@ -1,3 +1,6 @@
+/**
+ * Local data structure, not a [[Collab]].
+ */
 export class WeakValueMap<K, V extends object> {
   private readonly internalMap = new Map<K, WeakRef<V>>();
   private readonly registry: FinalizationRegistry<K>;
