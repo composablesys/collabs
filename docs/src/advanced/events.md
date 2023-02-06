@@ -37,7 +37,7 @@ When calling the `EventEmitter` methods, TypeScript will force you to use a vali
 
 ## Using `Collab` Events
 
-All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`MessageMeta`](../api/collabs/interfaces/MessageMeta.html). When listening on events, you can use `meta.isLocalEcho` to filter out events from the local user.
+All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/interfaces/UpdateMeta.html). When listening on events, you can use `meta.isLocalEcho` to filter out events from the local user.
 
 Also, all `Collab`s have a "Change" event of type `CollabEvent`, from [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a `Collab` is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Change" events instead of listening on every event specifically.
 

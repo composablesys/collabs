@@ -7,8 +7,7 @@ import {
   MakeAbstractCList,
   MakeAbstractCMap,
   MakeAbstractCSet,
-  Message,
-  MessageMeta,
+  UpdateMeta,
 } from "@collabs/core";
 import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
 
@@ -29,7 +28,7 @@ import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
  * [[CRDTMessageMeta]] to recipients.
  *
  * To function, a [[PrimitiveCRDT]] must have an ancestor
- * that supplies the extra [[MessageMeta]] key
+ * that supplies the extra [[UpdateMeta]] key
  * [[CRDTMeta.MESSAGE_META_KEY]] (typically [[CRDTMetaLayer]]). Also, its ancestors
  * must deliver messages exactly once, in causal order,
  * with sent messages delivered to the local replica immediately.
@@ -64,7 +63,7 @@ export abstract class PrimitiveCRDT<
    * entries not accessed by the sender.
    */
   protected sendCRDT(
-    message: Message,
+    message: Uint8Array,
     requests?: {
       automatic?: boolean;
       vectorClockEntries?: Iterable<string>;
@@ -103,7 +102,7 @@ export abstract class PrimitiveCRDT<
   /**
    * Do not override; override [[receiveCRDT]] instead.
    */
-  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
     const crdtMeta = <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY);
     if (crdtMeta === undefined) {
       throw new Error("No CRDTMeta supplied; ensure you are using CRDTApp");
@@ -120,8 +119,8 @@ export abstract class PrimitiveCRDT<
    * e.g., a vector clock.
    */
   protected abstract receiveCRDT(
-    message: Message,
-    meta: MessageMeta,
+    message: Uint8Array,
+    meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ): void;
 }

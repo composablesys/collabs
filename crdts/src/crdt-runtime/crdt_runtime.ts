@@ -8,8 +8,6 @@ import {
   CollabEventsRecord,
   ImmediateBatchingStrategy,
   InitToken,
-  Message,
-  MessageMeta,
   Optional,
   randomReplicaID,
   Runtime,
@@ -96,7 +94,10 @@ export class CRDTRuntime
 
   private inRootReceive = false;
 
-  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
+  childSend(
+    child: Collab<CollabEventsRecord>,
+    messagePath: Uint8Array[]
+  ): void {
     if (child !== this.rootCollab) {
       throw new Error(`childSend called by non-root: ${child}`);
     }
@@ -180,7 +181,7 @@ export class CRDTRuntime
 
     const deserialized = CRDTRuntimeMessage.decode(message);
 
-    // Deliver to root with only mandatory MessageMeta.
+    // Deliver to root with only mandatory UpdateMeta.
     if (this.inRootReceive) {
       // nested receive calls; not allowed (might break things).
       throw new Error(
@@ -192,7 +193,7 @@ export class CRDTRuntime
     try {
       this.rootCollab.receive(
         [deserialized.message],
-        MessageMeta.new(
+        UpdateMeta.new(
           deserialized.sender,
           deserialized.sender === this.replicaID,
           false

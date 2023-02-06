@@ -4,9 +4,8 @@ import {
   ICollabParent,
   InitToken,
   int64AsNumber,
-  Message,
-  MessageMeta,
   Optional,
+  UpdateMeta,
 } from "@collabs/core";
 import { CRDTMetaLayerSave } from "../../../generated/proto_compiled";
 import { CRDTMeta } from "../crdt_meta";
@@ -19,7 +18,7 @@ import { ReceiveTransaction } from "./receive_transaction";
  * Collab that provides [[CRDTMeta]] to its
  * descendants.
  *
- * The added [[CRDTMeta]] is stored in [[MessageMeta]]'s
+ * The added [[CRDTMeta]] is stored in [[UpdateMeta]]'s
  * index signature
  * keyed by [[CRDTMeta.MESSAGE_META_KEY]].
  *
@@ -201,7 +200,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     }
   }
 
-  childSend(child: Collab, messagePath: Message[]): void {
+  childSend(child: Collab, messagePath: Uint8Array[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -223,7 +222,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
    */
   private currentReceiveBatch: ReceiveCRDTMetaBatch | null = null;
 
-  receive(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
     if (messagePath.length === 0) {
       throw new Error("messagePath.length === 0");
     }
@@ -344,15 +343,15 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     for (const message of transaction.messages) {
       this.deliverMessage(
         message,
-        MessageMeta.new(transaction.crdtMeta.sender, false, false),
+        UpdateMeta.new(transaction.crdtMeta.sender, false, false),
         transaction.crdtMeta
       );
     }
   }
 
   private deliverMessage(
-    messagePath: Message[],
-    meta: MessageMeta,
+    messagePath: Uint8Array[],
+    meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ) {
     // Add the CRDTMeta to meta.

@@ -27,10 +27,6 @@ export interface CVarEventsRecord<T> extends CollabEventsRecord {
  * them to contruct the actual added value of type T,
  * e.g., using a user-supplied callback in the constructor.
  *
- * There are no IVar-specific events; instead, listen
- * on the generic Message event and use this.value to read
- * the changed value, if needed.
- *
  * In the CRDT and DB literature, data structures of this form
  * are usually called "registers" instead of "variables",
  * e.g., "last-writer wins register".

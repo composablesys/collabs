@@ -4,10 +4,9 @@ import {
   IMap,
   InitToken,
   int64AsNumber,
-  Message,
-  MessageMeta,
   Optional,
   Serializer,
+  UpdateMeta,
 } from "@collabs/core";
 import {
   MultiValueMapMessage,
@@ -74,8 +73,8 @@ export class MultiValueMap<K, V>
   }
 
   protected receiveCRDT(
-    message: Message,
-    meta: MessageMeta,
+    message: Uint8Array,
+    meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);

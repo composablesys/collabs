@@ -1,12 +1,11 @@
 import {
   CollabEvent,
   CollabEventsRecord,
+  CPrimitive,
   InitToken,
-  Message,
-  MessageMeta,
   int64AsNumber,
   Optional,
-  CPrimitive,
+  UpdateMeta,
 } from "@collabs/core";
 import { CCounterMessage } from "../../generated/proto_compiled";
 
@@ -49,7 +48,7 @@ export class CCounter extends CPrimitive<CCounterEventsRecord> {
     this.sendPrimitive(CCounterMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
     const decoded = CCounterMessage.decode(<Uint8Array>message);
     const toAdd = int64AsNumber(decoded.arg);
     this._value += toAdd;

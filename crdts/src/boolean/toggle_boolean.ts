@@ -2,8 +2,8 @@ import {
   CVarEventsRecord,
   InitToken,
   IVar,
-  MessageMeta,
   Optional,
+  UpdateMeta,
 } from "@collabs/core";
 import { PrimitiveCRDT } from "../constructions";
 
@@ -37,7 +37,7 @@ export class ToggleCBoolean
     this.sendCRDT(ToggleCBoolean.MESSAGE);
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta): void {
+  protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta): void {
     if (message.length !== 0)
       throw new Error("Unexpected nontrivial message for ToggleCBoolean");
     this.valueInternal = !this.valueInternal;

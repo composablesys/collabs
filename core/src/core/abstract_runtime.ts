@@ -1,5 +1,5 @@
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
-import { Message, MetaRequest } from "./message";
+import { MetaRequest } from "./message";
 import { Runtime } from "./runtime";
 
 /**
@@ -57,7 +57,7 @@ export abstract class AbstractRuntime implements Runtime {
 
   abstract childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Message[],
+    messagePath: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void;
 }

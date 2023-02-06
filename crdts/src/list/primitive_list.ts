@@ -3,11 +3,10 @@ import {
   DefaultSerializer,
   InitToken,
   int64AsNumber,
-  Message,
-  MessageMeta,
   Optional,
   PositionedList,
   Serializer,
+  UpdateMeta,
 } from "@collabs/core";
 import {
   IPrimitiveCListInsertMessage,
@@ -113,7 +112,7 @@ export class PrimitiveCList<T>
     }
   }
 
-  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
     if (!meta.isEcho) this.indexHint = -1;
 
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);

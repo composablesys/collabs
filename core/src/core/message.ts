@@ -1,16 +1,14 @@
 // TODO: rename to Update? Since it's not just send/receive.
 // Update CRDTRuntime, CRDTApp to match.
-/**
- * Type for messages sent and received by [[Collab]]s.
- */
-export type Message = Uint8Array | string;
 
 // TODO: CRDTMessageMeta users: assert runtime in constructor? E.g. PrimitiveCRDT.
 // TODO: separate out Message vs Event meta?
 /**
- * Metadata for a received message, attached by the [[Runtime]].
+ * Metadata for an applied update.
+ *
+ * TODO: in events and in receive/load. Attached by Runtime.
  */
-export interface MessageMeta {
+export interface UpdateMeta {
   /**
    * The message's type: an operation sent with [[Collab.send]],
    * or a saved state returned by [[Collab.save]].
@@ -42,10 +40,10 @@ export interface MessageMeta {
 // TODO: rename to MessageMetaRequest?
 /**
  * A [[Runtime]] may extend this interface to allow [[Collab]]s to configure
- * the content of [[MessageMeta.runtimeSpecific]].
+ * the content of [[UpdateMeta.runtimeSpecific]].
  *
  * Specifically, a Collab makes a request in [[Collab.send]]; this affects
- * the MessageMeta passed to [[Collab.receive]] with the sent message.
+ * the UpdateMeta passed to [[Collab.receive]] with the sent message.
  *
  * For example, [[CRDTRuntime]] accepts requests of type [[CRDTMetaRequest]].
  * A Collab can use them to request e.g. vector clock entries; that is

@@ -4,9 +4,8 @@ import {
   CollabEventsRecord,
   ICollabParent,
   InitToken,
-  Message,
-  MessageMeta,
   MetaRequest,
+  UpdateMeta,
 } from "../core";
 
 /**
@@ -114,7 +113,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
   childSend(
     child: Collab,
-    messagePath: Message[],
+    messagePath: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void {
     if (child.parent !== this) {
@@ -125,7 +124,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     this.send(messagePath, metaRequests);
   }
 
-  receive(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
     if (messagePath.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");
@@ -169,7 +168,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     return null;
   }
 
-  load(saveData: Uint8Array, meta: MessageMeta): void {
+  load(saveData: Uint8Array, meta: UpdateMeta): void {
     const saveMessage = CObjectSave.decode(saveData);
     for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
       const child = this.children.get(name);

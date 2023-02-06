@@ -1,5 +1,4 @@
 import * as collabs from "@collabs/collabs";
-import { Message } from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 import { MultipleSemidirectProduct } from "./multiple_semidirect_product";
 
@@ -86,7 +85,7 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.X1 += decoded.X1;
     this.state.Y1 += decoded.Y1;
@@ -175,7 +174,7 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return [newX1, newX2, newY1, newY2];
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
     let decoded = GroupComponentMessage.decode(message);
 
     this.state.rotate1 += decoded.rotate1;
@@ -251,7 +250,7 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectX1 *= decoded.reflectX1;
     this.state.reflectX2 *= decoded.reflectX2;
@@ -310,7 +309,7 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.MessageMeta) {
+  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectY1 *= decoded.reflectY1;
     this.state.reflectY2 *= decoded.reflectY2;
@@ -389,12 +388,12 @@ export class GroupCRDT extends MultipleSemidirectProduct<
   // Want to "add on" m2's actions to m1. Start with m1 values and
   // add reflection or rotation as needed.
   protected action(
-    m2MessagePath: Message[],
-    _m2Meta: collabs.MessageMeta | null,
+    m2MessagePath: Uint8Array[],
+    _m2Meta: collabs.UpdateMeta | null,
     m2Index: number,
-    m1MessagePath: Message[],
-    _m1Meta: collabs.MessageMeta | null
-  ): { m1MessagePath: Message[] } | null {
+    m1MessagePath: Uint8Array[],
+    _m1Meta: collabs.UpdateMeta | null
+  ): { m1MessagePath: Uint8Array[] } | null {
     let m2Decoded = GroupComponentMessage.decode(<Uint8Array>m2MessagePath[0]);
     let m1Decoded = GroupComponentMessage.decode(<Uint8Array>m1MessagePath[0]);
     var XArg1: number = m1Decoded!.X1 || 0;

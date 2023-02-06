@@ -4,9 +4,8 @@ import {
   CollabEventsRecord,
   ICollabParent,
   InitToken,
-  Message,
-  MessageMeta,
   MetaRequest,
+  UpdateMeta,
 } from "../core";
 import {
   Bytes,
@@ -153,7 +152,7 @@ export class LazyMutCMap<K, C extends Collab>
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Message[],
+    messagePath: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void {
     if (child.parent !== this) {
@@ -167,7 +166,7 @@ export class LazyMutCMap<K, C extends Collab>
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 
-  receive(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
     const keyString = <string>messagePath[messagePath.length - 1];
     this.inReceiveKeyStr = keyString;
     try {
@@ -308,7 +307,7 @@ export class LazyMutCMap<K, C extends Collab>
     return LazyMutCMapSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array, meta: MessageMeta): void {
+  load(saveData: Uint8Array, meta: UpdateMeta): void {
     const saveMessage = LazyMutCMapSave.decode(saveData);
     for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
       const child = this.getInternal(this.stringAsKey(name), name, true)[0];

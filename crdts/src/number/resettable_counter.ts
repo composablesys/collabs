@@ -4,8 +4,8 @@ import {
   CollabEventsRecord,
   InitToken,
   int64AsNumber,
-  MessageMeta,
   Optional,
+  UpdateMeta,
 } from "@collabs/core";
 import {
   GrowOnlyResettableCCounterMessage,
@@ -88,7 +88,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
     this.sendCRDT(GrowOnlyResettableCCounterMessage.encode(message).finish());
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta): void {
+  protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta): void {
     const decoded = GrowOnlyResettableCCounterMessage.decode(
       <Uint8Array>message
     );

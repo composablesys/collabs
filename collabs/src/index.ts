@@ -43,12 +43,11 @@ export {
   InitToken,
   ISet,
   IVar,
-  Message,
-  MessageMeta,
   Optional,
   PositionedList,
   Runtime,
   Serializer,
   Unsubscribe,
+  UpdateMeta,
 } from "@collabs/core";
 export * from "@collabs/crdts";

@@ -1,5 +1,5 @@
 import { Collab } from "./collab";
-import { Message, MetaRequest } from "./message";
+import { MetaRequest } from "./message";
 import { Runtime } from "./runtime";
 
 // TODO: rename to just "IParent", "Parent"?
@@ -20,9 +20,9 @@ export interface ICollabParent {
    * thisparent may choose to modify the message before delivery,
    * including possibly delivering extra messages or none at all.
    *
-   * `metaRequests` affect the [[MessageMeta]] delivered with
+   * `metaRequests` affect the [[UpdateMeta]] delivered with
    * with `messagePath`. Specifically, the [[Runtime]] will consider
-   * the union of all requests and adjust [[MessageMeta.runtimeSpecific]]
+   * the union of all requests and adjust [[UpdateMeta.runtimeSpecific]]
    * in a Runtime-specific way.
    *
    * @param  child        [description]
@@ -32,7 +32,7 @@ export interface ICollabParent {
    */
   childSend(
     child: Collab,
-    messagePath: Message[],
+    messagePath: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void;
 }

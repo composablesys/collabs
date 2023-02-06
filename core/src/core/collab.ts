@@ -1,6 +1,6 @@
 import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
-import { Message, MessageMeta, MetaRequest } from "./message";
+import { MetaRequest, UpdateMeta } from "./message";
 import { isRuntime, Runtime } from "./runtime";
 
 /**
@@ -32,10 +32,10 @@ export interface CollabEvent {
   /**
    * Metadata for this event.
    *
-   * Typically, this is the [[MessageMeta]] passed along
+   * Typically, this is the [[UpdateMeta]] passed along
    * with the message that triggered this event.
    */
-  readonly meta: MessageMeta;
+  readonly meta: UpdateMeta;
 }
 
 /**
@@ -244,7 +244,7 @@ export abstract class Collab<
    * be modified in-place by ancestors.
    * @param metaRequests need not align with messagePath
    */
-  protected send(messagePath: Message[], metaRequests: MetaRequest[]): void {
+  protected send(messagePath: Uint8Array[], metaRequests: MetaRequest[]): void {
     this.parent.childSend(this, messagePath, metaRequests);
   }
 
@@ -261,7 +261,7 @@ export abstract class Collab<
    * @param meta Metadata attached to this message by
    * ancestor `Collab`s.
    */
-  abstract receive(messagePath: Message[], meta: MessageMeta): void;
+  abstract receive(messagePath: Uint8Array[], meta: UpdateMeta): void;
 
   // TODO: give context/meta? Take meta requests? I guess in worst case,
   // you could ask Runtime.
@@ -303,7 +303,7 @@ export abstract class Collab<
   abstract save(): Uint8Array;
 
   // OPT: tree-aware format (e.g. map plus this-data), like send/receive.
-  abstract load(saveData: Uint8Array, meta: MessageMeta): void;
+  abstract load(saveData: Uint8Array, meta: UpdateMeta): void;
 
   /**
    * Returns the "name path" from `descendant` to `this`,

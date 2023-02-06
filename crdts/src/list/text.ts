@@ -4,10 +4,9 @@ import {
   CPrimitive,
   InitToken,
   int64AsNumber,
-  Message,
-  MessageMeta,
   Optional,
   PositionedList,
+  UpdateMeta,
 } from "@collabs/core";
 import { CTextMessage, CTextSave } from "../../generated/proto_compiled";
 import {
@@ -127,7 +126,7 @@ export class CText
     this.delete(0, this.length);
   }
 
-  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
     if (!meta.isEcho) this.indexHint = -1;
 
     const decoded = CTextMessage.decode(<Uint8Array>message);

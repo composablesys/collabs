@@ -1,5 +1,5 @@
 /**
- * Extra field on [[MessageMeta]] that gives metadata
+ * Extra field on [[UpdateMeta]] that gives metadata
  * relevant to CRDTs.
  *
  * Keyed by [[CRDTMeta.MESSAGE_META_KEY]].
@@ -98,9 +98,9 @@ export interface CRDTMeta {
 
 export const CRDTMeta = {
   /**
-   * [[MessageMeta]] extra metadata key.
+   * [[UpdateMeta]] extra metadata key.
    *
-   * That is, if `meta` is a [[MessageMeta]] that contains
+   * That is, if `meta` is a [[UpdateMeta]] that contains
    * added [[CRDTMeta]], then you can access it via
    * `<CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY]`.
    */

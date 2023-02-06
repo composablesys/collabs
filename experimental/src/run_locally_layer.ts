@@ -3,8 +3,7 @@ import {
   CollabEventsRecord,
   ICollabParent,
   InitToken,
-  Message,
-  MessageMeta,
+  UpdateMeta,
 } from "../../core/src/core";
 import { Optional } from "../../core/src/util";
 
@@ -48,7 +47,7 @@ import { Optional } from "../../core/src/util";
  */
 export class RunLocallyLayer extends Collab implements ICollabParent {
   private child!: Collab;
-  private runLocallyMeta: MessageMeta | null = null;
+  private runLocallyMeta: UpdateMeta | null = null;
 
   setChild<C extends Collab>(childCallback: (init: InitToken) => C): C {
     const child = childCallback(new InitToken("", this));
@@ -64,11 +63,11 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
    * case you supply its meta. You can instead pass null to do the ops
    * with a new operation by the local user.
    */
-  runLocally<T>(meta: MessageMeta | null, doPureOps: () => T): T {
+  runLocally<T>(meta: UpdateMeta | null, doPureOps: () => T): T {
     const oldRunLocallyMeta = this.runLocallyMeta;
-    let metaCopy: MessageMeta;
+    let metaCopy: UpdateMeta;
     if (meta === null) {
-      metaCopy = <MessageMeta>this.getContext(MessageMeta.NEXT_MESSAGE_META);
+      metaCopy = <UpdateMeta>this.getContext(UpdateMeta.NEXT_MESSAGE_META);
     } else {
       metaCopy = meta.setIsEcho(true);
     }
@@ -80,7 +79,10 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     }
   }
 
-  childSend(child: Collab<CollabEventsRecord>, messagePath: Message[]): void {
+  childSend(
+    child: Collab<CollabEventsRecord>,
+    messagePath: Uint8Array[]
+  ): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -94,7 +96,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
     }
   }
 
-  receive(messagePath: (string | Uint8Array)[], meta: MessageMeta): void {
+  receive(messagePath: (string | Uint8Array)[], meta: UpdateMeta): void {
     this.child.receive(messagePath, meta);
   }
 

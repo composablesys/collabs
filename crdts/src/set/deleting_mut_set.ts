@@ -5,10 +5,9 @@ import {
   ICollabParent,
   InitToken,
   makeUID,
-  Message,
-  MessageMeta,
   Optional,
   Serializer,
+  UpdateMeta,
 } from "@collabs/core";
 import {
   DeletingMutCSetMessage,
@@ -106,7 +105,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    */
   private deletedSendingChild?: C = undefined;
 
-  childSend(child: Collab, messagePath: Message[]): void {
+  childSend(child: Collab, messagePath: Uint8Array[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -122,7 +121,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   private ourCreatedValue?: C = undefined;
-  receive(messagePath: Message[], meta: MessageMeta): void {
+  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
     const lastMessage = messagePath[messagePath.length - 1];
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in

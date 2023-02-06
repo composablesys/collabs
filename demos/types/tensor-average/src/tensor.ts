@@ -4,10 +4,9 @@ import {
   CollabEventsRecord,
   CPrimitive,
   InitToken,
-  Message,
-  MessageMeta,
   Optional,
   ResettableCCounter,
+  UpdateMeta,
 } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
@@ -194,7 +193,7 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":

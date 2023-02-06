@@ -5,10 +5,9 @@ import {
   CRDTMetaRequestee,
   ICollabParent,
   InitToken,
-  Message,
-  MessageMeta,
   Optional,
   serializeMessage,
+  UpdateMeta,
 } from "@collabs/collabs";
 import {
   BytesOrString,
@@ -47,19 +46,19 @@ export interface StatefulCRDT<S extends object> extends Collab {
 }
 
 class StoredMessage {
-  messagePath: Message[] | null;
+  messagePath: Uint8Array[] | null;
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
     readonly receiptCounter: number,
-    messagePath: Message[] | null,
-    readonly meta: MessageMeta | null,
+    messagePath: Uint8Array[] | null,
+    readonly meta: UpdateMeta | null,
     readonly arbIndex: number // arbitration number
   ) {
     this.messagePath = messagePath;
   }
 
-  setMessagePath(newMessagePath: Message[] | null) {
+  setMessagePath(newMessagePath: Uint8Array[] | null) {
     this.messagePath = newMessagePath;
   }
 }
@@ -81,8 +80,8 @@ class MultipleSemidirectState<S extends object> {
    * replicaID is our replica id.
    */
   add(
-    messagePath: Message[],
-    meta: MessageMeta,
+    messagePath: Uint8Array[],
+    meta: UpdateMeta,
     crdtMeta: CRDTMeta,
     arbId: number
   ) {
@@ -317,7 +316,7 @@ export abstract class MultipleSemidirectProduct<
     this.state = new MultipleSemidirectState(historyMetas);
   }
 
-  childSend(child: Collab, messagePath: Message[]): void {
+  childSend(child: Collab, messagePath: Uint8Array[]): void {
     if (child.parent !== this) {
       throw new Error("childSend called by non-child: " + child);
     }
@@ -347,12 +346,12 @@ export abstract class MultipleSemidirectProduct<
    * @return              [description]
    */
   protected abstract action(
-    m2MessagePath: Message[],
-    m2Meta: MessageMeta | null,
+    m2MessagePath: Uint8Array[],
+    m2Meta: UpdateMeta | null,
     m2Index: number,
-    m1MessagePath: Message[],
-    m1Meta: MessageMeta | null
-  ): { m1MessagePath: Message[] } | null;
+    m1MessagePath: Uint8Array[],
+    m1Meta: UpdateMeta | null
+  ): { m1MessagePath: Uint8Array[] } | null;
 
   protected setupState(initialState: S) {
     this.state.internalState = initialState;
@@ -375,7 +374,7 @@ export abstract class MultipleSemidirectProduct<
   // The resulting message mact is then applied to σ and added to the history.
   // It also acts on all messages in the history with lower arbitration order,
   // regardless ofwhether they are concurrent or not.
-  receive(messagePath: Message[], meta: MessageMeta) {
+  receive(messagePath: Uint8Array[], meta: UpdateMeta) {
     if (messagePath.length === 0) {
       throw new Error("TODO");
     }

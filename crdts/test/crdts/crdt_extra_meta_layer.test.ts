@@ -2,9 +2,9 @@ import {
   CollabEvent,
   CollabEventsRecord,
   ManualBatchingStrategy,
-  MessageMeta,
   Optional,
   pseudoRandomReplicaID,
+  UpdateMeta,
 } from "@collabs/core";
 import { assert } from "chai";
 import { CRDTApp, CRDTMeta, LWWCVar, PrimitiveCRDT } from "../../src";
@@ -35,7 +35,7 @@ class MetaInspector extends PrimitiveCRDT<MetaEventsRecord> {
 
   protected receiveCRDT(
     message: string | Uint8Array,
-    meta: MessageMeta,
+    meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ): void {
     this.emit("Meta", { meta, message: <string>message, crdtMeta });
