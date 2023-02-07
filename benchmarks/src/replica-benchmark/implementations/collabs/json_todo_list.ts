@@ -1,7 +1,7 @@
 import * as collabs from "@collabs/collabs";
 import { JSONArray, JSONElement, JSONObject } from "@collabs/json";
 import { Data } from "../../../util";
-import { ITodoListInternal, ITodoList } from "../../interfaces/todo_list";
+import { ITodoList, ITodoListInternal } from "../../interfaces/todo_list";
 import { CollabsReplica } from "./replica";
 
 class JSONTodoListInternal implements ITodoListInternal {
@@ -86,8 +86,8 @@ export function CollabsJSONTodoList(causalityGuaranteed: boolean) {
       );
     }
 
-    load(saveData: Uint8Array): void {
-      super.load(saveData);
+    load(savedState: Uint8Array): void {
+      super.load(savedState);
       this.rootInternal = new JSONTodoListInternal(
         this.rootJSON.value as JSONObject
       );

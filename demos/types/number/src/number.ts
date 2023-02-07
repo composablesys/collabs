@@ -75,9 +75,9 @@ export class AddComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
+  load(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
   }
 }
 
@@ -122,9 +122,9 @@ export class MultComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
+  load(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
   }
 }
 
@@ -167,9 +167,9 @@ export class MinComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
+  load(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
   }
 }
 
@@ -212,9 +212,9 @@ export class MaxComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(saveData.get()).arg;
+  load(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
   }
 }
 

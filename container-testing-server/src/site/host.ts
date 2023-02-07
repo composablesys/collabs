@@ -123,12 +123,12 @@ saveButton.addEventListener("click", async function () {
   // Make sure the container actually uses its save function.
   await host.compactSaveData();
   // Get saved state.
-  const saveData = app.save();
+  const savedState = app.save();
   // Store in sessionStorage.
   try {
     window.sessionStorage.setItem(
       containerUrl,
-      collabs.Bytes.stringify(saveData)
+      collabs.Bytes.stringify(savedState)
     );
   } catch (err) {
     console.log("Save error: ");

@@ -30,15 +30,15 @@ export abstract class CPrimitive<
    * [[receivePrimitive]], consider extending [[Collab]]
    * directly instead of this class.
    *
-   * @param  messagePath [description]
+   * @param  messageStack [description]
    * @return             [description]
    */
-  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
-    if (messagePath.length !== 1) {
+  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+    if (messageStack.length !== 1) {
       // We are not the target
       throw new Error("CPrimitive received message for child");
     }
-    this.receivePrimitive(messagePath[0], meta);
+    this.receivePrimitive(messageStack[0], meta);
   }
 
   /**

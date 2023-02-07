@@ -65,9 +65,9 @@ export class CCounter extends CPrimitive<CCounterEventsRecord> {
     return CCounterMessage.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (saveData.isPresent) {
-      const decoded = CCounterMessage.decode(saveData.get());
+  load(savedState: Optional<Uint8Array>): void {
+    if (savedState.isPresent) {
+      const decoded = CCounterMessage.decode(savedState.get());
       this._value = int64AsNumber(decoded.arg);
     }
   }

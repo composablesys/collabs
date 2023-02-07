@@ -173,7 +173,7 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * Note: this will commit a pending batch first.
    * So if there is a pending batch, expect messages to
    * be sent during this method. Those messages will
-   * be accounted for in the `saveData`.
+   * be accounted for in the `savedState`.
    *
    * @return save data for a future instance's [[load]]
    */
@@ -188,7 +188,7 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    *
    * Loading save data serves as a more efficient substitute
    * for calling [[receive]] on all messages that the previous
-   * instance had sent or received before generating `saveData`.
+   * instance had sent or received before generating `savedState`.
    *
    * This must be called after registering [[Collab]]s but before
    * calling [[receive]] or performing any [[Collab]] operations.
@@ -198,10 +198,10 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * the loaded state (e.g., the GUI), instead of relying
    * on event handlers like for sent/received messages.
    *
-   * @param saveData save data from a previous instance's call to [[save]].
+   * @param savedState save data from a previous instance's call to [[save]].
    */
-  load(saveData: Optional<Uint8Array>): void {
-    this.runtime.load(saveData);
+  load(savedState: Optional<Uint8Array>): void {
+    this.runtime.load(savedState);
   }
 
   // ---Less common user-facing methods---

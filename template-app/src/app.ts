@@ -12,10 +12,10 @@ const app = new collabs.CRDTApp();
 // You always need to call app.load exactly once, even if there is no
 // previous saved state; otherwise
 // app will throw an error on Collab operations and message receipt.
-const saveData: collabs.Optional<Uint8Array> =
+const savedState: collabs.Optional<Uint8Array> =
   /* TODO: if present, use collabs.Optional.of(saveDataUint8Array); */
   /* else use: */ collabs.Optional.empty();
-app.load(saveData);
+app.load(savedState);
 
 // TODO: Display the loaded state, i.e., sync it from your Collabs state
 // variables to the GUI.

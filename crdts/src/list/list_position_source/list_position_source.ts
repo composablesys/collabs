@@ -1341,17 +1341,17 @@ export class ListPositionSource<I> {
 
   /**
    * [load description]
-   * @param saveData [description]
+   * @param savedState [description]
    * @param nextItem A function that returns an item containing the
    * `count` next values when called repeatedly.
    * This must only be null if you are using NumberItemManager
    * (when it's null, we skip a step that is redundant for NumberItemManager).
    */
   load(
-    saveData: Uint8Array,
+    savedState: Uint8Array,
     nextItem: ((count: number, startPos: ListPosition) => I) | null
   ): void {
-    const decoded = ListPositionSourceSave.decode(saveData);
+    const decoded = ListPositionSourceSave.decode(savedState);
 
     if (decoded.oldReplicaID === this.replicaID) {
       this.nextCounter = decoded.oldNextCounter;

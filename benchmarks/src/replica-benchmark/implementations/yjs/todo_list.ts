@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { Data } from "../../../util";
-import { ITodoListInternal, ITodoList } from "../../interfaces/todo_list";
+import { ITodoList, ITodoListInternal } from "../../interfaces/todo_list";
 import { YjsReplica } from "./replica";
 
 class YjsTodoListInternal implements ITodoListInternal {
@@ -64,8 +64,8 @@ export class YjsTodoList extends YjsReplica implements ITodoList {
     this.rootInternal = new YjsTodoListInternal(this, this.doc.getMap());
   }
 
-  load(saveData: Uint8Array): void {
-    super.load(saveData);
+  load(savedState: Uint8Array): void {
+    super.load(savedState);
     this.rootInternal = new YjsTodoListInternal(this, this.doc.getMap());
   }
 

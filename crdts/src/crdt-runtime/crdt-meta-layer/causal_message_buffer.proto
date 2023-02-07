@@ -6,7 +6,7 @@ message BytesOrStringMessage {
 }
 
 message TransactionMessagePathSave {
-  repeated BytesOrStringMessage messagePath = 1;
+  repeated BytesOrStringMessage messageStack = 1;
 }
 
 message ReceiveTransactionSave {
@@ -19,7 +19,7 @@ message ReceiveTransactionSave {
   // Opt: compress this like in batches.
   repeated string causallyMaximalVCKeys = 7;
   // Opt: flatten.
-  // Opt: compress and streamline messagePath's like in
+  // Opt: compress and streamline messageStack's like in
   // BatchingLayer. Ideally we would just leave transactions
   // in their original network form, but I'm not sure how to do that
   // except by reordering the layers.

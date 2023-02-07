@@ -355,10 +355,10 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
       await Promise.all(toAwait);
 
       // Save and respond to the request.
-      const saveData = this.app.save();
+      const savedState = this.app.save();
       this.messagePortSend({
         type: "Saved",
-        saveData,
+        savedState,
         lastReceivedID: this.lastReceivedID,
         requestID: message.requestID,
       });

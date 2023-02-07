@@ -178,7 +178,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         this.sendPrimitive(message);
         break;
       case "Saved":
-        this.latestSaveData = e.data.saveData;
+        this.latestSaveData = e.data.savedState;
         // Trim further messages that are accounted for by the
         // save: all sent messages, and all received messages
         // with id <= e.data.lastReceivedID.
@@ -275,7 +275,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    *
    * The returned Promise resolves when done, i.e., when the
    * next call to save() will include
-   * the compacted saveData due to this method call.
+   * the compacted savedState due to this method call.
    * Note it's not guaranteed that
    * the log will be empty even if you then call save() right away,
    * because the container may have sent/received more messages
@@ -329,7 +329,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     }
 
     // Note that it makes sense to treat all further message
-    // (sent + received) as received messages in the saveData:
+    // (sent + received) as received messages in the savedState:
     // from a newly-loaded replica's perspective, they're all
     // received messages (sent by different replicas).
     const message = ContainerHostSave.create({
@@ -339,9 +339,9 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     return ContainerHostSave.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
+  load(savedState: Optional<Uint8Array>): void {
     // Set our latestSaveData and furtherMessages.
-    if (!saveData.isPresent) {
+    if (!savedState.isPresent) {
       // Leave this.latestSaveData, this.furtherReceivedMessages
       // as their initial values (null, []).
       this.messagePortSend({
@@ -351,7 +351,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
         furtherMessages: [],
       });
     } else {
-      const decoded = ContainerHostSave.decode(saveData.get());
+      const decoded = ContainerHostSave.decode(savedState.get());
       this.latestSaveData = Object.prototype.hasOwnProperty.call(
         decoded,
         "latestSaveData"

@@ -194,9 +194,9 @@ export class CausalMessageBuffer {
         wallClockTime: crdtMeta.wallClockTime,
         lamportTimestamp: crdtMeta.lamportTimestamp,
         causallyMaximalVCKeys: crdtMeta.causallyMaximalVCKeys,
-        messages: this.buffer[i].messages.map((messagePath) => {
+        messages: this.buffer[i].messages.map((messageStack) => {
           return {
-            messagePath: messagePath.map((message) =>
+            messageStack: messageStack.map((message) =>
               typeof message === "string"
                 ? { asString: message }
                 : { asBytes: message }
@@ -214,8 +214,8 @@ export class CausalMessageBuffer {
     return CausalMessageBufferSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array) {
-    const decoded = CausalMessageBufferSave.decode(saveData);
+  load(savedState: Uint8Array) {
+    const decoded = CausalMessageBufferSave.decode(savedState);
     this.bufferCheckIndex = decoded.bufferCheckIndex;
     this._causallyMaximalVCKeys = new Set(decoded.causallyMaximalVCKeys);
 
@@ -241,7 +241,7 @@ export class CausalMessageBuffer {
         transaction.causallyMaximalVCKeys!
       );
       const messages = transaction.messages!.map((messagePathSave) =>
-        messagePathSave.messagePath!.map((messageSave) =>
+        messagePathSave.messageStack!.map((messageSave) =>
           (<BytesOrStringMessage>messageSave).type === "asString"
             ? messageSave.asString!
             : messageSave.asBytes!

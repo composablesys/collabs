@@ -219,11 +219,11 @@ export class MultiValueMap<K, V>
     return MultiValueMapSave.encode({ stateBySender }).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) return;
+  load(savedState: Optional<Uint8Array>): void {
+    if (!savedState.isPresent) return;
 
     const stateBySender = MultiValueMapSave.decode(
-      saveData.get()
+      savedState.get()
     ).stateBySender;
 
     for (const [sender, senderSave] of Object.entries(stateBySender)) {

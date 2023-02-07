@@ -52,6 +52,7 @@ export interface CRDTRuntimeEventsRecord extends RuntimeEventsRecord {
   Send: SendEvent;
 }
 
+// TODO: don't use directly, use CRDTApp or CRDTContainer instead.
 export class CRDTRuntime
   extends AbstractRuntime<CRDTRuntimeEventsRecord>
   implements Runtime
@@ -96,7 +97,7 @@ export class CRDTRuntime
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Uint8Array[]
+    messageStack: Uint8Array[]
   ): void {
     if (child !== this.rootCollab) {
       throw new Error(`childSend called by non-root: ${child}`);
@@ -108,7 +109,7 @@ export class CRDTRuntime
 
     // Since BatchingLayer is the root, we know this
     // is actually just a single Uint8Array.
-    const message = <Uint8Array>messagePath[0];
+    const message = <Uint8Array>messageStack[0];
 
     if (this.inRootReceive) {
       // send inside a receive call; not allowed (might break things).
@@ -215,7 +216,7 @@ export class CRDTRuntime
    * Note: this will commit a pending batch first.
    * So if there is a pending batch, expect messages to
    * be sent during this method. Those messages will
-   * be accounted for in the `saveData`.
+   * be accounted for in the `savedState`.
    *
    * @return save data for a future instance's [[load]]
    */
@@ -240,18 +241,18 @@ export class CRDTRuntime
    * This must be called after registering [[Collab]]s but before
    * calling [[receive]] or performing any [[Collab]] operations.
    *
-   * @param saveData save data from a previous instance's call to [[save]].
+   * @param savedState save data from a previous instance's call to [[save]].
    */
-  load(saveData: Optional<Uint8Array>): void {
+  load(savedState: Optional<Uint8Array>): void {
     if (this._isLoaded) {
       throw new Error("Already loaded");
     }
 
-    this.rootCollab.load(saveData);
+    this.rootCollab.load(savedState);
     this._isLoaded = true;
 
     this.emit("Load", {
-      skipped: !saveData.isPresent,
+      skipped: !savedState.isPresent,
     });
   }
 

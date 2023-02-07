@@ -65,7 +65,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
     }
 
     const m = this.M.get(this.runtime.replicaID);
-    const idCounter = m === undefined ? this.runtime.getLocalCounter() : m[2];
+    const idCounter = m === undefined ? this.runtime.nextLocalCounter() : m[2];
     const prOld = m === undefined ? 0 : m[0];
     const message = GrowOnlyResettableCCounterMessage.create({
       add: {
@@ -185,9 +185,9 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
     return GrowOnlyResettableCCounterSave.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    const message = GrowOnlyResettableCCounterSave.decode(saveData.get());
+  load(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    const message = GrowOnlyResettableCCounterSave.decode(savedState.get());
     for (const [replicaID, m] of Object.entries(message.M)) {
       this.M.set(replicaID, [
         int64AsNumber(m.p),

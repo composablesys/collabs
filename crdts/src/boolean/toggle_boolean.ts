@@ -57,9 +57,9 @@ export class ToggleCBoolean
     else return ToggleCBoolean.TRUE_SAVE;
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) return;
-    this.valueInternal = saveData.get().length !== 0;
+  load(savedState: Optional<Uint8Array>): void {
+    if (!savedState.isPresent) return;
+    this.valueInternal = savedState.get().length !== 0;
   }
 
   canGC(): boolean {

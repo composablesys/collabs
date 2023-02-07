@@ -1,7 +1,7 @@
 import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
-import { MetaRequest, UpdateMeta } from "./message";
 import { isRuntime, Runtime } from "./runtime";
+import { MetaRequest, SavedStateTree, UpdateMeta } from "./updates";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -23,17 +23,14 @@ export class InitToken {
 /**
  * Supertype for events emitted by Collabs.
  *
- * Such events are typically emitted after the Collab processes a local
- * or remote message.
+ * Such events are typically emitted after the Collab processes an
+ * update - either local or remote, and either a message or a saved state.
  *
  * See [[CollabEventsRecord]].
  */
 export interface CollabEvent {
   /**
-   * Metadata for this event.
-   *
-   * Typically, this is the [[UpdateMeta]] passed along
-   * with the message that triggered this event.
+   * Metadata for the update that caused this event.
    */
   readonly meta: UpdateMeta;
 }
@@ -229,81 +226,98 @@ export abstract class Collab<
   }
 
   /**
-   * Sends the given message.
+   * Sends the given message. You may assume that it will be
+   * delivered to [[Collab.receive]] on each replica of this
+   * Collab, with guarantees set by the [[runtime]].
    *
-   * In general, `messagePath` will be then be delivered
-   * to [[Collab.receive]] on each replica of this. However,
-   * ancestors may choose to modify the message before delivery,
-   * including possibly delivering extra messages or none at all.
+   * For convenience, the message may be expressed as a stack of
+   * Uint8Arrays instead of just a single Uint8Array. This is
+   * useful for parents sending messages on behalf of their children;
+   * see the implementations of [[CObject.childSend]] and
+   * [[CObject.receive]] for an example.
+   * Note that this method may mutate `messageStack` in-place.
    *
-   * @param  messagePath An array of messages to be
-   * delivered to replicas' [[receive]] method.
-   * Typically this takes the form of a child `Collab`'s
-   * sent `messagePath`, with an extra message sent by this
-   * `Collab` appended to the end. Note that the array may
-   * be modified in-place by ancestors.
-   * @param metaRequests need not align with messagePath
+   * Technically, ancestors in the tree of Collabs may violate the
+   * delivery assumption. For example, [[DeletingMutCSet]] does not
+   * deliver messages to deleted set elements. Ancestors that do so
+   * are responsible for ensuring consistency, so you usually do not
+   * need to worry about such violations.
+   *
+   * @param messageStack The message to send, in the form of a stack
+   * of Uint8Arrays.
+   * @param metaRequests A stack of metadata requests. The Runtime will use
+   * these when creating the [[UpdateMeta]] for [[receive]]. Note that
+   * the stack need not align with `messageStack`.
    */
-  protected send(messagePath: Uint8Array[], metaRequests: MetaRequest[]): void {
-    this.parent.childSend(this, messagePath, metaRequests);
+  protected send(
+    messageStack: Uint8Array[],
+    metaRequests: MetaRequest[]
+  ): void {
+    this.parent.childSend(this, messageStack, metaRequests);
   }
 
   /**
-   * Callback used by this Collab's parent to deliver
-   * a message, possibly for one of this Collab's descendants.
+   * Called by this Collab's parent to deliver
+   * a message. You may assume that the message was sent by
+   * [[send]] on some replica of this Collab (possibly `this`),
+   * with guarantees set by the [[runtime]].
    *
-   * @param messagePath A messagePath sent by a local or
-   * remote replica
-   * using [[send]], possibly modified by ancestor
-   * `Collab`s. This may be modified in-place. A common pattern
-   * is to read the last message, decrement the length,
-   * and then deliver it to a child `Collab`.
-   * @param meta Metadata attached to this message by
-   * ancestor `Collab`s.
+   * @param messageStack The message to receive, in the form of a stack
+   * of Uint8Arrays. It is okay to mutate `messageStack` in-place,
+   * e.g., calling `pop`.
+   * @param meta Metadata attached to this message by the runtime.
+   * It incorporates metadata requests made in [[send]]. Note that
+   * `meta.updateType` is always `"message"`.
    */
-  abstract receive(messagePath: Uint8Array[], meta: UpdateMeta): void;
+  abstract receive(messageStack: Uint8Array[], meta: UpdateMeta): void;
 
   // TODO: give context/meta? Take meta requests? I guess in worst case,
   // you could ask Runtime.
   /**
-   * Returns save data describing the current state of this
-   * `Collab` and its descendants, sufficient to restore the
-   * state on a new replica by calling [[load]]`(`[[Optional.of]]`(saveData))`.
+   * Called by this Collab's parent to obtain saved state. The saved
+   * state describes the current state of this
+   * `Collab` and its descendants.
    *
-   * The usage pattern of `save` and [[load]] is:
-   * 1. `save` is called on one replica, returning save data.
-   * 2. A new replica of this `Collab` is created using the
-   * same class and same constructor arguments
-   * (the usual [Initialization](../../initialization.md) requirements for replicas).
-   * 3. [[load]]`(saveData)` is called on that replica. This
-   * is expected to give an identical state to that when
-   * `save` was called, except that replica is different
-   * (in particular, [[Runtime.replicaID]] is different).
-   * 4. The replica proceeds normally, receiving any messages
-   * that had not yet been received before the `save` call.
+   * The saved state may later be passed to [[load]] on a replica of
+   * this Collab, possibly in a different collaboration session,
+   * with rules set by the [[runtime]]. For example, [[CRDTRuntime]]
+   * allows [[load]] to be called at any time; it must act as a "merge"
+   * operation, applying all updates that the saved replica had applied
+   * before saving, ignoring duplicates.
    *
-   * Before [[load]] is called, this `Collab` and its descendants
-   * must not be used to perform operations or receive messages.
-   * Behavior is undefined if that condition is violated.
+   * `save` may be called at any time, possibly many times while an app
+   * is running. Calling `save` should not affect this Collab's
+   * user-visible state.
    *
-   * A special case of the usage pattern is when an app
-   * is created without any prior save data. In that case,
-   * [[load]]`(`[[Optional.empty]]`())` is called instead,
-   * to indicate that loading has been skipped and that the
-   * `Collab` can start being used.
+   * For convenience, the saved state may be expressed as a tree of
+   * Uint8Arrays instead of just a single Uint8Array; see
+   * [[SaveStateTree]]'s docs. Also, this method may return `null` if
+   * the saved state is trivial; replicas loading the whole document
+   * will then skip calling [[load]] on this Collab's replica.
    *
-   * `save` may be called multiple times throughout an app's
-   * lifecycle, and it should not affect the user-visible state.
-   * `save` may **not** be called in the middle of an operation or transaction
-   * (either being sent or received), to ensure that this
-   * `Collab` is in a reasonable, stable, user-facing state.
-   *
-   * @return save data
+   * @return The saved state, in the form of a [[SavedStateTree]], or null
+   * if there is no state to save.
    */
-  abstract save(): Uint8Array;
+  abstract save(): SavedStateTree | null;
 
-  // OPT: tree-aware format (e.g. map plus this-data), like send/receive.
-  abstract load(saveData: Uint8Array, meta: UpdateMeta): void;
+  // TODO: versioning advice (protobuf compatibility; just CObject for now really)
+  /**
+   * Called by this Collab's parent to load some saved state.
+   * You may assume that the saved state was generated by
+   * [[save]] on some replica of this Collab (possibly `this`, although then
+   * it's redundant),
+   * with guarantees set by the [[runtime]].
+   *
+   * Note that when loading a whole document, this Collab's `load` is skipped
+   * if its saved replica's [[save]] call returned `null`.
+   *
+   * @param savedStateTree The saved state to load, in the form of a
+   * [[SavedStateTree].
+   * @param meta Metadata attached to this saved state by the runtime.
+   * It incorporates all possible metadata requests. Note that
+   * `meta.updateType` is always `"savedState"`.
+   */
+  abstract load(savedStateTree: SavedStateTree, meta: UpdateMeta): void;
 
   /**
    * Returns the "name path" from `descendant` to `this`,
@@ -363,14 +377,15 @@ export abstract class Collab<
   /**
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
-   *
-   * When canGC() is true and there are no non-weak
-   * references to this Collab, users of this Collab may safely
-   * delete it from memory ("garbage collection"),
-   * recreating it using the
-   * same constructor arguments if needed later.  That reduces
-   * the state space of some Collab collections
+   * Returning true allows some collections to reduce memory usage
    * (in particular, [[LazyMutCMap]]).
+   *
+   * When canGC() is true and there are no other (non-weak)
+   * references to this Collab, [[parent]] may choose to
+   * delete it from memory, allowing garbage collection.
+   * If this is needed later, [[parent]] will reconstruct an equivalent
+   * object using the same constructor and constructor arguments.
+   * See [[LazyMutCMap]]'s implementation for an example.
    */
   abstract canGC(): boolean;
 }

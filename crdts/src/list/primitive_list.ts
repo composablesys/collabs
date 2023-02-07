@@ -285,9 +285,9 @@ export class PrimitiveCList<T>
     return PrimitiveCListSave.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (saveData.isPresent) {
-      const decoded = PrimitiveCListSave.decode(saveData.get());
+  load(savedState: Optional<Uint8Array>): void {
+    if (savedState.isPresent) {
+      const decoded = PrimitiveCListSave.decode(savedState.get());
       let values: T[];
       if (this.valueArraySerializer !== undefined) {
         values = this.valueArraySerializer.deserialize(decoded.valuesArraySave);

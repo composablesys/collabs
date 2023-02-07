@@ -152,22 +152,22 @@ export class LazyMutCMap<K, C extends Collab>
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Uint8Array[],
+    messageStack: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
-    messagePath.push(child.name);
-    this.send(messagePath, metaRequests);
+    messageStack.push(child.name);
+    this.send(messageStack, metaRequests);
   }
 
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 
-  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
-    const keyString = <string>messagePath[messagePath.length - 1];
+  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+    const keyString = <string>messageStack[messageStack.length - 1];
     this.inReceiveKeyStr = keyString;
     try {
       // Message for a child
@@ -175,8 +175,8 @@ export class LazyMutCMap<K, C extends Collab>
       const [value, nontrivialStart] = this.getInternal(key, keyString, false);
       this.inReceiveValue = value;
 
-      messagePath.length--;
-      value.receive(messagePath, meta);
+      messageStack.length--;
+      value.receive(messageStack, meta);
 
       // If the value became GC-able, move it to the
       // backup map
@@ -307,8 +307,8 @@ export class LazyMutCMap<K, C extends Collab>
     return LazyMutCMapSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array, meta: UpdateMeta): void {
-    const saveMessage = LazyMutCMapSave.decode(saveData);
+  load(savedState: Uint8Array, meta: UpdateMeta): void {
+    const saveMessage = LazyMutCMapSave.decode(savedState);
     for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
       const child = this.getInternal(this.stringAsKey(name), name, true)[0];
       child.load(childSave, meta);

@@ -81,7 +81,7 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Uint8Array[]
+    messageStack: Uint8Array[]
   ): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
@@ -89,23 +89,23 @@ export class RunLocallyLayer extends Collab implements ICollabParent {
 
     if (this.runLocallyMeta !== null) {
       // Local echo only.
-      this.child.receive(messagePath, this.runLocallyMeta);
+      this.child.receive(messageStack, this.runLocallyMeta);
     } else {
       // Normal send.
-      this.send(messagePath);
+      this.send(messageStack);
     }
   }
 
-  receive(messagePath: (string | Uint8Array)[], meta: UpdateMeta): void {
-    this.child.receive(messagePath, meta);
+  receive(messageStack: (string | Uint8Array)[], meta: UpdateMeta): void {
+    this.child.receive(messageStack, meta);
   }
 
   save(): Uint8Array {
     return this.child.save();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    this.child.load(saveData);
+  load(savedState: Optional<Uint8Array>): void {
+    this.child.load(savedState);
   }
 
   getDescendant(namePath: string[]): Collab | undefined {

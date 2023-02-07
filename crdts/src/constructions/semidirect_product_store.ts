@@ -223,9 +223,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return SemidirectProductStoreSave.encode(saveMessage).finish();
   }
 
-  protected loadObject(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    const saveMessage = SemidirectProductStoreSave.decode(saveData.get());
+  protected loadObject(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    const saveMessage = SemidirectProductStoreSave.decode(savedState.get());
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {
       this.history.set(

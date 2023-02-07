@@ -113,37 +113,37 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
   childSend(
     child: Collab,
-    messagePath: Uint8Array[],
+    messageStack: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
 
-    messagePath.push(child.name);
-    this.send(messagePath, metaRequests);
+    messageStack.push(child.name);
+    this.send(messageStack, metaRequests);
   }
 
-  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
-    if (messagePath.length === 0) {
+  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+    if (messageStack.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");
     }
 
     const child = this.children.get(
-      <string>messagePath[messagePath.length - 1]
+      <string>messageStack[messageStack.length - 1]
     );
     if (child === undefined) {
       throw new Error(
         `Unknown child: ${
-          messagePath[messagePath.length - 1]
-        } in: ${JSON.stringify(messagePath)}, children: ${JSON.stringify([
+          messageStack[messageStack.length - 1]
+        } in: ${JSON.stringify(messageStack)}, children: ${JSON.stringify([
           ...this.children.keys(),
         ])}`
       );
     }
-    messagePath.length--;
-    child.receive(messagePath, meta);
+    messageStack.length--;
+    child.receive(messageStack, meta);
   }
 
   save(): Uint8Array {
@@ -168,8 +168,8 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     return null;
   }
 
-  load(saveData: Uint8Array, meta: UpdateMeta): void {
-    const saveMessage = CObjectSave.decode(saveData);
+  load(savedState: Uint8Array, meta: UpdateMeta): void {
+    const saveMessage = CObjectSave.decode(savedState);
     for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
       const child = this.children.get(name);
       // For versioning purposes, skip loading children that no longer exist.
@@ -186,19 +186,19 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   }
 
   /**
-   * Override to load extra state, using `saveData` from
+   * Override to load extra state, using `savedState` from
    * [[saveObject]].
    *
    * Note this is called after the children are loaded.
    * Also, this is always called, even if [[saveObject]] returned
    * null (in that case this is called with null).
    *
-   * @param  saveData the output of [[saveObject]] on
+   * @param  savedState the output of [[saveObject]] on
    * a previous saved instance, or null if loading
    * is being skipped (the app instance is new).
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected loadObject(saveData: Uint8Array | null): void {
+  protected loadObject(savedState: Uint8Array | null): void {
     // Does nothing by default.
   }
 

@@ -143,12 +143,12 @@ export class ReceiveCRDTMetaBatch {
 
   /**
    * [received description]
-   * @param messagePath [description]
+   * @param messageStack [description]
    * @return Whether the current transaction is complete,
    * hence completeTransaction must be called next.
    */
-  received(messagePath: (Uint8Array | string)[]): boolean {
-    this.transactionMessages[this.nextMessage] = messagePath;
+  received(messageStack: (Uint8Array | string)[]): boolean {
+    this.transactionMessages[this.nextMessage] = messageStack;
     this.nextMessage++;
     return this.nextMessage === this.metas[this.currentTransaction].count;
   }

@@ -12,7 +12,7 @@ message DeletingMutCSetMessage {
 
 message DeletingMutCSetValueSave {
   required string name = 1;
-  required bytes saveData = 2;
+  required bytes savedState = 2;
   // Only present for non-initial values.
   optional bytes args = 3;
 }

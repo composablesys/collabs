@@ -105,7 +105,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    */
   private deletedSendingChild?: C = undefined;
 
-  childSend(child: Collab, messagePath: Uint8Array[]): void {
+  childSend(child: Collab, messageStack: Uint8Array[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -116,13 +116,13 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       this.deletedSendingChild = <C>child;
     }
 
-    messagePath.push(child.name);
-    this.send(messagePath);
+    messageStack.push(child.name);
+    this.send(messageStack);
   }
 
   private ourCreatedValue?: C = undefined;
-  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
-    const lastMessage = messagePath[messagePath.length - 1];
+  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+    const lastMessage = messageStack[messageStack.length - 1];
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
       // CObject.
@@ -146,8 +146,8 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
           return;
         }
       }
-      messagePath.length--;
-      child.receive(messagePath, meta);
+      messageStack.length--;
+      child.receive(messageStack, meta);
     } else {
       const decoded = DeletingMutCSetMessage.decode(<Uint8Array>lastMessage);
       switch (decoded.op) {
@@ -229,7 +229,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   add(...args: AddArgs): C {
     const message = DeletingMutCSetMessage.create({
       add: {
-        replicaUniqueNumber: this.runtime.getLocalCounter(),
+        replicaUniqueNumber: this.runtime.nextLocalCounter(),
         args: this.argsSerializer.serialize(args),
       },
     });
@@ -289,7 +289,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       const args = this.constructorArgs.get(name);
       valueSaves[i] = {
         name,
-        saveData: child.save(),
+        savedState: child.save(),
         ...(args === undefined ? {} : { args }),
       };
       i++;
@@ -298,12 +298,12 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return DeletingMutCSetSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) {
+  load(savedState: Optional<Uint8Array>): void {
+    if (!savedState.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      for (const child of this.children.values()) child.load(saveData);
+      for (const child of this.children.values()) child.load(savedState);
     } else {
-      const saveMessage = DeletingMutCSetSave.decode(saveData.get());
+      const saveMessage = DeletingMutCSetSave.decode(savedState.get());
       // Delete initial values (our current values) that
       // were deleted before the save.
       const remainingInitialValues = new Set<string>();
@@ -336,7 +336,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       for (const valueSave of saveMessage.valueSaves) {
         this.children
           .get(valueSave.name)!
-          .load(Optional.of(valueSave.saveData));
+          .load(Optional.of(valueSave.savedState));
       }
     }
   }

@@ -13,7 +13,7 @@ import { ReceiveCRDTMeta } from "./crdt_meta_implementations";
 export interface ReceiveTransaction {
   readonly crdtMeta: ReceiveCRDTMeta;
   /**
-   * Each array element is a messagePath.
+   * Each array element is a messageStack.
    */
   readonly messages: (Uint8Array | string)[][];
 }

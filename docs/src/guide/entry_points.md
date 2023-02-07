@@ -27,16 +27,16 @@ const app = new collabs.CRDTApp();
 2. At some point, call [`app.load`](../api/collabs/classes/CRDTApp.html#load) **exactly once**:
 
 ```ts
-const saveData: collabs.Optional<Uint8Array>;
-app.load(saveData);
+const savedState: collabs.Optional<Uint8Array>;
+app.load(savedState);
 ```
 
 The call to `app.load` lets you load state from a previous session - either from the current user or from a collaborator - that was returned by that session's [`app.save()`](../api/collabs/classes/CRDTApp.html#save). Pass in a [Optional.empty()](../api/collabs/classes/Optional#empty) if you don't have any saved state, so that the app knows you are skipping loading.
 
 You must call `app.load`:
 
-- **After** making all calls to [`app.registerCollab`](../api/collabs/classes/CRDTApp.html#registerCollab), which initialize your app's `Collab`s as described in the [next section of the guide](./initialization.html). Those calls let `app` know the types and structure of your data - i.e., its schema - so that it knows how to parse the input `saveData`.
-- **Before** performing any `Collab` operations (mutating method calls) or processing network messages with [`app.receive`](../api/collabs/classes/CRDTApp.html#receive). That way, you ensure that your app's state is up-to-date with the `saveData` before you start making new changes on top of it.
+- **After** making all calls to [`app.registerCollab`](../api/collabs/classes/CRDTApp.html#registerCollab), which initialize your app's `Collab`s as described in the [next section of the guide](./initialization.html). Those calls let `app` know the types and structure of your data - i.e., its schema - so that it knows how to parse the input `savedState`.
+- **Before** performing any `Collab` operations (mutating method calls) or processing network messages with [`app.receive`](../api/collabs/classes/CRDTApp.html#receive). That way, you ensure that your app's state is up-to-date with the `savedState` before you start making new changes on top of it.
 
 Collabs will throw errors if you do this wrong, so it is to catch mistakes during testing.
 

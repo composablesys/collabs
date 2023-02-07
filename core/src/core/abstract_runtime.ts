@@ -1,6 +1,6 @@
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
-import { MetaRequest } from "./message";
 import { Runtime } from "./runtime";
+import { MetaRequest } from "./updates";
 
 /**
  * Skeletal implementation of [[Runtime]] that uses
@@ -31,33 +31,33 @@ export abstract class AbstractRuntime implements Runtime {
   }
 
   private idCounter = 0;
-  getLocalCounter(count = 1): number {
+  nextLocalCounter(count = 1): number {
     const ans = this.idCounter;
     this.idCounter += count;
     return ans;
   }
 
-  getUID(): string {
+  nextUID(): string {
     // For UID, use a pair (replicaID, replicaUniqueNumber).
     // These are sometimes called "causal dots".
     // They are similar to Lamport timestamps,
     // except that the number is a per-replica counter instead
     // of a logical clock.
     // OPT: shorten (base128 instead of base36)
-    return `${this.getLocalCounter().toString(36)},${this.replicaID}`;
+    return `${this.nextLocalCounter().toString(36)},${this.replicaID}`;
   }
 
   getNamePath(descendant: Collab): string[] {
     return this.rootCollab.getNamePath(descendant);
   }
 
-  getDescendant(namePath: Iterator<string>): Collab | undefined {
-    return this.rootCollab.getDescendant(namePath);
+  getDescendant(namePath: string[]): Collab | undefined {
+    return this.rootCollab.getDescendant(namePath[Symbol.iterator]());
   }
 
   abstract childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Uint8Array[],
+    messageStack: Uint8Array[],
     metaRequests: MetaRequest[]
   ): void;
 }

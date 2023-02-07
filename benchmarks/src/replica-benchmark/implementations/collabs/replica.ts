@@ -31,8 +31,8 @@ export class CollabsReplica implements Replica {
     return this.app.save();
   }
 
-  load(saveData: Uint8Array): void {
-    this.app.load(collabs.Optional.of(saveData));
+  load(savedState: Uint8Array): void {
+    this.app.load(collabs.Optional.of(savedState));
   }
 
   skipLoad(): void {

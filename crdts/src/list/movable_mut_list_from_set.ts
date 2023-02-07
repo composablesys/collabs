@@ -354,8 +354,8 @@ export class MovableMutCListFromSet<
     return this.positionSource.save();
   }
 
-  protected loadObject(saveData: Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
+  protected loadObject(savedState: Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
 
     // Note this.set is already loaded. Just need to load positionSource.
 
@@ -390,6 +390,6 @@ export class MovableMutCListFromSet<
       return item;
     }
 
-    this.positionSource.load(saveData.get(), nextItem);
+    this.positionSource.load(savedState.get(), nextItem);
   }
 }

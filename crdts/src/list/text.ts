@@ -239,9 +239,9 @@ export class CText
     return CTextSave.encode(message).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (saveData.isPresent) {
-      const decoded = CTextSave.decode(saveData.get());
+  load(savedState: Optional<Uint8Array>): void {
+    if (savedState.isPresent) {
+      const decoded = CTextSave.decode(savedState.get());
       const values = decoded.valuesSave;
       let index = 0;
       this.positionSource.load(decoded.positionSourceSave, (count) => {

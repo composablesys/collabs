@@ -119,12 +119,12 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(saveData: collabs.Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    this.state.X1 = GroupComponentMessage.decode(saveData.get()).X1;
-    this.state.Y1 = GroupComponentMessage.decode(saveData.get()).Y1;
-    this.state.X2 = GroupComponentMessage.decode(saveData.get()).X2;
-    this.state.Y2 = GroupComponentMessage.decode(saveData.get()).Y2;
+  load(savedState: collabs.Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    this.state.X1 = GroupComponentMessage.decode(savedState.get()).X1;
+    this.state.Y1 = GroupComponentMessage.decode(savedState.get()).Y1;
+    this.state.X2 = GroupComponentMessage.decode(savedState.get()).X2;
+    this.state.Y2 = GroupComponentMessage.decode(savedState.get()).Y2;
   }
 }
 
@@ -222,10 +222,10 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(saveData: collabs.Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
-    this.state.rotate1 = GroupComponentMessage.decode(saveData.get()).rotate1;
-    this.state.rotate2 = GroupComponentMessage.decode(saveData.get()).rotate2;
+  load(savedState: collabs.Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
+    this.state.rotate1 = GroupComponentMessage.decode(savedState.get()).rotate1;
+    this.state.rotate2 = GroupComponentMessage.decode(savedState.get()).rotate2;
   }
 }
 
@@ -280,10 +280,10 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(saveData: collabs.Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
+  load(savedState: collabs.Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
     this.state.reflectX1 = GroupComponentMessage.decode(
-      saveData.get()
+      savedState.get()
     ).reflectX1;
   }
 }
@@ -340,13 +340,13 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(saveData: collabs.Optional<Uint8Array>) {
-    if (!saveData.isPresent) return;
+  load(savedState: collabs.Optional<Uint8Array>) {
+    if (!savedState.isPresent) return;
     this.state.reflectY1 = GroupComponentMessage.decode(
-      saveData.get()
+      savedState.get()
     ).reflectY1;
     this.state.reflectY2 = GroupComponentMessage.decode(
-      saveData.get()
+      savedState.get()
     ).reflectY2;
   }
 }

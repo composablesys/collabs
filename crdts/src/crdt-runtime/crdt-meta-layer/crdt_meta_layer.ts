@@ -200,7 +200,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     }
   }
 
-  childSend(child: Collab, messagePath: Uint8Array[]): void {
+  childSend(child: Collab, messageStack: Uint8Array[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -209,8 +209,8 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
 
     this.currentSendMeta().count++;
 
-    messagePath.push(this.currentSendBatch());
-    this.send(messagePath);
+    messageStack.push(this.currentSendBatch());
+    this.send(messageStack);
   }
 
   /**
@@ -222,9 +222,9 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
    */
   private currentReceiveBatch: ReceiveCRDTMetaBatch | null = null;
 
-  receive(messagePath: Uint8Array[], meta: UpdateMeta): void {
-    if (messagePath.length === 0) {
-      throw new Error("messagePath.length === 0");
+  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+    if (messageStack.length === 0) {
+      throw new Error("messageStack.length === 0");
     }
 
     if (meta.isEcho) {
@@ -232,14 +232,14 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
       // message corresponds to the current transaction.
       const crdtMeta = this.currentSendMeta();
       // Remove our message.
-      messagePath.length--;
+      messageStack.length--;
       // Deliver immediately. No need to check the
       // buffer since our local echo cannot make any
       // previously received messages causally ready.
       if (!this.causalityGuaranteed) {
         this.messageBuffer!.processOwnDelivery();
       }
-      this.deliverMessage(messagePath, meta, crdtMeta);
+      this.deliverMessage(messageStack, meta, crdtMeta);
 
       // Reset isAutomatic, since we're done receiving.
       // (Otherwise future messages in the transaction will
@@ -259,20 +259,20 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
         this.currentReceiveBatch = new ReceiveCRDTMetaBatch(
           meta.sender,
           <number | undefined>meta.get(BatchingLayer.BATCH_SIZE_KEY) ?? 1,
-          <Uint8Array>messagePath[messagePath.length - 1]
+          <Uint8Array>messageStack[messageStack.length - 1]
         );
       }
 
       // Remove our message.
-      messagePath.length--;
+      messageStack.length--;
 
       // Since the message is not a local echo, we can
-      // assume messagePath is all (Uint8Array | string).
+      // assume messageStack is all (Uint8Array | string).
       // Also, here we are implicitly using the assumption
       // that meta is just `{ sender, isLocalEcho }`,
       // by forgetting it.
       if (
-        this.currentReceiveBatch.received(<(Uint8Array | string)[]>messagePath)
+        this.currentReceiveBatch.received(<(Uint8Array | string)[]>messageStack)
       ) {
         // Deliver/buffer the current transaction.
         const transaction = this.currentReceiveBatch.completeTransaction();
@@ -350,7 +350,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
   }
 
   private deliverMessage(
-    messagePath: Uint8Array[],
+    messageStack: Uint8Array[],
     meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ) {
@@ -358,7 +358,7 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     meta = meta.set(CRDTMeta.MESSAGE_META_KEY, crdtMeta);
 
     try {
-      this.child.receive(messagePath, meta);
+      this.child.receive(messageStack, meta);
     } catch (err) {
       if (meta.isEcho) {
         // Propagate the error back to the original
@@ -392,12 +392,12 @@ export class CRDTMetaLayer extends Collab implements ICollabParent {
     return CRDTMetaLayerSave.encode(saveMessage).finish();
   }
 
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) {
+  load(savedState: Optional<Uint8Array>): void {
+    if (!savedState.isPresent) {
       // Indicates skipped loading. Pass on the message.
-      this.child.load(saveData);
+      this.child.load(savedState);
     } else {
-      const saveMessage = CRDTMetaLayerSave.decode(saveData.get());
+      const saveMessage = CRDTMetaLayerSave.decode(savedState.get());
       for (const [replicaID, entry] of Object.entries(
         saveMessage.vectorClock
       )) {

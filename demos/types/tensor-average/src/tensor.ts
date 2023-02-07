@@ -139,7 +139,7 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     if (this.state.idCounter === undefined) {
       // TODO: do this in constructor once we get
       // access to this.runtime there
-      this.state.idCounter = this.runtime.getLocalCounter();
+      this.state.idCounter = this.runtime.nextLocalCounter();
     }
     const ownId = this.keyString(this.runtime.replicaID, this.state.idCounter!);
     const prOldValue = this.state.P.get(ownId);
@@ -264,7 +264,7 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
   save(): Uint8Array {
     return new Uint8Array();
   }
-  load(saveData: Optional<Uint8Array>): void {}
+  load(savedState: Optional<Uint8Array>): void {}
 }
 
 export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {

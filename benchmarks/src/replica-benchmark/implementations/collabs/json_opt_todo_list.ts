@@ -109,8 +109,8 @@
 //     );
 //   }
 //
-//   load(saveData: Uint8Array): void {
-//     super.load(saveData);
+//   load(savedState: Uint8Array): void {
+//     super.load(savedState);
 //     this.rootInternal = new JSONOptTodoListInternal(
 //       this.rootCursor,
 //       new collabs.RgaDenseLocalList<undefined>(this.app.runtime),
