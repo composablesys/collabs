@@ -3,8 +3,8 @@ import {
   CollabEventsRecord,
   CRDTMeta,
   CRDTMetaRequestee,
-  ICollabParent,
   InitToken,
+  IParent,
   Optional,
   serializeMessage,
   UpdateMeta,
@@ -302,7 +302,7 @@ export abstract class MultipleSemidirectProduct<
     Events extends CollabEventsRecord = CollabEventsRecord
   >
   extends Collab<Events>
-  implements ICollabParent, StatefulCRDT<MultipleSemidirectState<S>>
+  implements IParent, StatefulCRDT<MultipleSemidirectState<S>>
 {
   readonly state: MultipleSemidirectState<S>;
 

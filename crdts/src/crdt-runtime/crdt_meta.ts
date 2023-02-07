@@ -20,7 +20,7 @@
  * [[senderCounter]] and [[lamportTimestamp]] may be repeated
  * for the same sender, so they cannot be
  * used as part of a unique identifer
- * (see [[Runtime.nextLocalCounter]] instead).
+ * (see [[IRuntime.nextLocalCounter]] instead).
  *
  * [[vectorClockGet]] values, [[wallClockTime]],
  * and [[lamportTimestamp]] are not included by default.
@@ -41,7 +41,7 @@
  */
 export interface CRDTMeta {
   /**
-   * The transaction's sender's [[Runtime.replicaID]].
+   * The transaction's sender's [[IRuntime.replicaID]].
    */
   readonly sender: string;
   /**

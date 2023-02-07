@@ -44,8 +44,8 @@ export class DefaultSerializer<T> implements Serializer<T> {
     // Constructor is just here to mark it as private.
   }
 
-  // Only weak in keys, since we expect a Runtime's DefaultSerializer
-  // to exist for as long as the Runtime.
+  // Only weak in keys, since we expect a IRuntime's DefaultSerializer
+  // to exist for as long as the IRuntime.
   private static instance = new DefaultSerializer();
 
   static getInstance<T>(): DefaultSerializer<T> {

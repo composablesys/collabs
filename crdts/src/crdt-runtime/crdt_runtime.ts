@@ -8,9 +8,9 @@ import {
   CollabEventsRecord,
   ImmediateBatchingStrategy,
   InitToken,
+  IRuntime,
   Optional,
   randomReplicaID,
-  Runtime,
   RuntimeEventsRecord,
 } from "@collabs/core";
 import { CRDTRuntimeMessage } from "../../generated/proto_compiled";
@@ -55,7 +55,7 @@ export interface CRDTRuntimeEventsRecord extends RuntimeEventsRecord {
 // TODO: don't use directly, use CRDTApp or CRDTContainer instead.
 export class CRDTRuntime
   extends AbstractRuntime<CRDTRuntimeEventsRecord>
-  implements Runtime
+  implements IRuntime
 {
   private readonly batchingLayer: BatchingLayer;
   private readonly crdtMetaLayer: CRDTMetaLayer;
@@ -114,7 +114,7 @@ export class CRDTRuntime
     if (this.inRootReceive) {
       // send inside a receive call; not allowed (might break things).
       throw new Error(
-        "Runtime.send called during another message's receive;" +
+        "IRuntime.send called during another message's receive;" +
           " did you try to perform an operation in an event handler?"
       );
     }
@@ -186,7 +186,7 @@ export class CRDTRuntime
     if (this.inRootReceive) {
       // nested receive calls; not allowed (might break things).
       throw new Error(
-        "Runtime.receive called during another message's receive;" +
+        "IRuntime.receive called during another message's receive;" +
           " did you try to deliver a message in a Collab's event handler?"
       );
     }

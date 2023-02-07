@@ -6,9 +6,8 @@ export interface EventsRecord {
   [eventName: string]: any;
 }
 
-// TODO: remove/don't export these types?
-export type Unsubscribe = () => void;
-export type Handler<T, C> = (event: T, caller: C) => void;
+// Not exported to reduce conceptual size.
+type Handler<T, C> = (event: T, caller: C) => void;
 
 /**
  * Classes extending EventEmitter can emit events, and listeners can await
@@ -43,8 +42,8 @@ export class EventEmitter<Events extends EventsRecord> {
    */
   on<K extends keyof Events>(
     eventName: K,
-    handler: Handler<Events[K], this>
-  ): Unsubscribe {
+    handler: (event: Events[K], caller: this) => void
+  ): () => void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const set: Set<Handler<Events[K], any>> = (this.handlers[eventName] =
       this.handlers[eventName] ?? new Set([handler]));
@@ -64,8 +63,8 @@ export class EventEmitter<Events extends EventsRecord> {
    */
   once<K extends keyof Events>(
     eventName: K,
-    handler: Handler<Events[K], this>
-  ): Unsubscribe {
+    handler: (event: Events[K], caller: this) => void
+  ): () => void {
     const unsubscribe = this.on(eventName, (event, caller) => {
       unsubscribe();
       handler(event, caller);
@@ -84,6 +83,9 @@ export class EventEmitter<Events extends EventsRecord> {
       try {
         handler(event, this);
       } catch (err) {
+        // TODO: what to do about this? Console log is annoying, but need
+        // to not blackhole the error. Perhaps add an onError handler that can
+        // get the error?
         console.error("Error in Collabs event handler:\n", err);
       }
     }

@@ -2,8 +2,8 @@ import {
   AbstractCSetCollab,
   Collab,
   DefaultSerializer,
-  ICollabParent,
   InitToken,
+  IParent,
   makeUID,
   Optional,
   Serializer,
@@ -31,7 +31,7 @@ import {
  */
 export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractCSetCollab<C, AddArgs>
-  implements ICollabParent
+  implements IParent
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls

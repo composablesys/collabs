@@ -7,9 +7,9 @@ import {
   DefaultSerializer,
   DeletingMutCList,
   InitToken,
+  IRuntime,
   LazyMutCMap,
   LWWCVar,
-  Runtime,
   Serializer,
 } from "@collabs/collabs";
 
@@ -35,7 +35,7 @@ class JSONValueSerializer implements Serializer<JSONValue> {
   private readonly internalSerializer =
     DefaultSerializer.getInstance<SerializableJSONValue>();
 
-  private constructor(private readonly runtime: Runtime) {}
+  private constructor(private readonly runtime: IRuntime) {}
 
   serialize(value: JSONValue): Uint8Array {
     const serializableValue: SerializableJSONValue =
@@ -50,9 +50,9 @@ class JSONValueSerializer implements Serializer<JSONValue> {
     } else return serializableValue;
   }
 
-  static instancesByRuntime = new Map<Runtime, JSONValueSerializer>();
+  static instancesByRuntime = new Map<IRuntime, JSONValueSerializer>();
 
-  static getInstance(runtime: Runtime) {
+  static getInstance(runtime: IRuntime) {
     let instance = this.instancesByRuntime.get(runtime);
     if (instance === undefined) {
       instance = new JSONValueSerializer(runtime);

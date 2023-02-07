@@ -15,7 +15,7 @@
 //   constructor(
 //     private readonly collab: JSONCursor,
 //     private readonly idGen: collabs.RgaDenseLocalList<undefined>,
-//     private readonly runtime: collabs.Runtime
+//     private readonly runtime: collabs.IRuntime
 //   ) {
 //     this.items = this.collab.get("items")[0] as JSONCursor;
 //     this.ids = this.collab.get("itemsIds")[0] as collabs.PrimitiveCList<string>;

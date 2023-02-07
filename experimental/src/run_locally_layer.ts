@@ -1,8 +1,8 @@
 import {
   Collab,
   CollabEventsRecord,
-  ICollabParent,
   InitToken,
+  IParent,
   UpdateMeta,
 } from "../../core/src/core";
 import { Optional } from "../../core/src/util";
@@ -45,7 +45,7 @@ import { Optional } from "../../core/src/util";
  * assumptions made by the library, due to its "magic"
  * nature. See [https://github.com/composablesys/collabs/issues](https://github.com/composablesys/collabs/issues).
  */
-export class RunLocallyLayer extends Collab implements ICollabParent {
+export class RunLocallyLayer extends Collab implements IParent {
   private child!: Collab;
   private runLocallyMeta: UpdateMeta | null = null;
 

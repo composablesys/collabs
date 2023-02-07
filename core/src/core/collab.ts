@@ -1,6 +1,6 @@
-import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
-import { isRuntime, Runtime } from "./runtime";
+import { IRuntime, isRuntime } from "./iruntime";
+import { Parent } from "./parent";
 import { MetaRequest, SavedStateTree, UpdateMeta } from "./updates";
 
 /**
@@ -17,7 +17,7 @@ export class InitToken {
    */
   readonly isInitToken = true;
 
-  constructor(readonly name: string, readonly parent: CollabParent) {}
+  constructor(readonly name: string, readonly parent: Parent) {}
 }
 
 /**
@@ -62,7 +62,7 @@ export interface CollabEventsRecord {
    * individual event type.
    *
    * For Collabs that emit an event after each user-facing change,
-   * this is effectively the same as [[Runtime]]'s "Change"
+   * this is effectively the same as [[IRuntime]]'s "Change"
    * event (TODO: removed), except restricted to the scope of this [[Collab]] and
    * its descendants.
    */
@@ -87,7 +87,7 @@ export interface CollabEventsRecord {
  * server-serialized order, immediate local echo, etc.)
  * is left open, to let the library be as general as
  * possible. Instead, each Collab should specify its network requirements,
- * typically in the form of a specific [[Runtime]] or
+ * typically in the form of a specific [[IRuntime]] or
  * ancestor `Collab`s; users are then expected to meet
  * these requirements when using the Collab.
  *
@@ -121,8 +121,8 @@ export interface CollabEventsRecord {
  * environment to their children (e.g., [[CRDTMetaLayer]]).
  *
  * `Collab`s that can be a parent to other `Collab`s must
- * implement [[ICollabParent]], so that their type is
- * assignable to [[CollabParent]].
+ * implement [[IParent]], so that their type is
+ * assignable to [[Parent]].
  * Each parent `Collab` has full control over its children,
  * allowing a wide range of behavior to be implemented
  * using `Collab` ancestors (e.g., message batching
@@ -134,7 +134,7 @@ export interface CollabEventsRecord {
  * siblings. They are assigned at construction time using
  * the [[InitToken]] constructor argument.
  * The parent relationships form a tree of `Collab`s,
- * rooted at the [[Runtime]].
+ * rooted at the [[IRuntime]].
  *
  * Each `Collab` is responsible
  * for its subtree:
@@ -169,13 +169,13 @@ export abstract class Collab<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends EventEmitter<Events> {
   /**
-   * The ambient [[Runtime]].
+   * The ambient [[IRuntime]].
    */
-  readonly runtime: Runtime;
+  readonly runtime: IRuntime;
   /**
    * The Collab's parent in the tree of Collabs.
    */
-  readonly parent: CollabParent;
+  readonly parent: Parent;
   /**
    * The Collab's name, which distinguishes it among its siblings
    * in the tree of Collabs.
@@ -240,14 +240,14 @@ export abstract class Collab<
    * Technically, ancestors in the tree of Collabs may violate the
    * delivery assumption. For example, [[DeletingMutCSet]] does not
    * deliver messages to deleted set elements. Ancestors that do so
-   * are responsible for ensuring consistency, so you usually do not
+   * are responsible for ensuring consistency (etc.), so you usually do not
    * need to worry about such violations.
    *
    * @param messageStack The message to send, in the form of a stack
    * of Uint8Arrays.
-   * @param metaRequests A stack of metadata requests. The Runtime will use
-   * these when creating the [[UpdateMeta]] for [[receive]]. Note that
-   * the stack need not align with `messageStack`.
+   * @param metaRequests A stack of metadata requests. The IRuntime will use
+   * the union of these when creating the [[UpdateMeta]] for [[receive]].
+   * Note that the stack need not align with `messageStack`.
    */
   protected send(
     messageStack: Uint8Array[],
@@ -272,7 +272,7 @@ export abstract class Collab<
   abstract receive(messageStack: Uint8Array[], meta: UpdateMeta): void;
 
   // TODO: give context/meta? Take meta requests? I guess in worst case,
-  // you could ask Runtime.
+  // you could ask IRuntime.
   /**
    * Called by this Collab's parent to obtain saved state. The saved
    * state describes the current state of this

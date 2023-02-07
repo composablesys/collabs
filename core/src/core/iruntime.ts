@@ -1,12 +1,12 @@
 import { Collab } from "./collab";
-import { ICollabParent } from "./collab_parent";
+import { IParent } from "./parent";
 
 /**
  * A runtime for a Collabs document, responsible for connecting
  * replicas of [[Collab]]s across devices and for other
  * whole-document functionality.
  *
- * [[Runtime]] is a general interface; specific replication techniques are
+ * [[IRuntime]] is a general interface; specific replication techniques are
  * expected to provide their own implementations, such as
  * [[CRDTRuntime]] for CRDTs.
  *
@@ -21,7 +21,7 @@ import { ICollabParent } from "./collab_parent";
  * of local messages, and that saved states are delivered
  * in causal order but may be redundant with other updates.
  */
-export interface Runtime extends ICollabParent {
+export interface IRuntime extends IParent {
   /**
    * Type guard, used by [[isRuntime]].
    */
@@ -41,7 +41,7 @@ export interface Runtime extends ICollabParent {
 
   /**
    * Returns a nonnegative counter value that will only be
-   * associated with this Runtime's [[replicaID]]
+   * associated with this IRuntime's [[replicaID]]
    * once.
    *
    * @param count = 1 When set, treat this as `count` calls,
@@ -59,13 +59,13 @@ export interface Runtime extends ICollabParent {
   nextUID(): string;
 
   /**
-   * Returns the series of names on descendant's path to this Runtime
+   * Returns the series of names on descendant's path to this IRuntime
    * in the tree of [[Collab]]s.
    *
    * [[getDescendant]] does the reverse procedure. They are used to
    * implement [[CollabID]]s.
    *
-   * The path may be truncated if this Runtime guarantees
+   * The path may be truncated if this IRuntime guarantees
    * that all
    * public-facing Collab's will be descendants of a given
    * Collab (e.g., a distinguished root).
@@ -78,14 +78,14 @@ export interface Runtime extends ICollabParent {
   getNamePath(descendant: Collab): string[];
 
   /**
-   * Returns the descendant of this Runtime at the
+   * Returns the descendant of this IRuntime at the
    * given name path, or `undefined`
    * if it no longer exists.
    *
    * See also: [[CollabID.getDescendant]].
    *
    * @param  namePath A name path referencing a descendant
-   * of this `Runtime`, as returned by [[getNamePath]].
+   * of this `IRuntime`, as returned by [[getNamePath]].
    * It is iterated, consuming the iterator.
    * @return The descendant at the given name path, or `undefined`
    * if it no longer exists.
@@ -95,9 +95,9 @@ export interface Runtime extends ICollabParent {
   getDescendant(namePath: string[]): Collab | undefined;
 }
 
-export function isRuntime(x: unknown): x is Runtime {
+export function isRuntime(x: unknown): x is IRuntime {
   if (typeof x === "object") {
-    if ((x as Runtime).isRuntime === true) {
+    if ((x as IRuntime).isRuntime === true) {
       return true;
     }
   }

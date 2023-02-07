@@ -2,8 +2,8 @@ import { CObjectSave } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEventsRecord,
-  ICollabParent,
   InitToken,
+  IParent,
   MetaRequest,
   UpdateMeta,
 } from "../core";
@@ -67,7 +67,7 @@ import {
  */
 export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   extends Collab<Events>
-  implements ICollabParent
+  implements IParent
 {
   /**
    * The children, keyed by name.

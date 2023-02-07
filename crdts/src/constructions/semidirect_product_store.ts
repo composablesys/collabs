@@ -39,14 +39,14 @@ class StoredMessage<M2> {
  * tells you the acted upon version that you should actually
  * perform, according to the semidirect
  * product algorithm.  Typically you will perform the operation
- * using [[Runtime.runLocally]].
+ * using [[IRuntime.runLocally]].
  *
  * To learn what Collab2 operations happen, you can:
  * - Listen for the relevant events and call [[processM2]]
  * in the event handler.
  * - Use a [[CMessenger]] to send your own description of
  * what operation to perform, then in the event handler,
- * perform it using [[Runtime.runLocally]] before calling
+ * perform it using [[IRuntime.runLocally]] before calling
  * [[processM2]].
  *
  * To plan Collab1 operations, you can likewise use a [[CMessenger]].

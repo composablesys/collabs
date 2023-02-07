@@ -21,7 +21,7 @@ export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
  * This Collab has no state; it merely broadcasts messages between replicas.
  * To receive messages, listen on Message events.
  *
- * Note that depending on the [[Runtime]],
+ * Note that depending on the [[IRuntime]],
  * messages may be received in different orders on
  * different replicas.
  */

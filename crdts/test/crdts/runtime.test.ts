@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { TestingCRDTAppGenerator } from "../../src";
 
-describe("Runtime", () => {
+describe("IRuntime", () => {
   let appGen: TestingCRDTAppGenerator;
 
   beforeEach(() => {

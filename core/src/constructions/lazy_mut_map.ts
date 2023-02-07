@@ -2,8 +2,8 @@ import { LazyMutCMapSave } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEventsRecord,
-  ICollabParent,
   InitToken,
+  IParent,
   MetaRequest,
   UpdateMeta,
 } from "../core";
@@ -90,7 +90,7 @@ import { AbstractCMapCollab } from "../data_types/abstract_map";
  */
 export class LazyMutCMap<K, C extends Collab>
   extends AbstractCMapCollab<K, C, []>
-  implements ICollabParent
+  implements IParent
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();

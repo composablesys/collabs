@@ -40,7 +40,7 @@ export interface UpdateMeta {
    */
   isLocalOp: boolean;
   /**
-   * Optionally, a [[Runtime]] implementation may include extra metadata
+   * Optionally, a [[IRuntime]] implementation may include extra metadata
    * in this field. For example, [[CRDTRuntime]] puts [[CRDTMeta]] here.
    *
    * This field is intended for use by [[Collab]] implementations,
@@ -49,13 +49,13 @@ export interface UpdateMeta {
    * A Collab that requires specific metadata should cast this field
    * to the appropriate type. For CRDTMeta, you can instead
    * extend [[PrimitiveCRDT]]. Note that specific metadata will only
-   * be present when using a corresponding Runtime.
+   * be present when using a corresponding IRuntime.
    */
   runtimeExtra: unknown;
 }
 
 /**
- * A [[Runtime]] may extend this interface to allow [[Collab]]s to configure
+ * A [[IRuntime]] may extend this interface to allow [[Collab]]s to configure
  * the content of [[UpdateMeta.runtimeExtra]].
  *
  * Specifically, a Collab makes a request in [[Collab.send]]; this affects

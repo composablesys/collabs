@@ -1,9 +1,9 @@
 import {
   BatchingLayer,
   Collab,
-  ICollabParent,
   InitToken,
   int64AsNumber,
+  IParent,
   Optional,
   UpdateMeta,
 } from "@collabs/core";
@@ -44,7 +44,7 @@ import { ReceiveTransaction } from "./receive_transaction";
  * (Exception: BatchingLayer.BATCH_SIZE_KEY, which we extract and don't need
  * after loading.)
  */
-export class CRDTMetaLayer extends Collab implements ICollabParent {
+export class CRDTMetaLayer extends Collab implements IParent {
   private child!: Collab;
   /**
    * Includes this.runtime.replicaID.

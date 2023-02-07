@@ -4,7 +4,7 @@
 
 ## Quick Start
 
-In any app, you can listen on [`Runtime`](../api/collabs/classes/Runtime.html)'s "Change" event, then refresh the whole view each time it is emitted.
+In any app, you can listen on [`IRuntime`](../api/collabs/classes/IRuntime.html)'s "Change" event, then refresh the whole view each time it is emitted.
 
 ```ts
 runtime.on("Change", () => {
@@ -13,11 +13,11 @@ runtime.on("Change", () => {
 });
 ```
 
-This works because a `Runtime` "Change" event is dispatched whenever the local user performs an operation or a message is received from another user. Of course, it might be inefficient or interact poorly with the UI.
+This works because a `IRuntime` "Change" event is dispatched whenever the local user performs an operation or a message is received from another user. Of course, it might be inefficient or interact poorly with the UI.
 
 ## API
 
-See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `Runtime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
+See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `IRuntime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
 
 - `on` adds an event listener. Calling `on`'s return value removes the listener.
 - `once` adds an event listener that is called only once, on the next event. Calling `once`'s return value before the next event removes the listener.
@@ -81,10 +81,10 @@ TODO: General advice (merge with below paragraph):
   don't want to bother adding individual events, you can just
   emit "Change" events when your state changes (e.g., on
   your children's "Change" events). Or, you can skip events
-  entirely and either refresh the whole display on Runtime
+  entirely and either refresh the whole display on IRuntime
   "Change" events, or refresh your Collab-specific display on
   its children's "Change" events.
 
 See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`ISet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
-> **Aside:** For custom types that you only plan to use in your own application, you may not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `Runtime`'s "Change" event.
+> **Aside:** For custom types that you only plan to use in your own application, you may not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `IRuntime`'s "Change" event.

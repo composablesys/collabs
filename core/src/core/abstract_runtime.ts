@@ -1,12 +1,12 @@
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
-import { Runtime } from "./runtime";
+import { IRuntime } from "./iruntime";
 import { MetaRequest } from "./updates";
 
 /**
- * Skeletal implementation of [[Runtime]] that uses
+ * Skeletal implementation of [[IRuntime]] that uses
  * a root [[Collab]].
  */
-export abstract class AbstractRuntime implements Runtime {
+export abstract class AbstractRuntime implements IRuntime {
   readonly isRuntime: true = true;
   /**
    * Readonly. Set with setRootCollab.
@@ -30,10 +30,10 @@ export abstract class AbstractRuntime implements Runtime {
     return rootCollab;
   }
 
-  private idCounter = 0;
+  private localCounter = 0;
   nextLocalCounter(count = 1): number {
-    const ans = this.idCounter;
-    this.idCounter += count;
+    const ans = this.localCounter;
+    this.localCounter += count;
     return ans;
   }
 

@@ -1,5 +1,5 @@
 import { CollabIDMessage } from "../../generated/proto_compiled";
-import { Collab, Runtime } from "../core";
+import { Collab, IRuntime } from "../core";
 import { Serializer } from "./serialization";
 
 /**
@@ -26,10 +26,10 @@ export class CollabID<C extends Collab> {
    */
   constructor(
     readonly pathToBase: string[],
-    // Technically this should be CollabParent. However, that is sometimes
+    // Technically this should be Parent. However, that is sometimes
     // annoying when you make a CollabID with a generic base, since then you
-    // have to add (or cast) the CollabParent constraint to the generic type.
-    readonly base: Collab | Runtime
+    // have to add (or cast) the Parent constraint to the generic type.
+    readonly base: Collab | IRuntime
   ) {}
 
   /**
@@ -70,7 +70,7 @@ export class CollabID<C extends Collab> {
    * @param  base An ancestor of the referenced Collab, used in [[get]]
    * and serialization.
    */
-  static of<C extends Collab>(collab: C, base: Collab | Runtime): CollabID<C> {
+  static of<C extends Collab>(collab: C, base: Collab | IRuntime): CollabID<C> {
     return new CollabID(base.getNamePath(collab), base);
   }
 }
@@ -87,7 +87,7 @@ export class CollabID<C extends Collab> {
 export class CollabIDSerializer<C extends Collab>
   implements Serializer<CollabID<C>>
 {
-  constructor(readonly base: Collab | Runtime) {}
+  constructor(readonly base: Collab | IRuntime) {}
 
   serialize(value: CollabID<C>): Uint8Array {
     if (value.base !== this.base) {
