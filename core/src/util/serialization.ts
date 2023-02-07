@@ -1,12 +1,13 @@
 import { Buffer } from "buffer";
 import {
   ArrayMessage,
+  CollabIDMessage,
   DefaultSerializerMessage,
   IDefaultSerializerMessage,
   ObjectMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { Collab } from "../core/";
+import { Collab, CollabID } from "../core/";
 
 /**
  * A serializer for values of type `T` (e.g., elements
@@ -170,7 +171,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
   }
 }
 
-// TODO: const object instead of singleton class? Same for DefaultSerializer.
+// TODO: const object instead of singleton class? Same for DefaultSerializer, CollabIDSerializer.
 export class StringSerializer implements Serializer<string> {
   private constructor() {
     // Use StringSerializer.instance instead.
@@ -256,6 +257,30 @@ export class TrivialSerializer<T> implements Serializer<T> {
   }
 }
 
+export class CollabIDSerializer<C extends Collab>
+  implements Serializer<CollabID<C>>
+{
+  private constructor() {
+    // Singleton.
+  }
+
+  serialize(value: CollabID<C>): Uint8Array {
+    const message = CollabIDMessage.create({ namePath: value.namePath });
+    return CollabIDMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array): CollabID<C> {
+    const decoded = CollabIDMessage.decode(message);
+    return { namePath: decoded.namePath };
+  }
+
+  private static instance = new CollabIDSerializer<Collab>();
+
+  static getInstance<C extends Collab>(): CollabIDSerializer<C> {
+    return this.instance;
+  }
+}
+
 /**
  * Apply this function to protobuf.js uint64 and sint64 output values
  * to convert them to the nearest JS number (double).
@@ -269,5 +294,3 @@ export function int64AsNumber(num: number | Long): number {
   if (typeof num === "number") return num;
   else return num.toNumber();
 }
-
-// TODO: CollabIDSerializer.

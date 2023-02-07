@@ -26,5 +26,5 @@ message PairSerializerMessage {
 }
 
 message CollabIDMessage {
-    repeated string pathToBase = 1;
+    repeated string namePath = 1;
 }

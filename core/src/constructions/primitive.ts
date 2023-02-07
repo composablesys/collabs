@@ -25,7 +25,10 @@ export abstract class CPrimitive<
    * @param message
    * @param metaRequest
    */
-  protected sendPrimitive(message: Uint8Array, metaRequest?: MetaRequest) {
+  protected sendPrimitive(
+    message: Uint8Array | string,
+    metaRequest?: MetaRequest
+  ) {
     this.send([message], metaRequest === undefined ? [] : [metaRequest]);
   }
 
@@ -56,7 +59,7 @@ export abstract class CPrimitive<
    * @param  message    [description]
    */
   protected abstract receivePrimitive(
-    message: Uint8Array,
+    message: Uint8Array | string,
     meta: UpdateMeta
   ): void;
 
@@ -68,7 +71,7 @@ export abstract class CPrimitive<
   protected abstract savePrimitive(): Uint8Array | null;
 
   load(savedState: SavedStateTree): void {
-    this.loadPrimitive(savedState.self);
+    this.loadPrimitive(savedState.self!);
   }
 
   protected abstract loadPrimitive(savedState: Uint8Array): void;

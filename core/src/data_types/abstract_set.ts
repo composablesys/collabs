@@ -4,6 +4,7 @@ import { CSetEventsRecord, ISet } from "./iset";
 /**
  * Utility type for [[MakeAbstractSet]]'s type signature.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface MakeAbstractSet_Methods<T, AddArgs extends unknown[] = [T]> {
   /**
    * Calls delete on every value in the set.

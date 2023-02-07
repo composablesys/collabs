@@ -4,6 +4,7 @@ import { CMapEventsRecord, IMap } from "./imap";
 export interface MakeAbstractMap_Methods<
   K,
   V,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SetArgs extends unknown[] = [V]
 > {
   /**
