@@ -1,4 +1,5 @@
 import {
+  CLazyMap,
   CMapDeleteEvent,
   CMapSetEvent,
   CollabID,
@@ -6,7 +7,6 @@ import {
   EventEmitter,
   EventsRecord,
   InitToken,
-  LazyMutCMap,
   Optional,
   OptionalSerializer,
 } from "@collabs/core";
@@ -400,20 +400,20 @@ describe("standard", () => {
     });
   });
 
-  describe("LazyMutCMap", () => {
-    let aliceMap: LazyMutCMap<string, ResettableCCounter>;
-    let bobMap: LazyMutCMap<string, ResettableCCounter>;
+  describe("CLazyMap", () => {
+    let aliceMap: CLazyMap<string, ResettableCCounter>;
+    let bobMap: CLazyMap<string, ResettableCCounter>;
 
     beforeEach(() => {
       const valueConstructor = (valueInitToken: InitToken) =>
         new ResettableCCounter(valueInitToken);
       aliceMap = alice.registerCollab(
         "map",
-        (init) => new LazyMutCMap(init, valueConstructor)
+        (init) => new CLazyMap(init, valueConstructor)
       );
       bobMap = bob.registerCollab(
         "map",
-        (init) => new LazyMutCMap(init, valueConstructor)
+        (init) => new CLazyMap(init, valueConstructor)
       );
       if (debug) {
         addEventListeners(aliceMap, "Alice");
@@ -427,7 +427,7 @@ describe("standard", () => {
     }
 
     function addEventListeners<K, V extends Object | null>(
-      map: LazyMutCMap<any, any>,
+      map: CLazyMap<any, any>,
       name: string
     ): void {
       // TODO: add listeners

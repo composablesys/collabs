@@ -1,4 +1,3 @@
-import { Collab } from "./collab";
 import { IParent } from "./parent";
 
 /**
@@ -57,42 +56,6 @@ export interface IRuntime extends IParent {
    * across all replicas.
    */
   nextUID(): string;
-
-  /**
-   * Returns the series of names on descendant's path to this IRuntime
-   * in the tree of [[Collab]]s.
-   *
-   * [[getDescendant]] does the reverse procedure. They are used to
-   * implement [[CollabID]]s.
-   *
-   * The path may be truncated if this IRuntime guarantees
-   * that all
-   * public-facing Collab's will be descendants of a given
-   * Collab (e.g., a distinguished root).
-   *
-   * See also: [[CollabID.getNamePath]]
-   *
-   * @param  descendant [description]
-   * @return            [description]
-   */
-  getNamePath(descendant: Collab): string[];
-
-  /**
-   * Returns the descendant of this IRuntime at the
-   * given name path, or `undefined`
-   * if it no longer exists.
-   *
-   * See also: [[CollabID.getDescendant]].
-   *
-   * @param  namePath A name path referencing a descendant
-   * of this `IRuntime`, as returned by [[getNamePath]].
-   * It is iterated, consuming the iterator.
-   * @return The descendant at the given name path, or `undefined`
-   * if it no longer exists.
-   * @throws If no descendant with the given `namePath` could possibly
-   * exist.
-   */
-  getDescendant(namePath: string[]): Collab | undefined;
 }
 
 export function isRuntime(x: unknown): x is IRuntime {

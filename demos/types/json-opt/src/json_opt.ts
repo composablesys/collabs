@@ -1,12 +1,12 @@
 import {
   AddWinsCSet,
+  CLazyMap,
   CObject,
   Collab,
   CollabEvent,
   CollabEventsRecord,
   DefaultSerializer,
   InitToken,
-  LazyMutCMap,
   LWWCVar,
   PrimitiveCList,
   Serializer,
@@ -30,11 +30,11 @@ enum InternalType {
 
 export class JSONCollab extends CObject<JSONEventsRecord> {
   // TODO: use LwwCMap instead, or update text.
-  private readonly internalMap: LazyMutCMap<
+  private readonly internalMap: CLazyMap<
     string,
     LWWCVar<number | string | boolean | InternalType | undefined>
   >;
-  private readonly LazyMutCMap: LazyMutCMap<string, PrimitiveCList<string>>;
+  private readonly CLazyMap: CLazyMap<string, PrimitiveCList<string>>;
   private readonly keySet: AddWinsCSet<string>;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
@@ -45,17 +45,17 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     this.internalMap = this.addChild(
       "internalMap",
       (init) =>
-        new LazyMutCMap(
+        new CLazyMap(
           init,
           (valueInit) => new LWWCVar(valueInit, undefined),
           keySerializer
         )
     );
 
-    this.LazyMutCMap = this.addChild(
-      "LazyMutCMap",
+    this.CLazyMap = this.addChild(
+      "CLazyMap",
       (childInitToken) =>
-        new LazyMutCMap(
+        new CLazyMap(
           childInitToken,
           (valueInitToken) =>
             new PrimitiveCList(valueInitToken, StringSerializer.instance),
@@ -69,7 +69,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
 
     this.internalNestedKeys = new Map();
 
-    // Update LazyMutCMap if any keys are added or deleted
+    // Update CLazyMap if any keys are added or deleted
     this.keySet.on("Add", (event) => {
       let keys = event.value.split(":");
       keys?.pop();
@@ -105,7 +105,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     // Reset an existing map or list
     this.deleteSubKeys(key);
     if (val === InternalType.List) {
-      this.LazyMutCMap.delete(key);
+      this.CLazyMap.delete(key);
     }
 
     if (!this.keySet.has(key)) this.keySet.add(key);
@@ -126,7 +126,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
             break;
 
           case InternalType.List:
-            vals.push(this.LazyMutCMap.get(key));
+            vals.push(this.CLazyMap.get(key));
             break;
 
           default:

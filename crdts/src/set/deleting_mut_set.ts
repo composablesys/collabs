@@ -105,7 +105,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    */
   private deletedSendingChild?: C = undefined;
 
-  childSend(child: Collab, messageStack: Uint8Array[]): void {
+  childSend(child: Collab, messageStack: (Uint8Array | string)[]): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -121,7 +121,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   private ourCreatedValue?: C = undefined;
-  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
     const lastMessage = messageStack[messageStack.length - 1];
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in

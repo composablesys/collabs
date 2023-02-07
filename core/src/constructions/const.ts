@@ -16,11 +16,11 @@ export class CConst<T> extends CPrimitive {
     // No-op.
   }
 
-  save(): Uint8Array {
-    return new Uint8Array();
+  savePrimitive() {
+    return null;
   }
 
-  load(): void {
+  loadPrimitive(): void {
     // No-op.
   }
 

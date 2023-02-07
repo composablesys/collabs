@@ -1,6 +1,6 @@
 import { Collab } from "../core";
 // Import CObject and CPrimitive from their specific files;
-// with whole-folder imports, AbstractCMapCObject and LazyMutCMap
+// with whole-folder imports, AbstractCMapCObject and CLazyMap
 // create a circular dependency between constructions
 // and data_types.
 import { CObject } from "../constructions/object";

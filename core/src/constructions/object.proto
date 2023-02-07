@@ -1,4 +1,0 @@
-message CObjectSave {
-  map<string, bytes> childSaves = 1;
-  optional bytes objectSave = 2;
-}

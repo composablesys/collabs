@@ -24,3 +24,7 @@ message PairSerializerMessage {
   required bytes one = 1;
   required bytes two = 2;
 }
+
+message CollabIDMessage {
+    repeated string pathToBase = 1;
+}

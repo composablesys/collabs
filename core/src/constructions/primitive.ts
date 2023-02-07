@@ -1,10 +1,17 @@
-import { Collab, CollabEventsRecord, MetaRequest, UpdateMeta } from "../core";
+import {
+  Collab,
+  CollabEventsRecord,
+  MetaRequest,
+  SavedStateTree,
+  UpdateMeta,
+} from "../core";
 
 /**
  * Convenience superclass for a primitive [[Collab]] (Collab with no children, i.e., leaf in the Collab tree).
  *
- * This class provides simplified send and receive methods,
- * [[sendPrimitive]] and [[receivePrimitive]]), and
+ * This class provides simplified versions of send ([[sendPrimitive]]),
+ * receive ([[receivePrimitive]]), save ([[savePrimitive]]), and load
+ * ([[loadPrimitive]]). It also
  * implements [[Collab]] methods that are not relevant to primitive Collabs.
  */
 export abstract class CPrimitive<
@@ -33,7 +40,7 @@ export abstract class CPrimitive<
    * @param  messageStack [description]
    * @return             [description]
    */
-  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
     if (messageStack.length !== 1) {
       // We are not the target
       throw new Error("CPrimitive received message for child");
@@ -52,6 +59,19 @@ export abstract class CPrimitive<
     message: Uint8Array,
     meta: UpdateMeta
   ): void;
+
+  save(): SavedStateTree | null {
+    const self = this.savePrimitive();
+    return self === null ? null : { self };
+  }
+
+  protected abstract savePrimitive(): Uint8Array | null;
+
+  load(savedState: SavedStateTree): void {
+    this.loadPrimitive(savedState.self);
+  }
+
+  protected abstract loadPrimitive(savedState: Uint8Array): void;
 
   getDescendant(namePath: Iterator<string>): Collab | undefined {
     const next = namePath.next();

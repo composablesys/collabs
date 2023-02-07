@@ -1,5 +1,6 @@
 import {
   AddWinsCSet,
+  CLazyMap,
   CObject,
   Collab,
   CollabID,
@@ -8,7 +9,6 @@ import {
   DeletingMutCList,
   InitToken,
   IRuntime,
-  LazyMutCMap,
   LWWCVar,
   Serializer,
 } from "@collabs/collabs";
@@ -63,7 +63,7 @@ class JSONValueSerializer implements Serializer<JSONValue> {
 }
 
 export class JSONObject extends CObject {
-  private readonly internalMap: LazyMutCMap<string, JSONElement>;
+  private readonly internalMap: CLazyMap<string, JSONElement>;
   private readonly keySet: AddWinsCSet<string>;
   /**
    * Internal use only
@@ -77,7 +77,7 @@ export class JSONObject extends CObject {
     this.internalMap = this.addChild(
       "nestedMap",
       (init) =>
-        new LazyMutCMap(
+        new CLazyMap(
           init,
           (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
           DefaultSerializer.getInstance()

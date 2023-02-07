@@ -200,7 +200,7 @@ export class CRDTMetaLayer extends Collab implements IParent {
     }
   }
 
-  childSend(child: Collab, messageStack: Uint8Array[]): void {
+  childSend(child: Collab, messageStack: (Uint8Array | string)[]): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -222,7 +222,7 @@ export class CRDTMetaLayer extends Collab implements IParent {
    */
   private currentReceiveBatch: ReceiveCRDTMetaBatch | null = null;
 
-  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
     if (messageStack.length === 0) {
       throw new Error("messageStack.length === 0");
     }
@@ -350,7 +350,7 @@ export class CRDTMetaLayer extends Collab implements IParent {
   }
 
   private deliverMessage(
-    messageStack: Uint8Array[],
+    messageStack: (Uint8Array | string)[],
     meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ) {

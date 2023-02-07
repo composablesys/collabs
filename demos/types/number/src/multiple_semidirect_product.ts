@@ -46,12 +46,12 @@ export interface StatefulCRDT<S extends object> extends Collab {
 }
 
 class StoredMessage {
-  messageStack: Uint8Array[] | null;
+  messageStack: (Uint8Array | string)[] | null;
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
     readonly receiptCounter: number,
-    messageStack: Uint8Array[] | null,
+    messageStack: (Uint8Array | string)[] | null,
     readonly meta: UpdateMeta | null,
     readonly arbIndex: number // arbitration number
   ) {
@@ -80,7 +80,7 @@ class MultipleSemidirectState<S extends object> {
    * replicaID is our replica id.
    */
   add(
-    messageStack: Uint8Array[],
+    messageStack: (Uint8Array | string)[],
     meta: UpdateMeta,
     crdtMeta: CRDTMeta,
     arbId: number
@@ -316,7 +316,7 @@ export abstract class MultipleSemidirectProduct<
     this.state = new MultipleSemidirectState(historyMetas);
   }
 
-  childSend(child: Collab, messageStack: Uint8Array[]): void {
+  childSend(child: Collab, messageStack: (Uint8Array | string)[]): void {
     if (child.parent !== this) {
       throw new Error("childSend called by non-child: " + child);
     }
@@ -374,7 +374,7 @@ export abstract class MultipleSemidirectProduct<
   // The resulting message mact is then applied to σ and added to the history.
   // It also acts on all messages in the history with lower arbitration order,
   // regardless ofwhether they are concurrent or not.
-  receive(messageStack: Uint8Array[], meta: UpdateMeta) {
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta) {
     if (messageStack.length === 0) {
       throw new Error("TODO");
     }

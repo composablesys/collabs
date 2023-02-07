@@ -1,10 +1,13 @@
-import { LazyMutCMapSave } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEventsRecord,
+  CollabID,
+  collabIDOf,
   InitToken,
   IParent,
   MetaRequest,
+  Parent,
+  SavedStateTree,
   UpdateMeta,
 } from "../core";
 import {
@@ -15,12 +18,19 @@ import {
   WeakValueMap,
 } from "../util";
 // Import AbstractCMapCollab from its specific file.
-// Otherwise, AbstractCMapCObject and LazyMutCMap
+// Otherwise, AbstractCMapCObject and CLazyMap
 // create a circular dependency between constructions
 // and data_types.
-import { AbstractCMapCollab } from "../data_types/abstract_map";
+import { AbstractMap_Collab } from "../data_types/abstract_maps";
 
 /**
+ * A collaborative lazy map with mutable values.
+ *
+ * TODO: Collab values (mutable); for immutable values, consider CValueMap,
+ * which is simpler. Also CMap for different, non-lazy semantics.
+ *
+ * TODO: revise below
+ *
  * A IMap of mutable values where every key is
  * implicitly always present, although only nontrivial
  * values are actually stored in memory.
@@ -88,8 +98,8 @@ import { AbstractCMapCollab } from "../data_types/abstract_map";
  * recreated using `valueConstructor`. This is okay
  * by the contract of [[Collab.canGC]].
  */
-export class LazyMutCMap<K, C extends Collab>
-  extends AbstractCMapCollab<K, C, []>
+export class CLazyMap<K, C extends Collab>
+  extends AbstractMap_Collab<K, C, []>
   implements IParent
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
@@ -152,7 +162,7 @@ export class LazyMutCMap<K, C extends Collab>
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messageStack: Uint8Array[],
+    messageStack: (Uint8Array | string)[],
     metaRequests: MetaRequest[]
   ): void {
     if (child.parent !== this) {
@@ -166,7 +176,7 @@ export class LazyMutCMap<K, C extends Collab>
   private inReceiveKeyStr?: string = undefined;
   private inReceiveValue?: C = undefined;
 
-  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
     const keyString = <string>messageStack[messageStack.length - 1];
     this.inReceiveKeyStr = keyString;
     try {
@@ -294,35 +304,48 @@ export class LazyMutCMap<K, C extends Collab>
     return this.stringAsKey(searchElement.name);
   }
 
-  save(): Uint8Array {
-    const childSaves: { [name: string]: Uint8Array } = {};
+  save(): SavedStateTree | null {
+    const childSaves = new Map<string, SavedStateTree>();
     // Only need to save nontrivial children, since trivial
     // children are in their initial states.
     for (const [name, child] of this.nontrivialMap) {
-      childSaves[name] = child.save();
+      const childSave = child.save();
+      if (childSave !== null) childSaves.set(name, childSave);
     }
-    const saveMessage = LazyMutCMapSave.create({
-      childSaves,
-    });
-    return LazyMutCMapSave.encode(saveMessage).finish();
+    return {
+      self: null,
+      children: childSaves,
+    };
   }
 
-  load(savedState: Uint8Array, meta: UpdateMeta): void {
-    const saveMessage = LazyMutCMapSave.decode(savedState);
-    for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
-      const child = this.getInternal(this.stringAsKey(name), name, true)[0];
-      child.load(childSave, meta);
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+    if (savedStateTree.children !== undefined) {
+      for (const [name, childSave] of savedStateTree.children) {
+        const child = this.getInternal(this.stringAsKey(name), name, true)[0];
+        child.load(childSave, meta);
+      }
     }
   }
 
-  getDescendant(namePath: Iterator<string>): Collab | undefined {
-    const next = namePath.next();
+  idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {
+    return collabIDOf(descendant, this);
+  }
 
-    if (next.done) return this;
-
-    const name = next.value;
-    const child = this.getInternal(this.stringAsKey(name), name, false)[0];
-    return child.getDescendant(namePath);
+  fromID<D extends Collab>(id: CollabID<D>, startIndex = 0): D | undefined {
+    const name = id.namePath[startIndex];
+    const child = this.getInternal(
+      this.stringAsKey(name),
+      name,
+      false
+    )[0] as Collab;
+    // Terminal case.
+    // Note that this cast is unsafe, but convenient.
+    if (startIndex === id.namePath.length - 1) return child as D;
+    // Recursive case.
+    if ((child as Parent).fromID === undefined) {
+      throw new Error("child is not a parent, but CollabID is its descendant");
+    }
+    return (child as Parent).fromID(id, startIndex + 1);
   }
 
   canGC() {

@@ -1,3 +1,4 @@
+// TODO: auto fallback if Weak* not available.
 /**
  * Local data structure, not a [[Collab]].
  */

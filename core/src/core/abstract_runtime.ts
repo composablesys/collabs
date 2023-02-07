@@ -1,17 +1,22 @@
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
+import { CollabID } from "./collab_id";
 import { IRuntime } from "./iruntime";
+import { Parent } from "./parent";
 import { MetaRequest } from "./updates";
 
 /**
  * Skeletal implementation of [[IRuntime]] that uses
  * a root [[Collab]].
  */
-export abstract class AbstractRuntime implements IRuntime {
+export abstract class AbstractRuntime<
+  R extends Collab & Parent = Collab & Parent
+> implements IRuntime
+{
   readonly isRuntime: true = true;
   /**
    * Readonly. Set with setRootCollab.
    */
-  protected rootCollab!: Collab;
+  protected rootCollab!: R;
 
   /**
    * @param replicaID This replica's [[replicaID]].
@@ -22,9 +27,7 @@ export abstract class AbstractRuntime implements IRuntime {
     }
   }
 
-  protected setRootCollab<C extends Collab>(
-    rootCallback: (init: InitToken) => C
-  ): C {
+  protected setRootCollab(rootCallback: (init: InitToken) => R): R {
     const rootCollab = rootCallback(new InitToken("", this));
     this.rootCollab = rootCollab;
     return rootCollab;
@@ -47,17 +50,20 @@ export abstract class AbstractRuntime implements IRuntime {
     return `${this.nextLocalCounter().toString(36)},${this.replicaID}`;
   }
 
-  getNamePath(descendant: Collab): string[] {
-    return this.rootCollab.getNamePath(descendant);
+  idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {
+    return this.rootCollab.idOf(descendant);
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    return this.rootCollab.getDescendant(namePath[Symbol.iterator]());
+  fromID<C extends Collab<CollabEventsRecord>>(
+    id: CollabID<C>,
+    startIndex = 0
+  ): C | undefined {
+    return this.rootCollab.fromID(id, startIndex);
   }
 
   abstract childSend(
     child: Collab<CollabEventsRecord>,
-    messageStack: Uint8Array[],
+    messageStack: (Uint8Array | string)[],
     metaRequests: MetaRequest[]
   ): void;
 }

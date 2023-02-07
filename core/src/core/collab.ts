@@ -231,7 +231,7 @@ export abstract class Collab<
    * Collab, with guarantees set by the [[runtime]].
    *
    * For convenience, the message may be expressed as a stack of
-   * Uint8Arrays instead of just a single Uint8Array. This is
+   * `(Uint8Array | string)` instead of just a single Uint8Array. This is
    * useful for parents sending messages on behalf of their children;
    * see the implementations of [[CObject.childSend]] and
    * [[CObject.receive]] for an example.
@@ -250,7 +250,7 @@ export abstract class Collab<
    * Note that the stack need not align with `messageStack`.
    */
   protected send(
-    messageStack: Uint8Array[],
+    messageStack: (Uint8Array | string)[],
     metaRequests: MetaRequest[]
   ): void {
     this.parent.childSend(this, messageStack, metaRequests);
@@ -262,14 +262,17 @@ export abstract class Collab<
    * [[send]] on some replica of this Collab (possibly `this`),
    * with guarantees set by the [[runtime]].
    *
-   * @param messageStack The message to receive, in the form of a stack
-   * of Uint8Arrays. It is okay to mutate `messageStack` in-place,
+   * @param messageStack The message to receive, in the same format
+   * as in [[send]]. It is okay to mutate `messageStack` in-place,
    * e.g., calling `pop`.
    * @param meta Metadata attached to this message by the runtime.
    * It incorporates metadata requests made in [[send]]. Note that
    * `meta.updateType` is always `"message"`.
    */
-  abstract receive(messageStack: Uint8Array[], meta: UpdateMeta): void;
+  abstract receive(
+    messageStack: (Uint8Array | string)[],
+    meta: UpdateMeta
+  ): void;
 
   // TODO: give context/meta? Take meta requests? I guess in worst case,
   // you could ask IRuntime.
@@ -320,72 +323,17 @@ export abstract class Collab<
   abstract load(savedStateTree: SavedStateTree, meta: UpdateMeta): void;
 
   /**
-   * Returns the "name path" from `descendant` to `this`,
-   * i.e., the list of names on that path in the tree of
-   * `Collab`s.
-   *
-   * I.e., it is `[descendent.name, descendant.parent.name,
-   * descendant.parent.parent.name, ...]` continuing
-   * until `this` is reached, excluding `this.name`.
-   *
-   * [[getDescendant]] does the reverse procedure.
-   * [[getNamePath]] and [[getDescendant]] together allow
-   * one to make a serializable reference to a `Collab` that
-   * is comprehensible across replicas.
-   *
-   * See also: [[CollabID]].
-   *
-   * @param  descendant A `Collab` that is a descendant
-   * of `this`.
-   * @throws if `descendant` is not a descendant of `this`
-   * in the tree of `Collab`s.
-   */
-  getNamePath(descendant: Collab): string[] {
-    let current = descendant;
-    const namePath = [];
-    while (current !== this) {
-      namePath.push(current.name);
-      if (isRuntime(current.parent)) {
-        throw new Error("getNamePath called on non-descendant");
-      }
-      current = current.parent;
-    }
-    namePath.reverse();
-    return namePath;
-  }
-
-  /**
-   * Returns the descendant of this Collab at the
-   * given name path, or `undefined`
-   * if it no longer exists.
-   *
-   * If `namePath` is `[]`, `this` is returned.
-   *
-   * See also: [[CollabID]].
-   *
-   * @param  namePath A name path referencing a descendant
-   * of this `Collab` (inclusive), as returned by [[getNamePath]].
-   * It is iterated, consuming the iterator.
-   * @return The descendant at the given name path, or `undefined`
-   * if it no longer exists.
-   * @throws If no descendant with the given `namePath` could possibly
-   * exist, e.g., this has a fixed set of children and the child name
-   * is not one of them.
-   */
-  abstract getDescendant(namePath: Iterator<string>): Collab | undefined;
-
-  /**
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
    * Returning true allows some collections to reduce memory usage
-   * (in particular, [[LazyMutCMap]]).
+   * (in particular, [[CLazyMap]]).
    *
    * When canGC() is true and there are no other (non-weak)
    * references to this Collab, [[parent]] may choose to
    * delete it from memory, allowing garbage collection.
    * If this is needed later, [[parent]] will reconstruct an equivalent
    * object using the same constructor and constructor arguments.
-   * See [[LazyMutCMap]]'s implementation for an example.
+   * See [[CLazyMap]]'s implementation for an example.
    */
   abstract canGC(): boolean;
 }

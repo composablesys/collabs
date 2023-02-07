@@ -25,14 +25,17 @@ export interface Serializer<T> {
 // In this file, we generally cache instances in case each
 // element of a collection constructs a derived serializer
 // from a fixed given one.
+// TODO: get rid of (non-singleton) instance caching? Seems overcomplicated.
+// In a collection, you can work around by only making one serializer for the whole thing,
+// unless it's a child object making the serializer.
 
-// TODO: support Optional, CollabID, ??
+// TODO: support Optional, ??
 // TODO: allow extending dynamically?
 
 /**
  * Default serializer.
  *
- * Supported types:
+ * Supported types are a superset of JSON:
  * - Primitive types (string, number, boolean, undefined, null)
  * - Arrays and plain (non-class) objects, serialized recursively
  * - Uint8Array
@@ -267,6 +270,4 @@ export function int64AsNumber(num: number | Long): number {
   else return num.toNumber();
 }
 
-// TODO: get rid of (non-singleton) instance caching? Seems overcomplicated.
-// In a collection, you can work around by only making one serializer for the whole thing,
-// unless it's a child object making the serializer.
+// TODO: CollabIDSerializer.

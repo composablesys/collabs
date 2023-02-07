@@ -1,10 +1,13 @@
-import { CObjectSave } from "../../generated/proto_compiled";
 import {
   Collab,
   CollabEventsRecord,
+  CollabID,
+  collabIDOf,
   InitToken,
   IParent,
   MetaRequest,
+  Parent,
+  SavedStateTree,
   UpdateMeta,
 } from "../core";
 
@@ -113,7 +116,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
   childSend(
     child: Collab,
-    messageStack: Uint8Array[],
+    messageStack: (Uint8Array | string)[],
     metaRequests: MetaRequest[]
   ): void {
     if (child.parent !== this) {
@@ -124,7 +127,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     this.send(messageStack, metaRequests);
   }
 
-  receive(messageStack: Uint8Array[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
     if (messageStack.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");
@@ -134,28 +137,43 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       <string>messageStack[messageStack.length - 1]
     );
     if (child === undefined) {
-      throw new Error(
-        `Unknown child: ${
-          messageStack[messageStack.length - 1]
-        } in: ${JSON.stringify(messageStack)}, children: ${JSON.stringify([
-          ...this.children.keys(),
-        ])}`
-      );
+      // Assume this is a version issue; ignore the child (protobuf3-style).
+      // TODO: emit warning somewhere?
+      // throw new Error(
+      //   `Unknown child: ${
+      //     messageStack[messageStack.length - 1]
+      //   } in: ${JSON.stringify(messageStack)}, children: ${JSON.stringify([
+      //     ...this.children.keys(),
+      //   ])}`
+      // );
+      return;
     }
     messageStack.length--;
     child.receive(messageStack, meta);
   }
 
-  save(): Uint8Array {
-    const childSaves: { [name: string]: Uint8Array } = {};
+  save(): SavedStateTree | null {
+    const childSaves = new Map<string, SavedStateTree>();
     for (const [name, child] of this.children) {
-      childSaves[name] = child.save();
+      const childSave = child.save();
+      if (childSave !== null) childSaves.set(name, childSave);
     }
-    const saveMessage = CObjectSave.create({
-      childSaves,
-      objectSave: this.saveObject(),
-    });
-    return CObjectSave.encode(saveMessage).finish();
+    return {
+      self: this.saveObject(),
+      children: childSaves,
+    };
+  }
+
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+    if (savedStateTree.children !== undefined) {
+      for (const [name, childSave] of savedStateTree.children) {
+        const child = this.children.get(name);
+        // For versioning purposes, skip loading children that no longer exist.
+        // TODO: document
+        if (child !== undefined) child.load(childSave, meta);
+      }
+    }
+    this.loadObject(savedStateTree.self);
   }
 
   /**
@@ -168,47 +186,30 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     return null;
   }
 
-  load(savedState: Uint8Array, meta: UpdateMeta): void {
-    const saveMessage = CObjectSave.decode(savedState);
-    for (const [name, childSave] of Object.entries(saveMessage.childSaves)) {
-      const child = this.children.get(name);
-      // For versioning purposes, skip loading children that no longer exist.
-      // TODO: document
-      if (child !== undefined) child.load(childSave, meta);
-    }
-    const objectSave = Object.prototype.hasOwnProperty.call(
-      saveMessage,
-      "objectSave"
-    )
-      ? saveMessage.objectSave
-      : null;
-    this.loadObject(objectSave);
-  }
-
   /**
    * Override to load extra state, using `savedState` from
    * [[saveObject]].
    *
    * Note this is called after the children are loaded.
    * Also, this is always called, even if [[saveObject]] returned
-   * null (in that case this is called with null).
+   * null (in that case this is called with null); that lets
+   * you do some post-processing (e.g., computing child views)
+   * even if you didn't have any extra state to save.
    *
    * @param  savedState the output of [[saveObject]] on
-   * a previous saved instance, or null if loading
-   * is being skipped (the app instance is new).
+   * a previous saved instance, possibly null.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected loadObject(savedState: Uint8Array | null): void {
     // Does nothing by default.
   }
 
-  getDescendant(namePath: IterableIterator<string>): Collab | undefined {
-    const iter = namePath[Symbol.iterator]();
-    const next = iter.next();
+  idOf<C extends Collab>(descendant: C): CollabID<C> {
+    return collabIDOf(descendant, this);
+  }
 
-    if (next.done) return this;
-
-    const name = next.value;
+  fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
+    const name = id.namePath[startIndex];
     const child = this.children.get(name);
     if (child === undefined) {
       throw new Error(
@@ -218,7 +219,14 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
           JSON.stringify([...this.children.keys()])
       );
     }
-    return child.getDescendant(iter);
+    // Terminal case.
+    // Note that this cast is unsafe, but convenient.
+    if (startIndex === id.namePath.length - 1) return child as C;
+    // Recursive case.
+    if ((child as Parent).fromID === undefined) {
+      throw new Error("child is not a parent, but CollabID is its descendant");
+    }
+    return (child as Parent).fromID(id, startIndex + 1);
   }
 
   /**

@@ -81,7 +81,7 @@ export class RunLocallyLayer extends Collab implements IParent {
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messageStack: Uint8Array[]
+    messageStack: (Uint8Array | string)[]
   ): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);

@@ -1,19 +1,24 @@
 /**
  * Type of saved state as seen by [[Collab.save]] and [[Collab.load]].
  *
- * A Collab with children may use the object form of this type;
+ * A Collab with children may use store their save data in [[children]];
  * this is usually more convenient than serializing the Collab's whole subtree
- * into a single Uint8Array. However, it is not mandatory to use the object
- * form or to use it as described.
+ * into a single Uint8Array. However, it is not mandatory to use [[children]]
+ * or to use this type as described.
  */
-export type SavedStateTree =
-  | Uint8Array
-  | {
-      /** Saved state for the current Collab. */
-      self: Uint8Array;
-      /** Saved states for child Collabs, keyed by name. */
-      children: Map<string, SavedStateTree>;
-    };
+export interface SavedStateTree {
+  // TODO: nullish case: both optional/undefined, instead of null vs undefined?
+  /** Saved state for the current Collab, possibly `null`. */
+  self: Uint8Array | null;
+  /**
+   * Saved states for child Collabs, keyed by name.
+   *
+   * Note: if [[Collab.save]] returns an empty map, [[Collab.load]]
+   * will instead see `undefined`; both indicate "no saved states
+   * for children".
+   */
+  children?: Map<string, SavedStateTree>;
+}
 
 /**
  * Metadata for an applied update.

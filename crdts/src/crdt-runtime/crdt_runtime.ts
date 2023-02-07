@@ -97,7 +97,7 @@ export class CRDTRuntime
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messageStack: Uint8Array[]
+    messageStack: (Uint8Array | string)[]
   ): void {
     if (child !== this.rootCollab) {
       throw new Error(`childSend called by non-root: ${child}`);
