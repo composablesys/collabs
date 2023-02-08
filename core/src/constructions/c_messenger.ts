@@ -5,7 +5,7 @@ import {
   UpdateMeta,
 } from "../core";
 import { DefaultSerializer, Serializer } from "../util";
-import { CPrimitive } from "./primitive";
+import { CPrimitive } from "./c_primitive";
 
 export interface CMessengerEvent<M> extends CollabEvent {
   message: M;

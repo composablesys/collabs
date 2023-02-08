@@ -3,8 +3,8 @@ import { Collab } from "../core";
 // with whole-folder imports, AbstractCMapCObject and CLazyMap
 // create a circular dependency between constructions
 // and data_types.
-import { CObject } from "../constructions/object";
-import { CPrimitive } from "../constructions/primitive";
+import { CObject } from "../constructions/c_object";
+import { CPrimitive } from "../constructions/c_primitive";
 import { CMapEventsRecord, IMap } from "./imap";
 
 // See MakeAbstractMap for the rationale behind this file.

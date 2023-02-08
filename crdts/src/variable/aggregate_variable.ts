@@ -12,6 +12,9 @@ import { MultiValueMap, MultiValueMapItem } from "../map/multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 
+// OPT: allow specifying an arg to pass to aggregate. This lets impls get away with
+// a single function instead of a bind. Or, call aggregate function with "this"?
+
 export class AggregateCVar<T>
   extends CObject<CVarEventsRecord<T>>
   implements IVar<T>
