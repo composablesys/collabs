@@ -13,10 +13,10 @@ import {
 import { assert } from "chai";
 import {
   AddWinsCSet,
+  CBasicSet,
   CCounter,
   CRDTApp,
   CVar,
-  DeletingMutCSet,
   FalseWinsCBoolean,
   LWWCMap,
   ResettableCCounter,
@@ -812,9 +812,9 @@ describe("standard", () => {
     });
   });
 
-  describe("DeletingMutCSet", () => {
-    let aliceSource: DeletingMutCSet<CCounter, []>;
-    let bobSource: DeletingMutCSet<CCounter, []>;
+  describe("CBasicSet", () => {
+    let aliceSource: CBasicSet<CCounter, []>;
+    let bobSource: CBasicSet<CCounter, []>;
     let aliceVariable: CVar<Optional<CollabID<CCounter>>>;
     let bobVariable: CVar<Optional<CollabID<CCounter>>>;
 
@@ -822,18 +822,12 @@ describe("standard", () => {
       aliceSource = alice.registerCollab(
         "source",
         (init) =>
-          new DeletingMutCSet(
-            init,
-            (valueInitToken) => new CCounter(valueInitToken)
-          )
+          new CBasicSet(init, (valueInitToken) => new CCounter(valueInitToken))
       );
       bobSource = bob.registerCollab(
         "source",
         (init) =>
-          new DeletingMutCSet(
-            init,
-            (valueInitToken) => new CCounter(valueInitToken)
-          )
+          new CBasicSet(init, (valueInitToken) => new CCounter(valueInitToken))
       );
       aliceVariable = alice.registerCollab(
         "variable",

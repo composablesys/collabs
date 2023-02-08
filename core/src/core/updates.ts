@@ -5,19 +5,34 @@
  * this is usually more convenient than serializing the Collab's whole subtree
  * into a single Uint8Array. However, it is not mandatory to use [[children]]
  * or to use this type as described.
+ *
+ * An empty saved state `{}` is distinct from returning
+ * `null` from [[Collab.save]]: in the latter case,
+ * [[Collab.load]] will not even be called during loading,
+ * while in the former case, it will be called with `{}`.
  */
 export interface SavedStateTree {
-  // TODO: nullish case: both optional/undefined, instead of null vs undefined?
-  /** Saved state for the current Collab, possibly `null`. */
-  self: Uint8Array | null;
+  /** Saved state for the current Collab. */
+  self?: Uint8Array;
   /**
    * Saved states for child Collabs, keyed by name.
    *
    * Note: if [[Collab.save]] returns an empty map, [[Collab.load]]
    * will instead see `undefined`; both indicate "no saved states
    * for children".
+   *
+   * TODO: order guaranteed (or maybe if IRuntime does)?
+   * Needed for CBasicSet.
    */
   children?: Map<string, SavedStateTree>;
+  /**
+   * Saved states for child Collabs, in some established
+   * order (e.g. described by [[self]]).
+   *
+   * Unlike in [[children]], null saves are allowed,
+   * to avoid skipping list elements.
+   */
+  childList?: (SavedStateTree | null)[];
 }
 
 /**

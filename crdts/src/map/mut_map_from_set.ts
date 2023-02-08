@@ -83,7 +83,7 @@ export class MutCMapFromSet<
     // events during the map event handlers, when our op is complete.
     // A tricky issue is that we need to emit the previousValue for map
     // ops, but that might be a deleted Collab - e.g., when this.set is a
-    // DeletingMutCSet. Then CollabID.get() won't work. Instead we
+    // CBasicSet. Then CollabID.get() won't work. Instead we
     // hold over the values from the this.set Delete events.
     this.valueSet.on("Delete", (e) => this.justDeletedValues.push(e.value));
     this.map.on("Set", (event) => {

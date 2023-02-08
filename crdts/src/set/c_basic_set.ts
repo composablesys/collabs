@@ -1,18 +1,21 @@
 import {
-  AbstractCSetCollab,
+  AbstractSet_Collab,
   Collab,
+  CollabEventsRecord,
+  CollabID,
+  collabIDOf,
   DefaultSerializer,
   InitToken,
   IParent,
-  makeUID,
-  Optional,
+  MetaRequest,
+  Parent,
+  SavedStateTree,
   Serializer,
   UpdateMeta,
 } from "@collabs/core";
 import {
-  DeletingMutCSetMessage,
-  DeletingMutCSetSave,
-  IDeletingMutCSetValueSave,
+  CBasicSetMessage,
+  CBasicSetSave,
 } from "../../generated/proto_compiled";
 
 /**
@@ -29,17 +32,18 @@ import {
  * can no longer be used; future and concurrent operations on that value
  * are ignored. See [[ArchivingMutCSet]] for an alternative semantics.
  */
-export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
-  extends AbstractCSetCollab<C, AddArgs>
+export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
+  extends AbstractSet_Collab<C, AddArgs>
   implements IParent
 {
   private readonly children: Map<string, C> = new Map();
   // constructorArgs are saved for later save calls
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
-  private readonly initialValuesCount: number;
+
+  private readonly argsSerializer: Serializer<AddArgs>;
 
   /**
-   * Constructs a [[DeletingMutCSet]] with the given valueConstructor and
+   * Constructs a [[CBasicSet]] with the given valueConstructor and
    * optional arguments.
    *
    * The valueConstructor is a callback used to construct newly inserted
@@ -57,7 +61,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    * // app is a CRDTApp or CRDTContainer
    * const set = app.registerCollab(
    *   "set",
-   *   (init) => new collabs.DeletingMutCSet(init, valueConstructor)
+   *   (init) => new collabs.CBasicSet(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.add(initialValue)`, e.g. in response to
@@ -69,8 +73,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    *
    * @param init         [description]
    * @param valueConstructor  [description]
-   * @param initialValuesArgs = [] Optional, use this to specify AddArgs for
-   * initial values that are present when the list is created.
    * @param argsSerializer = DefaultSerializer.getInstance() Optional,
    * use this to specify a custom [[Serializer]] for InsertArgs.
    */
@@ -80,21 +82,12 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       valueInitToken: InitToken,
       ...args: AddArgs
     ) => C,
-    initialValuesArgs: AddArgs[] = [],
-    private readonly argsSerializer: Serializer<AddArgs> = DefaultSerializer.getInstance()
+    options: { argsSerializer?: Serializer<AddArgs> } = {}
   ) {
     super(init);
 
-    // Create the initial values from initialValuesArgs.
-    for (let i = 0; i < initialValuesArgs.length; i++) {
-      const args = initialValuesArgs[i];
-      // Using name "INIT" is a hack; need to figure out
-      // a proper way to do this when implementing
-      // initial values generally.
-      const name = makeUID("INIT", i);
-      this.receiveCreate(name, undefined, args, true, false);
-    }
-    this.initialValuesCount = initialValuesArgs.length;
+    this.argsSerializer =
+      options.argsSerializer ?? DefaultSerializer.getInstance();
   }
 
   /**
@@ -105,7 +98,11 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
    */
   private deletedSendingChild?: C = undefined;
 
-  childSend(child: Collab, messageStack: (Uint8Array | string)[]): void {
+  childSend(
+    child: Collab,
+    messageStack: (Uint8Array | string)[],
+    metaRequests: MetaRequest[]
+  ): void {
     if (child.parent !== this) {
       throw new Error(`childSend called by non-child: ${child}`);
     }
@@ -117,10 +114,13 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     }
 
     messageStack.push(child.name);
-    this.send(messageStack);
+    this.send(messageStack, metaRequests);
   }
 
+  // Vars used to return the newly-added value in add().
+  private inAdd = false;
   private ourCreatedValue?: C = undefined;
+
   receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
     const lastMessage = messageStack[messageStack.length - 1];
     if (typeof lastMessage === "string") {
@@ -130,17 +130,11 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       if (child === undefined) {
         // Assume it's a message for a deleted (hence
         // frozen) child.
-        if (meta.isEcho) {
+        if (this.deletedSendingChild !== undefined) {
           // Deliver the message locally so that the child ops go through,
           // preventing errors from chained ops.
-          if (this.deletedSendingChild !== undefined) {
-            child = this.deletedSendingChild;
-            this.deletedSendingChild = undefined;
-          } else {
-            throw new Error(
-              "Received local echo for deleted child, but this.deletedSendingChild is undefined"
-            );
-          }
+          child = this.deletedSendingChild;
+          this.deletedSendingChild = undefined;
         } else {
           // Ignore.
           return;
@@ -149,19 +143,21 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
       messageStack.length--;
       child.receive(messageStack, meta);
     } else {
-      const decoded = DeletingMutCSetMessage.decode(<Uint8Array>lastMessage);
+      const decoded = CBasicSetMessage.decode(lastMessage);
       switch (decoded.op) {
         case "add": {
-          const name = makeUID(meta.sender, decoded.add!.replicaUniqueNumber);
+          const name = this.makeName(
+            meta.sender,
+            decoded.add!.replicaUniqueNumber
+          );
           const newValue = this.receiveCreate(
             name,
             decoded.add!.args,
             undefined,
-            false,
             false
           );
 
-          if (meta.isEcho) {
+          if (this.inAdd) {
             this.ourCreatedValue = newValue;
           }
 
@@ -194,8 +190,7 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     name: string,
     serializedArgs: Uint8Array | undefined,
     args: AddArgs | undefined = undefined,
-    isInitialValue: boolean,
-    inLoad: boolean
+    isInitialValue: boolean
   ): C {
     if (args === undefined) {
       args = this.argsSerializer.deserialize(serializedArgs!);
@@ -209,14 +204,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
 
     this.children.set(name, newValue);
     if (!isInitialValue) {
-      if (!inLoad) {
-        // Not an initial value and not currently loading =>
-        // this has already been loaded.
-        // Since the value is new with no prior saved state,
-        // we need to call value.load(null) to indicate that
-        // newValue skipped loading.
-        newValue.load(Optional.empty());
-      }
       // Save the constuctor args.
       // Not needed for initial values, since they are created
       // as part of initialization.
@@ -226,27 +213,36 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return newValue;
   }
 
+  private makeName(sender: string, senderCounter: number) {
+    // OPT: shorten (base128 instead of base36)
+    return `${senderCounter.toString(36)},${sender}`;
+  }
+
   add(...args: AddArgs): C {
-    const message = DeletingMutCSetMessage.create({
+    this.inAdd = true;
+    const message = CBasicSetMessage.create({
       add: {
         replicaUniqueNumber: this.runtime.nextLocalCounter(),
         args: this.argsSerializer.serialize(args),
       },
     });
-    this.send([DeletingMutCSetMessage.encode(message).finish()]);
-    const created = this.ourCreatedValue;
+    this.send([CBasicSetMessage.encode(message).finish()], []);
+    const created = this.ourCreatedValue!;
     this.ourCreatedValue = undefined;
-    return created!;
+    this.inAdd = false;
+    return created;
   }
 
   delete(value: C): void {
     if (this.has(value)) {
-      const message = DeletingMutCSetMessage.create({
+      const message = CBasicSetMessage.create({
         delete: value.name,
       });
-      this.send([DeletingMutCSetMessage.encode(message).finish()]);
+      this.send([CBasicSetMessage.encode(message).finish()], []);
     }
   }
+
+  // OPT: better clear()
 
   has(value: C): boolean {
     return value.parent === this && this.children.has(value.name);
@@ -260,8 +256,6 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return this.children.size;
   }
 
-  // TODO: include this method in the "base" class but not the default one.
-  // Need it for map's optimized keyOf.
   /**
    * @param  value [description]
    * @return the AddArgs used to add value
@@ -279,96 +273,74 @@ export class DeletingMutCSet<C extends Collab, AddArgs extends unknown[]>
     return this.argsSerializer.deserialize(argsSerialized);
   }
 
-  save(): Uint8Array {
-    // Note this will be in insertion order (remaining initial
-    // values first) because
+  save(): SavedStateTree | null {
+    if (this.canGC()) return null;
+
+    // Note this will be in insertion order because
     // Map iterators run in insertion order.
-    const valueSaves = new Array<IDeletingMutCSetValueSave>(this.children.size);
+    const names = new Array<string>(this.size);
+    const args = new Array<Uint8Array>(this.size);
+    const childSaves = new Array<SavedStateTree | null>(this.size);
     let i = 0;
     for (const [name, child] of this.children) {
-      const args = this.constructorArgs.get(name);
-      valueSaves[i] = {
-        name,
-        savedState: child.save(),
-        ...(args === undefined ? {} : { args }),
-      };
+      names[i] = name;
+      args[i] = this.constructorArgs.get(name)!;
+      childSaves[i] = child.save();
       i++;
     }
-    const saveMessage = DeletingMutCSetSave.create({ valueSaves });
-    return DeletingMutCSetSave.encode(saveMessage).finish();
+    const saveMessage = CBasicSetSave.create({ names, args });
+    return {
+      self: CBasicSetSave.encode(saveMessage).finish(),
+      childList: childSaves,
+    };
   }
 
-  load(savedState: Optional<Uint8Array>): void {
-    if (!savedState.isPresent) {
-      // Indicates skipped loading. Pass on the message.
-      for (const child of this.children.values()) child.load(savedState);
-    } else {
-      const saveMessage = DeletingMutCSetSave.decode(savedState.get());
-      // Delete initial values (our current values) that
-      // were deleted before the save.
-      const remainingInitialValues = new Set<string>();
-      let i = 0;
-      for (; i < saveMessage.valueSaves.length; i++) {
-        const valueSave = saveMessage.valueSaves[i];
-        if (Object.prototype.hasOwnProperty.call(valueSave, "args")) {
-          // Reached end of initial values' saves.
-          break;
-        }
-        remainingInitialValues.add(valueSave.name);
-      }
-      for (const initialValue of this.children.keys()) {
-        if (!remainingInitialValues.has(initialValue)) {
-          this.children.delete(initialValue);
-        }
-      }
-      // Create non-initial values.
-      for (; i < saveMessage.valueSaves.length; i++) {
-        const valueSave = saveMessage.valueSaves[i];
-        this.receiveCreate(
-          valueSave.name,
-          valueSave.args!,
-          undefined,
-          false,
-          true
-        );
-      }
-      // Load all children (initial or not).
-      for (const valueSave of saveMessage.valueSaves) {
-        this.children
-          .get(valueSave.name)!
-          .load(Optional.of(valueSave.savedState));
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+    const saveMessage = CBasicSetSave.decode(savedStateTree.self!);
+    // Create children.
+    for (let i = 0; i < saveMessage.names.length; i++) {
+      this.receiveCreate(
+        saveMessage.names[i],
+        saveMessage.args[i],
+        undefined,
+        false
+      );
+    }
+    // Load children.
+    for (let i = 0; i < saveMessage.names.length; i++) {
+      const childSave = savedStateTree.childList![i];
+      if (childSave !== null) {
+        this.children.get(saveMessage.names[i])!.load(childSave, meta);
       }
     }
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    if (namePath.length === 0) return this;
+  idOf<C extends Collab>(descendant: C): CollabID<C> {
+    return collabIDOf(descendant, this);
+  }
 
-    const name = namePath[namePath.length - 1];
-    const child = this.children.get(name);
+  fromID<D extends Collab<CollabEventsRecord>>(
+    id: CollabID<D>,
+    startIndex = 0
+  ): D | undefined {
+    const name = id.namePath[startIndex];
+    const child = this.children.get(name) as Collab;
     if (child === undefined) {
-      // Assume it is a deleted (frozen) child.
+      // Assume it is a deleted child.
       return undefined;
     }
-    namePath.length--;
-    return child.getDescendant(namePath);
+
+    // Terminal case.
+    // Note that this cast is unsafe, but convenient.
+    if (startIndex === id.namePath.length - 1) return child as D;
+    // Recursive case.
+    if ((child as Parent).fromID === undefined) {
+      throw new Error("child is not a parent, but CollabID is its descendant");
+    }
+    return (child as Parent).fromID(id, startIndex + 1);
   }
 
   canGC(): boolean {
-    // To be in the initial state:
-    // 1. All values except the initial ones must be deleted.
-    // The present non-initial values are precisely
-    // those referenced by constructorArgs.
-    if (this.constructorArgs.size === 0) {
-      // 2. All initial values must still be present.
-      if (this.size === this.initialValuesCount) {
-        // 3. All initial values must canGC().
-        for (const value of this.values()) {
-          if (!value.canGC()) return false;
-        }
-        return true;
-      }
-    }
-    return false;
+    return this.size === 0;
   }
 }

@@ -313,7 +313,6 @@ export class CLazyMap<K, C extends Collab>
       if (childSave !== null) childSaves.set(name, childSave);
     }
     return {
-      self: null,
       children: childSaves,
     };
   }

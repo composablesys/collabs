@@ -10,7 +10,7 @@ Don't try to make [InitToken](../api/collabs/classes/InitToken.html)s directly; 
 
 ## "Global Variable" `Collab`s
 
-Every Collabs app must have some **"global variable"** `Collab`s, whose parents are the [entry point](./entry_points.html). They together must contain the entire collaborative state of your app, either directly or via their own children (e.g., a "global variable" [DeletingMutCSet](../api/collabs/classes/DeletingMutCSet.html) contains [dynamically-created `Collab`s](#dynamically-created-collabs) as children).
+Every Collabs app must have some **"global variable"** `Collab`s, whose parents are the [entry point](./entry_points.html). They together must contain the entire collaborative state of your app, either directly or via their own children (e.g., a "global variable" [CBasicSet](../api/collabs/classes/CBasicSet.html) contains [dynamically-created `Collab`s](#dynamically-created-collabs) as children).
 
 We call them "global variables" because they exist in the top-level scope from Collabs's perspective, although you don't have to store them as literal global variables (hence the "scare quotes").
 
@@ -51,11 +51,11 @@ Finally, it is sometimes tempting to perform mutating `Collab` operations (e.g.,
 
 So far, we discussed "global variable" `Collab`s, which exist for the lifetime of your app (technically, of its [entry point](./entry_points.html)). But what if you want to create `Collab`s dynamically, at runtime? E.g., you want to create a new `Document` `Collab` each time a user hits the "New Document" button.
 
-That is where **dynamically-created `Collab`s** come in. Collection types containing `Collab` elements, such as [DeletingMutCSet](../api/collabs/classes/DeletingMutCSet.html) (set), [DeletingMutCList](../api/collabs/classes/DeletingMutCList.html) (list), and [CLazyMap](../api/collabs/classes/CLazyMap.html) (map), let you create `Collab`s via their own `Collab` operations, like [DeletingMutCSet.add](../api/collabs/classes/DeletingMutCSet.html#add). We discuss those collections later in the Guide in [Built-In `Collab`s](./built_in_collabs.html#mutable-value-collections), but for now, we will explain how they initialize dynamically-created `Collab`s.
+That is where **dynamically-created `Collab`s** come in. Collection types containing `Collab` elements, such as [CBasicSet](../api/collabs/classes/CBasicSet.html) (set), [DeletingMutCList](../api/collabs/classes/DeletingMutCList.html) (list), and [CLazyMap](../api/collabs/classes/CLazyMap.html) (map), let you create `Collab`s via their own `Collab` operations, like [CBasicSet.add](../api/collabs/classes/CBasicSet.html#add). We discuss those collections later in the Guide in [Built-In `Collab`s](./built_in_collabs.html#mutable-value-collections), but for now, we will explain how they initialize dynamically-created `Collab`s.
 
 Each collection of `Collab`s takes a constructor argument called `valueConstructor`, which you must supply. `valueConstructor` is a callback function that accepts an [InitToken](../api/collabs/classes/InitToken.html) and possibly some other info. In this callback function, you must use the `InitToken` to call your `Collab`'s constructor, do any other setup you need (e.g., registering [event handlers](../advanced/events.html)), then return the `Collab`.
 
-For example, to construct a `DeletingMutCSet` of `CCounter`s, you first define your `valueConstructor`:
+For example, to construct a `CBasicSet` of `CCounter`s, you first define your `valueConstructor`:
 
 ```ts
 function valueConstructor(valueInitToken: collabs.InitToken) {
@@ -63,13 +63,13 @@ function valueConstructor(valueInitToken: collabs.InitToken) {
 }
 ```
 
-You then use it as a constructor argument when initializing your `DeletingMutCSet` (here, as a "global variable" `Collab`):
+You then use it as a constructor argument when initializing your `CBasicSet` (here, as a "global variable" `Collab`):
 
 ```ts
 // app is a CRDTApp or CRDTContainer
 const set = app.registerCollab(
   "set",
-  (init) => new collabs.DeletingMutCSet(init, valueConstructor)
+  (init) => new collabs.CBasicSet(init, valueConstructor)
 );
 ```
 

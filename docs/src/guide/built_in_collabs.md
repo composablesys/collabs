@@ -19,7 +19,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | `string` (as texts in a text box with cursor)                                            | [`CText`](../api/collabs/classes/CText.html)                              |
 | Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                          |
 | `Set<T>`, `T` [immutable](#immutable-value-collections)                                  | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               |
-| `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`DeletingMutCSet<C(T)>`](../api/collabs/classes/DeletingMutCSet.html)    |
+| `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`CBasicSet<C(T)>`](../api/collabs/classes/CBasicSet.html)                |
 | `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    |
 | `Map<K, V>`, `V` [mutable](#mutable-value-collections)                                   | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) |
 | [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         |
@@ -66,7 +66,7 @@ In some situations, the immutable vs. mutable distinction is subtle:
 
 1. `LWWCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LWWCMap` and a map with mutable values is that in `LWWCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
 2. You can use `Collab`s as immutable values. In that case, the immutable value acts as a _reference_ to the original `Collab`, like the \* types above.
-   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `CVar<CPerson>` to store a reference to the project lead, chosen from the set's values.
+   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `CBasicSet<CPerson>` to represent the set of people, and an (immutable value) `CVar<CPerson>` to store a reference to the project lead, chosen from the set's values.
 
 **Caution:** The library will not prevent you from internally mutating a value that you used in an immutable collection. Instead, you must take care not to do this. If you do mutate a value stored in an immutable collection, then that mutation will not be replicated to other users. Thus the mutating user will see the mutated state, while the other users will not, violating consistency.
 
@@ -93,7 +93,7 @@ To allow you to create `Collab`s dynamically, mutable values collections work a 
 
 <!-- > **Example:** TODO -->
 
-> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `DeletingMutCSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `DeletingMutCSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`DeletingMutCSet`](../api/collabs/classes/DeletingMutCSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
+> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `CBasicSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `CBasicSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`CBasicSet`](../api/collabs/classes/CBasicSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
 
 <!--
 ### Mutable Value Collection Variants

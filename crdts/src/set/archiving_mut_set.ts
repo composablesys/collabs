@@ -7,8 +7,8 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/core";
+import { CBasicSet } from "./c_basic_set";
 import { AddWinsCSet } from "./c_value_set";
-import { DeletingMutCSet } from "./deleting_mut_set";
 
 /**
  * A set of mutable values, each represented by a [[Collab]] of type `C`.
@@ -30,7 +30,7 @@ export class ArchivingMutCSet<
   C extends Collab,
   AddArgs extends unknown[]
 > extends AbstractCSetCObject<C, AddArgs> {
-  private readonly mutSet: DeletingMutCSet<C, AddArgs>;
+  private readonly mutSet: CBasicSet<C, AddArgs>;
   private readonly members: AddWinsCSet<CollabID<C>>;
   private readonly initialValues: Set<C>;
   // OPT: doesn't need to be an add-wins set, it's just an "add once" set.
@@ -83,12 +83,7 @@ export class ArchivingMutCSet<
     this.mutSet = this.addChild(
       "",
       (init) =>
-        new DeletingMutCSet(
-          init,
-          valueConstructor,
-          initialValuesArgs,
-          argsSerializer
-        )
+        new CBasicSet(init, valueConstructor, initialValuesArgs, argsSerializer)
     );
     this.members = this.addChild(
       "0",

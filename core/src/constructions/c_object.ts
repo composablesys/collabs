@@ -159,7 +159,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       if (childSave !== null) childSaves.set(name, childSave);
     }
     return {
-      self: this.saveObject(),
+      self: this.saveObject() ?? undefined,
       children: childSaves,
     };
   }
@@ -173,7 +173,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
         if (child !== undefined) child.load(childSave, meta);
       }
     }
-    this.loadObject(savedStateTree.self);
+    this.loadObject(savedStateTree.self ?? null);
   }
 
   /**
