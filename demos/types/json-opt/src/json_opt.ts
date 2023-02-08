@@ -5,9 +5,9 @@ import {
   Collab,
   CollabEvent,
   CollabEventsRecord,
+  CVar,
   DefaultSerializer,
   InitToken,
-  LWWCVar,
   PrimitiveCList,
   Serializer,
   StringSerializer,
@@ -32,7 +32,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
   // TODO: use LwwCMap instead, or update text.
   private readonly internalMap: CLazyMap<
     string,
-    LWWCVar<number | string | boolean | InternalType | undefined>
+    CVar<number | string | boolean | InternalType | undefined>
   >;
   private readonly CLazyMap: CLazyMap<string, PrimitiveCList<string>>;
   private readonly keySet: AddWinsCSet<string>;
@@ -47,7 +47,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
       (init) =>
         new CLazyMap(
           init,
-          (valueInit) => new LWWCVar(valueInit, undefined),
+          (valueInit) => new CVar(valueInit, undefined),
           keySerializer
         )
     );

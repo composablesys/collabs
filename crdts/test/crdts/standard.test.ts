@@ -15,10 +15,10 @@ import {
   AddWinsCSet,
   CCounter,
   CRDTApp,
+  CVar,
   DeletingMutCSet,
   FalseWinsCBoolean,
   LWWCMap,
-  LWWCVar,
   ResettableCCounter,
   TestingCRDTAppGenerator,
   TrueWinsCBoolean,
@@ -815,8 +815,8 @@ describe("standard", () => {
   describe("DeletingMutCSet", () => {
     let aliceSource: DeletingMutCSet<CCounter, []>;
     let bobSource: DeletingMutCSet<CCounter, []>;
-    let aliceVariable: LWWCVar<Optional<CollabID<CCounter>>>;
-    let bobVariable: LWWCVar<Optional<CollabID<CCounter>>>;
+    let aliceVariable: CVar<Optional<CollabID<CCounter>>>;
+    let bobVariable: CVar<Optional<CollabID<CCounter>>>;
 
     beforeEach(() => {
       aliceSource = alice.registerCollab(
@@ -838,7 +838,7 @@ describe("standard", () => {
       aliceVariable = alice.registerCollab(
         "variable",
         (init) =>
-          new LWWCVar(
+          new CVar(
             init,
             Optional.empty(),
             OptionalSerializer.getInstance(new CollabIDSerializer(aliceSource))
@@ -847,7 +847,7 @@ describe("standard", () => {
       bobVariable = bob.registerCollab(
         "variable",
         (init) =>
-          new LWWCVar(
+          new CVar(
             init,
             Optional.empty(),
             OptionalSerializer.getInstance(new CollabIDSerializer(bobSource))

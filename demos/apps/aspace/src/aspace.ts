@@ -16,11 +16,11 @@ import { CRDTContainer } from "@collabs/container";
   );
   const startTime = container.registerCollab(
     "startTime",
-    (init) => new collabs.LWWCVar(init, 0)
+    (init) => new collabs.CVar(init, 0)
   );
   const winElapsedTime = container.registerCollab(
     "winElapsedTime",
-    (init) => new collabs.LWWCVar(init, 0)
+    (init) => new collabs.CVar(init, 0)
   );
 
   await container.load();

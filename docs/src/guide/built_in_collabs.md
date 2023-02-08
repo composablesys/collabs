@@ -10,7 +10,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 | Ordinary type `X`                                                                        | Collaborative version `C(X)`                                              |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Any immutable `T`                                                                        | [`LWWCVar<T>`](../api/collabs/classes/LWWCVar.html)                       |
+| Any immutable `T`                                                                        | [`CVar<T>`](../api/collabs/classes/CVar.html)                             |
 | Any mutable `T`                                                                          | [`LWWMutCVar<C(T)>`](../api/collabs/classes/LWWMutCVar.html)              |
 | `boolean`                                                                                | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        |
 | `number` (for counting or adding)                                                        | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
@@ -31,10 +31,10 @@ Often you can choose between several collaborative data structures. Different ch
 
 ## Variables vs Everything Else
 
-[`LWWCVar`](../api/collabs/classes/LWWCVar.html) is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
+[`CVar`](../api/collabs/classes/CVar.html) is a valid choice for any immutable type. It treats values as opaque, and resolves conflicts between conflicting sets by choosing one arbitrarily (specifically, by later wall clock time).
 Alternatively, you may use a more specific Collab (later rows in the table) to get type-specific conflict resolution.
 
-> **Example.** If you store a `Set<T>` as an [`LWWCVar<Set<T>>`](../api/collabs/classes/LWWCVar.html) and two users add elements concurrently, then one of their new sets will "win" and overwrite the other, dropping the losing user's element. If you instead store the set as an [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html), then when two users add elements concurrently, their changes will be merged: both elements will be added.
+> **Example.** If you store a `Set<T>` as an [`CVar<Set<T>>`](../api/collabs/classes/CVar.html) and two users add elements concurrently, then one of their new sets will "win" and overwrite the other, dropping the losing user's element. If you instead store the set as an [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html), then when two users add elements concurrently, their changes will be merged: both elements will be added.
 
 <!-- ### `CObject`s vs Ordinary Objects
 
@@ -66,7 +66,7 @@ In some situations, the immutable vs. mutable distinction is subtle:
 
 1. `LWWCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LWWCMap` and a map with mutable values is that in `LWWCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
 2. You can use `Collab`s as immutable values. In that case, the immutable value acts as a _reference_ to the original `Collab`, like the \* types above.
-   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `LWWCVar<CPerson>` to store a reference to the project lead, chosen from the set's values.
+   > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `DeletingMutCSet<CPerson>` to represent the set of people, and an (immutable value) `CVar<CPerson>` to store a reference to the project lead, chosen from the set's values.
 
 **Caution:** The library will not prevent you from internally mutating a value that you used in an immutable collection. Instead, you must take care not to do this. If you do mutate a value stored in an immutable collection, then that mutation will not be replicated to other users. Thus the mutating user will see the mutated state, while the other users will not, violating consistency.
 

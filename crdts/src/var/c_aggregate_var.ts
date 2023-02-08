@@ -12,10 +12,7 @@ import { MultiValueMap, MultiValueMapItem } from "../map/multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 
-// OPT: allow specifying an arg to pass to aggregate. This lets impls get away with
-// a single function instead of a bind. Or, call aggregate function with "this"?
-
-export class AggregateCVar<T>
+export class CAggregateVar<T>
   extends CObject<CVarEventsRecord<T>>
   implements IVar<T>
 {
@@ -28,8 +25,10 @@ export class AggregateCVar<T>
   constructor(
     init: InitToken,
     aggregate: (items: MultiValueMapItem<T>[]) => T,
-    wallClockTime = false,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
+    {
+      valueSerializer = DefaultSerializer.getInstance(),
+      wallClockTime = false,
+    }: { valueSerializer?: Serializer<T>; wallClockTime?: boolean } = {}
   ) {
     super(init);
 
@@ -41,7 +40,9 @@ export class AggregateCVar<T>
     this.mvMap.on("Any", (e) => {
       const previousValue = this._value;
       this._value = aggregate(this.mvMap.get(null) ?? []);
-      this.emit("Set", { value: this._value, previousValue, meta: e.meta });
+      if (this._value !== previousValue) {
+        this.emit("Set", { value: this._value, previousValue, meta: e.meta });
+      }
     });
 
     this._value = aggregate([]);
@@ -60,7 +61,7 @@ export class AggregateCVar<T>
     return this._value;
   }
 
-  conflicts(): T[] {
+  getConflicts(): T[] {
     return (this.mvMap.get(null) ?? []).map((item) => item.value);
   }
 

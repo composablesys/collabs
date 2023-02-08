@@ -14,10 +14,10 @@ class CImmutable<T> extends collabs.CObject {
 
 class CTile extends collabs.CObject {
   readonly contentCollab: collabs.Collab;
-  readonly left: collabs.LWWCVar<number>;
-  readonly top: collabs.LWWCVar<number>;
-  readonly width: collabs.LWWCVar<number>;
-  readonly height: collabs.LWWCVar<number>;
+  readonly left: collabs.CVar<number>;
+  readonly top: collabs.CVar<number>;
+  readonly width: collabs.CVar<number>;
+  readonly height: collabs.CVar<number>;
 
   readonly dom: HTMLDivElement;
   readonly innerDiv: HTMLDivElement;
@@ -51,21 +51,15 @@ class CTile extends collabs.CObject {
     this.contentCollab = this.addChild("", (contentInitToken) =>
       preContent(contentInitToken, this.innerDiv)
     );
-    this.left = this.addChild(
-      "x",
-      (init) => new collabs.LWWCVar(init, initialX)
-    );
-    this.top = this.addChild(
-      "y",
-      (init) => new collabs.LWWCVar(init, initialY)
-    );
+    this.left = this.addChild("x", (init) => new collabs.CVar(init, initialX));
+    this.top = this.addChild("y", (init) => new collabs.CVar(init, initialY));
     this.width = this.addChild(
       "width",
-      (init) => new collabs.LWWCVar(init, initialWidth)
+      (init) => new collabs.CVar(init, initialWidth)
     );
     this.height = this.addChild(
       "height",
-      (init) => new collabs.LWWCVar(init, initialHeight)
+      (init) => new collabs.CVar(init, initialHeight)
     );
 
     // Keep this.dom in sync with its rect.

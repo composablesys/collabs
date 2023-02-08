@@ -5,11 +5,11 @@ import {
   Collab,
   CollabID,
   CText,
+  CVar,
   DefaultSerializer,
   DeletingMutCList,
   InitToken,
   IRuntime,
-  LWWCVar,
   Serializer,
 } from "@collabs/collabs";
 
@@ -204,7 +204,7 @@ export class TextWrapper {
 // sub-reset, each causing a call up the whole chain.
 
 export class JSONElement extends CObject {
-  private variable: LWWCVar<JSONValue>;
+  private variable: CVar<JSONValue>;
   private object: JSONObject;
   private array: JSONArray;
   private text: CText;
@@ -223,7 +223,7 @@ export class JSONElement extends CObject {
     this.variable = this.addChild(
       "variable",
       (childInitToken) =>
-        new LWWCVar<JSONValue>(
+        new CVar<JSONValue>(
           childInitToken,
           null,
           JSONValueSerializer.getInstance(this.runtime)

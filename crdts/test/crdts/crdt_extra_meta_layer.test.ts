@@ -7,7 +7,7 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { assert } from "chai";
-import { CRDTApp, CRDTMeta, LWWCVar, PrimitiveCRDT } from "../../src";
+import { CRDTApp, CRDTMeta, CVar, PrimitiveCRDT } from "../../src";
 import seedrandom = require("seedrandom");
 
 interface MetaEvent extends CollabEvent {
@@ -113,11 +113,11 @@ describe("CRDTMetaLayer", () => {
         it("delivers messages immediately", () => {
           const aliceVariable = alice.registerCollab(
             "variable",
-            (init) => new LWWCVar(init, 0)
+            (init) => new CVar(init, 0)
           );
           const bobVariable = bob.registerCollab(
             "variable",
-            (init) => new LWWCVar(init, 0)
+            (init) => new CVar(init, 0)
           );
           load();
 

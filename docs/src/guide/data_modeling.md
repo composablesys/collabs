@@ -77,8 +77,8 @@ class Pair<T, U> {
 ```ts
 class CPair<T, U> extends CObject {
   //first declare the variables. Notice we have two private variables and they are both collabs instead of local variables.
-  private readonly firstReg: LWWCVar<T>;
-  private readonly secondReg: LWWCVar<U>;
+  private readonly firstReg: CVar<T>;
+  private readonly secondReg: CVar<U>;
 
   constructor(init: InitToken, firstInitial: T, secondInitial: U) {
     super(init);
@@ -86,11 +86,11 @@ class CPair<T, U> extends CObject {
     // Setup child Collabs.
     this.firstReg = this.addChild(
       "firstReg",
-      (init) => new Collabs.LWWCVar(init, firstInitial)
+      (init) => new Collabs.CVar(init, firstInitial)
     );
     this.secondReg = this.addChild(
       "secondReg",
-      (init) => new Collabs.LWWCVar(init, firstInitial)
+      (init) => new Collabs.CVar(init, firstInitial)
     );
   }
 
@@ -225,7 +225,7 @@ The app's top-level state is a variable `currentGame: Minesweeper`. When the use
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
 - `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `TrueWinsCBoolean` satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `LWWCVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `CVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
@@ -233,7 +233,7 @@ Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That le
 ```ts
 class CTile extends collabs.CObject {
   private readonly revealed: collabs.TrueWinsCBoolean;
-  private readonly flag: collabs.LWWCVar<FlagStatus>;
+  private readonly flag: collabs.CVar<FlagStatus>;
   readonly isMine: boolean;
   number: number = 0;
 
@@ -245,7 +245,7 @@ class CTile extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      (init) => new collabs.LWWCVar<FlagStatus>(init, FlagStatus.NONE)
+      (init) => new collabs.CVar<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }

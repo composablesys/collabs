@@ -26,7 +26,7 @@ enum TileStatus {
 
 class CTile extends collabs.CObject {
   private readonly revealed: collabs.TrueWinsCBoolean;
-  private readonly flag: collabs.LWWCVar<FlagStatus>;
+  private readonly flag: collabs.CVar<FlagStatus>;
   readonly isMine: boolean;
   number: number = 0;
 
@@ -38,7 +38,7 @@ class CTile extends collabs.CObject {
     );
     this.flag = this.addChild(
       "flag",
-      (init) => new collabs.LWWCVar<FlagStatus>(init, FlagStatus.NONE)
+      (init) => new collabs.CVar<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }
@@ -424,13 +424,13 @@ class CMinesweeper extends collabs.CObject {
   );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    (init) => new collabs.LWWCVar(init, settingsFromInput())
+    (init) => new collabs.CVar(init, settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    (init) => new collabs.LWWCVar<"game" | "settings">(init, "settings")
+    (init) => new collabs.CVar<"game" | "settings">(init, "settings")
   );
 
   container.on("Change", invalidate);

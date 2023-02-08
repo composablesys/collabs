@@ -1,6 +1,6 @@
 import { InitToken, Serializer } from "@collabs/core";
 import { MultiValueMapItem } from "../map";
-import { AggregateCVar } from "../var";
+import { CAggregateVar } from "../var";
 
 class BooleanSerializer implements Serializer<boolean> {
   private static readonly TRUE = new Uint8Array();
@@ -37,7 +37,7 @@ function aggregate(
 }
 
 // TODO: Document relation to EWFlag/DWFlag.
-export class CBoolean extends AggregateCVar<boolean> {
+export class CBoolean extends CAggregateVar<boolean> {
   constructor(init: InitToken, { winner = true, initialValue = false } = {}) {
     super(
       init,

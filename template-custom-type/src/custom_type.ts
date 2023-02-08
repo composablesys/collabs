@@ -1,9 +1,9 @@
 import {
   CObject,
   CollabEventsRecord,
+  CVar,
   CVarEvent,
   InitToken,
-  LWWCVar,
 } from "@collabs/collabs";
 
 // Since you're exporting your type for reuse, it's a good
@@ -22,8 +22,8 @@ export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
  * will keep both changes.
  */
 export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
-  private readonly firstReg: LWWCVar<T>;
-  private readonly secondReg: LWWCVar<U>;
+  private readonly firstReg: CVar<T>;
+  private readonly secondReg: CVar<U>;
 
   constructor(init: InitToken, firstInitial: T, secondInitial: U) {
     super(init);
@@ -31,11 +31,11 @@ export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
     // Setup child Collabs.
     this.firstReg = this.addChild(
       "firstReg",
-      (init) => new LWWCVar(init, firstInitial)
+      (init) => new CVar(init, firstInitial)
     );
     this.secondReg = this.addChild(
       "secondReg",
-      (init) => new LWWCVar(init, secondInitial)
+      (init) => new CVar(init, secondInitial)
     );
 
     // Convert child Collab events into our own.
