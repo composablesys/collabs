@@ -41,7 +41,7 @@ import { AbstractMap_Collab } from "../data_types/abstract_maps";
  * Collabs, not just CRDTs.
  *
  * The "always exists" nature means that, unlike in
- * [[DeletingMutCMap]] and [[ArchivingMutCMap]], there
+ * [[CMap]] and [[ArchivingMutCMap]], there
  * is no conflict when two users concurrently "create"
  * values with the same key. Instead, they are just accessing
  * the same value. If they perform operations on that

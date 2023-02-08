@@ -8,22 +8,22 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 
 <!-- TODO: interface "of" methods as shortcut. -->
 
-| Ordinary type `X`                                                                        | Collaborative version `C(X)`                                              |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Any immutable `T`                                                                        | [`CVar<T>`](../api/collabs/classes/CVar.html)                             |
-| Any mutable `T`                                                                          | [`LWWMutCVar<C(T)>`](../api/collabs/classes/LWWMutCVar.html)              |
-| `boolean`                                                                                | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)        |
-| `number` (for counting or adding)                                                        | [`CCounter`](../api/collabs/classes/CCounter.html)                        |
-| `number` (for counting, adding, and resetting)                                           | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html)    |
-| `number` (for general arithmetic)                                                        | [`CNumber`](../api/collabs/classes/CNumber.html)                          |
-| `string` (as texts in a text box with cursor)                                            | [`CText`](../api/collabs/classes/CText.html)                              |
-| Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                          |
-| `Set<T>`, `T` [immutable](#immutable-value-collections)                                  | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)               |
-| `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`CSet<C(T)>`](../api/collabs/classes/CSet.html)                          |
-| `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                    |
-| `Map<K, V>`, `V` [mutable](#mutable-value-collections)                                   | [`DeletingMutCMap<K, C(V)>`](../api/collabs/classes/DeletingMutCMap.html) |
-| [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)         |
-| [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)               | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)     |
+| Ordinary type `X`                                                                        | Collaborative version `C(X)`                                           |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Any immutable `T`                                                                        | [`CVar<T>`](../api/collabs/classes/CVar.html)                          |
+| Any mutable `T`                                                                          | [`LWWMutCVar<C(T)>`](../api/collabs/classes/LWWMutCVar.html)           |
+| `boolean`                                                                                | [`TrueWinsCBoolean`](../api/collabs/classes/TrueWinsCBoolean.html)     |
+| `number` (for counting or adding)                                                        | [`CCounter`](../api/collabs/classes/CCounter.html)                     |
+| `number` (for counting, adding, and resetting)                                           | [`ResettableCCounter`](../api/collabs/classes/ResettableCCounter.html) |
+| `number` (for general arithmetic)                                                        | [`CNumber`](../api/collabs/classes/CNumber.html)                       |
+| `string` (as texts in a text box with cursor)                                            | [`CText`](../api/collabs/classes/CText.html)                           |
+| Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                       |
+| `Set<T>`, `T` [immutable](#immutable-value-collections)                                  | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)            |
+| `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`CSet<C(T)>`](../api/collabs/classes/CSet.html)                       |
+| `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                 |
+| `Map<K, V>`, `V` [mutable](#mutable-value-collections)                                   | [`CMap<K, C(V)>`](../api/collabs/classes/CMap.html)                    |
+| [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)      |
+| [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)               | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)  |
 
 <!-- ## Choices
 
@@ -93,7 +93,7 @@ To allow you to create `Collab`s dynamically, mutable values collections work a 
 
 <!-- > **Example:** TODO -->
 
-> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `CSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `CSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `DeletingMutCMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`CSet`](../api/collabs/classes/CSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
+> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `CSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `CSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `CMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`CSet`](../api/collabs/classes/CSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
 
 <!--
 ### Mutable Value Collection Variants
