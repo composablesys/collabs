@@ -10,7 +10,7 @@ export class ListPositionSerializer implements Serializer<ListPosition> {
     // Private constructor, use instance instead.
   }
 
-  static instance = new ListPositionSerializer();
+  static instance = new this();
 
   serialize(value: ListPosition): Uint8Array {
     const message = ListPositionSerializerMessage.create({
@@ -37,7 +37,7 @@ export class CreatedListPositionSerializer
     // Private constructor, use instance instead.
   }
 
-  static instance = new CreatedListPositionSerializer();
+  static instance = new this();
 
   serialize(
     value: [

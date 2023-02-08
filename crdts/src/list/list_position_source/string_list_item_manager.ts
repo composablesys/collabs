@@ -5,7 +5,7 @@ export class StringListItemManager implements ListItemManager<string> {
     // Private constructor, use instance instead.
   }
 
-  static instance = new StringListItemManager();
+  static instance = new this();
 
   length(item: string): number {
     return item.length;

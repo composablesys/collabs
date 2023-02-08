@@ -2,7 +2,7 @@ import {
   IOptionalSerializerMessage,
   OptionalSerializerMessage,
 } from "../../generated/proto_compiled";
-import { Serializer } from "./serialization";
+import { Serializer } from "./serializers";
 
 export class Optional<T> {
   private constructor(

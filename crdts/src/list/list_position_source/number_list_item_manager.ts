@@ -5,7 +5,7 @@ export class NumberListItemManager implements ListItemManager<number> {
     // Private constructor, use instance instead.
   }
 
-  static instance = new NumberListItemManager();
+  static instance = new this();
 
   length(item: number): number {
     return item;

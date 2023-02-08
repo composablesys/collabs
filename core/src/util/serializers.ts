@@ -7,7 +7,7 @@ import {
   ObjectMessage,
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
-import { Collab, CollabID } from "../core/";
+import { Collab, CollabID } from "../core";
 
 /**
  * A serializer for values of type `T` (e.g., elements
@@ -48,9 +48,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
     // Constructor is just here to mark it as private.
   }
 
-  // Only weak in keys, since we expect a IRuntime's DefaultSerializer
-  // to exist for as long as the IRuntime.
-  private static instance = new DefaultSerializer();
+  private static instance = new this();
 
   static getInstance<T>(): DefaultSerializer<T> {
     return <DefaultSerializer<T>>this.instance;
@@ -264,6 +262,12 @@ export class CollabIDSerializer<C extends Collab>
     // Singleton.
   }
 
+  private static instance = new this<Collab>();
+
+  static getInstance<C extends Collab>(): CollabIDSerializer<C> {
+    return this.instance;
+  }
+
   serialize(value: CollabID<C>): Uint8Array {
     const message = CollabIDMessage.create({ namePath: value.namePath });
     return CollabIDMessage.encode(message).finish();
@@ -272,12 +276,6 @@ export class CollabIDSerializer<C extends Collab>
   deserialize(message: Uint8Array): CollabID<C> {
     const decoded = CollabIDMessage.decode(message);
     return { namePath: decoded.namePath };
-  }
-
-  private static instance = new CollabIDSerializer<Collab>();
-
-  static getInstance<C extends Collab>(): CollabIDSerializer<C> {
-    return this.instance;
   }
 }
 
