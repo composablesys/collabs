@@ -1,6 +1,6 @@
 import { InitToken, Serializer } from "@collabs/core";
 import { MultiValueMapItem } from "../map";
-import { AggregateCVar } from "../variable";
+import { AggregateCVar } from "../var";
 
 class BooleanSerializer implements Serializer<boolean> {
   private static readonly TRUE = new Uint8Array();

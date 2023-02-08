@@ -13,7 +13,7 @@ import {
   Serializer,
 } from "@collabs/core";
 import { DeletingMutCSet } from "../set";
-import { LWWCVar } from "./lww_variable";
+import { LWWCVar } from "./c_var";
 
 export interface LWWMutCVarEventsRecord<C extends Collab>
   extends CVarEventsRecord<Optional<C>> {

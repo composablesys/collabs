@@ -1,5 +1,5 @@
 import { DefaultSerializer, InitToken, Serializer } from "@collabs/core";
-import { lastWriter } from "../variable/lww_variable";
+import { lastWriter } from "../var/c_var";
 import { AggregateCMap } from "./aggregate_map";
 
 export class LWWCMap<K, V> extends AggregateCMap<K, V> {

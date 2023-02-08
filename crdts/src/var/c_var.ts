@@ -1,6 +1,6 @@
 import { DefaultSerializer, InitToken, Serializer } from "@collabs/core";
 import { MultiValueMapItem } from "../map";
-import { AggregateCVar } from "./aggregate_variable";
+import { AggregateCVar } from "./c_aggregate_var";
 
 /**
  * Assumes items.length > 0, and that the input is eventually consistent

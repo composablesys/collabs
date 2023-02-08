@@ -6,4 +6,4 @@ export * from "./map";
 export * from "./number";
 export * from "./set";
 export * from "./util";
-export * from "./variable";
+export * from "./var";

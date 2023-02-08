@@ -5,7 +5,7 @@ import {
   Serializer,
 } from "@collabs/core";
 import { ArchivingMutCSet } from "../set";
-import { LWWCVar } from "../variable";
+import { LWWCVar } from "../var";
 import { ListPosition } from "./list_position_source";
 import {
   MovableMutCListEntry,
