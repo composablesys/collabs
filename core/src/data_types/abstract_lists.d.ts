@@ -5,7 +5,7 @@ import { CListEventsRecord, IList } from "./ilist";
 // See MakeAbstractList for the rationale behind this file.
 
 /**
- * Abstract [[IMap]] with some default method implementations,
+ * Abstract [[IList]] with some default method implementations,
  * as a subclass of [[Collab]].
  */
 export declare abstract class AbstractList_Collab<
@@ -122,7 +122,7 @@ export declare abstract class AbstractList_Collab<
 }
 
 /**
- * Abstract [[IMap]] with some default method implementations,
+ * Abstract [[IList]] with some default method implementations,
  * as a subclass of [[CObject]].
  */
 export declare abstract class AbstractList_CObject<
@@ -239,7 +239,7 @@ export declare abstract class AbstractList_CObject<
 }
 
 /**
- * Abstract [[IMap]] with some default method implementations,
+ * Abstract [[IList]] with some default method implementations,
  * as a subclass of [[CPrimitive]].
  */
 export declare abstract class AbstractList_CPrimitive<

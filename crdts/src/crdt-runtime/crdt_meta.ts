@@ -1,3 +1,5 @@
+import { MetaRequest } from "@collabs/core";
+
 /**
  * Extra field on [[UpdateMeta]] that gives metadata
  * relevant to CRDTs.
@@ -40,10 +42,6 @@
  * by a later message in the same transaction.
  */
 export interface CRDTMeta {
-  /**
-   * The transaction's sender's [[IRuntime.replicaID]].
-   */
-  readonly sender: string;
   /**
    * The sender's own vector clock entry for this transaction.
    *
@@ -96,56 +94,10 @@ export interface CRDTMeta {
   readonly lamportTimestamp: number | null;
 }
 
-export const CRDTMeta = {
-  /**
-   * [[UpdateMeta]] extra metadata key.
-   *
-   * That is, if `meta` is a [[UpdateMeta]] that contains
-   * added [[CRDTMeta]], then you can access it via
-   * `<CRDTMeta>meta[CRDTMeta.MESSAGE_META_KEY]`.
-   */
-  MESSAGE_META_KEY: Symbol(),
-} as const;
-
-/**
- * Target of [[CRDTMeta]] requests.
- *
- * The easiest way to make requests is to subclass
- * [[PrimitiveCRDT]]; its [[PrimitiveCRDT.sendCRDT]] method takes
- * requests as an argument. You can access this
- * directly via [[Collab.getContext]] key
- * [[CRDTMetaRequestee.CONTEXT_KEY]].
- */
-export interface CRDTMetaRequestee {
-  requestWallClockTime(): void;
-  requestLamportTimestamp(): void;
-  requestVectorClockEntry(replicaID: string): void;
-  /**
-   * Request all metadata (wallClockTime,
-   * lamportTimestamp, and all vectorClock entries).
-   */
-  requestAll(): void;
-  /**
-   * Request all metadata accessed while processing
-   * the next message's local echo.
-   *
-   * This is sufficient for most use cases, but you
-   * should think carefully through the steps that
-   * remote recipients would take, and ensure that they
-   * only need to access the same metadata as the sender.
-   * In particular, ensure that it is okay for
-   * remote replicas to see incorrect 0 entries in
-   * the vector clock, so long as that only happens with
-   * entries not accessed by the sender.
-   */
-  requestAutomatic(): void;
+// TODO: MetaRequest type guard is a bit annoying here
+export interface CRDTMetaRequest extends MetaRequest {
+  automatic?: boolean;
+  vectorClockEntries?: Iterable<string>;
+  wallClockTime?: boolean;
+  lamportTimestamp?: boolean;
 }
-
-export const CRDTMetaRequestee = {
-  /**
-   * [[Collab.getContext]] key that returns the
-   * [[CRDTMetaRequestee]]. Use this to request fields
-   * on the next message's [[CRDTMeta]].
-   */
-  CONTEXT_KEY: Symbol(),
-} as const;

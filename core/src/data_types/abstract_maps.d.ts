@@ -41,6 +41,10 @@ export declare abstract class AbstractMap_Collab<
   abstract readonly size: number;
 }
 
+/**
+ * Abstract [[IMap]] with some default method implementations,
+ * as a subclass of [[CObject]].
+ */
 export declare abstract class AbstractMap_CObject<
     K,
     V,
@@ -69,6 +73,10 @@ export declare abstract class AbstractMap_CObject<
   abstract readonly size: number;
 }
 
+/**
+ * Abstract [[IMap]] with some default method implementations,
+ * as a subclass of [[CPrimitive]].
+ */
 export declare abstract class AbstractMap_CPrimitive<
     K,
     V,

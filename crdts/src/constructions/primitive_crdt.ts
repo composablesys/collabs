@@ -1,15 +1,5 @@
-import {
-  CListEventsRecord,
-  CMapEventsRecord,
-  CollabEventsRecord,
-  CPrimitive,
-  CSetEventsRecord,
-  MakeAbstractCList,
-  MakeAbstractCMap,
-  MakeAbstractCSet,
-  UpdateMeta,
-} from "@collabs/core";
-import { CRDTMeta, CRDTMetaRequestee } from "../crdt-runtime";
+import { CollabEventsRecord, CPrimitive, UpdateMeta } from "@collabs/core";
+import { CRDTMeta, CRDTMetaRequest } from "../crdt-runtime";
 
 /**
  * Superclass for a primitive (message-passing)
@@ -62,50 +52,19 @@ export abstract class PrimitiveCRDT<
    * the vector clock, so long as that only happens with
    * entries not accessed by the sender.
    */
-  protected sendCRDT(
-    message: Uint8Array,
-    requests?: {
-      automatic?: boolean;
-      vectorClockEntries?: Iterable<string>;
-      wallClockTime?: boolean;
-      lamportTimestamp?: boolean;
-      all?: boolean;
-    }
-  ): void {
+  protected sendCRDT(message: Uint8Array, request?: CRDTMetaRequest): void {
     // TODO: need to not do this if inside runLocally call. (Probably won't
     // break anything, but is inefficient and abstraction-busting.)
-    if (requests !== undefined) {
-      const crdtMetaRequestee = <CRDTMetaRequestee>(
-        this.getContext(CRDTMetaRequestee.CONTEXT_KEY)
-      );
-      if (requests.automatic === true) {
-        crdtMetaRequestee.requestAutomatic();
-      }
-      if (requests.vectorClockEntries !== undefined) {
-        for (const replicaID of requests.vectorClockEntries) {
-          crdtMetaRequestee.requestVectorClockEntry(replicaID);
-        }
-      }
-      if (requests.wallClockTime === true) {
-        crdtMetaRequestee.requestWallClockTime();
-      }
-      if (requests.lamportTimestamp === true) {
-        crdtMetaRequestee.requestLamportTimestamp();
-      }
-      if (requests.all === true) {
-        crdtMetaRequestee.requestAll();
-      }
-    }
-    super.sendPrimitive(message);
+    super.sendPrimitive(message, request);
   }
 
   /**
    * Do not override; override [[receiveCRDT]] instead.
    */
   protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
-    const crdtMeta = <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY);
+    const crdtMeta = <CRDTMeta>meta.runtimeExtra;
     if (crdtMeta === undefined) {
-      throw new Error("No CRDTMeta supplied; ensure you are using CRDTApp");
+      throw new Error("No CRDTMeta supplied; ensure you are using CRuntime");
     }
     this.receiveCRDT(message, meta, crdtMeta);
   }
@@ -124,70 +83,3 @@ export abstract class PrimitiveCRDT<
     crdtMeta: CRDTMeta
   ): void;
 }
-
-/**
- * [[AbstractCList]] as a subclass of [[PrimitiveCRDT]].
- *
- * It is recommend to subclass in the form
- * ```
- * class Foo<T, InsertArgs, ...> extends AbstractCListPrimitiveCRDT<T, InsertArgs, ...>
- * implements IList<T, InsertArgs>
- * ```
- * with a redundant `implements IList<T, InsertArgs>`, since otherwise TypeScript
- * will not force you to use the actual types `T` and `InsertArgs` in your
- * method signatures. This is due to a hack that we use to get those generic
- * types into the mixin that defines this class, working around
- * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
- */
-export abstract class AbstractCListPrimitiveCRDT<
-    T,
-    InsertArgs extends unknown[],
-    Events extends CListEventsRecord<T> = CListEventsRecord<T>
-  >
-  // @ts-expect-error No good way to pass generics T & InsertArgs to mixin
-  extends MakeAbstractCList(PrimitiveCRDT)<T, InsertArgs>()<Events> {}
-
-/**
- * [[AbstractCMap]] as a subclass of [[PrimitiveCRDT]].
- *
- * It is recommend to subclass in the form
- * ```
- * class Foo<K, V, SetArgs, ...> extends AbstractCMapPrimitiveCRDT<K, V, SetArgs, ...>
- * implements IMap<K, V, SetArgs>
- * ```
- * with a redundant `implements IMap<K, V, SetArgs>`, since otherwise TypeScript
- * will not force you to use the actual types `K`, `V`, `SetArgs` in your
- * method signatures. This is due to a hack that we use to get those generic
- * types into the mixin that defines this class, working around
- * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
- */
-export abstract class AbstractCMapPrimitiveCRDT<
-    K,
-    V,
-    SetArgs extends unknown[],
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
-  >
-  // @ts-expect-error No good way to pass generics K, V, SetArgs to mixin
-  extends MakeAbstractCMap(PrimitiveCRDT)<K, V, SetArgs>()<Events> {}
-
-/**
- * [[AbstractCSet]] as a subclass of [[PrimitiveCRDT]].
- *
- * It is recommend to subclass in the form
- * ```
- * class Foo<T, AddArgs, ...> extends AbstractCSetPrimitiveCRDT<T, AddArgs, ...>
- * implements ISet<T, AddArgs>
- * ```
- * with a redundant `implements ISet<T, AddArgs>`, since otherwise TypeScript
- * will not force you to use the actual types `T` and `AddArgs` in your
- * method signatures. This is due to a hack that we use to get those generic
- * types into the mixin that defines this class, working around
- * [this limitation](https://github.com/microsoft/TypeScript/issues/26154#issuecomment-1048480277).
- */
-export abstract class AbstractCSetPrimitiveCRDT<
-    T,
-    AddArgs extends unknown[],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
-  >
-  // @ts-expect-error No good way to pass generics T & AddArgs to mixin
-  extends MakeAbstractCSet(PrimitiveCRDT)<T, AddArgs>()<Events> {}

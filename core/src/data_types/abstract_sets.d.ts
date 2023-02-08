@@ -31,6 +31,10 @@ export declare abstract class AbstractSet_Collab<
   abstract readonly size: number;
 }
 
+/**
+ * Abstract [[ISet]] with some default method implementations,
+ * as a subclass of [[CObject]].
+ */
 export declare abstract class AbstractSet_CObject<
     T,
     AddArgs extends unknown[] = [T],
@@ -54,6 +58,10 @@ export declare abstract class AbstractSet_CObject<
   abstract readonly size: number;
 }
 
+/**
+ * Abstract [[ISet]] with some default method implementations,
+ * as a subclass of [[CPrimitive]].
+ */
 export declare abstract class AbstractSet_CPrimitive<
     T,
     AddArgs extends unknown[] = [T],
