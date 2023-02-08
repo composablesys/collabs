@@ -38,8 +38,11 @@ export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
     super.sendPrimitive(encoded);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
-    const decoded = this.messageSerializer.deserialize(message);
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
+    const decoded = this.messageSerializer.deserialize(<Uint8Array>message);
     this.emit("Message", {
       message: decoded,
       meta,

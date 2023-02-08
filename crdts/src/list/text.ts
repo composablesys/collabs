@@ -126,7 +126,10 @@ export class CText
     this.delete(0, this.length);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     if (!meta.isEcho) this.indexHint = -1;
 
     const decoded = CTextMessage.decode(<Uint8Array>message);

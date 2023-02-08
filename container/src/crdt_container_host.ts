@@ -217,7 +217,10 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     if (!meta.isEcho) {
       const id = this.nextReceivedMessageID++;
       this.furtherReceivedMessages.push([id, message]);

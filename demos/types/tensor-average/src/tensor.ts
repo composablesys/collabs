@@ -193,7 +193,10 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":

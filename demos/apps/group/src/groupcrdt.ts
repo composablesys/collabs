@@ -85,7 +85,10 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: collabs.UpdateMeta
+  ) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.X1 += decoded.X1;
     this.state.Y1 += decoded.Y1;
@@ -174,7 +177,10 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return [newX1, newX2, newY1, newY2];
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: collabs.UpdateMeta
+  ) {
     let decoded = GroupComponentMessage.decode(message);
 
     this.state.rotate1 += decoded.rotate1;
@@ -250,7 +256,10 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: collabs.UpdateMeta
+  ) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectX1 *= decoded.reflectX1;
     this.state.reflectX2 *= decoded.reflectX2;
@@ -309,7 +318,10 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: collabs.UpdateMeta) {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: collabs.UpdateMeta
+  ) {
     let decoded = GroupComponentMessage.decode(message);
     this.state.reflectY1 *= decoded.reflectY1;
     this.state.reflectY2 *= decoded.reflectY2;

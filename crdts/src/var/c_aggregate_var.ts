@@ -8,7 +8,7 @@ import {
   TrivialSerializer,
 } from "@collabs/core";
 // Import from exact file to avoid circular dependencies with ../map/index.ts.
-import { MultiValueMap, MultiValueMapItem } from "../map/multi_value_map";
+import { MultiValueMap, MultiValueMapItem } from "../map/c_multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 

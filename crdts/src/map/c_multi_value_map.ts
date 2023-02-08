@@ -12,7 +12,7 @@ import {
   MultiValueMapMessage,
   MultiValueMapSave,
 } from "../../generated/proto_compiled";
-import { AbstractCMapPrimitiveCRDT } from "../constructions";
+import { AbstractMap_PrimitiveCRDT } from "../constructions";
 import { CRDTMeta } from "../crdt-runtime";
 
 export interface MultiValueMapItem<V> {
@@ -22,8 +22,18 @@ export interface MultiValueMapItem<V> {
   readonly wallClockTime?: number;
 }
 
-export class MultiValueMap<K, V>
-  extends AbstractCMapPrimitiveCRDT<K, MultiValueMapItem<V>[], [V]>
+/**
+ * A collaborative "multi-value" map, in which there may be multiple values
+ * for a key due to concurrent sets.
+ *
+ * This is a low-level API intended for internal use by other CRDT implementations.
+ * In most apps, you are better off using [[CValueMap]], [[CMap]], or occasionally
+ * [[CAggregateMap]].
+ *
+ * TODO: description
+ */
+export class CMultiValueMap<K, V>
+  extends AbstractMap_PrimitiveCRDT<K, MultiValueMapItem<V>[], [V]>
   implements IMap<K, MultiValueMapItem<V>[], [V]>
 {
   // In the common case (no concurrent sets on a given key), that key has
@@ -36,13 +46,25 @@ export class MultiValueMap<K, V>
     MultiValueMapItem<V> | MultiValueMapItem<V>[]
   >();
 
+  private readonly wallClockTime: boolean;
+  private readonly keySerializer: Serializer<K>;
+  private readonly valueSerializer: Serializer<V>;
+
   constructor(
     init: InitToken,
-    private readonly wallClockTime = false,
-    private readonly keySerializer: Serializer<K> = DefaultSerializer.getInstance(),
-    private readonly valueSerializer: Serializer<V> = DefaultSerializer.getInstance()
+    options: {
+      keySerializer?: Serializer<K>;
+      valueSerializer?: Serializer<V>;
+      wallClockTime?: boolean;
+    } = {}
   ) {
     super(init);
+
+    this.keySerializer =
+      options.keySerializer ?? DefaultSerializer.getInstance();
+    this.valueSerializer =
+      options.valueSerializer ?? DefaultSerializer.getInstance();
+    this.wallClockTime = options.wallClockTime ?? false;
   }
 
   set(key: K, value: V): MultiValueMapItem<V>[] {
@@ -73,7 +95,7 @@ export class MultiValueMap<K, V>
   }
 
   protected receiveCRDT(
-    message: Uint8Array,
+    message: Uint8Array | string,
     meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ): void {
@@ -97,7 +119,7 @@ export class MultiValueMap<K, V>
       // It's a set operation; add the set item.
       newItems.push({
         value: this.valueSerializer.deserialize(decoded.value),
-        sender: crdtMeta.sender,
+        sender: meta.sender,
         senderCounter: crdtMeta.senderCounter,
         ...(this.wallClockTime
           ? { wallClockTime: crdtMeta.wallClockTime! }
@@ -174,7 +196,9 @@ export class MultiValueMap<K, V>
     }
   }
 
-  save(): Uint8Array {
+  protected savePrimitive(): Uint8Array | null {
+    if (this.canGC()) return null;
+
     const stateBySender: Record<
       string,
       {
@@ -219,12 +243,8 @@ export class MultiValueMap<K, V>
     return MultiValueMapSave.encode({ stateBySender }).finish();
   }
 
-  load(savedState: Optional<Uint8Array>): void {
-    if (!savedState.isPresent) return;
-
-    const stateBySender = MultiValueMapSave.decode(
-      savedState.get()
-    ).stateBySender;
+  loadPrimitive(savedState: Uint8Array): void {
+    const stateBySender = MultiValueMapSave.decode(savedState).stateBySender;
 
     for (const [sender, senderSave] of Object.entries(stateBySender)) {
       let senderCounter = 0;

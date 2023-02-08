@@ -52,7 +52,10 @@ export abstract class PrimitiveCRDT<
    * the vector clock, so long as that only happens with
    * entries not accessed by the sender.
    */
-  protected sendCRDT(message: Uint8Array, request?: CRDTMetaRequest): void {
+  protected sendCRDT(
+    message: Uint8Array | string,
+    request?: CRDTMetaRequest
+  ): void {
     // TODO: need to not do this if inside runLocally call. (Probably won't
     // break anything, but is inefficient and abstraction-busting.)
     super.sendPrimitive(message, request);
@@ -61,7 +64,10 @@ export abstract class PrimitiveCRDT<
   /**
    * Do not override; override [[receiveCRDT]] instead.
    */
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     const crdtMeta = <CRDTMeta>meta.runtimeExtra;
     if (crdtMeta === undefined) {
       throw new Error("No CRDTMeta supplied; ensure you are using CRuntime");
@@ -78,7 +84,7 @@ export abstract class PrimitiveCRDT<
    * e.g., a vector clock.
    */
   protected abstract receiveCRDT(
-    message: Uint8Array,
+    message: Uint8Array | string,
     meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ): void;

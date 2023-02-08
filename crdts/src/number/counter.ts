@@ -48,7 +48,10 @@ export class CCounter extends CPrimitive<CCounterEventsRecord> {
     this.sendPrimitive(CCounterMessage.encode(message).finish());
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     const decoded = CCounterMessage.decode(<Uint8Array>message);
     const toAdd = int64AsNumber(decoded.arg);
     this._value += toAdd;

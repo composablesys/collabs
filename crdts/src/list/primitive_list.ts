@@ -112,7 +112,10 @@ export class PrimitiveCList<T>
     }
   }
 
-  protected receivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     if (!meta.isEcho) this.indexHint = -1;
 
     const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);

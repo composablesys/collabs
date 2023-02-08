@@ -69,7 +69,5 @@ export interface UpdateMeta {
  * For example, [[CRDTRuntime]] accepts requests of type [[CRDTMetaRequest]].
  * To make those requests more easily, you can instead extend [[PrimitiveCRDT]].
  */
-export interface MetaRequest {
-  /** Type guard. */
-  readonly isMetaRequest: true;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface MetaRequest {}
