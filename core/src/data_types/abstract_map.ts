@@ -52,10 +52,15 @@ export interface MakeAbstractMap_Methods<
  * If you do need to apply this mixin to a different `Base`, beware that
  * it tricky to use in TypeScript. Specifically, the mixin requires generic type
  * parameters, but you cannot pass a class's generic type parameters to
- * a mixin that it extends. To work around this, we recommend
- * declaring the mixin usage and its type separately, in `.js`
+ * a mixin that it extends. To work around this, we recommend:
+ * 1. Declare the mixin usage and its type separately, in `.js`
  * and `.d.ts` files. See the source of [[AbstractMap_Collab]]
  * for an example.
+ * 2. In `tsconfig.json`, set `"allowJs": true`.
+ * 3. In your build script, after running `tsc`, copy the `.d.ts` file to the
+ * output folder. Otherwise, by default TypeScript auto-generates its own
+ * `.d.ts` file from the `.js` file
+ * (see [https://github.com/microsoft/TypeScript/issues/39231](https://github.com/microsoft/TypeScript/issues/39231)).
  */
 export function MakeAbstractMap<
   K,

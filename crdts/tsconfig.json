@@ -22,7 +22,7 @@
      * to skipLibChecks.
      */
     "skipLibCheck": true,
-    /* Include generated .js files. */
+    /* Include generated .js files and abstract*.js files */
     "allowJs": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
