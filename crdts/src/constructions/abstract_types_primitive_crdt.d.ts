@@ -43,7 +43,7 @@ export declare abstract class AbstractMap_PrimitiveCRDT<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<T> = CMapEventsRecord<T>
+    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
   >
   extends PrimitiveCRDT<Events>
   implements IMap<K, V, SetArgs, Events>

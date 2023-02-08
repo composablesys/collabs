@@ -5,13 +5,13 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/core";
-import { MultiValueMap, MultiValueMapItem } from ".";
+import { CMultiValueMap, MultiValueMapItem } from ".";
 
-export class CAggregateMap<K, V>
+export class CAggregateValueMap<K, V>
   extends AbstractMap_CObject<K, V>
   implements IMap<K, V>
 {
-  private readonly mvMap: MultiValueMap<K, V>;
+  private readonly mvMap: CMultiValueMap<K, V>;
 
   /**
    * aggregate isn't called on [], that's just not present.
@@ -21,16 +21,26 @@ export class CAggregateMap<K, V>
   constructor(
     init: InitToken,
     private readonly aggregate: (items: MultiValueMapItem<V>[]) => V,
-    wallClockTime = false,
-    keySerializer: Serializer<K> = DefaultSerializer.getInstance(),
-    valueSerializer: Serializer<V> = DefaultSerializer.getInstance()
+    {
+      keySerializer = DefaultSerializer.getInstance(),
+      valueSerializer = DefaultSerializer.getInstance(),
+      wallClockTime = false,
+    }: {
+      keySerializer?: Serializer<K>;
+      valueSerializer?: Serializer<V>;
+      wallClockTime?: boolean;
+    } = {}
   ) {
     super(init);
 
     this.mvMap = super.addChild(
       "",
       (init) =>
-        new MultiValueMap(init, wallClockTime, keySerializer, valueSerializer)
+        new CMultiValueMap(init, {
+          wallClockTime,
+          keySerializer,
+          valueSerializer,
+        })
     );
 
     this.mvMap.on("Delete", (e) => {

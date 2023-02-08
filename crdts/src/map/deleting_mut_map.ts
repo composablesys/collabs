@@ -1,12 +1,12 @@
 import {
   Collab,
-  InitToken,
   CollabID,
   DefaultSerializer,
+  InitToken,
   Serializer,
 } from "@collabs/core";
 import { DeletingMutCSet } from "../set";
-import { LWWCMap } from "./lww_map";
+import { LWWCMap } from "./c_value_map";
 import { MutCMapFromSet } from "./mut_map_from_set";
 
 export class DeletingMutCMap<

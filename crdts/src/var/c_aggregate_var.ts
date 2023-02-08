@@ -8,7 +8,7 @@ import {
   TrivialSerializer,
 } from "@collabs/core";
 // Import from exact file to avoid circular dependencies with ../map/index.ts.
-import { MultiValueMap, MultiValueMapItem } from "../map/c_multi_value_map";
+import { CMultiValueMap, MultiValueMapItem } from "../map/c_multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 
@@ -16,7 +16,7 @@ export class CAggregateVar<T>
   extends CObject<CVarEventsRecord<T>>
   implements IVar<T>
 {
-  private readonly mvMap: MultiValueMap<null, T>;
+  private readonly mvMap: CMultiValueMap<null, T>;
   private _value: T;
 
   /**
@@ -35,7 +35,11 @@ export class CAggregateVar<T>
     this.mvMap = super.addChild(
       "",
       (init) =>
-        new MultiValueMap(init, wallClockTime, nullSerializer, valueSerializer)
+        new CMultiValueMap(init, {
+          keySerializer: nullSerializer,
+          valueSerializer,
+          wallClockTime,
+        })
     );
     this.mvMap.on("Any", (e) => {
       const previousValue = this._value;
@@ -61,7 +65,7 @@ export class CAggregateVar<T>
     return this._value;
   }
 
-  getConflicts(): T[] {
+  conflicts(): T[] {
     return (this.mvMap.get(null) ?? []).map((item) => item.value);
   }
 

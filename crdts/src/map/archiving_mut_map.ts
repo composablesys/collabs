@@ -10,7 +10,7 @@ import {
   Serializer,
 } from "@collabs/core";
 import { AddWinsCSet, DeletingMutCSet } from "../set";
-import { LWWCMap } from "./lww_map";
+import { LWWCMap } from "./c_value_map";
 
 /**
  * Collab-valued [[IMap]] where deletions only "archive"

@@ -17,7 +17,7 @@ export declare abstract class AbstractMap_Collab<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<T> = CMapEventsRecord<T>
+    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
   >
   extends Collab<Events>
   implements IMap<K, V, SetArgs, Events>
@@ -49,7 +49,7 @@ export declare abstract class AbstractMap_CObject<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<T> = CMapEventsRecord<T>
+    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
   >
   extends CObject<Events>
   implements IMap<K, V, SetArgs, Events>
@@ -81,7 +81,7 @@ export declare abstract class AbstractMap_CPrimitive<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<T> = CMapEventsRecord<T>
+    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
   >
   extends CPrimitive<Events>
   implements IMap<K, V, SetArgs, Events>
