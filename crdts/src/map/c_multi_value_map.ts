@@ -94,6 +94,8 @@ export class CMultiValueMap<K, V>
     });
   }
 
+  // OPT: implement clear (better than deleting every value)
+
   protected receiveCRDT(
     message: Uint8Array | string,
     meta: UpdateMeta,

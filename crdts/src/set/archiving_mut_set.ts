@@ -7,7 +7,7 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/core";
-import { AddWinsCSet } from "./add_wins_set";
+import { AddWinsCSet } from "./c_value_set";
 import { DeletingMutCSet } from "./deleting_mut_set";
 
 /**

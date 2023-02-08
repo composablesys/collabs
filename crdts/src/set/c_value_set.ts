@@ -1,22 +1,22 @@
 import {
-  AbstractCSetCObject,
+  AbstractSet_CObject,
   DefaultSerializer,
   InitToken,
   Serializer,
   TrivialSerializer,
 } from "@collabs/core";
-import { MultiValueMap } from "../map";
+import { CMultiValueMap } from "../map";
 
 const trueSerializer = new TrivialSerializer<true>(true);
 
-export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
+export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
   /**
    * Maps from set values to true. A value is present in this set
    * iff it is present as a map key. This essentially implements
    * the classic observed-remove set: a set containing one
    * (value, causal dot) entry per add operation.
    */
-  private readonly mvMap: MultiValueMap<T, true>;
+  private readonly mvMap: CMultiValueMap<T, true>;
 
   constructor(
     init: InitToken,
@@ -26,7 +26,11 @@ export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
 
     this.mvMap = super.addChild(
       "",
-      (init) => new MultiValueMap(init, false, valueSerializer, trueSerializer)
+      (init) =>
+        new CMultiValueMap(init, {
+          keySerializer: valueSerializer,
+          valueSerializer: trueSerializer,
+        })
     );
 
     this.mvMap.on("Delete", (e) => {
@@ -54,7 +58,9 @@ export class AddWinsCSet<T> extends AbstractCSetCObject<T, [T]> {
     this.mvMap.delete(value);
   }
 
-  // Use inherited clear implementation (delete every value).
+  clear() {
+    this.mvMap.clear();
+  }
 
   has(value: T): boolean {
     return this.mvMap.has(value);
