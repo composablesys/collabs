@@ -9,7 +9,7 @@ import {
   PairSerializer,
   Serializer,
 } from "@collabs/core";
-import { AddWinsCSet, CBasicSet } from "../set";
+import { AddWinsCSet, CSet } from "../set";
 import { LWWCMap } from "./c_value_map";
 
 /**
@@ -27,7 +27,7 @@ export class ArchivingMutCMap<
   C extends Collab,
   SetArgs extends unknown[]
 > extends AbstractCMapCObject<K, C, SetArgs> {
-  private readonly valueSet: CBasicSet<C, [K, SetArgs]>;
+  private readonly valueSet: CSet<C, [K, SetArgs]>;
   private readonly map: LWWCMap<K, CollabID<C>>;
   private readonly keySet: AddWinsCSet<K>;
   // Used to perform keyOf lookups in O(1) time, which are
@@ -45,7 +45,7 @@ export class ArchivingMutCMap<
     this.valueSet = this.addChild(
       "",
       (setInit) =>
-        new CBasicSet(
+        new CSet(
           setInit,
           (valueInit, key, args) => {
             const value = valueConstructor(valueInit, key, ...args);

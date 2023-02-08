@@ -116,7 +116,7 @@ export interface CollabEventsRecord {
  *
  * Supported kinds of composition include
  * ordinary object-oriented composition ([[CObject]]),
- * collections of `Collab`s (e.g., [[CBasicSet]]),
+ * collections of `Collab`s (e.g., [[CSet]]),
  * and `Collab`s that provide a specific
  * environment to their children (e.g., [[CRDTMetaLayer]]).
  *
@@ -238,7 +238,7 @@ export abstract class Collab<
    * Note that this method may mutate `messageStack` in-place.
    *
    * Technically, ancestors in the tree of Collabs may violate the
-   * delivery assumption. For example, [[CBasicSet]] does not
+   * delivery assumption. For example, [[CSet]] does not
    * deliver messages to deleted set elements. Ancestors that do so
    * are responsible for ensuring consistency (etc.), so you usually do not
    * need to worry about such violations.

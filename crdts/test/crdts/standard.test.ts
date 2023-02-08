@@ -13,9 +13,9 @@ import {
 import { assert } from "chai";
 import {
   AddWinsCSet,
-  CBasicSet,
   CCounter,
   CRDTApp,
+  CSet,
   CVar,
   FalseWinsCBoolean,
   LWWCMap,
@@ -812,9 +812,9 @@ describe("standard", () => {
     });
   });
 
-  describe("CBasicSet", () => {
-    let aliceSource: CBasicSet<CCounter, []>;
-    let bobSource: CBasicSet<CCounter, []>;
+  describe("CSet", () => {
+    let aliceSource: CSet<CCounter, []>;
+    let bobSource: CSet<CCounter, []>;
     let aliceVariable: CVar<Optional<CollabID<CCounter>>>;
     let bobVariable: CVar<Optional<CollabID<CCounter>>>;
 
@@ -822,12 +822,12 @@ describe("standard", () => {
       aliceSource = alice.registerCollab(
         "source",
         (init) =>
-          new CBasicSet(init, (valueInitToken) => new CCounter(valueInitToken))
+          new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
       );
       bobSource = bob.registerCollab(
         "source",
         (init) =>
-          new CBasicSet(init, (valueInitToken) => new CCounter(valueInitToken))
+          new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
       );
       aliceVariable = alice.registerCollab(
         "variable",

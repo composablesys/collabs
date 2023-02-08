@@ -71,7 +71,7 @@ function repaint(ctx: CanvasRenderingContext2D) {
 
 ## More Collaborative Data Structures
 
-Collabs comes with many more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `LWWCMap`, plus collections like `CBasicSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
+Collabs comes with many more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `LWWCMap`, plus collections like `CSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
 
 For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling) explains how you can make these classes be `Collab`s themselves---a unique feature of our library.
 

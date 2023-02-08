@@ -368,7 +368,7 @@ export function setupTiles(container: CRDTContainer) {
   const tiles = container.registerCollab(
     "tiles",
     (init) =>
-      new collabs.CBasicSet(
+      new collabs.CSet(
         init,
         (
           valueInitToken,

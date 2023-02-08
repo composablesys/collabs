@@ -13,10 +13,7 @@ import {
   Serializer,
   UpdateMeta,
 } from "@collabs/core";
-import {
-  CBasicSetMessage,
-  CBasicSetSave,
-} from "../../generated/proto_compiled";
+import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
 
 /**
  * A set of mutable values, each represented by a [[Collab]] of type `C`.
@@ -32,7 +29,7 @@ import {
  * can no longer be used; future and concurrent operations on that value
  * are ignored. See [[ArchivingMutCSet]] for an alternative semantics.
  */
-export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
+export class CSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractSet_Collab<C, AddArgs>
   implements IParent
 {
@@ -43,7 +40,7 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
   private readonly argsSerializer: Serializer<AddArgs>;
 
   /**
-   * Constructs a [[CBasicSet]] with the given valueConstructor and
+   * Constructs a [[CSet]] with the given valueConstructor and
    * optional arguments.
    *
    * The valueConstructor is a callback used to construct newly inserted
@@ -61,7 +58,7 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
    * // app is a CRDTApp or CRDTContainer
    * const set = app.registerCollab(
    *   "set",
-   *   (init) => new collabs.CBasicSet(init, valueConstructor)
+   *   (init) => new collabs.CSet(init, valueConstructor)
    * );
    * ```
    * Then when any replica calls `list.add(initialValue)`, e.g. in response to
@@ -75,11 +72,14 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
    * @param valueConstructor  [description]
    * @param argsSerializer = DefaultSerializer.getInstance() Optional,
    * use this to specify a custom [[Serializer]] for InsertArgs.
+   *
+   * TODO: after deletion, local children will still work,
+   * but messages ignored on other replicas.
    */
   constructor(
     init: InitToken,
     private readonly valueConstructor: (
-      valueInitToken: InitToken,
+      valueInit: InitToken,
       ...args: AddArgs
     ) => C,
     options: { argsSerializer?: Serializer<AddArgs> } = {}
@@ -143,7 +143,7 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
       messageStack.length--;
       child.receive(messageStack, meta);
     } else {
-      const decoded = CBasicSetMessage.decode(lastMessage);
+      const decoded = CSetMessage.decode(lastMessage);
       switch (decoded.op) {
         case "add": {
           const name = this.makeName(
@@ -213,20 +213,21 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
     return newValue;
   }
 
-  private makeName(sender: string, senderCounter: number) {
+  private makeName(sender: string, counter: number) {
     // OPT: shorten (base128 instead of base36)
-    return `${senderCounter.toString(36)},${sender}`;
+    return `${counter.toString(36)},${sender}`;
   }
 
+  // TODO: make pure?
   add(...args: AddArgs): C {
     this.inAdd = true;
-    const message = CBasicSetMessage.create({
+    const message = CSetMessage.create({
       add: {
         replicaUniqueNumber: this.runtime.nextLocalCounter(),
         args: this.argsSerializer.serialize(args),
       },
     });
-    this.send([CBasicSetMessage.encode(message).finish()], []);
+    this.send([CSetMessage.encode(message).finish()], []);
     const created = this.ourCreatedValue!;
     this.ourCreatedValue = undefined;
     this.inAdd = false;
@@ -235,14 +236,16 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
 
   delete(value: C): void {
     if (this.has(value)) {
-      const message = CBasicSetMessage.create({
+      const message = CSetMessage.create({
         delete: value.name,
       });
-      this.send([CBasicSetMessage.encode(message).finish()], []);
+      this.send([CSetMessage.encode(message).finish()], []);
     }
   }
 
   // OPT: better clear()
+
+  // TODO (future): for-each
 
   has(value: C): boolean {
     return value.parent === this && this.children.has(value.name);
@@ -288,15 +291,15 @@ export class CBasicSet<C extends Collab, AddArgs extends unknown[]>
       childSaves[i] = child.save();
       i++;
     }
-    const saveMessage = CBasicSetSave.create({ names, args });
+    const saveMessage = CSetSave.create({ names, args });
     return {
-      self: CBasicSetSave.encode(saveMessage).finish(),
+      self: CSetSave.encode(saveMessage).finish(),
       childList: childSaves,
     };
   }
 
   load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
-    const saveMessage = CBasicSetSave.decode(savedStateTree.self!);
+    const saveMessage = CSetSave.decode(savedStateTree.self!);
     // Create children.
     for (let i = 0; i < saveMessage.names.length; i++) {
       this.receiveCreate(

@@ -5,7 +5,7 @@ import {
   isRuntime,
   Serializer,
 } from "@collabs/core";
-import { CBasicSet } from "../set";
+import { CSet } from "../set";
 import { CVar } from "../var";
 import { ListPosition } from "./list_position_source";
 import {
@@ -34,10 +34,7 @@ export class DeletingMutCList<
   C,
   InsertArgs,
   CVar<ListPosition>,
-  CBasicSet<
-    MovableMutCListEntry<C, CVar<ListPosition>>,
-    [ListPosition, InsertArgs]
-  >
+  CSet<MovableMutCListEntry<C, CVar<ListPosition>>, [ListPosition, InsertArgs]>
 > {
   /**
    * Constructs a [[DeletingMutCList]] with the given valueConstructor and
@@ -84,7 +81,7 @@ export class DeletingMutCList<
     super(
       init,
       (setInit, setValueConstructor, setInitialValuesArgs, setArgsSerializer) =>
-        new CBasicSet(
+        new CSet(
           setInit,
           setValueConstructor,
           setInitialValuesArgs,
@@ -99,7 +96,7 @@ export class DeletingMutCList<
   }
 
   // Override insertion methods to state that they definitely
-  // return a value, since this is true of CBasicSet.add.
+  // return a value, since this is true of CSet.add.
 
   insert(index: number, ...args: InsertArgs): C {
     return super.insert(index, ...args)!;

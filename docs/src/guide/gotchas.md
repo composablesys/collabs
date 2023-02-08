@@ -24,7 +24,7 @@ More info: [Initialization](./initialization.html).
 
 All calls to [`runtime.registerCollab`](../api/collabs/classes/IRuntime.html#registerCollab) must happen before any messages are received from other users or any prior state is loaded. Typically, you accomplish this by making all of these calls immediately after constructing `runtime`, in the same thread. Otherwise, you may receive a message or save data that references a `Collab` you haven't registered yet, which will cause an error.
 
-Likewise, within a `CObject`, you should make all calls to `addChild` within the constructor. (If you need to add children dynamically, you should instead use a built-in collection type to do so, e.g., `CBasicSet`.)
+Likewise, within a `CObject`, you should make all calls to `addChild` within the constructor. (If you need to add children dynamically, you should instead use a built-in collection type to do so, e.g., `CSet`.)
 
 More info: [Initialization](./initialization.html).
 
@@ -59,7 +59,7 @@ Do not perform `Collab` operations in event handlers or initializers (e.g., `Col
 
 You might be tempted into doing this because you are trying to set the initial value of a `Collab`. E.g., perhaps when creating a new collaborative text document, you want to insert some placeholder text. To accomplish this, you can do one of the following:
 
-- If the data structure is created by a specific user (e.g., they clicked an "Add Document" button), you can create the data structure and then perform the initial operations _on that user only_. Generally, creation methods like `CBasicSet.add` return the created data structure, making this easy.
+- If the data structure is created by a specific user (e.g., they clicked an "Add Document" button), you can create the data structure and then perform the initial operations _on that user only_. Generally, creation methods like `CSet.add` return the created data structure, making this easy.
 - For some data structures, you can specify their initial value using constructor arguments. Adding these to all built-in data structures, or providing a simpler workaround, is a work-in-progress (see [this issue](https://github.com/composablesys/collabs/issues/154)).
 
 ## Adding Event Listeners during Events

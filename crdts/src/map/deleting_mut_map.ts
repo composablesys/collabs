@@ -5,7 +5,7 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/core";
-import { CBasicSet } from "../set";
+import { CSet } from "../set";
 import { LWWCMap } from "./c_value_map";
 import { MutCMapFromSet } from "./mut_map_from_set";
 
@@ -17,7 +17,7 @@ export class DeletingMutCMap<
   K,
   C,
   SetArgs,
-  CBasicSet<C, [K, SetArgs]>,
+  CSet<C, [K, SetArgs]>,
   LWWCMap<K, CollabID<C>>
 > {
   constructor(
@@ -33,12 +33,7 @@ export class DeletingMutCMap<
     super(
       init,
       (setInit, setValueConstructor, setArgsSerializer) =>
-        new CBasicSet(
-          setInit,
-          setValueConstructor,
-          undefined,
-          setArgsSerializer
-        ),
+        new CSet(setInit, setValueConstructor, undefined, setArgsSerializer),
       (mapInit) => new LWWCMap(mapInit),
       valueConstructor,
       keySerializer,

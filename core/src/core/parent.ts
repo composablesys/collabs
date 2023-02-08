@@ -21,7 +21,7 @@ export interface IParent {
    * message to [[Collab.receive]] on each replica of child, with
    * guarantees set by the [[runtime]]. *However*, this may choose
    * to violate the delivery assumptions, so long as it can
-   * guarantee consistency (etc.). For example, [[CBasicSet]] does not
+   * guarantee consistency (etc.). For example, [[CSet]] does not
    * deliver messages to deleted set elements.
    *
    * @param  child        [description]

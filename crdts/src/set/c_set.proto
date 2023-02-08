@@ -1,16 +1,16 @@
-message CBasicSetCreateMessage {
+message CSetCreateMessage {
   required uint32 replicaUniqueNumber = 1;
   required bytes args = 2;
 }
 
-message CBasicSetMessage {
+message CSetMessage {
   oneof op {
-    CBasicSetCreateMessage add = 1;
+    CSetCreateMessage add = 1;
     string delete = 2;
   }
 }
 
-message CBasicSetSave {
+message CSetSave {
   // In order by time created on this replica.
   // OPT: deduplicate senders.
   repeated string names = 1;

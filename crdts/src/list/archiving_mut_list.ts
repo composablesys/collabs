@@ -100,7 +100,7 @@ export class ArchivingMutCList<
   }
 
   // Override insertion methods to state that they definitely
-  // return a value, since this is true of CBasicSet.add.
+  // return a value, since this is true of CSet.add.
 
   insert(index: number, ...args: InsertArgs): C {
     return super.insert(index, ...args)!;

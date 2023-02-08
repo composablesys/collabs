@@ -22,7 +22,7 @@ export interface SavedStateTree {
    * for children".
    *
    * TODO: order guaranteed (or maybe if IRuntime does)?
-   * Needed for CBasicSet.
+   * Needed for CSet.
    */
   children?: Map<string, SavedStateTree>;
   /**

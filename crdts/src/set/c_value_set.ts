@@ -1,6 +1,5 @@
 import {
   AbstractSet_CObject,
-  DefaultSerializer,
   InitToken,
   Serializer,
   TrivialSerializer,
@@ -20,7 +19,7 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
 
   constructor(
     init: InitToken,
-    valueSerializer: Serializer<T> = DefaultSerializer.getInstance()
+    options: { valueSerializer?: Serializer<T> } = {}
   ) {
     super(init);
 
@@ -28,7 +27,7 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
       "",
       (init) =>
         new CMultiValueMap(init, {
-          keySerializer: valueSerializer,
+          keySerializer: options.valueSerializer,
           valueSerializer: trueSerializer,
         })
     );

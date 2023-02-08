@@ -49,9 +49,9 @@ source = source.replaceAll("(() => {", "/*@__PURE__*/ (() => {");
 source = source.replaceAll("$root.", "");
 
 // 3. Removing "$root." in (2) creates awkward statements:
-//    export const CBasicSetCreateMessage = $root.CBasicSetCreateMessage = [class def]
+//    export const CSetCreateMessage = $root.CSetCreateMessage = [class def]
 // becomes
-//    export const CBasicSetCreateMessage = CBasicSetCreateMessage = [class def]
+//    export const CSetCreateMessage = CSetCreateMessage = [class def]
 // and in my testing, this also breaks tree-shaking.
 // We need to remove one of these "classname =" copies
 // from each line starting with "export const".
