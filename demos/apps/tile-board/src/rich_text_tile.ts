@@ -66,7 +66,7 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichText extends collabs.CObject<RichTextEventsRecord> {
-  readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
+  readonly text: collabs.CList<RichChar, [char: string | object]>;
 
   constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
     super(init);
@@ -74,7 +74,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     this.text = this.addChild(
       "",
       (init) =>
-        new collabs.DeletingMutCList(
+        new collabs.CList(
           init,
           (valueInitToken, char) => {
             const richChar = new RichChar(valueInitToken, char);

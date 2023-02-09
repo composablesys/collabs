@@ -18,6 +18,10 @@ import {
   ListPositionSource,
 } from "./list_position_source";
 
+// OPT: better position encoding than JSON.
+// (Distribute with ListPositionSource, in place of / addition to
+// the current serializers?)
+
 export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
   private readonly positionSource: ListPositionSource<T[]>;
   /**
@@ -248,12 +252,6 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
 
   // OPT: override hasPosition, getByPosition.
 
-  /**
-   * Returns an iterator over pairs [position, value] (where "position" is
-   * in the sense of [[getPosition]] and [[findPosition]]).
-   *
-   * Useful for e.g. React lists - use the position as the key.
-   */
   *entries(): IterableIterator<[index: number, position: string, value: T]> {
     let i = 0;
     for (const [pos, length, item] of this.positionSource.itemsAndPositions()) {

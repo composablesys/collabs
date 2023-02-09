@@ -6,7 +6,7 @@ import { CollabsReplica } from "./replica";
 class TodoListInternal extends collabs.CObject implements ITodoListInternal {
   private readonly text: collabs.CText;
   private readonly doneCollab: collabs.TrueWinsCBoolean;
-  private readonly items: collabs.DeletingMutCList<TodoListInternal, []>;
+  private readonly items: collabs.CList<TodoListInternal, []>;
 
   constructor(init: collabs.InitToken) {
     super(init);
@@ -18,10 +18,7 @@ class TodoListInternal extends collabs.CObject implements ITodoListInternal {
     this.items = this.addChild(
       "items",
       (init) =>
-        new collabs.DeletingMutCList(
-          init,
-          (valueInit) => new TodoListInternal(valueInit)
-        )
+        new collabs.CList(init, (valueInit) => new TodoListInternal(valueInit))
     );
   }
 

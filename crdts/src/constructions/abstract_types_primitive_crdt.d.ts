@@ -81,7 +81,7 @@ export declare abstract class AbstractList_PrimitiveCRDT<
 {
   hasPosition(position: string): boolean;
   getByPosition(position: string): T | undefined;
-  positionOf(value: T): string | undefined;
+  positionOf(searchElement: T): string | undefined;
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
   values(): IterableIterator<T>;

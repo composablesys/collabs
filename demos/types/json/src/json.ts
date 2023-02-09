@@ -1,13 +1,13 @@
 import {
   AddWinsCSet,
   CLazyMap,
+  CList,
   CObject,
   Collab,
   CollabID,
   CText,
   CVar,
   DefaultSerializer,
-  DeletingMutCList,
   InitToken,
   IRuntime,
   Serializer,
@@ -143,13 +143,13 @@ export class JSONObject extends CObject {
 }
 
 export class JSONArray extends CObject {
-  private readonly internalList: DeletingMutCList<JSONElement, []>;
+  private readonly internalList: CList<JSONElement, []>;
   constructor(init: InitToken, private readonly makeThisExistent: () => void) {
     super(init);
     this.internalList = this.addChild(
       "nestedMap",
       (init) =>
-        new DeletingMutCList(
+        new CList(
           init,
           (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent)
         )

@@ -23,7 +23,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                 |
 | `Map<K, V>`, `V` [mutable](#mutable-value-collections)                                   | [`CMap<K, C(V)>`](../api/collabs/classes/CMap.html)                    |
 | [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`CValueList<T>`](../api/collabs/classes/CValueList.html)              |
-| [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)               | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)  |
+| [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)               | [`CList<T>`](../api/collabs/classes/CList.html)                        |
 
 <!-- ## Choices
 
@@ -58,9 +58,9 @@ Each collection type has two classes of implementations, depending on whether th
 
 > **Example.** In a shopping list app, suppose you want each item to be immutable: users can add items to the list or delete them, but they can't edit an existing item. You can model this with the ordinary data type `Array<string>`. Since the `string` items are immutable, the collaborative version should be a `IList<string>` with immutable values, e.g., `CValueList<string>`.
 >
-> Instead suppose that you want each item to be mutable: users can edit an existing item, possibly at the same time as other users. Since the `string` items are now mutable (technically you are treating them as \*`string`s), the collaborative version should be a `IList<C(string)>` with mutable values, e.g., `DeletingMutCList<CText>`.
+> Instead suppose that you want each item to be mutable: users can edit an existing item, possibly at the same time as other users. Since the `string` items are now mutable (technically you are treating them as \*`string`s), the collaborative version should be a `IList<C(string)>` with mutable values, e.g., `CList<CText>`.
 
-We distinguish mutable value collections by including `Mut` in their names, e.g., `DeletingMutCList`.
+We distinguish mutable value collections by including `Mut` in their names, e.g., `CList`.
 
 In some situations, the immutable vs. mutable distinction is subtle:
 

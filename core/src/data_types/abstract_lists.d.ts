@@ -18,7 +18,7 @@ export declare abstract class AbstractList_Collab<
 {
   hasPosition(position: string): boolean;
   getByPosition(position: string): T | undefined;
-  positionOf(value: T): string | undefined;
+  positionOf(searchElement: T): string | undefined;
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
   values(): IterableIterator<T>;
@@ -146,7 +146,7 @@ export declare abstract class AbstractList_CObject<
 {
   hasPosition(position: string): boolean;
   getByPosition(position: string): T | undefined;
-  positionOf(value: T): string | undefined;
+  positionOf(searchElement: T): string | undefined;
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
   values(): IterableIterator<T>;
@@ -274,7 +274,7 @@ export declare abstract class AbstractList_CPrimitive<
 {
   hasPosition(position: string): boolean;
   getByPosition(position: string): T | undefined;
-  positionOf(value: T): string | undefined;
+  positionOf(searchElement: T): string | undefined;
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
   values(): IterableIterator<T>;

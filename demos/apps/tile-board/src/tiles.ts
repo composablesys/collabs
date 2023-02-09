@@ -280,7 +280,7 @@ export function setupTiles(container: CRDTContainer) {
   const existingApps = container.registerCollab(
     "existingApps",
     (init) =>
-      new collabs.DeletingMutCList(
+      new collabs.CList(
         init,
         (valueInitToken, htmlSrcGzipped: Uint8Array, title: string) => {
           const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });

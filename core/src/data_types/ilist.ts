@@ -152,7 +152,7 @@ export interface IList<
    *
    * Compare to [[indexOf]].
    */
-  positionOf(value: T): string | undefined;
+  positionOf(searchElement: T): string | undefined;
 
   /**
    * Deletes every index in this list.

@@ -25,7 +25,7 @@ export interface MakeAbstractList_Methods<
    * Override this method if you want to optimize this
    * behavior.
    */
-  positionOf(value: T): string | undefined;
+  positionOf(searchElement: T): string | undefined;
   /**
    * Calls delete on every value in the list, in
    * reverse order.
@@ -222,7 +222,7 @@ export function MakeAbstractList<
       return index === -1 ? undefined : this.get(index);
     }
 
-    positionOf(value: T): string | undefined {
+    positionOf(searchElement: T): string | undefined {
       const index = this.indexOf(value);
       return index === -1 ? undefined : this.getPosition(index);
     }
