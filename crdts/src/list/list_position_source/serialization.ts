@@ -5,6 +5,8 @@ import {
 } from "../../../generated/proto_compiled";
 import { ListPosition } from "./list_position_source";
 
+// TODO: remove if not needed
+
 export class ListPositionSerializer implements Serializer<ListPosition> {
   private constructor() {
     // Private constructor, use instance instead.
@@ -27,6 +29,7 @@ export class ListPositionSerializer implements Serializer<ListPosition> {
   }
 }
 
+// TODO: rename (confusing)
 export class CreatedListPositionSerializer
   implements
     Serializer<

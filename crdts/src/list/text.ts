@@ -151,7 +151,7 @@ export class CText
         const startIndex =
           this.indexHint !== -1
             ? this.indexHint
-            : this.positionSource.findPosition(pos)[0];
+            : this.positionSource.getIndex(pos)[0];
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
@@ -177,7 +177,7 @@ export class CText
           const startIndex =
             this.indexHint !== -1
               ? this.indexHint
-              : this.positionSource.findPosition(pos)[0];
+              : this.positionSource.getIndex(pos)[0];
           this.emit("Delete", {
             startIndex,
             count: 1,
@@ -231,7 +231,7 @@ export class CText
 
   findPosition(position: string): [geIndex: number, isPresent: boolean] {
     const pos = <ListPosition>JSON.parse(position);
-    return this.positionSource.findPosition(pos);
+    return this.positionSource.getIndex(pos);
   }
 
   save(): Uint8Array {

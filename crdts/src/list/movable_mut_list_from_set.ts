@@ -137,7 +137,7 @@ export class MovableMutCListFromSet<
     this.set.on("Add", (event) => {
       this.positionSource.add(event.value.position.value, [event.value]);
       this.emit("Insert", {
-        index: this.positionSource.findPosition(event.value.position.value)[0],
+        index: this.positionSource.getIndex(event.value.position.value)[0],
         values: [event.value.value],
         meta: event.meta,
       });
@@ -145,7 +145,7 @@ export class MovableMutCListFromSet<
     this.set.on("Delete", (event) => {
       this.positionSource.delete(event.value.position.value);
       this.emit("Delete", {
-        index: this.positionSource.findPosition(event.value.position.value)[0],
+        index: this.positionSource.getIndex(event.value.position.value)[0],
         values: [event.value.value],
         meta: event.meta,
       });
@@ -180,9 +180,9 @@ export class MovableMutCListFromSet<
       this.positionSource.delete(event.previousValue);
       this.positionSource.add(entry.position.value, [entry]);
       this.emit("Move", {
-        startIndex: this.positionSource.findPosition(event.previousValue)[0],
+        startIndex: this.positionSource.getIndex(event.previousValue)[0],
         count: 1,
-        resultingStartIndex: this.positionSource.findPosition(
+        resultingStartIndex: this.positionSource.getIndex(
           entry.position.value
         )[0],
         meta: event.meta,
@@ -270,7 +270,7 @@ export class MovableMutCListFromSet<
       ]);
     }
     // Return the new index of toMove[0].
-    return this.positionSource.findPosition([
+    return this.positionSource.getIndex([
       this.runtime.replicaID,
       counter,
       startValueIndex,
@@ -301,7 +301,7 @@ export class MovableMutCListFromSet<
 
   findPosition(position: string): [geIndex: number, isPresent: boolean] {
     const pos = <ListPosition>JSON.parse(position);
-    return this.positionSource.findPosition(pos);
+    return this.positionSource.getIndex(pos);
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
@@ -312,7 +312,7 @@ export class MovableMutCListFromSet<
     if (this.set.has(searchElement.parent as MovableMutCListEntry<C, VarT>)) {
       const position = (searchElement.parent as MovableMutCListEntry<C, VarT>)
         .position.value;
-      const index = this.positionSource.findPosition(position)[0];
+      const index = this.positionSource.getIndex(position)[0];
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }

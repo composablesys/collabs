@@ -73,7 +73,7 @@ export interface ListItemManager<I> {
 }
 
 /**
- * Every non-root waypoint must have at least one value.
+ * Every non-root waypoint must have at least one value (possibly deleted).
  */
 class Waypoint<I> {
   constructor(
@@ -89,8 +89,7 @@ class Waypoint<I> {
     /**
      * null only for the root.
      *
-     * Mutable only for during loading (then is temporarily
-     * null while we construct everything).
+     * Treat as readonly, except we don't set it right away during loading.
      */
     public parentWaypoint: Waypoint<I> | null,
     /**
@@ -147,7 +146,7 @@ function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
 /**
  * @type I The "Item" type, which holds a range of values (e.g., string, array,
  * number indicating number of values). For implementation reasons,
- * items may not be negative numbers or null.
+ * items must NOT be negative numbers or null.
  */
 export class ListPositionSource<I> {
   /**
@@ -1010,7 +1009,7 @@ export class ListPositionSource<I> {
     return this.rootWaypoint.totalPresentValues;
   }
 
-  findPosition(pos: ListPosition): [geIndex: number, isPresent: boolean] {
+  getIndex(pos: ListPosition): [geIndex: number, isPresent: boolean] {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // geIndex within waypoint's subtree.
@@ -1112,7 +1111,7 @@ export class ListPositionSource<I> {
     }
   }
 
-  *itemPositions(): IterableIterator<
+  *itemsAndPositions(): IterableIterator<
     [startPos: ListPosition, length: number, item: I]
   > {
     for (const [

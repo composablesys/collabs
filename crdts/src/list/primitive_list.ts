@@ -149,7 +149,7 @@ export class PrimitiveCList<T>
         const startIndex =
           this.indexHint !== -1
             ? this.indexHint
-            : this.positionSource.findPosition(pos)[0];
+            : this.positionSource.getIndex(pos)[0];
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
@@ -175,7 +175,7 @@ export class PrimitiveCList<T>
           const startIndex =
             this.indexHint !== -1
               ? this.indexHint
-              : this.positionSource.findPosition(pos)[0];
+              : this.positionSource.getIndex(pos)[0];
           this.emit("Delete", {
             index: startIndex,
             values: deletedValues,
@@ -250,7 +250,7 @@ export class PrimitiveCList<T>
 
   findPosition(position: string): [geIndex: number, isPresent: boolean] {
     const pos = <ListPosition>JSON.parse(position);
-    return this.positionSource.findPosition(pos);
+    return this.positionSource.getIndex(pos);
   }
 
   /**
@@ -260,7 +260,7 @@ export class PrimitiveCList<T>
    * Useful for e.g. React lists - use the position as the key.
    */
   *positionEntries(): IterableIterator<[string, T]> {
-    for (const [pos, length, item] of this.positionSource.itemPositions()) {
+    for (const [pos, length, item] of this.positionSource.itemsAndPositions()) {
       for (let i = 0; i < length; i++) {
         yield [JSON.stringify(pos), item[i]];
         pos[2]++;
