@@ -6,6 +6,27 @@ export interface MakeAbstractList_Methods<
   InsertArgs extends unknown[] = [T]
 > {
   /**
+   * Returns indexOfPosition(position) !== -1.
+   *
+   * Override this method if you want to optimize this
+   * behavior.
+   */
+  hasPosition(position: string): boolean;
+  /**
+   * Returns get(indexOfPosition(position)).
+   *
+   * Override this method if you want to optimize this
+   * behavior.
+   */
+  getByPosition(position: string): T | undefined;
+  /**
+   * Returns getPosition(indexOf(value)).
+   *
+   * Override this method if you want to optimize this
+   * behavior.
+   */
+  positionOf(value: T): string | undefined;
+  /**
    * Calls delete on every value in the list, in
    * reverse order.
    *
@@ -14,7 +35,8 @@ export interface MakeAbstractList_Methods<
    */
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
-  entries(): IterableIterator<[number, T]>;
+  values(): IterableIterator<T>;
+  positions(): IterableIterator<string>;
   /**
    * @return [...this].toString()
    */
@@ -28,7 +50,7 @@ export interface MakeAbstractList_Methods<
   // Splice omitted because in InsertArgs form, it is hard to
   // allow multiple new values. However, implementations with
   // InsertArgs = [T] may choose to add splice in the obvious way
-  // (e.g., see PrimitiveCList).
+  // (e.g., see CValueList).
 
   // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
@@ -174,7 +196,12 @@ export function MakeAbstractList<
     insert(index: number, ...args: InsertArgs): T | undefined;
     delete(startIndex: number, count?: number): void;
     get(index: number): T;
-    values(): IterableIterator<T>;
+    getPosition(index: number): string;
+    indexOfPosition(
+      position: string,
+      searchDir?: "none" | "left" | "right"
+    ): number;
+    entries(): IterableIterator<[index: number, position: string, value: T]>;
     readonly length: number;
   } & Collab<Events>
 >(
@@ -184,6 +211,20 @@ export function MakeAbstractList<
   abstract class Mixin extends Base implements IList<T, InsertArgs, Events> {
     constructor(...args: any[]) {
       super(...args);
+    }
+
+    hasPosition(position: string): boolean {
+      return this.indexOfPosition(position) !== -1;
+    }
+
+    getByPosition(position: string): T | undefined {
+      const index = this.indexOfPosition(position);
+      return index === -1 ? undefined : this.get(index);
+    }
+
+    positionOf(value: T): string | undefined {
+      const index = this.indexOf(value);
+      return index === -1 ? undefined : this.getPosition(index);
     }
 
     clear(): void {
@@ -196,11 +237,15 @@ export function MakeAbstractList<
       return this.values();
     }
 
-    *entries(): IterableIterator<[number, T]> {
-      let i = 0;
-      for (const value of this) {
-        yield [i, value];
-        i++;
+    *values(): IterableIterator<T> {
+      for (const [, , value] of this.entries()) {
+        yield value;
+      }
+    }
+
+    *positions(): IterableIterator<string> {
+      for (const [, position] of this.entries()) {
+        yield position;
       }
     }
 

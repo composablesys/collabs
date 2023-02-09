@@ -59,6 +59,9 @@ export interface CListEventsRecord<T> extends CollabEventsRecord {
  * Values can later be deleted (and in some implementations, restored), changing
  * their presence in the list, using any semantics to
  * resolve conflicts.
+ *
+ * TODO: positions. Dual to indices; act like keys (and used as such in iterators);
+ * can use as React keys.
  */
 export interface IList<
   T,
@@ -100,11 +103,56 @@ export interface IList<
   delete(startIndex: number, count?: number): void;
 
   /**
-   * Returns the value at index.  If index is out of bounds,
+   * Returns the value at index.
+   *
+   * If index is out of bounds,
    * an error is thrown; this differs from an ordinary Array,
    * which would instead return undefined.
    */
   get(index: number): T;
+
+  /**
+   * @return The position currently at index.
+   */
+  getPosition(index: number): string;
+
+  /**
+   * Returns the current index of position.
+   *
+   * If position is not currently present in the list
+   * ([[hasPosition]] returns false), then the result depends on searchDir:
+   * - "none" (default): Returns -1.
+   * - "left": Returns the next index to the left of position.
+   * If there are no values to the left of position,
+   * returns -1.
+   * - "right": Returns the next index to the right of position.
+   * If there are no values to the left of position,
+   * returns [[length]].
+   */
+  indexOfPosition(
+    position: string,
+    searchDir?: "none" | "left" | "right"
+  ): number;
+
+  /**
+   * Returns whether position is currently present in the list,
+   * i.e., its value is present.
+   */
+  hasPosition(position: string): boolean;
+
+  /**
+   * Returns the value at position, or undefined if it is not currently present
+   * ([[hasPosition]] returns false).
+   */
+  getByPosition(position: string): T | undefined;
+
+  /**
+   * Returns the position of the first occurrence of value, or
+   * undefined if there are no occurrences.
+   *
+   * Compare to [[indexOf]].
+   */
+  positionOf(value: T): string | undefined;
 
   /**
    * Deletes every index in this list.
@@ -118,15 +166,19 @@ export interface IList<
 
   /** Returns an iterable of values in the list, in list order. */
   [Symbol.iterator](): IterableIterator<T>;
-  /** Returns an iterable of [index, value] pairs for every value in the list, in list order.
+  /**
+   * Returns an iterable of [index, position, value] tuples for every
+   * value in the list, in list order.
    */
-  entries(): IterableIterator<[number, T]>;
+  entries(): IterableIterator<[index: number, position: string, value: T]>;
 
   /** Returns an iterable of values in the list, in list order. */
   values(): IterableIterator<T>;
 
-  // Excluding keys() since it doesn't seem useful.
-  // keys(): IterableIterator<number>
+  /** Returns an iterable of present positions, in list order. */
+  positions(): IterableIterator<string>;
+
+  // Omit keys() since it doesn't seem useful.
 
   // Convenience mutators
   /**
