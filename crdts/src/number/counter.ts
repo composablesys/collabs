@@ -4,7 +4,6 @@ import {
   CPrimitive,
   InitToken,
   int64AsNumber,
-  Optional,
   UpdateMeta,
 } from "@collabs/core";
 import { CCounterMessage } from "../../generated/proto_compiled";
@@ -17,6 +16,9 @@ export interface CCounterAddEvent extends CollabEvent {
 export interface CCounterEventsRecord extends CollabEventsRecord {
   Add: CCounterAddEvent;
 }
+
+// TODO: make state-based mergeable; resettable by default, with opt
+// to mostly not use memory if reset is never used.
 
 /**
  * A counter CRDT with operation add(integer).
@@ -63,16 +65,16 @@ export class CCounter extends CPrimitive<CCounterEventsRecord> {
     return this._value;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array | null {
+    if (this.canGC()) return null;
+
     const message = CCounterMessage.create({ arg: this._value });
     return CCounterMessage.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>): void {
-    if (savedState.isPresent) {
-      const decoded = CCounterMessage.decode(savedState.get());
-      this._value = int64AsNumber(decoded.arg);
-    }
+  loadPrimitive(savedState: Uint8Array): void {
+    const decoded = CCounterMessage.decode(savedState);
+    this._value = int64AsNumber(decoded.arg);
   }
 
   canGC(): boolean {

@@ -44,6 +44,8 @@ export interface ResettableCCounterEventsRecord extends CollabEventsRecord {
  * the sum of all additions by any one replica is restricted
  * to be a safe integer. Otherwise, results are not
  * guaranteed to be correct or eventually consistent.
+ *
+ * TODO: experimental b/c does not support merging; can only load at beginning.
  */
 export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounterEventsRecord> {
   // M entry format: [p, n, idCounter]
