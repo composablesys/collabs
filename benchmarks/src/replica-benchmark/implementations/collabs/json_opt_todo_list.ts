@@ -9,8 +9,8 @@
 //  */
 // class JSONOptTodoListInternal implements ITodoListInternal {
 //   private readonly items: JSONCursor;
-//   private readonly ids: collabs.PrimitiveCList<string>;
-//   private readonly text: collabs.PrimitiveCList<string>;
+//   private readonly ids: collabs.CValueList<string>;
+//   private readonly text: collabs.CValueList<string>;
 //
 //   constructor(
 //     private readonly collab: JSONCursor,
@@ -18,8 +18,8 @@
 //     private readonly runtime: collabs.IRuntime
 //   ) {
 //     this.items = this.collab.get("items")[0] as JSONCursor;
-//     this.ids = this.collab.get("itemsIds")[0] as collabs.PrimitiveCList<string>;
-//     this.text = this.collab.get("text")[0] as collabs.PrimitiveCList<string>;
+//     this.ids = this.collab.get("itemsIds")[0] as collabs.CValueList<string>;
+//     this.text = this.collab.get("text")[0] as collabs.CValueList<string>;
 //   }
 //
 //   addItem(index: number, text: string): void {
@@ -37,7 +37,7 @@
 //     newItem.setIsList("text");
 //
 //     // Update text item
-//     let textItem = newItem.get("text")[0] as collabs.PrimitiveCList<string>;
+//     let textItem = newItem.get("text")[0] as collabs.CValueList<string>;
 //     textItem.insert(0, ...text);
 //   }
 //

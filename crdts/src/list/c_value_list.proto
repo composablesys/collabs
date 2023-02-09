@@ -1,4 +1,4 @@
-message PrimitiveCListInsertMessage {
+message CValueListInsertMessage {
   required uint64 counter = 1;
   required uint32 startValueIndex = 2;
   optional bytes metadata = 3;
@@ -8,21 +8,21 @@ message PrimitiveCListInsertMessage {
   repeated bytes values = 6;
 }
 
-message PrimitiveCListDeleteMessage {
+message CValueListDeleteMessage {
   // Not set if same as message sender.
   optional string sender = 1;
   required uint64 counter = 2;
   required uint32 valueIndex = 3;
 }
 
-message PrimitiveCListMessage {
+message CValueListMessage {
   oneof op {
-    PrimitiveCListInsertMessage insert = 1;
-    PrimitiveCListDeleteMessage delete = 3;
+    CValueListInsertMessage insert = 1;
+    CValueListDeleteMessage delete = 3;
   }
 }
 
-message PrimitiveCListSave {
+message CValueListSave {
   required bytes positionSourceSave = 1;
   optional bytes valuesArraySave = 2;
   repeated bytes valuesSave = 3;

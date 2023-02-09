@@ -207,7 +207,7 @@ export class CText
     return this.values();
   }
 
-  // OPT: items() version of iterator? Likewise for PrimitiveCList?
+  // OPT: items() version of iterator? Likewise for CValueList?
 
   get length(): number {
     return this.positionSource.length;

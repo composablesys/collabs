@@ -906,7 +906,7 @@ export class ListPositionSource<I> {
     }
   }
 
-  has(pos: ListPosition): boolean {
+  hasPosition(pos: ListPosition): boolean {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // Find valueIndex in waypoint.children.
@@ -1009,7 +1009,10 @@ export class ListPositionSource<I> {
     return this.rootWaypoint.totalPresentValues;
   }
 
-  getIndex(pos: ListPosition): [geIndex: number, isPresent: boolean] {
+  indexOfPosition(
+    pos: ListPosition,
+    searchDir: "none" | "left" | "right" = "none"
+  ): number {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // geIndex within waypoint's subtree.
@@ -1040,7 +1043,17 @@ export class ListPositionSource<I> {
       curParent = curWaypoint.parentWaypoint;
     }
 
-    return [geIndex, isPresent];
+    if (isPresent) return geIndex;
+    else {
+      switch (searchDir) {
+        case "none":
+          return -1;
+        case "left":
+          return geIndex - 1;
+        case "right":
+          return geIndex;
+      }
+    }
   }
 
   /**

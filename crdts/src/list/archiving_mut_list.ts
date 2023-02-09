@@ -107,14 +107,10 @@ export class ArchivingMutCList<
   }
 
   push(...args: InsertArgs): C {
-    // TODO: mixin issues confusing eslint
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return super.push(...args)!;
   }
 
   unshift(...args: InsertArgs): C {
-    // TODO: mixin issues confusing eslint
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return super.unshift(...args)!;
   }
 

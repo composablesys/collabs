@@ -1,29 +1,24 @@
 import {
-  AbstractCListCPrimitive,
   DefaultSerializer,
   InitToken,
   int64AsNumber,
-  Optional,
-  PositionedList,
   Serializer,
   UpdateMeta,
 } from "@collabs/core";
 import {
-  IPrimitiveCListInsertMessage,
-  IPrimitiveCListSave,
-  PrimitiveCListMessage,
-  PrimitiveCListSave,
+  CValueListMessage,
+  CValueListSave,
+  ICValueListInsertMessage,
+  ICValueListSave,
 } from "../../generated/proto_compiled";
+import { AbstractList_PrimitiveCRDT } from "../constructions";
 import {
   ArrayListItemManager,
   ListPosition,
   ListPositionSource,
 } from "./list_position_source";
 
-export class PrimitiveCList<T>
-  extends AbstractCListCPrimitive<T, [T]>
-  implements PositionedList
-{
+export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
   private readonly positionSource: ListPositionSource<T[]>;
   /**
    * Used for local operations, to store the index where the operation is
@@ -62,7 +57,7 @@ export class PrimitiveCList<T>
     const [counter, startValueIndex, metadata] =
       this.positionSource.createPositions(prevPos);
 
-    const imessage: IPrimitiveCListInsertMessage = {
+    const imessage: ICValueListInsertMessage = {
       counter,
       startValueIndex,
       metadata,
@@ -77,11 +72,12 @@ export class PrimitiveCList<T>
       );
     }
 
-    const message = PrimitiveCListMessage.create({
+    const message = CValueListMessage.create({
       insert: imessage,
     });
-    this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+    this.sendPrimitive(CValueListMessage.encode(message).finish());
 
+    this.indexHint = -1;
     return values[0];
   }
 
@@ -101,24 +97,20 @@ export class PrimitiveCList<T>
     for (let i = startIndex + count - 1; i >= startIndex; i--) {
       this.indexHint = i;
       const pos = this.positionSource.getPosition(i);
-      const message = PrimitiveCListMessage.create({
+      const message = CValueListMessage.create({
         delete: {
           sender: pos[0] === this.runtime.replicaID ? null : pos[0],
           counter: pos[1],
           valueIndex: pos[2],
         },
       });
-      this.sendPrimitive(PrimitiveCListMessage.encode(message).finish());
+      this.sendPrimitive(CValueListMessage.encode(message).finish());
     }
+    this.indexHint = -1;
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: UpdateMeta
-  ): void {
-    if (!meta.isEcho) this.indexHint = -1;
-
-    const decoded = PrimitiveCListMessage.decode(<Uint8Array>message);
+  protected receiveCRDT(message: Uint8Array | string, meta: UpdateMeta): void {
+    const decoded = CValueListMessage.decode(<Uint8Array>message);
     switch (decoded.op) {
       case "insert": {
         const counter = int64AsNumber(decoded.insert!.counter);
@@ -149,7 +141,7 @@ export class PrimitiveCList<T>
         const startIndex =
           this.indexHint !== -1
             ? this.indexHint
-            : this.positionSource.getIndex(pos)[0];
+            : this.positionSource.indexOfPosition(pos);
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
@@ -175,7 +167,7 @@ export class PrimitiveCList<T>
           const startIndex =
             this.indexHint !== -1
               ? this.indexHint
-              : this.positionSource.getIndex(pos)[0];
+              : this.positionSource.indexOfPosition(pos);
           this.emit("Delete", {
             index: startIndex,
             values: deletedValues,
@@ -237,8 +229,6 @@ export class PrimitiveCList<T>
       return [...this.values()];
     } else {
       // OPT: optimize using items() iterator or similar.
-      // TODO: mixin issues confusing eslint
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return super.slice(start, end);
     }
   }
@@ -248,10 +238,15 @@ export class PrimitiveCList<T>
     return JSON.stringify(pos);
   }
 
-  findPosition(position: string): [geIndex: number, isPresent: boolean] {
+  indexOfPosition(
+    position: string,
+    searchDir: "none" | "left" | "right" = "none"
+  ): number {
     const pos = <ListPosition>JSON.parse(position);
-    return this.positionSource.getIndex(pos);
+    return this.positionSource.indexOfPosition(pos, searchDir);
   }
+
+  // OPT: override hasPosition, getByPosition.
 
   /**
    * Returns an iterator over pairs [position, value] (where "position" is
@@ -259,17 +254,19 @@ export class PrimitiveCList<T>
    *
    * Useful for e.g. React lists - use the position as the key.
    */
-  *positionEntries(): IterableIterator<[string, T]> {
+  *entries(): IterableIterator<[index: number, position: string, value: T]> {
+    let i = 0;
     for (const [pos, length, item] of this.positionSource.itemsAndPositions()) {
-      for (let i = 0; i < length; i++) {
-        yield [JSON.stringify(pos), item[i]];
+      for (let j = 0; j < length; j++) {
+        yield [i, JSON.stringify(pos), item[j]];
         pos[2]++;
+        i++;
       }
     }
   }
 
-  save(): Uint8Array {
-    const imessage: IPrimitiveCListSave = {
+  savePrimitive(): Uint8Array {
+    const imessage: ICValueListSave = {
       positionSourceSave: this.positionSource.save(),
     };
     if (this.valueArraySerializer !== undefined) {
@@ -284,28 +281,26 @@ export class PrimitiveCList<T>
         i++;
       }
     }
-    const message = PrimitiveCListSave.create(imessage);
-    return PrimitiveCListSave.encode(message).finish();
+    const message = CValueListSave.create(imessage);
+    return CValueListSave.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>): void {
-    if (savedState.isPresent) {
-      const decoded = PrimitiveCListSave.decode(savedState.get());
-      let values: T[];
-      if (this.valueArraySerializer !== undefined) {
-        values = this.valueArraySerializer.deserialize(decoded.valuesArraySave);
-      } else {
-        values = decoded.valuesSave.map((value) =>
-          this.valueSerializer.deserialize(value)
-        );
-      }
-      let index = 0;
-      this.positionSource.load(decoded.positionSourceSave, (count) => {
-        const ans = values.slice(index, index + count);
-        index += count;
-        return ans;
-      });
+  loadPrimitive(savedState: Uint8Array): void {
+    const decoded = CValueListSave.decode(savedState);
+    let values: T[];
+    if (this.valueArraySerializer !== undefined) {
+      values = this.valueArraySerializer.deserialize(decoded.valuesArraySave);
+    } else {
+      values = decoded.valuesSave.map((value) =>
+        this.valueSerializer.deserialize(value)
+      );
     }
+    let index = 0;
+    this.positionSource.load(decoded.positionSourceSave, (count) => {
+      const ans = values.slice(index, index + count);
+      index += count;
+      return ans;
+    });
   }
 
   canGC(): boolean {

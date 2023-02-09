@@ -22,7 +22,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`CSet<C(T)>`](../api/collabs/classes/CSet.html)                       |
 | `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                 |
 | `Map<K, V>`, `V` [mutable](#mutable-value-collections)                                   | [`CMap<K, C(V)>`](../api/collabs/classes/CMap.html)                    |
-| [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`PrimitiveCList<T>`](../api/collabs/classes/PrimitiveCList.html)      |
+| [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`CValueList<T>`](../api/collabs/classes/CValueList.html)              |
 | [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)               | [`DeletingMutCList<T>`](../api/collabs/classes/DeletingMutCList.html)  |
 
 <!-- ## Choices
@@ -56,7 +56,7 @@ The collection types (`ISet`, `IMap`, `IList`, and `IVar`) all contain values th
 
 Each collection type has two classes of implementations, depending on whether the values are _immutable_ or _mutable_. Of course, the collections themselves are always mutable, e.g., you can always add and remove values from a `ISet` or set the value of `IVar`. The question is whether those values can be mutated internally.
 
-> **Example.** In a shopping list app, suppose you want each item to be immutable: users can add items to the list or delete them, but they can't edit an existing item. You can model this with the ordinary data type `Array<string>`. Since the `string` items are immutable, the collaborative version should be a `IList<string>` with immutable values, e.g., `PrimitiveCList<string>`.
+> **Example.** In a shopping list app, suppose you want each item to be immutable: users can add items to the list or delete them, but they can't edit an existing item. You can model this with the ordinary data type `Array<string>`. Since the `string` items are immutable, the collaborative version should be a `IList<string>` with immutable values, e.g., `CValueList<string>`.
 >
 > Instead suppose that you want each item to be mutable: users can edit an existing item, possibly at the same time as other users. Since the `string` items are now mutable (technically you are treating them as \*`string`s), the collaborative version should be a `IList<C(string)>` with mutable values, e.g., `DeletingMutCList<CText>`.
 
@@ -102,7 +102,7 @@ Types of mutable collections (Deleting, Archiving). Note downsides of each: tomb
 
 <!-- ### Treating Immutable Values as Mutable
 
-TODO: CImmutableValue: wraps a value in a CType. Hack to let you get mutating collection features for immutable values (sending args - could also write your own type; list move ops - not yet implemented for PrimitiveCList; sending values by reference instead of the whole thing, so they are shortened; ??). Modest performance cost. -->
+TODO: CImmutableValue: wraps a value in a CType. Hack to let you get mutating collection features for immutable values (sending args - could also write your own type; list move ops - not yet implemented for CValueList; sending values by reference instead of the whole thing, so they are shortened; ??). Modest performance cost. -->
 
 <!-- ## Interfaces
 

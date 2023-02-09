@@ -1,15 +1,15 @@
 import { Optional } from "@collabs/core";
 import { assert } from "chai";
-import { CRDTApp, PrimitiveCList, TestingCRDTAppGenerator } from "../../src";
+import { CRDTApp, CValueList, TestingCRDTAppGenerator } from "../../src";
 import seedrandom = require("seedrandom");
 
-describe("PrimitiveCList", () => {
+describe("CValueList", () => {
   let rng: seedrandom.prng;
   let appGen: TestingCRDTAppGenerator;
   let alice: CRDTApp;
   let bob: CRDTApp;
-  let aliceList: PrimitiveCList<number>;
-  let bobList: PrimitiveCList<number>;
+  let aliceList: CValueList<number>;
+  let bobList: CValueList<number>;
 
   beforeEach(() => {
     rng = seedrandom("42");
@@ -17,11 +17,8 @@ describe("PrimitiveCList", () => {
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
 
-    aliceList = alice.registerCollab(
-      "list",
-      (init) => new PrimitiveCList(init)
-    );
-    bobList = bob.registerCollab("list", (init) => new PrimitiveCList(init));
+    aliceList = alice.registerCollab("list", (init) => new CValueList(init));
+    bobList = bob.registerCollab("list", (init) => new CValueList(init));
     alice.load(Optional.empty());
     bob.load(Optional.empty());
   });
@@ -177,7 +174,7 @@ describe("PrimitiveCList", () => {
       const charlie = appGen.newApp(undefined, rng);
       const charlieList = charlie.registerCollab(
         "list",
-        (init) => new PrimitiveCList<number>(init)
+        (init) => new CValueList<number>(init)
       );
       charlie.load(Optional.empty());
 
@@ -198,7 +195,7 @@ describe("PrimitiveCList", () => {
       const charlie = appGen.newApp(undefined, rng);
       const charlieList = charlie.registerCollab(
         "list",
-        (init) => new PrimitiveCList<number>(init)
+        (init) => new CValueList<number>(init)
       );
       charlie.load(Optional.empty());
 

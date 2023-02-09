@@ -70,8 +70,6 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
   }
 
   values(): IterableIterator<T> {
-    // TODO: mixin issues confusing eslint
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.mvMap.keys();
   }
 }

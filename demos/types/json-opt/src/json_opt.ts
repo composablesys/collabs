@@ -5,10 +5,10 @@ import {
   Collab,
   CollabEvent,
   CollabEventsRecord,
+  CValueList,
   CVar,
   DefaultSerializer,
   InitToken,
-  PrimitiveCList,
   Serializer,
   StringSerializer,
 } from "@collabs/collabs";
@@ -34,7 +34,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
     string,
     CVar<number | string | boolean | InternalType | undefined>
   >;
-  private readonly CLazyMap: CLazyMap<string, PrimitiveCList<string>>;
+  private readonly CLazyMap: CLazyMap<string, CValueList<string>>;
   private readonly keySet: AddWinsCSet<string>;
   private readonly internalNestedKeys: Map<string, Set<string>>;
 
@@ -58,7 +58,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
         new CLazyMap(
           childInitToken,
           (valueInitToken) =>
-            new PrimitiveCList(valueInitToken, StringSerializer.instance),
+            new CValueList(valueInitToken, StringSerializer.instance),
           keySerializer
         )
     );
@@ -115,7 +115,7 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
 
   get(
     key: string
-  ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
+  ): (number | string | boolean | CValueList<string> | JSONCursor)[] {
     let vals: any[] = [];
     if (this.keySet.has(key)) {
       let mvr = this.internalMap.get(key);
@@ -165,14 +165,9 @@ export class JSONCollab extends CObject<JSONEventsRecord> {
 
   values(
     cursor: string
-  ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
-    let vals: (
-      | number
-      | string
-      | boolean
-      | PrimitiveCList<string>
-      | JSONCursor
-    )[] = [];
+  ): (number | string | boolean | CValueList<string> | JSONCursor)[] {
+    let vals: (number | string | boolean | CValueList<string> | JSONCursor)[] =
+      [];
 
     for (let key of this.keys(cursor)) {
       vals.push(...this.get(cursor + key + ":"));
@@ -215,7 +210,7 @@ export class JSONCursor {
 
   get(
     key: string
-  ): (number | string | boolean | PrimitiveCList<string> | JSONCursor)[] {
+  ): (number | string | boolean | CValueList<string> | JSONCursor)[] {
     return this.internal.get(this.cursor + key + ":");
   }
 
@@ -242,13 +237,7 @@ export class JSONCursor {
     return this.internal.keys(this.cursor);
   }
 
-  values(): (
-    | number
-    | string
-    | boolean
-    | PrimitiveCList<string>
-    | JSONCursor
-  )[] {
+  values(): (number | string | boolean | CValueList<string> | JSONCursor)[] {
     return this.internal.values(this.cursor);
   }
 }
