@@ -113,7 +113,7 @@ export class RunLocallyLayer extends Collab implements IParent {
     if (namePath[namePath.length - 1] !== "") {
       throw new Error("Unrecognized child: " + namePath[namePath.length - 1]);
     }
-    namePath.length--;
+    namePath.pop();
     return this.child.getDescendant(namePath);
   }
 

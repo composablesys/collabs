@@ -276,6 +276,8 @@ export abstract class Collab<
 
   // TODO: give context/meta? Take meta requests? I guess in worst case,
   // you could ask IRuntime.
+  // OPT: give save/load meta that lets them use ints instead of
+  // replicaIDs, for compression?
   /**
    * Called by this Collab's parent to obtain saved state. The saved
    * state describes the current state of this

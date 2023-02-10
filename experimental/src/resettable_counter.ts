@@ -31,6 +31,7 @@ export interface ResettableCCounterEventsRecord extends CollabEventsRecord {
   Reset: ResettableCCounterResetEvent;
 }
 
+// TODO: update to latest alg (published paper)
 /**
  * A grow-only counter CRDT with an "observed-reset" operation
  * [[reset]], which restores the counter to its initial

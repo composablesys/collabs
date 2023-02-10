@@ -133,9 +133,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       throw new Error("CObject received message for itself");
     }
 
-    const child = this.children.get(
-      <string>messageStack[messageStack.length - 1]
-    );
+    const child = this.children.get(<string>messageStack.pop());
     if (child === undefined) {
       // Assume this is a version issue; ignore the child (protobuf3-style).
       // TODO: emit warning somewhere?
@@ -148,7 +146,6 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       // );
       return;
     }
-    messageStack.length--;
     child.receive(messageStack, meta);
   }
 

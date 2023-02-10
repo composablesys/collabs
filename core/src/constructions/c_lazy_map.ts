@@ -177,7 +177,7 @@ export class CLazyMap<K, C extends Collab>
   private inReceiveValue?: C = undefined;
 
   receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
-    const keyString = <string>messageStack[messageStack.length - 1];
+    const keyString = <string>messageStack.pop();
     this.inReceiveKeyStr = keyString;
     try {
       // Message for a child
@@ -185,7 +185,6 @@ export class CLazyMap<K, C extends Collab>
       const [value, nontrivialStart] = this.getInternal(key, keyString, false);
       this.inReceiveValue = value;
 
-      messageStack.length--;
       value.receive(messageStack, meta);
 
       // If the value became GC-able, move it to the

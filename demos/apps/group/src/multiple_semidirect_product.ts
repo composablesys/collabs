@@ -381,13 +381,12 @@ export abstract class MultipleSemidirectProduct<
 
     const crdtMeta = <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY);
 
-    const name = <string>messageStack[messageStack.length - 1];
+    const name = <string>messageStack.pop();
     let idx: number;
     if (
       name.substring(0, 4) == "crdt" &&
       !Number.isNaN((idx = parseInt(name.substring(4))))
     ) {
-      messageStack.length--;
       let crdt = this.crdts[idx];
 
       // Be acted on by all concurrent messages with greater
@@ -498,13 +497,12 @@ export abstract class MultipleSemidirectProduct<
   getDescendant(namePath: string[]): Collab | undefined {
     if (namePath.length === 0) return this;
 
-    const name = namePath[namePath.length - 1];
+    const name = namePath.pop()!;
     let idx: number;
     if (
       name.substring(0, 4) == "crdt" &&
       !Number.isNaN((idx = parseInt(name.substring(4))))
     ) {
-      namePath.length--;
       if (this.pendingChildSaves !== null && namePath.length > 0) {
         // Ensure child is loaded.
         const childSave = this.pendingChildSaves.get(idx);

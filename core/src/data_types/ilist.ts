@@ -39,7 +39,10 @@ export interface CListEvent<T> extends CollabEvent {
    * values at the deleted indices.
    */
   values: T[];
+  // TODO: positions as well?
 }
+
+// TODO: positions: compare to Yjs absolute vs relative positions API.
 
 export interface CListEventsRecord<T> extends CollabEventsRecord {
   Insert: CListEvent<T>;
