@@ -3,7 +3,7 @@ import { Serializer } from "./serializers";
 
 // TODO: combine, so can include "type" bit? Or, keep separate but include
 // bit at beginning, & give method to test which?
-// To avoid CRDTRuntime's re-encoding the whole thing to add one bit.
+// To avoid CRuntime's re-encoding the whole thing to add one bit.
 
 /**
  * Serializer for a batch of message stacks sent by [[Collab]]s,
@@ -39,24 +39,26 @@ export class MessageStacksSerializer
 }
 
 /**
- * Serializer for a [[SavedStateTree]].
+ * Serializer for a [[SavedStateTree]] or null, i.e., an output of [[Collab.save]].
  *
  * [[IRuntime]] implementations may use [[SavedStateTreeSerializer.instance]]
  * to convert Collabs's saved states into a single Uint8Array.
  */
-export class SavedStateTreeSerializer implements Serializer<SavedStateTree> {
+export class SavedStateTreeSerializer
+  implements Serializer<SavedStateTree | null>
+{
   private constructor() {
     // Singleton.
   }
 
   static instance = new this();
 
-  serialize(value: SavedStateTree): Uint8Array {
+  serialize(value: SavedStateTree | null): Uint8Array {
     // TODO
     throw new Error("Method not implemented.");
   }
 
-  deserialize(message: Uint8Array): SavedStateTree {
+  deserialize(message: Uint8Array): SavedStateTree | null {
     throw new Error("Method not implemented.");
   }
 }

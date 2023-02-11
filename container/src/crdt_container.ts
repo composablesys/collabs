@@ -3,7 +3,7 @@ import {
   Collab,
   CollabEvent,
   CRDTApp,
-  CRDTRuntime,
+  CRuntime,
   EventEmitter,
   InitToken,
   Optional,
@@ -300,10 +300,10 @@ export class CRDTContainer extends EventEmitter<CRDTContainerEventsRecord> {
   }
 
   /**
-   * The internal [[CRDTRuntime]], i.e., the value of
+   * The internal [[CRuntime]], i.e., the value of
    * `runtime` on any `Collab`.
    */
-  get runtime(): CRDTRuntime {
+  get runtime(): CRuntime {
     return this.app.runtime;
   }
 

@@ -1,5 +1,5 @@
 import { CollabEventsRecord, CPrimitive, UpdateMeta } from "@collabs/core";
-import { CRDTMeta, CRDTMetaRequest } from "../crdt-runtime";
+import { CRDTMeta, CRDTMetaRequest } from "../runtime";
 
 /**
  * Superclass for a primitive (message-passing)

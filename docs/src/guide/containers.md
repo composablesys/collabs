@@ -103,7 +103,7 @@ Note that containers that depend on external assets will not have all the featur
 
 There are actually two parts to "loading":
 
-1. The most recent save data (from `CRDTRuntime.save`), provided by your host, is loaded into your Collabs state (using `CRDTRuntime.load`). This happens during `Container.load`, which then resolves its Promise.
+1. The most recent save data (from `CRuntime.save`), provided by your host, is loaded into your Collabs state (using `CRuntime.load`). This happens during `Container.load`, which then resolves its Promise.
 2. Besides the save data, your host may have "further messages" that the previous instance of your container sent or received after generating the most recent save data. These are also received during `Container.load`, but not applied to your Collabs state until the next event loop iteration after you call `Container.ready`. This makes them indistinguishable from newly received messages.
 
 You can choose to instead do step 2 before calling `Container.ready` (but after awaiting `Container.load`), by calling `Container.receiveFurtherMessages()`. This will apply the further messages immediately and synchronously. Example reasons:

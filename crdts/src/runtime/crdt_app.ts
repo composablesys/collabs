@@ -6,7 +6,7 @@ import {
   InitToken,
   Optional,
 } from "@collabs/core";
-import { CRDTRuntime, SendEvent } from "./crdt_runtime";
+import { CRuntime, SendEvent } from "./c_runtime";
 
 export interface CRDTAppEventsRecord {
   /**
@@ -69,10 +69,10 @@ export interface CRDTAppEventsRecord {
  */
 export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
   /**
-   * The internal [[CRDTRuntime]], i.e., the value of
+   * The internal [[CRuntime]], i.e., the value of
    * `runtime` on any [[Collab]].
    */
-  readonly runtime: CRDTRuntime;
+  readonly runtime: CRuntime;
 
   /**
    * Options:
@@ -100,7 +100,7 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
   }) {
     super();
 
-    this.runtime = new CRDTRuntime(options);
+    this.runtime = new CRuntime(options);
     this.runtime.on("Change", (e) => this.emit("Change", e));
     this.runtime.on("Send", (e) => this.emit("Send", e));
   }

@@ -7,7 +7,7 @@ import { IParent } from "./parent";
  *
  * [[IRuntime]] is a general interface; specific replication techniques are
  * expected to provide their own implementations, such as
- * [[CRDTRuntime]] for CRDTs.
+ * [[CRuntime]] for CRDTs.
  *
  * A runtime creates and manages the tree of Collabs
  * for a document, and it provides utilities for those Collabs
@@ -15,7 +15,7 @@ import { IParent } from "./parent";
  * using [[Collab.runtime]].
  *
  * A runtime also delivers updates between replicas with runtime-specific
- * guarantees. For example, CRDTRuntime guarantees that messages are
+ * guarantees. For example, CRuntime guarantees that messages are
  * broadcast exactly-once in causal order with immediate delivery
  * of local messages, and that saved states are delivered
  * in causal order but may be redundant with other updates.

@@ -1,6 +1,6 @@
-import { CRDTMeta, CRDTMetaRequestee } from "../crdt_meta";
+import { CRDTMeta } from "./crdt_meta";
 
-export class SendCRDTMeta implements CRDTMeta, CRDTMetaRequestee {
+export class SendCRDTMeta implements CRDTMeta {
   count = 0;
   /**
    * The requested vector clock entries so far, excluding sender.

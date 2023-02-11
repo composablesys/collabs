@@ -223,7 +223,7 @@ export function MakeAbstractList<
     }
 
     positionOf(searchElement: T): string | undefined {
-      const index = this.indexOf(value);
+      const index = this.indexOf(searchElement);
       return index === -1 ? undefined : this.getPosition(index);
     }
 

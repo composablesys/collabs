@@ -4,7 +4,7 @@ import {
   pseudoRandomReplicaID,
   Unsubscribe,
 } from "@collabs/core";
-import { CRDTApp } from "../crdt-runtime";
+import { CRDTApp } from "../runtime";
 
 /**
  * For testing or special purposes only.  Sends each message

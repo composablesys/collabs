@@ -1,5 +1,6 @@
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
 import { CollabID } from "./collab_id";
+import { EventEmitter, EventsRecord } from "./event_emitter";
 import { IRuntime } from "./iruntime";
 import { Parent } from "./parent";
 import { MetaRequest } from "./updates";
@@ -8,26 +9,30 @@ import { MetaRequest } from "./updates";
  * Skeletal implementation of [[IRuntime]] that uses
  * a root [[Collab]].
  */
-export abstract class AbstractRuntime<
-  R extends Collab & Parent = Collab & Parent
-> implements IRuntime
+export abstract class AbstractRuntime<Events extends EventsRecord>
+  extends EventEmitter<Events>
+  implements IRuntime
 {
   readonly isRuntime: true = true;
   /**
    * Readonly. Set with setRootCollab.
    */
-  protected rootCollab!: R;
+  protected rootCollab!: Collab & Parent;
 
   /**
    * @param replicaID This replica's [[replicaID]].
    */
   constructor(readonly replicaID: string) {
+    super();
+
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
     }
   }
 
-  protected setRootCollab(rootCallback: (init: InitToken) => R): R {
+  protected setRootCollab<C extends Collab & Parent>(
+    rootCallback: (init: InitToken) => C
+  ): C {
     const rootCollab = rootCallback(new InitToken("", this));
     this.rootCollab = rootCollab;
     return rootCollab;

@@ -122,7 +122,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   private ourCreatedValue?: C = undefined;
 
   receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
-    const lastMessage = messageStack[messageStack.length - 1];
+    const lastMessage = messageStack.pop()!;
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
       // CObject.
@@ -140,7 +140,6 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
           return;
         }
       }
-      messageStack.length--;
       child.receive(messageStack, meta);
     } else {
       const decoded = CSetMessage.decode(lastMessage);

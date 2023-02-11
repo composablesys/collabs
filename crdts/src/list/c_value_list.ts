@@ -24,14 +24,6 @@ import {
 
 export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
   private readonly positionSource: ListPositionSource<T[]>;
-  /**
-   * Used for local operations, to store the index where the operation is
-   * happening, so we don't have to findPosition() twice.
-   * Reset to -1 (indicating not valid) whenever we receive a remote message.
-   * That implies that this is still reliable even if we don't get immediate
-   * local echos, i.e., the CText is used in a non-CRDT fashion.
-   */
-  private indexHint = -1;
 
   constructor(
     init: InitToken,
@@ -55,7 +47,6 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
   insert(index: number, ...values: T[]): T | undefined {
     if (values.length === 0) return undefined;
 
-    this.indexHint = index;
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
     const [counter, startValueIndex, metadata] =
@@ -81,7 +72,6 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
     });
     this.sendPrimitive(CValueListMessage.encode(message).finish());
 
-    this.indexHint = -1;
     return values[0];
   }
 
@@ -99,7 +89,6 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
     // OPT: optimize range iteration (back to front).
     // Delete from back to front, so indices make sense.
     for (let i = startIndex + count - 1; i >= startIndex; i--) {
-      this.indexHint = i;
       const pos = this.positionSource.getPosition(i);
       const message = CValueListMessage.create({
         delete: {
@@ -110,7 +99,6 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
       });
       this.sendPrimitive(CValueListMessage.encode(message).finish());
     }
-    this.indexHint = -1;
   }
 
   protected receiveCRDT(message: Uint8Array | string, meta: UpdateMeta): void {
@@ -142,10 +130,7 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
         const pos: ListPosition = [meta.sender, counter, startValueIndex];
         this.positionSource.receiveAndAddPositions(pos, values, metadata);
 
-        const startIndex =
-          this.indexHint !== -1
-            ? this.indexHint
-            : this.positionSource.indexOfPosition(pos);
+        const startIndex = this.positionSource.indexOfPosition(pos);
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
@@ -168,10 +153,7 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
         const pos: ListPosition = [sender, counter, valueIndex];
         const deletedValues = this.positionSource.delete(pos);
         if (deletedValues !== null) {
-          const startIndex =
-            this.indexHint !== -1
-              ? this.indexHint
-              : this.positionSource.indexOfPosition(pos);
+          const startIndex = this.positionSource.indexOfPosition(pos);
           this.emit("Delete", {
             index: startIndex,
             values: deletedValues,

@@ -61,7 +61,7 @@ export interface UpdateMeta {
   isLocalOp: boolean;
   /**
    * Optionally, a [[IRuntime]] implementation may include extra metadata
-   * in this field. For example, [[CRDTRuntime]] puts [[CRDTMeta]] here.
+   * in this field. For example, [[CRuntime]] puts [[CRDTMeta]] here.
    *
    * This field is intended for use by [[Collab]] implementations,
    * not event listeners.
@@ -81,7 +81,7 @@ export interface UpdateMeta {
  * Specifically, a Collab makes a request in [[Collab.send]]; this affects
  * the UpdateMeta passed to [[Collab.receive]] together with the sent message.
  *
- * For example, [[CRDTRuntime]] accepts requests of type [[CRDTMetaRequest]].
+ * For example, [[CRuntime]] accepts requests of type [[CRDTMetaRequest]].
  * To make those requests more easily, you can instead extend [[PrimitiveCRDT]].
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

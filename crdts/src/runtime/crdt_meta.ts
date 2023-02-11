@@ -94,7 +94,6 @@ export interface CRDTMeta {
   readonly lamportTimestamp: number | null;
 }
 
-// TODO: MetaRequest type guard is a bit annoying here
 export interface CRDTMetaRequest extends MetaRequest {
   automatic?: boolean;
   vectorClockEntries?: Iterable<string>;

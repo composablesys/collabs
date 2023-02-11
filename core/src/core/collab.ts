@@ -97,7 +97,7 @@ export interface CollabEventsRecord {
  * state-based CRDTs, Operational Transformation types,
  * and strongly consistent types with server-serialized messages.
  * However, by default, the library only includes operation-based
- * CRDTs, together with a [[CRDTRuntime]] needed to
+ * CRDTs, together with a [[CRuntime]] needed to
  * use them. Nonetheless, many parts of the library
  * can be reused with more general collaborative data
  * structures (e.g., `CObject`). These can be determined
@@ -285,7 +285,7 @@ export abstract class Collab<
    *
    * The saved state may later be passed to [[load]] on a replica of
    * this Collab, possibly in a different collaboration session,
-   * with rules set by the [[runtime]]. For example, [[CRDTRuntime]]
+   * with rules set by the [[runtime]]. For example, [[CRuntime]]
    * allows [[load]] to be called at any time; it must act as a "merge"
    * operation, applying all updates that the saved replica had applied
    * before saving, ignoring duplicates.

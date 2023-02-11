@@ -3,9 +3,9 @@ import {
   BytesOrStringMessage,
   CausalMessageBufferSave,
   IReceiveTransactionSave,
-} from "../../../generated/proto_compiled";
+} from "../../generated/proto_compiled";
+import { ReceiveTransaction } from "./crdt-meta-layer/receive_transaction";
 import { ReceiveCRDTMeta } from "./crdt_meta_implementations";
-import { ReceiveTransaction } from "./receive_transaction";
 
 /**
  * Debug flag, enables console.log's when causality checks

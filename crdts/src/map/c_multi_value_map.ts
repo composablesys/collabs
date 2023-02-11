@@ -13,7 +13,7 @@ import {
   MultiValueMapSave,
 } from "../../generated/proto_compiled";
 import { AbstractMap_PrimitiveCRDT } from "../constructions";
-import { CRDTMeta } from "../crdt-runtime";
+import { CRDTMeta } from "../runtime";
 
 export interface MultiValueMapItem<V> {
   readonly value: V;

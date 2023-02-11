@@ -93,4 +93,4 @@ No local variable Collabs b/c wouldn't make sense collaboratively. -->
 
 Continue following the Guide with [Handling Changes](./handling_changes.html) - the last really essential page.
 
-[^runtime]: Technically, the parent is the entry point's internal [CRDTRuntime](../api/collabs/classes/CRDTRuntime.html), accessed via [CRDTApp.runtime](../api/collabs/classes/CRDTApp.html#runtime) / [CRDTContainer.runtime](../api/container/classes/CRDTContainer.html#runtime).
+[^runtime]: Technically, the parent is the entry point's internal [CRuntime](../api/collabs/classes/CRuntime.html), accessed via [CRDTApp.runtime](../api/collabs/classes/CRDTApp.html#runtime) / [CRDTContainer.runtime](../api/container/classes/CRDTContainer.html#runtime).
