@@ -43,22 +43,32 @@ export interface UpdateMeta {
    * The update's type: a message sent by a [[Collab]] operation,
    * or a saved state that was loaded.
    */
-  updateType: "message" | "savedState";
+  readonly updateType: "message" | "savedState";
   /**
    * The replicaID that sent the update.
    *
-   * For saved state, this is the replicaID on which save was called
+   * For saved state, this is the local replicaID.
+   *
+   * <!-- For saved state, this is the replicaID on which save was called
    * - not the replicaID that performed the original operation
-   * leading to this update.
+   * leading to this update. -->
    */
-  sender: string;
+  readonly sender: string;
   /**
    * Whether the update was caused by a local operation, i.e., calling
    * a [[Collab]] method on this replica.
    *
    * Equivalent to `(updateType === "message" && sender === (local runtime).replicaID)`.
    */
-  isLocalOp: boolean;
+  // TODO: when serializing, need to not save this.
+  readonly isLocalOp: boolean;
+  /**
+   * Optionally, a sender-provided info string about the update
+   * (e.g., a "commit message").
+   *
+   * In [[CRuntime]], this info comes from the optional arg to [[CRuntime.transact]].
+   */
+  readonly info: string | undefined;
   /**
    * Optionally, a [[IRuntime]] implementation may include extra metadata
    * in this field. For example, [[CRuntime]] puts [[CRDTMeta]] here.
@@ -71,7 +81,7 @@ export interface UpdateMeta {
    * extend [[PrimitiveCRDT]]. Note that specific metadata will only
    * be present when using a corresponding IRuntime.
    */
-  runtimeExtra: unknown;
+  readonly runtimeExtra: unknown;
 }
 
 /**

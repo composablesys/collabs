@@ -1,78 +1,80 @@
+import { int64AsNumber, Serializer, UpdateMeta } from "@collabs/core";
+import { CRDTMetaMessage } from "../../generated/proto_compiled";
 import { CRDTMeta } from "./crdt_meta";
 
 export class SendCRDTMeta implements CRDTMeta {
-  count = 0;
-  /**
-   * The requested vector clock entries so far, excluding sender.
-   *
-   * This always includes the causallyMaximalVCKeys.
-   */
-  readonly vectorClockIfRequested = new Map<string, number>();
-  wallClockTimeIfRequested: number | null = null;
-  lamportTimestampIfRequested: number | null = null;
+  readonly senderCounter: number;
 
   /**
-   * Note this may be toggled back and forth by
-   * [[CRDTMetaLayer]], in addition to
-   * [[requestAutomatic]].
+   * The requested vector clock entries so far. Excludes this.sender
+   * (uses senderCounter instead), includes causallyMaximalVCKeys.
+   *
+   * Public only for [[CRDTMetaSerializer]].
    */
-  isAutomatic = false;
+  readonly vc = new Map<string, number>();
+  /**
+   * The number of entries at the beginning of requestedVC's
+   * iterator order that are causally maximal.
+   */
+  readonly maximalVcKeyCount: number;
+  private wallClockTimeIfRequested: number | null = null;
+  private lamportTimestampIfRequested: number | null = null;
+  /**
+   * Note this may be toggled back and forth.
+   */
+  private isAutomatic = false;
   private isFrozen = false;
 
-  /**
-   * @param causallyMaximalVCKeys Permitted to contain
-   * sender, but it will be deleted anyway.
-   */
   constructor(
     readonly sender: string,
-    readonly senderCounter: number,
-    /**
-     * Sender's entry is not used, so it's okay that it
-     * is inaccurate (will be 1 too small, since this
-     * will just be CRDTMetaLayer.currentVectorClock).
-     * Also, this will no longer be consulted after freeze(), so
-     * it's okay to mutate it as long as you do so after freeze()
-     * (currently called in CRDTMetaLayer.endTransaction).
-     */
-    private readonly actualVectorClock: Map<string, number>,
+    private readonly actualVC: Map<string, number>,
+    /** We "copy" this right away. Okay to contain sender, but we'll ignore it. */
+    causallyMaximalVCKeys: Set<string>,
     private readonly actualWallClockTime: number,
-    private readonly actualLamportTimestamp: number,
-    /** Excludes sender. Must all be present in actualVectorClock. */
-    readonly causallyMaximalVCKeys: Set<string>
+    private readonly actualLamportTimestamp: number
   ) {
-    this.causallyMaximalVCKeys.delete(sender);
+    this.senderCounter = actualVC.get(sender)!;
+    let count = causallyMaximalVCKeys.size;
     for (const replicaID of causallyMaximalVCKeys) {
-      this.vectorClockIfRequested.set(
-        replicaID,
-        actualVectorClock.get(replicaID)!
-      );
+      if (replicaID === this.sender) {
+        count--;
+        continue;
+      }
+      this.vc.set(replicaID, actualVC.get(replicaID)!);
     }
+    this.maximalVcKeyCount = count;
   }
 
-  freeze() {
-    this.isFrozen = true;
-    this.isAutomatic = false;
-  }
-
-  private checkFrozen(): void {
-    if (this.isFrozen) {
-      throw new Error("Requests not allowed - transaction already complete");
-    }
-  }
-
+  // TODO: doc: unlike on receive end, we throw an error if you
+  // get a replicaID no one has requested, since it's probably a bug.
+  // Note this will not complain if someone else requested it.
+  // Should resolve issues around differing VC entries local vs remote
+  // due to later requests.
   vectorClockGet(replicaID: string): number {
     if (replicaID === this.sender) return this.senderCounter;
     else {
       if (this.isAutomatic) {
         this.requestVectorClockEntry(replicaID);
       }
-      return this.vectorClockIfRequested.get(replicaID) ?? 0;
+      const clock = this.vc.get(replicaID);
+      if (!this.isFrozen && clock === undefined) {
+        throw new Error(
+          "You must request a vector clock entry (or automatic mode) to access it (entry:" +
+            replicaID +
+            ")"
+        );
+      }
+      return clock ?? 0;
     }
   }
 
   get wallClockTime(): number | null {
     if (this.isAutomatic) {
       this.requestWallClockTime();
+    } else if (!this.isFrozen && this.wallClockTimeIfRequested === null) {
+      throw new Error(
+        "You must request wallClockTime (or automatic mode) to access it"
+      );
     }
     return this.wallClockTimeIfRequested;
   }
@@ -80,88 +82,183 @@ export class SendCRDTMeta implements CRDTMeta {
   get lamportTimestamp(): number | null {
     if (this.isAutomatic) {
       this.requestLamportTimestamp();
+    } else if (!this.isFrozen && this.lamportTimestampIfRequested === null) {
+      throw new Error(
+        "You must request lamportTimestamp (or automatic mode) to access it"
+      );
     }
     return this.lamportTimestampIfRequested;
   }
 
-  requestAutomatic(): void {
-    this.isAutomatic = true;
+  requestAutomatic(value: boolean): void {
+    this.isAutomatic = value;
   }
 
   requestVectorClockEntry(replicaID: string): void {
-    this.checkFrozen();
     if (replicaID !== this.sender) {
-      const entry = this.actualVectorClock.get(replicaID);
-      if (entry !== undefined) {
-        this.vectorClockIfRequested.set(replicaID, entry);
+      const entry = this.actualVC.get(replicaID);
+      if (entry === undefined) {
+        throw new Error("Unknown replicaID: " + replicaID);
       }
+      this.vc.set(replicaID, entry);
     }
   }
 
   requestWallClockTime(): void {
-    this.checkFrozen();
     this.wallClockTimeIfRequested = this.actualWallClockTime;
   }
 
   requestLamportTimestamp(): void {
-    this.checkFrozen();
     this.lamportTimestampIfRequested = this.actualLamportTimestamp;
   }
 
-  requestAll(): void {
-    this.checkFrozen();
-    // Request all vector clock entries.
-    for (const [replicaID, entry] of this.actualVectorClock) {
-      if (replicaID !== this.sender) {
-        this.vectorClockIfRequested.set(replicaID, entry);
-      }
-    }
-    // Other requests.
-    this.wallClockTimeIfRequested = this.actualWallClockTime;
-    this.lamportTimestampIfRequested = this.actualLamportTimestamp;
+  /**
+   * Freezes this CRDTMeta at the end of its sending transaction.
+   *
+   * After freezing, all getters behave like ReceiveCRDTMeta. In
+   * particular, getting a non-requested property will return a
+   * default value instead of an error. This is in case a Collab
+   * stores CRDTMeta after a transaction, then later queries it
+   * for e.g. newly-relevant VC entries (expecting 0).
+   */
+  freeze(): void {
+    this.isFrozen = true;
   }
 
   toString(): string {
     return JSON.stringify({
       sender: this.sender,
       senderCounter: this.senderCounter,
-      vectorClock: Object.entries(this.vectorClockIfRequested),
+      vectorClock: Object.entries(this.vc),
       wallClockTime: this.wallClockTime,
       lamportTimestamp: this.lamportTimestamp,
     });
   }
 }
 
+// TODO: expose VC keys (or map), in case someone wants to clone it?
+
 export class ReceiveCRDTMeta implements CRDTMeta {
   constructor(
-    readonly count: number,
     readonly sender: string,
     readonly senderCounter: number,
     /**
      * Excludes sender.
+     *
+     * Public only for [[CRDTMetaSerializer]].
      */
-    readonly vectorClock: Map<string, number>,
-    readonly wallClockTime: number | null,
-    readonly lamportTimestamp: number | null,
+    readonly vc: Map<string, number>,
     /**
      * Excludes sender. Empty if CRDTMetaLayer's
      * causalityGuaranteed flag is true.
+     *
+     * Used by CausalMessageBuffer.
      */
-    readonly causallyMaximalVCKeys: string[]
+    readonly maximalVcKeyCount: number,
+    readonly wallClockTime: number | null,
+    readonly lamportTimestamp: number | null
   ) {}
 
   vectorClockGet(replicaID: string): number {
     if (replicaID === this.sender) return this.senderCounter;
-    else return this.vectorClock.get(replicaID) ?? 0;
+    else return this.vc.get(replicaID) ?? 0;
   }
 
   toString(): string {
     return JSON.stringify({
       sender: this.sender,
       senderCounter: this.senderCounter,
-      vectorClock: Object.entries(this.vectorClock),
+      vectorClock: Object.entries(this.vc),
       wallClockTime: this.wallClockTime,
       lamportTimestamp: this.lamportTimestamp,
     });
+  }
+}
+
+export class LoadCRDTMeta implements CRDTMeta {
+  constructor(readonly sender: string) {}
+
+  readonly senderCounter = 0;
+
+  vectorClockGet(_replicaID: string): number {
+    return 0;
+  }
+
+  readonly wallClockTime = null;
+
+  readonly lamportTimestamp = null;
+}
+
+/**
+ * Serializer for UpdateMeta produced by CRuntime.
+ *
+ * runtimeExtra field must either ReceiveCRDTMeta
+ * or a frozen SendCRDTMeta.
+ */
+export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
+  private constructor() {
+    // Singleton.
+  }
+
+  static instance = new this();
+
+  serialize(value: UpdateMeta): Uint8Array {
+    const crdtMeta = value.runtimeExtra as SendCRDTMeta | ReceiveCRDTMeta;
+    const vcKeys = new Array<string>(crdtMeta.vc.size);
+    const vcValues = new Array<number>(crdtMeta.vc.size);
+    // Since Map iterator order is set-order and
+    // both types set causallyMaximalVCKeys first (in the
+    // constructor for SendCRDTMeta),
+    // this loop puts causally maximal keys first.
+    let i = 0;
+    for (const [key, value] of crdtMeta.vc) {
+      vcKeys[i] = key;
+      vcValues[i] = value;
+      i++;
+    }
+    const message = CRDTMetaMessage.create({
+      sender: crdtMeta.sender,
+      senderCounter: crdtMeta.senderCounter,
+      vcKeys,
+      vcValues,
+      maximalVcKeyCount:
+        crdtMeta.maximalVcKeyCount === 0
+          ? undefined
+          : crdtMeta.maximalVcKeyCount,
+      wallClockTime: crdtMeta.wallClockTime,
+      lamportTimestamp: crdtMeta.lamportTimestamp,
+      info: value.info,
+    });
+    return CRDTMetaMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array): UpdateMeta {
+    const decoded = CRDTMetaMessage.decode(message);
+    const vc = new Map<string, number>();
+    for (let i = 0; i < decoded.vcKeys.length; i++) {
+      vc.set(decoded.vcKeys[i], int64AsNumber(decoded.vcValues[i]));
+    }
+    const crdtMeta = new ReceiveCRDTMeta(
+      decoded.sender,
+      int64AsNumber(decoded.senderCounter),
+      vc,
+      // Missing converted to 0 by protobufjs - okay.
+      int64AsNumber(decoded.maximalVcKeyCount),
+      Object.prototype.hasOwnProperty.call(decoded, "wallClockTime")
+        ? int64AsNumber(decoded.wallClockTime)
+        : null,
+      Object.prototype.hasOwnProperty.call(decoded, "lamportTimestamp")
+        ? int64AsNumber(decoded.lamportTimestamp)
+        : null
+    );
+    return {
+      sender: crdtMeta.sender,
+      updateType: "message",
+      isLocalOp: false,
+      info: Object.prototype.hasOwnProperty.call(decoded, "info")
+        ? decoded.info
+        : undefined,
+      runtimeExtra: crdtMeta,
+    };
   }
 }

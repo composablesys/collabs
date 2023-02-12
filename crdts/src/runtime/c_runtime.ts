@@ -10,7 +10,15 @@ import {
   MetaRequest,
   randomReplicaID,
   SavedStateTreeSerializer,
+  UpdateMeta,
 } from "@collabs/core";
+import { CausalMessageBuffer } from "./causal_message_buffer";
+import { CRDTMetaRequest } from "./crdt_meta";
+import {
+  CRDTMetaSerializer,
+  LoadCRDTMeta,
+  SendCRDTMeta,
+} from "./crdt_meta_implementations";
 
 class PublicCObject extends CObject {
   addChild<C extends Collab>(
@@ -27,26 +35,40 @@ export interface SendEvent {
 
 export interface CRuntimeEventsRecord {
   /**
-   * Emitted each time the app's state is changed and
-   * is in a reasonable user-facing state
-   * (so not in the middle of a transaction).
-   *
-   * Usually, you will not listen on this event directly, insteading listening on
-   * [[CRDTApp]] or `CRDTContainer`'s "Change".
-   */
-  Change: CollabEvent;
-  /**
    * Emitted when a message is to be sent.
    *
    * This must be delivered to each other replica's
    * [[CRuntime.receive]] method, eventually at-least-once.
-   *
-   * Usually, you will not listen on this event directly, insteading listening on
-   * [[CRDTApp]]'s "Send" event or using a `CRDTContainer`
-   * (which listens on this event for you).
    */
   Send: SendEvent;
+  /**
+   * Emitted at the end of each transaction (local or remote).
+   *
+   * The event's [[CollabEvent.updateMeta]] is the same as for
+   * all messages in the transaction.
+   */
+  Transaction: CollabEvent;
+  /**
+   * Emitted after each synchronous set of changes. This
+   * is a good time to rerender the GUI.
+   *
+   * Specifically, this is emitted at the end of:
+   * - A local transaction.
+   * - A series of remote transactions processed in the same
+   * [[CRuntime.receive]] call. (There can be multiple if one
+   * transaction unblocks others' causal dependencies.)
+   * - [[CRuntime.load]].
+   */
+  Change: object;
+  /**
+   * Emitted at the end of [[CRuntime.load]].
+   */
+  Load: object;
 }
+
+// TODO: doc: all messages in transaction have same meta.
+// In some Collabs (e.g. CSet), means that you have to append
+// a per-transaction counter to get UIDs (sender, senderCounter, tCounter).
 
 // TODO: auto-created transactions for single ops? How does Yjs do it?
 // By doing it for outermost op, should avoid weirdness where you send a
@@ -60,13 +82,19 @@ export class CRuntime
   implements IRuntime
 {
   private readonly registry: PublicCObject;
-  private readonly causalityGuaranteed: boolean;
 
   // State vars.
   private _isLoaded = false;
   private inApplyUpdate = false;
+
+  // Transaction vars.
   private inTransaction = false;
+  private trInfo: string | undefined = undefined;
+  private crdtMeta: SendCRDTMeta | null = null;
+  private meta: UpdateMeta | null = null;
   private messageBatches: (Uint8Array | string)[][] = [];
+
+  private readonly buffer: CausalMessageBuffer;
 
   constructor(
     options: {
@@ -75,13 +103,15 @@ export class CRuntime
     } = {}
   ) {
     super(options.debugReplicaID ?? randomReplicaID());
-    this.causalityGuaranteed = options?.causalityGuaranteed ?? false;
+    const causalityGuaranteed = options?.causalityGuaranteed ?? false;
 
     this.registry = super.setRootCollab((init) => new PublicCObject(init));
 
-    // Events.
-    // TODO
-    // this.batchingLayer.on("Change", (e) => this.emit("Change", e));
+    this.buffer = new CausalMessageBuffer(
+      this.replicaID,
+      causalityGuaranteed,
+      this.deliverFromBuffer.bind(this)
+    );
   }
 
   /**
@@ -108,15 +138,26 @@ export class CRuntime
     return this.registry.addChild(name, collabCallback);
   }
 
-  private beginTransaction() {
+  private beginTransaction(info: string | undefined) {
     this.inTransaction = true;
+    this.trInfo = info;
+    // Wait to set meta until we actually send a message, if we do.
     // messageBatches was already cleared by the previous endTransaction.
   }
 
   private endTransaction() {
     this.inTransaction = false;
 
-    this.messageBatches.push(meta);
+    if (this.meta === null) {
+      // Trivial transaction, skip.
+      return;
+    }
+
+    const meta = this.meta;
+    this.crdtMeta!.freeze();
+    this.messageBatches.push([CRDTMetaSerializer.instance.serialize(meta)]);
+    this.crdtMeta = null;
+    this.meta = null;
 
     const message = MessageStacksSerializer.instance.serialize(
       this.messageBatches
@@ -126,17 +167,26 @@ export class CRuntime
     // Send. It will be delivered to each other replica's
     // receive function, eventually at-least-once.
     this.emit("Send", { message });
+
+    this.emit("Transaction", { meta });
+    this.emit("Change", {});
   }
 
-  transact(f: () => void) {
+  // TODO: info ignored if not the outermost transaction. Easy to
+  // do by accident with default per-microtask transactions.
+  /**
+   *
+   * @param f
+   * @param info An optional info string to attach to the transaction.
+   * It will appear on [[CollabEvent]]s as [[UpdateMeta.info]].
+   * E.g. a "commit message".
+   */
+  transact(f: () => void, info?: string) {
     const alreadyInTransaction = this.inTransaction;
-    if (!alreadyInTransaction) this.beginTransaction();
+    if (!alreadyInTransaction) this.beginTransaction(info);
     try {
-      // TODO: allow async here? But then eslint dislikes ignoring the non-promise uses.
       f();
     } finally {
-      // TODO: abort transaction? Although then local state may be inconsistent
-      // with (lack of) sent messages.
       if (!alreadyInTransaction) this.endTransaction();
     }
   }
@@ -163,18 +213,61 @@ export class CRuntime
       // Create a transaction for the current microtask.
       // TODO: document; allow disabling; instead wrap every composite op
       // (in Collabs) in a transact() call (would need to be on IRuntime)?
-      this.beginTransaction();
+      this.beginTransaction(undefined);
       void Promise.resolve().then(() => this.endTransaction());
     }
 
+    if (this.meta === null) {
+      // First message in a transaction; tick our current VC etc.
+      // and use the new values to create the transaction's meta.
+      // OPT: avoid this copy (not required by SendCRDTMeta,
+      // but required due to tick()).
+      const causallyMaximalVCKeys = new Set(this.buffer.maximalVcKeys);
+      this.buffer.tick();
+
+      this.crdtMeta = new SendCRDTMeta(
+        this.replicaID,
+        this.buffer.vc,
+        causallyMaximalVCKeys,
+        Date.now(),
+        this.buffer.lamportTimestamp + 1
+      );
+      this.meta = {
+        sender: this.replicaID,
+        updateType: "message",
+        isLocalOp: true,
+        info: this.trInfo,
+        runtimeExtra: this.crdtMeta,
+      };
+    }
+
+    // Process meta requests.
+    for (const metaRequest of <CRDTMetaRequest[]>metaRequests) {
+      if (metaRequest.automatic) this.crdtMeta!.requestAutomatic(true);
+      if (metaRequest.lamportTimestamp)
+        this.crdtMeta!.requestLamportTimestamp();
+      if (metaRequest.wallClockTime) this.crdtMeta!.requestWallClockTime();
+      if (metaRequest.vectorClockEntries) {
+        for (const sender of metaRequest.vectorClockEntries) {
+          this.crdtMeta!.requestVectorClockEntry(sender);
+        }
+      }
+    }
+
+    // TODO: document: can get more meta than you requested (obvious), but also,
+    // remote replicas might get different answers to VC entries they didn't
+    // request vs the sender (if a later message requested them).
+    // I.e., no EC guarantee for entries you didn't actually request.
+
     // Local echo.
-    this.rootCollab.receive(messageStack.slice(), meta);
+    this.rootCollab.receive(messageStack.slice(), this.meta);
+
+    // Disable automatic meta request.
+    this.crdtMeta!.requestAutomatic(false);
 
     this.messageBatches.push(messageStack);
   }
 
-  // TODO: note that this represses receive errors. Way to expose?
-  // More generally, how to recover from such errors? (Just reload the doc?)
   receive(message: Uint8Array): void {
     if (this.inTransaction) {
       throw new Error("Cannot call receive() during a transaction");
@@ -188,11 +281,33 @@ export class CRuntime
 
     this.inApplyUpdate = true;
     try {
-      // TODO
-      // TODO: causal order
+      const messageStacks =
+        MessageStacksSerializer.instance.deserialize(message);
+      const meta = CRDTMetaSerializer.instance.deserialize(
+        (<Uint8Array[]>messageStacks.pop())[0]
+      );
+      this.buffer.add(messageStacks, meta);
+      if (this.buffer.check()) {
+        this.emit("Change", {});
+      }
     } finally {
       this.inApplyUpdate = false;
     }
+  }
+
+  /**
+   * Called by this.buffer when a (remote) transaction is ready for delivery.
+   * This is always within our call to this.buffer.check() in [[receive]],
+   * so errors will propagate to there.
+   */
+  private deliverFromBuffer(
+    messageStacks: (Uint8Array | string)[][],
+    meta: UpdateMeta
+  ) {
+    for (const messageStack of messageStacks) {
+      this.rootCollab.receive(messageStack, meta);
+    }
+    this.emit("Transaction", { meta });
   }
 
   save(): Uint8Array {
@@ -205,7 +320,7 @@ export class CRuntime
 
     // We know that PublicCObject returns a non-null save with empty self.
     const savedStateTree = this.rootCollab.save()!;
-    savedStateTree.self = metaQueuedSave;
+    savedStateTree.self = this.buffer.save();
     return SavedStateTreeSerializer.instance.serialize(savedStateTree);
   }
 
@@ -227,8 +342,15 @@ export class CRuntime
     try {
       const savedStateTree =
         SavedStateTreeSerializer.instance.deserialize(savedState)!;
-      const meta = deserialize(savedStateTree.self);
+      this.buffer.load(savedStateTree.self!);
       savedStateTree.self = undefined;
+      const meta: UpdateMeta = {
+        sender: this.replicaID,
+        updateType: "savedState",
+        isLocalOp: false,
+        info: undefined,
+        runtimeExtra: new LoadCRDTMeta(this.replicaID),
+      };
       this.rootCollab.load(savedStateTree, meta);
 
       this._isLoaded = true;

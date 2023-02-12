@@ -1,0 +1,13 @@
+message CRDTMetaMessage {
+  required string sender = 1;
+  required uint64 senderCounter = 2;
+  repeated string vcKeys = 3;
+  repeated uint64 vcValues = 4 [packed=true];
+  // The first maximalVcKeyCount entries in vcKeys are
+  // causally maximal (plus sender).
+  // Omitted if 0 (e.g., if causalityGuaranteed).
+  optional uint32 maximalVcKeyCount = 5;
+  optional uint64 wallClockTime = 6;
+  optional uint64 lamportTimestamp = 7;
+  optional string info = 8;
+}
