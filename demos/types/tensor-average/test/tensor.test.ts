@@ -1,9 +1,4 @@
-import {
-  Collab,
-  CRDTApp,
-  Optional,
-  TestingCRDTAppGenerator,
-} from "@collabs/collabs";
+import { Collab, CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import {
@@ -16,12 +11,12 @@ import {
 import { debug } from "./debug";
 
 describe("tensor", () => {
-  let runtimeGen: TestingCRDTAppGenerator;
+  let runtimeGen: TestingRuntimes;
   let alice: CRDTApp;
   let bob: CRDTApp;
 
   beforeEach(() => {
-    runtimeGen = new TestingCRDTAppGenerator();
+    runtimeGen = new TestingRuntimes();
     alice = runtimeGen.newApp();
     bob = runtimeGen.newApp();
     tf.engine().startScope();

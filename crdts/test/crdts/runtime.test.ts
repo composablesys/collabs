@@ -1,11 +1,11 @@
 import { assert } from "chai";
-import { TestingCRDTAppGenerator } from "../../src";
+import { TestingRuntimes } from "../../src";
 
 describe("IRuntime", () => {
-  let appGen: TestingCRDTAppGenerator;
+  let appGen: TestingRuntimes;
 
   beforeEach(() => {
-    appGen = new TestingCRDTAppGenerator();
+    appGen = new TestingRuntimes();
   });
   describe("replicaID", () => {
     it("generates without error on Node", () => {

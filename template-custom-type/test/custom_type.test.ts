@@ -1,21 +1,21 @@
-import { CRDTApp, Optional, TestingCRDTAppGenerator } from "@collabs/collabs";
+import { CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
 import { assert } from "chai";
 import { CPair } from "../src";
 import seedrandom = require("seedrandom");
 
 describe("template-custom-type", () => {
-  let runtimeGen: TestingCRDTAppGenerator;
+  let runtimeGen: TestingRuntimes;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    // Use TestingCRDTAppGenerator to get Apps for various
+    // Use TestingRuntimes to get Apps for various
     // test users.
     // It is recommended to use rng with a fixed seed so that
     // the tests are deterministic.
-    runtimeGen = new TestingCRDTAppGenerator();
+    runtimeGen = new TestingRuntimes();
     alice = runtimeGen.newApp(undefined, rng);
     bob = runtimeGen.newApp(undefined, rng);
   });

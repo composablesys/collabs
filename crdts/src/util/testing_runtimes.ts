@@ -1,78 +1,50 @@
-import {
-  BatchingLayer,
-  BatchingStrategy,
-  pseudoRandomReplicaID,
-  Unsubscribe,
-} from "@collabs/core";
-import { CRDTApp } from "../runtime";
+import { pseudoRandomReplicaID } from "@collabs/core";
+import { CRuntime } from "../runtime";
 
 /**
- * For testing or special purposes only.  Sends each message
- * immediately as its own batch.
- */
-export class TestingBatchingStrategy implements BatchingStrategy {
-  private batchingLayer?: BatchingLayer = undefined;
-  private unsubscribe?: Unsubscribe = undefined;
-
-  start(batchingLayer: BatchingLayer): void {
-    this.batchingLayer = batchingLayer;
-    this.unsubscribe = this.batchingLayer.on("DebugSend", () =>
-      this.batchingLayer!.commitBatch()
-    );
-  }
-
-  stop(): void {
-    this.unsubscribe!();
-    this.batchingLayer = undefined;
-    this.unsubscribe = undefined;
-  }
-}
-
-/**
- * Creates a collection of [[CRDTApp]]s linked together
+ * Creates a collection of [[CRuntime]]s linked together
  * (in-memory networking) that deliver messages
  * when release is called.
  */
-export class TestingCRDTAppGenerator {
+export class TestingRuntimes {
   /**
    * Maps sender and recipient to an array of queued messages.
    */
-  messageQueues = new Map<CRDTApp, Map<CRDTApp, Uint8Array[]>>();
+  messageQueues = new Map<CRuntime, Map<CRuntime, Uint8Array[]>>();
 
   /**
    * Maps sender to the number of bytes they have sent.
    */
-  sentBytes = new Map<CRDTApp, number>();
+  sentBytes = new Map<CRuntime, number>();
   /**
    * Maps sender to the number of bytes they have received.
    */
-  receivedBytes = new Map<CRDTApp, number>();
+  receivedBytes = new Map<CRuntime, number>();
 
   /**
-   * [newApp description]
+   * [newRuntime description]
    *
-   * Note: technically you should call [[CRDTApp.load]] on the
+   * Note: technically you should call [[CRuntime.load]] on the
    * app after registering Collabs, even if you are not loading
    * any previous state. But if you know your Collabs don't
    * care, there should be no harm in skipping it.
    *
    * @param  batchingStrategy Note that the default here is
-   * [[TestingBatchingStrategy]], unlike in [[CRDTApp]].
+   * [[TestingBatchingStrategy]], unlike in [[CRuntime]].
    * @return                  [description]
    */
-  newApp(
-    batchingStrategy: BatchingStrategy = new TestingBatchingStrategy(),
+  newRuntime(
     rng: seedrandom.prng | undefined = undefined,
     causalityGuaranteed = false
   ) {
     const debugReplicaID = rng ? pseudoRandomReplicaID(rng) : undefined;
-    const app = new CRDTApp({
-      batchingStrategy,
+    const app = new CRuntime({
+      autoTransactions: "op",
       debugReplicaID,
       causalityGuaranteed,
     });
 
-    const appQueue = new Map<CRDTApp, Uint8Array[]>();
+    const appQueue = new Map<CRuntime, Uint8Array[]>();
     for (const [oldApp, oldAppQueue] of this.messageQueues) {
       appQueue.set(oldApp, []);
       oldAppQueue.set(app, []);
@@ -99,7 +71,7 @@ export class TestingCRDTAppGenerator {
    * recipients.  Only recipients that existed at the time
    * of sending will receive a message.
    */
-  release(sender: CRDTApp, ...recipients: CRDTApp[]) {
+  release(sender: CRuntime, ...recipients: CRuntime[]) {
     if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
     const senderMap = this.messageQueues.get(sender)!;
     for (const recipient of recipients) {

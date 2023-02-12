@@ -1,11 +1,11 @@
-import { CRDTApp, Optional, TestingCRDTAppGenerator } from "@collabs/collabs";
+import { CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
 import { assert } from "chai";
 import { CNumber } from "../src";
 import { debug } from "./debug";
 import seedrandom = require("seedrandom");
 
 describe("Number", () => {
-  let appGen: TestingCRDTAppGenerator;
+  let appGen: TestingRuntimes;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
@@ -14,7 +14,7 @@ describe("Number", () => {
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingCRDTAppGenerator();
+    appGen = new TestingRuntimes();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });

@@ -66,6 +66,12 @@ export interface CRuntimeEventsRecord {
   Load: object;
 }
 
+export interface CRuntimeOptions {
+  causalityGuaranteed?: boolean;
+  debugReplicaID?: string;
+  autoTransactions?: "microtask" | "op" | "error";
+}
+
 // TODO: doc: all messages in transaction have same meta.
 // In some Collabs (e.g. CSet), means that you have to append
 // a per-transaction counter to get UIDs (sender, senderCounter, tCounter).
@@ -82,6 +88,9 @@ export class CRuntime
   implements IRuntime
 {
   private readonly registry: PublicCObject;
+  private readonly buffer: CausalMessageBuffer;
+
+  private readonly autoTransactions: "microtask" | "op" | "error";
 
   // State vars.
   private _isLoaded = false;
@@ -94,16 +103,10 @@ export class CRuntime
   private meta: UpdateMeta | null = null;
   private messageBatches: (Uint8Array | string)[][] = [];
 
-  private readonly buffer: CausalMessageBuffer;
-
-  constructor(
-    options: {
-      causalityGuaranteed?: boolean;
-      debugReplicaID?: string;
-    } = {}
-  ) {
+  constructor(options: CRuntimeOptions = {}) {
     super(options.debugReplicaID ?? randomReplicaID());
     const causalityGuaranteed = options?.causalityGuaranteed ?? false;
+    this.autoTransactions = options.autoTransactions ?? "microtask";
 
     this.registry = super.setRootCollab((init) => new PublicCObject(init));
 
@@ -209,12 +212,24 @@ export class CRuntime
       );
     }
 
+    let autoEndTransaction = false;
     if (!this.inTransaction) {
-      // Create a transaction for the current microtask.
-      // TODO: document; allow disabling; instead wrap every composite op
-      // (in Collabs) in a transact() call (would need to be on IRuntime)?
-      this.beginTransaction(undefined);
-      void Promise.resolve().then(() => this.endTransaction());
+      // Create a transaction according to options.autoTransactions.
+      // TODO: document; note that "op" is best for debug only (put Debug in name?)
+      switch (this.autoTransactions) {
+        case "microtask":
+          this.beginTransaction(undefined);
+          void Promise.resolve().then(() => this.endTransaction());
+          break;
+        case "op":
+          this.beginTransaction(undefined);
+          autoEndTransaction = true;
+          break;
+        case "error":
+          throw new Error(
+            'Operation outside of transaction when options.autoTransactions = "error"'
+          );
+      }
     }
 
     if (this.meta === null) {
@@ -266,6 +281,8 @@ export class CRuntime
     this.crdtMeta!.requestAutomatic(false);
 
     this.messageBatches.push(messageStack);
+
+    if (autoEndTransaction) this.endTransaction();
   }
 
   receive(message: Uint8Array): void {

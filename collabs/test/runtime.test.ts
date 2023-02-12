@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import { TestingCRDTAppGenerator, randomReplicaID } from "../src";
+import { randomReplicaID, TestingRuntimes } from "../src";
 
 // Reproduce a basic test from @collabs/core to make sure
 // everything is loading properly.
@@ -24,11 +24,11 @@ describe("crdts", () => {
 // Reproduce a basic test from @collabs/crdts to make sure
 // everything is loading properly.
 describe("crdts", () => {
-  describe("TestingCRDTAppGenerator", () => {
-    let appGen: TestingCRDTAppGenerator;
+  describe("TestingRuntimes", () => {
+    let appGen: TestingRuntimes;
 
     beforeEach(() => {
-      appGen = new TestingCRDTAppGenerator();
+      appGen = new TestingRuntimes();
     });
     describe("replicaID", () => {
       it("generates without error on Node", () => {

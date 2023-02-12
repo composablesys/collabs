@@ -1,17 +1,17 @@
-import { CRDTApp, Optional, TestingCRDTAppGenerator } from "@collabs/collabs";
+import { CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { JSONCollab, JSONCursor } from "../src/json_opt";
 
 describe("JSONCollab", () => {
-  let runtimeGen: TestingCRDTAppGenerator;
+  let runtimeGen: TestingRuntimes;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    runtimeGen = new TestingCRDTAppGenerator();
+    runtimeGen = new TestingRuntimes();
     alice = runtimeGen.newApp(undefined, rng);
     bob = runtimeGen.newApp(undefined, rng);
   });

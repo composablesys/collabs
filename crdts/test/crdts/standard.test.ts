@@ -20,7 +20,7 @@ import {
   FalseWinsCBoolean,
   LWWCMap,
   ResettableCCounter,
-  TestingCRDTAppGenerator,
+  TestingRuntimes,
   TrueWinsCBoolean,
 } from "../../src";
 import { debug } from "../debug";
@@ -36,14 +36,14 @@ function nextEvent<Events extends EventsRecord, K extends keyof Events>(
 }
 
 describe("standard", () => {
-  let appGen: TestingCRDTAppGenerator;
+  let appGen: TestingRuntimes;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingCRDTAppGenerator();
+    appGen = new TestingRuntimes();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });

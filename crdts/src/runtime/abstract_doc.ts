@@ -1,33 +1,18 @@
-import {
-  BatchingStrategy,
-  Collab,
-  CollabEvent,
-  EventEmitter,
-  InitToken,
-  Optional,
-} from "@collabs/core";
-import { CRuntime, SendEvent } from "./c_runtime";
+import { EventEmitter } from "@collabs/core";
+import { CRuntime, CRuntimeEventsRecord, CRuntimeOptions } from "./c_runtime";
 
-export interface CRDTAppEventsRecord {
-  /**
-   * Emitted each time the [[CRDTApp]]'s state is changed and
-   * is in a reasonable user-facing state
-   * (so not in the middle of a transaction).
-   *
-   * A simple way to keep a GUI in sync with the app is to
-   * do `app.on("Change", refreshDisplay)`.
-   */
-  Change: CollabEvent;
-  /**
-   * Emitted when a message is to be sent.
-   *
-   * This must be delivered to each other replica's
-   * [[CRDTApp.receive]] method, eventually at-least-once.
-   */
-  Send: SendEvent;
-}
+const runtimeEventNames: (keyof CRuntimeEventsRecord)[] = [
+  "Change",
+  "Transaction",
+  "Send",
+  "Load",
+];
 
 /**
+ * TODO: subclass to make your own "CDoc", w/ (probably public readonly)
+ * Collabs, added via runtime.registerCollab. Maybe also expose idOf/fromID
+ * for cross-doc refs (easy if you add a UID)?
+ *
  * The entrypoint for a Collabs CRDT app.
  *
  * `CRDTApp` manages a group of CRDT [[Collab]]s, i.e.,
@@ -67,12 +52,12 @@ export interface CRDTAppEventsRecord {
  * use the `CRDTApp`, i.e., you can perform `Collab`
  * operations and call [[receive]].
  */
-export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
+export abstract class AbstractDoc extends EventEmitter<CRuntimeEventsRecord> {
   /**
    * The internal [[CRuntime]], i.e., the value of
    * `runtime` on any [[Collab]].
    */
-  readonly runtime: CRuntime;
+  protected readonly runtime: CRuntime;
 
   /**
    * Options:
@@ -93,39 +78,26 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    * that were passed to [[receive]] before M's "Send"
    * event was emitted.
    */
-  constructor(options?: {
-    batchingStrategy?: BatchingStrategy;
-    causalityGuaranteed?: boolean;
-    debugReplicaID?: string;
-  }) {
+  constructor(options?: CRuntimeOptions) {
     super();
 
     this.runtime = new CRuntime(options);
-    this.runtime.on("Change", (e) => this.emit("Change", e));
-    this.runtime.on("Send", (e) => this.emit("Send", e));
+    for (const eventName of runtimeEventNames) {
+      this.runtime.on(eventName, (e) => this.emit(eventName, e));
+    }
   }
 
+  // TODO: info ignored if not the outermost transaction. Easy to
+  // do by accident with default per-microtask transactions.
   /**
-   * Constructs `preCollab` and registers it as a
-   * top-level (global variable) [[Collab]] with the
-   * given name.
    *
-   * @param  name The [[Collab]]'s name, which must be
-   * unique among all registered `Collabs`. E.g., its name
-   * as a variable in your program.
-   * @param  preCollab The [[Collab]] to construct, typically
-   * created using a statement of the form
-   * `(init) => new collabs.constructor(init, [constructor args])`.
-   * For example, `(init) => new collabs.CCounter(init)`
-   *
-   * @return The registered [[Collab]]. You should assign
-   * this to a variable for later use.
+   * @param f
+   * @param info An optional info string to attach to the transaction.
+   * It will appear on [[CollabEvent]]s as [[UpdateMeta.info]].
+   * E.g. a "commit message".
    */
-  registerCollab<C extends Collab>(
-    name: string,
-    collabCallback: (init: InitToken) => C
-  ): C {
-    return this.runtime.registerCollab(name, collabCallback);
+  transact(f: () => void, info?: string) {
+    this.runtime.transact(f, info);
   }
 
   /**
@@ -200,30 +172,8 @@ export class CRDTApp extends EventEmitter<CRDTAppEventsRecord> {
    *
    * @param savedState save data from a previous instance's call to [[save]].
    */
-  load(savedState: Optional<Uint8Array>): void {
+  load(savedState: Uint8Array): void {
     this.runtime.load(savedState);
-  }
-
-  // ---Less common user-facing methods---
-
-  /**
-   * Replaces the current [[BatchingStrategy]] with
-   * `batchingStrategy`.
-   *
-   * @param  batchingStrategy [description]
-   */
-  setBatchingStrategy(batchingStrategy: BatchingStrategy): void {
-    this.runtime.setBatchingStrategy(batchingStrategy);
-  }
-
-  /**
-   * Immediately commits the current batch (if present).
-   *
-   * Normally, you don't need to call this method directly;
-   * instead, the set [[BatchingStrategy]] will do it for you.
-   */
-  commitBatch(): void {
-    this.runtime.commitBatch();
   }
 
   /**

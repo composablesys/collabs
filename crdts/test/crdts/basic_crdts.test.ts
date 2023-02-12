@@ -5,20 +5,20 @@ import {
   CRDTApp,
   CVar,
   ResettableCCounter,
-  TestingCRDTAppGenerator,
+  TestingRuntimes,
 } from "../../src";
 import { debug } from "../debug";
 import seedrandom = require("seedrandom");
 
 describe("basic_crdts", () => {
-  let appGen: TestingCRDTAppGenerator;
+  let appGen: TestingRuntimes;
   let alice: CRDTApp;
   let bob: CRDTApp;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
     rng = seedrandom("42");
-    appGen = new TestingCRDTAppGenerator();
+    appGen = new TestingRuntimes();
     alice = appGen.newApp(undefined, rng);
     bob = appGen.newApp(undefined, rng);
   });
