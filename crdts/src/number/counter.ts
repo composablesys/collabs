@@ -17,9 +17,6 @@ export interface CCounterEventsRecord extends CollabEventsRecord {
   Add: CCounterAddEvent;
 }
 
-// TODO: make state-based mergeable; resettable by default, with opt
-// to mostly not use memory if reset is never used.
-
 /**
  * A counter CRDT with operation add(integer).
  *

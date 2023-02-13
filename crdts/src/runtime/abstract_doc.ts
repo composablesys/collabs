@@ -9,11 +9,10 @@ const runtimeEventNames: (keyof CRuntimeEventsRecord)[] = [
 ];
 
 /**
- * TODO: subclass to make your own "CDoc", w/ (probably public readonly)
- * Collabs, added via runtime.registerCollab. Maybe also expose idOf/fromID
- * for cross-doc refs (easy if you add a UID)?
- *
  * The entrypoint for a Collabs CRDT app.
+ *
+ * Subclass to make your own "CDoc", w/ (probably public readonly)
+ * Collabs, added via runtime.registerCollab.
  *
  * `CRDTApp` manages a group of CRDT [[Collab]]s, i.e.,
  * [[Collab]]s that are (op-based) CRDTs. (Currently, this includes
@@ -51,6 +50,9 @@ const runtimeEventNames: (keyof CRuntimeEventsRecord)[] = [
  *  Only then can you
  * use the `CRDTApp`, i.e., you can perform `Collab`
  * operations and call [[receive]].
+ *
+ * Subclassing: Maybe also expose idOf/fromID
+ * and a UID for cross-doc refs?
  */
 export abstract class AbstractDoc extends EventEmitter<CRuntimeEventsRecord> {
   /**
@@ -87,9 +89,10 @@ export abstract class AbstractDoc extends EventEmitter<CRuntimeEventsRecord> {
     }
   }
 
-  // TODO: info ignored if not the outermost transaction. Easy to
-  // do by accident with default per-microtask transactions.
   /**
+   * If this is not the outermost transaction, it is ignored (including info).
+   * In particular, that can happen if we are inside an auto microtask
+   * transaction, due to an earlier out-of-transaction op.
    *
    * @param f
    * @param info An optional info string to attach to the transaction.

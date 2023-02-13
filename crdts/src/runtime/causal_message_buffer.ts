@@ -202,9 +202,9 @@ export class CausalMessageBuffer {
     // Update vc.
     this.vc.set(crdtMeta.sender, crdtMeta.senderCounter);
     // Update Lamport timestamp if it's present.
-    // TODO: can skipping non-present timestamps cause problems (causal order violations)?
-    // If so, remove these, or doc that it's only relative to other measured timestamps
-    // (but what about transitivity across a non-timestamp msg? Solved by causal order?)
+    // Skipping this when it's not present technically violates the def
+    // of Lamport timestamp, and it is still causally-compatible due to
+    // causal order delivery.
     this.lamportTimestamp = Math.max(
       this.lamportTimestamp,
       crdtMeta.lamportTimestamp ?? 0

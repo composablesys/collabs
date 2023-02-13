@@ -20,10 +20,6 @@ function firstItem<V>(items: MultiValueMapItem<V>[]): V {
 
 /**
  * A collaborative variable of type T.
- *
- * TODO: individual values immutable (pointer to immutable T);
- * causal register with arbitrary winner (technically, first replicaID);
- * tweak with CAggregateVar; advice for mutable-value var?
  */
 export class CVar<T> extends CObject<CVarEventsRecord<T>> implements IVar<T> {
   private readonly mvMap: CMultiValueMap<null, T>;
@@ -32,7 +28,9 @@ export class CVar<T> extends CObject<CVarEventsRecord<T>> implements IVar<T> {
   /**
    * aggregate isn't called on [], that's just initialValue.
    *
-   * aggregate: values given in order by sender (eventually consistent).
+   * aggregate: values are causally maximal sets (causal frontier),
+   * given in order by sender (eventually consistent).
+   * Default: first.
    */
   constructor(
     init: InitToken,

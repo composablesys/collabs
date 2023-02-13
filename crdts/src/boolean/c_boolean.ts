@@ -31,8 +31,12 @@ function falseWins(items: MultiValueMapItem<boolean>[]) {
   return items.find((item) => !item.value) === undefined;
 }
 
-// TODO: Document relation to EWFlag/DWFlag.
 export class CBoolean extends CVar<boolean> {
+  /**
+   *
+   * @param init
+   * @param param1 winner: if true, Enable-Wins Flag; else Disable-Wins Flag.
+   */
   constructor(init: InitToken, { winner = true, initialValue = false } = {}) {
     super(init, initialValue, {
       valueSerializer: BooleanSerializer.instance,

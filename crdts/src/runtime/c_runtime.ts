@@ -72,17 +72,6 @@ export interface CRuntimeOptions {
   autoTransactions?: "microtask" | "op" | "error";
 }
 
-// TODO: doc: all messages in transaction have same meta.
-// In some Collabs (e.g. CSet), means that you have to append
-// a per-transaction counter to get UIDs (sender, senderCounter, tCounter).
-
-// TODO: auto-created transactions for single ops? How does Yjs do it?
-// By doing it for outermost op, should avoid weirdness where you send a
-// message for part of a CObject composition operation.
-
-// TODO: don't use directly, use CRDTApp or CRDTContainer instead?
-// Or, use directly for simple apps, but otherwise wrap in subclass of CDoc
-// (which we should define like CRDTApp but with protected registerCollab?)
 export class CRuntime
   extends AbstractRuntime<CRuntimeEventsRecord>
   implements IRuntime
@@ -175,9 +164,10 @@ export class CRuntime
     this.emit("Change", {});
   }
 
-  // TODO: info ignored if not the outermost transaction. Easy to
-  // do by accident with default per-microtask transactions.
   /**
+   * If this is not the outermost transaction, it is ignored (including info).
+   * In particular, that can happen if we are inside an auto microtask
+   * transaction, due to an earlier out-of-transaction op.
    *
    * @param f
    * @param info An optional info string to attach to the transaction.
@@ -215,7 +205,6 @@ export class CRuntime
     let autoEndTransaction = false;
     if (!this.inTransaction) {
       // Create a transaction according to options.autoTransactions.
-      // TODO: document; note that "op" is best for debug only (put Debug in name?)
       switch (this.autoTransactions) {
         case "microtask":
           this.beginTransaction(undefined);
@@ -268,11 +257,6 @@ export class CRuntime
         }
       }
     }
-
-    // TODO: document: can get more meta than you requested (obvious), but also,
-    // remote replicas might get different answers to VC entries they didn't
-    // request vs the sender (if a later message requested them).
-    // I.e., no EC guarantee for entries you didn't actually request.
 
     // Local echo.
     this.rootCollab.receive(messageStack.slice(), this.meta);

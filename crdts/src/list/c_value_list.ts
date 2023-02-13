@@ -127,15 +127,24 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
           );
         }
 
-        const pos: ListPosition = [meta.sender, counter, startValueIndex];
-        this.positionSource.receiveAndAddPositions(pos, values, metadata);
+        const startPos: ListPosition = [meta.sender, counter, startValueIndex];
+        this.positionSource.receiveAndAddPositions(startPos, values, metadata);
 
-        const startIndex = this.positionSource.indexOfPosition(pos);
+        const startIndex = this.positionSource.indexOfPosition(startPos);
+        const positions = new Array<string>(values.length);
+        for (let i = 0; i < values.length; i++) {
+          positions[i] = JSON.stringify([
+            meta.sender,
+            counter,
+            startValueIndex + i,
+          ] as ListPosition);
+        }
         // Here we exploit the LtR non-interleaving property
         // to assert that the inserted values are contiguous.
         this.emit("Insert", {
           index: startIndex,
           values,
+          positions,
           meta,
         });
 
@@ -157,6 +166,7 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
           this.emit("Delete", {
             index: startIndex,
             values: deletedValues,
+            positions: [JSON.stringify(pos)],
             meta,
           });
         }

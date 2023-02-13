@@ -13,9 +13,13 @@ import { MultiValueMapItem } from "./c_multi_value_map";
 import { CValueMap } from "./c_value_map";
 
 /**
+ * A collaborative map with mutable values.
  *
+ * If multiple values are set concurrently, one is chosen and others
+ * are overwritten. To instead "merge" concurrently-set values, use
+ * [[CLazyMap]].
  *
- * TODO: see also: CLazyMap.
+ * For immutable values, consider [[CValueMap]], which is simpler.
  */
 export class CMap<
   K,
@@ -29,7 +33,6 @@ export class CMap<
   private readonly valueSet: CSet<C, [key: K, args: SetArgs]>;
   private readonly map: CValueMap<K, CollabID<C>>;
 
-  // TODO: aggregate option, same as CValueMap
   constructor(
     init: InitToken,
     valueConstructor: (valueInit: InitToken, key: K, ...args: SetArgs) => C,

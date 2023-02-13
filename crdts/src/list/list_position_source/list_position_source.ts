@@ -438,8 +438,6 @@ export class ListPositionSource<I> {
     sign: 1 | -1,
     item?: I
   ): void {
-    // TODO: wait to change anything until after all checks have passed (so error = no effect)
-
     if (startPos[0] === "") {
       throw new Error('Invalid startPos: sender is ""');
     }

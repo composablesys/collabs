@@ -58,8 +58,6 @@ export abstract class PrimitiveCRDT<
     message: Uint8Array | string,
     request?: CRDTMetaRequest
   ): void {
-    // TODO: need to not do this if inside runLocally call. (Probably won't
-    // break anything, but is inefficient and abstraction-busting.)
     super.sendPrimitive(message, request);
   }
 

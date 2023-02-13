@@ -8,15 +8,17 @@ import {
   CollabEvent,
   DefaultSerializer,
   InitToken,
+  int64AsNumber,
   isRuntime,
   PairSerializer,
   Serializer,
 } from "@collabs/core";
+import { EntryStatusMessage } from "../../generated/proto_compiled";
 import { CSet } from "../set";
 import { CVar } from "../var";
 import {
   ArrayListItemManager,
-  CreatedListPositionSerializer,
+  CreatePositionsSerializer,
   ListPosition,
   ListPositionSource,
 } from "./list_position_source";
@@ -27,8 +29,7 @@ export interface CListMoveEvent<T> extends CollabEvent {
   values: T[];
 }
 
-// TODO: name conflict
-export interface CListMoveEventsRecord<T> extends CListEventsRecord<T> {
+export interface CListImplEventsRecord<T> extends CListEventsRecord<T> {
   Insert: CListEvent<T> & { method: "insert" | "restore" };
   /**
    * Note: if an archived value is deleted, you'll get a Delete event with
@@ -36,9 +37,6 @@ export interface CListMoveEventsRecord<T> extends CListEventsRecord<T> {
    */
   Delete: CListEvent<T> & { method: "delete" | "archive" };
   Move: CListMoveEvent<T>;
-  // TODO: archive/restore? May need to know for simulation, and to
-  // know when to cleanup deleted values (finalizer).
-  // Flag on Add/Delete? What about delete of archived value?
 }
 
 interface EntryStatus {
@@ -54,12 +52,25 @@ class EntryStatusSerializer implements Serializer<EntryStatus> {
   static instance = new this();
 
   serialize(value: EntryStatus): Uint8Array {
-    // TODO
-    throw new Error("Method not implemented.");
+    const message = EntryStatusMessage.create({
+      sender: value.position[0],
+      counter: value.position[1],
+      valueIndex: value.position[2],
+      notIsPresent: value.isPresent ? undefined : true,
+    });
+    return EntryStatusMessage.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): EntryStatus {
-    throw new Error("Method not implemented.");
+    const decoded = EntryStatusMessage.decode(message);
+    return {
+      position: [
+        decoded.sender,
+        int64AsNumber(decoded.counter),
+        decoded.valueIndex,
+      ],
+      isPresent: !decoded.notIsPresent,
+    };
   }
 }
 
@@ -84,7 +95,7 @@ class CListEntry<C extends Collab> extends CObject {
 export class CList<
   C extends Collab,
   InsertArgs extends unknown[]
-> extends AbstractList_CObject<C, InsertArgs, CListMoveEventsRecord<C>> {
+> extends AbstractList_CObject<C, InsertArgs, CListImplEventsRecord<C>> {
   protected readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
   protected readonly createdPositionMessenger: CMessenger<
     [counter: number, startValueIndex: number, metadata: Uint8Array | null]
@@ -128,7 +139,7 @@ export class CList<
 
     this.createdPositionMessenger = this.addChild(
       "m",
-      (init) => new CMessenger(init, CreatedListPositionSerializer.instance)
+      (init) => new CMessenger(init, CreatePositionsSerializer.instance)
     );
     this.createdPositionMessenger.on("Message", (e) => {
       const [counter, startValueIndex, metadata] = e.message;
@@ -146,30 +157,28 @@ export class CList<
       this.emit("Insert", {
         index: this.positionSource.indexOfPosition(position),
         values: [event.value.value],
+        positions: [JSON.stringify(position)],
         method: "insert",
         meta: event.meta,
       });
     });
     this.set.on("Delete", (event) => {
       const status = event.value.status.value;
+      let index: number;
       if (status.isPresent) {
-        const index = this.positionSource.indexOfPosition(status.position);
+        index = this.positionSource.indexOfPosition(status.position);
         this.positionSource.delete(status.position);
-        this.emit("Delete", {
-          index,
-          values: [event.value.value],
-          method: "delete",
-          meta: event.meta,
-        });
       } else {
         // archived -> deleted. In this case, there is no index; use -1.
-        this.emit("Delete", {
-          index: -1,
-          values: [event.value.value],
-          method: "delete",
-          meta: event.meta,
-        });
+        index = -1;
       }
+      this.emit("Delete", {
+        index,
+        values: [event.value.value],
+        positions: [JSON.stringify(status.position)],
+        method: "delete",
+        meta: event.meta,
+      });
     });
   }
 
@@ -197,6 +206,7 @@ export class CList<
         this.emit("Insert", {
           index: this.positionSource.indexOfPosition(event.value.position),
           values: [entry.value],
+          positions: [JSON.stringify(event.value.position)],
           method: "restore",
           meta: event.meta,
         });
@@ -207,6 +217,7 @@ export class CList<
         this.emit("Delete", {
           index,
           values: [entry.value],
+          positions: [JSON.stringify(event.value.position)],
           method: "archive",
           meta: event.meta,
         });
@@ -290,7 +301,6 @@ export class CList<
     }
     // Archive them. We "remember" the current position for when they are
     // restored.
-    // TODO: expose to-restore positions somewhere, so local users can do hypotheticals?
     for (const value of toArchive) {
       value.status.value = {
         position: value.status.value.position,
@@ -366,7 +376,9 @@ export class CList<
     }
   }
 
-  // TODO: no particular order (not sorted). What if you want to know relative order?
+  /**
+   * No particular order.
+   */
   *archivedEntries(): IterableIterator<[position: string, value: C]> {
     for (const entry of this.set) {
       if (!entry.status.value.isPresent) {
@@ -446,7 +458,7 @@ export class CList<
 
   protected loadObject(savedState: Uint8Array | null) {
     // Note this.set is already loaded. Just need to load positionSource.
-    // TODO: will have problems b/c this is not in sync with set Add events.
+    // For merging: will have problems b/c this is not in sync with set Add events.
 
     // For filling in positionSource's values, create a map from positions
     // to entries.

@@ -45,11 +45,6 @@ export class SendCRDTMeta implements CRDTMeta {
     this.maximalVcKeyCount = count;
   }
 
-  // TODO: doc: unlike on receive end, we throw an error if you
-  // get a replicaID no one has requested, since it's probably a bug.
-  // Note this will not complain if someone else requested it.
-  // Should resolve issues around differing VC entries local vs remote
-  // due to later requests.
   vectorClockGet(replicaID: string): number {
     if (replicaID === this.sender) return this.senderCounter;
     else {
@@ -135,8 +130,6 @@ export class SendCRDTMeta implements CRDTMeta {
     });
   }
 }
-
-// TODO: expose VC keys (or map), in case someone wants to clone it?
 
 export class ReceiveCRDTMeta implements CRDTMeta {
   constructor(

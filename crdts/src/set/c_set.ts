@@ -27,7 +27,8 @@ import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
  *
  * When a value is deleted with [[delete]], it is deleted permanently and
  * can no longer be used; future and concurrent operations on that value
- * are ignored. See [[ArchivingMutCSet]] for an alternative semantics.
+ * are ignored. (Local operations will succeed but will not be propagated to
+ * remote replicas.)
  */
 export class CSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractSet_Collab<C, AddArgs>
@@ -71,10 +72,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
    * @param init         [description]
    * @param valueConstructor  [description]
    * @param argsSerializer = DefaultSerializer.getInstance() Optional,
-   * use this to specify a custom [[Serializer]] for InsertArgs.
-   *
-   * TODO: after deletion, local children will still work,
-   * but messages ignored on other replicas.
+   * use this to specify a custom [[Serializer]] for InsertArgs.\
    */
   constructor(
     init: InitToken,
@@ -217,7 +215,6 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return `${counter.toString(36)},${sender}`;
   }
 
-  // TODO: make pure?
   add(...args: AddArgs): C {
     this.inAdd = true;
     const message = CSetMessage.create({
@@ -243,8 +240,6 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   // OPT: better clear()
-
-  // TODO (future): for-each
 
   has(value: C): boolean {
     return value.parent === this && this.children.has(value.name);

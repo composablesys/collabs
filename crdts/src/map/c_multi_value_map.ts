@@ -27,10 +27,7 @@ export interface MultiValueMapItem<V> {
  * for a key due to concurrent sets.
  *
  * This is a low-level API intended for internal use by other CRDT implementations.
- * In most apps, you are better off using [[CValueMap]], [[CMap]], or occasionally
- * [[CAggregateMap]].
- *
- * TODO: description
+ * In most apps, you are better off using [[CValueMap]] or [[CMap]].
  */
 export class CMultiValueMap<K, V>
   extends AbstractMap_PrimitiveCRDT<K, MultiValueMapItem<V>[], [V]>
