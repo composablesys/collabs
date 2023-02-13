@@ -280,39 +280,36 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
 
     // Note this will be in insertion order because
     // Map iterators run in insertion order.
-    const names = new Array<string>(this.size);
     const args = new Array<Uint8Array>(this.size);
-    const childSaves = new Array<SavedStateTree | null>(this.size);
+    const childSaves = new Map<string, SavedStateTree | null>();
     let i = 0;
     for (const [name, child] of this.children) {
-      names[i] = name;
       args[i] = this.constructorArgs.get(name)!;
-      childSaves[i] = child.save();
+      childSaves.set(name, child.save());
       i++;
     }
-    const saveMessage = CSetSave.create({ names, args });
+    const saveMessage = CSetSave.create({ args });
     return {
       self: CSetSave.encode(saveMessage).finish(),
-      childList: childSaves,
+      children: childSaves,
     };
   }
 
   load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
     const saveMessage = CSetSave.decode(savedStateTree.self!);
+    const childSaves = savedStateTree.children!;
+
     // Create children.
-    for (let i = 0; i < saveMessage.names.length; i++) {
-      this.receiveCreate(
-        saveMessage.names[i],
-        saveMessage.args[i],
-        undefined,
-        false
-      );
+    let i = 0;
+    for (const name of childSaves.keys()) {
+      this.receiveCreate(name, saveMessage.args[i], undefined, false);
+      i++;
     }
+
     // Load children.
-    for (let i = 0; i < saveMessage.names.length; i++) {
-      const childSave = savedStateTree.childList![i];
+    for (const [name, childSave] of childSaves) {
       if (childSave !== null) {
-        this.children.get(saveMessage.names[i])!.load(childSave, meta);
+        this.children.get(name)!.load(childSave, meta);
       }
     }
   }

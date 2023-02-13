@@ -17,6 +17,7 @@ message DefaultSerializerMessage {
         ArrayMessage arrayValue = 7;
         ObjectMessage objectValue = 8;
         bytes bytesValue = 9;
+        OptionalMessage optionalValue = 10;
     }
 }
 

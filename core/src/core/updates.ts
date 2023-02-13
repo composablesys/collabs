@@ -12,27 +12,23 @@
  * while in the former case, it will be called with `{}`.
  */
 export interface SavedStateTree {
-  /** Saved state for the current Collab. */
+  /**
+   * Saved state for the current Collab.
+   *
+   * Normalization: undefined -> empty Uint8Array.
+   */
   self?: Uint8Array;
   /**
    * Saved states for child Collabs, keyed by name.
    *
-   * Note: if [[Collab.save]] returns an empty map, [[Collab.load]]
-   * will instead see `undefined`; both indicate "no saved states
-   * for children".
+   * It's usually okay to omit null entries (since you won't
+   * call child.load(null)), unless you need all names.
    *
-   * TODO: order guaranteed (or maybe if IRuntime does)?
-   * Needed for CSet.
-   */
-  children?: Map<string, SavedStateTree>;
-  /**
-   * Saved states for child Collabs, in some established
-   * order (e.g. described by [[self]]).
+   * Iterator order is preserved.
    *
-   * Unlike in [[children]], null saves are allowed,
-   * to avoid skipping list elements.
+   * Normalization: undefined -> empty map.
    */
-  childList?: (SavedStateTree | null)[];
+  children?: Map<string, SavedStateTree | null>;
 }
 
 /**
@@ -60,7 +56,6 @@ export interface UpdateMeta {
    *
    * Equivalent to `(updateType === "message" && sender === (local runtime).replicaID)`.
    */
-  // TODO: when serializing, need to not save this.
   readonly isLocalOp: boolean;
   /**
    * Optionally, a sender-provided info string about the update

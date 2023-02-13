@@ -1,6 +1,6 @@
 import {
-  IOptionalSerializerMessage,
-  OptionalSerializerMessage,
+  IOptionalMessage,
+  OptionalMessage,
 } from "../../generated/proto_compiled";
 import { Serializer } from "./serializers";
 
@@ -51,16 +51,16 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
   private constructor(private readonly valueSerializer: Serializer<T>) {}
 
   serialize(value: Optional<T>): Uint8Array {
-    const imessage: IOptionalSerializerMessage = {};
+    const imessage: IOptionalMessage = {};
     if (value.isPresent) {
       imessage.valueIfPresent = this.valueSerializer.serialize(value.get());
     }
-    const message = OptionalSerializerMessage.create(imessage);
-    return OptionalSerializerMessage.encode(message).finish();
+    const message = OptionalMessage.create(imessage);
+    return OptionalMessage.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): Optional<T> {
-    const decoded = OptionalSerializerMessage.decode(message);
+    const decoded = OptionalMessage.decode(message);
     if (Object.prototype.hasOwnProperty.call(decoded, "valueIfPresent")) {
       return Optional.of(
         this.valueSerializer.deserialize(decoded.valueIfPresent)

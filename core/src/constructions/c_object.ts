@@ -100,6 +100,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * you can instead use maximally short names - "" for the most-used
    * child, then "0", "1", etc.)
    *
+   * @param name Must be ASCII.
    * @return child
    */
   protected addChild<C extends Collab>(
@@ -136,14 +137,6 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     const child = this.children.get(<string>messageStack.pop());
     if (child === undefined) {
       // Assume this is a version issue; ignore the child (protobuf3-style).
-      // TODO: emit warning somewhere?
-      // throw new Error(
-      //   `Unknown child: ${
-      //     messageStack[messageStack.length - 1]
-      //   } in: ${JSON.stringify(messageStack)}, children: ${JSON.stringify([
-      //     ...this.children.keys(),
-      //   ])}`
-      // );
       return;
     }
     child.receive(messageStack, meta);
@@ -166,8 +159,10 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       for (const [name, childSave] of savedStateTree.children) {
         const child = this.children.get(name);
         // For versioning purposes, skip loading children that no longer exist.
-        // TODO: document
-        if (child !== undefined) child.load(childSave, meta);
+        if (child !== undefined) {
+          // We don't save nulls, so can assert childSave!.
+          child.load(childSave!, meta);
+        }
       }
     }
     this.loadObject(savedStateTree.self ?? null);

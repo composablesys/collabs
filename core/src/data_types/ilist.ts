@@ -39,10 +39,11 @@ export interface CListEvent<T> extends CollabEvent {
    * values at the deleted indices.
    */
   values: T[];
-  // TODO: positions as well?
+  /**
+   * The positions corresponding to [[values]].
+   */
+  positions: string[];
 }
-
-// TODO: positions: compare to Yjs absolute vs relative positions API.
 
 export interface CListEventsRecord<T> extends CollabEventsRecord {
   Insert: CListEvent<T>;
@@ -63,8 +64,13 @@ export interface CListEventsRecord<T> extends CollabEventsRecord {
  * their presence in the list, using any semantics to
  * resolve conflicts.
  *
- * TODO: positions. Dual to indices; act like keys (and used as such in iterators);
- * can use as React keys.
+ * "Positions" are immutable pointers to a specific value's position in the list;
+ * unlike indices, they move around like values. In this way, they act like
+ * map keys (treating a list as a map from positions to values).
+ * They can in particular be used as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys).
+ * Positions are inspired by Yjs's [Y.RelativePosition](https://docs.yjs.dev/api/relative-positions),
+ * except that they are local to a specific list (to reference a position in an unknown
+ * list, use a position plus a [[CollabID]] from [[IRuntime.idOf]]).
  */
 export interface IList<
   T,

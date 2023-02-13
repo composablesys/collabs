@@ -10,10 +10,8 @@ message CSetMessage {
   }
 }
 
+// OPT: deduplicate senders in names.
 message CSetSave {
-  // In order by time created on this replica.
-  // OPT: deduplicate senders.
-  repeated string names = 1;
-  // Aligned with names.
-  repeated bytes args = 2;
+  // Aligned with names in savedStateTree.children.
+  repeated bytes args = 1;
 }

@@ -8,6 +8,7 @@ import {
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Collab, CollabID } from "../core";
+import { Optional } from "./optional";
 
 /**
  * A serializer for values of type `T` (e.g., elements
@@ -26,20 +27,15 @@ export interface Serializer<T> {
 // In this file, we generally cache instances in case each
 // element of a collection constructs a derived serializer
 // from a fixed given one.
-// TODO: get rid of (non-singleton) instance caching? Seems overcomplicated.
-// In a collection, you can work around by only making one serializer for the whole thing,
-// unless it's a child object making the serializer.
-
-// TODO: support Optional, ??
-// TODO: allow extending dynamically?
 
 /**
  * Default serializer.
  *
  * Supported types are a superset of JSON:
  * - Primitive types (string, number, boolean, undefined, null)
- * - Arrays and plain (non-class) objects, serialized recursively
+ * - Arrays and plain (non-class) objects, serialized recursively (this includes [[CollabID]]s)
  * - Uint8Array
+ * - [[Optional]]<T>, with T serialized recursively.
  *
  * All other types cause an error during [[serialize]].
  */
@@ -88,6 +84,14 @@ export class DefaultSerializer<T> implements Serializer<T> {
             arrayValue: ArrayMessage.create({
               elements: value.map((element) => this.serialize(element)),
             }),
+          };
+        } else if (value instanceof Optional) {
+          message = {
+            optionalValue: {
+              valueIfPresent: value.isPresent
+                ? this.serialize(value.get())
+                : undefined,
+            },
           };
         } else {
           const constructor = (<object>(<unknown>value)).constructor;
@@ -161,6 +165,18 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "bytesValue":
         ans = decoded.bytesValue;
         break;
+      case "optionalValue":
+        if (
+          Object.prototype.hasOwnProperty.call(
+            decoded.optionalValue,
+            "valueIfPresent"
+          )
+        ) {
+          ans = Optional.of(
+            this.deserialize(decoded.optionalValue!.valueIfPresent!)
+          );
+        } else ans = Optional.empty();
+        break;
       default:
         throw new Error(`Bad message format: decoded.value=${decoded.value}`);
     }
@@ -169,7 +185,6 @@ export class DefaultSerializer<T> implements Serializer<T> {
   }
 }
 
-// TODO: const object instead of singleton class? Same for DefaultSerializer, CollabIDSerializer.
 export class StringSerializer implements Serializer<string> {
   private constructor() {
     // Use StringSerializer.instance instead.

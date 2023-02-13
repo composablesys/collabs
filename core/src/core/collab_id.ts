@@ -18,7 +18,7 @@ import { Parent } from "./parent";
  * returned by a different parent's [[IParent.idOf]].
  *
  * CollabIDs can be serialized with [[DefaultSerializer]], as JSON objects,
- * or with [[CollabIDSerializer]]. (TODO)
+ * or with [[CollabIDSerializer]].
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface CollabID<C extends Collab> {

@@ -83,9 +83,6 @@ export class EventEmitter<Events extends EventsRecord> {
       try {
         handler(event, this);
       } catch (err) {
-        // TODO: what to do about this? Console log is annoying, but need
-        // to not blackhole the error. Perhaps add an onError handler that can
-        // get the error?
         console.error("Error in Collabs event handler:\n", err);
       }
     }

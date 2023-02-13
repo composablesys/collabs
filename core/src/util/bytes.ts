@@ -4,6 +4,9 @@ const ENCODING = "base64" as const;
  * Uint8Array utilities.
  */
 export const Bytes = {
+  /**
+   * Output is ASCII, so safe to use in [[Collab.send]].
+   */
   stringify(bytes: Uint8Array): string {
     return Buffer.from(bytes).toString(ENCODING);
   },

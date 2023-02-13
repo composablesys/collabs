@@ -26,13 +26,7 @@ import { AbstractMap_Collab } from "../data_types/abstract_maps";
 /**
  * A collaborative lazy map with mutable values.
  *
- * TODO: Collab values (mutable); for immutable values, consider CValueMap,
- * which is simpler. Also CMap for different, non-lazy semantics.
- *
- * TODO: revise below
- *
- * A IMap of mutable values where every key is
- * implicitly always present, although only nontrivial
+ * Every key is implicitly always present, although only nontrivial
  * values are actually stored in memory.
  *
  * Alternatively, you can think of this like a [[CObject]]
@@ -41,12 +35,14 @@ import { AbstractMap_Collab } from "../data_types/abstract_maps";
  * Collabs, not just CRDTs.
  *
  * The "always exists" nature means that, unlike in
- * [[CMap]] and [[ArchivingMutCMap]], there
+ * [[CMap]], there
  * is no conflict when two users concurrently "create"
  * values with the same key. Instead, they are just accessing
  * the same value. If they perform operations on that
  * value concurrently, then those operations will all
  * apply to the value, effectively merging their changes.
+ *
+ * For immutable values, consider [[CValueMap]].
  *
  * ## Laziness
  *
@@ -320,7 +316,8 @@ export class CLazyMap<K, C extends Collab>
     if (savedStateTree.children !== undefined) {
       for (const [name, childSave] of savedStateTree.children) {
         const child = this.getInternal(this.stringAsKey(name), name, true)[0];
-        child.load(childSave, meta);
+        // We don't save nulls, so can assert childSave!.
+        child.load(childSave!, meta);
       }
     }
   }
