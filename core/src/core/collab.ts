@@ -341,6 +341,32 @@ export abstract class Collab<
    * If this is needed later, [[parent]] will reconstruct an equivalent
    * object using the same constructor and constructor arguments.
    * See [[CLazyMap]]'s implementation for an example.
+   *
+   * By default, this method always returns false.
    */
-  abstract canGC(): boolean;
+  canGC(): boolean {
+    return false;
+  }
+
+  /**
+   * Called by this Collab's parent when it has been deleted from a
+   * collection on the local
+   * replica and can no longer be used. A Collab implementation can
+   * implement this method to clean up
+   * external resources, e.g., associated DOM elements.
+   *
+   * In particular, finalize is called at the end of receiving a [[CSet.delete]]
+   * operation (just after the "Delete" event) for this Collab or its ancestor.
+   * Implementing finalize may be more convenient than cleaning up during
+   * the "Delete" event, especially if the CSet is wrapped by another Collab.
+   *
+   * finalize has no relation to [[canGC]] or to the JavaScript garbage
+   * collector. In particular, it is not called when a local copy is deleted
+   * from memory due to [[canGC]] but may be revived later.
+   *
+   * By default, this method does nothing.
+   */
+  finalize(): void {
+    // Default: no-op.
+  }
 }

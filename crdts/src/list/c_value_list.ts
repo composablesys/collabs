@@ -305,12 +305,7 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
     });
   }
 
-  canGC(): boolean {
-    // OPT: return true if not yet mutated.
-    // Also, note in docs that this won't be true even if empty, due to
-    // tombstones.
-    return false;
-  }
+  // OPT: canGC if not yet mutated.
 
   // // For debugging positionSource.
   // printTreeWalk() {

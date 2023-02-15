@@ -203,12 +203,9 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     const name = id.namePath[startIndex];
     const child = this.children.get(name);
     if (child === undefined) {
-      throw new Error(
-        "Unknown child: " +
-          name +
-          ", children: " +
-          JSON.stringify([...this.children.keys()])
-      );
+      // Return undefined instead of an erroring, in case it is
+      // caused by versioning (child deleted in current version).
+      return undefined;
     }
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
@@ -228,5 +225,21 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       if (!child.canGC()) return false;
     }
     return true;
+  }
+
+  /**
+   * Called by this Collab's parent when it has been deleted from a
+   * collection on the local
+   * replica and can no longer be used.
+   *
+   * By default, this method calls finalize on every child.
+   * A CObject subclass can override this method to clean up
+   * external resources, e.g., associated DOM elements.
+   * If overridden, consider calling super.finalize().
+   */
+  finalize(): void {
+    for (const child of this.children.values()) {
+      child.finalize();
+    }
   }
 }

@@ -31,10 +31,6 @@ export interface ListMoveEvent<T> extends CollabEvent {
 
 export interface ListExtendedEventsRecord<T> extends ListEventsRecord<T> {
   Insert: ListEvent<T> & { method: "insert" | "restore" };
-  /**
-   * Note: if an archived value is deleted, you'll get a Delete event with
-   * method: "delete" but index -1, since it didn't have a previous index.
-   */
   Delete: ListEvent<T> & { method: "delete" | "archive" };
   Move: ListMoveEvent<T>;
 }
@@ -167,21 +163,19 @@ export class CList<
     });
     this.set.on("Delete", (event) => {
       const status = event.value.status.value;
-      let index: number;
       if (status.isPresent) {
-        index = this.positionSource.indexOfPosition(status.position);
+        const index = this.positionSource.indexOfPosition(status.position);
         this.positionSource.delete(status.position);
-      } else {
-        // archived -> deleted. In this case, there is no index; use -1.
-        index = -1;
+        this.emit("Delete", {
+          index,
+          values: [event.value.value],
+          positions: [JSON.stringify(status.position)],
+          method: "delete",
+          meta: event.meta,
+        });
       }
-      this.emit("Delete", {
-        index,
-        values: [event.value.value],
-        positions: [JSON.stringify(status.position)],
-        method: "delete",
-        meta: event.meta,
-      });
+      // else archived -> deleted; no new event.
+      // A value that needs to know when it is deleted can override Collab.finalize.
     });
   }
 
@@ -448,13 +442,6 @@ export class CList<
     return this.indexOf(searchElement, fromIndex) !== -1;
   }
 
-  canGC(): boolean {
-    // OPT: return true if not yet mutated.
-    // Also, note in docs that this won't be true even if empty, due to
-    // tombstones.
-    return false;
-  }
-
   protected saveObject(): Uint8Array | null {
     return this.positionSource.save();
   }
@@ -493,4 +480,6 @@ export class CList<
 
     this.positionSource.load(<Uint8Array>savedState, nextItem);
   }
+
+  // OPT: canGC if not yet mutated.
 }

@@ -374,8 +374,4 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
       });
     }
   }
-
-  canGC(): boolean {
-    return false;
-  }
 }

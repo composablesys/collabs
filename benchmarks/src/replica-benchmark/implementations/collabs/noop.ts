@@ -17,10 +17,6 @@ export class NoopCRDT extends collabs.PrimitiveCRDT {
   }
 
   load(_saveData: collabs.Optional<Uint8Array>): void {}
-
-  canGC(): boolean {
-    return false;
-  }
 }
 
 export function CollabsNoop(causalityGuaranteed: boolean) {

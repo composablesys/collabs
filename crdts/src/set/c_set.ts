@@ -28,7 +28,8 @@ import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
  * When a value is deleted with [[delete]], it is deleted permanently and
  * can no longer be used; future and concurrent operations on that value
  * are ignored. (Local operations will succeed but will not be propagated to
- * remote replicas.)
+ * remote replicas.) You can perform cleanup in [[Collab.finalize]] (called
+ * just after the "Delete" event) or in a "Delete" event handler.
  */
 export class CSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractSet_Collab<C, AddArgs>
@@ -174,6 +175,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
               value: child,
               meta,
             });
+            child.finalize();
           }
           break;
         }
