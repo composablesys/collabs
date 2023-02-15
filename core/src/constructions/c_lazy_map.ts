@@ -17,10 +17,7 @@ import {
   Serializer,
   WeakValueMap,
 } from "../util";
-// Import AbstractCMapCollab from its specific file.
-// Otherwise, AbstractCMapCObject and CLazyMap
-// create a circular dependency between constructions
-// and data_types.
+// Import from specific file to avoid circular dependencies.
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
 
 /**
