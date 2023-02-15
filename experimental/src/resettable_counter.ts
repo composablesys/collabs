@@ -15,20 +15,20 @@ import {
 } from "../../generated/proto_compiled";
 import { PrimitiveCRDT } from "../constructions";
 
-export interface ResettableCCounterAddEvent extends CollabEvent {
+export interface ResettableCounterAddEvent extends CollabEvent {
   readonly added: number;
   readonly value: number;
   readonly previousValue: number;
 }
 
-export interface ResettableCCounterResetEvent extends CollabEvent {
+export interface ResettableCounterResetEvent extends CollabEvent {
   readonly value: number;
   readonly previousValue: number;
 }
 
-export interface ResettableCCounterEventsRecord extends CollabEventsRecord {
-  Add: ResettableCCounterAddEvent;
-  Reset: ResettableCCounterResetEvent;
+export interface ResettableCounterEventsRecord extends CollabEventsRecord {
+  Add: ResettableCounterAddEvent;
+  Reset: ResettableCounterResetEvent;
 }
 
 // TODO: update to latest alg (published paper)
@@ -48,7 +48,7 @@ export interface ResettableCCounterEventsRecord extends CollabEventsRecord {
  *
  * TODO: experimental b/c does not support merging; can only load at beginning.
  */
-export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounterEventsRecord> {
+export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterEventsRecord> {
   // M entry format: [p, n, idCounter]
   private readonly M = new Map<string, [number, number, number]>();
   /**
@@ -217,11 +217,11 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
  * to be a safe integer. Otherwise, results are not
  * guaranteed to be correct or eventually consistent.
  */
-export class ResettableCCounter extends CObject<ResettableCCounterEventsRecord> {
+export class ResettableCCounter extends CObject<ResettableCounterEventsRecord> {
   private readonly plus: GrowOnlyResettableCCounter;
   private readonly minus: GrowOnlyResettableCCounter;
 
-  private plusResetEvent?: ResettableCCounterResetEvent = undefined;
+  private plusResetEvent?: ResettableCounterResetEvent = undefined;
 
   constructor(init: InitToken) {
     super(init);

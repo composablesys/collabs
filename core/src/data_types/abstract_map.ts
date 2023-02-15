@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { CMapEventsRecord, IMap } from "./i_map";
+import { IMap, MapEventsRecord } from "./i_map";
 
 export interface MakeAbstractMap_Methods<
   K,
@@ -66,7 +66,7 @@ export function MakeAbstractMap<
   K,
   V,
   SetArgs extends unknown[],
-  Events extends CMapEventsRecord<K, V>,
+  Events extends MapEventsRecord<K, V>,
   TBase extends abstract new (...args: any[]) => {
     set(key: K, ...args: SetArgs): V | undefined;
     delete(key: K): void;

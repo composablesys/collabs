@@ -1,10 +1,10 @@
 import {
-  CListEventsRecord,
-  CMapEventsRecord,
-  CSetEventsRecord,
   IList,
   IMap,
   ISet,
+  ListEventsRecord,
+  MapEventsRecord,
+  SetEventsRecord,
 } from "@collabs/core";
 import { PrimitiveCRDT } from "./primitive_crdt";
 
@@ -15,7 +15,7 @@ import { PrimitiveCRDT } from "./primitive_crdt";
 export declare abstract class AbstractSet_PrimitiveCRDT<
     T,
     AddArgs extends unknown[] = [T],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+    Events extends SetEventsRecord<T> = SetEventsRecord<T>
   >
   extends PrimitiveCRDT<Events>
   implements ISet<T, AddArgs, Events>
@@ -43,7 +43,7 @@ export declare abstract class AbstractMap_PrimitiveCRDT<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+    Events extends MapEventsRecord<K, V> = MapEventsRecord<K, V>
   >
   extends PrimitiveCRDT<Events>
   implements IMap<K, V, SetArgs, Events>
@@ -74,7 +74,7 @@ export declare abstract class AbstractMap_PrimitiveCRDT<
 export declare abstract class AbstractList_PrimitiveCRDT<
     T,
     InsertArgs extends unknown[] = [T],
-    Events extends CListEventsRecord<T> = CListEventsRecord<T>
+    Events extends ListEventsRecord<T> = ListEventsRecord<T>
   >
   extends PrimitiveCRDT<Events>
   implements IList<T, InsertArgs, Events>

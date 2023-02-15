@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { CSetEventsRecord, ISet } from "./i_set";
+import { ISet, SetEventsRecord } from "./i_set";
 
 /**
  * Utility type for [[MakeAbstractSet]]'s type signature.
@@ -53,7 +53,7 @@ export interface MakeAbstractSet_Methods<T, AddArgs extends unknown[] = [T]> {
 export function MakeAbstractSet<
   T,
   AddArgs extends unknown[],
-  Events extends CSetEventsRecord<T>,
+  Events extends SetEventsRecord<T>,
   TBase extends abstract new (...args: any[]) => {
     add(...args: AddArgs): T | undefined;
     delete(value: T): void;

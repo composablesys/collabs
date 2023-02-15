@@ -33,7 +33,7 @@ export interface SendEvent {
   message: Uint8Array;
 }
 
-export interface CRuntimeEventsRecord {
+export interface RuntimeEventsRecord {
   /**
    * Emitted when a message is to be sent.
    *
@@ -73,7 +73,7 @@ export interface CRuntimeOptions {
 }
 
 export class CRuntime
-  extends AbstractRuntime<CRuntimeEventsRecord>
+  extends AbstractRuntime<RuntimeEventsRecord>
   implements IRuntime, CRDTMetaProvider
 {
   private readonly registry: PublicCObject;

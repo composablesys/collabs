@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { CListEventsRecord, IList } from "./i_list";
+import { IList, ListEventsRecord } from "./i_list";
 
 export interface MakeAbstractList_Methods<
   T,
@@ -149,7 +149,7 @@ export interface MakeAbstractList_Methods<
 }
 
 const proxyHandler: ProxyHandler<
-  IList<unknown, unknown[], CListEventsRecord<unknown>>
+  IList<unknown, unknown[], ListEventsRecord<unknown>>
 > = {
   get: function (target, p) {
     if (p === "length") return target.length;
@@ -191,7 +191,7 @@ const proxyHandler: ProxyHandler<
 export function MakeAbstractList<
   T,
   InsertArgs extends unknown[],
-  Events extends CListEventsRecord<T>,
+  Events extends ListEventsRecord<T>,
   TBase extends abstract new (...args: any[]) => {
     insert(index: number, ...args: InsertArgs): T | undefined;
     delete(startIndex: number, count?: number): void;

@@ -2,16 +2,16 @@ import {
   CObject,
   CollabEventsRecord,
   CVar,
-  CVarEvent,
   InitToken,
+  VarEvent,
 } from "@collabs/collabs";
 
 // Since you're exporting your type for reuse, it's a good
 // idea to expose meaningful events.
 // See the Collabs docs (https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md) for advice on what events to include.
-export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
-  FirstSet: CVarEvent<T>;
-  SecondSet: CVarEvent<U>;
+export interface PairEventsRecord<T, U> extends CollabEventsRecord {
+  FirstSet: VarEvent<T>;
+  SecondSet: VarEvent<U>;
 }
 
 /**
@@ -21,7 +21,7 @@ export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
  * (no conflict resolution), but changing both concurrently
  * will keep both changes.
  */
-export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
+export class CPair<T, U> extends CObject<PairEventsRecord<T, U>> {
   private readonly firstReg: CVar<T>;
   private readonly secondReg: CVar<U>;
 

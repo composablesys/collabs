@@ -1,7 +1,5 @@
 import {
   AbstractList_CObject,
-  CListEvent,
-  CListEventsRecord,
   CMessenger,
   CObject,
   Collab,
@@ -10,6 +8,8 @@ import {
   InitToken,
   int64AsNumber,
   isRuntime,
+  ListEvent,
+  ListEventsRecord,
   PairSerializer,
   Serializer,
 } from "@collabs/core";
@@ -23,20 +23,20 @@ import {
   ListPositionSource,
 } from "./list_position_source";
 
-export interface CListMoveEvent<T> extends CollabEvent {
+export interface ListMoveEvent<T> extends CollabEvent {
   index: number;
   previousIndex: number;
   values: T[];
 }
 
-export interface CListImplEventsRecord<T> extends CListEventsRecord<T> {
-  Insert: CListEvent<T> & { method: "insert" | "restore" };
+export interface ListExtendedEventsRecord<T> extends ListEventsRecord<T> {
+  Insert: ListEvent<T> & { method: "insert" | "restore" };
   /**
    * Note: if an archived value is deleted, you'll get a Delete event with
    * method: "delete" but index -1, since it didn't have a previous index.
    */
-  Delete: CListEvent<T> & { method: "delete" | "archive" };
-  Move: CListMoveEvent<T>;
+  Delete: ListEvent<T> & { method: "delete" | "archive" };
+  Move: ListMoveEvent<T>;
 }
 
 interface EntryStatus {
@@ -95,7 +95,7 @@ class CListEntry<C extends Collab> extends CObject {
 export class CList<
   C extends Collab,
   InsertArgs extends unknown[]
-> extends AbstractList_CObject<C, InsertArgs, CListImplEventsRecord<C>> {
+> extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
   protected readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
   protected readonly createdPositionMessenger: CMessenger<
     [counter: number, startValueIndex: number, metadata: Uint8Array | null]

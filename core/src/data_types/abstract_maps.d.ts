@@ -5,7 +5,7 @@ import { Collab } from "../core";
 // and data_types.
 import { CObject } from "../constructions/c_object";
 import { CPrimitive } from "../constructions/c_primitive";
-import { CMapEventsRecord, IMap } from "./i_map";
+import { IMap, MapEventsRecord } from "./i_map";
 
 // See MakeAbstractMap for the rationale behind this file.
 
@@ -17,7 +17,7 @@ export declare abstract class AbstractMap_Collab<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+    Events extends MapEventsRecord<K, V> = MapEventsRecord<K, V>
   >
   extends Collab<Events>
   implements IMap<K, V, SetArgs, Events>
@@ -49,7 +49,7 @@ export declare abstract class AbstractMap_CObject<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+    Events extends MapEventsRecord<K, V> = MapEventsRecord<K, V>
   >
   extends CObject<Events>
   implements IMap<K, V, SetArgs, Events>
@@ -81,7 +81,7 @@ export declare abstract class AbstractMap_CPrimitive<
     K,
     V,
     SetArgs extends unknown[] = [V],
-    Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+    Events extends MapEventsRecord<K, V> = MapEventsRecord<K, V>
   >
   extends CPrimitive<Events>
   implements IMap<K, V, SetArgs, Events>

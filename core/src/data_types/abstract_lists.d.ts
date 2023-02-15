@@ -1,6 +1,6 @@
 import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
-import { CListEventsRecord, IList } from "./i_list";
+import { IList, ListEventsRecord } from "./i_list";
 
 // See MakeAbstractList for the rationale behind this file.
 
@@ -11,7 +11,7 @@ import { CListEventsRecord, IList } from "./i_list";
 export declare abstract class AbstractList_Collab<
     T,
     InsertArgs extends unknown[] = [T],
-    Events extends CListEventsRecord<T> = CListEventsRecord<T>
+    Events extends ListEventsRecord<T> = ListEventsRecord<T>
   >
   extends Collab<Events>
   implements IList<T, InsertArgs, Events>
@@ -139,7 +139,7 @@ export declare abstract class AbstractList_Collab<
 export declare abstract class AbstractList_CObject<
     T,
     InsertArgs extends unknown[] = [T],
-    Events extends CListEventsRecord<T> = CListEventsRecord<T>
+    Events extends ListEventsRecord<T> = ListEventsRecord<T>
   >
   extends CObject<Events>
   implements IList<T, InsertArgs, Events>
@@ -267,7 +267,7 @@ export declare abstract class AbstractList_CObject<
 export declare abstract class AbstractList_CPrimitive<
     T,
     InsertArgs extends unknown[] = [T],
-    Events extends CListEventsRecord<T> = CListEventsRecord<T>
+    Events extends ListEventsRecord<T> = ListEventsRecord<T>
   >
   extends CPrimitive<Events>
   implements IList<T, InsertArgs, Events>

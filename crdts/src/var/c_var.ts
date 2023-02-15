@@ -1,10 +1,10 @@
 import {
   CObject,
-  CVarEventsRecord,
   InitToken,
   IVar,
   Serializer,
   TrivialSerializer,
+  VarEventsRecord,
 } from "@collabs/core";
 // Import from exact file to avoid circular dependencies with ../map/index.ts.
 import { Aggregator, CMultiValueMap } from "../map/c_multi_value_map";
@@ -23,7 +23,7 @@ const defaultAggregator: Aggregator<unknown> = {
 /**
  * A collaborative variable of type T.
  */
-export class CVar<T> extends CObject<CVarEventsRecord<T>> implements IVar<T> {
+export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   private readonly mvMap: CMultiValueMap<null, T>;
   private _value: T;
 

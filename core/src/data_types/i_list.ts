@@ -23,11 +23,11 @@ and limitations under the License.
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
-export interface CListEvent<T> extends CollabEvent {
+export interface ListEvent<T> extends CollabEvent {
   /**
    * The index of the first affected value.
    *
-   * For [[CListEventsRecord.Delete]] events, this is the former
+   * For [[ListEventsRecord.Delete]] events, this is the former
    * index of the first deleted value.
    */
   index: number;
@@ -35,7 +35,7 @@ export interface CListEvent<T> extends CollabEvent {
    * The affected values. For bulk operations, there may be more than
    * one, in list order.
    *
-   * For [[CListEventsRecord.Delete]] events, these are the former
+   * For [[ListEventsRecord.Delete]] events, these are the former
    * values at the deleted indices.
    */
   values: T[];
@@ -45,9 +45,9 @@ export interface CListEvent<T> extends CollabEvent {
   positions: string[];
 }
 
-export interface CListEventsRecord<T> extends CollabEventsRecord {
-  Insert: CListEvent<T>;
-  Delete: CListEvent<T>;
+export interface ListEventsRecord<T> extends CollabEventsRecord {
+  Insert: ListEvent<T>;
+  Delete: ListEvent<T>;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface CListEventsRecord<T> extends CollabEventsRecord {
 export interface IList<
   T,
   InsertArgs extends unknown[] = [T],
-  Events extends CListEventsRecord<T> = CListEventsRecord<T>
+  Events extends ListEventsRecord<T> = ListEventsRecord<T>
 > extends Collab<Events> {
   /**
    * Sends args to every replica in serialized form.

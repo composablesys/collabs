@@ -1,7 +1,7 @@
 import { EventEmitter } from "@collabs/core";
-import { CRuntime, CRuntimeEventsRecord, CRuntimeOptions } from "./c_runtime";
+import { CRuntime, CRuntimeOptions, RuntimeEventsRecord } from "./c_runtime";
 
-const runtimeEventNames: (keyof CRuntimeEventsRecord)[] = [
+const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
   "Change",
   "Transaction",
   "Send",
@@ -54,7 +54,7 @@ const runtimeEventNames: (keyof CRuntimeEventsRecord)[] = [
  * Subclassing: Maybe also expose idOf/fromID
  * and a UID for cross-doc refs?
  */
-export abstract class AbstractDoc extends EventEmitter<CRuntimeEventsRecord> {
+export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
    * The internal [[CRuntime]], i.e., the value of
    * `runtime` on any [[Collab]].

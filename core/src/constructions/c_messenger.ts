@@ -7,12 +7,12 @@ import {
 import { DefaultSerializer, Serializer } from "../util";
 import { CPrimitive } from "./c_primitive";
 
-export interface CMessengerEvent<M> extends CollabEvent {
+export interface MessengerEvent<M> extends CollabEvent {
   message: M;
 }
 
-export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
-  Message: CMessengerEvent<M>;
+export interface MessengerEventsRecord<M> extends CollabEventsRecord {
+  Message: MessengerEvent<M>;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
  * messages may be received in different orders on
  * different replicas.
  */
-export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
+export class CMessenger<M> extends CPrimitive<MessengerEventsRecord<M>> {
   private readonly messageSerializer: Serializer<M>;
 
   constructor(

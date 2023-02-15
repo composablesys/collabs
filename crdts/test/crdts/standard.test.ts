@@ -1,12 +1,12 @@
 import {
   CLazyMap,
-  CMapDeleteEvent,
-  CMapSetEvent,
   CollabID,
   CollabIDSerializer,
   EventEmitter,
   EventsRecord,
   InitToken,
+  MapDeleteEvent,
+  MapSetEvent,
   Optional,
   OptionalSerializer,
 } from "@collabs/core";
@@ -618,7 +618,7 @@ describe("standard", () => {
         // aliceMap.on("KeyAdd", checkKeyAdd);
         // bobMap.on("KeyAdd", checkKeyAdd);
         function checkValueChange(
-          event: CMapSetEvent<string, number>,
+          event: MapSetEvent<string, number>,
           caller: LWWCMap<string, number>
         ) {
           assert.strictEqual(event.key, "test");
@@ -740,7 +740,7 @@ describe("standard", () => {
           nextEvent(aliceMap, "Delete"),
           nextEvent(bobMap, "Delete"),
         ]);
-        function checkKeyDelete(event: CMapDeleteEvent<string, number>) {
+        function checkKeyDelete(event: MapDeleteEvent<string, number>) {
           assert.strictEqual(event.key, "test");
           // TODO: this depends on the value getting through,
           // but it isn't set until after the add.

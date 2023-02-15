@@ -1,6 +1,6 @@
 import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
-import { CSetEventsRecord, ISet } from "./i_set";
+import { ISet, SetEventsRecord } from "./i_set";
 
 // See MakeAbstractSet for the rationale behind this file.
 
@@ -11,7 +11,7 @@ import { CSetEventsRecord, ISet } from "./i_set";
 export declare abstract class AbstractSet_Collab<
     T,
     AddArgs extends unknown[] = [T],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+    Events extends SetEventsRecord<T> = SetEventsRecord<T>
   >
   extends Collab<Events>
   implements ISet<T, AddArgs, Events>
@@ -38,7 +38,7 @@ export declare abstract class AbstractSet_Collab<
 export declare abstract class AbstractSet_CObject<
     T,
     AddArgs extends unknown[] = [T],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+    Events extends SetEventsRecord<T> = SetEventsRecord<T>
   >
   extends CObject<Events>
   implements ISet<T, AddArgs, Events>
@@ -65,7 +65,7 @@ export declare abstract class AbstractSet_CObject<
 export declare abstract class AbstractSet_CPrimitive<
     T,
     AddArgs extends unknown[] = [T],
-    Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+    Events extends SetEventsRecord<T> = SetEventsRecord<T>
   >
   extends CPrimitive<Events>
   implements ISet<T, AddArgs, Events>

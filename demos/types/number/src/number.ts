@@ -14,16 +14,16 @@ import {
   StatefulCRDT,
 } from "./multiple_semidirect_product";
 
-export interface CNumberEvent extends CollabEvent {
+export interface NumberEvent extends CollabEvent {
   readonly arg: number;
   readonly previousValue: number;
 }
 
-export interface CNumberEventsRecord extends CollabEventsRecord {
-  Add: CNumberEvent;
-  Mult: CNumberEvent;
-  Min: CNumberEvent;
-  Max: CNumberEvent;
+export interface NumberEventsRecord extends CollabEventsRecord {
+  Add: NumberEvent;
+  Mult: NumberEvent;
+  Min: NumberEvent;
+  Max: NumberEvent;
 }
 
 export class CNumberState {
@@ -35,7 +35,7 @@ export class CNumberState {
 
 // Exporting just for tests, it's not exported at top-level
 export class AddComponent
-  extends PrimitiveCRDT<CNumberEventsRecord>
+  extends PrimitiveCRDT<NumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -82,7 +82,7 @@ export class AddComponent
 }
 
 export class MultComponent
-  extends PrimitiveCRDT<CNumberEventsRecord>
+  extends PrimitiveCRDT<NumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -129,7 +129,7 @@ export class MultComponent
 }
 
 export class MinComponent
-  extends PrimitiveCRDT<CNumberEventsRecord>
+  extends PrimitiveCRDT<NumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -174,7 +174,7 @@ export class MinComponent
 }
 
 export class MaxComponent
-  extends PrimitiveCRDT<CNumberEventsRecord>
+  extends PrimitiveCRDT<NumberEventsRecord>
   implements StatefulCRDT<CNumberState>
 {
   readonly state: CNumberState;
@@ -301,7 +301,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
  *
  * See https://github.com/composablesys/collabs/issues/177
  */
-export class CNumber extends CObject<CNumberEventsRecord> {
+export class CNumber extends CObject<NumberEventsRecord> {
   private base: CNumberBase;
   /**
    * Used to implement negative multiplications, which don't

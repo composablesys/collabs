@@ -23,21 +23,21 @@ and limitations under the License.
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
-export interface CSetEvent<T> extends CollabEvent {
+export interface SetEvent<T> extends CollabEvent {
   value: T;
 }
 
-export interface CSetEventsRecord<T> extends CollabEventsRecord {
+export interface SetEventsRecord<T> extends CollabEventsRecord {
   /**
    * Only emitted when the value is actually new
    * (was not previously present).
    */
-  Add: CSetEvent<T>;
+  Add: SetEvent<T>;
   /**
    * Only emitted when the value is actually deleted
    * (was previously present).
    */
-  Delete: CSetEvent<T>;
+  Delete: SetEvent<T>;
 }
 
 /**
@@ -57,7 +57,7 @@ export interface CSetEventsRecord<T> extends CollabEventsRecord {
 export interface ISet<
   T,
   AddArgs extends unknown[] = [T],
-  Events extends CSetEventsRecord<T> = CSetEventsRecord<T>
+  Events extends SetEventsRecord<T> = SetEventsRecord<T>
 > extends Collab<Events> {
   /**
    * Sends args to every replica in serialized form.

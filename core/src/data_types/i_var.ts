@@ -1,11 +1,11 @@
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
-export interface CVarEvent<T> extends CollabEvent {
+export interface VarEvent<T> extends CollabEvent {
   value: T;
   previousValue: T;
 }
 
-export interface CVarEventsRecord<T> extends CollabEventsRecord {
+export interface VarEventsRecord<T> extends CollabEventsRecord {
   /**
    * Emitted whenever the value is set or otherwise
    * changed.
@@ -14,7 +14,7 @@ export interface CVarEventsRecord<T> extends CollabEventsRecord {
    * actually changes under `===` equality. Implementations
    * that behave otherwise should clearly indicate so.
    */
-  Set: CVarEvent<T>;
+  Set: VarEvent<T>;
 }
 
 /**
@@ -34,7 +34,7 @@ export interface CVarEventsRecord<T> extends CollabEventsRecord {
 export interface IVar<
   T,
   SetArgs extends unknown[] = [T],
-  Events extends CVarEventsRecord<T> = CVarEventsRecord<T>
+  Events extends VarEventsRecord<T> = VarEventsRecord<T>
 > extends Collab<Events> {
   /**
    * Sends args to every replica in serialized form.

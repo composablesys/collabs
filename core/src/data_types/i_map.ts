@@ -24,7 +24,7 @@ and limitations under the License.
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 import { Optional } from "../util/optional";
 
-export interface CMapSetEvent<K, V> extends CollabEvent {
+export interface MapSetEvent<K, V> extends CollabEvent {
   key: K;
   value: V;
   /**
@@ -33,7 +33,7 @@ export interface CMapSetEvent<K, V> extends CollabEvent {
   previousValue: Optional<V>;
 }
 
-export interface CMapDeleteEvent<K, V> extends CollabEvent {
+export interface MapDeleteEvent<K, V> extends CollabEvent {
   key: K;
   /**
    * The previously set value at key.
@@ -41,7 +41,7 @@ export interface CMapDeleteEvent<K, V> extends CollabEvent {
   value: V;
 }
 
-export interface CMapEventsRecord<K, V> extends CollabEventsRecord {
+export interface MapEventsRecord<K, V> extends CollabEventsRecord {
   /**
    * This is emitted not just
    * when the value is set (including if already
@@ -53,8 +53,8 @@ export interface CMapEventsRecord<K, V> extends CollabEventsRecord {
    * add your own event listeners on the value
    * itself in the valueConstructor.
    */
-  Set: CMapSetEvent<K, V>;
-  Delete: CMapDeleteEvent<K, V>;
+  Set: MapSetEvent<K, V>;
+  Delete: MapDeleteEvent<K, V>;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface IMap<
   K,
   V,
   SetArgs extends unknown[] = [V],
-  Events extends CMapEventsRecord<K, V> = CMapEventsRecord<K, V>
+  Events extends MapEventsRecord<K, V> = MapEventsRecord<K, V>
 > extends Collab<Events> {
   /**
    * Sends args to every replica in serialized form.
