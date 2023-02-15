@@ -24,7 +24,7 @@ export interface TextEvent extends CollabEvent {
   values: string;
 }
 
-export interface CTextEventsRecord extends CollabEventsRecord {
+export interface TextEventsRecord extends CollabEventsRecord {
   Insert: TextEvent;
   Delete: TextEvent;
 }
@@ -36,7 +36,7 @@ export interface CTextEventsRecord extends CollabEventsRecord {
  *
  * See also: [[CValueList]].
  */
-export class CText extends CObject<CTextEventsRecord> {
+export class CText extends CObject<TextEventsRecord> {
   // Internally, CText uses a CValueList containing its list of Unicode code
   // points. CText just wraps the API so that e.g. passing a multi-char
   // string to insert does a bulk character insert, instead of accidentally

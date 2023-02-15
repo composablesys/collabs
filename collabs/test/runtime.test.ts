@@ -1,22 +1,21 @@
 import { assert } from "chai";
-import { ReplicaIDs, TestingRuntimes } from "../src";
+import { Bytes, TestingRuntimes } from "../src";
 
 // Reproduce a basic test from @collabs/core to make sure
 // everything is loading properly.
-describe("crdts", () => {
-  describe("ReplicaIDs.random", () => {
-    describe("replicaID", () => {
-      it("generates without error on Node", () => {
-        ReplicaIDs.random();
-      });
+describe("core", () => {
+  describe("Bytes", () => {
+    it("parse inverts stringify", () => {
+      const start = new Uint8Array(5);
+      start.fill(7);
 
-      it("has length 10", () => {
-        assert.strictEqual(ReplicaIDs.random().length, 10);
-      });
+      const stringified = Bytes.stringify(start);
+      const parsed = Bytes.parse(stringified);
 
-      it("is different each time", () => {
-        assert.notStrictEqual(ReplicaIDs.random(), ReplicaIDs.random());
-      });
+      assert.isTrue(
+        Bytes.equals(start, parsed),
+        `parsed != start (stringified: ${stringified}`
+      );
     });
   });
 });

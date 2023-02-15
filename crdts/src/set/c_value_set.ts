@@ -12,7 +12,7 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
   /**
    * Maps from set values to true. A value is present in this set
    * iff it is present as a map key. This essentially implements
-   * the classic observed-remove set: a set containing one
+   * the classic add-wins/observed-remove set: a set containing one
    * (value, causal dot) entry per add operation.
    */
   private readonly mvMap: CMultiValueMap<T, true>;

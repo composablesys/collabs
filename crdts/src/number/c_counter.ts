@@ -8,13 +8,13 @@ import {
 } from "@collabs/core";
 import { CCounterMessage } from "../../generated/proto_compiled";
 
-export interface CCounterAddEvent extends CollabEvent {
+export interface CounterAddEvent extends CollabEvent {
   added: number;
   value: number;
 }
 
-export interface CCounterEventsRecord extends CollabEventsRecord {
-  Add: CCounterAddEvent;
+export interface CounterEventsRecord extends CollabEventsRecord {
+  Add: CounterAddEvent;
 }
 
 /**
@@ -29,7 +29,7 @@ export interface CCounterEventsRecord extends CollabEventsRecord {
  * (due to rounding errors). If you need non-integer values,
  * you should represent them as e.g. (Counter value)/100.
  */
-export class CCounter extends CPrimitive<CCounterEventsRecord> {
+export class CCounter extends CPrimitive<CounterEventsRecord> {
   private _value: number;
   private readonly initialValue: number;
 
