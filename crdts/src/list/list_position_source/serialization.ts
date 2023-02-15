@@ -1,6 +1,6 @@
 import { int64AsNumber, Serializer } from "@collabs/core";
 import {
-  CreatedListPositionSerializerMessage,
+  CreatedPositionSerializerMessage,
   ListPositionSerializerMessage,
 } from "../../../generated/proto_compiled";
 import { ListPosition } from "./list_position_source";
@@ -49,18 +49,18 @@ export class CreatePositionsSerializer
       metadata: Uint8Array | null
     ]
   ): Uint8Array {
-    const message = CreatedListPositionSerializerMessage.create({
+    const message = CreatedPositionSerializerMessage.create({
       counter: value[0],
       startValueIndex: value[1],
       metadata: value[2],
     });
-    return CreatedListPositionSerializerMessage.encode(message).finish();
+    return CreatedPositionSerializerMessage.encode(message).finish();
   }
 
   deserialize(
     message: Uint8Array
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
-    const decoded = CreatedListPositionSerializerMessage.decode(message);
+    const decoded = CreatedPositionSerializerMessage.decode(message);
     const metadata = Object.prototype.hasOwnProperty.call(decoded, "metadata")
       ? decoded.metadata
       : null;

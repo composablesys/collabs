@@ -7,16 +7,18 @@ import {
   TrivialSerializer,
 } from "@collabs/core";
 // Import from exact file to avoid circular dependencies with ../map/index.ts.
-import { CMultiValueMap, MultiValueMapItem } from "../map/c_multi_value_map";
+import { Aggregator, CMultiValueMap } from "../map/c_multi_value_map";
 
 const nullSerializer = new TrivialSerializer(null);
 
 /**
- * Default aggregate function.
+ * Default aggregator: return the first item (first replicaID wins)l
  */
-function firstItem<V>(items: MultiValueMapItem<V>[]): V {
-  return items[0].value;
-}
+const defaultAggregator: Aggregator<unknown> = {
+  aggregate(items) {
+    return items[0].value;
+  },
+} as const;
 
 /**
  * A collaborative variable of type T.
@@ -37,13 +39,13 @@ export class CVar<T> extends CObject<CVarEventsRecord<T>> implements IVar<T> {
     initialValue: T,
     options: {
       valueSerializer?: Serializer<T>;
-      aggregate?: (items: MultiValueMapItem<T>[]) => T;
-      wallClockTime?: boolean;
+      aggregator?: Aggregator<T>;
     } = {}
   ) {
     super(init);
 
-    const aggregate = options.aggregate ?? firstItem;
+    const aggregator =
+      options.aggregator ?? (defaultAggregator as Aggregator<T>);
 
     this.mvMap = super.addChild(
       "",
@@ -51,13 +53,14 @@ export class CVar<T> extends CObject<CVarEventsRecord<T>> implements IVar<T> {
         new CMultiValueMap(init, {
           keySerializer: nullSerializer,
           valueSerializer: options.valueSerializer,
-          wallClockTime: options.wallClockTime,
+          aggregator: options.aggregator,
         })
     );
     this.mvMap.on("Any", (e) => {
       const previousValue = this._value;
       const items = this.mvMap.get(null);
-      this._value = items === undefined ? initialValue : aggregate(items);
+      this._value =
+        items === undefined ? initialValue : aggregator.aggregate(items);
       if (this._value !== previousValue) {
         this.emit("Set", { value: this._value, previousValue, meta: e.meta });
       }
@@ -88,5 +91,9 @@ export class CVar<T> extends CObject<CVarEventsRecord<T>> implements IVar<T> {
    */
   clear() {
     this.mvMap.delete(null);
+  }
+
+  toString() {
+    return `${this.value}`;
   }
 }

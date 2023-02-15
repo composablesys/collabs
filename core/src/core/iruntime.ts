@@ -34,7 +34,7 @@ export interface IRuntime extends IParent {
    *
    * Never `""`.
    *
-   * See [[randomReplicaID]], [[pseudoRandomReplicaID]].
+   * See [[ReplicaIDs.random]], [[ReplicaIDs.pseudoRandom]].
    */
   readonly replicaID: string;
 

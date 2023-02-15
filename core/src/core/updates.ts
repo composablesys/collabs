@@ -49,7 +49,7 @@ export interface UpdateMeta {
    * - not the replicaID that performed the original operation
    * leading to this update. -->
    */
-  readonly sender: string;
+  readonly senderID: string;
   /**
    * Whether the update was caused by a local operation, i.e., calling
    * a [[Collab]] method on this replica.

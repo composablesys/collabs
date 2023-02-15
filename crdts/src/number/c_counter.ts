@@ -31,10 +31,12 @@ export interface CCounterEventsRecord extends CollabEventsRecord {
  */
 export class CCounter extends CPrimitive<CCounterEventsRecord> {
   private _value: number;
+  private readonly initialValue: number;
 
-  constructor(init: InitToken, private readonly initialValue = 0) {
+  constructor(init: InitToken, { initialValue = 0 }) {
     super(init);
 
+    this.initialValue = initialValue;
     this._value = initialValue;
   }
 

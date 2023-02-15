@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { CMapEventsRecord, IMap } from "./imap";
+import { CMapEventsRecord, IMap } from "./i_map";
 
 export interface MakeAbstractMap_Methods<
   K,

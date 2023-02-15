@@ -1,4 +1,4 @@
-import { pseudoRandomReplicaID } from "@collabs/core";
+import { ReplicaIDs } from "@collabs/core";
 import { CRuntime } from "../runtime";
 
 /**
@@ -37,7 +37,7 @@ export class TestingRuntimes {
     rng: seedrandom.prng | undefined = undefined,
     causalityGuaranteed = false
   ) {
-    const debugReplicaID = rng ? pseudoRandomReplicaID(rng) : undefined;
+    const debugReplicaID = rng ? ReplicaIDs.pseudoRandom(rng) : undefined;
     const app = new CRuntime({
       autoTransactions: "op",
       debugReplicaID,

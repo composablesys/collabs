@@ -72,9 +72,9 @@ describe("standard", () => {
     function addEventListeners(flag: TrueWinsCBoolean, name: string): void {
       flag.on("Set", (event, caller) => {
         if (caller.value) {
-          console.log(`${name}: ${event.meta.sender} enabled`);
+          console.log(`${name}: ${event.meta.senderID} enabled`);
         } else {
-          console.log(`${name}: ${event.meta.sender} disabled`);
+          console.log(`${name}: ${event.meta.senderID} disabled`);
         }
       });
     }
@@ -170,9 +170,9 @@ describe("standard", () => {
     function addEventListeners(flag: FalseWinsCBoolean, name: string): void {
       flag.on("Set", (event, caller) => {
         if (caller.value) {
-          console.log(`${name}: ${event.meta.sender} enabled`);
+          console.log(`${name}: ${event.meta.senderID} enabled`);
         } else {
-          console.log(`${name}: ${event.meta.sender} disabled`);
+          console.log(`${name}: ${event.meta.senderID} disabled`);
         }
       });
     }
@@ -258,10 +258,10 @@ describe("standard", () => {
 
     function addEventListeners(set: AddWinsCSet<string>, name: string): void {
       set.on("Add", (event) =>
-        console.log(`${name}: ${event.meta.sender} added ${event.value}`)
+        console.log(`${name}: ${event.meta.senderID} added ${event.value}`)
       );
       set.on("Delete", (event) =>
-        console.log(`${name}: ${event.meta.sender} deleted ${event.value}`)
+        console.log(`${name}: ${event.meta.senderID} deleted ${event.value}`)
       );
     }
 

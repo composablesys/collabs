@@ -43,9 +43,9 @@ import { MetaRequest } from "@collabs/core";
  */
 export interface CRDTMeta {
   /**
-   * Copy of [[UpdateMeta.sender]], for convenience.
+   * Copy of [[UpdateMeta.senderID]], for convenience.
    */
-  readonly sender: string;
+  readonly senderID: string;
   /**
    * The sender's own vector clock entry for this transaction.
    *

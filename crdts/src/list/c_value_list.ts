@@ -25,14 +25,22 @@ import {
 export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
   private readonly positionSource: ListPositionSource<T[]>;
 
+  protected readonly valueSerializer: Serializer<T>;
+  protected readonly valueArraySerializer: Serializer<T[]> | undefined;
+
   constructor(
     init: InitToken,
-    protected readonly valueSerializer: Serializer<T> = DefaultSerializer.getInstance(),
-    protected readonly valueArraySerializer:
-      | Serializer<T[]>
-      | undefined = undefined
+    options: {
+      valueSerializer?: Serializer<T>;
+      /** Default is to next Serializer<T>, not DefaultSerializer<T[]> */
+      valueArraySerializer?: Serializer<T[]>;
+    } = {}
   ) {
     super(init);
+
+    this.valueSerializer =
+      options.valueSerializer ?? DefaultSerializer.getInstance();
+    this.valueArraySerializer = options.valueArraySerializer ?? undefined;
 
     this.positionSource = new ListPositionSource(
       this.runtime.replicaID,
@@ -127,14 +135,18 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
           );
         }
 
-        const startPos: ListPosition = [meta.sender, counter, startValueIndex];
+        const startPos: ListPosition = [
+          meta.senderID,
+          counter,
+          startValueIndex,
+        ];
         this.positionSource.receiveAndAddPositions(startPos, values, metadata);
 
         const startIndex = this.positionSource.indexOfPosition(startPos);
         const positions = new Array<string>(values.length);
         for (let i = 0; i < values.length; i++) {
           positions[i] = JSON.stringify([
-            meta.sender,
+            meta.senderID,
             counter,
             startValueIndex + i,
           ] as ListPosition);
@@ -156,7 +168,7 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
           "sender"
         )
           ? decoded.delete!.sender!
-          : meta.sender;
+          : meta.senderID;
         const counter = int64AsNumber(decoded.delete!.counter);
         const valueIndex = decoded.delete!.valueIndex;
         const pos: ListPosition = [sender, counter, valueIndex];

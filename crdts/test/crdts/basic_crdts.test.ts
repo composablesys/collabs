@@ -46,7 +46,7 @@ describe("basic_crdts", () => {
 
     function addEventListeners(counter: CCounter, name: string): void {
       counter.on("Add", (event) =>
-        console.log(`${name}: ${event.meta.sender} added ${event.added}`)
+        console.log(`${name}: ${event.meta.senderID} added ${event.added}`)
       );
     }
 
@@ -112,7 +112,7 @@ describe("basic_crdts", () => {
 
     function addEventListeners(counter: CCounter, name: string): void {
       counter.on("Add", (event) =>
-        console.log(`${name}: ${event.meta.sender} added ${event.added}`)
+        console.log(`${name}: ${event.meta.senderID} added ${event.added}`)
       );
     }
 
@@ -188,10 +188,10 @@ describe("basic_crdts", () => {
       name: string
     ): void {
       counter.on("Add", (event) =>
-        console.log(`${name}: ${event.meta.sender} added ${event.added}`)
+        console.log(`${name}: ${event.meta.senderID} added ${event.added}`)
       );
       counter.on("Reset", (event) =>
-        console.log(`${name}: ${event.meta.sender} reset`)
+        console.log(`${name}: ${event.meta.senderID} reset`)
       );
     }
 
@@ -352,7 +352,7 @@ describe("basic_crdts", () => {
       // TODO
       // lww.on("LWW", (event) =>
       //   console.log(
-      //     `${name}: ${event.meta.sender} set to ${event.value}`
+      //     `${name}: ${event.meta.senderID} set to ${event.value}`
       //   )
       // );
     }

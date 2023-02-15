@@ -26,17 +26,17 @@ export class SendCRDTMeta implements CRDTMeta {
   private isFrozen = false;
 
   constructor(
-    readonly sender: string,
+    readonly senderID: string,
     private readonly actualVC: Map<string, number>,
     /** We "copy" this right away. Okay to contain sender, but we'll ignore it. */
     causallyMaximalVCKeys: Set<string>,
     private readonly actualWallClockTime: number,
     private readonly actualLamportTimestamp: number
   ) {
-    this.senderCounter = actualVC.get(sender)!;
+    this.senderCounter = actualVC.get(senderID)!;
     let count = causallyMaximalVCKeys.size;
     for (const replicaID of causallyMaximalVCKeys) {
-      if (replicaID === this.sender) {
+      if (replicaID === this.senderID) {
         count--;
         continue;
       }
@@ -46,7 +46,7 @@ export class SendCRDTMeta implements CRDTMeta {
   }
 
   vectorClockGet(replicaID: string): number {
-    if (replicaID === this.sender) return this.senderCounter;
+    if (replicaID === this.senderID) return this.senderCounter;
     else {
       if (this.isAutomatic) {
         this.requestVectorClockEntry(replicaID);
@@ -90,7 +90,7 @@ export class SendCRDTMeta implements CRDTMeta {
   }
 
   requestVectorClockEntry(replicaID: string): void {
-    if (replicaID !== this.sender) {
+    if (replicaID !== this.senderID) {
       const entry = this.actualVC.get(replicaID);
       if (entry === undefined) {
         throw new Error("Unknown replicaID: " + replicaID);
@@ -122,7 +122,7 @@ export class SendCRDTMeta implements CRDTMeta {
 
   toString(): string {
     return JSON.stringify({
-      sender: this.sender,
+      sender: this.senderID,
       senderCounter: this.senderCounter,
       vectorClock: Object.entries(this.vc),
       wallClockTime: this.wallClockTime,
@@ -133,7 +133,7 @@ export class SendCRDTMeta implements CRDTMeta {
 
 export class ReceiveCRDTMeta implements CRDTMeta {
   constructor(
-    readonly sender: string,
+    readonly senderID: string,
     readonly senderCounter: number,
     /**
      * Excludes sender.
@@ -153,13 +153,13 @@ export class ReceiveCRDTMeta implements CRDTMeta {
   ) {}
 
   vectorClockGet(replicaID: string): number {
-    if (replicaID === this.sender) return this.senderCounter;
+    if (replicaID === this.senderID) return this.senderCounter;
     else return this.vc.get(replicaID) ?? 0;
   }
 
   toString(): string {
     return JSON.stringify({
-      sender: this.sender,
+      sender: this.senderID,
       senderCounter: this.senderCounter,
       vectorClock: Object.entries(this.vc),
       wallClockTime: this.wallClockTime,
@@ -169,7 +169,7 @@ export class ReceiveCRDTMeta implements CRDTMeta {
 }
 
 export class LoadCRDTMeta implements CRDTMeta {
-  constructor(readonly sender: string) {}
+  constructor(readonly senderID: string) {}
 
   readonly senderCounter = 0;
 
@@ -210,7 +210,7 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
       i++;
     }
     const message = CRDTMetaMessage.create({
-      sender: crdtMeta.sender,
+      sender: crdtMeta.senderID,
       senderCounter: crdtMeta.senderCounter,
       vcKeys,
       vcValues,
@@ -245,7 +245,7 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
         : null
     );
     return {
-      sender: crdtMeta.sender,
+      senderID: crdtMeta.senderID,
       updateType: "message",
       isLocalOp: false,
       info: Object.prototype.hasOwnProperty.call(decoded, "info")

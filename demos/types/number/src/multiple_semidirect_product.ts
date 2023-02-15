@@ -85,10 +85,10 @@ class MultipleSemidirectState<S extends object> {
     crdtMeta: CRDTMeta,
     arbId: number
   ) {
-    let senderHistory = this.history.get(meta.sender);
+    let senderHistory = this.history.get(meta.senderID);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(meta.sender, senderHistory);
+      this.history.set(meta.senderID, senderHistory);
     }
     senderHistory.push(
       new StoredMessage(
@@ -107,7 +107,7 @@ class MultipleSemidirectState<S extends object> {
    * Return all messages in the history concurrent to the given
    * meta, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaID ===
-   * meta.sender), it is assumed that the meta is
+   * meta.senderID), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaID: string, crdtMeta: CRDTMeta, arbId: number) {

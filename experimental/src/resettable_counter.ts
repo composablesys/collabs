@@ -100,9 +100,9 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCCounter
       case "add": {
         const prOld = int64AsNumber(decoded.add!.prOld);
         const toAdd = int64AsNumber(decoded.add!.toAdd);
-        const m = this.M.get(meta.sender);
+        const m = this.M.get(meta.senderID);
         if (m === undefined) {
-          this.M.set(meta.sender, [
+          this.M.set(meta.senderID, [
             prOld + toAdd,
             prOld,
             decoded.add!.idCounter,

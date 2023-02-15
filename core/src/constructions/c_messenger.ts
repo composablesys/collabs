@@ -26,11 +26,16 @@ export interface CMessengerEventsRecord<M> extends CollabEventsRecord {
  * different replicas.
  */
 export class CMessenger<M> extends CPrimitive<CMessengerEventsRecord<M>> {
+  private readonly messageSerializer: Serializer<M>;
+
   constructor(
     init: InitToken,
-    private readonly messageSerializer: Serializer<M> = DefaultSerializer.getInstance()
+    options: { messageSerializer?: Serializer<M> } = {}
   ) {
     super(init);
+
+    this.messageSerializer =
+      options.messageSerializer ?? DefaultSerializer.getInstance();
   }
 
   sendMessage(message: M): void {

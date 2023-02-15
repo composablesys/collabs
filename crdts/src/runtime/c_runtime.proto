@@ -1,4 +1,0 @@
-message CRuntimeMessage {
-  required bytes message = 1;
-  required string sender = 2;
-}

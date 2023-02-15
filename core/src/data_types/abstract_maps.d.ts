@@ -5,7 +5,7 @@ import { Collab } from "../core";
 // and data_types.
 import { CObject } from "../constructions/c_object";
 import { CPrimitive } from "../constructions/c_primitive";
-import { CMapEventsRecord, IMap } from "./imap";
+import { CMapEventsRecord, IMap } from "./i_map";
 
 // See MakeAbstractMap for the rationale behind this file.
 

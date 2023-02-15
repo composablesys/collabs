@@ -11,7 +11,7 @@ export class CollabsReplica implements Replica {
     causalityGuaranteed: boolean
   ) {
     this.app = new collabs.CRDTApp({
-      debugReplicaID: collabs.pseudoRandomReplicaID(replicaIdRng),
+      debugReplicaID: collabs.ReplicaIDs.pseudoRandom(replicaIdRng),
       batchingStrategy: new collabs.ManualBatchingStrategy(),
       causalityGuaranteed,
     });

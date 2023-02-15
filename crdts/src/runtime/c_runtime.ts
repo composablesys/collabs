@@ -8,7 +8,7 @@ import {
   IRuntime,
   MessageStacksSerializer,
   MetaRequest,
-  randomReplicaID,
+  ReplicaIDs,
   SavedStateTreeSerializer,
   UpdateMeta,
 } from "@collabs/core";
@@ -93,7 +93,7 @@ export class CRuntime
   private messageBatches: (Uint8Array | string)[][] = [];
 
   constructor(options: CRuntimeOptions = {}) {
-    super(options.debugReplicaID ?? randomReplicaID());
+    super(options.debugReplicaID ?? ReplicaIDs.random());
     const causalityGuaranteed = options?.causalityGuaranteed ?? false;
     this.autoTransactions = options.autoTransactions ?? "microtask";
 
@@ -237,7 +237,7 @@ export class CRuntime
         this.buffer.lamportTimestamp + 1
       );
       this.meta = {
-        sender: this.replicaID,
+        senderID: this.replicaID,
         updateType: "message",
         isLocalOp: true,
         info: this.trInfo,
@@ -346,7 +346,7 @@ export class CRuntime
       this.buffer.load(savedStateTree.self!);
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
-        sender: this.replicaID,
+        senderID: this.replicaID,
         updateType: "savedState",
         isLocalOp: false,
         info: undefined,

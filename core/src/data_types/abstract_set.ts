@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { CSetEventsRecord, ISet } from "./iset";
+import { CSetEventsRecord, ISet } from "./i_set";
 
 /**
  * Utility type for [[MakeAbstractSet]]'s type signature.

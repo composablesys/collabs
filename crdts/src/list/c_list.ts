@@ -134,16 +134,19 @@ export class CList<
     this.positionSource = new ListPositionSource(
       this.runtime.replicaID,
       ArrayListItemManager.getInstance(),
-      [...this.set]
+      { initialItem: [...this.set] }
     );
 
     this.createdPositionMessenger = this.addChild(
       "m",
-      (init) => new CMessenger(init, CreatePositionsSerializer.instance)
+      (init) =>
+        new CMessenger(init, {
+          messageSerializer: CreatePositionsSerializer.instance,
+        })
     );
     this.createdPositionMessenger.on("Message", (e) => {
       const [counter, startValueIndex, metadata] = e.message;
-      const pos: ListPosition = [e.meta.sender, counter, startValueIndex];
+      const pos: ListPosition = [e.meta.senderID, counter, startValueIndex];
       this.positionSource.receivePositions(pos, 1, metadata);
     });
 

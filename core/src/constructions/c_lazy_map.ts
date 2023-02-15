@@ -100,6 +100,9 @@ export class CLazyMap<K, C extends Collab>
 {
   private readonly nontrivialMap: Map<string, C> = new Map();
   private readonly trivialMap: WeakValueMap<string, C> = new WeakValueMap();
+
+  private readonly keySerializer: Serializer<K>;
+
   /**
    * @param valueConstructor Used to construct the
    * value with the given key. For each key, the constructed values
@@ -109,9 +112,12 @@ export class CLazyMap<K, C extends Collab>
   constructor(
     init: InitToken,
     private readonly valueConstructor: (valueInitToken: InitToken, key: K) => C,
-    private readonly keySerializer: Serializer<K> = DefaultSerializer.getInstance()
+    options: { keySerializer?: Serializer<K> } = {}
   ) {
     super(init);
+
+    this.keySerializer =
+      options.keySerializer ?? DefaultSerializer.getInstance();
   }
 
   private keyAsString(key: K) {

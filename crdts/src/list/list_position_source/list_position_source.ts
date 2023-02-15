@@ -181,7 +181,7 @@ export class ListPositionSource<I> {
   constructor(
     readonly replicaID: string,
     private readonly itemManager: ListItemManager<I>,
-    initialItem?: I
+    options: { initialItem?: I } = {}
   ) {
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
@@ -190,6 +190,7 @@ export class ListPositionSource<I> {
     this.waypointsByID.set("", [this.rootWaypoint]);
     // Fake leftmost value, marked as unpresent.
     this.rootWaypoint.children.push(-1);
+    const initialItem = options.initialItem;
     if (
       initialItem !== undefined &&
       this.itemManager.length(initialItem) !== 0

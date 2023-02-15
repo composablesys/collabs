@@ -1,6 +1,6 @@
 import { CObject, CPrimitive } from "../constructions";
 import { Collab } from "../core";
-import { CSetEventsRecord, ISet } from "./iset";
+import { CSetEventsRecord, ISet } from "./i_set";
 
 // See MakeAbstractSet for the rationale behind this file.
 

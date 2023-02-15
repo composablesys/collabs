@@ -201,7 +201,7 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     switch (decoded.data) {
       case "add":
         const addMessage = decoded.add!;
-        const keyString = this.keyString(meta.sender, addMessage.idCounter);
+        const keyString = this.keyString(meta.senderID, addMessage.idCounter);
         const prNewTensor = conversions.protobufToTF.tensor(addMessage.prNew);
         const prOldTensor = conversions.protobufToTF.tensor(addMessage.prOld);
         const valueAdded = prNewTensor.sub(prOldTensor);

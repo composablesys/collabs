@@ -391,7 +391,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   // its own representation, so we should skip doing so again.
 
   clientText.on("Insert", (e) => {
-    if (e.meta.sender === container.runtime.replicaID) return;
+    if (e.meta.senderID === container.runtime.replicaID) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
       const richChar = clientText.get(index);
@@ -402,13 +402,13 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.sender === container.runtime.replicaID) return;
+    if (e.meta.senderID === container.runtime.replicaID) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.sender === container.runtime.replicaID) return;
+    if (e.meta.senderID === container.runtime.replicaID) return;
 
     updateContents(
       new Delta()

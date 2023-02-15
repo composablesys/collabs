@@ -3,7 +3,7 @@ import {
   CollabEventsRecord,
   ManualBatchingStrategy,
   Optional,
-  pseudoRandomReplicaID,
+  ReplicaIDs,
   UpdateMeta,
 } from "@collabs/core";
 import { assert } from "chai";
@@ -87,7 +87,7 @@ describe("CRDTMetaLayer", () => {
         alice = new CRDTApp({
           batchingStrategy: new ManualBatchingStrategy(),
           causalityGuaranteed,
-          debugReplicaID: pseudoRandomReplicaID(rng),
+          debugReplicaID: ReplicaIDs.pseudoRandom(rng),
         });
         aliceID = alice.runtime.replicaID;
         alice.on("Send", (e) => {
@@ -96,7 +96,7 @@ describe("CRDTMetaLayer", () => {
         bob = new CRDTApp({
           batchingStrategy: new ManualBatchingStrategy(),
           causalityGuaranteed,
-          debugReplicaID: pseudoRandomReplicaID(rng),
+          debugReplicaID: ReplicaIDs.pseudoRandom(rng),
         });
         bobID = bob.runtime.replicaID;
         bob.on("Send", (e) => {
@@ -1032,7 +1032,7 @@ describe("CRDTMetaLayer", () => {
             const charlie = new CRDTApp({
               batchingStrategy: new ManualBatchingStrategy(),
               causalityGuaranteed,
-              debugReplicaID: pseudoRandomReplicaID(rng),
+              debugReplicaID: ReplicaIDs.pseudoRandom(rng),
             });
             const charlieID = charlie.runtime.replicaID;
             const charlieInspector = charlie.registerCollab(

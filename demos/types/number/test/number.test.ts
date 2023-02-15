@@ -38,19 +38,19 @@ describe("Number", () => {
 
   function addEventListeners(number: CNumber, name: string): void {
     number.on("Add", (event) =>
-      console.log(`${name}: ${event.meta.sender} added ${event.arg}`)
+      console.log(`${name}: ${event.meta.senderID} added ${event.arg}`)
     );
 
     number.on("Mult", (event) =>
-      console.log(`${name}: ${event.meta.sender} multed ${event.arg}`)
+      console.log(`${name}: ${event.meta.senderID} multed ${event.arg}`)
     );
 
     number.on("Min", (event) =>
-      console.log(`${name}: ${event.meta.sender} minned ${event.arg}`)
+      console.log(`${name}: ${event.meta.senderID} minned ${event.arg}`)
     );
 
     number.on("Max", (event) =>
-      console.log(`${name}: ${event.meta.sender} maxed ${event.arg}`)
+      console.log(`${name}: ${event.meta.senderID} maxed ${event.arg}`)
     );
   }
 

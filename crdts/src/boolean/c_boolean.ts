@@ -1,5 +1,5 @@
 import { InitToken, Serializer } from "@collabs/core";
-import { MultiValueMapItem } from "../map";
+import { Aggregator } from "../map";
 import { CVar } from "../var";
 
 class BooleanSerializer implements Serializer<boolean> {
@@ -21,15 +21,19 @@ class BooleanSerializer implements Serializer<boolean> {
   }
 }
 
-function trueWins(items: MultiValueMapItem<boolean>[]) {
-  // True if there are any true values.
-  return items.find((item) => item.value) !== undefined;
-}
+const TrueWinsAggregator: Aggregator<boolean> = {
+  aggregate(items) {
+    // True if there are any true values.
+    return items.find((item) => item.value) !== undefined;
+  },
+} as const;
 
-function falseWins(items: MultiValueMapItem<boolean>[]) {
-  // False if there are any false values.
-  return items.find((item) => !item.value) === undefined;
-}
+const FalseWinsAggregator: Aggregator<boolean> = {
+  aggregate(items) {
+    // False if there are any false values.
+    return items.find((item) => !item.value) === undefined;
+  },
+} as const;
 
 export class CBoolean extends CVar<boolean> {
   /**
@@ -40,7 +44,7 @@ export class CBoolean extends CVar<boolean> {
   constructor(init: InitToken, { winner = true, initialValue = false } = {}) {
     super(init, initialValue, {
       valueSerializer: BooleanSerializer.instance,
-      aggregate: winner ? trueWins : falseWins,
+      aggregator: winner ? TrueWinsAggregator : FalseWinsAggregator,
     });
   }
 }

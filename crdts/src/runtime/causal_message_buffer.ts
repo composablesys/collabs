@@ -108,7 +108,7 @@ export class CausalMessageBuffer {
     let index = this.buffer.length - 1;
 
     while (index >= this.bufferCheckIndex) {
-      const sender = this.buffer[index].meta.sender;
+      const sender = this.buffer[index].meta.senderID;
       const crdtMeta = <ReceiveCRDTMeta>this.buffer[index].meta.runtimeExtra;
 
       if (this.isReady(crdtMeta, sender)) {
@@ -177,7 +177,7 @@ export class CausalMessageBuffer {
    * has already been delivered.
    */
   private isAlreadyDelivered(crdtMeta: ReceiveCRDTMeta): boolean {
-    const senderEntry = this.vc.get(crdtMeta.sender);
+    const senderEntry = this.vc.get(crdtMeta.senderID);
     if (senderEntry !== undefined) {
       if (senderEntry >= crdtMeta.senderCounter) return true;
     }
@@ -197,10 +197,10 @@ export class CausalMessageBuffer {
         i++;
       }
       // Add a new key for this message.
-      this.maximalVcKeys.add(crdtMeta.sender);
+      this.maximalVcKeys.add(crdtMeta.senderID);
     }
     // Update vc.
-    this.vc.set(crdtMeta.sender, crdtMeta.senderCounter);
+    this.vc.set(crdtMeta.senderID, crdtMeta.senderCounter);
     // Update Lamport timestamp if it's present.
     // Skipping this when it's not present technically violates the def
     // of Lamport timestamp, and it is still causally-compatible due to

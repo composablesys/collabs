@@ -144,7 +144,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       switch (decoded.op) {
         case "add": {
           const name = this.makeName(
-            meta.sender,
+            meta.senderID,
             decoded.add!.replicaUniqueNumber
           );
           const newValue = this.receiveCreate(

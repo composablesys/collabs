@@ -4,21 +4,23 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/core";
-import { CMultiValueMap, MultiValueMapItem } from ".";
+import { Aggregator, CMultiValueMap } from "./c_multi_value_map";
 
 /**
- * Default aggregate function.
+ * Default aggregator: return the first item (first replicaID wins)l
  */
-function firstItem<V>(items: MultiValueMapItem<V>[]): V {
-  return items[0].value;
-}
+const defaultAggregator: Aggregator<unknown> = {
+  aggregate(items) {
+    return items[0].value;
+  },
+} as const;
 
 export class CValueMap<K, V>
   extends AbstractMap_CObject<K, V>
   implements IMap<K, V>
 {
   private readonly mvMap: CMultiValueMap<K, V>;
-  private readonly aggregate: (items: MultiValueMapItem<V>[]) => V;
+  private readonly aggregator: Aggregator<V>;
 
   /**
    * aggregate isn't called on [], that's just not present.
@@ -30,13 +32,13 @@ export class CValueMap<K, V>
     options: {
       keySerializer?: Serializer<K>;
       valueSerializer?: Serializer<V>;
-      aggregate?: (items: MultiValueMapItem<V>[]) => V;
-      wallClockTime?: boolean;
+      aggregator?: Aggregator<V>;
     } = {}
   ) {
     super(init);
 
-    this.aggregate = options.aggregate ?? firstItem;
+    this.aggregator =
+      options.aggregator ?? (defaultAggregator as Aggregator<V>);
 
     this.mvMap = super.addChild(
       "",
@@ -46,16 +48,16 @@ export class CValueMap<K, V>
     this.mvMap.on("Delete", (e) => {
       this.emit("Delete", {
         key: e.key,
-        value: this.aggregate(e.value),
+        value: this.aggregator.aggregate(e.value),
         meta: e.meta,
       });
     });
     this.mvMap.on("Set", (e) => {
       this.emit("Set", {
         key: e.key,
-        value: this.aggregate(e.value),
+        value: this.aggregator.aggregate(e.value),
         previousValue: e.previousValue.map((multiValue) =>
-          this.aggregate(multiValue)
+          this.aggregator.aggregate(multiValue)
         ),
         meta: e.meta,
       });
@@ -74,7 +76,7 @@ export class CValueMap<K, V>
   get(key: K): V | undefined {
     const multiValue = this.mvMap.get(key);
     if (multiValue === undefined) return undefined;
-    else return this.aggregate(multiValue);
+    else return this.aggregator.aggregate(multiValue);
   }
 
   getConflicts(key: K): V[] {
@@ -91,7 +93,7 @@ export class CValueMap<K, V>
 
   *entries(): IterableIterator<[K, V]> {
     for (const [key, multiValue] of this.mvMap) {
-      yield [key, this.aggregate(multiValue)];
+      yield [key, this.aggregator.aggregate(multiValue)];
     }
   }
 }

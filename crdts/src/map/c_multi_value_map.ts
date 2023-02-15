@@ -19,7 +19,28 @@ export interface MultiValueMapItem<V> {
   readonly value: V;
   readonly sender: string;
   readonly senderCounter: number;
+  /** Only included if true in constructor options. */
   readonly wallClockTime?: number;
+  /** Only included if true in constructor options. */
+  readonly lamportTimestamp?: number;
+}
+
+/**
+ * Wrapper for a function that inputs multiple concurrently-set values
+ * and outputs a single aggregated value.
+ *
+ * [[CVar]], [[CMap]], and other Collabs take an Aggregator as a constructor
+ * arg, then use it to aggregate concurrently-set values. Note that
+ * [[aggregate]] is only called on non-empty `items`, so it safe to
+ * do e.g. `return items[0]`.
+ *
+ * Set [[wallClockTime]] and/or [[lamportTimestamp]] to true if you want
+ * to access those properties on the aggregated [[MultiValueMapItem]]s.
+ */
+export interface Aggregator<T> {
+  aggregate: (items: MultiValueMapItem<T>[]) => T;
+  readonly wallClockTime?: boolean;
+  readonly lamportTimestamp?: boolean;
 }
 
 /**
@@ -43,16 +64,23 @@ export class CMultiValueMap<K, V>
     MultiValueMapItem<V> | MultiValueMapItem<V>[]
   >();
 
-  private readonly wallClockTime: boolean;
   private readonly keySerializer: Serializer<K>;
   private readonly valueSerializer: Serializer<V>;
+  private readonly wallClockTime: boolean;
+  private readonly lamportTimestamp: boolean;
 
   constructor(
     init: InitToken,
     options: {
       keySerializer?: Serializer<K>;
       valueSerializer?: Serializer<V>;
-      wallClockTime?: boolean;
+      /**
+       * aggregate is not used, only wallClockTime and lamportTimestamp.
+       * Default to (items => items[0]).
+       *
+       * We accept type Aggregator for compatibility with other maps and [[CVar]].
+       */
+      aggregator?: Aggregator<V>;
     } = {}
   ) {
     super(init);
@@ -61,7 +89,8 @@ export class CMultiValueMap<K, V>
       options.keySerializer ?? DefaultSerializer.getInstance();
     this.valueSerializer =
       options.valueSerializer ?? DefaultSerializer.getInstance();
-    this.wallClockTime = options.wallClockTime ?? false;
+    this.wallClockTime = options.aggregator?.wallClockTime ?? false;
+    this.lamportTimestamp = options.aggregator?.lamportTimestamp ?? false;
   }
 
   set(key: K, value: V): MultiValueMapItem<V>[] {
@@ -118,10 +147,13 @@ export class CMultiValueMap<K, V>
       // It's a set operation; add the set item.
       newItems.push({
         value: this.valueSerializer.deserialize(decoded.value),
-        sender: meta.sender,
+        sender: meta.senderID,
         senderCounter: crdtMeta.senderCounter,
         ...(this.wallClockTime
           ? { wallClockTime: crdtMeta.wallClockTime! }
+          : {}),
+        ...(this.lamportTimestamp
+          ? { lamportTimestamp: crdtMeta.lamportTimestamp! }
           : {}),
       });
       // Sort newItems to make its order deterministic (same across replicas).

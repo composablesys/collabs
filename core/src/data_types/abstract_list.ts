@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { CListEventsRecord, IList } from "./ilist";
+import { CListEventsRecord, IList } from "./i_list";
 
 export interface MakeAbstractList_Methods<
   T,

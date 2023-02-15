@@ -9,7 +9,7 @@ import {
   Serializer,
 } from "@collabs/core";
 import { CSet } from "../set";
-import { MultiValueMapItem } from "./c_multi_value_map";
+import { Aggregator } from "./c_multi_value_map";
 import { CValueMap } from "./c_value_map";
 
 /**
@@ -39,8 +39,7 @@ export class CMap<
     options: {
       keySerializer?: Serializer<K>;
       argsSerializer?: Serializer<SetArgs>;
-      aggregate?: (items: MultiValueMapItem<CollabID<C>>[]) => CollabID<C>;
-      wallClockTime?: boolean;
+      aggregator?: Aggregator<CollabID<C>>;
     }
   ) {
     super(init);
@@ -65,8 +64,7 @@ export class CMap<
         new CValueMap(init, {
           keySerializer,
           valueSerializer: CollabIDSerializer.getInstance(),
-          aggregate: options.aggregate,
-          wallClockTime: options.wallClockTime,
+          aggregator: options.aggregator,
         })
     );
 

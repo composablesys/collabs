@@ -4,7 +4,7 @@ message ListPositionSerializerMessage {
   required uint32 valueIndex = 3;
 }
 
-message CreatedListPositionSerializerMessage {
+message CreatedPositionSerializerMessage {
   required uint64 counter = 1;
   required uint32 startValueIndex = 2;
   optional bytes metadata = 3;

@@ -1,1 +1,1 @@
-export * from "./counter";
+export * from "./c_counter";
