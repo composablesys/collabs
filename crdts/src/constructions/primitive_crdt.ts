@@ -68,8 +68,6 @@ export abstract class PrimitiveCRDT<
    * remote replicas to see incorrect 0 entries in
    * the vector clock, so long as that only happens with
    * entries not accessed by the sender.
-   *
-   * @param message If a string, must be ASCII.
    */
   protected sendCRDT(
     message: Uint8Array | string,

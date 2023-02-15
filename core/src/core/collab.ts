@@ -240,7 +240,7 @@ export abstract class Collab<
    * Collab, with guarantees set by the [[runtime]].
    *
    * For convenience, the message may be expressed as a stack of
-   * `(Uint8Array | string)` in which **all strings are ASCII**,
+   * `(Uint8Array | string)`,
    * instead of just a single Uint8Array. This is
    * useful for parents sending messages on behalf of their children;
    * see the implementations of [[CObject.childSend]] and

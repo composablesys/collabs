@@ -100,7 +100,6 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * you can instead use maximally short names - "" for the most-used
    * child, then "0", "1", etc.)
    *
-   * @param name Must be ASCII.
    * @return child
    */
   protected addChild<C extends Collab>(

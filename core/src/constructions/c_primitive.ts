@@ -22,7 +22,7 @@ export abstract class CPrimitive<
    *
    * Use this method instead of [[Collab.send]].
    *
-   * @param message If a string, must be ASCII.
+   * @param message
    * @param metaRequest
    */
   protected sendPrimitive(

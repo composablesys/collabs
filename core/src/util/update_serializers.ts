@@ -132,25 +132,28 @@ export class MessageStacksSerializer
   } {
     // Put messageStack's messages in order into edgeLabels.
     // First need to know how long to make edgeLabelsPacked.
+    const edgeLabelLengths = new Array<number>(edgeLabels.length);
     let packedLength = 0;
-    for (const edgeLabel of edgeLabels) {
-      // Since all strings are ASCII (a Collab.send requirement),
-      // string length = utf8-encoded length.
-      packedLength += edgeLabel.length;
+    for (let i = 0; i < edgeLabels.length; i++) {
+      const edgeLabel = edgeLabels[i];
+      if (typeof edgeLabel === "string") {
+        const length = util.utf8.length(edgeLabel);
+        edgeLabelLengths[i] = ~length;
+        packedLength += length;
+      } else {
+        edgeLabelLengths[i] = edgeLabel.length;
+        packedLength += edgeLabel.length;
+      }
     }
     const edgeLabelsPacked = new Uint8Array(packedLength);
-    const edgeLabelLengths = new Array<number>(edgeLabels.length);
     let offset = 0;
     for (let i = 0; i < edgeLabels.length; i++) {
       const edgeLabel = edgeLabels[i];
       if (typeof edgeLabel === "string") {
+        // OPT: TextEncoder (browser native) instead? Same for read.
         util.utf8.write(edgeLabel, edgeLabelsPacked, offset);
-        edgeLabelLengths[i] = ~edgeLabels[i].length;
       } else {
-        // Use assumption that label is already serialized,
-        // hence must be Uint8Array here.
         edgeLabelsPacked.set(edgeLabel, offset);
-        edgeLabelLengths[i] = edgeLabels[i].length;
       }
       offset += edgeLabel.length;
     }

@@ -9,7 +9,7 @@ export class Bytes {
   }
 
   /**
-   * Output is ASCII, so safe to use in [[Collab.send]].
+   * Output is printable (base64).
    */
   static stringify(bytes: Uint8Array): string {
     return Buffer.from(bytes).toString(ENCODING);
