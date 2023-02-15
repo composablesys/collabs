@@ -1,5 +1,10 @@
-import { CollabEventsRecord, CPrimitive, UpdateMeta } from "@collabs/core";
-import { CRDTMeta, CRDTMetaRequest } from "../runtime";
+import {
+  CollabEventsRecord,
+  CPrimitive,
+  InitToken,
+  UpdateMeta,
+} from "@collabs/core";
+import { CRDTMeta, CRDTMetaProvider, CRDTMetaRequest } from "../runtime";
 
 /**
  * Superclass for a primitive (message-passing)
@@ -26,6 +31,18 @@ import { CRDTMeta, CRDTMetaRequest } from "../runtime";
 export abstract class PrimitiveCRDT<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends CPrimitive<Events> {
+  constructor(init: InitToken) {
+    super(init);
+
+    if (
+      (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
+    ) {
+      throw new Error(
+        "this.runtime must be CRuntime or another CRDTMetaProvider"
+      );
+    }
+  }
+
   /**
    * Send `message` to all replicas' [[receiveCRDT]] methods.
    *

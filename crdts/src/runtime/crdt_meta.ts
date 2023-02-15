@@ -104,3 +104,14 @@ export interface CRDTMetaRequest extends MetaRequest {
   wallClockTime?: boolean;
   lamportTimestamp?: boolean;
 }
+
+/**
+ * Flag on [[IRuntime]] indicating that it provides [[CRDTMeta]]
+ * in [[UpdateMeta.runtimeExtra]], implemented by [[CRuntime]].
+ *
+ * Collabs that use [[CRDTMeta]] are encouraged to check this flag
+ * in their constructor ([[PrimitiveCRDT]] does this for you).
+ */
+export interface CRDTMetaProvider {
+  readonly providesCRDTMeta: true;
+}

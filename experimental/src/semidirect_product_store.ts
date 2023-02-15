@@ -9,7 +9,7 @@ import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
 } from "../../generated/proto_compiled";
-import { CRDTMeta } from "../crdt-runtime";
+import { CRDTMeta, CRDTMetaProvider } from "../crdt-runtime";
 
 class StoredMessage<M2> {
   constructor(
@@ -83,6 +83,14 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     private readonly discardM2Dominated = false
   ) {
     super(init);
+
+    if (
+      (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
+    ) {
+      throw new Error(
+        "this.runtime must be CRuntime or another CRDTMetaProvider"
+      );
+    }
   }
 
   processM2(m2: M2, crdtMeta: CRDTMeta): void {

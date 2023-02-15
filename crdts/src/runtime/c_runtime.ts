@@ -13,7 +13,7 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBuffer } from "./causal_message_buffer";
-import { CRDTMetaRequest } from "./crdt_meta";
+import { CRDTMetaProvider, CRDTMetaRequest } from "./crdt_meta";
 import {
   CRDTMetaSerializer,
   LoadCRDTMeta,
@@ -74,7 +74,7 @@ export interface CRuntimeOptions {
 
 export class CRuntime
   extends AbstractRuntime<CRuntimeEventsRecord>
-  implements IRuntime
+  implements IRuntime, CRDTMetaProvider
 {
   private readonly registry: PublicCObject;
   private readonly buffer: CausalMessageBuffer;
@@ -91,6 +91,8 @@ export class CRuntime
   private crdtMeta: SendCRDTMeta | null = null;
   private meta: UpdateMeta | null = null;
   private messageBatches: (Uint8Array | string)[][] = [];
+
+  readonly providesCRDTMeta = true;
 
   constructor(options: CRuntimeOptions = {}) {
     super(options.debugReplicaID ?? ReplicaIDs.random());

@@ -2,6 +2,7 @@ import {
   Collab,
   CollabEventsRecord,
   CRDTMeta,
+  CRDTMetaProvider,
   CRDTMetaRequestee,
   InitToken,
   IParent,
@@ -312,6 +313,15 @@ export abstract class MultipleSemidirectProduct<
    */
   constructor(init: InitToken, historyMetas = false) {
     super(init);
+
+    if (
+      (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
+    ) {
+      throw new Error(
+        "this.runtime must be CRuntime or another CRDTMetaProvider"
+      );
+    }
+
     // Types are hacked a bit here to make implementation simpler
     this.state = new MultipleSemidirectState(historyMetas);
   }
