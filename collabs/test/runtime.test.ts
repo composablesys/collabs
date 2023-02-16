@@ -24,24 +24,24 @@ describe("core", () => {
 // everything is loading properly.
 describe("crdts", () => {
   describe("TestingRuntimes", () => {
-    let appGen: TestingRuntimes;
+    let runtimeGen: TestingRuntimes;
 
     beforeEach(() => {
-      appGen = new TestingRuntimes();
+      runtimeGen = new TestingRuntimes();
     });
     describe("replicaID", () => {
       it("generates without error on Node", () => {
-        appGen.newRuntime();
+        runtimeGen.newRuntime();
       });
 
       it("has length 10", () => {
-        assert.strictEqual(appGen.newRuntime().replicaID.length, 10);
+        assert.strictEqual(runtimeGen.newRuntime().replicaID.length, 10);
       });
 
       it("is different each time", () => {
         assert.notStrictEqual(
-          appGen.newRuntime().replicaID,
-          appGen.newRuntime().replicaID
+          runtimeGen.newRuntime().replicaID,
+          runtimeGen.newRuntime().replicaID
         );
       });
     });

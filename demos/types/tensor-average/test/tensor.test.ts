@@ -17,8 +17,8 @@ describe("tensor", () => {
 
   beforeEach(() => {
     runtimeGen = new TestingRuntimes();
-    alice = runtimeGen.newApp();
-    bob = runtimeGen.newApp();
+    alice = runtimeGen.newRuntime();
+    bob = runtimeGen.newRuntime();
     tf.engine().startScope();
   });
 

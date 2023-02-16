@@ -134,12 +134,12 @@ boardState.set([x, y], color);
 
 <!-- We also must integrate this model with the view, i.e., update the Canvas when map keys are set or deleted, to reflect the corresponding pixel's new color (not shown). -->
 
-**Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `LWWCMap<[x: number, y: number], string>`:
+**Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `CValueMap<[x: number, y: number], string>`:
 
 ```ts
 const boardState = container.registerCollab(
   "whiteboard",
-  (init) => new collabs.LWWCMap<[x: number, y: number], string>(init)
+  (init) => new collabs.CValueMap<[x: number, y: number], string>(init)
 );
 ```
 

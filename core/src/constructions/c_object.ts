@@ -23,7 +23,7 @@ import {
  * data type.  This is useful because you can apply standard
  * object-oriented programming techniques like encapsulation
  * and inheritance.  It can be useful even with just a single
- * child.  For example, [[LWWCMap]] has a single child, a mutable
+ * child.  For example, [[CValueMap]] has a single child, a mutable
  * map with [[CVar]] values; its contribution is to
  * provide a simple [[IMap]]-compliant API for the wrapped type.
  *

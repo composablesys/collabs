@@ -20,7 +20,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                       |
 | `Set<T>`, `T` [immutable](#immutable-value-collections)                                  | [`AddWinsCSet<T>`](../api/collabs/classes/AddWinsCSet.html)            |
 | `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`CSet<C(T)>`](../api/collabs/classes/CSet.html)                       |
-| `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`LWWCMap<K, V>`](../api/collabs/classes/LWWCMap.html)                 |
+| `Map<K, V>`, `V` [immutable](#immutable-value-collections)                               | [`CValueMap<K, V>`](../api/collabs/classes/CValueMap.html)             |
 | `Map<K, V>`, `V` [mutable](#mutable-value-collections)                                   | [`CMap<K, C(V)>`](../api/collabs/classes/CMap.html)                    |
 | [`Array<T>`](#arrays-vs-clists), `T` [immutable](#immutable-value-collections)           | [`CValueList<T>`](../api/collabs/classes/CValueList.html)              |
 | [`Array<T>`](#arrays-vs-clists), `T` [mutable](#mutable-value-collections)               | [`CList<T>`](../api/collabs/classes/CList.html)                        |
@@ -64,7 +64,7 @@ We distinguish mutable value collections by including `Mut` in their names, e.g.
 
 In some situations, the immutable vs. mutable distinction is subtle:
 
-1. `LWWCMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `LWWCMap` and a map with mutable values is that in `LWWCMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
+1. `CValueMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `CValueMap` and a map with mutable values is that in `CValueMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation();`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen according to the Last-Writer-Wins (LWW) rule.
 2. You can use `Collab`s as immutable values. In that case, the immutable value acts as a _reference_ to the original `Collab`, like the \* types above.
    > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `CSet<CPerson>` to represent the set of people, and an (immutable value) `CVar<CPerson>` to store a reference to the project lead, chosen from the set's values.
 
@@ -93,7 +93,7 @@ To allow you to create `Collab`s dynamically, mutable values collections work a 
 
 <!-- > **Example:** TODO -->
 
-> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `CSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `CSet` and then setting them as values in a `LWWCMap`. This is in fact precisely how `CMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`CSet`](../api/collabs/classes/CSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
+> **Aside:** In principle, once you have one way of creating `Collab`s dynamically (e.g., `CSet`), you can use that to create data structures dynamically, then put the data structures in an immutable value collection, instead of using a dedicated mutable value collection. E.g., you can make a mutable value map by creating `Collab`s with a `CSet` and then setting them as values in a `CValueMap`. This is in fact precisely how `CMap` works, and most mutable value collections work similarly. The only collections that create values directly are [`CSet`](../api/collabs/classes/CSet.html) and [`GrowOnlyImplicitMergingMutCMap`](../api/collabs/classes/GrowOnlyImplicitMergingMutCMap.html).
 
 <!--
 ### Mutable Value Collection Variants
