@@ -1,6 +1,6 @@
-import ReconnectingWebSocket from "reconnecting-websocket";
+import { AbstractDoc, CRuntime, SendEvent } from "@collabs/collabs";
 import { Buffer } from "buffer";
-import { CRDTApp, SendEvent } from "@collabs/collabs";
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 export class WebSocketNetwork {
   /**
@@ -24,11 +24,15 @@ export class WebSocketNetwork {
    * (The server broadcasts messages between WebSocketNetworks
    * in the same group.)
    */
-  constructor(readonly app: CRDTApp, url: string, readonly group: string) {
+  constructor(
+    readonly doc: AbstractDoc | CRuntime,
+    url: string,
+    readonly group: string
+  ) {
     this.ws = new ReconnectingWebSocket(url);
     this.ws.addEventListener("message", this.wsReceive.bind(this));
 
-    this.app.on("Send", this.appSend.bind(this));
+    this.doc.on("Send", this.appSend.bind(this));
 
     // Register with the server.
     // TODO: wait until after "loading", so we only request
@@ -59,7 +63,7 @@ export class WebSocketNetwork {
     // TODO: is this check necessary?
     if (parsed.group === this.group) {
       // It's for us
-      this.app.receive(new Uint8Array(Buffer.from(parsed.message, "base64")));
+      this.doc.receive(new Uint8Array(Buffer.from(parsed.message, "base64")));
     }
   }
 

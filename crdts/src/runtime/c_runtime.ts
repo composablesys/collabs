@@ -29,7 +29,7 @@ class PublicCObject extends CObject {
   }
 }
 
-export interface RuntimeSendEvent {
+export interface SendEvent {
   message: Uint8Array;
 }
 
@@ -40,7 +40,7 @@ export interface RuntimeEventsRecord {
    * This must be delivered to each other replica's
    * [[CRuntime.receive]] method, eventually at-least-once.
    */
-  Send: RuntimeSendEvent;
+  Send: SendEvent;
   /**
    * Emitted at the end of each transaction (local or remote).
    *

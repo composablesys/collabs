@@ -20,9 +20,9 @@ if (doLoad) {
 
 // --- Setup our app ---
 
-const app = new collabs.CRDTApp();
+const runtime = new collabs.CRuntime();
 const wsAddr = location.origin.replace(/^http/, "ws");
-const network = new WebSocketNetwork(app, wsAddr, "");
+const network = new WebSocketNetwork(runtime, wsAddr, "");
 
 // Add the container in an IFrame,
 // initially hidden so that user input is blocked.
@@ -45,7 +45,7 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab(
+const host = runtime.registerCollab(
   "host",
   (init) => new CContainerHost(init, iframe)
 );
@@ -64,13 +64,13 @@ if (doLoad) {
   console.log("Loading from sessionStorage...");
   if (sessionStorageSave === null) {
     console.log("Load error: no save found.");
-    app.load(collabs.Optional.empty());
+    host.loadSkipped();
   } else {
-    app.load(collabs.Optional.of(collabs.Bytes.parse(sessionStorageSave)));
+    runtime.load(collabs.Bytes.parse(sessionStorageSave));
     console.log("Loaded.");
   }
 } else {
-  app.load(collabs.Optional.empty());
+  host.loadSkipped();
 }
 // Note: in a real app, you should also locally persist all sent messages
 // that are not part of the save data,
@@ -123,7 +123,7 @@ saveButton.addEventListener("click", async function () {
   // Make sure the container actually uses its save function.
   await host.compactSaveData();
   // Get saved state.
-  const savedState = app.save();
+  const savedState = runtime.save();
   // Store in sessionStorage.
   try {
     window.sessionStorage.setItem(

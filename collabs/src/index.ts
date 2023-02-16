@@ -65,7 +65,7 @@ export {
   PrimitiveCRDT,
   RuntimeEventsRecord,
   RuntimeOptions,
-  RuntimeSendEvent,
+  SendEvent,
   TestingRuntimes,
   TextEvent,
   TextEventsRecord,
