@@ -1,11 +1,11 @@
 import {
-  AddWinsCSet,
   CLazyMap,
   CList,
   CObject,
   Collab,
   CollabID,
   CText,
+  CValueSet,
   CVar,
   DefaultSerializer,
   InitToken,
@@ -39,15 +39,17 @@ class JSONValueSerializer implements Serializer<JSONValue> {
 
   serialize(value: JSONValue): Uint8Array {
     const serializableValue: SerializableJSONValue =
-      value instanceof Collab ? CollabID.of(value, this.runtime) : value;
+      value instanceof Collab ? this.runtime.idOf(value) : value;
     return this.internalSerializer.serialize(serializableValue);
   }
 
   deserialize(message: Uint8Array): JSONValue {
     const serializableValue = this.internalSerializer.deserialize(message);
-    if (serializableValue instanceof CollabID) {
-      return serializableValue.get()!;
-    } else return serializableValue;
+    if ((serializableValue as CollabID<Collab>).namePath !== undefined) {
+      return this.runtime.fromID(
+        serializableValue as CollabID<JSONObject | JSONArray | CText>
+      )!;
+    } else return serializableValue as JSONValue;
   }
 
   static instancesByRuntime = new Map<IRuntime, JSONValueSerializer>();
@@ -64,7 +66,7 @@ class JSONValueSerializer implements Serializer<JSONValue> {
 
 export class JSONObject extends CObject {
   private readonly internalMap: CLazyMap<string, JSONElement>;
-  private readonly keySet: AddWinsCSet<string>;
+  private readonly keySet: CValueSet<string>;
   /**
    * Internal use only
    */
@@ -79,11 +81,10 @@ export class JSONObject extends CObject {
       (init) =>
         new CLazyMap(
           init,
-          (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent),
-          DefaultSerializer.getInstance()
+          (valueInitToken) => new JSONElement(valueInitToken, makeThisExistent)
         )
     );
-    this.keySet = this.addChild("keySet", (init) => new AddWinsCSet(init));
+    this.keySet = this.addChild("keySet", (init) => new CValueSet(init));
   }
 
   get(key: string): JSONElement | undefined {
@@ -223,11 +224,9 @@ export class JSONElement extends CObject {
     this.variable = this.addChild(
       "variable",
       (childInitToken) =>
-        new CVar<JSONValue>(
-          childInitToken,
-          null,
-          JSONValueSerializer.getInstance(this.runtime)
-        )
+        new CVar<JSONValue>(childInitToken, null, {
+          valueSerializer: JSONValueSerializer.getInstance(this.runtime),
+        })
     );
     this.object = this.addChild(
       "object",
