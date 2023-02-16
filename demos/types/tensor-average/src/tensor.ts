@@ -2,9 +2,8 @@ import {
   CObject,
   CollabEvent,
   CollabEventsRecord,
-  CPrimitive,
   InitToken,
-  Optional,
+  PrimitiveCRDT,
   ResettableCCounter,
   UpdateMeta,
 } from "@collabs/collabs";
@@ -118,7 +117,7 @@ function tensorsEqual<R extends tf.Rank>(
   return tf.tidy(() => (tf.equal(a, b).all().arraySync() as number) === 1);
 }
 
-export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> {
+export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecord> {
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
@@ -263,11 +262,12 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     return this.state.P.size === 0 && this.state.N.size === 0;
   }
 
-  // TODO: implement
-  save(): Uint8Array {
-    return new Uint8Array();
+  savePrimitive(): Uint8Array {
+    throw new Error("Not implemented");
   }
-  load(savedState: Optional<Uint8Array>): void {}
+  loadPrimitive(savedState: Uint8Array): void {
+    throw new Error("Not implemented");
+  }
 }
 
 export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {

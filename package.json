@@ -20,7 +20,8 @@
     "template-app",
     "demos/types/json",
     "demos/types/json-opt",
-    "demos/types/tensor-average",
+    "demos/types/number",
+    "demos/types/resettable-counter",
     "demos/apps",
     "benchmarks",
     "docs"

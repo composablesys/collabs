@@ -1,13 +1,13 @@
 {
-  "name": "@collabs/number",
+  "name": "@collabs/resettable-counter",
   "version": "0.7.0",
-  "description": "Collabs custom type demo - number via semidirect product",
+  "description": "Collabs custom type demo - oblivious resettable counter",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/composablesys/collabs/issues"
   },
-  "homepage": "https://github.com/composablesys/collabs/tree/master/demos/types/number#readme",
+  "homepage": "https://github.com/composablesys/collabs/tree/master/demos/types/resettable-counter#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/composablesys/collabs.git"
@@ -30,6 +30,7 @@
   "sideEffects": false,
   "dependencies": {
     "@collabs/collabs": "0.7.0",
+    "@collabs/core": "0.7.0",
     "protobufjs": "~6.10.1",
     "tslib": "^2.0.1"
   },

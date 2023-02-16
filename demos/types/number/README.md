@@ -1,9 +1,9 @@
 # Collabs CNumber
 
-TODO
+A number CRDT with add, multiply, min, and max operations.
 
-Example TensorFlow tensor average CRDT built on top of the Collabs library.
-
-It is a CRDT for the average of tensors: nodes can add in tensors, and the CRDT will compute a running average of all tensors so far. The CRDT can be reset, eliminating all causally prior tensors from the average. This has potential applications in federated learning (specifically, federated averaging).
+The CRDT is an extension of the add/mult example from the paper ["Composing and Decomposing Op-Based CRDTs with Semidirect Products"](https://doi.org/10.1145/3408976) by Matthew Weidner, Heather Miller, and Christopher Meiklejohn (ICFP 2020).
 
 This is a demo that the library can build custom CRDTs, including novel ones with complex internal behavior. It is not intended for production use, but you are free to use or modify it for your own apps.
+
+Author: Ria Pradeep

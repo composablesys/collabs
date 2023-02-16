@@ -3,17 +3,16 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  int64AsNumber,
-  Optional,
+  PrimitiveCRDT,
   UpdateMeta,
-} from "@collabs/core";
+} from "@collabs/collabs";
+import { int64AsNumber } from "@collabs/core";
 import {
-  GrowOnlyResettableCCounterMessage,
-  GrowOnlyResettableCCounterSave,
-  IGrowOnlyResettableCCounterResetEntry,
-  IGrowOnlyResettableCCounterSaveEntry,
-} from "../../generated/proto_compiled";
-import { PrimitiveCRDT } from "../constructions";
+  GrowOnlyResettableCounterMessage,
+  GrowOnlyResettableCounterSave,
+  IGrowOnlyResettableCounterResetEntry,
+  IGrowOnlyResettableCounterSaveEntry,
+} from "../generated/proto_compiled";
 
 export interface ResettableCounterAddEvent extends CollabEvent {
   readonly added: number;
@@ -37,18 +36,12 @@ export interface ResettableCounterEventsRecord extends CollabEventsRecord {
  * [[reset]], which restores the counter to its initial
  * state by undoing all *causally* prior operations.
  *
- * Based on ["An Oblivious Observed-Reset Embeddable Replicated Counter"](https://doi.org/10.1145/3517209.3524084)
- * by Matthew Weidner and Paulo Sérgio Almeida,
- * PaPoC 2022.
- *
  * Values are restricted to safe integers. More generally,
  * the sum of all additions by any one replica is restricted
  * to be a safe integer. Otherwise, results are not
  * guaranteed to be correct or eventually consistent.
- *
- * TODO: experimental b/c does not support merging; can only load at beginning.
  */
-export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterEventsRecord> {
+export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterEventsRecord> {
   // M entry format: [p, n, idCounter]
   private readonly M = new Map<string, [number, number, number]>();
   /**
@@ -60,7 +53,7 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterE
     if (toAdd === 0) return;
     if (toAdd < 0) {
       throw new Error(
-        `toAdd = ${toAdd}; must be nonnegative (consider using ResettableCCounter instead)`
+        `toAdd = ${toAdd}; must be nonnegative (consider using CResettableCounter instead)`
       );
     }
     if (!Number.isSafeInteger(toAdd)) {
@@ -70,29 +63,29 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterE
     const m = this.M.get(this.runtime.replicaID);
     const idCounter = m === undefined ? this.runtime.nextLocalCounter() : m[2];
     const prOld = m === undefined ? 0 : m[0];
-    const message = GrowOnlyResettableCCounterMessage.create({
+    const message = GrowOnlyResettableCounterMessage.create({
       add: {
         prOld,
         toAdd,
         idCounter,
       },
     });
-    this.sendCRDT(GrowOnlyResettableCCounterMessage.encode(message).finish());
+    this.sendCRDT(GrowOnlyResettableCounterMessage.encode(message).finish());
   }
 
   reset() {
-    const V: { [id: string]: IGrowOnlyResettableCCounterResetEntry } = {};
+    const V: { [id: string]: IGrowOnlyResettableCounterResetEntry } = {};
     for (const [replicaID, m] of this.M) {
       V[replicaID] = { v: m[0], idCounter: m[2] };
     }
-    const message = GrowOnlyResettableCCounterMessage.create({
+    const message = GrowOnlyResettableCounterMessage.create({
       reset: { V },
     });
-    this.sendCRDT(GrowOnlyResettableCCounterMessage.encode(message).finish());
+    this.sendCRDT(GrowOnlyResettableCounterMessage.encode(message).finish());
   }
 
   protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta): void {
-    const decoded = GrowOnlyResettableCCounterMessage.decode(
+    const decoded = GrowOnlyResettableCounterMessage.decode(
       <Uint8Array>message
     );
     const previousValue = this.value;
@@ -173,9 +166,9 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterE
     return this.M.size === 0;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     const mMessage: {
-      [replicaID: string]: IGrowOnlyResettableCCounterSaveEntry;
+      [replicaID: string]: IGrowOnlyResettableCounterSaveEntry;
     } = {};
     for (const [replicaID, m] of this.M) {
       mMessage[replicaID] = {
@@ -184,13 +177,12 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterE
         idCounter: m[2],
       };
     }
-    const message = GrowOnlyResettableCCounterSave.create({ M: mMessage });
-    return GrowOnlyResettableCCounterSave.encode(message).finish();
+    const message = GrowOnlyResettableCounterSave.create({ M: mMessage });
+    return GrowOnlyResettableCounterSave.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    const message = GrowOnlyResettableCCounterSave.decode(savedState.get());
+  loadPrimitive(savedState: Uint8Array) {
+    const message = GrowOnlyResettableCounterSave.decode(savedState);
     for (const [replicaID, m] of Object.entries(message.M)) {
       this.M.set(replicaID, [
         int64AsNumber(m.p),
@@ -217,9 +209,9 @@ export class GrowOnlyResettableCCounter extends PrimitiveCRDT<ResettableCounterE
  * to be a safe integer. Otherwise, results are not
  * guaranteed to be correct or eventually consistent.
  */
-export class ResettableCCounter extends CObject<ResettableCounterEventsRecord> {
-  private readonly plus: GrowOnlyResettableCCounter;
-  private readonly minus: GrowOnlyResettableCCounter;
+export class CResettableCounter extends CObject<ResettableCounterEventsRecord> {
+  private readonly plus: CGrowOnlyResettableCounter;
+  private readonly minus: CGrowOnlyResettableCounter;
 
   private plusResetEvent?: ResettableCounterResetEvent = undefined;
 
@@ -227,11 +219,11 @@ export class ResettableCCounter extends CObject<ResettableCounterEventsRecord> {
     super(init);
     this.plus = this.addChild(
       "",
-      (init) => new GrowOnlyResettableCCounter(init)
+      (init) => new CGrowOnlyResettableCounter(init)
     );
     this.minus = this.addChild(
       "0",
-      (init) => new GrowOnlyResettableCCounter(init)
+      (init) => new CGrowOnlyResettableCounter(init)
     );
 
     // Events
