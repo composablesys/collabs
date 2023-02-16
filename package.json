@@ -18,8 +18,6 @@
     "template-custom-type",
     "template-container",
     "template-app",
-    "demos/types/json",
-    "demos/types/json-opt",
     "demos/types/number",
     "demos/types/resettable-counter",
     "demos/apps",
