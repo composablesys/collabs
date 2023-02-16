@@ -37,7 +37,7 @@ export function CollabsNestedNoop(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.nestedNoopCRDT = this.app.registerCollab(
+      this.nestedNoopCRDT = this.runtime.registerCollab(
         "",
         (init) => new NestedNoopCRDT(init, NESTED_PARENTS)
       );

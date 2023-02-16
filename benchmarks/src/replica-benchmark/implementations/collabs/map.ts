@@ -5,14 +5,14 @@ import { CollabsReplica } from "./replica";
 
 export function CollabsMap(causalityGuaranteed: boolean) {
   return class CollabsMap extends CollabsReplica implements IMap {
-    private readonly map: collabs.LWWCMap<string, unknown>;
+    private readonly map: collabs.CValueMap<string, unknown>;
 
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.map = this.app.registerCollab(
+      this.map = this.runtime.registerCollab(
         "",
-        (init) => new collabs.LWWCMap(init)
+        (init) => new collabs.CValueMap(init)
       );
     }
 

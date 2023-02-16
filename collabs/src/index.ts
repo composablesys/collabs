@@ -30,6 +30,7 @@ export {
   MessengerEventsRecord,
   Optional,
   Parent,
+  ReplicaIDs,
   Serializer,
   SetEvent,
   SetEventsRecord,

@@ -3,7 +3,7 @@ import { ITextWithCursor } from "../interfaces/text_with_cursor";
 import { Trace } from "../replica_benchmark";
 import realTextTraceEdits from "./real_text_trace_edits.json";
 
-const { edits, finalText } = realTextTraceEdits as {
+const { edits, finalText } = realTextTraceEdits as unknown as {
   finalText: string;
   edits: Array<[number, number, string | undefined]>;
 };

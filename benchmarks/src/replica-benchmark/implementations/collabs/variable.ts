@@ -10,7 +10,7 @@ export function CollabsVariable(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.variable = this.app.registerCollab(
+      this.variable = this.runtime.registerCollab(
         "",
         (init) => new collabs.CVar(init, 0)
       );

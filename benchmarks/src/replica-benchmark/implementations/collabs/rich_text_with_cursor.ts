@@ -8,7 +8,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly _attributes: collabs.LWWCMap<string, any>;
+  private readonly _attributes: collabs.CValueMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -19,7 +19,7 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(init: collabs.InitToken, readonly char: string | object) {
     super(init);
 
-    this._attributes = this.addChild("", (init) => new collabs.LWWCMap(init));
+    this._attributes = this.addChild("", (init) => new collabs.CValueMap(init));
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -62,23 +62,19 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
 class RichTextInternal extends collabs.CObject<RichTextEventsRecord> {
   readonly text: collabs.CList<RichChar, [char: string | object]>;
 
-  constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
+  constructor(init: collabs.InitToken) {
     super(init);
 
     this.text = this.addChild(
       "",
       (init) =>
-        new collabs.CList(
-          init,
-          (valueInitToken, char) => {
-            const richChar = new RichChar(valueInitToken, char);
-            richChar.on("Format", (e) => {
-              this.emit("Format", { index: this.text.indexOf(richChar), ...e });
-            });
-            return richChar;
-          },
-          initialChars.map((value) => [value])
-        )
+        new collabs.CList(init, (valueInitToken, char) => {
+          const richChar = new RichChar(valueInitToken, char);
+          richChar.on("Format", (e) => {
+            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+          });
+          return richChar;
+        })
     );
     this.text.on("Insert", (e) => {
       this.emit("Insert", {
@@ -144,20 +140,19 @@ export function CollabsRichTextWithCursor(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.richText = this.app.registerCollab(
+      this.richText = this.runtime.registerCollab(
         "",
         (init) => new RichTextInternal(init)
       );
 
       // Maintain cursor position.
       // We use the fact that all ops are single character insertions/deletions.
-      // TODO: use built-in Cursor instead? Matches our plain text demo,
-      // but unstable API and also probably slower.
+      // TODO: use position-based cursors instead?
       this.richText.on("Insert", (e) => {
-        if (!e.meta.isLocalUser && e.startIndex < this.cursor) this.cursor++;
+        if (!e.meta.isLocalOp && e.startIndex < this.cursor) this.cursor++;
       });
       this.richText.on("Delete", (e) => {
-        if (!e.meta.isLocalUser && e.startIndex < this.cursor) this.cursor--;
+        if (!e.meta.isLocalOp && e.startIndex < this.cursor) this.cursor--;
       });
     }
 

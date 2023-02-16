@@ -5,7 +5,7 @@ import { CollabsReplica } from "./replica";
 
 class TodoListInternal extends collabs.CObject implements ITodoListInternal {
   private readonly text: collabs.CText;
-  private readonly doneCollab: collabs.TrueWinsCBoolean;
+  private readonly doneCollab: collabs.CBoolean;
   private readonly items: collabs.CList<TodoListInternal, []>;
 
   constructor(init: collabs.InitToken) {
@@ -13,7 +13,7 @@ class TodoListInternal extends collabs.CObject implements ITodoListInternal {
     this.text = this.addChild("text", (init) => new collabs.CText(init));
     this.doneCollab = this.addChild(
       "done",
-      (init) => new collabs.TrueWinsCBoolean(init)
+      (init) => new collabs.CBoolean(init)
     );
     this.items = this.addChild(
       "items",
@@ -64,7 +64,7 @@ export function CollabsTodoList(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.rootInternal = this.app.registerCollab(
+      this.rootInternal = this.runtime.registerCollab(
         "",
         (init) => new TodoListInternal(init)
       );
