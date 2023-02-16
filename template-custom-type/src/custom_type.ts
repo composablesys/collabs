@@ -8,7 +8,8 @@ import {
 
 // Since you're exporting your type for reuse, it's a good
 // idea to expose meaningful events.
-// See the Collabs docs (https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md) for advice on what events to include.
+// See the [Collabs docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md)
+// for advice on what events to include.
 export interface PairEventsRecord<T, U> extends CollabEventsRecord {
   FirstSet: VarEvent<T>;
   SecondSet: VarEvent<U>;

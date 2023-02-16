@@ -1,12 +1,12 @@
-import { CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
+import { CRuntime, TestingRuntimes } from "@collabs/collabs";
 import { assert } from "chai";
 import { CPair } from "../src";
 import seedrandom = require("seedrandom");
 
 describe("template-custom-type", () => {
   let runtimeGen: TestingRuntimes;
-  let alice: CRDTApp;
-  let bob: CRDTApp;
+  let alice: CRuntime;
+  let bob: CRuntime;
   let rng: seedrandom.prng;
 
   beforeEach(() => {
@@ -16,8 +16,8 @@ describe("template-custom-type", () => {
     // It is recommended to use rng with a fixed seed so that
     // the tests are deterministic.
     runtimeGen = new TestingRuntimes();
-    alice = runtimeGen.newApp(undefined, rng);
-    bob = runtimeGen.newApp(undefined, rng);
+    alice = runtimeGen.newRuntime(rng);
+    bob = runtimeGen.newRuntime(rng);
   });
 
   describe("CPair", () => {
@@ -28,10 +28,6 @@ describe("template-custom-type", () => {
       // Register the Collabs you want to test, like in a normal app.
       alicePair = alice.registerCollab("pair", (init) => new CPair(init, 0, 0));
       bobPair = bob.registerCollab("pair", (init) => new CPair(init, 0, 0));
-      // Then call load with an empty Optional to indicate skipped loading,
-      // like in a normal app with no prior saved state.
-      alice.load(Optional.empty());
-      bob.load(Optional.empty());
     });
 
     it("has initial values", () => {
