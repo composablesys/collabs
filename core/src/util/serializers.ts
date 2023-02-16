@@ -9,6 +9,7 @@ import {
 } from "../../generated/proto_compiled";
 import { Collab, CollabID } from "../core";
 import { Optional } from "./optional";
+import { SafeWeakRef } from "./safe_weak_ref";
 
 /**
  * A serializer for values of type `T` (e.g., elements
@@ -228,7 +229,7 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
       if (existing !== undefined) return <SingletonSerializer<T>>existing;
     }
     const ret = new SingletonSerializer(valueSerializer);
-    SingletonSerializer.cache.set(valueSerializer, new WeakRef(ret));
+    SingletonSerializer.cache.set(valueSerializer, new SafeWeakRef(ret));
     return ret;
   }
 }

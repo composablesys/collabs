@@ -2,6 +2,7 @@ import {
   IOptionalMessage,
   OptionalMessage,
 } from "../../generated/proto_compiled";
+import { SafeWeakRef } from "./safe_weak_ref";
 import { Serializer } from "./serializers";
 
 export class Optional<T> {
@@ -81,7 +82,7 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
       if (existing !== undefined) return <OptionalSerializer<T>>existing;
     }
     const ret = new OptionalSerializer(valueSerializer);
-    OptionalSerializer.cache.set(valueSerializer, new WeakRef(ret));
+    OptionalSerializer.cache.set(valueSerializer, new SafeWeakRef(ret));
     return ret;
   }
 }
