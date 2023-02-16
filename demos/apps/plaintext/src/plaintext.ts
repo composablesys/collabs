@@ -22,20 +22,29 @@ import { CContainer } from "@collabs/container";
 
   // TODO: shared cursors
 
-  let myStartCursor = collabs.Cursor.fromIndex(text, 0);
-  let myEndCursor = collabs.Cursor.fromIndex(text, 0);
+  // Cursor: points to the previous char's position, or null for the beginning.
+  function cursorToIndex(cursor: string | null) {
+    return cursor === null ? 0 : text.indexOfPosition(cursor, "left") + 1;
+  }
+
+  function indexToCursor(index: number): string | null {
+    return index === 0 ? null : text.getPosition(index - 1);
+  }
+
+  let myStartCursor = indexToCursor(0);
+  let myEndCursor = indexToCursor(0);
   function updateCursors() {
     // Need to do this on a delay because the event doesn't
     // due its default action (updating the handler) until
     // after the event handlers.
     setTimeout(() => {
-      myStartCursor = collabs.Cursor.fromIndex(text, textarea.selectionStart);
-      myEndCursor = collabs.Cursor.fromIndex(text, textarea.selectionEnd);
+      myStartCursor = indexToCursor(textarea.selectionStart);
+      myEndCursor = indexToCursor(textarea.selectionEnd);
     }, 0);
   }
   function updateSelection() {
-    textarea.selectionStart = myStartCursor.index;
-    textarea.selectionEnd = myEndCursor.index;
+    textarea.selectionStart = cursorToIndex(myStartCursor);
+    textarea.selectionEnd = cursorToIndex(myEndCursor);
   }
 
   window.addEventListener("selectionchange", updateCursors);
@@ -47,20 +56,20 @@ import { CContainer } from "@collabs/container";
 
   // Change the text when a key is pressed in textarea
   textarea.addEventListener("keydown", (e) => {
-    const startIndex = myStartCursor.index;
-    const endIndex = myEndCursor.index;
+    const startIndex = cursorToIndex(myStartCursor);
+    const endIndex = cursorToIndex(myEndCursor);
     if (e.key === "Backspace") {
       if (endIndex > startIndex) {
         text.delete(startIndex, endIndex - startIndex);
-        myEndCursor = collabs.Cursor.fromIndex(text, startIndex);
+        myEndCursor = indexToCursor(startIndex);
       } else if (endIndex === startIndex && startIndex > 0) {
         text.delete(startIndex - 1);
-        myStartCursor = collabs.Cursor.fromIndex(text, startIndex - 1);
+        myStartCursor = indexToCursor(startIndex - 1);
       }
     } else if (e.key === "Delete") {
       if (endIndex > startIndex) {
         text.delete(startIndex, endIndex - startIndex);
-        myEndCursor = collabs.Cursor.fromIndex(text, startIndex);
+        myEndCursor = indexToCursor(startIndex);
       } else if (
         endIndex === startIndex &&
         startIndex < textarea.value.length
@@ -95,8 +104,8 @@ import { CContainer } from "@collabs/container";
       text.delete(startIndex, endIndex - startIndex);
     }
     text.insert(startIndex, str);
-    myStartCursor = collabs.Cursor.fromIndex(text, startIndex + str.length);
-    myEndCursor = collabs.Cursor.fromIndex(text, startIndex + str.length);
+    myStartCursor = indexToCursor(startIndex + str.length);
+    myEndCursor = indexToCursor(startIndex + str.length);
   }
 
   function shouldType(e: KeyboardEvent): boolean {
@@ -106,15 +115,15 @@ import { CContainer } from "@collabs/container";
   textarea.addEventListener("paste", (e) => {
     if (e.clipboardData) {
       const pasted = e.clipboardData.getData("text");
-      type(pasted, myStartCursor.index, myEndCursor.index);
+      type(pasted, cursorToIndex(myStartCursor), cursorToIndex(myEndCursor));
       updateSelection();
     }
     e.preventDefault();
   });
 
   textarea.addEventListener("cut", () => {
-    const startIndex = myStartCursor.index;
-    const endIndex = myEndCursor.index;
+    const startIndex = cursorToIndex(myStartCursor);
+    const endIndex = cursorToIndex(myEndCursor);
     if (startIndex < endIndex) {
       const selected = textarea.value.slice(startIndex, endIndex);
       navigator.clipboard.writeText(selected);

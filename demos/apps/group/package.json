@@ -1,7 +1,8 @@
 {
   "license": "Apache-2.0",
   "dependencies": {
-    "@collabs/collabs": "0.7.0",
+    "@collabs/core": "0.7.0",
+    "@collabs/crdts": "0.7.0",
     "@collabs/container": "0.7.0",
     "protobufjs": "~6.9.0",
     "jquery": "^3.6.0"

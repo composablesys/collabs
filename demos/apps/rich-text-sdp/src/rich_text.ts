@@ -1,24 +1,34 @@
-import * as collabs from "@collabs/collabs";
-import { CollabIDSerializer, InitToken } from "@collabs/collabs";
+import {
+  CList,
+  CObject,
+  CollabEvent,
+  CollabEventsRecord,
+  CollabID,
+  CRDTMeta,
+  CValueMap,
+  InitToken,
+} from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
 import "quill/dist/quill.snow.css";
+import { RunLocallyLayer } from "./run_locally_layer";
+import { SemidirectProductStore } from "./semidirect_product_store";
 
 const Delta = Quill.import("delta");
 declare type Delta = {
   ops: DeltaOperation[];
 };
 
-interface CRichCharEventsRecord extends collabs.CollabEventsRecord {
-  Format: { key: string } & collabs.CollabEvent;
+interface CRichCharEventsRecord extends CollabEventsRecord {
+  Format: { key: string } & CollabEvent;
 }
 
 // TODO: restrict attributes which can be transferred by SDP.
 
-class CRichChar extends collabs.CObject<CRichCharEventsRecord> {
-  private readonly _attributes: collabs.LWWCMap<string, unknown>;
+class CRichChar extends CObject<CRichCharEventsRecord> {
+  private readonly _attributes: CValueMap<string, unknown>;
   readonly ignoreAttrsSet: Set<string>;
   /** Used to suppress formatting events during copyOriginAttributes. */
   private inCopyOriginAttributes = false;
@@ -30,14 +40,14 @@ class CRichChar extends collabs.CObject<CRichCharEventsRecord> {
    * object with a single property.
    */
   constructor(
-    init: collabs.InitToken,
+    init: InitToken,
     readonly char: string | object,
     readonly origin: CRichChar | null,
     ignoreAttrs: string[]
   ) {
     super(init);
 
-    this._attributes = this.addChild("", (init) => new collabs.LWWCMap(init));
+    this._attributes = this.addChild("", (init) => new CValueMap(init));
 
     this.ignoreAttrsSet = new Set(ignoreAttrs);
 
@@ -74,21 +84,24 @@ class CRichChar extends collabs.CObject<CRichCharEventsRecord> {
     return Object.fromEntries(this._attributes);
   }
 
-  copyOriginAttributes(runLocallyLayer: collabs.RunLocallyLayer) {
+  copyOriginAttributes(runLocallyLayer: RunLocallyLayer) {
     if (this.origin !== null) {
       this.inCopyOriginAttributes = true;
       try {
-        // Copy attributes from origin...
-        this._attributes.load(
-          collabs.Optional.of(this.origin._attributes.save())
-        );
-        // ...except for ignored ones, which are locally deleted, to reset them
-        // to the initial state.
-        runLocallyLayer.runLocally(null, () => {
-          for (const key of this.ignoreAttrsSet) {
-            this._attributes.delete(key);
-          }
-        });
+        throw new Error("TODO: copyOriginAttributes");
+        // // TODO: need to normalize the save, as if it was serialized?
+        // const originSave = this.origin._attributes.save();
+        // if (originSave !== null) {
+        //   // Copy attributes from origin...
+        //   this._attributes.load(originSave);
+        //   // ...except for ignored ones, which are locally deleted, to reset them
+        //   // to the initial state.
+        //   runLocallyLayer.runLocally(null, () => {
+        //     for (const key of this.ignoreAttrsSet) {
+        //       this._attributes.delete(key);
+        //     }
+        //   });
+        // }
       } finally {
         this.inCopyOriginAttributes = false;
       }
@@ -101,29 +114,26 @@ interface FormatOp {
   attribute: string;
 }
 
-interface CRichTextEventsRecord extends collabs.CollabEventsRecord {
-  Insert: { startIndex: number; count: number } & collabs.CollabEvent;
-  Delete: { startIndex: number; count: number } & collabs.CollabEvent;
-  Format: { index: number; key: string } & collabs.CollabEvent;
+interface CRichTextEventsRecord extends CollabEventsRecord {
+  Insert: { startIndex: number; count: number } & CollabEvent;
+  Delete: { startIndex: number; count: number } & CollabEvent;
+  Format: { index: number; key: string } & CollabEvent;
 }
 
-class CRichText extends collabs.CObject<CRichTextEventsRecord> {
-  readonly text: collabs.ArchivingMutCList<
+class CRichText extends CObject<CRichTextEventsRecord> {
+  readonly text: CList<
     CRichChar,
     [
       char: string | object,
-      // Serialized collabs.CollabID<CRichChar>
-      originIDSer: Uint8Array | null,
+      originID: CollabID<CRichChar> | null,
       ignoreAttrs: string[]
     ]
   >;
-  private readonly sdpStore: collabs.SemidirectProductStore<
+  private readonly sdpStore: SemidirectProductStore<
     FormatOp,
-    collabs.CollabID<CRichChar>
+    CollabID<CRichChar>
   >;
-  private readonly runLocallyLayer: collabs.RunLocallyLayer;
-
-  private readonly charSerializer: CollabIDSerializer<CRichChar>;
+  private readonly runLocallyLayer: RunLocallyLayer;
 
   /**
    * Used to distinguish normal formatting ops from those due to the
@@ -131,30 +141,25 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
    */
   private inNormalFormat = false;
 
-  constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
+  constructor(init: InitToken, initialChars: (string | object)[] = []) {
     super(init);
 
     this.runLocallyLayer = this.addChild(
       "",
-      (init) => new collabs.RunLocallyLayer(init)
+      (init) => new RunLocallyLayer(init)
     );
     this.text = this.runLocallyLayer.setChild(
       (init) =>
-        new collabs.ArchivingMutCList(
+        new CList(
           init,
-          this.charConstructor.bind(this),
-          initialChars.map((value) => [value, null, []])
+          this.charConstructor.bind(this)
+          // TODO: initial char
+          // initialChars.map((value) => [value, null, []])
         )
     );
-    this.charSerializer = new collabs.CollabIDSerializer(this.text);
     this.sdpStore = this.addChild(
       "1",
-      (init) =>
-        new collabs.SemidirectProductStore(
-          init,
-          this.action.bind(this),
-          this.charSerializer
-        )
+      (init) => new SemidirectProductStore(init, this.action.bind(this))
     );
 
     // Events.
@@ -168,8 +173,8 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
       // valueConstructor.
       char.copyOriginAttributes(this.runLocallyLayer);
       this.sdpStore.processM2(
-        collabs.CollabID.of(char, this.text),
-        <collabs.CRDTMeta>e.meta.get(collabs.CRDTMeta.MESSAGE_META_KEY)
+        this.text.idOf(char),
+        <CRDTMeta>e.meta.runtimeExtra
       );
       // Own event.
       this.emit("Insert", {
@@ -190,13 +195,10 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   private charConstructor(
     valueInitToken: InitToken,
     char: string | object,
-    originIDSer: Uint8Array | null,
+    originID: CollabID<CRichChar> | null,
     ignoreAttrs: string[]
   ) {
-    const origin =
-      originIDSer === null
-        ? null
-        : this.charSerializer.deserialize(originIDSer).get()!;
+    const origin = originID === null ? null : this.text.fromID(originID)!;
     const richChar: CRichChar = new CRichChar(
       valueInitToken,
       char,
@@ -212,7 +214,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
               targets: new Set([richChar]),
               attribute: e.key,
             },
-            <collabs.CRDTMeta>e.meta.get(collabs.CRDTMeta.MESSAGE_META_KEY)
+            <CRDTMeta>e.meta.runtimeExtra
           )!;
           if (acted.targets.size > 1) {
             // Also format the new targets indicated by acted.
@@ -239,8 +241,8 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
     return richChar;
   }
 
-  private action(m2: collabs.CollabID<CRichChar>, m1: FormatOp): FormatOp {
-    const m2Char = m2.get()!;
+  private action(m2: CollabID<CRichChar>, m1: FormatOp): FormatOp {
+    const m2Char = this.text.fromID(m2)!;
     // Action: transfer the formatting to m2 if:
     // - m2's origin is one of m1's existing targets
     // - m1.key is not one of m2's ignoreAttrs.
@@ -268,7 +270,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   ) {
     const origin = index === 0 ? null : this.text.get(index - 1);
     if (origin !== null) {
-      const originID = collabs.CollabID.of(origin, this.text);
+      const originID = this.text.idOf(origin);
       // ignoreAttrs that differ between this and origin.
       const ignoreAttrs: string[] = [];
       const keys = new Set(Object.keys(attributes ?? {}));
@@ -278,12 +280,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
           ignoreAttrs.push(key);
         }
       }
-      const richChar = this.text.insert(
-        index,
-        char,
-        this.charSerializer.serialize(originID),
-        ignoreAttrs
-      );
+      const richChar = this.text.insert(index, char, originID, ignoreAttrs);
       // Only format the new ignoreAttrs.
       if (attributes) {
         for (const key of ignoreAttrs) {
@@ -297,7 +294,9 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
   }
 
   delete(startIndex: number, count: number) {
-    this.text.delete(startIndex, count);
+    // archive instead of delete, so we can still consult the old char's
+    // formatting, in case it's a concurrent char's origin.
+    this.text.archive(startIndex, count);
   }
 
   /**

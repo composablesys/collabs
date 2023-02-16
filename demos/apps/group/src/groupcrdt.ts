@@ -1,30 +1,36 @@
-import * as collabs from "@collabs/collabs";
+import {
+  CollabEvent,
+  CollabEventsRecord,
+  CPrimitive,
+  InitToken,
+  UpdateMeta,
+} from "@collabs/core";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 import { MultipleSemidirectProduct } from "./multiple_semidirect_product";
 
-export interface GroupTranslateEvent extends collabs.CollabEvent {
+export interface GroupTranslateEvent extends CollabEvent {
   readonly dX1: number;
   readonly dY1: number;
   readonly dX2: number;
   readonly dY2: number;
 }
 
-export interface GroupRotateEvent extends collabs.CollabEvent {
+export interface GroupRotateEvent extends CollabEvent {
   readonly rotated1: number;
   readonly rotated2: number;
 }
 
-export interface GroupReflectXEvent extends collabs.CollabEvent {
+export interface GroupReflectXEvent extends CollabEvent {
   readonly reflect1: number;
   readonly reflect2: number;
 }
 
-export interface GroupReflectYEvent extends collabs.CollabEvent {
+export interface GroupReflectYEvent extends CollabEvent {
   readonly reflect1: number;
   readonly reflect2: number;
 }
 
-export interface GroupEventsRecord extends collabs.CollabEventsRecord {
+export interface GroupEventsRecord extends CollabEventsRecord {
   Translate: GroupTranslateEvent;
   Rotate: GroupRotateEvent;
   ReflectX: GroupReflectXEvent;
@@ -57,10 +63,10 @@ export class GroupState {
   }
 }
 
-export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
+export class TranslateComponent extends CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(init: collabs.InitToken, initialState: GroupState) {
+  constructor(init: InitToken, initialState: GroupState) {
     super(init);
     this.state = initialState;
   }
@@ -85,11 +91,8 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     }
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: collabs.UpdateMeta
-  ) {
-    let decoded = GroupComponentMessage.decode(message);
+  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+    let decoded = GroupComponentMessage.decode(<Uint8Array>message);
     this.state.X1 += decoded.X1;
     this.state.Y1 += decoded.Y1;
     this.state.X2 += decoded.X2;
@@ -112,7 +115,7 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     );
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     let message = GroupComponentMessage.create({
       X1: this.state.X1,
       Y1: this.state.Y1,
@@ -122,19 +125,18 @@ export class TranslateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(savedState: collabs.Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.X1 = GroupComponentMessage.decode(savedState.get()).X1;
-    this.state.Y1 = GroupComponentMessage.decode(savedState.get()).Y1;
-    this.state.X2 = GroupComponentMessage.decode(savedState.get()).X2;
-    this.state.Y2 = GroupComponentMessage.decode(savedState.get()).Y2;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.X1 = GroupComponentMessage.decode(savedState).X1;
+    this.state.Y1 = GroupComponentMessage.decode(savedState).Y1;
+    this.state.X2 = GroupComponentMessage.decode(savedState).X2;
+    this.state.Y2 = GroupComponentMessage.decode(savedState).Y2;
   }
 }
 
-export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
+export class RotateComponent extends CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(init: collabs.InitToken, initialState: GroupState) {
+  constructor(init: InitToken, initialState: GroupState) {
     super(init);
     this.state = initialState;
   }
@@ -177,11 +179,8 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return [newX1, newX2, newY1, newY2];
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: collabs.UpdateMeta
-  ) {
-    let decoded = GroupComponentMessage.decode(message);
+  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+    let decoded = GroupComponentMessage.decode(<Uint8Array>message);
 
     this.state.rotate1 += decoded.rotate1;
     this.state.rotate2 += decoded.rotate2;
@@ -220,7 +219,7 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return this.state.rotate1 === 0 && this.state.rotate2 === 0;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     let message = GroupComponentMessage.create({
       rotate1: this.state.rotate1,
       rotate2: this.state.rotate2,
@@ -228,17 +227,16 @@ export class RotateComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(savedState: collabs.Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.rotate1 = GroupComponentMessage.decode(savedState.get()).rotate1;
-    this.state.rotate2 = GroupComponentMessage.decode(savedState.get()).rotate2;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.rotate1 = GroupComponentMessage.decode(savedState).rotate1;
+    this.state.rotate2 = GroupComponentMessage.decode(savedState).rotate2;
   }
 }
 
-export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
+export class ReflectXComponent extends CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(init: collabs.InitToken, initialState: GroupState) {
+  constructor(init: InitToken, initialState: GroupState) {
     super(init);
     this.state = initialState;
   }
@@ -256,11 +254,8 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: collabs.UpdateMeta
-  ) {
-    let decoded = GroupComponentMessage.decode(message);
+  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+    let decoded = GroupComponentMessage.decode(<Uint8Array>message);
     this.state.reflectX1 *= decoded.reflectX1;
     this.state.reflectX2 *= decoded.reflectX2;
     // Check for group reflection
@@ -282,25 +277,22 @@ export class ReflectXComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return this.state.reflectX1 === 1;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     let message = GroupComponentMessage.create({
       reflectX1: this.state.reflectX1,
     });
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(savedState: collabs.Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.reflectX1 = GroupComponentMessage.decode(
-      savedState.get()
-    ).reflectX1;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.reflectX1 = GroupComponentMessage.decode(savedState).reflectX1;
   }
 }
 
-export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
+export class ReflectYComponent extends CPrimitive<GroupEventsRecord> {
   readonly state: GroupState;
 
-  constructor(init: collabs.InitToken, initialState: GroupState) {
+  constructor(init: InitToken, initialState: GroupState) {
     super(init);
     this.state = initialState;
   }
@@ -318,11 +310,8 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: collabs.UpdateMeta
-  ) {
-    let decoded = GroupComponentMessage.decode(message);
+  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+    let decoded = GroupComponentMessage.decode(<Uint8Array>message);
     this.state.reflectY1 *= decoded.reflectY1;
     this.state.reflectY2 *= decoded.reflectY2;
     // Check for group reflection
@@ -344,7 +333,7 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return this.state.reflectY1 === 1 && this.state.reflectY2 === 1;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     let message = GroupComponentMessage.create({
       reflectY1: this.state.reflectY1,
       reflectY2: this.state.reflectY2,
@@ -352,14 +341,9 @@ export class ReflectYComponent extends collabs.CPrimitive<GroupEventsRecord> {
     return GroupComponentMessage.encode(message).finish();
   }
 
-  load(savedState: collabs.Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.reflectY1 = GroupComponentMessage.decode(
-      savedState.get()
-    ).reflectY1;
-    this.state.reflectY2 = GroupComponentMessage.decode(
-      savedState.get()
-    ).reflectY2;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.reflectY1 = GroupComponentMessage.decode(savedState).reflectY1;
+    this.state.reflectY2 = GroupComponentMessage.decode(savedState).reflectY2;
   }
 }
 
@@ -372,7 +356,7 @@ export class GroupCRDT extends MultipleSemidirectProduct<
   private reflectXCrdt: ReflectXComponent;
   private reflectYCrdt: ReflectYComponent;
 
-  constructor(init: collabs.InitToken) {
+  constructor(init: InitToken) {
     super(init, false);
     const state = new GroupState();
     super.setupState(state);
@@ -400,14 +384,14 @@ export class GroupCRDT extends MultipleSemidirectProduct<
   // Want to "add on" m2's actions to m1. Start with m1 values and
   // add reflection or rotation as needed.
   protected action(
-    m2MessagePath: Uint8Array[],
-    _m2Meta: collabs.UpdateMeta | null,
+    m2MessageStack: (Uint8Array | string)[],
+    _m2Meta: UpdateMeta | null,
     m2Index: number,
-    m1MessagePath: Uint8Array[],
-    _m1Meta: collabs.UpdateMeta | null
-  ): { m1MessagePath: Uint8Array[] } | null {
-    let m2Decoded = GroupComponentMessage.decode(<Uint8Array>m2MessagePath[0]);
-    let m1Decoded = GroupComponentMessage.decode(<Uint8Array>m1MessagePath[0]);
+    m1MessageStack: (Uint8Array | string)[],
+    _m1Meta: UpdateMeta | null
+  ): { m1MessageStack: (Uint8Array | string)[] } | null {
+    let m2Decoded = GroupComponentMessage.decode(<Uint8Array>m2MessageStack[0]);
+    let m1Decoded = GroupComponentMessage.decode(<Uint8Array>m1MessageStack[0]);
     var XArg1: number = m1Decoded!.X1 || 0;
     var YArg1: number = m1Decoded!.Y1 || 0;
     var rotateArg1: number = m1Decoded!.rotate1 || 0;
@@ -485,7 +469,7 @@ export class GroupCRDT extends MultipleSemidirectProduct<
     });
 
     return {
-      m1MessagePath: [GroupComponentMessage.encode(acted).finish()],
+      m1MessageStack: [GroupComponentMessage.encode(acted).finish()],
     };
   }
 

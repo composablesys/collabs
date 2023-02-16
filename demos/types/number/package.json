@@ -29,6 +29,8 @@
   },
   "sideEffects": false,
   "dependencies": {
+    "@collabs/core": "0.7.0",
+    "@collabs/crdts": "0.7.0",
     "@collabs/collabs": "0.7.0",
     "protobufjs": "~6.10.1",
     "tslib": "^2.0.1"

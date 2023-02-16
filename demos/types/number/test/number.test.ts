@@ -1,4 +1,4 @@
-import { CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
+import { CRuntime, TestingRuntimes } from "@collabs/collabs";
 import { assert } from "chai";
 import { CNumber } from "../src";
 import { debug } from "./debug";
@@ -6,8 +6,8 @@ import seedrandom = require("seedrandom");
 
 describe("Number", () => {
   let appGen: TestingRuntimes;
-  let alice: CRDTApp;
-  let bob: CRDTApp;
+  let alice: CRuntime;
+  let bob: CRuntime;
   let rng: seedrandom.prng;
   let aliceNumber: CNumber;
   let bobNumber: CNumber;
@@ -15,8 +15,8 @@ describe("Number", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     appGen = new TestingRuntimes();
-    alice = appGen.newApp(undefined, rng);
-    bob = appGen.newApp(undefined, rng);
+    alice = appGen.newRuntime(rng);
+    bob = appGen.newRuntime(rng);
   });
 
   function init(initialValue: number, name = "numberId"): void {
@@ -28,8 +28,6 @@ describe("Number", () => {
       name,
       (init) => new CNumber(init, initialValue)
     );
-    alice.load(Optional.empty());
-    bob.load(Optional.empty());
     if (debug) {
       addEventListeners(aliceNumber, "Alice");
       addEventListeners(bobNumber, "Bob");
@@ -208,35 +206,4 @@ describe("Number", () => {
       assert.strictEqual(bobNumber.value, 15);
     });
   });
-
-  // describe("reset", () => {
-  //   it("resets to the initial value", () => {
-  //     aliceNumber.add(1);
-  //     aliceNumber.reset();
-  //     appGen.releaseAll();
-  //     assert.strictEqual(aliceNumber.value, 0);
-  //     assert.strictEqual(bobNumber.value, 0);
-  //   });
-
-  //   it("works with non-concurrent updates", () => {
-  //     aliceNumber.add(3);
-  //     appGen.releaseAll();
-  //     assert.strictEqual(aliceNumber.value, 3);
-  //     assert.strictEqual(bobNumber.value, 3);
-
-  //     aliceNumber.reset();
-  //     aliceNumber.add(11);
-  //     appGen.releaseAll();
-  //     assert.strictEqual(aliceNumber.value, 11);
-  //     assert.strictEqual(bobNumber.value, 11);
-  //   });
-
-  //   it("lets concurrent adds survive", () => {
-  //     aliceNumber.reset();
-  //     bobNumber.add(10);
-  //     appGen.releaseAll();
-  //     assert.strictEqual(aliceNumber.value, 10);
-  //     assert.strictEqual(bobNumber.value, 10);
-  //   });
-  // });
 });

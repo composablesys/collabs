@@ -1,4 +1,12 @@
-import * as collabs from "@collabs/collabs";
+import {
+  CBoolean,
+  CObject,
+  CollabID,
+  CSet,
+  CVar,
+  InitToken,
+  Optional,
+} from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
 
@@ -24,21 +32,18 @@ enum TileStatus {
   REVEALED_MINE,
 }
 
-class CTile extends collabs.CObject {
-  private readonly revealed: collabs.TrueWinsCBoolean;
-  private readonly flag: collabs.CVar<FlagStatus>;
+class CTile extends CObject {
+  private readonly revealed: CBoolean;
+  private readonly flag: CVar<FlagStatus>;
   readonly isMine: boolean;
   number: number = 0;
 
-  constructor(init: collabs.InitToken, isMine: boolean) {
+  constructor(init: InitToken, isMine: boolean) {
     super(init);
-    this.revealed = this.addChild(
-      "revealed",
-      (init) => new collabs.TrueWinsCBoolean(init)
-    );
+    this.revealed = this.addChild("revealed", (init) => new CBoolean(init));
     this.flag = this.addChild(
       "flag",
-      (init) => new collabs.CVar<FlagStatus>(init, FlagStatus.NONE)
+      (init) => new CVar<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }
@@ -92,13 +97,13 @@ enum GameStatus {
   LOST,
 }
 
-class CMinesweeper extends collabs.CObject {
+class CMinesweeper extends CObject {
   readonly tiles: CTile[][];
   readonly width: number;
   readonly height: number;
 
   constructor(
-    init: collabs.InitToken,
+    init: InitToken,
     width: number,
     height: number,
     fractionMines: number,
@@ -255,7 +260,7 @@ class CMinesweeper extends collabs.CObject {
     let state =
       currentState.value === "settings"
         ? currentSettings.value
-        : currentGame.value.get();
+        : gameFactory.fromID(currentGame.value.get())!;
 
     for (let y = 0; y < state.height; y++) {
       let row = document.createElement("tr");
@@ -328,18 +333,25 @@ class CMinesweeper extends collabs.CObject {
           let settings = state as GameSettings;
           box.addEventListener("click", (event) => {
             if (event.button === 0) {
+              const oldGames = currentGame.conflicts();
               // Start the game, with this tile safe
-              let newGame = currentGame
-                .set(
-                  settings.width,
-                  settings.height,
-                  settings.fractionMines,
-                  x,
-                  y,
-                  Math.random() + ""
-                )
-                .get();
+              let newGame = gameFactory.add(
+                settings.width,
+                settings.height,
+                settings.fractionMines,
+                x,
+                y,
+                Math.random() + ""
+              );
+              currentGame.value = Optional.of(gameFactory.idOf(newGame));
               currentState.value = "game";
+              // Easy to forget: clean up old games.
+              for (const oldGame of oldGames) {
+                if (oldGame.isPresent) {
+                  const game = gameFactory.fromID(oldGame.get());
+                  if (game) gameFactory.delete(game);
+                }
+              }
               newGame.leftClick(x, y);
             }
           });
@@ -397,13 +409,13 @@ class CMinesweeper extends collabs.CObject {
 
   const container = new CContainer();
 
-  const currentGame = container.registerCollab(
-    "currentGame",
+  const gameFactory = container.registerCollab(
+    "gameFactory",
     (init) =>
-      new collabs.LWWMutCVar(
+      new CSet(
         init,
         (
-          valueInit: collabs.InitToken,
+          valueInit: InitToken,
           width: number,
           height: number,
           fractionMines: number,
@@ -422,15 +434,19 @@ class CMinesweeper extends collabs.CObject {
           )
       )
   );
+  const currentGame = container.registerCollab(
+    "currentGame",
+    (init) => new CVar<Optional<CollabID<CMinesweeper>>>(init, Optional.empty())
+  );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    (init) => new collabs.CVar(init, settingsFromInput())
+    (init) => new CVar(init, settingsFromInput())
   );
   // TODO: FWW instead of LWW?  Also backup to view all games
   // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    (init) => new collabs.CVar<"game" | "settings">(init, "settings")
+    (init) => new CVar<"game" | "settings">(init, "settings")
   );
 
   container.on("Change", invalidate);

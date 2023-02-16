@@ -1,15 +1,15 @@
 import {
   CObject,
+  CRDTMeta,
   DefaultSerializer,
   InitToken,
-  Optional,
   Serializer,
-} from "@collabs/core";
+} from "@collabs/collabs";
+import { CRDTMetaProvider } from "@collabs/crdts";
 import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
-} from "../../generated/proto_compiled";
-import { CRDTMeta, CRDTMetaProvider } from "../crdt-runtime";
+} from "../generated/proto_compiled";
 
 class StoredMessage<M2> {
   constructor(
@@ -98,10 +98,10 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     if (this.discardM2Dominated) {
       this.processMeta(crdtMeta, false, true);
     }
-    let senderHistory = this.history.get(crdtMeta.sender);
+    let senderHistory = this.history.get(crdtMeta.senderID);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(crdtMeta.sender, senderHistory);
+      this.history.set(crdtMeta.senderID, senderHistory);
     }
     senderHistory.push(
       new StoredMessage(crdtMeta.senderCounter, this.receiptCounter, m2)
@@ -142,7 +142,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (this.runtime.replicaID === crdtMeta.sender) {
+    if (this.runtime.replicaID === crdtMeta.senderID) {
       if (discardDominated) {
         // Nothing's concurrent, so clear everything
         this.history.clear();
@@ -231,9 +231,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return SemidirectProductStoreSave.encode(saveMessage).finish();
   }
 
-  protected loadObject(savedState: Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    const saveMessage = SemidirectProductStoreSave.decode(savedState.get());
+  protected loadObject(savedState: Uint8Array) {
+    const saveMessage = SemidirectProductStoreSave.decode(savedState);
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {
       this.history.set(

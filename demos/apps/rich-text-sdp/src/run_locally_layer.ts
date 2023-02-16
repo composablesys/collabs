@@ -1,11 +1,15 @@
 import {
   Collab,
   CollabEventsRecord,
+  CollabID,
+  collabIDOf,
   InitToken,
   IParent,
+  MetaRequest,
+  Parent,
+  SavedStateTree,
   UpdateMeta,
-} from "../../core/src/core";
-import { Optional } from "../../core/src/util";
+} from "@collabs/core";
 
 /**
  * **Experimental/flaky - use with caution**
@@ -57,21 +61,11 @@ export class RunLocallyLayer extends Collab implements IParent {
 
   /**
    * Runs the pure operations doPureOps locally, as if they have the given
-   * meta.
-   *
-   * Usually you will do this during processing on another message, in which
-   * case you supply its meta. You can instead pass null to do the ops
-   * with a new operation by the local user.
+   * meta for a currently-processed message.
    */
-  runLocally<T>(meta: UpdateMeta | null, doPureOps: () => T): T {
+  runLocally<T>(meta: UpdateMeta, doPureOps: () => T): T {
     const oldRunLocallyMeta = this.runLocallyMeta;
-    let metaCopy: UpdateMeta;
-    if (meta === null) {
-      metaCopy = <UpdateMeta>this.getContext(UpdateMeta.NEXT_MESSAGE_META);
-    } else {
-      metaCopy = meta.setIsEcho(true);
-    }
-    this.runLocallyMeta = metaCopy;
+    this.runLocallyMeta = meta;
     try {
       return doPureOps();
     } finally {
@@ -81,7 +75,8 @@ export class RunLocallyLayer extends Collab implements IParent {
 
   childSend(
     child: Collab<CollabEventsRecord>,
-    messageStack: (Uint8Array | string)[]
+    messageStack: (Uint8Array | string)[],
+    metaRequests: MetaRequest[]
   ): void {
     if (child !== this.child) {
       throw new Error(`childSend called by non-child: ${child}`);
@@ -92,7 +87,10 @@ export class RunLocallyLayer extends Collab implements IParent {
       this.child.receive(messageStack, this.runLocallyMeta);
     } else {
       // Normal send.
-      this.send(messageStack);
+      // TODO: auto meta by default? Way to add more for semidirect?
+      // Or make semidirect happy with auto meta? What if it's not
+      // in response to a child message?
+      this.send(messageStack, metaRequests);
     }
   }
 
@@ -100,21 +98,31 @@ export class RunLocallyLayer extends Collab implements IParent {
     this.child.receive(messageStack, meta);
   }
 
-  save(): Uint8Array {
+  idOf<C extends Collab>(descendant: C): CollabID<C> {
+    return collabIDOf(descendant, this);
+  }
+
+  fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
+    const name = id.namePath[startIndex];
+    if (name !== "") {
+      throw new Error("Unrecognized child: " + name);
+    }
+    // Terminal case.
+    // Note that this cast is unsafe, but convenient.
+    if (startIndex === id.namePath.length - 1) return this.child as C;
+    // Recursive case.
+    if ((this.child as Parent).fromID === undefined) {
+      throw new Error("child is not a parent, but CollabID is its descendant");
+    }
+    return (this.child as Parent).fromID(id, startIndex + 1);
+  }
+
+  save() {
     return this.child.save();
   }
 
-  load(savedState: Optional<Uint8Array>): void {
-    this.child.load(savedState);
-  }
-
-  getDescendant(namePath: string[]): Collab | undefined {
-    if (namePath.length === 0) return this;
-    if (namePath[namePath.length - 1] !== "") {
-      throw new Error("Unrecognized child: " + namePath[namePath.length - 1]);
-    }
-    namePath.pop();
-    return this.child.getDescendant(namePath);
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+    this.child.load(savedStateTree, meta);
   }
 
   canGC(): boolean {

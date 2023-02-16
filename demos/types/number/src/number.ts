@@ -1,11 +1,10 @@
 import {
+  CCounter,
   CObject,
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  Optional,
   PrimitiveCRDT,
-  ToggleCBoolean,
   UpdateMeta,
 } from "@collabs/collabs";
 import { CNumberComponentMessage } from "../generated/proto_compiled";
@@ -68,16 +67,15 @@ export class AddComponent
     return this.state.value === this.state.initialValue;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
 
@@ -115,16 +113,15 @@ export class MultComponent
     return this.state.value === this.state.initialValue;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
 
@@ -160,16 +157,15 @@ export class MinComponent
     return this.state.value === this.state.initialValue;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
 
@@ -205,16 +201,15 @@ export class MaxComponent
     return this.state.value === this.state.initialValue;
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>) {
-    if (!savedState.isPresent) return;
-    this.state.value = CNumberComponentMessage.decode(savedState.get()).arg;
+  loadPrimitive(savedState: Uint8Array) {
+    this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
 
@@ -248,17 +243,17 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
   }
 
   protected action(
-    m2MessagePath: Uint8Array[],
+    m2MessageStack: (Uint8Array | string)[],
     _m2Meta: UpdateMeta,
     m2Index: number,
-    m1MessagePath: Uint8Array[],
+    m1MessageStack: (Uint8Array | string)[],
     _m1Meta: UpdateMeta | null
-  ): { m1MessagePath: Uint8Array[] } | null {
+  ): { m1MessageStack: (Uint8Array | string)[] } | null {
     const m2Decoded = CNumberComponentMessage.decode(
-      <Uint8Array>m2MessagePath[0]
+      <Uint8Array>m2MessageStack[0]
     );
     const m1Decoded = CNumberComponentMessage.decode(
-      <Uint8Array>m1MessagePath[0]
+      <Uint8Array>m1MessageStack[0]
     );
     let actedArg: number;
     switch (m2Index) {
@@ -279,7 +274,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
     });
 
     return {
-      m1MessagePath: [CNumberComponentMessage.encode(acted).finish()],
+      m1MessageStack: [CNumberComponentMessage.encode(acted).finish()],
     };
   }
 
@@ -306,12 +301,12 @@ export class CNumber extends CObject<NumberEventsRecord> {
   /**
    * Used to implement negative multiplications, which don't
    * directly obey the semidirect product rules with min and
-   * max.  Instead, we use this boolean.  If true, the value
+   * max.  Instead, we use this counter mod 2.  If odd, the value
    * is a negated view of our internal state.  Correspondingly,
    * add, min, and max args must be negated, and min/max must
    * be switched.
    */
-  private negated: ToggleCBoolean;
+  private negated: CCounter;
 
   constructor(init: InitToken, initialValue = 0) {
     super(init);
@@ -320,10 +315,10 @@ export class CNumber extends CObject<NumberEventsRecord> {
       "",
       (init) => new CNumberBase(init, initialValue)
     );
-    this.negated = this.addChild("0", (init) => new ToggleCBoolean(init));
+    this.negated = this.addChild("0", (init) => new CCounter(init));
 
     this.base.minCRDT.on("Min", (event) => {
-      if (this.negated.value) {
+      if (this.negated.value % 2 === 1) {
         super.emit("Max", {
           arg: -event.arg,
           previousValue: -event.previousValue,
@@ -332,7 +327,7 @@ export class CNumber extends CObject<NumberEventsRecord> {
       } else super.emit("Min", event);
     });
     this.base.maxCRDT.on("Max", (event) => {
-      if (this.negated.value) {
+      if (this.negated.value % 2 === 1) {
         super.emit("Min", {
           arg: -event.arg,
           previousValue: -event.previousValue,
@@ -341,7 +336,7 @@ export class CNumber extends CObject<NumberEventsRecord> {
       } else super.emit("Max", event);
     });
     this.base.addCRDT.on("Add", (event) => {
-      if (this.negated.value) {
+      if (this.negated.value % 2 === 1) {
         super.emit("Add", {
           arg: -event.arg,
           previousValue: -event.previousValue,
@@ -350,7 +345,7 @@ export class CNumber extends CObject<NumberEventsRecord> {
       } else super.emit("Add", event);
     });
     this.base.multCRDT.on("Mult", (event) => super.emit("Mult", event));
-    this.negated.on("Set", (event) =>
+    this.negated.on("Add", (event) =>
       super.emit("Mult", {
         arg: -1,
         previousValue: -this.value,
@@ -360,32 +355,32 @@ export class CNumber extends CObject<NumberEventsRecord> {
   }
 
   add(toAdd: number) {
-    if (this.negated.value) {
+    if (this.negated.value % 2 === 1) {
       this.base.addCRDT.add(-toAdd);
     } else this.base.addCRDT.add(toAdd);
   }
 
   mult(toMult: number) {
     if (toMult < 0) {
-      this.negated.toggle();
+      this.negated.add(1);
       this.base.multCRDT.mult(-toMult);
     } else this.base.multCRDT.mult(toMult);
   }
 
   min(toComp: number) {
-    if (this.negated.value) {
+    if (this.negated.value % 2 === 1) {
       this.base.maxCRDT.max(-toComp);
     } else this.base.minCRDT.min(toComp);
   }
 
   max(toComp: number) {
-    if (this.negated.value) {
+    if (this.negated.value % 2 === 1) {
       this.base.minCRDT.min(-toComp);
     } else this.base.maxCRDT.max(toComp);
   }
 
   get value(): number {
-    const value = (this.negated.value ? -1 : 1) * this.base.value;
+    const value = (this.negated.value % 2 === 1 ? -1 : 1) * this.base.value;
     // Although -0 === 0, some notions of equality
     // (in particular chai's assert.deepStrictEqual)
     // treat them differently.  This is a hack to prevent

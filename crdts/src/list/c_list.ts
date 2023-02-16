@@ -238,7 +238,7 @@ export class CList<
     return entry;
   }
 
-  insert(index: number, ...args: InsertArgs): C | undefined {
+  insert(index: number, ...args: InsertArgs): C {
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
     // OPT: bulk inserts? Can just do createPositions once and deliver the
@@ -255,7 +255,7 @@ export class CList<
       startValueIndex,
       metadata,
     ]);
-    return this.set.add({ position: pos, isPresent: true }, args)?.value;
+    return this.set.add({ position: pos, isPresent: true }, args).value;
   }
 
   /**

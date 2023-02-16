@@ -1,39 +1,44 @@
-import * as collabs from "@collabs/collabs";
+import { CollabID, CSet, CVar, Optional } from "@collabs/collabs";
 import { CContainer, CContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
+  let afterLoad = false;
   const container = new CContainer();
-  const currentHost = container.registerCollab(
+  const hostFactory = container.registerCollab(
     "",
     (init) =>
-      new collabs.LWWMutCVar(
-        init,
-        (valueInitToken, htmlSrcGzipped: Uint8Array) => {
-          const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
-          // Create a new ContainerHost + IFrame from htmlSrc and
-          // attach it to the document, invisible for now.
-          const iframe = document.createElement("iframe");
-          iframe.hidden = true;
-          iframe.srcdoc = htmlSrc;
-          const host = new CContainerHost(valueInitToken, iframe);
-          document.body.appendChild(iframe);
-          // Compact host's save data when compacting our own.
-          container.onSaveRequest(() => host.compactSaveData());
-          // If it was possible to override causally prior values
-          // (triggering currentHost "Delete" events), then we
-          // would need to call the "off" function returned by
-          // onSaveRequest, in currentHost's "Delete" event handler.
-          // Otherwise, container's handler set would keep a
-          // reference to host, preventing GC and triggering
-          // unnecessary save compaction.
-          // Opt: when a value is unset, clean it up
-          // (treat as permanently deleted), even though technically
-          // it is still a "conflict" value in currentHost.
+      new CSet(init, (valueInit, htmlSrcGzipped: Uint8Array) => {
+        const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+        // Create a new ContainerHost + IFrame from htmlSrc and
+        // attach it to the document, invisible for now.
+        const iframe = document.createElement("iframe");
+        iframe.hidden = true;
+        iframe.srcdoc = htmlSrc;
+        const host = new CContainerHost(valueInit, iframe);
+        document.body.appendChild(iframe);
+        // Compact host's save data when compacting our own.
+        container.onSaveRequest(() => host.compactSaveData());
+        // If it was possible to override causally prior values
+        // (triggering host.finalize()), then we
+        // would need to call the "off" function returned by
+        // onSaveRequest in the finalizer.
+        // Otherwise, container's handler set would keep a
+        // reference to host, preventing GC and triggering
+        // unnecessary save compaction.
+        // Opt: when a value is unset, clean it up
+        // (treat as permanently deleted), even though technically
+        // it is still a "conflict" value in currentHost.
 
-          return host;
-        }
-      )
+        if (afterLoad) host.loadSkipped();
+
+        return host;
+      })
+  );
+  const currentHost = container.registerCollab(
+    "0",
+    (init) =>
+      new CVar<Optional<CollabID<CContainerHost>>>(init, Optional.empty())
   );
 
   currentHost.on("Set", (e) => onCurrentHostSet(e.previousValue));
@@ -42,23 +47,25 @@ import pako from "pako";
     document.getElementById("initializingDiv")
   );
 
-  function onCurrentHostSet(previousValue: collabs.Optional<CContainerHost>) {
+  function onCurrentHostSet(previousValue: Optional<CollabID<CContainerHost>>) {
+    const previousHost = hostFactory.fromID(previousValue.get())!;
+    const newHost = hostFactory.fromID(currentHost.value.get())!;
+
     // Hide other stuff.
     selectorDiv.hidden = true;
     if (previousValue.isPresent) {
-      previousValue.get().containerIFrame.hidden = true;
+      previousHost.containerIFrame.hidden = true;
     }
 
     // Show "Initializing..." message until the container is
     // ready, then show its IFrame.
-    const newValue = currentHost.value.get();
-    const iframe = newValue.containerIFrame;
+    const iframe = newHost.containerIFrame;
     initializingDiv.hidden = false;
     // We can assume the container is not yet ready, since
     // onCurrentHostSet is always called in the same event loop
     // as the IFrame is created (though possibly a later microtask),
     // and readiness requires receiving a message from the IFrame.
-    newValue.once("ContainerReady", () => {
+    newHost.once("ContainerReady", () => {
       initializingDiv.hidden = true;
       iframe.hidden = false;
     });
@@ -87,7 +94,8 @@ import pako from "pako";
     // this once at startup, which users should expect to take
     // a moment anyway.
     const htmlSrcGzipped = pako.deflate(htmlSrc);
-    currentHost.set(htmlSrcGzipped);
+    const host = hostFactory.add(htmlSrcGzipped);
+    currentHost.set(Optional.of(hostFactory.idOf(host)));
   }
 
   // Handle inputs.
@@ -118,10 +126,11 @@ import pako from "pako";
     document.getElementById("downloadButton")
   );
   downloadButton.addEventListener("click", () => {
-    const htmlSrcGzippedOptional = currentHost.getArgs();
-    if (!htmlSrcGzippedOptional.isPresent) return;
-    const htmlSrcGzipped = htmlSrcGzippedOptional.get()[0];
-    const htmlSrc = pako.inflate(htmlSrcGzipped, { to: "string" });
+    if (!currentHost.value.isPresent) return;
+    const htmlSrcGzipped = hostFactory.getArgs(
+      hostFactory.fromID(currentHost.value.get())!
+    );
+    const htmlSrc = pako.inflate(htmlSrcGzipped[0], { to: "string" });
     // Trigger a file download of htmlSrc with suggested
     // file name `${document.title}.html`.
     triggerDownload(
@@ -158,10 +167,11 @@ import pako from "pako";
   }
 
   await container.load();
+  afterLoad = true;
 
   // Display loaded state.
   if (currentHost.value.isPresent) {
-    onCurrentHostSet(collabs.Optional.empty());
+    onCurrentHostSet(Optional.empty());
   }
 
   // Ready.

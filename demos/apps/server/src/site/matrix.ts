@@ -23,13 +23,9 @@ if (doLoad) {
 
 // --- Setup our app ---
 
-// Rate limit to 2 per second, since that is the most Matrix
-// allows.
-const app = new collabs.CRDTApp({
-  batchingStrategy: new collabs.RateLimitBatchingStrategy(500),
-});
+const runtime = new collabs.CRuntime();
 const network = new MatrixWidgetNetwork(
-  app,
+  runtime,
   "com.herokuapp.@collabs/tests.counter"
 );
 
@@ -54,7 +50,7 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab(
+const host = runtime.registerCollab(
   "host",
   (init) => new CContainerHost(init, iframe)
 );
@@ -75,4 +71,4 @@ host.once("ContainerReady", () => {
 // widget messages *before* the widget is initialized, then
 // all those messages will delivered by MatrixWidgetNetwork
 // shortly after startup.
-app.load(collabs.Optional.empty());
+host.loadSkipped();

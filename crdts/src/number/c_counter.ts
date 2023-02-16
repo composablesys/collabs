@@ -33,7 +33,7 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
   private _value: number;
   private readonly initialValue: number;
 
-  constructor(init: InitToken, { initialValue = 0 }) {
+  constructor(init: InitToken, { initialValue = 0 } = {}) {
     super(init);
 
     this.initialValue = initialValue;

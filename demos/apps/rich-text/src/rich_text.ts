@@ -15,7 +15,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
 }
 
 class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly _attributes: collabs.LWWCMap<string, any>;
+  private readonly _attributes: collabs.CValueMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -26,7 +26,7 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(init: collabs.InitToken, readonly char: string | object) {
     super(init);
 
-    this._attributes = this.addChild("", (init) => new collabs.LWWCMap(init));
+    this._attributes = this.addChild("", (init) => new collabs.CValueMap(init));
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -69,23 +69,19 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
 class RichText extends collabs.CObject<RichTextEventsRecord> {
   readonly text: collabs.CList<RichChar, [char: string | object]>;
 
-  constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
+  constructor(init: collabs.InitToken) {
     super(init);
 
     this.text = this.addChild(
       "",
       (init) =>
-        new collabs.CList(
-          init,
-          (valueInitToken, char) => {
-            const richChar = new RichChar(valueInitToken, char);
-            richChar.on("Format", (e) => {
-              this.emit("Format", { index: this.text.indexOf(richChar), ...e });
-            });
-            return richChar;
-          },
-          initialChars.map((value) => [value])
-        )
+        new collabs.CList(init, (valueInitToken, char) => {
+          const richChar = new RichChar(valueInitToken, char);
+          richChar.on("Format", (e) => {
+            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+          });
+          return richChar;
+        })
     );
     this.text.on("Insert", (e) => {
       this.emit("Insert", {
@@ -143,11 +139,12 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
 (async function () {
   const container = new CContainer();
 
-  // Quill's initial content is "\n".
   const clientText = container.registerCollab(
     "text",
-    (init) => new RichText(init, ["\n"])
+    (init) => new RichText(init)
   );
+
+  // TODO: initial "\n". Yjs-style (pre-made load/message)?
 
   const quill = new Quill("#editor", {
     theme: "snow",
@@ -212,7 +209,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // its own representation, so we should skip doing so again.
 
   clientText.on("Insert", (e) => {
-    if (e.meta.isLocalUser) return;
+    if (e.meta.isLocalOp) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
       // Characters start without any formatting.
@@ -223,13 +220,13 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.isLocalUser) return;
+    if (e.meta.isLocalOp) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.isLocalUser) return;
+    if (e.meta.isLocalOp) return;
 
     updateContents(
       new Delta()

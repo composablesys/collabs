@@ -12,9 +12,9 @@ const containerURL = urlParams.get("container")!;
 
 // --- Setup our app ---
 
-const app = new collabs.CRDTApp();
+const runtime = new collabs.CRuntime();
 const wsAddr = location.origin.replace(/^http/, "ws");
-const network = new WebSocketNetwork(app, wsAddr, containerURL);
+const network = new WebSocketNetwork(runtime, wsAddr, containerURL);
 
 // Add the container in an IFrame,
 // initially hidden so that user input is blocked.
@@ -37,7 +37,7 @@ iframe.addEventListener("load", () => {
 });
 
 // Attach the container.
-const host = app.registerCollab(
+const host = runtime.registerCollab(
   "host",
   (init) => new CContainerHost(init, iframe)
 );
@@ -53,7 +53,7 @@ host.once("ContainerReady", () => {
 // persistent anyway.
 // See TODO (initialization docs with list of steps)
 // for what you should do in a real app.
-app.load(collabs.Optional.empty());
+host.loadSkipped();
 
 // --- Host controls ---
 // This part is just for testing fun (lets users create
