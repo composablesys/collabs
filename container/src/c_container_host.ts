@@ -1,21 +1,11 @@
-import {
-  CollabEvent,
-  CollabEventsRecord,
-  CPrimitive,
-  InitToken,
-  Optional,
-  UpdateMeta,
-} from "@collabs/collabs";
+import { CollabEventsRecord, InitToken, UpdateMeta } from "@collabs/collabs";
+import { CollabEvent, CPrimitive } from "@collabs/core";
 import { ContainerHostSave } from "../generated/proto_compiled";
 import { ContainerMessage, HostMessage, ReceiveMessage } from "./message_types";
 
-// TODO: ability to send our own metadata to the container
-// (e.g. user's name)?
-// More generally, arbitrary message-passing ability?
-
-export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
+export interface ContainerHostEventsRecord extends CollabEventsRecord {
   /**
-   * Emitted when [[CRDTContainerHost.isContainerReady]]
+   * Emitted when [[CContainerHost.isContainerReady]]
    * becomes true, hence user interaction with the container
    * is allowed.
    *
@@ -23,7 +13,7 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
    * iteration after you initialize the container's IFrame.
    * So, you must either add an event handler within the same
    * event loop iteration that you initialize the IFrame,
-   * or check [[CRDTContainerHost.isContainerReady]] before
+   * or check [[CContainerHost.isContainerReady]] before
    * adding the handler.
    *
    * Note that this is a local, not replicated, event: it refers
@@ -31,7 +21,7 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
    * app start cycle, not something that all replicas see
    * in sync.
    */
-  ContainerReady: CollabEvent;
+  ContainerReady: {};
 }
 
 /**
@@ -39,9 +29,9 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
  *
  * See [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
  *
- * A `CRDTContainerHost` connects to the `CRDTContainer`
+ * A `CContainerHost` connects to the `CContainer`
  * instance running in the `containerIFrame` provided to
- * the constructor. All messages sent by the `CRDTContainer`
+ * the constructor. All messages sent by the `CContainer`
  * become messages sent by this class, and likewise for
  * received messages. This class's save data is also
  * derived from the container's own save data, and likewise,
@@ -57,15 +47,15 @@ export interface CRDTContainerHostEventsRecord extends CollabEventsRecord {
  * `containerIFrame.hidden = true`, then when it is ready,
  * setting `containerIFrame.hidden = false`.
  *
- * You can use `CRDTContainerHost` to embed Collabs containers
+ * You can use `CContainerHost` to embed Collabs containers
  * inside your own app. In particular, if you want to
  * support a specific network/storage/UX/etc. for containers,
  * you can do so by making a Collabs app
  * that uses your chosen network/storage/UX/etc.,
- * with a `CRDTContainerHost` as its single Collab, and with
+ * with a `CContainerHost` as its single Collab, and with
  * some way for users to specify the container.
  */
-export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord> {
+export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
   private messagePort: MessagePort | null = null;
   private _isContainerReady = false;
 
@@ -115,7 +105,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   private furtherSentMessages: [predID: number, message: Uint8Array][] = [];
 
   /**
-   * Constructs a `CRDTContainerHost` that connects to the `CRDTContainer`
+   * Constructs a `CContainerHost` that connects to the `CContainer`
    * instance running in `containerIFrame`.
    *
    * Restrictions for now:
@@ -163,9 +153,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     switch (e.data.type) {
       case "Ready":
         this._isContainerReady = true;
-        this.emit("ContainerReady", {
-          meta: UpdateMeta.new(this.runtime.replicaID, true, true),
-        });
+        this.emit("ContainerReady", {} as CollabEvent, false);
         // Deliver queued ReceiveMessages.
         this.receiveMessageQueue!.forEach((message) =>
           this.messagePortSend(message)
@@ -221,10 +209,14 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     message: Uint8Array | string,
     meta: UpdateMeta
   ): void {
-    if (!meta.isEcho) {
+    if (!meta.isLocalOp) {
       const id = this.nextReceivedMessageID++;
-      this.furtherReceivedMessages.push([id, message]);
-      const receiveMessage: ReceiveMessage = { type: "Receive", message, id };
+      this.furtherReceivedMessages.push([id, <Uint8Array>message]);
+      const receiveMessage: ReceiveMessage = {
+        type: "Receive",
+        message: <Uint8Array>message,
+        id,
+      };
       if (this._isContainerReady) {
         this.messagePortSend(receiveMessage);
       } else {
@@ -239,7 +231,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * user.
    *
    * Specifically, this becomes true once the internal
-   * container's [[CRDTContainer.ready]] method has been called.
+   * container's [[CContainer.ready]] method has been called.
    *
    * Until this is true, you MUST block user input to
    * `containerIFrame`. Otherwise, the user might interact
@@ -250,7 +242,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
    * `containerIFrame.hidden = true`, then when it is ready,
    * setting `containerIFrame.hidden = false`.
    *
-   * A [[CRDTContainerHostEventsRecord.ContainerReady]] event
+   * A [[CContainerHostEventsRecord.ContainerReady]] event
    * is emitted immediately after this becomes true.
    */
   get isContainerReady(): boolean {
@@ -264,7 +256,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
   >();
 
   /**
-   * Asks the internal [[CRDTContainer]] to call its analog
+   * Asks the internal [[CContainer]] to call its analog
    * of [[CRDTApp.save]], generating compact save data
    * describing its current state. This save data will then
    * be used in future calls to our own [[save]] method,
@@ -302,7 +294,7 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     });
   }
 
-  save(): Uint8Array {
+  savePrimitive(): Uint8Array {
     // Sort further messages in the order they were processed
     // (sent or received) by the container.
     // This means that each sent message comes right after
@@ -342,36 +334,39 @@ export class CRDTContainerHost extends CPrimitive<CRDTContainerHostEventsRecord>
     return ContainerHostSave.encode(message).finish();
   }
 
-  load(savedState: Optional<Uint8Array>): void {
+  loadPrimitive(savedState: Uint8Array): void {
     // Set our latestSaveData and furtherMessages.
-    if (!savedState.isPresent) {
-      // Leave this.latestSaveData, this.furtherReceivedMessages
-      // as their initial values (null, []).
-      this.messagePortSend({
-        type: "Load",
-        hostSkipped: true,
-        latestSaveData: null,
-        furtherMessages: [],
-      });
-    } else {
-      const decoded = ContainerHostSave.decode(savedState.get());
-      this.latestSaveData = Object.prototype.hasOwnProperty.call(
-        decoded,
-        "latestSaveData"
-      )
-        ? decoded.latestSaveData
-        : null;
-      this.furtherReceivedMessages = decoded.furtherMessages.map(
-        (message, index) => [index, message]
-      );
-      this.nextReceivedMessageID = this.furtherReceivedMessages.length;
+    const decoded = ContainerHostSave.decode(savedState);
+    this.latestSaveData = Object.prototype.hasOwnProperty.call(
+      decoded,
+      "latestSaveData"
+    )
+      ? decoded.latestSaveData
+      : null;
+    this.furtherReceivedMessages = decoded.furtherMessages.map(
+      (message, index) => [index, message]
+    );
+    this.nextReceivedMessageID = this.furtherReceivedMessages.length;
 
-      this.messagePortSend({
-        type: "Load",
-        hostSkipped: false,
-        latestSaveData: this.latestSaveData,
-        furtherMessages: decoded.furtherMessages,
-      });
-    }
+    this.messagePortSend({
+      type: "Load",
+      hostSkipped: false,
+      latestSaveData: this.latestSaveData,
+      furtherMessages: decoded.furtherMessages,
+    });
+  }
+
+  /**
+   * Must call if loading (via [[CRuntime.load]]) is skipped.
+   */
+  loadSkipped(): void {
+    // Leave this.latestSaveData, this.furtherReceivedMessages
+    // as their initial values (null, []).
+    this.messagePortSend({
+      type: "Load",
+      hostSkipped: true,
+      latestSaveData: null,
+      furtherMessages: [],
+    });
   }
 }

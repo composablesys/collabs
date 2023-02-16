@@ -1,11 +1,11 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import $ from "jquery";
 
 type Color = [r: number, g: number, b: number];
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   function aggregate(items: collabs.MultiValueMapItem<Color>[]): Color {
     const sum = items

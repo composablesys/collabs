@@ -1,4 +1,4 @@
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import { setupTiles } from "./tiles";
 import { setupWhiteboard } from "./whiteboard";
 
@@ -15,7 +15,7 @@ window.onload = () => {
 };
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   setupWhiteboard(container);
   setupTiles(container);

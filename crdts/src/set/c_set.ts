@@ -57,7 +57,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
    * function valueConstructor(valueInit: collabs.InitToken, initialValue: number) {
    *   return new collabs.CCounter(valueInit, initialValue);
    * }
-   * // app is a CRDTApp or CRDTContainer
+   * // app is a CRDTApp or CContainer
    * const set = app.registerCollab(
    *   "set",
    *   (init) => new collabs.CSet(init, valueConstructor)

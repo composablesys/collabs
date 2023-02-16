@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 
 (async function () {
   const WIN_TEXT = (function () {
@@ -8,7 +8,7 @@ import { CRDTContainer } from "@collabs/container";
     return ans;
   })();
 
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   const text = container.registerCollab(
     "text",

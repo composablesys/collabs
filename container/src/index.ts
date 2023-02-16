@@ -1,3 +1,3 @@
-export * from "./crdt_container_host";
-export * from "./crdt_container";
+export * from "./c_container_host";
+export * from "./c_container";
 // message_types.ts is internal only, not exported.

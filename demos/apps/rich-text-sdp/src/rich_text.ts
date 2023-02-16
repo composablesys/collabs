@@ -1,6 +1,6 @@
 import * as collabs from "@collabs/collabs";
 import { CollabIDSerializer, InitToken } from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
@@ -320,7 +320,7 @@ class CRichText extends collabs.CObject<CRichTextEventsRecord> {
 }
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   // Quill's initial content is "\n".
   const clientText = container.registerCollab(

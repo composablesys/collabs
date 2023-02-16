@@ -32,11 +32,11 @@ The interesting part of the app is `src/app.ts`. We will go through this file to
 
 ```ts
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 
 (async function () {
-  // Create a CRDTContainer, the entry point for a Collabs container.
-  const container = new CRDTContainer();
+  // Create a CContainer, the entry point for a Collabs container.
+  const container = new CContainer();
 
   // Register Collabs.
   const counter = container.registerCollab(
@@ -72,11 +72,11 @@ import { CRDTContainer } from "@collabs/container";
 
 ### 0. Imports and Async Wrapper
 
-To start, we import the Collabs library, plus the container-specific `CRDTContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
+To start, we import the Collabs library, plus the container-specific `CContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
 
 ```ts
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 ```
 
 To let us use `await` later, the rest of the file is wrapped in an `async` IIFE.
@@ -87,12 +87,12 @@ To let us use `await` later, the rest of the file is wrapped in an `async` IIFE.
 })();
 ```
 
-### 1. Create [`CRDTContainer`](./guide/containers.html)
+### 1. Create [`CContainer`](./guide/containers.html)
 
-Our first real task is to get an instance of [`CRDTContainer`](https://www.npmjs.com/package/@collabs/container). This is the entry point for a Collabs [container](./guide/containers.html); it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
+Our first real task is to get an instance of [`CContainer`](https://www.npmjs.com/package/@collabs/container). This is the entry point for a Collabs [container](./guide/containers.html); it connects your `Collab`s to the Collabs container host, which in turn connects them to other collaborators over the network.
 
 ```ts
-const container = new CRDTContainer();
+const container = new CContainer();
 ```
 
 ### 2. Register "Global Variable" `Collab`s
@@ -117,9 +117,9 @@ A few things to note here:
 
 Now that we have our `counter`, we need to observe changes to it and update the GUI. This ensures that the GUI always reflects the current collaborative state.
 
-In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CRDTContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./advanced/events.html) goes into more detail later in the guide.
+In general, a `Collab` emits **events** when its state changes due to operations by the local user or by remote collaborators. You can subscribe to events using a `Collab`'s `on` method. `CContainer` also emits a catch-all "Change" event whenever any `Collab` changes. [Events](./advanced/events.html) goes into more detail later in the guide.
 
-Here we listen on `CRDTContainer`'s "Change" event and refresh the entire display whenever it is emitted.
+Here we listen on `CContainer`'s "Change" event and refresh the entire display whenever it is emitted.
 
 ```ts
 const display = document.getElementById("display")!;

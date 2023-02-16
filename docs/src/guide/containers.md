@@ -21,7 +21,7 @@ Starting from scratch, the steps are:
 2. Setup a toolchain for your project (e.g., TypeScript + Webpack) so that it builds the whole thing as a single HTML (not JS) file, ideally containing all dependencies and assets. (See [Advanced](#advanced) for advice and alternatives.)
 3. In your main TypeScript file:
 
-   a. Start by creating an instance of `CRDTContainer` from @collabs/container. We'll assume it's named `container`.
+   a. Start by creating an instance of `CContainer` from @collabs/container. We'll assume it's named `container`.
 
    b. Setup your app: register your top-level Collabs using `container.registerCollabs`, connect them to your GUI using [event listeners](../advanced/events.html), and connect user input to them.
 
@@ -70,11 +70,11 @@ For this to work, `<your file URL>` must be configured to return the CORS header
 
 ## Developing Container Hosts
 
-A container host is mostly just a Collabs app that uses the `CRDTContainerHost` class (from @collabs/container) as one of its Collabs. Messages sent by the container get converted to messages sent by the `CRDTContainerHost`, which then get sent by the app as usual. Likewise for receiving messages and for saving and loading.
+A container host is mostly just a Collabs app that uses the `CContainerHost` class (from @collabs/container) as one of its Collabs. Messages sent by the container get converted to messages sent by the `CContainerHost`, which then get sent by the app as usual. Likewise for receiving messages and for saving and loading.
 
-The `CRDTContainerHost` constructor expects an IFrame holding the container. I.e., you set the IFrame's `src` equal to the container's URL. You are expected to block user interaction with the IFrame until the container is ready, as indicated by the "ContainerReady" event. E.g., you can set `hidden = true` until ready. Otherwise, users might be tempted to click things (performing Collabs operations) before the container is ready, causing errors.
+The `CContainerHost` constructor expects an IFrame holding the container. I.e., you set the IFrame's `src` equal to the container's URL. You are expected to block user interaction with the IFrame until the container is ready, as indicated by the "ContainerReady" event. E.g., you can set `hidden = true` until ready. Otherwise, users might be tempted to click things (performing Collabs operations) before the container is ready, causing errors.
 
-If you want to support a specific network/storage/UX/etc. for general Collabs apps, you can write a container host for it. This would take the form of a (non-container) Collabs app that uses your chosen network/storage/UX/etc., with a `CRDTContainerHost` as its single Collab, and with some way for users to specify the container.
+If you want to support a specific network/storage/UX/etc. for general Collabs apps, you can write a container host for it. This would take the form of a (non-container) Collabs app that uses your chosen network/storage/UX/etc., with a `CContainerHost` as its single Collab, and with some way for users to specify the container.
 
 Example container hosts:
 

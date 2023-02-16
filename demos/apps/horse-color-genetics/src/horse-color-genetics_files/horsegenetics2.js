@@ -22,7 +22,7 @@
 */
 
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 // CSS
 import css from "./horsegenetics.css";
 void css;
@@ -1921,7 +1921,7 @@ let alleles = {};
 
 // Async so we can await load.
 async function collabsSetup() {
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   for (const gene of GENES) {
     for (const num of [1, 2]) {

@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
@@ -141,7 +141,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
 }
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   // Quill's initial content is "\n".
   const clientText = container.registerCollab(

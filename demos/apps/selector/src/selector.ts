@@ -1,9 +1,9 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer, CRDTContainerHost } from "@collabs/container";
+import { CContainer, CContainerHost } from "@collabs/container";
 import pako from "pako";
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CContainer();
   const currentHost = container.registerCollab(
     "",
     (init) =>
@@ -16,7 +16,7 @@ import pako from "pako";
           const iframe = document.createElement("iframe");
           iframe.hidden = true;
           iframe.srcdoc = htmlSrc;
-          const host = new CRDTContainerHost(valueInitToken, iframe);
+          const host = new CContainerHost(valueInitToken, iframe);
           document.body.appendChild(iframe);
           // Compact host's save data when compacting our own.
           container.onSaveRequest(() => host.compactSaveData());
@@ -42,9 +42,7 @@ import pako from "pako";
     document.getElementById("initializingDiv")
   );
 
-  function onCurrentHostSet(
-    previousValue: collabs.Optional<CRDTContainerHost>
-  ) {
+  function onCurrentHostSet(previousValue: collabs.Optional<CContainerHost>) {
     // Hide other stuff.
     selectorDiv.hidden = true;
     if (previousValue.isPresent) {

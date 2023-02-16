@@ -1,8 +1,8 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import $ from "jquery";
 
-export function setupWhiteboard(container: CRDTContainer) {
+export function setupWhiteboard(container: CContainer) {
   // The key represents a point in the form: [x, y].
   // The value is the color of the stroke.
   const boardState = container.registerCollab(

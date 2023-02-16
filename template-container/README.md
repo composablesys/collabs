@@ -1,6 +1,6 @@
 # Collabs Container Starter Template
 
-Template for a [Collabs container](https://collabs.readthedocs.io/en/latest/guide/containers.html), using the [CRDTContainer](https://collabs.readthedocs.io/en/latest/api/container/classes/CRDTContainer.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
+Template for a [Collabs container](https://collabs.readthedocs.io/en/latest/guide/containers.html), using the [CContainer](https://collabs.readthedocs.io/en/latest/api/container/classes/CContainer.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
 
 [Quick Start using this template](https://collabs.readthedocs.io/en/latest/quick_start.html)
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from "@collabs/core";
-import { CRuntime, CRuntimeOptions, RuntimeEventsRecord } from "./c_runtime";
+import { CRuntime, RuntimeEventsRecord, RuntimeOptions } from "./c_runtime";
 
 const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
   "Change",
@@ -37,7 +37,7 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  *
  * See the [Getting Started Guide](https://github.com/composablesys/collabs/blob/master/collabs/docs/getting_started_guide.md).
  * `CRDTApp` corresponds to the "app" template (not the "container"
- * template, which uses the alternative class `CRDTContainer`
+ * template, which uses the alternative class `CContainer`
  * from package @collabs/container).
  *
  * ## `CRDTApp` Lifecycle
@@ -80,7 +80,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * that were passed to [[receive]] before M's "Send"
    * event was emitted.
    */
-  constructor(options?: CRuntimeOptions) {
+  constructor(options?: RuntimeOptions) {
     super();
 
     this.runtime = new CRuntime(options);

@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer, CRDTContainerHost } from "@collabs/container";
+import { CContainer, CContainerHost } from "@collabs/container";
 import pako from "pako";
 import { richTextPreContent } from "./rich_text_tile";
 
@@ -271,7 +271,7 @@ class CTile extends collabs.CObject {
   }
 }
 
-export function setupTiles(container: CRDTContainer) {
+export function setupTiles(container: CContainer) {
   // --------------------------------------
   // Existing Apps
 
@@ -435,7 +435,7 @@ export function setupTiles(container: CRDTContainer) {
       // TODO: in its place, display "Initializing..." message.
       iframe.hidden = true;
       contentDomParent.appendChild(iframe);
-      const host = new CRDTContainerHost(contentInitToken, iframe);
+      const host = new CContainerHost(contentInitToken, iframe);
       host.once("ContainerReady", () => {
         iframe.hidden = false;
       });

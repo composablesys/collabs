@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
 
 // Minesweeper Collab
@@ -395,7 +395,7 @@ class CMinesweeper extends collabs.CObject {
     };
   }
 
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   const currentGame = container.registerCollab(
     "currentGame",

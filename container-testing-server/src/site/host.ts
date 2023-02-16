@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainerHost } from "@collabs/container";
+import { CContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
 // From containerUrl.js, included in index.html.
@@ -47,7 +47,7 @@ iframe.addEventListener("load", () => {
 // Attach the container.
 const host = app.registerCollab(
   "host",
-  (init) => new CRDTContainerHost(init, iframe)
+  (init) => new CContainerHost(init, iframe)
 );
 
 // Show the container once it's ready.

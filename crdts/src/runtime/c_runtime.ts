@@ -66,7 +66,7 @@ export interface RuntimeEventsRecord {
   Load: object;
 }
 
-export interface CRuntimeOptions {
+export interface RuntimeOptions {
   causalityGuaranteed?: boolean;
   debugReplicaID?: string;
   autoTransactions?: "microtask" | "op" | "error";
@@ -94,7 +94,7 @@ export class CRuntime
 
   readonly providesCRDTMeta = true;
 
-  constructor(options: CRuntimeOptions = {}) {
+  constructor(options: RuntimeOptions = {}) {
     super(options.debugReplicaID ?? ReplicaIDs.random());
     const causalityGuaranteed = options?.causalityGuaranteed ?? false;
     this.autoTransactions = options.autoTransactions ?? "microtask";
