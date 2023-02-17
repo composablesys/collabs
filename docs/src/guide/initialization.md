@@ -14,11 +14,11 @@ Every Collabs app must have some **"global variable"** `Collab`s, whose parents 
 
 We call them "global variables" because they exist in the top-level scope from Collabs's perspective, although you don't have to store them as literal global variables (hence the "scare quotes").
 
-To initialize a "global variable" `Collab`, use your entry point's `registerCollab` method ([CRDTApp.registerCollab](../api/collabs/classes/CRDTApp.html#registerCollab) / [CContainer.registerCollab](../api/container/classes/CContainer.html#registerCollab)). For example, to initialize a `collabs.CCounter` and store it in `counter`:
+To initialize a "global variable" `Collab`, use your entry point's `registerCollab` method ([CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab) / [CContainer.registerCollab](../api/container/classes/CContainer.html#registerCollab)). For example, to initialize a `collabs.CCounter` and store it in `counter`:
 
 ```ts
-// app is a CRDTApp or CContainer
-const counter = app.registerCollab(
+// runtime is a CRuntime or CContainer
+const counter = runtime.registerCollab(
   "counter", // name
   (init) => new collabs.CCounter(init) // constructor callback
 );
@@ -27,18 +27,18 @@ const counter = app.registerCollab(
 A few things to note here:
 
 - `registerCollab` returns the initialized `Collab`. You should store it in a `const` variable for later use. (It should be `const`, not `let` or `var`, because you keep the same instance of a `Collab` for its whole lifetime, while operations mutate its internal state.)
-- The first argument is the **name** for your `Collab`. It must be unique among all calls to `app.registerCollab` but is otherwise arbitrary. We suggest using the same name as the variable where you store the returned `Collab`.
+- The first argument is the **name** for your `Collab`. It must be unique among all calls to `runtime.registerCollab` but is otherwise arbitrary. We suggest using the same name as the variable where you store the returned `Collab`.
 - The second argument is a callback function that accepts an [InitToken](../api/collabs/classes/InitToken.html), uses it to call your `Collab`'s constructor, then returns the `Collab`. `Collab`s always take the `InitToken` as their first constructor argument. They may take other constructor arguments as well, like any other class, although we don't use that here.
 
 > Internally, `registerCollab` creates an [InitToken](../api/collabs/classes/InitToken.html) with the given name, calls your callback with it, stores the resulting `Collab` in the entry point, then returns it to you.
 
-The "global variable" `Collab`s essentially set up a _schema_ for your app: they tell the Collabs library how your data is structured (types, names, nesting), its initial values, how to interpret network messages received from other collaborators, and how to interpret saved state passed to `app.load` (see [Entry Points](./entry_points.html)).
+The "global variable" `Collab`s essentially set up a _schema_ for your app: they tell the Collabs library how your data is structured (types, names, nesting), its initial values, how to interpret network messages received from other collaborators, and how to interpret saved state passed to `runtime.load` (see [Entry Points](./entry_points.html)).
 
-> Interpreting save data is why you have to finish your `registerCollab` calls before calling `app.load`.
+> Interpreting save data is why you have to finish your `registerCollab` calls before calling `runtime.load`.
 
 To make sure that collaborators can understand each other, you must ensure that **all collaborators have the same "global variable" `Collab`s**, i.e., the same schema. In particular:
 
-1. All collaborators must make the same number of calls to `app.registerCollab`, with the same names.
+1. All collaborators must make the same number of calls to `runtime.registerCollab`, with the same names.
 2. Calls with the same names on different collaborators must use the same/equivalent `Collab` class, generic types, and constructor arguments.
 
 The easiest way to follow these rules is to have all collaborators run the same code. For example, they all load the same web page. Just be careful that your `registerCollab` calls don't depend on something that might change between collaborators - e.g., the user's name or the current time.
@@ -66,8 +66,8 @@ function valueConstructor(valueInitToken: collabs.InitToken) {
 You then use it as a constructor argument when initializing your `CSet` (here, as a "global variable" `Collab`):
 
 ```ts
-// app is a CRDTApp or CContainer
-const set = app.registerCollab(
+// runtime is a CRuntime or CContainer
+const set = runtime.registerCollab(
   "set",
   (init) => new collabs.CSet(init, valueConstructor)
 );
@@ -93,4 +93,4 @@ No local variable Collabs b/c wouldn't make sense collaboratively. -->
 
 Continue following the Guide with [Handling Changes](./handling_changes.html) - the last really essential page.
 
-[^runtime]: Technically, the parent is the entry point's internal [CRuntime](../api/collabs/classes/CRuntime.html), accessed via [CRDTApp.runtime](../api/collabs/classes/CRDTApp.html#runtime) / [CContainer.runtime](../api/container/classes/CContainer.html#runtime).
+[^runtime]: Technically, the parent is the entry point's internal [CRuntime](../api/collabs/classes/CRuntime.html), accessed via [CRuntime.runtime](../api/collabs/classes/CRuntime.html#runtime) / [CContainer.runtime](../api/container/classes/CContainer.html#runtime).

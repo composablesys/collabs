@@ -1,6 +1,6 @@
 # Collabs App Starter Template
 
-Template for a generic Collabs app, using the [CRDTApp](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRDTApp.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
+Template for a generic Collabs app, using the [CRuntime](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRuntime.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
 
 [Collabs Docs](https://collabs.readthedocs.io/en/latest/)
 

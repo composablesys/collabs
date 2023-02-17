@@ -10,7 +10,7 @@ Template for a [Collabs container](https://collabs.readthedocs.io/en/latest/guid
 
 [@collabs/container API](https://collabs.readthedocs.io/en/latest/api/container/index.html)
 
-See also: [template-app](https://github.com/composablesys/collabs/tree/master/template-app), which is for a generic Collabs app using [CRDTApp](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRDTApp.html).
+See also: [template-app](https://github.com/composablesys/collabs/tree/master/template-app), which is for a generic Collabs app using [CRuntime](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRuntime.html).
 
 ## Installation
 

@@ -2,7 +2,7 @@
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-**@collabs/ws-client** contains the `WebSocketNetwork` class. It connects a `CRDTApp` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server using a WebSocket.
+**@collabs/ws-client** contains the `WebSocketNetwork` class. It connects a `CRuntime` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server using a WebSocket.
 
 ## Docs
 

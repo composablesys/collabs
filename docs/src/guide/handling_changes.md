@@ -1,6 +1,6 @@
 # Handling Changes
 
-When remote users change a collaborative data structure's state, you need to know about that change, so that you can refresh your display. The easiest way to do this is to handle your [entry point](./entry_points.html)'s `Change` event, which works for both [CRDTApp](../api/collabs/classes/CRDTApp.html) and [CContainer](../api/container/classes/CContainer.html):
+When remote users change a collaborative data structure's state, you need to know about that change, so that you can refresh your display. The easiest way to do this is to handle your [entry point](./entry_points.html)'s `Change` event, which works for both [CRuntime](../api/collabs/classes/CRuntime.html) and [CContainer](../api/container/classes/CContainer.html):
 
 ```ts
 function refreshDisplay() {
@@ -9,7 +9,7 @@ function refreshDisplay() {
   // ...
 }
 
-app.on("Change", refreshDisplay);
+runtime.on("Change", refreshDisplay);
 ```
 
 For example, in the [Quick Start](../quick_start.html), we did:
@@ -24,15 +24,15 @@ function refreshDisplay() {
 container.on("Change", refreshDisplay);
 ```
 
-As described in the API docs ([CRDTApp Change event docs](../api/collabs/interfaces/CRDTAppEventsRecord.html#Change), [CContainer change event docs](../api/container/interfaces/CContainerEventsRecord.html#Change)), a `Change` event is emitted each time your app receives a message, whether from a remote collaborator or from the local user's own operations. Thus using the above pattern ensures that your display is always a functional view of your collaborative state.
+As described in the API docs ([CRuntime Change event docs](../api/collabs/interfaces/CRuntimeEventsRecord.html#Change), [CContainer change event docs](../api/container/interfaces/CContainerEventsRecord.html#Change)), a `Change` event is emitted each time your app receives a message, whether from a remote collaborator or from the local user's own operations. Thus using the above pattern ensures that your display is always a functional view of your collaborative state.
 
-> You can find the API docs for events like these by going to the event emitter's `on` method (e.g. [CRDTApp.on](../api/collabs/classes/CRDTApp.html#on)), clicking on `eventName`'s key type (e.g. [CRDTAppEventsRecord](../api/collabs/interfaces/CRDTAppEventsRecord.html)), then viewing the property with the event's name. That property's type tells you the type of the event `e` passed to your event handler (ignored in our example).
+> You can find the API docs for events like these by going to the event emitter's `on` method (e.g. [CRuntime.on](../api/collabs/classes/CRuntime.html#on)), clicking on `eventName`'s key type (e.g. [CRuntimeEventsRecord](../api/collabs/interfaces/CRuntimeEventsRecord.html)), then viewing the property with the event's name. That property's type tells you the type of the event `e` passed to your event handler (ignored in our example).
 
 ## Handling Loading
 
-A special kind of change happens while setting up your app: you (optionally) load a previous session's saved state from disk (or wherever). This was the call to [CRDTApp.load](../api/collabs/classes/CRDTApp.html#load) or [CContainer.load](../api/container/classes/CContainer#load) in our [Entry Points](./entry_points.html) boilerplate.
+A special kind of change happens while setting up your app: you (optionally) load a previous session's saved state from disk (or wherever). This was the call to [CRuntime.load](../api/collabs/classes/CRuntime.html#load) or [CContainer.load](../api/container/classes/CContainer#load) in our [Entry Points](./entry_points.html) boilerplate.
 
-Loading saved state changes each `Collab` from its initial states to whatever its state was in the last session, so you need to update your display to reflect the new loaded state. An easy way to do this is to call the same `refreshDisplay()` function that you used as the `Change` handler, right after calling [CRDTApp.load](../api/collabs/classes/CRDTApp.html#load) or [CContainer.load](../api/container/classes/CContainer#load).
+Loading saved state changes each `Collab` from its initial states to whatever its state was in the last session, so you need to update your display to reflect the new loaded state. An easy way to do this is to call the same `refreshDisplay()` function that you used as the `Change` handler, right after calling [CRuntime.load](../api/collabs/classes/CRuntime.html#load) or [CContainer.load](../api/container/classes/CContainer#load).
 
 > Although loading changes the state, a `Change` event is not emitted. In general, events are only emitted in response to **messages** caused by `Collab` operations (mutating method calls), whether remote or local.
 

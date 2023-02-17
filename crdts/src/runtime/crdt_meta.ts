@@ -14,7 +14,7 @@ import { MetaRequest } from "@collabs/core";
  *
  * To ensure access to [[CRDTMeta]], a [[Collab]] must
  * be a descendant of [[CRDTMetaLayer]] in the tree
- * of [[Collab]]s. Using [[CRDTApp]] ensures this
+ * of [[Collab]]s. Using [[CRuntime]] ensures this
  * for all [[Collab]]s.
  *
  * All messages in the same [transaction](../../transactions.md)

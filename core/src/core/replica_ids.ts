@@ -64,7 +64,7 @@ export class ReplicaIDs {
    * Like [[ReplicaIDs.random]] but using pseudo-randomness
    * instead of cryptographic randomness.
    *
-   * This can be passed to [[CRDTApp]]'s `debugReplicaID` option.
+   * This can be passed to [[CRuntime]]'s `debugReplicaID` option.
    * It is recommended to do so for tests and benchmarks.
    *
    * @param rng The psuedo-random number generator, from

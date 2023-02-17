@@ -1,4 +1,4 @@
-import { Collab, CRDTApp, Optional, TestingRuntimes } from "@collabs/collabs";
+import { Collab, CRuntime, Optional, TestingRuntimes } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import {
@@ -12,8 +12,8 @@ import { debug } from "./debug";
 
 describe("tensor", () => {
   let runtimeGen: TestingRuntimes;
-  let alice: CRDTApp;
-  let bob: CRDTApp;
+  let alice: CRuntime;
+  let bob: CRuntime;
 
   beforeEach(() => {
     runtimeGen = new TestingRuntimes();

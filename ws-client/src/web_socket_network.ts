@@ -32,7 +32,7 @@ export class WebSocketNetwork {
     this.ws = new ReconnectingWebSocket(url);
     this.ws.addEventListener("message", this.wsReceive.bind(this));
 
-    this.doc.on("Send", this.appSend.bind(this));
+    this.doc.on("Send", this.docSend.bind(this));
 
     // Register with the server.
     // TODO: wait until after "loading", so we only request
@@ -68,9 +68,9 @@ export class WebSocketNetwork {
   }
 
   /**
-   * this.app "Send" event handler.
+   * this.doc "Send" event handler.
    */
-  private appSend(e: SendEvent): void {
+  private docSend(e: SendEvent): void {
     if (!this._sendConnected) {
       this.sendQueue.push(e);
       return;
@@ -88,7 +88,7 @@ export class WebSocketNetwork {
 
   /**
    * Set this to false to (temporarily) queue messages sent
-   * by the local CRDTApp instead of sending them to the server.
+   * by the local CRuntime instead of sending them to the server.
    *
    * Intended as a testing utility (lets you artificially
    * create concurrency).
@@ -99,7 +99,7 @@ export class WebSocketNetwork {
   set sendConnected(sendConnected: boolean) {
     this._sendConnected = sendConnected;
     if (sendConnected) {
-      this.sendQueue.forEach(this.appSend.bind(this));
+      this.sendQueue.forEach(this.docSend.bind(this));
       this.sendQueue = [];
     }
   }
@@ -111,7 +111,7 @@ export class WebSocketNetwork {
   /**
    * Set this to false to (temporarily) queue messages received
    * from the server instead of delivering them to the local
-   * CRDTApp.
+   * CRuntime.
    *
    * Intended as a testing utility (lets you artificially
    * create concurrency).

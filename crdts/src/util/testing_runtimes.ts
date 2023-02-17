@@ -24,11 +24,6 @@ export class TestingRuntimes {
   /**
    * [newRuntime description]
    *
-   * Note: technically you should call [[CRuntime.load]] on the
-   * app after registering Collabs, even if you are not loading
-   * any previous state. But if you know your Collabs don't
-   * care, there should be no harm in skipping it.
-   *
    * @param  batchingStrategy Note that the default here is
    * [[TestingBatchingStrategy]], unlike in [[CRuntime]].
    * @return                  [description]
@@ -38,7 +33,7 @@ export class TestingRuntimes {
     causalityGuaranteed = false
   ) {
     const debugReplicaID = rng ? ReplicaIDs.pseudoRandom(rng) : undefined;
-    const app = new CRuntime({
+    const runtime = new CRuntime({
       autoTransactions: "op",
       debugReplicaID,
       causalityGuaranteed,
@@ -47,22 +42,25 @@ export class TestingRuntimes {
     const appQueue = new Map<CRuntime, Uint8Array[]>();
     for (const [oldApp, oldAppQueue] of this.messageQueues) {
       appQueue.set(oldApp, []);
-      oldAppQueue.set(app, []);
+      oldAppQueue.set(runtime, []);
     }
-    this.messageQueues.set(app, appQueue);
+    this.messageQueues.set(runtime, appQueue);
 
-    this.sentBytes.set(app, 0);
-    this.receivedBytes.set(app, 0);
+    this.sentBytes.set(runtime, 0);
+    this.receivedBytes.set(runtime, 0);
 
-    app.on("Send", (e) => {
-      this.sentBytes.set(app, this.sentBytes.get(app)! + e.message.byteLength);
+    runtime.on("Send", (e) => {
+      this.sentBytes.set(
+        runtime,
+        this.sentBytes.get(runtime)! + e.message.byteLength
+      );
       for (const queue of appQueue.values()) {
         queue.push(e.message);
       }
       this.lastMessage = e.message;
     });
 
-    return app;
+    return runtime;
   }
 
   /**

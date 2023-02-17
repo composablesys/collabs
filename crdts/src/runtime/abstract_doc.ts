@@ -14,10 +14,10 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  * Subclass to make your own "CDoc", w/ (probably public readonly)
  * Collabs, added via runtime.registerCollab.
  *
- * `CRDTApp` manages a group of CRDT [[Collab]]s, i.e.,
+ * `AbstractDoc` manages a group of CRDT [[Collab]]s, i.e.,
  * [[Collab]]s that are (op-based) CRDTs. (Currently, this includes
  * all `Collab`s that come built-in with @collabs/collabs.)
- * `CRDTApp` lets you register [[Collab]]s and then use them.
+ * `AbstractDoc` lets you register [[Collab]]s and then use them.
  * In return, you must provide networking and storage.
  *
  * For networking, whenever this replica sends a message
@@ -27,7 +27,7 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  *
  * For storage, you must ensure that when a new replica
  * is created, it eventually learns of all prior messages.
- * The `CRDTApp` can learn of a message either by calling
+ * The `AbstractDoc` can learn of a message either by calling
  * [[receive]] on it as usual, or by calling [[load]] with
  * save data from a call to a previous instance's [[save]]
  * method that happened after sending or receiving that message.
@@ -36,19 +36,19 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  * in the log.
  *
  * See the [Getting Started Guide](https://github.com/composablesys/collabs/blob/master/collabs/docs/getting_started_guide.md).
- * `CRDTApp` corresponds to the "app" template (not the "container"
+ * `AbstractDoc` corresponds to the "app" template (not the "container"
  * template, which uses the alternative class `CContainer`
  * from package @collabs/container).
  *
- * ## `CRDTApp` Lifecycle
+ * ## `AbstractDoc` Lifecycle
  *
- * After construction a `CRDTApp`, you must first
+ * After construction a `AbstractDoc`, you must first
  * register your Collabs using [[registerCollab]].
  * Afterwards, you must eventually call [[load]],
  * even if you do not have prior save data to load
  * (in that case, use [[Optional.empty]]`()` as the argument).
  *  Only then can you
- * use the `CRDTApp`, i.e., you can perform `Collab`
+ * use the `AbstractDoc`, i.e., you can perform `Collab`
  * operations and call [[receive]].
  *
  * Subclassing: Maybe also expose idOf/fromID

@@ -257,7 +257,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
 
   /**
    * Asks the internal [[CContainer]] to call its analog
-   * of [[CRDTApp.save]], generating compact save data
+   * of [[CRuntime.save]], generating compact save data
    * describing its current state. This save data will then
    * be used in future calls to our own [[save]] method,
    * in place of a message log.
