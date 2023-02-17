@@ -1,4 +1,5 @@
 import {
+  CLazyMap,
   CList,
   CObject,
   CollabEvent,
@@ -6,7 +7,7 @@ import {
   CollabID,
   CRDTMeta,
   CRuntime,
-  CValueMap,
+  CVar,
   InitToken,
 } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
@@ -26,10 +27,13 @@ interface CRichCharEventsRecord extends CollabEventsRecord {
   Format: { key: string } & CollabEvent;
 }
 
-// TODO: restrict attributes which can be transferred by SDP.
-
 class CRichChar extends CObject<CRichCharEventsRecord> {
-  private readonly _attributes: CValueMap<string, unknown>;
+  /**
+   * Use this more complicated but equivalent map instead of a
+   * CValueMap, so that we can copy individual attributes' CRDT
+   * states.
+   */
+  private readonly _attributes: CLazyMap<string, CVar<unknown>>;
   readonly ignoreAttrsSet: Set<string>;
   /** Used to suppress formatting events during copyOriginAttributes. */
   private inCopyOriginAttributes = false;
@@ -48,7 +52,12 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
   ) {
     super(init);
 
-    this._attributes = this.registerCollab("", (init) => new CValueMap(init));
+    this._attributes = this.registerCollab(
+      "",
+      (init) =>
+        // Initial value null, so not-present values are null.
+        new CLazyMap(init, (valueInit) => new CVar(valueInit, null))
+    );
 
     this.ignoreAttrsSet = new Set(ignoreAttrs);
 
@@ -67,7 +76,8 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
   }
 
   getAttribute(attribute: string): unknown | null {
-    return this._attributes.get(attribute) ?? null;
+    // This pattern gives null if not present, as desired.
+    return this._attributes.get(attribute).value;
   }
 
   /**
@@ -75,9 +85,9 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
    */
   setAttribute(attribute: string, value: unknown | null) {
     if (value === null) {
-      this._attributes.delete(attribute);
+      this._attributes.get(attribute).clear();
     } else {
-      this._attributes.set(attribute, value);
+      this._attributes.get(attribute).value = value;
     }
   }
 
@@ -89,20 +99,25 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
     if (this.origin !== null) {
       this.inCopyOriginAttributes = true;
       try {
-        throw new Error("TODO: copyOriginAttributes");
-        // // TODO: need to normalize the save, as if it was serialized?
-        // const originSave = this.origin._attributes.save();
-        // if (originSave !== null) {
-        //   // Copy attributes from origin...
-        //   this._attributes.load(originSave);
-        //   // ...except for ignored ones, which are locally deleted, to reset them
-        //   // to the initial state.
-        //   runLocallyLayer.runLocally(null, () => {
-        //     for (const key of this.ignoreAttrsSet) {
-        //       this._attributes.delete(key);
-        //     }
-        //   });
-        // }
+        for (const [key, value] of this.origin._attributes) {
+          if (!this.ignoreAttrsSet.has(key)) {
+            // Copy the attribute's whole state (including conflicts)
+            // from this.origin to this.
+            // Hack: do so by saving & loading.
+            // TODO: proper function for this that also provides proper
+            // CRDTMeta & normalizes the save?
+            const originSave = value.save();
+            if (originSave !== null) {
+              this._attributes.get(key).load(originSave, {
+                senderID: "COPY",
+                isLocalOp: false,
+                updateType: "savedState",
+                info: undefined,
+                runtimeExtra: undefined,
+              });
+            }
+          }
+        }
       } finally {
         this.inCopyOriginAttributes = false;
       }
@@ -150,13 +165,7 @@ class CRichText extends CObject<CRichTextEventsRecord> {
       (init) => new RunLocallyLayer(init)
     );
     this.text = this.runLocallyLayer.setChild(
-      (init) =>
-        new CList(
-          init,
-          this.charConstructor.bind(this)
-          // TODO: initial char
-          // initialChars.map((value) => [value, null, []])
-        )
+      (init) => new CList(init, this.charConstructor.bind(this))
     );
     this.sdpStore = this.registerCollab(
       "1",
