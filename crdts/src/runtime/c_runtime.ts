@@ -21,11 +21,11 @@ import {
 } from "./crdt_meta_implementations";
 
 class PublicCObject extends CObject {
-  addChild<C extends Collab>(
+  registerCollab<C extends Collab>(
     name: string,
     childCallback: (init: InitToken) => C
   ): C {
-    return super.addChild(name, childCallback);
+    return super.registerCollab(name, childCallback);
   }
 }
 
@@ -129,7 +129,7 @@ export class CRuntime
     if (this._isLoaded) {
       throw new Error("Already loaded");
     }
-    return this.registry.addChild(name, collabCallback);
+    return this.registry.registerCollab(name, collabCallback);
   }
 
   private beginTransaction(info: string | undefined) {

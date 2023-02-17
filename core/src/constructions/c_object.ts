@@ -38,7 +38,7 @@ import {
  * ## Usage
  *
  * The children must be registered in the constructor
- * using [[addChild]], which accepts a [[Pre]]-Collab and
+ * using [[registerCollab]], which accepts a Collab callback and
  * outputs the constructed Collab.  Each child must be assigned
  * a unique name, e.g., its name as an property.  (If
  * you are concerned about message sizes on the network,
@@ -86,12 +86,12 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   protected readonly children: Map<string, Collab> = new Map();
 
   /**
-   * Add child as a child of this Collab with the given
+   * Registers collab as a child of this Collab with the given
    * name.
    *
    * It is recomend that you use this in the style
    * ```ts
-   * this.foo = this.addChild("foo", (init) => new FooClass(init, constructor args...));
+   * this.foo = this.registerCollab("foo", (init) => new FooClass(init, constructor args...));
    * ```
    * In particular, the created child should be stored as an ordinary
    * object property.  Each child must be assigned
@@ -102,14 +102,14 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    *
    * @return child
    */
-  protected addChild<C extends Collab>(
+  protected registerCollab<C extends Collab>(
     name: string,
-    childCallback: (init: InitToken) => C
+    collabCallback: (init: InitToken) => C
   ): C {
     if (this.children.has(name)) {
       throw new Error('Duplicate child name: "' + name + '"');
     }
-    const child = childCallback(new InitToken(name, this));
+    const child = collabCallback(new InitToken(name, this));
     this.children.set(name, child);
     return child;
   }

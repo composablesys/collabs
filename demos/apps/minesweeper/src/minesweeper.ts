@@ -40,8 +40,11 @@ class CTile extends CObject {
 
   constructor(init: InitToken, isMine: boolean) {
     super(init);
-    this.revealed = this.addChild("revealed", (init) => new CBoolean(init));
-    this.flag = this.addChild(
+    this.revealed = this.registerCollab(
+      "revealed",
+      (init) => new CBoolean(init)
+    );
+    this.flag = this.registerCollab(
       "flag",
       (init) => new CVar<FlagStatus>(init, FlagStatus.NONE)
     );
@@ -128,7 +131,7 @@ class CMinesweeper extends CObject {
       for (let y = 0; y < height; y++) {
         const isMine =
           x === startX && y === startY ? false : rng() < fractionMines;
-        this.tiles[x][y] = this.addChild(
+        this.tiles[x][y] = this.registerCollab(
           x + ":" + y,
           (init) => new CTile(init, isMine)
         );

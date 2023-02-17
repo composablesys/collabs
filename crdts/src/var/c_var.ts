@@ -47,7 +47,7 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
     const aggregator =
       options.aggregator ?? (defaultAggregator as Aggregator<T>);
 
-    this.mvMap = super.addChild(
+    this.mvMap = super.registerCollab(
       "",
       (init) =>
         new CMultiValueMap(init, {

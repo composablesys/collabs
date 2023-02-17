@@ -13,12 +13,12 @@ class NestedNoopCRDT extends collabs.CObject {
     super(init);
 
     if (parentsRemaining === 0) {
-      this.child = this.addChild(
+      this.child = this.registerCollab(
         "" + parentsRemaining,
         (init) => new NoopCRDT(init)
       );
     } else {
-      this.child = this.addChild(
+      this.child = this.registerCollab(
         "" + parentsRemaining,
         (init) => new NestedNoopCRDT(init, parentsRemaining - 1)
       );

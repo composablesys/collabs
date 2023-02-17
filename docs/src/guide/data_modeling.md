@@ -84,11 +84,11 @@ class CPair<T, U> extends CObject {
     super(init);
 
     // Setup child Collabs.
-    this.firstReg = this.addChild(
+    this.firstReg = this.registerCollab(
       "firstReg",
       (init) => new Collabs.CVar(init, firstInitial)
     );
-    this.secondReg = this.addChild(
+    this.secondReg = this.registerCollab(
       "secondReg",
       (init) => new Collabs.CVar(init, firstInitial)
     );
@@ -239,11 +239,11 @@ class CTile extends collabs.CObject {
 
   constructor(init: collabs.InitToken, isMine: boolean) {
     super(init);
-    this.revealed = this.addChild(
+    this.revealed = this.registerCollab(
       "revealed",
       (init) => new collabs.TrueWinsCBoolean(init)
     );
-    this.flag = this.addChild(
+    this.flag = this.registerCollab(
       "flag",
       (init) => new collabs.CVar<FlagStatus>(init, FlagStatus.NONE)
     );
@@ -291,7 +291,7 @@ class CMinesweeper extends collabs.CObject {
       for (let y = 0; y < height; y++) {
         const isMine =
           x === startX && y === startY ? false : rng() < fractionMines;
-        this.tiles[x][y] = this.addChild(
+        this.tiles[x][y] = this.registerCollab(
           x + ":" + y,
           (init) => new CTile(init, isMine)
         );

@@ -9,7 +9,7 @@ The library is designed to make collaboration "just work". However, it's possibl
 `Collab`s must be initialized identically for all users. In particular:
 
 1. All users must make the same calls to [`runtime.registerCollab`](../api/collabs/classes/IRuntime.html#registerCollab), with the same names, types, and constructor arguments.
-2. Likewise for calls to `addChild` within a `CObject`.
+2. Likewise for calls to `registerCollab` within a `CObject`.
 3. Constructor arguments, and the logic inside `Collab` constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or `runtime.replicaId`.
 
 So long as all users are running the same version of the code, 1 and 2 should be automatic.
@@ -24,13 +24,13 @@ More info: [Initialization](./initialization.html).
 
 All calls to [`runtime.registerCollab`](../api/collabs/classes/IRuntime.html#registerCollab) must happen before any messages are received from other users or any prior state is loaded. Typically, you accomplish this by making all of these calls immediately after constructing `runtime`, in the same thread. Otherwise, you may receive a message or save data that references a `Collab` you haven't registered yet, which will cause an error.
 
-Likewise, within a `CObject`, you should make all calls to `addChild` within the constructor. (If you need to add children dynamically, you should instead use a built-in collection type to do so, e.g., `CSet`.)
+Likewise, within a `CObject`, you should make all calls to `registerCollab` within the constructor. (If you need to add children dynamically, you should instead use a built-in collection type to do so, e.g., `CSet`.)
 
 More info: [Initialization](./initialization.html).
 
 ## Non-unique Names
 
-All names passed to [`runtime.registerCollab`](../api/collabs/classes/IRuntime.html#registerCollab) must be unique. Likewise, within a `CObject`, all names passed to `addChild` must be unique. A simple way to ensure this is to use the corresponding variable's name. Note, however, that there is a network cost to longer names, so you might instead prefer to assign names in order of length ("", "0", "1", etc.).
+All names passed to [`runtime.registerCollab`](../api/collabs/classes/IRuntime.html#registerCollab) must be unique. Likewise, within a `CObject`, all names passed to `registerCollab` must be unique. A simple way to ensure this is to use the corresponding variable's name. Note, however, that there is a network cost to longer names, so you might instead prefer to assign names in order of length ("", "0", "1", etc.).
 
 ## Non-Serializable Types
 

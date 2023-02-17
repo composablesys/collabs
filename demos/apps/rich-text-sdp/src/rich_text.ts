@@ -48,7 +48,7 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
   ) {
     super(init);
 
-    this._attributes = this.addChild("", (init) => new CValueMap(init));
+    this._attributes = this.registerCollab("", (init) => new CValueMap(init));
 
     this.ignoreAttrsSet = new Set(ignoreAttrs);
 
@@ -145,7 +145,7 @@ class CRichText extends CObject<CRichTextEventsRecord> {
   constructor(init: InitToken, initialChars: (string | object)[] = []) {
     super(init);
 
-    this.runLocallyLayer = this.addChild(
+    this.runLocallyLayer = this.registerCollab(
       "",
       (init) => new RunLocallyLayer(init)
     );
@@ -158,7 +158,7 @@ class CRichText extends CObject<CRichTextEventsRecord> {
           // initialChars.map((value) => [value, null, []])
         )
     );
-    this.sdpStore = this.addChild(
+    this.sdpStore = this.registerCollab(
       "1",
       (init) => new SemidirectProductStore(init, this.action.bind(this))
     );

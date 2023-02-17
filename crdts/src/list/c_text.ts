@@ -47,7 +47,7 @@ export class CText extends CObject<TextEventsRecord> {
   constructor(init: InitToken) {
     super(init);
 
-    this.list = super.addChild(
+    this.list = super.registerCollab(
       "",
       (init) =>
         new CValueList(init, {

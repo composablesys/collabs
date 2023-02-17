@@ -311,11 +311,11 @@ export class CNumber extends CObject<NumberEventsRecord> {
   constructor(init: InitToken, initialValue = 0) {
     super(init);
 
-    this.base = this.addChild(
+    this.base = this.registerCollab(
       "",
       (init) => new CNumberBase(init, initialValue)
     );
-    this.negated = this.addChild("0", (init) => new CCounter(init));
+    this.negated = this.registerCollab("0", (init) => new CCounter(init));
 
     this.base.minCRDT.on("Min", (event) => {
       if (this.negated.value % 2 === 1) {

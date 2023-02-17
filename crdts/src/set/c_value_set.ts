@@ -23,7 +23,7 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
   ) {
     super(init);
 
-    this.mvMap = super.addChild(
+    this.mvMap = super.registerCollab(
       "",
       (init) =>
         new CMultiValueMap(init, {

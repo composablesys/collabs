@@ -10,12 +10,12 @@ class TodoListInternal extends collabs.CObject implements ITodoListInternal {
 
   constructor(init: collabs.InitToken) {
     super(init);
-    this.text = this.addChild("text", (init) => new collabs.CText(init));
-    this.doneCollab = this.addChild(
+    this.text = this.registerCollab("text", (init) => new collabs.CText(init));
+    this.doneCollab = this.registerCollab(
       "done",
       (init) => new collabs.CBoolean(init)
     );
-    this.items = this.addChild(
+    this.items = this.registerCollab(
       "items",
       (init) =>
         new collabs.CList(init, (valueInit) => new TodoListInternal(valueInit))

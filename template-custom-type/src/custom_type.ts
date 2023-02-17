@@ -30,11 +30,11 @@ export class CPair<T, U> extends CObject<PairEventsRecord<T, U>> {
     super(init);
 
     // Setup child Collabs.
-    this.firstReg = this.addChild(
+    this.firstReg = this.registerCollab(
       "firstReg",
       (init) => new CVar(init, firstInitial)
     );
-    this.secondReg = this.addChild(
+    this.secondReg = this.registerCollab(
       "secondReg",
       (init) => new CVar(init, secondInitial)
     );

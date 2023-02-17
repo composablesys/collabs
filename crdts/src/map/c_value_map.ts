@@ -40,7 +40,7 @@ export class CValueMap<K, V>
     this.aggregator =
       options.aggregator ?? (defaultAggregator as Aggregator<V>);
 
-    this.mvMap = super.addChild(
+    this.mvMap = super.registerCollab(
       "",
       (init) => new CMultiValueMap(init, options)
     );

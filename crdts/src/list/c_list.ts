@@ -83,8 +83,11 @@ class CListEntry<C extends Collab> extends CObject {
     initialStatus: EntryStatus
   ) {
     super(init);
-    this.value = super.addChild("", valueCallback);
-    this.status = super.addChild("0", (init) => new CVar(init, initialStatus));
+    this.value = super.registerCollab("", valueCallback);
+    this.status = super.registerCollab(
+      "0",
+      (init) => new CVar(init, initialStatus)
+    );
   }
 }
 
@@ -111,7 +114,7 @@ export class CList<
     const argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
 
-    this.set = this.addChild(
+    this.set = this.registerCollab(
       "",
       (init) =>
         new CSet(init, this.entryConstructor.bind(this), {
@@ -133,7 +136,7 @@ export class CList<
       { initialItem: [...this.set] }
     );
 
-    this.createdPositionMessenger = this.addChild(
+    this.createdPositionMessenger = this.registerCollab(
       "m",
       (init) =>
         new CMessenger(init, {

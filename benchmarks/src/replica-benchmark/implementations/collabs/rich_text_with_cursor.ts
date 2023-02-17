@@ -19,7 +19,10 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(init: collabs.InitToken, readonly char: string | object) {
     super(init);
 
-    this._attributes = this.addChild("", (init) => new collabs.CValueMap(init));
+    this._attributes = this.registerCollab(
+      "",
+      (init) => new collabs.CValueMap(init)
+    );
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -65,7 +68,7 @@ class RichTextInternal extends collabs.CObject<RichTextEventsRecord> {
   constructor(init: collabs.InitToken) {
     super(init);
 
-    this.text = this.addChild(
+    this.text = this.registerCollab(
       "",
       (init) =>
         new collabs.CList(init, (valueInitToken, char) => {

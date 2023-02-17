@@ -217,11 +217,11 @@ export class CResettableCounter extends CObject<ResettableCounterEventsRecord> {
 
   constructor(init: InitToken) {
     super(init);
-    this.plus = this.addChild(
+    this.plus = this.registerCollab(
       "",
       (init) => new CGrowOnlyResettableCounter(init)
     );
-    this.minus = this.addChild(
+    this.minus = this.registerCollab(
       "0",
       (init) => new CGrowOnlyResettableCounter(init)
     );

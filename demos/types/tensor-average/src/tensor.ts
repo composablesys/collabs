@@ -280,11 +280,11 @@ export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
     private readonly dtype: tf.NumericDataType
   ) {
     super(init);
-    this.plus = this.addChild(
+    this.plus = this.registerCollab(
       "1",
       (init) => new TensorGCounterCollab(init, shape, dtype)
     );
-    this.minus = this.addChild(
+    this.minus = this.registerCollab(
       "2",
       (init) => new TensorGCounterCollab(init, shape, dtype)
     );
@@ -341,11 +341,11 @@ export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
     private readonly dtype: tf.NumericDataType
   ) {
     super(init);
-    this.numerator = this.addChild(
+    this.numerator = this.registerCollab(
       "1",
       (init) => new TensorCounterCollab(init, shape, dtype)
     );
-    this.denominator = this.addChild(
+    this.denominator = this.registerCollab(
       "2",
       (init) => new ResettableCCounter(init)
     );

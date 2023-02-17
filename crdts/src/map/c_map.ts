@@ -49,7 +49,7 @@ export class CMap<
     const argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
 
-    this.valueSet = super.addChild(
+    this.valueSet = super.registerCollab(
       "",
       (init) =>
         new CSet(
@@ -58,7 +58,7 @@ export class CMap<
           { argsSerializer: new PairSerializer(keySerializer, argsSerializer) }
         )
     );
-    this.map = super.addChild(
+    this.map = super.registerCollab(
       "0",
       (init) =>
         new CValueMap(init, {

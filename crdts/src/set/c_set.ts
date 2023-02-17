@@ -195,7 +195,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       args = this.argsSerializer.deserialize(serializedArgs!);
     }
     // Add as child with "[sender, counter]" as id.
-    // Similar to CObject#addChild.
+    // Similar to CObject#registerCollab.
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
