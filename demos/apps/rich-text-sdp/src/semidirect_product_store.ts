@@ -1,11 +1,10 @@
 import {
   CObject,
-  CRDTMeta,
   DefaultSerializer,
   InitToken,
   Serializer,
 } from "@collabs/collabs";
-import { CRDTMetaProvider } from "@collabs/crdts";
+import { CRDTMeta, CRDTMetaProvider } from "@collabs/crdts";
 import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
@@ -57,14 +56,12 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
- *
- * TODO: will probably need to requestAll `CRDTMeta`
- * (via [[CRDTMetaRequestee.requestAll]], or perhaps
- * make it easy to do this with [[CMessenger]]) when
- * sending a message that might result in storing something
- * here, since we need the full vector clock.
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
+  private readonly m2Serializer: Serializer<M2>;
+  private readonly discardM1Dominated: boolean;
+  private readonly discardM2Dominated: boolean;
+
   private receiptCounter = 0;
 
   /**
@@ -78,11 +75,17 @@ export class SemidirectProductStore<M1, M2> extends CObject {
   constructor(
     init: InitToken,
     private readonly action: (m2: M2, m1: M1) => M1 | null,
-    private readonly m2Serializer: Serializer<M2> = DefaultSerializer.getInstance(),
-    private readonly discardM1Dominated = false,
-    private readonly discardM2Dominated = false
+    options: {
+      m2Serializer?: Serializer<M2>;
+      discardM1Dominated?: boolean;
+      discardM2Dominated?: boolean;
+    } = {}
   ) {
     super(init);
+
+    this.m2Serializer = options.m2Serializer ?? DefaultSerializer.getInstance();
+    this.discardM1Dominated = options.discardM1Dominated ?? false;
+    this.discardM2Dominated = options.discardM2Dominated ?? false;
 
     if (
       (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
@@ -152,6 +155,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
     // greater than crdtMeta.vectorClock.get(replicaID).
+    // TODO: automatic VC entries should be sufficient, but double-check,
+    // especially when discardDominated flags are set.
+    // OPT: only request causally maximal VC entries (then require a full DAG).
     const concurrent: StoredMessage<M2>[] = [];
     for (const [sender, senderHistory] of this.history.entries()) {
       const vcEntry = crdtMeta.vectorClockGet(sender);
