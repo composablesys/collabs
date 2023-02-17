@@ -19,9 +19,9 @@ const charArraySerializer: Serializer<string[]> = {
 } as const;
 
 export interface TextEvent extends CollabEvent {
-  startIndex: number;
-  count: number;
+  index: number;
   values: string;
+  positions: string[];
 }
 
 export interface TextEventsRecord extends CollabEventsRecord {
@@ -54,6 +54,24 @@ export class CText extends CObject<TextEventsRecord> {
           valueSerializer: StringSerializer.instance,
           valueArraySerializer: charArraySerializer,
         })
+    );
+
+    // Events.
+    this.list.on("Insert", (e) =>
+      this.emit("Insert", {
+        index: e.index,
+        values: e.values.join(""),
+        positions: e.positions,
+        meta: e.meta,
+      })
+    );
+    this.list.on("Delete", (e) =>
+      this.emit("Delete", {
+        index: e.index,
+        values: e.values.join(""),
+        positions: e.positions,
+        meta: e.meta,
+      })
     );
   }
 

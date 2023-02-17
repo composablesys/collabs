@@ -48,12 +48,12 @@ import pako from "pako";
   );
 
   function onCurrentHostSet(previousValue: Optional<CollabID<CContainerHost>>) {
-    const previousHost = hostFactory.fromID(previousValue.get())!;
     const newHost = hostFactory.fromID(currentHost.value.get())!;
 
     // Hide other stuff.
     selectorDiv.hidden = true;
     if (previousValue.isPresent) {
+      const previousHost = hostFactory.fromID(previousValue.get())!;
       previousHost.containerIFrame.hidden = true;
     }
 
