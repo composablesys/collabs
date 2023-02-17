@@ -1,4 +1,4 @@
-import { CObject, CPrimitive } from "../constructions";
+import { CObject, CPrimitive } from "../base_collabs";
 import { Collab } from "../core";
 import { IList, ListEventsRecord } from "./i_list";
 

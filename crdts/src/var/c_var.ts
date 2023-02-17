@@ -6,8 +6,7 @@ import {
   TrivialSerializer,
   VarEventsRecord,
 } from "@collabs/core";
-// Import from exact file to avoid circular dependencies with ../map/index.ts.
-import { Aggregator, CMultiValueMap } from "../map/c_multi_value_map";
+import { Aggregator, CMultiValueMap } from "../map";
 
 const nullSerializer = new TrivialSerializer(null);
 

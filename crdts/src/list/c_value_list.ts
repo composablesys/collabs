@@ -11,7 +11,7 @@ import {
   ICValueListInsertMessage,
   ICValueListSave,
 } from "../../generated/proto_compiled";
-import { AbstractList_PrimitiveCRDT } from "../constructions";
+import { AbstractList_PrimitiveCRDT } from "../base_collabs";
 import {
   ArrayListItemManager,
   ListPosition,

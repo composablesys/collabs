@@ -20,7 +20,7 @@
   },
   "scripts": {
     "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool nosources-source-map",
     "start": "ts-node server/testing_server.ts",
     "clean": "rimraf dist"
   }

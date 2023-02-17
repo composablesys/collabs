@@ -31,7 +31,7 @@
   "scripts": {
     "start": "container-testing-server dist/whiteboard.html",
     "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool inline-nosources-source-map",
     "test": "npm-run-all test:*",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",

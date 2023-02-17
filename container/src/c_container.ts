@@ -282,9 +282,6 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    * the [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md#loading).
    */
   receiveFurtherMessages(): void {
-    if (!this._runtime.isLoaded) {
-      throw new Error("not yet loaded");
-    }
     if (this.loadFurtherMessages === null) return;
 
     const furtherMessages = this.loadFurtherMessages;

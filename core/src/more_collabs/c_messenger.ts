@@ -1,3 +1,4 @@
+import { CPrimitive } from "../base_collabs/c_primitive";
 import {
   CollabEvent,
   CollabEventsRecord,
@@ -5,7 +6,6 @@ import {
   UpdateMeta,
 } from "../core";
 import { DefaultSerializer, Serializer } from "../util";
-import { CPrimitive } from "./c_primitive";
 
 export interface MessengerEvent<M> extends CollabEvent {
   message: M;

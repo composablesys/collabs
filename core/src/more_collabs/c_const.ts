@@ -1,5 +1,5 @@
+import { CPrimitive } from "../base_collabs/c_primitive";
 import { InitToken } from "../core";
-import { CPrimitive } from "./c_primitive";
 
 /**
  * [[Collab]] wrapper for a constant value.

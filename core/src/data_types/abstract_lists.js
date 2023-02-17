@@ -1,6 +1,4 @@
-// Import from specific files to avoid circular dependencies.
-import { CObject } from "../constructions/c_object";
-import { CPrimitive } from "../constructions/c_primitive";
+import { CObject, CPrimitive } from "../base_collabs";
 import { Collab } from "../core";
 import { MakeAbstractList } from "./abstract_list";
 

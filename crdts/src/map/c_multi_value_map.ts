@@ -12,7 +12,7 @@ import {
   MultiValueMapMessage,
   MultiValueMapSave,
 } from "../../generated/proto_compiled";
-import { AbstractMap_PrimitiveCRDT } from "../constructions";
+import { AbstractMap_PrimitiveCRDT } from "../base_collabs";
 import { CRDTMeta } from "../runtime";
 
 export interface MultiValueMapItem<V> {

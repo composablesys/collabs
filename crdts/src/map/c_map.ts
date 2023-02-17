@@ -40,7 +40,7 @@ export class CMap<
       keySerializer?: Serializer<K>;
       argsSerializer?: Serializer<SetArgs>;
       aggregator?: Aggregator<CollabID<C>>;
-    }
+    } = {}
   ) {
     super(init);
 
@@ -94,24 +94,28 @@ export class CMap<
   }
 
   set(key: K, ...args: SetArgs): C {
+    const oldConflicts = this.getConflicts(key);
+
     const newValue = this.valueSet.add(key, args);
     this.map.set(key, this.valueSet.idOf(newValue));
 
     // Delete old values, so they don't become tombstones.
     // These correspond precisely to the conflicts deleted by map.set,
     // so the invariant is maintained (valueSet and map's values remain in sync).
-    this.getConflicts(key).forEach((value) => this.valueSet.delete(value));
+    oldConflicts.forEach((value) => this.valueSet.delete(value));
 
     return newValue;
   }
 
   delete(key: K): void {
+    const oldConflicts = this.getConflicts(key);
+
     this.map.delete(key);
 
     // Delete old values, so they don't become tombstones.
     // These correspond precisely to the conflicts deleted by map.delete,
     // so the invariant is maintained (valueSet and map's values remain in sync).
-    this.getConflicts(key).forEach((value) => this.valueSet.delete(value));
+    oldConflicts.forEach((value) => this.valueSet.delete(value));
   }
 
   get(key: K): C | undefined {
