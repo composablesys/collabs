@@ -4,7 +4,8 @@
   "browser": "build/esm/src/index.js",
   "types": "build/esm/src/index.d.ts",
   "files": [
-    "/build"
+    "/build",
+    "/src"
   ],
   "directories": {
     "lib": "src",

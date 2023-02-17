@@ -23,7 +23,9 @@
   "types": "build/esm/src/index.d.ts",
   "main": "build/commonjs/src/index.js",
   "files": [
-    "/build"
+    "/build",
+    "/src",
+    "generated"
   ],
   "directories": {
     "lib": "src",

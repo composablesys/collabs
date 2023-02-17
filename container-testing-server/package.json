@@ -23,7 +23,8 @@
   "files": [
     "/build",
     "/keys",
-    "/bin"
+    "/bin",
+    "/src"
   ],
   "directories": {
     "lib": "src"
