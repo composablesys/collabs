@@ -14,7 +14,7 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
   Format: { key: string } & collabs.CollabEvent;
 }
 
-class RichChar extends collabs.CObject<RichCharEventsRecord> {
+class CRichChar extends collabs.CObject<RichCharEventsRecord> {
   private readonly _attributes: collabs.CValueMap<string, any>;
 
   /**
@@ -66,8 +66,8 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
   Format: { index: number; key: string } & collabs.CollabEvent;
 }
 
-class RichText extends collabs.CObject<RichTextEventsRecord> {
-  readonly text: collabs.CList<RichChar, [char: string | object]>;
+class CRichText extends collabs.CObject<RichTextEventsRecord> {
+  readonly text: collabs.CList<CRichChar, [char: string | object]>;
 
   constructor(init: collabs.InitToken) {
     super(init);
@@ -76,7 +76,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
       "",
       (init) =>
         new collabs.CList(init, (valueInitToken, char) => {
-          const richChar = new RichChar(valueInitToken, char);
+          const richChar = new CRichChar(valueInitToken, char);
           richChar.on("Format", (e) => {
             this.emit("Format", { index: this.text.indexOf(richChar), ...e });
           });
@@ -99,7 +99,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     );
   }
 
-  get(index: number): RichChar {
+  get(index: number): CRichChar {
     return this.text.get(index);
   }
 
@@ -127,7 +127,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     this.formatChar(this.get(index), newAttributes);
   }
 
-  private formatChar(richChar: RichChar, newAttributes?: Record<string, any>) {
+  private formatChar(richChar: CRichChar, newAttributes?: Record<string, any>) {
     if (newAttributes) {
       for (const entry of Object.entries(newAttributes)) {
         richChar.setAttribute(...entry);
@@ -136,15 +136,23 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   }
 }
 
+function makeInitialSave(): Uint8Array {
+  const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
+  const clientText = runtime.registerCollab(
+    "text",
+    (init) => new CRichText(init)
+  );
+  runtime.transact(() => clientText.insert(0, "\n"));
+  return runtime.save();
+}
+
 (async function () {
   const container = new CContainer();
 
   const clientText = container.registerCollab(
     "text",
-    (init) => new RichText(init)
+    (init) => new CRichText(init)
   );
-
-  // TODO: initial "\n". Yjs-style (pre-made load/message)?
 
   const quill = new Quill("#editor", {
     theme: "snow",
@@ -174,7 +182,12 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     },
   });
 
-  await container.load();
+  if (await container.load()) {
+    // Loading was skipped. We need to "set the initial state"
+    // (a single "\n", required by Quill) by
+    // loading it from a separate doc.
+    container.runtime.load(makeInitialSave());
+  }
 
   // Call this before syncing the loaded state to Quill, as
   // an optimization.

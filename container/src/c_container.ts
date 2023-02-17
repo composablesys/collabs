@@ -107,6 +107,7 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
 
     this._runtime = new CRuntime({ ...options, causalityGuaranteed: true });
     this._runtime.on("Change", (e) => this.emit("Change", e));
+    this._runtime.on("Transaction", (e) => this.emit("Transaction", e));
     this._runtime.on("Send", (e) => {
       if (!this.isReady) {
         if (!this.isLoaded) {
@@ -184,6 +185,20 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
     collabCallback: (init: InitToken) => C
   ): C {
     return this._runtime.registerCollab(name, collabCallback);
+  }
+
+  /**
+   * If this is not the outermost transaction, it is ignored (including info).
+   * In particular, that can happen if we are inside an auto microtask
+   * transaction, due to an earlier out-of-transaction op.
+   *
+   * @param f
+   * @param info An optional info string to attach to the transaction.
+   * It will appear on [[CollabEvent]]s as [[UpdateMeta.info]].
+   * E.g. a "commit message".
+   */
+  transact(f: () => void, info?: string) {
+    this.runtime.transact(f, info);
   }
 
   private loadFurtherMessages: Uint8Array[] | null = null;

@@ -5,6 +5,7 @@ import {
   CollabEventsRecord,
   CollabID,
   CRDTMeta,
+  CRuntime,
   CValueMap,
   InitToken,
 } from "@collabs/collabs";
@@ -318,6 +319,16 @@ class CRichText extends CObject<CRichTextEventsRecord> {
   }
 }
 
+function makeInitialSave(): Uint8Array {
+  const runtime = new CRuntime({ debugReplicaID: "INIT" });
+  const clientText = runtime.registerCollab(
+    "text",
+    (init) => new CRichText(init)
+  );
+  runtime.transact(() => clientText.insert(0, "\n"));
+  return runtime.save();
+}
+
 (async function () {
   const container = new CContainer();
 
@@ -355,7 +366,12 @@ class CRichText extends CObject<CRichTextEventsRecord> {
     },
   });
 
-  await container.load();
+  if (await container.load()) {
+    // Loading was skipped. We need to "set the initial state"
+    // (a single "\n", required by Quill) by
+    // loading it from a separate doc.
+    container.runtime.load(makeInitialSave());
+  }
 
   // Call this before syncing the loaded state to Quill, as
   // an optimization.
