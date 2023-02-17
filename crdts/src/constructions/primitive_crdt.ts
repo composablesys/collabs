@@ -46,28 +46,26 @@ export abstract class PrimitiveCRDT<
   /**
    * Send `message` to all replicas' [[receiveCRDT]] methods.
    *
-   * [[CRDTMeta]] fields used by [[receiveCRDT]] must be requested in
-   * `requests` (except for [[CRDTMeta.sender]] and [[CRDTMeta.senderCounter]],
-   * which are always included). Possible requests are:
-   * - `vectorClockEntries`: Include the vector clock entries with the
-   * specified keys (`replicaID`'s). Non-requested entries may return 0
-   * instead of their correct value (as if no messages had been received from
-   * that replica).
-   * - `wallClockTime`: If true, include non-null [[CRDTMeta.wallClockTime]].
-   * - `lamportTimestamp`: If true, nclude non-null [[CRDTMeta.lamportTimestamp]].
-   * - `all`: If true, include all metadata, including all vector clock entries.
-   * Use this with caution, since the number of vector clock entries may be
-   * very large.
-   * - `automatic`: If true, include any metadata that are accessed during
-   * the sender's own [[receiveCRDT]] call, i.e., during the local echo.
-   * This is sufficient for most use cases, but you
+   * By default, only [[CRDTMeta]] fields read during the sender's
+   * own [[receivePrimitive]] call (i.e., the local echo) are
+   * broadcast to remote replicas. This is sufficient for most use cases, but you
    * should think carefully through the steps that
    * remote recipients would take, and ensure that they
    * only need to access the same metadata as the sender.
    * In particular, ensure that it is okay for
    * remote replicas to see incorrect 0 entries in
    * the vector clock, so long as that only happens with
-   * entries not accessed by the sender.
+   * entries not accessed by the sender. An easy way to accidentally break this
+   * is with "shortcuts" that assume sequential behavior when
+   * `meta.senderID === this.runtime.replicaID`.
+   *
+   * You can explicitly request additional [[CRDTMeta]] fields using `request`:
+   * - `vectorClockKeys`: Include the vector clock entries with the
+   * specified keys (`replicaID`'s). Non-requested entries may return 0
+   * instead of their correct value (as if no messages had been received from
+   * that replica).
+   * - `wallClockTime`: If true, include non-null [[CRDTMeta.wallClockTime]].
+   * - `lamportTimestamp`: If true, nclude non-null [[CRDTMeta.lamportTimestamp]].
    */
   protected sendCRDT(
     message: Uint8Array | string,

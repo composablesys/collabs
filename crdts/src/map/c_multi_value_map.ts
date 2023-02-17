@@ -98,12 +98,10 @@ export class CMultiValueMap<K, V>
       key: this.keySerializer.serialize(key),
       value: this.valueSerializer.serialize(value),
     });
-    super.sendCRDT(MultiValueMapMessage.encode(message).finish(), {
-      // Automatic mode suffices to send all of the needed
-      // vector clock entries (those corresponding to current
-      // items in this.get(key)) and optional wallClockTime.
-      automatic: true,
-    });
+    // Automatic mode suffices to send all of the needed
+    // vector clock entries (those corresponding to current
+    // items in this.get(key)) and optional wallClockTime/lamportTimestamp.
+    super.sendCRDT(MultiValueMapMessage.encode(message).finish());
     // OPT: don't re-serialize here
     return this.get(key)!;
   }
@@ -112,12 +110,10 @@ export class CMultiValueMap<K, V>
     const message = MultiValueMapMessage.create({
       key: this.keySerializer.serialize(key),
     });
-    super.sendCRDT(MultiValueMapMessage.encode(message).finish(), {
-      // Automatic mode suffices to send all of the needed
-      // vector clock entries (those corresponding to current
-      // items in this.get(key)).
-      automatic: true,
-    });
+    // Automatic mode suffices to send all of the needed
+    // vector clock entries (those corresponding to current
+    // items in this.get(key)) and optional wallClockTime/lamportTimestamp.
+    super.sendCRDT(MultiValueMapMessage.encode(message).finish());
   }
 
   // OPT: implement clear (better than deleting every value)

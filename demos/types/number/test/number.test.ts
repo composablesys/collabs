@@ -4,6 +4,8 @@ import { CNumber } from "../src";
 import { debug } from "./debug";
 import seedrandom = require("seedrandom");
 
+// TODO: these take a suspiciously long time to run.
+
 describe("Number", () => {
   let runtimeGen: TestingRuntimes;
   let alice: CRuntime;

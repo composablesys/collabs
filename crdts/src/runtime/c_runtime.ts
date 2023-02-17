@@ -247,14 +247,14 @@ export class CRuntime
       };
     }
 
-    // Process meta requests.
+    // Process meta requests, including automatic mode by default.
+    this.crdtMeta!.requestAutomatic(true);
     for (const metaRequest of <CRDTMetaRequest[]>metaRequests) {
-      if (metaRequest.automatic) this.crdtMeta!.requestAutomatic(true);
       if (metaRequest.lamportTimestamp)
         this.crdtMeta!.requestLamportTimestamp();
       if (metaRequest.wallClockTime) this.crdtMeta!.requestWallClockTime();
-      if (metaRequest.vectorClockEntries) {
-        for (const sender of metaRequest.vectorClockEntries) {
+      if (metaRequest.vectorClockKeys) {
+        for (const sender of metaRequest.vectorClockKeys) {
           this.crdtMeta!.requestVectorClockEntry(sender);
         }
       }
@@ -263,7 +263,8 @@ export class CRuntime
     // Local echo.
     this.rootCollab.receive(messageStack.slice(), this.meta);
 
-    // Disable automatic meta request.
+    // Disable automatic meta request, to prevent accesses outside of
+    // the local echo from changing the meta locally only.
     this.crdtMeta!.requestAutomatic(false);
 
     this.messageBatches.push(messageStack);

@@ -145,13 +145,10 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    if (this.runtime.replicaID === crdtMeta.senderID) {
-      if (discardDominated) {
-        // Nothing's concurrent, so clear everything
-        this.history.clear();
-      }
-      return [];
-    }
+    // if replicaID === crdtMeta.senderID, we know the answer is [] (sequential).
+    // But for automatic CRDTMeta to work, we need to still access all current VC
+    // entries. So, we skip that shortcut.
+
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
     // greater than crdtMeta.vectorClock.get(replicaID).

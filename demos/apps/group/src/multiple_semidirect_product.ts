@@ -11,7 +11,7 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "@collabs/core";
-import { CRDTMeta, CRDTMetaRequest } from "@collabs/crdts";
+import { CRDTMeta } from "@collabs/crdts";
 import {
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
@@ -133,9 +133,10 @@ class MultipleSemidirectState<S extends object> {
     returnConcurrent: boolean,
     arbId: number
   ) {
-    if (replicaID === crdtMeta.senderID) {
-      return [];
-    }
+    // if replicaID === crdtMeta.senderID, we know the answer is [] (sequential).
+    // But for automatic CRDTMeta to work, we need to still access all current VC
+    // entries. So, we skip that shortcut.
+
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
     // greater than meta.vectorClock.get(replicaID).
@@ -331,13 +332,9 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("childSend called by non-child: " + child);
     }
 
-    // Request automatic metadata and known VC entries.
-    metaRequests.push({
-      automatic: true,
-      vectorClockEntries: this.state.getKnownSenderIDs(),
-    } as CRDTMetaRequest);
+    // Automatic CRDTMeta suffices: we need all known VC entries,
+    // and these are accessed during the local echo.
 
-    // Send.
     messageStack.push(child.name);
     this.send(messageStack, metaRequests);
   }

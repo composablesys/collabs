@@ -99,8 +99,7 @@ export interface CRDTMeta {
 }
 
 export interface CRDTMetaRequest extends MetaRequest {
-  automatic?: boolean;
-  vectorClockEntries?: Iterable<string>;
+  vectorClockKeys?: Iterable<string>;
   wallClockTime?: boolean;
   lamportTimestamp?: boolean;
 }
