@@ -1,6 +1,7 @@
 import {
   CLazyMap,
   CList,
+  CMessenger,
   CObject,
   CollabEvent,
   CollabEventsRecord,
@@ -9,6 +10,8 @@ import {
   CRuntime,
   CVar,
   InitToken,
+  UpdateMeta,
+  VarEventsRecord,
 } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
@@ -23,6 +26,47 @@ declare type Delta = {
   ops: DeltaOperation[];
 };
 
+/**
+ * Wrapper around CVar<T> that adds a [[noop]] op.
+ */
+class CNoopVar<T> extends CObject<VarEventsRecord<T>> {
+  private readonly cvar: CVar<T>;
+  private readonly _noop: CMessenger<null>;
+
+  constructor(init: InitToken, initialValue: T) {
+    super(init);
+
+    this.cvar = super.registerCollab(
+      "",
+      (init) => new CVar(init, initialValue)
+    );
+    this.cvar.on("Set", (e) => this.emit("Set", e));
+
+    this._noop = super.registerCollab("0", (init) => new CMessenger(init));
+  }
+
+  set value(_value: T) {
+    this.cvar.value = _value;
+  }
+
+  get value(): T {
+    return this.cvar.value;
+  }
+
+  clear() {
+    this.cvar.clear();
+  }
+
+  /**
+   * Sends a message that does nothing.
+   *
+   * Needed for our "copy state" hack to work with [[CLazyMap]].
+   */
+  noop(): void {
+    this._noop.sendMessage(null);
+  }
+}
+
 interface CRichCharEventsRecord extends CollabEventsRecord {
   Format: { key: string } & CollabEvent;
 }
@@ -33,7 +77,7 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
    * CValueMap, so that we can copy individual attributes' CRDT
    * states.
    */
-  private readonly _attributes: CLazyMap<string, CVar<unknown>>;
+  private readonly _attributes: CLazyMap<string, CNoopVar<unknown>>;
   readonly ignoreAttrsSet: Set<string>;
   /** Used to suppress formatting events during copyOriginAttributes. */
   private inCopyOriginAttributes = false;
@@ -55,24 +99,15 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
     this._attributes = this.registerCollab(
       "",
       (init) =>
-        // Initial value null, so not-present values are null.
-        new CLazyMap(init, (valueInit) => new CVar(valueInit, null))
+        new CLazyMap(init, (valueInit, key) => {
+          // Initial value null, so not-present values are nul
+          const cvar = new CNoopVar(valueInit, null);
+          cvar.on("Set", (e) => this.emit("Format", { key, meta: e.meta }));
+          return cvar;
+        })
     );
 
     this.ignoreAttrsSet = new Set(ignoreAttrs);
-
-    // Events
-    this._attributes.on("Set", (e) => {
-      this.emit("Format", {
-        key: e.key,
-        meta: e.meta,
-      });
-    });
-    this._attributes.on("Delete", (e) => {
-      if (!this.inCopyOriginAttributes) {
-        this.emit("Format", { key: e.key, meta: e.meta });
-      }
-    });
   }
 
   getAttribute(attribute: string): unknown | null {
@@ -95,7 +130,7 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
     return Object.fromEntries(this._attributes);
   }
 
-  copyOriginAttributes(runLocallyLayer: RunLocallyLayer) {
+  copyOriginAttributes(runLocallyLayer: RunLocallyLayer, meta: UpdateMeta) {
     if (this.origin !== null) {
       this.inCopyOriginAttributes = true;
       try {
@@ -103,18 +138,21 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
           if (!this.ignoreAttrsSet.has(key)) {
             // Copy the attribute's whole state (including conflicts)
             // from this.origin to this.
-            // Hack: do so by saving & loading.
+            // Hack: do so by saving & loading, then use a noop message
+            // so CLazyMap sees that it's nontrivial.
             // TODO: proper function for this that also provides proper
             // CRDTMeta & normalizes the save?
             const originSave = value.save();
             if (originSave !== null) {
-              this._attributes.get(key).load(originSave, {
+              const cvar = this._attributes.get(key);
+              cvar.load(originSave, {
                 senderID: "COPY",
                 isLocalOp: false,
                 updateType: "savedState",
                 info: undefined,
                 runtimeExtra: undefined,
               });
+              runLocallyLayer.runLocally(meta, () => cvar.noop());
             }
           }
         }
@@ -181,7 +219,7 @@ class CRichText extends CObject<CRichTextEventsRecord> {
       // Insert events correspond exactly to new char operations. Note that
       // we don't want to do this during loading, hence we can't do it in the
       // valueConstructor.
-      char.copyOriginAttributes(this.runLocallyLayer);
+      char.copyOriginAttributes(this.runLocallyLayer, e.meta);
       this.sdpStore.processM2(
         this.text.idOf(char),
         <CRDTMeta>e.meta.runtimeExtra

@@ -47,7 +47,7 @@ import {
  * ## Experimental
  * This class is experimental. Using it may break certain
  * assumptions made by the library, due to its "magic"
- * nature. See [https://github.com/composablesys/collabs/issues](https://github.com/composablesys/collabs/issues).
+ * nature. See [issue](https://github.com/composablesys/collabs/issues/172).
  */
 export class RunLocallyLayer extends Collab implements IParent {
   private child!: Collab;
