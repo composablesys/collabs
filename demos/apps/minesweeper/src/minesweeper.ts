@@ -445,8 +445,6 @@ class CMinesweeper extends CObject {
     "currentSettings",
     (init) => new CVar(init, settingsFromInput())
   );
-  // TODO: FWW instead of LWW?  Also backup to view all games
-  // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
     (init) => new CVar<"game" | "settings">(init, "settings")

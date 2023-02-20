@@ -11,7 +11,7 @@ import { Aggregator, CMultiValueMap } from "../map";
 const nullSerializer = new TrivialSerializer(null);
 
 /**
- * Default aggregator: return the first item (first replicaID wins)l
+ * Default aggregator: return the first item (first replicaID wins).
  */
 const defaultAggregator: Aggregator<unknown> = {
   aggregate(items) {
@@ -24,6 +24,7 @@ const defaultAggregator: Aggregator<unknown> = {
  */
 export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   private readonly mvMap: CMultiValueMap<null, T>;
+  private readonly aggregator: Aggregator<T>;
   private _value: T;
 
   /**
@@ -35,7 +36,7 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
    */
   constructor(
     init: InitToken,
-    initialValue: T,
+    private readonly initialValue: T,
     options: {
       valueSerializer?: Serializer<T>;
       aggregator?: Aggregator<T>;
@@ -43,7 +44,7 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   ) {
     super(init);
 
-    const aggregator =
+    this.aggregator =
       options.aggregator ?? (defaultAggregator as Aggregator<T>);
 
     this.mvMap = super.registerCollab(
@@ -57,15 +58,21 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
     );
     this.mvMap.on("Any", (e) => {
       const previousValue = this._value;
-      const items = this.mvMap.get(null);
-      this._value =
-        items === undefined ? initialValue : aggregator.aggregate(items);
+      this.invalidate();
       if (this._value !== previousValue) {
         this.emit("Set", { value: this._value, previousValue, meta: e.meta });
       }
     });
 
     this._value = initialValue;
+  }
+
+  private invalidate() {
+    const items = this.mvMap.get(null);
+    this._value =
+      items === undefined
+        ? this.initialValue
+        : this.aggregator.aggregate(items);
   }
 
   set(value: T): T {
@@ -94,5 +101,9 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
 
   toString() {
     return `${this.value}`;
+  }
+
+  protected loadObject(): void {
+    this.invalidate();
   }
 }
