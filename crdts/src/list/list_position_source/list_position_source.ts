@@ -73,7 +73,7 @@ export interface ListItemManager<I> {
 }
 
 /**
- * Every non-root waypoint must have at least one value.
+ * Every non-root waypoint must have at least one value (possibly deleted).
  */
 class Waypoint<I> {
   constructor(
@@ -89,8 +89,7 @@ class Waypoint<I> {
     /**
      * null only for the root.
      *
-     * Mutable only for during loading (then is temporarily
-     * null while we construct everything).
+     * Treat as readonly, except we don't set it right away during loading.
      */
     public parentWaypoint: Waypoint<I> | null,
     /**
@@ -147,7 +146,7 @@ function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
 /**
  * @type I The "Item" type, which holds a range of values (e.g., string, array,
  * number indicating number of values). For implementation reasons,
- * items may not be negative numbers or null.
+ * items must NOT be negative numbers or null.
  */
 export class ListPositionSource<I> {
   /**
@@ -182,7 +181,7 @@ export class ListPositionSource<I> {
   constructor(
     readonly replicaID: string,
     private readonly itemManager: ListItemManager<I>,
-    initialItem?: I
+    options: { initialItem?: I } = {}
   ) {
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
@@ -191,6 +190,7 @@ export class ListPositionSource<I> {
     this.waypointsByID.set("", [this.rootWaypoint]);
     // Fake leftmost value, marked as unpresent.
     this.rootWaypoint.children.push(-1);
+    const initialItem = options.initialItem;
     if (
       initialItem !== undefined &&
       this.itemManager.length(initialItem) !== 0
@@ -439,8 +439,6 @@ export class ListPositionSource<I> {
     sign: 1 | -1,
     item?: I
   ): void {
-    // TODO: wait to change anything until after all checks have passed (so error = no effect)
-
     if (startPos[0] === "") {
       throw new Error('Invalid startPos: sender is ""');
     }
@@ -907,7 +905,7 @@ export class ListPositionSource<I> {
     }
   }
 
-  has(pos: ListPosition): boolean {
+  hasPosition(pos: ListPosition): boolean {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // Find valueIndex in waypoint.children.
@@ -1010,7 +1008,10 @@ export class ListPositionSource<I> {
     return this.rootWaypoint.totalPresentValues;
   }
 
-  findPosition(pos: ListPosition): [geIndex: number, isPresent: boolean] {
+  indexOfPosition(
+    pos: ListPosition,
+    searchDir: "none" | "left" | "right" = "none"
+  ): number {
     const waypoint = this.getWaypoint(pos[0], pos[1]);
 
     // geIndex within waypoint's subtree.
@@ -1041,7 +1042,17 @@ export class ListPositionSource<I> {
       curParent = curWaypoint.parentWaypoint;
     }
 
-    return [geIndex, isPresent];
+    if (isPresent) return geIndex;
+    else {
+      switch (searchDir) {
+        case "none":
+          return -1;
+        case "left":
+          return geIndex - 1;
+        case "right":
+          return geIndex;
+      }
+    }
   }
 
   /**
@@ -1112,7 +1123,7 @@ export class ListPositionSource<I> {
     }
   }
 
-  *itemPositions(): IterableIterator<
+  *itemsAndPositions(): IterableIterator<
     [startPos: ListPosition, length: number, item: I]
   > {
     for (const [
@@ -1341,17 +1352,17 @@ export class ListPositionSource<I> {
 
   /**
    * [load description]
-   * @param saveData [description]
+   * @param savedState [description]
    * @param nextItem A function that returns an item containing the
    * `count` next values when called repeatedly.
    * This must only be null if you are using NumberItemManager
    * (when it's null, we skip a step that is redundant for NumberItemManager).
    */
   load(
-    saveData: Uint8Array,
+    savedState: Uint8Array,
     nextItem: ((count: number, startPos: ListPosition) => I) | null
   ): void {
-    const decoded = ListPositionSourceSave.decode(saveData);
+    const decoded = ListPositionSourceSave.decode(savedState);
 
     if (decoded.oldReplicaID === this.replicaID) {
       this.nextCounter = decoded.oldNextCounter;

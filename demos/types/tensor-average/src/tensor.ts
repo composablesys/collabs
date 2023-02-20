@@ -2,12 +2,10 @@ import {
   CObject,
   CollabEvent,
   CollabEventsRecord,
-  CPrimitive,
   InitToken,
-  Message,
-  MessageMeta,
-  Optional,
+  PrimitiveCRDT,
   ResettableCCounter,
+  UpdateMeta,
 } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
@@ -119,7 +117,7 @@ function tensorsEqual<R extends tf.Rank>(
   return tf.tidy(() => (tf.equal(a, b).all().arraySync() as number) === 1);
 }
 
-export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> {
+export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecord> {
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
@@ -140,7 +138,7 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     if (this.state.idCounter === undefined) {
       // TODO: do this in constructor once we get
       // access to this.runtime there
-      this.state.idCounter = this.runtime.getReplicaUniqueNumber();
+      this.state.idCounter = this.runtime.nextLocalCounter();
     }
     const ownId = this.keyString(this.runtime.replicaID, this.state.idCounter!);
     const prOldValue = this.state.P.get(ownId);
@@ -194,12 +192,15 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(message: Message, meta: MessageMeta): void {
+  protected receivePrimitive(
+    message: Uint8Array | string,
+    meta: UpdateMeta
+  ): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":
         const addMessage = decoded.add!;
-        const keyString = this.keyString(meta.sender, addMessage.idCounter);
+        const keyString = this.keyString(meta.senderID, addMessage.idCounter);
         const prNewTensor = conversions.protobufToTF.tensor(addMessage.prNew);
         const prOldTensor = conversions.protobufToTF.tensor(addMessage.prOld);
         const valueAdded = prNewTensor.sub(prOldTensor);
@@ -261,11 +262,12 @@ export class TensorGCounterCollab extends CPrimitive<TensorCounterEventsRecord> 
     return this.state.P.size === 0 && this.state.N.size === 0;
   }
 
-  // TODO: implement
-  save(): Uint8Array {
-    return new Uint8Array();
+  savePrimitive(): Uint8Array {
+    throw new Error("Not implemented");
   }
-  load(saveData: Optional<Uint8Array>): void {}
+  loadPrimitive(savedState: Uint8Array): void {
+    throw new Error("Not implemented");
+  }
 }
 
 export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
@@ -278,11 +280,11 @@ export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
     private readonly dtype: tf.NumericDataType
   ) {
     super(init);
-    this.plus = this.addChild(
+    this.plus = this.registerCollab(
       "1",
       (init) => new TensorGCounterCollab(init, shape, dtype)
     );
-    this.minus = this.addChild(
+    this.minus = this.registerCollab(
       "2",
       (init) => new TensorGCounterCollab(init, shape, dtype)
     );
@@ -339,11 +341,11 @@ export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
     private readonly dtype: tf.NumericDataType
   ) {
     super(init);
-    this.numerator = this.addChild(
+    this.numerator = this.registerCollab(
       "1",
       (init) => new TensorCounterCollab(init, shape, dtype)
     );
-    this.denominator = this.addChild(
+    this.denominator = this.registerCollab(
       "2",
       (init) => new ResettableCCounter(init)
     );

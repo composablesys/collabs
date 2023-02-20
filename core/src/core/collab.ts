@@ -1,9 +1,7 @@
-import { Optional } from "../util";
-import { CollabParent } from "./collab_parent";
 import { EventEmitter } from "./event_emitter";
-import { MessageMeta } from "./message_meta";
-import { isRuntime, Runtime } from "./runtime";
-import { Message } from "./message";
+import { IRuntime, isRuntime } from "./iruntime";
+import { Parent } from "./parent";
+import { MetaRequest, SavedStateTree, UpdateMeta } from "./updates";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -19,25 +17,22 @@ export class InitToken {
    */
   readonly isInitToken = true;
 
-  constructor(readonly name: string, readonly parent: CollabParent) {}
+  constructor(readonly name: string, readonly parent: Parent) {}
 }
 
 /**
  * Supertype for events emitted by Collabs.
  *
- * Such events are typically emitted after the Collab processes a local
- * or remote message.
+ * Such events are typically emitted after the Collab processes an
+ * update - either local or remote, and either a message or a saved state.
  *
  * See [[CollabEventsRecord]].
  */
 export interface CollabEvent {
   /**
-   * Metadata for this event.
-   *
-   * Typically, this is the [[MessageMeta]] passed along
-   * with the message that triggered this event.
+   * Metadata for the update that caused this event.
    */
-  readonly meta: MessageMeta;
+  readonly meta: UpdateMeta;
 }
 
 /**
@@ -66,10 +61,20 @@ export interface CollabEventsRecord {
    * its state) without having to listen on each
    * individual event type.
    *
-   * For Collabs that emit an event after each user-facing change,
-   * this is effectively the same as [[Runtime]]'s "Change"
-   * event, except restricted to the scope of this [[Collab]] and
-   * its descendants.
+   * When using [[CRuntime]], note that this event may be emitted
+   * in the middle of a transaction, and multiple times during a
+   * transaction or synchronous series of transactions. You may wish to wait to
+   * refresh displays until the next [[CRuntimeEventsRecord.Change]] event, e.g.:
+   * ```ts
+   * let isDirty = false;
+   * collab.on("Any", () => { isDirty = true; });
+   * runtime.on("Change", () => {
+   *   if (isDirty) {
+   *     refreshDisplay();
+   *     isDirty = false;
+   *   }
+   * })
+   * ```
    */
   Any: CollabEvent;
 }
@@ -91,7 +96,7 @@ export interface CollabEventsRecord {
  * server-serialized order, immediate local echo, etc.)
  * is left open, to let the library be as general as
  * possible. Instead, each Collab should specify its network requirements,
- * typically in the form of a specific [[Runtime]] or
+ * typically in the form of a specific [[IRuntime]] or
  * ancestor `Collab`s; users are then expected to meet
  * these requirements when using the Collab.
  *
@@ -101,7 +106,7 @@ export interface CollabEventsRecord {
  * state-based CRDTs, Operational Transformation types,
  * and strongly consistent types with server-serialized messages.
  * However, by default, the library only includes operation-based
- * CRDTs, together with a [[CRDTRuntime]] needed to
+ * CRDTs, together with a [[CRuntime]] needed to
  * use them. Nonetheless, many parts of the library
  * can be reused with more general collaborative data
  * structures (e.g., `CObject`). These can be determined
@@ -120,13 +125,13 @@ export interface CollabEventsRecord {
  *
  * Supported kinds of composition include
  * ordinary object-oriented composition ([[CObject]]),
- * collections of `Collab`s (e.g., [[DeletingMutCSet]]),
+ * collections of `Collab`s (e.g., [[CSet]]),
  * and `Collab`s that provide a specific
  * environment to their children (e.g., [[CRDTMetaLayer]]).
  *
  * `Collab`s that can be a parent to other `Collab`s must
- * implement [[ICollabParent]], so that their type is
- * assignable to [[CollabParent]].
+ * implement [[IParent]], so that their type is
+ * assignable to [[Parent]].
  * Each parent `Collab` has full control over its children,
  * allowing a wide range of behavior to be implemented
  * using `Collab` ancestors (e.g., message batching
@@ -138,7 +143,7 @@ export interface CollabEventsRecord {
  * siblings. They are assigned at construction time using
  * the [[InitToken]] constructor argument.
  * The parent relationships form a tree of `Collab`s,
- * rooted at the [[Runtime]].
+ * rooted at the [[IRuntime]].
  *
  * Each `Collab` is responsible
  * for its subtree:
@@ -173,13 +178,13 @@ export abstract class Collab<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends EventEmitter<Events> {
   /**
-   * The ambient [[Runtime]].
+   * The ambient [[IRuntime]].
    */
-  readonly runtime: Runtime;
+  readonly runtime: IRuntime;
   /**
    * The Collab's parent in the tree of Collabs.
    */
-  readonly parent: CollabParent;
+  readonly parent: Parent;
   /**
    * The Collab's name, which distinguishes it among its siblings
    * in the tree of Collabs.
@@ -188,7 +193,7 @@ export abstract class Collab<
 
   /**
    * Uses the given [[InitToken]] to register this Collab
-   * with its parent, thus attaching it to the tree of Collabs.
+   * with its parent, attaching it to the tree of Collabs.
    * @param init A [[InitToken]] given by
    * `init.parent` for use in constructing this Collab.
    */
@@ -197,44 +202,6 @@ export abstract class Collab<
     this.runtime = isRuntime(init.parent) ? init.parent : init.parent.runtime;
     this.parent = init.parent;
     this.name = init.name;
-  }
-
-  /**
-   * Returns context for the given key as supplied by
-   * some ancestor, or undefined if not supplied.
-   *
-   * Keys are queried by [[Collab.getContext]] in
-   * a call chain (like in object inheritance): first, the [[Collab]]
-   * calls `getAddedContext(key)` on the parent;
-   * if that returns undefined, it calls on the grandparent,
-   * etc., ending with the [[Runtime]].
-   *
-   * As in object inheritance, a key present in one [[Collab]]
-   * overshadows its ancestors' values for that key,
-   * but that [[Collab]] may choose to consult the next
-   * higher up value, accessed through its own [[Collab.getContext]]
-   * method.
-   *
-   * The returned context may be a value or a function.
-   * The value case is analogous to a property,
-   * while the function case is analogous to a method.
-   *
-   * Typically, context values are local to this replica
-   * and should not be consulted when receiving messages.
-   * Otherwise, the received message
-   * may be processed inconsistently on different replicas.
-   * Context necessary for a message should instead be included
-   * in that message, either directly or as a field on its
-   * [[MessageMeta]].
-   */
-  protected getContext(key: symbol): unknown {
-    let current: CollabParent = this.parent;
-    for (;;) {
-      const currentAttempt = current.getAddedContext(key);
-      if (currentAttempt !== undefined) return currentAttempt;
-      if (isRuntime(current)) return undefined;
-      current = current.parent;
-    }
   }
 
   /**
@@ -268,162 +235,138 @@ export abstract class Collab<
   }
 
   /**
-   * Sends the given message.
+   * Sends the given message. You may assume that it will be
+   * delivered to [[Collab.receive]] on each replica of this
+   * Collab, with guarantees set by the [[runtime]].
    *
-   * In general, `messagePath` will be then be delivered
-   * to [[Collab.receive]] on each replica of this. However,
-   * ancestors may choose to modify the message before delivery,
-   * including possibly delivering extra messages or none at all.
+   * For convenience, the message may be expressed as a stack of
+   * `(Uint8Array | string)`,
+   * instead of just a single Uint8Array. This is
+   * useful for parents sending messages on behalf of their children;
+   * see the implementations of [[CObject.childSend]] and
+   * [[CObject.receive]] for an example.
+   * Note that this method may mutate `messageStack` in-place.
    *
-   * @param  messagePath An array of messages to be
-   * delivered to replicas' [[receive]] method.
-   * Typically this takes the form of a child `Collab`'s
-   * sent `messagePath`, with an extra message sent by this
-   * `Collab` appended to the end. Note that the array may
-   * be modified in-place by ancestors.
+   * Technically, ancestors in the tree of Collabs may violate the
+   * delivery assumption. For example, [[CSet]] does not
+   * deliver messages to deleted set elements. Ancestors that do so
+   * are responsible for ensuring consistency (etc.), so you usually do not
+   * need to worry about such violations.
+   *
+   * @param messageStack The message to send, in the form of a stack
+   * of Uint8Arrays.
+   * @param metaRequests A stack of metadata requests. The IRuntime will use
+   * the union of these when creating the [[UpdateMeta]] for [[receive]].
+   * Note that the stack need not align with `messageStack`.
    */
-  protected send(messagePath: Message[]): void {
-    this.parent.childSend(this, messagePath);
+  protected send(
+    messageStack: (Uint8Array | string)[],
+    metaRequests: MetaRequest[]
+  ): void {
+    this.parent.childSend(this, messageStack, metaRequests);
   }
 
   /**
-   * Callback used by this Collab's parent to deliver
-   * a message, possibly for one of this Collab's descendants.
+   * Called by this Collab's parent to deliver
+   * a message. You may assume that the message was sent by
+   * [[send]] on some replica of this Collab (possibly `this`),
+   * with guarantees set by the [[runtime]].
    *
-   * @param messagePath A messagePath sent by a local or
-   * remote replica
-   * using [[send]], possibly modified by ancestor
-   * `Collab`s. This may be modified in-place. A common pattern
-   * is to read the last message, decrement the length,
-   * and then deliver it to a child `Collab`.
-   * @param meta Metadata attached to this message by
-   * ancestor `Collab`s.
+   * @param messageStack The message to receive, in the same format
+   * as in [[send]]. It is okay to mutate `messageStack` in-place,
+   * e.g., calling `pop`.
+   * @param meta Metadata attached to this message by the runtime.
+   * It incorporates metadata requests made in [[send]]. Note that
+   * `meta.updateType` is always `"message"`.
    */
-  abstract receive(messagePath: Message[], meta: MessageMeta): void;
+  abstract receive(
+    messageStack: (Uint8Array | string)[],
+    meta: UpdateMeta
+  ): void;
 
   /**
-   * Returns save data describing the current state of this
-   * `Collab` and its descendants, sufficient to restore the
-   * state on a new replica by calling [[load]]`(`[[Optional.of]]`(saveData))`.
+   * Called by this Collab's parent to obtain saved state. The saved
+   * state describes the current state of this
+   * `Collab` and its descendants.
    *
-   * The usage pattern of `save` and [[load]] is:
-   * 1. `save` is called on one replica, returning save data.
-   * 2. A new replica of this `Collab` is created using the
-   * same class and same constructor arguments
-   * (the usual [Initialization](../../initialization.md) requirements for replicas).
-   * 3. [[load]]`(saveData)` is called on that replica. This
-   * is expected to give an identical state to that when
-   * `save` was called, except that replica is different
-   * (in particular, [[Runtime.replicaID]] is different).
-   * 4. The replica proceeds normally, receiving any messages
-   * that had not yet been received before the `save` call.
+   * The saved state may later be passed to [[load]] on a replica of
+   * this Collab, possibly in a different collaboration session,
+   * with rules set by the [[runtime]]. For example, [[CRuntime]]
+   * allows [[load]] to be called at any time; it must act as a "merge"
+   * operation, applying all updates that the saved replica had applied
+   * before saving, ignoring duplicates.
    *
-   * Before [[load]] is called, this `Collab` and its descendants
-   * must not be used to perform operations or receive messages.
-   * Behavior is undefined if that condition is violated.
+   * `save` may be called at any time, possibly many times while an app
+   * is running. Calling `save` should not affect this Collab's
+   * user-visible state.
    *
-   * A special case of the usage pattern is when an app
-   * is created without any prior save data. In that case,
-   * [[load]]`(`[[Optional.empty]]`())` is called instead,
-   * to indicate that loading has been skipped and that the
-   * `Collab` can start being used.
+   * For convenience, the saved state may be expressed as a tree of
+   * Uint8Arrays instead of just a single Uint8Array; see
+   * [[SaveStateTree]]'s docs. Also, this method may return `null` if
+   * the saved state is trivial; replicas loading the whole document
+   * will then skip calling [[load]] on this Collab's replica.
    *
-   * `save` may be called multiple times throughout an app's
-   * lifecycle, and it should not affect the user-visible state.
-   * `save` may **not** be called in the middle of an operation or transaction
-   * (either being sent or received), to ensure that this
-   * `Collab` is in a reasonable, stable, user-facing state.
-   *
-   * @return save data
+   * @return The saved state, in the form of a [[SavedStateTree]], or null
+   * if there is no state to save.
    */
-  abstract save(): Uint8Array;
+  abstract save(): SavedStateTree | null;
 
   /**
-   * Loads this newly-initialized `Collab` and its descendants
-   * from `saveData` output by [[save]] on a previous replica
-   * of this `Collab` (wrapped in an [[Optional]]), or if
-   * `saveData` is an empty [[Optional]], indicates that
-   * loading is skipped (no prior save data).
+   * Called by this Collab's parent to load some saved state.
+   * You may assume that the saved state was generated by
+   * [[save]] on some replica of this Collab (possibly `this`, although then
+   * it's redundant),
+   * with guarantees set by the [[runtime]].
    *
-   * See [[save]] for detailed info on saving and loading
-   * usage.
+   * Note that when loading a whole document, this Collab's `load` is skipped
+   * if its saved replica's [[save]] call returned `null`.
    *
-   * This may only be called on a newly initialized `Collab`,
-   * and it must be called (exactly once) before this `Collab`
-   * can be used to perform operations or receive messages.
-   * Behavior is undefined if that condition is violated.
-   *
-   * @param saveData [description]
+   * @param savedStateTree The saved state to load, in the form of a
+   * [[SavedStateTree].
+   * @param meta Metadata attached to this saved state by the runtime.
+   * It incorporates all possible metadata requests. Note that
+   * `meta.updateType` is always `"savedState"`.
    */
-  abstract load(saveData: Optional<Uint8Array>): void;
-
-  /**
-   * Returns the "name path" from `descendant` to `this`,
-   * i.e., the list of names on that path in the tree of
-   * `Collab`s.
-   *
-   * I.e., it is `[descendent.name, descendant.parent.name,
-   * descendant.parent.parent.name, ...]` continuing
-   * until `this` is reached, excluding `this.name`.
-   *
-   * [[getDescendant]] does the reverse procedure.
-   * [[getNamePath]] and [[getDescendant]] together allow
-   * one to make a serializable reference to a `Collab` that
-   * is comprehensible across replicas.
-   *
-   * See also: [[CollabID]].
-   *
-   * @param  descendant A `Collab` that is a descendant
-   * of `this`.
-   * @throws if `descendant` is not a descendant of `this`
-   * in the tree of `Collab`s.
-   */
-  getNamePath(descendant: Collab): string[] {
-    let current = descendant;
-    const namePath = [];
-    while (current !== this) {
-      namePath.push(current.name);
-      if (isRuntime(current.parent)) {
-        throw new Error("getNamePath called on non-descendant");
-      }
-      current = current.parent;
-    }
-    return namePath;
-  }
-
-  /**
-   * Returns the descendant of this Collab at the
-   * given name path, or `undefined`
-   * if it no longer exists.
-   *
-   * If `namePath` is `[]`, `this` is returned.
-   *
-   * This method should not be called before [[load]] has completed.
-   * Otherwise, its behavior is unspecified.
-   *
-   * See also: [[CollabID]].
-   *
-   * @param  namePath A name path referencing a descendant
-   * of this `Collab` (inclusive), as returned by [[getNamePath]].
-   * @return The descendant at the given name path, or `undefined`
-   * if it no longer exists.
-   * @throws If no descendant with the given `namePath` could possibly
-   * exist, e.g., this has a fixed set of children and the child name
-   * is not one of them.
-   */
-  abstract getDescendant(namePath: string[]): Collab | undefined;
+  abstract load(savedStateTree: SavedStateTree, meta: UpdateMeta): void;
 
   /**
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
+   * Returning true allows some collections to reduce memory usage
+   * (in particular, [[CLazyMap]]).
    *
-   * When canGC() is true and there are no non-weak
-   * references to this Collab, users of this Collab may safely
-   * delete it from memory ("garbage collection"),
-   * recreating it using the
-   * same constructor arguments if needed later.  That reduces
-   * the state space of some Collab collections
-   * (in particular, [[LazyMutCMap]]).
+   * When canGC() is true and there are no other (non-weak)
+   * references to this Collab, [[parent]] may choose to
+   * delete it from memory, allowing garbage collection.
+   * If this is needed later, [[parent]] will reconstruct an equivalent
+   * object using the same constructor and constructor arguments.
+   * See [[CLazyMap]]'s implementation for an example.
+   *
+   * By default, this method always returns false.
    */
-  abstract canGC(): boolean;
+  canGC(): boolean {
+    return false;
+  }
+
+  /**
+   * Called by this Collab's parent when it has been deleted from a
+   * collection on the local
+   * replica and can no longer be used. A Collab implementation can
+   * implement this method to clean up
+   * external resources, e.g., associated DOM elements.
+   *
+   * In particular, finalize is called at the end of receiving a [[CSet.delete]]
+   * operation (just after the "Delete" event) for this Collab or its ancestor.
+   * Implementing finalize may be more convenient than cleaning up during
+   * the "Delete" event, especially if the CSet is wrapped by another Collab.
+   *
+   * finalize has no relation to [[canGC]] or to the JavaScript garbage
+   * collector. In particular, it is not called when a local copy is deleted
+   * from memory due to [[canGC]] but may be revived later.
+   *
+   * By default, this method does nothing.
+   */
+  finalize(): void {
+    // Default: no-op.
+  }
 }

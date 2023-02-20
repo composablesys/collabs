@@ -6,8 +6,8 @@ export interface EventsRecord {
   [eventName: string]: any;
 }
 
-export type Unsubscribe = () => void;
-export type Handler<T, C> = (event: T, caller: C) => void;
+// Not exported to reduce conceptual size.
+type Handler<T, C> = (event: T, caller: C) => void;
 
 /**
  * Classes extending EventEmitter can emit events, and listeners can await
@@ -42,8 +42,8 @@ export class EventEmitter<Events extends EventsRecord> {
    */
   on<K extends keyof Events>(
     eventName: K,
-    handler: Handler<Events[K], this>
-  ): Unsubscribe {
+    handler: (event: Events[K], caller: this) => void
+  ): () => void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const set: Set<Handler<Events[K], any>> = (this.handlers[eventName] =
       this.handlers[eventName] ?? new Set([handler]));
@@ -63,8 +63,8 @@ export class EventEmitter<Events extends EventsRecord> {
    */
   once<K extends keyof Events>(
     eventName: K,
-    handler: Handler<Events[K], this>
-  ): Unsubscribe {
+    handler: (event: Events[K], caller: this) => void
+  ): () => void {
     const unsubscribe = this.on(eventName, (event, caller) => {
       unsubscribe();
       handler(event, caller);

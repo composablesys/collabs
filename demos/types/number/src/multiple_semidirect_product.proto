@@ -1,15 +1,8 @@
-message BytesOrString {
-  oneof data {
-    string stringData = 1;
-    bytes bytesData = 2;
-  }
-}
-
 message MultiSemidirectProductStoredMessage {
   required string sender = 1;
   required uint32 senderCounter = 2;
   required uint32 receiptCounter = 3;
-  repeated BytesOrString messagePath = 4;
+  optional bytes messageStack = 4;
   optional bytes meta = 5;
   required uint32 arbIndex = 6;
 }
@@ -22,9 +15,4 @@ message MultiSemidirectProductHistorySave {
   required uint32 receiptCounter = 1;
   map<string, MultiSemidirectProductSenderHistory> history = 2;
   // internalState is loaded by the children, not here
-}
-
-message MultiSemidirectProductSave {
-  repeated bytes childSaves = 1;
-  required bytes historySave = 2;
 }

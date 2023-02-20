@@ -1,9 +1,18 @@
+import { SafeWeakRef } from "./safe_weak_ref";
+
+/**
+ * A map with weakly held values (not keys like WeakMap).
+ *
+ * Local data structure - not a [[Collab]].
+ */
 export class WeakValueMap<K, V extends object> {
   private readonly internalMap = new Map<K, WeakRef<V>>();
-  private readonly registry: FinalizationRegistry<K>;
+  private readonly registry?: FinalizationRegistry<K>;
 
   constructor() {
-    this.registry = new FinalizationRegistry((key) => this.checkKey(key));
+    if (typeof FinalizationRegistry !== "undefined") {
+      this.registry = new FinalizationRegistry((key) => this.checkKey(key));
+    }
   }
 
   clear() {
@@ -23,8 +32,8 @@ export class WeakValueMap<K, V extends object> {
   }
 
   set(key: K, value: V) {
-    this.internalMap.set(key, new WeakRef(value));
-    this.registry.register(value, key);
+    this.internalMap.set(key, new SafeWeakRef(value));
+    if (this.registry) this.registry.register(value, key);
   }
 
   *[Symbol.iterator](): IterableIterator<[K, V]> {

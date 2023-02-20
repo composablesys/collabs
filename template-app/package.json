@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "@collabs/collabs": "0.6.x",
-    "@collabs/ws-client": "0.6.x",
-    "@collabs/ws-server": "0.6.x"
+    "@collabs/collabs": "0.7.x",
+    "@collabs/ws-client": "0.7.x",
+    "@collabs/ws-server": "0.7.x"
   },
   "devDependencies": {
     "@types/node": "^15.6.1",
@@ -20,7 +20,7 @@
   },
   "scripts": {
     "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --no-devtool",
+    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool nosources-source-map",
     "start": "ts-node server/testing_server.ts",
     "clean": "rimraf dist"
   }

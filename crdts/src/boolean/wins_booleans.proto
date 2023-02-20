@@ -1,4 +1,0 @@
-message WinsCBooleanSave {
-  repeated string senders = 1;
-  repeated uint32 senderCounters = 2 [packed=true];
-}

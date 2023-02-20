@@ -1,9 +1,4 @@
-import {
-  Collab,
-  CRDTApp,
-  Optional,
-  TestingCRDTAppGenerator,
-} from "@collabs/collabs";
+import { Collab, CRuntime, Optional, TestingRuntimes } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import {
@@ -16,14 +11,14 @@ import {
 import { debug } from "./debug";
 
 describe("tensor", () => {
-  let runtimeGen: TestingCRDTAppGenerator;
-  let alice: CRDTApp;
-  let bob: CRDTApp;
+  let runtimeGen: TestingRuntimes;
+  let alice: CRuntime;
+  let bob: CRuntime;
 
   beforeEach(() => {
-    runtimeGen = new TestingCRDTAppGenerator();
-    alice = runtimeGen.newApp();
-    bob = runtimeGen.newApp();
+    runtimeGen = new TestingRuntimes();
+    alice = runtimeGen.newRuntime();
+    bob = runtimeGen.newRuntime();
     tf.engine().startScope();
   });
 
@@ -80,7 +75,7 @@ describe("tensor", () => {
   ): void {
     crdt.on("Add", (event) =>
       console.log(
-        `${name}: ${event.meta.sender} added ${event.valueAdded.toString()}`
+        `${name}: ${event.meta.senderID} added ${event.valueAdded.toString()}`
       )
     );
   }

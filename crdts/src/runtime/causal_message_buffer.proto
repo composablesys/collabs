@@ -1,0 +1,10 @@
+message CausalMessageBufferSave {
+  repeated string vcKeys = 1;
+  repeated uint64 vcValues = 2 [packed=true];
+  // OPT: dedupe with vcKeys
+  repeated string maximalVcKeys = 3;
+  required uint64 lamportTimestamp = 4;
+  repeated bytes bufferMessageStacks = 5;
+  repeated bytes bufferMetas = 6;
+  required uint32 bufferCheckIndex = 7;
+}

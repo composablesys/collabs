@@ -1,20 +1,20 @@
 import {
   Collab,
   CollabEventsRecord,
-  CRDTMeta,
-  CRDTMetaRequestee,
-  ICollabParent,
+  CollabID,
+  collabIDOf,
   InitToken,
-  Message,
-  MessageMeta,
-  Optional,
-  serializeMessage,
-} from "@collabs/collabs";
+  IParent,
+  MessageStacksSerializer,
+  MetaRequest,
+  Parent,
+  SavedStateTree,
+  UpdateMeta,
+} from "@collabs/core";
+import { CRDTMeta } from "@collabs/crdts";
 import {
-  BytesOrString,
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
-  MultiSemidirectProductSave,
 } from "../generated/proto_compiled";
 
 /* eslint-disable */
@@ -47,20 +47,20 @@ export interface StatefulCRDT<S extends object> extends Collab {
 }
 
 class StoredMessage {
-  messagePath: Message[] | null;
+  messageStack: (Uint8Array | string)[] | null;
   constructor(
     readonly sender: string,
     readonly senderCounter: number,
     readonly receiptCounter: number,
-    messagePath: Message[] | null,
-    readonly meta: MessageMeta | null,
+    messageStack: (Uint8Array | string)[] | null,
+    readonly meta: UpdateMeta | null,
     readonly arbIndex: number // arbitration number
   ) {
-    this.messagePath = messagePath;
+    this.messageStack = messageStack;
   }
 
-  setMessagePath(newMessagePath: Message[] | null) {
-    this.messagePath = newMessagePath;
+  setMessageStack(newMessageStack: (Uint8Array | string)[] | null) {
+    this.messageStack = newMessageStack;
   }
 }
 
@@ -81,22 +81,22 @@ class MultipleSemidirectState<S extends object> {
    * replicaID is our replica id.
    */
   add(
-    messagePath: Message[],
-    meta: MessageMeta,
+    messageStack: (Uint8Array | string)[],
+    meta: UpdateMeta,
     crdtMeta: CRDTMeta,
     arbId: number
   ) {
-    let senderHistory = this.history.get(meta.sender);
+    let senderHistory = this.history.get(meta.senderID);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(meta.sender, senderHistory);
+      this.history.set(meta.senderID, senderHistory);
     }
     senderHistory.push(
       new StoredMessage(
-        crdtMeta.sender,
+        crdtMeta.senderID,
         crdtMeta.senderCounter,
         this.receiptCounter,
-        messagePath,
+        messageStack,
         this.historyMetas ? meta : null,
         arbId
       )
@@ -108,7 +108,7 @@ class MultipleSemidirectState<S extends object> {
    * Return all messages in the history concurrent to the given
    * meta, in some causal order (specifically, this replica's
    * receipt order).  If we are the sender (i.e., replicaID ===
-   * meta.sender), it is assumed that the meta is
+   * meta.senderID), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
   getConcurrent(replicaID: string, crdtMeta: CRDTMeta, arbId: number) {
@@ -133,9 +133,10 @@ class MultipleSemidirectState<S extends object> {
     returnConcurrent: boolean,
     arbId: number
   ) {
-    if (replicaID === crdtMeta.sender) {
-      return [];
-    }
+    // if replicaID === crdtMeta.senderID, we know the answer is [] (sequential).
+    // But for automatic CRDTMeta to work, we need to still access all current VC
+    // entries. So, we skip that shortcut.
+
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
     // greater than meta.vectorClock.get(replicaID).
@@ -236,6 +237,14 @@ class MultipleSemidirectState<S extends object> {
     return 0;
   }
 
+  /**
+   * Returns an interable of all known senderIDs. Request these VC entries.
+   * (TODO: is that sufficient in the face of history trimming?)
+   */
+  getKnownSenderIDs() {
+    return this.history.keys();
+  }
+
   save(): Uint8Array {
     const historySave: {
       [sender: string]: IMultiSemidirectProductSenderHistory;
@@ -247,12 +256,12 @@ class MultipleSemidirectState<S extends object> {
             sender: message.sender,
             senderCounter: message.senderCounter,
             receiptCounter: message.receiptCounter,
-            messagePath: message.messagePath?.map((value) => {
-              const serialized = serializeMessage(value);
-              if (typeof serialized === "string") {
-                return { stringData: serialized };
-              } else return { bytesData: serialized };
-            }),
+            messageStack:
+              message.messageStack === null
+                ? null
+                : MessageStacksSerializer.instance.serialize([
+                    message.messageStack,
+                  ]),
             meta: null, // TODO: historyMetas not supported
             arbIndex: message.arbIndex,
           };
@@ -266,8 +275,8 @@ class MultipleSemidirectState<S extends object> {
     return MultiSemidirectProductHistorySave.encode(saveMessage).finish();
   }
 
-  load(saveData: Uint8Array) {
-    const saveMessage = MultiSemidirectProductHistorySave.decode(saveData);
+  load(savedState: Uint8Array) {
+    const saveMessage = MultiSemidirectProductHistorySave.decode(savedState);
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {
       this.history.set(
@@ -278,13 +287,10 @@ class MultipleSemidirectState<S extends object> {
               message.sender,
               message.senderCounter,
               message.receiptCounter,
-              message.hasOwnProperty("messagePath")
-                ? message.messagePath!.map((value) => {
-                    const asClass = <BytesOrString>value;
-                    if (asClass.data === "stringData") {
-                      return asClass.stringData;
-                    } else return asClass.bytesData;
-                  })
+              message.hasOwnProperty("messageStack")
+                ? MessageStacksSerializer.instance.deserialize(
+                    message.messageStack!
+                  )[0]
                 : null,
               null,
               message.arbIndex
@@ -303,7 +309,7 @@ export abstract class MultipleSemidirectProduct<
     Events extends CollabEventsRecord = CollabEventsRecord
   >
   extends Collab<Events>
-  implements ICollabParent, StatefulCRDT<MultipleSemidirectState<S>>
+  implements IParent, StatefulCRDT<MultipleSemidirectState<S>>
 {
   readonly state: MultipleSemidirectState<S>;
 
@@ -317,29 +323,20 @@ export abstract class MultipleSemidirectProduct<
     this.state = new MultipleSemidirectState(historyMetas);
   }
 
-  childSend(child: Collab, messagePath: Message[]): void {
+  childSend(
+    child: Collab,
+    messageStack: (Uint8Array | string)[],
+    metaRequests: MetaRequest[]
+  ): void {
     if (child.parent !== this) {
       throw new Error("childSend called by non-child: " + child);
     }
 
-    // Request all metadata.
-    const crdtMetaRequestee = <CRDTMetaRequestee>(
-      this.getContext(CRDTMetaRequestee.CONTEXT_KEY)
-    );
-    crdtMetaRequestee.requestAll();
+    // Automatic CRDTMeta suffices: we need all known VC entries,
+    // and these are accessed during the local echo.
 
-    // Send.
-    messagePath.push(child.name);
-    this.send(messagePath);
-  }
-
-  /**
-   * No added context.
-   *
-   * @return undefined
-   */
-  getAddedContext(_key: symbol): any {
-    return undefined;
+    messageStack.push(child.name);
+    this.send(messageStack, metaRequests);
   }
 
   protected crdts: Array<StatefulCRDT<S>> = [];
@@ -356,12 +353,12 @@ export abstract class MultipleSemidirectProduct<
    * @return              [description]
    */
   protected abstract action(
-    m2MessagePath: Message[],
-    m2Meta: MessageMeta | null,
+    m2MessageStack: (Uint8Array | string)[],
+    m2Meta: UpdateMeta | null,
     m2Index: number,
-    m1MessagePath: Message[],
-    m1Meta: MessageMeta | null
-  ): { m1MessagePath: Message[] } | null;
+    m1MessageStack: (Uint8Array | string)[],
+    m1Meta: UpdateMeta | null
+  ): { m1MessageStack: (Uint8Array | string)[] } | null;
 
   protected setupState(initialState: S) {
     this.state.internalState = initialState;
@@ -384,20 +381,19 @@ export abstract class MultipleSemidirectProduct<
   // The resulting message mact is then applied to σ and added to the history.
   // It also acts on all messages in the history with lower arbitration order,
   // regardless ofwhether they are concurrent or not.
-  receive(messagePath: Message[], meta: MessageMeta) {
-    if (messagePath.length === 0) {
-      throw new Error("TODO");
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta) {
+    if (messageStack.length === 0) {
+      throw new Error("Unexpected message");
     }
 
-    const crdtMeta = <CRDTMeta>meta.get(CRDTMeta.MESSAGE_META_KEY);
+    const crdtMeta = <CRDTMeta>meta.runtimeExtra;
 
-    const name = <string>messagePath[messagePath.length - 1];
+    const name = <string>messageStack.pop();
     let idx: number;
     if (
       name.substring(0, 4) == "crdt" &&
       !Number.isNaN((idx = parseInt(name.substring(4))))
     ) {
-      messagePath.length--;
       let crdt = this.crdts[idx];
 
       // Be acted on by all concurrent messages with greater
@@ -409,15 +405,15 @@ export abstract class MultipleSemidirectProduct<
       );
 
       let mAct = {
-        m1MessagePath: messagePath,
+        m1MessageStack: messageStack,
       };
       for (let i = 0; i < concurrent.length; i++) {
-        if (concurrent[i].messagePath !== null) {
+        if (concurrent[i].messageStack !== null) {
           let mActOrNull = this.action(
-            concurrent[i].messagePath!,
+            concurrent[i].messageStack!,
             concurrent[i].meta,
             concurrent[i].arbIndex,
-            mAct.m1MessagePath,
+            mAct.m1MessageStack,
             meta
           );
 
@@ -429,48 +425,41 @@ export abstract class MultipleSemidirectProduct<
       // mAct should act on all messages in history w/ lower order
       let hist = this.state.getLowerHistory(idx);
       hist.forEach((msg) => {
-        if (msg.messagePath !== null) {
+        if (msg.messageStack !== null) {
           let acted = this.action(
-            mAct.m1MessagePath,
+            mAct.m1MessageStack,
             meta,
             idx,
-            msg.messagePath,
+            msg.messageStack,
             msg.meta
           );
 
-          if (acted) msg.setMessagePath(acted.m1MessagePath);
-          else msg.setMessagePath(null);
+          if (acted) msg.setMessageStack(acted.m1MessageStack);
+          else msg.setMessageStack(null);
         }
       });
 
       // add mAct to state and history
-      this.state.add(messagePath.slice(), meta, crdtMeta, idx);
+      this.state.add(messageStack.slice(), meta, crdtMeta, idx);
 
-      crdt.receive(mAct.m1MessagePath, meta);
+      crdt.receive(mAct.m1MessageStack, meta);
     } else {
       throw new Error(
         "Unknown SemidirectProduct child: " +
           name +
           " in: " +
-          JSON.stringify(messagePath)
+          JSON.stringify(messageStack)
       );
     }
   }
 
-  save(): Uint8Array {
-    const saveMessage = MultiSemidirectProductSave.create({
-      childSaves: this.crdts.map((crdt) => crdt.save()),
-      historySave: this.state.save(),
-    });
-    return MultiSemidirectProductSave.encode(saveMessage).finish();
+  save(): SavedStateTree | null {
+    const childSaves = new Map<string, SavedStateTree | null>();
+    for (const [index, child] of this.crdts.entries()) {
+      childSaves.set(index + "", child.save());
+    }
+    return { self: this.state.save(), children: childSaves };
   }
-
-  /**
-   * Map from child names to their saveData, containing
-   * precisely the children that have not yet initiated loading.
-   * null if we are not currently loading children.
-   */
-  private pendingChildSaves: Map<number, Uint8Array> | null = null;
 
   /**
    * TODO: the children loading their own states (all
@@ -478,57 +467,37 @@ export abstract class MultipleSemidirectProduct<
    * this.internalState, whatever it is.
    * Need option to do custom loading if that's not the
    * case.
-   * @param saveData [description]
+   * @param savedState [description]
    */
-  load(saveData: Optional<Uint8Array>): void {
-    if (!saveData.isPresent) {
-      // Indicates skipped loading. Pass on the message.
-      for (const crdt of this.crdts) crdt.load(saveData);
-    } else {
-      const saveMessage = MultiSemidirectProductSave.decode(saveData.get());
-      // TODO: get rid of pending saves (not needed since CollabID refactor).
-      // For the child saves: it's possible that loading
-      // one child might lead to this.getDescendant being
-      // called for some other child (typically by deserializing
-      // a Collab reference). So we use this.pendingChildSaves
-      // to allow getDescendant to load children on demand.
-      this.pendingChildSaves = new Map(saveMessage.childSaves.entries());
-      for (const [idx, childSave] of this.pendingChildSaves) {
-        this.pendingChildSaves.delete(idx);
-        // Note this loop will skip over children that get
-        // loaded preemptively by getDescendant, since they
-        // are deleted from this.pendingChildSaves.
-        this.crdts[idx].load(Optional.of(childSave));
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+    for (const [name, savedState] of savedStateTree.children!) {
+      if (savedState !== null) {
+        this.crdts[Number.parseInt(name)].load(savedState, meta);
       }
-      this.pendingChildSaves = null;
-      this.state.load(saveMessage.historySave);
     }
+    this.state.load(savedStateTree.self!);
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    if (namePath.length === 0) return this;
+  idOf<C extends Collab>(descendant: C): CollabID<C> {
+    return collabIDOf(descendant, this);
+  }
 
-    const name = namePath[namePath.length - 1];
-    let idx: number;
-    if (
-      name.substring(0, 4) == "crdt" &&
-      !Number.isNaN((idx = parseInt(name.substring(4))))
-    ) {
-      namePath.length--;
-      if (this.pendingChildSaves !== null && namePath.length > 0) {
-        // Ensure child is loaded.
-        const childSave = this.pendingChildSaves.get(idx);
-        if (childSave !== undefined) {
-          this.pendingChildSaves.delete(idx);
-          this.crdts[idx].load(Optional.of(childSave));
-        }
-      }
-      return this.crdts[idx].getDescendant(namePath);
-    } else {
+  fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
+    const name = id.namePath[startIndex];
+    const child = this.crdts[parseInt(name.substring(4))] as Collab;
+    if (child === undefined) {
       throw new Error(
         "Unknown child: " + name + " in MultipleSemidirectProduct: "
       );
     }
+    // Terminal case.
+    // Note that this cast is unsafe, but convenient.
+    if (startIndex === id.namePath.length - 1) return child as C;
+    // Recursive case.
+    if ((child as Parent).fromID === undefined) {
+      throw new Error("child is not a parent, but CollabID is its descendant");
+    }
+    return (child as Parent).fromID(id, startIndex + 1);
   }
 
   canGC(): boolean {

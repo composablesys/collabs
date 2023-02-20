@@ -1,26 +1,27 @@
-import { makeUID } from "../util/uid";
 import { Collab, CollabEventsRecord, InitToken } from "./collab";
-import { EventEmitter } from "./event_emitter";
-import { Runtime, RuntimeEventsRecord } from "./runtime";
-import { Message } from "./message";
-import { MessageMeta } from "./message_meta";
+import { CollabID } from "./collab_id";
+import { EventEmitter, EventsRecord } from "./event_emitter";
+import { IRuntime } from "./iruntime";
+import { Parent } from "./parent";
+import { MetaRequest } from "./updates";
 
 /**
- * Skeletal implementation of [[Runtime]] that uses
+ * Skeletal implementation of [[IRuntime]] that uses
  * a root [[Collab]].
  */
-export abstract class AbstractRuntime<
-    Events extends RuntimeEventsRecord = RuntimeEventsRecord
-  >
+export abstract class AbstractRuntime<Events extends EventsRecord>
   extends EventEmitter<Events>
-  implements Runtime<Events>
+  implements IRuntime
 {
   readonly isRuntime: true = true;
   /**
    * Readonly. Set with setRootCollab.
    */
-  protected rootCollab!: Collab;
+  protected rootCollab!: Collab & Parent;
 
+  /**
+   * @param replicaID This replica's [[replicaID]].
+   */
   constructor(readonly replicaID: string) {
     super();
 
@@ -29,7 +30,7 @@ export abstract class AbstractRuntime<
     }
   }
 
-  protected setRootCollab<C extends Collab>(
+  protected setRootCollab<C extends Collab & Parent>(
     rootCallback: (init: InitToken) => C
   ): C {
     const rootCollab = rootCallback(new InitToken("", this));
@@ -37,44 +38,37 @@ export abstract class AbstractRuntime<
     return rootCollab;
   }
 
-  private idCounter = 0;
-  getReplicaUniqueNumber(count = 1): number {
-    const ans = this.idCounter;
-    this.idCounter += count;
+  private localCounter = 0;
+  nextLocalCounter(count = 1): number {
+    const ans = this.localCounter;
+    this.localCounter += count;
     return ans;
   }
 
-  getUID(): string {
-    return makeUID(this.replicaID, this.getReplicaUniqueNumber());
+  nextUID(): string {
+    // For UID, use a pair (replicaID, replicaUniqueNumber).
+    // These are sometimes called "causal dots".
+    // They are similar to Lamport timestamps,
+    // except that the number is a per-replica counter instead
+    // of a logical clock.
+    // OPT: shorten (base128 instead of base36)
+    return `${this.nextLocalCounter().toString(36)},${this.replicaID}`;
   }
 
-  getNamePath(descendant: Collab): string[] {
-    return this.rootCollab.getNamePath(descendant);
+  idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {
+    return this.rootCollab.idOf(descendant);
   }
 
-  getDescendant(namePath: string[]): Collab | undefined {
-    return this.rootCollab.getDescendant(namePath);
-  }
-
-  /**
-   * Returns context added by this Runtime
-   * for the given key, or undefined if not added.
-   *
-   * By default, this only implements the context key
-   * [[MessageMeta.NEXT_MESSAGE_META]]. Subclasses may add other context keys
-   * or overwrite that one, but they must ensure that
-   * [[MessageMeta.NEXT_MESSAGE_META]] remains implemented.
-   */
-  getAddedContext(key: symbol): unknown {
-    if (key === MessageMeta.NEXT_MESSAGE_META) {
-      return MessageMeta.new(this.replicaID, true, true);
-    } else return undefined;
+  fromID<C extends Collab<CollabEventsRecord>>(
+    id: CollabID<C>,
+    startIndex = 0
+  ): C | undefined {
+    return this.rootCollab.fromID(id, startIndex);
   }
 
   abstract childSend(
     child: Collab<CollabEventsRecord>,
-    messagePath: Message[]
+    messageStack: (Uint8Array | string)[],
+    metaRequests: MetaRequest[]
   ): void;
-
-  abstract readonly isLoaded: boolean;
 }

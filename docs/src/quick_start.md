@@ -21,11 +21,11 @@ In this quick start, you will make a collaborative counter app: a webpage where 
 
 ```ts
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 
 (async function () {
-  // Create a CRDTContainer, the entry point for a Collabs container.
-  const container = new CRDTContainer();
+  // Create a CContainer, the entry point for a Collabs container.
+  const container = new CContainer();
 
   // Setup your app, using container.registerCollab to create
   // Collabs state variables.

@@ -10,7 +10,7 @@ export function CollabsText(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.text = this.app.registerCollab(
+      this.text = this.runtime.registerCollab(
         "",
         (init) => new collabs.CText(init)
       );

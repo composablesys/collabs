@@ -5,20 +5,23 @@ import {
   setWarmupTrials,
 } from "./record";
 import { AutomergeMap } from "./replica-benchmark/implementations/automerge/map";
-import { AutomergeVariable } from "./replica-benchmark/implementations/automerge/variable";
 import { AutomergeText } from "./replica-benchmark/implementations/automerge/text";
+import { AutomergeTextWithCursor } from "./replica-benchmark/implementations/automerge/text_with_cursor";
 import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge/todo_list";
-import { CollabsTodoList } from "./replica-benchmark/implementations/collabs/todo_list";
-// import { CollabsJSONOptTodoList } from "./replica-benchmark/implementations/collabs/json_opt_todo_list";
-import { CollabsJSONTextTodoList } from "./replica-benchmark/implementations/collabs/json_text_todo_list";
-import { CollabsJSONTodoList } from "./replica-benchmark/implementations/collabs/json_todo_list";
+import { AutomergeVariable } from "./replica-benchmark/implementations/automerge/variable";
 import { CollabsMap } from "./replica-benchmark/implementations/collabs/map";
-import { CollabsVariable } from "./replica-benchmark/implementations/collabs/variable";
+import { CollabsNestedNoop } from "./replica-benchmark/implementations/collabs/nested_noop";
+import { CollabsNoop } from "./replica-benchmark/implementations/collabs/noop";
+import { CollabsRichTextWithCursor } from "./replica-benchmark/implementations/collabs/rich_text_with_cursor";
 import { CollabsText } from "./replica-benchmark/implementations/collabs/text";
+import { CollabsTextWithCursor } from "./replica-benchmark/implementations/collabs/text_with_cursor";
+import { CollabsTodoList } from "./replica-benchmark/implementations/collabs/todo_list";
+import { CollabsVariable } from "./replica-benchmark/implementations/collabs/variable";
 import { YjsMap } from "./replica-benchmark/implementations/yjs/map";
-import { YjsVariable } from "./replica-benchmark/implementations/yjs/variable";
 import { YjsText } from "./replica-benchmark/implementations/yjs/text";
+import { YjsTextWithCursor } from "./replica-benchmark/implementations/yjs/text_with_cursor";
 import { YjsTodoList } from "./replica-benchmark/implementations/yjs/todo_list";
+import { YjsVariable } from "./replica-benchmark/implementations/yjs/variable";
 import {
   Implementation,
   Mode,
@@ -27,18 +30,12 @@ import {
 } from "./replica-benchmark/replica_benchmark";
 import { MicroMapRollingTrace } from "./replica-benchmark/traces/micro_map_rolling_trace";
 import { MicroMapTrace } from "./replica-benchmark/traces/micro_map_trace";
-import { MicroVariableTrace } from "./replica-benchmark/traces/micro_variable_trace";
 import { MicroTextLtrTrace } from "./replica-benchmark/traces/micro_text_ltr_trace";
 import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_random_trace";
+import { MicroVariableTrace } from "./replica-benchmark/traces/micro_variable_trace";
+import { NoopTrace } from "./replica-benchmark/traces/noop_trace";
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
-import { CollabsNoop } from "./replica-benchmark/implementations/collabs/noop";
-import { CollabsNestedNoop } from "./replica-benchmark/implementations/collabs/nested_noop";
-import { NoopTrace } from "./replica-benchmark/traces/noop_trace";
-import { CollabsRichTextWithCursor } from "./replica-benchmark/implementations/collabs/rich_text_with_cursor";
-import { CollabsTextWithCursor } from "./replica-benchmark/implementations/collabs/text_with_cursor";
-import { YjsTextWithCursor } from "./replica-benchmark/implementations/yjs/text_with_cursor";
-import { AutomergeTextWithCursor } from "./replica-benchmark/implementations/automerge/text_with_cursor";
 
 const traces: { [name: string]: Trace<unknown> } = {
   MicroMapRolling: new MicroMapRollingTrace(),
@@ -63,11 +60,6 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   // assumes the network guarantees causal ordering.
   CollabsTodoList: CollabsTodoList(false),
   CollabsCGTodoList: CollabsTodoList(true),
-  // CollabsJSONOptTodoList: CollabsJSONOptTodoList,
-  CollabsJSONTextTodoList: CollabsJSONTextTodoList(false),
-  CollabsCGJSONTextTodoList: CollabsJSONTextTodoList(true),
-  CollabsJSONTodoList: CollabsJSONTodoList(false),
-  CollabsCGJSONTodoList: CollabsJSONTodoList(true),
   CollabsMap: CollabsMap(false),
   CollabsCGMap: CollabsMap(true),
   CollabsVariable: CollabsVariable(false),

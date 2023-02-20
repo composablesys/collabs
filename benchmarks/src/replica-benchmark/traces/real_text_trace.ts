@@ -1,7 +1,12 @@
 import { prng } from "seedrandom";
 import { ITextWithCursor } from "../interfaces/text_with_cursor";
 import { Trace } from "../replica_benchmark";
-import { edits, finalText } from "./real_text_trace_edits";
+import realTextTraceEdits from "./real_text_trace_edits.json";
+
+const { edits, finalText } = realTextTraceEdits as unknown as {
+  finalText: string;
+  edits: Array<[number, number, string | undefined]>;
+};
 
 /**
  * Uses a real text editing trace by Martin Kleppmann

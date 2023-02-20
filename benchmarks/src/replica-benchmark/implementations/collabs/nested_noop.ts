@@ -13,12 +13,12 @@ class NestedNoopCRDT extends collabs.CObject {
     super(init);
 
     if (parentsRemaining === 0) {
-      this.child = this.addChild(
+      this.child = this.registerCollab(
         "" + parentsRemaining,
         (init) => new NoopCRDT(init)
       );
     } else {
-      this.child = this.addChild(
+      this.child = this.registerCollab(
         "" + parentsRemaining,
         (init) => new NestedNoopCRDT(init, parentsRemaining - 1)
       );
@@ -37,7 +37,7 @@ export function CollabsNestedNoop(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.nestedNoopCRDT = this.app.registerCollab(
+      this.nestedNoopCRDT = this.runtime.registerCollab(
         "",
         (init) => new NestedNoopCRDT(init, NESTED_PARENTS)
       );

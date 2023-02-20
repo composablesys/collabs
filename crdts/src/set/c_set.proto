@@ -1,0 +1,17 @@
+message CSetCreateMessage {
+  required uint32 replicaUniqueNumber = 1;
+  required bytes args = 2;
+}
+
+message CSetMessage {
+  oneof op {
+    CSetCreateMessage add = 1;
+    string delete = 2;
+  }
+}
+
+// OPT: deduplicate senders in names.
+message CSetSave {
+  // Aligned with names in savedStateTree.children.
+  repeated bytes args = 1;
+}

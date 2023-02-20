@@ -5,14 +5,14 @@ import { CollabsReplica } from "./replica";
 
 export function CollabsVariable(causalityGuaranteed: boolean) {
   return class CollabsVariable extends CollabsReplica implements IVariable {
-    private readonly variable: collabs.LWWCVariable<unknown>;
+    private readonly variable: collabs.CVar<unknown>;
 
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.variable = this.app.registerCollab(
+      this.variable = this.runtime.registerCollab(
         "",
-        (init) => new collabs.LWWCVariable(init, 0)
+        (init) => new collabs.CVar(init, 0)
       );
     }
 

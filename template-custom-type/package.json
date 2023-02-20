@@ -4,7 +4,8 @@
   "browser": "build/esm/src/index.js",
   "types": "build/esm/src/index.d.ts",
   "files": [
-    "/build"
+    "/build",
+    "/src"
   ],
   "directories": {
     "lib": "src",
@@ -12,7 +13,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.6.x"
+    "@collabs/collabs": "0.7.x"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",

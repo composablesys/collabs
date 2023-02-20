@@ -14,17 +14,16 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.text = this.app.registerCollab(
+      this.text = this.runtime.registerCollab(
         "",
         (init) => new collabs.CText(init)
       );
 
       // Maintain cursor position.
       // We use the fact that all ops are single character insertions/deletions.
-      // TODO: use built-in Cursor instead? Matches our plain text demo,
-      // but unstable API and also probably slower.
+      // TODO: use position-based cursors instead?
       this.text.on("Insert", (e) => {
-        if (!e.meta.isLocalUser && e.startIndex < this.cursor) {
+        if (!e.meta.isLocalOp && e.index < this.cursor) {
           this.cursor++;
         }
         if (this.cursor > this.length) {
@@ -34,7 +33,7 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
         }
       });
       this.text.on("Delete", (e) => {
-        if (!e.meta.isLocalUser && e.startIndex < this.cursor) {
+        if (!e.meta.isLocalOp && e.index < this.cursor) {
           this.cursor--;
         }
         if (this.cursor > this.length) {

@@ -1,12 +1,12 @@
 # Collabs App Starter Template
 
-Template for a generic Collabs app, using the [CRDTApp](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRDTApp.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
+Template for a generic Collabs app, using the [CRuntime](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRuntime.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
 
 [Collabs Docs](https://collabs.readthedocs.io/en/latest/)
 
 [@collabs/collabs API](https://collabs.readthedocs.io/en/latest/api/collabs/index.html)
 
-See also: [template-container](https://github.com/composablesys/collabs/tree/master/template-container), which is for a [Collabs container](https://collabs.readthedocs.io/en/latest/guide/containers.html) using [CRDTContainer](https://collabs.readthedocs.io/en/latest/api/container/classes/CRDTContainer.html).
+See also: [template-container](https://github.com/composablesys/collabs/tree/master/template-container), which is for a [Collabs container](https://collabs.readthedocs.io/en/latest/guide/containers.html) using [CContainer](https://collabs.readthedocs.io/en/latest/api/container/classes/CContainer.html).
 
 ## Installation
 

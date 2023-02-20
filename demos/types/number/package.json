@@ -1,6 +1,6 @@
 {
   "name": "@collabs/number",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Collabs custom type demo - number via semidirect product",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -29,7 +29,9 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.6.0",
+    "@collabs/core": "0.7.0",
+    "@collabs/crdts": "0.7.0",
+    "@collabs/collabs": "0.7.0",
     "protobufjs": "~6.10.1",
     "tslib": "^2.0.1"
   },
@@ -46,7 +48,6 @@
     "rimraf": "^2.7.1",
     "seedrandom": "^3.0.5",
     "ts-node": "^10.1.0",
-    "typedoc": "^0.22.11",
     "typescript": "^4.3.5"
   },
   "scripts": {
@@ -56,9 +57,8 @@
     "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find src -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
-    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
-    "test:unit": "mocha",
+    "test:unit": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
     "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",

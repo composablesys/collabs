@@ -10,7 +10,7 @@ export interface SendMessage {
 
 export interface SavedMessage {
   type: "Saved";
-  saveData: Uint8Array;
+  savedState: Uint8Array;
   lastReceivedID: number;
   // Optional in case we later want to allow the container
   // to save on its own initiative.

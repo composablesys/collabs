@@ -1,17 +1,31 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import $ from "jquery";
 
+type Color = [r: number, g: number, b: number];
+
 (async function () {
-  const container = new CRDTContainer({
-    batchingStrategy: new collabs.RateLimitBatchingStrategy(200),
-  });
+  const container = new CContainer();
+
+  function aggregate(items: collabs.MultiValueMapItem<Color>[]): Color {
+    const sum = items
+      .map((item) => item.value)
+      .reduce(
+        ([r1, g1, b1], [r2, g2, b2]) => [r1 + r2, g1 + g2, b1 + b2],
+        [0, 0, 0]
+      );
+    return [sum[0], sum[1], sum[2]];
+  }
 
   // The key represents a point in the form: [x, y].
-  // The value is the color of the stroke.
+  // The value is the RGB color of the stroke.
+  // For fun, we aggregate concurrent colors by averaging them.
   const boardState = container.registerCollab(
     "whiteboard",
-    (init) => new collabs.LWWCMap<[x: number, y: number], string>(init)
+    (init) =>
+      new collabs.CValueMap<[x: number, y: number], Color>(init, {
+        aggregator: { aggregate },
+      })
   );
 
   await container.load();
@@ -30,14 +44,15 @@ import $ from "jquery";
   const GRAN = 2;
 
   // Display loaded state.
-  for (const [key, value] of boardState) {
-    ctx.fillStyle = value;
+  for (const [key, [r, g, b]] of boardState) {
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(key[0], key[1], GRAN, GRAN);
   }
 
   // Draw points
   boardState.on("Set", (event) => {
-    ctx.fillStyle = boardState.get(event.key)!;
+    const [r, g, b] = event.value;
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(event.key[0], event.key[1], GRAN, GRAN);
   });
 
@@ -97,14 +112,14 @@ import $ from "jquery";
   }
 
   // Mouse Event Handlers
-  let color = "black";
+  let color: Color = [0, 0, 0];
 
   let isDown = false;
   let canvasX: number, canvasY: number, prevX: number, prevY: number;
 
   // Update color selection
   $(colors).on("click", function (e: JQuery.ClickEvent) {
-    color = e.target.id;
+    color = JSON.parse(e.target.id);
   });
 
   $(clear).on("click", function () {

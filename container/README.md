@@ -2,7 +2,7 @@
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-**@collabs/container** contains tools for [Collabs containers](https://collabs.readthedocs.io/en/latest/guide/containers.html) (network-agnostic collaborative apps). In particular, it contains the `CRDTContainer` entry point.
+**@collabs/container** contains tools for [Collabs containers](https://collabs.readthedocs.io/en/latest/guide/containers.html) (network-agnostic collaborative apps). In particular, it contains the `CContainer` entry point.
 
 ## Docs
 

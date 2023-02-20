@@ -29,7 +29,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.7.0",
+    "@collabs/collabs": "file:../../../collabs",
     "@tensorflow/tfjs": "^3.8.0",
     "@tensorflow/tfjs-node": "^3.8.0",
     "dotenv": "^8.2.0",
@@ -48,7 +48,6 @@
     "prettier": "^2.2.1",
     "rimraf": "^2.7.1",
     "ts-node": "^10.1.0",
-    "typedoc": "^0.22.11",
     "typescript": "^4.3.5"
   },
   "scripts": {
@@ -58,7 +57,6 @@
     "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find src -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
-    "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
     "test": "npm-run-all test:*",
     "test:unit": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
     "test:pkg": "pkg-ok",

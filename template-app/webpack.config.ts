@@ -1,6 +1,6 @@
+import HtmlWebpackPlugin from "html-webpack-plugin";
 import * as path from "path";
 import * as webpack from "webpack";
-import HtmlWebpackPlugin from "html-webpack-plugin";
 
 const config: webpack.Configuration = {
   mode: "development",
@@ -43,7 +43,6 @@ const config: webpack.Configuration = {
       // },
     ],
   },
-  ignoreWarnings: [/Failed to parse source map/],
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
   },

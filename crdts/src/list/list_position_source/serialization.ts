@@ -1,6 +1,6 @@
 import { int64AsNumber, Serializer } from "@collabs/core";
 import {
-  CreatedListPositionSerializerMessage,
+  CreatedPositionSerializerMessage,
   ListPositionSerializerMessage,
 } from "../../../generated/proto_compiled";
 import { ListPosition } from "./list_position_source";
@@ -10,7 +10,7 @@ export class ListPositionSerializer implements Serializer<ListPosition> {
     // Private constructor, use instance instead.
   }
 
-  static instance = new ListPositionSerializer();
+  static instance = new this();
 
   serialize(value: ListPosition): Uint8Array {
     const message = ListPositionSerializerMessage.create({
@@ -27,7 +27,10 @@ export class ListPositionSerializer implements Serializer<ListPosition> {
   }
 }
 
-export class CreatedListPositionSerializer
+/**
+ * Serializer for the return value of [[ListPositionSource.createPositions]].
+ */
+export class CreatePositionsSerializer
   implements
     Serializer<
       [counter: number, startValueIndex: number, metadata: Uint8Array | null]
@@ -37,7 +40,7 @@ export class CreatedListPositionSerializer
     // Private constructor, use instance instead.
   }
 
-  static instance = new CreatedListPositionSerializer();
+  static instance = new this();
 
   serialize(
     value: [
@@ -46,18 +49,18 @@ export class CreatedListPositionSerializer
       metadata: Uint8Array | null
     ]
   ): Uint8Array {
-    const message = CreatedListPositionSerializerMessage.create({
+    const message = CreatedPositionSerializerMessage.create({
       counter: value[0],
       startValueIndex: value[1],
       metadata: value[2],
     });
-    return CreatedListPositionSerializerMessage.encode(message).finish();
+    return CreatedPositionSerializerMessage.encode(message).finish();
   }
 
   deserialize(
     message: Uint8Array
   ): [counter: number, startValueIndex: number, metadata: Uint8Array | null] {
-    const decoded = CreatedListPositionSerializerMessage.decode(message);
+    const decoded = CreatedPositionSerializerMessage.decode(message);
     const metadata = Object.prototype.hasOwnProperty.call(decoded, "metadata")
       ? decoded.metadata
       : null;

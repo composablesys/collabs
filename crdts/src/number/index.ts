@@ -1,2 +1,1 @@
-export * from "./counter";
-export * from "./resettable_counter";
+export * from "./c_counter";

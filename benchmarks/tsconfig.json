@@ -28,7 +28,9 @@
     /* Emit sourcemap files. */
     "sourceMap": true,
     /* Use tslib to reduce generated js file sizes. */
-    "importHelpers": true
+    "importHelpers": true,
+    /* Allow importing real_text_trace_edits.json. */
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

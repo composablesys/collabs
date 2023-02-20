@@ -43,8 +43,8 @@ export abstract class AutomergeReplica<T> implements Replica {
     return Automerge.save(this.doc);
   }
 
-  load(saveData: Automerge.BinaryDocument): void {
-    this.doc = Automerge.load(saveData, this.actorId);
+  load(savedState: Automerge.BinaryDocument): void {
+    this.doc = Automerge.load(savedState, this.actorId);
   }
 
   /**

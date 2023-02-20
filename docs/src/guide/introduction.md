@@ -28,22 +28,22 @@ You can also try disconnecting one tab by unchecking the box at the top. Verify 
 
 `CCounter` is simple but not especially useful. Collection types, like maps, are more useful.
 
-For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`LWWCMap`](../api/collabs/classes/LWWCMap.html) from coordinates `[x: number, y: number]` to HTML color strings:
+For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) from coordinates `[x: number, y: number]` to HTML color strings:
 
 ```
-const boardState: collabs.LWWCMap<[x: number, y: number], string>
+const boardState: collabs.CValueMap<[x: number, y: number], string>
 ```
 
 Here:
 
 - "LWW" stands for _Last Writer Wins_. It describes what happens if two users try to set the color of the same pixel concurrently: the "last" one, according to senders' clock times, wins and sets the color.
-- We write the type as `collabs.LWWCMap` because we have imported as the library as `import * as collabs from @collabs/collabs`. This is the recommended style if you want to keep the library in its own namespace, although you can also import individual names directly, e.g., `import { LWWCMap } from @collabs/collabs`.
-- The `boardState` is a `const` because we always use the same `LWWCMap` _instance_; all operations mutate the map internally. This is a general rule for Collabs: you keep the same instance of a `Collab` for its whole lifetime, while operations (either by the local user and by other collaborators) mutate its internal state.
+- We write the type as `collabs.CValueMap` because we have imported as the library as `import * as collabs from @collabs/collabs`. This is the recommended style if you want to keep the library in its own namespace, although you can also import individual names directly, e.g., `import { CValueMap } from @collabs/collabs`.
+- The `boardState` is a `const` because we always use the same `CValueMap` _instance_; all operations mutate the map internally. This is a general rule for Collabs: you keep the same instance of a `Collab` for its whole lifetime, while operations (either by the local user and by other collaborators) mutate its internal state.
 
 Once `boardState` is initialized (discussed later in [Initialization](./initialization.html)), you can use it like an ordinary `Map<[x: number, y: number], string>`:
 
 ```ts
-class LWWCMap<K, V> {
+class CValueMap<K, V> {
   get(key: K): V | undefined;
   has(key: K);
   set(key: K, value: V): V; // Returns the set value
@@ -71,7 +71,7 @@ function repaint(ctx: CanvasRenderingContext2D) {
 
 ## More Collaborative Data Structures
 
-Collabs comes with many more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `LWWCMap`, plus collections like `DeletingMutCSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
+Collabs comes with many more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `CValueMap`, plus collections like `CSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
 
 For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling) explains how you can make these classes be `Collab`s themselves---a unique feature of our library.
 
@@ -79,8 +79,8 @@ For complex apps, you might want to organize your collaborative state into reusa
 
 There are a few extra wrinkles when using Collabs, relative to using ordinary (non-collaborative) data structures. We go over them in the next sections of this Guide. Briefly, they are:
 
-1. [**Entry Points:**](./entry_points.html) Before you can initialize your `Collab`s, you must create an entry point, which is either a [CRDTApp](../api/collabs/classes/CRDTApp.html) or a [CRDTContainer](../api/container/classes/CRDTContainer.html). This handles connecting your `Collab`s to other collaborators over the network, loading saved state from storage, and other utilities.
-2. [**Initializing `Collab`s:**](./initialization.html) To ensure that your `Collab`s are connected to the network, they need to know about your entry point. We enforce this by not letting you initialize `Collab`s in isolation by calling their constructor directly. Instead, you need to initialize `Collab`s using a method like [CRDTApp.registerCollab](../api/collabs/classes/CRDTApp.html#registerCollab).
+1. [**Entry Points:**](./entry_points.html) Before you can initialize your `Collab`s, you must create an entry point, which is either a [CRuntime](../api/collabs/classes/CRuntime.html) or a [CContainer](../api/container/classes/CContainer.html). This handles connecting your `Collab`s to other collaborators over the network, loading saved state from storage, and other utilities.
+2. [**Initializing `Collab`s:**](./initialization.html) To ensure that your `Collab`s are connected to the network, they need to know about your entry point. We enforce this by not letting you initialize `Collab`s in isolation by calling their constructor directly. Instead, you need to initialize `Collab`s using a method like [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab).
 3. [**Handling Changes:**](./handling_changes.html) When your collaborative state changes, such as when you receive an update from a remote user, you need to know about that change so you can refresh your display. [Handling Changes](./handling_changes.html) describes an easy way to do this. More flexible/optimized techniques are described in [Events](../advanced/events.html) in the [Advanced Guide](../advanced/).
 
 ## Next Steps

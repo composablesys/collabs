@@ -21,7 +21,7 @@ Starting from scratch, the steps are:
 2. Setup a toolchain for your project (e.g., TypeScript + Webpack) so that it builds the whole thing as a single HTML (not JS) file, ideally containing all dependencies and assets. (See [Advanced](#advanced) for advice and alternatives.)
 3. In your main TypeScript file:
 
-   a. Start by creating an instance of `CRDTContainer` from @collabs/container. We'll assume it's named `container`.
+   a. Start by creating an instance of `CContainer` from @collabs/container. We'll assume it's named `container`.
 
    b. Setup your app: register your top-level Collabs using `container.registerCollabs`, connect them to your GUI using [event listeners](../advanced/events.html), and connect user input to them.
 
@@ -70,11 +70,11 @@ For this to work, `<your file URL>` must be configured to return the CORS header
 
 ## Developing Container Hosts
 
-A container host is mostly just a Collabs app that uses the `CRDTContainerHost` class (from @collabs/container) as one of its Collabs. Messages sent by the container get converted to messages sent by the `CRDTContainerHost`, which then get sent by the app as usual. Likewise for receiving messages and for saving and loading.
+A container host is mostly just a Collabs app that uses the `CContainerHost` class (from @collabs/container) as one of its Collabs. Messages sent by the container get converted to messages sent by the `CContainerHost`, which then get sent by the app as usual. Likewise for receiving messages and for saving and loading.
 
-The `CRDTContainerHost` constructor expects an IFrame holding the container. I.e., you set the IFrame's `src` equal to the container's URL. You are expected to block user interaction with the IFrame until the container is ready, as indicated by the "ContainerReady" event. E.g., you can set `hidden = true` until ready. Otherwise, users might be tempted to click things (performing Collabs operations) before the container is ready, causing errors.
+The `CContainerHost` constructor expects an IFrame holding the container. I.e., you set the IFrame's `src` equal to the container's URL. You are expected to block user interaction with the IFrame until the container is ready, as indicated by the "ContainerReady" event. E.g., you can set `hidden = true` until ready. Otherwise, users might be tempted to click things (performing Collabs operations) before the container is ready, causing errors.
 
-If you want to support a specific network/storage/UX/etc. for general Collabs apps, you can write a container host for it. This would take the form of a (non-container) Collabs app that uses your chosen network/storage/UX/etc., with a `CRDTContainerHost` as its single Collab, and with some way for users to specify the container.
+If you want to support a specific network/storage/UX/etc. for general Collabs apps, you can write a container host for it. This would take the form of a (non-container) Collabs app that uses your chosen network/storage/UX/etc., with a `CContainerHost` as its single Collab, and with some way for users to specify the container.
 
 Example container hosts:
 
@@ -103,7 +103,7 @@ Note that containers that depend on external assets will not have all the featur
 
 There are actually two parts to "loading":
 
-1. The most recent save data (from `CRDTRuntime.save`), provided by your host, is loaded into your Collabs state (using `CRDTRuntime.load`). This happens during `Container.load`, which then resolves its Promise.
+1. The most recent save data (from `CRuntime.save`), provided by your host, is loaded into your Collabs state (using `CRuntime.load`). This happens during `Container.load`, which then resolves its Promise.
 2. Besides the save data, your host may have "further messages" that the previous instance of your container sent or received after generating the most recent save data. These are also received during `Container.load`, but not applied to your Collabs state until the next event loop iteration after you call `Container.ready`. This makes them indistinguishable from newly received messages.
 
 You can choose to instead do step 2 before calling `Container.ready` (but after awaiting `Container.load`), by calling `Container.receiveFurtherMessages()`. This will apply the further messages immediately and synchronously. Example reasons:

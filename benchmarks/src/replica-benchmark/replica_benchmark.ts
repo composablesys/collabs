@@ -1,8 +1,8 @@
 // Benchmarks that involve one or more replicas communicating normally.
 
-import { record, getRecordedTrials, getWarmupTrials } from "../record";
-import seedrandom from "seedrandom";
 import { assert } from "chai";
+import seedrandom from "seedrandom";
+import { getRecordedTrials, getWarmupTrials, record } from "../record";
 import { byteLength, Data, getMemoryUsed } from "../util";
 
 const SEED = "42";
@@ -21,7 +21,7 @@ export interface Replica {
 
   save(): Data;
 
-  load(saveData: Data): void;
+  load(savedState: Data): void;
 
   skipLoad(): void;
 }
@@ -158,12 +158,12 @@ export class ReplicaBenchmark<I> {
             // very well during sync code).
             await getMemoryUsed();
           }
-          const saveData = sender.save();
+          const savedState = sender.save();
           sender = new this.implementation((msg) => {
             msgs.push(msg);
           }, senderRng);
 
-          sender.load(saveData);
+          sender.load(savedState);
         }
 
         this.transactOp(sender, rng, op);
@@ -495,16 +495,16 @@ export class ReplicaBenchmark<I> {
     // Measure save time, save size, and load time for receiver.
     await this.saveTime(receiver, "receiveSaveTime", mode);
 
-    const saveData = receiver.save();
+    const savedState = receiver.save();
     record(
       "receiveSaveSize/" + this.traceName,
       this.implementationName,
       mode,
       this.trace.numOps,
-      [byteLength(saveData)]
+      [byteLength(savedState)]
     );
 
-    await this.loadTime(saveData, finalState, "receiveLoadTime", mode);
+    await this.loadTime(savedState, finalState, "receiveLoadTime", mode);
   }
 
   private async saveTime(saver: Replica, metric: string, label: string) {
@@ -542,7 +542,7 @@ export class ReplicaBenchmark<I> {
   }
 
   private async loadTime(
-    saveData: Data,
+    savedState: Data,
     saverState: unknown,
     metric: string,
     label: string
@@ -564,7 +564,7 @@ export class ReplicaBenchmark<I> {
       const startTime = process.hrtime.bigint();
 
       // Load.
-      loader.load(saveData);
+      loader.load(savedState);
 
       // Take measurements.
       if (trial >= 0) {

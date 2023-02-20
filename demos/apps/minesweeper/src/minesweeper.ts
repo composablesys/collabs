@@ -1,5 +1,13 @@
-import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import {
+  CBoolean,
+  CObject,
+  CollabID,
+  CSet,
+  CVar,
+  InitToken,
+  Optional,
+} from "@collabs/collabs";
+import { CContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
 
 // Minesweeper Collab
@@ -24,21 +32,21 @@ enum TileStatus {
   REVEALED_MINE,
 }
 
-class CTile extends collabs.CObject {
-  private readonly revealed: collabs.TrueWinsCBoolean;
-  private readonly flag: collabs.LWWCVariable<FlagStatus>;
+class CTile extends CObject {
+  private readonly revealed: CBoolean;
+  private readonly flag: CVar<FlagStatus>;
   readonly isMine: boolean;
   number: number = 0;
 
-  constructor(init: collabs.InitToken, isMine: boolean) {
+  constructor(init: InitToken, isMine: boolean) {
     super(init);
-    this.revealed = this.addChild(
+    this.revealed = this.registerCollab(
       "revealed",
-      (init) => new collabs.TrueWinsCBoolean(init)
+      (init) => new CBoolean(init)
     );
-    this.flag = this.addChild(
+    this.flag = this.registerCollab(
       "flag",
-      (init) => new collabs.LWWCVariable<FlagStatus>(init, FlagStatus.NONE)
+      (init) => new CVar<FlagStatus>(init, FlagStatus.NONE)
     );
     this.isMine = isMine;
   }
@@ -92,13 +100,13 @@ enum GameStatus {
   LOST,
 }
 
-class CMinesweeper extends collabs.CObject {
+class CMinesweeper extends CObject {
   readonly tiles: CTile[][];
   readonly width: number;
   readonly height: number;
 
   constructor(
-    init: collabs.InitToken,
+    init: InitToken,
     width: number,
     height: number,
     fractionMines: number,
@@ -123,7 +131,7 @@ class CMinesweeper extends collabs.CObject {
       for (let y = 0; y < height; y++) {
         const isMine =
           x === startX && y === startY ? false : rng() < fractionMines;
-        this.tiles[x][y] = this.addChild(
+        this.tiles[x][y] = this.registerCollab(
           x + ":" + y,
           (init) => new CTile(init, isMine)
         );
@@ -255,7 +263,7 @@ class CMinesweeper extends collabs.CObject {
     let state =
       currentState.value === "settings"
         ? currentSettings.value
-        : currentGame.value.get();
+        : gameFactory.fromID(currentGame.value.get())!;
 
     for (let y = 0; y < state.height; y++) {
       let row = document.createElement("tr");
@@ -328,18 +336,25 @@ class CMinesweeper extends collabs.CObject {
           let settings = state as GameSettings;
           box.addEventListener("click", (event) => {
             if (event.button === 0) {
+              const oldGames = currentGame.conflicts();
               // Start the game, with this tile safe
-              let newGame = currentGame
-                .set(
-                  settings.width,
-                  settings.height,
-                  settings.fractionMines,
-                  x,
-                  y,
-                  Math.random() + ""
-                )
-                .get();
+              let newGame = gameFactory.add(
+                settings.width,
+                settings.height,
+                settings.fractionMines,
+                x,
+                y,
+                Math.random() + ""
+              );
+              currentGame.value = Optional.of(gameFactory.idOf(newGame));
               currentState.value = "game";
+              // Easy to forget: clean up old games.
+              for (const oldGame of oldGames) {
+                if (oldGame.isPresent) {
+                  const game = gameFactory.fromID(oldGame.get());
+                  if (game) gameFactory.delete(game);
+                }
+              }
               newGame.leftClick(x, y);
             }
           });
@@ -395,15 +410,15 @@ class CMinesweeper extends collabs.CObject {
     };
   }
 
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
-  const currentGame = container.registerCollab(
-    "currentGame",
+  const gameFactory = container.registerCollab(
+    "gameFactory",
     (init) =>
-      new collabs.LWWMutCVariable(
+      new CSet(
         init,
         (
-          valueInit: collabs.InitToken,
+          valueInit: InitToken,
           width: number,
           height: number,
           fractionMines: number,
@@ -422,15 +437,17 @@ class CMinesweeper extends collabs.CObject {
           )
       )
   );
+  const currentGame = container.registerCollab(
+    "currentGame",
+    (init) => new CVar<Optional<CollabID<CMinesweeper>>>(init, Optional.empty())
+  );
   const currentSettings = container.registerCollab(
     "currentSettings",
-    (init) => new collabs.LWWCVariable(init, settingsFromInput())
+    (init) => new CVar(init, settingsFromInput())
   );
-  // TODO: FWW instead of LWW?  Also backup to view all games
-  // in case of concurrent progress.
   const currentState = container.registerCollab(
     "currentState",
-    (init) => new collabs.LWWCVariable<"game" | "settings">(init, "settings")
+    (init) => new CVar<"game" | "settings">(init, "settings")
   );
 
   container.on("Change", invalidate);

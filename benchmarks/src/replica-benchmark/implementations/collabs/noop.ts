@@ -12,14 +12,12 @@ export class NoopCRDT extends collabs.PrimitiveCRDT {
     // Noop.
   }
 
-  save(): Uint8Array {
-    return new Uint8Array();
+  savePrimitive() {
+    return null;
   }
 
-  load(_saveData: collabs.Optional<Uint8Array>): void {}
-
-  canGC(): boolean {
-    return false;
+  loadPrimitive(): void {
+    // No-op.
   }
 }
 
@@ -30,7 +28,10 @@ export function CollabsNoop(causalityGuaranteed: boolean) {
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.noopCRDT = this.app.registerCollab("", (init) => new NoopCRDT(init));
+      this.noopCRDT = this.runtime.registerCollab(
+        "",
+        (init) => new NoopCRDT(init)
+      );
     }
 
     noop() {

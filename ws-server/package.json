@@ -21,7 +21,8 @@
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [
-    "/build"
+    "/build",
+    "/src"
   ],
   "directories": {
     "lib": "src"

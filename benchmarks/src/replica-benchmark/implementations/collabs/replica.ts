@@ -3,39 +3,35 @@ import { Data } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export class CollabsReplica implements Replica {
-  protected readonly app: collabs.CRDTApp;
+  protected readonly runtime: collabs.CRuntime;
 
   constructor(
     private readonly onsend: (msg: Data) => void,
     replicaIdRng: seedrandom.prng,
     causalityGuaranteed: boolean
   ) {
-    this.app = new collabs.CRDTApp({
-      debugReplicaID: collabs.pseudoRandomReplicaID(replicaIdRng),
-      batchingStrategy: new collabs.ManualBatchingStrategy(),
+    this.runtime = new collabs.CRuntime({
+      debugReplicaID: collabs.ReplicaIDs.pseudoRandom(replicaIdRng),
       causalityGuaranteed,
     });
-    this.app.on("Send", (e) => this.onsend(e.message));
+    this.runtime.on("Send", (e) => this.onsend(e.message));
   }
 
   transact(doOps: () => void) {
-    doOps();
-    this.app.commitBatch();
+    this.runtime.transact(doOps);
   }
 
   receive(msg: Uint8Array): void {
-    this.app.receive(msg);
+    this.runtime.receive(msg);
   }
 
   save(): Data {
-    return this.app.save();
+    return this.runtime.save();
   }
 
-  load(saveData: Uint8Array): void {
-    this.app.load(collabs.Optional.of(saveData));
+  load(savedState: Uint8Array): void {
+    this.runtime.load(savedState);
   }
 
-  skipLoad(): void {
-    this.app.load(collabs.Optional.empty());
-  }
+  skipLoad(): void {}
 }

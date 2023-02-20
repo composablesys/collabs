@@ -1,9 +1,9 @@
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import $ from "jquery";
 import { GroupCRDT, GroupState } from "./groupcrdt";
 
 (async function () {
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   let clientGroup = container.registerCollab(
     "group",

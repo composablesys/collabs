@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 import Quill, { DeltaOperation } from "quill";
 
 // Include CSS
@@ -14,8 +14,8 @@ interface RichCharEventsRecord extends collabs.CollabEventsRecord {
   Format: { key: string } & collabs.CollabEvent;
 }
 
-class RichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly _attributes: collabs.LWWCMap<string, any>;
+class CRichChar extends collabs.CObject<RichCharEventsRecord> {
+  private readonly _attributes: collabs.CValueMap<string, any>;
 
   /**
    * char comes from a Quill Delta's insert field, split
@@ -26,7 +26,10 @@ class RichChar extends collabs.CObject<RichCharEventsRecord> {
   constructor(init: collabs.InitToken, readonly char: string | object) {
     super(init);
 
-    this._attributes = this.addChild("", (init) => new collabs.LWWCMap(init));
+    this._attributes = this.registerCollab(
+      "",
+      (init) => new collabs.CValueMap(init)
+    );
 
     // Events
     this._attributes.on("Set", (e) => {
@@ -66,26 +69,22 @@ interface RichTextEventsRecord extends collabs.CollabEventsRecord {
   Format: { index: number; key: string } & collabs.CollabEvent;
 }
 
-class RichText extends collabs.CObject<RichTextEventsRecord> {
-  readonly text: collabs.DeletingMutCList<RichChar, [char: string | object]>;
+class CRichText extends collabs.CObject<RichTextEventsRecord> {
+  readonly text: collabs.CList<CRichChar, [char: string | object]>;
 
-  constructor(init: collabs.InitToken, initialChars: (string | object)[] = []) {
+  constructor(init: collabs.InitToken) {
     super(init);
 
-    this.text = this.addChild(
+    this.text = this.registerCollab(
       "",
       (init) =>
-        new collabs.DeletingMutCList(
-          init,
-          (valueInitToken, char) => {
-            const richChar = new RichChar(valueInitToken, char);
-            richChar.on("Format", (e) => {
-              this.emit("Format", { index: this.text.indexOf(richChar), ...e });
-            });
-            return richChar;
-          },
-          initialChars.map((value) => [value])
-        )
+        new collabs.CList(init, (valueInitToken, char) => {
+          const richChar = new CRichChar(valueInitToken, char);
+          richChar.on("Format", (e) => {
+            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
+          });
+          return richChar;
+        })
     );
     this.text.on("Insert", (e) => {
       this.emit("Insert", {
@@ -103,7 +102,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     );
   }
 
-  get(index: number): RichChar {
+  get(index: number): CRichChar {
     return this.text.get(index);
   }
 
@@ -131,7 +130,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     this.formatChar(this.get(index), newAttributes);
   }
 
-  private formatChar(richChar: RichChar, newAttributes?: Record<string, any>) {
+  private formatChar(richChar: CRichChar, newAttributes?: Record<string, any>) {
     if (newAttributes) {
       for (const entry of Object.entries(newAttributes)) {
         richChar.setAttribute(...entry);
@@ -140,13 +139,22 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   }
 }
 
-(async function () {
-  const container = new CRDTContainer();
+function makeInitialSave(): Uint8Array {
+  const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
+  const clientText = runtime.registerCollab(
+    "text",
+    (init) => new CRichText(init)
+  );
+  runtime.transact(() => clientText.insert(0, "\n"));
+  return runtime.save();
+}
 
-  // Quill's initial content is "\n".
+(async function () {
+  const container = new CContainer();
+
   const clientText = container.registerCollab(
     "text",
-    (init) => new RichText(init, ["\n"])
+    (init) => new CRichText(init)
   );
 
   const quill = new Quill("#editor", {
@@ -177,7 +185,12 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
     },
   });
 
-  await container.load();
+  if (await container.load()) {
+    // Loading was skipped. We need to "set the initial state"
+    // (a single "\n", required by Quill) by
+    // loading it from a separate doc.
+    container.runtime.load(makeInitialSave());
+  }
 
   // Call this before syncing the loaded state to Quill, as
   // an optimization.
@@ -212,7 +225,7 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   // its own representation, so we should skip doing so again.
 
   clientText.on("Insert", (e) => {
-    if (e.meta.isLocalUser) return;
+    if (e.meta.isLocalOp) return;
 
     for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
       // Characters start without any formatting.
@@ -223,13 +236,13 @@ class RichText extends collabs.CObject<RichTextEventsRecord> {
   });
 
   clientText.on("Delete", (e) => {
-    if (e.meta.isLocalUser) return;
+    if (e.meta.isLocalOp) return;
 
     updateContents(new Delta().retain(e.startIndex).delete(e.count));
   });
 
   clientText.on("Format", (e) => {
-    if (e.meta.isLocalUser) return;
+    if (e.meta.isLocalOp) return;
 
     updateContents(
       new Delta()

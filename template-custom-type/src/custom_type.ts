@@ -1,41 +1,42 @@
 import {
   CObject,
   CollabEventsRecord,
-  CVariableEvent,
+  CVar,
   InitToken,
-  LWWCVariable,
+  VarEvent,
 } from "@collabs/collabs";
 
 // Since you're exporting your type for reuse, it's a good
 // idea to expose meaningful events.
-// See the Collabs docs (https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md) for advice on what events to include.
-export interface CPairEventsRecord<T, U> extends CollabEventsRecord {
-  FirstSet: CVariableEvent<T>;
-  SecondSet: CVariableEvent<U>;
+// See the [Collabs docs](https://github.com/composablesys/collabs/tree/master/collabs/docs/custom_types.md)
+// for advice on what events to include.
+export interface PairEventsRecord<T, U> extends CollabEventsRecord {
+  FirstSet: VarEvent<T>;
+  SecondSet: VarEvent<U>;
 }
 
 /**
  * Demo custom type: a pair (first: T, second: U).
- * first and second are implemented using separate LWWCVariables,
+ * first and second are implemented using separate LWWCVars,
  * so changes to either of them are opaque writes
  * (no conflict resolution), but changing both concurrently
  * will keep both changes.
  */
-export class CPair<T, U> extends CObject<CPairEventsRecord<T, U>> {
-  private readonly firstReg: LWWCVariable<T>;
-  private readonly secondReg: LWWCVariable<U>;
+export class CPair<T, U> extends CObject<PairEventsRecord<T, U>> {
+  private readonly firstReg: CVar<T>;
+  private readonly secondReg: CVar<U>;
 
   constructor(init: InitToken, firstInitial: T, secondInitial: U) {
     super(init);
 
     // Setup child Collabs.
-    this.firstReg = this.addChild(
+    this.firstReg = this.registerCollab(
       "firstReg",
-      (init) => new LWWCVariable(init, firstInitial)
+      (init) => new CVar(init, firstInitial)
     );
-    this.secondReg = this.addChild(
+    this.secondReg = this.registerCollab(
       "secondReg",
-      (init) => new LWWCVariable(init, secondInitial)
+      (init) => new CVar(init, secondInitial)
     );
 
     // Convert child Collab events into our own.

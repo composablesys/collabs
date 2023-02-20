@@ -1,9 +1,9 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 
 (async function () {
-  // Create a CRDTContainer, the entry point for a Collabs container.
-  const container = new CRDTContainer();
+  // Create a CContainer, the entry point for a Collabs container.
+  const container = new CContainer();
 
   // Register Collabs.
   const counter = container.registerCollab(

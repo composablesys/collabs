@@ -1,2 +1,1 @@
-export * from "./toggle_boolean";
-export * from "./wins_booleans";
+export * from "./c_boolean";

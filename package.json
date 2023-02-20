@@ -18,9 +18,8 @@
     "template-custom-type",
     "template-container",
     "template-app",
-    "demos/types/json",
-    "demos/types/json-opt",
-    "demos/types/tensor-average",
+    "demos/types/number",
+    "demos/types/resettable-counter",
     "demos/apps",
     "benchmarks",
     "docs"
@@ -62,6 +61,7 @@
     "heroku-postbuild": "node foreach-workspace.js all -s noHeroku \"npm run build -w\"",
     "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
     "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
+    "version": "bash version_script.sh",
     "publish": "node foreach-workspace.js publish \"npm publish -w\"",
     "clean": "node foreach-workspace.js all \"npm run clean -w\"",
     "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"

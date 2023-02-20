@@ -37,8 +37,8 @@ export class YjsReplica implements Replica {
     return Y.encodeStateAsUpdate(this.doc);
   }
 
-  load(saveData: Uint8Array): void {
-    Y.applyUpdate(this.doc, saveData, false);
+  load(savedState: Uint8Array): void {
+    Y.applyUpdate(this.doc, savedState, false);
   }
 
   skipLoad(): void {}

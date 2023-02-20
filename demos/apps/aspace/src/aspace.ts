@@ -1,5 +1,5 @@
 import * as collabs from "@collabs/collabs";
-import { CRDTContainer } from "@collabs/container";
+import { CContainer } from "@collabs/container";
 
 (async function () {
   const WIN_TEXT = (function () {
@@ -8,7 +8,7 @@ import { CRDTContainer } from "@collabs/container";
     return ans;
   })();
 
-  const container = new CRDTContainer();
+  const container = new CContainer();
 
   const text = container.registerCollab(
     "text",
@@ -16,11 +16,11 @@ import { CRDTContainer } from "@collabs/container";
   );
   const startTime = container.registerCollab(
     "startTime",
-    (init) => new collabs.LWWCVariable(init, 0)
+    (init) => new collabs.CVar(init, 0)
   );
   const winElapsedTime = container.registerCollab(
     "winElapsedTime",
-    (init) => new collabs.LWWCVariable(init, 0)
+    (init) => new collabs.CVar(init, 0)
   );
 
   await container.load();
@@ -34,11 +34,17 @@ import { CRDTContainer } from "@collabs/container";
     updateCursor();
   });
 
-  let myCursor = collabs.Cursor.fromIndex(text, 0);
+  // Points to the previous char's position, or null for the beginning.
+  let myCursor: string | null = null;
   function updateCursor() {
-    const index = myCursor.index;
+    const index =
+      myCursor === null ? 0 : text.indexOfPosition(myCursor, "left") + 1;
     textInput.selectionStart = index;
     textInput.selectionEnd = index;
+  }
+
+  function setMyCursor(index: number) {
+    myCursor = index === 0 ? null : text.getPosition(index - 1);
   }
 
   // Display info text (time and win state).
@@ -98,7 +104,7 @@ import { CRDTContainer } from "@collabs/container";
       if (e.key === "Backspace") {
         if (index > 0) {
           text.delete(index - 1);
-          myCursor = collabs.Cursor.fromIndex(text, index - 1);
+          setMyCursor(index - 1);
           updateCursor();
         }
       } else if (e.key === "Delete") {
@@ -107,23 +113,23 @@ import { CRDTContainer } from "@collabs/container";
         }
       } else if (e.key === "ArrowLeft") {
         if (index > 0) {
-          myCursor = collabs.Cursor.fromIndex(text, index - 1);
+          setMyCursor(index - 1);
           updateCursor();
         }
       } else if (e.key === "ArrowRight") {
         if (index < textInput.value.length) {
-          myCursor = collabs.Cursor.fromIndex(text, index + 1);
+          setMyCursor(index + 1);
           updateCursor();
         }
       } else if (e.key === "End") {
-        myCursor = collabs.Cursor.fromIndex(text, textInput.value.length);
+        setMyCursor(textInput.value.length);
         updateCursor();
       } else if (e.key === "Home") {
-        myCursor = collabs.Cursor.fromIndex(text, 0);
+        setMyCursor(0);
         updateCursor();
       } else if (shouldType(e)) {
         text.insert(index, e.key);
-        myCursor = collabs.Cursor.fromIndex(text, index + 1);
+        setMyCursor(index + 1);
         updateCursor();
         if (startTime.conflicts().length === 0) startTime.value = Date.now();
       }

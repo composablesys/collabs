@@ -1,11 +1,11 @@
+import { AbstractDoc, CRuntime, SendEvent } from "@collabs/collabs";
+import { Buffer } from "buffer";
 import {
-  WidgetApi,
+  Capability,
   IWidgetApiRequest,
   IWidgetApiRequestData,
-  Capability,
+  WidgetApi,
 } from "matrix-widget-api";
-import { Buffer } from "buffer";
-import { CRDTApp, SendEvent } from "@collabs/collabs";
 
 // TODO: reasonable error if lacking capabilities
 
@@ -63,7 +63,7 @@ export class MatrixWidgetNetwork {
    * The actual event type used is <rootEventType>.<widgetId>.
    */
   constructor(
-    readonly app: CRDTApp,
+    readonly doc: AbstractDoc | CRuntime,
     rootEventType: string,
     requestCapabilities: Capability[] = []
   ) {
@@ -71,7 +71,7 @@ export class MatrixWidgetNetwork {
     this.api = new WidgetApi(MatrixWidgetNetwork.widgetId);
     this.initializeWidgetApi(rootEventType, requestCapabilities);
 
-    this.app.on("Send", this.appSend.bind(this));
+    this.doc.on("Send", this.appSend.bind(this));
   }
 
   private initializeWidgetApi(
@@ -154,7 +154,7 @@ export class MatrixWidgetNetwork {
   }
 
   private receiveString(msg: string) {
-    this.app.receive(new Uint8Array(Buffer.from(msg, "base64")));
+    this.doc.receive(new Uint8Array(Buffer.from(msg, "base64")));
   }
 
   private appSend(e: SendEvent): void {

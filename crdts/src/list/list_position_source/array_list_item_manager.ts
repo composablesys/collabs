@@ -5,7 +5,7 @@ export class ArrayListItemManager<T> implements ListItemManager<T[]> {
     // Private constructor, use getInstance instead.
   }
 
-  private static instance = new ArrayListItemManager();
+  private static instance = new this();
 
   static getInstance<T>(): ArrayListItemManager<T> {
     return <ArrayListItemManager<T>>this.instance;

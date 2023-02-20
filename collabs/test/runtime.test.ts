@@ -1,22 +1,21 @@
 import { assert } from "chai";
-import { TestingCRDTAppGenerator, randomReplicaID } from "../src";
+import { Bytes, TestingRuntimes } from "../src";
 
 // Reproduce a basic test from @collabs/core to make sure
 // everything is loading properly.
-describe("crdts", () => {
-  describe("randomReplicaID", () => {
-    describe("replicaID", () => {
-      it("generates without error on Node", () => {
-        randomReplicaID();
-      });
+describe("core", () => {
+  describe("Bytes", () => {
+    it("parse inverts stringify", () => {
+      const start = new Uint8Array(5);
+      start.fill(7);
 
-      it("has length 10", () => {
-        assert.strictEqual(randomReplicaID().length, 10);
-      });
+      const stringified = Bytes.stringify(start);
+      const parsed = Bytes.parse(stringified);
 
-      it("is different each time", () => {
-        assert.notStrictEqual(randomReplicaID(), randomReplicaID());
-      });
+      assert.isTrue(
+        Bytes.equals(start, parsed),
+        `parsed != start (stringified: ${stringified}`
+      );
     });
   });
 });
@@ -24,25 +23,25 @@ describe("crdts", () => {
 // Reproduce a basic test from @collabs/crdts to make sure
 // everything is loading properly.
 describe("crdts", () => {
-  describe("TestingCRDTAppGenerator", () => {
-    let appGen: TestingCRDTAppGenerator;
+  describe("TestingRuntimes", () => {
+    let runtimeGen: TestingRuntimes;
 
     beforeEach(() => {
-      appGen = new TestingCRDTAppGenerator();
+      runtimeGen = new TestingRuntimes();
     });
     describe("replicaID", () => {
       it("generates without error on Node", () => {
-        appGen.newApp();
+        runtimeGen.newRuntime();
       });
 
       it("has length 10", () => {
-        assert.strictEqual(appGen.newApp().runtime.replicaID.length, 10);
+        assert.strictEqual(runtimeGen.newRuntime().replicaID.length, 10);
       });
 
       it("is different each time", () => {
         assert.notStrictEqual(
-          appGen.newApp().runtime.replicaID,
-          appGen.newApp().runtime.replicaID
+          runtimeGen.newRuntime().replicaID,
+          runtimeGen.newRuntime().replicaID
         );
       });
     });
