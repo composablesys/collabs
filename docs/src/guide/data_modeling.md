@@ -19,7 +19,7 @@ Of course, from the library's perspective, there is no difference. Indeed, many 
 We recommend creating collaborative data models using the following general process:
 
 1. Create a single-user (non-collaborative) version of your data model, using ES6 classes and strong typing.
-2. Replace collection types (`Set`, etc.) and primitive types (`Boolean`, etc.) with collaborative versions, following the advice in [Built In Collabs](./built_in_collabs.html).
+2. Replace collection types (`Set`, etc.) and primitive types (`boolean`, etc.) with collaborative versions, following the advice in [Built In Collabs](./built_in_collabs.html).
 3. Replace your custom classes with subclasses of [`CObject`](../api/collabs/classes/CObject.html), whose children are their instance variables.
 
 We illustrate this process with examples below.
@@ -37,7 +37,7 @@ Notes:
 
 ## Examples
 
-There are some examples below. For more examples, see the [Demos](https://github.com/composablesys/collabs/tree/master/demos). You may also find exampls in [template-custom-type](https://github.com/composablesys/collabs/tree/master/template-custom-type) be helpful.
+There are some examples below. For more examples, see the source code for our [built-in Collabs](https://github.com/composablesys/collabs/tree/master/crdts/src) or [demos](https://github.com/composablesys/collabs/tree/master/demos/apps).
 
 ### [CPairs](https://github.com/composablesys/collabs/blob/master/template-custom-type/src/custom_type.ts)
 
@@ -51,7 +51,7 @@ class Pair<T, U> {
   private readonly secondReg: U;
 
   constructor(firstInitial: T, secondInitial: U) {
-    this.fitstReg = firstInitial;
+    this.firstReg = firstInitial;
     this.secondReg = secondInitial;
   }
   get first(): T {
@@ -76,7 +76,9 @@ class Pair<T, U> {
 
 ```ts
 class CPair<T, U> extends CObject {
-  //first declare the variables. Notice we have two private variables and they are both collabs instead of local variables.
+  // First, declare the variables.
+  // Notice that we have two private variables, and they are
+  // both Collabs instead of local variables.
   private readonly firstReg: CVar<T>;
   private readonly secondReg: CVar<U>;
 
@@ -90,7 +92,7 @@ class CPair<T, U> extends CObject {
     );
     this.secondReg = this.registerCollab(
       "secondReg",
-      (init) => new Collabs.CVar(init, firstInitial)
+      (init) => new Collabs.CVar(init, secondInitial)
     );
   }
 
@@ -98,12 +100,15 @@ class CPair<T, U> extends CObject {
   get first(): T {
     return this.firstReg.value;
   }
+
   set first(first: T) {
     this.firstReg.value = first;
   }
+
   get second(): U {
     return this.secondReg.value;
   }
+
   set second(second: U) {
     this.secondReg.value = second;
   }
@@ -122,8 +127,8 @@ For that, we can just use a `Map` from pixel coordinates to that pixel's current
 
 ```ts
 // The key represents a point in the form: [x, y].
-// The value is the color of the stroke.
-const boardState = new Map<[x: number, y: number], string>();
+// The type Color is defined by [r: number, g: number, b: number].
+const boardState = new Map<[x: number, y: number], Color>();
 ```
 
 When the user draws on a point, we set that point's color in `boardState`:
@@ -134,12 +139,12 @@ boardState.set([x, y], color);
 
 <!-- We also must integrate this model with the view, i.e., update the Canvas when map keys are set or deleted, to reflect the corresponding pixel's new color (not shown). -->
 
-**Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], string>` with a collaborative version. The table in [Types] asks us to consider whether the value type `string` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is an `CValueMap<[x: number, y: number], string>`:
+**Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], Color>` with a collaborative version. The table in [Types] asks us to consider whether the value type `Color` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is a `CValueMap<[x: number, y: number], Color>`:
 
 ```ts
 const boardState = container.registerCollab(
   "whiteboard",
-  (init) => new collabs.CValueMap<[x: number, y: number], string>(init)
+  (init) => new collabs.CValueMap<[x: number, y: number], Color>(init)
 );
 ```
 
@@ -154,7 +159,8 @@ This completes our data model. To actually use this data model, we also have to 
 ```ts
 // ctx is the Canvas's getContext("2d").
 boardState.on("Set", (event) => {
-  ctx.fillStyle = boardState.get(event.key)!;
+  const [r, g, b] = event.value;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
   ctx.fillRect(event.key[0], event.key[1], 1, 1);
 });
 
@@ -218,13 +224,13 @@ class Minesweeper {
 }
 ```
 
-The app's top-level state is a variable `currentGame: Minesweeper`. When the user starts a new game, `currentGame` is set to a new instance of `Minesweeper`.
+The app's top-level state is a variable `currentGame: Minesweeper | null`. When the user first clicks a tile, `currentGame` is set to a new instance of `Minesweeper`. (It is `null` before the first click: we provide that click's coordinates `(startX, startY)` to the `Minesweeper` constructor, so that it can generate a game where that coordinate is mine-free.)
 
 **Collaborative data model:** Next, we convert the above data model into a collaborative one.
 
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
-- `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `TrueWinsCBoolean` satisfies these conditions, so we use that.
+- `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `CBoolean` with the default options satisfies these conditions, so we use that.
 - `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `CVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
@@ -232,7 +238,7 @@ Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That le
 
 ```ts
 class CTile extends collabs.CObject {
-  private readonly revealed: collabs.TrueWinsCBoolean;
+  private readonly revealed: collabs.CBoolean;
   private readonly flag: collabs.CVar<FlagStatus>;
   readonly isMine: boolean;
   number: number = 0;
@@ -241,7 +247,7 @@ class CTile extends collabs.CObject {
     super(init);
     this.revealed = this.registerCollab(
       "revealed",
-      (init) => new collabs.TrueWinsCBoolean(init)
+      (init) => new collabs.CBoolean(init)
     );
     this.flag = this.registerCollab(
       "flag",
@@ -258,7 +264,7 @@ We must likewise transform the `Minesweeper` class. This deviates from the usual
 
 First, we cannot use randomness in the constructor: per [Initialization](./initialization.html), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
-Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `IList` implementations, there is actually no need for us to use a `IList` here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
+Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
 
 ```ts
 class CMinesweeper extends collabs.CObject {
@@ -303,17 +309,56 @@ class CMinesweeper extends collabs.CObject {
 }
 ```
 
-Finally, we need to convert the variable `currentGame: Minesweeper` that holds the app's top-level state. Since games can be created dynamically - there's not just a single game the whole time - this is really a _reference_ to a Minesweeper object. The table in [Collaborative Data Structures](./built_in_collabs/html) suggests `LWWMutCVar<CMinesweeper>` because the game is internally mutable:
+Finally, we need to convert the variable `currentGame: Minesweeper | null` that holds the app's top-level state. This is a bit tricky because it requires two parts:
+
+1. A "factory" that creates new `CMinesweeper` instances dynamically. For this, we use a `CSet<CMinesweeper>` and "add" new instances to it.
+2. A variable holding a _reference_ to the current game (or `null`). In general, Collabs uses a [CollabID](../api/collabs/interfaces/CollabID.html) to store a reference to a Collab in another collection. So, we use a `CVar<CollabID<CMinesweeper> | null>`.
 
 ```ts
+const gameFactory = container.registerCollab(
+  "gameFactory",
+  (init) =>
+    new CSet(
+      init,
+      (
+        valueInit: InitToken,
+        width: number,
+        height: number,
+        fractionMines: number,
+        startX: number,
+        startY: number,
+        seed: string
+      ) =>
+        new CMinesweeper(
+          valueInit,
+          width,
+          height,
+          fractionMines,
+          startX,
+          startY,
+          seed
+        )
+    )
+);
 const currentGame = container.registerCollab(
   "currentGame",
-  (init) =>
-    new collabs.LWWMutCVar(init, collabs.ConstructorAsFunction(CMinesweeper))
+  (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
 );
 ```
 
-To start a new game, we call `currentGame.set` with `CMinesweeper`'s constructor arguments (except `init`).
+To start a new game, we call `gameFactory.add` with `CMinesweeper`'s constructor arguments (except `init`), then set `currentGame` to reference the new game:
+
+```ts
+const newGame = gameFactory.add(
+  settings.width,
+  settings.height,
+  settings.fractionMines,
+  x,
+  y,
+  Math.random() + ""
+);
+currentGame.value = gameFactory.idOf(newGame);
+```
 
 This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
 

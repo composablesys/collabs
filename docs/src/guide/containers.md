@@ -74,6 +74,8 @@ A container host is mostly just a Collabs app that uses the `CContainerHost` cla
 
 The `CContainerHost` constructor expects an IFrame holding the container. I.e., you set the IFrame's `src` equal to the container's URL. You are expected to block user interaction with the IFrame until the container is ready, as indicated by the "ContainerReady" event. E.g., you can set `hidden = true` until ready. Otherwise, users might be tempted to click things (performing Collabs operations) before the container is ready, causing errors.
 
+> One quirk of `CContainerHost` is that if you choose not to load prior saved state (i.e. call `runtime.load`), then you must call [CContainerHost.loadSkipped](../api/container/classes/CContainerHost.html#loadSkipped).
+
 If you want to support a specific network/storage/UX/etc. for general Collabs apps, you can write a container host for it. This would take the form of a (non-container) Collabs app that uses your chosen network/storage/UX/etc., with a `CContainerHost` as its single Collab, and with some way for users to specify the container.
 
 Example container hosts:

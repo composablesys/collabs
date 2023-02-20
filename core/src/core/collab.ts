@@ -64,7 +64,7 @@ export interface CollabEventsRecord {
    * When using [[CRuntime]], note that this event may be emitted
    * in the middle of a transaction, and multiple times during a
    * transaction or synchronous series of transactions. You may wish to wait to
-   * refresh displays until the next [[CRuntimeEventsRecord.Change]] event, e.g.:
+   * refresh displays until the next [[RuntimeEventsRecord.Change]] event, e.g.:
    * ```ts
    * let isDirty = false;
    * collab.on("Any", () => { isDirty = true; });

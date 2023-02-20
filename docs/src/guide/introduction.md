@@ -28,19 +28,18 @@ You can also try disconnecting one tab by unchecking the box at the top. Verify 
 
 `CCounter` is simple but not especially useful. Collection types, like maps, are more useful.
 
-For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) from coordinates `[x: number, y: number]` to HTML color strings:
+For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) from coordinates `[x: number, y: number]` to `Color = [r: number, g: number, b: number]`
 
 ```
-const boardState: collabs.CValueMap<[x: number, y: number], string>
+const boardState: collabs.CValueMap<[x: number, y: number], Color>
 ```
 
 Here:
 
-- "LWW" stands for _Last Writer Wins_. It describes what happens if two users try to set the color of the same pixel concurrently: the "last" one, according to senders' clock times, wins and sets the color.
 - We write the type as `collabs.CValueMap` because we have imported as the library as `import * as collabs from @collabs/collabs`. This is the recommended style if you want to keep the library in its own namespace, although you can also import individual names directly, e.g., `import { CValueMap } from @collabs/collabs`.
 - The `boardState` is a `const` because we always use the same `CValueMap` _instance_; all operations mutate the map internally. This is a general rule for Collabs: you keep the same instance of a `Collab` for its whole lifetime, while operations (either by the local user and by other collaborators) mutate its internal state.
 
-Once `boardState` is initialized (discussed later in [Initialization](./initialization.html)), you can use it like an ordinary `Map<[x: number, y: number], string>`:
+Once `boardState` is initialized (discussed later in [Initialization](./initialization.html)), you can use it like an ordinary `Map<[x: number, y: number], Color>`:
 
 ```ts
 class CValueMap<K, V> {
@@ -52,7 +51,7 @@ class CValueMap<K, V> {
 }
 ```
 
-In particular, when a user draws with `color` on pixel `[x, y]`, the demo calls `boardState.set([x, y], color)`; and you can display the current board by iterating over `boardState.entries()`:
+In particular, when a user draws with `color` on pixel `[x, y]`, the demo calls `boardState.set([x, y], color)`. You can display the current board by iterating over `boardState.entries()`:
 
 ```ts
 function repaint(ctx: CanvasRenderingContext2D) {
@@ -60,8 +59,8 @@ function repaint(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
   // Draw current state.
-  for (const [[x, y], color] of boardState.entries()) {
-    ctx.fillStyle = color;
+  for (const [[x, y], [r, g, b]] of boardState.entries()) {
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(x, y, 1, 1);
   }
 }
@@ -71,7 +70,7 @@ function repaint(ctx: CanvasRenderingContext2D) {
 
 ## More Collaborative Data Structures
 
-Collabs comes with many more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `CValueMap`, plus collections like `CSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
+Collabs comes with more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `CValueMap`, plus collections like `CSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
 
 For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling) explains how you can make these classes be `Collab`s themselves---a unique feature of our library.
 
