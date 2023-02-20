@@ -23,7 +23,7 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
       // We use the fact that all ops are single character insertions/deletions.
       // TODO: use position-based cursors instead?
       this.text.on("Insert", (e) => {
-        if (!e.meta.isLocalOp && e.startIndex < this.cursor) {
+        if (!e.meta.isLocalOp && e.index < this.cursor) {
           this.cursor++;
         }
         if (this.cursor > this.length) {
@@ -33,7 +33,7 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
         }
       });
       this.text.on("Delete", (e) => {
-        if (!e.meta.isLocalOp && e.startIndex < this.cursor) {
+        if (!e.meta.isLocalOp && e.index < this.cursor) {
           this.cursor--;
         }
         if (this.cursor > this.length) {
