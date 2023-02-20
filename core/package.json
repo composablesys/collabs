@@ -1,6 +1,6 @@
 {
   "name": "@collabs/core",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "A collections library for collaborative data structures (core)",
   "author": "collabs contributors",
   "license": "Apache-2.0",

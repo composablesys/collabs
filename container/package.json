@@ -1,6 +1,6 @@
 {
   "name": "@collabs/container",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Tools for Collabs containers (network-agnostic collaborative apps)",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -34,7 +34,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.7.0",
+    "@collabs/collabs": "0.8.0",
     "protobufjs": "~6.9.0",
     "tslib": "^2.0.1"
   },
