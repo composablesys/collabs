@@ -24,23 +24,23 @@ import * as collabs from "@collabs/collabs";
 const runtime = new collabs.CRuntime();
 ```
 
-2. At some point, call [`runtime.load`](../api/collabs/classes/CRuntime.html#load) **exactly once**:
+2. Optionally, at some point, call [`runtime.load`](../api/collabs/classes/CRuntime.html#load):
 
 ```ts
 const savedState: collabs.Optional<Uint8Array>;
 runtime.load(savedState);
 ```
 
-The call to `runtime.load` lets you load state from a previous session - either from the current user or from a collaborator - that was returned by that session's [`runtime.save()`](../api/collabs/classes/CRuntime.html#save). Pass in a [Optional.empty()](../api/collabs/classes/Optional#empty) if you don't have any saved state, so that the app knows you are skipping loading.
+The call to `runtime.load` lets you load state from a previous session - either from the current user or from a collaborator - that was returned by that session's [`runtime.save()`](../api/collabs/classes/CRuntime.html#save).
 
-You must call `runtime.load`:
+If you call `runtime.load`, you must do so:
 
 - **After** making all calls to [`runtime.registerCollab`](../api/collabs/classes/CRuntime.html#registerCollab), which initialize your app's `Collab`s as described in the [next section of the guide](./initialization.html). Those calls let `runtime` know the types and structure of your data - i.e., its schema - so that it knows how to parse the input `savedState`.
 - **Before** performing any `Collab` operations (mutating method calls) or processing network messages with [`runtime.receive`](../api/collabs/classes/CRuntime.html#receive). That way, you ensure that your app's state is up-to-date with the `savedState` before you start making new changes on top of it.
 
 Collabs will throw errors if you do this wrong, so it is to catch mistakes during testing.
 
-Except for these rules about `runtime.load`, you are free to use [CRuntime](../api/collabs/classes/CRuntime.html) however you like. Of course, you will want to connect it to other collaborators over a network so that your Collabs are actually collaborative. Get messages to send by listening on the ["Send"](../api/collabs/interfaces/CRuntimeEventsRecord.html#Send) event with [`runtime.on("Send", ...)`](../api/collabs/classes/CRuntime.html#on), and deliver messages you receive to [runtime.receive](../api/collabs/classes/CRuntime.html#receive). See the comments in [the template's `src/app.ts`](https://github.com/composablesys/collabs/blob/master/template-app/src/app.ts).
+Except for these rules about `runtime.load`, you are free to use [CRuntime](../api/collabs/classes/CRuntime.html) however you like. Of course, you will want to connect it to other collaborators over a network so that your Collabs are actually collaborative. Get messages to send by listening on the ["Send"](../api/collabs/interfaces/RuntimeEventsRecord.html#Send) event with [`runtime.on("Send", ...)`](../api/collabs/classes/CRuntime.html#on), and deliver messages you receive to [runtime.receive](../api/collabs/classes/CRuntime.html#receive). See the comments in [the template's `src/app.ts`](https://github.com/composablesys/collabs/blob/master/template-app/src/app.ts).
 
 ## [CContainer](../api/container/classes/CContainer.html)
 

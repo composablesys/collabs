@@ -73,6 +73,6 @@ import { CContainer } from "@collabs/container";
 
 ## Next Steps
 
-TODO: walkthrough last (fast track option only), start with Guide Intro.
+<!-- TODO: walkthrough last (fast track option only), start with Guide Intro. -->
 
 Head over to the [Guide](./guide/index.html) to begin learning how to create your own Collabs apps, starting with a [walkthrough](./walkthrough.html) of the code you copy-pasted here.

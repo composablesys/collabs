@@ -2,7 +2,7 @@
 
 To ensure that your `Collab`s are connected to the network, they need to know about your [entry point](./entry_points.html). We enforce this by not letting you initialize `Collab`s in isolation by calling their constructor directly. Instead, you must use one of the techniques on this page.
 
-In more detail, each `Collab` must be assigned a **parent** and a **name** when it is constructed, by passing an [InitToken](../api/collabs/classes/InitToken.html) as its first constructor argument. Its **parent** can be either the [entry point](./entry_points.html)[^runtime] or another `Collab` that implements [ICRDTParent](../api/collabs/interfaces/IParent.html). Its **name** is an arbitrary string that must be unique among all `Collab`s with the same parent.
+In more detail, each `Collab` must be assigned a **parent** and a **name** when it is constructed, by passing an [InitToken](../api/collabs/classes/InitToken.html) as its first constructor argument. Its **parent** can be either the [entry point](./entry_points.html) or another `Collab` that implements [IParent](../api/collabs/interfaces/IParent.html). Its **name** is an arbitrary string that must be unique among all `Collab`s with the same parent.
 
 > The parents arrange your `Collab`s into a tree, with the entry point as the root. The parents and names let us identify each `Collab` in a way that makes sense across devices: each `Collab` is identified by the series of names leading from it to the root entry point. Replicas of a `Collab` on different collaborating devices get the same identifier, which is how we know to connect them to each other, instead of to some other `Collab` in your app.
 
@@ -51,15 +51,15 @@ Finally, it is sometimes tempting to perform mutating `Collab` operations (e.g.,
 
 So far, we discussed "global variable" `Collab`s, which exist for the lifetime of your app (technically, of its [entry point](./entry_points.html)). But what if you want to create `Collab`s dynamically, at runtime? E.g., you want to create a new `Document` `Collab` each time a user hits the "New Document" button.
 
-That is where **dynamically-created `Collab`s** come in. Collection types containing `Collab` elements, such as [CSet](../api/collabs/classes/CSet.html) (set), [CList](../api/collabs/classes/CList.html) (list), and [CLazyMap](../api/collabs/classes/CLazyMap.html) (map), let you create `Collab`s via their own `Collab` operations, like [CSet.add](../api/collabs/classes/CSet.html#add). We discuss those collections later in the Guide in [Built-In `Collab`s](./built_in_collabs.html#mutable-value-collections), but for now, we will explain how they initialize dynamically-created `Collab`s.
+That is where **dynamically-created `Collab`s** come in. Collection types containing `Collab` elements, such as [CSet](../api/collabs/classes/CSet.html) (set), [CList](../api/collabs/classes/CList.html) (list), and [CMap](../api/collabs/classes/CMap.html) (map), let you create `Collab`s via their own `Collab` operations, like [CSet.add](../api/collabs/classes/CSet.html#add). We discuss those collections later in the Guide in [Built-In `Collab`s](./built_in_collabs.html#mutable-value-collections), but for now, we will explain how they initialize dynamically-created `Collab`s.
 
 Each collection of `Collab`s takes a constructor argument called `valueConstructor`, which you must supply. `valueConstructor` is a callback function that accepts an [InitToken](../api/collabs/classes/InitToken.html) and possibly some other info. In this callback function, you must use the `InitToken` to call your `Collab`'s constructor, do any other setup you need (e.g., registering [event handlers](../advanced/events.html)), then return the `Collab`.
 
 For example, to construct a `CSet` of `CCounter`s, you first define your `valueConstructor`:
 
 ```ts
-function valueConstructor(valueInitToken: collabs.InitToken) {
-  return new collabs.CCounter(valueInitToken);
+function valueConstructor(valueInit: collabs.InitToken) {
+  return new collabs.CCounter(valueInit);
 }
 ```
 

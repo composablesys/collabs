@@ -4,7 +4,7 @@
 
 ## Quick Start
 
-In any app, you can listen on [`IRuntime`](../api/collabs/classes/IRuntime.html)'s "Change" event, then refresh the whole view each time it is emitted.
+In any app, you can listen on [`CRuntime`](../api/collabs/classes/CRuntime.html)'s "Change" event, then refresh the whole view each time it is emitted.
 
 ```ts
 runtime.on("Change", () => {
@@ -13,11 +13,11 @@ runtime.on("Change", () => {
 });
 ```
 
-This works because a `IRuntime` "Change" event is dispatched whenever the local user performs an operation or a message is received from another user. Of course, it might be inefficient or interact poorly with the UI.
+This works because a `CRuntime` "Change" event is dispatched whenever the local user performs an operation or a message is received from another user. Of course, it might be inefficient or interact poorly with the UI.
 
 ## API
 
-See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `IRuntime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
+See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `CRuntime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
 
 - `on` adds an event listener. Calling `on`'s return value removes the listener.
 - `once` adds an event listener that is called only once, on the next event. Calling `once`'s return value before the next event removes the listener.
@@ -37,24 +37,21 @@ When calling the `EventEmitter` methods, TypeScript will force you to use a vali
 
 ## Using `Collab` Events
 
-All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/interfaces/UpdateMeta.html). When listening on events, you can use `meta.isLocalEcho` to filter out events from the local user.
+All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/interfaces/UpdateMeta.html). When listening on events, you can use `meta.isLocalOp` to filter out events from the local user.
 
-Also, all `Collab`s have a "Change" event of type `CollabEvent`, from [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a `Collab` is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Change" events instead of listening on every event specifically.
+Also, all `Collab`s have an "Any" event of type `CollabEvent`, from [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a `Collab` is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Any" events instead of listening on every event specifically.
 
 When listening on a `Collab`'s events, you should register event listeners as soon as possible - usually in the same thread as the structure is constructed. For example, to listen on child events in a `CObject`, you should register listeners in the constructor. This ensures that you don't miss any events.
 
-When listening on events from a `Collab` that is created dynamically in a collection (e.g., `ResettingMutCSet`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add", "Insert", "Set", etc. event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
+When listening on events from a `Collab` that is created dynamically in a collection (e.g., `CLazyMap`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add"/"Set"/"Insert" event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
 
-TODO: not dipatched during loading. If you normally
-
-- depend on events to set some state (e.g., a GUI view),
-- you must instead construct that state from reading the whole state after loading
+**Note:** Events are not dispatched during loading. If you normally, depend on events to set some state (e.g., a GUI view), you must instead construct that state from reading the whole state after loading.
 
 ## Adding Events to Custom Types
 
 If you are publishing a custom type as a third-party library, we recommend that it emits its own events. These let your consumers observe changes while maintaining encapsulation. See the template's `CPair` for an example.
 
-TODO: General advice (merge with below paragraph):
+<!-- TODO: General advice (merge with below paragraph):
 
 - Only emit events when your state is usable. If one of
   your operations is made up of several sub-operations, and
@@ -83,8 +80,8 @@ TODO: General advice (merge with below paragraph):
   your children's "Change" events). Or, you can skip events
   entirely and either refresh the whole display on IRuntime
   "Change" events, or refresh your Collab-specific display on
-  its children's "Change" events.
+  its children's "Change" events. -->
 
 See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`ISet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
-> **Aside:** For custom types that you only plan to use in your own application, you may not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `IRuntime`'s "Change" event.
+> **Aside:** For custom types that you only plan to use in your own application, you might not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `CRuntime`'s "Change" event.

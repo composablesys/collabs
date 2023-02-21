@@ -24,9 +24,9 @@ function refreshDisplay() {
 container.on("Change", refreshDisplay);
 ```
 
-As described in the API docs ([CRuntime Change event docs](../api/collabs/interfaces/CRuntimeEventsRecord.html#Change), [CContainer change event docs](../api/container/interfaces/CContainerEventsRecord.html#Change)), a `Change` event is emitted each time your app receives a message, whether from a remote collaborator or from the local user's own operations. Thus using the above pattern ensures that your display is always a functional view of your collaborative state.
+As described in the API docs ([CRuntime Change event docs](../api/collabs/interfaces/RuntimeEventsRecord.html#Change), [CContainer change event docs](../api/container/interfaces/CContainerEventsRecord.html#Change)), a `Change` event is emitted each time your app receives a message, whether from a remote collaborator or from the local user's own operations. Thus using the above pattern ensures that your display is always a functional view of your collaborative state.
 
-> You can find the API docs for events like these by going to the event emitter's `on` method (e.g. [CRuntime.on](../api/collabs/classes/CRuntime.html#on)), clicking on `eventName`'s key type (e.g. [CRuntimeEventsRecord](../api/collabs/interfaces/CRuntimeEventsRecord.html)), then viewing the property with the event's name. That property's type tells you the type of the event `e` passed to your event handler (ignored in our example).
+> You can find the API docs for events like these by going to the event emitter's `on` method (e.g. [CRuntime.on](../api/collabs/classes/CRuntime.html#on)), clicking on `eventName`'s key type (e.g. [RuntimeEventsRecord](../api/collabs/interfaces/RuntimeEventsRecord.html)), then viewing the property with the event's name. That property's type tells you the type of the event `e` passed to your event handler (ignored in our example).
 
 ## Handling Loading
 

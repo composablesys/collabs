@@ -5,7 +5,6 @@ import {
   CSet,
   CVar,
   InitToken,
-  Optional,
 } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import seedrandom from "seedrandom";
@@ -263,7 +262,7 @@ class CMinesweeper extends CObject {
     let state =
       currentState.value === "settings"
         ? currentSettings.value
-        : gameFactory.fromID(currentGame.value.get())!;
+        : gameFactory.fromID(currentGame.value!)!;
 
     for (let y = 0; y < state.height; y++) {
       let row = document.createElement("tr");
@@ -338,7 +337,7 @@ class CMinesweeper extends CObject {
             if (event.button === 0) {
               const oldGames = currentGame.conflicts();
               // Start the game, with this tile safe
-              let newGame = gameFactory.add(
+              const newGame = gameFactory.add(
                 settings.width,
                 settings.height,
                 settings.fractionMines,
@@ -346,12 +345,12 @@ class CMinesweeper extends CObject {
                 y,
                 Math.random() + ""
               );
-              currentGame.value = Optional.of(gameFactory.idOf(newGame));
+              currentGame.value = gameFactory.idOf(newGame);
               currentState.value = "game";
               // Easy to forget: clean up old games.
               for (const oldGame of oldGames) {
-                if (oldGame.isPresent) {
-                  const game = gameFactory.fromID(oldGame.get());
+                if (oldGame !== null) {
+                  const game = gameFactory.fromID(oldGame);
                   if (game) gameFactory.delete(game);
                 }
               }
@@ -439,7 +438,7 @@ class CMinesweeper extends CObject {
   );
   const currentGame = container.registerCollab(
     "currentGame",
-    (init) => new CVar<Optional<CollabID<CMinesweeper>>>(init, Optional.empty())
+    (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
   );
   const currentSettings = container.registerCollab(
     "currentSettings",

@@ -17,7 +17,7 @@ export interface PairEventsRecord<T, U> extends CollabEventsRecord {
 
 /**
  * Demo custom type: a pair (first: T, second: U).
- * first and second are implemented using separate LWWCVars,
+ * first and second are implemented using separate CVars,
  * so changes to either of them are opaque writes
  * (no conflict resolution), but changing both concurrently
  * will keep both changes.
