@@ -10,15 +10,14 @@ import { Parent } from "./parent";
  * and replica B can use it to find (their replica of) the original
  * Collab from replica A.
  *
- * To convert between Collabs and CollabIDs, use [[IParent.idOf]]
- * and [[IParent.fromID]]. Specifically, these let you work with
- * CollabIDs for Collabs (strictly) descended from the [[Parent]]. Note that
- * CollabIDs derived from different parents are incomparable, and it
- * does not make sense to call [[IParent.fromID]] on a CollabID
- * returned by a different parent's [[IParent.idOf]].
+ * To convert between the Collabs in a collection (e.g., a [[CSet]])
+ * and their CollabIDs, use the collection's [[IParent.idOf]]
+ * and [[IParent.fromID]] methods. More generally,
+ * you can use any ancestor of the Collabs, such as their
+ * [[IRuntime]].
  *
- * CollabIDs can be serialized with [[DefaultSerializer]], as JSON objects,
- * or with [[CollabIDSerializer]].
+ * CollabIDs are JSON objects and can be serialized with [[DefaultSerializer]].
+ * You can also use [[CollabIDSerializer]].
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface CollabID<C extends Collab> {

@@ -19,24 +19,26 @@ MERCHANTABLITY OR NON-INFRINGEMENT.
 
 See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
-***************************************************************************** */
+*/
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
+/**
+ * Event emitted by an [[IList]]`<T>` implementation
+ * when a range of values is inserted or deleted.
+ */
 export interface ListEvent<T> extends CollabEvent {
   /**
    * The index of the first affected value.
+   * Collectively, the values have indices
+   * `index` through `index + values.length - 1`.
    *
-   * For [[ListEventsRecord.Delete]] events, this is the former
+   * For [[ListEventsRecord.Delete]] events, this is the *former*
    * index of the first deleted value.
    */
   index: number;
   /**
-   * The affected values. For bulk operations, there may be more than
-   * one, in list order.
-   *
-   * For [[ListEventsRecord.Delete]] events, these are the former
-   * values at the deleted indices.
+   * The affected values, in list order.
    */
   values: T[];
   /**
@@ -45,32 +47,57 @@ export interface ListEvent<T> extends CollabEvent {
   positions: string[];
 }
 
+/**
+ * Base events record for an [[IList]]`<T>` implementation.
+ */
 export interface ListEventsRecord<T> extends CollabEventsRecord {
+  /**
+   * Emitted when a range of values is inserted.
+   */
   Insert: ListEvent<T>;
+  /**
+   * Emitted when a range of values is deleted.
+   */
   Delete: ListEvent<T>;
 }
 
 /**
- * A list of values of type T, supporting insert and
- * delete with any semantics.
+ * Interface for a collaborative list with values
+ * of type T.
  *
- * Initially, values must be created using the insert method
- * or its aliases.
- * Those methods input InsertArgs and send them to every
- * replica in serialized form; every replica then uses
- * them to contruct the actual value of type T,
- * e.g., using a user-supplied callback in the constructor.
- * Values can later be deleted (and in some implementations, restored), changing
- * their presence in the list, using any semantics to
- * resolve conflicts.
+ * For implementations, see [[CList]] and [[CValueList]]. [[CText]] is similar but not an actual
+ * IList implementation.
  *
- * "Positions" are immutable pointers to a specific value's position in the list;
- * unlike indices, they move around like values. In this way, they act like
- * map keys (treating a list as a map from positions to values).
- * They can in particular be used as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys).
- * Positions are inspired by Yjs's [Y.RelativePosition](https://docs.yjs.dev/api/relative-positions),
- * except that they are local to a specific list (to reference a position in an unknown
- * list, use a position plus a [[CollabID]] from [[IRuntime.idOf]]).
+ * An `IList<T>` has similar methods to an `Array<T>`,
+ * but it is mutated more like a linked list: instead of mutating
+ * existing values, you [[insert]] and [[delete]]
+ * list entries. Insertions and deletions
+ * shift later entries, changing their indices, like
+ * in collaborative text editing or
+ * [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
+ *
+ * This interface permits [[insert]] to accept arbitrary
+ * `InsertArgs` instead of just the value to insert.
+ * That is useful
+ * when the value is not serializable, e.g., a dynamically-
+ * created [[Collab]].
+ *
+ * ## Positions
+ *
+ * A *position* points to an entry immutably: unlike its index,
+ * an entry's position never changes.
+ *
+ * There are methods to convert between a position, its value (if present), and
+ * its current index (or where it would be if present).
+ *
+ * You can use positions
+ * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), cursors, range endpoints
+ * for a comment on a document, etc.
+ *
+ * @typeParam T The value type.
+ * @typeParam InsertArgs The type of arguments to [[insert]].
+ * Defaults to `[T]`, i.e., insert inputs the actual value.
+ * @typeParam Events Events record.
  */
 export interface IList<
   T,
@@ -78,50 +105,46 @@ export interface IList<
   Events extends ListEventsRecord<T> = ListEventsRecord<T>
 > extends Collab<Events> {
   /**
-   * Sends args to every replica in serialized form.
-   * Every replica then uses
-   * them to contruct the actual inserted value of type T.
+   * Inserts a value at the given index using args.
+   * All values currently at or after `index` shift
+   * to the right, incrementing their indices.
    *
-   * The value currently
-   * at index and all later values are shifted one
-   * to the right.
+   * Typically, args are broadcast to all replicas
+   * in serialized form. Every replica then uses
+   * them to contruct the actual value of type T.
    *
-   * index can be in the range [0, this.length]; this.length
-   * appends it to the end of the list.  If index is out
-   * of range, an error is thrown.
-   *
-   * @param index the insertion index
+   * @param index The insertion index in the range
+   * `[0, this.length]`. If `this.length`, the value
+   * is appended to the end of the list.
    * @return The inserted value, or undefined if it is not
-   * yet constructed. Implementations that always construct
-   * the value immediately should get rid of the "undefined"
-   * case.
+   * constructed immediately.
+   * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, ...args: InsertArgs): T | undefined;
 
   /**
-   * Deletes count values starting at startIndex (inclusive).
-   * All later values are
-   * shifted count to the left.
+   * Deletes `count` values starting at `startIndex` (inclusive).
+   * All later values shift to the left,
+   * decreasing their indices by `count`.
    *
-   * count is optional and defaults to 1, i.e., delete(index)
-   * just deletes the value at index.
+   * `count` defaults to 1 (delete the entry at `startIndex`).
    *
-   * @throws if count < 0 or is not an integer, or
+   * @throws if count < 0 or
    * index + count >= this.length.
    */
   delete(startIndex: number, count?: number): void;
 
   /**
-   * Returns the value at index.
+   * Returns the value currently at index.
    *
-   * If index is out of bounds,
-   * an error is thrown; this differs from an ordinary Array,
+   * @throws If index is not in `[0, this.length)`.
+   * Note that this differs from an ordinary Array,
    * which would instead return undefined.
    */
   get(index: number): T;
 
   /**
-   * @return The position currently at index.
+   * Returns the position currently at index.
    */
   getPosition(index: number): string;
 
@@ -135,7 +158,7 @@ export interface IList<
    * If there are no values to the left of position,
    * returns -1.
    * - "right": Returns the next index to the right of position.
-   * If there are no values to the left of position,
+   * If there are no values to the right of position,
    * returns [[length]].
    */
   indexOfPosition(
@@ -164,7 +187,7 @@ export interface IList<
   positionOf(searchElement: T): string | undefined;
 
   /**
-   * Deletes every index in this list.
+   * Deletes every value in the list.
    */
   clear(): void;
 
@@ -173,18 +196,18 @@ export interface IList<
    */
   readonly length: number;
 
-  /** Returns an iterable of values in the list, in list order. */
+  /** Returns an iterator for values in the list, in list order. */
   [Symbol.iterator](): IterableIterator<T>;
   /**
-   * Returns an iterable of [index, position, value] tuples for every
+   * Returns an iterator of [index, position, value] tuples for every
    * value in the list, in list order.
    */
   entries(): IterableIterator<[index: number, position: string, value: T]>;
 
-  /** Returns an iterable of values in the list, in list order. */
+  /** Returns an iterator for values in the list, in list order. */
   values(): IterableIterator<T>;
 
-  /** Returns an iterable of present positions, in list order. */
+  /** Returns an iterator for present positions, in list order. */
   positions(): IterableIterator<string>;
 
   // Omit keys() since it doesn't seem useful.
@@ -196,14 +219,11 @@ export interface IList<
   pop(): T;
 
   /**
-   * Inserts a value at the end of the list, constructed
-   * using the given InsertArgs.  Equivalent to
-   * this.insert(this.length, ...args).
+   * Inserts a value at the end of the list using args.  Equivalent to
+   * `this.insert(this.length, ...args)`.
    *
    * @return The inserted value, or undefined if it is not
-   * yet constructed. Implementations that always construct
-   * the value immediately should get rid of the "undefined"
-   * case.
+   * constructed immediately.
    */
   push(...args: InsertArgs): T | undefined;
 
@@ -213,14 +233,11 @@ export interface IList<
   shift(): T;
 
   /**
-   * Inserts a value at the start of the list, constructed
-   * using the given InsertArgs.  Equivalent to
-   * this.insert(0, ...args).
+   * Inserts a value at the start of the list using args.  Equivalent to
+   * `this.insert(0, ...args)`.
    *
-   * @return the inserted value, or undefined if it is not
-   * yet constructed. Implementations that always construct
-   * the value immediately should get rid of the "undefined"
-   * case.
+   * @return The inserted value, or undefined if it is not
+   * constructed immediately.
    */
   unshift(...args: InsertArgs): T | undefined;
 
@@ -239,16 +256,11 @@ export interface IList<
   // time.
 
   /**
-   * Combines two or more CLists or other array-like objects.
+   * Combines two or more ILists or other array-like objects.
    * This method returns a new array without modifying any existing lists or arrays.
-   * @param items Additional arrays and/or items to add to the end of the array.
+   * @param items Additional arrays and/or items to add to the end of the returned array.
    */
   concat(...items: ConcatArray<T>[]): T[];
-  /**
-   * Combines two or more CLists or other array-like objects.
-   * This method returns a new array without modifying any existing lists or arrays.
-   * @param items Additional arrays and/or items to add to the end of the array.
-   */
   concat(...items: (T | ConcatArray<T>)[]): T[];
 
   /**

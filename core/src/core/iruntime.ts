@@ -17,8 +17,7 @@ import { IParent } from "./parent";
  * A runtime also delivers updates between replicas with runtime-specific
  * guarantees. For example, CRuntime guarantees that messages are
  * broadcast exactly-once in causal order with immediate delivery
- * of local messages, and that saved states are delivered
- * in causal order but may be redundant with other updates.
+ * of local messages.
  */
 export interface IRuntime extends IParent {
   /**
@@ -32,9 +31,7 @@ export interface IRuntime extends IParent {
    * An ID that uniquely identifies this replica among
    * all connected replicas.
    *
-   * Never `""`.
-   *
-   * See [[ReplicaIDs.random]], [[ReplicaIDs.pseudoRandom]].
+   * Usually obtained from [[ReplicaIDs]].
    */
   readonly replicaID: string;
 

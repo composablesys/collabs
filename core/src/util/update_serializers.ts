@@ -11,7 +11,7 @@ import { Serializer } from "./serializers";
  * Serializer for a batch of message stacks sent by [[Collab]]s,
  * represented as an array of `(Uint8Array | string)[]`.
  *
- * [[IRuntime]] implementations may use [[MessageStacksSerializer.instance]]
+ * [[IRuntime]] implementations may use [[instance]]
  * to convert a batch of Collab messages into a single Uint8Array.
  *
  * As a common-case
@@ -20,6 +20,9 @@ import { Serializer } from "./serializers";
  * in the serialized message. That helps when stacks contain
  * Collab paths and there are multiple messages from Collabs in
  * similar parts of the Collab tree.
+ *
+ * This is a singleton class; use [[instance]]
+ * instead of the constructor.
  */
 export class MessageStacksSerializer
   implements Serializer<(Uint8Array | string)[][]>
@@ -196,8 +199,11 @@ export class MessageStacksSerializer
 /**
  * Serializer for a [[SavedStateTree]] or null, i.e., an output of [[Collab.save]].
  *
- * [[IRuntime]] implementations may use [[SavedStateTreeSerializer.instance]]
+ * [[IRuntime]] implementations may use [[instance]]
  * to convert Collabs's saved states into a single Uint8Array.
+ *
+ * This is a singleton class; use [[instance]]
+ * instead of the constructor.
  */
 export class SavedStateTreeSerializer
   implements Serializer<SavedStateTree | null>

@@ -12,95 +12,79 @@ import {
 } from "../core";
 
 /**
- * A collaborating object, consisting of properties that
- * are themselves [[Collab]]s.
+ * Base class for a collaborative object, containing
+ * properties that are themselves [[Collab]]s.
  *
- * The Collab properties are its *children*.
+ * See [Data Modeling](../../../guide/data_modeling.html) for a guide and
+ * examples of how to extend this class.
  *
- * `CObject` enables the simplest form of composition:
- * you use a fixed set of existing collaborative data
- * types side-by-side, and call it a new collaborative
- * data type.  This is useful because you can apply standard
- * object-oriented programming techniques like encapsulation
- * and inheritance.  It can be useful even with just a single
- * child.  For example, [[CValueMap]] has a single child, a mutable
- * map with [[CVar]] values; its contribution is to
- * provide a simple [[IMap]]-compliant API for the wrapped type.
+ * Extending CObject lets you create a reusable object-oriented
+ * unit out of one or more existing Collabs.
+ * In particular, you can:
+ * - Wrap existing Collabs in a domain-specific API.
+ * - Implement a complex Collab as a composition of simple ones,
+ * without the need to send your own messages over the network.
  *
- * Unlike a normal object or a `Collab` with normal
- * properties, `CObject` ensures that its `Collab` children
- * are linked to each other through the network. Specifically,
- * each time a child requests to send a message, `CObject` sends
- * it tagged with the child's name; recipient replicas then
- * pass the message to their own child
- * with that name.
+ * To use CObject:
+ * 1. In your constructor, register any
+ * Collab properties using [[registerCollab]]. The registrations
+ * must be identical across all replicas.
+ * We call the registered properties our [[children]].
+ * 2. Implement your methods by calling methods
+ * on the Collab properties; operations called this way
+ * are collaborative as usual.
+ * 3. You may also register event
+ * handlers on your Collab properties that emit your
+ * own events in response (in your constructor).
+ * For simple CObjects,
+ * it may be easier to instead expose Collab properties
+ * publicly (so users can add their own event handlers)
+ * or have users listen on [[CRuntime]]'s "Change" event.
  *
- * ## Usage
- *
- * The children must be registered in the constructor
- * using [[registerCollab]], which accepts a Collab callback and
- * outputs the constructed Collab.  Each child must be assigned
- * a unique name, e.g., its name as an property.  (If
- * you are concerned about message sizes on the network,
- * you can instead use maximally short names - "" for the most-used
- * child, then "0", "1", etc. Think of
- * these short names like the field numbers in Protobuf structs.)
- *
- * To be eventually consistent, a `CObject` should not have
- * mutable properties outside of its children.  One exception
- * is mutable properties that are deterministic views of
- * child state. E.g., if one child stores a set of words,
- * it is of course eventually consistent to also store an
- * alphabetized list as a view of that set. You can keep
- * such a view up-to-date by updating the view in response
- * to child events.
- *
- * A fully reusable `CObject` instance has three main
- * responsibilities:
- * - Translate operations (mutating method calls) into operations on
- * its children.
- * - Translate queries (method calls/properties for reading
- * the state) into queries on its children and views.
- * - Translate events emitted by the children into its own
- * events.
- *
- * ## Example Subclass
- *
- * See [template-custom-type](../../../../template-custom-type).
+ * A CObject may have non-Collab properties, but they
+ * are not automatically collaborative. Typically, such
+ * properties will all be `readonly`. You can also store
+ * functional "views" of the Collab properties' states that
+ * update in response to events (e.g., a cached `length`
+ * field).
  */
 export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   extends Collab<Events>
   implements IParent
 {
   /**
-   * The children, keyed by name.
+   * The children (registered Collab properties), keyed by name.
    *
    * This map should only be read, not mutated.
-   *
-   * It is good style for subclasses to store their
-   * children in their own instance variables,
-   * not use this map to look them up.  This map
-   * is exposed mainly as a convenience for methods that
-   * act on all children, in the style of [[canGC]].
+   * It is exposed to subclasses as a convenience for methods
+   * that loop over all children.
    */
   protected readonly children: Map<string, Collab> = new Map();
 
   /**
-   * Registers collab as a child of this Collab with the given
-   * name.
+   * Registers a [[Collab]] property of this CObject
+   * with the given name, making it one of our [[children]].
    *
-   * It is recomend that you use this in the style
+   * Typically, you will call this method during the
+   * constructor in the style:
    * ```ts
    * this.foo = this.registerCollab("foo", (init) => new FooClass(init, constructor args...));
    * ```
-   * In particular, the created child should be stored as an ordinary
-   * object property.  Each child must be assigned
-   * a unique name, e.g., its name as an property.  (If
-   * you are concerned about message sizes on the network,
-   * you can instead use maximally short names - "" for the most-used
-   * child, then "0", "1", etc.)
+   * where `readonly foo: FooClass;` is a Collab property.
+   * See [Data Modeling](../../../guide/data_modeling.html) for examples.
    *
-   * @return child
+   * Registrations must be identical across all replicas.
+   *
+   * See also: [[CRuntime.registerCollab]].
+   *
+   * @param name A name for this property, unique among
+   * this class's `registerCollab` calls.
+   * We recommend using the same name as the property,
+   * but you can also use short strings to reduce
+   * network usage ("", "0", "1", ...).
+   * @param collabCallback A callback that uses the
+   * given [[InitToken]] to construct the registered [[Collab]].
+   * @return The registered Collab.
    */
   protected registerCollab<C extends Collab>(
     name: string,
@@ -169,9 +153,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
   /**
    * Override to save extra state, which is passed
-   * to loadObject during load after the children
-   * are initialized.
-   * @return [description]
+   * to [[loadObject]] at the end of [[load]].
    */
   protected saveObject(): Uint8Array | null {
     return null;
@@ -179,13 +161,13 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
   /**
    * Override to load extra state, using `savedState` from
-   * [[saveObject]].
+   * [[saveObject]]. You can also do post-processing
+   * of child saves, e.g., computing functional
+   * views of child states.
    *
-   * Note this is called after the children are loaded.
+   * This is called after the children are loaded.
    * Also, this is always called, even if [[saveObject]] returned
-   * null (in that case this is called with null); that lets
-   * you do some post-processing (e.g., computing child views)
-   * even if you didn't have any extra state to save.
+   * null.
    *
    * @param  savedState the output of [[saveObject]] on
    * a previous saved instance, possibly null.
@@ -218,7 +200,12 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   }
 
   /**
-   * @return true if canGC() returns true on every child
+   * Internal (parent) use only.
+   *
+   * By default, this method returns true if `canGC` returns true
+   * on every child. Override to change this behavior.
+   *
+   * See [[Collab.canGC]].
    */
   canGC(): boolean {
     for (const child of this.children.values()) {
@@ -228,14 +215,12 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   }
 
   /**
-   * Called by this Collab's parent when it has been deleted from a
-   * collection on the local
-   * replica and can no longer be used.
+   * Internal (parent) use only.
    *
-   * By default, this method calls finalize on every child.
-   * A CObject subclass can override this method to clean up
-   * external resources, e.g., associated DOM elements.
-   * If overridden, consider calling super.finalize().
+   * By default, this methods calls `finalize` on every child.
+   * on every child. Override to change this behavior,
+   * e.g., to add your own finalization steps
+   * (but consider calling `super.finalize()`).
    */
   finalize(): void {
     for (const child of this.children.values()) {

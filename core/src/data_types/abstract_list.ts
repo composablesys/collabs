@@ -163,7 +163,7 @@ const proxyHandler: ProxyHandler<
 };
 
 /**
- * This mixin adds default implementations of [[IList]]
+ * Mixin that adds default implementations of [[IList]]
  * methods to a base class `Base`. `Base` is assumed to extend [[Collab]]
  * and implement the remaining IList methods (or leave them abstract).
  *

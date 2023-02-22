@@ -12,16 +12,39 @@ import { Optional } from "./optional";
 import { SafeWeakRef } from "./safe_weak_ref";
 
 /**
- * A serializer for values of type `T` (e.g., elements
- * in Collabs collections), so that they can
- * be sent to other replicas in Collabs operations.
+ * A serializer for values of type `T`.
  *
- * [[DefaultSerializer.getInstance]]`()` should suffice for most uses.
- * An exception is serializing [[CollabID]]s, which requires
- * [[CollabIDSerializer]].
+ * Collabs with a generic type `T`, like [[CVar]]`<T>` or
+ * [[CValueSet]]`<T>`, need a Serializer\<T\> so that they can send
+ * values of type `T` from one replica to another.
+ *
+ * By default,
+ * all built-in Collabs use [[DefaultSerializer]], which permits
+ * JSON values and some others. To use more general `T`
+ * or to optimize the encoding, you must supply your own
+ * Serializer\<T\>, typically in the Collab constructor's
+ * `options` parameter.
+ *
+ * Serializers provided with the library include [[DefaultSerializer]],
+ * [[StringSerializer]], [[TrivialSerializer]], [[SingletonSerializer]],
+ * [[PairSerializer]], and [[CollabIDSerializer]].
+ *
+ * See also: [[Bytes]], which encodes Uint8Arrays as strings.
  */
 export interface Serializer<T> {
+  /**
+   * Returns a Uint8Array that is the serialized form of value.
+   *
+   * To recover the original value, use [[deserialize]].
+   */
   serialize(value: T): Uint8Array;
+  /**
+   * Inverse of [[serialize]].
+   *
+   * Typically, this returns a deep clone of the original value, not
+   * the same literal reference. Indeed, it is impossible to return
+   * the original reference on a different replica.
+   */
   deserialize(message: Uint8Array): T;
 }
 
@@ -30,23 +53,31 @@ export interface Serializer<T> {
 // from a fixed given one.
 
 /**
- * Default serializer.
+ * Default [[Serializer]].
  *
  * Supported types are a superset of JSON:
  * - Primitive types (string, number, boolean, undefined, null)
- * - Arrays and plain (non-class) objects, serialized recursively (this includes [[CollabID]]s)
+ * - Arrays and plain (non-class) objects, serialized recursively
+ * - [[CollabID]]s (covered by the previous case since they are plain objects)
  * - Uint8Array
  * - [[Optional]]<T>, with T serialized recursively.
  *
  * All other types cause an error during [[serialize]].
+ *
+ * Construct using [[getInstance]].
  */
 export class DefaultSerializer<T> implements Serializer<T> {
   private constructor() {
-    // Constructor is just here to mark it as private.
+    // Singleton.
   }
 
   private static instance = new this();
 
+  /**
+   * Returns an instance of [[DefaultSerializer]].
+   *
+   * Internally, all instances are the same literal object.
+   */
   static getInstance<T>(): DefaultSerializer<T> {
     return <DefaultSerializer<T>>this.instance;
   }
@@ -186,6 +217,12 @@ export class DefaultSerializer<T> implements Serializer<T> {
   }
 }
 
+/**
+ * Serializer for string that uses utf-8 encoding.
+ *
+ * This is a singleton class; use [[instance]]
+ * instead of the constructor.
+ */
 export class StringSerializer implements Serializer<string> {
   private constructor() {
     // Use StringSerializer.instance instead.
@@ -200,8 +237,10 @@ export class StringSerializer implements Serializer<string> {
 }
 
 /**
- * Serializes [T] using a serializer for T.  This is slightly more efficient
- * than the default serializer, and also works with arbitrary T.
+ * Serializes \[T\] using a serializer for T. This is slightly more efficient
+ * than [[DefaultSerializer]], and it works with arbitrary T.
+ *
+ * Construct using [[getInstance]].
  */
 export class SingletonSerializer<T> implements Serializer<[T]> {
   private constructor(private readonly valueSerializer: Serializer<T>) {}
@@ -220,6 +259,12 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
     WeakRef<SingletonSerializer<unknown>>
   >();
 
+  /**
+   * Returns an instance of [[SingletonSerializer]] that uses valueSerializer
+   * to serialize the singleton value.
+   *
+   * This method may cache instances internally to save memory.
+   */
   static getInstance<T>(
     valueSerializer: Serializer<T>
   ): SingletonSerializer<T> {
@@ -234,6 +279,10 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
   }
 }
 
+/**
+ * Serializes \[T, U\] using serializers for T and U. This is slightly more efficient
+ * than [[DefaultSerializer]], and it works with arbitrary T and U.
+ */
 export class PairSerializer<T, U> implements Serializer<[T, U]> {
   constructor(
     private readonly oneSerializer: Serializer<T>,
@@ -259,7 +308,13 @@ export class PairSerializer<T, U> implements Serializer<[T, U]> {
 
 const emptyUint8Array = new Uint8Array();
 
+/**
+ * Serializes a fixed value as an empty Uint8Array.
+ */
 export class TrivialSerializer<T> implements Serializer<T> {
+  /**
+   * @param value The value that [[deserialize]] will always return.
+   */
   constructor(readonly value: T) {}
 
   serialize(_value: T): Uint8Array {
@@ -271,6 +326,12 @@ export class TrivialSerializer<T> implements Serializer<T> {
   }
 }
 
+/**
+ * Serializes [[CollabID]]s. This is slightly more efficient
+ * than [[DefaultSerializer]].
+ *
+ * Construct using [[getInstance]].
+ */
 export class CollabIDSerializer<C extends Collab>
   implements Serializer<CollabID<C>>
 {
@@ -280,6 +341,11 @@ export class CollabIDSerializer<C extends Collab>
 
   private static instance = new this<Collab>();
 
+  /**
+   * Returns an instance of [[CollabIDSerializer]].
+   *
+   * Internally, all instances are the same literal object.
+   */
   static getInstance<C extends Collab>(): CollabIDSerializer<C> {
     return this.instance;
   }
@@ -296,15 +362,17 @@ export class CollabIDSerializer<C extends Collab>
 }
 
 /**
+ * Internal utility for working with protobuf encodings.
+ *
  * Apply this function to protobuf.js uint64 and sint64 output values
  * to convert them to the nearest JS number (double).
  * For safe integers, this is exact.
- *
- * In theory you can "request" protobuf.js to not use
- * Longs by not depending on the Long library, but that is
- * flaky because a dependency might import it.
  */
 export function int64AsNumber(num: number | Long): number {
+  // In theory you can "request" protobuf.js to not use
+  // Longs by not depending on the Long library, in which case
+  // you can just cast to number. But that is
+  // flaky because a dependency might import Long.
   if (typeof num === "number") return num;
   else return num.toNumber();
 }

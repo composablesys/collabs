@@ -37,7 +37,7 @@ export interface MakeAbstractMap_Methods<
 }
 
 /**
- * This mixin adds default implementations of [[IMap]]
+ * Mixin that adds default implementations of [[IMap]]
  * methods to a base class `Base`. `Base` is assumed to extend [[Collab]]
  * and implement the remaining IMap methods (or leave them abstract).
  *

@@ -21,75 +21,65 @@ import {
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
 
 /**
- * A collaborative lazy map with mutable values.
+ * A collaborative "lazy" map with mutable values.
  *
- * Every key is implicitly always present, although only nontrivial
- * values are actually stored in memory.
- *
- * Alternatively, you can think of this like a [[CObject]]
- * with one property/child per key (potentially infinitely
- * many). Like a [[CObject]], it makes sense for general
- * Collabs, not just CRDTs.
- *
- * The "always exists" nature means that, unlike in
- * [[CMap]], there
- * is no conflict when two users concurrently "create"
- * values with the same key. Instead, they are just accessing
- * the same value. If they perform operations on that
- * value concurrently, then those operations will all
- * apply to the value, effectively merging their changes.
- *
- * For immutable values, consider [[CValueMap]].
- *
- * ## Laziness
- *
- * The name "LazyMap" references the [Apache Commons
+ * "Lazy" means that every key-value pair implicitly exists,
+ * but only nontrivial values are actually stored in memory.
+ * [[get]](key) will construct its value if needed using
+ * the `valueConstructor` passed to the constructor.
+ * This is similar to [Apache Commons
  * LazyMap](https://commons.apache.org/proper/commons-collections/apidocs/org/apache/commons/collections4/map/LazyMap.html).
- * That map likewise creates values on demand using a
- * factory method, to give the impression that all
- * keys are always present.
+ *
+ * Due to laziness, there is no explicit operation to "set"
+ * the value at a key. (The [[set]] method
+ * is a no-op.) Instead, all replicas [[get]] the same value,
+ * and any operations they perform on that value (which is
+ * itself a [[Collab]]) affect everyone.
+ * This contrasts with [[CMap]], in which each [[set]] operation
+ * overwrites the previous value at its key, erasing any
+ * changes (including concurrent ones).
+ *
+ * Another way to think of a CLazyMap is like a [[CObject]]
+ * with one child per key (potentially infinitely
+ * many).
+ *
+ * See also: [[CMap]], [[CValueMap]].
  *
  * ## Key Presence
  *
- * For the
- * purpose of the iterators and has, a key is considered
- * to be present in the map if its value is nontrivial,
- * specifically, if value.canGC() returns false.
- * Note that this implies that a just-added key may
- * not be present in the map.  This unusual semantics
- * is necessary because the map does not necessarily
- * maintain all elements internally, only the nontrivial
- * ones, and so the iterators are unable to consistently return
- * all trivial elements.
+ * All values implicitly exist and [[get]] always returns non-undefined.
+ * However, [[has]], [[getIfPresent]], [[size]], [[entries]], etc.
+ * determine key presence by:
+ * a key is present if its value is nontrivial, i.e., not in the
+ * initial state returned by `valueConstructor`.
+ *
+ * For example, a [[CVar]] is nontrivial after [[CVar.value]] is first set.
+ * It becomes trivial again if [[CVar.clear]] is called and there are no
+ * concurrent operations. (Generally, a `clear` method makes its Collab
+ * trivial, except for lists.)
+ *
+ * "Set" and "Delete" events respect these key presence
+ * rules: "Set" is emitted for a key when its value
+ * goes from trivial to nontrivial, and "Delete"
+ * is emitted when its value goes from nontrivial to trivial.
+ * Because a "Set" event is not emitted until after a value becomes
+ * nontrivial, it is important to register values' event handlers in
+ * `valueConstructor` instead of during the "Set" event.
  *
  * [[delete]] and [[clear]] throw errors (grow-only semantics).
  * [[set]] has no effect; it just returns the same value
  * as [[get]].
  *
- * "Set" and "Delete" events respect these key presence
- * rules: "Set" is emitted for a key when its value
- * goes from trivial to nontrivial, and "Delete"
- * is emitted when its vale goes from nontrivial to trivial.
- * Since this is a bit weird, we expect these events to
- * be used rarely.
- *
- * Since a value can be created without emitting a
- * "Set" event (in case it remains trivial), you should
- * register event handlers on values in `valueConstructor`,
- * not in a "Set" handler.
- *
  * ## Garbage Collection
  *
- * A value may be garbage collected if:
- * (1) `value.canGC` returns false ([[Collab.canGC]])
- * (2) There are no other references to the value.
+ * Internally, a value is considered trivial if its [[Collab.canGC]]
+ * method returns true or if it has performed no operations.
+ * Trivial values are only weakly referenced and so may be garbage
+ * collected. After garbage collection, they are re-created using
+ * valueConstructor if needed.
  *
- * In this case, the JavaScript garbage collector is
- * allowed to reclaim the value. If the value is
- * referenced later (either by calling [[get]] locally
- * or because it receives a message), then it is
- * recreated using `valueConstructor`. This is okay
- * by the contract of [[Collab.canGC]].
+ * @typeParam K The type of keys.
+ * @typeParam C The type of mutable values, represented by a Collab.
  */
 export class CLazyMap<K, C extends Collab>
   extends AbstractMap_Collab<K, C, []>
@@ -101,10 +91,14 @@ export class CLazyMap<K, C extends Collab>
   private readonly keySerializer: Serializer<K>;
 
   /**
-   * @param valueConstructor Used to construct the
+   * @param valueConstructor Callback used to construct the
    * value with the given key. For each key, the constructed values
    * must be the same on all replicas, i.e., the
    * same class and constructor arguments.
+   * This may be called multiple times for the same key due to garbage
+   * collection (see class header).
+   * @param options.keySerializer A serializer for keys.
+   * Defaults to [[DefaultSerializer]].
    */
   constructor(
     init: InitToken,
@@ -219,8 +213,10 @@ export class CLazyMap<K, C extends Collab>
     }
   }
 
+  /**
+   * No-op, just returns [[get]](key).
+   */
   set(key: K): C {
-    // No-op, just return the value
     return this.get(key);
   }
 
@@ -239,17 +235,21 @@ export class CLazyMap<K, C extends Collab>
   }
 
   /**
-   * Note: returns the value even if has = false, so
-   * that it's possible to get it, and so that common
-   * get! idioms work.  getIfPresent does the usual
-   * get semantics.
-   * @param  key [description]
-   * @return     [description]
+   * Returns the value associated to key, constructing it with `valueConstructor`
+   * if needed.
+   *
+   * This will never return undefined, even if [[has]](key) is false.
+   * See [[getIfPresent]].
    */
   get(key: K): C {
     return this.getInternal(key, this.keyAsString(key), false)[0];
   }
 
+  /**
+   * Returns the value associated to key, or `undefined` if it is not present.
+   *
+   * Key presence is defined in the class header.
+   */
   getIfPresent(key: K): C | undefined {
     const str = this.keyAsString(key);
     if (this.inReceiveKeyStr === str) {
@@ -273,6 +273,9 @@ export class CLazyMap<K, C extends Collab>
     } else return this.nontrivialMap.has(str);
   }
 
+  /**
+   * The number of present (nontrivial) values in the map.
+   */
   get size(): number {
     return this.nontrivialMap.size;
   }
