@@ -5,8 +5,11 @@ import { IMap, MapEventsRecord } from "./i_map";
 // See MakeAbstractMap for the rationale behind this file.
 
 /**
- * Abstract [[IMap]] with some default method implementations,
- * as a subclass of [[Collab]].
+ * Skeletal implementation of the [[IMap]] interface, as a subclass of
+ * [[Collab]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractMap_Collab<
     K,
@@ -37,8 +40,11 @@ export declare abstract class AbstractMap_Collab<
 }
 
 /**
- * Abstract [[IMap]] with some default method implementations,
- * as a subclass of [[CObject]].
+ * Skeletal implementation of the [[IMap]] interface, as a subclass of
+ * [[CObject]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractMap_CObject<
     K,
@@ -69,8 +75,11 @@ export declare abstract class AbstractMap_CObject<
 }
 
 /**
- * Abstract [[IMap]] with some default method implementations,
- * as a subclass of [[CPrimitive]].
+ * Skeletal implementation of the [[IMap]] interface, as a subclass of
+ * [[CPrimitive]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractMap_CPrimitive<
     K,

@@ -5,6 +5,14 @@ import {
 } from "../../../generated/proto_compiled";
 import { ListPosition } from "./list_position_source";
 
+/**
+ * Serializer for [[ListPosition]]. This is slightly more efficient
+ * than [[DefaultSerializer]].
+ *
+ * Unless you are implementing a list CRDT, you will
+ * instead use the positions described by [[IList]],
+ * which are opaque strings.
+ */
 export class ListPositionSerializer implements Serializer<ListPosition> {
   private constructor() {
     // Private constructor, use instance instead.
@@ -29,6 +37,12 @@ export class ListPositionSerializer implements Serializer<ListPosition> {
 
 /**
  * Serializer for the return value of [[ListPositionSource.createPositions]].
+ * This is slightly more efficient
+ * than [[DefaultSerializer]].
+ *
+ * Unless you are implementing a list CRDT, you will
+ * instead use the positions described by [[IList]],
+ * which are opaque strings.
  */
 export class CreatePositionsSerializer
   implements

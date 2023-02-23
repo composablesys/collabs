@@ -9,7 +9,7 @@ class FakeWeakRef<T extends object> implements WeakRef<T> {
 }
 
 /**
- * WeakRef "polyfill" that will use a normal ref if WeakRef is not supported.
+ * WeakRef "polyfill" that will use a normal object if WeakRef is not supported.
  */
 export const SafeWeakRef =
   typeof WeakRef === "undefined" ? FakeWeakRef : WeakRef;

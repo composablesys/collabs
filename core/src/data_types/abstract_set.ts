@@ -25,7 +25,7 @@ export interface MakeAbstractSet_Methods<T, AddArgs extends unknown[] = [T]> {
 }
 
 /**
- * This mixin adds default implementations of [[ISet]]
+ * Mixin that adds default implementations of [[ISet]]
  * methods to a base class `Base`. `Base` is assumed to extend [[Collab]]
  * and implement the remaining ISet methods (or leave them abstract).
  *

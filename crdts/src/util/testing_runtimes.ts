@@ -3,35 +3,40 @@ import { CRuntime } from "../runtime";
 
 /**
  * Creates a collection of [[CRuntime]]s linked together
- * (in-memory networking) that deliver messages
- * when release is called.
+ * (in-memory networking) that delivers messages
+ * when [[release]] is called.
+ *
+ * This is useful for tests, including tests with concurrent operations.
  */
 export class TestingRuntimes {
   /**
    * Maps sender and recipient to an array of queued messages.
    */
-  messageQueues = new Map<CRuntime, Map<CRuntime, Uint8Array[]>>();
+  private readonly messageQueues = new Map<
+    CRuntime,
+    Map<CRuntime, Uint8Array[]>
+  >();
 
   /**
    * Maps sender to the number of bytes they have sent.
    */
-  sentBytes = new Map<CRuntime, number>();
+  private readonly sentBytes = new Map<CRuntime, number>();
   /**
    * Maps sender to the number of bytes they have received.
    */
-  receivedBytes = new Map<CRuntime, number>();
+  private readonly receivedBytes = new Map<CRuntime, number>();
 
   /**
-   * [newRuntime description]
+   * Returns a new [[CRuntime]] linked with all prior
+   * runtimes created by this TestingRuntime.
    *
-   * @param  batchingStrategy Note that the default here is
-   * [[TestingBatchingStrategy]], unlike in [[CRuntime]].
-   * @return                  [description]
+   * @param rng As in [[CRuntime]]'s constructor.
+   * @param causalityGuaranteed As in [[CRuntime]]'s constructor.
    */
   newRuntime(
     rng: seedrandom.prng | undefined = undefined,
     causalityGuaranteed = false
-  ) {
+  ): CRuntime {
     const debugReplicaID = rng ? ReplicaIDs.pseudoRandom(rng) : undefined;
     const runtime = new CRuntime({
       autoTransactions: "op",
@@ -64,12 +69,14 @@ export class TestingRuntimes {
   }
 
   /**
-   * Release all queued messages from sender to the specified recipients.
+   * Releases all queued messages from sender to the specified recipients.
    * If recipients are not specified, releases them to all
-   * recipients.  Only recipients that existed at the time
+   * recipients.
+   *
+   * Only recipients that existed at the time
    * of sending will receive a message.
    */
-  release(sender: CRuntime, ...recipients: CRuntime[]) {
+  release(sender: CRuntime, ...recipients: CRuntime[]): void {
     if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
     const senderMap = this.messageQueues.get(sender)!;
     for (const recipient of recipients) {
@@ -85,15 +92,30 @@ export class TestingRuntimes {
     }
   }
 
-  releaseAll() {
+  /**
+   * Release all queued messages.
+   *
+   * Only recipients that existed at the time
+   * of sending will receive a message.
+   */
+  releaseAll(): void {
     for (const sender of this.messageQueues.keys()) this.release(sender);
   }
 
-  getTotalSentBytes() {
+  /**
+   * Returns the total number of bytes in messages
+   * sent by all runtimes.
+   */
+  getTotalSentBytes(): number {
     let ret = 0;
     for (const value of this.sentBytes.values()) ret += value;
     return ret;
   }
 
+  /**
+   * The last sent message, if any.
+   *
+   * This is sometimes convenient to access during benchmarks.
+   */
   lastMessage?: Uint8Array = undefined;
 }

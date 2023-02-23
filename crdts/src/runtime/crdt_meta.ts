@@ -1,45 +1,21 @@
 import { MetaRequest } from "@collabs/core";
 
 /**
- * Extra field on [[UpdateMeta]] that gives metadata
- * relevant to CRDTs.
+ * CRDT-related meta for an update.
  *
- * Keyed by [[CRDTMeta.MESSAGE_META_KEY]].
+ * [[CRuntime]] puts this meta in [[UpdateMeta.runtimeExtra]]
+ * whenever it delivers a message or saved state.
+ * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
- * The easiest way to access this extra metadata is by
- * subclassing [[PrimitiveCRDT]]. It provides an abstract
- * method [[PrimitiveCRDT.receiveCRDT]] in place of
- * [[Collab.receive]], which receives the [[CRDTMeta]]
- * as an argument.
+ * All messages in the same transaction
+ * have the same [[CRDTMeta]]. <!-- TODO: docs link -->
  *
- * To ensure access to [[CRDTMeta]], a [[Collab]] must
- * be a descendant of [[CRDTMetaLayer]] in the tree
- * of [[Collab]]s. Using [[CRuntime]] ensures this
- * for all [[Collab]]s.
- *
- * All messages in the same [transaction](../../transactions.md)
- * will have the same [[CRDTMeta]]. In particular,
- * [[senderCounter]] and [[lamportTimestamp]] may be repeated
- * for the same sender, so they cannot be
- * used as part of a unique identifer
- * (see [[IRuntime.nextLocalCounter]] instead).
- *
- * [[vectorClockGet]] values, [[wallClockTime]],
- * and [[lamportTimestamp]] are not included by default.
- * Instead, they must be requested from the ambient
- * [[CRDTExtraMetaRequestee]], accessed via
- *  [[Collab.getContext]]([[CRDTMetaRequestee.CONTEXT_KEY]]).
- * The easiest way to do this is again to subclass
- * [[PrimitiveCRDT]]; its [[PrimitiveCRDT.sendCRDT]] method takes
- * requests as an argument. Notes:
- * - You may succeed at accessing a field you did not request,
- * if it was included due to another request in the same
- * transaction or (for vector clock entries) if it was included
- * for causal ordering purposes.
- * - If you attempt to access a field you did not request,
- * it may fail on the sending replica but succeed on
- * remote replicas. This happens if the field was requested
- * by a later message in the same transaction.
+ * Properties are only included if they were accessed during the
+ * sender's own local echo (i.e., within their
+ * [[PrimitiveCRDT.receiveCRDT]] / [[Collab.receive]] call)
+ * or requested by a [[CRDTMetaRequest]] passed to
+ * [[PrimitiveCRDT.sendCRDT]] / [[Collab.send]].
+ * Other fields are null, or 0 for [[vectorClockGet]].
  */
 export interface CRDTMeta {
   /**
@@ -58,59 +34,65 @@ export interface CRDTMeta {
    * or 0 if none have been received.
    * Equivalently, the number of transactions received from
    * replicaID.
-   * When `replicaID` is sender, this is the same as senderCounter.
    *
-   * Must be requested by the sender using
-   * [[CRDTMetaRequestee.requestVectorClockEntry]]
-   * (or a broader request). If not requested,
-   * this may return 0 as if `replicaID` had never
-   * sent any messages, regardless of the actual value.
+   * When `replicaID` is `senderID`, this is the same as senderCounter.
+   *
+   * If not requested or accessed by the sender, returns 0.
    */
   vectorClockGet(replicaID: string): number;
   /**
-   * The sender's wall clock time (`Date.now()`) when
-   * they sent the transaction (more precisely, when
-   * this [[CRDTMeta]] was created for the transaction).
+   * The sender's wall clock time (`Date.now()`)
+   * for the transaction that created this item.
    *
-   * Must by requested by the sender using
-   * [[CRDTMetaRequestee.requestWallClockTime]]
-   * (or a broader request); otherwise it may be null.
+   * If not requested or accessed by the sender, this is null.
    */
   readonly wallClockTime: number | null;
   /**
-   * The transaction's [Lamport Timestamp](https://en.wikipedia.org/wiki/Lamport_timestamp).
+   * The [Lamport timestamp](https://en.wikipedia.org/wiki/Lamport_timestamp)
+   * for the transaction that created this item.
    *
-   * Unlike the traditional definition of Lamport timestamp
-   * (in which every message is an "event" that
-   * increments the timestamp), we only count
-   * *transactions that requested this field*
-   * as events. That is:
-   * - Transactions that do **not** request this field do
-   * not increment the local Lamport timestamp.
-   * - Transactions that **do** request this field
-   * increase the local Lamport timestamp by 1,
-   * regardless of how many messages are in the transaction.
-   *
-   * Must by requested by the sender using
-   * [[CRDTMetaRequestee.requestLamportTimestamp]]
-   * (or a broader request); otherwise it may be null.
+   * If not requested or accessed by the sender, this is null.
    */
   readonly lamportTimestamp: number | null;
 }
 
+/**
+ * A request for specific [[CRDTMeta]] fields.
+ *
+ * This is the [[MetaRequest]] type for [[CRuntime]],
+ * as passed to [[PrimitiveCRDT.sendCRDT]] / [[Collab.send]].
+ *
+ * All requests are in addition to those accessed during
+ * the sender's own local echo.
+ * For most CRDTs, the sender-accessed fields suffice,
+ * so requests are not necessary.
+ */
 export interface CRDTMetaRequest extends MetaRequest {
+  /**
+   * Requests additional vector clock entries for
+   * [[CRDTMeta.vectorClockGet]], keyed by replicaID.
+   */
   vectorClockKeys?: Iterable<string>;
+  /**
+   * Requests [[CRDTMeta.wallClockTime]].
+   */
   wallClockTime?: boolean;
+  /**
+   * Requests [[CRDTMeta.lamportTimestamp]].
+   */
   lamportTimestamp?: boolean;
 }
 
 /**
- * Flag on [[IRuntime]] indicating that it provides [[CRDTMeta]]
- * in [[UpdateMeta.runtimeExtra]], implemented by [[CRuntime]].
+ * Flag on an [[IRuntime]] indicating that it provides [[CRDTMeta]]
+ * in [[UpdateMeta.runtimeExtra]].
  *
  * Collabs that use [[CRDTMeta]] are encouraged to check this flag
  * in their constructor ([[PrimitiveCRDT]] does this for you).
  */
 export interface CRDTMetaProvider {
+  /**
+   * [[CRDTMetaProvider]] flag.
+   */
   readonly providesCRDTMeta: true;
 }

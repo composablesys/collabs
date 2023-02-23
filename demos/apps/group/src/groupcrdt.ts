@@ -4,7 +4,7 @@ import {
   CPrimitive,
   InitToken,
   UpdateMeta,
-} from "@collabs/core";
+} from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 import { MultipleSemidirectProduct } from "./multiple_semidirect_product";
 

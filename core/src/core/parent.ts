@@ -15,19 +15,16 @@ import { MetaRequest } from "./updates";
  */
 export interface IParent {
   /**
-   * Called by `child` to send the given message.
+   * Internal ([[Collab.send]]) use only.
    *
-   * *In general*, this parent is then responsible for delivering the given
+   * Sends the given message on behalf of child.
+   * In general, this parent is then responsible for delivering the given
    * message to [[Collab.receive]] on each replica of child, with
-   * guarantees set by the [[runtime]]. *However*, this may choose
-   * to violate the delivery assumptions, so long as it can
-   * guarantee consistency (etc.). For example, [[CSet]] does not
-   * deliver messages to deleted set elements.
+   * guarantees set by the [[runtime]].
    *
-   * @param  child        [description]
-   * @param  messageStack  [description]
-   * @param  metaRequests [description]
-   * @return              [description]
+   * @param  child        The caller.
+   * @param  messageStack As in [[Collab.send]].
+   * @param  metaRequests As in [[Collab.send]].
    */
   childSend(
     child: Collab,
@@ -40,36 +37,31 @@ export interface IParent {
    * parent.
    *
    * The CollabID may be passed to [[fromID]] on any replica of this
-   * parent, but not other parents, to obtain that replica's copy of
+   * parent (but not other parents) to obtain that replica's copy of
    * `descendant`.
-   *
-   * Typically, this method is implemented as [[collabIDOf]]`(descendant, this)`.
    *
    * @param descendant A strict (non-`this`) descendant of this parent.
    */
   idOf<C extends Collab>(descendant: C): CollabID<C>;
 
   /**
-   * Given a [[CollabID]] returned by [[idOf]] on some replica of
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
    * this parent, returns this replica's copy of the original
-   * `descendant`, or `undefined` if that descendant no longer exists.
+   * `descendant`. If that descendant does not exist (e.g., it was deleted
+   * or it is not present in this program version), returns undefined.
    *
    * @param id A CollabID from [[idOf]].
-   * @param startIndex Utility for implementing our own ancestors'
-   * [[fromID]] methods; other callers should omit this field.
-   *
-   * When provided, this method will treat `id.namePath` as if
-   * it starts at the given index instead of 0.
-   * @returns The local replica of the Collab with the given id,
-   * or `undefined` if it no longer exists.
-   * @throws If the id is malformed, i.e., no descendant (including
-   * deleted descendants) could possibly have that id.
+   * @param startIndex Internal (parent) use only.
+   * If provided, treat `id.namePath` as if
+   * it starts at startIndex instead of 0.
    */
   fromID<C extends Collab>(id: CollabID<C>, startIndex?: number): C | undefined;
 }
 
 /**
  * Something that can be a parent of a [[Collab]]: either
- * a [[IRuntime]] or a [[Collab]] that can have children.
+ * an [[IRuntime]] or a [[Collab]] that can have children.
  */
 export type Parent = IParent & (Collab | IRuntime);

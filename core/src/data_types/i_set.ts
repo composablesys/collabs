@@ -19,40 +19,58 @@ MERCHANTABLITY OR NON-INFRINGEMENT.
 
 See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
-***************************************************************************** */
+*/
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
+/**
+ * Event emitted by an [[ISet]]`<T>` implementation
+ * when a value is added or deleted.
+ */
 export interface SetEvent<T> extends CollabEvent {
+  /**
+   * The affected value.
+   */
   value: T;
 }
 
+/**
+ * Base events record for an [[ISet]]`<T>` implementation.
+ */
 export interface SetEventsRecord<T> extends CollabEventsRecord {
   /**
-   * Only emitted when the value is actually new
-   * (was not previously present).
+   * Emitted when a value is added, i.e., goes
+   * from "not present" to "present".
    */
   Add: SetEvent<T>;
   /**
-   * Only emitted when the value is actually deleted
-   * (was previously present).
+   * Emitted when a value is deleted, i.e., goes
+   * from "present" to "not present".
    */
   Delete: SetEvent<T>;
 }
 
 /**
- * A set of values of type T, supporting add and
- * delete with any semantics.
+ * Interface for a collaborative set with values
+ * of type T.
  *
- * Initially, values must be added using the add method.
- * This method inputs AddArgs and sends them to every
- * replica in serialized form; every replica then uses
- * them to contruct the actual added value of type T,
- * e.g., using a user-supplied callback in the constructor.
- * Added values can later be deleted (and in some implementations,
- * restored), changing
- * their presence in the set, using any semantics to
- * resolve conflicts.
+ * For implementations, see [[CSet]] and [[CValueSet]].
+ *
+ * An `ISet<T>` represents a `Set<T>` and has similar
+ * methods. If conflicting [[add]] and [[delete]] calls
+ * on the same value are possible, then any semantics
+ * can be used to resolve them.
+ *
+ * This interface permits [[add]] to accept arbitrary
+ * `AddArgs` instead of just the value to set.
+ * That is useful
+ * when the value is not serializable, e.g., a dynamically-
+ * created [[Collab]].
+ *
+ * @typeParam T The value type.
+ * @typeParam AddArgs The type of arguments to [[add]].
+ * Defaults to `[T]`, i.e., add inputs the actual value.
+ * @typeParam Events Events record.
  */
 export interface ISet<
   T,
@@ -60,14 +78,14 @@ export interface ISet<
   Events extends SetEventsRecord<T> = SetEventsRecord<T>
 > extends Collab<Events> {
   /**
-   * Sends args to every replica in serialized form.
-   * Every replica then uses
-   * them to contruct the actual added value of type T.
+   * Adds a value to the set using args.
+   *
+   * Typically, args are broadcast to all replicas
+   * in serialized form. Every replica then uses
+   * them to contruct the actual value of type T.
    *
    * @return The added value, or undefined if it is not
-   * yet constructed. Implementations that always construct
-   * the value immediately should get rid of the "undefined"
-   * case.
+   * constructed immediately.
    */
   add(...args: AddArgs): T | undefined;
 
@@ -77,32 +95,46 @@ export interface ISet<
    */
   delete(value: T): void;
 
+  /**
+   * Returns whether value is present in the set.
+   */
   has(value: T): boolean;
 
   /**
-   * Deletes every value in this set.
+   * Deletes every value in the set.
    */
   clear(): void;
 
+  /**
+   * The number of values in the set.
+   */
   readonly size: number;
 
+  /**
+   * Executes a provided function once for each value in
+   * the set, in the same order as [[values]].
+   *
+   * @param callbackfn Function to execute for each value.
+   * Its arguments are the value twice, then this set.
+   * @param thisArg Value to use as `this` when executing `callbackfn`.
+   */
   forEach(
     callbackfn: (value: T, value2: T, set: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
 
   /**
-   * Returns an iterable of values in the set.
+   * Returns an iterator for values in the set.
    *
-   * The iteration order is NOT eventually consistent, i.e.,
+   * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same state.
    */
   [Symbol.iterator](): IterableIterator<T>;
 
   /**
-   * Returns an iterable of values in the set.
+   * Returns an iterator for values in the set.
    *
-   * The iteration order is NOT eventually consistent, i.e.,
+   * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same state.
    */
   values(): IterableIterator<T>;

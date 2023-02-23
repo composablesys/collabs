@@ -2,8 +2,11 @@ import { ISet, SetEventsRecord } from "@collabs/core";
 import { PrimitiveCRDT } from "./primitive_crdt";
 
 /**
- * Abstract [[ISet]] with some default method implementations,
- * as a subclass of [[PrimitiveCRDT]].
+ * Skeletal implementation of the [[ISet]] interface, as a subclass of
+ * [[PrimitiveCRDT]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractSet_PrimitiveCRDT<
     T,

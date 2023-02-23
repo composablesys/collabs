@@ -7,11 +7,23 @@ import {
 } from "../core";
 import { DefaultSerializer, Serializer } from "../util";
 
+/**
+ * Event emitted by a [[CMessenger]] when it receives a message.
+ */
 export interface MessengerEvent<M> extends CollabEvent {
+  /**
+   * The received message.
+   */
   message: M;
 }
 
+/**
+ * Events record for a [[CMessenger]].
+ */
 export interface MessengerEventsRecord<M> extends CollabEventsRecord {
+  /**
+   * Emitted when a message is received.
+   */
   Message: MessengerEvent<M>;
 }
 
@@ -21,13 +33,18 @@ export interface MessengerEventsRecord<M> extends CollabEventsRecord {
  * This Collab has no state; it merely broadcasts messages between replicas.
  * To receive messages, listen on Message events.
  *
- * Note that depending on the [[IRuntime]],
- * messages may be received in different orders on
- * different replicas.
+ * Note that when using the standard library (@collabs/collabs or @collabs/crdts),
+ * concurrent messages may be received in different orders on different replicas.
+ *
+ * @typeParam M The type of messages.
  */
 export class CMessenger<M> extends CPrimitive<MessengerEventsRecord<M>> {
   private readonly messageSerializer: Serializer<M>;
 
+  /**
+   * @param options.messageSerializer A serializer for messages.
+   * Defaults to [[DefaultSerializer]].
+   */
   constructor(
     init: InitToken,
     options: { messageSerializer?: Serializer<M> } = {}
@@ -38,6 +55,10 @@ export class CMessenger<M> extends CPrimitive<MessengerEventsRecord<M>> {
       options.messageSerializer ?? DefaultSerializer.getInstance();
   }
 
+  /**
+   * Sends the given message. It will be delivered in a Message event on
+   * all replicas, including this one.
+   */
   sendMessage(message: M): void {
     const encoded = this.messageSerializer.serialize(message);
     super.sendPrimitive(encoded);

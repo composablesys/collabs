@@ -15,12 +15,13 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
 {
   readonly isRuntime: true = true;
   /**
-   * Readonly. Set with setRootCollab.
+   * Readonly. Set with [[setRootCollab]].
    */
   protected rootCollab!: Collab & Parent;
 
   /**
-   * @param replicaID This replica's [[replicaID]].
+   * @param replicaID This replica's [[replicaID]], usually
+   * obtained from [[ReplicaIDs]]. Must not be `""`.
    */
   constructor(readonly replicaID: string) {
     super();
@@ -30,6 +31,13 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
     }
   }
 
+  /**
+   * Call this during your constructor to set [[rootCollab]].
+   *
+   * @param rootCallback Callback that constructs rootCollab
+   * using the given [[InitToken]].
+   * @returns The constructed rootCollab.
+   */
   protected setRootCollab<C extends Collab & Parent>(
     rootCallback: (init: InitToken) => C
   ): C {

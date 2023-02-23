@@ -1,12 +1,15 @@
 import * as crypto from "crypto";
 
+/**
+ * Utitilies for generating [[IRuntime.replicaID]]s.
+ */
 export class ReplicaIDs {
   private constructor() {
     // Not instantiable.
   }
 
   /**
-   * Characters used for replicaIDs in this class: the base64 chars.
+   * Characters used for generated replicaIDs: the base64 chars.
    */
   static readonly CHARS =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -26,9 +29,7 @@ export class ReplicaIDs {
   static readonly DEFAULT_LENGTH = 10;
 
   /**
-   * @return A random replicaID made of base64 characters.
-   * Such replicaID's can be safely treated as either
-   * byte arrays or UTF-8 strings, and they are printable.
+   * Returns a cryptographically random replicaID made of base64 characters.
    */
   static random(length: number = this.DEFAULT_LENGTH): string {
     const arr = new Array<string>(length);
@@ -60,18 +61,13 @@ export class ReplicaIDs {
   }
 
   /**
-   * For debugging/testing/benchmarking purposes.
-   * Like [[ReplicaIDs.random]] but using pseudo-randomness
-   * instead of cryptographic randomness.
+   * Returns a pseudorandom replicaID made of base64 characters
+   * generated from `rng` (npm package "seedrandom").
    *
-   * This can be passed to [[CRuntime]]'s `debugReplicaID` option.
-   * It is recommended to do so for tests and benchmarks.
-   *
-   * @param rng The psuedo-random number generator, from
-   * npm package "seedrandom".
-   * @return A psueod-random replicaID made of base64 characters.
-   * Such replicaID's can be safely treated as either
-   * byte arrays or UTF-8 strings, and they are printable.
+   * For tests and benchmarks, it is recommended to use such a
+   * replicaID with a fixed seed. You can supply the replicaID
+   * to [[CRuntime]] using its `options.debugReplicaID` constructor
+   * arg.
    */
   static pseudoRandom(
     rng: seedrandom.prng,

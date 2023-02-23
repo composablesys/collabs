@@ -27,7 +27,7 @@ export interface ContainerHostEventsRecord extends CollabEventsRecord {
 /**
  * A host for a Collabs container running in a child IFrame.
  *
- * See [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+ * See [Containers](../../../guide/containers.html).
  *
  * A `CContainerHost` connects to the `CContainer`
  * instance running in the `containerIFrame` provided to

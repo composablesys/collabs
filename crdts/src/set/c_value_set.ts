@@ -8,6 +8,21 @@ import { CMultiValueMap } from "../map";
 
 const trueSerializer = new TrivialSerializer<true>(true);
 
+/**
+ * A collaborative set with values of type T.
+ *
+ * The API is compatible with `Set<T>` and can be used as a
+ * drop-in collaborative replacement when T is internally immutable. If multiple users
+ * add and delete the same value concurrently, the add "wins"
+ * (the value is present).
+ *
+ * Values must be internally immutable;
+ * mutating a value internally will not change it on
+ * other replicas. If you need to mutate values internally,
+ * instead use a [[CSet]].
+ *
+ * @typeParam T The value type.
+ */
 export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
   /**
    * Maps from set values to true. A value is present in this set
@@ -17,6 +32,11 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
    */
   private readonly mvMap: CMultiValueMap<T, true>;
 
+  /**
+   * Constructs a CValueSet.
+   *
+   * @param options.valueSerializer Serializer for values. Defaults to [[DefaultSerializer]].
+   */
   constructor(
     init: InitToken,
     options: { valueSerializer?: Serializer<T> } = {}
@@ -48,6 +68,11 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
     });
   }
 
+  /**
+   * Adds the value, making it present in this set.
+   *
+   * @return `value`.
+   */
   add(value: T): T {
     this.mvMap.set(value, true);
     return value;

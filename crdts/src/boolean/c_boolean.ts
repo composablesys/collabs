@@ -35,11 +35,24 @@ const FalseWinsAggregator: Aggregator<boolean> = {
   },
 } as const;
 
+/**
+ * A collaborative `boolean` value.
+ *
+ * Set and get the value with [[value]]. If multiple
+ * users set the value to `true` and `false` concurrently,
+ * then the value is given by the constructor's `winner` option
+ * (default: `true`).
+ *
+ * See also: [[CVar]]`<boolean>`.
+ */
 export class CBoolean extends CVar<boolean> {
   /**
+   * Constructs a CBoolean with the given `winner`
+   * (default: `true`) and `initialValue`
+   * (default: `false`).
    *
-   * @param init
-   * @param param1 winner: if true, Enable-Wins Flag; else Disable-Wins Flag.
+   * The `initialValue` is used as the value before any
+   * value is set or just after [[clear]] is called.
    */
   constructor(init: InitToken, { winner = true, initialValue = false } = {}) {
     super(init, initialValue, {

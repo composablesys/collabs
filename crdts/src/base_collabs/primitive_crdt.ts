@@ -7,26 +7,21 @@ import {
 import { CRDTMeta, CRDTMetaProvider, CRDTMetaRequest } from "../runtime";
 
 /**
- * Superclass for a primitive (message-passing)
- * operation-based CRDT.
+ * Convenience base class for a CRDT implementation that sends
+ * its own messages over the network.
  *
- * Messages sent with [[sendCRDT]] are delivered to all
- * replica's [[receiveCRDT]] methods (including the sender's)
- * exactly once, in causal order, and tagged with
- * [[CRDTMessageMeta]]. Sent messages are delivered to the local
- * replica immediately. Subclasses are expected to implement
- * an operation-based CRDT algorithm using these methods.
+ * Extend this class to implement a "primitive" CRDT with a simple
+ * broadcast interface ([[sendCRDT]]/[[receiveCRDT]]) and no child
+ * Collabs. This matches how most (op-based) CRDTs
+ * are described algorithmically.
  *
- * Besides renaming send and receive to sendCRDT and receiveCRDT,
- * the only user-facing difference between [[PrimitiveCRDT]]
- * and [[CPrimitive]] is that this class supplies
- * [[CRDTMessageMeta]] to recipients.
+ * This class differs from [[CPrimitive]] in that it requires [[CRuntime]],
+ * and it makes it easier to work with [[CRuntime]]'s [[CRDTMeta]].
  *
- * To function, a [[PrimitiveCRDT]] must have an ancestor
- * that supplies the extra [[UpdateMeta]] key
- * [[CRDTMeta.MESSAGE_META_KEY]] (typically [[CRDTMetaLayer]]). Also, its ancestors
- * must deliver messages exactly once, in causal order,
- * with sent messages delivered to the local replica immediately.
+ * See also:
+ * - [[CObject]], for an "object" Collab that does not need to send its own
+ * messages.
+ * - [[CPrimitive]], for general [[Collab]]s (not just CRDTs).
  */
 export abstract class PrimitiveCRDT<
   Events extends CollabEventsRecord = CollabEventsRecord
@@ -44,34 +39,23 @@ export abstract class PrimitiveCRDT<
   }
 
   /**
-   * Send `message` to all replicas' [[receiveCRDT]] methods.
+   * Broadcasts a message to other replicas of this CRDT.
+   * The message will be delivered to all replicas' [[receiveCRDT]],
+   * including locally.
    *
-   * By default, only [[CRDTMeta]] fields read during the sender's
-   * own [[receivePrimitive]] call (i.e., the local echo) are
-   * broadcast to remote replicas. This is sufficient for most use cases, but you
-   * should think carefully through the steps that
-   * remote recipients would take, and ensure that they
-   * only need to access the same metadata as the sender.
-   * In particular, ensure that it is okay for
-   * remote replicas to see incorrect 0 entries in
-   * the vector clock, so long as that only happens with
-   * entries not accessed by the sender. An easy way to accidentally break this
-   * is with "shortcuts" that assume sequential behavior when
-   * `meta.senderID === this.runtime.replicaID`.
+   * Call this method instead of [[Collab.send]] or [[CPrimitive.sendPrimitive]].
    *
-   * You can explicitly request additional [[CRDTMeta]] fields using `request`:
-   * - `vectorClockKeys`: Include the vector clock entries with the
-   * specified keys (`replicaID`'s). Non-requested entries may return 0
-   * instead of their correct value (as if no messages had been received from
-   * that replica).
-   * - `wallClockTime`: If true, include non-null [[CRDTMeta.wallClockTime]].
-   * - `lamportTimestamp`: If true, nclude non-null [[CRDTMeta.lamportTimestamp]].
+   * By default, [[receiveCRDT]]'s `crdtMeta` will contain all fields that are accessed
+   * during the sender's local call to receiveCRDT.
+   * You can request additional fields with `metaRequest`.
+   *
+   * @param message The message to send.
    */
   protected sendCRDT(
     message: Uint8Array | string,
-    request?: CRDTMetaRequest
+    metaRequest?: CRDTMetaRequest
   ): void {
-    super.sendPrimitive(message, request);
+    super.sendPrimitive(message, metaRequest);
   }
 
   /**
@@ -89,12 +73,25 @@ export abstract class PrimitiveCRDT<
   }
 
   /**
-   * Override to receive messages sent with [[sendCRDT]].
+   * Receives a message sent by [[sendCRDT]]
+   * on a local or remote replica of this PrimitiveCRDT.
    *
-   * This abstract method is like [[CPrimitive.receivePrimitive]] or
-   * [[Collab.receive]], except it also provides `crdtMeta`.
-   * That contains metadata useful for implementing op-based CRDTs,
-   * e.g., a vector clock.
+   * This method processes the message, changes the
+   * local state accordingly, and emits events describing the
+   * local changes.
+   *
+   * This method may assume eventual, exactly-once, causal-order message
+   * delivery, and it must ensure strong eventual consistency.
+   *
+   * See [[Collab.receive]].
+   *
+   * @param message The message sent by [[sendCRDT]].
+   * @param meta Generic metadata attached to this message by the [[CRuntime]].
+   * Note that `meta.updateType` is always `"message"`.
+   * @param crdtMeta CRDT-specific Metadata attached to this message by the [[CRuntime]].
+   * It contains all fields that were accessed
+   * during the sender's local call to receiveCRDT,
+   * plus requests made in [[sendCRDT]].
    */
   protected abstract receiveCRDT(
     message: Uint8Array | string,

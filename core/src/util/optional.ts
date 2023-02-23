@@ -5,12 +5,27 @@ import {
 import { SafeWeakRef } from "./safe_weak_ref";
 import { Serializer } from "./serializers";
 
+/**
+ * An optional value of type T.
+ *
+ * Construct using [[Optional.of]] or [[Optional.empty]].
+ *
+ * Collabs uses this utility type in places where `T | undefined` or
+ * `T | null` is inappropriate because T may itself be
+ * null/undefined.
+ *
+ * Local data structure - not a [[Collab]].
+ */
 export class Optional<T> {
   private constructor(
+    /** Whether the value is present. */
     readonly isPresent: boolean,
     private readonly valueIfPresent: T | undefined
   ) {}
 
+  /**
+   * Returns the value if present, else throwing an error.
+   */
   get(): T {
     if (!this.isPresent) {
       throw new Error("Optional.get() called but isPresent is false");
@@ -18,6 +33,9 @@ export class Optional<T> {
     return this.valueIfPresent!;
   }
 
+  /**
+   * Returns the value if present, else returning other.
+   */
   orElse(other: T): T {
     if (this.isPresent) return this.valueIfPresent!;
     else return other;
@@ -40,14 +58,30 @@ export class Optional<T> {
   }
 
   private static emptyInstance = new Optional<unknown>(false, undefined);
+  /**
+   * Returns an empty (not present) Optional.
+   *
+   * Internally, all empty Optionals are the same literal object.
+   */
   static empty<T>(): Optional<T> {
     return Optional.emptyInstance as Optional<T>;
   }
+
+  /**
+   * Returns a new present Optional representing value.
+   */
   static of<T>(value: T): Optional<T> {
     return new Optional(true, value);
   }
 }
 
+/**
+ * Serializes [[Optional]]`<T>` using a serializer for T.
+ * This is slightly more efficient
+ * than [[DefaultSerializer]], and it works with arbitrary T.
+ *
+ * Construct using [[getInstance]].
+ */
 export class OptionalSerializer<T> implements Serializer<Optional<T>> {
   private constructor(private readonly valueSerializer: Serializer<T>) {}
 
@@ -75,6 +109,12 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
     WeakRef<OptionalSerializer<unknown>>
   >();
 
+  /**
+   * Returns an instance of [[OptionalSerializer]] that uses valueSerializer
+   * to serialize present values.
+   *
+   * This method may cache instances internally to save memory.
+   */
   static getInstance<T>(valueSerializer: Serializer<T>): OptionalSerializer<T> {
     const existingWeak = OptionalSerializer.cache.get(valueSerializer);
     if (existingWeak !== undefined) {

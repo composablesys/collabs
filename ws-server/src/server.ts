@@ -1,13 +1,8 @@
 import WebSocket = require("ws");
 
 /**
- * Customized noop function as ping message.
- */
-function noop() {}
-
-/**
- * This CRDT server will broadcast all messages that a client
- * WebSocket broadcasting to every other connected WebSocket clients, excluding itself.
+ * This CRDT server will broadcast all messages from a
+ * WebSocket client to every other connected WebSocket client, excluding itself.
  *
  * @returns an object { reset }, where reset(group?: string)
  * resets the message history of group, or of all apps
@@ -100,18 +95,12 @@ export function startWebSocketServer(webSocketArgs: WebSocket.ServerOptions): {
     ws.on("close", function () {});
   });
 
-  /**
-   * Sending ping to every connected clients with customized interval.
-   */
   const interval = setInterval(function ping() {
     wss.clients.forEach(function each(ws: any) {
-      ws.ping(noop);
+      ws.ping(() => {});
     });
   }, 5000);
-  /**
-   * Casual broadcasting server onclose routine.
-   * Stop the interval process.
-   */
+
   wss.on("close", function close() {
     clearInterval(interval);
   });

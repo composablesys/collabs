@@ -5,9 +5,9 @@ import { MetaRequest, SavedStateTree, UpdateMeta } from "./updates";
 
 /**
  * Used to initialize a [[Collab]] with the given
- * `name` and `parent.`
+ * [[name]] and [[parent]].
  *
- * A token `{name, parent}` must
+ * An InitToken must
  * **only** be created and used by `parent` itself, to construct
  * a Collab that it is adding as a child.
  */
@@ -23,9 +23,6 @@ export class InitToken {
 /**
  * Supertype for events emitted by Collabs.
  *
- * Such events are typically emitted after the Collab processes an
- * update - either local or remote, and either a message or a saved state.
- *
  * See [[CollabEventsRecord]].
  */
 export interface CollabEvent {
@@ -36,21 +33,17 @@ export interface CollabEvent {
 }
 
 /**
- * A record of events for a Collab, indexed by name.
+ * A record of events emitted by a [[Collab]],
+ * mapping from event name to event type.
  *
- * Collab subclasses generally should define an events record extending
- * this interface, adding a record for each possible change.
- * Each record has the form `eventName: EventType`, where eventName
- * is a string and `EventType` is a type implementing [[CollabEvent]].
- * The Collab should then emit appropriate events each time its
- * state changes due to a local or remote operation.
- * See [Events](../events.md) for advice on what events to
- * include.
+ * Typically, a Collab emits an event whenever its local state
+ * changes. The event should use a Collab-specific name and
+ * type to completely describe the change. Note that different
+ * replicas may see different events: the events describe
+ * the *local* view of the changes.
  *
- * TypeScript can't directly enforce the condition that each `EventType`
- * implements [[CollabEvent]], so we instead
- * enforce this indirectly by making [[Collab.emit]] only accept
- * events extending [[CollabEvent]].
+ * Events records are only intended for type bookkeeping,
+ * not for use by literal objects or classes.
  */
 export interface CollabEventsRecord {
   /**
@@ -62,8 +55,8 @@ export interface CollabEventsRecord {
    * individual event type.
    *
    * When using [[CRuntime]], note that this event may be emitted
-   * in the middle of a transaction, and multiple times during a
-   * transaction or synchronous series of transactions. You may wish to wait to
+   * multiple times in the middle of a transaction. You typically
+   * want to wait to
    * refresh displays until the next [[RuntimeEventsRecord.Change]] event, e.g.:
    * ```ts
    * let isDirty = false;
@@ -80,122 +73,67 @@ export interface CollabEventsRecord {
 }
 
 /**
- * The base class for collaborative data structures ("Collabs", for short).
+ * Base class for a collaborative data structure (abbreviated "Collab").
  *
- * Typically, implementations will not extend this class
- * directly, instead extending an existing subclass;
- * see [Custom Collaborative Data Structures](../../custom_types.md).
+ * A Collab is a data structure that is replicated across multiple
+ * devices and stays in sync between them: when one device
+ * changes a Collab, their changes show up for every other device.
  *
- * # Abstraction
+ * Like local (non-collaborative) data structures, library users interact
+ * with Collabs through type-specific methods (both mutators and accessors).
+ * In addition, a Collab emits events describe state changes, in the style of
+ * reactive programming. This allows you to observe changes due to
+ * remove operations, although local operations also cause events. See [[on]].
  *
- * Fundamentally, `Collab` is an abstraction representing
- * a data structure that is replicated across multiple
- * replicas (i.e., a replicated data type),
- * with the replicas kept in sync by sending messages to each
- * other. The precise network model (causal broadcast,
- * server-serialized order, immediate local echo, etc.)
- * is left open, to let the library be as general as
- * possible. Instead, each Collab should specify its network requirements,
- * typically in the form of a specific [[IRuntime]] or
- * ancestor `Collab`s; users are then expected to meet
- * these requirements when using the Collab.
+ * This base class provides a framework for implementing and networking
+ * Collabs. Most of its properties are not relevant to users of the Collab
+ * but are public for technical reasons; these are marked "Internal use only".
  *
- * # Use Cases
+ * To implement a custom Collab, you will usually extend one of the following
+ * classes instead of `Collab` itself:
+ * - [[CObject]]: For object-oriented composition of existing Collabs.
+ * - [[CPrimitive]]: For a "primitive" Collab that sends its own messages
+ * over the network.
+ * - [[PrimitiveCRDT]]: CRDT variant of CPrimitive that provides
+ * CRDT-specific features.
  *
- * Potential use cases for `Collab` subclasses include operation-based CRDTs,
- * state-based CRDTs, Operational Transformation types,
- * and strongly consistent types with server-serialized messages.
- * However, by default, the library only includes operation-based
- * CRDTs, together with a [[CRuntime]] needed to
- * use them. Nonetheless, many parts of the library
- * can be reused with more general collaborative data
- * structures (e.g., `CObject`). These can be determined
- * by viewing the source code: any classes in `src` and
- * outside of `src/crdts` should be suitable for general use,
- * while `src/crdts` includes the built-in CRDTs and CRDT-specific
- * helpers.
+ * <!-- For information on the Collab abstraction and implementing custom
+ * Collabs, see TODO (in docs/ folder). (Look at old docs on this file.) -->
  *
- * # Composition
- *
- * `Collab` natively supports *composition*: nesting
- * `Collab`s inside of each other to form parent/child
- * relationships, while maintaining
- * replication in the obvious way (children of replicas
- * are themselves replicas).
- *
- * Supported kinds of composition include
- * ordinary object-oriented composition ([[CObject]]),
- * collections of `Collab`s (e.g., [[CSet]]),
- * and `Collab`s that provide a specific
- * environment to their children (e.g., [[CRDTMetaLayer]]).
- *
- * `Collab`s that can be a parent to other `Collab`s must
- * implement [[IParent]], so that their type is
- * assignable to [[Parent]].
- * Each parent `Collab` has full control over its children,
- * allowing a wide range of behavior to be implemented
- * using `Collab` ancestors (e.g., message batching
- * ([[BatchingLayer]]), causal ordering
- *  ([[CRDTMetaLayer]]), and lazy-loading (WIP)).
- *
- * Internally, each `Collab` has a [[parent]] and a [[name]];
- * the [[name]] uniquely identifies the `Collab` among its
- * siblings. They are assigned at construction time using
- * the [[InitToken]] constructor argument.
- * The parent relationships form a tree of `Collab`s,
- * rooted at the [[IRuntime]].
- *
- * Each `Collab` is responsible
- * for its subtree:
- * - Messages are sent up the tree
- * and delivered down the tree. Children call `parent.childSend`
- * (in [[send]]) to send a message, while parents call
- * `child.receive` to deliver a message. Ancestors may choose to
- * modify messages during either sending or receiving.
- * - [[save]] and [[load]] are
- * responsible for saving and loading a `Collab`'s entire
- * subtree. Typically, [[save]] will call [[save]] on each
- * child, then combine those saves with its own `Collab`s info
- * to get its own save data. [[load]] then reverses the process,
- * calling [[load]] on each child.
- *
- * Typically, [[receive]], [[load]], and [[save]] should
- * only be called by the parent.
- *
- * # Other Features
- *
- * ## Events
- *
- * See [Events](../../events.md) and the docs for
- * [[CollabEventsRecord]].
- *
- * ## Saving and Loading
- *
- * See [Saving and Loading](../../saving_and_loading.md) and the docs for
- * [[save]] and [[load]].
+ * @typeParam Events Events record indicating the names and types of
+ * events emitted by this Collab.
  */
 export abstract class Collab<
   Events extends CollabEventsRecord = CollabEventsRecord
 > extends EventEmitter<Events> {
   /**
    * The ambient [[IRuntime]].
+   *
+   * Use this to access utilities like [[IRuntime.replicaID]].
    */
   readonly runtime: IRuntime;
   /**
-   * The Collab's parent in the tree of Collabs.
+   * Internal (this/parent) use only.
+   *
+   * This Collab's parent in the tree of Collabs.
    */
   readonly parent: Parent;
   /**
-   * The Collab's name, which distinguishes it among its siblings
+   * Internal (this/parent) use only.
+   *
+   * This Collab's name, which distinguishes it among its siblings
    * in the tree of Collabs.
    */
   readonly name: string;
 
   /**
-   * Uses the given [[InitToken]] to register this Collab
-   * with its parent, attaching it to the tree of Collabs.
-   * @param init A [[InitToken]] given by
-   * `init.parent` for use in constructing this Collab.
+   * Initializes this Collab with the given [[InitToken]].
+   *
+   * The InitToken must have provided by our parent explicitly for
+   * this constructor call.
+   *
+   * Typically, a Collab subclass takes `init` as its first constructor
+   * argument and calls `super(init)`.
    */
   constructor(init: InitToken) {
     super();
@@ -205,23 +143,17 @@ export abstract class Collab<
   }
 
   /**
-   * Emits an event, which notifies all registered event handlers.
-   * After emitting event, an "Any" event with the same
-   * event.meta is emitted, unless it is already an "Any" event.  (Usually, Collabs should not emit an "Any" event
-   * directly, instead emitting a more specific, custom event.)
+   * Emits an event, which triggers all the registered event handlers.
    *
-   * `event` is forced to implement [[CollabEvent]], to indirectly
-   * express the requirement that all event types in
-   * the [[CollabEventsRecord]] implement [[CollabEvent]].
+   * See [Events](../../../advanced/events.html) for advice
+   * on what events to emit.
    *
-   * See [Events](../../events.md) for advice on what events to emit.
+   * This is a wrapper around [[EventEmitter.emit]]
+   * that forces events to extend [[CollabEvent]]
+   * and also emits an "Any" event.
    *
-   * @typeParam `eventName` as a string literal type.
-   * @param eventName Name of the event.
-   * @param event Event object to pass to the event handlers.
-   * @param emitAnyEvent = true if true (default) and the
-   * event is not an "Any" event, an "Any" event is
-   * emitted immediately after `event`.
+   * @param emitAnyEvent = true Set to false
+   * to skip emitting an "Any" event.
    */
   protected emit<K extends keyof Events>(
     eventName: K,
@@ -235,29 +167,23 @@ export abstract class Collab<
   }
 
   /**
-   * Sends the given message. You may assume that it will be
-   * delivered to [[Collab.receive]] on each replica of this
-   * Collab, with guarantees set by the [[runtime]].
+   * Broadcasts a message to other replicas of this Collab.
+   * The message will be delivered to all replicas' [[receive]],
+   * including locally.
    *
    * For convenience, the message may be expressed as a stack of
    * `(Uint8Array | string)`,
    * instead of just a single Uint8Array. This is
    * useful for parents sending messages on behalf of their children;
-   * see the implementations of [[CObject.childSend]] and
-   * [[CObject.receive]] for an example.
-   * Note that this method may mutate `messageStack` in-place.
+   * see the implementation of [[CObject]] for an example.
    *
-   * Technically, ancestors in the tree of Collabs may violate the
-   * delivery assumption. For example, [[CSet]] does not
-   * deliver messages to deleted set elements. Ancestors that do so
-   * are responsible for ensuring consistency (etc.), so you usually do not
-   * need to worry about such violations.
-   *
-   * @param messageStack The message to send, in the form of a stack
-   * of Uint8Arrays.
-   * @param metaRequests A stack of metadata requests. The IRuntime will use
+   * @param messageStack The message to send, in the form of
+   * a stack of Uint8Arrays. Note that this method
+   * may mutate it in-place.
+   * @param metaRequests A stack of metadata requests. The [[runtime]] will use
    * the union of these when creating the [[UpdateMeta]] for [[receive]].
-   * Note that the stack need not align with `messageStack`.
+   * Note that the stack need not align with `messageStack`, and this method may mutate
+   * it in place.
    */
   protected send(
     messageStack: (Uint8Array | string)[],
@@ -267,15 +193,25 @@ export abstract class Collab<
   }
 
   /**
-   * Called by this Collab's parent to deliver
-   * a message. You may assume that the message was sent by
-   * [[send]] on some replica of this Collab (possibly `this`),
-   * with guarantees set by the [[runtime]].
+   * Internal (parent) use only.
+   *
+   * Receives a message sent by [[send]]
+   * on a local or remote replica of this Collab.
+   *
+   * This method processes the message, changes the
+   * local state accordingly, and emits events describing the
+   * local changes.
+   *
+   * This method should make assumptions and
+   * ensure consistency guarantees
+   * appropriate to its use case. For example, CRDTs may
+   * assume eventual, exactly-once, causal-order message
+   * delivery, and they must ensure strong eventual consistency.
    *
    * @param messageStack The message to receive, in the same format
-   * as in [[send]]. It is okay to mutate `messageStack` in-place,
-   * e.g., calling `pop`.
-   * @param meta Metadata attached to this message by the runtime.
+   * as in [[send]]. This method may mutate `messageStack`
+   * in-place (e.g., calling `pop`).
+   * @param meta Metadata attached to this message by the [[runtime]].
    * It incorporates metadata requests made in [[send]]. Note that
    * `meta.updateType` is always `"message"`.
    */
@@ -285,44 +221,43 @@ export abstract class Collab<
   ): void;
 
   /**
-   * Called by this Collab's parent to obtain saved state. The saved
-   * state describes the current state of this
-   * `Collab` and its descendants.
+   * Internal (parent) use only.
+   *
+   * Returns saved state describing the current state of this Collab.
    *
    * The saved state may later be passed to [[load]] on a replica of
    * this Collab, possibly in a different collaboration session,
    * with rules set by the [[runtime]]. For example, [[CRuntime]]
-   * allows [[load]] to be called at any time; it must act as a "merge"
-   * operation, applying all updates that the saved replica had applied
-   * before saving, ignoring duplicates.
+   * allows [[load]] to be called only at the beginning of a session,
+   * before sending or receiving any messages.
    *
    * `save` may be called at any time, possibly many times while an app
    * is running. Calling `save` should not affect this Collab's
    * user-visible state.
    *
-   * For convenience, the saved state may be expressed as a tree of
-   * Uint8Arrays instead of just a single Uint8Array; see
-   * [[SaveStateTree]]'s docs. Also, this method may return `null` if
+   * This method may return `null` if
    * the saved state is trivial; replicas loading the whole document
    * will then skip calling [[load]] on this Collab's replica.
    *
-   * @return The saved state, in the form of a [[SavedStateTree]], or null
+   * For convenience, the saved state may be expressed as a tree of
+   * Uint8Arrays instead of just a single Uint8Array; see
+   * [[SaveStateTree]]'s docs.
+   *
+   * @return The saved state, or null
    * if there is no state to save.
    */
   abstract save(): SavedStateTree | null;
 
   /**
-   * Called by this Collab's parent to load some saved state.
+   * Internal (parent) use only.
+   *
+   * Called by this Collab's parent to load saved state.
    * You may assume that the saved state was generated by
-   * [[save]] on some replica of this Collab (possibly `this`, although then
-   * it's redundant),
+   * [[save]] on some replica of this Collab,
+   * possibly in a different collaboration session,
    * with guarantees set by the [[runtime]].
    *
-   * Note that when loading a whole document, this Collab's `load` is skipped
-   * if its saved replica's [[save]] call returned `null`.
-   *
-   * @param savedStateTree The saved state to load, in the form of a
-   * [[SavedStateTree].
+   * @param savedStateTree The saved state to load, in the same format as in [[save]].
    * @param meta Metadata attached to this saved state by the runtime.
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
@@ -330,17 +265,14 @@ export abstract class Collab<
   abstract load(savedStateTree: SavedStateTree, meta: UpdateMeta): void;
 
   /**
+   * Internal (parent) use only.
+   *
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
-   * Returning true allows some collections to reduce memory usage
-   * (in particular, [[CLazyMap]]).
    *
-   * When canGC() is true and there are no other (non-weak)
-   * references to this Collab, [[parent]] may choose to
-   * delete it from memory, allowing garbage collection.
-   * If this is needed later, [[parent]] will reconstruct an equivalent
-   * object using the same constructor and constructor arguments.
-   * See [[CLazyMap]]'s implementation for an example.
+   * If true, a parent (e.g., [[CLazyMap]]) may choose to weakly reference
+   * this object to save memory. If this becomes garbage collected, then is needed later,
+   * the parent will recreate it using the same constructor call.
    *
    * By default, this method always returns false.
    */
@@ -349,20 +281,17 @@ export abstract class Collab<
   }
 
   /**
+   * Internal (parent) use only.
+   *
    * Called by this Collab's parent when it has been deleted from a
    * collection on the local
-   * replica and can no longer be used. A Collab implementation can
+   * replica and can no longer be used (e.g., due to [[CSet.delete]] on this
+   * or an ancestor). A Collab implementation can
    * implement this method to clean up
    * external resources, e.g., associated DOM elements.
    *
-   * In particular, finalize is called at the end of receiving a [[CSet.delete]]
-   * operation (just after the "Delete" event) for this Collab or its ancestor.
-   * Implementing finalize may be more convenient than cleaning up during
-   * the "Delete" event, especially if the CSet is wrapped by another Collab.
-   *
-   * finalize has no relation to [[canGC]] or to the JavaScript garbage
-   * collector. In particular, it is not called when a local copy is deleted
-   * from memory due to [[canGC]] but may be revived later.
+   * `finalize` has no relation to the JavaScript garbage collector or
+   * [[canGC]].
    *
    * By default, this method does nothing.
    */

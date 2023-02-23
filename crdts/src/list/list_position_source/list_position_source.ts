@@ -4,6 +4,13 @@ import {
   ListPositionSourceSave,
 } from "../../../generated/proto_compiled";
 
+/**
+ * Internal represention of positions used by [[ListItemManager]].
+ *
+ * Unless you are implementing a list CRDT, you will
+ * instead use the positions described by [[IList]],
+ * which are opaque strings.
+ */
 export type ListPosition = [
   sender: string,
   counter: number,
@@ -11,7 +18,10 @@ export type ListPosition = [
 ];
 
 /**
- * Manages "items" (contiguous blocks of values) for a ListPositionSource.
+ * Manages "items" (contiguous blocks of values) for a [[ListPositionSource]].
+ *
+ * This is a low-level API intended for internal use by list CRDT implementations.
+ * In most apps, you are better off using [[CValueList]] or [[CList]].
  *
  * Implementation advice:
  * - Okay to modify input items directly and return them so long as the
@@ -144,6 +154,15 @@ function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
 }
 
 /**
+ * Source of "positions" for lists.
+ *
+ * This is a low-level API intended for internal use by list CRDT implementations.
+ * In most apps, you are better off using [[CValueList]] or [[CList]].
+ *
+ * ListPositionSource is a local (non-collaborative)
+ * data structure; it relies on a Collab to deliver
+ * messages for it.
+ *
  * @type I The "Item" type, which holds a range of values (e.g., string, array,
  * number indicating number of values). For implementation reasons,
  * items must NOT be negative numbers or null.
@@ -166,10 +185,11 @@ export class ListPositionSource<I> {
   private nextCounter = 0;
 
   /**
-   * [constructor description]
-   * @param replicaID A unique ID for the local replica.
-   * Must not be "".
-   * @param initialItem An item consistent of the initial
+   * Constructs a ListPositionSource.
+   *
+   * @param replicaID The local replica's [[CRuntime.replicaID]].
+   * @param itemManager A ListItemManager for I.
+   * @param options.initialItem An item consisting of the initial
    * values in the list, i.e., values that are present
    * at the list's creation before any operations are
    * performed, or undefined if there are no such values.

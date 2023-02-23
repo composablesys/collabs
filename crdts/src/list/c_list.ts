@@ -23,16 +23,26 @@ import {
   ListPositionSource,
 } from "./list_position_source";
 
-export interface ListMoveEvent<T> extends CollabEvent {
+/**
+ * Event emitted by a [[CList]]`<C>`
+ * when a range of values is moved.
+ */
+export interface ListMoveEvent<C> extends CollabEvent {
   index: number;
   previousIndex: number;
-  values: T[];
+  values: C[];
 }
 
-export interface ListExtendedEventsRecord<T> extends ListEventsRecord<T> {
-  Insert: ListEvent<T> & { method: "insert" | "restore" };
-  Delete: ListEvent<T> & { method: "delete" | "archive" };
-  Move: ListMoveEvent<T>;
+/**
+ * Events record for [[CList]]`<C>`.
+ */
+export interface ListExtendedEventsRecord<C> extends ListEventsRecord<C> {
+  Insert: ListEvent<C> & { method: "insert" | "restore" };
+  Delete: ListEvent<C> & { method: "delete" | "archive" };
+  /**
+   * Emitted when a range of values is moved.
+   */
+  Move: ListMoveEvent<C>;
 }
 
 interface EntryStatus {
@@ -91,16 +101,54 @@ class CListEntry<C extends Collab> extends CObject {
   }
 }
 
+/**
+ * A collaborative list with *mutable*
+ * values of type C.
+ *
+ * Values are internally mutable.
+ * Specifically, each value is its own [[Collab]], and
+ * operations on that Collab are collaborative as usual.
+ *
+ * `CList<C>` has a similar API to `Array<C>`,
+ * but it is mutated more like a linked list: instead of mutating
+ * existing values, you [[insert]] and [[delete]]
+ * list entries. Insertions and deletions
+ * shift later entries, changing their indices, like
+ * in collaborative text editing or
+ * [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
+ *
+ * To insert values, you use the pattern described in
+ * [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs):
+ * one user calls [[insert]] with `InsertArgs`; each
+ * replica passes those `InsertArgs` to its
+ * `valueConstructor`;
+ * and `valueConstructor` returns the local copy of the new value Collab.
+ *
+ * When a value is deleted with [[delete]], it is deleted permanently and
+ * can no longer be used; future and concurrent operations on that value
+ * are ignored. Alternately, use [[archive]] and [[restore]].
+ *
+ * See also: [[CValueList]], [[CText]].
+ */
 export class CList<
   C extends Collab,
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
-  protected readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
-  protected readonly createdPositionMessenger: CMessenger<
+  private readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
+  private readonly createdPositionMessenger: CMessenger<
     [counter: number, startValueIndex: number, metadata: Uint8Array | null]
   >;
-  protected readonly positionSource: ListPositionSource<CListEntry<C>[]>;
+  private readonly positionSource: ListPositionSource<CListEntry<C>[]>;
 
+  /**
+   * Constructs a CList with the given `valueConstructor`.
+   *
+   * @param valueConstructor Callback used to construct a
+   * value Collab with the given [[InitToken]] and arguments to [[insert]]. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * for example usage.
+   * @param options.argsSerializer A serializer for `InsertArgs` as an array.
+   * Defaults to [[DefaultSerializer]].
+   */
   constructor(
     init: InitToken,
     private readonly valueConstructor: (
@@ -200,6 +248,8 @@ export class CList<
       // Also dispatch our own events.
       // Note that for the initial position, this is done
       // in set's Add event listener, not here.
+      // Also note that entry is always non-deleted, since
+      // restore() skips deleted values.
       if (event.value.isPresent && !event.previousValue.isPresent) {
         // entry was un-archived.
         this.positionSource.add(event.value.position, [entry]);
@@ -241,6 +291,23 @@ export class CList<
     return entry;
   }
 
+  /**
+   * Inserts a value at the given index using args.
+   *
+   * All values currently at or after `index` shift
+   * to the right, incrementing their indices.
+   *
+   * The args are broadcast to all replicas in serialized form.
+   * Every replica then passes them to `valueConstructor` to construct the actual
+   * value of type C, a new Collab that is collaborative as usual.
+   *
+   * @param index The insertion index in the range
+   * `[0, this.length]`. If `this.length`, the value
+   * is appended to the end of the list.
+   * @return The inserted value, or undefined if it is not
+   * constructed immediately.
+   * @throws If index is not in `[0, this.length]`.
+   */
   insert(index: number, ...args: InsertArgs): C {
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
@@ -262,10 +329,19 @@ export class CList<
   }
 
   /**
-   * Note: event will show as singleton deletes.
+   * Delete `count` values starting at `startIndex`, i.e., values
+   * `[startIndex, startIndex + count - 1)`.
    *
-   * @param startIndex [description]
-   * @param count=1    [description]
+   * All later values shift to the left,
+   * decreasing their indices by `count`.
+   *
+   * The values are deleted permanently and
+   * can no longer be used; future and concurrent operations on those values
+   * are ignored. Local operations will succeed but will not affect
+   * remote replicas. The values can perform cleanup in their
+   * [[Collab.finalize]] methods.
+   *
+   * See also: [[archive]], [[CSet.delete]].
    */
   delete(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
@@ -284,10 +360,21 @@ export class CList<
   }
 
   /**
-   * Note: event will show as singleton archives.
+   * Archives `count` values starting at `startIndex`, i.e., values
+   * `[startIndex, startIndex + count - 1)`.
    *
-   * @param startIndex [description]
-   * @param count=1    [description]
+   * All later values shift to the left,
+   * decreasing their indices by `count`.
+   *
+   * Unlike [[delete]], archived merely marks values as not present.
+   * Archived values can still perform collaborative operations,
+   * and they can be made present again with [[restore]].
+   *
+   * @param count The number of values to archive.
+   * Defaults to 1 (archive the value at `startIndex` only).
+   *
+   * @throws if `startIndex < 0` or
+   * `startIndex + count >= this.length`.
    */
   archive(startIndex: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
@@ -309,8 +396,23 @@ export class CList<
     }
   }
 
+  /**
+   * Restores the given value, marking it as present in the list.
+   *
+   * The value re-appears at its previous position, unless
+   * moved by [[move]].
+   * All values after that position shift to the right,
+   * incrementing their indices.
+   *
+   * If value is deleted (not just archived), this
+   * method has no effect.
+   */
   restore(value: C): void {
     const entry = value.parent as CListEntry<C>;
+    if (!this.set.has(entry)) {
+      // Already deleted.
+      return;
+    }
     entry.status.value = {
       position: entry.status.value.position,
       isPresent: true,
@@ -318,14 +420,29 @@ export class CList<
   }
 
   /**
-   * Note: event will show as singleton moves.
+   * Moves `count` values from `startIndex` to `insertionIndex`.
    *
-   * @param  startIndex     [description]
-   * @param  insertionIndex [description]
-   * @param  count=1        [description]
-   * @return                [description]
+   * That is, the range of values at `[startIndex, startIndex + count - 1)` is moved to the position
+   * *currently* at `insertionIndex`.
+   *
+   * Other values shift to accommodate the move.
+   *
+   * Collaborative operations on the values continue to work
+   * normally, even if concurrent to the move.
+   *
+   * @param count The number of values to move.
+   * Defaults to 1 (move the value at `startIndex` only).
+   * @returns The new index of the first moved value.
+   * This will be less then `insertionIndex` if `startIndex < insertionIndex`.
+   * @throws if `startIndex < 0` or
+   * `startIndex + count >= this.length`.
    */
   move(startIndex: number, insertionIndex: number, count = 1): number {
+    if (count < 0 || !Number.isInteger(count)) {
+      throw new Error(`invalid count: ${count}`);
+    }
+    if (count === 0) return insertionIndex;
+
     // Positions to insert at.
     const prevPos =
       insertionIndex === 0
@@ -377,7 +494,12 @@ export class CList<
   }
 
   /**
-   * No particular order.
+   * Returns an iterator of [position, value] pairs for every
+   * archived but non-deleted value in the list.
+   *
+   * The iteration order is NOT eventually consistent:
+   * it is unrelated to positions and
+   * may differ on replicas with the same state.
    */
   *archivedEntries(): IterableIterator<[position: string, value: C]> {
     for (const entry of this.set) {
@@ -483,6 +605,4 @@ export class CList<
 
     this.positionSource.load(<Uint8Array>savedState, nextItem);
   }
-
-  // OPT: canGC if not yet mutated.
 }

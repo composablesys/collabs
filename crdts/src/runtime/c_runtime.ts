@@ -29,16 +29,27 @@ class PublicCObject extends CObject {
   }
 }
 
+/**
+ * Event emitted by [[CRuntime]] or [[AbstractDoc]]
+ * when a message is to be sent.
+ */
 export interface SendEvent {
+  /**
+   * The message.
+   */
   message: Uint8Array;
 }
 
+/**
+ * Events record for [[CRuntime]] and [[AbstractDoc].]
+ */
 export interface RuntimeEventsRecord {
   /**
    * Emitted when a message is to be sent.
    *
-   * This must be delivered to each other replica's
-   * [[CRuntime.receive]] method, eventually at-least-once.
+   * Its message should be delivered to each other replica's
+   * [[CRuntime.receive]] /[[AbstractDoc.receive]]
+   *  method, eventually and at-least-once.
    */
   Send: SendEvent;
   /**
@@ -55,23 +66,71 @@ export interface RuntimeEventsRecord {
    * Specifically, this is emitted at the end of:
    * - A local transaction.
    * - A series of remote transactions processed in the same
-   * [[CRuntime.receive]] call. (There can be multiple if one
+   * [[CRuntime.receive]] / [[AbstractDoc.receive]] call. (There can be multiple if one
    * transaction unblocks others' causal dependencies.)
-   * - [[CRuntime.load]].
+   * - [[CRuntime.load]] / [[AbstractDoc.load]].
    */
   Change: object;
   /**
-   * Emitted at the end of [[CRuntime.load]].
+   * Emitted at the end of [[CRuntime.load]] / [[AbstractDoc.load]].
    */
   Load: object;
 }
 
+/**
+ * Constructor options for [[CRuntime]] and [[AbstractDoc]].
+ */
 export interface RuntimeOptions {
+  /**
+   * If you guarantee that messages will always be delivered to
+   * [[CRuntime.receive]] / [[AbstractDoc.receive]] in causal order, on all replicas (not just
+   * this one), you may set this
+   * to true to turn off causal ordering checks.
+   *
+   * For example, this may be true if all messages
+   * pass through a central server that forwards them
+   * in the order it receives them.
+   *
+   * [[CRuntime.receive]] / [[AbstractDoc.receive]] will still filter duplicate messages for you.
+   */
   causalityGuaranteed?: boolean;
+  /**
+   * For debugging/testing/benchmarking purposes, you may specify `replicaID`, typically
+   * using [[ReplicaIDs.pseudoRandom]].
+   *
+   * Otherwise, `replicaID` is randomly generated using
+   * [[ReplicaIDs.random]].
+   */
   debugReplicaID?: string;
-  autoTransactions?: "microtask" | "op" | "error";
+  /**
+   * How long transactions should be in the absence of a top-level [[CRuntime.transact]] / [[AbstractDoc.transact]] call:
+   * - "microtask" (default): All operations in the same microtask form a transaction
+   * (specifically, until `Promise.resolve().then()` executes).
+   * - "error": Throw an error if there is an operation
+   * outside a top-level `transact` call.
+   * - "op": Each operation is its own transaction.
+   * This is not recommended except for testing or benchmarking, since Collabs may expect that sequential
+   * operations are delivered together.
+   */
+  autoTransactions?: "microtask" | "error" | "op";
 }
 
+/**
+ * A runtime for a Collabs document, responsible for connecting
+ * replicas of [[Collab]]s across devices and for other
+ * whole-document functionality.
+ *
+ * Specifically, this runtime is for use with the @collabs/collabs and @collabs/crdts package,
+ * which provide CRDT Collabs.
+ *
+ * For a usage example, see [Entry Points](../../../guide/entry_points.html#cruntime).
+ *
+ * See also:
+ * - [[AbstractDoc]], which lets you encapsulate
+ * a runtime and your "global variable" Collabs in a single object.
+ * - [@collabs/container's CContainer](../../container/classes/CContainer.html), which replaces CRuntime
+ * in [containers](../../../guide/containers.html).
+ */
 export class CRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
   implements IRuntime, CRDTMetaProvider
@@ -94,6 +153,11 @@ export class CRuntime
 
   readonly providesCRDTMeta = true;
 
+  /**
+   * Constructs a [[CRuntime]].
+   *
+   * @param options See [[RuntimeOptions]].
+   */
   constructor(options: RuntimeOptions = {}) {
     super(options.debugReplicaID ?? ReplicaIDs.random());
     const causalityGuaranteed = options?.causalityGuaranteed ?? false;
@@ -109,18 +173,26 @@ export class CRuntime
   }
 
   /**
-   * Constructs `preCollab` and registers it as a
-   * top-level (global variable) `Collab` with the
-   * given name.
+   * Registers a [[Collab]] as a ["global variable" Collab](../../../guide/initialization.html#global-variable-collabs)
+   * in this runtime with the given name.
    *
-   * @param  name The `Collab`'s name, which must be
-   * unique among all registered `Collabs`. E.g., its name
-   * as a variable in your program.
-   * @param  preCollab The `Collab` to construct, typically
-   * created using a statement of the form
-   * `Pre(class_name)<generic types>(constructor args)`
-   * @return The registered `Collab`. You should assign
-   * this to a variable for later use.
+   * Typically, you will call this method right after creating this CRuntime, with the style:
+   * ```ts
+   * const foo = runtime.registerCollab("foo", (init) => new FooClass(init, constructor args...));
+   * ```
+   * where `const foo: FooClass;` is a top-level variable.
+   *
+   * Registrations must be identical across all replicas, i.e., all CRuntime instances that share
+   * messages and saved states.
+   *
+   * @param name A name for this property, unique among
+   * this runtime's `registerCollab` calls.
+   * We recommend using the same name as the property,
+   * but you can also use short strings to reduce
+   * network usage ("", "0", "1", ...).
+   * @param collabCallback A callback that uses the
+   * given [[InitToken]] to construct the registered [[Collab]].
+   * @return The registered Collab.
    */
   registerCollab<C extends Collab>(
     name: string,
@@ -167,14 +239,18 @@ export class CRuntime
   }
 
   /**
-   * If this is not the outermost transaction, it is ignored (including info).
-   * In particular, that can happen if we are inside an auto microtask
-   * transaction, due to an earlier out-of-transaction op.
+   * Wraps `f`'s operations in a transaction. <!-- TODO: see transactions doc -->
    *
-   * @param f
+   * This method begins a transaction (if needed), calls `f()`,
+   * then ends its transaction (if begun). Operations
+   * not wrapped in a `transact` call use the constructor's
+   * [[RuntimeOptions.autoTransactions]] option.
+   *
+   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
+   * In particular, only its `info` is used.
+   *
    * @param info An optional info string to attach to the transaction.
-   * It will appear on [[CollabEvent]]s as [[UpdateMeta.info]].
-   * E.g. a "commit message".
+   * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
    */
   transact(f: () => void, info?: string) {
     const alreadyInTransaction = this.inTransaction;
@@ -186,9 +262,6 @@ export class CRuntime
     }
   }
 
-  /**
-   * Internal use only.
-   */
   childSend(
     child: Collab<CollabEventsRecord>,
     messageStack: (Uint8Array | string)[],
@@ -272,6 +345,20 @@ export class CRuntime
     if (autoEndTransaction) this.endTransaction();
   }
 
+  /**
+   * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
+   * The message's sender must be a [[CRuntime]] that is a
+   * replica of this one.
+   *
+   * The local Collabs process the message, change the
+   * local state accordingly, and emit events describing the
+   * local changes.
+   *
+   * Messages from other replicas should be received eventually and at-least-once. Arbitrary delays, duplicates,
+   * reordering, and delivery of messages from this replica
+   * are acceptable. Two replicas will be in the same
+   * state once they have the same set of received (or sent) messages.
+   */
   receive(message: Uint8Array): void {
     if (this.inTransaction) {
       throw new Error("Cannot call receive() during a transaction");
@@ -314,6 +401,15 @@ export class CRuntime
     this.emit("Transaction", { meta });
   }
 
+  /**
+   * Returns saved state describing the current state of this runtime,
+   * including its Collabs.
+   *
+   * The saved state may later be passed to [[load]]
+   * on a replica of this CRuntime, possibly in a different
+   * collaboration session. That is equivalent to delivering all messages
+   * that this document has already sent or received.
+   */
   save(): Uint8Array {
     if (this.inTransaction) {
       throw new Error("Cannot call save() during a transaction");
@@ -328,6 +424,21 @@ export class CRuntime
     return SavedStateTreeSerializer.instance.serialize(savedStateTree);
   }
 
+  /**
+   * Loads saved state. The saved state must be from
+   * a call to [[load]] on a CRuntime that is a replica
+   * of this one.
+   *
+   * Calling load is equivalent to calling [[receive]]
+   * on every message that influenced the saved state,
+   * but it is typically much more efficient.
+   *
+   * Note that loading will **not** trigger events on
+   * Collabs, even if their state changes.
+   * It will trigger "Load" and "Change" events on this CRuntime.
+   *
+   * @param savedState Saved state from another replica's [[save]] call.
+   */
   load(savedState: Uint8Array): void {
     if (this._isLoaded) {
       throw new Error("Already loaded");
@@ -363,6 +474,9 @@ export class CRuntime
     }
   }
 
+  /**
+   * Whether [[load]] has been called.
+   */
   get isLoaded(): boolean {
     return this._isLoaded;
   }

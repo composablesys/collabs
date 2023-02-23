@@ -2,8 +2,11 @@ import { IMap, MapEventsRecord } from "@collabs/core";
 import { PrimitiveCRDT } from "./primitive_crdt";
 
 /**
- * Abstract [[IMap]] with some default method implementations,
- * as a subclass of [[Collab]].
+ * Skeletal implementation of the [[IMap]] interface, as a subclass of
+ * [[PrimitiveCRDT]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractMap_PrimitiveCRDT<
     K,

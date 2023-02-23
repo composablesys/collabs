@@ -19,57 +19,85 @@ MERCHANTABLITY OR NON-INFRINGEMENT.
 
 See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
-***************************************************************************** */
+*/
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 import { Optional } from "../util/optional";
 
+/**
+ * Event emitted by an [[IMap]]`<K, V>` implementation
+ * when a key-value pair is set.
+ */
 export interface MapSetEvent<K, V> extends CollabEvent {
   key: K;
   value: V;
   /**
-   * Present if there was a value set previously at key.
+   * An [[Optional]] of the previous value at [[key]].
+   *
+   * Empty if the key was previously not present.
    */
   previousValue: Optional<V>;
 }
 
+/**
+ * Event emitted by an [[IMap]]`<K, V>` implementation
+ * when a key-value pair is deleted.
+ */
 export interface MapDeleteEvent<K, V> extends CollabEvent {
   key: K;
   /**
-   * The previously set value at key.
+   * The previous value at key.
    */
   value: V;
 }
 
+/**
+ * Base events record for an [[IMap]]`<K, V>` implementation.
+ */
 export interface MapEventsRecord<K, V> extends CollabEventsRecord {
   /**
-   * This is emitted not just
-   * when the value is set (including if already
-   * set and maybe changed) but also when
-   * a previously-existing value's key is restored,
-   * even if the value object remained the same.
-   * It is NOT emitted each time the value mutates
-   * internally, if the value is itself a [[Collab]]; for that,
+   * Emitted when a key's value is set,
+   * i.e., it changes or goes from "not present"
+   * to "present".
+   *
+   * Note: If the value is itself a mutable
+   * [[Collab]], this event is NOT emitted
+   * each time the value mutates internally.
+   * To detect such changes, instead
    * add your own event listeners on the value
-   * itself in the valueConstructor.
+   * when it is constructed (e.g., in [[CMap]]'s
+   * `valueConstructor` constructor arg).
    */
   Set: MapSetEvent<K, V>;
+  /**
+   * Emitted when a key's value is deleted, i.e.,
+   * the key goes from "present" to "not present".
+   */
   Delete: MapDeleteEvent<K, V>;
 }
 
 /**
- * A map from keys K to values V, supporting set and
- * delete with any semantics.
+ * Interface for a collaborative map with keys of
+ * type K and values of type V.
  *
- * Initially, values must be created using the set method.
- * This method inputs SetArgs and sends them to every
- * replica in serialized form; every replica then uses
- * them to contruct the actual set value of type V,
- * e.g., using a user-supplied callback in the constructor.
- * Set keys can later be deleted (and in some implementations,
- * restored), changing
- * their presence in the map, using any semantics to
- * resolve conflicts.
+ * For implementations, see [[CMap]], [[CValueMap]],
+ * and [[CLazyMap]].
+ *
+ * An `IMap<K, V>` represents a `Map<K, V>` and has
+ * similar methods. Any semantics can be used to resolve
+ * conflicting [[set]] and [[delete]] calls on the same key.
+ *
+ * This interface permits [[set]] to accept arbitrary
+ * `SetArgs` instead of just the value to set.
+ * That is useful
+ * when the value is not serializable, e.g., a dynamically-
+ * created [[Collab]].
+ *
+ * @typeParam K The key type.
+ * @typeParam V The value type.
+ * @typeParam SetArgs The type of arguments to [[set]].
+ * Defaults to `[V]`, i.e., set inputs the actual value.
+ * @typeParam Events Events record.
  */
 export interface IMap<
   K,
@@ -78,15 +106,14 @@ export interface IMap<
   Events extends MapEventsRecord<K, V> = MapEventsRecord<K, V>
 > extends Collab<Events> {
   /**
-   * Sends args to every replica in serialized form.
-   * Every replica then uses
-   * them to contruct the actual set value of type V,
-   * which is set as the value at key.
+   * Sets the value at key using args.
+   *
+   * Typically, args are broadcast to all replicas
+   * in serialized form. Every replica then uses
+   * them to contruct the actual value of type V.
    *
    * @return The set value, or undefined if it is not
-   * yet constructed. Implementations that always construct
-   * the value immediately should get rid of the "undefined"
-   * case.
+   * constructed immediately.
    */
   set(key: K, ...args: SetArgs): V | undefined;
 
@@ -108,64 +135,65 @@ export interface IMap<
   has(key: K): boolean;
 
   /**
-   * Deletes every key in this map.
+   * Deletes every key in the map.
    */
   clear(): void;
 
+  /**
+   * The number of present keys in the map.
+   */
   readonly size: number;
 
+  /**
+   * Executes a provided function once for each (key, value) pair in
+   * the map, in the same order as [[entries]].
+   *
+   * @param callbackfn Function to execute for each value.
+   * Its arguments are the value, key, and this map.
+   * @param thisArg Value to use as `this` when executing `callbackfn`.
+   */
   forEach(
     callbackfn: (value: V, key: K, map: this) => void,
     thisArg?: any //eslint-disable-line @typescript-eslint/no-explicit-any
   ): void;
 
   /**
-   * Returns an iterable of entries in the map.
+   * Returns an iterator for entries in the map.
    *
-   * The
-   * iteration order is NOT eventually consistent, i.e.,
+   * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same state.
    */
   [Symbol.iterator](): IterableIterator<[K, V]>;
 
   /**
-   * Returns an iterable of key, value pairs for every entry in the map.
+   * Returns an iterator of key, value pairs for every entry in the map.
    *
-   * The
-   * iteration order is NOT eventually consistent, i.e.,
+   * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same state.
    */
   entries(): IterableIterator<[K, V]>;
 
   /**
-   * Returns an iterable of keys in the map.
+   * Returns an iterator for keys in the map.
    *
-   * The
-   * iteration order is NOT eventually consistent, i.e.,
+   * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same state.
    */
   keys(): IterableIterator<K>;
 
   /**
-   * Returns an iterable of values in the map.
+   * Returns an iterator for values in the map.
    *
-   * The iteration order is NOT eventually consistent, i.e.,
+   * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same state.
    */
   values(): IterableIterator<V>;
 
   /**
-   * Returns the key of some occurrence of a value owned
-   * by this map, or undefined if the value is not present.
-   * The equality semantics for comparing values is
-   * implementation-dependent.
-   *
-   * In implementations where values are uniquely associated to
-   * a key (e.g., they are created by the map itself specifically
-   * for their key), if `searchElement` is a former map
-   * value but has since been deleted or replaced, this may return
-   * the key anyway, instead of `undefined`. Whether or not
-   * this happens depends on the map implementation.
+   * Returns the key for some occurrence of a value
+   * `searchElement` in
+   * this map, or undefined if `searchElement` is not
+   * associated with any key.
    *
    * @param searchElement The value to locate in this map.
    */
