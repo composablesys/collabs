@@ -21,6 +21,20 @@ const defaultAggregator: Aggregator<unknown> = {
 
 /**
  * A collaborative variable of type T.
+ *
+ * A `CVar<T>` represents an opaque value of type T. Set and get the value with [[value]]. If multiple users
+ * set the value concurrently, one of them is picked
+ * arbitrarily.
+ *
+ * Values must be internally immutable;
+ * mutating [[value]] internally will not change it on
+ * other replicas. To store (a reference to) a *mutable*
+ * value of type T, use a `CVar<CollabID<C>>`, where
+ * C is a Collab representing T (see [Data Modeling](../../../guide/data_modeling.html#minesweeper)).
+ *
+ * See also: [[CBoolean]].
+ *
+ * @typeParam T The variable type.
  */
 export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   private readonly mvMap: CMultiValueMap<null, T>;
@@ -28,11 +42,15 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   private _value: T;
 
   /**
-   * aggregate isn't called on [], that's just initialValue.
+   * Constructs a CVar with the given `initialValue`.
+   * The `initialValue` is used as the value before any
+   * value is set or just after [[clear]] is called.
    *
-   * aggregate: values are causally maximal sets (causal frontier),
-   * given in order by sender (eventually consistent).
-   * Default: first.
+   * @param options.valueSerializer Serializer for set
+   * values. Defaults to [[DefaultSerializer]].
+   * @param options.aggregator If provided, used
+   * to "aggregate" concurrently-set values,
+   * instead of picking one arbitrarily.
    */
   constructor(
     init: InitToken,
@@ -75,6 +93,11 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
         : this.aggregator.aggregate(items);
   }
 
+  /**
+   * Sets the current value. Equivalent to `this.value = value`.
+   *
+   * @returns `value`
+   */
   set(value: T): T {
     this.mvMap.set(null, value);
     return this._value;
@@ -88,12 +111,29 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
     return this._value;
   }
 
+  /**
+   * Returns all conflicting concurrently-set values.
+   * Their order is arbitrary but consistent across replicas.
+   *
+   * If this CVar was just initialized or [[clear]]
+   * was just called, this returns `[]`. Otherwise, its first
+   * element is the set value.
+   */
   conflicts(): T[] {
     return (this.mvMap.get(null) ?? []).map((item) => item.value);
   }
 
   /**
-   * Observed-reset. Similar to setting to initial value, but also allows GC.
+   * Resets this CVar to its initial state, so that its
+   * value is the constructor's `initialValue`.
+   *
+   * Unlike directly setting the value to `initialValue`,
+   * this operation clears the [[conflicts]] set, and
+   * a concurrent set-[[value]] operation will always
+   * win over this operation.
+   *
+   * A cleared CVar satisfies [[Collab.canGC]] and so can be
+   * "garbage collected" by [[CLazyMap]].
    */
   clear() {
     this.mvMap.delete(null);

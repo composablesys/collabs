@@ -21,7 +21,7 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
 
   /**
    * @param replicaID This replica's [[replicaID]], usually
-   * obtained from [[ReplicaIDs]].
+   * obtained from [[ReplicaIDs]]. Must not be `""`.
    */
   constructor(readonly replicaID: string) {
     super();

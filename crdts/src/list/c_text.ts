@@ -18,23 +18,55 @@ const charArraySerializer: Serializer<string[]> = {
   },
 } as const;
 
+/**
+ * Event emitted by [[CText]] when a range of characters (values)
+ * is inserted or deleted.
+ */
 export interface TextEvent extends CollabEvent {
+  /**
+   * The index of the first affected character.
+   * Collectively, the characters have indices
+   * `index` through `index + values.length - 1`.
+   *
+   * For [[TextEventsRecord.Delete]] events, this is the *former*
+   * index of the first deleted character.
+   */
   index: number;
+  /**
+   * The affected characters, concatenated into a single string.
+   */
   values: string;
+  /**
+   * The positions corresponding to [[values]].
+   */
   positions: string[];
 }
 
+/**
+ * Events record for [[CText]].
+ */
 export interface TextEventsRecord extends CollabEventsRecord {
+  /**
+   * Emitted when a range of characters is inserted.
+   */
   Insert: TextEvent;
+  /**
+   * Emitted when a range of characters is deleted.
+   */
   Delete: TextEvent;
 }
 
 /**
- * A collaborative text string.
+ * A collaborative text string, with the usual behavior
+ * for collaborative text editing.
  *
- * Positions are as in [[IList]].
+ * CText is functionally equivalent to a [[CValueList]]`<string>` where each value
+ * is a single character (UTF-16 codepoint),
+ * but with an API more like [string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String).
  *
- * See also: [[CValueList]].
+ * *Positions* are described in [IList](../../core/interfaces/IList.html).
+ *
+ * See also: [[CValueList]], [[CList]].
  */
 export class CText extends CObject<TextEventsRecord> {
   // Internally, CText uses a CValueList containing its list of Unicode code
@@ -76,58 +108,83 @@ export class CText extends CObject<TextEventsRecord> {
   }
 
   /**
-   * Insert the given substring starting at index.
+   * Inserts values as a substring at the given index.
    *
-   * Existing characters at `>= index` are shifted `values.length`
-   * spots to the right.
+   * All values currently at or after `index` shift
+   * to the right, increasing their indices by `values.length`.
    *
-   * @param index   [description]
-   * @param values  [description]
+   * @param index The insertion index in the range
+   * `[0, this.length]`. If `this.length`, the values
+   * are appended to the end of the list.
+   * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, values: string): void {
     this.list.insert(index, ...values);
   }
 
   /**
-   * Delete count characters starting at startIndex, i.e., characters
-   * [startIndex, startIndex + count - 1).
+   * Delete `count` characters starting at `startIndex`, i.e., characters
+   * `[startIndex, startIndex + count - 1)`.
    *
-   * Characters at `>= startIndex + count` are shifted count spots to the
-   * left.
+   * All later characters shift to the left,
+   * decreasing their indices by `count`.
    *
-   * @param startIndex  [description]
-   * @param count=1     [description]
+   * @param count The number of characters to delete.
+   * Defaults to 1 (delete the character at `startIndex` only).
+   *
+   * @throws if `startIndex < 0` or
+   * `startIndex + count >= this.length`.
    */
   delete(startIndex: number, count = 1): void {
     this.list.delete(startIndex, count);
   }
 
+  /**
+   * Deletes every character in the text string.
+   */
   clear(): void {
     this.list.clear();
   }
 
+  /**
+   * Returns a string consisting of the single character
+   * (UTF-16 codepoint) at `index`.
+   *
+   * @throws If index is not in `[0, this.length)`.
+   * Note that this differs from an ordinary string,
+   * which would instead return an empty string.
+   */
   charAt(index: number): string {
     return this.list.get(index);
   }
 
+  /** Returns an iterator for characters (values) in the text string, in order. */
   values(): IterableIterator<string> {
     return this.list.values();
   }
 
+  /** Returns an iterator for characters (values) in the text string, in order. */
   [Symbol.iterator]() {
     return this.values();
   }
 
+  /**
+   * Returns an iterator of [index, position, value] tuples for every
+   * character (value) in the text string, in order.
+   */
   entries(): IterableIterator<[index: number, position: string, char: string]> {
     return this.list.entries();
   }
 
+  /**
+   * The length of the text string.
+   */
   get length(): number {
     return this.list.length;
   }
 
   /**
-   * @return the text as an ordinary string
+   * Returns the text string as an ordinary string.
    */
   toString(): string {
     return this.list.slice().join("");
@@ -135,6 +192,15 @@ export class CText extends CObject<TextEventsRecord> {
 
   // Convenience accessors.
 
+  /**
+   * Returns a string consisting of the single character
+   * (UTF-16 codepoint) at `index`, with behavior
+   * like [string.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
+   *
+   * Negative indices are relative to
+   * end of the text string, and out-of-bounds
+   * indices return undefined.
+   */
   at(index: number): string | undefined {
     if (index < 0) index += this.length;
     if (index < 0 || index >= this.length) return undefined;
@@ -143,6 +209,11 @@ export class CText extends CObject<TextEventsRecord> {
 
   // slice() is the most reasonable out of {slice, substring, substr}.
 
+  /**
+   * Returns a section of this text string,
+   * with behavior like
+   * [string.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
+   */
   slice(start?: number, end?: number): string {
     return this.list.slice(start, end).join("");
   }

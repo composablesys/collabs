@@ -1,5 +1,8 @@
 import { ListItemManager } from "./list_position_source";
 
+/**
+ * [[ListItemManager]] for `Array<T>`.
+ */
 export class ArrayListItemManager<T> implements ListItemManager<T[]> {
   private constructor() {
     // Private constructor, use getInstance instead.

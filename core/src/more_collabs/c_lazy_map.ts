@@ -21,13 +21,14 @@ import {
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
 
 /**
- * A collaborative "lazy" map with mutable values.
+ * A collaborative "lazy" map with keys of type K and *mutable*
+ * values of type C.
  *
  * "Lazy" means that every key-value pair implicitly exists,
  * but only nontrivial values are actually stored in memory.
  * [[get]](key) will construct its value if needed using
  * the `valueConstructor` passed to the constructor.
- * This is similar to [Apache Commons
+ * This is inspired by [Apache Commons
  * LazyMap](https://commons.apache.org/proper/commons-collections/apidocs/org/apache/commons/collections4/map/LazyMap.html).
  *
  * Due to laziness, there is no explicit operation to "set"
@@ -39,16 +40,12 @@ import { AbstractMap_Collab } from "../data_types/abstract_maps";
  * overwrites the previous value at its key, erasing any
  * changes (including concurrent ones).
  *
- * Another way to think of a CLazyMap is like a [[CObject]]
- * with one child per key (potentially infinitely
- * many).
- *
  * See also: [[CMap]], [[CValueMap]].
  *
  * ## Key Presence
  *
- * All values implicitly exist and [[get]] always returns non-undefined.
- * However, [[has]], [[getIfPresent]], [[size]], [[entries]], etc.
+ * All values implicitly exist, and [[get]] always returns non-undefined.
+ * However, [[has]], [[getIfPresent]], [[size]], and iterators
  * determine key presence by:
  * a key is present if its value is nontrivial, i.e., not in the
  * initial state returned by `valueConstructor`.
@@ -91,10 +88,11 @@ export class CLazyMap<K, C extends Collab>
   private readonly keySerializer: Serializer<K>;
 
   /**
-   * @param valueConstructor Callback used to construct the
-   * value with the given key. For each key, the constructed values
-   * must be the same on all replicas, i.e., the
-   * same class and constructor arguments.
+   * Constructs a CLazyMap with the given `valueConstructor`.
+   *
+   * @param valueConstructor Callback used to construct a
+   * value Collab with the given key. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * for example usage.
    * This may be called multiple times for the same key due to garbage
    * collection (see class header).
    * @param options.keySerializer A serializer for keys.
@@ -294,9 +292,10 @@ export class CLazyMap<K, C extends Collab>
   }
 
   /**
-   * Returns the unique key associated to a value owned
-   * by this map. If
-   * the value is not owned by this map, returns undefined.
+   * Returns the unique key associated to a value
+   * in this map, in O(1) time.
+   *
+   * If value is not a value in this map, returned undefined.
    *
    * @param searchElement The value to locate in this map.
    */

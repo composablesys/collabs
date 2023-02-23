@@ -3,7 +3,7 @@ import { PrimitiveCRDT } from "./primitive_crdt";
 
 /**
  * Abstract [[IMap]] with some default method implementations,
- * as a subclass of [[Collab]].
+ * as a subclass of [[PrimitiveCRDT]].
  */
 export declare abstract class AbstractMap_PrimitiveCRDT<
     K,

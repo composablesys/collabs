@@ -9,76 +9,29 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
 ];
 
 /**
- * The entrypoint for a Collabs CRDT app.
+ * Base class for a Collabs document.
  *
- * Subclass to make your own "CDoc", w/ (probably public readonly)
- * Collabs, added via runtime.registerCollab.
+ * By extending AbstractDoc, you can encapsulate
+ * a [[CRuntime]] and your [global variable Collabs](guide/initialization.html#global-variable-collabs)
+ * in a single "document" object. This is convenient
+ * for passing documents around and for working with
+ * multiple documents in the same app.
  *
- * `AbstractDoc` manages a group of CRDT [[Collab]]s, i.e.,
- * [[Collab]]s that are (op-based) CRDTs. (Currently, this includes
- * all `Collab`s that come built-in with @collabs/collabs.)
- * `AbstractDoc` lets you register [[Collab]]s and then use them.
- * In return, you must provide networking and storage.
- *
- * For networking, whenever this replica sends a message
- * (the "Send" event), that message must be delivered
- * to every other replica's [[receive]] method, eventually
- * at-least-once.
- *
- * For storage, you must ensure that when a new replica
- * is created, it eventually learns of all prior messages.
- * The `AbstractDoc` can learn of a message either by calling
- * [[receive]] on it as usual, or by calling [[load]] with
- * save data from a call to a previous instance's [[save]]
- * method that happened after sending or receiving that message.
- * Save data will generally be smaller than the full message log,
- * and it will also load faster than replaying every message
- * in the log.
- *
- * See the [Getting Started Guide](https://github.com/composablesys/collabs/blob/master/collabs/docs/getting_started_guide.md).
- * `AbstractDoc` corresponds to the "app" template (not the "container"
- * template, which uses the alternative class `CContainer`
- * from package @collabs/container).
- *
- * ## `AbstractDoc` Lifecycle
- *
- * After construction a `AbstractDoc`, you must first
- * register your Collabs using [[registerCollab]].
- * Afterwards, you must eventually call [[load]],
- * even if you do not have prior save data to load
- * (in that case, use [[Optional.empty]]`()` as the argument).
- *  Only then can you
- * use the `AbstractDoc`, i.e., you can perform `Collab`
- * operations and call [[receive]].
- *
- * Subclassing: Maybe also expose idOf/fromID
- * and a UID for cross-doc refs?
+ * <!-- TODO: link to example in docs: Entry Points? -->
  */
 export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
-   * The internal [[CRuntime]], i.e., the value of
-   * `runtime` on any [[Collab]].
+   * The [[CRuntime]] for this document's Collabs.
+   *
+   * Use its [[CRuntime.registerCollab]] method to register your "global variable" Collabs.
+   * Typically, you will do so in your constructor.
    */
   protected readonly runtime: CRuntime;
 
   /**
-   * Options:
+   * Constructs an AbstractDoc.
    *
-   * `causalityGuaranteed` option: Optimization flag.
-   * If you can guarantee that messages will always be
-   * delivered in causal order (i.e., after all of their
-   * causal predecessors), then you may set this to true.
-   * Then this class will not bother attaching the
-   * vector clock entries needed to ensure causal order
-   * delivery.
-   * - Important: if any replica (not necessarily
-   * the local one), on any network, is not guaranteed
-   * causality, then this flag must be false.
-   * - When true, redundant re-deliveries are still okay -
-   * they will be filtered out as usual.
-   * - "All causal predecessors" of a message M means all messages
-   * that were passed to [[receive]] before M's "Send"
-   * event was emitted.
+   * @param options See [[RuntimeOptions]].
    */
   constructor(options?: RuntimeOptions) {
     super();
@@ -90,90 +43,67 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * If this is not the outermost transaction, it is ignored (including info).
-   * In particular, that can happen if we are inside an auto microtask
-   * transaction, due to an earlier out-of-transaction op.
+   * Wraps `f`'s operations in a transaction. <!-- TODO: see transactions doc -->
    *
-   * @param f
+   * This method begins a transaction (if needed), calls `f()`,
+   * then ends its transaction (if begun). Operations
+   * not wrapped in a `transact` call use the constructor's
+   * [[RuntimeOptions.autoTransactions]] option.
+   *
+   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
+   * In particular, only its `info` is used.
+   *
    * @param info An optional info string to attach to the transaction.
-   * It will appear on [[CollabEvent]]s as [[UpdateMeta.info]].
-   * E.g. a "commit message".
+   * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
    */
   transact(f: () => void, info?: string) {
     this.runtime.transact(f, info);
   }
 
   /**
-   * Delivers `message` to the [[Collab]]s, so that they update
-   * to reflect the operation(s) that triggered this message.
+   * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
+   * The message's sender must be an AbstractDoc that is a
+   * replica of this one.
    *
-   * This must be called eventually at-least-once for each message
-   * sent by another replica that was not included in the loaded
-   * save data (i.e., not delivered prior to the [[save]] call
-   * that returned that save data). However, it is acceptable
-   * to call this method multiple times with the same message
-   * or to call it with messages sent by this replica; such
-   * redundant deliveries will be ignored.
+   * The local Collabs process the message, change the
+   * local state accordingly, and emit events describing the
+   * local changes.
    *
-   * Internally, messages are delivered to [[Collab]]s in
-   * causal order. If this message is out-of-order, it will
-   * be queued internally until it is ready.
-   *
-   * @param message The message to receive.
+   * Messages from other replicas should be received eventually and at-least-once. Arbitrary delays, duplicates,
+   * reordering, and delivery of messages from this replica
+   * are acceptable. Two replicas will be in the same
+   * state once they have the same set of received (or sent) messages.
    */
   receive(message: Uint8Array): void {
     this.runtime.receive(message);
   }
 
   /**
-   * Return "save data" describing the app's current
-   * state, i.e., the state of all registered [[Collab]]s
-   * (as returned by their [[Collab.save]] methods).
+   * Returns saved state describing the current state of this document.
    *
-   * This save data summarizes the effect of all sent or received
-   * messages so far. It can be passed to a future
-   * newly-initialized instance's [[load]] method, in place
-   * of redelivering all of those messages (although
-   * redundant redeliveries are okay and will just be ignored).
-   * Doing so is an important optimization, since typically,
-   * the save data will be smaller than the complete message log,
-   * and also load faster then replaying the log to [[receive]].
-   *
-   * The save data may be used both for future
-   * replicas of this real-world user (e.g., after they
-   * reload the app's tab), or to help initialize new user's
-   * state, so that they don't have to replay the whole message
-   * log.
-   *
-   * Note: this will commit a pending batch first.
-   * So if there is a pending batch, expect messages to
-   * be sent during this method. Those messages will
-   * be accounted for in the `savedState`.
-   *
-   * @return save data for a future instance's [[load]]
+   * The saved state may later be passed to [[load]]
+   * on a replica of this AbstractDoc, possibly in a different
+   * collaboration session. That is equivalent to delivering all messages
+   * that this document has already sent or received.
    */
   save(): Uint8Array {
     return this.runtime.save();
   }
 
   /**
-   * Load save data from a previous instance's call to [[save]] (wrapped in [[Optional.of]]).
-   * If there is no such save data, this method still must be called,
-   * but with an empty [[Optional]].
+   * Loads saved state. The saved state must be from
+   * a call to [[load]] on an AbstractDoc that is a replica
+   * of this one.
    *
-   * Loading save data serves as a more efficient substitute
-   * for calling [[receive]] on all messages that the previous
-   * instance had sent or received before generating `savedState`.
+   * Calling load is equivalent to calling [[receive]]
+   * on every message that influenced the saved state,
+   * but it is typically much more efficient.
    *
-   * This must be called after registering [[Collab]]s but before
-   * calling [[receive]] or performing any [[Collab]] operations.
    * Note that loading will **not** trigger events on
-   * [[Collab]]s, even if their state changes as a result
-   * of loading. Thus you must manually construct views of
-   * the loaded state (e.g., the GUI), instead of relying
-   * on event handlers like for sent/received messages.
+   * Collabs, even if their state changes.
+   * It will trigger "Load" and "Change" events on this AbstractDoc.
    *
-   * @param savedState save data from a previous instance's call to [[save]].
+   * @param savedState Saved state from another replica's [[save]] call.
    */
   load(savedState: Uint8Array): void {
     this.runtime.load(savedState);

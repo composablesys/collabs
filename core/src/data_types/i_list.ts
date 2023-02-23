@@ -68,7 +68,7 @@ export interface ListEventsRecord<T> extends CollabEventsRecord {
  * For implementations, see [[CList]] and [[CValueList]]. [[CText]] is similar but not an actual
  * IList implementation.
  *
- * An `IList<T>` has similar methods to an `Array<T>`,
+ * `IList<T>` has a similar API to `Array<T>`,
  * but it is mutated more like a linked list: instead of mutating
  * existing values, you [[insert]] and [[delete]]
  * list entries. Insertions and deletions
@@ -106,6 +106,7 @@ export interface IList<
 > extends Collab<Events> {
   /**
    * Inserts a value at the given index using args.
+   *
    * All values currently at or after `index` shift
    * to the right, incrementing their indices.
    *
@@ -123,14 +124,17 @@ export interface IList<
   insert(index: number, ...args: InsertArgs): T | undefined;
 
   /**
-   * Deletes `count` values starting at `startIndex` (inclusive).
+   * Delete `count` values starting at `startIndex`, i.e., values
+   * `[startIndex, startIndex + count - 1)`.
+   *
    * All later values shift to the left,
    * decreasing their indices by `count`.
    *
-   * `count` defaults to 1 (delete the entry at `startIndex`).
+   * @param count The number of values to delete.
+   * Defaults to 1 (delete the value at `startIndex` only).
    *
-   * @throws if count < 0 or
-   * index + count >= this.length.
+   * @throws if `startIndex < 0` or
+   * `startIndex + count >= this.length`.
    */
   delete(startIndex: number, count?: number): void;
 

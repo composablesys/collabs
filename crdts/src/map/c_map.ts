@@ -13,13 +13,33 @@ import { Aggregator } from "./c_multi_value_map";
 import { CValueMap } from "./c_value_map";
 
 /**
- * A collaborative map with mutable values.
+ * A collaborative map with keys of type K and *mutable*
+ * values of type C.
  *
- * If multiple values are set concurrently, one is chosen and others
- * are overwritten. To instead "merge" concurrently-set values, use
+ * Values are internally mutable.
+ * Specifically, each value is its own [[Collab]], and
+ * operations on that Collab are collaborative as usual.
+ *
+ * Unlike a normal `Map<K, C>`, you do not set values directly.
+ * Instead, you use the pattern described in
+ * [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs):
+ * one user calls [[set]] with `SetArgs`; each
+ * replica passes those `SetArgs` to its
+ * `valueConstructor`;
+ * and `valueConstructor` returns the local copy of the new value Collab.
+ *
+ * If multiple users
+ * set the value at a key concurrently, one of the value Collabs is picked
+ * arbitrarily; operations on the others are ignored.
+ * To instead "merge" concurrently-created values - applying all of their
+ * operations to the same underlying Collab - use
  * [[CLazyMap]].
  *
- * For immutable values, consider [[CValueMap]], which is simpler.
+ * See also: [[CValueMap]], a simpler map for immutable values.
+ *
+ * @typeParam K The key type.
+ * @typeParam C The value type, which is a Collab.
+ * @typeParam SetArgs The type of arguments to [[set]].
  */
 export class CMap<
   K,
@@ -33,6 +53,20 @@ export class CMap<
   private readonly valueSet: CSet<C, [key: K, args: SetArgs]>;
   private readonly map: CValueMap<K, CollabID<C>>;
 
+  /**
+   * Constructs a CMap with the given `valueConstructor`.
+   *
+   * @param valueConstructor Callback used to construct a
+   * value Collab with the given [[InitToken]], key, and arguments to [[set]]. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * for example usage.
+   * @param options.keySerializer A serializer for keys.
+   * Defaults to [[DefaultSerializer]].
+   * @param options.argsSerializer A serializer for `SetArgs` as an array.
+   * Defaults to [[DefaultSerializer]].
+   * @param options.aggregator If provided, used
+   * to aggregate concurrently-set values at the same key,
+   * instead of picking one arbitrarily.
+   */
   constructor(
     init: InitToken,
     valueConstructor: (valueInit: InitToken, key: K, ...args: SetArgs) => C,
@@ -93,6 +127,15 @@ export class CMap<
     });
   }
 
+  /**
+   * Sets the value at key using args.
+   *
+   * The args are broadcast to all replicas in serialized form.
+   * Every replica then passes them to `valueConstructor` to construct the actual
+   * value of type C, a new Collab that is collaborative as usual.
+   *
+   * @returns The set value.
+   */
   set(key: K, ...args: SetArgs): C {
     const oldConflicts = this.getConflicts(key);
 
@@ -123,6 +166,14 @@ export class CMap<
     return id === undefined ? undefined : this.valueSet.fromID(id)!;
   }
 
+  /**
+   * Returns all conflicting concurrently-set values
+   * at key.
+   * Their order is arbitrary but consistent across replicas.
+   *
+   * If the key is not present, this returns `[]`.
+   * Otherwise, its first element is the set value.
+   */
   getConflicts(key: K): C[] {
     return this.map.getConflicts(key).map((id) => this.valueSet.fromID(id)!);
   }
@@ -135,6 +186,21 @@ export class CMap<
     for (const [key, id] of this.map) {
       yield [key, this.valueSet.fromID(id)!];
     }
+  }
+
+  /**
+   * Returns the unique key associated to a value
+   * in this map, in O(1) time.
+   *
+   * This method will succeed if value is the current value
+   * or a conflicting concurrently-set value (see [[getConflicts]]).
+   * Otherwise, it returns undefined.
+   *
+   * @param searchElement The value to locate in this map.
+   */
+  keyOf(searchElement: C): K | undefined {
+    if (!this.valueSet.has(searchElement)) return undefined;
+    return this.valueSet.getArgs(searchElement)[0];
   }
 
   get size(): number {

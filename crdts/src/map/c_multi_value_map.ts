@@ -15,40 +15,89 @@ import {
 import { AbstractMap_PrimitiveCRDT } from "../base_collabs";
 import { CRDTMeta } from "../runtime";
 
+/**
+ * An item in a [[MultiValueMap]], i.e., a set value
+ * plus metadata.
+ */
 export interface MultiValueMapItem<V> {
+  /**
+   * The value.
+   */
   readonly value: V;
+  /**
+   * This item's sender's [[CRuntime.replicaID]].
+   */
   readonly sender: string;
+  /**
+   * The sender's vector clock entry for the transaction
+   * that created this item.
+   */
   readonly senderCounter: number;
-  /** Only included if true in constructor options. */
+  /**
+   * If [[Aggregator.wallClockTime]] was true in the
+   * constructor options, then this
+   * is the sender's wall clock time (`Date.now()`) for the transaction
+   * that created this item, else undefined.
+   */
   readonly wallClockTime?: number;
-  /** Only included if true in constructor options. */
+  /**
+   * If [[Aggregator.lamportTimestamp]] was true in the
+   * constructor options, then this
+   * is the [Lamport timestamp](https://en.wikipedia.org/wiki/Lamport_timestamp)
+   * for the transaction
+   * that created this item, else undefined.
+   */
   readonly lamportTimestamp?: number;
 }
 
 /**
- * Wrapper for a function that inputs multiple concurrently-set values
- * and outputs a single aggregated value.
+ * Wrapper for an aggregate function.
  *
- * [[CVar]], [[CMap]], and other Collabs take an Aggregator as a constructor
- * arg, then use it to aggregate concurrently-set values. Note that
- * [[aggregate]] is only called on non-empty `items`, so it safe to
- * do e.g. `return items[0]`.
+ * By default, if multiple users set a value on a
+ * [[CVar]], [[CValueMap]], or [[CMap]] concurrently, one value
+ * is picked arbitrarily. You can supply an
+ * Aggregator in their constructor to instead apply
+ * [[aggregate]] to the concurrently-set values,
+ * returning your desired value.
  *
- * Set [[wallClockTime]] and/or [[lamportTimestamp]] to true if you want
- * to access those properties on the aggregated [[MultiValueMapItem]]s.
+ * For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html)
+ * takes the RGB average of concurrently-set colors,
+ * thus blending concurrent strokes.
  */
-export interface Aggregator<T> {
-  aggregate: (items: MultiValueMapItem<T>[]) => T;
+export interface Aggregator<V> {
+  /**
+   * The aggregate function, called on concurrently-set
+   * values plus metadata (as
+   * [[MultiValueMapItem]]s).
+   *
+   * `items` is always non-empty, and its order is
+   * eventually consistent. Specifically, it is
+   * in order by [[MultiValueMapItem.sender]].
+   *
+   * @returns The aggregated value.
+   */
+  aggregate: (items: MultiValueMapItem<V>[]) => V;
+  /**
+   * If true, [[MultiValueMapItem.wallClockTime]]
+   * is present in aggregated items.
+   */
   readonly wallClockTime?: boolean;
+  /**
+   * If true, [[MultiValueMapItem.lamportTimestamp]]
+   * is present in aggregated items.
+   */
   readonly lamportTimestamp?: boolean;
 }
 
 /**
  * A collaborative "multi-value" map, in which there may be multiple values
- * for a key due to concurrent sets.
+ * for a key due to concurrent [[set]] operations.
  *
  * This is a low-level API intended for internal use by other CRDT implementations.
  * In most apps, you are better off using [[CValueMap]] or [[CMap]].
+ *
+ * @typeParam K The key type.
+ * @typeParam V The value type.
  */
 export class CMultiValueMap<K, V>
   extends AbstractMap_PrimitiveCRDT<K, MultiValueMapItem<V>[], [V]>
@@ -69,17 +118,21 @@ export class CMultiValueMap<K, V>
   private readonly wallClockTime: boolean;
   private readonly lamportTimestamp: boolean;
 
+  /**
+   * Constructs a MultiValueMap.
+   *
+   * @param options.keySerializer Serializer for keys. Defaults to [[DefaultSerializer]].
+   * @param options.valueSerializer Serializer for values. Defaults to [[DefaultSerializer]].
+   * @param options.aggregator [[Aggregator.wallClockTime]]
+   * and [[Aggregator.lamportTimestamp]] are used as settings
+   * for our [[MultiValueMapItems]]. [[Aggregator.aggregate]]
+   * is ignored.
+   */
   constructor(
     init: InitToken,
     options: {
       keySerializer?: Serializer<K>;
       valueSerializer?: Serializer<V>;
-      /**
-       * aggregate is not used, only wallClockTime and lamportTimestamp.
-       * Default to (items => items[0]).
-       *
-       * We accept type Aggregator for compatibility with other maps and [[CVar]].
-       */
       aggregator?: Aggregator<V>;
     } = {}
   ) {
@@ -93,6 +146,11 @@ export class CMultiValueMap<K, V>
     this.lamportTimestamp = options.aggregator?.lamportTimestamp ?? false;
   }
 
+  /**
+   * Sets the value at key.
+   *
+   * @returns The corresponding [[MultiValueMapItem]].
+   */
   set(key: K, value: V): MultiValueMapItem<V>[] {
     const message = MultiValueMapMessage.create({
       key: this.keySerializer.serialize(key),
@@ -189,12 +247,13 @@ export class CMultiValueMap<K, V>
   }
 
   /**
-   * If not has, returns undefined, not [].
+   * Returns the array of [[MultiValueMapItem]]s corresponding
+   * to conflicting concurrent [[set]]s at `key`,
+   * or undefined if key is not present.
    *
-   * Singleton return values are not === stable (may be different arrays
-   * with same single item).
-   *
-   * Items ordered lexicographically by sender.
+   * The return value is always non-empty, and its order is
+   * eventually consistent. Specifically, it is
+   * in order by [[MultiValueMapItem.sender]].
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
     const value = this.state.get(
@@ -212,7 +271,11 @@ export class CMultiValueMap<K, V>
   }
 
   /**
-   * Items in each value ordered lexicographically by sender.
+   * Returns an iterable of `[key, get(key)]` pairs
+   * for every entry in the map.
+   *
+   * The iteration order is NOT eventually consistent:
+   * it may differ on replicas with the same state.
    */
   *entries(): IterableIterator<[K, MultiValueMapItem<V>[]]> {
     for (const [key, value] of this.state.entries()) {

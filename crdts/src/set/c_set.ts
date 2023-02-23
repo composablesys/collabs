@@ -16,20 +16,30 @@ import {
 import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
 
 /**
- * A set of mutable values, each represented by a [[Collab]] of type `C`.
+ * A collaborative set with *mutable*
+ * values of type C.
  *
- * Because the values are Collabs, you can't add a new value by sending
- * it over the network directly. Instead, you supply arbitrary AddArgs
- * to [[add]], which sends those values over the network. Then all replicas
- * construct the actual value - replicas of a new Collab - by calling
- * the `valueConstructor` callback that you supply in the constructor.
- * See the constructor's docs for an example.
+ * Values are internally mutable.
+ * Specifically, each value is its own [[Collab]], and
+ * operations on that Collab are collaborative as usual.
+ *
+ * Unlike a normal `Set<C>`, you do not add values directly.
+ * Instead, you use the pattern described in
+ * [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs):
+ * one user calls [[add]] with `AddArgs`; each
+ * replica passes those `AddArgs` to its
+ * `valueConstructor`;
+ * and `valueConstructor` returns the local copy of the new value Collab.
  *
  * When a value is deleted with [[delete]], it is deleted permanently and
  * can no longer be used; future and concurrent operations on that value
- * are ignored. (Local operations will succeed but will not be propagated to
- * remote replicas.) You can perform cleanup in [[Collab.finalize]] (called
- * just after the "Delete" event) or in a "Delete" event handler.
+ * are ignored.
+ *
+ * You can also treat a `CSet<C>` as a "factory"
+ * for Collabs of type C: [[add]] is like "new"/"malloc" and
+ * [[delete]] is like "free", but replicated across all devices.
+ *
+ * See also: [[CValueSet]].
  */
 export class CSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractSet_Collab<C, AddArgs>
@@ -42,38 +52,13 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   private readonly argsSerializer: Serializer<AddArgs>;
 
   /**
-   * Constructs a [[CSet]] with the given valueConstructor and
-   * optional arguments.
+   * Constructs a CSet with the given `valueConstructor`.
    *
-   * The valueConstructor is a callback used to construct newly inserted
-   * values. It takes arbitrary AddArgs, plus an [[InitToken]], and returns
-   * a new value replica. For example, with value type [[CCounter]],
-   * and taking an initial value as
-   * the AddArgs (`AddArgs = [initialValue: number]`):
-   * ```
-   * import * as collabs from "@collabs/collabs";
-   * // ...
-   *
-   * function valueConstructor(valueInit: collabs.InitToken, initialValue: number) {
-   *   return new collabs.CCounter(valueInit, initialValue);
-   * }
-   * // runtime is a CRuntime or CContainer
-   * const set = runtime.registerCollab(
-   *   "set",
-   *   (init) => new collabs.CSet(init, valueConstructor)
-   * );
-   * ```
-   * Then when any replica calls `list.add(initialValue)`, e.g. in response to
-   * a user button click, all replicas run `valueConstructor` to create
-   * a new counter value. These values are all linked, i.e., they
-   * start with the same value (`initialValue`) and replicate each other's operations.
-   *
-   * For more info, see the [Guide](../../../guide/initialization.html#dynamically-created-collabs).
-   *
-   * @param init         [description]
-   * @param valueConstructor  [description]
-   * @param argsSerializer = DefaultSerializer.getInstance() Optional,
-   * use this to specify a custom [[Serializer]] for InsertArgs.\
+   * @param valueConstructor Callback used to construct a
+   * value Collab with the given [[InitToken]] and arguments to [[add]]. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * for example usage.
+   * @param options.argsSerializer A serializer for `AddArgs` as an array.
+   * Defaults to [[DefaultSerializer]].
    */
   constructor(
     init: InitToken,
@@ -217,6 +202,15 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return `${counter.toString(36)},${sender}`;
   }
 
+  /**
+   * Adds a value to the set using args.
+   *
+   * The args are broadcast to all replicas in serialized form.
+   * Every replica then passes them to `valueConstructor` to construct the actual
+   * value of type C, a new Collab that is collaborative as usual.
+   *
+   * @returns The added value.
+   */
   add(...args: AddArgs): C {
     this.inAdd = true;
     const message = CSetMessage.create({
@@ -232,6 +226,16 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return created;
   }
 
+  /**
+   * Deletes the given value, making it no longer present
+   * in this set.
+   *
+   * `value` is deleted permanently and
+   * can no longer be used; future and concurrent operations on that value
+   * are ignored. Local operations will succeed but will not affect
+   * remote replicas. The value can perform cleanup in its
+   * [[Collab.finalize]] method.
+   */
   delete(value: C): void {
     if (this.has(value)) {
       const message = CSetMessage.create({
@@ -256,10 +260,9 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   /**
-   * @param  value [description]
-   * @return the AddArgs used to add value
-   * @throws if !this.has(value) or if value is an initialValue
-   * (those args aren't retained, for efficiency)
+   * Returns the `AddArgs` used to add `value`.
+   *
+   * @throws if `!this.has(value)`.
    */
   getArgs(value: C): AddArgs {
     if (!this.has(value)) {
@@ -311,7 +314,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     }
   }
 
-  idOf<C extends Collab>(descendant: C): CollabID<C> {
+  idOf<D extends Collab>(descendant: D): CollabID<D> {
     return collabIDOf(descendant, this);
   }
 

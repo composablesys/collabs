@@ -7,7 +7,7 @@ import {
 import { Aggregator, CMultiValueMap } from "./c_multi_value_map";
 
 /**
- * Default aggregator: return the first item (first replicaID wins)l
+ * Default aggregator: return the first item (first replicaID wins).
  */
 const defaultAggregator: Aggregator<unknown> = {
   aggregate(items) {
@@ -15,6 +15,22 @@ const defaultAggregator: Aggregator<unknown> = {
   },
 } as const;
 
+/**
+ * A collaborative map with keys of type K and values of type V.
+ *
+ * The API is compatible with `Map<K, V>` and can be used as a
+ * drop-in collaborative replacement when V is internally immutable. If multiple users
+ * set the value at a key concurrently, one of them is picked
+ * arbitrarily.
+ *
+ * Values must be internally immutable;
+ * mutating a value internally will not change it on
+ * other replicas. If you need to mutate values internally,
+ * instead use a [[CMap]] or [[CLazyMap]].
+ *
+ * @typeParam K The key type.
+ * @typeParam V The value type.
+ */
 export class CValueMap<K, V>
   extends AbstractMap_CObject<K, V>
   implements IMap<K, V>
@@ -23,9 +39,13 @@ export class CValueMap<K, V>
   private readonly aggregator: Aggregator<V>;
 
   /**
-   * aggregate isn't called on [], that's just not present.
+   * Constructs a CValueMap.
    *
-   * aggregate: values given in order by sender (eventually consistent).
+   * @param options.keySerializer Serializer for keys. Defaults to [[DefaultSerializer]].
+   * @param options.valueSerializer Serializer for values. Defaults to [[DefaultSerializer]].
+   * @param options.aggregator If provided, used
+   * to aggregate concurrently-set values at the same key,
+   * instead of picking one arbitrarily.
    */
   constructor(
     init: InitToken,
@@ -64,6 +84,11 @@ export class CValueMap<K, V>
     });
   }
 
+  /**
+   * Sets the value at key.
+   *
+   * @return `value`
+   */
   set(key: K, value: V): V {
     this.mvMap.set(key, value);
     return this.get(key)!;
@@ -79,6 +104,14 @@ export class CValueMap<K, V>
     else return this.aggregator.aggregate(multiValue);
   }
 
+  /**
+   * Returns all conflicting concurrently-set values
+   * at key.
+   * Their order is arbitrary but consistent across replicas.
+   *
+   * If the key is not present, this returns `[]`.
+   * Otherwise, its first element is the set value.
+   */
   getConflicts(key: K): V[] {
     return (this.mvMap.get(key) ?? []).map((item) => item.value);
   }

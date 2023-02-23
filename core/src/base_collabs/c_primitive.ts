@@ -16,9 +16,9 @@ import {
  * are described algorithmically.
  *
  * See also:
- * - [[PrimitiveCRDT]], for a primitive CRDT.
  * - [[CObject]], for an "object" Collab that does not need to send its own
  * messages.
+ * - [[PrimitiveCRDT]], for a primitive CRDT.
  *
  * @typeParam Events Events record indicating the names and types of
  * events emitted by this Collab.
