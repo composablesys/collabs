@@ -7,8 +7,8 @@ import { MetaRequest } from "@collabs/core";
  * whenever it delivers a message or saved state.
  * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
- * All messages in the same [transaction](../../transactions.md)
- * have the same [[CRDTMeta]].
+ * All messages in the same transaction
+ * have the same [[CRDTMeta]]. <!-- TODO: docs link -->
  *
  * Properties are only included if they were accessed during the
  * sender's own local echo (i.e., within their

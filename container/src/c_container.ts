@@ -7,6 +7,9 @@ import {
   SaveRequestMessage,
 } from "./message_types";
 
+/**
+ * Events record for [[CContainer]].
+ */
 export interface CContainerEventsRecord {
   /**
    * Emitted at the end of each transaction (local or remote).
@@ -27,44 +30,17 @@ export interface CContainerEventsRecord {
   Change: object;
 }
 
-// Opt: is replicaID needed?
-
 /**
  * Entrypoint for a Collabs container: a network-agnostic,
  * self-contained collaborative app that is deployed using static
  * files only.
  *
- * See [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+ * For a usage example, see [Containers](../../../guide/containers.html).
  *
- * This class is similar to, and replaces, @collabs/collabs
- * `CRuntime` class as the Collabs entrypoint. This means that
- * it is the first thing you construct when using Collabs,
- * and you register your top-level (global variable) Collabs
- * using [[registerCollab]]. Unlike `CRuntime`, there are no
+ * This class is similar to, and replaces, [[CRuntime]] / [[AbstractDoc]].
+ * Unlike `CRuntime`, there are no
  * methods/events for sending or receiving messages or for
  * saving and loading; those are handled for you.
- * Specifically, those happen via communication with an instance
- * of [[CContainerHost]] running in a separate window
- * (currently assumed to be `window.parent`).
- *
- * As the name suggests, `CContainer` is specifically designed for use
- * with `Collab`s that are (op-based) CRDTs. Currently, this includes
- * all `Collab`s that come built-in with @collabs/collabs.
- *
- * ## `CContainer` Lifecycle
- *
- * After construction a `CContainer`, you must first
- * register your Collabs using [[registerCollab]].
- * Afterwards, you must eventually call [[load]], await
- * its Promise, and then call [[ready]]. Only then can you
- * use the `CContainer`, i.e., you can perform `Collab`
- * operations and the container will deliver messages
- * to the `Collab`s.
- *
- * See the
- * [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md)
- * for step-by-step instructions on when to call these methods
- * during your app's setup.
  */
 export class CContainer extends EventEmitter<CContainerEventsRecord> {
   private readonly _runtime: CRuntime;
@@ -83,14 +59,10 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   private loadResolve: ((message: LoadMessage) => void) | null = null;
 
   /**
-   * Constructs a new `CContainer` that connects to
-   * a `CContainerHost` running in `window.parent`.
+   * Constructs a new CContainer that connects to
+   * a [[CContainerHost]] running in `window.parent`.
    *
-   * @param options Options to pass to the internal [[CRuntime]].
-   * It is recommended that you leave `batchingStrategy` as
-   * its default value (an `ImmediateBatchingStrategy`);
-   * that way, the choice of batching is left up to your
-   * container host.
+   * @param options See [[RuntimeOptions]].
    */
   constructor(options?: {
     debugReplicaID?: string;
@@ -166,19 +138,26 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   }
 
   /**
-   * Constructs `preCollab` and registers it as a
-   * top-level (global variable) `Collab` with the
-   * given name.
+   * Registers a [[Collab]] as a ["global variable" Collab](guide/initialization.html#global-variable-collabs)
+   * in this container with the given name.
    *
-   * @param  name The `Collab`'s name, which must be
-   * unique among all registered `Collabs`. E.g., its name
-   * as a variable in your program.
-   @param  preCollab The [[Collab]] to construct, typically
-   * created using a statement of the form
-   * `(init) => new collabs.constructor(init, [constructor args])`.
-   * For example, `(init) => new collabs.CCounter(init)`
-   * @return The registered `Collab`. You should assign
-   * this to a variable for later use.
+   * Typically, you will call this method when the page loads, with the style:
+   * ```ts
+   * const foo = container.registerCollab("foo", (init) => new FooClass(init, constructor args...));
+   * ```
+   * where `const foo: FooClass;` is a top-level variable.
+   *
+   * Registrations must be identical across all replicas, i.e., all CContainer instances running in
+   * connected [[CContainerHost]]s.
+   *
+   * @param name A name for this property, unique among
+   * this container's `registerCollab` calls.
+   * We recommend using the same name as the property,
+   * but you can also use short strings to reduce
+   * network usage ("", "0", "1", ...).
+   * @param collabCallback A callback that uses the
+   * given [[InitToken]] to construct the registered [[Collab]].
+   * @return The registered Collab.
    */
   registerCollab<C extends Collab>(
     name: string,
@@ -188,14 +167,18 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   }
 
   /**
-   * If this is not the outermost transaction, it is ignored (including info).
-   * In particular, that can happen if we are inside an auto microtask
-   * transaction, due to an earlier out-of-transaction op.
+   * Wraps `f`'s operations in a transaction. <!-- TODO: see transactions doc -->
    *
-   * @param f
+   * This method begins a transaction (if needed), calls `f()`,
+   * then ends its transaction (if begun). Operations
+   * not wrapped in a `transact` call use the constructor's
+   * [[RuntimeOptions.autoTransactions]] option.
+   *
+   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
+   * In particular, only its `info` is used.
+   *
    * @param info An optional info string to attach to the transaction.
-   * It will appear on [[CollabEvent]]s as [[UpdateMeta.info]].
-   * E.g. a "commit message".
+   * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
    */
   transact(f: () => void, info?: string) {
     this.runtime.transact(f, info);
@@ -260,26 +243,15 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   /**
    * Optionally, this may be called after [[load]] to cause
    * all "further messages" to be delivered immediately and
-   * synchronously.
+   * synchronously. You can use this to optimize startup,
+   * as described in the [container docs](../../../guide/containers.html).
    *
    * The "further messages" are messages that should have been
    * part of our loaded save data (i.e., they were received
    * before the previous instance was saved), but were
-   * not included. This can happen because
-   * `CContainerHost.save` must run synchronously,
-   * so it does not have time to instruct us to call our
-   * internal analog of `CRuntime.save`. Instead, `CContainerHost`
-   * instructs us to do so occasionally, then saves any
-   * further messages as part of its own save data.
-   * (See [[onSaveRequest]].)
+   * not included for technical reasons.
    *
-   * Ordinarily, the further messages are delivered to your
-   * `Collab`s in an event loop iteration after [[ready]]
-   * is called. This makes them indistinguishable from newly
-   * received messages. However, you can instead call this
-   * method earlier (but after [[load]]). This is never
-   * necessary but can serve as an optimization; see
-   * the [container docs](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md#loading).
+   * If not called, the "further messages" will be delivered in an event loop iteration after [[ready]] is called, like new messages.
    */
   receiveFurtherMessages(): void {
     if (this.loadFurtherMessages === null) return;
@@ -305,8 +277,7 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   }
 
   /**
-   * The internal [[CRuntime]], i.e., the value of
-   * `runtime` on any `Collab`.
+   * The [[CRuntime]] for this container's Collabs.
    */
   get runtime(): CRuntime {
     return this._runtime;
