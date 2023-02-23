@@ -383,3 +383,33 @@ TODO: Views (example with sorted set): not directly replicated, but still EC so 
 ### Rich Text (Quill)
 
 TODO: rich text? To point out need for adjusting the original data model to fit the known operations (no good "split" op on IList, which you'd need to match Quill's exact data model). -->
+
+## AbstractDoc
+
+Once you have your data model, you may want to encapsulate the whole thing - the `CRuntime` and all [global variable Collabs](./initialization.html#global-variable-collabs) - into a single, reusable document. `AbstractDoc` makes this easy.
+
+To use `AbstractDoc`, extend it and register Collabs in your constructor, like with `CObject`. For example, to encapsulate the [Minesweeper example's](#minesweeper) Collabs, we could define:
+
+```ts
+import { AbstractDoc } from "@collabs/collabs";
+
+class MyMinesweeperDoc extends AbstractDoc {
+  readonly gameFactory: CSet<CMinesweeper>;
+  readonly currentGame: CVar<CollabID<CMinesweeper> | null>;
+
+  constructor() {
+    super();
+
+    this.gameFactory = this.runtime.registerCollab(
+      "gameFactory",
+      (init) => ...
+    );
+    this.currentGame = this.runtime.registerCollab(
+      "currentGame",
+      (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
+    );
+  }
+}
+```
+
+Then in your app, you can create a `new MyMinesweeperDoc()`, [send/receive/load/save like with `CRuntime`](./entry_points.html#cruntime), and access its Collabs. The single `MyMinesweeperDoc` object is easy to pass around (e.g. as a React prop), and you can easily create multiple instances (e.g. multiple games shared by different groups of players).

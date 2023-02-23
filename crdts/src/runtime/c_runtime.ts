@@ -173,7 +173,7 @@ export class CRuntime
   }
 
   /**
-   * Registers a [[Collab]] as a ["global variable" Collab](guide/initialization.html#global-variable-collabs)
+   * Registers a [[Collab]] as a ["global variable" Collab](../../../guide/initialization.html#global-variable-collabs)
    * in this runtime with the given name.
    *
    * Typically, you will call this method right after creating this CRuntime, with the style:

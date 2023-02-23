@@ -34,8 +34,8 @@ import { AbstractMap_Collab } from "../data_types/abstract_maps";
  * Due to laziness, there is no explicit operation to "set"
  * the value at a key. (The [[set]] method
  * is a no-op.) Instead, all replicas [[get]] the same value,
- * and any operations they perform on that value (which is
- * itself a [[Collab]]) affect everyone.
+ * and any operations they perform on that value are "merged",
+ * affecting everyone.
  * This contrasts with [[CMap]], in which each [[set]] operation
  * overwrites the previous value at its key, erasing any
  * changes (including concurrent ones).

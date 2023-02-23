@@ -138,7 +138,7 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   }
 
   /**
-   * Registers a [[Collab]] as a ["global variable" Collab](guide/initialization.html#global-variable-collabs)
+   * Registers a [[Collab]] as a ["global variable" Collab](../../../guide/initialization.html#global-variable-collabs)
    * in this container with the given name.
    *
    * Typically, you will call this method when the page loads, with the style:

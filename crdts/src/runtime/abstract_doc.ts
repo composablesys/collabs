@@ -12,10 +12,12 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  * Base class for a Collabs document.
  *
  * By extending AbstractDoc, you can encapsulate
- * a [[CRuntime]] and your [global variable Collabs](guide/initialization.html#global-variable-collabs)
+ * a [[CRuntime]] and your [global variable Collabs](../../..guide/initialization.html#global-variable-collabs)
  * in a single "document" object. This is convenient
  * for passing documents around and for working with
  * multiple documents in the same app.
+ *
+ * See [Data Modeling](../../../guide/data_modeling.html#abstractdoc) for a usage example.
  *
  * <!-- TODO: link to example in docs: Entry Points? -->
  */
