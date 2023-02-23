@@ -134,11 +134,11 @@ export class CList<
   C extends Collab,
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
-  protected readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
-  protected readonly createdPositionMessenger: CMessenger<
+  private readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
+  private readonly createdPositionMessenger: CMessenger<
     [counter: number, startValueIndex: number, metadata: Uint8Array | null]
   >;
-  protected readonly positionSource: ListPositionSource<CListEntry<C>[]>;
+  private readonly positionSource: ListPositionSource<CListEntry<C>[]>;
 
   /**
    * Constructs a CList with the given `valueConstructor`.
