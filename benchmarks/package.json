@@ -1,6 +1,6 @@
 {
   "name": "@collabs/benchmarks",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Collabs benchmarks",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -19,7 +19,7 @@
   "private": true,
   "dependencies": {
     "@airbnb/node-memwatch": "^2.0.0",
-    "@collabs/collabs": "0.8.0",
+    "@collabs/collabs": "0.8.1",
     "@types/node": "^15.6.1",
     "automerge": "^1.0.1-preview.7",
     "benchmark": "^2.1.4",
