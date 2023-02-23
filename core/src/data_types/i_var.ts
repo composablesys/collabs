@@ -29,7 +29,7 @@ export interface VarEventsRecord<T> extends CollabEventsRecord {
 /**
  * Interface for a collaborative variable of type T.
  *
- * For an implementation, see [[CVar]].
+ * For implementations, see [[CVar]] and [[CBoolean]].
  *
  * An `IVar<T>` represents an opaque value of type T.
  * It is set with [[set]] and read with the [[value]]

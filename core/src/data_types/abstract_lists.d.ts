@@ -5,8 +5,11 @@ import { IList, ListEventsRecord } from "./i_list";
 // See MakeAbstractList for the rationale behind this file.
 
 /**
- * Abstract [[IList]] with some default method implementations,
- * as a subclass of [[Collab]].
+ * Skeletal implementation of the [[IList]] interface, as a subclass of
+ * [[Collab]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractList_Collab<
     T,
@@ -133,8 +136,11 @@ export declare abstract class AbstractList_Collab<
 }
 
 /**
- * Abstract [[IList]] with some default method implementations,
- * as a subclass of [[CObject]].
+ * Skeletal implementation of the [[IList]] interface, as a subclass of
+ * [[CObject]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractList_CObject<
     T,
@@ -261,8 +267,11 @@ export declare abstract class AbstractList_CObject<
 }
 
 /**
- * Abstract [[IList]] with some default method implementations,
- * as a subclass of [[CPrimitive]].
+ * Skeletal implementation of the [[IList]] interface, as a subclass of
+ * [[CPrimitive]].
+ *
+ * This class is a convenience for Collab implementers. It provides
+ * some default method implementations and leaves the others abstract.
  */
 export declare abstract class AbstractList_CPrimitive<
     T,

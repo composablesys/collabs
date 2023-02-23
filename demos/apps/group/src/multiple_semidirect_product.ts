@@ -2,16 +2,15 @@ import {
   Collab,
   CollabEventsRecord,
   CollabID,
-  collabIDOf,
+  CRDTMeta,
   InitToken,
   IParent,
-  MessageStacksSerializer,
   MetaRequest,
   Parent,
   SavedStateTree,
   UpdateMeta,
-} from "@collabs/core";
-import { CRDTMeta } from "@collabs/crdts";
+} from "@collabs/collabs";
+import { collabIDOf, MessageStacksSerializer } from "@collabs/core";
 import {
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
