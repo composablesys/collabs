@@ -41,6 +41,9 @@ export interface CounterEventsRecord extends CollabEventsRecord {
  * Values and add args are required to be safe integers, since floating-point addition is not
  * commutative. If you need non-integer values,
  * you should use e.g. `counter.value / 100`.
+ *
+ * See also: [[CVar]]`<number>`: for a number that can be set and get atomically instead of
+ * counting.
  */
 export class CCounter extends CPrimitive<CounterEventsRecord> {
   private _value: number;
@@ -60,6 +63,9 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
 
   /**
    * Adds the given number to [[value]].
+   *
+   * If multiple users call [[add]] concurrently, all
+   * of their additions take effect.
    *
    * @throws If `toAdd` is not a safe integer.
    */

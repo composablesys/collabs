@@ -88,7 +88,8 @@ export interface ListEventsRecord<T> extends CollabEventsRecord {
  * an entry's position never changes.
  *
  * There are methods to convert between a position, its value (if present), and
- * its current index (or where it would be if present).
+ * its current index (or where it would be if present). Positions
+ * are represented by opaque strings.
  *
  * You can use positions
  * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), cursors, range endpoints

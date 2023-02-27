@@ -66,7 +66,10 @@ export interface TextEventsRecord extends CollabEventsRecord {
  *
  * *Positions* are described in [IList](../../core/interfaces/IList.html).
  *
- * See also: [[CValueList]], [[CList]].
+ * See also:
+ * - [[CValueList]], [[CList]]: for general lists.
+ * - [[CVar]]`<string>`: for a string that can be set and get atomically instead of
+ * edited like text.
  */
 export class CText extends CObject<TextEventsRecord> {
   // Internally, CText uses a CValueList containing its list of Unicode code
