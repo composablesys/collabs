@@ -67,7 +67,7 @@ export class RunLocallyLayer extends Collab implements IParent {
    * - It is "pure" in the sense of pure op-based CRDTs: the messages it sends
    * do not depend on the current state. (E.g. no state-based conditionals,
    * no generating UIDs before sending.)
-   * - It works with "automatic" [[CRDTMeta]]. (Exception: it may access extra
+   * - It works with "automatic" [[CRDTMessageMeta]]. (Exception: it may access extra
    * CRDTMeta fields if those were requested by the currently-processed message.)
    *
    * These properties hold for most (TODO: all?) operations in the standard library

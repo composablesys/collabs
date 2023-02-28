@@ -1,3 +1,8 @@
-message CCounterMessage {
+message CounterMessage {
   optional sint64 arg = 1 [default = 1];
+}
+
+message CounterSave {
+  map<string, uint64> p = 1;
+  map<string, uint64> n = 2;
 }

@@ -6,14 +6,14 @@ import {
   int64AsNumber,
   UpdateMeta,
 } from "@collabs/core";
-import { CCounterMessage } from "../../generated/proto_compiled";
+import { CounterMessage, CounterSave } from "../../generated/proto_compiled";
 
 /**
- * Event emitted by a [[CCounter]] when a number is added.
+ * Event emitted by a [[CCounter]] when the value changes.
  */
 export interface CounterAddEvent extends CollabEvent {
   /**
-   * The number added.
+   * The amount added.
    */
   added: number;
   /**
@@ -27,11 +27,13 @@ export interface CounterAddEvent extends CollabEvent {
  */
 export interface CounterEventsRecord extends CollabEventsRecord {
   /**
-   * Emitted when a number is added.
+   * Emitted when the value changes.
    */
   Add: CounterAddEvent;
 }
 
+// TODO: memory warning (number of replicas that added) - worse than op-based.
+// TODO: reset? If so, oblivious version?
 /**
  * A collaborative counter with an [[add]] operation.
  *
@@ -46,8 +48,11 @@ export interface CounterEventsRecord extends CollabEventsRecord {
  * counting.
  */
 export class CCounter extends CPrimitive<CounterEventsRecord> {
-  private _value: number;
   private readonly initialValue: number;
+  private readonly p = new Map<string, number>();
+  private readonly n = new Map<string, number>();
+  /** Cached value. */
+  private _value: number;
 
   /**
    * Constructs a CCounter.
@@ -73,20 +78,26 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
     if (!Number.isSafeInteger(toAdd)) {
       throw new Error("toAdd must be a safe integer");
     }
+    if (toAdd === 0) return;
 
-    const message = CCounterMessage.create(toAdd === 1 ? {} : { arg: toAdd });
-    this.sendPrimitive(CCounterMessage.encode(message).finish());
+    const message = CounterMessage.create(toAdd === 1 ? {} : { arg: toAdd });
+    this.sendPrimitive(CounterMessage.encode(message).finish());
   }
 
   protected receivePrimitive(
     message: Uint8Array | string,
     meta: UpdateMeta
   ): void {
-    const decoded = CCounterMessage.decode(<Uint8Array>message);
+    const decoded = CounterMessage.decode(<Uint8Array>message);
     const toAdd = int64AsNumber(decoded.arg);
+    if (toAdd > 0) {
+      this.p.set(meta.senderID, (this.p.get(meta.senderID) ?? 0) + toAdd);
+    } else {
+      this.n.set(meta.senderID, (this.n.get(meta.senderID) ?? 0) - toAdd);
+    }
     this._value += toAdd;
 
-    this.emit("Add", { added: toAdd, value: this.value, meta });
+    this.emit("Add", { added: toAdd, value: this._value, meta });
   }
 
   /**
@@ -97,18 +108,42 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
   }
 
   protected savePrimitive(): Uint8Array | null {
-    if (this.canGC()) return null;
+    if (this.p.size === 0 && this.n.size === 0) return null;
 
-    const message = CCounterMessage.create({ arg: this._value });
-    return CCounterMessage.encode(message).finish();
+    // TODO: store maps as records, to avoid this copy?
+    const message = CounterSave.create({
+      p: Object.fromEntries(this.p),
+      n: Object.fromEntries(this.n),
+    });
+    return CounterSave.encode(message).finish();
   }
 
-  protected loadPrimitive(savedState: Uint8Array): void {
-    const decoded = CCounterMessage.decode(savedState);
-    this._value = int64AsNumber(decoded.arg);
+  protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
+    const oldValue = this._value;
+    const decoded = CounterSave.decode(savedState);
+    this.mergeOne(this.p, decoded.p, 1);
+    this.mergeOne(this.n, decoded.n, -1);
+    if (this._value !== oldValue) {
+      this.emit("Add", {
+        added: this._value - oldValue,
+        value: this._value,
+        meta,
+      });
+    }
   }
 
-  canGC(): boolean {
-    return this._value === this.initialValue;
+  private mergeOne(
+    current: Map<string, number>,
+    incoming: Record<string, number | Long>,
+    sign: 1 | -1
+  ) {
+    for (const [key, value] of Object.entries(incoming)) {
+      const a = current.get(key) ?? 0;
+      const b = int64AsNumber(value);
+      if (b > a) {
+        current.set(key, b);
+        this._value += sign * (b - a);
+      }
+    }
   }
 }

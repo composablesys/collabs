@@ -10,4 +10,6 @@ message CRDTMetaMessage {
   optional uint64 wallClockTime = 6;
   optional uint64 lamportTimestamp = 7;
   optional string info = 8;
+  // Only present when true.
+  optional bool isLoad = 9;
 }

@@ -13,7 +13,7 @@ import {
   MultiValueMapSave,
 } from "../../generated/proto_compiled";
 import { AbstractMap_PrimitiveCRDT } from "../base_collabs";
-import { CRDTMeta } from "../runtime";
+import { CRDTMessageMeta } from "../runtime";
 
 /**
  * An item in a [[MultiValueMap]], i.e., a set value
@@ -179,7 +179,7 @@ export class CMultiValueMap<K, V>
   protected receiveCRDT(
     message: Uint8Array | string,
     meta: UpdateMeta,
-    crdtMeta: CRDTMeta
+    crdtMeta: CRDTMessageMeta
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);
     const key = this.keySerializer.deserialize(decoded.key);
@@ -231,7 +231,7 @@ export class CMultiValueMap<K, V>
         value: newItems,
         previousValue:
           previousValueLiteral === undefined
-            ? Optional.empty<MultiValueMapItem<V>[]>()
+            ? Optional.empty()
             : Optional.of(previousValueLiteral),
         meta,
       });
@@ -278,7 +278,7 @@ export class CMultiValueMap<K, V>
    * it may differ on replicas with the same state.
    */
   *entries(): IterableIterator<[K, MultiValueMapItem<V>[]]> {
-    for (const [key, value] of this.state.entries()) {
+    for (const [key, value] of this.state) {
       yield [
         this.keySerializer.deserialize(Bytes.parse(key)),
         this.asArray(value),
@@ -333,8 +333,28 @@ export class CMultiValueMap<K, V>
     return MultiValueMapSave.encode({ stateBySender }).finish();
   }
 
-  loadCRDT(savedState: Uint8Array): void {
+  loadCRDT(
+    savedState: Uint8Array,
+    _meta: UpdateMeta,
+    crdtMeta: CRDTMessageMeta
+  ): void {
     const stateBySender = MultiValueMapSave.decode(savedState).stateBySender;
+
+    // 1. Loop through existing keys, delete causally dominated entries, and
+    // add new entries that are not causally dominated.
+    // TODO: dedupe with receive
+    for (const [key, value] of this.state) {
+      let changed = false;
+      const oldItems = this.asArray(value);
+      const newItems: MultiValueMapItem<V>[] = [];
+      for (const item of oldItems) {
+        // TODO: here crdtMeta needs to be for the received message, not merged,
+        // since our VC definitely dominates this item.
+        if (crdtMeta.vectorClockGet(item.sender) < item.senderCounter) {
+          newItems.push(item);
+        }
+      }
+    }
 
     for (const [sender, senderSave] of Object.entries(stateBySender)) {
       let senderCounter = 0;

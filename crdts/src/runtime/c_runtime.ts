@@ -14,11 +14,7 @@ import {
 } from "@collabs/core";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import { CRDTMetaProvider, CRDTMetaRequest } from "./crdt_meta";
-import {
-  CRDTMetaSerializer,
-  LoadCRDTMeta,
-  SendCRDTMeta,
-} from "./crdt_meta_implementations";
+import { CRDTMetaSerializer, SendCRDTMeta } from "./crdt_meta_implementations";
 
 class PublicCObject extends CObject {
   registerCollab<C extends Collab>(
@@ -457,6 +453,7 @@ export class CRuntime
     try {
       const savedStateTree =
         SavedStateTreeSerializer.instance.deserialize(savedState)!;
+      // TODO: wait to merge VCs until done.
       this.buffer.load(savedStateTree.self!);
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
@@ -464,7 +461,19 @@ export class CRuntime
         updateType: "savedState",
         isLocalOp: false,
         info: undefined,
-        runtimeExtra: new LoadCRDTMeta(this.replicaID),
+        // TODO: saver's ID instead of this.replicaID?
+        // TODO: doc: point of this is just vc and lamport.
+        runtimeExtra: new LoadCRDTMeta(
+          this.replicaID,
+          0,
+          // TODO: this will be union VC; is that sufficient or do we need
+          // the two separately?
+          new Map(this.buffer.vc),
+          // Can fake maximalVCKey count since this is not seen by buffer.
+          0,
+          null,
+          this.buffer.lamportTimestamp
+        ),
       };
       this.rootCollab.load(savedStateTree, meta);
 

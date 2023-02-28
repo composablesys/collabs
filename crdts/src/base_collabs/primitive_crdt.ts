@@ -4,7 +4,12 @@ import {
   InitToken,
   UpdateMeta,
 } from "@collabs/core";
-import { CRDTMeta, CRDTMetaProvider, CRDTMetaRequest } from "../runtime";
+import {
+  CRDTMessageMeta,
+  CRDTMetaProvider,
+  CRDTMetaRequest,
+  CRDTSavedStateMeta,
+} from "../runtime";
 
 /**
  * Convenience base class for a CRDT implementation that sends
@@ -16,7 +21,7 @@ import { CRDTMeta, CRDTMetaProvider, CRDTMetaRequest } from "../runtime";
  * are described algorithmically.
  *
  * This class differs from [[CPrimitive]] in that it requires [[CRuntime]],
- * and it makes it easier to work with [[CRuntime]]'s [[CRDTMeta]].
+ * and it makes it easier to work with [[CRuntime]]'s [[CRDTMessageMeta]].
  *
  * See also:
  * - [[CObject]], for an "object" Collab that does not need to send its own
@@ -65,7 +70,7 @@ export abstract class PrimitiveCRDT<
     message: Uint8Array | string,
     meta: UpdateMeta
   ): void {
-    this.receiveCRDT(message, meta, <CRDTMeta>meta.runtimeExtra);
+    this.receiveCRDT(message, meta, <CRDTMessageMeta>meta.runtimeExtra);
   }
 
   /**
@@ -92,7 +97,7 @@ export abstract class PrimitiveCRDT<
   protected abstract receiveCRDT(
     message: Uint8Array | string,
     meta: UpdateMeta,
-    crdtMeta: CRDTMeta
+    crdtMeta: CRDTMessageMeta
   ): void;
 
   protected savePrimitive(): Uint8Array | null {
@@ -100,7 +105,7 @@ export abstract class PrimitiveCRDT<
   }
 
   protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
-    this.loadCRDT(savedState, meta, <CRDTMeta>meta.runtimeExtra);
+    this.loadCRDT(savedState, meta, <CRDTSavedStateMeta>meta.runtimeExtra);
   }
 
   protected abstract saveCRDT(): Uint8Array | null;
@@ -108,6 +113,6 @@ export abstract class PrimitiveCRDT<
   protected abstract loadCRDT(
     savedState: Uint8Array,
     meta: UpdateMeta,
-    crdtMeta: CRDTMeta
+    crdtMeta: CRDTSavedStateMeta
   ): void;
 }

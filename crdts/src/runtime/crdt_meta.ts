@@ -1,14 +1,14 @@
 import { MetaRequest } from "@collabs/core";
 
 /**
- * CRDT-related meta for an update.
+ * CRDT-related meta for a message.
  *
  * [[CRuntime]] puts this meta in [[UpdateMeta.runtimeExtra]]
- * whenever it delivers a message or saved state.
+ * whenever it delivers a message to [[Collab.receive]].
  * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
  * All messages in the same transaction
- * have the same [[CRDTMeta]]. <!-- TODO: docs link -->
+ * have the same [[CRDTMessageMeta]]. <!-- TODO: docs link -->
  *
  * Properties are only included if they were accessed during the
  * sender's own local echo (i.e., within their
@@ -17,7 +17,7 @@ import { MetaRequest } from "@collabs/core";
  * [[PrimitiveCRDT.sendCRDT]] / [[Collab.send]].
  * Other fields are null, or 0 for [[vectorClockGet]].
  */
-export interface CRDTMeta {
+export interface CRDTMessageMeta {
   /**
    * Copy of [[UpdateMeta.senderID]], for convenience.
    */
@@ -30,12 +30,13 @@ export interface CRDTMeta {
    */
   readonly senderCounter: number;
   /**
-   * The maximum `senderCounter` received from `replicaID`,
-   * or 0 if none have been received.
-   * Equivalently, the number of transactions received from
-   * replicaID.
+   * Returns `replicaID`'s vector clock entry for the received message.
    *
-   * When `replicaID` is `senderID`, this is the same as senderCounter.
+   * By definition, this equals the maximum `senderCounter` received from
+   * `replicaID` before this message was sent,
+   * or 0 if no messages had been received from `replicaID`.
+   *
+   * When `replicaID` is `senderID`, returns [[senderCounter]].
    *
    * If not requested or accessed by the sender, returns 0.
    */
@@ -57,7 +58,7 @@ export interface CRDTMeta {
 }
 
 /**
- * A request for specific [[CRDTMeta]] fields.
+ * A request for specific [[CRDTMessageMeta]] fields.
  *
  * This is the [[MetaRequest]] type for [[CRuntime]],
  * as passed to [[PrimitiveCRDT.sendCRDT]] / [[Collab.send]].
@@ -84,10 +85,42 @@ export interface CRDTMetaRequest extends MetaRequest {
 }
 
 /**
- * Flag on an [[IRuntime]] indicating that it provides [[CRDTMeta]]
+ * CRDT-related meta for a saved state.
+ *
+ * [[CRuntime]] puts this meta in [[UpdateMeta.runtimeExtra]]
+ * whenever it delivers a saved state to [[Collab.load]].
+ * To access it more easily, consider extending [[PrimitiveCRDT]].
+ *
+ * Unlike [[CRDTMessageMeta]], all properties are always included.
+ */
+export interface CRDTSavedStateMeta {
+  /**
+   * Returns `replicaID`'s vector clock entry for the saved state.
+   *
+   * By definition, this equals the maximum `senderCounter` received from
+   * `replicaID` before the state was saved,
+   * or 0 if no messages had been received from `replicaID`.
+   */
+  remoteVectorClockGet(replicaID: string): number;
+  /**
+   * Returns `replicaID`'s vector clock entry on the local replica.
+   *
+   * By definition, this equals the maximum `senderCounter` received from
+   * `replicaID` by this replica,
+   * or 0 if no messages have been received from `replicaID`.
+   *
+   * TODO: don't save for later (this is live view).
+   */
+  localVectorClockGet(replicaID: string): number;
+}
+
+/**
+ * Flag on an [[IRuntime]] indicating that it provides [[CRDTMessageMeta]]
+ * (for messages) and [[CRDTLoadMeta]] (for saved states)
  * in [[UpdateMeta.runtimeExtra]].
  *
- * Collabs that use [[CRDTMeta]] are encouraged to check this flag
+ * Collabs that use [[CRDTMessageMeta]] or [[CRDTLoadMeta]]
+ * are encouraged to check this flag
  * in their constructor ([[PrimitiveCRDT]] does this for you).
  */
 export interface CRDTMetaProvider {

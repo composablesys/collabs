@@ -29,7 +29,7 @@ export interface UpdateMeta {
   readonly info: string | undefined;
   /**
    * Optionally, an [[IRuntime]] implementation may include extra metadata
-   * in this field. For example, [[CRuntime]] puts [[CRDTMeta]] here.
+   * in this field. For example, [[CRuntime]] puts [[CRDTMessageMeta]] here.
    *
    * This field is intended for use by [[Collab]] implementations,
    * not event listeners.

@@ -1,8 +1,8 @@
 import { int64AsNumber, Serializer, UpdateMeta } from "@collabs/core";
 import { CRDTMetaMessage } from "../../generated/proto_compiled";
-import { CRDTMeta } from "./crdt_meta";
+import { CRDTMessageMeta } from "./crdt_meta";
 
-export class SendCRDTMeta implements CRDTMeta {
+export class SendCRDTMeta implements CRDTMessageMeta {
   readonly senderCounter: number;
 
   /**
@@ -131,7 +131,8 @@ export class SendCRDTMeta implements CRDTMeta {
   }
 }
 
-export class ReceiveCRDTMeta implements CRDTMeta {
+// TODO: also used for load
+export class ReceiveCRDTMeta implements CRDTMessageMeta {
   constructor(
     readonly senderID: string,
     readonly senderCounter: number,
@@ -166,20 +167,6 @@ export class ReceiveCRDTMeta implements CRDTMeta {
       lamportTimestamp: this.lamportTimestamp,
     });
   }
-}
-
-export class LoadCRDTMeta implements CRDTMeta {
-  constructor(readonly senderID: string) {}
-
-  readonly senderCounter = 0;
-
-  vectorClockGet(_replicaID: string): number {
-    return 0;
-  }
-
-  readonly wallClockTime = null;
-
-  readonly lamportTimestamp = null;
 }
 
 /**
@@ -221,6 +208,7 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
       wallClockTime: crdtMeta.wallClockTime,
       lamportTimestamp: crdtMeta.lamportTimestamp,
       info: value.info,
+      isLoad: value.updateType === "savedState" ? true : undefined,
     });
     return CRDTMetaMessage.encode(message).finish();
   }
@@ -246,7 +234,7 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
     );
     return {
       senderID: crdtMeta.senderID,
-      updateType: "message",
+      updateType: decoded.isLoad ? "savedState" : "message",
       isLocalOp: false,
       info: Object.prototype.hasOwnProperty.call(decoded, "info")
         ? decoded.info
