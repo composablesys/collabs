@@ -109,19 +109,29 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
   // TODO: docs. Also for descendants (not just children).
   // TODO: use in our own CObjects
-  protected onChild<C extends Collab, K extends keyof EventsOf<C>>(
-    child: C,
-    eventName: K,
-    handler: (event: EventsOf<C>[K], caller: C) => void
-  ): () => void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (child as C & Collab<any>).on(eventName, (event, caller) => {
-      if ((event as CollabEvent).meta?.updateType === "savedState") {
+  protected wrap<E extends CollabEvent, C extends Collab>(
+    handler: (event: E, caller: C) => void
+  ): (event: E, caller: C) => void {
+    return (event, caller) => {
+      if (event.meta.updateType === "savedState") {
         if (this.loadEndCallbacks === undefined) this.loadEndCallbacks = [];
         this.loadEndCallbacks.push(() => handler(event, caller));
       } else handler(event, caller);
-    });
+    };
   }
+
+  // protected onChild<C extends Collab>(
+  //   child: C,
+  //   ...[eventName, handler]: Parameters<C["on"]>
+  // ): () => void {
+  //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  //   return child.on(eventName, (event, caller) => {
+  //     if (event.meta?.updateType === "savedState") {
+  //       if (this.loadEndCallbacks === undefined) this.loadEndCallbacks = [];
+  //       this.loadEndCallbacks.push(() => handler(event, caller));
+  //     } else handler(event, caller);
+  //   });
+  // }
 
   childSend(
     child: Collab,
@@ -177,7 +187,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       this.loadEndCallbacks.forEach((value) => value());
       this.loadEndCallbacks = undefined;
     }
-    this.loadObject(savedStateTree.self ?? null);
+    this.loadObject(savedStateTree.self ?? null, meta);
   }
 
   /**
@@ -202,7 +212,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * a previous saved instance, possibly null.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected loadObject(savedState: Uint8Array | null): void {
+  protected loadObject(savedState: Uint8Array | null, meta: UpdateMeta): void {
     // Does nothing by default.
   }
 
