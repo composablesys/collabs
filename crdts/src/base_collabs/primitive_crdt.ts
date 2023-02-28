@@ -65,11 +65,7 @@ export abstract class PrimitiveCRDT<
     message: Uint8Array | string,
     meta: UpdateMeta
   ): void {
-    const crdtMeta = <CRDTMeta>meta.runtimeExtra;
-    if (crdtMeta === undefined) {
-      throw new Error("No CRDTMeta supplied; ensure you are using CRuntime");
-    }
-    this.receiveCRDT(message, meta, crdtMeta);
+    this.receiveCRDT(message, meta, <CRDTMeta>meta.runtimeExtra);
   }
 
   /**
@@ -95,6 +91,22 @@ export abstract class PrimitiveCRDT<
    */
   protected abstract receiveCRDT(
     message: Uint8Array | string,
+    meta: UpdateMeta,
+    crdtMeta: CRDTMeta
+  ): void;
+
+  protected savePrimitive(): Uint8Array | null {
+    return this.saveCRDT();
+  }
+
+  protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
+    this.loadCRDT(savedState, meta, <CRDTMeta>meta.runtimeExtra);
+  }
+
+  protected abstract saveCRDT(): Uint8Array | null;
+
+  protected abstract loadCRDT(
+    savedState: Uint8Array,
     meta: UpdateMeta,
     crdtMeta: CRDTMeta
   ): void;

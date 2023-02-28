@@ -52,20 +52,26 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
         })
     );
 
-    this.mvMap.on("Delete", (e) => {
-      this.emit("Delete", {
-        value: e.key,
-        meta: e.meta,
-      });
-    });
-    this.mvMap.on("Set", (e) => {
-      // Ensure the value actually went from not-present to present.
-      if (e.previousValue.isPresent) return;
-      this.emit("Add", {
-        value: e.key,
-        meta: e.meta,
-      });
-    });
+    this.mvMap.on(
+      "Delete",
+      super.wrap((e) => {
+        this.emit("Delete", {
+          value: e.key,
+          meta: e.meta,
+        });
+      })
+    );
+    this.mvMap.on(
+      "Set",
+      super.wrap((e) => {
+        // Ensure the value actually went from not-present to present.
+        if (e.previousValue.isPresent) return;
+        this.emit("Add", {
+          value: e.key,
+          meta: e.meta,
+        });
+      })
+    );
   }
 
   /**

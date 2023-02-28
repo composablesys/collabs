@@ -105,8 +105,8 @@ export abstract class CPrimitive<
    */
   protected abstract savePrimitive(): Uint8Array | null;
 
-  load(savedState: SavedStateTree): void {
-    this.loadPrimitive(savedState.self!);
+  load(savedState: SavedStateTree, meta: UpdateMeta): void {
+    this.loadPrimitive(savedState.self!, meta);
   }
 
   /**
@@ -121,5 +121,8 @@ export abstract class CPrimitive<
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
    */
-  protected abstract loadPrimitive(savedState: Uint8Array): void;
+  protected abstract loadPrimitive(
+    savedState: Uint8Array,
+    meta: UpdateMeta
+  ): void;
 }

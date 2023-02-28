@@ -92,21 +92,27 @@ export class CText extends CObject<TextEventsRecord> {
     );
 
     // Events.
-    this.list.on("Insert", (e) =>
-      this.emit("Insert", {
-        index: e.index,
-        values: e.values.join(""),
-        positions: e.positions,
-        meta: e.meta,
-      })
+    this.list.on(
+      "Insert",
+      super.wrap((e) =>
+        this.emit("Insert", {
+          index: e.index,
+          values: e.values.join(""),
+          positions: e.positions,
+          meta: e.meta,
+        })
+      )
     );
-    this.list.on("Delete", (e) =>
-      this.emit("Delete", {
-        index: e.index,
-        values: e.values.join(""),
-        positions: e.positions,
-        meta: e.meta,
-      })
+    this.list.on(
+      "Delete",
+      super.wrap((e) =>
+        this.emit("Delete", {
+          index: e.index,
+          values: e.values.join(""),
+          positions: e.positions,
+          meta: e.meta,
+        })
+      )
     );
   }
 

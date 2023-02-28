@@ -105,11 +105,13 @@ export class CMap<
     this.map.on("Set", (e) => {
       // The previous value is guaranteed to be not-yet-deleted,
       // since set calls map.set before valueSet.delete.
+      // TODO: ^^ will break even with wrap().
       const previousValue = e.previousValue.map(
         (id) => this.valueSet.fromID(id)!
       );
       this.emit("Set", {
         key: e.key,
+        // TODO: doc that this is okay by wrap().
         value: this.valueSet.fromID(e.value)!,
         previousValue,
         meta: e.meta,
@@ -118,6 +120,7 @@ export class CMap<
     this.map.on("Delete", (e) => {
       // The previous value is guaranteed to be not-yet-deleted,
       // since delete calls map.delete before valueSet.delete.
+      // TODO: ^^ will break even with wrap().
       const value = this.valueSet.fromID(e.value)!;
       this.emit("Delete", {
         key: e.key,

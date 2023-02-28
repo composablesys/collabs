@@ -286,7 +286,7 @@ export class CMultiValueMap<K, V>
     }
   }
 
-  protected savePrimitive(): Uint8Array | null {
+  protected saveCRDT(): Uint8Array | null {
     if (this.canGC()) return null;
 
     const stateBySender: Record<
@@ -333,7 +333,7 @@ export class CMultiValueMap<K, V>
     return MultiValueMapSave.encode({ stateBySender }).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array): void {
+  loadCRDT(savedState: Uint8Array): void {
     const stateBySender = MultiValueMapSave.decode(savedState).stateBySender;
 
     for (const [sender, senderSave] of Object.entries(stateBySender)) {

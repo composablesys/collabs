@@ -38,7 +38,6 @@ const defaultAggregator: Aggregator<unknown> = {
  */
 export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   private readonly mvMap: CMultiValueMap<null, T>;
-  private readonly aggregator: Aggregator<T>;
   private _value: T;
 
   /**
@@ -54,7 +53,7 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
    */
   constructor(
     init: InitToken,
-    private readonly initialValue: T,
+    initialValue: T,
     options: {
       valueSerializer?: Serializer<T>;
       aggregator?: Aggregator<T>;
@@ -62,7 +61,7 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
   ) {
     super(init);
 
-    this.aggregator =
+    const aggregator =
       options.aggregator ?? (defaultAggregator as Aggregator<T>);
 
     this.mvMap = super.registerCollab(
@@ -74,23 +73,20 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
           aggregator: options.aggregator,
         })
     );
-    this.mvMap.on("Any", (e) => {
-      const previousValue = this._value;
-      this.invalidate();
-      if (this._value !== previousValue) {
-        this.emit("Set", { value: this._value, previousValue, meta: e.meta });
-      }
-    });
+    this.mvMap.on(
+      "Any",
+      super.wrap((e) => {
+        const previousValue = this._value;
+        const items = this.mvMap.get(null);
+        this._value =
+          items === undefined ? initialValue : aggregator.aggregate(items);
+        if (this._value !== previousValue) {
+          this.emit("Set", { value: this._value, previousValue, meta: e.meta });
+        }
+      })
+    );
 
     this._value = initialValue;
-  }
-
-  private invalidate() {
-    const items = this.mvMap.get(null);
-    this._value =
-      items === undefined
-        ? this.initialValue
-        : this.aggregator.aggregate(items);
   }
 
   /**
@@ -141,9 +137,5 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
 
   toString() {
     return `${this.value}`;
-  }
-
-  protected loadObject(): void {
-    this.invalidate();
   }
 }
