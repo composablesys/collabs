@@ -9,11 +9,16 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import {
+  IMultiValueMapItemsSave,
+  MultiValueMapItemsSave,
   MultiValueMapMessage,
   MultiValueMapSave,
 } from "../../generated/proto_compiled";
 import { AbstractMap_PrimitiveCRDT } from "../base_collabs";
-import { CRDTMessageMeta } from "../runtime";
+import { CRDTMessageMeta, CRDTSavedStateMeta } from "../runtime";
+
+// TODO: don't modify arrays you get from get() or events
+// (may be live).
 
 /**
  * An item in a [[MultiValueMap]], i.e., a set value
@@ -115,6 +120,7 @@ export class CMultiValueMap<K, V>
 
   private readonly keySerializer: Serializer<K>;
   private readonly valueSerializer: Serializer<V>;
+  // OPT: don't set if false.
   private readonly wallClockTime: boolean;
   private readonly lamportTimestamp: boolean;
 
@@ -191,6 +197,8 @@ export class CMultiValueMap<K, V>
     const newItems: MultiValueMapItem<V>[] = [];
     if (previousValueLiteral !== undefined) {
       for (const item of previousValueLiteral) {
+        // Omit causally dominated entries, including previous sets from the
+        // same transaction.
         if (crdtMeta.vectorClockGet(item.sender) < item.senderCounter) {
           newItems.push(item);
         }
@@ -287,99 +295,190 @@ export class CMultiValueMap<K, V>
   }
 
   protected saveCRDT(): Uint8Array | null {
-    if (this.canGC()) return null;
+    // Even if we have no state, we cannot return null, because load()
+    // needs to look at our VC.
 
-    const stateBySender: Record<
-      string,
-      {
-        keys: Uint8Array[];
-        values: Uint8Array[];
-        senderCounterDiffs: number[];
-        wallClockTimeDiffs: number[];
-      }
-    > = {};
-    const lastItems = new Map<string, MultiValueMapItem<V>>();
+    const entries: Record<string, IMultiValueMapItemsSave> = {};
+    const senders: string[] = [];
+    const indexBySender = new Map<string, number>();
+    for (const [keyAsString, itemsRaw] of this.state) {
+      const items = this.asArray(itemsRaw);
+      const entry: IMultiValueMapItemsSave = {
+        values: new Array(items.length),
+        senders: new Array(items.length),
+        senderCounters: new Array(items.length),
+      };
+      if (this.wallClockTime) entry.wallClockTimes = new Array(items.length);
+      if (this.lamportTimestamp)
+        entry.lamportTimestamps = new Array(items.length);
 
-    for (const [keyAsString, items] of this.state) {
-      const keySerialized = Bytes.parse(keyAsString);
-      for (const item of this.asArray(items)) {
-        let senderSave = stateBySender[item.sender];
-        if (senderSave === undefined) {
-          senderSave = {
-            keys: [],
-            values: [],
-            senderCounterDiffs: [],
-            wallClockTimeDiffs: [],
-          };
-          stateBySender[item.sender] = senderSave;
+      for (let i = 0; i < items.length; i++) {
+        entry.values![i] = this.valueSerializer.serialize(items[i].value);
+        let sender = indexBySender.get(items[i].sender);
+        if (sender === undefined) {
+          sender = senders.length;
+          senders.push(items[i].sender);
         }
-
-        const lastItem = lastItems.get(item.sender);
-        lastItems.set(item.sender, item);
-
-        senderSave.keys.push(keySerialized);
-        senderSave.values.push(this.valueSerializer.serialize(item.value));
-        senderSave.senderCounterDiffs.push(
-          item.senderCounter - (lastItem?.senderCounter ?? 0)
-        );
-        if (this.wallClockTime) {
-          senderSave.wallClockTimeDiffs.push(
-            item.wallClockTime! - (lastItem?.wallClockTime ?? 0)
-          );
-        }
+        entry.senders![i] = sender;
+        entry.senderCounters![i] = items[i].senderCounter;
+        if (this.wallClockTime)
+          entry.wallClockTimes![i] = items[i].wallClockTime!;
+        if (this.lamportTimestamp)
+          entry.lamportTimestamps![i] = items[i].lamportTimestamp!;
       }
+
+      entries[keyAsString] = entry;
     }
 
-    return MultiValueMapSave.encode({ stateBySender }).finish();
+    return MultiValueMapSave.encode({ entries, senders }).finish();
   }
 
   loadCRDT(
     savedState: Uint8Array,
-    _meta: UpdateMeta,
-    crdtMeta: CRDTMessageMeta
+    meta: UpdateMeta,
+    crdtMeta: CRDTSavedStateMeta
   ): void {
-    const stateBySender = MultiValueMapSave.decode(savedState).stateBySender;
+    const decoded = MultiValueMapSave.decode(savedState);
 
-    // 1. Loop through existing keys, delete causally dominated entries, and
-    // add new entries that are not causally dominated.
-    // TODO: dedupe with receive
-    for (const [key, value] of this.state) {
-      let changed = false;
-      const oldItems = this.asArray(value);
-      const newItems: MultiValueMapItem<V>[] = [];
-      for (const item of oldItems) {
-        // TODO: here crdtMeta needs to be for the received message, not merged,
-        // since our VC definitely dominates this item.
-        if (crdtMeta.vectorClockGet(item.sender) < item.senderCounter) {
-          newItems.push(item);
+    // Loop through keys in this.state.
+    for (const [keyAsString, itemsRaw] of this.state) {
+      this.loadOneKey(
+        keyAsString,
+        this.asArray(itemsRaw),
+        decoded.entries[keyAsString] as MultiValueMapItemsSave | undefined,
+        decoded.senders,
+        meta,
+        crdtMeta
+      );
+      // Delete from decoded so we don't loop over it again.
+      delete decoded.entries[keyAsString];
+    }
+    // Loop through keys in decoded but not this.state.
+    for (const [keyAsString, items] of Object.entries(decoded.entries)) {
+      this.loadOneKey(
+        keyAsString,
+        undefined,
+        items as MultiValueMapItemsSave,
+        decoded.senders,
+        meta,
+        crdtMeta
+      );
+    }
+  }
+
+  private loadOneKey(
+    keyAsString: string,
+    localItems: MultiValueMapItem<V>[] | undefined,
+    remoteItems: MultiValueMapItemsSave | undefined,
+    decodedSenders: string[],
+    meta: UpdateMeta,
+    crdtMeta: CRDTSavedStateMeta
+  ): void {
+    // The new set of items is the union of:
+    // 1. Items in both oldItems and loadedItems.
+    // 2. Items in localItems only that are not causally dominated by crdtMeta.remoteVC.
+    // 3. Items in remoteItems only that are not causally dominated by crdtMeta.localVC.
+    const newItems: MultiValueMapItem<V>[] = [];
+
+    let pushedRemote = false;
+    const localLength = localItems?.length ?? 0;
+    const remoteLength = remoteItems?.values.length ?? 0;
+    // To keep the results sorted and allow quickly checking Case 1, use a
+    // mergesort-like loop.
+    let localI = 0;
+    let remoteI = 0;
+    while (localI < localLength || remoteI < remoteLength) {
+      let pushLocal = false;
+      let pushRemote = false;
+      let remoteSenderCounter: number;
+      const localSender =
+        localI === localLength ? undefined : localItems![localI].sender;
+      const remoteSender =
+        remoteI === remoteLength
+          ? undefined
+          : decodedSenders[remoteItems!.senders[remoteI]];
+      if (remoteSender === undefined || localSender! < remoteSender) {
+        // Local item has next sender, check case 2.
+        const localSenderCounter = localItems![localI].senderCounter;
+        if (localSenderCounter > crdtMeta.remoteVectorClockGet(localSender!)) {
+          pushLocal = true;
         }
+        localI++;
+      } else if (localSender === undefined || remoteSender < localSender) {
+        // Remote item has next sender, check case 3.
+        remoteSenderCounter = int64AsNumber(
+          remoteItems!.senderCounters[remoteI]
+        );
+        if (remoteSenderCounter > crdtMeta.localVectorClockGet(remoteSender)) {
+          pushRemote = true;
+        }
+        remoteI++;
+      } else {
+        // Both items have same sender; the one with >= senderCounter
+        // is the only remaining item and can't be dominated by the
+        // other. This includes case 1:
+        // == senderCounters must be the same item even if the source
+        // transaction had multiple sets (it's always the last set).
+        const localSenderCounter = localItems![localI].senderCounter;
+        remoteSenderCounter = int64AsNumber(
+          remoteItems!.senderCounters[remoteI]
+        );
+        if (localSenderCounter >= remoteSenderCounter) {
+          pushLocal = true;
+        } else {
+          pushRemote = true;
+        }
+        localI++;
+        remoteI++;
+      }
+
+      if (pushLocal) {
+        newItems.push(localItems![localI]);
+      } else if (pushRemote) {
+        newItems.push({
+          value: this.valueSerializer.deserialize(remoteItems!.values[remoteI]),
+          sender: remoteSender!,
+          senderCounter: remoteSenderCounter!,
+          ...(this.wallClockTime
+            ? {
+                wallClockTime: int64AsNumber(
+                  remoteItems!.wallClockTimes[remoteI]
+                ),
+              }
+            : {}),
+          ...(this.lamportTimestamp
+            ? {
+                lamportTimestamp: int64AsNumber(
+                  remoteItems!.lamportTimestamps[remoteI]
+                ),
+              }
+            : {}),
+        });
+        pushedRemote = true;
       }
     }
 
-    for (const [sender, senderSave] of Object.entries(stateBySender)) {
-      let senderCounter = 0;
-      let wallClockTime = 0;
-      for (let i = 0; i < senderSave.keys!.length; i++) {
-        const keyAsString = Bytes.stringify(senderSave.keys![i]);
-        senderCounter += int64AsNumber(senderSave.senderCounterDiffs![i]);
-        if (this.wallClockTime) {
-          wallClockTime += int64AsNumber(senderSave.wallClockTimeDiffs![i]);
-        }
-        const newItem: MultiValueMapItem<V> = {
-          value: this.valueSerializer.deserialize(senderSave.values![i]),
-          sender,
-          senderCounter,
-          ...(this.wallClockTime ? { wallClockTime } : {}),
-        };
-
-        const previousValue = this.state.get(keyAsString);
-        if (previousValue === undefined) {
-          this.state.set(keyAsString, newItem);
-        } else if (Array.isArray(previousValue)) {
-          previousValue.push(newItem);
-        } else {
-          this.state.set(keyAsString, [previousValue, newItem]);
-        }
+    if (pushedRemote || newItems.length < localLength) {
+      // newItems differs from localItems; update this.state and emit
+      // an event.
+      const key = this.keySerializer.deserialize(Bytes.parse(keyAsString));
+      if (newItems.length === 0) {
+        this.state.delete(keyAsString);
+        this.emit("Delete", { key, value: localItems!, meta });
+      } else {
+        this.state.set(
+          keyAsString,
+          newItems.length === 1 ? newItems[0] : newItems
+        );
+        this.emit("Set", {
+          key,
+          value: newItems,
+          previousValue:
+            localItems === undefined
+              ? Optional.empty()
+              : Optional.of(localItems),
+          meta,
+        });
       }
     }
   }
