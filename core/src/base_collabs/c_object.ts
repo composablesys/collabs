@@ -1,5 +1,6 @@
 import {
   Collab,
+  CollabEvent,
   CollabEventsRecord,
   CollabID,
   collabIDOf,
@@ -10,6 +11,11 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "../core";
+
+// TODO: move, export
+type EventsOf<C extends Collab> = C extends Collab<infer Events>
+  ? Events
+  : never;
 
 /**
  * Base class for a collaborative object, containing
@@ -61,6 +67,9 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    */
   protected readonly children: Map<string, Collab> = new Map();
 
+  // TODO: docs
+  private loadEndCallbacks: Array<() => void> | undefined = undefined;
+
   /**
    * Registers a [[Collab]] property of this CObject
    * with the given name, making it one of our [[children]].
@@ -96,6 +105,22 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     const child = collabCallback(new InitToken(name, this));
     this.children.set(name, child);
     return child;
+  }
+
+  // TODO: docs. Also for descendants (not just children).
+  // TODO: use in our own CObjects
+  protected onChild<C extends Collab, K extends keyof EventsOf<C>>(
+    child: C,
+    eventName: K,
+    handler: (event: EventsOf<C>[K], caller: C) => void
+  ): () => void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (child as C & Collab<any>).on(eventName, (event, caller) => {
+      if ((event as CollabEvent).meta?.updateType === "savedState") {
+        if (this.loadEndCallbacks === undefined) this.loadEndCallbacks = [];
+        this.loadEndCallbacks.push(() => handler(event, caller));
+      } else handler(event, caller);
+    });
   }
 
   childSend(
@@ -147,6 +172,10 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
           child.load(childSave!, meta);
         }
       }
+    }
+    if (this.loadEndCallbacks !== undefined) {
+      this.loadEndCallbacks.forEach((value) => value());
+      this.loadEndCallbacks = undefined;
     }
     this.loadObject(savedStateTree.self ?? null);
   }
@@ -228,3 +257,18 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     }
   }
 }
+
+// TODO: remove
+// class Test extends CObject {
+//   constructor(init: InitToken) {
+//     super(init);
+
+//     const x = this.registerCollab("x", (init) => new CMessenger<number>(init));
+//     this.onChild(x, "Message", (e) => console.log(e.message));
+//     this.onChild<MessengerEventsRecord<number>, CMessenger<number>, "Message">(
+//       x,
+//       "Message",
+//       (e) => console.log(e.message)
+//     );
+//   }
+// }
