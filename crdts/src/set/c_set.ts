@@ -164,6 +164,17 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
             this.children.delete(decoded.delete);
             this.constructorArgs.delete(decoded.delete);
 
+            // Store the child in justDeletedChildren until the end
+            // of the transaction.
+            if (this.justDeletedChildren.size === 0) {
+              (this.runtime as CRuntime).on(
+                "Transaction",
+                () => this.justDeletedChildren.clear(),
+                { once: true }
+              );
+            }
+            this.justDeletedChildren.set(decoded.delete, child);
+
             this.emit("Delete", {
               value: child,
               meta,
@@ -333,14 +344,14 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
    * this CSet, returns this replica's copy of the original
    * `descendant`.
    *
-   * If the original `descendant` has since been deleted from this
-   * set, this method will in general return `undefined`. An exception
-   * is if `descendant` was just deleted - specifically, this will
-   * still return the original `descendant` until the next
-   * [[RuntimeEventsRecord.Change]] event.
-   *
-   * If that descendant does not exist (e.g., it was deleted
-   * or it is not present in this program version), returns undefined.
+   * If the original `descendant` has been deleted from this
+   * set, this method will usually return `undefined`. The exception
+   * is if `descendant` was just deleted from this set.
+   * In that case, this method will
+   * still return the original `descendant` until the end of
+   * the deleting transaction or [[CRuntime.load]] call.
+   * Thus event handlers within the same transaction can still
+   * get the deleted value.
    *
    * @param id A CollabID from [[idOf]].
    * @param startIndex Internal (parent) use only.
@@ -352,10 +363,14 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     startIndex = 0
   ): D | undefined {
     const name = id.namePath[startIndex];
-    const child = this.children.get(name) as Collab;
+    let child = this.children.get(name) as Collab;
     if (child === undefined) {
-      // Assume it is a deleted child.
-      return undefined;
+      // If it's a just-deleted child, still succeed.
+      child = this.justDeletedChildren.get(name) as Collab;
+      if (child === undefined) {
+        // Assume it is a deleted child.
+        return undefined;
+      }
     }
 
     // Terminal case.
