@@ -14,7 +14,9 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
-import { CRuntime } from "../runtime";
+import { CRDTMessageMeta, CRuntime } from "../runtime";
+
+const RADIX = 36;
 
 /**
  * A collaborative set with *mutable*
@@ -135,15 +137,13 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       child.receive(messageStack, meta);
     } else {
       const decoded = CSetMessage.decode(lastMessage);
+      const crdtMeta = meta.runtimeExtra as CRDTMessageMeta;
       switch (decoded.op) {
         case "add": {
-          const name = this.makeName(
-            meta.senderID,
-            decoded.add!.replicaUniqueNumber
-          );
+          const name = this.makeName(meta.senderID, crdtMeta.senderCounter);
           const newValue = this.receiveCreate(
             name,
-            decoded.add!.args,
+            decoded.add,
             undefined,
             false
           );
@@ -216,9 +216,46 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return newValue;
   }
 
-  private makeName(sender: string, counter: number) {
-    // OPT: shorten (base128 instead of base36)
-    return `${counter.toString(36)},${sender}`;
+  // Name requirements:
+  // 1. Contain their causal dot (senderID, senderCounter), for merging
+  // 2. Unique, even with multiple adds in same transaction
+  // 3. Pure - doesn't reference sender-side state, for future runLocally
+  // To satisfy these, we use a causal dot plus a per-transaction counter
+  // (evaluated on the receiver side).
+  // To avoid a wasteful senderID -> utf8 bytes -> base64 string
+  // conversion, we encode the string manually,
+  // instead of using protobuf + Bytes.stringify.
+  // OPT: shorter number encodings? Esp for senderCounter.
+
+  private trCounter = 0;
+
+  private makeName(senderID: string, senderCounter: number) {
+    let ans: string;
+    if (this.trCounter === 0) {
+      // Reset trCounter at the end of the transaction.
+      (this.runtime as CRuntime).on(
+        "Transaction",
+        () => {
+          this.trCounter = 0;
+        },
+        { once: true }
+      );
+      // Omit trCounter in this common case.
+      ans = `${senderCounter.toString(RADIX)},${senderID}`;
+    } else {
+      ans = `${senderCounter.toString(RADIX)}.${this.trCounter.toString(
+        RADIX
+      )},${senderID}`;
+    }
+    this.trCounter++;
+    return ans;
+  }
+
+  private parseName(name: string): [senderID: string, senderCounter: number] {
+    const comma = name.indexOf(",");
+    const dot = name.lastIndexOf(".", comma - 1);
+    const senderCounterStr = name.slice(0, dot === -1 ? comma : dot);
+    return [name.slice(comma + 1), Number.parseInt(senderCounterStr, RADIX)];
   }
 
   /**
@@ -233,10 +270,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   add(...args: AddArgs): C {
     this.inAdd = true;
     const message = CSetMessage.create({
-      add: {
-        replicaUniqueNumber: this.runtime.nextLocalCounter(),
-        args: this.argsSerializer.serialize(args),
-      },
+      add: this.argsSerializer.serialize(args),
     });
     this.send([CSetMessage.encode(message).finish()], []);
     const created = this.ourCreatedValue!;
