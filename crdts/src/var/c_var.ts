@@ -73,18 +73,15 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
           aggregator: options.aggregator,
         })
     );
-    this.mvMap.on(
-      "Any",
-      super.wrap((e) => {
-        const previousValue = this._value;
-        const items = this.mvMap.get(null);
-        this._value =
-          items === undefined ? initialValue : aggregator.aggregate(items);
-        if (this._value !== previousValue) {
-          this.emit("Set", { value: this._value, previousValue, meta: e.meta });
-        }
-      })
-    );
+    this.mvMap.on("Any", (e) => {
+      const previousValue = this._value;
+      const items = this.mvMap.get(null);
+      this._value =
+        items === undefined ? initialValue : aggregator.aggregate(items);
+      if (this._value !== previousValue) {
+        this.emit("Set", { value: this._value, previousValue, meta: e.meta });
+      }
+    });
 
     this._value = initialValue;
   }

@@ -65,29 +65,23 @@ export class CValueMap<K, V>
       (init) => new CMultiValueMap(init, options)
     );
 
-    this.mvMap.on(
-      "Delete",
-      super.wrap((e) => {
-        this.emit("Delete", {
-          key: e.key,
-          value: this.aggregator.aggregate(e.value),
-          meta: e.meta,
-        });
-      })
-    );
-    this.mvMap.on(
-      "Set",
-      super.wrap((e) => {
-        this.emit("Set", {
-          key: e.key,
-          value: this.aggregator.aggregate(e.value),
-          previousValue: e.previousValue.map((multiValue) =>
-            this.aggregator.aggregate(multiValue)
-          ),
-          meta: e.meta,
-        });
-      })
-    );
+    this.mvMap.on("Delete", (e) => {
+      this.emit("Delete", {
+        key: e.key,
+        value: this.aggregator.aggregate(e.value),
+        meta: e.meta,
+      });
+    });
+    this.mvMap.on("Set", (e) => {
+      this.emit("Set", {
+        key: e.key,
+        value: this.aggregator.aggregate(e.value),
+        previousValue: e.previousValue.map((multiValue) =>
+          this.aggregator.aggregate(multiValue)
+        ),
+        meta: e.meta,
+      });
+    });
   }
 
   /**
