@@ -14,7 +14,7 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
-import { CRDTMessageMeta, CRuntime } from "../runtime";
+import { CRDTMessageMeta, CRDTSavedStateMeta, CRuntime } from "../runtime";
 
 const RADIX = 36;
 
@@ -141,45 +141,13 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       switch (decoded.op) {
         case "add": {
           const name = this.makeName(meta.senderID, crdtMeta.senderCounter);
-          const newValue = this.receiveCreate(
-            name,
-            decoded.add,
-            undefined,
-            false
-          );
-
-          if (this.inAdd) {
-            this.ourCreatedValue = newValue;
-          }
-
-          this.emit("Add", {
-            value: newValue,
-            meta,
-          });
+          this.receiveAdd(name, decoded.add, meta);
           break;
         }
         case "delete": {
           const child = this.children.get(decoded.delete);
           if (child !== undefined) {
-            this.children.delete(decoded.delete);
-            this.constructorArgs.delete(decoded.delete);
-
-            // Store the child in justDeletedChildren until the end
-            // of the transaction.
-            if (this.justDeletedChildren.size === 0) {
-              (this.runtime as CRuntime).on(
-                "Transaction",
-                () => this.justDeletedChildren.clear(),
-                { once: true }
-              );
-            }
-            this.justDeletedChildren.set(decoded.delete, child);
-
-            this.emit("Delete", {
-              value: child,
-              meta,
-            });
-            child.finalize();
+            this.receiveDelete(decoded.delete, child, meta);
           }
           break;
         }
@@ -189,31 +157,52 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     }
   }
 
-  private receiveCreate(
+  private receiveAdd(
     name: string,
     serializedArgs: Uint8Array | undefined,
-    args: AddArgs | undefined = undefined,
-    isInitialValue: boolean
-  ): C {
-    if (args === undefined) {
-      args = this.argsSerializer.deserialize(serializedArgs!);
-    }
-    // Add as child with "[sender, counter]" as id.
-    // Similar to CObject#registerCollab.
+    meta: UpdateMeta
+  ): void {
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
-    const newValue = this.valueConstructor(new InitToken(name, this), ...args);
+    const newValue = this.valueConstructor(
+      new InitToken(name, this),
+      ...this.argsSerializer.deserialize(serializedArgs!)
+    );
 
     this.children.set(name, newValue);
-    if (!isInitialValue) {
-      // Save the constuctor args.
-      // Not needed for initial values, since they are created
-      // as part of initialization.
-      this.constructorArgs.set(name, serializedArgs!);
+    this.constructorArgs.set(name, serializedArgs!);
+
+    if (this.inAdd) {
+      this.ourCreatedValue = newValue;
     }
 
-    return newValue;
+    this.emit("Add", {
+      value: newValue,
+      meta,
+    });
+  }
+
+  private receiveDelete(name: string, value: C, meta: UpdateMeta) {
+    this.children.delete(name);
+    this.constructorArgs.delete(name);
+
+    // Store the child in justDeletedChildren until the end
+    // of the transaction.
+    if (this.justDeletedChildren.size === 0) {
+      (this.runtime as CRuntime).on(
+        "Transaction",
+        () => this.justDeletedChildren.clear(),
+        { once: true }
+      );
+    }
+    this.justDeletedChildren.set(name, value);
+
+    this.emit("Delete", {
+      value,
+      meta,
+    });
+    value.finalize();
   }
 
   // Name requirements:
@@ -331,13 +320,14 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   save(): SavedStateTree | null {
     if (this.canGC()) return null;
 
-    // Note this will be in insertion order because
-    // Map iterators run in insertion order.
     const args = new Array<Uint8Array>(this.size);
     const childSaves = new Map<string, SavedStateTree | null>();
     let i = 0;
     for (const [name, child] of this.children) {
       args[i] = this.constructorArgs.get(name)!;
+      // It's important that we record the child even if its save
+      // is null. This is used to align with constructorArgs and
+      // to indicate which children are present.
       childSaves.set(name, child.save());
       i++;
     }
@@ -351,18 +341,43 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
     const saveMessage = CSetSave.decode(savedStateTree.self!);
     const childSaves = savedStateTree.children!;
+    const crdtMeta = meta.runtimeExtra as CRDTSavedStateMeta;
 
-    // Create children.
+    // 1. Delete our children that are not present in the saved
+    // state and that are causally dominated by the remote VC.
+    for (const [name, value] of this.children) {
+      if (!childSaves.has(name)) {
+        const [senderID, senderCounter] = this.parseName(name);
+        if (crdtMeta.localVectorClockGet(senderID) >= senderCounter) {
+          this.receiveDelete(name, value, meta);
+        }
+      }
+    }
+
+    // 2. Add new children (not already present here) that are not
+    // causally dominated by the local VC.
     let i = 0;
     for (const name of childSaves.keys()) {
-      this.receiveCreate(name, saveMessage.args[i], undefined, false);
+      if (!this.children.has(name)) {
+        const [senderID, senderCounter] = this.parseName(name);
+        if (crdtMeta.localVectorClockGet(senderID) < senderCounter) {
+          // This will emit an Add event, even though we haven't
+          // loaded the value yet.
+          // That matches add()'s behavior, and it lets users register event
+          // listeners in the Add event before any updates occur.
+          this.receiveAdd(name, saveMessage.args[i], meta);
+        }
+      }
       i++;
     }
 
-    // Load children.
+    // 3. Load children that have a save and are still present.
     for (const [name, childSave] of childSaves) {
       if (childSave !== null) {
-        this.children.get(name)!.load(childSave, meta);
+        const child = this.children.get(name);
+        if (child !== undefined) {
+          child.load(childSave, meta);
+        }
       }
     }
   }
