@@ -56,11 +56,15 @@ const host = runtime.registerCollab(
 );
 
 // Show the container once it's ready.
-host.once("ContainerReady", () => {
-  const loadingDiv = <HTMLDivElement>document.getElementById("loading");
-  document.body.removeChild(loadingDiv);
-  iframe.style.display = "block";
-});
+host.on(
+  "ContainerReady",
+  () => {
+    const loadingDiv = <HTMLDivElement>document.getElementById("loading");
+    document.body.removeChild(loadingDiv);
+    iframe.style.display = "block";
+  },
+  { once: true }
+);
 
 // TODO: loading from prior state (either local or received
 // from Matrix).

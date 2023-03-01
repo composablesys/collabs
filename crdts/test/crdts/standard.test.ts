@@ -28,7 +28,7 @@ function nextEvent<Events extends EventsRecord, K extends keyof Events>(
   eventName: keyof Events
 ) {
   return new Promise<K>((resolve) => {
-    emitter.once(eventName, resolve);
+    emitter.on(eventName, resolve, { once: true });
   });
 }
 
