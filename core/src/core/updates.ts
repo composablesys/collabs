@@ -21,13 +21,6 @@ export interface UpdateMeta {
    */
   readonly isLocalOp: boolean;
   /**
-   * Optionally, a sender-provided info string about the update
-   * (e.g., a "commit message").
-   *
-   * In [[CRuntime]], this info comes from the optional arg to [[CRuntime.transact]].
-   */
-  readonly info: string | undefined;
-  /**
    * Optionally, an [[IRuntime]] implementation may include extra metadata
    * in this field. For example, [[CRuntime]] puts [[CRDTMessageMeta]] here.
    *

@@ -6,9 +6,9 @@ import {
 } from "@collabs/core";
 import {
   CRDTMessageMeta,
-  CRDTMetaProvider,
   CRDTMetaRequest,
   CRDTSavedStateMeta,
+  CRuntime,
 } from "../runtime";
 
 /**
@@ -34,12 +34,8 @@ export abstract class PrimitiveCRDT<
   constructor(init: InitToken) {
     super(init);
 
-    if (
-      (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
-    ) {
-      throw new Error(
-        "this.runtime must be CRuntime or another CRDTMetaProvider"
-      );
+    if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
+      throw new Error("this.runtime must be CRuntime or similar");
     }
   }
 

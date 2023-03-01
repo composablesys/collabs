@@ -149,7 +149,6 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
                 senderID: "COPY",
                 isLocalOp: false,
                 updateType: "savedState",
-                info: undefined,
                 runtimeExtra: undefined,
               });
               runLocallyLayer.runLocally(meta, () => cvar.noop());

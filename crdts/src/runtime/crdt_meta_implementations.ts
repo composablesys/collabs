@@ -207,7 +207,6 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
           : crdtMeta.maximalVcKeyCount,
       wallClockTime: crdtMeta.wallClockTime,
       lamportTimestamp: crdtMeta.lamportTimestamp,
-      info: value.info,
       isLoad: value.updateType === "savedState" ? true : undefined,
     });
     return CRDTMetaMessage.encode(message).finish();
@@ -236,9 +235,6 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
       senderID: crdtMeta.senderID,
       updateType: decoded.isLoad ? "savedState" : "message",
       isLocalOp: false,
-      info: Object.prototype.hasOwnProperty.call(decoded, "info")
-        ? decoded.info
-        : undefined,
       runtimeExtra: crdtMeta,
     };
   }

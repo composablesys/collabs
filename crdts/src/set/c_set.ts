@@ -14,6 +14,7 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
+import { CRuntime } from "../runtime";
 
 /**
  * A collaborative set with *mutable*
@@ -46,8 +47,11 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   implements IParent
 {
   private readonly children: Map<string, C> = new Map();
-  // constructorArgs are saved for later save calls
+  // constructorArgs are saved for later save calls.
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
+  // We store just-deleted children until the next runtime Change event, for
+  // the purpose of answering fromId calls in same-transaction event listeners.
+  private readonly justDeletedChildren: Map<string, C> = new Map();
 
   private readonly argsSerializer: Serializer<AddArgs>;
 
@@ -69,6 +73,10 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     options: { argsSerializer?: Serializer<AddArgs> } = {}
   ) {
     super(init);
+
+    if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
+      throw new Error("this.runtime must be CRuntime or similar");
+    }
 
     this.argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
@@ -318,6 +326,27 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return collabIDOf(descendant, this);
   }
 
+  /**
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
+   * this CSet, returns this replica's copy of the original
+   * `descendant`.
+   *
+   * If the original `descendant` has since been deleted from this
+   * set, this method will in general return `undefined`. An exception
+   * is if `descendant` was just deleted - specifically, this will
+   * still return the original `descendant` until the next
+   * [[RuntimeEventsRecord.Change]] event.
+   *
+   * If that descendant does not exist (e.g., it was deleted
+   * or it is not present in this program version), returns undefined.
+   *
+   * @param id A CollabID from [[idOf]].
+   * @param startIndex Internal (parent) use only.
+   * If provided, treat `id.namePath` as if
+   * it starts at startIndex instead of 0.
+   */
   fromID<D extends Collab<CollabEventsRecord>>(
     id: CollabID<D>,
     startIndex = 0

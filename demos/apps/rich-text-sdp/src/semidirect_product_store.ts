@@ -4,7 +4,7 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/collabs";
-import { CRDTMeta, CRDTMetaProvider } from "@collabs/crdts";
+import { CRDTMeta, CRuntime } from "@collabs/crdts";
 import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
@@ -87,12 +87,8 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     this.discardM1Dominated = options.discardM1Dominated ?? false;
     this.discardM2Dominated = options.discardM2Dominated ?? false;
 
-    if (
-      (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
-    ) {
-      throw new Error(
-        "this.runtime must be CRuntime or another CRDTMetaProvider"
-      );
+    if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
+      throw new Error("this.runtime must be CRuntime or similar");
     }
   }
 

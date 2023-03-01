@@ -113,19 +113,3 @@ export interface CRDTSavedStateMeta {
    */
   localVectorClockGet(replicaID: string): number;
 }
-
-/**
- * Flag on an [[IRuntime]] indicating that it provides [[CRDTMessageMeta]]
- * (for messages) and [[CRDTLoadMeta]] (for saved states)
- * in [[UpdateMeta.runtimeExtra]].
- *
- * Collabs that use [[CRDTMessageMeta]] or [[CRDTLoadMeta]]
- * are encouraged to check this flag
- * in their constructor ([[PrimitiveCRDT]] does this for you).
- */
-export interface CRDTMetaProvider {
-  /**
-   * [[CRDTMetaProvider]] flag.
-   */
-  readonly providesCRDTMeta: true;
-}

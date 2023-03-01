@@ -13,7 +13,7 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBuffer } from "./causal_message_buffer";
-import { CRDTMetaProvider, CRDTMetaRequest } from "./crdt_meta";
+import { CRDTMetaRequest } from "./crdt_meta";
 import { CRDTMetaSerializer, SendCRDTMeta } from "./crdt_meta_implementations";
 
 class PublicCObject extends CObject {
@@ -37,7 +37,7 @@ export interface SendEvent {
 }
 
 /**
- * Events record for [[CRuntime]] and [[AbstractDoc].]
+ * Events record for [[CRuntime]] and [[AbstractDoc]].
  */
 export interface RuntimeEventsRecord {
   /**
@@ -49,10 +49,11 @@ export interface RuntimeEventsRecord {
    */
   Send: SendEvent;
   /**
-   * Emitted at the end of each transaction (local or remote).
+   * Emitted at the end of each transaction (local or remote)
+   * and at the end of [[CRuntime.load]] / [[AbstractDoc.load]].
    *
-   * The event's [[CollabEvent.updateMeta]] is the same as for
-   * all messages in the transaction.
+   * The event's [[CollabEvent.updateMeta]] is the same as
+   * for all of the transaction's events.
    */
   Transaction: CollabEvent;
   /**
@@ -67,10 +68,6 @@ export interface RuntimeEventsRecord {
    * - [[CRuntime.load]] / [[AbstractDoc.load]].
    */
   Change: object;
-  /**
-   * Emitted at the end of [[CRuntime.load]] / [[AbstractDoc.load]].
-   */
-  Load: object;
 }
 
 /**
@@ -129,7 +126,7 @@ export interface RuntimeOptions {
  */
 export class CRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
-  implements IRuntime, CRDTMetaProvider
+  implements IRuntime
 {
   private readonly registry: PublicCObject;
   private readonly buffer: CausalMessageBuffer;
@@ -137,17 +134,16 @@ export class CRuntime
   private readonly autoTransactions: "microtask" | "op" | "error";
 
   // State vars.
-  private _isLoaded = false;
+  private used = false;
   private inApplyUpdate = false;
 
   // Transaction vars.
   private inTransaction = false;
-  private trInfo: string | undefined = undefined;
   private crdtMeta: SendCRDTMeta | null = null;
   private meta: UpdateMeta | null = null;
   private messageBatches: (Uint8Array | string)[][] = [];
 
-  readonly providesCRDTMeta = true;
+  readonly isCRDTRuntime = true;
 
   /**
    * Constructs a [[CRuntime]].
@@ -194,15 +190,14 @@ export class CRuntime
     name: string,
     collabCallback: (init: InitToken) => C
   ): C {
-    if (this._isLoaded) {
-      throw new Error("Already loaded");
+    if (this.used) {
+      throw new Error("Already used (sent/received message or loaded state)");
     }
     return this.registry.registerCollab(name, collabCallback);
   }
 
-  private beginTransaction(info: string | undefined) {
+  private beginTransaction() {
     this.inTransaction = true;
-    this.trInfo = info;
     // Wait to set meta until we actually send a message, if we do.
     // messageBatches was already cleared by the previous endTransaction.
   }
@@ -244,13 +239,10 @@ export class CRuntime
    *
    * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
    * In particular, only its `info` is used.
-   *
-   * @param info An optional info string to attach to the transaction.
-   * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
    */
-  transact(f: () => void, info?: string) {
+  transact(f: () => void) {
     const alreadyInTransaction = this.inTransaction;
-    if (!alreadyInTransaction) this.beginTransaction(info);
+    if (!alreadyInTransaction) this.beginTransaction();
     try {
       f();
     } finally {
@@ -272,17 +264,18 @@ export class CRuntime
           " did you try to perform an operation in an event handler?"
       );
     }
+    this.used = true;
 
     let autoEndTransaction = false;
     if (!this.inTransaction) {
       // Create a transaction according to options.autoTransactions.
       switch (this.autoTransactions) {
         case "microtask":
-          this.beginTransaction(undefined);
+          this.beginTransaction();
           void Promise.resolve().then(() => this.endTransaction());
           break;
         case "op":
-          this.beginTransaction(undefined);
+          this.beginTransaction();
           autoEndTransaction = true;
           break;
         case "error":
@@ -311,7 +304,6 @@ export class CRuntime
         senderID: this.replicaID,
         updateType: "message",
         isLocalOp: true,
-        info: this.trInfo,
         runtimeExtra: this.crdtMeta,
       };
     }
@@ -436,9 +428,6 @@ export class CRuntime
    * @param savedState Saved state from another replica's [[save]] call.
    */
   load(savedState: Uint8Array): void {
-    if (this._isLoaded) {
-      throw new Error("Already loaded");
-    }
     if (this.inTransaction) {
       throw new Error("Cannot call load() during a transaction");
     }
@@ -448,6 +437,7 @@ export class CRuntime
           " did you try to load in a Collab's event handler?"
       );
     }
+    this.used = true;
 
     this.inApplyUpdate = true;
     try {
@@ -460,7 +450,6 @@ export class CRuntime
         senderID: this.replicaID,
         updateType: "savedState",
         isLocalOp: false,
-        info: undefined,
         // TODO: saver's ID instead of this.replicaID?
         // TODO: doc: point of this is just vc and lamport.
         runtimeExtra: new LoadCRDTMeta(
@@ -477,16 +466,9 @@ export class CRuntime
       };
       this.rootCollab.load(savedStateTree, meta);
 
-      this._isLoaded = true;
+      this.emit("Transaction", { meta });
     } finally {
       this.inApplyUpdate = false;
     }
-  }
-
-  /**
-   * Whether [[load]] has been called.
-   */
-  get isLoaded(): boolean {
-    return this._isLoaded;
   }
 }
