@@ -3,6 +3,7 @@ import {
   ListPositionSourceMetadataMessage,
   ListPositionSourceSave,
 } from "../../../generated/proto_compiled";
+import { CWaypointStore } from "./c_waypoint_store";
 
 /**
  * Internal represention of positions used by [[ListItemManager]].
@@ -167,23 +168,7 @@ function signOf<I>(child: Waypoint<I> | I | number): 1 | -1 | 0 {
  * number indicating number of values). For implementation reasons,
  * items must NOT be negative numbers or null.
  */
-export class ListPositionSource<I> {
-  /**
-   * Map key is waypoint.sender, index in the array is waypoint.counter.
-   */
-  private readonly waypointsByID = new Map<string, Waypoint<I>[]>();
-  /**
-   * Root waypoint.
-   */
-  private readonly rootWaypoint: Waypoint<I>;
-
-  /**
-   * Used for assigning unique counters to our Waypoints.
-   *
-   * >= 0.
-   */
-  private nextCounter = 0;
-
+export class ListView<I> {
   /**
    * Constructs a ListPositionSource.
    *
@@ -199,55 +184,18 @@ export class ListPositionSource<I> {
    * (Note 1-indexed, not 0-indexed.)
    */
   constructor(
-    readonly replicaID: string,
-    private readonly itemManager: ListItemManager<I>,
-    options: { initialItem?: I } = {}
+    readonly waypointStore: CWaypointStore,
+    private readonly itemManager: ListItemManager<I>
   ) {
-    if (replicaID === "") {
-      throw new Error('replicaID must not be ""');
-    }
-    this.rootWaypoint = new Waypoint("", 0, null, 0);
-    this.waypointsByID.set("", [this.rootWaypoint]);
-    // Fake leftmost value, marked as unpresent.
-    this.rootWaypoint.children.push(-1);
-    const initialItem = options.initialItem;
-    if (
-      initialItem !== undefined &&
-      this.itemManager.length(initialItem) !== 0
-    ) {
-      // Initial values.
-      this.rootWaypoint.children.push(initialItem);
-      this.rootWaypoint.totalPresentValues =
-        this.itemManager.length(initialItem);
-    }
+    // TODO: deleted value @ valueIndex 0 for the root.
+    // More generally, deleted values for all existing nodes (implicit?),
+    // in case this is made after startup.
   }
 
   private valueChildLength(valueChild: number | I): number {
     return typeof valueChild === "number" && valueChild < 0
       ? -valueChild
       : this.itemManager.length(<I>valueChild);
-  }
-
-  /**
-   * Includes error checking.
-   */
-  private getWaypoint(sender: string, counter: number): Waypoint<I> {
-    const bySender = this.waypointsByID.get(sender);
-    if (bySender === undefined) {
-      throw new Error(
-        "Unknown position, did you forget to receivePositions/receiveAndAddPositions? (reason: sender)"
-      );
-    }
-
-    if (counter < 0) {
-      throw new Error("Invalid position: counter < 0");
-    }
-    if (counter >= bySender.length) {
-      throw new Error(
-        "Unknown position, did you forget to receivePositions/receiveAndAddPositions? (reason: counter)"
-      );
-    }
-    return bySender[counter];
   }
 
   // OPT: Go back to allowing negative valueIndex? See how well it helps
