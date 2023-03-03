@@ -25,3 +25,19 @@ message WaypointStoreCreateMessage {
   // valueIndex's.
   optional uint32 count = 3 [default=1];
 }
+
+message WaypointStoreSave {
+  // Excludes root ("").
+  repeated string replicaIDs = 1;
+  // replicaCounts[i] is number of waypoints with sender replicaIDs[i].
+  repeated uint32 replicaCounts = 2 [packed=true];
+  // In order by sender, then by counter, excluding the root.
+  // Number is 1 + (index in this list), or 0 for the root.
+  repeated uint32 parentWaypoints = 3 [packed=true];
+  // Same order as parentWaypoints.
+  // Sign gives side (R child = +1); actual valueIndex is
+  // as given if positive, ~ (bitwise NOT) if negative.
+  repeated sint32 parentValueIndexAndSides = 4 [packed=true];
+  // Starts with root, then same order as parentWaypoints.
+  repeated uint32 valueCounts = 5 [packed=true];
+}
