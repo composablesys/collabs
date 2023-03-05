@@ -8,7 +8,7 @@ import {
 import {
   WaypointStoreCreateMessage,
   WaypointStoreSave,
-} from "../../../generated/proto_compiled";
+} from "../../generated/proto_compiled";
 
 /**
  * Emitted when new positions are created.

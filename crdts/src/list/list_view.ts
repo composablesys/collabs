@@ -525,6 +525,23 @@ export class ListView<T> {
     for (const [, position] of this.entries()) yield position;
   }
 
+  slice(start?: number, end?: number): T[] {
+    // Optimize common case (slice())
+    if (start === undefined && end === undefined) {
+      return [...this.values()];
+    } else {
+      // TODO: edge cases for slice()
+      start = start ?? 0;
+      end = end ?? this.length;
+      // OPT: optimize.
+      const ans = new Array<T>(end - start);
+      for (let i = start; i < end; i++) {
+        ans[i - start] = this.get(i);
+      }
+      return ans;
+    }
+  }
+
   // TODO: utility accessors, positionOf?, clear?
 }
 

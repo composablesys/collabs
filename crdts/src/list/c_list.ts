@@ -1,12 +1,10 @@
 import {
   AbstractList_CObject,
-  CMessenger,
   CObject,
   Collab,
   CollabEvent,
   DefaultSerializer,
   InitToken,
-  int64AsNumber,
   isRuntime,
   ListEvent,
   ListEventsRecord,
@@ -16,12 +14,8 @@ import {
 import { EntryStatusMessage } from "../../generated/proto_compiled";
 import { CSet } from "../set";
 import { CVar } from "../var";
-import {
-  ArrayListItemManager,
-  CreatePositionsSerializer,
-  ListPosition,
-  ListPositionSource,
-} from "./list_position_source";
+import { CWaypointStore } from "./c_waypoint_store";
+import { ListView, Position } from "./list_view";
 
 /**
  * Event emitted by a [[CList]]`<C>`
@@ -46,7 +40,7 @@ export interface ListExtendedEventsRecord<C> extends ListEventsRecord<C> {
 }
 
 interface EntryStatus {
-  position: ListPosition;
+  position: Position;
   isPresent: boolean;
 }
 
@@ -59,9 +53,7 @@ class EntryStatusSerializer implements Serializer<EntryStatus> {
 
   serialize(value: EntryStatus): Uint8Array {
     const message = EntryStatusMessage.create({
-      sender: value.position[0],
-      counter: value.position[1],
-      valueIndex: value.position[2],
+      position: value.position,
       notIsPresent: value.isPresent ? undefined : true,
     });
     return EntryStatusMessage.encode(message).finish();
@@ -70,11 +62,7 @@ class EntryStatusSerializer implements Serializer<EntryStatus> {
   deserialize(message: Uint8Array): EntryStatus {
     const decoded = EntryStatusMessage.decode(message);
     return {
-      position: [
-        decoded.sender,
-        int64AsNumber(decoded.counter),
-        decoded.valueIndex,
-      ],
+      position: decoded.position,
       isPresent: !decoded.notIsPresent,
     };
   }
@@ -135,10 +123,9 @@ export class CList<
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
   private readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
-  private readonly createdPositionMessenger: CMessenger<
-    [counter: number, startValueIndex: number, metadata: Uint8Array | null]
-  >;
-  private readonly positionSource: ListPositionSource<CListEntry<C>[]>;
+  private readonly waypointStore: CWaypointStore;
+
+  private readonly list: ListView<C>;
 
   /**
    * Constructs a CList with the given `valueConstructor`.
@@ -172,30 +159,12 @@ export class CList<
           ),
         })
     );
-
-    // For initial values, note that this.set Add events don't get dispatched.
-    // Thus we don't have to worry that positionSource is not yet created for
-    // them.
-    // Here we use the assumption (stated in constructor docs) that values()
-    // are in order.
-    this.positionSource = new ListPositionSource(
-      this.runtime.replicaID,
-      ArrayListItemManager.getInstance(),
-      { initialItem: [...this.set] }
+    this.waypointStore = this.registerCollab(
+      "0",
+      (init) => new CWaypointStore(init)
     );
 
-    this.createdPositionMessenger = this.registerCollab(
-      "m",
-      (init) =>
-        new CMessenger(init, {
-          messageSerializer: CreatePositionsSerializer.instance,
-        })
-    );
-    this.createdPositionMessenger.on("Message", (e) => {
-      const [counter, startValueIndex, metadata] = e.message;
-      const pos: ListPosition = [e.meta.senderID, counter, startValueIndex];
-      this.positionSource.receivePositions(pos, 1, metadata);
-    });
+    this.list = new ListView(this.waypointStore);
 
     // Maintain positionSource's values as a cache of
     // of the currently set locations, mapping to
@@ -203,11 +172,11 @@ export class CList<
     // Also dispatch our own events.
     this.set.on("Add", (event) => {
       const position = event.value.status.value.position;
-      this.positionSource.add(position, [event.value]);
+      this.list.set(position, event.value.value);
       this.emit("Insert", {
-        index: this.positionSource.indexOfPosition(position),
+        index: this.list.indexOfPosition(position),
         values: [event.value.value],
-        positions: [JSON.stringify(position)],
+        positions: [position],
         method: "insert",
         meta: event.meta,
       });
@@ -215,12 +184,12 @@ export class CList<
     this.set.on("Delete", (event) => {
       const status = event.value.status.value;
       if (status.isPresent) {
-        const index = this.positionSource.indexOfPosition(status.position);
-        this.positionSource.delete(status.position);
+        const index = this.list.indexOfPosition(status.position);
+        this.list.delete(status.position);
         this.emit("Delete", {
           index,
           values: [event.value.value],
-          positions: [JSON.stringify(status.position)],
+          positions: [status.position],
           method: "delete",
           meta: event.meta,
         });
@@ -252,22 +221,22 @@ export class CList<
       // restore() skips deleted values.
       if (event.value.isPresent && !event.previousValue.isPresent) {
         // entry was un-archived.
-        this.positionSource.add(event.value.position, [entry]);
+        this.list.set(event.value.position, entry.value);
         this.emit("Insert", {
-          index: this.positionSource.indexOfPosition(event.value.position),
+          index: this.list.indexOfPosition(event.value.position),
           values: [entry.value],
-          positions: [JSON.stringify(event.value.position)],
+          positions: [event.value.position],
           method: "restore",
           meta: event.meta,
         });
       } else if (!event.value.isPresent && event.previousValue.isPresent) {
         // entry was archived.
-        const index = this.positionSource.indexOfPosition(event.value.position);
-        this.positionSource.delete(event.value.position);
+        const index = this.list.indexOfPosition(event.value.position);
+        this.list.delete(event.value.position);
         this.emit("Delete", {
           index,
           values: [entry.value],
-          positions: [JSON.stringify(event.value.position)],
+          positions: [event.value.position],
           method: "archive",
           meta: event.meta,
         });
@@ -275,13 +244,13 @@ export class CList<
         // status changed, but isPresent did not, so position must have changed:
         // entry was moved.
         // Note that we only do this when the value is present (not archived).
-        const previousIndex = this.positionSource.indexOfPosition(
+        const previousIndex = this.list.indexOfPosition(
           event.previousValue.position
         );
-        this.positionSource.delete(event.previousValue.position);
-        this.positionSource.add(event.value.position, [entry]);
+        this.list.delete(event.previousValue.position);
+        this.list.set(event.value.position, entry.value);
         this.emit("Move", {
-          index: this.positionSource.indexOfPosition(event.value.position),
+          index: this.list.indexOfPosition(event.value.position),
           previousIndex,
           values: [entry.value],
           meta: event.meta,
@@ -289,6 +258,13 @@ export class CList<
       }
     });
     return entry;
+  }
+
+  private entryFromValue(value: C): CListEntry<C> | null {
+    // Avoid errors from searchElement.parent in case it
+    // is the root.
+    if (isRuntime(value.parent)) return null;
+    return value.parent as CListEntry<C>;
   }
 
   /**
@@ -311,20 +287,7 @@ export class CList<
   insert(index: number, ...args: InsertArgs): C {
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
-    // OPT: bulk inserts? Can just do createPositions once and deliver the
-    // count on other side.
-    const [counter, startValueIndex, metadata] =
-      this.positionSource.createPositions(prevPos);
-    const pos: ListPosition = [
-      this.runtime.replicaID,
-      counter,
-      startValueIndex,
-    ];
-    this.createdPositionMessenger.sendMessage([
-      counter,
-      startValueIndex,
-      metadata,
-    ]);
+    const pos = this.waypointStore.createPositions(prevPos, 1);
     return this.set.add({ position: pos, isPresent: true }, args).value;
   }
 
@@ -348,14 +311,11 @@ export class CList<
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
-    const toDelete = new Array<CListEntry<C>>(count);
-    for (let i = 0; i < count; i++) {
-      const [item, offset] = this.positionSource.getItem(startIndex + i);
-      toDelete[i] = item[offset];
-    }
+    const toDelete = this.list.slice(startIndex, startIndex + count);
+    toDelete.reverse();
     // Delete them.
     for (const value of toDelete) {
-      this.set.delete(value);
+      this.set.delete(this.entryFromValue(value)!);
     }
   }
 
@@ -381,16 +341,14 @@ export class CList<
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to archive.
-    const toArchive = new Array<CListEntry<C>>(count);
-    for (let i = 0; i < count; i++) {
-      const [item, offset] = this.positionSource.getItem(startIndex + i);
-      toArchive[i] = item[offset];
-    }
+    const toArchive = this.list.slice(startIndex, startIndex + count);
+    toArchive.reverse();
     // Archive them. We "remember" the current position for when they are
     // restored.
     for (const value of toArchive) {
-      value.status.value = {
-        position: value.status.value.position,
+      const entry = this.entryFromValue(value)!;
+      entry.status.value = {
+        position: entry.status.value.position,
         isPresent: false,
       };
     }
@@ -408,9 +366,9 @@ export class CList<
    * method has no effect.
    */
   restore(value: C): void {
-    const entry = value.parent as CListEntry<C>;
-    if (!this.set.has(entry)) {
-      // Already deleted.
+    const entry = this.entryFromValue(value);
+    if (entry === null || !this.set.has(entry)) {
+      // Already deleted, or invalid.
       return;
     }
     entry.status.value = {
@@ -478,19 +436,42 @@ export class CList<
   }
 
   get(index: number): C {
-    const [item, offset] = this.positionSource.getItem(index);
-    return item[offset].value;
+    return this.list.get(index);
   }
 
-  *entries(): IterableIterator<[index: number, position: string, value: C]> {
-    let i = 0;
-    for (const [pos, length, item] of this.positionSource.itemsAndPositions()) {
-      for (let j = 0; j < length; j++) {
-        yield [i, JSON.stringify(pos), item[j].value];
-        pos[2]++;
-        i++;
-      }
-    }
+  values(): IterableIterator<C> {
+    return this.list.values();
+  }
+
+  get length(): number {
+    return this.list.length;
+  }
+
+  slice(start?: number, end?: number): C[] {
+    return this.list.slice(start, end);
+  }
+
+  getPosition(index: number): Position {
+    return this.list.getPosition(index);
+  }
+
+  indexOfPosition(
+    position: Position,
+    searchDir: "none" | "left" | "right" = "none"
+  ): number {
+    return this.list.indexOfPosition(position, searchDir);
+  }
+
+  hasPosition(position: Position): boolean {
+    return this.list.hasPosition(position);
+  }
+
+  getByPosition(position: Position): C | undefined {
+    return this.list.getByPosition(position);
+  }
+
+  entries(): IterableIterator<[index: number, position: Position, value: C]> {
+    return this.list.entries();
   }
 
   /**
@@ -500,42 +481,20 @@ export class CList<
    * The iteration order is NOT eventually consistent:
    * it is unrelated to positions and
    * may differ on replicas with the same state.
+   * TODO: use own listview to sort them
    */
-  *archivedEntries(): IterableIterator<[position: string, value: C]> {
+  *archivedEntries(): IterableIterator<[position: Position, value: C]> {
     for (const entry of this.set) {
       if (!entry.status.value.isPresent) {
-        yield [JSON.stringify(entry.status.value.position), entry.value];
+        yield [entry.status.value.position, entry.value];
       }
     }
   }
 
-  get length(): number {
-    return this.set.size;
-  }
-
-  getPosition(index: number): string {
-    const pos = this.positionSource.getPosition(index);
-    return JSON.stringify(pos);
-  }
-
-  indexOfPosition(
-    position: string,
-    searchDir: "none" | "left" | "right" = "none"
-  ): number {
-    const pos = <ListPosition>JSON.parse(position);
-    return this.positionSource.indexOfPosition(pos, searchDir);
-  }
-
   indexOf(searchElement: C, fromIndex = 0): number {
-    // Avoid errors from searchElement.parent in case it
-    // is the root.
-    if (isRuntime(searchElement.parent)) return -1;
-
-    const entry = searchElement.parent as CListEntry<C>;
-    if (this.set.has(entry) && entry.status.value.isPresent) {
-      const index = this.positionSource.indexOfPosition(
-        entry.status.value.position
-      );
+    const entry = this.entryFromValue(searchElement);
+    if (entry !== null && this.set.has(entry) && entry.status.value.isPresent) {
+      const index = this.list.indexOfPosition(entry.status.value.position);
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }
@@ -551,14 +510,10 @@ export class CList<
     return -1;
   }
 
-  positionOf(searchElement: C): string | undefined {
-    // Avoid errors from searchElement.parent in case it
-    // is the root.
-    if (isRuntime(searchElement.parent)) return undefined;
-
-    const entry = searchElement.parent as CListEntry<C>;
-    if (this.set.has(entry) && entry.status.value.isPresent) {
-      return JSON.stringify(entry.status.value.position);
+  positionOf(searchElement: C): Position | undefined {
+    const entry = this.entryFromValue(searchElement);
+    if (entry !== null && this.set.has(entry) && entry.status.value.isPresent) {
+      return entry.status.value.position;
     }
     return undefined;
   }
@@ -567,42 +522,5 @@ export class CList<
     return this.indexOf(searchElement, fromIndex) !== -1;
   }
 
-  protected saveObject(): Uint8Array | null {
-    return this.positionSource.save();
-  }
-
-  protected loadObject(savedState: Uint8Array | null) {
-    // Note this.set is already loaded. Just need to load positionSource.
-    // For merging: will have problems b/c this is not in sync with set Add events.
-
-    // For filling in positionSource's values, create a map from positions
-    // to entries.
-    const entriesByPosition = new Map<string, Map<number, CListEntry<C>>[]>();
-    for (const entry of this.set) {
-      const pos = entry.status.value.position;
-      let bySender = entriesByPosition.get(pos[0]);
-      if (bySender === undefined) {
-        bySender = [];
-        entriesByPosition.set(pos[0], bySender);
-      }
-      let byCounter = bySender[pos[1]];
-      if (byCounter === undefined) {
-        byCounter = new Map();
-        bySender[pos[1]] = byCounter;
-      }
-      byCounter.set(pos[2], entry);
-    }
-
-    function nextItem(count: number, startPos: ListPosition) {
-      const bySender = entriesByPosition.get(startPos[0])!;
-      const byCounter = bySender[startPos[1]];
-      const item = new Array<CListEntry<C>>(count);
-      for (let i = 0; i < count; i++) {
-        item[i] = byCounter.get(startPos[2] + i)!;
-      }
-      return item;
-    }
-
-    this.positionSource.load(<Uint8Array>savedState, nextItem);
-  }
+  // TODO: check: no need for loadObject, thanks to events?
 }

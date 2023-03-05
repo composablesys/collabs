@@ -1,26 +1,17 @@
 import {
+  AbstractList_CObject,
+  CMessenger,
   DefaultSerializer,
   InitToken,
-  int64AsNumber,
   Serializer,
-  UpdateMeta,
+  StringSerializer,
 } from "@collabs/core";
 import {
-  CValueListMessage,
   CValueListSave,
-  ICValueListInsertMessage,
   ICValueListSave,
 } from "../../generated/proto_compiled";
-import { AbstractList_PrimitiveCRDT } from "../base_collabs";
-import {
-  ArrayListItemManager,
-  ListPosition,
-  ListPositionSource,
-} from "./list_position_source";
-
-// OPT: better position encoding than JSON.
-// (Distribute with ListPositionSource, in place of / addition to
-// the current serializers?)
+import { CWaypointStore } from "./c_waypoint_store";
+import { ListView, Position } from "./list_view";
 
 /**
  * A collaborative list with values of type T.
@@ -44,8 +35,11 @@ import {
  *
  * @typeParam T The value type.
  */
-export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
-  private readonly positionSource: ListPositionSource<T[]>;
+export class CValueList<T> extends AbstractList_CObject<T, [T]> {
+  private readonly waypointStore: CWaypointStore;
+  private readonly deleteMessenger: CMessenger<Position>;
+
+  private readonly list: ListView<T>;
 
   protected readonly valueSerializer: Serializer<T>;
   protected readonly valueArraySerializer: Serializer<T[]> | undefined;
@@ -71,10 +65,48 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
       options.valueSerializer ?? DefaultSerializer.getInstance();
     this.valueArraySerializer = options.valueArraySerializer ?? undefined;
 
-    this.positionSource = new ListPositionSource(
-      this.runtime.replicaID,
-      ArrayListItemManager.getInstance()
+    this.waypointStore = super.registerCollab(
+      "",
+      (init) => new CWaypointStore(init)
     );
+    this.list = new ListView(this.waypointStore);
+
+    this.deleteMessenger = super.registerCollab(
+      "0",
+      (init) =>
+        new CMessenger(init, { messageSerializer: StringSerializer.instance })
+    );
+
+    // Operation handlers.
+    this.waypointStore.on("Create", (e) => {
+      // TODO: values
+      const values!: T[];
+      // OPT: bulk/reflexive add.
+      for (let i = 0; i < values.length; i++) {
+        this.list.set([e.waypoint, e.valueIndex + i], values[i]);
+      }
+      // Here we exploit forwards non-interleaving, which guarantees
+      // that the values are contiguous.
+      this.emit("Insert", {
+        index: this.list.indexOfPosition([e.waypoint, e.valueIndex]),
+        values,
+        positions: TODO,
+        meta: e.meta,
+      });
+    });
+    this.deleteMessenger.on("Message", (e) => {
+      // OPT: combine has/get calls
+      if (this.list.hasPosition(e.message)) {
+        const value = this.list.getByPosition(e.message)!;
+        const index = this.list.indexOfPosition(e.message);
+        this.emit("Delete", {
+          index,
+          values: [value],
+          positions: [e.message],
+          meta: e.meta,
+        });
+      }
+    });
   }
 
   // OPT: optimize bulk methods.
@@ -98,28 +130,7 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
 
     const prevPos =
       index === 0 ? null : this.positionSource.getPosition(index - 1);
-    const [counter, startValueIndex, metadata] =
-      this.positionSource.createPositions(prevPos);
-
-    const imessage: ICValueListInsertMessage = {
-      counter,
-      startValueIndex,
-      metadata,
-    };
-    if (values.length === 1) {
-      imessage.value = this.valueSerializer.serialize(values[0]);
-    } else if (this.valueArraySerializer !== undefined) {
-      imessage.valuesArray = this.valueArraySerializer.serialize(values);
-    } else {
-      imessage.values = values.map((value) =>
-        this.valueSerializer.serialize(value)
-      );
-    }
-
-    const message = CValueListMessage.create({
-      insert: imessage,
-    });
-    this.sendPrimitive(CValueListMessage.encode(message).finish());
+    this.waypointStore.createPositions(prevPos, values);
 
     return values[0];
   }
@@ -135,114 +146,23 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
     }
 
     // OPT: native range deletes? E.g. compress waypoint valueIndex ranges.
-    // OPT: optimize range iteration (back to front).
+    // OPT: optimize range iteration (ListView.slice for positions?)
     // Delete from back to front, so indices make sense.
     for (let i = startIndex + count - 1; i >= startIndex; i--) {
-      const pos = this.positionSource.getPosition(i);
-      const message = CValueListMessage.create({
-        delete: {
-          sender: pos[0] === this.runtime.replicaID ? null : pos[0],
-          counter: pos[1],
-          valueIndex: pos[2],
-        },
-      });
-      this.sendPrimitive(CValueListMessage.encode(message).finish());
-    }
-  }
-
-  protected receiveCRDT(message: Uint8Array | string, meta: UpdateMeta): void {
-    const decoded = CValueListMessage.decode(<Uint8Array>message);
-    switch (decoded.op) {
-      case "insert": {
-        const counter = int64AsNumber(decoded.insert!.counter);
-        const startValueIndex = decoded.insert!.startValueIndex;
-        const metadata = Object.prototype.hasOwnProperty.call(
-          decoded.insert!,
-          "metadata"
-        )
-          ? decoded.insert!.metadata!
-          : null;
-
-        let values: T[];
-        if (Object.prototype.hasOwnProperty.call(decoded.insert!, "value")) {
-          values = [this.valueSerializer.deserialize(decoded.insert!.value!)];
-        } else if (this.valueArraySerializer !== undefined) {
-          values = this.valueArraySerializer.deserialize(
-            decoded.insert!.valuesArray!
-          );
-        } else {
-          values = decoded.insert!.values!.map((value) =>
-            this.valueSerializer.deserialize(value)
-          );
-        }
-
-        const startPos: ListPosition = [
-          meta.senderID,
-          counter,
-          startValueIndex,
-        ];
-        this.positionSource.receiveAndAddPositions(startPos, values, metadata);
-
-        const startIndex = this.positionSource.indexOfPosition(startPos);
-        const positions = new Array<string>(values.length);
-        for (let i = 0; i < values.length; i++) {
-          positions[i] = JSON.stringify([
-            meta.senderID,
-            counter,
-            startValueIndex + i,
-          ] as ListPosition);
-        }
-        // Here we exploit the LtR non-interleaving property
-        // to assert that the inserted values are contiguous.
-        this.emit("Insert", {
-          index: startIndex,
-          values,
-          positions,
-          meta,
-        });
-
-        break;
-      }
-      case "delete": {
-        const sender = Object.prototype.hasOwnProperty.call(
-          decoded.delete!,
-          "sender"
-        )
-          ? decoded.delete!.sender!
-          : meta.senderID;
-        const counter = int64AsNumber(decoded.delete!.counter);
-        const valueIndex = decoded.delete!.valueIndex;
-        const pos: ListPosition = [sender, counter, valueIndex];
-        const deletedValues = this.positionSource.delete(pos);
-        if (deletedValues !== null) {
-          const startIndex = this.positionSource.indexOfPosition(pos);
-          this.emit("Delete", {
-            index: startIndex,
-            values: deletedValues,
-            positions: [JSON.stringify(pos)],
-            meta,
-          });
-        }
-        break;
-      }
-      default:
-        throw new Error(`Unrecognized decoded.op: ${decoded.op}`);
+      this.deleteMessenger.sendMessage(this.list.getPosition(i));
     }
   }
 
   get(index: number): T {
-    const [item, offset] = this.positionSource.getItem(index);
-    return item[offset];
+    return this.list.get(index);
   }
 
-  *values(): IterableIterator<T> {
-    for (const item of this.positionSource.items()) {
-      yield* item;
-    }
+  values(): IterableIterator<T> {
+    return this.list.values();
   }
 
   get length(): number {
-    return this.positionSource.length;
+    return this.list.length;
   }
 
   // Override alias insert methods so we can accept
@@ -291,42 +211,33 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
   }
 
   slice(start?: number, end?: number): T[] {
-    // Optimize common case (slice())
-    if (start === undefined && end === undefined) {
-      return [...this.values()];
-    } else {
-      // OPT: optimize using items() iterator or similar.
-      return super.slice(start, end);
-    }
+    return this.list.slice(start, end);
   }
 
-  getPosition(index: number): string {
-    const pos = this.positionSource.getPosition(index);
-    return JSON.stringify(pos);
+  getPosition(index: number): Position {
+    return this.list.getPosition(index);
   }
 
   indexOfPosition(
-    position: string,
+    position: Position,
     searchDir: "none" | "left" | "right" = "none"
   ): number {
-    const pos = <ListPosition>JSON.parse(position);
-    return this.positionSource.indexOfPosition(pos, searchDir);
+    return this.list.indexOfPosition(position, searchDir);
   }
 
-  // OPT: override hasPosition, getByPosition.
-
-  *entries(): IterableIterator<[index: number, position: string, value: T]> {
-    let i = 0;
-    for (const [pos, length, item] of this.positionSource.itemsAndPositions()) {
-      for (let j = 0; j < length; j++) {
-        yield [i, JSON.stringify(pos), item[j]];
-        pos[2]++;
-        i++;
-      }
-    }
+  hasPosition(position: Position): boolean {
+    return this.list.hasPosition(position);
   }
 
-  protected savePrimitive(): Uint8Array {
+  getByPosition(position: Position): T | undefined {
+    return this.list.getByPosition(position);
+  }
+
+  entries(): IterableIterator<[index: number, position: Position, value: T]> {
+    return this.list.entries();
+  }
+
+  protected saveObject(): Uint8Array {
     const imessage: ICValueListSave = {
       positionSourceSave: this.positionSource.save(),
     };
@@ -346,7 +257,8 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
     return CValueListSave.encode(message).finish();
   }
 
-  protected loadPrimitive(savedState: Uint8Array): void {
+  // TODO: rewrite; events
+  protected loadObject(savedState: Uint8Array): void {
     const decoded = CValueListSave.decode(savedState);
     let values: T[];
     if (this.valueArraySerializer !== undefined) {
@@ -363,9 +275,4 @@ export class CValueList<T> extends AbstractList_PrimitiveCRDT<T, [T]> {
       return ans;
     });
   }
-
-  // // For debugging positionSource.
-  // printTreeWalk() {
-  //   this.positionSource.printTreeWalk();
-  // }
 }
