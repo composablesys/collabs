@@ -95,7 +95,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
   /**
    * Root waypoint.
    */
-  private readonly rootWaypoint: Waypoint;
+  readonly rootWaypoint: Waypoint;
 
   constructor(init: InitToken) {
     super(init);
@@ -348,7 +348,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
    * Returns true if child1 < child2 in their parent's
    * children order.
    */
-  private isChildLess(child1: Waypoint, child2: Waypoint) {
+  isChildLess(child1: Waypoint, child2: Waypoint) {
     // Recall child order: left children ordered by
     // valueIndex, then right children ordered by
     // reverse valueIndex. senderID tiebreaker.
