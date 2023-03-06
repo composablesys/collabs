@@ -1,12 +1,4 @@
-import { CWaypointStore, Waypoint } from "./c_waypoint_store";
-
-const RADIX = 36;
-
-// TODO: use this in IList instead of string;
-// move position docs from IList to its header;
-// reference [[Position]] instead of position in IList/CList
-// function headers?
-export type Position = string;
+import { CWaypointStore, Position, Waypoint } from "./c_waypoint_store";
 
 interface WaypointValues<T> {
   /**
@@ -55,39 +47,9 @@ export class ListView<T> {
     });
   }
 
-  private positionEncode(waypoint: Waypoint, valueIndex: number): Position {
-    // OPT: more efficient number encodings?
-    return `${waypoint.counter.toString(RADIX)}.${valueIndex.toString(RADIX)},${
-      waypoint.senderID
-    }`;
-  }
-
-  /**
-   * Also bounds-checks valueIndex.
-   * @param position
-   */
-  private positionDecode(
-    position: Position
-  ): [waypoint: Waypoint, valueIndex: number] {
-    // TODO: error checking
-    const dot = position.indexOf(".");
-    const comma = position.indexOf(",", dot);
-
-    const counter = Number.parseInt(position.slice(0, dot), RADIX);
-    const valueIndex = Number.parseInt(position.slice(dot + 1, comma), RADIX);
-    const senderID = position.slice(comma + 1);
-
-    const waypoint = this.waypointStore.getWaypoint(senderID, counter);
-
-    if (valueIndex >= waypoint.valueCount) {
-      throw new Error("Unknown position (valueIndex out of range)");
-    }
-    return [waypoint, valueIndex];
-  }
-
   // TODO: bulk versions of set/delete, at least for Create events.
   set(position: Position, value: T): void {
-    const [waypoint, valueIndex] = this.positionDecode(position);
+    const [waypoint, valueIndex] = this.waypointStore.decode(position);
     const values = this.valuesByWaypoint.get(waypoint);
     if (values === undefined) {
       // Waypoint has no values currently; set them to
@@ -158,7 +120,7 @@ export class ListView<T> {
   }
 
   delete(position: Position): void {
-    const [waypoint, valueIndex] = this.positionDecode(position);
+    const [waypoint, valueIndex] = this.waypointStore.decode(position);
     const values = this.valuesByWaypoint.get(waypoint);
     if (values === undefined) {
       // Already not present.
@@ -244,7 +206,7 @@ export class ListView<T> {
    * ([[hasPosition]] returns false).
    */
   getByPosition(position: Position): T | undefined {
-    return this.locate(...this.positionDecode(position))[0];
+    return this.locate(...this.waypointStore.decode(position))[0];
   }
 
   /**
@@ -292,7 +254,7 @@ export class ListView<T> {
    * i.e., its value is present.
    */
   hasPosition(position: Position): boolean {
-    return this.locate(...this.positionDecode(position))[1];
+    return this.locate(...this.waypointStore.decode(position))[1];
   }
 
   /**
@@ -312,7 +274,7 @@ export class ListView<T> {
     position: string,
     searchDir: "none" | "left" | "right" = "none"
   ): number {
-    const [waypoint, valueIndex] = this.positionDecode(position);
+    const [waypoint, valueIndex] = this.waypointStore.decode(position);
     const [, isPresent, waypointValuesBefore] = this.locate(
       waypoint,
       valueIndex
@@ -382,7 +344,10 @@ export class ListView<T> {
           const length = stuff.end - stuff.start;
           if (remaining < length) {
             // Answer is subItem[remaining].
-            return this.positionEncode(waypoint, stuff.valueIndex + remaining);
+            return this.waypointStore.encode(
+              waypoint,
+              stuff.valueIndex + remaining
+            );
           } else remaining -= length;
         } else {
           if (remaining < stuff.total) {
@@ -439,7 +404,7 @@ export class ListView<T> {
           for (let i = value.start; i < value.end; i++) {
             yield [
               index,
-              this.positionEncode(waypoint, value.valueIndex + i),
+              this.waypointStore.encode(waypoint, value.valueIndex + i),
               value.item[i],
             ];
             index++;

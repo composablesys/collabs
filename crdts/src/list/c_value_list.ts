@@ -1,5 +1,6 @@
 import {
   AbstractList_CObject,
+  ArraySerializer,
   CMessenger,
   DefaultSerializer,
   InitToken,
@@ -10,8 +11,8 @@ import {
   CValueListSave,
   ICValueListSave,
 } from "../../generated/proto_compiled";
-import { CWaypointStore } from "./c_waypoint_store";
-import { ListView, Position } from "./list_view";
+import { CWaypointStore, Position } from "./c_waypoint_store";
+import { ListView } from "./list_view";
 
 /**
  * A collaborative list with values of type T.
@@ -42,7 +43,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   private readonly list: ListView<T>;
 
   protected readonly valueSerializer: Serializer<T>;
-  protected readonly valueArraySerializer: Serializer<T[]> | undefined;
+  protected readonly valueArraySerializer: Serializer<T[]>;
 
   /**
    * Constructs a CValueList.
@@ -63,7 +64,10 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
     this.valueSerializer =
       options.valueSerializer ?? DefaultSerializer.getInstance();
-    this.valueArraySerializer = options.valueArraySerializer ?? undefined;
+    this.valueArraySerializer =
+      options.valueSerializer !== undefined
+        ? ArraySerializer.getInstance(options.valueSerializer)
+        : DefaultSerializer.getInstance();
 
     this.waypointStore = super.registerCollab(
       "",
@@ -79,18 +83,24 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
     // Operation handlers.
     this.waypointStore.on("Create", (e) => {
-      // TODO: values
-      const values!: T[];
+      // Ignore events during loading; loadPrimitive updates this.list instead.
+      if (e.meta.updateType === "savedState") return;
+
+      const values =
+        e.count === 1
+          ? [this.valueSerializer.deserialize(e.info!)]
+          : this.valueArraySerializer.deserialize(e.info!);
       // OPT: bulk/reflexive add.
       for (let i = 0; i < values.length; i++) {
-        this.list.set([e.waypoint, e.valueIndex + i], values[i]);
+        this.list.set(e.positions[i], values[i]);
       }
       // Here we exploit forwards non-interleaving, which guarantees
       // that the values are contiguous.
       this.emit("Insert", {
-        index: this.list.indexOfPosition([e.waypoint, e.valueIndex]),
+        // OPT: avoid redundant position decode
+        index: this.list.indexOfPosition(e.positions[0]),
         values,
-        positions: TODO,
+        positions: e.positions,
         meta: e.meta,
       });
     });
@@ -128,9 +138,14 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   insert(index: number, ...values: T[]): T | undefined {
     if (values.length === 0) return undefined;
 
-    const prevPos =
-      index === 0 ? null : this.positionSource.getPosition(index - 1);
-    this.waypointStore.createPositions(prevPos, values);
+    // Use info to encode the values.
+    const info =
+      values.length === 1
+        ? this.valueSerializer.serialize(values[0])
+        : this.valueArraySerializer?.serialize(values);
+
+    const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
+    this.waypointStore.createPositions(prevPos, values.length, info);
 
     return values[0];
   }

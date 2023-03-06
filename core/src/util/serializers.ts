@@ -245,8 +245,8 @@ export class StringSerializer implements Serializer<string> {
 export class SingletonSerializer<T> implements Serializer<[T]> {
   private constructor(private readonly valueSerializer: Serializer<T>) {}
 
-  serialize(value: [T]): Uint8Array {
-    return this.valueSerializer.serialize(value[0]);
+  serialize(values: [T]): Uint8Array {
+    return this.valueSerializer.serialize(values[0]);
   }
 
   deserialize(message: Uint8Array): [T] {
@@ -268,13 +268,60 @@ export class SingletonSerializer<T> implements Serializer<[T]> {
   static getInstance<T>(
     valueSerializer: Serializer<T>
   ): SingletonSerializer<T> {
-    const existingWeak = SingletonSerializer.cache.get(valueSerializer);
+    const existingWeak = this.cache.get(valueSerializer);
     if (existingWeak !== undefined) {
       const existing = existingWeak.deref();
       if (existing !== undefined) return <SingletonSerializer<T>>existing;
     }
     const ret = new SingletonSerializer(valueSerializer);
-    SingletonSerializer.cache.set(valueSerializer, new SafeWeakRef(ret));
+    this.cache.set(valueSerializer, new SafeWeakRef(ret));
+    return ret;
+  }
+}
+
+/**
+ * Serializes T\[\] using a serializer for T. This is slightly more efficient
+ * than [[DefaultSerializer]], and it works with arbitrary T.
+ *
+ * Construct using [[getInstance]].
+ */
+export class ArraySerializer<T> implements Serializer<T[]> {
+  private constructor(private readonly valueSerializer: Serializer<T>) {}
+
+  serialize(values: T[]): Uint8Array {
+    const message = ArrayMessage.create({
+      elements: values.map((value) => this.valueSerializer.serialize(value)),
+    });
+    return ArrayMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array): T[] {
+    const decoded = ArrayMessage.decode(message);
+    return decoded.elements.map((bytes) =>
+      this.valueSerializer.deserialize(bytes)
+    );
+  }
+
+  // Weak in both keys and values.
+  private static cache = new WeakMap<
+    Serializer<unknown>,
+    WeakRef<ArraySerializer<unknown>>
+  >();
+
+  /**
+   * Returns an instance of [[ArraySerializer]] that uses valueSerializer
+   * to serialize each value.
+   *
+   * This method may cache instances internally to save memory.
+   */
+  static getInstance<T>(valueSerializer: Serializer<T>): ArraySerializer<T> {
+    const existingWeak = this.cache.get(valueSerializer);
+    if (existingWeak !== undefined) {
+      const existing = existingWeak.deref();
+      if (existing !== undefined) return <ArraySerializer<T>>existing;
+    }
+    const ret = new ArraySerializer(valueSerializer);
+    this.cache.set(valueSerializer, new SafeWeakRef(ret));
     return ret;
   }
 }

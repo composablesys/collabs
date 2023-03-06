@@ -10,6 +10,14 @@ import {
   WaypointStoreSave,
 } from "../../generated/proto_compiled";
 
+const RADIX = 36;
+
+// TODO: use this in IList instead of string;
+// move position docs from IList to its header;
+// reference [[Position]] instead of position in IList/CList
+// function headers?
+export type Position = string;
+
 /**
  * Emitted when new positions are created.
  */
@@ -30,6 +38,13 @@ export interface WaypointStoreEvent extends CollabEvent {
    * Always positive.
    */
   count: number;
+  positions: Position[];
+  /**
+   * The info argument to [[CWaypointStore.createPositions]].
+   *
+   * TODO: not emitted during loading
+   */
+  info: Uint8Array | undefined;
 }
 
 export interface WaypointStoreEventsRecord extends CollabEventsRecord {
@@ -106,8 +121,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
 
   // Vars used to return the newly-created position in add().
   private inCreate = false;
-  private ourCreatedPosition?: [waypoint: Waypoint, valueIndex: number] =
-    undefined;
+  private ourCreatedPositions?: Position[] = undefined;
 
   // OPT: broadcast values in same message
   /**
@@ -119,10 +133,16 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
    * valueIndex is 0.
    */
   createPositions(
-    prevWaypoint: Waypoint,
-    prevValueIndex: number,
-    count: number
-  ): [waypoint: Waypoint, valueIndex: number] {
+    /** null to create at beginning. */
+    prevPosition: Position | null,
+    count: number,
+    info?: Uint8Array
+  ): Position[] {
+    const [prevWaypoint, prevValueIndex] =
+      prevPosition === null
+        ? [this.rootWaypoint, 0]
+        : this.decode(prevPosition);
+
     let parentWaypoint: Waypoint;
     let parentValueIndex: number;
     let isRight: boolean;
@@ -168,6 +188,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
       message = WaypointStoreCreateMessage.create({
         extend: { counter: parentWaypoint.counter },
         count: count === 1 ? undefined : count,
+        info,
       });
     } else {
       message = WaypointStoreCreateMessage.create({
@@ -183,13 +204,14 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
           parentValueIndex,
         },
         count: count === 1 ? undefined : count,
+        info,
       });
     }
 
     this.inCreate = true;
     this.sendPrimitive(WaypointStoreCreateMessage.encode(message).finish());
-    const created = this.ourCreatedPosition!;
-    this.ourCreatedPosition = undefined;
+    const created = this.ourCreatedPositions!;
+    this.ourCreatedPositions = undefined;
     this.inCreate = false;
     return created;
   }
@@ -262,6 +284,9 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     meta: UpdateMeta
   ): void {
     const decoded = WaypointStoreCreateMessage.decode(<Uint8Array>message);
+    const info = Object.prototype.hasOwnProperty.call(decoded, "info")
+      ? decoded.info
+      : undefined;
 
     if (decoded.type === "extend") {
       // Extend an existing waypoint from the receiver
@@ -270,15 +295,17 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
       const valueIndex = waypoint.valueCount;
       waypoint.valueCount += decoded.count;
 
-      if (this.inCreate) {
-        this.ourCreatedPosition = [waypoint, valueIndex];
-      }
-      this.emit("Create", {
+      const event = this.newEvent(
         waypoint,
         valueIndex,
-        count: decoded.count,
-        meta,
-      });
+        decoded.count,
+        info,
+        meta
+      );
+      if (this.inCreate) {
+        this.ourCreatedPositions = event.positions;
+      }
+      this.emit("Create", event);
     } else {
       // "waypoint" (new Waypoint).
       // Get parentWaypoint.
@@ -288,8 +315,6 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
       )
         ? decoded.waypoint!.parentWaypointSenderID!
         : meta.senderID;
-      const parentWaypointCounterAndSide =
-        decoded.waypoint!.parentWaypointCounterAndSide;
       const [parentWaypointCounter, isRight] = this.valueAndSideDecode(
         decoded.waypoint!.parentWaypointCounterAndSide
       );
@@ -315,16 +340,26 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
       senderWaypoints.push(waypoint);
       this.addToChildren(waypoint);
 
+      const event = this.newEvent(waypoint, 0, decoded.count, info, meta);
       if (this.inCreate) {
-        this.ourCreatedPosition = [waypoint, 0];
+        this.ourCreatedPositions = event.positions;
       }
-      this.emit("Create", {
-        waypoint,
-        valueIndex: 0,
-        count: decoded.count,
-        meta,
-      });
+      this.emit("Create", event);
     }
+  }
+
+  private newEvent(
+    waypoint: Waypoint,
+    valueIndex: number,
+    count: number,
+    info: Uint8Array | undefined,
+    meta: UpdateMeta
+  ): WaypointStoreEvent {
+    const positions = new Array<Position>(count);
+    for (let i = 0; i < positions.length; i++) {
+      positions[i] = this.encode(waypoint, valueIndex + i);
+    }
+    return { waypoint, valueIndex, count, positions, info, meta };
   }
 
   /**
@@ -389,6 +424,34 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     return bySender[counter];
   }
 
+  encode(waypoint: Waypoint, valueIndex: number): Position {
+    // OPT: more efficient number encodings?
+    return `${waypoint.counter.toString(RADIX)}.${valueIndex.toString(RADIX)},${
+      waypoint.senderID
+    }`;
+  }
+
+  /**
+   * Also bounds-checks valueIndex.
+   * @param position
+   */
+  decode(position: Position): [waypoint: Waypoint, valueIndex: number] {
+    // TODO: error checking
+    const dot = position.indexOf(".");
+    const comma = position.indexOf(",", dot);
+
+    const counter = Number.parseInt(position.slice(0, dot), RADIX);
+    const valueIndex = Number.parseInt(position.slice(dot + 1, comma), RADIX);
+    const senderID = position.slice(comma + 1);
+
+    const waypoint = this.getWaypoint(senderID, counter);
+
+    if (valueIndex >= waypoint.valueCount) {
+      throw new Error("Unknown position (valueIndex out of range)");
+    }
+    return [waypoint, valueIndex];
+  }
+
   protected savePrimitive(): Uint8Array | null {
     const replicaIDs: string[] = [];
     const replicaCounts: number[] = [];
@@ -451,12 +514,15 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     // 1. Loop over the loaded waypoints and add them (if new)
     // or take the max of their valueCount (if old).
     if (decoded.valueCounts[0] > this.rootWaypoint.valueCount) {
-      events.push({
-        waypoint: this.rootWaypoint,
-        valueIndex: this.rootWaypoint.valueCount,
-        count: decoded.valueCounts[0] - this.rootWaypoint.valueCount,
-        meta,
-      });
+      events.push(
+        this.newEvent(
+          this.rootWaypoint,
+          this.rootWaypoint.valueCount,
+          decoded.valueCounts[0] - this.rootWaypoint.valueCount,
+          undefined,
+          meta
+        )
+      );
       this.rootWaypoint.valueCount = decoded.valueCounts[0];
     }
 
@@ -494,17 +560,20 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
         }
         senderWaypoints.push(waypoint);
 
-        events.push({ waypoint, valueIndex: 0, count: valueCount, meta });
+        events.push(this.newEvent(waypoint, 0, valueCount, undefined, meta));
       } else {
         // Existing waypoint.
         waypoints.push(existing);
         if (valueCount > existing.valueCount) {
-          events.push({
-            waypoint: existing,
-            valueIndex: existing.valueCount,
-            count: valueCount - existing.valueCount,
-            meta,
-          });
+          events.push(
+            this.newEvent(
+              existing,
+              existing.valueCount,
+              valueCount - existing.valueCount,
+              undefined,
+              meta
+            )
+          );
           existing.valueCount = valueCount;
         }
       }

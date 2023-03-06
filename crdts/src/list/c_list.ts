@@ -14,8 +14,8 @@ import {
 import { EntryStatusMessage } from "../../generated/proto_compiled";
 import { CSet } from "../set";
 import { CVar } from "../var";
-import { CWaypointStore } from "./c_waypoint_store";
-import { ListView, Position } from "./list_view";
+import { CWaypointStore, Position } from "./c_waypoint_store";
+import { ListView } from "./list_view";
 
 /**
  * Event emitted by a [[CList]]`<C>`
@@ -285,10 +285,9 @@ export class CList<
    * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, ...args: InsertArgs): C {
-    const prevPos =
-      index === 0 ? null : this.positionSource.getPosition(index - 1);
-    const pos = this.waypointStore.createPositions(prevPos, 1);
-    return this.set.add({ position: pos, isPresent: true }, args).value;
+    const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
+    const position = this.waypointStore.createPositions(prevPos, 1)[0];
+    return this.set.add({ position, isPresent: true }, args).value;
   }
 
   /**
@@ -403,36 +402,20 @@ export class CList<
 
     // Positions to insert at.
     const prevPos =
-      insertionIndex === 0
-        ? null
-        : this.positionSource.getPosition(insertionIndex - 1);
-    const [counter, startValueIndex, metadata] =
-      this.positionSource.createPositions(prevPos);
-    this.createdPositionMessenger.sendMessage([
-      counter,
-      startValueIndex,
-      metadata,
-    ]);
+      insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
+    const positions = this.waypointStore.createPositions(prevPos, count);
     // Values to move.
-    const toMove = new Array<CListEntry<C>>(count);
-    for (let i = 0; i < count; i++) {
-      // OPT: actually use items here.
-      const [item, offset] = this.positionSource.getItem(startIndex + i);
-      toMove[i] = item[offset];
-    }
+    const toMove = this.list.slice(startIndex, startIndex + count);
     // Move them.
     for (let i = 0; i < count; i++) {
-      toMove[i].status.value = {
-        position: [this.runtime.replicaID, counter, startValueIndex + i],
+      const entry = this.entryFromValue(toMove[i])!;
+      entry.status.value = {
+        position: positions[i],
         isPresent: true,
       };
     }
     // Return the new index of toMove[0].
-    return this.positionSource.indexOfPosition([
-      this.runtime.replicaID,
-      counter,
-      startValueIndex,
-    ]);
+    return this.list.indexOfPosition(positions[0]);
   }
 
   get(index: number): C {
