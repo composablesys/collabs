@@ -18,26 +18,16 @@ const RADIX = 36;
  */
 export interface PositionSourceEvent extends CollabEvent {
   /**
-   * The positions' waypoint.
+   * The created positions, in order. They are contiguous.
    */
-  waypoint: Waypoint;
-  /**
-   * The first position's valueIndex. The rest follow sequentially.
-   *
-   * 0 iff the waypoint is new.
-   */
-  valueIndex: number;
-  /**
-   * The number of created positions.
-   *
-   * Always positive.
-   */
-  count: number;
   positions: Position[];
   /**
    * The info argument to [[CWaypointStore.createPositions]].
    *
-   * TODO: not emitted during loading
+   * This property is always undefined for events emitted during
+   * loading, even if it was defined for the original operation.
+   * You will need to manually save and load any info carried by
+   * this field.
    */
   info: Uint8Array | undefined;
 }
@@ -51,6 +41,12 @@ export interface PositionSourceEventsRecord extends CollabEventsRecord {
 
 // TODO: doc tree structure
 
+/**
+ * Internal ([[CPositionSource]] and [[LocalList]]) use only.
+ *
+ * A waypoint in the tree of positions. See the comments above
+ * [[CPositionSource]] for a description of the overall algorithm.
+ */
 export class Waypoint {
   constructor(
     /**
@@ -63,10 +59,9 @@ export class Waypoint {
      */
     readonly counter: number,
     /**
-     * null only for the root. Also temporarily null
-     * during loading (otherwise readonly).
+     * null only for the root.
      */
-    public parentWaypoint: Waypoint | null,
+    readonly parentWaypoint: Waypoint | null,
     /**
      * The valueIndex of our true parent (a value within
      * parentWaypoint).
@@ -116,7 +111,9 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
    */
   private readonly waypointsByID = new Map<string, Waypoint[]>();
   /**
-   * Root waypoint.
+   * Internal ([[LocalList]]) use only.
+   *
+   * The root waypoint.
    */
   readonly rootWaypoint: Waypoint;
 
@@ -127,18 +124,16 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     this.waypointsByID.set("", [this.rootWaypoint]);
   }
 
-  // Vars used to return the newly-created position in add().
-  private inCreate = false;
+  // Vars used to return the newly-created position in createPositions().
+  private inCreatePositions = false;
   private ourCreatedPositions?: Position[] = undefined;
 
-  // OPT: broadcast values in same message
   /**
    *
-   * @param prevWaypoint
-   * @param prevValueIndex
+   * @param prevPosition
    * @param count
-   * @returns First created position. New waypoint iff
-   * valueIndex is 0.
+   * @param info
+   * @returns Created positions, in order.
    */
   createPositions(
     /** null to create at beginning. */
@@ -216,11 +211,11 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       });
     }
 
-    this.inCreate = true;
+    this.inCreatePositions = true;
     this.sendPrimitive(WaypointStoreCreateMessage.encode(message).finish());
     const created = this.ourCreatedPositions!;
     this.ourCreatedPositions = undefined;
-    this.inCreate = false;
+    this.inCreatePositions = false;
     return created;
   }
 
@@ -310,7 +305,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
         info,
         meta
       );
-      if (this.inCreate) {
+      if (this.inCreatePositions) {
         this.ourCreatedPositions = event.positions;
       }
       this.emit("Create", event);
@@ -349,7 +344,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       this.addToChildren(waypoint);
 
       const event = this.newEvent(waypoint, 0, decoded.count, info, meta);
-      if (this.inCreate) {
+      if (this.inCreatePositions) {
         this.ourCreatedPositions = event.positions;
       }
       this.emit("Create", event);
@@ -367,7 +362,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     for (let i = 0; i < positions.length; i++) {
       positions[i] = this.encode(waypoint, valueIndex + i);
     }
-    return { waypoint, valueIndex, count, positions, info, meta };
+    return { positions, info, meta };
   }
 
   /**
@@ -382,36 +377,41 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     // OPT: If children is large, use binary search.
     let i = 0;
     for (; i < children.length; i++) {
-      if (this.isChildLess(newWaypoint, children[i])) break;
+      if (this.isSiblingLess(newWaypoint, children[i])) break;
     }
     children.splice(i - 1, 0, newWaypoint);
   }
 
   /**
-   * Returns true if child1 < child2 in their parent's
-   * children order.
+   * Internal ([[LocalList]]) use only.
+   *
+   * Returns true if sibling1 < sibling2 in the sibling order.
    */
-  isChildLess(child1: Waypoint, child2: Waypoint) {
+  isSiblingLess(sibling1: Waypoint, sibling2: Waypoint) {
     // Recall child order: left children ordered by
     // valueIndex, then right children ordered by
     // reverse valueIndex. senderID tiebreaker.
-    if (child1.isRight === child2.isRight) {
-      if (child1.parentValueIndex === child2.parentValueIndex) {
+    if (sibling1.isRight === sibling2.isRight) {
+      if (sibling1.parentValueIndex === sibling2.parentValueIndex) {
         // senderID order. Identical senderIDs are impossible.
-        return child1.senderID < child2.senderID;
+        return sibling1.senderID < sibling2.senderID;
       } else {
         // isRight: reverse valueIndex order;
         // isLeft: valueIndex order.
         // Use === as XNOR.
         return (
-          child1.isRight === child1.parentValueIndex > child2.parentValueIndex
+          sibling1.isRight ===
+          sibling1.parentValueIndex > sibling2.parentValueIndex
         );
       }
-    } else return child2.isRight;
+    } else return sibling2.isRight;
   }
 
   /**
-   * Includes error checking.
+   * Internal ([[LocalList]]) use only.
+   *
+   * Returns the waypoint identified by (senderID, counter),
+   * throwing an error if it does not exist.
    */
   getWaypoint(senderID: string, counter: number): Waypoint {
     const bySender = this.waypointsByID.get(senderID);
@@ -432,6 +432,13 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return bySender[counter];
   }
 
+  /**
+   * Internal ([[LocalList]]) use only.
+   *
+   * Returns the [[Position]] representation of (waypoint, valueIndex).
+   *
+   * Invert with [[decode]].
+   */
   encode(waypoint: Waypoint, valueIndex: number): Position {
     // OPT: more efficient number encodings?
     return `${waypoint.counter.toString(RADIX)}.${valueIndex.toString(RADIX)},${
@@ -440,8 +447,12 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   }
 
   /**
-   * Also bounds-checks valueIndex.
-   * @param position
+   * Internal ([[LocalList]]) use only.
+   *
+   * Returns the pair (waypoint, valueIndex) encoded by `position`,
+   * throwing an error if the position is invalid.
+   *
+   * Invert with [[encode]].
    */
   decode(position: Position): [waypoint: Waypoint, valueIndex: number] {
     // TODO: error checking
@@ -553,6 +564,8 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
           replicaID,
           replicaCounter,
           // Temporarily null in case it will be created later.
+          // This is not externally visible because we wait to emit
+          // events.
           null,
           parentValueIndex,
           isRight,
@@ -593,6 +606,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     // fill in its parentWaypoint and add it to parentWaypoint.childWaypoints.
     for (const i of newWaypointIndices) {
       const newWaypoint = waypoints[i];
+      // @ts-expect-error Override readonly parentWaypoint.
       newWaypoint.parentWaypoint = waypoints[decoded.parentWaypoints[i]];
       this.addToChildren(newWaypoint);
     }
