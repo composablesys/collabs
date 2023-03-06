@@ -4,6 +4,7 @@ import {
   CMessenger,
   DefaultSerializer,
   InitToken,
+  Position,
   Serializer,
   StringSerializer,
 } from "@collabs/core";
@@ -11,8 +12,8 @@ import {
   CValueListSave,
   ICValueListSave,
 } from "../../generated/proto_compiled";
-import { CWaypointStore, Position } from "./c_waypoint_store";
-import { ListView } from "./list_view";
+import { CPositionSource } from "./c_position_source";
+import { LocalList } from "./local_list";
 
 /**
  * A collaborative list with values of type T.
@@ -37,10 +38,10 @@ import { ListView } from "./list_view";
  * @typeParam T The value type.
  */
 export class CValueList<T> extends AbstractList_CObject<T, [T]> {
-  private readonly waypointStore: CWaypointStore;
+  private readonly waypointStore: CPositionSource;
   private readonly deleteMessenger: CMessenger<Position>;
 
-  private readonly list: ListView<T>;
+  private readonly list: LocalList<T>;
 
   protected readonly valueSerializer: Serializer<T>;
   protected readonly valueArraySerializer: Serializer<T[]>;
@@ -71,9 +72,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
     this.waypointStore = super.registerCollab(
       "",
-      (init) => new CWaypointStore(init)
+      (init) => new CPositionSource(init)
     );
-    this.list = new ListView(this.waypointStore);
+    this.list = new LocalList(this.waypointStore);
 
     this.deleteMessenger = super.registerCollab(
       "0",
@@ -250,6 +251,24 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
   entries(): IterableIterator<[index: number, position: Position, value: T]> {
     return this.list.entries();
+  }
+
+  /**
+   * Returns a new instance of [[LocalList]] that uses this
+   * CList's [[Position]]s, initially empty.
+   *
+   * Changes to the returned LocalList's values
+   * do not affect this CValueList's values, and vice-versa.
+   * However, the set of allowed positions does increase to
+   * match this CValueList: you may use a CValueList position in
+   * the returned LocalList even if that position was created
+   * after the call to `newLocalList`.
+   *
+   * @typeParam U The value type of the returned list.
+   * Defaults to T.
+   */
+  newLocalList<U = T>(): LocalList<U> {
+    return new LocalList(this.waypointStore);
   }
 
   protected saveObject(): Uint8Array {

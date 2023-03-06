@@ -3,6 +3,7 @@ import {
   CollabEventsRecord,
   CPrimitive,
   InitToken,
+  Position,
   UpdateMeta,
 } from "@collabs/core";
 import {
@@ -12,16 +13,10 @@ import {
 
 const RADIX = 36;
 
-// TODO: use this in IList instead of string;
-// move position docs from IList to its header;
-// reference [[Position]] instead of position in IList/CList
-// function headers?
-export type Position = string;
-
 /**
  * Emitted when new positions are created.
  */
-export interface WaypointStoreEvent extends CollabEvent {
+export interface PositionSourceEvent extends CollabEvent {
   /**
    * The positions' waypoint.
    */
@@ -47,11 +42,11 @@ export interface WaypointStoreEvent extends CollabEvent {
   info: Uint8Array | undefined;
 }
 
-export interface WaypointStoreEventsRecord extends CollabEventsRecord {
+export interface PositionSourceEventsRecord extends CollabEventsRecord {
   /**
    * Emitted when new positions are created.
    */
-  Create: WaypointStoreEvent;
+  Create: PositionSourceEvent;
 }
 
 // TODO: doc tree structure
@@ -97,12 +92,25 @@ export class Waypoint {
    * by valueIndex, then right children by reverse valueIndex.
    * Ties broken by senderID.
    */
-  readonly childWaypoints: Waypoint[] = [];
+  readonly children: Waypoint[] = [];
 }
 
 // TODO: all names, docs
 
-export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
+/**
+ * Generates positions for use in a collaborative list.
+ *
+ * This is a low-level API intended for internal use by list CRDT implementations.
+ * In most apps, you are better off using [[CValueList]] or [[CList]].
+ *
+ * The set of allowed positions and their sort order is collaborative
+ * (replicated on all devices). You can then use a [[LocalList]] to assign
+ * values to those positions and to convert between indices, positions,
+ * and values.
+ * Note that LocalList is a local (non-collaborative) data structure, i.e.,
+ * the value assignments are not automatically replicated.
+ */
+export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   /**
    * Map key is waypoint.senderID, index in the array is waypoint.counter.
    */
@@ -232,7 +240,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
    * Returns the first right-side waypoint child of parent.
    */
   private firstRightWaypoint(parent: Waypoint): Waypoint | null {
-    for (const child of parent.childWaypoints) {
+    for (const child of parent.children) {
       if (child.isRight) return child;
     }
     return null;
@@ -246,7 +254,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     waypoint: Waypoint,
     valueIndex: number
   ): [Waypoint, number] {
-    for (const child of waypoint.childWaypoints) {
+    for (const child of waypoint.children) {
       if (!child.isRight && child.parentValueIndex === valueIndex) {
         // Found the first left child of the input.
         return [this.leftmostDescendant0(child), 0];
@@ -270,8 +278,8 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     // The leftmost child of a waypoint is always a child of
     // its valueIndex 0.
     let current = waypoint;
-    while (current.childWaypoints.length > 0) {
-      const firstChild = current.childWaypoints[0];
+    while (current.children.length > 0) {
+      const firstChild = current.children[0];
       if (firstChild.parentValueIndex === 0 && !firstChild.isRight) {
         current = firstChild;
       } else break;
@@ -354,7 +362,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     count: number,
     info: Uint8Array | undefined,
     meta: UpdateMeta
-  ): WaypointStoreEvent {
+  ): PositionSourceEvent {
     const positions = new Array<Position>(count);
     for (let i = 0; i < positions.length; i++) {
       positions[i] = this.encode(waypoint, valueIndex + i);
@@ -369,7 +377,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
   private addToChildren(newWaypoint: Waypoint): void {
     // Recall child waypoints' sort order: left children
     // by valueIndex, then right children by reverse valueIndex.
-    const children = newWaypoint.parentWaypoint!.childWaypoints;
+    const children = newWaypoint.parentWaypoint!.children;
     // Find i, the index of the first entry after newWaypoint.
     // OPT: If children is large, use binary search.
     let i = 0;
@@ -509,7 +517,7 @@ export class CWaypointStore extends CPrimitive<WaypointStoreEventsRecord> {
     const waypoints: Waypoint[] = [this.rootWaypoint];
     // Indices into waypoints.
     const newWaypointIndices: number[] = [];
-    const events: WaypointStoreEvent[] = [];
+    const events: PositionSourceEvent[] = [];
 
     // 1. Loop over the loaded waypoints and add them (if new)
     // or take the max of their valueCount (if old).

@@ -9,13 +9,14 @@ import {
   ListEvent,
   ListEventsRecord,
   PairSerializer,
+  Position,
   Serializer,
 } from "@collabs/core";
 import { EntryStatusMessage } from "../../generated/proto_compiled";
 import { CSet } from "../set";
 import { CVar } from "../var";
-import { CWaypointStore, Position } from "./c_waypoint_store";
-import { ListView } from "./list_view";
+import { CPositionSource } from "./c_position_source";
+import { LocalList } from "./local_list";
 
 /**
  * Event emitted by a [[CList]]`<C>`
@@ -117,15 +118,18 @@ class CListEntry<C extends Collab> extends CObject {
  * are ignored. Alternately, use [[archive]] and [[restore]].
  *
  * See also: [[CValueList]], [[CText]].
+ *
+ * @typeParam C The value type, which is a Collab.
+ * @typeParam InsertArgs The type of arguments to [[insert]].
  */
 export class CList<
   C extends Collab,
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
   private readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
-  private readonly waypointStore: CWaypointStore;
+  private readonly waypointStore: CPositionSource;
 
-  private readonly list: ListView<C>;
+  private readonly list: LocalList<C>;
 
   /**
    * Constructs a CList with the given `valueConstructor`.
@@ -161,10 +165,10 @@ export class CList<
     );
     this.waypointStore = this.registerCollab(
       "0",
-      (init) => new CWaypointStore(init)
+      (init) => new CPositionSource(init)
     );
 
-    this.list = new ListView(this.waypointStore);
+    this.list = new LocalList(this.waypointStore);
 
     // Maintain positionSource's values as a cache of
     // of the currently set locations, mapping to
@@ -458,21 +462,25 @@ export class CList<
   }
 
   /**
-   * Returns an iterator of [position, value] pairs for every
-   * archived but non-deleted value in the list.
+   * Returns a new instance of [[LocalList]] that uses this
+   * CList's [[Position]]s, initially empty.
    *
-   * The iteration order is NOT eventually consistent:
-   * it is unrelated to positions and
-   * may differ on replicas with the same state.
-   * TODO: use own listview to sort them
+   * Changes to the returned LocalList's values
+   * do not affect this CList's values, and vice-versa.
+   * However, the set of allowed positions does increase to
+   * match this CList: you may use a CList position in
+   * the returned LocalList even if that position was created
+   * after the call to `newLocalList`.
+   *
+   * @typeParam U The value type of the returned list.
+   * Defaults to C.
    */
-  *archivedEntries(): IterableIterator<[position: Position, value: C]> {
-    for (const entry of this.set) {
-      if (!entry.status.value.isPresent) {
-        yield [entry.status.value.position, entry.value];
-      }
-    }
+  newLocalList<U = C>(): LocalList<U> {
+    return new LocalList(this.waypointStore);
   }
+
+  // TODO: instead of archivedEntries, a function that returns a LocalList
+  // of the archived entries?
 
   indexOf(searchElement: C, fromIndex = 0): number {
     const entry = this.entryFromValue(searchElement);

@@ -1,4 +1,5 @@
-import { CWaypointStore, Position, Waypoint } from "./c_waypoint_store";
+import { Position } from "@collabs/core";
+import { CPositionSource, Waypoint } from "./c_position_source";
 
 interface WaypointValues<T> {
   /**
@@ -19,11 +20,23 @@ interface WaypointValues<T> {
 }
 
 /**
- * Non-collaborative (local data structure).
+ * A local (non-collaborative) data structure mapping [[Position]]s to
+ * values, in list order.
  *
- * Ordered map from [[Position]]s (opaque strings) to values.
+ * You can use a LocalList to maintain a sorted, indexable view of a
+ * [[CValueList]], [[CList]], or [[CText]]'s values.
+ * For example, when using a [[CList]],
+ * you could store its archived values in a LocalList.
+ * That would let you iterate over the archived values in list order.
+ * <!-- TODO: example in docs; or, provide convenience function to
+ * return the archived LocalList? -->
+ *
+ * To construct a LocalList that uses an existing list's positions, use
+ * that list's `newLocalList` function, e.g., [[CList.newLocalList]].
+ *
+ * @typeParam T The value type.
  */
-export class ListView<T> {
+export class LocalList<T> {
   /**
    * Missing entry = all deleted values for that waypoint
    * and its descendants, equiv,
@@ -31,7 +44,18 @@ export class ListView<T> {
    */
   private valuesByWaypoint = new Map<Waypoint, WaypointValues<T>>();
 
-  constructor(readonly waypointStore: CWaypointStore) {
+  /**
+   * Constructs a LocalList whose allowed positions are given by
+   * `waypointStore`.
+   *
+   * This is a low-level API intended for internal use by list CRDT implementations.
+   * To construct a LocalList that uses an existing list's positions, use
+   * that list's `newLocalList` function, e.g., [[CList.newLocalList]].
+   *
+   *
+   * @param waypointStore
+   */
+  constructor(readonly waypointStore: CPositionSource) {
     this.waypointStore.on("Create", (e) => {
       const values = this.valuesByWaypoint.get(e.waypoint);
       if (values !== undefined) {
@@ -271,7 +295,7 @@ export class ListView<T> {
    * returns [[length]].
    */
   indexOfPosition(
-    position: string,
+    position: Position,
     searchDir: "none" | "left" | "right" = "none"
   ): number {
     const [waypoint, valueIndex] = this.waypointStore.decode(position);
@@ -286,7 +310,7 @@ export class ListView<T> {
     // These are precisely the left children with
     // parentValueIndex <= valueIndex.
     if (waypoint.parentWaypoint !== null) {
-      for (const child of waypoint.parentWaypoint.childWaypoints) {
+      for (const child of waypoint.parentWaypoint.children) {
         if (child.isRight || child.parentValueIndex > waypoint.parentValueIndex)
           break;
         valuesBefore += this.valuesByWaypoint.get(child)?.total ?? 0;
@@ -308,7 +332,7 @@ export class ListView<T> {
           : current.parentValueIndex
       )[2];
       // Sibling waypoints that come before current.
-      for (const child of current.parentWaypoint.childWaypoints) {
+      for (const child of current.parentWaypoint.children) {
         if (this.waypointStore.isChildLess(current, child)) break;
         valuesBefore += this.valuesByWaypoint.get(child)?.total ?? 0;
       }
@@ -421,7 +445,7 @@ export class ListView<T> {
     waypoint: Waypoint
   ): IterableIterator<WaypointStuff<T>> {
     const items = this.valuesByWaypoint.get(waypoint)!.items;
-    const children = waypoint.childWaypoints;
+    const children = waypoint.children;
     let childIndex = 0;
     let startValueIndex = 0;
     for (const item of items) {

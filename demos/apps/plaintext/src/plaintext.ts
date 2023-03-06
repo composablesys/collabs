@@ -23,11 +23,11 @@ import { CContainer } from "@collabs/container";
   // TODO: shared cursors
 
   // Cursor: points to the previous char's position, or null for the beginning.
-  function cursorToIndex(cursor: string | null) {
+  function cursorToIndex(cursor: collabs.Position | null) {
     return cursor === null ? 0 : text.indexOfPosition(cursor, "left") + 1;
   }
 
-  function indexToCursor(index: number): string | null {
+  function indexToCursor(index: number): collabs.Position | null {
     return index === 0 ? null : text.getPosition(index - 1);
   }
 

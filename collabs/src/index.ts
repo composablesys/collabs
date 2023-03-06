@@ -39,6 +39,7 @@ export {
   MetaRequest,
   Optional,
   Parent,
+  Position,
   ReplicaIDs,
   SavedStateTree,
   Serializer,

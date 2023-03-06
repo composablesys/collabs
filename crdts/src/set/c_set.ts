@@ -43,6 +43,9 @@ const RADIX = 36;
  * [[delete]] is like "free", but replicated across all devices.
  *
  * See also: [[CValueSet]].
+ *
+ * @typeParam C The value type, which is a Collab.
+ * @typeParam AddArgs The type of arguments to [[add]].
  */
 export class CSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractSet_Collab<C, AddArgs>

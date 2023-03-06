@@ -16,13 +16,13 @@ export declare abstract class AbstractList_PrimitiveCRDT<
   extends PrimitiveCRDT<Events>
   implements IList<T, InsertArgs, Events>
 {
-  hasPosition(position: string): boolean;
-  getByPosition(position: string): T | undefined;
-  positionOf(searchElement: T): string | undefined;
+  hasPosition(position: Position): boolean;
+  getByPosition(position: Position): T | undefined;
+  positionOf(searchElement: T): Position | undefined;
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
   values(): IterableIterator<T>;
-  positions(): IterableIterator<string>;
+  positions(): IterableIterator<Position>;
   toString(): string;
 
   pop(): T;
@@ -121,13 +121,13 @@ export declare abstract class AbstractList_PrimitiveCRDT<
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
   abstract delete(startIndex: number, count?: number): void;
   abstract get(index: number): T;
-  abstract getPosition(index: number): string;
+  abstract getPosition(index: number): Position;
   abstract indexOfPosition(
-    position: string,
+    position: Position,
     searchDir?: "none" | "left" | "right"
   ): number;
   abstract entries(): IterableIterator<
-    [index: number, position: string, value: T]
+    [index: number, position: Position, value: T]
   >;
   abstract readonly length: number;
 }
