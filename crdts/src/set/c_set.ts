@@ -321,7 +321,8 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   }
 
   save(): SavedStateTree | null {
-    if (this.canGC()) return null;
+    // Even if we have no state, we cannot return null, because load()
+    // needs to look at our VC.
 
     const args = new Array<Uint8Array>(this.size);
     const childSaves = new Map<string, SavedStateTree | null>();

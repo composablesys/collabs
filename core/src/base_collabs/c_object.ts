@@ -1,6 +1,5 @@
 import {
   Collab,
-  CollabEvent,
   CollabEventsRecord,
   CollabID,
   collabIDOf,

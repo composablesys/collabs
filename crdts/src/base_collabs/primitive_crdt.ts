@@ -104,8 +104,14 @@ export abstract class PrimitiveCRDT<
     this.loadCRDT(savedState, meta, <CRDTSavedStateMeta>meta.runtimeExtra);
   }
 
+  /**
+   * TODO: docs
+   */
   protected abstract saveCRDT(): Uint8Array | null;
 
+  /**
+   * TODO: docs, incl crdtMeta
+   */
   protected abstract loadCRDT(
     savedState: Uint8Array,
     meta: UpdateMeta,
