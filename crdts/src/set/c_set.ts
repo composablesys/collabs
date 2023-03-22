@@ -351,7 +351,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     for (const [name, value] of this.children) {
       if (!childSaves.has(name)) {
         const [senderID, senderCounter] = this.parseName(name);
-        if (crdtMeta.localVectorClockGet(senderID) >= senderCounter) {
+        if (crdtMeta.localVectorClock.get(senderID) >= senderCounter) {
           this.receiveDelete(name, value, meta);
         }
       }
@@ -363,7 +363,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     for (const name of childSaves.keys()) {
       if (!this.children.has(name)) {
         const [senderID, senderCounter] = this.parseName(name);
-        if (crdtMeta.localVectorClockGet(senderID) < senderCounter) {
+        if (crdtMeta.localVectorClock.get(senderID) < senderCounter) {
           // This will emit an Add event, even though we haven't
           // loaded the value yet.
           // That matches add()'s behavior, and it lets users register event

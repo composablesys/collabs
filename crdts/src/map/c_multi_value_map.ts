@@ -199,7 +199,7 @@ export class CMultiValueMap<K, V>
       for (const item of previousValueLiteral) {
         // Omit causally dominated entries, including previous sets from the
         // same transaction.
-        if (crdtMeta.vectorClockGet(item.sender) < item.senderCounter) {
+        if (crdtMeta.vectorClock.get(item.sender) < item.senderCounter) {
           newItems.push(item);
         }
       }
@@ -400,7 +400,7 @@ export class CMultiValueMap<K, V>
       if (remoteSender === undefined || localSender! < remoteSender) {
         // Local item has next sender, check case 2.
         const localSenderCounter = localItems![localI].senderCounter;
-        if (localSenderCounter > crdtMeta.remoteVectorClockGet(localSender!)) {
+        if (localSenderCounter > crdtMeta.remoteVectorClock.get(localSender!)) {
           pushLocal = true;
         }
         localI++;
@@ -409,7 +409,7 @@ export class CMultiValueMap<K, V>
         remoteSenderCounter = int64AsNumber(
           remoteItems!.senderCounters[remoteI]
         );
-        if (remoteSenderCounter > crdtMeta.localVectorClockGet(remoteSender)) {
+        if (remoteSenderCounter > crdtMeta.localVectorClock.get(remoteSender)) {
           pushRemote = true;
         }
         remoteI++;

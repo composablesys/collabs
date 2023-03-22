@@ -1,9 +1,23 @@
 import { int64AsNumber, Serializer, UpdateMeta } from "@collabs/core";
 import { CRDTMetaMessage } from "../../generated/proto_compiled";
-import { CRDTMessageMeta } from "./crdt_meta";
+import { CRDTMessageMeta, VectorClock } from "./crdt_meta";
+
+export class BasicVectorClock implements VectorClock {
+  constructor(
+    private readonly vcEntries: Map<string, number>,
+    private readonly senderID: string,
+    private readonly senderCounter: number
+  ) {}
+
+  get(replicaID: string): number {
+    if (replicaID === this.senderID) return this.senderCounter;
+    else return this.vcEntries.get(replicaID) ?? 0;
+  }
+}
 
 export class SendCRDTMeta implements CRDTMessageMeta {
   readonly senderCounter: number;
+  readonly vectorClock: VectorClock;
 
   /**
    * The requested vector clock entries so far. Excludes this.sender
@@ -11,7 +25,7 @@ export class SendCRDTMeta implements CRDTMessageMeta {
    *
    * Public only for [[CRDTMetaSerializer]].
    */
-  readonly vc = new Map<string, number>();
+  readonly vcEntries = new Map<string, number>();
   /**
    * The number of entries at the beginning of requestedVC's
    * iterator order that are causally maximal.
@@ -40,18 +54,19 @@ export class SendCRDTMeta implements CRDTMessageMeta {
         count--;
         continue;
       }
-      this.vc.set(replicaID, actualVC.get(replicaID)!);
+      this.vcEntries.set(replicaID, actualVC.get(replicaID)!);
     }
     this.maximalVcKeyCount = count;
+    this.vectorClock = { get: this.vectorClockGet.bind(this) };
   }
 
-  vectorClockGet(replicaID: string): number {
+  private vectorClockGet(replicaID: string): number {
     if (replicaID === this.senderID) return this.senderCounter;
     else {
       if (this.isAutomatic) {
         this.requestVectorClockEntry(replicaID);
       }
-      const clock = this.vc.get(replicaID);
+      const clock = this.vcEntries.get(replicaID);
       if (!this.isFrozen && clock === undefined) {
         throw new Error(
           "You must request a vector clock entry (or automatic mode) to access it (entry:" +
@@ -95,7 +110,7 @@ export class SendCRDTMeta implements CRDTMessageMeta {
       if (entry === undefined) {
         throw new Error("Unknown replicaID: " + replicaID);
       }
-      this.vc.set(replicaID, entry);
+      this.vcEntries.set(replicaID, entry);
     }
   }
 
@@ -124,7 +139,7 @@ export class SendCRDTMeta implements CRDTMessageMeta {
     return JSON.stringify({
       sender: this.senderID,
       senderCounter: this.senderCounter,
-      vectorClock: Object.entries(this.vc),
+      vectorClock: Object.entries(this.vcEntries),
       wallClockTime: this.wallClockTime,
       lamportTimestamp: this.lamportTimestamp,
     });
@@ -133,6 +148,8 @@ export class SendCRDTMeta implements CRDTMessageMeta {
 
 // TODO: also used for load
 export class ReceiveCRDTMeta implements CRDTMessageMeta {
+  readonly vectorClock: VectorClock;
+
   constructor(
     readonly senderID: string,
     readonly senderCounter: number,
@@ -141,7 +158,7 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
      *
      * Public only for [[CRDTMetaSerializer]].
      */
-    readonly vc: Map<string, number>,
+    readonly vcEntries: Map<string, number>,
     /**
      * Excludes sender. Empty if CRDTMetaLayer's
      * causalityGuaranteed flag is true.
@@ -151,18 +168,15 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
     readonly maximalVcKeyCount: number,
     readonly wallClockTime: number | null,
     readonly lamportTimestamp: number | null
-  ) {}
-
-  vectorClockGet(replicaID: string): number {
-    if (replicaID === this.senderID) return this.senderCounter;
-    else return this.vc.get(replicaID) ?? 0;
+  ) {
+    this.vectorClock = new BasicVectorClock(vcEntries, senderID, senderCounter);
   }
 
   toString(): string {
     return JSON.stringify({
       sender: this.senderID,
       senderCounter: this.senderCounter,
-      vectorClock: Object.entries(this.vc),
+      vectorClock: Object.entries(this.vcEntries),
       wallClockTime: this.wallClockTime,
       lamportTimestamp: this.lamportTimestamp,
     });
@@ -184,14 +198,14 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
 
   serialize(value: UpdateMeta): Uint8Array {
     const crdtMeta = value.runtimeExtra as SendCRDTMeta | ReceiveCRDTMeta;
-    const vcKeys = new Array<string>(crdtMeta.vc.size);
-    const vcValues = new Array<number>(crdtMeta.vc.size);
+    const vcKeys = new Array<string>(crdtMeta.vcEntries.size);
+    const vcValues = new Array<number>(crdtMeta.vcEntries.size);
     // Since Map iterator order is set-order and
     // both types set causallyMaximalVCKeys first (in the
     // constructor for SendCRDTMeta),
     // this loop puts causally maximal keys first.
     let i = 0;
-    for (const [key, value] of crdtMeta.vc) {
+    for (const [key, value] of crdtMeta.vcEntries) {
       vcKeys[i] = key;
       vcValues[i] = value;
       i++;

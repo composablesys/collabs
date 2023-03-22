@@ -160,7 +160,7 @@ export class CausalMessageBuffer {
     // Check that other causally maximal entries are <= ours.
     // Note that this excludes sender.
     let i = 0;
-    for (const [key, value] of crdtMeta.vc) {
+    for (const [key, value] of crdtMeta.vcEntries) {
       if (i === crdtMeta.maximalVcKeyCount) break;
       if ((this.vc.get(key) ?? 0) < value) {
         return false;
@@ -189,7 +189,7 @@ export class CausalMessageBuffer {
       // Delete any current keys that are causally dominated by
       // crdtMeta.
       let i = 0;
-      for (const [key, value] of crdtMeta.vc) {
+      for (const [key, value] of crdtMeta.vcEntries) {
         if (i === crdtMeta.maximalVcKeyCount) break;
         if (this.vc.get(key) === value) {
           this.maximalVcKeys.delete(key);

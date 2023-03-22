@@ -1,5 +1,23 @@
 import { MetaRequest } from "@collabs/core";
 
+export interface VectorClock {
+  /**
+   * Returns `replicaID`'s vector clock entry for the received message.
+   *
+   * By definition, this equals the maximum `senderCounter` received from
+   * `replicaID` before this message was sent,
+   * or 0 if no messages had been received from `replicaID`.
+   *
+   * When `replicaID` is `senderID`, returns [[senderCounter]].
+   *
+   * If not requested or accessed by the sender, returns 0.
+   * (TODO: only for messages; for saves, 0 only if never seen.)
+   */
+  get(replicaID: string): number;
+
+  // TODO: entries()? Copy ability? Only if justified.
+}
+
 /**
  * CRDT-related meta for a message.
  *
@@ -29,18 +47,8 @@ export interface CRDTMessageMeta {
    * transactions sent by [[sender]].
    */
   readonly senderCounter: number;
-  /**
-   * Returns `replicaID`'s vector clock entry for the received message.
-   *
-   * By definition, this equals the maximum `senderCounter` received from
-   * `replicaID` before this message was sent,
-   * or 0 if no messages had been received from `replicaID`.
-   *
-   * When `replicaID` is `senderID`, returns [[senderCounter]].
-   *
-   * If not requested or accessed by the sender, returns 0.
-   */
-  vectorClockGet(replicaID: string): number;
+  /** TODO: the vector clock (requested entries only). */
+  readonly vectorClock: VectorClock;
   /**
    * The sender's wall clock time (`Date.now()`)
    * for the transaction that created this item.
@@ -100,8 +108,10 @@ export interface CRDTSavedStateMeta {
    * By definition, this equals the maximum `senderCounter` received from
    * `replicaID` before the state was saved,
    * or 0 if no messages had been received from `replicaID`.
+   *
+   * TODO: rewrite
    */
-  remoteVectorClockGet(replicaID: string): number;
+  remoteVectorClock: VectorClock;
   /**
    * Returns `replicaID`'s vector clock entry on the local replica.
    *
@@ -109,7 +119,9 @@ export interface CRDTSavedStateMeta {
    * `replicaID` by this replica,
    * or 0 if no messages have been received from `replicaID`.
    *
-   * TODO: don't save for later (this is live view).
+   * TODO: rewrite
+   *
+   * TODO: don't save for later (this is live view), unless you copy entries().
    */
-  localVectorClockGet(replicaID: string): number;
+  localVectorClock: VectorClock;
 }
