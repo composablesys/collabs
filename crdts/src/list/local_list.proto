@@ -1,0 +1,13 @@
+message LocalListSave {
+  // OPT: dedupe replicaIDs, replicaCounts with CPositionSource.
+  // Excludes root ("").
+  repeated string replicaIDs = 1;
+  repeated uint32 replicaIDIndices = 2 [packed=true];
+  // OPT: diff and run-length encode or similar?
+  repeated uint32 counters = 3 [packed=true];
+  // OPT: sign trick instead
+  repeated uint32 itemsLengths = 4 [packed=true];
+  repeated uint32 itemSizes = 5 [packed=true];
+  // OPT: recompute during load instead; can skip during merging
+  repeated uint32 totals = 6 [packed=true];
+}

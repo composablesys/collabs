@@ -15,6 +15,9 @@ import {
 import { CPositionSource } from "./c_position_source";
 import { LocalList } from "./local_list";
 
+// TODO: PositionSource optional input? In case you want
+// multiple lists on the same source. Same for CList.
+
 /**
  * A collaborative list with values of type T.
  *
@@ -88,10 +91,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       if (e.meta.updateType === "savedState") return;
 
       const values =
-        e.count === 1
+        e.positions.length === 1
           ? [this.valueSerializer.deserialize(e.info!)]
           : this.valueArraySerializer.deserialize(e.info!);
-      // OPT: bulk/reflexive add.
       for (let i = 0; i < values.length; i++) {
         this.list.set(e.positions[i], values[i]);
       }
@@ -291,7 +293,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return CValueListSave.encode(message).finish();
   }
 
-  // TODO: rewrite; events
+  // TODO: rewrite; events; shortcut case: initial load
   protected loadObject(savedState: Uint8Array): void {
     const decoded = CValueListSave.decode(savedState);
     let values: T[];

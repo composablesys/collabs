@@ -1,13 +1,13 @@
 // Used when creating a position that reuses
 // an existing waypoint from the sender.
-message WaypointStoreExtendMessage {
+message PositionSourceExtendMessage {
   required uint32 counter = 1;
   // valueIndex is the current last + 1.
 }
 
 // Used when creating a position that uses
 // a new waypoint.
-message WaypointStoreWaypointMessage {
+message PositionSourceWaypointMessage {
   // Omitted if it's the same as the position's senderID.
   optional string parentWaypointSenderID = 1;
   // Sign gives side (R child = +1); actual counter is
@@ -16,10 +16,10 @@ message WaypointStoreWaypointMessage {
   required uint32 parentValueIndex = 3;
 }
 
-message WaypointStoreCreateMessage {
+message PositionSourceCreateMessage {
   oneof type {
-    WaypointStoreExtendMessage extend = 1;
-    WaypointStoreWaypointMessage waypoint = 2;
+    PositionSourceExtendMessage extend = 1;
+    PositionSourceWaypointMessage waypoint = 2;
   }
   // The number of positions created, with sequential
   // valueIndex's.
@@ -28,7 +28,7 @@ message WaypointStoreCreateMessage {
   optional bytes info = 4;
 }
 
-message WaypointStoreSave {
+message PositionSourceSave {
   // Excludes root ("").
   repeated string replicaIDs = 1;
   // replicaCounts[i] is number of waypoints with sender replicaIDs[i].

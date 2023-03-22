@@ -7,8 +7,8 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import {
-  WaypointStoreCreateMessage,
-  WaypointStoreSave,
+  PositionSourceCreateMessage,
+  PositionSourceSave,
 } from "../../generated/proto_compiled";
 
 const RADIX = 36;
@@ -22,7 +22,7 @@ export interface PositionSourceEvent extends CollabEvent {
    */
   positions: Position[];
   /**
-   * The info argument to [[CWaypointStore.createPositions]].
+   * The info argument to [[CPositionSource.createPositions]].
    *
    * This property is always undefined for events emitted during
    * loading, even if it was defined for the original operation.
@@ -181,20 +181,20 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       isRight = false;
     }
 
-    let message: WaypointStoreCreateMessage;
+    let message: PositionSourceCreateMessage;
     if (
       isRight &&
       parentWaypoint.senderID === this.runtime.replicaID &&
       parentValueIndex === parentWaypoint.valueCount - 1
     ) {
       // Append values to parentWaypoint instead of creating a new one.
-      message = WaypointStoreCreateMessage.create({
+      message = PositionSourceCreateMessage.create({
         extend: { counter: parentWaypoint.counter },
         count: count === 1 ? undefined : count,
         info,
       });
     } else {
-      message = WaypointStoreCreateMessage.create({
+      message = PositionSourceCreateMessage.create({
         waypoint: {
           parentWaypointSenderID:
             parentWaypoint.senderID === this.runtime.replicaID
@@ -212,7 +212,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     }
 
     this.inCreatePositions = true;
-    this.sendPrimitive(WaypointStoreCreateMessage.encode(message).finish());
+    this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
     const created = this.ourCreatedPositions!;
     this.ourCreatedPositions = undefined;
     this.inCreatePositions = false;
@@ -286,7 +286,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     message: string | Uint8Array,
     meta: UpdateMeta
   ): void {
-    const decoded = WaypointStoreCreateMessage.decode(<Uint8Array>message);
+    const decoded = PositionSourceCreateMessage.decode(<Uint8Array>message);
     const info = Object.prototype.hasOwnProperty.call(decoded, "info")
       ? decoded.info
       : undefined;
@@ -510,18 +510,18 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       }
     }
 
-    const message = WaypointStoreSave.create({
+    const message = PositionSourceSave.create({
       replicaIDs,
       replicaCounts,
       parentWaypoints,
       parentValueIndexAndSides,
       valueCounts,
     });
-    return WaypointStoreSave.encode(message).finish();
+    return PositionSourceSave.encode(message).finish();
   }
 
   protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
-    const decoded = WaypointStoreSave.decode(savedState);
+    const decoded = PositionSourceSave.decode(savedState);
 
     // Starts with root, then same order as parentWaypoints.
     // OPT: avoid making this whole array?

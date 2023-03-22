@@ -79,6 +79,8 @@ export class LocalList<T> {
   // - just appending (to) last item.
   // If so, omit positions from Create event (linear effort, usually
   // not needed).
+  // TODO: check set/delete work when acting on positions outside
+  // your current known range.
 
   set(position: Position, value: T): void {
     const [waypoint, valueIndex] = this.source.decode(position);
@@ -531,4 +533,13 @@ export class LocalList<T> {
   }
 
   // TODO: utility accessors, positionOf?, clear?
+
+  save(): Uint8Array {}
+
+  // TODO: only works in initial state
+  load(savedState: Uint8Array, values: T[]): void {
+    if (this.valuesByWaypoint.size !== 0) {
+      throw new Error("Can only call load in the initial state");
+    }
+  }
 }
