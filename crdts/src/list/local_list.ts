@@ -1,6 +1,8 @@
 import { Position, Serializer } from "@collabs/core";
+import { LocalListSave } from "../../generated/proto_compiled";
 import { CPositionSource, Waypoint } from "./c_position_source";
 
+// TODO: WaypointInfo instead?
 interface WaypointValues<T> {
   /**
    * The total number of present values at this
@@ -568,13 +570,83 @@ export class LocalList<T> {
 
   // TODO: utility accessors, positionOf?, clear?
 
-  save(valueArraySerializer: Serializer<T[]>): Uint8Array {}
+  save(valueArraySerializer: Serializer<T[]>): Uint8Array {
+    const replicaIDs: string[] = [];
+    const replicaIDsInv = new Map<string, number>();
+    replicaIDsInv.set("", 0);
+    const replicaIDIndices: number[] = [];
+    const counters: number[] = [];
+    const totals: number[] = [];
+    const itemsLengths: number[] = [];
+    const itemSizes: number[] = [];
+    const values: T[] = [];
 
-  // TODO: only works in initial state
+    for (const [waypoint, info] of this.valuesByWaypoint) {
+      let replicaIDIndex = replicaIDsInv.get(waypoint.senderID);
+      if (replicaIDIndex === undefined) {
+        replicaIDs.push(waypoint.senderID);
+        // 1-indexed
+        replicaIDIndex = replicaIDs.length;
+        replicaIDsInv.set(waypoint.senderID, replicaIDIndex);
+      }
+      replicaIDIndices.push(replicaIDIndex);
+
+      counters.push(waypoint.counter);
+      totals.push(info.total);
+      itemsLengths.push(info.items.length);
+      for (const item of info.items) {
+        if (typeof item === "number") {
+          itemSizes.push(-item);
+        } else {
+          itemSizes.push(item.length);
+          values.push(...item);
+        }
+      }
+    }
+
+    const message = LocalListSave.create({
+      replicaIDs,
+      replicaIDIndices,
+      counters,
+      totals,
+      itemsLengths,
+      itemSizes,
+      values: valueArraySerializer.serialize(values),
+    });
+    return LocalListSave.encode(message).finish();
+  }
+
+  // TODO: docs: only works in initial state.
   load(savedState: Uint8Array, valueArraySerializer: Serializer<T[]>): void {
     if (!this._inInitialState) {
       throw new Error("Can only call load in the initial state");
     }
     this._inInitialState = false;
+
+    const decoded = LocalListSave.decode(savedState);
+    const values = valueArraySerializer.deserialize(decoded.values);
+
+    let sizesIndex = 0;
+    let valuesIndex = 0;
+    for (let i = 0; i < decoded.replicaIDIndices.length; i++) {
+      const replicaIDIndex = decoded.replicaIDIndices[i];
+      const replicaID =
+        replicaIDIndex === 0 ? "" : decoded.replicaIDs[replicaIDIndex - 1];
+      const waypoint = this.source.getWaypoint(replicaID, decoded.counters[i]);
+      const info: WaypointValues<T> = {
+        total: decoded.totals[i],
+        items: new Array<T[] | number>(decoded.itemsLengths[i]),
+      };
+      for (let j = 0; j < decoded.itemsLengths[i]; j++) {
+        const itemSize = decoded.itemSizes[sizesIndex];
+        sizesIndex++;
+        if (itemSize < 0) info.items[j] = -itemSize;
+        else {
+          info.items[j] = values.slice(valuesIndex, valuesIndex + itemSize);
+          valuesIndex += itemSize;
+        }
+      }
+      this.valuesByWaypoint.set(waypoint, info);
+    }
   }
 }
