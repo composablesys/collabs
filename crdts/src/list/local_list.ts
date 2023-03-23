@@ -1,4 +1,4 @@
-import { Position } from "@collabs/core";
+import { Position, Serializer } from "@collabs/core";
 import { CPositionSource, Waypoint } from "./c_position_source";
 
 interface WaypointValues<T> {
@@ -58,6 +58,7 @@ export class LocalList<T> {
    * Only includes nontrivial entries (total > 0).
    */
   private valuesByWaypoint = new Map<Waypoint, WaypointValues<T>>();
+  private _inInitialState = true;
 
   /**
    * Constructs a LocalList whose allowed [[Position]]s are given by
@@ -82,7 +83,32 @@ export class LocalList<T> {
   // TODO: check set/delete work when acting on positions outside
   // your current known range.
 
+  /**
+   * TODO. Must be same waypoint, new positions (specialized method).
+   */
+  setNewSequence(position: Position, values: T[]): Position[] {
+    this._inInitialState = false;
+
+    if (values.length === 1) {
+      // Common case: single new value.
+      this.set(position, values[0]);
+      return [position];
+    }
+
+    const [waypoint, valueIndex] = this.source.decode(position);
+    // OPT: use the fact that we're inserting all at the same item,
+    // plus positions are all new.
+    const positions = new Array<Position>(values.length);
+    for (let i = 0; i < values.length; i++) {
+      positions[i] = this.source.encode(waypoint, valueIndex + i);
+      this.set(positions[i], values[i]);
+    }
+    return positions;
+  }
+
   set(position: Position, value: T): void {
+    this._inInitialState = false;
+
     const [waypoint, valueIndex] = this.source.decode(position);
     const values = this.valuesByWaypoint.get(waypoint);
     if (values === undefined) {
@@ -148,6 +174,8 @@ export class LocalList<T> {
   }
 
   delete(position: Position): void {
+    this._inInitialState = false;
+
     const [waypoint, valueIndex] = this.source.decode(position);
     const values = this.valuesByWaypoint.get(waypoint);
     if (values === undefined) {
@@ -410,6 +438,8 @@ export class LocalList<T> {
   /**
    * Returns an iterator of [index, position, value] tuples for every
    * value in the list, in list order.
+   *
+   * TODO (this and other iterators): will it work with concurrent modification?
    */
   *entries(): IterableIterator<[index: number, position: Position, value: T]> {
     let index = 0;
@@ -532,14 +562,19 @@ export class LocalList<T> {
     }
   }
 
+  get inInitialState(): boolean {
+    return this._inInitialState;
+  }
+
   // TODO: utility accessors, positionOf?, clear?
 
-  save(): Uint8Array {}
+  save(valueArraySerializer: Serializer<T[]>): Uint8Array {}
 
   // TODO: only works in initial state
-  load(savedState: Uint8Array, values: T[]): void {
-    if (this.valuesByWaypoint.size !== 0) {
+  load(savedState: Uint8Array, valueArraySerializer: Serializer<T[]>): void {
+    if (!this._inInitialState) {
       throw new Error("Can only call load in the initial state");
     }
+    this._inInitialState = false;
   }
 }

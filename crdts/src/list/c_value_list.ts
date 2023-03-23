@@ -4,15 +4,18 @@ import {
   CMessenger,
   DefaultSerializer,
   InitToken,
+  ListEvent,
   Position,
   Serializer,
   StringSerializer,
+  Uint8ArraySerializer,
+  UpdateMeta,
 } from "@collabs/core";
 import {
-  CValueListSave,
-  ICValueListSave,
+  IValueListInsertMessage,
+  ValueListInsertMessage,
 } from "../../generated/proto_compiled";
-import { CPositionSource } from "./c_position_source";
+import { CPositionSource, PositionSourceLoadEvent } from "./c_position_source";
 import { LocalList } from "./local_list";
 
 // TODO: PositionSource optional input? In case you want
@@ -41,13 +44,16 @@ import { LocalList } from "./local_list";
  * @typeParam T The value type.
  */
 export class CValueList<T> extends AbstractList_CObject<T, [T]> {
-  private readonly waypointStore: CPositionSource;
+  private readonly positionSource: CPositionSource;
+  private readonly insertMessenger: CMessenger<Uint8Array>;
   private readonly deleteMessenger: CMessenger<Position>;
 
   private readonly list: LocalList<T>;
 
   protected readonly valueSerializer: Serializer<T>;
   protected readonly valueArraySerializer: Serializer<T[]>;
+
+  private sourceLoadEvent: PositionSourceLoadEvent | undefined = undefined;
 
   /**
    * Constructs a CValueList.
@@ -69,41 +75,49 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     this.valueSerializer =
       options.valueSerializer ?? DefaultSerializer.getInstance();
     this.valueArraySerializer =
-      options.valueSerializer !== undefined
-        ? ArraySerializer.getInstance(options.valueSerializer)
-        : DefaultSerializer.getInstance();
+      options.valueArraySerializer !== undefined
+        ? options.valueArraySerializer
+        : ArraySerializer.getInstance(this.valueSerializer);
 
-    this.waypointStore = super.registerCollab(
+    this.positionSource = super.registerCollab(
       "",
       (init) => new CPositionSource(init)
     );
-    this.list = new LocalList(this.waypointStore);
+    this.list = new LocalList(this.positionSource);
 
-    this.deleteMessenger = super.registerCollab(
+    this.positionSource.on("Load", (e) => {
+      this.sourceLoadEvent = e;
+    });
+
+    // OPT: Proper primitive CRDT, instead of two messengers?
+    this.insertMessenger = super.registerCollab(
       "0",
+      (init) =>
+        new CMessenger(init, {
+          messageSerializer: Uint8ArraySerializer.instance,
+        })
+    );
+    this.deleteMessenger = super.registerCollab(
+      "1",
       (init) =>
         new CMessenger(init, { messageSerializer: StringSerializer.instance })
     );
 
     // Operation handlers.
-    this.waypointStore.on("Create", (e) => {
-      // Ignore events during loading; loadPrimitive updates this.list instead.
-      if (e.meta.updateType === "savedState") return;
-
+    this.insertMessenger.on("Message", (e) => {
+      const decoded = ValueListInsertMessage.decode(e.message);
       const values =
-        e.positions.length === 1
-          ? [this.valueSerializer.deserialize(e.info!)]
-          : this.valueArraySerializer.deserialize(e.info!);
-      for (let i = 0; i < values.length; i++) {
-        this.list.set(e.positions[i], values[i]);
-      }
+        decoded.data === "value"
+          ? [this.valueSerializer.deserialize(decoded.value)]
+          : this.valueArraySerializer.deserialize(decoded.values);
+      const positions = this.list.setNewSequence(decoded.position, values);
       // Here we exploit forwards non-interleaving, which guarantees
       // that the values are contiguous.
       this.emit("Insert", {
-        // OPT: avoid redundant position decode
-        index: this.list.indexOfPosition(e.positions[0]),
+        // OPT: avoid redundant position decode.
+        index: this.list.indexOfPosition(decoded.position),
         values,
-        positions: e.positions,
+        positions,
         meta: e.meta,
       });
     });
@@ -141,14 +155,25 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   insert(index: number, ...values: T[]): T | undefined {
     if (values.length === 0) return undefined;
 
-    // Use info to encode the values.
-    const info =
-      values.length === 1
-        ? this.valueSerializer.serialize(values[0])
-        : this.valueArraySerializer?.serialize(values);
-
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    this.waypointStore.createPositions(prevPos, values.length, info);
+    const position = this.positionSource.createPositions(
+      prevPos,
+      values.length
+    );
+
+    // OPT: Avoid sending the position again (redundant with createPositions).
+    // Perhaps use the last created position (w/ CPositionSource Create event)?
+    const insertMessage: IValueListInsertMessage = {
+      position,
+    };
+    if (values.length === 1) {
+      insertMessage.value = this.valueSerializer.serialize(values[0]);
+    } else {
+      insertMessage.values = this.valueArraySerializer.serialize(values);
+    }
+    this.insertMessenger.sendMessage(
+      ValueListInsertMessage.encode(insertMessage).finish()
+    );
 
     return values[0];
   }
@@ -270,45 +295,88 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    * Defaults to T.
    */
   newLocalList<U = T>(): LocalList<U> {
-    return new LocalList(this.waypointStore);
+    return new LocalList(this.positionSource);
   }
 
   protected saveObject(): Uint8Array {
-    const imessage: ICValueListSave = {
-      positionSourceSave: this.positionSource.save(),
-    };
-    if (this.valueArraySerializer !== undefined) {
-      imessage.valuesArraySave = this.valueArraySerializer.serialize(
-        this.slice()
-      );
-    } else {
-      imessage.valuesSave = new Array(this.length);
-      let i = 0;
-      for (const value of this.values()) {
-        imessage.valuesSave[i] = this.valueSerializer.serialize(value);
-        i++;
-      }
-    }
-    const message = CValueListSave.create(imessage);
-    return CValueListSave.encode(message).finish();
+    return this.list.save(this.valueArraySerializer);
   }
 
-  // TODO: rewrite; events; shortcut case: initial load
-  protected loadObject(savedState: Uint8Array): void {
-    const decoded = CValueListSave.decode(savedState);
-    let values: T[];
-    if (this.valueArraySerializer !== undefined) {
-      values = this.valueArraySerializer.deserialize(decoded.valuesArraySave);
+  protected loadObject(savedState: Uint8Array, meta: UpdateMeta): void {
+    if (this.list.inInitialState) {
+      // Shortcut: No need to merge, just load the state directly.
+      this.list.load(savedState, this.valueArraySerializer);
+      const values = new Array<T>(this.list.length);
+      const positions = new Array<Position>(this.list.length);
+      for (const [i, position, value] of this.list.entries()) {
+        values[i] = value;
+        positions[i] = position;
+      }
+      // OPT: only materialize positions on request? Lot of string encoding, memory.
+      this.emit("Insert", { index: 0, values, positions, meta });
     } else {
-      values = decoded.valuesSave.map((value) =>
-        this.valueSerializer.deserialize(value)
-      );
+      // We need to merge savedState with our existing state.
+      const remote = new LocalList<T>(this.positionSource);
+      remote.load(savedState, this.valueArraySerializer);
+      if (this.sourceLoadEvent === undefined) {
+        throw new Error("Internal error: this.sourceLoadEvent is undefined");
+      }
+      const sourceLoadEvent = this.sourceLoadEvent;
+      this.sourceLoadEvent = undefined;
+
+      // 1. Delete values whose positions were known to the remote CPositionSource
+      // but not present in the remote list.
+      // OPT: do changes by-waypoint instead, for shorter loops, optimized set/delete,
+      // and fewer events.
+      const deleteEvents: ListEvent<T>[] = [];
+      for (const [index, position, value] of this.list.entries()) {
+        if (
+          !sourceLoadEvent.isNewRemotely(position) &&
+          !remote.hasPosition(position)
+        ) {
+          // Wait to make changes until the end, to avoid modifications during iterators.
+          deleteEvents.push({
+            index,
+            positions: [position],
+            values: [value],
+            meta,
+          });
+        }
+      }
+      // Do deletions in reverse order so the original indices are accurate.
+      // (Not actually necessary - could manually adjust indices.)
+      deleteEvents.reverse();
+      for (const e of deleteEvents) {
+        this.list.delete(e.positions[0]);
+        // TODO: live events like this, or all at end? Note in docs regardless.
+        this.emit("Delete", e);
+      }
+
+      // 2. Add values from remote whose positions were not known to the local
+      // CPositionSource.
+      const insertEvents: ListEvent<T>[] = [];
+      let insertedSoFar = 0;
+      for (const [, position, value] of remote.entries()) {
+        // OPT: use waypoints to do bulk inserts. Need to be careful about missing
+        // (remotely-deleted) elements, though.
+        if (sourceLoadEvent.isNewLocally(position)) {
+          // TODO: is there faster way to compute local indices for events?
+          insertEvents.push({
+            index: this.list.indexOfPosition(position, "right") + insertedSoFar,
+            positions: [position],
+            values: [value],
+            meta,
+          });
+          insertedSoFar++;
+        }
+      }
+
+      // Do insertions in order, so that get(index) works even if
+      // you wait to handle all events until loading finishes.
+      for (const e of insertEvents) {
+        this.list.set(e.positions[0], e.values[0]);
+        this.emit("Insert", e);
+      }
     }
-    let index = 0;
-    this.positionSource.load(decoded.positionSourceSave, (count) => {
-      const ans = values.slice(index, index + count);
-      index += count;
-      return ans;
-    });
   }
 }

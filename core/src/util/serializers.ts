@@ -218,6 +218,25 @@ export class DefaultSerializer<T> implements Serializer<T> {
 }
 
 /**
+ * Serializer for Uint8Array that is the identity function.
+ *
+ * This is a singleton class; use [[instance]]
+ * instead of the constructor.
+ */
+export class Uint8ArraySerializer implements Serializer<Uint8Array> {
+  private constructor() {
+    // Use Uint8ArraySerializer.instance instead.
+  }
+  serialize(value: Uint8Array): Uint8Array {
+    return value;
+  }
+  deserialize(message: Uint8Array): Uint8Array {
+    return message;
+  }
+  static readonly instance = new Uint8ArraySerializer();
+}
+
+/**
  * Serializer for string that uses utf-8 encoding.
  *
  * This is a singleton class; use [[instance]]
