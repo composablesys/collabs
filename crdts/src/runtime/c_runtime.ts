@@ -290,7 +290,7 @@ export class CRuntime
       // and use the new values to create the transaction's meta.
       // OPT: avoid this copy (not required by SendCRDTMeta,
       // but required due to tick()).
-      const causallyMaximalVCKeys = new Set(this.buffer.maximalVcKeys);
+      const causallyMaximalVCKeys = new Set(this.buffer.maximalVCKeys);
       this.buffer.tick();
 
       this.crdtMeta = new SendCRDTMeta(
@@ -298,7 +298,7 @@ export class CRuntime
         this.buffer.vc,
         causallyMaximalVCKeys,
         Date.now(),
-        this.buffer.lamportTimestamp + 1
+        this.buffer.lamportTimestamp
       );
       this.meta = {
         senderID: this.replicaID,
@@ -423,7 +423,11 @@ export class CRuntime
    *
    * Note that loading will **not** trigger events on
    * Collabs, even if their state changes.
-   * It will trigger "Load" and "Change" events on this CRuntime.
+   * It will trigger "Transaction" and "Change" events on this CRuntime.
+   *
+   * TODO: events: one Transaction after load, then one per buffered
+   * tr that gets delivered. One "Change" at end. Also update in
+   * "Transaction" docs.
    *
    * @param savedState Saved state from another replica's [[save]] call.
    */
@@ -443,30 +447,22 @@ export class CRuntime
     try {
       const savedStateTree =
         SavedStateTreeSerializer.instance.deserialize(savedState)!;
-      // TODO: wait to merge VCs until done.
-      this.buffer.load(savedStateTree.self!);
+      const loadCRDTMeta = this.buffer.load(savedStateTree.self!, this.used);
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
         senderID: this.replicaID,
         updateType: "savedState",
         isLocalOp: false,
         // TODO: saver's ID instead of this.replicaID?
-        // TODO: doc: point of this is just vc and lamport.
-        runtimeExtra: new LoadCRDTMeta(
-          this.replicaID,
-          0,
-          // TODO: this will be union VC; is that sufficient or do we need
-          // the two separately?
-          new Map(this.buffer.vc),
-          // Can fake maximalVCKey count since this is not seen by buffer.
-          0,
-          null,
-          this.buffer.lamportTimestamp
-        ),
+        runtimeExtra: loadCRDTMeta,
       };
       this.rootCollab.load(savedStateTree, meta);
 
       this.emit("Transaction", { meta });
+
+      this.buffer.check();
+
+      this.emit("Change", {});
     } finally {
       this.inApplyUpdate = false;
     }

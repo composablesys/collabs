@@ -103,6 +103,16 @@ export interface CRDTMetaRequest extends MetaRequest {
  */
 export interface CRDTSavedStateMeta {
   /**
+   * Returns `replicaID`'s vector clock entry on the local replica.
+   *
+   * By definition, this equals the maximum `senderCounter` received from
+   * `replicaID` by this replica,
+   * or 0 if no messages have been received from `replicaID`.
+   *
+   * TODO: rewrite
+   */
+  localVectorClock: VectorClock;
+  /**
    * Returns `replicaID`'s vector clock entry for the saved state.
    *
    * By definition, this equals the maximum `senderCounter` received from
@@ -112,16 +122,6 @@ export interface CRDTSavedStateMeta {
    * TODO: rewrite
    */
   remoteVectorClock: VectorClock;
-  /**
-   * Returns `replicaID`'s vector clock entry on the local replica.
-   *
-   * By definition, this equals the maximum `senderCounter` received from
-   * `replicaID` by this replica,
-   * or 0 if no messages have been received from `replicaID`.
-   *
-   * TODO: rewrite
-   *
-   * TODO: don't save for later (this is live view), unless you copy entries().
-   */
-  localVectorClock: VectorClock;
+  localLamportTimestamp: number;
+  remoteLamportTimestamp: number;
 }

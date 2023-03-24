@@ -5,7 +5,6 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
   "Change",
   "Transaction",
   "Send",
-  "Load",
 ];
 
 /**
@@ -52,14 +51,11 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * not wrapped in a `transact` call use the constructor's
    * [[RuntimeOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
-   * In particular, only its `info` is used.
-   *
-   * @param info An optional info string to attach to the transaction.
-   * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
+   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]),
+   * only the outermost one matters.
    */
-  transact(f: () => void, info?: string) {
-    this.runtime.transact(f, info);
+  transact(f: () => void) {
+    this.runtime.transact(f);
   }
 
   /**
@@ -109,12 +105,5 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    */
   load(savedState: Uint8Array): void {
     this.runtime.load(savedState);
-  }
-
-  /**
-   * Whether [[load]] has completed.
-   */
-  get isLoaded(): boolean {
-    return this.runtime.isLoaded;
   }
 }

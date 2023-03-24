@@ -1,16 +1,18 @@
 import { int64AsNumber, Serializer, UpdateMeta } from "@collabs/core";
 import { CRDTMetaMessage } from "../../generated/proto_compiled";
-import { CRDTMessageMeta, VectorClock } from "./crdt_meta";
+import { CRDTMessageMeta, CRDTSavedStateMeta, VectorClock } from "./crdt_meta";
 
 export class BasicVectorClock implements VectorClock {
   constructor(
-    private readonly vcEntries: Map<string, number>,
-    private readonly senderID: string,
-    private readonly senderCounter: number
+    readonly vcEntries: Map<string, number>,
+    private readonly senderID?: string,
+    private readonly senderCounter?: number
   ) {}
 
   get(replicaID: string): number {
-    if (replicaID === this.senderID) return this.senderCounter;
+    // TODO: get rid of senderID case? Seems like our VC entry should
+    // always be present now (& make it present if not).
+    if (replicaID === this.senderID) return this.senderCounter!;
     else return this.vcEntries.get(replicaID) ?? 0;
   }
 }
@@ -188,6 +190,8 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
  *
  * runtimeExtra field must either ReceiveCRDTMeta
  * or a frozen SendCRDTMeta.
+ *
+ * TODO: rename (UpdateMetaSerializer)? Not imp b/c not exported.
  */
 export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
   private constructor() {
@@ -251,5 +255,28 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
       isLocalOp: false,
       runtimeExtra: crdtMeta,
     };
+  }
+}
+
+// TODO: also used for load
+export class LoadCRDTMeta implements CRDTSavedStateMeta {
+  readonly remoteVectorClock: BasicVectorClock;
+  readonly localVectorClock: BasicVectorClock;
+
+  constructor(
+    localVCEntries: Map<string, number>,
+    remoteVCEntries: Map<string, number>,
+    readonly localLamportTimestamp: number,
+    readonly remoteLamportTimestamp: number
+  ) {
+    this.localVectorClock = new BasicVectorClock(localVCEntries);
+    this.remoteVectorClock = new BasicVectorClock(remoteVCEntries);
+  }
+
+  toString(): string {
+    return JSON.stringify({
+      localVectorClock: Object.entries(this.localVectorClock.vcEntries),
+      remoteVectorClock: Object.entries(this.remoteVectorClock.vcEntries),
+    });
   }
 }

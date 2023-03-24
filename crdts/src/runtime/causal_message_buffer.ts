@@ -6,6 +6,7 @@ import {
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
 import {
   CRDTMetaSerializer,
+  LoadCRDTMeta,
   ReceiveCRDTMeta,
 } from "./crdt_meta_implementations";
 
@@ -44,7 +45,7 @@ export class CausalMessageBuffer {
    *
    * Do not modify externally.
    */
-  readonly maximalVcKeys = new Set<string>();
+  readonly maximalVCKeys = new Set<string>();
   /**
    * The Lamport timestamp.
    *
@@ -192,12 +193,12 @@ export class CausalMessageBuffer {
       for (const [key, value] of crdtMeta.vcEntries) {
         if (i === crdtMeta.maximalVcKeyCount) break;
         if (this.vc.get(key) === value) {
-          this.maximalVcKeys.delete(key);
+          this.maximalVCKeys.delete(key);
         }
         i++;
       }
       // Add a new key for this message.
-      this.maximalVcKeys.add(crdtMeta.senderID);
+      this.maximalVCKeys.add(crdtMeta.senderID);
     }
     // Update vc.
     this.vc.set(crdtMeta.senderID, crdtMeta.senderCounter);
@@ -219,8 +220,8 @@ export class CausalMessageBuffer {
     this.vc.set(this.replicaID, this.vc.get(this.replicaID)! + 1);
     if (!this.causalityGuaranteed) {
       // Our own message causally dominates every current key.
-      this.maximalVcKeys.clear();
-      this.maximalVcKeys.add(this.replicaID);
+      this.maximalVCKeys.clear();
+      this.maximalVCKeys.add(this.replicaID);
     }
     // Update Lamport timestamp.
     this.lamportTimestamp++;
@@ -251,7 +252,7 @@ export class CausalMessageBuffer {
     const saveMessage = CausalMessageBufferSave.create({
       vcKeys,
       vcValues,
-      maximalVcKeys: [...this.maximalVcKeys],
+      maximalVcKeys: [...this.maximalVCKeys],
       lamportTimestamp: this.lamportTimestamp,
       bufferMessageStacks,
       bufferMetas,
@@ -260,16 +261,55 @@ export class CausalMessageBuffer {
     return CausalMessageBufferSave.encode(saveMessage).finish();
   }
 
-  load(savedState: Uint8Array) {
+  /**
+   * @param savedState
+   * @param used
+   */
+  load(savedState: Uint8Array, used: boolean): LoadCRDTMeta {
+    const oldLocalVC = new Map(this.vc);
+    const oldLocalLamportTimestamp = this.lamportTimestamp;
+
     const decoded = CausalMessageBufferSave.decode(savedState);
 
+    const remoteVC = new Map<string, number>();
     for (let i = 0; i < decoded.vcKeys.length; i++) {
-      this.vc.set(decoded.vcKeys[i], int64AsNumber(decoded.vcValues[i]));
+      remoteVC.set(decoded.vcKeys[i], int64AsNumber(decoded.vcValues[i]));
     }
-    for (const key of decoded.maximalVcKeys) {
-      this.maximalVcKeys.add(key);
+    const remoteMaximalVCKeys = new Set(decoded.maximalVcKeys);
+
+    // 1. Delete our maximal entris that are not present in the saved
+    // state and that are causally dominated by the remote VC.
+    // (Strictly speaking, we compare entries not keys: values must match
+    // to be present in the intersection.)
+    for (const key of this.maximalVCKeys) {
+      const localValue = this.vc.get(key)!;
+      const remoteValue = remoteVC.get(key) ?? 0;
+      if (!(remoteMaximalVCKeys.has(key) && localValue === remoteValue)) {
+        if (remoteValue >= localValue) this.maximalVCKeys.delete(key);
+      }
     }
-    this.lamportTimestamp = int64AsNumber(decoded.lamportTimestamp);
+    // 2. Add new maximal keys (not already present here) that are not
+    // causally dominated by the local VC.
+    for (const [key, remoteValue] of remoteVC) {
+      if ((this.vc.get(key) ?? 0) < remoteValue) {
+        this.maximalVCKeys.add(key);
+      }
+    }
+
+    for (const [key, value] of remoteVC) {
+      this.vc.set(key, Math.max(this.vc.get(key) ?? 0, value));
+    }
+    const remoteLamportTimestamp = int64AsNumber(decoded.lamportTimestamp);
+    this.lamportTimestamp = Math.max(
+      this.lamportTimestamp,
+      remoteLamportTimestamp
+    );
+    // Just concatenate buffers for now. CRuntime will call check() later
+    // to process any newly-ready messages (local or remote)
+    // and delete already-received messages.
+    // TODO: avoid duplicating the buffer - if you merge in your own state,
+    // the buffer will double in size each time.
+    // (Could also do that for early-receives in general.)
     for (let i = 0; i < decoded.bufferMessageStacks.length; i++) {
       this.buffer.push({
         messageStacks: MessageStacksSerializer.instance.deserialize(
@@ -278,6 +318,14 @@ export class CausalMessageBuffer {
         meta: CRDTMetaSerializer.instance.deserialize(decoded.bufferMetas[i]),
       });
     }
-    this.bufferCheckIndex = decoded.bufferCheckIndex;
+    if (used) this.bufferCheckIndex = 0;
+    else this.bufferCheckIndex = decoded.bufferCheckIndex;
+
+    return new LoadCRDTMeta(
+      oldLocalVC,
+      remoteVC,
+      oldLocalLamportTimestamp,
+      remoteLamportTimestamp
+    );
   }
 }
