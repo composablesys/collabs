@@ -168,17 +168,35 @@ export class LocalList<T> {
         } else remaining -= curItem;
       }
     }
-    throw new Error("Internal error (set failed to find valid valueIndex)");
+
+    // If we get here, the position is in the implied last item,
+    // which is deleted.
+    // Note that the actual last element of items is necessarily present.
+    if (remaining !== 0) {
+      items.push(remaining, [value]);
+    } else {
+      if (items.length === 0) items.push([value]);
+      else {
+        // Merge value with the preceding present item.
+        (items[items.length - 1] as T[]).push(value);
+      }
+    }
+    this.updateTotals(waypoint, 1);
   }
 
-  delete(position: Position): void {
+  /**
+   *
+   * @param position
+   * @returns True if actually deleted (previously present).
+   */
+  delete(position: Position): boolean {
     this._inInitialState = false;
 
     const [waypoint, valueIndex] = this.source.decode(position);
     const values = this.valuesByWaypoint.get(waypoint);
     if (values === undefined) {
       // Already not present.
-      return;
+      return false;
     }
     const items = values.items;
     let remaining = valueIndex;
@@ -187,7 +205,7 @@ export class LocalList<T> {
       if (typeof curItem === "number") {
         if (remaining < curItem) {
           // Already not present.
-          return;
+          return false;
         } else remaining -= curItem;
       } else {
         if (remaining < curItem.length) {
@@ -221,11 +239,13 @@ export class LocalList<T> {
           if (typeof items[items.length - 1] === "number") items.pop();
 
           this.updateTotals(waypoint, -1);
-          return;
+          return true;
         } else remaining -= curItem.length;
       }
     }
-    throw new Error("Internal error (delete failed to find valid valueIndex)");
+    // If we get here, the position is in the implied last item,
+    // hence is already deleted.
+    return false;
   }
 
   /**

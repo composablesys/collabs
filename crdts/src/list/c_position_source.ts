@@ -463,6 +463,9 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
     const waypoint = this.getWaypoint(senderID, counter);
 
+    if (valueIndex < 0) {
+      throw new Error(`Invalid valueIndex < 0: ${valueIndex}`);
+    }
     if (valueIndex >= waypoint.valueCount) {
       throw new Error("Unknown position (valueIndex out of range)");
     }

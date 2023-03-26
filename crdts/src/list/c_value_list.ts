@@ -122,8 +122,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       });
     });
     this.deleteMessenger.on("Message", (e) => {
-      // OPT: combine has/get calls
-      if (this.list.hasPosition(e.message)) {
+      // OPT: combine has/get calls?
+      if (this.list.delete(e.message)) {
         const value = this.list.getByPosition(e.message)!;
         const index = this.list.indexOfPosition(e.message);
         this.emit("Delete", {
