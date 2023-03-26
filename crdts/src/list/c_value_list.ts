@@ -156,9 +156,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     if (values.length === 0) return undefined;
 
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    const position = this.positionSource.createPositions(
-      prevPos,
-      values.length
+    const position = this.positionSource.encode(
+      ...this.positionSource.createPositions(prevPos, values.length)
     );
 
     // OPT: Avoid sending the position again (redundant with createPositions).

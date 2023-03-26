@@ -9,10 +9,6 @@ interface WaypointValues<T> {
    * waypoint and its descendants.
    */
   total: number;
-  // OPT: also count total values before right child waypoints,
-  // to easily skip to those?
-  // OPT: don't store the last deleted values (redundant with
-  // waypoint.valueCount)? Would need for merging though.
   /**
    * T[] for present values, positive number for count of deleted values. Always alternates.
    *
@@ -21,10 +17,11 @@ interface WaypointValues<T> {
   items: (T[] | number)[];
 }
 
-type SubItemOrChild<T> =
+/** child = waypoint child; values = slice of a present item. */
+type ValuesOrChild<T> =
   | {
       /** Else child. */
-      isSubItem: true;
+      isValues: true;
       /** Use item.slice(start, end) */
       item: T[];
       start: number;
@@ -33,8 +30,9 @@ type SubItemOrChild<T> =
       valueIndex: number;
     }
   | {
-      isSubItem: false;
+      isValues: false;
       child: Waypoint;
+      /** Always non-zero (zero total children are skipped). */
       total: number;
     };
 
@@ -90,6 +88,8 @@ export class LocalList<T> {
    */
   setNewSequence(position: Position, values: T[]): Position[] {
     this._inInitialState = false;
+    // OPT: use the fact that we're inserting all at the same item,
+    // plus positions are all new.
 
     if (values.length === 1) {
       // Common case: single new value.
@@ -98,8 +98,6 @@ export class LocalList<T> {
     }
 
     const [waypoint, valueIndex] = this.source.decode(position);
-    // OPT: use the fact that we're inserting all at the same item,
-    // plus positions are all new.
     const positions = new Array<Position>(values.length);
     for (let i = 0; i < values.length; i++) {
       positions[i] = this.source.encode(waypoint, valueIndex + i);
@@ -135,12 +133,11 @@ export class LocalList<T> {
           // Already present. Replace the current value.
           curItem[remaining] = value;
           return;
-        }
-        remaining -= curItem.length;
+        } else remaining -= curItem.length;
       } else {
         if (remaining < curItem) {
           // Replace curItem with
-          // [remaining, [value], curItem - remaining - 1].
+          // [remaining, [value], curItem - 1 - remaining].
           // Except, omit 0s and combine [value] with
           // neighboring arrays if needed.
           let startIndex = i;
@@ -156,7 +153,7 @@ export class LocalList<T> {
             (newItems[0] as T[]).unshift(...(items[i - 1] as T[]));
           }
           if (remaining !== curItem - 1) {
-            newItems.push(curItem - remaining - 1);
+            newItems.push(curItem - 1 - remaining);
           } else if (i !== items.length - 1) {
             // Combine [value] with right neighbor.
             deleteCount++;
@@ -168,8 +165,7 @@ export class LocalList<T> {
           items.splice(startIndex, deleteCount, ...newItems);
           this.updateTotals(waypoint, 1);
           return;
-        }
-        remaining -= curItem;
+        } else remaining -= curItem;
       }
     }
     throw new Error("Internal error (set failed to find valid valueIndex)");
@@ -192,8 +188,7 @@ export class LocalList<T> {
         if (remaining < curItem) {
           // Already not present.
           return;
-        }
-        remaining -= curItem;
+        } else remaining -= curItem;
       } else {
         if (remaining < curItem.length) {
           // Replace curItem[remaining] with
@@ -221,13 +216,13 @@ export class LocalList<T> {
           }
 
           items.splice(startIndex, deleteCount, ...newItems);
+
           // If the last item is a number (deleted), omit it.
           if (typeof items[items.length - 1] === "number") items.pop();
 
           this.updateTotals(waypoint, -1);
           return;
-        }
-        remaining -= curItem.length;
+        } else remaining -= curItem.length;
       }
     }
     throw new Error("Internal error (delete failed to find valid valueIndex)");
@@ -250,7 +245,8 @@ export class LocalList<T> {
         // TODO: assert delta > 0
         this.valuesByWaypoint.set(current, {
           total: delta,
-          items: [current.valueCount],
+          // Omit last deleted item (= only item).
+          items: [],
         });
       } else {
         values.total += delta;
@@ -268,6 +264,14 @@ export class LocalList<T> {
    */
   getByPosition(position: Position): T | undefined {
     return this.locate(...this.source.decode(position))[0];
+  }
+
+  /**
+   * Returns whether position is currently present in the list,
+   * i.e., its value is present.
+   */
+  hasPosition(position: Position): boolean {
+    return this.locate(...this.source.decode(position))[1];
   }
 
   /**
@@ -293,28 +297,20 @@ export class LocalList<T> {
       if (typeof item === "number") {
         if (remaining < item) {
           return [undefined, false, waypointValuesBefore];
-        }
-        remaining -= item;
+        } else remaining -= item;
       } else {
         if (remaining < item.length) {
           return [item[remaining], true, waypointValuesBefore + remaining];
+        } else {
+          remaining -= item.length;
+          waypointValuesBefore += item.length;
         }
-        remaining -= item.length;
-        waypointValuesBefore += item.length;
       }
     }
     // If we get here, then the valueIndex is after all present values
     // (either within the omitted final number, or the special case
     // valueIndex === waypoint.valueCount).
     return [undefined, false, waypointValuesBefore];
-  }
-
-  /**
-   * Returns whether position is currently present in the list,
-   * i.e., its value is present.
-   */
-  hasPosition(position: Position): boolean {
-    return this.locate(...this.source.decode(position))[1];
   }
 
   /**
@@ -329,6 +325,9 @@ export class LocalList<T> {
    * - "right": Returns the next index to the right of position.
    * If there are no values to the right of position,
    * returns [[length]].
+   *
+   * TODO: clarify (here and in IList) which is the rank, i.e.,
+   * the index where it would be present.
    */
   indexOfPosition(
     position: Position,
@@ -364,30 +363,29 @@ export class LocalList<T> {
       valuesBefore += this.locate(
         current,
         current.isRight
-          ? current.parentValueIndex + 1
+          ? current.parentWaypoint.valueCount
           : current.parentValueIndex
       )[2];
       // Sibling waypoints that come before current.
       for (const child of current.parentWaypoint.children) {
-        if (this.source.isSiblingLess(current, child)) break;
+        if (child === current) break;
         valuesBefore += this.total(child);
       }
     }
 
-    if (isPresent) return valuesBefore + 1;
+    if (isPresent) return valuesBefore;
     else {
       switch (searchDir) {
         case "none":
           return -1;
         case "left":
-          return valuesBefore;
+          return valuesBefore - 1;
         case "right":
-          return valuesBefore + 1;
+          return valuesBefore;
       }
     }
   }
 
-  // OPT: combine with get in one function, for faster get.
   /**
    * Returns the position currently at index.
    */
@@ -399,20 +397,25 @@ export class LocalList<T> {
     let waypoint = this.source.rootWaypoint;
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      for (const next of this.subItemsAndChildren(waypoint)) {
-        if (next.isSubItem) {
-          const length = next.end - next.start;
-          if (remaining < length) {
-            // Answer is subItem[remaining].
-            return this.source.encode(waypoint, next.valueIndex + remaining);
-          } else remaining -= length;
-        } else {
-          if (remaining < next.total) {
-            // Recurse into child.
-            waypoint = next.child;
-            break;
-          } else remaining -= next.total;
+      waypointLoop: {
+        for (const next of this.valuesAndChildren(waypoint)) {
+          if (next.isValues) {
+            const length = next.end - next.start;
+            if (remaining < length) {
+              // Answer is values[remaining].
+              return this.source.encode(waypoint, next.valueIndex + remaining);
+            } else remaining -= length;
+          } else {
+            if (remaining < next.total) {
+              // Recurse into child.
+              waypoint = next.child;
+              break waypointLoop;
+            } else remaining -= next.total;
+          }
         }
+        // We should always end by the break statement (recursion), not by
+        // the for loop's finishing.
+        throw new Error("Internal error: failed to find index among children");
       }
     }
   }
@@ -425,6 +428,7 @@ export class LocalList<T> {
    * which would instead return undefined.
    */
   get(index: number): T {
+    // OPT: combine these operations
     return this.getByPosition(this.getPosition(index))!;
   }
 
@@ -444,10 +448,15 @@ export class LocalList<T> {
    * TODO (this and other iterators): will it work with concurrent modification?
    */
   *entries(): IterableIterator<[index: number, position: Position, value: T]> {
+    if (this.length === 0) return;
+
     let index = 0;
     let waypoint: Waypoint | null = this.source.rootWaypoint;
-    const stack: IterableIterator<SubItemOrChild<T>>[] = [
-      this.subItemsAndChildren(this.source.rootWaypoint),
+    // Manage our own stack instead of recursing, to avoid stack overflow
+    // in deep trees.
+    const stack: IterableIterator<ValuesOrChild<T>>[] = [
+      // root will indeed have total != 0 since we checked length != 0.
+      this.valuesAndChildren(this.source.rootWaypoint),
     ];
     while (waypoint !== null) {
       const iter = stack[stack.length - 1];
@@ -456,27 +465,29 @@ export class LocalList<T> {
         stack.pop();
         waypoint = waypoint.parentWaypoint;
       } else {
-        const value = next.value;
-        if (value.isSubItem) {
-          for (let i = value.start; i < value.end; i++) {
+        const valuesOrChild = next.value;
+        if (valuesOrChild.isValues) {
+          for (let i = 0; i < valuesOrChild.end - valuesOrChild.start; i++) {
             yield [
               index,
-              this.source.encode(waypoint, value.valueIndex + i),
-              value.item[i],
+              this.source.encode(waypoint, valuesOrChild.valueIndex + i),
+              valuesOrChild.item[valuesOrChild.start + i],
             ];
             index++;
           }
         } else {
-          waypoint = value.child;
-          stack.push(this.subItemsAndChildren(waypoint));
+          // Recurse into child.
+          waypoint = valuesOrChild.child;
+          stack.push(this.valuesAndChildren(waypoint));
         }
       }
     }
   }
 
-  private *subItemsAndChildren(
+  // TODO: assumes waypoint.total !== 0; only emits children with total != 0.
+  private *valuesAndChildren(
     waypoint: Waypoint
-  ): IterableIterator<SubItemOrChild<T>> {
+  ): IterableIterator<ValuesOrChild<T>> {
     const items = this.valuesByWaypoint.get(waypoint)!.items;
     const children = waypoint.children;
     let childIndex = 0;
@@ -489,16 +500,18 @@ export class LocalList<T> {
       let valueIndex = startValueIndex;
       for (; childIndex < children.length; childIndex++) {
         const child = children[childIndex];
+        if (child.isRight || child.parentValueIndex >= endValueIndex) {
+          // child comes after item. End the loop and visit child
+          // during the next item.
+          break;
+        }
         const total = this.total(child);
-        if (
-          !child.isRight &&
-          child.parentValueIndex < endValueIndex &&
-          total !== 0
-        ) {
+        if (total !== 0) {
+          // Emit child. If needed, first emit values that come before it.
           if (valueIndex < child.parentValueIndex) {
             if (typeof item !== "number") {
               yield {
-                isSubItem: true,
+                isValues: true,
                 item,
                 start: valueIndex - startValueIndex,
                 end: child.parentValueIndex - startValueIndex,
@@ -507,12 +520,14 @@ export class LocalList<T> {
             }
             valueIndex = child.parentValueIndex;
           }
-          yield { isSubItem: false, child, total };
+          yield { isValues: false, child, total };
         }
       }
+
+      // Emit remaining values in item.
       if (typeof item !== "number" && valueIndex < endValueIndex) {
         yield {
-          isSubItem: true,
+          isValues: true,
           item,
           start: valueIndex - startValueIndex,
           end: itemSize,
@@ -521,13 +536,13 @@ export class LocalList<T> {
       }
       startValueIndex = endValueIndex;
     }
-    // Visit remaining children (left children among the omitted final number,
-    // and right children).
+    // Visit remaining children (left children among a possible deleted
+    // final item (which items omits) and right children).
     for (; childIndex < children.length; childIndex++) {
       const child = children[childIndex];
       const total = this.total(child);
       if (this.total(waypoint) !== 0) {
-        yield { isSubItem: false, child, total };
+        yield { isValues: false, child, total };
       }
     }
   }
@@ -538,7 +553,7 @@ export class LocalList<T> {
 
   /** Returns an iterator for values in the list, in list order. */
   *values(): IterableIterator<T> {
-    // OPT: do own walk and yield* value items.
+    // OPT: do own walk and yield* value items, w/o encoding positions.
     for (const [, , value] of this.entries()) yield value;
   }
 

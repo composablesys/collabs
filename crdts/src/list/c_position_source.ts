@@ -23,29 +23,11 @@ const RADIX = 36;
 /**
  * Emitted by a [[PositionSource]] at the end of [[PositionSource.load]].
  */
-export interface PositionSourceLoadEvent extends CollabEvent {
-  /**
-   * Returns whether position did _not_ exist in the local state before
-   * the call to load.
-   */
-  isNewLocally(position: Position): boolean;
-
-  /**
-   * Returns whether position did _not_ exist in the remote state
-   * that was loaded.
-   */
-  isNewRemotely(position: Position): boolean;
-}
-
-interface WaypointDiff {
-  readonly local: number;
-  readonly remote: number;
-}
-
-class LoadEventImpl implements PositionSourceLoadEvent {
+export class PositionSourceLoadEvent implements CollabEvent {
   constructor(
     private readonly source: CPositionSource,
-    private readonly waypointDiffs: Map<Waypoint, WaypointDiff>,
+    // TODO: use this instead of functions in LocalList.loadObject
+    readonly waypointDiffs: Map<Waypoint, { local: number; remote: number }>,
     readonly meta: UpdateMeta
   ) {}
 
@@ -161,19 +143,22 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
   // Vars used to return the newly-created position in createPositions().
   private inCreatePositions = false;
-  private ourCreatedPositions?: Position[] = undefined;
+  private createPositionsRet?: [waypoint: Waypoint, valueIndex: number] =
+    undefined;
 
   /**
    *
    * @param prevPosition
    * @param count
-   * @returns First created position. TODO: un-encoded instead?
+   * @returns First created position, use encodeAll to get actual
+   * positions. (TODO: undo? Less necessary b/c only encode on sender
+   * side, not all receivers. Also doesn't match prevPosition arg.)
    */
   createPositions(
     /** null to create at beginning. */
     prevPosition: Position | null,
     count: number
-  ): Position {
+  ): [waypoint: Waypoint, valueIndex: number] {
     const [prevWaypoint, prevValueIndex] =
       prevPosition === null
         ? [this.rootWaypoint, 0]
@@ -244,11 +229,11 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
     this.inCreatePositions = true;
     this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
-    const created = this.ourCreatedPositions!;
-    this.ourCreatedPositions = undefined;
     this.inCreatePositions = false;
-    // TODO: if keep it like this, only store first pos in ourCreatedPositions
-    return created[0];
+
+    const ret = this.createPositionsRet!;
+    this.createPositionsRet = undefined;
+    return ret;
   }
 
   private valueAndSideEncode(value: number, isRight: boolean): number {
@@ -327,7 +312,9 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       const valueIndex = waypoint.valueCount;
       waypoint.valueCount += decoded.count;
 
-      this.setCreatedPositions(waypoint, valueIndex, decoded.count);
+      if (this.inCreatePositions) {
+        this.createPositionsRet = [waypoint, valueIndex];
+      }
     } else {
       // "waypoint" (new Waypoint).
       // Get parentWaypoint.
@@ -362,21 +349,9 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       senderWaypoints.push(waypoint);
       this.addToChildren(waypoint);
 
-      this.setCreatedPositions(waypoint, 0, decoded.count);
-    }
-  }
-
-  private setCreatedPositions(
-    waypoint: Waypoint,
-    valueIndex: number,
-    count: number
-  ): void {
-    if (this.inCreatePositions) {
-      const positions = new Array<Position>(count);
-      for (let i = 0; i < positions.length; i++) {
-        positions[i] = this.encode(waypoint, valueIndex + i);
+      if (this.inCreatePositions) {
+        this.createPositionsRet = [waypoint, 0];
       }
-      this.ourCreatedPositions = positions;
     }
   }
 
@@ -394,15 +369,13 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     for (; i < children.length; i++) {
       if (this.isSiblingLess(newWaypoint, children[i])) break;
     }
-    children.splice(i - 1, 0, newWaypoint);
+    children.splice(i, 0, newWaypoint);
   }
 
   /**
-   * Internal ([[LocalList]]) use only.
-   *
    * Returns true if sibling1 < sibling2 in the sibling order.
    */
-  isSiblingLess(sibling1: Waypoint, sibling2: Waypoint) {
+  private isSiblingLess(sibling1: Waypoint, sibling2: Waypoint) {
     // Recall child order: left children ordered by
     // valueIndex, then right children ordered by
     // reverse valueIndex. senderID tiebreaker.
@@ -459,6 +432,16 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return `${waypoint.counter.toString(RADIX)}.${valueIndex.toString(RADIX)},${
       waypoint.senderID
     }`;
+  }
+
+  // TODO: remove "Internal use only" stuff.
+
+  encodeAll(waypoint: Waypoint, valueIndex: number, count: number): Position[] {
+    const ans = new Array<Position>(count);
+    for (let i = 0; i < count; i++) {
+      ans[i] = this.encode(waypoint, valueIndex + i);
+    }
+    return ans;
   }
 
   /**
@@ -545,7 +528,10 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     const newWaypointIndices: number[] = [];
     // For each waypoint with a different valueCount in savedState vs
     // locally before loading, stores both counts.
-    const waypointDiffs = new Map<Waypoint, WaypointDiff>();
+    const waypointDiffs = new Map<
+      Waypoint,
+      { local: number; remote: number }
+    >();
 
     // 1. Loop over the loaded waypoints and add them (if new)
     // or take the max of their valueCount (if old).
@@ -622,6 +608,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     }
 
     // Emit event.
-    this.emit("Load", new LoadEventImpl(this, waypointDiffs, meta));
+    this.emit("Load", new PositionSourceLoadEvent(this, waypointDiffs, meta));
   }
 }

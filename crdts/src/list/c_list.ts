@@ -127,7 +127,7 @@ export class CList<
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
   private readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
-  private readonly waypointStore: CPositionSource;
+  private readonly positionSource: CPositionSource;
 
   private readonly list: LocalList<C>;
 
@@ -163,12 +163,12 @@ export class CList<
           ),
         })
     );
-    this.waypointStore = this.registerCollab(
+    this.positionSource = this.registerCollab(
       "0",
       (init) => new CPositionSource(init)
     );
 
-    this.list = new LocalList(this.waypointStore);
+    this.list = new LocalList(this.positionSource);
 
     // Maintain positionSource's values as a cache of
     // of the currently set locations, mapping to
@@ -290,7 +290,9 @@ export class CList<
    */
   insert(index: number, ...args: InsertArgs): C {
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    const position = this.waypointStore.createPositions(prevPos, 1)[0];
+    const position = this.positionSource.encode(
+      ...this.positionSource.createPositions(prevPos, 1)
+    );
     return this.set.add({ position, isPresent: true }, args).value;
   }
 
@@ -407,7 +409,10 @@ export class CList<
     // Positions to insert at.
     const prevPos =
       insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
-    const positions = this.waypointStore.createPositions(prevPos, count);
+    const positions = this.positionSource.encodeAll(
+      ...this.positionSource.createPositions(prevPos, count),
+      count
+    );
     // Values to move.
     const toMove = this.list.slice(startIndex, startIndex + count);
     // Move them.
@@ -476,7 +481,7 @@ export class CList<
    * Defaults to C.
    */
   newLocalList<U = C>(): LocalList<U> {
-    return new LocalList(this.waypointStore);
+    return new LocalList(this.positionSource);
   }
 
   // TODO: instead of archivedEntries, a function that returns a LocalList
