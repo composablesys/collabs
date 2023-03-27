@@ -368,8 +368,8 @@ export class CRuntime
       const meta = RuntimeMetaSerializer.instance.deserialize(
         (<Uint8Array[]>messageStacks.pop())[0]
       );
-      this.buffer.add(messageStacks, meta);
-      if (this.buffer.check()) {
+      if (this.buffer.process(messageStacks, meta)) {
+        this.buffer.check();
         this.emit("Change", {});
       }
     } finally {
@@ -450,7 +450,7 @@ export class CRuntime
     try {
       const savedStateTree =
         SavedStateTreeSerializer.instance.deserialize(savedState)!;
-      const loadCRDTMeta = this.buffer.load(savedStateTree.self!, this.used);
+      const loadCRDTMeta = this.buffer.load(savedStateTree.self!);
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
         senderID: loadCRDTMeta.senderID,

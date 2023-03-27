@@ -4,6 +4,7 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
+import { CRDTMessageMeta } from "./crdt_meta";
 import {
   LoadCRDTMeta,
   ReceiveCRDTMeta,
@@ -57,13 +58,10 @@ export class CausalMessageBuffer {
    * Internal buffer for messages that have been received but not
    * yet delivered, either because check() was not called or they
    * are not causally ready.
+   *
+   * Keyed by encodeDot's output.
    */
-  private readonly buffer: ReceivedTransaction[] = [];
-
-  /**
-   * The first index to check for readiness in the buffer.
-   */
-  private bufferCheckIndex = 0;
+  private readonly buffer = new Map<string, ReceivedTransaction>();
 
   /**
    * @param deliver Callback to deliver messages, where
@@ -82,80 +80,89 @@ export class CausalMessageBuffer {
     this.vc.set(this.replicaID, 0);
   }
 
+  private encodeDot(crdtMeta: CRDTMessageMeta) {
+    return `${crdtMeta.senderCounter},${crdtMeta.senderID}`;
+  }
+
   /**
-   * Adds the given message to the buffer, if it has not
-   * already been delivered.
+   * Processes the given remote message:
+   * - If already delivered, does nothing.
+   * - Else if ready for delivery, delivers it.
+   * - Else adds it to the buffer.
+   *
+   * @returns Whether the message was delivered.
    */
-  add(messageStacks: (Uint8Array | string)[][], meta: UpdateMeta): void {
+  process(messageStacks: (Uint8Array | string)[][], meta: UpdateMeta): boolean {
     const crdtMeta = <ReceiveCRDTMeta>meta.runtimeExtra;
     if (!this.isAlreadyDelivered(crdtMeta)) {
-      this.buffer.push({ messageStacks, meta });
+      if (this.isReady(crdtMeta)) {
+        // Ready for delivery.
+        this.deliver(messageStacks, meta);
+        this.processRemoteDelivery(crdtMeta);
+        return true;
+      } else {
+        // Add to this.buffer if it's not already present.
+        const dot = this.encodeDot(crdtMeta);
+        if (!this.buffer.has(dot)) {
+          this.buffer.set(dot, { messageStacks, meta });
+        }
+      }
     } else if (DEBUG) {
       console.log("CausalMessageBuffer.add: not adding");
       console.log("(already received)");
       console.log([...this.vc]);
       console.log(crdtMeta);
     }
+    return false;
   }
 
   /**
    * Checks the buffer and delivers any causally ready
    * transactions.
-   *
-   * @return true if any transactions were delivered.
    */
-  check(): boolean {
-    let anyDelivered = false;
-    // The checking order is from the latest to the oldest.
-    let index = this.buffer.length - 1;
+  check(): void {
+    let recheck = false;
 
-    while (index >= this.bufferCheckIndex) {
-      const sender = this.buffer[index].meta.senderID;
-      const crdtMeta = <ReceiveCRDTMeta>this.buffer[index].meta.runtimeExtra;
+    do {
+      recheck = false;
+      for (const [dot, tr] of this.buffer) {
+        const crdtMeta = <ReceiveCRDTMeta>tr.meta.runtimeExtra;
 
-      if (this.isReady(crdtMeta, sender)) {
-        // Ready for delivery.
-        this.deliver(this.buffer[index].messageStacks, this.buffer[index].meta);
-        this.processRemoteDelivery(crdtMeta);
-        // Remove from the buffer.
-        // OPT: something more efficient?  (Costly array
-        // deletions).
-        this.buffer.splice(index, 1);
-        // Set index to the end and try again, in case
-        // this makes more messages ready
-        this.bufferCheckIndex = 0;
-        index = this.buffer.length - 1;
-        anyDelivered = true;
-      } else {
-        if (DEBUG) {
-          console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
-        }
-        if (this.isAlreadyDelivered(crdtMeta)) {
-          // Remove the message from the buffer
-          this.buffer.splice(index, 1);
-          if (DEBUG) console.log("(already received)");
-        }
-        index--;
-        if (DEBUG) {
-          console.log([...this.vc]);
-          console.log(crdtMeta);
+        if (this.isReady(crdtMeta)) {
+          // Ready for delivery.
+          this.buffer.delete(dot);
+          this.deliver(tr.messageStacks, tr.meta);
+          this.processRemoteDelivery(crdtMeta);
+          // Delivering messages may make new ones ready, so go
+          // through the whole buffer again.
+          recheck = true;
+        } else {
+          if (DEBUG) {
+            console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
+          }
+          if (this.isAlreadyDelivered(crdtMeta)) {
+            // Remove from the buffer.
+            this.buffer.delete(dot);
+            if (DEBUG) console.log("(already received)");
+          }
+          if (DEBUG) {
+            console.log([...this.vc]);
+            console.log(crdtMeta);
+          }
         }
       }
-    }
-    this.bufferCheckIndex = this.buffer.length;
-    return anyDelivered;
+    } while (recheck);
   }
 
   /**
-   * @return whether a message with the given vector clock
-   * and sender is ready for delivery, according to the causal
-   * order.
+   * @return whether a message with the given crdtMeta
+   * is ready for delivery, according to the causal order.
    */
-  private isReady(crdtMeta: ReceiveCRDTMeta, sender: string): boolean {
+  private isReady(crdtMeta: ReceiveCRDTMeta): boolean {
     if (this.causalityGuaranteed) return true;
 
     // Check that sender's entry is one more than ours.
-    if ((this.vc.get(sender) ?? 0) !== crdtMeta.senderCounter - 1) {
+    if ((this.vc.get(crdtMeta.senderID) ?? 0) !== crdtMeta.senderCounter - 1) {
       return false;
     }
 
@@ -241,15 +248,15 @@ export class CausalMessageBuffer {
     }
 
     // OPT: compress repeated senders in VCs.
-    const bufferMessageStacks = new Array<Uint8Array>(this.buffer.length);
-    const bufferMetas = new Array<Uint8Array>(this.buffer.length);
-    for (i = 0; i < this.buffer.length; i++) {
+    const bufferMessageStacks = new Array<Uint8Array>(this.buffer.size);
+    const bufferMetas = new Array<Uint8Array>(this.buffer.size);
+    i = 0;
+    for (const tr of this.buffer.values()) {
       bufferMessageStacks[i] = MessageStacksSerializer.instance.serialize(
-        this.buffer[i].messageStacks
+        tr.messageStacks
       );
-      bufferMetas[i] = RuntimeMetaSerializer.instance.serialize(
-        this.buffer[i].meta
-      );
+      bufferMetas[i] = RuntimeMetaSerializer.instance.serialize(tr.meta);
+      i++;
     }
 
     const saveMessage = CausalMessageBufferSave.create({
@@ -259,7 +266,6 @@ export class CausalMessageBuffer {
       lamportTimestamp: this.lamportTimestamp,
       bufferMessageStacks,
       bufferMetas,
-      bufferCheckIndex: this.bufferCheckIndex,
     });
     return CausalMessageBufferSave.encode(saveMessage).finish();
   }
@@ -268,7 +274,7 @@ export class CausalMessageBuffer {
    * @param savedState
    * @param used
    */
-  load(savedState: Uint8Array, used: boolean): LoadCRDTMeta {
+  load(savedState: Uint8Array): LoadCRDTMeta {
     const oldLocalVC = new Map(this.vc);
     const oldLocalLamportTimestamp = this.lamportTimestamp;
 
@@ -314,17 +320,19 @@ export class CausalMessageBuffer {
     // the buffer will double in size each time.
     // (Could also do that for early-receives in general.)
     for (let i = 0; i < decoded.bufferMessageStacks.length; i++) {
-      this.buffer.push({
-        messageStacks: MessageStacksSerializer.instance.deserialize(
-          decoded.bufferMessageStacks[i]
-        ),
-        meta: RuntimeMetaSerializer.instance.deserialize(
-          decoded.bufferMetas[i]
-        ),
-      });
+      const meta = RuntimeMetaSerializer.instance.deserialize(
+        decoded.bufferMetas[i]
+      );
+      const dot = this.encodeDot(<CRDTMessageMeta>meta.runtimeExtra);
+      if (this.buffer.has(dot)) {
+        this.buffer.set(dot, {
+          messageStacks: MessageStacksSerializer.instance.deserialize(
+            decoded.bufferMessageStacks[i]
+          ),
+          meta,
+        });
+      }
     }
-    if (used) this.bufferCheckIndex = 0;
-    else this.bufferCheckIndex = decoded.bufferCheckIndex;
 
     return new LoadCRDTMeta(
       // First vc entry is the sender's replicaID.

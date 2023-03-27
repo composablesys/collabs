@@ -6,5 +6,4 @@ message CausalMessageBufferSave {
   required uint64 lamportTimestamp = 4;
   repeated bytes bufferMessageStacks = 5;
   repeated bytes bufferMetas = 6;
-  required uint32 bufferCheckIndex = 7;
 }
