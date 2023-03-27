@@ -24,6 +24,7 @@ message PositionSourceCreateMessage {
   // The number of positions created, with sequential
   // valueIndex's.
   optional uint32 count = 3 [default=1];
+  optional bytes info = 4;
 }
 
 message PositionSourceSave {

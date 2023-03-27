@@ -7,18 +7,21 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import {
+  IPositionSourceCreateMessage,
   PositionSourceCreateMessage,
   PositionSourceSave,
 } from "../../generated/proto_compiled";
 
 const RADIX = 36;
 
-// TODO: Create event just for completeness of events?
-
-// TODO: rewrite to use Waypoint/valueIndex interface? Expectation
-// is that PositionSource uses those so you can communicate with
-// LocalList in optimized way, but LocalList only uses Positions,
-// except for optimized versions of other methods.
+// TODO: not emitted during Load.
+export interface PositionSourceCreateEvent extends CollabEvent {
+  readonly waypoint: Waypoint;
+  readonly valueIndex: number;
+  readonly count: number;
+  readonly positions: Position[];
+  readonly info?: Uint8Array;
+}
 
 /**
  * Emitted by a [[PositionSource]] at the end of [[PositionSource.load]].
@@ -26,7 +29,7 @@ const RADIX = 36;
 export class PositionSourceLoadEvent implements CollabEvent {
   constructor(
     private readonly source: CPositionSource,
-    // TODO: use this instead of functions in LocalList.loadObject
+    /** Diff of local and remote waypoint totals (before loading - result is max). */
     readonly waypointDiffs: Map<Waypoint, { local: number; remote: number }>,
     readonly meta: UpdateMeta
   ) {}
@@ -50,6 +53,10 @@ export class PositionSourceLoadEvent implements CollabEvent {
  * Events record for [[PositionSource]].
  */
 export interface PositionSourceEventsRecord extends CollabEventsRecord {
+  /**
+   * TODO
+   */
+  Create: PositionSourceCreateEvent;
   /**
    * Emitted at the end of [[PositionSource.load]].
    */
@@ -107,8 +114,6 @@ export class Waypoint {
   readonly children: Waypoint[] = [];
 }
 
-// TODO: all names, docs
-
 /**
  * Generates positions for use in a collaborative list.
  *
@@ -143,22 +148,21 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
   // Vars used to return the newly-created position in createPositions().
   private inCreatePositions = false;
-  private createPositionsRet?: [waypoint: Waypoint, valueIndex: number] =
-    undefined;
+  private createPositionsRet?: Position[] = undefined;
 
   /**
    *
    * @param prevPosition
    * @param count
-   * @returns First created position, use encodeAll to get actual
-   * positions. (TODO: undo? Less necessary b/c only encode on sender
-   * side, not all receivers. Also doesn't match prevPosition arg.)
+   * @returns Created positions. Decoded first and inc valueIndex
+   * to decode all.
    */
   createPositions(
     /** null to create at beginning. */
     prevPosition: Position | null,
-    count: number
-  ): [waypoint: Waypoint, valueIndex: number] {
+    count: number,
+    info?: Uint8Array
+  ): Position[] {
     const [prevWaypoint, prevValueIndex] =
       prevPosition === null
         ? [this.rootWaypoint, 0]
@@ -199,19 +203,18 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       isRight = false;
     }
 
-    let message: PositionSourceCreateMessage;
+    let message: IPositionSourceCreateMessage;
     if (
       isRight &&
       parentWaypoint.senderID === this.runtime.replicaID &&
       parentValueIndex === parentWaypoint.valueCount - 1
     ) {
       // Append values to parentWaypoint instead of creating a new one.
-      message = PositionSourceCreateMessage.create({
+      message = {
         extend: { counter: parentWaypoint.counter },
-        count: count === 1 ? undefined : count,
-      });
+      };
     } else {
-      message = PositionSourceCreateMessage.create({
+      message = {
         waypoint: {
           parentWaypointSenderID:
             parentWaypoint.senderID === this.runtime.replicaID
@@ -223,9 +226,10 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
           ),
           parentValueIndex,
         },
-        count: count === 1 ? undefined : count,
-      });
+      };
     }
+    message.count = count === 1 ? undefined : count;
+    message.info = info;
 
     this.inCreatePositions = true;
     this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
@@ -305,16 +309,14 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   ): void {
     const decoded = PositionSourceCreateMessage.decode(<Uint8Array>message);
 
+    let waypoint: Waypoint;
+    let valueIndex: number;
     if (decoded.type === "extend") {
       // Extend an existing waypoint from the receiver
       // by decoded.count values.
-      const waypoint = this.getWaypoint(meta.senderID, decoded.extend!.counter);
-      const valueIndex = waypoint.valueCount;
+      waypoint = this.getWaypoint(meta.senderID, decoded.extend!.counter);
+      valueIndex = waypoint.valueCount;
       waypoint.valueCount += decoded.count;
-
-      if (this.inCreatePositions) {
-        this.createPositionsRet = [waypoint, valueIndex];
-      }
     } else {
       // "waypoint" (new Waypoint).
       // Get parentWaypoint.
@@ -337,7 +339,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
         senderWaypoints = [];
         this.waypointsByID.set(meta.senderID, senderWaypoints);
       }
-      const waypoint = new Waypoint(
+      waypoint = new Waypoint(
         meta.senderID,
         senderWaypoints.length,
         parentWaypoint,
@@ -345,14 +347,26 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
         isRight,
         decoded.count
       );
+      valueIndex = 0;
       // Store the waypoint.
       senderWaypoints.push(waypoint);
       this.addToChildren(waypoint);
-
-      if (this.inCreatePositions) {
-        this.createPositionsRet = [waypoint, 0];
-      }
     }
+
+    const positions = this.encodeAll(waypoint, valueIndex, decoded.count);
+    if (this.inCreatePositions) {
+      this.createPositionsRet = positions;
+    }
+    this.emit("Create", {
+      waypoint,
+      valueIndex,
+      count: decoded.count,
+      positions,
+      info: Object.prototype.hasOwnProperty.call(decoded, "info")
+        ? decoded.info
+        : undefined,
+      meta,
+    });
   }
 
   /**
@@ -433,8 +447,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       waypoint.senderID
     }`;
   }
-
-  // TODO: remove "Internal use only" stuff.
 
   encodeAll(waypoint: Waypoint, valueIndex: number, count: number): Position[] {
     const ans = new Array<Position>(count);

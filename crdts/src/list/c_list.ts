@@ -290,9 +290,7 @@ export class CList<
    */
   insert(index: number, ...args: InsertArgs): C {
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    const position = this.positionSource.encode(
-      ...this.positionSource.createPositions(prevPos, 1)
-    );
+    const position = this.positionSource.createPositions(prevPos, 1)[0];
     return this.set.add({ position, isPresent: true }, args).value;
   }
 
@@ -409,10 +407,7 @@ export class CList<
     // Positions to insert at.
     const prevPos =
       insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
-    const positions = this.positionSource.encodeAll(
-      ...this.positionSource.createPositions(prevPos, count),
-      count
-    );
+    const positions = this.positionSource.createPositions(prevPos, count);
     // Values to move.
     const toMove = this.list.slice(startIndex, startIndex + count);
     // Move them.
@@ -484,9 +479,6 @@ export class CList<
     return new LocalList(this.positionSource);
   }
 
-  // TODO: instead of archivedEntries, a function that returns a LocalList
-  // of the archived entries?
-
   indexOf(searchElement: C, fromIndex = 0): number {
     const entry = this.entryFromValue(searchElement);
     if (entry !== null && this.set.has(entry) && entry.status.value.isPresent) {
@@ -517,6 +509,4 @@ export class CList<
   includes(searchElement: C, fromIndex = 0): boolean {
     return this.indexOf(searchElement, fromIndex) !== -1;
   }
-
-  // TODO: check: no need for loadObject, thanks to events?
 }

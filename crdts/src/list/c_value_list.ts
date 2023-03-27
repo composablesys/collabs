@@ -8,18 +8,10 @@ import {
   Position,
   Serializer,
   StringSerializer,
-  Uint8ArraySerializer,
   UpdateMeta,
 } from "@collabs/core";
-import {
-  IValueListInsertMessage,
-  ValueListInsertMessage,
-} from "../../generated/proto_compiled";
 import { CPositionSource, PositionSourceLoadEvent } from "./c_position_source";
 import { LocalList } from "./local_list";
-
-// TODO: PositionSource optional input? In case you want
-// multiple lists on the same source. Same for CList.
 
 /**
  * A collaborative list with values of type T.
@@ -39,13 +31,14 @@ import { LocalList } from "./local_list";
  *
  * *Positions* are described in [IList](../../core/interfaces/IList.html).
  *
+ * TODO: during load, events are "live", in order (delete reversed, then insert).
+ *
  * See also: [[CList]], [[CText]].
  *
  * @typeParam T The value type.
  */
 export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   private readonly positionSource: CPositionSource;
-  private readonly insertMessenger: CMessenger<Uint8Array>;
   private readonly deleteMessenger: CMessenger<Position>;
 
   private readonly list: LocalList<T>;
@@ -89,14 +82,6 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       this.sourceLoadEvent = e;
     });
 
-    // OPT: Proper primitive CRDT, instead of two messengers?
-    this.insertMessenger = super.registerCollab(
-      "0",
-      (init) =>
-        new CMessenger(init, {
-          messageSerializer: Uint8ArraySerializer.instance,
-        })
-    );
     this.deleteMessenger = super.registerCollab(
       "1",
       (init) =>
@@ -104,20 +89,19 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     );
 
     // Operation handlers.
-    this.insertMessenger.on("Message", (e) => {
-      const decoded = ValueListInsertMessage.decode(e.message);
+    this.positionSource.on("Create", (e) => {
+      // e.info is valuesSer from this.insert.
       const values =
-        decoded.data === "value"
-          ? [this.valueSerializer.deserialize(decoded.value)]
-          : this.valueArraySerializer.deserialize(decoded.values);
-      const positions = this.list.setNewSequence(decoded.position, values);
+        e.count === 1
+          ? [this.valueSerializer.deserialize(e.info!)]
+          : this.valueArraySerializer.deserialize(e.info!);
+      this.list.setCreated(e, values);
       // Here we exploit forwards non-interleaving, which guarantees
       // that the values are contiguous.
       this.emit("Insert", {
-        // OPT: avoid redundant position decode.
-        index: this.list.indexOfPosition(decoded.position),
+        index: this.list.indexOfPosition(e.positions[0]),
         values,
-        positions,
+        positions: e.positions,
         meta: e.meta,
       });
     });
@@ -156,23 +140,12 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     if (values.length === 0) return undefined;
 
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    const position = this.positionSource.encode(
-      ...this.positionSource.createPositions(prevPos, values.length)
-    );
-
-    // OPT: Avoid sending the position again (redundant with createPositions).
-    // Perhaps use the last created position (w/ CPositionSource Create event)?
-    const insertMessage: IValueListInsertMessage = {
-      position,
-    };
-    if (values.length === 1) {
-      insertMessage.value = this.valueSerializer.serialize(values[0]);
-    } else {
-      insertMessage.values = this.valueArraySerializer.serialize(values);
-    }
-    this.insertMessenger.sendMessage(
-      ValueListInsertMessage.encode(insertMessage).finish()
-    );
+    // We pass valueSer in the info field, which shows up on the Create event.
+    const valuesSer =
+      values.length === 1
+        ? this.valueSerializer.serialize(values[0])
+        : this.valueArraySerializer.serialize(values);
+    this.positionSource.createPositions(prevPos, values.length, valuesSer);
 
     return values[0];
   }
@@ -312,6 +285,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         positions[i] = position;
       }
       // OPT: only materialize positions on request? Lot of string encoding, memory.
+      // TODO: Perhaps change IList event to use an iterable, so that you can hand it off to
+      // a wrapper event without materializing it? Likewise for values.
       this.emit("Insert", { index: 0, values, positions, meta });
     } else {
       // We need to merge savedState with our existing state.
@@ -343,11 +318,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         }
       }
       // Do deletions in reverse order so the original indices are accurate.
-      // (Not actually necessary - could manually adjust indices.)
       deleteEvents.reverse();
       for (const e of deleteEvents) {
         this.list.delete(e.positions[0]);
-        // TODO: live events like this, or all at end? Note in docs regardless.
         this.emit("Delete", e);
       }
 
@@ -356,10 +329,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       const insertEvents: ListEvent<T>[] = [];
       let insertedSoFar = 0;
       for (const [, position, value] of remote.entries()) {
-        // OPT: use waypoints to do bulk inserts. Need to be careful about missing
-        // (remotely-deleted) elements, though.
+        // OPT: use waypoints to do bulk inserts. Need to be careful about: missing
+        // (remotely-deleted) elements; indices that skip over child waypoints.
         if (sourceLoadEvent.isNewLocally(position)) {
-          // TODO: is there faster way to compute local indices for events?
           insertEvents.push({
             index: this.list.indexOfPosition(position, "right") + insertedSoFar,
             positions: [position],

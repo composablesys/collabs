@@ -1,7 +1,0 @@
-message ValueListInsertMessage {
-  required string position = 1;
-  oneof data {
-    bytes value = 2;
-    bytes values = 3;
-  }
-}

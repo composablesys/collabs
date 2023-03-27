@@ -1,9 +1,12 @@
 import { Position, Serializer } from "@collabs/core";
 import { LocalListSave } from "../../generated/proto_compiled";
-import { CPositionSource, Waypoint } from "./c_position_source";
+import {
+  CPositionSource,
+  PositionSourceCreateEvent,
+  Waypoint,
+} from "./c_position_source";
 
-// TODO: WaypointInfo instead?
-interface WaypointValues<T> {
+interface WaypointInfo<T> {
   /**
    * The total number of present values at this
    * waypoint and its descendants.
@@ -57,7 +60,7 @@ export class LocalList<T> {
   /**
    * Only includes nontrivial entries (total > 0).
    */
-  private valuesByWaypoint = new Map<Waypoint, WaypointValues<T>>();
+  private valuesByWaypoint = new Map<Waypoint, WaypointInfo<T>>();
   private _inInitialState = true;
 
   /**
@@ -76,42 +79,57 @@ export class LocalList<T> {
    */
   constructor(private readonly source: CPositionSource) {}
 
-  // TODO: bulk version of set for Create events. Should be easy
-  // - just appending (to) last item.
-  // If so, omit positions from Create event (linear effort, usually
-  // not needed).
-  // TODO: check set/delete work when acting on positions outside
-  // your current known range.
-
   /**
-   * TODO. Must be same waypoint, new positions (specialized method).
+   * TODO. Must be new (haven't set these created positions before),
+   * ideally in Create event handler. Needs values.length = e.count.
    */
-  setNewSequence(position: Position, values: T[]): Position[] {
+  setCreated(e: PositionSourceCreateEvent, values: T[]): void {
+    if (values.length !== e.count) {
+      throw new Error("values do not match count");
+    }
     this._inInitialState = false;
-    // OPT: use the fact that we're inserting all at the same item,
-    // plus positions are all new.
 
-    if (values.length === 1) {
-      // Common case: single new value.
-      this.set(position, values[0]);
-      return [position];
+    const waypoint = e.waypoint;
+    const info = this.valuesByWaypoint.get(waypoint);
+    if (info === undefined) {
+      // Waypoint has no values currently; set them to
+      // [valueIndex, values].
+      // Except, omit 0s.
+      const newItems = e.valueIndex === 0 ? [values] : [e.valueIndex, values];
+      this.valuesByWaypoint.set(waypoint, {
+        total: 0,
+        items: newItems,
+      });
+    } else {
+      // Get number of existing positions in info (which omits the
+      // final deleted items).
+      let existing = 0;
+      for (const item of info.items) {
+        existing += typeof item === "number" ? item : item.length;
+      }
+      if (existing < e.valueIndex) {
+        // Fill in deleted positions.
+        info.items.push(e.valueIndex - existing);
+      } else if (existing === e.valueIndex) {
+        if (info.items.length === 0) {
+          info.items.push(values);
+        } else {
+          // Merge with previous (present) item.
+          (info.items[info.items.length - 1] as T[]).push(...values);
+        }
+      } else {
+        throw new Error("setCreated called on already-used positions");
+      }
     }
-
-    const [waypoint, valueIndex] = this.source.decode(position);
-    const positions = new Array<Position>(values.length);
-    for (let i = 0; i < values.length; i++) {
-      positions[i] = this.source.encode(waypoint, valueIndex + i);
-      this.set(positions[i], values[i]);
-    }
-    return positions;
+    this.updateTotals(waypoint, values.length);
   }
 
   set(position: Position, value: T): void {
     this._inInitialState = false;
 
     const [waypoint, valueIndex] = this.source.decode(position);
-    const values = this.valuesByWaypoint.get(waypoint);
-    if (values === undefined) {
+    const info = this.valuesByWaypoint.get(waypoint);
+    if (info === undefined) {
       // Waypoint has no values currently; set them to
       // [valueIndex, [value]].
       // Except, omit 0s.
@@ -124,7 +142,7 @@ export class LocalList<T> {
       return;
     }
 
-    const items = values.items;
+    const items = info.items;
     let remaining = valueIndex;
     for (let i = 0; i < items.length; i++) {
       const curItem = items[i];
@@ -193,12 +211,12 @@ export class LocalList<T> {
     this._inInitialState = false;
 
     const [waypoint, valueIndex] = this.source.decode(position);
-    const values = this.valuesByWaypoint.get(waypoint);
-    if (values === undefined) {
+    const info = this.valuesByWaypoint.get(waypoint);
+    if (info === undefined) {
       // Already not present.
       return false;
     }
-    const items = values.items;
+    const items = info.items;
     let remaining = valueIndex;
     for (let i = 0; i < items.length; i++) {
       const curItem = items[i];
@@ -259,18 +277,17 @@ export class LocalList<T> {
       current !== null;
       current = current.parentWaypoint
     ) {
-      const values = this.valuesByWaypoint.get(current);
-      if (values === undefined) {
+      const info = this.valuesByWaypoint.get(current);
+      if (info === undefined) {
         // Create WaypointValues.
-        // TODO: assert delta > 0
         this.valuesByWaypoint.set(current, {
           total: delta,
           // Omit last deleted item (= only item).
           items: [],
         });
       } else {
-        values.total += delta;
-        if (values.total === 0) {
+        info.total += delta;
+        if (info.total === 0) {
           // Delete WaypointValues.
           this.valuesByWaypoint.delete(current);
         }
@@ -306,14 +323,14 @@ export class LocalList<T> {
     waypoint: Waypoint,
     valueIndex: number
   ): [value: T | undefined, isPresent: boolean, waypointValuesBefore: number] {
-    const values = this.valuesByWaypoint.get(waypoint);
-    if (values === undefined) {
+    const info = this.valuesByWaypoint.get(waypoint);
+    if (info === undefined) {
       // Special not-present case.
       return [undefined, false, 0];
     }
     let remaining = valueIndex;
     let waypointValuesBefore = 0;
-    for (const item of values.items) {
+    for (const item of info.items) {
       if (typeof item === "number") {
         if (remaining < item) {
           return [undefined, false, waypointValuesBefore];
@@ -668,7 +685,7 @@ export class LocalList<T> {
       const replicaID =
         replicaIDIndex === 0 ? "" : decoded.replicaIDs[replicaIDIndex - 1];
       const waypoint = this.source.getWaypoint(replicaID, decoded.counters[i]);
-      const info: WaypointValues<T> = {
+      const info: WaypointInfo<T> = {
         total: decoded.totals[i],
         items: new Array<T[] | number>(decoded.itemsLengths[i]),
       };

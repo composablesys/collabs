@@ -18,6 +18,10 @@ export interface VectorClock {
   // TODO: entries()? Copy ability? Only if justified.
 }
 
+// OPT: for load and save, include an array of all replicaIDs, so that
+// savers can reference indices in that array instead of redundantly
+// repeating replicaIDs everywhere. Would require meta arg to save().
+
 /**
  * CRDT-related meta for a message.
  *
