@@ -39,8 +39,7 @@ export class CausalMessageBuffer {
    */
   readonly vc = new Map<string, number>();
   /**
-   * May include us, if we are causally maximal
-   * (no received messages dominate our last sent message).
+   * Never includes us, even if we are causally maximal.
    *
    * If causalityGuaranteed, this is always empty.
    *
@@ -167,10 +166,13 @@ export class CausalMessageBuffer {
     }
 
     // Check that other causally maximal entries are <= ours.
-    // Note that this excludes sender.
     let i = 0;
     for (const [key, value] of crdtMeta.vcEntries) {
-      if (i === crdtMeta.maximalVcKeyCount) break;
+      // maximalVCKeyCount omits senderID, so skip it without
+      // incrementing i.
+      if (key === crdtMeta.senderID) continue;
+
+      if (i === crdtMeta.maximalVCKeyCount) break;
       if ((this.vc.get(key) ?? 0) < value) {
         return false;
       }
@@ -199,13 +201,18 @@ export class CausalMessageBuffer {
       // crdtMeta.
       let i = 0;
       for (const [key, value] of crdtMeta.vcEntries) {
-        if (i === crdtMeta.maximalVcKeyCount) break;
+        // maximalVCKeyCount omits senderID, so skip it without
+        // incrementing i.
+        if (key === crdtMeta.senderID) continue;
+
+        if (i === crdtMeta.maximalVCKeyCount) break;
         if (this.vc.get(key) === value) {
           this.maximalVCKeys.delete(key);
         }
         i++;
       }
       // Add a new key for this message.
+      // Since it's remote, we know senderID is not our ID.
       this.maximalVCKeys.add(crdtMeta.senderID);
     }
     // Update vc.
@@ -229,7 +236,6 @@ export class CausalMessageBuffer {
     if (!this.causalityGuaranteed) {
       // Our own message causally dominates every current key.
       this.maximalVCKeys.clear();
-      this.maximalVCKeys.add(this.replicaID);
     }
     // Update Lamport timestamp.
     this.lamportTimestamp++;
@@ -286,7 +292,7 @@ export class CausalMessageBuffer {
     }
     const remoteMaximalVCKeys = new Set(decoded.maximalVcKeys);
 
-    // 1. Delete our maximal entris that are not present in the saved
+    // 1. Delete our maximal entries that are not present in the saved
     // state and that are causally dominated by the remote VC.
     // (Strictly speaking, we compare entries not keys: values must match
     // to be present in the intersection.)
@@ -304,6 +310,8 @@ export class CausalMessageBuffer {
         this.maximalVCKeys.add(key);
       }
     }
+    // Delete our replicaID if it ended up in maximalVCKeys.
+    this.maximalVCKeys.delete(this.replicaID);
 
     for (const [key, value] of remoteVC) {
       this.vc.set(key, Math.max(this.vc.get(key) ?? 0, value));

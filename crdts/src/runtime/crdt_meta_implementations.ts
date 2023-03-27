@@ -3,17 +3,10 @@ import { CRDTMetaMessage } from "../../generated/proto_compiled";
 import { CRDTMessageMeta, CRDTSavedStateMeta, VectorClock } from "./crdt_meta";
 
 export class BasicVectorClock implements VectorClock {
-  constructor(
-    readonly vcEntries: Map<string, number>,
-    private readonly senderID?: string,
-    private readonly senderCounter?: number
-  ) {}
+  constructor(readonly vcEntries: Map<string, number>) {}
 
   get(replicaID: string): number {
-    // TODO: get rid of senderID case? Seems like our VC entry should
-    // always be present now (& make it present if not).
-    if (replicaID === this.senderID) return this.senderCounter!;
-    else return this.vcEntries.get(replicaID) ?? 0;
+    return this.vcEntries.get(replicaID) ?? 0;
   }
 }
 
@@ -22,17 +15,21 @@ export class SendCRDTMeta implements CRDTMessageMeta {
   readonly vectorClock: VectorClock;
 
   /**
-   * The requested vector clock entries so far. Excludes this.sender
-   * (uses senderCounter instead), includes causallyMaximalVCKeys.
+   * The requested vector clock entries so far, plus
+   * senderID and causallyMaximalVCKeys.
+   *
+   * Iterator order is guaranteed to start with senderID,
+   * then causallyMaximalVCKeys.
    *
    * Public only for [[CRDTMetaSerializer]].
    */
   readonly vcEntries = new Map<string, number>();
   /**
-   * The number of entries at the beginning of requestedVC's
-   * iterator order that are causally maximal.
+   * The number of entries at the beginning of vcEntries's
+   * iterator order but after senderID (which is first)
+   * that are causally maximal.
    */
-  readonly maximalVcKeyCount: number;
+  readonly maximalVCKeyCount: number;
   private wallClockTimeIfRequested: number | null = null;
   private lamportTimestampIfRequested: number | null = null;
   /**
@@ -44,40 +41,42 @@ export class SendCRDTMeta implements CRDTMessageMeta {
   constructor(
     readonly senderID: string,
     private readonly actualVC: Map<string, number>,
-    /** We "copy" this right away. Okay to contain sender, but we'll ignore it. */
+    /**
+     * Causally maximal VC keys minus senderID (even if it's causally maximal).
+     *
+     * We "copy" this right away, so okay if it is mutated later.
+     */
     causallyMaximalVCKeys: Set<string>,
     private readonly actualWallClockTime: number,
     private readonly actualLamportTimestamp: number
   ) {
     this.senderCounter = actualVC.get(senderID)!;
-    let count = causallyMaximalVCKeys.size;
+    this.vcEntries.set(senderID, this.senderCounter);
+
+    if (causallyMaximalVCKeys.has(senderID)) {
+      throw new Error("Internal error: causallyMaximalVCKeys has senderID");
+    }
+    this.maximalVCKeyCount = causallyMaximalVCKeys.size;
     for (const replicaID of causallyMaximalVCKeys) {
-      if (replicaID === this.senderID) {
-        count--;
-        continue;
-      }
       this.vcEntries.set(replicaID, actualVC.get(replicaID)!);
     }
-    this.maximalVcKeyCount = count;
+
     this.vectorClock = { get: this.vectorClockGet.bind(this) };
   }
 
   private vectorClockGet(replicaID: string): number {
-    if (replicaID === this.senderID) return this.senderCounter;
-    else {
-      if (this.isAutomatic) {
-        this.requestVectorClockEntry(replicaID);
-      }
-      const clock = this.vcEntries.get(replicaID);
-      if (!this.isFrozen && clock === undefined) {
-        throw new Error(
-          "You must request a vector clock entry (or automatic mode) to access it (entry:" +
-            replicaID +
-            ")"
-        );
-      }
-      return clock ?? 0;
+    if (this.isAutomatic) {
+      this.requestVectorClockEntry(replicaID);
     }
+    const clock = this.vcEntries.get(replicaID);
+    if (!this.isFrozen && clock === undefined) {
+      throw new Error(
+        "You must request a vector clock entry (or automatic mode) to access it (entry:" +
+          replicaID +
+          ")"
+      );
+    }
+    return clock ?? 0;
   }
 
   get wallClockTime(): number | null {
@@ -107,11 +106,13 @@ export class SendCRDTMeta implements CRDTMessageMeta {
   }
 
   requestVectorClockEntry(replicaID: string): void {
-    if (replicaID !== this.senderID) {
-      const entry = this.actualVC.get(replicaID);
-      if (entry === undefined) {
-        throw new Error("Unknown replicaID: " + replicaID);
-      }
+    const entry = this.actualVC.get(replicaID);
+    if (entry === undefined) {
+      throw new Error("Unknown replicaID: " + replicaID);
+    }
+    // Don't re-set if already present, to avoid messing up iterator order
+    // (needed for causallyMaximalVCKeys).
+    if (!this.vcEntries.has(replicaID)) {
       this.vcEntries.set(replicaID, entry);
     }
   }
@@ -155,22 +156,24 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
     readonly senderID: string,
     readonly senderCounter: number,
     /**
-     * Excludes sender.
+     * Iterator order must be the same as in SendCRDTMeta.
      *
-     * Public only for [[CRDTMetaSerializer]].
+     * Public only for [[RuntimeMetaSerializer]].
      */
     readonly vcEntries: Map<string, number>,
     /**
-     * Excludes sender. Empty if CRDTMetaLayer's
-     * causalityGuaranteed flag is true.
+     * The number of entries at the beginning of vcEntries's
+     * iterator order but after senderID (which is first)
+     * that are causally maximal.
      *
-     * Used by CausalMessageBuffer.
+     * Empty if CRDTMetaLayer's
+     * causalityGuaranteed flag is true.
      */
-    readonly maximalVcKeyCount: number,
+    readonly maximalVCKeyCount: number,
     readonly wallClockTime: number | null,
     readonly lamportTimestamp: number | null
   ) {
-    this.vectorClock = new BasicVectorClock(vcEntries, senderID, senderCounter);
+    this.vectorClock = new BasicVectorClock(vcEntries);
   }
 
   toString(): string {
@@ -199,27 +202,27 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
 
   serialize(value: UpdateMeta): Uint8Array {
     const crdtMeta = value.runtimeExtra as SendCRDTMeta | ReceiveCRDTMeta;
-    const vcKeys = new Array<string>(crdtMeta.vcEntries.size);
-    const vcValues = new Array<number>(crdtMeta.vcEntries.size);
-    // Since Map iterator order is set-order and
-    // both types set causallyMaximalVCKeys first (in the
-    // constructor for SendCRDTMeta),
-    // this loop puts causally maximal keys first.
+    const vcKeys = new Array<string>(crdtMeta.vcEntries.size - 1);
+    const vcValues = new Array<number>(crdtMeta.vcEntries.size - 1);
+    // Write vc entries in the order they were set, skipping senderID
+    // (which is first).
+    // Thus the order starts with non-sender causallyMaximalVCKeys.
     let i = 0;
     for (const [key, value] of crdtMeta.vcEntries) {
+      if (key === crdtMeta.senderID) continue;
       vcKeys[i] = key;
       vcValues[i] = value;
       i++;
     }
     const message = CRDTMetaMessage.create({
-      sender: crdtMeta.senderID,
+      senderID: crdtMeta.senderID,
       senderCounter: crdtMeta.senderCounter,
       vcKeys,
       vcValues,
       maximalVcKeyCount:
-        crdtMeta.maximalVcKeyCount === 0
+        crdtMeta.maximalVCKeyCount === 0
           ? undefined
-          : crdtMeta.maximalVcKeyCount,
+          : crdtMeta.maximalVCKeyCount,
       wallClockTime: crdtMeta.wallClockTime,
       lamportTimestamp: crdtMeta.lamportTimestamp,
       isLoad: value.updateType === "savedState" ? true : undefined,
@@ -230,15 +233,16 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
   deserialize(message: Uint8Array): UpdateMeta {
     const decoded = CRDTMetaMessage.decode(message);
     const vc = new Map<string, number>();
+    vc.set(decoded.senderID, decoded.senderCounter);
     for (let i = 0; i < decoded.vcKeys.length; i++) {
-      vc.set(decoded.vcKeys[i], int64AsNumber(decoded.vcValues[i]));
+      vc.set(decoded.vcKeys[i], decoded.vcValues[i]);
     }
     const crdtMeta = new ReceiveCRDTMeta(
-      decoded.sender,
-      int64AsNumber(decoded.senderCounter),
+      decoded.senderID,
+      decoded.senderCounter,
       vc,
       // Missing converted to 0 by protobufjs - okay.
-      int64AsNumber(decoded.maximalVcKeyCount),
+      decoded.maximalVcKeyCount,
       Object.prototype.hasOwnProperty.call(decoded, "wallClockTime")
         ? int64AsNumber(decoded.wallClockTime)
         : null,
