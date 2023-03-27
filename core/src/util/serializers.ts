@@ -26,8 +26,8 @@ import { SafeWeakRef } from "./safe_weak_ref";
  * `options` parameter.
  *
  * Serializers provided with the library include [[DefaultSerializer]],
- * [[StringSerializer]], [[TrivialSerializer]], [[SingletonSerializer]],
- * [[PairSerializer]], and [[CollabIDSerializer]].
+ * [[CollabIDSerializer]], [[StringSerializer]], [[Uint8ArraySerializer]],
+ * [[ArraySerializer]], [[PairSerializer]], and [[ConstSerializer]].
  *
  * See also: [[Bytes]], which encodes Uint8Arrays as strings.
  */
@@ -256,49 +256,6 @@ export class StringSerializer implements Serializer<string> {
 }
 
 /**
- * Serializes \[T\] using a serializer for T. This is slightly more efficient
- * than [[DefaultSerializer]], and it works with arbitrary T.
- *
- * Construct using [[getInstance]].
- */
-export class SingletonSerializer<T> implements Serializer<[T]> {
-  private constructor(private readonly valueSerializer: Serializer<T>) {}
-
-  serialize(values: [T]): Uint8Array {
-    return this.valueSerializer.serialize(values[0]);
-  }
-
-  deserialize(message: Uint8Array): [T] {
-    return [this.valueSerializer.deserialize(message)];
-  }
-
-  // Weak in both keys and values.
-  private static cache = new WeakMap<
-    Serializer<unknown>,
-    WeakRef<SingletonSerializer<unknown>>
-  >();
-
-  /**
-   * Returns an instance of [[SingletonSerializer]] that uses valueSerializer
-   * to serialize the singleton value.
-   *
-   * This method may cache instances internally to save memory.
-   */
-  static getInstance<T>(
-    valueSerializer: Serializer<T>
-  ): SingletonSerializer<T> {
-    const existingWeak = this.cache.get(valueSerializer);
-    if (existingWeak !== undefined) {
-      const existing = existingWeak.deref();
-      if (existing !== undefined) return <SingletonSerializer<T>>existing;
-    }
-    const ret = new SingletonSerializer(valueSerializer);
-    this.cache.set(valueSerializer, new SafeWeakRef(ret));
-    return ret;
-  }
-}
-
-/**
  * Serializes T\[\] using a serializer for T. This is slightly more efficient
  * than [[DefaultSerializer]], and it works with arbitrary T.
  *
@@ -377,7 +334,7 @@ const emptyUint8Array = new Uint8Array();
 /**
  * Serializes a fixed value as an empty Uint8Array.
  */
-export class TrivialSerializer<T> implements Serializer<T> {
+export class ConstSerializer<T> implements Serializer<T> {
   /**
    * @param value The value that [[deserialize]] will always return.
    */

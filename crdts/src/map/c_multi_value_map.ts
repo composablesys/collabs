@@ -17,9 +17,6 @@ import {
 import { AbstractMap_PrimitiveCRDT } from "../base_collabs";
 import { CRDTMessageMeta, CRDTSavedStateMeta } from "../runtime";
 
-// TODO: don't modify arrays you get from get() or events
-// (may be live).
-
 /**
  * An item in a [[MultiValueMap]], i.e., a set value
  * plus metadata.
@@ -32,7 +29,7 @@ export interface MultiValueMapItem<V> {
   /**
    * This item's sender's [[CRuntime.replicaID]].
    */
-  readonly sender: string;
+  readonly senderID: string;
   /**
    * The sender's vector clock entry for the transaction
    * that created this item.
@@ -198,7 +195,7 @@ export class CMultiValueMap<K, V>
       for (const item of previousValue) {
         // Omit causally dominated entries, including previous sets from the
         // same transaction.
-        if (crdtMeta.vectorClock.get(item.sender) < item.senderCounter) {
+        if (crdtMeta.vectorClock.get(item.senderID) < item.senderCounter) {
           newItems.push(item);
         }
       }
@@ -207,7 +204,7 @@ export class CMultiValueMap<K, V>
       // It's a set operation; add the set item.
       newItems.push({
         value: this.valueSerializer.deserialize(decoded.value),
-        sender: meta.senderID,
+        senderID: meta.senderID,
         senderCounter: crdtMeta.senderCounter,
         ...(this.wallClockTime
           ? { wallClockTime: crdtMeta.wallClockTime! }
@@ -239,7 +236,7 @@ export class CMultiValueMap<K, V>
   ) {
     if (needsSort) {
       // Sort newItems to make its order deterministic (same across replicas).
-      newItems.sort((a, b) => (a.sender < b.sender ? -1 : 1));
+      newItems.sort((a, b) => (a.senderID < b.senderID ? -1 : 1));
     }
 
     const key = this.keySerializer.deserialize(
@@ -281,9 +278,11 @@ export class CMultiValueMap<K, V>
    * to conflicting concurrent [[set]]s at `key`,
    * or undefined if key is not present.
    *
-   * The return value is always non-empty, and its order is
+   * If defined, the return value is always non-empty, and its order is
    * eventually consistent. Specifically, it is
    * in order by [[MultiValueMapItem.sender]].
+   *
+   * Do not modify a returned array.
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
     return this.getInternal(Bytes.stringify(this.keySerializer.serialize(key)));
@@ -338,10 +337,10 @@ export class CMultiValueMap<K, V>
 
       for (let i = 0; i < items.length; i++) {
         entry.values![i] = this.valueSerializer.serialize(items[i].value);
-        let sender = indexBySender.get(items[i].sender);
+        let sender = indexBySender.get(items[i].senderID);
         if (sender === undefined) {
           sender = senders.length;
-          senders.push(items[i].sender);
+          senders.push(items[i].senderID);
         }
         entry.senders![i] = sender;
         entry.senderCounters![i] = items[i].senderCounter;
@@ -423,10 +422,10 @@ export class CMultiValueMap<K, V>
       for (const localItem of localItems) {
         if (
           // Case 2
-          crdtMeta.remoteVectorClock.get(localItem.sender) <
+          crdtMeta.remoteVectorClock.get(localItem.senderID) <
             localItem.senderCounter ||
           // Case 1
-          remoteMap.get(localItem.sender) === localItem.senderCounter
+          remoteMap.get(localItem.senderID) === localItem.senderCounter
         ) {
           newItems.push(localItem);
         }
@@ -440,7 +439,7 @@ export class CMultiValueMap<K, V>
         if (crdtMeta.localVectorClock.get(sender) < senderCounter) {
           newItems.push({
             value: this.valueSerializer.deserialize(remoteItems.values[i]),
-            sender,
+            senderID: sender,
             senderCounter,
             ...(this.wallClockTime
               ? {

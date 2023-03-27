@@ -14,7 +14,10 @@ import {
 } from "@collabs/core";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import { CRDTMetaRequest } from "./crdt_meta";
-import { CRDTMetaSerializer, SendCRDTMeta } from "./crdt_meta_implementations";
+import {
+  RuntimeMetaSerializer,
+  SendCRDTMeta,
+} from "./crdt_meta_implementations";
 
 class PublicCObject extends CObject {
   registerCollab<C extends Collab>(
@@ -212,7 +215,7 @@ export class CRuntime
 
     const meta = this.meta;
     this.crdtMeta!.freeze();
-    this.messageBatches.push([CRDTMetaSerializer.instance.serialize(meta)]);
+    this.messageBatches.push([RuntimeMetaSerializer.instance.serialize(meta)]);
     this.crdtMeta = null;
     this.meta = null;
 
@@ -362,7 +365,7 @@ export class CRuntime
     try {
       const messageStacks =
         MessageStacksSerializer.instance.deserialize(message);
-      const meta = CRDTMetaSerializer.instance.deserialize(
+      const meta = RuntimeMetaSerializer.instance.deserialize(
         (<Uint8Array[]>messageStacks.pop())[0]
       );
       this.buffer.add(messageStacks, meta);
@@ -450,10 +453,9 @@ export class CRuntime
       const loadCRDTMeta = this.buffer.load(savedStateTree.self!, this.used);
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
-        senderID: this.replicaID,
+        senderID: loadCRDTMeta.senderID,
         updateType: "savedState",
         isLocalOp: false,
-        // TODO: saver's ID instead of this.replicaID?
         runtimeExtra: loadCRDTMeta,
       };
       this.rootCollab.load(savedStateTree, meta);

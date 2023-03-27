@@ -5,9 +5,9 @@ import {
 } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
 import {
-  CRDTMetaSerializer,
   LoadCRDTMeta,
   ReceiveCRDTMeta,
+  RuntimeMetaSerializer,
 } from "./crdt_meta_implementations";
 
 /**
@@ -78,6 +78,7 @@ export class CausalMessageBuffer {
       meta: UpdateMeta
     ) => void
   ) {
+    // this.replicaID is the first map entry.
     this.vc.set(this.replicaID, 0);
   }
 
@@ -232,6 +233,8 @@ export class CausalMessageBuffer {
     const vcValues = new Array<number>(this.vc.size);
     let i = 0;
     for (const [key, value] of this.vc) {
+      // Since this.replicaID is the first map entry, it is stored in
+      // vcKeys[0].
       vcKeys[i] = key;
       vcValues[i] = value;
       i++;
@@ -244,7 +247,7 @@ export class CausalMessageBuffer {
       bufferMessageStacks[i] = MessageStacksSerializer.instance.serialize(
         this.buffer[i].messageStacks
       );
-      bufferMetas[i] = CRDTMetaSerializer.instance.serialize(
+      bufferMetas[i] = RuntimeMetaSerializer.instance.serialize(
         this.buffer[i].meta
       );
     }
@@ -315,13 +318,17 @@ export class CausalMessageBuffer {
         messageStacks: MessageStacksSerializer.instance.deserialize(
           decoded.bufferMessageStacks[i]
         ),
-        meta: CRDTMetaSerializer.instance.deserialize(decoded.bufferMetas[i]),
+        meta: RuntimeMetaSerializer.instance.deserialize(
+          decoded.bufferMetas[i]
+        ),
       });
     }
     if (used) this.bufferCheckIndex = 0;
     else this.bufferCheckIndex = decoded.bufferCheckIndex;
 
     return new LoadCRDTMeta(
+      // First vc entry is the sender's replicaID.
+      decoded.vcKeys[0],
       oldLocalVC,
       remoteVC,
       oldLocalLamportTimestamp,

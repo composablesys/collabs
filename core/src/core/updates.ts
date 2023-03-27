@@ -10,7 +10,7 @@ export interface UpdateMeta {
   /**
    * The replicaID that sent the update.
    *
-   * For saved state, this is the local replicaID.
+   * For saved state, this is the saver's replicaID.
    */
   readonly senderID: string;
   /**

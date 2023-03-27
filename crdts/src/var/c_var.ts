@@ -1,14 +1,14 @@
 import {
   CObject,
+  ConstSerializer,
   InitToken,
   IVar,
   Serializer,
-  TrivialSerializer,
   VarEventsRecord,
 } from "@collabs/core";
 import { Aggregator, CMultiValueMap } from "../map";
 
-const nullSerializer = new TrivialSerializer(null);
+const nullSerializer = new ConstSerializer(null);
 
 /**
  * Default aggregator: return the first item (first replicaID wins).

@@ -148,7 +148,6 @@ export class SendCRDTMeta implements CRDTMessageMeta {
   }
 }
 
-// TODO: also used for load
 export class ReceiveCRDTMeta implements CRDTMessageMeta {
   readonly vectorClock: VectorClock;
 
@@ -190,10 +189,8 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
  *
  * runtimeExtra field must either ReceiveCRDTMeta
  * or a frozen SendCRDTMeta.
- *
- * TODO: rename (UpdateMetaSerializer)? Not imp b/c not exported.
  */
-export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
+export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
   private constructor() {
     // Singleton.
   }
@@ -258,12 +255,12 @@ export class CRDTMetaSerializer implements Serializer<UpdateMeta> {
   }
 }
 
-// TODO: also used for load
 export class LoadCRDTMeta implements CRDTSavedStateMeta {
   readonly remoteVectorClock: BasicVectorClock;
   readonly localVectorClock: BasicVectorClock;
 
   constructor(
+    readonly senderID: string,
     localVCEntries: Map<string, number>,
     remoteVCEntries: Map<string, number>,
     readonly localLamportTimestamp: number,

@@ -32,8 +32,6 @@ export interface CounterEventsRecord extends CollabEventsRecord {
   Add: CounterAddEvent;
 }
 
-// TODO: memory warning (number of replicas that added) - worse than op-based.
-// TODO: reset? If so, oblivious version?
 /**
  * A collaborative counter with an [[add]] operation.
  *
@@ -110,7 +108,6 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
   protected savePrimitive(): Uint8Array | null {
     if (this.p.size === 0 && this.n.size === 0) return null;
 
-    // TODO: store maps as records, to avoid this copy?
     const message = CounterSave.create({
       p: Object.fromEntries(this.p),
       n: Object.fromEntries(this.n),

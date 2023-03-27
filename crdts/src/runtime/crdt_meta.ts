@@ -107,6 +107,10 @@ export interface CRDTMetaRequest extends MetaRequest {
  */
 export interface CRDTSavedStateMeta {
   /**
+   * Copy of [[UpdateMeta.senderID]], for convenience.
+   */
+  readonly senderID: string;
+  /**
    * Returns `replicaID`'s vector clock entry on the local replica.
    *
    * By definition, this equals the maximum `senderCounter` received from
