@@ -6,6 +6,7 @@ import {
   InitToken,
   ListEvent,
   Position,
+  SavedStateTree,
   Serializer,
   StringSerializer,
   UpdateMeta,
@@ -46,8 +47,6 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   protected readonly valueSerializer: Serializer<T>;
   protected readonly valueArraySerializer: Serializer<T[]>;
 
-  private sourceLoadEvent: PositionSourceLoadEvent | undefined = undefined;
-
   /**
    * Constructs a CValueList.
    *
@@ -77,10 +76,6 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       (init) => new CPositionSource(init)
     );
     this.list = new LocalList(this.positionSource);
-
-    this.positionSource.on("Load", (e) => {
-      this.sourceLoadEvent = e;
-    });
 
     this.deleteMessenger = super.registerCollab(
       "1",
@@ -270,11 +265,24 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return new LocalList(this.positionSource);
   }
 
-  protected saveObject(): Uint8Array {
-    return this.list.save(this.valueArraySerializer);
+  save(): SavedStateTree {
+    const ans = super.save();
+    ans.self = this.list.save(this.valueArraySerializer);
+    return ans;
   }
 
-  protected loadObject(savedState: Uint8Array, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+    let sourceLoadEvent!: PositionSourceLoadEvent;
+    this.positionSource.on(
+      "Load",
+      (e) => {
+        sourceLoadEvent = e;
+      },
+      { once: true }
+    );
+    super.load(savedStateTree, meta);
+    const savedState = savedStateTree.self!;
+
     if (this.list.inInitialState) {
       // Shortcut: No need to merge, just load the state directly.
       this.list.load(savedState, this.valueArraySerializer);
@@ -292,11 +300,6 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // We need to merge savedState with our existing state.
       const remote = new LocalList<T>(this.positionSource);
       remote.load(savedState, this.valueArraySerializer);
-      if (this.sourceLoadEvent === undefined) {
-        throw new Error("Internal error: this.sourceLoadEvent is undefined");
-      }
-      const sourceLoadEvent = this.sourceLoadEvent;
-      this.sourceLoadEvent = undefined;
 
       // 1. Delete values whose positions were known to the remote CPositionSource
       // but not present in the remote list.

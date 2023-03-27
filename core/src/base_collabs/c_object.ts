@@ -125,14 +125,14 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     child.receive(messageStack, meta);
   }
 
-  save(): SavedStateTree | null {
+  // OPT: Return null if all children did. Makes overriding trickier, though.
+  save(): SavedStateTree {
     const childSaves = new Map<string, SavedStateTree>();
     for (const [name, child] of this.children) {
       const childSave = child.save();
       if (childSave !== null) childSaves.set(name, childSave);
     }
     return {
-      self: this.saveObject() ?? undefined,
       children: childSaves,
     };
   }
@@ -148,33 +148,6 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
         }
       }
     }
-    this.loadObject(savedStateTree.self ?? null, meta);
-  }
-
-  /**
-   * Override to save extra state, which is passed
-   * to [[loadObject]] at the end of [[load]].
-   */
-  protected saveObject(): Uint8Array | null {
-    return null;
-  }
-
-  /**
-   * Override to load extra state, using `savedState` from
-   * [[saveObject]]. You can also do post-processing
-   * of child saves, e.g., computing functional
-   * views of child states.
-   *
-   * This is called after the children are loaded.
-   * Also, this is always called, even if [[saveObject]] returned
-   * null.
-   *
-   * @param  savedState the output of [[saveObject]] on
-   * a previous saved instance, possibly null.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected loadObject(savedState: Uint8Array | null, meta: UpdateMeta): void {
-    // Does nothing by default.
   }
 
   idOf<C extends Collab>(descendant: C): CollabID<C> {

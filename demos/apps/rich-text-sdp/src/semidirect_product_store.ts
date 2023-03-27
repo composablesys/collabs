@@ -4,6 +4,7 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/collabs";
+import { SavedStateTree, UpdateMeta } from "@collabs/core";
 import { CRDTMeta, CRuntime } from "@collabs/crdts";
 import {
   ISemidirectProductStoreSenderHistory,
@@ -208,7 +209,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return true;
   }
 
-  protected saveObject(): Uint8Array {
+  save(): SavedStateTree {
+    const ans = super.save();
+
     const historySave: {
       [sender: string]: ISemidirectProductStoreSenderHistory;
     } = {};
@@ -227,10 +230,14 @@ export class SemidirectProductStore<M1, M2> extends CObject {
       receiptCounter: this.receiptCounter,
       history: historySave,
     });
-    return SemidirectProductStoreSave.encode(saveMessage).finish();
+    ans.self = SemidirectProductStoreSave.encode(saveMessage).finish();
+    return ans;
   }
 
-  protected loadObject(savedState: Uint8Array) {
+  load(savedStateTree: SavedStateTree, meta: UpdateMeta) {
+    super.load(savedStateTree, meta);
+    const savedState = savedStateTree.self!;
+
     const saveMessage = SemidirectProductStoreSave.decode(savedState);
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {
