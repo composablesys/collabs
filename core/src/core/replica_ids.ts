@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import type seedrandom from "seedrandom";
 
 /**
  * Utitilies for generating [[IRuntime.replicaID]]s.

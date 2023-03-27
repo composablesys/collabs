@@ -1,4 +1,5 @@
 import { ReplicaIDs } from "@collabs/core";
+import type seedrandom from "seedrandom";
 import { CRuntime } from "../runtime";
 
 /**
