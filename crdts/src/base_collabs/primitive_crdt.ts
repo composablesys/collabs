@@ -96,7 +96,7 @@ export abstract class PrimitiveCRDT<
     crdtMeta: CRDTMessageMeta
   ): void;
 
-  protected savePrimitive(): Uint8Array | null {
+  protected savePrimitive(): Uint8Array {
     return this.saveCRDT();
   }
 
@@ -117,14 +117,9 @@ export abstract class PrimitiveCRDT<
    * is running. Calling `saveCRDT` should not affect this Collab's
    * user-visible state.
    *
-   * This method may return `null` if
-   * the saved state is trivial; replicas loading the whole document
-   * will then skip calling [[loadCRDT]] on this Collab's replica.
-   *
-   * @return The saved state, or null
-   * if there is no state to save.
+   * @return The saved state.
    */
-  protected abstract saveCRDT(): Uint8Array | null;
+  protected abstract saveCRDT(): Uint8Array;
 
   /**
    * Called by this Collab's parent to load some saved state.

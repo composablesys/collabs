@@ -452,8 +452,8 @@ export abstract class MultipleSemidirectProduct<
     }
   }
 
-  save(): SavedStateTree | null {
-    const childSaves = new Map<string, SavedStateTree | null>();
+  save(): SavedStateTree {
+    const childSaves = new Map<string, SavedStateTree>();
     for (const [index, child] of this.crdts.entries()) {
       childSaves.set(index + "", child.save());
     }

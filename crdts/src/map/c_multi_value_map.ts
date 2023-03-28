@@ -317,10 +317,7 @@ export class CMultiValueMap<K, V>
     }
   }
 
-  protected saveCRDT(): Uint8Array | null {
-    // Even if we have no state, we cannot return null, because load()
-    // needs to look at our VC.
-
+  protected saveCRDT(): Uint8Array {
     const entries: Record<string, IMultiValueMapItemsSave> = {};
     const senders: string[] = [];
     const indexBySender = new Map<string, number>();

@@ -19,9 +19,7 @@ message MessageStacksMessage {
 }
 
 message SavedStateTreeMessage {
-  // Only present when true.
-  optional bool isNull = 1;
-  optional bytes self = 2;
-  repeated string childrenKeys = 3;
-  repeated SavedStateTreeMessage childrenValues = 4;
+  optional bytes self = 1;
+  repeated string childrenKeys = 2;
+  repeated SavedStateTreeMessage childrenValues = 3;
 }

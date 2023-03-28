@@ -236,18 +236,13 @@ export abstract class Collab<
    * is running. Calling `save` should not affect this Collab's
    * user-visible state.
    *
-   * This method may return `null` if
-   * the saved state is trivial; replicas loading the whole document
-   * will then skip calling [[load]] on this Collab's replica.
-   *
    * For convenience, the saved state may be expressed as a tree of
    * Uint8Arrays instead of just a single Uint8Array; see
    * [[SaveStateTree]]'s docs.
    *
-   * @return The saved state, or null
-   * if there is no state to save.
+   * @return The saved state.
    */
-  abstract save(): SavedStateTree | null;
+  abstract save(): SavedStateTree;
 
   /**
    * Internal (parent) use only.

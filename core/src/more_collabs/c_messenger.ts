@@ -84,7 +84,7 @@ export class CMessenger<M> extends CPrimitive<MessengerEventsRecord<M>> {
   }
 
   savePrimitive() {
-    return null;
+    return new Uint8Array();
   }
 
   loadPrimitive(): void {

@@ -78,11 +78,11 @@ export abstract class CPrimitive<
     meta: UpdateMeta
   ): void;
 
-  save(): SavedStateTree | null {
-    const self = this.savePrimitive();
-    return self === null ? null : { self };
+  save(): SavedStateTree {
+    return { self: this.savePrimitive() };
   }
 
+  // OPT: allow returning undefined, then call loadPrimitive(undefined).
   /**
    * Returns saved state describing the current state of this Collab.
    *
@@ -96,14 +96,9 @@ export abstract class CPrimitive<
    * is running. Calling `savePrimitive` should not affect this Collab's
    * user-visible state.
    *
-   * This method may return `null` if
-   * the saved state is trivial; replicas loading the whole document
-   * will then skip calling [[loadPrimitive]] on this Collab's replica.
-   *
-   * @return The saved state, or null
-   * if there is no state to save.
+   * @return The saved state.
    */
-  protected abstract savePrimitive(): Uint8Array | null;
+  protected abstract savePrimitive(): Uint8Array;
 
   load(savedState: SavedStateTree, meta: UpdateMeta): void {
     this.loadPrimitive(savedState.self!, meta);

@@ -320,18 +320,12 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return this.argsSerializer.deserialize(argsSerialized);
   }
 
-  save(): SavedStateTree | null {
-    // Even if we have no state, we cannot return null, because load()
-    // needs to look at our VC.
-
+  save(): SavedStateTree {
     const args = new Array<Uint8Array>(this.size);
-    const childSaves = new Map<string, SavedStateTree | null>();
+    const childSaves = new Map<string, SavedStateTree>();
     let i = 0;
     for (const [name, child] of this.children) {
       args[i] = this.constructorArgs.get(name)!;
-      // It's important that we record the child even if its save
-      // is null. This is used to align with constructorArgs and
-      // to indicate which children are present.
       childSaves.set(name, child.save());
       i++;
     }
@@ -377,11 +371,9 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
 
     // 3. Load children that have a save and are still present.
     for (const [name, childSave] of childSaves) {
-      if (childSave !== null) {
-        const child = this.children.get(name);
-        if (child !== undefined) {
-          child.load(childSave, meta);
-        }
+      const child = this.children.get(name);
+      if (child !== undefined) {
+        child.load(childSave, meta);
       }
     }
   }

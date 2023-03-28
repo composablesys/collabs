@@ -77,5 +77,5 @@ export interface SavedStateTree {
    *
    * Normalization: undefined -> empty map.
    */
-  children?: Map<string, SavedStateTree | null>;
+  children?: Map<string, SavedStateTree>;
 }

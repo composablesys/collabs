@@ -567,7 +567,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return [waypoint, valueIndex];
   }
 
-  protected savePrimitive(): Uint8Array | null {
+  protected savePrimitive(): Uint8Array {
     const replicaIDs: string[] = [];
     const replicaCounts: number[] = [];
     // Maps replicaIDs to the first index corresponding

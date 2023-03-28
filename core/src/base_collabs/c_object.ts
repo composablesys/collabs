@@ -147,8 +147,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   save(): SavedStateTree {
     const childSaves = new Map<string, SavedStateTree>();
     for (const [name, child] of this.children) {
-      const childSave = child.save();
-      if (childSave !== null) childSaves.set(name, childSave);
+      childSaves.set(name, child.save());
     }
     return {
       children: childSaves,
@@ -182,7 +181,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
         // For versioning purposes, skip loading children that no longer exist.
         if (child !== undefined) {
           // We don't save nulls, so can assert childSave!.
-          child.load(childSave!, meta);
+          child.load(childSave, meta);
         }
       }
     }

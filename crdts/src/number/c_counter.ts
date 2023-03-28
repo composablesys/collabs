@@ -105,9 +105,7 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
     return this._value;
   }
 
-  protected savePrimitive(): Uint8Array | null {
-    if (this.p.size === 0 && this.n.size === 0) return null;
-
+  protected savePrimitive(): Uint8Array {
     const message = CounterSave.create({
       p: Object.fromEntries(this.p),
       n: Object.fromEntries(this.n),

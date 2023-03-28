@@ -304,13 +304,12 @@ export class CLazyMap<K, C extends Collab>
     return this.stringAsKey(searchElement.name);
   }
 
-  save(): SavedStateTree | null {
+  save(): SavedStateTree {
     const childSaves = new Map<string, SavedStateTree>();
     // Only need to save nontrivial children, since trivial
     // children are in their initial states.
     for (const [name, child] of this.nontrivialMap) {
-      const childSave = child.save();
-      if (childSave !== null) childSaves.set(name, childSave);
+      childSaves.set(name, child.save());
     }
     return {
       children: childSaves,
@@ -321,8 +320,7 @@ export class CLazyMap<K, C extends Collab>
     if (savedStateTree.children !== undefined) {
       for (const [name, childSave] of savedStateTree.children) {
         const child = this.getInternal(this.stringAsKey(name), name, true)[0];
-        // We don't save nulls, so can assert childSave!.
-        child.load(childSave!, meta);
+        child.load(childSave, meta);
       }
     }
   }
