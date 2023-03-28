@@ -53,7 +53,7 @@ export interface RuntimeEventsRecord {
   Send: SendEvent;
   /**
    * Emitted at the end of each transaction (local or remote)
-   * and at the end of [[CRuntime.load]] / [[AbstractDoc.load]].
+   * and at the end of loading a saved state.
    *
    * The event's [[CollabEvent.updateMeta]] is the same as
    * for all of the transaction's events.
@@ -240,8 +240,8 @@ export class CRuntime
    * not wrapped in a `transact` call use the constructor's
    * [[RuntimeOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
-   * In particular, only its `info` is used.
+   * If there are nested `transact` calls (possibly due to
+   * [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
    */
   transact(f: () => void) {
     const alreadyInTransaction = this.inTransaction;
@@ -346,7 +346,7 @@ export class CRuntime
    * local changes.
    *
    * Messages from other replicas should be received eventually and at-least-once. Arbitrary delays, duplicates,
-   * reordering, and delivery of messages from this replica
+   * reordering, and delivery of (redundant) messages from this replica
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
    */
@@ -420,17 +420,14 @@ export class CRuntime
    * a call to [[load]] on a CRuntime that is a replica
    * of this one.
    *
-   * Calling load is equivalent to calling [[receive]]
-   * on every message that influenced the saved state,
+   * The local Collabs merge in the saved state, change the
+   * local state accordingly, and emit events describing the
+   * local changes.
+   *
+   * Calling load is roughly equivalent to calling [[receive]]
+   * on every message that influenced the saved state
+   * (skipping already-received messages),
    * but it is typically much more efficient.
-   *
-   * Note that loading will **not** trigger events on
-   * Collabs, even if their state changes.
-   * It will trigger "Transaction" and "Change" events on this CRuntime.
-   *
-   * TODO: events: one Transaction after load, then one per buffered
-   * tr that gets delivered. One "Change" at end. Also update in
-   * "Transaction" docs.
    *
    * @param savedState Saved state from another replica's [[save]] call.
    */

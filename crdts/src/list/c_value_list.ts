@@ -30,10 +30,6 @@ import { LocalList } from "./local_list";
  * other replicas. If you need to mutate values internally,
  * instead use a [[CList]].
  *
- * *Positions* are described in [IList](../../core/interfaces/IList.html).
- *
- * TODO: during load, events are "live", in order (delete reversed, then insert).
- *
  * See also: [[CList]], [[CText]].
  *
  * @typeParam T The value type.
@@ -292,9 +288,6 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         values[i] = value;
         positions[i] = position;
       }
-      // OPT: only materialize positions on request? Lot of string encoding, memory.
-      // TODO: Perhaps change IList event to use an iterable, so that you can hand it off to
-      // a wrapper event without materializing it? Likewise for values.
       this.emit("Insert", { index: 0, values, positions, meta });
     } else {
       // We need to merge savedState with our existing state.

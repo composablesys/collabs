@@ -174,14 +174,14 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    * not wrapped in a `transact` call use the constructor's
    * [[RuntimeOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
-   * In particular, only its `info` is used.
+   * If there are nested `transact` calls (possibly due to
+   * [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
    *
    * @param info An optional info string to attach to the transaction.
    * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
    */
-  transact(f: () => void, info?: string) {
-    this.runtime.transact(f, info);
+  transact(f: () => void) {
+    this.runtime.transact(f);
   }
 
   private loadFurtherMessages: Uint8Array[] | null = null;

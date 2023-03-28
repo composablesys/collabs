@@ -126,6 +126,24 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   }
 
   // OPT: Return null if all children did. Makes overriding trickier, though.
+
+  /**
+   * Internal (parent) use only.
+   *
+   * Returns saved state describing the current state of this CObject.
+   * See [[Collab.save]].
+   *
+   * A CObject subclass may override this method to save additional state.
+   * It is recommended to do so as follows:
+   * ```ts
+   * save() {
+   *   const ans = super.save();
+   *   // Put your extra saved state in ans.self, which is otherwise unused.
+   *   ans.self = <subclass's saved state>;
+   *   return ans;
+   * }
+   * ```
+   */
   save(): SavedStateTree {
     const childSaves = new Map<string, SavedStateTree>();
     for (const [name, child] of this.children) {
@@ -137,6 +155,26 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     };
   }
 
+  /**
+   * Internal (parent) use only.
+   *
+   * Called by this Collab's parent to load saved state. See [[Collab.load]].
+   *
+   * A CObject subclass may override this method to load additional state from
+   * [[Collab.save]] or to perform extra setup - e.g., refreshing functional
+   * views that were not automatically updated by children's load events.
+   * It is recommended to do so as follows:
+   * ```ts
+   * load(savedStateTree: SavedStateTree, meta: UpdateMeta) {
+   *   super.load(savedStateTree, meta);
+   *   // Process your extra saved state from savedStateTree.self.
+   *   const savedState = savedStateTree.self!;
+   *   ...
+   *   // Perform extra setup as needed.
+   *   ...
+   * }
+   * ```
+   */
   load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
     if (savedStateTree.children !== undefined) {
       for (const [name, childSave] of savedStateTree.children) {

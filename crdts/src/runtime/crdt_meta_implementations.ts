@@ -188,10 +188,12 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
 }
 
 /**
- * Serializer for UpdateMeta produced by CRuntime.
+ * Serializer for message UpdateMeta produced by CRuntime.
  *
- * runtimeExtra field must either ReceiveCRDTMeta
+ * runtimeExtra field must be either ReceiveCRDTMeta
  * or a frozen SendCRDTMeta.
+ *
+ * Not for saved state's UpdateMeta, which instead use LoadCRDTMeta.
  */
 export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
   private constructor() {

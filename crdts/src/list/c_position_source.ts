@@ -14,26 +14,59 @@ import {
 
 const RADIX = 36;
 
-// TODO: not emitted during Load.
+/**
+ * Event emitted when a [[PositionSource.create]] message is received.
+ *
+ * This event is *not* emitted during loading;
+ * [[PositionSourceLoadEvent]] is emitted instead.
+ */
 export interface PositionSourceCreateEvent extends CollabEvent {
-  readonly waypoint: Waypoint;
-  readonly valueIndex: number;
-  readonly count: number;
+  /**
+   * The created positions, in list order.
+   *
+   * Internally, they are ([[waypoint]], [[valueIndex]] + i)
+   * for i in range [0, [[count]]).
+   */
   readonly positions: Position[];
+  /**
+   * The positions' waypoint.
+   */
+  readonly waypoint: Waypoint;
+  /**
+   * The first position's valueIndex. Further positions are in
+   * a sequence with increasing valueIndex.
+   */
+  readonly valueIndex: number;
+  /**
+   * The number of created positions.
+   */
+  readonly count: number;
+  /**
+   * The optional `info` argument to [[CPositionSource.create]].
+   */
   readonly info?: Uint8Array;
 }
 
 /**
- * Emitted by a [[PositionSource]] at the end of [[PositionSource.load]].
+ * Event emitted by a [[PositionSource]] at the end of [[PositionSource.load]].
  */
 export class PositionSourceLoadEvent implements CollabEvent {
   constructor(
     private readonly source: CPositionSource,
-    /** Diff of local and remote waypoint totals (before loading - result is max). */
+    /**
+     * Diff between [[Waypoint.valueCount]] values in the local state
+     * (prior to loading) and the remoted state (the `savedState`
+     * passed to `load`).
+     */
     readonly waypointDiffs: Map<Waypoint, { local: number; remote: number }>,
     readonly meta: UpdateMeta
   ) {}
 
+  /**
+   * Returns whether was position is new relative to the local
+   * state, i.e., it was not present locally before
+   * `load` was called.
+   */
   isNewLocally(position: Position): boolean {
     const [waypoint, valueIndex] = this.source.decode(position);
     const diff = this.waypointDiffs.get(waypoint);
@@ -41,6 +74,10 @@ export class PositionSourceLoadEvent implements CollabEvent {
     return valueIndex > diff.local;
   }
 
+  /**
+   * Returns whether position is new relative to the remote
+   * state, i.e., it was not present in `savedState`.
+   */
   isNewRemotely(position: Position): boolean {
     const [waypoint, valueIndex] = this.source.decode(position);
     const diff = this.waypointDiffs.get(waypoint);
@@ -54,7 +91,7 @@ export class PositionSourceLoadEvent implements CollabEvent {
  */
 export interface PositionSourceEventsRecord extends CollabEventsRecord {
   /**
-   * TODO
+   * Emitted when a [[PositionSource.create]] message is received.
    */
   Create: PositionSourceCreateEvent;
   /**
@@ -63,59 +100,61 @@ export interface PositionSourceEventsRecord extends CollabEventsRecord {
   Load: PositionSourceLoadEvent;
 }
 
-// TODO: doc tree structure
-
 /**
- * Internal ([[CPositionSource]] and [[LocalList]]) use only.
+ * A waypoint in the tree of positions. See
+ * [[CPositionSource]] for a description of the tree.
  *
- * A waypoint in the tree of positions. See the comments above
- * [[CPositionSource]] for a description of the overall algorithm.
+ * Each waypoint is identified by its pair ([[senderID]], [[counter]]).
  */
 export class Waypoint {
   constructor(
     /**
-     * "" for the root.
+     * The waypoint sender's replicaID, or
+     * "" for the root waypoint.
      */
     readonly senderID: string,
     /**
-     * Nonnegative, increases monotonically (so you can
-     * store value arrays in an array.).
+     * A counter for waypoints send by [[senderID]].
+     * Starts at 0 and increases contiguously.
      */
     readonly counter: number,
     /**
-     * null only for the root.
+     * The waypoint for this waypoint's parent position,
+     * or null if this is the root waypoint.
      */
     readonly parentWaypoint: Waypoint | null,
     /**
-     * The valueIndex of our true parent (a value within
-     * parentWaypoint).
+     * The valueIndex for this waypoint's parent position.
      *
-     * Unspecified for the root.
+     * Unspecified for the root waypoint.
      */
     readonly parentValueIndex: number,
     /**
-     * Our side: right (true) or left (false) child of parent.
+     * This waypoint's side: a right (true) or left (false) child of
+     * the parent position.
      */
     readonly isRight: boolean,
     /**
      * The number of values (present or not) at this waypoint,
-     * i.e., the number of valid valueIndex's.
+     * i.e., the number of valid valueIndex's. Always positive.
      *
-     * Always positive.
+     * Only [[CPositionSource]] may mutate this value.
      */
     public valueCount: number
   ) {}
 
   /**
-   * Child waypoints in sort order: left children
-   * by valueIndex, then right children by reverse valueIndex.
-   * Ties broken by senderID.
+   * This waypoint's child waypoints in sort order: left children
+   * by valueIndex, then right children by reverse valueIndex,
+   * with ties broken by senderID.
+   *
+   * Only [[CPositionSource]] may mutate this array.
    */
   readonly children: Waypoint[] = [];
 }
 
 /**
- * Generates positions for use in a collaborative list.
+ * A source of [[Position]]s for use in a collaborative list.
  *
  * This is a low-level API intended for internal use by list CRDT implementations.
  * In most apps, you are better off using [[CValueList]] or [[CList]].
@@ -126,6 +165,40 @@ export class Waypoint {
  * and values.
  * Note that LocalList is a local (non-collaborative) data structure, i.e.,
  * the value assignments are not automatically replicated.
+ *
+ * ### Waypoints
+ *
+ * Internally, each [[Position]] is represented as a pair
+ * (waypoint, valueIndex), where waypoint is a [[Waypoint]]
+ * and valueIndex is a nonnegative
+ * integer that increases monotonically. Methods [[decoded]],
+ * [[encode]], and [[encodeAll]] convert between the two representations.
+ *
+ * Optimizing users may prefer the internal
+ * representation, e.g., storing a map from waypoints to value
+ * arrays instead of a map from Positions to values.
+ *
+ * ### List Order
+ *
+ * The positions are ordered using a tree.
+ * Each waypoint's positions form a descending, left-to-right branch
+ * in the tree rooted at the position with valueIndex 0.
+ * The position with valueIndex 0 is a child of the waypoint's
+ * parent position, on the side given by [[Waypoint.isRight]].
+ *
+ * The position order is then an in-order traversal of this tree:
+ * we traverse a position's left children, then visit
+ * the position, then traverse its right children.
+ * Same-side siblings are ordered by the tiebreakers:
+ * - A position belonging to the same waypoint as the parent
+ * (just with valueIndex + 1) is to the left of any other siblings.
+ * - Other siblings (each belonging to different waypoints and with
+ * valueIndex 0) are sorted lexicographically by their waypoints'
+ * [[Waypoint.senderID]]s. We call these *waypoint children*.
+ *
+ * Note that positions belonging to the same waypoint are contiguous
+ * when first created. Later, (left-side) waypoint children may
+ * appear between them.
  */
 export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   /**
@@ -133,12 +206,17 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
    */
   private readonly waypointsByID = new Map<string, Waypoint[]>();
   /**
-   * Internal ([[LocalList]]) use only.
-   *
    * The root waypoint.
+   *
+   * The special position (rootWaypoint, 0) is the root of the tree of
+   * positions. It technically appears first in the list of positions
+   * but is usually not used.
    */
   readonly rootWaypoint: Waypoint;
 
+  /**
+   * Constructs a CPositionSource.
+   */
   constructor(init: InitToken) {
     super(init);
 
@@ -151,11 +229,16 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   private createPositionsRet?: Position[] = undefined;
 
   /**
+   * Creates `count` new positions just after prevPosition,
+   * i.e., between prevPosition and the next position in the
+   * list order. The positions are created collaboratively
+   * (replicated on all devices).
    *
-   * @param prevPosition
-   * @param count
-   * @returns Created positions. Decoded first and inc valueIndex
-   * to decode all.
+   * @param prevPosition The previous position, or null to
+   * create position at the beginning of the list.
+   * @returns The created positions, in list order.
+   * Internally, they use the same waypoint with contiguously
+   * increasing valueIndex.
    */
   createPositions(
     /** null to create at beginning. */
@@ -410,9 +493,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   }
 
   /**
-   * Internal ([[LocalList]]) use only.
-   *
-   * Returns the waypoint identified by (senderID, counter),
+   * Returns the waypoint with the given senderID and counter,
    * throwing an error if it does not exist.
    */
   getWaypoint(senderID: string, counter: number): Waypoint {
@@ -435,8 +516,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   }
 
   /**
-   * Internal ([[LocalList]]) use only.
-   *
    * Returns the [[Position]] representation of (waypoint, valueIndex).
    *
    * Invert with [[decode]].
@@ -448,6 +527,10 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     }`;
   }
 
+  /**
+   * Returns the positions representing (waypoint, valueIndex + i)
+   * for i in range [0, count).
+   */
   encodeAll(waypoint: Waypoint, valueIndex: number, count: number): Position[] {
     const ans = new Array<Position>(count);
     for (let i = 0; i < count; i++) {
@@ -457,21 +540,21 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   }
 
   /**
-   * Internal ([[LocalList]]) use only.
-   *
    * Returns the pair (waypoint, valueIndex) encoded by `position`,
    * throwing an error if the position is invalid.
    *
    * Invert with [[encode]].
    */
   decode(position: Position): [waypoint: Waypoint, valueIndex: number] {
-    // TODO: error checking
     const dot = position.indexOf(".");
     const comma = position.indexOf(",", dot);
 
     const counter = Number.parseInt(position.slice(0, dot), RADIX);
     const valueIndex = Number.parseInt(position.slice(dot + 1, comma), RADIX);
     const senderID = position.slice(comma + 1);
+    if (dot === -1 || comma === -1 || isNaN(counter) || isNaN(valueIndex)) {
+      throw new Error(`Not a Position: ${position}`);
+    }
 
     const waypoint = this.getWaypoint(senderID, counter);
 

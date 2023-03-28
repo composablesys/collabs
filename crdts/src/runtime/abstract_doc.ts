@@ -60,7 +60,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
 
   /**
    * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
-   * The message's sender must be an AbstractDoc that is a
+   * The message's sender must be a [[CRuntime]] that is a
    * replica of this one.
    *
    * The local Collabs process the message, change the
@@ -68,7 +68,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * local changes.
    *
    * Messages from other replicas should be received eventually and at-least-once. Arbitrary delays, duplicates,
-   * reordering, and delivery of messages from this replica
+   * reordering, and delivery of (redundant) messages from this replica
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
    */
@@ -90,16 +90,17 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
 
   /**
    * Loads saved state. The saved state must be from
-   * a call to [[load]] on an AbstractDoc that is a replica
+   * a call to [[load]] on a CRuntime that is a replica
    * of this one.
    *
-   * Calling load is equivalent to calling [[receive]]
-   * on every message that influenced the saved state,
-   * but it is typically much more efficient.
+   * The local Collabs merge in the saved state, change the
+   * local state accordingly, and emit events describing the
+   * local changes.
    *
-   * Note that loading will **not** trigger events on
-   * Collabs, even if their state changes.
-   * It will trigger "Load" and "Change" events on this AbstractDoc.
+   * Calling load is roughly equivalent to calling [[receive]]
+   * on every message that influenced the saved state
+   * (skipping already-received messages),
+   * but it is typically much more efficient.
    *
    * @param savedState Saved state from another replica's [[save]] call.
    */

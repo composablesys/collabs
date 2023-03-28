@@ -81,11 +81,3 @@ More info: [Initialization](./initialization.html).
 Do not attempt operations that require [strong consistency](https://en.wikipedia.org/wiki/Strong_consistency), e.g., transferring money between bank accounts. Strong consistency is impossible within the library, and any workaround you find will be flawed. Instead, you should either change your application so that it only requires eventual consistency, or use an external service for such operations (e.g., use a dedicated server to manage accounts).
 
 See also: [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem).
-
-<!-- ## Loading Too Early
-
-TODO: loading in general (should have own guide)
-
-- loading gotchas (performing ops before loading (block the user input in case loading takes some time); not setting up full state before loading)
-
-Separate out things that will cause errors immediately (catchable with tests) vs subtler things? Latter are more pernicious. (Order by importance.) -->

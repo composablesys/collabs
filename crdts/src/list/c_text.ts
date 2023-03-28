@@ -66,8 +66,6 @@ export interface TextEventsRecord extends CollabEventsRecord {
  * is a single character (UTF-16 codepoint),
  * but with an API more like [string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String).
  *
- * *Positions* are described in [IList](../../core/interfaces/IList.html).
- *
  * See also:
  * - [[CValueList]], [[CList]]: for general lists.
  * - [[CVar]]`<string>`: for a string that can be set and get atomically instead of

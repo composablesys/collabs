@@ -2,20 +2,13 @@ import { MetaRequest } from "@collabs/core";
 
 export interface VectorClock {
   /**
-   * Returns `replicaID`'s vector clock entry for the received message.
+   * Returns `replicaID`'s vector clock entry for the update.
    *
    * By definition, this equals the maximum `senderCounter` received from
-   * `replicaID` before this message was sent,
+   * `replicaID` before this update was sent/saved,
    * or 0 if no messages had been received from `replicaID`.
-   *
-   * When `replicaID` is `senderID`, returns [[senderCounter]].
-   *
-   * If not requested or accessed by the sender, returns 0.
-   * (TODO: only for messages; for saves, 0 only if never seen.)
    */
   get(replicaID: string): number;
-
-  // TODO: entries()? Copy ability? Only if justified.
 }
 
 // OPT: for load and save, include an array of all replicaIDs, so that
@@ -51,7 +44,13 @@ export interface CRDTMessageMeta {
    * transactions sent by [[sender]].
    */
   readonly senderCounter: number;
-  /** TODO: the vector clock (requested entries only). */
+  /**
+   * The message's vector clock.
+   *
+   * In the vector clock, entries that were not
+   * accessed or requested by the sender return 0, regardless of
+   * the actual value.
+   */
   readonly vectorClock: VectorClock;
   /**
    * The sender's wall clock time (`Date.now()`)
@@ -103,7 +102,8 @@ export interface CRDTMetaRequest extends MetaRequest {
  * whenever it delivers a saved state to [[Collab.load]].
  * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
- * Unlike [[CRDTMessageMeta]], all properties are always included.
+ * Unlike [[CRDTMessageMeta]], all properties are always included;
+ * there is no "request" mechanism.
  */
 export interface CRDTSavedStateMeta {
   /**
@@ -111,25 +111,24 @@ export interface CRDTSavedStateMeta {
    */
   readonly senderID: string;
   /**
-   * Returns `replicaID`'s vector clock entry on the local replica.
-   *
-   * By definition, this equals the maximum `senderCounter` received from
-   * `replicaID` by this replica,
-   * or 0 if no messages have been received from `replicaID`.
-   *
-   * TODO: rewrite
+   * The local replica's vector clock (prior to merging
+   * savedState's vector clock).
    */
   localVectorClock: VectorClock;
   /**
-   * Returns `replicaID`'s vector clock entry for the saved state.
-   *
-   * By definition, this equals the maximum `senderCounter` received from
-   * `replicaID` before the state was saved,
-   * or 0 if no messages had been received from `replicaID`.
-   *
-   * TODO: rewrite
+   * The saved state's vector clock, i.e., the remote replica's
+   * vector clock at the time [[Collab.save]] was called.
    */
   remoteVectorClock: VectorClock;
+  /**
+   * The local replica's [Lamport timestamp](https://en.wikipedia.org/wiki/Lamport_timestamp)
+   * (prior to merging savedState's Lamport timestamp).
+   */
   localLamportTimestamp: number;
+  /**
+   * The saved state's [Lamport timestamp](https://en.wikipedia.org/wiki/Lamport_timestamp),
+   * i.e., the remote replica's Lamport timestamp at the time [[Collab.save]]
+   * was called.
+   */
   remoteLamportTimestamp: number;
 }

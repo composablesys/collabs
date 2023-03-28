@@ -11,7 +11,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | Ordinary type `X`                                                                        | Collaborative version `C(X)`                                                                                       |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Any immutable `T`                                                                        | [`CVar<T>`](../api/collabs/classes/CVar.html)                                                                      |
-| `boolean`                                                                                | [`TrueWinsCBoolean`](../api/collabs/classes/CBoolean.html)                                                         |
+| `boolean`                                                                                | [`CBoolean`](../api/collabs/classes/CBoolean.html)                                                                 |
 | `number` (for counting or adding)                                                        | [`CCounter`](../api/collabs/classes/CCounter.html)                                                                 |
 | `string` (as texts in a text box with cursors)                                           | [`CText`](../api/collabs/classes/CText.html)                                                                       |
 | Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                                                                   |

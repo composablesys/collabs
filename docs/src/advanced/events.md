@@ -13,14 +13,13 @@ runtime.on("Change", () => {
 });
 ```
 
-This works because a `CRuntime` "Change" event is dispatched whenever the local user performs an operation or a message is received from another user. Of course, it might be inefficient or interact poorly with the UI.
+This works because a `CRuntime` "Change" event is dispatched whenever the local user performs an operation, a message is received from another user, or a saved state is loaded (merged). Of course, it might be inefficient or interact poorly with the UI.
 
 ## API
 
 See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `CRuntime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
 
 - `on` adds an event listener. Calling `on`'s return value removes the listener.
-- `once` adds an event listener that is called only once, on the next event. Calling `once`'s return value before the next event removes the listener.
 - `emit` (protected) emits an event. Call this from within a custom `Collab` to emit your own events.
 
 Each class's allowed events are typed using the `Events` type parameter. This has the form of an interface mapping `string` event names to their event type:
@@ -45,7 +44,14 @@ When listening on a `Collab`'s events, you should register event listeners as so
 
 When listening on events from a `Collab` that is created dynamically in a collection (e.g., `CLazyMap`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add"/"Set"/"Insert" event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
 
-**Note:** Events are not dispatched during loading. If you normally, depend on events to set some state (e.g., a GUI view), you must instead construct that state from reading the whole state after loading.
+Events are emitted as usual during loading ([CRuntime.load](../api/collabs/classes/CRuntime.html#load)) - both when loading saved state at the beginning of a session, and if you call `CRuntime.load` during a session to merge in saved state. In both cases, you'll get incremental events describing the exact changes as they occur, just like for operations.
+
+> As an optimization, you may wish to ignore incremental events during loading, instead refreshing the whole display in the final `CRuntime` "Change" event. Use an event's [`meta.updateType`](../api/collabs/interfaces/UpdateMeta.html#updateType) field to check whether it is from a saved state, i.e., a `CRuntime.load` call.
+
+> **Note:** The events you get when loading a saved state are not exactly the same as if you received the original operations. This is usually not an issue - event handlers that work for operations should also work for saved states - but it can cause subtle bugs. In particular
+>
+> - Events are emitted per-Collab instead of per-operation, so they may be in a different order than the original operations' events.
+> - The events share a single [`UpdateMeta`](../api/collabs/interfaces/CollabEvent.html#meta) instance, instead of a separate `UpdateMeta` per transaction.
 
 ## Adding Events to Custom Types
 
@@ -84,4 +90,4 @@ If you are publishing a custom type as a third-party library, we recommend that 
 
 See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`ISet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
-> **Aside:** For custom types that you only plan to use in your own application, you might not need to emit events. It can be easier to just listen on events dispatched by internal `Collab`s, or to just listen on `CRuntime`'s "Change" event.
+> **Aside:** For custom types that you only plan to use in your own application, you might not need to emit events. It can be easier for the GUI to just listen on events dispatched by internal `Collab`s, or to just listen on `CRuntime`'s "Change" event.

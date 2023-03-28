@@ -6,6 +6,9 @@ import {
   Waypoint,
 } from "./c_position_source";
 
+/**
+ * Info about a waypoint's values within a LocalList.
+ */
 interface WaypointInfo<T> {
   /**
    * The total number of present values at this
@@ -13,17 +16,25 @@ interface WaypointInfo<T> {
    */
   total: number;
   /**
-   * T[] for present values, positive number for count of deleted values. Always alternates.
+   * The values (or not) at the waypoint's positions,
+   * in order from left to right, represented as
+   * an array of "items": T[] for present values,
+   * positive count for deleted values.
    *
-   * If the last item would be a number (deleted), it is omitted.
+   * The items always alternate types. If the last
+   * item would be a number (deleted), it is omitted,
+   * so their lengths may sum to less than the waypoint's
+   * valueCount.
    */
   items: (T[] | number)[];
 }
 
-/** child = waypoint child; values = slice of a present item. */
+/**
+ * Type used in LocalList.valuesAndChildren.
+ */
 type ValuesOrChild<T> =
   | {
-      /** Else child. */
+      /** True if value, false if child. */
       isValues: true;
       /** Use item.slice(start, end) */
       item: T[];
@@ -33,6 +44,7 @@ type ValuesOrChild<T> =
       valueIndex: number;
     }
   | {
+      /** True if value, false if child. */
       isValues: false;
       child: Waypoint;
       /** Always non-zero (zero total children are skipped). */
@@ -80,50 +92,8 @@ export class LocalList<T> {
   constructor(private readonly source: CPositionSource) {}
 
   /**
-   * TODO. Must be new (haven't set these created positions before),
-   * ideally in Create event handler. Needs values.length = e.count.
+   * Sets the value at position.
    */
-  setCreated(e: PositionSourceCreateEvent, values: T[]): void {
-    if (values.length !== e.count) {
-      throw new Error("values do not match count");
-    }
-    this._inInitialState = false;
-
-    const waypoint = e.waypoint;
-    const info = this.valuesByWaypoint.get(waypoint);
-    if (info === undefined) {
-      // Waypoint has no values currently; set them to
-      // [valueIndex, values].
-      // Except, omit 0s.
-      const newItems = e.valueIndex === 0 ? [values] : [e.valueIndex, values];
-      this.valuesByWaypoint.set(waypoint, {
-        total: 0,
-        items: newItems,
-      });
-    } else {
-      // Get number of existing positions in info (which omits the
-      // final deleted items).
-      let existing = 0;
-      for (const item of info.items) {
-        existing += typeof item === "number" ? item : item.length;
-      }
-      if (existing < e.valueIndex) {
-        // Fill in deleted positions.
-        info.items.push(e.valueIndex - existing);
-      } else if (existing === e.valueIndex) {
-        if (info.items.length === 0) {
-          info.items.push(values);
-        } else {
-          // Merge with previous (present) item.
-          (info.items[info.items.length - 1] as T[]).push(...values);
-        }
-      } else {
-        throw new Error("setCreated called on already-used positions");
-      }
-    }
-    this.updateTotals(waypoint, values.length);
-  }
-
   set(position: Position, value: T): void {
     this._inInitialState = false;
 
@@ -203,9 +173,60 @@ export class LocalList<T> {
   }
 
   /**
+   * Optimized variant of [[set]] for newly-created
+   * positions, typically called in a [[PositionSourceCreateEvent]]
+   * handler. This method sets the positions
+   * referenced by `e` to `values`.
    *
-   * @param position
-   * @returns True if actually deleted (previously present).
+   * @throws If `values.length !== e.count`
+   */
+  setCreated(e: PositionSourceCreateEvent, values: T[]): void {
+    if (values.length !== e.count) {
+      throw new Error("values do not match count");
+    }
+    this._inInitialState = false;
+
+    const waypoint = e.waypoint;
+    const info = this.valuesByWaypoint.get(waypoint);
+    if (info === undefined) {
+      // Waypoint has no values currently; set them to
+      // [valueIndex, values].
+      // Except, omit 0s.
+      const newItems = e.valueIndex === 0 ? [values] : [e.valueIndex, values];
+      this.valuesByWaypoint.set(waypoint, {
+        total: 0,
+        items: newItems,
+      });
+    } else {
+      // Get number of existing positions in info (which omits the
+      // final deleted items).
+      let existing = 0;
+      for (const item of info.items) {
+        existing += typeof item === "number" ? item : item.length;
+      }
+      if (existing < e.valueIndex) {
+        // Fill in deleted positions.
+        info.items.push(e.valueIndex - existing);
+      } else if (existing === e.valueIndex) {
+        if (info.items.length === 0) {
+          info.items.push(values);
+        } else {
+          // Merge with previous (present) item.
+          (info.items[info.items.length - 1] as T[]).push(...values);
+        }
+      } else {
+        throw new Error("setCreated called on already-used positions");
+      }
+    }
+    this.updateTotals(waypoint, values.length);
+  }
+
+  /**
+   * Deletes the given position, making it no longer
+   * present in this list.
+   *
+   * @returns Whether the position was actually deleted, i.e.,
+   * it was initially present.
    */
   delete(position: Position): boolean {
     this._inInitialState = false;
@@ -295,6 +316,14 @@ export class LocalList<T> {
     }
   }
 
+  // Omitting clear() for now because it is usually a mistake to use it.
+  // /**
+  //  * Deletes every value in the list.
+  //  */
+  // clear() {
+  //   this.valuesByWaypoint.clear();
+  // }
+
   /**
    * Returns the value at position, or undefined if it is not currently present
    * ([[hasPosition]] returns false).
@@ -363,8 +392,8 @@ export class LocalList<T> {
    * If there are no values to the right of position,
    * returns [[length]].
    *
-   * TODO: clarify (here and in IList) which is the rank, i.e.,
-   * the index where it would be present.
+   * To find the index where a position would be if
+   * present, use `searchDir = "right"`.
    */
   indexOfPosition(
     position: Position,
@@ -469,6 +498,9 @@ export class LocalList<T> {
     return this.getByPosition(this.getPosition(index))!;
   }
 
+  /**
+   * The length of the list.
+   */
   get length() {
     return this.total(this.source.rootWaypoint);
   }
@@ -481,8 +513,6 @@ export class LocalList<T> {
   /**
    * Returns an iterator of [index, position, value] tuples for every
    * value in the list, in list order.
-   *
-   * TODO (this and other iterators): will it work with concurrent modification?
    */
   *entries(): IterableIterator<[index: number, position: Position, value: T]> {
     if (this.length === 0) return;
@@ -521,7 +551,19 @@ export class LocalList<T> {
     }
   }
 
-  // TODO: assumes waypoint.total !== 0; only emits children with total != 0.
+  /**
+   * Yields non-trivial values and Waypoint children
+   * for waypoint, in list order. This is used when
+   * iterating over the list.
+   *
+   * Specifically, it yields:
+   * - "Sub-items" consisting of a slice of a present item.
+   * - Waypoint children with non-zero total.
+   *
+   * together with enough info to infer their starting valueIndex's.
+   *
+   * @throws If `this.total(waypoint) === 0`
+   */
   private *valuesAndChildren(
     waypoint: Waypoint
   ): IterableIterator<ValuesOrChild<T>> {
@@ -584,6 +626,10 @@ export class LocalList<T> {
     }
   }
 
+  /**
+   * Returns the total number of present values at this
+   * waypoint and its descendants.
+   */
   private total(waypoint: Waypoint): number {
     return this.valuesByWaypoint.get(waypoint)?.total ?? 0;
   }
@@ -599,29 +645,69 @@ export class LocalList<T> {
     for (const [, position] of this.entries()) yield position;
   }
 
+  /**
+   * Returns a copy of a section of this list, as an array.
+   * For both start and end, a negative index can be used to indicate an offset from the end of the list.
+   * For example, -2 refers to the second to last element of the list.
+   * @param start The beginning index of the specified portion of the list.
+   * If start is undefined, then the slice begins at index 0.
+   * @param end The end index of the specified portion of the list. This is exclusive of the element at the index 'end'.
+   * If end is undefined, then the slice extends to the end of the list.
+   */
   slice(start?: number, end?: number): T[] {
+    const len = this.length;
+    if (start === undefined || start < -len) {
+      start = 0;
+    } else if (start < 0) {
+      start += len;
+    } else if (start >= len) {
+      return [];
+    }
+    if (end === undefined || end >= len) {
+      end = len;
+    } else if (end < -len) {
+      end = 0;
+    } else if (end < 0) {
+      end += len;
+    }
+    if (end <= start) return [];
+
     // Optimize common case (slice())
-    if (start === undefined && end === undefined) {
+    if (start === 0 && end === len) {
       return [...this.values()];
     } else {
-      // TODO: edge cases for slice()
-      start = start ?? 0;
-      end = end ?? this.length;
       // OPT: optimize.
       const ans = new Array<T>(end - start);
-      for (let i = start; i < end; i++) {
-        ans[i - start] = this.get(i);
+      for (let i = 0; i < end - start; i++) {
+        ans[i] = this.get(start + i);
       }
       return ans;
     }
   }
 
+  /**
+   * Whether this list is in its initial state, i.e.,
+   * it has never been mutated.
+   */
   get inInitialState(): boolean {
     return this._inInitialState;
   }
 
-  // TODO: utility accessors, positionOf?, clear?
+  // OPT: other IList methods: utility accessors, positionOf?
+  // If so, call those from CRDT versions.
 
+  /**
+   * Returns saved state describing the current state of this LocalList,
+   * including its values.
+   *
+   * The saved state may later be passed to [[load]]
+   * on a new instance of LocalList, to reconstruct the
+   * same list state.
+   *
+   * @param valueArraySerializer Used to serialize values.
+   * Note that this may be called multiple times on distinct
+   * value arrays, and value arrays may contain non-contiguous values.
+   */
   save(valueArraySerializer: Serializer<T[]>): Uint8Array {
     const replicaIDs: string[] = [];
     const replicaIDsInv = new Map<string, number>();
@@ -668,7 +754,22 @@ export class LocalList<T> {
     return LocalListSave.encode(message).finish();
   }
 
-  // TODO: docs: only works in initial state.
+  /**
+   * Loads saved state. The saved state must be from
+   * a call to [[save]] on a LocalList whose `source`
+   * constructor argument was a replica of this's
+   * `source`, so that we can understand the
+   * saved state's Positions.
+   *
+   * This method may only be called on a LocalList in
+   * its initial state (see [[inInitialState]]); it
+   * does not support "merging" in the sense of [[CRuntime.load]].
+   *
+   * @param savedState Saved state from another LocalList's
+   * [[save]] call.
+   * @param valueArraySerializer Used to deserialize values.
+   * Must be equivalent to [[save]]'s valueArraySerializer.
+   */
   load(savedState: Uint8Array, valueArraySerializer: Serializer<T[]>): void {
     if (!this._inInitialState) {
       throw new Error("Can only call load in the initial state");

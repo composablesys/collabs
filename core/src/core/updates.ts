@@ -22,7 +22,8 @@ export interface UpdateMeta {
   readonly isLocalOp: boolean;
   /**
    * Optionally, an [[IRuntime]] implementation may include extra metadata
-   * in this field. For example, [[CRuntime]] puts [[CRDTMessageMeta]] here.
+   * in this field. For example, [[CRuntime]] puts [[CRDTMessageMeta]] here
+   * for messages and [[CRDTSavedStateMeta]] here for saved states.
    *
    * This field is intended for use by [[Collab]] implementations,
    * not event listeners.
@@ -37,7 +38,7 @@ export interface UpdateMeta {
 
 /**
  * A [[IRuntime]] may extend this interface to allow [[Collab]]s to configure
- * the content of [[UpdateMeta.runtimeExtra]].
+ * the content of a message's [[UpdateMeta.runtimeExtra]].
  *
  * Specifically, a Collab makes a request in [[Collab.send]]; this affects
  * the UpdateMeta passed to [[Collab.receive]] together with the sent message.

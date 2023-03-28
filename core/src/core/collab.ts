@@ -228,8 +228,9 @@ export abstract class Collab<
    * The saved state may later be passed to [[load]] on a replica of
    * this Collab, possibly in a different collaboration session,
    * with rules set by the [[runtime]]. For example, [[CRuntime]]
-   * allows [[load]] to be called only at the beginning of a session,
-   * before sending or receiving any messages.
+   * allows [[load]] at any time; it must then act as a merge operation
+   * (like a state-based CRDT), applying all updates that the saved
+   * replica had applied before saving, ignoring duplicates.
    *
    * `save` may be called at any time, possibly many times while an app
    * is running. Calling `save` should not affect this Collab's

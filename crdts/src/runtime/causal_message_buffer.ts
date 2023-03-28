@@ -321,18 +321,15 @@ export class CausalMessageBuffer {
       this.lamportTimestamp,
       remoteLamportTimestamp
     );
-    // Just concatenate buffers for now. CRuntime will call check() later
+    // Blindly merge buffers for now. CRuntime will call check() later
     // to process any newly-ready messages (local or remote)
     // and delete already-received messages.
-    // TODO: avoid duplicating the buffer - if you merge in your own state,
-    // the buffer will double in size each time.
-    // (Could also do that for early-receives in general.)
     for (let i = 0; i < decoded.bufferMessageStacks.length; i++) {
       const meta = RuntimeMetaSerializer.instance.deserialize(
         decoded.bufferMetas[i]
       );
       const dot = this.encodeDot(<CRDTMessageMeta>meta.runtimeExtra);
-      if (this.buffer.has(dot)) {
+      if (!this.buffer.has(dot)) {
         this.buffer.set(dot, {
           messageStacks: MessageStacksSerializer.instance.deserialize(
             decoded.bufferMessageStacks[i]

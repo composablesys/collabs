@@ -23,10 +23,6 @@ and limitations under the License.
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
-// TODO: use this in IList instead of string;
-// move position docs from IList to its header;
-// reference [[Position]] instead of position in IList/CList
-// function headers?
 /**
  * A position in a collaborative list (e.g. [[CList]], [[CValueList]], [[CText]]),
  * represented as an opaque string.
@@ -176,6 +172,9 @@ export interface IList<
    * - "right": Returns the next index to the right of position.
    * If there are no values to the right of position,
    * returns [[length]].
+   *
+   * To find the index where a position would be if
+   * present, use `searchDir = "right"`.
    */
   indexOfPosition(
     position: Position,
