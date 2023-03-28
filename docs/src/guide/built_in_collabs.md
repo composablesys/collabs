@@ -99,7 +99,7 @@ Types of mutable collections (Deleting, Archiving). Note downsides of each: tomb
 
 <!-- ### Treating Immutable Values as Mutable
 
-TODO: CImmutableValue: wraps a value in a CType. Hack to let you get mutating collection features for immutable values (sending args - could also write your own type; list move ops - not yet implemented for CValueList; sending values by reference instead of the whole thing, so they are shortened; ??). Modest performance cost. -->
+TODO: CConst: wraps a value in a CType. Hack to let you get mutating collection features for immutable values (sending args - could also write your own type; list move ops - not yet implemented for CValueList; sending values by reference instead of the whole thing, so they are shortened; ??). Modest performance cost. -->
 
 <!-- ## Interfaces
 

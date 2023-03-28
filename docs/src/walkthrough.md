@@ -62,9 +62,6 @@ import { CContainer } from "@collabs/container";
   // Wait for the container to load the previous saved state, if any.
   await container.load();
 
-  // Display the loaded state.
-  refreshDisplay();
-
   // Signal to the container host that we're ready for use.
   container.ready();
 })();
@@ -149,13 +146,7 @@ await container.load();
 
 This "previous saved state" might come from the last time this user used the app, or it might come from a different collaborator who sent us a snapshot. The details are left up to our container host; we just wait for loading finish, using `await`.
 
-Next, we display the loaded state.
-
-```ts
-refreshDisplay();
-```
-
-We have to explicitly call `refreshDisplay()` here because events, including "Change" events, aren't emitted during loading. See more at [handling changes](./guide/handling_changes.html).
+If any state is loaded, `container` will emit a "Change" event, triggering `refreshDisplay()`. See more at [handling changes](./guide/handling_changes.html).
 
 Finally, our container is ready to use: we've registered our Collabs, connected them to the GUI (display + user input), loaded the previous saved state, and displayed the loaded state. We call `container.ready()` to start the app.
 
@@ -186,6 +177,5 @@ Specifically, to make your own Collabs app, your main tasks are:
 - In Step 2, instead of register a `CCounter`, register whatever `Collab`s you need to represent your app's entire collaborative state. Guide pages: [Built-in Collabs](./guide/built_in_collabs.html), [Data Modeling](./guide/data_modeling.html).
 - In Step 3, update your display in response to events, so that it always reflects the current collaborative state. Guide page: [Events](./advanced/events.html).
 - In Step 4, convert user inputs onto operations on your `Collab`s.
-- In Step 5, display the loaded state, i.e., update your display to reflect your `Collab`s' current states.
 
 For more info, continue following the guide with [Built-in Collabs](./guide/built_in_collabs.html), or learn by example from our [demos](https://github.com/composablesys/collabs/tree/master/demos).

@@ -27,9 +27,7 @@ Starting from scratch, the steps are:
 
    c. `await container.load()`. Basically, the container host can periodically save snapshots of the container's state, then use one to restart it quickly later. It can even send snapshots to new collaborators, so that they can load the current state without replaying every past message. `container.load()` waits to receive this save data from the host, uses it to fill in your Collabs' state, then resolves its Promise.
 
-   d. Display the loaded state, i.e., sync it to your GUI. You need to do this explicitly because events aren't emitted during loading.
-
-   e. Call `container.ready()`. This signals to the host that you are ready. The host will then reveal the container to the user, allow user input, and start delivering messages - both new messages from collaborators, and old messages that didn't make it into the loaded state.
+   d. Call `container.ready()`. This signals to the host that you are ready. The host will then reveal the container to the user, allow user input, and start delivering messages - both new messages from collaborators, and old messages that didn't make it into the loaded state.
 
 4. Test your compiled app using the `container-testing-server` command provided by @collabs/container-testing-server. It takes the path to your compiled HTML file as an argument.
 
@@ -86,10 +84,6 @@ Example container hosts:
 - [Tile Board demo](https://github.com/composablesys/collabs/tree/master/demos/tile-board) (specifically [`src/tiles.ts`](https://github.com/composablesys/collabs/blob/master/demos/tile-board/src/tiles.ts)). Again itself a container, not a pure host. It lets the user pick a container to use as a tile in the board.
 
 There is room for improvement in our "pure" hosts. The demo server Matrix host is the closest to providing a normal collaboration experience, with access controls (provided by a Matrix room) and the possibility of long-lasting collaboration sessions. However, it does not yet incorporate saving state or local persistent storage (see its code comments).
-
-<!-- ## Internals
-
-TODO, maybe not necessary (typedoc should be enough) -->
 
 ## <a id="advanced"></a>Advanced
 

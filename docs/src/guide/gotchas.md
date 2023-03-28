@@ -42,7 +42,7 @@ More info: [Serialization](./serialization.html).
 
 ## Treating Events as Consistent
 
-Although the _state_ of a `Collab` is eventually consistent, the _events_ that it emits are not. Each user emits events according to its own view of how the state changed over time; this can differ across users if they receive network messages in different orders.
+Although the _state_ of a `Collab` is eventually consistent, the _events_ that it emits are not. Each user emits events according to its own view of how the state changed over time; this can differ across users if they receive network messages in different orders, or if they apply updates by loading saved state vs receiving messages.
 
 Examples:
 
