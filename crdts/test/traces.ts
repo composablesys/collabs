@@ -7,6 +7,12 @@ export interface Source<C extends Collab, V> {
   pre(init: InitToken): C;
   check(actual: C, expected: V): void;
   op(c: C, n: number): void;
+  /**
+   * Optionally, perform an on the first replica during Manager.setup
+   * that is broadcast to all setup replicas.
+   * E.g. create a value Collab used in later ops.
+   */
+  setupOp?: (c: C) => void;
 }
 
 class Manager<C extends Collab, V> {
@@ -29,6 +35,12 @@ class Manager<C extends Collab, V> {
       ans.push(runtime);
     }
     ans.sort((a, b) => (a.replicaID < b.replicaID ? -1 : 1));
+
+    if (this.source.setupOp) {
+      this.source.setupOp(this.cs.get(ans[0])!);
+      this.gen.release(ans[0], ...ans.slice(1));
+    }
+
     return ans;
   }
 
