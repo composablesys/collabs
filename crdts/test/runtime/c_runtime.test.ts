@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { TestingRuntimes } from "../../src";
 
-describe("CRuntime", () => {
+describe("CRuntime old tests", () => {
   let runtimeGen: TestingRuntimes;
 
   beforeEach(() => {

@@ -1,8 +1,8 @@
 import { assert } from "chai";
+import seedrandom from "seedrandom";
 import { CRuntime, CValueList, TestingRuntimes } from "../../src";
-import seedrandom = require("seedrandom");
 
-describe("CValueList", () => {
+describe("CValueList old tests", () => {
   let rng: seedrandom.prng;
   let runtimeGen: TestingRuntimes;
   let alice: CRuntime;

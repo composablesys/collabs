@@ -1,7 +1,7 @@
-import { Collab, InitToken } from "@collabs/core";
+import { Collab, CollabID, InitToken, Optional } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
-import { CSet, CVar } from "../../src";
+import { CCounter, CRuntime, CSet, CVar, TestingRuntimes } from "../../src";
 import { Source, Traces } from "../traces";
 
 function firstValue<D extends Collab>(set: CSet<D, any>): D | undefined {
@@ -222,4 +222,85 @@ describe("CSet", () => {
   });
 });
 
-// TODO: cross-replica CollabID tests
+describe("CSet old tests", () => {
+  let runtimeGen: TestingRuntimes;
+  let alice: CRuntime;
+  let bob: CRuntime;
+  let rng: seedrandom.prng;
+
+  let aliceSource: CSet<CCounter, []>;
+  let bobSource: CSet<CCounter, []>;
+  let aliceVariable: CVar<Optional<CollabID<CCounter>>>;
+  let bobVariable: CVar<Optional<CollabID<CCounter>>>;
+
+  beforeEach(() => {
+    rng = seedrandom("42");
+    runtimeGen = new TestingRuntimes();
+    alice = runtimeGen.newRuntime(rng);
+    bob = runtimeGen.newRuntime(rng);
+
+    aliceSource = alice.registerCollab(
+      "source",
+      (init) => new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
+    );
+    bobSource = bob.registerCollab(
+      "source",
+      (init) => new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
+    );
+    aliceVariable = alice.registerCollab(
+      "variable",
+      (init) => new CVar(init, Optional.empty())
+    );
+    bobVariable = bob.registerCollab(
+      "variable",
+      (init) => new CVar(init, Optional.empty())
+    );
+  });
+
+  it("returns new Collab", () => {
+    let newCollab = aliceSource.add();
+    assert.strictEqual(newCollab.value, 0);
+  });
+
+  it("transfers new Collab via variable", () => {
+    aliceVariable.set(Optional.of(aliceSource.idOf(aliceSource.add())));
+    aliceSource.fromID(aliceVariable.value.get())!.add(7);
+    assert.strictEqual(aliceSource.fromID(aliceVariable.value.get())!.value, 7);
+
+    runtimeGen.releaseAll();
+    assert.strictEqual(bobSource.fromID(bobVariable.value.get())!.value, 7);
+  });
+
+  it("allows sequential creation", () => {
+    let new1 = aliceSource.add();
+    let new2 = aliceSource.add();
+    new1.add(7);
+    new2.add(-3);
+    assert.strictEqual(new1.value, 7);
+    assert.strictEqual(new2.value, -3);
+  });
+
+  it("allows concurrent creation", () => {
+    let new1 = aliceSource.add();
+    let new2 = bobSource.add();
+    new1.add(7);
+    new2.add(-3);
+    assert.strictEqual(new1.value, 7);
+    assert.strictEqual(new2.value, -3);
+
+    runtimeGen.releaseAll();
+    assert.strictEqual(new1.value, 7);
+    assert.strictEqual(new2.value, -3);
+
+    aliceVariable.set(Optional.of(aliceSource.idOf(new1)));
+    runtimeGen.releaseAll();
+    let new1Bob = bobSource.fromID(bobVariable.value.get())!;
+    bobVariable.set(Optional.of(bobSource.idOf(new2)));
+    runtimeGen.releaseAll();
+    let new2Alice = aliceSource.fromID(aliceVariable.value.get())!;
+    assert.strictEqual(new1Bob.value, 7);
+    assert.strictEqual(new2Alice.value, -3);
+  });
+
+  // TODO: test deletion, freezing, cross-replica CollabIDs
+});
