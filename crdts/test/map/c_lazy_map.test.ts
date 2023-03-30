@@ -4,6 +4,8 @@ import seedrandom from "seedrandom";
 import { CRuntime, CValueSet, CVar, TestingRuntimes } from "../../src";
 import { debug } from "../debug";
 
+// TODO: revise, add traces
+
 describe("CLazyMap old tests", () => {
   let runtimeGen: TestingRuntimes;
   let alice: CRuntime;

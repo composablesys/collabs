@@ -153,6 +153,14 @@ export class CList<
     const argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
 
+    // Register positionSource first so that it is loaded first.
+    // (We could also ensure that by overriding CObject.load.)
+    // Otherwise, set's events during load will reference positions that
+    // haven't been loaded yet.
+    this.positionSource = this.registerCollab(
+      "0",
+      (init) => new CPositionSource(init)
+    );
     this.set = this.registerCollab(
       "",
       (init) =>
@@ -162,10 +170,6 @@ export class CList<
             argsSerializer
           ),
         })
-    );
-    this.positionSource = this.registerCollab(
-      "0",
-      (init) => new CPositionSource(init)
     );
 
     this.list = new LocalList(this.positionSource);
@@ -199,7 +203,7 @@ export class CList<
         });
       }
       // else archived -> deleted; no new event.
-      // A value that needs to know when it is deleted can override Collab.finalize.
+      // A value that needs to know when this happens can override Collab.finalize.
     });
   }
 
@@ -432,6 +436,26 @@ export class CList<
 
   get length(): number {
     return this.list.length;
+  }
+
+  /**
+   * Inserts a value at the end of the list using args.  Equivalent to
+   * `this.insert(this.length, ...args)`.
+   *
+   * @return The inserted value.
+   */
+  push(...args: InsertArgs): C {
+    return this.insert(this.length, ...args);
+  }
+
+  /**
+   * Inserts a value at the start of the list using args.  Equivalent to
+   * `this.insert(0, ...args)`.
+   *
+   * @return The inserted value.
+   */
+  unshift(...args: InsertArgs): C {
+    return this.insert(0, ...args);
   }
 
   slice(start?: number, end?: number): C[] {

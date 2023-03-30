@@ -48,7 +48,7 @@ class ValueListSource implements Source<CValueList<string>, string[]> {
         break;
     }
     // Always delete the middle element. We hope to break up
-    // waypoints with mixes up values & deletions.
+    // waypoints with mixed up values & deletions.
     c.delete(Math.floor(c.length / 2));
   }
 }

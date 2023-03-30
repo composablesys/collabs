@@ -500,18 +500,14 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   getWaypoint(senderID: string, counter: number): Waypoint {
     const bySender = this.waypointsByID.get(senderID);
     if (bySender === undefined) {
-      throw new Error(
-        "Unknown position, did you forget to receivePositions/receiveAndAddPositions? (reason: sender)"
-      );
+      throw new Error("Invalid position: unknown senderID");
     }
 
     if (counter < 0) {
       throw new Error("Invalid position: counter < 0");
     }
     if (counter >= bySender.length) {
-      throw new Error(
-        "Unknown position, did you forget to receivePositions/receiveAndAddPositions? (reason: counter)"
-      );
+      throw new Error("Invalid position: unknown counter");
     }
     return bySender[counter];
   }
