@@ -6,3 +6,5 @@ generated_esm
 .vscode/
 .idea/
 *.tsbuildinfo
+.nyc_output
+coverage
