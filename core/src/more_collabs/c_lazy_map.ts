@@ -118,8 +118,7 @@ export class CLazyMap<K, C extends Collab>
 
   private getInternal(
     key: K,
-    keyString: string,
-    inLoad: boolean
+    keyString: string
   ): [value: C, nontrivial: boolean] {
     let value = this.nontrivialMap.get(keyString);
     if (value === undefined) {
@@ -128,65 +127,38 @@ export class CLazyMap<K, C extends Collab>
       if (value === undefined) {
         // Create it.
         value = this.valueConstructor(new InitToken(keyString, this), key);
-
-        if (inLoad) {
-          // We are in this.load.
-          // So, value.load will be called by this.load
-          // right after the value is returned;
-          // we don't need to do it here.
-          // Also, we can assume value will be nontrivial once
-          // it is recursively loaded, since save only
-          // returns the nontrivial children.
-          this.nontrivialMap.set(keyString, value);
-        } else {
-          // The value starts trivial; if it becomes nontrivial
-          // due to a message, receive will move
-          // it to nontrivialMap.
-          this.trivialMap.set(keyString, value);
-        }
-
-        return [value, false];
+        // The value starts trivial; if it becomes nontrivial
+        // due to a message, receive/load will move
+        // it to nontrivialMap.
+        this.trivialMap.set(keyString, value);
       }
       return [value, false];
     } else return [value, true];
   }
 
-  childSend(
-    child: Collab<CollabEventsRecord>,
-    messageStack: (Uint8Array | string)[],
-    metaRequests: MetaRequest[]
+  private inUpdateKeyString?: string = undefined;
+  private inUpdateValue?: C = undefined;
+
+  private applyUpdate(
+    keyString: string,
+    update: (value: C) => void,
+    meta: UpdateMeta
   ): void {
-    if (child.parent !== this) {
-      throw new Error(`childSend called by non-child: ${child}`);
-    }
-
-    messageStack.push(child.name);
-    this.send(messageStack, metaRequests);
-  }
-
-  private inReceiveKeyStr?: string = undefined;
-  private inReceiveValue?: C = undefined;
-
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
-    const keyString = <string>messageStack.pop();
-    this.inReceiveKeyStr = keyString;
+    this.inUpdateKeyString = keyString;
     try {
-      // Message for a child
       const key = this.stringAsKey(keyString);
-      const [value, nontrivialStart] = this.getInternal(key, keyString, false);
-      this.inReceiveValue = value;
+      const [value, nontrivialStart] = this.getInternal(key, keyString);
+      this.inUpdateValue = value;
 
-      value.receive(messageStack, meta);
+      update(value);
 
-      // If the value became GC-able, move it to the
-      // backup map
+      // If the value became GC-able, move it to the backup map.
       if (nontrivialStart && value.canGC()) {
         this.nontrivialMap.delete(keyString);
         this.trivialMap.set(keyString, value);
         this.emit("Delete", { key, value, meta });
       }
-      // If the value became nontrivial, move it to the
-      // main map
+      // If the value became nontrivial, move it to the main map.
       else if (!nontrivialStart && !value.canGC()) {
         this.trivialMap.delete(keyString);
         this.nontrivialMap.set(keyString, value);
@@ -206,9 +178,32 @@ export class CLazyMap<K, C extends Collab>
         // in valueConstructor, not on Set events.
       }
     } finally {
-      this.inReceiveKeyStr = undefined;
-      this.inReceiveValue = undefined;
+      this.inUpdateKeyString = undefined;
+      this.inUpdateValue = undefined;
     }
+  }
+
+  childSend(
+    child: Collab<CollabEventsRecord>,
+    messageStack: (Uint8Array | string)[],
+    metaRequests: MetaRequest[]
+  ): void {
+    if (child.parent !== this) {
+      throw new Error(`childSend called by non-child: ${child}`);
+    }
+
+    messageStack.push(child.name);
+    this.send(messageStack, metaRequests);
+  }
+
+  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+    const keyString = <string>messageStack.pop();
+    this.applyUpdate(
+      keyString,
+      // Message for a child
+      (value) => value.receive(messageStack, meta),
+      meta
+    );
   }
 
   /**
@@ -240,7 +235,7 @@ export class CLazyMap<K, C extends Collab>
    * See [[getIfPresent]].
    */
   get(key: K): C {
-    return this.getInternal(key, this.keyAsString(key), false)[0];
+    return this.getInternal(key, this.keyAsString(key))[0];
   }
 
   /**
@@ -250,12 +245,12 @@ export class CLazyMap<K, C extends Collab>
    */
   getIfPresent(key: K): C | undefined {
     const str = this.keyAsString(key);
-    if (this.inReceiveKeyStr === str) {
+    if (this.inUpdateKeyString === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
       // Instead, use canGC directly.
-      if (!this.inReceiveValue!.canGC()) {
-        return this.inReceiveValue!;
+      if (!this.inUpdateValue!.canGC()) {
+        return this.inUpdateValue!;
       } else return undefined;
     }
     return this.nontrivialMap.get(this.keyAsString(key));
@@ -263,11 +258,11 @@ export class CLazyMap<K, C extends Collab>
 
   has(key: K): boolean {
     const str = this.keyAsString(key);
-    if (this.inReceiveKeyStr === str) {
+    if (this.inUpdateKeyString === str) {
       // The state of nontrivialMap cannot be relied
       // upon, since it hasn't been recalculated yet.
       // Instead, use canGC directly.
-      return !this.inReceiveValue!.canGC();
+      return !this.inUpdateValue!.canGC();
     } else return this.nontrivialMap.has(str);
   }
 
@@ -319,10 +314,12 @@ export class CLazyMap<K, C extends Collab>
   load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
     if (savedStateTree.children !== undefined) {
       for (const [name, childSave] of savedStateTree.children) {
-        const child = this.getInternal(this.stringAsKey(name), name, true)[0];
-        child.load(childSave, meta);
+        this.applyUpdate(name, (child) => child.load(childSave, meta), meta);
       }
     }
+    // TODO: also need to deliver a "null" (GC'd-state) save to all other
+    // values, in case they do something with the VC.
+    // Should do likewise in CObject for fields missing in the save (?).
   }
 
   idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {
@@ -331,11 +328,7 @@ export class CLazyMap<K, C extends Collab>
 
   fromID<D extends Collab>(id: CollabID<D>, startIndex = 0): D | undefined {
     const name = id.namePath[startIndex];
-    const child = this.getInternal(
-      this.stringAsKey(name),
-      name,
-      false
-    )[0] as Collab;
+    const child = this.getInternal(this.stringAsKey(name), name)[0] as Collab;
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
     if (startIndex === id.namePath.length - 1) return child as D;

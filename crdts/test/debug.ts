@@ -1,6 +1,0 @@
-/**
- * Flag that toggles debug logging of events.
- */
-export const debug = false;
-
-// TODO: remove, test events properly
