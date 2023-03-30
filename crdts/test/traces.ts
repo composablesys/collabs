@@ -8,8 +8,8 @@ export interface Source<C extends Collab, V> {
   check(actual: C, expected: V): void;
   op(c: C, n: number): void;
   /**
-   * Optionally, perform an on the first replica during Manager.setup
-   * that is broadcast to all setup replicas.
+   * Optionally, perform an on op before the trace's first op that
+   * isn't checked.
    * E.g. create a value Collab used in later ops.
    */
   setupOp?: (c: C) => void;
@@ -25,8 +25,13 @@ class Manager<C extends Collab, V> {
 
   /**
    * Returns runtimes in order by replicaID.
+   *
+   * @param doSetupOp If true, do the source's setup op. Usually you'll
+   * set this to true for the first call to setup() within a trace but
+   * not later ones (since those should learn of the setup op from the
+   * original call, not do a second concurrent setup op).
    */
-  setup(count: number): CRuntime[] {
+  setup(count: number, doSetupOp: boolean): CRuntime[] {
     const ans: CRuntime[] = [];
     for (let i = 0; i < count; i++) {
       const runtime = this.gen.newRuntime(this.source.rng);
@@ -36,7 +41,7 @@ class Manager<C extends Collab, V> {
     }
     ans.sort((a, b) => (a.replicaID < b.replicaID ? -1 : 1));
 
-    if (this.source.setupOp) {
+    if (doSetupOp && this.source.setupOp) {
       this.source.setupOp(this.cs.get(ans[0])!);
       this.gen.release(ans[0], ...ans.slice(1));
     }
@@ -61,7 +66,7 @@ export class Traces {
     const manager = new Manager(source);
 
     // Basics
-    const [alice] = manager.setup(1);
+    const [alice] = manager.setup(1, true);
     manager.check(alice, valueInit);
 
     this.crossSave(manager, [alice], valueInit);
@@ -80,7 +85,7 @@ export class Traces {
     const saves = runtimes.map((runtime) => runtime.save());
 
     // Transfer saves to new replicas.
-    const newRuntimes = manager.setup(runtimes.length);
+    const newRuntimes = manager.setup(runtimes.length, false);
     for (let i = 0; i < runtimes.length; i++) {
       newRuntimes[i].load(saves[i]);
       manager.check(newRuntimes[i], value);
@@ -122,7 +127,7 @@ export class Traces {
   static singleOp<C extends Collab, V>(source: Source<C, V>, value0: V) {
     const manager = new Manager(source);
 
-    const [alice, bob] = manager.setup(2);
+    const [alice, bob] = manager.setup(2, true);
 
     manager.op(alice, 0);
     manager.check(alice, value0);
@@ -147,7 +152,7 @@ export class Traces {
 
     // Same sender:
     {
-      const [alice, bob] = manager.setup(2);
+      const [alice, bob] = manager.setup(2, true);
 
       for (let i = 0; i < values.length; i++) {
         manager.op(alice, i);
@@ -161,7 +166,7 @@ export class Traces {
 
     // Alternate senders:
     {
-      const [alice, bob] = manager.setup(2);
+      const [alice, bob] = manager.setup(2, true);
 
       for (let i = 0; i < values.length; i++) {
         const [sender, receiver] = i % 2 === 0 ? [alice, bob] : [bob, alice];
@@ -176,7 +181,7 @@ export class Traces {
 
     // Transfer save halfway through:
     {
-      const [alice, bob] = manager.setup(2);
+      const [alice, bob] = manager.setup(2, true);
 
       manager.op(alice, 0);
       manager.op(alice, 1);
@@ -200,7 +205,7 @@ export class Traces {
 
     // Transfer saves instead of sending messages:
     {
-      const [alice, bob] = manager.setup(2);
+      const [alice, bob] = manager.setup(2, true);
 
       manager.op(alice, 0);
       bob.load(alice.save());
@@ -236,7 +241,7 @@ export class Traces {
 
     // Transfer via messages:
     {
-      const [alice, bob] = manager.setup(2);
+      const [alice, bob] = manager.setup(2, true);
 
       manager.op(alice, 0);
       manager.check(alice, value0);
@@ -253,7 +258,7 @@ export class Traces {
 
     // Transfer via saves (with nontrivial merging):
     {
-      const [alice, bob, charlie, dave] = manager.setup(4);
+      const [alice, bob, charlie, dave] = manager.setup(4, true);
 
       manager.op(alice, 0);
       manager.check(alice, value0);
@@ -334,13 +339,13 @@ export class Traces {
 
       {
         // All messages by alice except for concurrent one:
-        const [alice, bob] = manager.setup(2);
+        const [alice, bob] = manager.setup(2, true);
         go(alice, alice, bob, alice);
         this.crossSave(manager, [alice, bob], value3);
       }
       {
         // All messages by different replicas:
-        const [alice, bob, charlie, dave] = manager.setup(4);
+        const [alice, bob, charlie, dave] = manager.setup(4, true);
         go(alice, bob, charlie, dave);
         this.crossSave(manager, [alice, bob, charlie, dave], value3);
       }
@@ -394,13 +399,13 @@ export class Traces {
 
       {
         // All messages by alice except for concurrent one:
-        const [alice, bob] = manager.setup(2);
+        const [alice, bob] = manager.setup(2, true);
         go(alice, alice, bob, alice);
         this.crossSave(manager, [alice, bob], value3);
       }
       {
         // All messages by different replicas:
-        const [alice, bob, charlie, dave] = manager.setup(4);
+        const [alice, bob, charlie, dave] = manager.setup(4, true);
         go(alice, bob, charlie, dave);
         this.crossSave(manager, [alice, bob, charlie, dave], value3);
       }
@@ -421,7 +426,7 @@ export class Traces {
 
     // Transfer via messages:
     {
-      const [alice, bob] = manager.setup(2);
+      const [alice, bob] = manager.setup(2, true);
 
       for (let i = 0; i < 4; i++) manager.op(alice, i);
       manager.check(alice, value3);
@@ -438,7 +443,7 @@ export class Traces {
 
     // Transfer via saves (with nontrivial merging):
     {
-      const [alice, bob, charlie, dave] = manager.setup(4);
+      const [alice, bob, charlie, dave] = manager.setup(4, true);
 
       for (let i = 0; i < 4; i++) manager.op(alice, i);
       manager.check(alice, value3);
@@ -467,7 +472,7 @@ export class Traces {
 
     // Two partitions of two replicas each:
     {
-      const [alice, bob, charlie, dave] = manager.setup(4);
+      const [alice, bob, charlie, dave] = manager.setup(4, true);
 
       manager.op(alice, 0);
       manager.op(alice, 1);

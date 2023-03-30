@@ -346,7 +346,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     for (const [name, value] of this.children) {
       if (!childSaves.has(name)) {
         const [senderID, senderCounter] = this.parseName(name);
-        if (crdtMeta.localVectorClock.get(senderID) >= senderCounter) {
+        if (crdtMeta.remoteVectorClock.get(senderID) >= senderCounter) {
           this.receiveDelete(name, value, meta);
         }
       }
