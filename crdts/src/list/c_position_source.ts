@@ -71,7 +71,8 @@ export class PositionSourceLoadEvent implements CollabEvent {
     const [waypoint, valueIndex] = this.source.decode(position);
     const diff = this.waypointDiffs.get(waypoint);
     if (diff === undefined) return false;
-    return valueIndex > diff.local;
+    // >=, because == valueCount is not a valid valueIndex.
+    return valueIndex >= diff.local;
   }
 
   /**
@@ -82,7 +83,7 @@ export class PositionSourceLoadEvent implements CollabEvent {
     const [waypoint, valueIndex] = this.source.decode(position);
     const diff = this.waypointDiffs.get(waypoint);
     if (diff === undefined) return false;
-    return valueIndex > diff.remote;
+    return valueIndex >= diff.remote;
   }
 }
 
@@ -619,10 +620,11 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
     const decoded = PositionSourceSave.decode(savedState);
 
-    // Starts with root, then same order as parentWaypoints.
+    // Starts with root, then same order as decoded.parentWaypoints.
     // OPT: avoid making this whole array?
     const waypoints: Waypoint[] = [this.rootWaypoint];
-    // Indices into waypoints.
+    // Indices into decoded.parentWaypoints, which is one less than
+    // the index into waypoints.
     const newWaypointIndices: number[] = [];
     // For each waypoint with a different valueCount in savedState vs
     // locally before loading, stores both counts.
@@ -631,7 +633,29 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       { local: number; remote: number }
     >();
 
-    // 1. Loop over the loaded waypoints and add them (if new)
+    // 1. Fill in waypointDiffs with waypoints that are present locally but
+    // not remotely.
+    const replicaIDsInv = new Map<string, number>();
+    for (let i = 0; i < decoded.replicaIDs.length; i++) {
+      replicaIDsInv.set(decoded.replicaIDs[i], i);
+    }
+    for (const [replicaID, waypoints] of this.waypointsByID) {
+      if (replicaID === "") continue;
+      const index = replicaIDsInv.get(replicaID);
+      const replicaCount =
+        index === undefined ? 0 : decoded.replicaCounts[index];
+      // All of replicaID's waypoints with index >= replicaCount are present
+      // locally but not remotely.
+      // OPT: avoid this loop, just store the length diff.
+      for (let j = replicaCount; j < waypoints.length; j++) {
+        waypointDiffs.set(waypoints[j], {
+          local: waypoints[j].valueCount,
+          remote: 0,
+        });
+      }
+    }
+
+    // 2. Loop over the loaded waypoints and add them (if new)
     // or take the max of their valueCount (if old).
     if (decoded.valueCounts[0] != this.rootWaypoint.valueCount) {
       waypointDiffs.set(this.rootWaypoint, {
@@ -653,7 +677,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       }
       const replicaID = decoded.replicaIDs[replicaIDIndex];
       const valueCount = decoded.valueCounts[i + 1];
-      const existing = this.getWaypoint(replicaID, replicaCounter);
+      const existing = this.waypointsByID.get(replicaID)?.[replicaCounter];
       if (existing === undefined) {
         // New waypoint.
         const [parentValueIndex, isRight] = this.valueAndSideDecode(
@@ -671,7 +695,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
           valueCount
         );
         waypoints.push(waypoint);
-        newWaypointIndices.push(i + 1);
+        newWaypointIndices.push(i);
         // Store the waypoint.
         let senderWaypoints = this.waypointsByID.get(replicaID);
         if (senderWaypoints === undefined) {
@@ -696,10 +720,10 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       replicaCounter++;
     }
 
-    // 2. Now that all waypoints are created, for each new waypoint,
+    // 3. Now that all waypoints are created, for each new waypoint,
     // fill in its parentWaypoint and add it to parentWaypoint.childWaypoints.
     for (const i of newWaypointIndices) {
-      const newWaypoint = waypoints[i];
+      const newWaypoint = waypoints[i + 1];
       // @ts-expect-error Override readonly parentWaypoint.
       newWaypoint.parentWaypoint = waypoints[decoded.parentWaypoints[i]];
       this.addToChildren(newWaypoint);

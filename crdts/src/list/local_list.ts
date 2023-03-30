@@ -620,7 +620,7 @@ export class LocalList<T> {
     for (; childIndex < children.length; childIndex++) {
       const child = children[childIndex];
       const total = this.total(child);
-      if (this.total(waypoint) !== 0) {
+      if (this.total(child) !== 0) {
         yield { isValues: false, child, total };
       }
     }
