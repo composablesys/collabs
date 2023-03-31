@@ -675,4 +675,124 @@ describe("CValueList", () => {
       });
     });
   });
+
+  describe("fuzz", () => {
+    let runtimeGen!: TestingRuntimes;
+    let runtimes!: CRuntime[];
+    let lists!: CValueList<number>[];
+
+    function doBeforeEach(numUsers: number) {
+      beforeEach(() => {
+        runtimeGen = new TestingRuntimes();
+        runtimes = [];
+        lists = [];
+        for (let i = 0; i < numUsers; i++) {
+          const runtime = runtimeGen.newRuntime(rng);
+          runtimes.push(runtime);
+          lists.push(
+            runtime.registerCollab("list", (init) => new CValueList(init))
+          );
+        }
+      });
+    }
+
+    describe("sequential", () => {
+      for (const numUsers of [1, 10]) {
+        describe(`${numUsers} users`, () => {
+          doBeforeEach(numUsers);
+
+          it("random", () => {
+            // Insert at random indices. Sequentially but split across users.
+            const ans: number[] = [];
+            for (let i = 0; i < 100; i++) {
+              const list = lists[Math.floor(rng() * lists.length)];
+              const index = Math.floor(rng() * (list.length + 1));
+              const value = rng();
+              ans.splice(index, 0, value);
+              list.insert(index, value);
+              runtimeGen.releaseAll();
+            }
+
+            for (const list of lists) {
+              assert.deepStrictEqual(list.slice(), ans);
+            }
+          });
+
+          it("random LtR runs", () => {
+            // Insert short LtR runs at random indices.
+            const ans: number[] = [];
+            for (let i = 0; i < 20; i++) {
+              const list = lists[Math.floor(rng() * lists.length)];
+              const index = Math.floor(rng() * (list.length + 1));
+              const values = new Array(5).fill(0).map(() => rng());
+              ans.splice(index, 0, ...values);
+              for (let j = 0; j < 5; j++) {
+                list.insert(index + j, values[j]);
+              }
+              runtimeGen.releaseAll();
+            }
+
+            for (const list of lists) {
+              assert.deepStrictEqual(list.slice(), ans);
+            }
+          });
+
+          it("random RtL runs", () => {
+            // Insert short RtL runs at random indices.
+            const ans: number[] = [];
+            for (let i = 0; i < 20; i++) {
+              const list = lists[Math.floor(rng() * lists.length)];
+              const index = Math.floor(rng() * (list.length + 1));
+              const values = new Array(5).fill(0).map(() => rng());
+              ans.splice(index, 0, ...values);
+              for (let j = 0; j < 5; j++) {
+                list.insert(index, values[4 - j]);
+              }
+              runtimeGen.releaseAll();
+            }
+
+            for (const list of lists) {
+              assert.deepStrictEqual(list.slice(), ans);
+            }
+          });
+
+          it("random LtR bulk", () => {
+            // Insert short LtR runs at random indices.
+            // This time, use same insert call.
+            const ans: number[] = [];
+            for (let i = 0; i < 20; i++) {
+              const list = lists[Math.floor(rng() * lists.length)];
+              const index = Math.floor(rng() * (list.length + 1));
+              const values = new Array(5).fill(0).map(() => rng());
+              ans.splice(index, 0, ...values);
+              list.insert(index, ...values);
+              runtimeGen.releaseAll();
+            }
+
+            for (const list of lists) {
+              assert.deepStrictEqual(list.slice(), ans);
+            }
+          });
+
+          it("biased", () => {
+            // Bias towards large indices exponentially.
+            const ans: number[] = [];
+            for (let i = 0; i < 100; i++) {
+              const list = lists[Math.floor(rng() * lists.length)];
+              const biased = Math.log2(1 + rng() * 31) / 5;
+              const index = Math.floor(biased * (list.length + 1));
+              const value = rng();
+              ans.splice(index, 0, value);
+              list.insert(index, value);
+              runtimeGen.releaseAll();
+            }
+
+            for (const list of lists) {
+              assert.deepStrictEqual(list.slice(), ans);
+            }
+          });
+        });
+      }
+    });
+  });
 });
