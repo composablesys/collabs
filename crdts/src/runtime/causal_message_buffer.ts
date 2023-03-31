@@ -299,14 +299,16 @@ export class CausalMessageBuffer {
     for (const key of this.maximalVCKeys) {
       const localValue = this.vc.get(key)!;
       const remoteValue = remoteVC.get(key) ?? 0;
+      // If the entry is not in the intersection...
       if (!(remoteMaximalVCKeys.has(key) && localValue === remoteValue)) {
+        // ...and it's causally dominated, then delete it.
         if (remoteValue >= localValue) this.maximalVCKeys.delete(key);
       }
     }
-    // 2. Add new maximal keys (not already present here) that are not
+    // 2. Add new maximal entries that are not
     // causally dominated by the local VC.
-    for (const [key, remoteValue] of remoteVC) {
-      if ((this.vc.get(key) ?? 0) < remoteValue) {
+    for (const key of remoteMaximalVCKeys) {
+      if ((this.vc.get(key) ?? 0) < remoteVC.get(key)!) {
         this.maximalVCKeys.add(key);
       }
     }
