@@ -1,7 +1,12 @@
 import { CollabEventsRecord, InitToken, UpdateMeta } from "@collabs/collabs";
 import { CollabEvent, CPrimitive } from "@collabs/core";
 import { ContainerHostSave } from "../generated/proto_compiled";
-import { ContainerMessage, HostMessage, ReceiveMessage } from "./message_types";
+import {
+  ContainerMessage,
+  HostMessage,
+  Update,
+  UpdateMessage,
+} from "./message_types";
 
 export interface ContainerHostEventsRecord extends CollabEventsRecord {
   /**
@@ -58,6 +63,7 @@ export interface ContainerHostEventsRecord extends CollabEventsRecord {
 export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
   private messagePort: MessagePort | null = null;
   private _isContainerReady = false;
+  private didFirstLoad = false;
 
   /**
    * Queue for messages to be sent over messagePort,
@@ -66,10 +72,11 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
   private messagePortQueue: ContainerMessage[] | null = [];
 
   /**
-   * Queue for ReceiveMessages that are received
-   * (via receivePrimitive) before the container is ready.
+   * Queue for UpdateMessages that are received
+   * (via receivePrimitive or non-first loadPrimitive)
+   * before the container is ready.
    */
-  private receiveMessageQueue: ReceiveMessage[] | null = [];
+  private updateMessageQueue: UpdateMessage[] | null = [];
 
   /**
    * The latest save data received from the container
@@ -85,7 +92,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
    * then those messages get ids 0, 1, ...; newly
    * received messages then start where they leave off.
    */
-  private nextReceivedMessageID = 0;
+  private nextUpdateID = 0;
   /**
    * Received messages that are not accounted for in
    * latestSaveData, tagged with their IDs,
@@ -94,7 +101,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
    * This includes messages found in [[load]] (until they
    * become accounted for in latestSaveData).
    */
-  private furtherReceivedMessages: [id: number, message: Uint8Array][] = [];
+  private furtherReceivedUpdates: [id: number, update: Update][] = [];
   /**
    * Sent messages (i.e., sent by the container)
    * that are not accounted for in latestSaveData.
@@ -102,7 +109,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
    * received before sending a message (-1 if no messages
    * received), counting received messages found in [[loadd]].
    */
-  private furtherSentMessages: [predID: number, message: Uint8Array][] = [];
+  private furtherSentUpdates: [predID: number, update: Update][] = [];
 
   /**
    * Constructs a `CContainerHost` that connects to the `CContainer`
@@ -155,14 +162,17 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
         this._isContainerReady = true;
         this.emit("ContainerReady", {} as CollabEvent, false);
         // Deliver queued ReceiveMessages.
-        this.receiveMessageQueue!.forEach((message) =>
+        this.updateMessageQueue!.forEach((message) =>
           this.messagePortSend(message)
         );
-        this.receiveMessageQueue = null;
+        this.updateMessageQueue = null;
         break;
       case "Send":
         const message = e.data.message;
-        this.furtherSentMessages.push([e.data.predID, message]);
+        this.furtherSentUpdates.push([
+          e.data.predID,
+          { updateType: "message", data: message },
+        ]);
         this.sendPrimitive(message);
         break;
       case "Saved":
@@ -170,11 +180,11 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
         // Trim further messages that are accounted for by the
         // save: all sent messages, and all received messages
         // with id <= e.data.lastReceivedID.
-        this.furtherSentMessages.splice(0);
-        if (this.furtherReceivedMessages.length > 0) {
-          const startID = this.furtherReceivedMessages[0][0];
+        this.furtherSentUpdates.splice(0);
+        if (this.furtherReceivedUpdates.length > 0) {
+          const startID = this.furtherReceivedUpdates[0][0];
           const deleteCount = e.data.lastReceivedID - startID + 1;
-          this.furtherReceivedMessages.splice(0, deleteCount);
+          this.furtherReceivedUpdates.splice(0, deleteCount);
         }
         // Resolve the Promise returned by the
         // original compactSaveData call.
@@ -210,20 +220,27 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
     meta: UpdateMeta
   ): void {
     if (!meta.isLocalOp) {
-      const id = this.nextReceivedMessageID++;
-      this.furtherReceivedMessages.push([id, <Uint8Array>message]);
-      const receiveMessage: ReceiveMessage = {
-        type: "Receive",
-        message: <Uint8Array>message,
-        id,
-      };
-      if (this._isContainerReady) {
-        this.messagePortSend(receiveMessage);
-      } else {
-        this.receiveMessageQueue!.push(receiveMessage);
-      }
+      this.deliverUpdate({
+        updateType: "message",
+        data: <Uint8Array>message,
+      });
     }
     // Else the container already processed it.
+  }
+
+  private deliverUpdate(update: Update) {
+    const id = this.nextUpdateID++;
+    this.furtherReceivedUpdates.push([id, update]);
+    const receiveMessage: UpdateMessage = {
+      type: "Update",
+      id,
+      ...update,
+    };
+    if (this._isContainerReady) {
+      this.messagePortSend(receiveMessage);
+    } else {
+      this.updateMessageQueue!.push(receiveMessage);
+    }
   }
 
   /**
@@ -260,20 +277,18 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
    * of [[CRuntime.save]], generating compact save data
    * describing its current state. This save data will then
    * be used in future calls to our own [[save]] method,
-   * in place of a message log.
+   * in place of an update log.
    *
    * To prevent our own save data from becoming too large
-   * (acting as an ever-growing message log), you should
-   * call this method occasionally. However, do not call it
-   * too often, since saving large documents can take some
-   * time and freezes the container.
+   * (acting as an ever-growing update log), you should
+   * call this method occasionally, e.g., every 30 seconds.
    *
    * The returned Promise resolves when done, i.e., when the
    * next call to save() will include
    * the compacted savedState due to this method call.
    * Note it's not guaranteed that
    * the log will be empty even if you then call save() right away,
-   * because the container may have sent/received more messages
+   * because the container may have sent/received more updates
    * during the async wait.
    *
    * The Promise rejects if the container's call to save failed, with
@@ -295,30 +310,33 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
   }
 
   savePrimitive(): Uint8Array {
-    // Sort further messages in the order they were processed
+    // Sort further updates in the order they were processed
     // (sent or received) by the container.
-    // This means that each sent message comes right after
-    // the received message with its predID
+    // This means that each sent update comes right after
+    // the applied update with its predID
     // (except that earlier sent messages with the same predID
     // come first, of course).
-    const furtherMessages = new Array<Uint8Array>(
-      this.furtherSentMessages.length + this.furtherReceivedMessages.length
+    const furtherUpdatesData = new Array<Uint8Array>(
+      this.furtherSentUpdates.length + this.furtherReceivedUpdates.length
     );
+    const furtherUpdatesTypes = new Array<boolean>(furtherUpdatesData.length);
     let i = 0,
       j = 0;
-    while (i + j < furtherMessages.length) {
-      const sent = this.furtherSentMessages[i];
-      const received = this.furtherReceivedMessages[j];
+    while (i + j < furtherUpdatesData.length) {
+      const sent = this.furtherSentUpdates[i];
+      const received = this.furtherReceivedUpdates[j];
       // Deciding whether to push the next sent message
       // or the next received mesage:
       // if the received message is a predecessor of the sent
       // message, we push the received message, else we
       // push the sent message.
       if (received[0] <= sent[0]) {
-        furtherMessages[i + j] = received[1];
+        furtherUpdatesData[i + j] = received[1].data;
+        furtherUpdatesTypes[i + j] = received[1].updateType === "savedState";
         j++;
       } else {
-        furtherMessages[i + j] = sent[1];
+        furtherUpdatesData[i + j] = sent[1].data;
+        furtherUpdatesTypes[i + j] = sent[1].updateType === "savedState";
         i++;
       }
     }
@@ -329,46 +347,75 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
     // received messages (sent by different replicas).
     const message = ContainerHostSave.create({
       latestSaveData: this.latestSaveData,
-      furtherMessages,
+      furtherUpdatesData,
+      furtherUpdatesTypes,
     });
     return ContainerHostSave.encode(message).finish();
   }
 
   loadPrimitive(savedState: Uint8Array | null): void {
-    if (savedState === null) return;
+    if (!this.didFirstLoad) {
+      // First load case.
+      this.didFirstLoad = true;
 
-    // Set our latestSaveData and furtherMessages.
-    const decoded = ContainerHostSave.decode(savedState);
-    this.latestSaveData = Object.prototype.hasOwnProperty.call(
-      decoded,
-      "latestSaveData"
-    )
-      ? decoded.latestSaveData
-      : null;
-    this.furtherReceivedMessages = decoded.furtherMessages.map(
-      (message, index) => [index, message]
-    );
-    this.nextReceivedMessageID = this.furtherReceivedMessages.length;
+      if (savedState === null) {
+        this.loadSkipped();
+        return;
+      }
 
-    this.messagePortSend({
-      type: "Load",
-      hostSkipped: false,
-      latestSaveData: this.latestSaveData,
-      furtherMessages: decoded.furtherMessages,
-    });
+      // Set our latestSaveData and furtherMessages.
+      const decoded = ContainerHostSave.decode(savedState);
+      this.latestSaveData = Object.prototype.hasOwnProperty.call(
+        decoded,
+        "latestSaveData"
+      )
+        ? decoded.latestSaveData
+        : null;
+      const furtherUpdates: Update[] = decoded.furtherUpdatesData.map(
+        (data, index) => ({
+          data,
+          updateType: decoded.furtherUpdatesTypes[index]
+            ? "savedState"
+            : "message",
+        })
+      );
+      this.furtherReceivedUpdates = furtherUpdates.map((message, index) => [
+        index,
+        message,
+      ]);
+      this.nextUpdateID = this.furtherReceivedUpdates.length;
+
+      this.messagePortSend({
+        type: "Load",
+        hostSkipped: false,
+        latestSaveData: this.latestSaveData,
+        furtherUpdates,
+      });
+    } else {
+      // Non-first load. Send it as an update instead.
+      if (savedState === null) return;
+
+      this.deliverUpdate({ updateType: "savedState", data: savedState });
+    }
   }
 
   /**
-   * Must call if loading (via [[CRuntime.load]]) is skipped.
+   * Must call if initial loading (via [[CRuntime.load]] at the start of the
+   * app, before allowing user interaction or remote messages) is skipped.
    */
   loadSkipped(): void {
-    // Leave this.latestSaveData, this.furtherReceivedMessages
+    if (this.didFirstLoad) {
+      throw new Error("Loading already done or skipped");
+    }
+    this.didFirstLoad = true;
+
+    // Leave this.latestSaveData, this.furtherReceivedUpdates
     // as their initial values (null, []).
     this.messagePortSend({
       type: "Load",
       hostSkipped: true,
       latestSaveData: null,
-      furtherMessages: [],
+      furtherUpdates: [],
     });
   }
 }
