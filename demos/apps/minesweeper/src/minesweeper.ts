@@ -460,9 +460,6 @@ class CMinesweeper extends CObject {
 
   await container.load();
 
-  // Display loaded state.
-  invalidate();
-
   // Ready.
   container.ready();
 })();

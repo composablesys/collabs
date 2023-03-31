@@ -67,14 +67,15 @@ export class AddComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array | null) {
+  loadCRDT(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -113,14 +114,15 @@ export class MultComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array | null) {
+  loadCRDT(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -157,14 +159,15 @@ export class MinComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array | null) {
+  loadCRDT(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -201,14 +204,15 @@ export class MaxComponent
     return this.state.value === this.state.initialValue;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     const message = CNumberComponentMessage.create({
       arg: this.state.value,
     });
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array | null) {
+  loadCRDT(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -284,8 +288,7 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 }
 
 /**
- * Experimental; stable alternatives are [[CCounter]], [[ResettableCCounter]],
- * and [[LwwCVar]]`<number>`.
+ * Experimental; stable alternatives are [[CCounter]] and [[CVar]]`<number>`.
  *
  * Experimental warnings:
  * - Eventual consistency may fail due to rounding issues.
@@ -293,6 +296,8 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
  * large enough to overflow anything.
  * - Uses tombstones (one per operation).  So the memory
  * usage will grow without bound, unlike most of our Collabs.
+ *- Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
  *
  * See https://github.com/composablesys/collabs/issues/177
  */

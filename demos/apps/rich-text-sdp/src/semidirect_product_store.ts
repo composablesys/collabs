@@ -5,7 +5,7 @@ import {
   Serializer,
 } from "@collabs/collabs";
 import { SavedStateTree, UpdateMeta } from "@collabs/core";
-import { CRDTMeta, CRuntime } from "@collabs/crdts";
+import { CRDTMessageMeta, CRuntime } from "@collabs/crdts";
 import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
@@ -57,6 +57,9 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
+ *
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private readonly m2Serializer: Serializer<M2>;
@@ -93,26 +96,26 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     }
   }
 
-  processM2(m2: M2, crdtMeta: CRDTMeta): void {
+  processM2(m2: M2, CRDTMessageMeta: CRDTMessageMeta): void {
     // Add m2 to the history.
     if (this.discardM2Dominated) {
-      this.processMeta(crdtMeta, false, true);
+      this.processMeta(CRDTMessageMeta, false, true);
     }
-    let senderHistory = this.history.get(crdtMeta.senderID);
+    let senderHistory = this.history.get(CRDTMessageMeta.senderID);
     if (senderHistory === undefined) {
       senderHistory = [];
-      this.history.set(crdtMeta.senderID, senderHistory);
+      this.history.set(CRDTMessageMeta.senderID, senderHistory);
     }
     senderHistory.push(
-      new StoredMessage(crdtMeta.senderCounter, this.receiptCounter, m2)
+      new StoredMessage(CRDTMessageMeta.senderCounter, this.receiptCounter, m2)
     );
     this.receiptCounter++;
   }
 
-  processM1(m1: M1, crdtMeta: CRDTMeta): M1 | null {
+  processM1(m1: M1, CRDTMessageMeta: CRDTMessageMeta): M1 | null {
     // Collect concurrent messages.
     const concurrent = this.processMeta(
-      crdtMeta,
+      CRDTMessageMeta,
       true,
       this.discardM1Dominated
     );
@@ -128,33 +131,33 @@ export class SemidirectProductStore<M1, M2> extends CObject {
   /**
    * Performs specified actions on all messages in the history:
    * - if returnConcurrent is true, returns the list of
-   * all messages in the history concurrent to crdtMeta, in
+   * all messages in the history concurrent to CRDTMessageMeta, in
    * receipt order.
    * - if discardDominated is true, deletes all messages from
-   * the history whose crdtMetas are causally dominated by
-   * or equal to the given crdtMeta.  (Note that this means that
-   * if we want to keep a message with the given crdtMeta in
+   * the history whose CRDTMessageMetas are causally dominated by
+   * or equal to the given CRDTMessageMeta.  (Note that this means that
+   * if we want to keep a message with the given CRDTMessageMeta in
    * the history, it must be added to the history after calling
    * this method.)
    */
   private processMeta(
-    crdtMeta: CRDTMeta,
+    CRDTMessageMeta: CRDTMessageMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
-    // if replicaID === crdtMeta.senderID, we know the answer is [] (sequential).
-    // But for automatic CRDTMeta to work, we need to still access all current VC
+    // if replicaID === CRDTMessageMeta.senderID, we know the answer is [] (sequential).
+    // But for automatic CRDTMessageMeta to work, we need to still access all current VC
     // entries. So, we skip that shortcut.
 
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
-    // greater than crdtMeta.vectorClock.get(replicaID).
+    // greater than CRDTMessageMeta.vectorClock.get(replicaID).
     // TODO: automatic VC entries should be sufficient, but double-check,
     // especially when discardDominated flags are set.
     // OPT: only request causally maximal VC entries (then require a full DAG).
     const concurrent: StoredMessage<M2>[] = [];
     for (const [sender, senderHistory] of this.history.entries()) {
-      const vcEntry = crdtMeta.vectorClockGet(sender);
+      const vcEntry = CRDTMessageMeta.vectorClock.get(sender);
       if (senderHistory !== undefined) {
         const concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {
@@ -191,7 +194,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    */
   private indexAfter(sparseArray: StoredMessage<M2>[], value: number): number {
     // OPT: binary search when sparseArray is large?
-    // Note that there may be duplicate crdtMetas.
+    // Note that there may be duplicate CRDTMessageMetas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
@@ -234,7 +237,10 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return ans;
   }
 
+  // TODO: support merging. Possible algorithmically, just need to code it up.
   load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
+    if (savedStateTree === null) return;
+
     super.load(savedStateTree, meta);
     const savedState = savedStateTree.self!;
 

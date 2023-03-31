@@ -126,6 +126,7 @@ export class TranslateComponent extends CPrimitive<GroupEventsRecord> {
   }
 
   loadPrimitive(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.X1 = GroupComponentMessage.decode(savedState).X1;
     this.state.Y1 = GroupComponentMessage.decode(savedState).Y1;
     this.state.X2 = GroupComponentMessage.decode(savedState).X2;
@@ -228,6 +229,7 @@ export class RotateComponent extends CPrimitive<GroupEventsRecord> {
   }
 
   loadPrimitive(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.rotate1 = GroupComponentMessage.decode(savedState).rotate1;
     this.state.rotate2 = GroupComponentMessage.decode(savedState).rotate2;
   }
@@ -285,6 +287,7 @@ export class ReflectXComponent extends CPrimitive<GroupEventsRecord> {
   }
 
   loadPrimitive(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.reflectX1 = GroupComponentMessage.decode(savedState).reflectX1;
   }
 }
@@ -342,11 +345,16 @@ export class ReflectYComponent extends CPrimitive<GroupEventsRecord> {
   }
 
   loadPrimitive(savedState: Uint8Array | null) {
+    if (savedState === null) return;
     this.state.reflectY1 = GroupComponentMessage.decode(savedState).reflectY1;
     this.state.reflectY2 = GroupComponentMessage.decode(savedState).reflectY2;
   }
 }
 
+/**
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
+ */
 export class GroupCRDT extends MultipleSemidirectProduct<
   GroupState,
   GroupEventsRecord

@@ -23,6 +23,10 @@ export interface Replica {
 
   load(savedState: Data): void;
 
+  // TODO: shouldn't need this anymore, since Collab doesn't require
+  // load() to always be called.
+  // For fake initial states, can just always load them in the constructor,
+  // then merge in the actual savedState if load is called.
   skipLoad(): void;
 }
 

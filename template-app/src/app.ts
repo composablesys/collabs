@@ -13,12 +13,12 @@ const runtime = new collabs.CRuntime();
 // runtime.receive:
 // ```ts
 // runtime.on("Send", e => {
-//     // TODO: send e.message to other collaborators
+//   // TODO: send e.message to other collaborators
 // });
 //
 // // TODO: Call this when you receive a network message.
 // function handleReceivedMessage(message: Uint8Array) {
-//     runtime.receive(message);
+//   runtime.receive(message);
 // }
 // ```
 // In specific cases, you can use a premade <something>Network class,
@@ -32,7 +32,7 @@ const runtime = new collabs.CRuntime();
 const host = location.origin.replace(/^http/, "ws");
 new WebSocketNetwork(runtime, host, "");
 
-// TODO: Load the previous saved state, if any.
+// TODO: Load previous saved state, if any.
 // runtime.load(savedState);
 
 // TODO: call runtime.receive on any past messages that didn't make it into

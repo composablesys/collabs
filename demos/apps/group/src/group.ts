@@ -172,9 +172,6 @@ import { GroupCRDT, GroupState } from "./groupcrdt";
 
   await container.load();
 
-  // Display loaded state.
-  updateImg();
-
   // Ready.
   container.ready();
 })();

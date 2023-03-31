@@ -2,7 +2,7 @@ import {
   Collab,
   CollabEventsRecord,
   CollabID,
-  CRDTMeta,
+  CRDTMessageMeta,
   InitToken,
   IParent,
   MetaRequest,
@@ -82,7 +82,7 @@ class MultipleSemidirectState<S extends object> {
   add(
     messageStack: (Uint8Array | string)[],
     meta: UpdateMeta,
-    crdtMeta: CRDTMeta,
+    crdtMeta: CRDTMessageMeta,
     arbId: number
   ) {
     let senderHistory = this.history.get(meta.senderID);
@@ -110,7 +110,7 @@ class MultipleSemidirectState<S extends object> {
    * meta.senderID), it is assumed that the meta is
    * causally greater than all prior messages, hence [] is returned.
    */
-  getConcurrent(replicaID: string, crdtMeta: CRDTMeta, arbId: number) {
+  getConcurrent(replicaID: string, crdtMeta: CRDTMessageMeta, arbId: number) {
     return this.processMeta(replicaID, crdtMeta, true, arbId);
   }
 
@@ -128,7 +128,7 @@ class MultipleSemidirectState<S extends object> {
    */
   private processMeta(
     replicaID: string,
-    crdtMeta: CRDTMeta,
+    crdtMeta: CRDTMessageMeta,
     returnConcurrent: boolean,
     arbId: number
   ) {
@@ -142,7 +142,7 @@ class MultipleSemidirectState<S extends object> {
     let concurrent: Array<StoredMessage> = [];
     for (let historyEntry of this.history.entries()) {
       let senderHistory = historyEntry[1];
-      let vcEntry = crdtMeta.vectorClockGet(historyEntry[0]);
+      let vcEntry = crdtMeta.vectorClock.get(historyEntry[0]);
       if (senderHistory !== undefined) {
         let concurrentIndexStart = MultipleSemidirectState.indexAfter(
           senderHistory,
@@ -302,6 +302,9 @@ class MultipleSemidirectState<S extends object> {
 
 /**
  * # Experimental
+ *
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
  */
 export abstract class MultipleSemidirectProduct<
     S extends object,
@@ -385,7 +388,7 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("Unexpected message");
     }
 
-    const crdtMeta = <CRDTMeta>meta.runtimeExtra;
+    const crdtMeta = <CRDTMessageMeta>meta.runtimeExtra;
 
     const name = <string>messageStack.pop();
     let idx: number;
@@ -469,6 +472,8 @@ export abstract class MultipleSemidirectProduct<
    * @param savedState [description]
    */
   load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    if (savedStateTree === null) return;
+
     for (const [name, savedState] of savedStateTree.children!) {
       if (savedState !== null) {
         this.crdts[Number.parseInt(name)].load(savedState, meta);

@@ -12,11 +12,11 @@ export class NoopCRDT extends collabs.PrimitiveCRDT {
     // Noop.
   }
 
-  savePrimitive() {
+  saveCRDT() {
     return new Uint8Array();
   }
 
-  loadPrimitive(): void {
+  loadCRDT(): void {
     // No-op.
   }
 }

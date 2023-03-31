@@ -134,6 +134,10 @@ export class RunLocallyLayer extends Collab implements IParent {
   }
 
   load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    // I believe merging still makes sense here: the child will merge the
+    // saved states including run-local changes, which are replicated
+    // (and assigned metadata) as if they were normal Collab operations,
+    // hence the child's usual merge algorithm should "just work".
     this.child.load(savedStateTree, meta);
   }
 

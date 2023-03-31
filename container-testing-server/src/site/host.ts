@@ -67,7 +67,7 @@ const sessionStorageSave = window.sessionStorage.getItem(containerUrl);
 if (doLoad) {
   console.log("Loading from sessionStorage...");
   if (sessionStorageSave === null) {
-    console.log("Load error: no save found.");
+    console.log("Load error: no save found, skipping.");
     host.loadSkipped();
   } else {
     runtime.load(collabs.Bytes.parse(sessionStorageSave));

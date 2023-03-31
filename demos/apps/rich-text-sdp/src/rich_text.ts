@@ -6,7 +6,8 @@ import {
   CollabEvent,
   CollabEventsRecord,
   CollabID,
-  CRDTMeta,
+  CRDTMessageMeta,
+  CRDTSavedStateMeta,
   CRuntime,
   CVar,
   InitToken,
@@ -141,15 +142,23 @@ class CRichChar extends CObject<CRichCharEventsRecord> {
             // Hack: do so by saving & loading, then use a noop message
             // so CLazyMap sees that it's nontrivial.
             // TODO: proper function for this that also provides proper
-            // CRDTMeta & normalizes the save?
+            // CRDTMessageMeta & normalizes the save?
             const originSave = value.save();
             if (originSave !== null) {
               const cvar = this._attributes.get(key);
+              const fakeCRDTMeta: CRDTSavedStateMeta = {
+                senderID: "COPY",
+                // Use a "bottom"/initial state, so nothing is dominated.
+                localVectorClock: { get: () => 0 },
+                localLamportTimestamp: 0,
+                remoteVectorClock: { get: () => 0 },
+                remoteLamportTimestamp: 0,
+              };
               cvar.load(originSave, {
                 senderID: "COPY",
                 isLocalOp: false,
                 updateType: "savedState",
-                runtimeExtra: undefined,
+                runtimeExtra: fakeCRDTMeta,
               });
               runLocallyLayer.runLocally(meta, () => cvar.noop());
             }
@@ -173,6 +182,13 @@ interface CRichTextEventsRecord extends CollabEventsRecord {
   Format: { index: number; key: string } & CollabEvent;
 }
 
+/**
+ * **Experimental** (due to use of SemidirectProductStore); memory-inefficient
+ * (a map per character).
+ *
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
+ */
 class CRichText extends CObject<CRichTextEventsRecord> {
   readonly text: CList<
     CRichChar,
@@ -215,14 +231,18 @@ class CRichText extends CObject<CRichTextEventsRecord> {
       // Concurrent formatting logic: copy formatting from the new char's
       // origin to itself, and store it in sdpStore.
       // It is okay to do so here because we never un-archive chars, hence
-      // Insert events correspond exactly to new char operations. Note that
-      // we don't want to do this during loading, hence we can't do it in the
-      // valueConstructor.
-      char.copyOriginAttributes(this.runLocallyLayer, e.meta);
-      this.sdpStore.processM2(
-        this.text.idOf(char),
-        <CRDTMeta>e.meta.runtimeExtra
-      );
+      // Insert *message* events correspond exactly to new char operations.
+
+      // We don't want to do this for saved states, only new messages
+      // (TODO: support merging, which could require doing something here):
+      if (e.meta.updateType !== "savedState") {
+        char.copyOriginAttributes(this.runLocallyLayer, e.meta);
+        this.sdpStore.processM2(
+          this.text.idOf(char),
+          <CRDTMessageMeta>e.meta.runtimeExtra
+        );
+      }
+
       // Own event.
       this.emit("Insert", {
         startIndex: e.index,
@@ -261,7 +281,7 @@ class CRichText extends CObject<CRichTextEventsRecord> {
               targets: new Set([richChar]),
               attribute: e.key,
             },
-            <CRDTMeta>e.meta.runtimeExtra
+            <CRDTMessageMeta>e.meta.runtimeExtra
           )!;
           if (acted.targets.size > 1) {
             // Also format the new targets indicated by acted.
@@ -383,6 +403,10 @@ function makeInitialSave(): Uint8Array {
     "text",
     (init) => new CRichText(init, ["\n"])
   );
+  // "Set the initial state"
+  // (a single "\n", required by Quill) by
+  // loading it from a separate doc.
+  container.runtime.load(makeInitialSave());
 
   const quill = new Quill("#editor", {
     theme: "snow",
@@ -412,19 +436,14 @@ function makeInitialSave(): Uint8Array {
     },
   });
 
-  if (await container.load()) {
-    // Loading was skipped. We need to "set the initial state"
-    // (a single "\n", required by Quill) by
-    // loading it from a separate doc.
-    container.runtime.load(makeInitialSave());
-  }
+  await container.load();
 
-  // Call this before syncing the loaded state to Quill, as
+  // Call this before adding event listeners, as
   // an optimization.
   // That way, we can immediately give Quill the complete loaded
   // state (including further messages), instead of syncing
   // the further messages to Quill using a bunch of events.
-  container.receiveFurtherMessages();
+  container.receiveFurtherUpdates();
 
   // Display loaded state by syncing it to Quill.
   let ourChange = false;
