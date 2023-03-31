@@ -13,7 +13,7 @@ export class NoopCRDT extends collabs.PrimitiveCRDT {
   }
 
   savePrimitive() {
-    return null;
+    return new Uint8Array();
   }
 
   loadPrimitive(): void {

@@ -336,10 +336,20 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     };
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
-    const saveMessage = CSetSave.decode(savedStateTree.self!);
-    const childSaves = savedStateTree.children!;
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
     const crdtMeta = meta.runtimeExtra as CRDTSavedStateMeta;
+
+    let saveMessage: CSetSave;
+    let childSaves: Map<string, SavedStateTree>;
+    if (savedStateTree === null) {
+      // Assume the saved state was trivial (had canGC() = true), i.e.,
+      // 0 values.
+      saveMessage = CSetSave.create({ args: [] });
+      childSaves = new Map();
+    } else {
+      saveMessage = CSetSave.decode(savedStateTree.self!);
+      childSaves = savedStateTree.children!;
+    }
 
     // 1. Delete our children that are not present in the saved
     // state and that are causally dominated by the remote VC.

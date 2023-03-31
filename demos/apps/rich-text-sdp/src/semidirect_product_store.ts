@@ -234,7 +234,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return ans;
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta) {
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
     super.load(savedStateTree, meta);
     const savedState = savedStateTree.self!;
 

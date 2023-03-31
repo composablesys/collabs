@@ -74,7 +74,7 @@ export class AddComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array) {
+  loadPrimitive(savedState: Uint8Array | null) {
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -120,7 +120,7 @@ export class MultComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array) {
+  loadPrimitive(savedState: Uint8Array | null) {
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -164,7 +164,7 @@ export class MinComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array) {
+  loadPrimitive(savedState: Uint8Array | null) {
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }
@@ -208,7 +208,7 @@ export class MaxComponent
     return CNumberComponentMessage.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array) {
+  loadPrimitive(savedState: Uint8Array | null) {
     this.state.value = CNumberComponentMessage.decode(savedState).arg;
   }
 }

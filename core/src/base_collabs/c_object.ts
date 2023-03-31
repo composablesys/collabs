@@ -164,26 +164,34 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * views that were not automatically updated by children's load events.
    * It is recommended to do so as follows:
    * ```ts
-   * load(savedStateTree: SavedStateTree, meta: UpdateMeta) {
+   * load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
    *   super.load(savedStateTree, meta);
    *   // Process your extra saved state from savedStateTree.self.
-   *   const savedState = savedStateTree.self!;
+   *   const savedState = savedStateTree === null? null: savedStateTree.self!;
    *   ...
    *   // Perform extra setup as needed.
    *   ...
    * }
    * ```
    */
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
-    if (savedStateTree.children !== undefined) {
-      for (const [name, childSave] of savedStateTree.children) {
-        const child = this.children.get(name);
-        // For versioning purposes, skip loading children that no longer exist.
-        if (child !== undefined) {
-          // We don't save nulls, so can assert childSave!.
-          child.load(childSave, meta);
-        }
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    if (savedStateTree === null) {
+      // Pass the null on to children that might override canGC().
+      // For consistency with CLazyMap, only do this for nontrivial children.
+      for (const child of this.children.values()) {
+        if (!child.canGC()) child.load(null, meta);
       }
+      return;
+    }
+
+    for (const [name, childSave] of savedStateTree.children!) {
+      const child = this.children.get(name);
+      // For versioning purposes, skip loading children that no longer exist.
+      if (child !== undefined) {
+        child.load(childSave, meta);
+      }
+      // Note that this will also skip loading children that did not
+      // exist in the saved state's app version.
     }
   }
 

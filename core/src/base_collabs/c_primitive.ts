@@ -100,8 +100,8 @@ export abstract class CPrimitive<
    */
   protected abstract savePrimitive(): Uint8Array;
 
-  load(savedState: SavedStateTree, meta: UpdateMeta): void {
-    this.loadPrimitive(savedState.self!, meta);
+  load(savedState: SavedStateTree | null, meta: UpdateMeta): void {
+    this.loadPrimitive(savedState === null ? null : savedState.self!, meta);
   }
 
   /**
@@ -111,13 +111,19 @@ export abstract class CPrimitive<
    * possibly in a different collaboration session,
    * with guarantees set by the [[runtime]].
    *
-   * @param savedState The saved state to load.
+   * This method may also be called with `savedState = null`;
+   * you should ignore such calls (i.e., return immediately)
+   * *unless* you override [[canGC]]. If you do override `canGC`,
+   * see that method's docs for instructions.
+   *
+   * @param savedState The saved state to load,
+   * or `null` as described above.
    * @param meta Metadata attached to this saved state by the runtime.
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
    */
   protected abstract loadPrimitive(
-    savedState: Uint8Array,
+    savedState: Uint8Array | null,
     meta: UpdateMeta
   ): void;
 }

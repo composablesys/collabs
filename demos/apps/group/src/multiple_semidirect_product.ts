@@ -468,7 +468,7 @@ export abstract class MultipleSemidirectProduct<
    * case.
    * @param savedState [description]
    */
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
     for (const [name, savedState] of savedStateTree.children!) {
       if (savedState !== null) {
         this.crdts[Number.parseInt(name)].load(savedState, meta);

@@ -100,7 +100,10 @@ export abstract class PrimitiveCRDT<
     return this.saveCRDT();
   }
 
-  protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
+  protected loadPrimitive(
+    savedState: Uint8Array | null,
+    meta: UpdateMeta
+  ): void {
     this.loadCRDT(savedState, meta, <CRDTSavedStateMeta>meta.runtimeExtra);
   }
 
@@ -128,14 +131,20 @@ export abstract class PrimitiveCRDT<
    * possibly in a different collaboration session,
    * with guarantees set by the [[runtime]].
    *
-   * @param savedState The saved state to load.
+   * This method may also be called with `savedState = null`;
+   * you should ignore such calls (i.e., return immediately)
+   * *unless* you override [[canGC]]. If you do override `canGC`,
+   * see that method's docs for instructions.
+   *
+   * @param savedState The saved state to load,
+   * or `null` as described above.
    * @param meta Generic metadata attached to this message by the [[CRuntime]].
    * Note that `meta.updateType` is always `"savedState"`.
    * @param crdtMeta CRDT-specific Metadata attached to this message by the [[CRuntime]].
    * It contains all fields and vector clock entries.
    */
   protected abstract loadCRDT(
-    savedState: Uint8Array,
+    savedState: Uint8Array | null,
     meta: UpdateMeta,
     crdtMeta: CRDTSavedStateMeta
   ): void;

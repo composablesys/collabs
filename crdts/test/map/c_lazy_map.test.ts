@@ -201,12 +201,12 @@ describe("CLazyMap", () => {
   });
 
   describe("unit", () => {
-    let runtimeGen: TestingRuntimes;
-    let alice: CRuntime;
-    let bob: CRuntime;
+    let runtimeGen!: TestingRuntimes;
+    let alice!: CRuntime;
+    let bob!: CRuntime;
 
-    let aliceMap: CLazyMap<string, CVar<number>>;
-    let bobMap: CLazyMap<string, CVar<number>>;
+    let aliceMap!: CLazyMap<string, CVar<number>>;
+    let bobMap!: CLazyMap<string, CVar<number>>;
 
     beforeEach(() => {
       runtimeGen = new TestingRuntimes();

@@ -133,7 +133,7 @@ export class RunLocallyLayer extends Collab implements IParent {
     return this.child.save();
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
     this.child.load(savedStateTree, meta);
   }
 

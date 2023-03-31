@@ -311,15 +311,23 @@ export class CLazyMap<K, C extends Collab>
     };
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
-    if (savedStateTree.children !== undefined) {
-      for (const [name, childSave] of savedStateTree.children) {
-        this.applyUpdate(name, (child) => child.load(childSave, meta), meta);
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    if (savedStateTree === null) {
+      // Pass the null on to children that might override canGC().
+      for (const child of this.nontrivialMap.values()) child.load(null, meta);
+      return;
+    }
+
+    for (const [name, childSave] of savedStateTree.children!) {
+      this.applyUpdate(name, (child) => child.load(childSave, meta), meta);
+    }
+    // Call null on other (nontrivial) children, in case they weren't saved
+    // because they had canGC() = true in the saved state.
+    for (const name of this.nontrivialMap.keys()) {
+      if (!savedStateTree.children!.has(name)) {
+        this.applyUpdate(name, (child) => child.load(null, meta), meta);
       }
     }
-    // TODO: also need to deliver a "null" (GC'd-state) save to all other
-    // values, in case they do something with the VC.
-    // Should do likewise in CObject for fields missing in the save (?).
   }
 
   idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {

@@ -267,7 +267,10 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return ans;
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    // None of our children use null saved states, so just return.
+    if (savedStateTree === null) return;
+
     let sourceLoadEvent!: PositionSourceLoadEvent;
     this.positionSource.on(
       "Load",
@@ -277,6 +280,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       { once: true }
     );
     super.load(savedStateTree, meta);
+
     const savedState = savedStateTree.self!;
 
     if (this.list.inInitialState) {

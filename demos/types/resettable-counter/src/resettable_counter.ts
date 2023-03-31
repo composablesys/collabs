@@ -181,7 +181,7 @@ export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterE
     return GrowOnlyResettableCounterSave.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array) {
+  loadPrimitive(savedState: Uint8Array | null) {
     const message = GrowOnlyResettableCounterSave.decode(savedState);
     for (const [replicaID, m] of Object.entries(message.M)) {
       this.M.set(replicaID, [

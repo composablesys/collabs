@@ -113,7 +113,12 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
     return CounterSave.encode(message).finish();
   }
 
-  protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
+  protected loadPrimitive(
+    savedState: Uint8Array | null,
+    meta: UpdateMeta
+  ): void {
+    if (savedState === null) return;
+
     const oldValue = this._value;
     const decoded = CounterSave.decode(savedState);
     this.mergeOne(this.p, decoded.p, 1);

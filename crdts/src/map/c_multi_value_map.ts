@@ -354,11 +354,18 @@ export class CMultiValueMap<K, V>
   }
 
   loadCRDT(
-    savedState: Uint8Array,
+    savedState: Uint8Array | null,
     meta: UpdateMeta,
     crdtMeta: CRDTSavedStateMeta
   ): void {
-    const decoded = MultiValueMapSave.decode(savedState);
+    let decoded: MultiValueMapSave;
+    if (savedState === null) {
+      // Assume the saved state was trivial (had canGC() = true), i.e.,
+      // 0 values.
+      decoded = MultiValueMapSave.create({ entries: {}, senders: [] });
+    } else {
+      decoded = MultiValueMapSave.decode(savedState);
+    }
 
     // Loop through keys in this.state.
     for (const [keyAsString, itemsRaw] of this.state) {

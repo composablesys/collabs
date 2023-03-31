@@ -334,7 +334,9 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
     return ContainerHostSave.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array): void {
+  loadPrimitive(savedState: Uint8Array | null): void {
+    if (savedState === null) return;
+
     // Set our latestSaveData and furtherMessages.
     const decoded = ContainerHostSave.decode(savedState);
     this.latestSaveData = Object.prototype.hasOwnProperty.call(

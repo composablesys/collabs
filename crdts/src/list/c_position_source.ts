@@ -613,7 +613,12 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return PositionSourceSave.encode(message).finish();
   }
 
-  protected loadPrimitive(savedState: Uint8Array, meta: UpdateMeta): void {
+  protected loadPrimitive(
+    savedState: Uint8Array | null,
+    meta: UpdateMeta
+  ): void {
+    if (savedState === null) return;
+
     const decoded = PositionSourceSave.decode(savedState);
 
     // Starts with root, then same order as decoded.parentWaypoints.

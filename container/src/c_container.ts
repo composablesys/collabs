@@ -263,13 +263,6 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   }
 
   /**
-   * Whether [[load]] has completed (including its Promise).
-   */
-  get isLoaded(): boolean {
-    return this._runtime.isLoaded;
-  }
-
-  /**
    * Whether [[ready]] has completed.
    */
   get isReady(): boolean {
