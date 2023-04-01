@@ -13,6 +13,7 @@ export class IListView<
     super(collab, autoCheck);
 
     collab.on("Insert", (e) => {
+      assert.notStrictEqual(e.index, -1);
       assert.strictEqual(e.positions.length, e.values.length);
       const elements: [position: Position, value: T][] = [];
       for (let i = 0; i < e.values.length; i++) {
@@ -23,14 +24,13 @@ export class IListView<
     });
 
     collab.on("Delete", (e) => {
+      assert.notStrictEqual(e.index, -1);
       // Check that the deleted values/positions are accurate.
       assert.strictEqual(e.positions.length, e.values.length);
       for (let i = 0; i < e.values.length; i++) {
-        assert.strictEqual(e.values[i], this.collab.get(e.index + i));
-        assert.strictEqual(
-          e.positions[i],
-          this.collab.getPosition(e.index + i)
-        );
+        const [position, value] = this.view[e.index + i];
+        assert.strictEqual(e.values[i], value);
+        assert.strictEqual(e.positions[i], position);
         assert.isFalse(collab.hasPosition(e.positions[i]));
       }
       this.view.splice(e.index, e.values.length);

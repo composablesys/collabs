@@ -886,12 +886,12 @@ describe("CValueList", () => {
 
     for (let i = 0; i < deleted.length; i++) {
       const pos = deleted[i];
-      assert.strictEqual(list.getByPosition(pos), undefined);
-      assert.isFalse(list.hasPosition(pos));
-      assert.strictEqual(list.indexOfPosition(pos), -1);
-      assert.strictEqual(list.indexOfPosition(pos, "none"), -1);
-      assert.strictEqual(list.indexOfPosition(pos, "left"), start - 1);
-      assert.strictEqual(list.indexOfPosition(pos, "right"), start);
+      assert.strictEqual(copy.getByPosition(pos), undefined);
+      assert.isFalse(copy.hasPosition(pos));
+      assert.strictEqual(copy.indexOfPosition(pos), -1);
+      assert.strictEqual(copy.indexOfPosition(pos, "none"), -1);
+      assert.strictEqual(copy.indexOfPosition(pos, "left"), start - 1);
+      assert.strictEqual(copy.indexOfPosition(pos, "right"), start);
     }
   }
 });

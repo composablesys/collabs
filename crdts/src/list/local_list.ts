@@ -347,8 +347,8 @@ export class LocalList<T> {
    * Okay if valueIndex is waypoint.valueCount - will return
    * [undefined, false, number of values within waypoint].
    *
-   * @returns [waypoint, valueIndex, value at position,
-   * whether position is present, number of values within waypoint
+   * @returns [value at position, whether position is present,
+   * number of present values within waypoint
    * (not descendants) strictly prior to position]
    */
   private locate(
@@ -357,7 +357,7 @@ export class LocalList<T> {
   ): [value: T | undefined, isPresent: boolean, waypointValuesBefore: number] {
     const info = this.valuesByWaypoint.get(waypoint);
     if (info === undefined) {
-      // Special not-present case.
+      // No values within waypoint.
       return [undefined, false, 0];
     }
     let remaining = valueIndex;
@@ -413,12 +413,9 @@ export class LocalList<T> {
     // Add totals for child waypoints that come before valueIndex.
     // These are precisely the left children with
     // parentValueIndex <= valueIndex.
-    if (waypoint.parentWaypoint !== null) {
-      for (const child of waypoint.parentWaypoint.children) {
-        if (child.isRight || child.parentValueIndex > waypoint.parentValueIndex)
-          break;
-        valuesBefore += this.total(child);
-      }
+    for (const child of waypoint.children) {
+      if (child.isRight || child.parentValueIndex > valueIndex) break;
+      valuesBefore += this.total(child);
     }
 
     // Walk up the tree and add totals for sibling values & waypoints
