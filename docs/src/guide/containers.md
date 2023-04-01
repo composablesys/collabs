@@ -6,7 +6,7 @@ Our intent is that containers can make it easier to develop and use collaborativ
 
 - They should be easy to deploy, since the container author only needs to distribute a file, either on a static site or just as a file. Dedicated container hosts would handle the parts that are hard to deploy (networking, backup storage, etc.).
 - They should be easy to write, since the author only needs to write frontend code: a data model made of `Collabs`, a GUI view of that data model, a controller that updates the model in response to user input, and a bit of boilerplate to connect to the host.
-- They should free users to use whatever network they prefer: a public provider, a self-hosted server, a compatible group chat service, etc. Users can also nest containers inside other Collabs apps (e.g., our [Tile Board demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/tile-board/dist/tile_board.html)).
+- They should free users to use whatever network they prefer: a public provider, a self-hosted server, a compatible group chat service, etc. Users can also nest containers inside other Collabs apps (e.g., our [Selector demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html)).
 - They should guarantee longevity for users: once a user has a copy of the container, they can use it forever, so long as they have access to a (version-compatible) container host.
 
 See also: [Why Make Collabs?](../further_info/why.html).
@@ -78,10 +78,9 @@ If you want to support a specific network/storage/UX/etc. for general Collabs ap
 
 Example container hosts:
 
-- [Demo server WebSocket host](https://github.com/composablesys/collabs/blob/master/demos/server/src/site/web_socket.ts)
-- [Demo server Matrix host](https://github.com/composablesys/collabs/blob/master/demos/server/src/site/matrix.ts)
-- [Selector demo](https://github.com/composablesys/collabs/tree/master/demos/selector). This is not a "pure" host like the previous examples, but is instead itself a container. It lets the user pick a container from a file or URL.
-- [Tile Board demo](https://github.com/composablesys/collabs/tree/master/demos/tile-board) (specifically [`src/tiles.ts`](https://github.com/composablesys/collabs/blob/master/demos/tile-board/src/tiles.ts)). Again itself a container, not a pure host. It lets the user pick a container to use as a tile in the board.
+- [Demo server WebSocket host](https://github.com/composablesys/collabs/blob/master/demos/apps/server/src/site/web_socket.ts)
+- [Demo server Matrix host](https://github.com/composablesys/collabs/blob/master/demos/apps/server/src/site/matrix.ts)
+- [Selector demo](https://github.com/composablesys/collabs/tree/master/demos/apps/selector). This is not a "pure" host like the previous examples, but is instead itself a container. It lets the user pick a container from a file or URL.
 
 There is room for improvement in our "pure" hosts. The demo server Matrix host is the closest to providing a normal collaboration experience, with access controls (provided by a Matrix room) and the possibility of long-lasting collaboration sessions. However, it does not yet incorporate saving state or local persistent storage (see its code comments).
 
@@ -91,7 +90,7 @@ There is room for improvement in our "pure" hosts. The demo server Matrix host i
 
 Dpending on how you configure your build toolchain, you might end up with output files besides just the main HTML file (e.g., non-inlined images). You'll need to distribute those files on a static site, in addition to your main HTML file, and configure the app to point to them. Some hosts (e.g., the Selector demo) will break relative URLs, so make sure to use absolute URLs when pointing to assets (e.g., by setting Webpack's `publicPath` field).
 
-See the [Horse Color Genetics demo](https://github.com/composablesys/collabs/tree/master/demos/horse-color-genetics)'s "multi" build for an example using Webpack.
+See the [Horse Color Genetics demo](https://github.com/composablesys/collabs/tree/master/demos/apps/horse-color-genetics)'s "multi" build for an example using Webpack.
 
 Note that containers that depend on external assets will not have all the features of single-file containers. In particular, they will not load properly offline, and they will break if your URLs ever break.
 

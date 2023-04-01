@@ -117,7 +117,7 @@ class CPair<T, U> extends CObject {
 
 ### Whiteboard
 
-[Complete demo](https://github.com/composablesys/collabs/tree/master/demos/whiteboard)
+[Complete demo](https://github.com/composablesys/collabs/tree/master/demos/apps/whiteboard)
 
 **App:** A simple collaborative whiteboard that users can draw on.
 
@@ -171,7 +171,7 @@ boardState.on("Delete", (event) => {
 
 ### Minesweeper
 
-[Complete demo](https://github.com/composablesys/collabs/tree/master/demos/minesweeper)
+[Complete demo](https://github.com/composablesys/collabs/tree/master/demos/apps/minesweeper)
 
 **App:** A game of Minesweeper that all users play together (anyone can click to reveal a square).
 
