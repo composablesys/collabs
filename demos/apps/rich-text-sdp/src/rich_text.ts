@@ -273,6 +273,7 @@ class CRichText extends CObject<CRichTextEventsRecord> {
       ignoreAttrs
     );
     richChar.on("Format", (e) => {
+      if (e.meta.updateType === "savedState") return;
       if (!this.inNormalFormat) {
         this.inNormalFormat = true;
         try {
