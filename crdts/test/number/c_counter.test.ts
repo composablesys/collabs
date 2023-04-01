@@ -2,7 +2,9 @@ import { InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CCounter } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { CCounterView } from "./views";
 
 function addArg(mode: "inc" | "inc/dec" | "ints", n: number): number {
   switch (mode) {
@@ -26,10 +28,13 @@ class CounterSource implements Source<CCounter, number> {
   ) {}
 
   pre(init: InitToken) {
-    return new CCounter(init, this.options);
+    const counter = new CCounter(init, this.options);
+    new CCounterView(counter, false);
+    return counter;
   }
   check(actual: CCounter, expected: number): void {
     assert.strictEqual(actual.value, expected);
+    EventView.check(actual);
   }
   op(c: CCounter, n: number): void {
     c.add(addArg(this.mode, n));

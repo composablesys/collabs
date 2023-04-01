@@ -26,6 +26,8 @@ export interface ListMoveEvent<C> extends CollabEvent {
   index: number;
   previousIndex: number;
   values: C[];
+  previousPositions: Position[];
+  positions: Position[];
 }
 
 /**
@@ -261,6 +263,8 @@ export class CList<
           index: this.list.indexOfPosition(event.value.position),
           previousIndex,
           values: [entry.value],
+          previousPositions: [event.previousValue.position],
+          positions: [event.value.position],
           meta: event.meta,
         });
       }

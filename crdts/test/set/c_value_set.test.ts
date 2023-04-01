@@ -2,13 +2,17 @@ import { InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CValueSet } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { ISetView } from "./views";
 
 class ValueSetSource implements Source<CValueSet<string>, string[]> {
   constructor(readonly rng: seedrandom.prng, readonly mode: "add" | "delete") {}
 
   pre(init: InitToken) {
-    return new CValueSet<string>(init);
+    const set = new CValueSet<string>(init);
+    new ISetView(set, false);
+    return set;
   }
   check(actual: CValueSet<string>, expected: string[]): void {
     assert.deepStrictEqual(new Set(actual.values()), new Set(expected));
@@ -16,6 +20,7 @@ class ValueSetSource implements Source<CValueSet<string>, string[]> {
       assert(actual.has(value));
     }
     assert.isFalse(actual.has("not present"));
+    EventView.check(actual);
   }
   op(c: CValueSet<string>, n: number): void {
     switch (this.mode) {

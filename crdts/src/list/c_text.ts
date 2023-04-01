@@ -171,6 +171,11 @@ export class CText extends CObject<TextEventsRecord> {
     return this.values();
   }
 
+  /** Returns an iterator for present positions, in list order. */
+  positions(): IterableIterator<Position> {
+    return this.list.positions();
+  }
+
   /**
    * Returns an iterator of [index, position, value] tuples for every
    * character (value) in the text string, in order.

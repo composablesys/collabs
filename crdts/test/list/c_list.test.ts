@@ -2,7 +2,9 @@ import { CollabID, InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CList, CRuntime, CVar, TestingRuntimes } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { CListView } from "./views";
 
 /**
  * V value type: for each CVar, [current value, CVar.conflicts()].
@@ -18,10 +20,12 @@ class ListSource
   ) {}
 
   pre(init: InitToken) {
-    return new CList<CVar<string>, [string]>(
+    const list = new CList<CVar<string>, [string]>(
       init,
       (valueInit, initialValue) => new CVar(valueInit, initialValue)
     );
+    new CListView(list, false);
+    return list;
   }
   check(
     actual: CList<CVar<string>, [string]>,
@@ -36,6 +40,7 @@ class ListSource
       assert.deepStrictEqual(actual.get(i).value, expected[i][0]);
       assert.deepStrictEqual(actual.get(i).conflicts(), expected[i][1]);
     }
+    EventView.check(actual);
   }
   op(c: CList<CVar<string>, [string]>, n: number): void {
     switch (this.mode) {
@@ -628,6 +633,9 @@ describe("CList", () => {
             (valueInit, initialValue) => new CVar(valueInit, initialValue)
           )
       );
+
+      new CListView(aliceList, true);
+      new CListView(bobList, true);
     });
 
     it("inserts once", () => {

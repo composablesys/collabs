@@ -1,8 +1,10 @@
-import { InitToken } from "@collabs/core";
+import { InitToken, ReplicaIDs } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CRuntime, CValueList, TestingRuntimes } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { IListView } from "./views";
 
 class ValueListSource implements Source<CValueList<string>, string[]> {
   constructor(
@@ -11,7 +13,9 @@ class ValueListSource implements Source<CValueList<string>, string[]> {
   ) {}
 
   pre(init: InitToken) {
-    return new CValueList<string>(init);
+    const list = new CValueList<string>(init);
+    new IListView(list, false);
+    return list;
   }
   check(actual: CValueList<string>, expected: string[]): void {
     assert.deepStrictEqual([...actual], expected);
@@ -19,6 +23,7 @@ class ValueListSource implements Source<CValueList<string>, string[]> {
     for (let i = 0; i < actual.length; i++) {
       assert.strictEqual(actual.get(i), expected[i]);
     }
+    EventView.check(actual);
   }
   op(c: CValueList<string>, n: number): void {
     switch (this.mode) {
@@ -471,7 +476,7 @@ describe("CValueList", () => {
     });
   });
 
-  describe("ordering", () => {
+  describe("unit", () => {
     let runtimeGen: TestingRuntimes;
     let alice: CRuntime;
     let bob: CRuntime;
@@ -485,6 +490,9 @@ describe("CValueList", () => {
 
       aliceList = alice.registerCollab("list", (init) => new CValueList(init));
       bobList = bob.registerCollab("list", (init) => new CValueList(init));
+
+      new IListView(aliceList, true);
+      new IListView(bobList, true);
     });
 
     it("inserts once", () => {
@@ -493,6 +501,8 @@ describe("CValueList", () => {
       runtimeGen.releaseAll();
       assert.deepStrictEqual(aliceList.slice(), ans);
       assert.deepStrictEqual(bobList.slice(), ans);
+
+      checkPositions(alice, aliceList);
     });
 
     it("inserts LtR", () => {
@@ -503,6 +513,8 @@ describe("CValueList", () => {
       }
       assert.deepStrictEqual(aliceList.slice(), ans);
       assert.deepStrictEqual(bobList.slice(), ans);
+
+      checkPositions(alice, aliceList);
     });
 
     it("inserts RtL", () => {
@@ -513,6 +525,8 @@ describe("CValueList", () => {
       }
       assert.deepStrictEqual(aliceList.slice(), ans);
       assert.deepStrictEqual(bobList.slice(), ans);
+
+      checkPositions(alice, aliceList);
     });
 
     it("inserts LtR, then in middle", () => {
@@ -525,6 +539,8 @@ describe("CValueList", () => {
       runtimeGen.releaseAll();
       assert.deepStrictEqual(aliceList.slice(), ans);
       assert.deepStrictEqual(bobList.slice(), ans);
+
+      checkPositions(alice, aliceList);
     });
 
     it("inserts RtL, then in middle", () => {
@@ -537,6 +553,8 @@ describe("CValueList", () => {
       runtimeGen.releaseAll();
       assert.deepStrictEqual(aliceList.slice(), ans);
       assert.deepStrictEqual(bobList.slice(), ans);
+
+      checkPositions(alice, aliceList);
     });
 
     it("deletes one element", () => {
@@ -549,6 +567,8 @@ describe("CValueList", () => {
       runtimeGen.releaseAll();
       assert.deepStrictEqual(aliceList.slice(), ans);
       assert.deepStrictEqual(bobList.slice(), ans);
+
+      checkPositions(alice, aliceList);
     });
 
     describe("inserts sequentially", () => {
@@ -564,6 +584,8 @@ describe("CValueList", () => {
         }
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
 
       it("RtL", () => {
@@ -578,6 +600,8 @@ describe("CValueList", () => {
         }
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
 
       it("alternating", () => {
@@ -590,6 +614,8 @@ describe("CValueList", () => {
         }
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
     });
 
@@ -606,6 +632,8 @@ describe("CValueList", () => {
         } else {
           assert.deepStrictEqual(ans, [2, 1]);
         }
+
+        checkPositions(alice, aliceList);
       });
 
       it("at alice node going right", () => {
@@ -619,6 +647,8 @@ describe("CValueList", () => {
         const ans = aliceList.get(1) === 1 ? [0, 1, 2] : [0, 2, 1];
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
 
       it("at alice node going left", () => {
@@ -632,6 +662,8 @@ describe("CValueList", () => {
         const ans = aliceList.get(1) === 1 ? [2, 1, 0] : [1, 2, 0];
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
 
       it("at other node going right", () => {
@@ -640,6 +672,7 @@ describe("CValueList", () => {
           "list",
           (init) => new CValueList<number>(init)
         );
+        new IListView(charlieList, true);
 
         charlieList.insert(0, 0);
         runtimeGen.releaseAll();
@@ -652,6 +685,8 @@ describe("CValueList", () => {
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
         assert.deepStrictEqual(charlieList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
 
       it("at other node going left", () => {
@@ -660,6 +695,7 @@ describe("CValueList", () => {
           "list",
           (init) => new CValueList<number>(init)
         );
+        new IListView(charlieList, true);
 
         charlieList.insert(0, 0);
         runtimeGen.releaseAll();
@@ -672,6 +708,8 @@ describe("CValueList", () => {
         assert.deepStrictEqual(aliceList.slice(), ans);
         assert.deepStrictEqual(bobList.slice(), ans);
         assert.deepStrictEqual(charlieList.slice(), ans);
+
+        checkPositions(alice, aliceList);
       });
     });
   });
@@ -689,9 +727,12 @@ describe("CValueList", () => {
         for (let i = 0; i < numUsers; i++) {
           const runtime = runtimeGen.newRuntime(rng);
           runtimes.push(runtime);
-          lists.push(
-            runtime.registerCollab("list", (init) => new CValueList(init))
+          const list = runtime.registerCollab(
+            "list",
+            (init) => new CValueList<number>(init)
           );
+          lists.push(list);
+          new IListView(list, false);
         }
       });
     }
@@ -715,7 +756,10 @@ describe("CValueList", () => {
 
             for (const list of lists) {
               assert.deepStrictEqual(list.slice(), ans);
+              EventView.check(list);
             }
+
+            checkPositions(runtimes[0], lists[0]);
           });
 
           it("random LtR runs", () => {
@@ -734,7 +778,10 @@ describe("CValueList", () => {
 
             for (const list of lists) {
               assert.deepStrictEqual(list.slice(), ans);
+              EventView.check(list);
             }
+
+            checkPositions(runtimes[0], lists[0]);
           });
 
           it("random RtL runs", () => {
@@ -753,7 +800,10 @@ describe("CValueList", () => {
 
             for (const list of lists) {
               assert.deepStrictEqual(list.slice(), ans);
+              EventView.check(list);
             }
+
+            checkPositions(runtimes[0], lists[0]);
           });
 
           it("random LtR bulk", () => {
@@ -771,7 +821,10 @@ describe("CValueList", () => {
 
             for (const list of lists) {
               assert.deepStrictEqual(list.slice(), ans);
+              EventView.check(list);
             }
+
+            checkPositions(runtimes[0], lists[0]);
           });
 
           it("biased", () => {
@@ -789,10 +842,56 @@ describe("CValueList", () => {
 
             for (const list of lists) {
               assert.deepStrictEqual(list.slice(), ans);
+              EventView.check(list);
             }
+
+            checkPositions(runtimes[0], lists[0]);
           });
         });
       }
     });
   });
+
+  /**
+   * Checks position-related queries (getByPosition, hasPosition, indexOfPosition)
+   * for positions in list.
+   *
+   * Assumes that list is the only Collab in runtime and it has name "list".
+   */
+  function checkPositions(runtime: CRuntime, list: CValueList<any>) {
+    // Check that present positions have the correct value, presence, and index.
+    for (let i = 0; i < list.length; i++) {
+      const pos = list.getPosition(i);
+      assert.strictEqual(list.getByPosition(pos), list.get(i));
+      assert(list.hasPosition(pos));
+      assert.strictEqual(list.indexOfPosition(pos), i);
+    }
+
+    // In a copy of the list, delete the middle half of positions and
+    // check that they have the correct value (undefined), presence, and index.
+    const copyRuntime = new CRuntime({
+      debugReplicaID: ReplicaIDs.pseudoRandom(rng),
+      autoTransactions: "op",
+    });
+    const copy = copyRuntime.registerCollab(
+      "list",
+      (init) => new CValueList(init)
+    );
+    copyRuntime.load(runtime.save());
+
+    const start = Math.floor((list.length * 1) / 4);
+    const end = Math.floor((list.length * 3) / 4);
+    const deleted = [...list.positions()].slice(start, end);
+    copy.delete(start, end - start);
+
+    for (let i = 0; i < deleted.length; i++) {
+      const pos = deleted[i];
+      assert.strictEqual(list.getByPosition(pos), undefined);
+      assert.isFalse(list.hasPosition(pos));
+      assert.strictEqual(list.indexOfPosition(pos), -1);
+      assert.strictEqual(list.indexOfPosition(pos, "none"), -1);
+      assert.strictEqual(list.indexOfPosition(pos, "left"), start - 1);
+      assert.strictEqual(list.indexOfPosition(pos, "right"), start);
+    }
+  }
 });

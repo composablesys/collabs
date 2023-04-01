@@ -430,7 +430,7 @@ export class LocalList<T> {
     ) {
       // Sibling values that come before current.
       valuesBefore += this.locate(
-        current,
+        current.parentWaypoint,
         current.isRight
           ? current.parentWaypoint.valueCount
           : current.parentValueIndex
@@ -460,7 +460,7 @@ export class LocalList<T> {
    */
   getPosition(index: number): Position {
     if (index < 0 || index >= this.length) {
-      throw new Error(`index out of bounds: ${index}, length=${this.length}`);
+      throw new Error(`Index out of bounds: ${index} (length: ${this.length})`);
     }
     let remaining = index;
     let waypoint = this.source.rootWaypoint;

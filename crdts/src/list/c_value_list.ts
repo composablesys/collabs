@@ -128,6 +128,10 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   insert(index: number, value: T): T;
   insert(index: number, ...values: T[]): T | undefined;
   insert(index: number, ...values: T[]): T | undefined {
+    if (index < 0 || index > this.length) {
+      throw new Error(`Index out of bounds: ${index} (length: ${this.length})`);
+    }
+
     if (values.length === 0) return undefined;
 
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
@@ -237,6 +241,10 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
   getByPosition(position: Position): T | undefined {
     return this.list.getByPosition(position);
+  }
+
+  positions(): IterableIterator<Position> {
+    return this.list.positions();
   }
 
   entries(): IterableIterator<[index: number, position: Position, value: T]> {

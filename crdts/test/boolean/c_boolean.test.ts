@@ -2,7 +2,9 @@ import { InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CBoolean } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { IVarView } from "../var/views";
 
 class BooleanSource implements Source<CBoolean, [boolean, boolean[]]> {
   constructor(
@@ -11,11 +13,14 @@ class BooleanSource implements Source<CBoolean, [boolean, boolean[]]> {
   ) {}
 
   pre(init: InitToken) {
-    return new CBoolean(init, this.options);
+    const bool = new CBoolean(init, this.options);
+    new IVarView(bool, false);
+    return bool;
   }
   check(actual: CBoolean, expected: [boolean, boolean[]]): void {
     assert.deepStrictEqual(actual.value, expected[0]);
     assert.deepStrictEqual(actual.conflicts(), expected[1]);
+    EventView.check(actual);
   }
   /** 1, 4, 7, ... set to false; others set to true. */
   op(c: CBoolean, n: number): void {

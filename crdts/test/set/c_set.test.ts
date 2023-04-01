@@ -3,6 +3,7 @@ import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CCounter, CRuntime, CSet, CVar, TestingRuntimes } from "../../src";
 import { Source, Traces } from "../traces";
+import { ISetView } from "./views";
 
 function firstValue<D extends Collab>(set: CSet<D, any>): D | undefined {
   const iter = set.values().next();
@@ -97,210 +98,219 @@ class SetSource
 
 describe("CSet", () => {
   let rng!: seedrandom.prng;
-  let source!: SetSource;
 
-  beforeEach(() => {
-    rng = seedrandom("42");
-  });
+  describe("traces", () => {
+    let source!: SetSource;
 
-  describe("add/delete", () => {
     beforeEach(() => {
-      source = new SetSource(rng, "add/delete");
+      rng = seedrandom("42");
     });
 
-    it("initial", () => {
-      Traces.initial(source, []);
+    describe("add/delete", () => {
+      beforeEach(() => {
+        source = new SetSource(rng, "add/delete");
+      });
+
+      it("initial", () => {
+        Traces.initial(source, []);
+      });
+
+      it("singleOp", () => {
+        Traces.singleOp(source, [["init_op0", []]]);
+      });
+
+      it("sequential", () => {
+        Traces.sequential(
+          source,
+          [["init_op0", []]],
+          [["op1", ["op1"]]],
+          [],
+          [["op3", ["op3"]]]
+        );
+      });
+
+      it("concurrent", () => {
+        Traces.concurrent(
+          source,
+          [["init_op0", []]],
+          [["init_op1", []]],
+          // Both added.
+          [
+            ["init_op0", []],
+            ["init_op1", []],
+          ]
+        );
+      });
+
+      it("diamond", () => {
+        Traces.diamond(
+          source,
+          [["init_op0", []]],
+          [["op1", ["op1"]]],
+          [],
+          // Delete wins over CVar operation.
+          [],
+          [["op3", ["op3"]]]
+        );
+      });
+
+      it("partition", () => {
+        Traces.partition(
+          source,
+          [["op3", ["op3"]]],
+          [["op7", ["op7"]]],
+          // The adds in ops 3 and 4 both occur.
+          [
+            ["op3", ["op3"]],
+            ["op7", ["op7"]],
+          ]
+        );
+      });
     });
 
-    it("singleOp", () => {
-      Traces.singleOp(source, [["init_op0", []]]);
-    });
+    describe("op/op", () => {
+      beforeEach(() => {
+        source = new SetSource(rng, "op/op");
+      });
 
-    it("sequential", () => {
-      Traces.sequential(
-        source,
-        [["init_op0", []]],
-        [["op1", ["op1"]]],
-        [],
-        [["op3", ["op3"]]]
-      );
-    });
+      it("initial", () => {
+        Traces.initial(source, [["initial", []]]);
+      });
 
-    it("concurrent", () => {
-      Traces.concurrent(
-        source,
-        [["init_op0", []]],
-        [["init_op1", []]],
-        // Both added.
-        [
-          ["init_op0", []],
-          ["init_op1", []],
-        ]
-      );
-    });
+      it("singleOp", () => {
+        Traces.singleOp(source, [["op0", ["op0"]]]);
+      });
 
-    it("diamond", () => {
-      Traces.diamond(
-        source,
-        [["init_op0", []]],
-        [["op1", ["op1"]]],
-        [],
-        // Delete wins over CVar operation.
-        [],
-        [["op3", ["op3"]]]
-      );
-    });
+      it("sequential", () => {
+        Traces.sequential(
+          source,
+          [["op0", ["op0"]]],
+          [["op1", ["op1"]]],
+          [["op2", ["op2"]]],
+          [["op3", ["op3"]]]
+        );
+      });
 
-    it("partition", () => {
-      Traces.partition(
-        source,
-        [["op3", ["op3"]]],
-        [["op7", ["op7"]]],
-        // The adds in ops 3 and 4 both occur.
-        [
-          ["op3", ["op3"]],
-          ["op7", ["op7"]],
-        ]
-      );
+      it("concurrent", () => {
+        Traces.concurrent(
+          source,
+          [["op0", ["op0"]]],
+          [["op1", ["op1"]]],
+          // op 0 is done by the lower replicaID, which wins the conflict.
+          [["op0", ["op0", "op1"]]]
+        );
+      });
+
+      it("diamond", () => {
+        Traces.diamond(
+          source,
+          [["op0", ["op0"]]],
+          [["op1", ["op1"]]],
+          [["op2", ["op2"]]],
+          // op 1 is done by the lower replicaID, which wins the conflict.
+          [["op1", ["op1", "op2"]]],
+          [["op3", ["op3"]]]
+        );
+      });
+
+      it("partition", () => {
+        Traces.partition(
+          source,
+          [["op3", ["op3"]]],
+          [["op7", ["op7"]]],
+          // op 3 is done by the lower replicaID, which wins the conflict.
+          [["op3", ["op3", "op7"]]]
+        );
+      });
     });
   });
 
-  describe("op/op", () => {
+  describe("unit", () => {
+    let runtimeGen: TestingRuntimes;
+    let alice: CRuntime;
+    let bob: CRuntime;
+
+    let aliceSource: CSet<CCounter, []>;
+    let bobSource: CSet<CCounter, []>;
+    let aliceVariable: CVar<Optional<CollabID<CCounter>>>;
+    let bobVariable: CVar<Optional<CollabID<CCounter>>>;
+
     beforeEach(() => {
-      source = new SetSource(rng, "op/op");
-    });
+      runtimeGen = new TestingRuntimes();
+      alice = runtimeGen.newRuntime(rng);
+      bob = runtimeGen.newRuntime(rng);
 
-    it("initial", () => {
-      Traces.initial(source, [["initial", []]]);
-    });
-
-    it("singleOp", () => {
-      Traces.singleOp(source, [["op0", ["op0"]]]);
-    });
-
-    it("sequential", () => {
-      Traces.sequential(
-        source,
-        [["op0", ["op0"]]],
-        [["op1", ["op1"]]],
-        [["op2", ["op2"]]],
-        [["op3", ["op3"]]]
+      aliceSource = alice.registerCollab(
+        "source",
+        (init) =>
+          new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
       );
-    });
-
-    it("concurrent", () => {
-      Traces.concurrent(
-        source,
-        [["op0", ["op0"]]],
-        [["op1", ["op1"]]],
-        // op 0 is done by the lower replicaID, which wins the conflict.
-        [["op0", ["op0", "op1"]]]
+      bobSource = bob.registerCollab(
+        "source",
+        (init) =>
+          new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
       );
-    });
-
-    it("diamond", () => {
-      Traces.diamond(
-        source,
-        [["op0", ["op0"]]],
-        [["op1", ["op1"]]],
-        [["op2", ["op2"]]],
-        // op 1 is done by the lower replicaID, which wins the conflict.
-        [["op1", ["op1", "op2"]]],
-        [["op3", ["op3"]]]
+      aliceVariable = alice.registerCollab(
+        "variable",
+        (init) => new CVar(init, Optional.empty())
       );
-    });
-
-    it("partition", () => {
-      Traces.partition(
-        source,
-        [["op3", ["op3"]]],
-        [["op7", ["op7"]]],
-        // op 3 is done by the lower replicaID, which wins the conflict.
-        [["op3", ["op3", "op7"]]]
+      bobVariable = bob.registerCollab(
+        "variable",
+        (init) => new CVar(init, Optional.empty())
       );
+
+      new ISetView(aliceSource, true);
+      new ISetView(bobSource, true);
     });
+
+    it("returns new Collab", () => {
+      let newCollab = aliceSource.add();
+      assert.strictEqual(newCollab.value, 0);
+    });
+
+    it("transfers new Collab via variable", () => {
+      aliceVariable.set(Optional.of(aliceSource.idOf(aliceSource.add())));
+      aliceSource.fromID(aliceVariable.value.get())!.add(7);
+      assert.strictEqual(
+        aliceSource.fromID(aliceVariable.value.get())!.value,
+        7
+      );
+
+      runtimeGen.releaseAll();
+      assert.strictEqual(bobSource.fromID(bobVariable.value.get())!.value, 7);
+    });
+
+    it("allows sequential creation", () => {
+      let new1 = aliceSource.add();
+      let new2 = aliceSource.add();
+      new1.add(7);
+      new2.add(-3);
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+    });
+
+    it("allows concurrent creation", () => {
+      let new1 = aliceSource.add();
+      let new2 = bobSource.add();
+      new1.add(7);
+      new2.add(-3);
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+
+      runtimeGen.releaseAll();
+      assert.strictEqual(new1.value, 7);
+      assert.strictEqual(new2.value, -3);
+
+      aliceVariable.set(Optional.of(aliceSource.idOf(new1)));
+      runtimeGen.releaseAll();
+      let new1Bob = bobSource.fromID(bobVariable.value.get())!;
+      bobVariable.set(Optional.of(bobSource.idOf(new2)));
+      runtimeGen.releaseAll();
+      let new2Alice = aliceSource.fromID(aliceVariable.value.get())!;
+      assert.strictEqual(new1Bob.value, 7);
+      assert.strictEqual(new2Alice.value, -3);
+    });
+
+    // TODO: test deletion, freezing, cross-replica CollabIDs
   });
-});
-
-describe("CSet old tests", () => {
-  let runtimeGen: TestingRuntimes;
-  let alice: CRuntime;
-  let bob: CRuntime;
-  let rng: seedrandom.prng;
-
-  let aliceSource: CSet<CCounter, []>;
-  let bobSource: CSet<CCounter, []>;
-  let aliceVariable: CVar<Optional<CollabID<CCounter>>>;
-  let bobVariable: CVar<Optional<CollabID<CCounter>>>;
-
-  beforeEach(() => {
-    rng = seedrandom("42");
-    runtimeGen = new TestingRuntimes();
-    alice = runtimeGen.newRuntime(rng);
-    bob = runtimeGen.newRuntime(rng);
-
-    aliceSource = alice.registerCollab(
-      "source",
-      (init) => new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
-    );
-    bobSource = bob.registerCollab(
-      "source",
-      (init) => new CSet(init, (valueInitToken) => new CCounter(valueInitToken))
-    );
-    aliceVariable = alice.registerCollab(
-      "variable",
-      (init) => new CVar(init, Optional.empty())
-    );
-    bobVariable = bob.registerCollab(
-      "variable",
-      (init) => new CVar(init, Optional.empty())
-    );
-  });
-
-  it("returns new Collab", () => {
-    let newCollab = aliceSource.add();
-    assert.strictEqual(newCollab.value, 0);
-  });
-
-  it("transfers new Collab via variable", () => {
-    aliceVariable.set(Optional.of(aliceSource.idOf(aliceSource.add())));
-    aliceSource.fromID(aliceVariable.value.get())!.add(7);
-    assert.strictEqual(aliceSource.fromID(aliceVariable.value.get())!.value, 7);
-
-    runtimeGen.releaseAll();
-    assert.strictEqual(bobSource.fromID(bobVariable.value.get())!.value, 7);
-  });
-
-  it("allows sequential creation", () => {
-    let new1 = aliceSource.add();
-    let new2 = aliceSource.add();
-    new1.add(7);
-    new2.add(-3);
-    assert.strictEqual(new1.value, 7);
-    assert.strictEqual(new2.value, -3);
-  });
-
-  it("allows concurrent creation", () => {
-    let new1 = aliceSource.add();
-    let new2 = bobSource.add();
-    new1.add(7);
-    new2.add(-3);
-    assert.strictEqual(new1.value, 7);
-    assert.strictEqual(new2.value, -3);
-
-    runtimeGen.releaseAll();
-    assert.strictEqual(new1.value, 7);
-    assert.strictEqual(new2.value, -3);
-
-    aliceVariable.set(Optional.of(aliceSource.idOf(new1)));
-    runtimeGen.releaseAll();
-    let new1Bob = bobSource.fromID(bobVariable.value.get())!;
-    bobVariable.set(Optional.of(bobSource.idOf(new2)));
-    runtimeGen.releaseAll();
-    let new2Alice = aliceSource.fromID(aliceVariable.value.get())!;
-    assert.strictEqual(new1Bob.value, 7);
-    assert.strictEqual(new2Alice.value, -3);
-  });
-
-  // TODO: test deletion, freezing, cross-replica CollabIDs
 });

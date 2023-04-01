@@ -2,7 +2,9 @@ import { InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CMap, CVar } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { IMapView } from "./views";
 
 /**
  * V value type: array of conflicts; for each
@@ -21,11 +23,13 @@ class MapSource
   ) {}
 
   pre(init: InitToken) {
-    return new CMap<string, CVar<string>, [string]>(
+    const map = new CMap<string, CVar<string>, [string]>(
       init,
       (valueInit, key, initialValue) =>
         new CVar(valueInit, `${key}:${initialValue}`)
     );
+    new IMapView(map, false);
+    return map;
   }
   check(
     actual: CMap<string, CVar<string>, [string]>,
@@ -47,6 +51,7 @@ class MapSource
         expected[key]
       );
     }
+    EventView.check(actual);
   }
   op(c: CMap<string, CVar<string>, [string]>, n: number): void {
     switch (this.mode) {

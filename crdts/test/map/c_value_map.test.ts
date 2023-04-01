@@ -2,7 +2,9 @@ import { InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CValueMap } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { IMapView } from "./views";
 
 class ValueMapSource
   implements Source<CValueMap<string, string>, Record<string, string[]>>
@@ -10,7 +12,9 @@ class ValueMapSource
   constructor(readonly rng: seedrandom.prng, readonly mode: "set" | "delete") {}
 
   pre(init: InitToken) {
-    return new CValueMap<string, string>(init);
+    const map = new CValueMap<string, string>(init);
+    new IMapView(map, false);
+    return map;
   }
   check(
     actual: CValueMap<string, string>,
@@ -24,6 +28,7 @@ class ValueMapSource
       assert.deepStrictEqual(actual.get(key), expected[key][0]);
       assert.deepStrictEqual(actual.getConflicts(key), expected[key]);
     }
+    EventView.check(actual);
   }
   op(c: CValueMap<string, string>, n: number): void {
     switch (this.mode) {

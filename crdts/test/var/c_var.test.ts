@@ -2,17 +2,22 @@ import { InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CVar } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { IVarView } from "./views";
 
 class VarSource implements Source<CVar<string>, [string, string[]]> {
   constructor(readonly rng: seedrandom.prng) {}
 
   pre(init: InitToken) {
-    return new CVar(init, "initial");
+    const cvar = new CVar(init, "initial");
+    new IVarView(cvar, false);
+    return cvar;
   }
   check(actual: CVar<string>, expected: [string, string[]]): void {
     assert.deepStrictEqual(actual.value, expected[0]);
     assert.deepStrictEqual(actual.conflicts(), expected[1]);
+    EventView.check(actual);
   }
   op(c: CVar<string>, n: number): void {
     c.value = `op${n}`;

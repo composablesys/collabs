@@ -2,7 +2,9 @@ import { CLazyMap, InitToken } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CRuntime, CValueSet, CVar, TestingRuntimes } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
+import { IMapView } from "./views";
 /**
  * V value type: for each value CVar, [current value, CVar.conflicts()].
  */
@@ -16,10 +18,12 @@ class LazyMapSource
   ) {}
 
   pre(init: InitToken) {
-    return new CLazyMap<string, CVar<string>>(
+    const map = new CLazyMap<string, CVar<string>>(
       init,
       (valueInit) => new CVar(valueInit, "initial")
     );
+    new IMapView(map, false);
+    return map;
   }
   check(
     actual: CLazyMap<string, CVar<string>>,
@@ -36,6 +40,7 @@ class LazyMapSource
       assert.deepStrictEqual(value.value, expected[key][0]);
       assert.deepStrictEqual(value.conflicts(), expected[key][1]);
     }
+    EventView.check(actual);
   }
   op(c: CLazyMap<string, CVar<string>>, n: number): void {
     switch (this.mode) {
@@ -223,6 +228,9 @@ describe("CLazyMap", () => {
         "map",
         (init) => new CLazyMap(init, valueConstructor)
       );
+
+      new IMapView(aliceMap, true);
+      new IMapView(bobMap, true);
     });
 
     it("is initially empty", () => {
