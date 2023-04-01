@@ -205,8 +205,8 @@ export class LocalList<T> {
         existing += typeof item === "number" ? item : item.length;
       }
       if (existing < e.valueIndex) {
-        // Fill in deleted positions.
-        info.items.push(e.valueIndex - existing);
+        // Fill in deleted positions before values.
+        info.items.push(e.valueIndex - existing, values);
       } else if (existing === e.valueIndex) {
         if (info.items.length === 0) {
           info.items.push(values);
@@ -291,6 +291,8 @@ export class LocalList<T> {
    * Changes total by delta for waypoint and all of its ancestors.
    * Creates/deletes WaypointValues as needed to maintain
    * (present iff total = 0) invariant.
+   *
+   * delta must not be 0.
    */
   private updateTotals(waypoint: Waypoint, delta: number): void {
     for (
@@ -302,6 +304,7 @@ export class LocalList<T> {
       if (info === undefined) {
         // Create WaypointValues.
         this.valuesByWaypoint.set(current, {
+          // Nonzero by assumption.
           total: delta,
           // Omit last deleted item (= only item).
           items: [],
@@ -485,6 +488,61 @@ export class LocalList<T> {
       }
     }
   }
+
+  // /**
+  //  * For debugging: print entries() walk through the tree to console.log.
+  //  */
+  // printTreeWalk(): void {
+  //   if (this.length === 0) return;
+
+  //   let index = 0;
+  //   let waypoint: Waypoint | null = this.source.rootWaypoint;
+  //   console.log(
+  //     `"${waypoint.senderID}",${waypoint.counter}: ${this.total(
+  //       waypoint
+  //     )} [${index}, ${index + this.total(waypoint)})`
+  //   );
+  //   // Manage our own stack instead of recursing, to avoid stack overflow
+  //   // in deep trees.
+  //   const stack: IterableIterator<ValuesOrChild<T>>[] = [
+  //     // root will indeed have total != 0 since we checked length != 0.
+  //     this.valuesAndChildren(this.source.rootWaypoint),
+  //   ];
+  //   while (waypoint !== null) {
+  //     const iter = stack[stack.length - 1];
+  //     const next = iter.next();
+  //     if (next.done) {
+  //       stack.pop();
+  //       waypoint = waypoint.parentWaypoint;
+  //     } else {
+  //       const prefix = new Array(stack.length).fill(" ").join(" ");
+  //       const valuesOrChild = next.value;
+  //       if (valuesOrChild.isValues) {
+  //         console.log(
+  //           prefix,
+  //           `${valuesOrChild.valueIndex}:`,
+  //           JSON.stringify(
+  //             valuesOrChild.item.slice(valuesOrChild.start, valuesOrChild.end)
+  //           ),
+  //           `@ [${index}, ${index + valuesOrChild.end - valuesOrChild.start})`
+  //         );
+  //         index += valuesOrChild.end - valuesOrChild.start;
+  //       } else {
+  //         // Recurse into child.
+  //         waypoint = valuesOrChild.child;
+  //         console.log(
+  //           prefix,
+  //           `"${waypoint.senderID},${waypoint.counter} (${
+  //             waypoint.parentValueIndex
+  //           }, ${waypoint.isRight ? "R" : "L"}): ${this.total(
+  //             waypoint
+  //           )} @ [${index}, ${index + this.total(waypoint)})`
+  //         );
+  //         stack.push(this.valuesAndChildren(waypoint));
+  //       }
+  //     }
+  //   }
+  // }
 
   /**
    * Returns the value currently at index.
