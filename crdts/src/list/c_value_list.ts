@@ -30,6 +30,10 @@ import { LocalList } from "./local_list";
  * other replicas. If you need to mutate values internally,
  * instead use a [[CList]].
  *
+ * It is *not* safe to modify a CValueList while iterating over it. The iterator
+ * will attempt to throw an exception if it detects such modification,
+ * but this is not guaranteed.
+ *
  * See also: [[CList]], [[CText]].
  *
  * @typeParam T The value type.
