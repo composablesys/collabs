@@ -146,7 +146,7 @@ await container.load();
 
 This "previous saved state" might come from the last time this user used the app, or it might come from a different collaborator who sent us a snapshot. The details are left up to our container host; we just wait for loading finish, using `await`.
 
-If any state is loaded, `container` will emit a "Change" event, triggering `refreshDisplay()`. See more at [handling changes](./guide/handling_changes.html).
+If any state is loaded, `container` will emit a "Change" event, triggering `refreshDisplay()`. Learn more in [Handling Changes](./guide/handling_changes.html).
 
 Finally, our container is ready to use: we've registered our Collabs, connected them to the GUI (display + user input), loaded the previous saved state, and displayed the loaded state. We call `container.ready()` to start the app.
 

@@ -126,12 +126,12 @@ export class SendCRDTMeta implements CRDTMessageMeta {
   }
 
   /**
-   * Freezes this CRDTMeta at the end of its sending transaction.
+   * Freezes this SendCRDTMeta at the end of its sending transaction.
    *
    * After freezing, all getters behave like ReceiveCRDTMeta. In
    * particular, getting a non-requested property will return a
    * default value instead of an error. This is in case a Collab
-   * stores CRDTMeta after a transaction, then later queries it
+   * stores SendCRDTMeta after a transaction, then later queries it
    * for e.g. newly-relevant VC entries (expecting 0).
    */
   freeze(): void {

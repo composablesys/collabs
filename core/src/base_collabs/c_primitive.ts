@@ -82,7 +82,6 @@ export abstract class CPrimitive<
     return { self: this.savePrimitive() };
   }
 
-  // OPT: allow returning undefined, then call loadPrimitive(undefined).
   /**
    * Returns saved state describing the current state of this Collab.
    *

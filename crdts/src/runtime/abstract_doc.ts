@@ -60,7 +60,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
 
   /**
    * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
-   * The message's sender must be a [[CRuntime]] that is a
+   * The message's sender must be an AbstractDoc that is a
    * replica of this one.
    *
    * The local Collabs process the message, change the
@@ -90,7 +90,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
 
   /**
    * Loads saved state. The saved state must be from
-   * a call to [[load]] on a CRuntime that is a replica
+   * a call to [[load]] on an AbstractDoc that is a replica
    * of this one.
    *
    * The local Collabs merge in the saved state, change the

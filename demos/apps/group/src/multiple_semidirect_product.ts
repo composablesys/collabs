@@ -133,8 +133,8 @@ class MultipleSemidirectState<S extends object> {
     arbId: number
   ) {
     // if replicaID === crdtMeta.senderID, we know the answer is [] (sequential).
-    // But for automatic CRDTMeta to work, we need to still access all current VC
-    // entries. So, we skip that shortcut.
+    // But for automatic CRDTMessageMeta to work, we need to still access all
+    // current VC entries. So, we skip that shortcut.
 
     // Gather up the concurrent messages.  These are all
     // messages by each replicaID with sender counter
@@ -334,7 +334,7 @@ export abstract class MultipleSemidirectProduct<
       throw new Error("childSend called by non-child: " + child);
     }
 
-    // Automatic CRDTMeta suffices: we need all known VC entries,
+    // Automatic CRDTMessageMeta suffices: we need all known VC entries,
     // and these are accessed during the local echo.
 
     messageStack.push(child.name);

@@ -50,7 +50,7 @@ const container = new CContainer();
 
 2. Make all calls to [`container.registerCollab`](../api/container/classes/CContainer.html#registerCollab) as described in the [next section of the guide](./initialization.html).
 
-3. Call `await `[`container.load()`](../api/container/CContainer#load) **exactly once**. This loads state from a previous session (if any), but unlike [`CRuntime.load`](../api/collabs/classes/CRuntime.html#load), you don't have to provide the saved state; the container host will do that for you.
+3. Call `await `[`container.load()`](../api/container/classes/CContainer#load) **exactly once**. This loads state from a previous session (if any), but unlike [`CRuntime.load`](../api/collabs/classes/CRuntime.html#load), you don't have to provide the saved state; the container host will do that for you.
 4. Once your app is ready to use (loaded state synced to GUI, input handlers added, etc.), call `container.ready()`. This tells the host to display your app and make it interactable.
 
 ## Next Steps

@@ -15,7 +15,7 @@ import {
 const RADIX = 36;
 
 /**
- * Event emitted when a [[PositionSource.create]] message is received.
+ * Event emitted when a [[CPositionSource.create]] message is received.
  *
  * This event is *not* emitted during loading;
  * [[PositionSourceLoadEvent]] is emitted instead.
@@ -48,19 +48,26 @@ export interface PositionSourceCreateEvent extends CollabEvent {
 }
 
 /**
- * Event emitted by a [[PositionSource]] at the end of [[PositionSource.load]].
+ * Event emitted by a [[CPositionSource]] at the end of [[CPositionSource.load]].
  */
 export class PositionSourceLoadEvent implements CollabEvent {
+  /**
+   * Diff between [[Waypoint.valueCount]] values in the local state
+   * (prior to loading) and the remoted state (the `savedState`
+   * passed to `load`).
+   */
+  readonly waypointDiffs: Map<Waypoint, { local: number; remote: number }>;
+
+  /**
+   * Internal (CPositionSource) use only.
+   */
   constructor(
     private readonly source: CPositionSource,
-    /**
-     * Diff between [[Waypoint.valueCount]] values in the local state
-     * (prior to loading) and the remoted state (the `savedState`
-     * passed to `load`).
-     */
-    readonly waypointDiffs: Map<Waypoint, { local: number; remote: number }>,
+    waypointDiffs: Map<Waypoint, { local: number; remote: number }>,
     readonly meta: UpdateMeta
-  ) {}
+  ) {
+    this.waypointDiffs = waypointDiffs;
+  }
 
   /**
    * Returns whether was position is new relative to the local
@@ -88,15 +95,15 @@ export class PositionSourceLoadEvent implements CollabEvent {
 }
 
 /**
- * Events record for [[PositionSource]].
+ * Events record for [[CPositionSource]].
  */
 export interface PositionSourceEventsRecord extends CollabEventsRecord {
   /**
-   * Emitted when a [[PositionSource.create]] message is received.
+   * Emitted when a [[CPositionSource.create]] message is received.
    */
   Create: PositionSourceCreateEvent;
   /**
-   * Emitted at the end of [[PositionSource.load]].
+   * Emitted at the end of [[CPositionSource.load]].
    */
   Load: PositionSourceLoadEvent;
 }
@@ -172,7 +179,7 @@ export class Waypoint {
  * Internally, each [[Position]] is represented as a pair
  * (waypoint, valueIndex), where waypoint is a [[Waypoint]]
  * and valueIndex is a nonnegative
- * integer that increases monotonically. Methods [[decoded]],
+ * integer that increases monotonically. Methods [[decode]],
  * [[encode]], and [[encodeAll]] convert between the two representations.
  *
  * Optimizing users may prefer the internal
@@ -236,7 +243,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
    * (replicated on all devices).
    *
    * @param prevPosition The previous position, or null to
-   * create position at the beginning of the list.
+   * create `position` at the beginning of the list.
    * @returns The created positions, in list order.
    * Internally, they use the same waypoint with contiguously
    * increasing valueIndex.

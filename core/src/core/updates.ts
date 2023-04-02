@@ -29,7 +29,8 @@ export interface UpdateMeta {
    * not event listeners.
    *
    * A Collab that requires specific metadata should cast this field
-   * to the appropriate type. For CRDTMeta, you can instead
+   * to the appropriate type. For CRDTMessageMeta/CRDTSavedStateMeta,
+   * you can instead
    * extend [[PrimitiveCRDT]]. Note that specific metadata will only
    * be present when using a corresponding IRuntime.
    */

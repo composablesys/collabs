@@ -82,15 +82,15 @@ export interface CRDTMessageMeta {
 export interface CRDTMetaRequest extends MetaRequest {
   /**
    * Requests additional vector clock entries for
-   * [[CRDTMeta.vectorClockGet]], keyed by replicaID.
+   * [[CRDTMessageMeta.vectorClock]], keyed by replicaID.
    */
   vectorClockKeys?: Iterable<string>;
   /**
-   * Requests [[CRDTMeta.wallClockTime]].
+   * Requests [[CRDTMessageMeta.wallClockTime]].
    */
   wallClockTime?: boolean;
   /**
-   * Requests [[CRDTMeta.lamportTimestamp]].
+   * Requests [[CRDTMessageMeta.lamportTimestamp]].
    */
   lamportTimestamp?: boolean;
 }

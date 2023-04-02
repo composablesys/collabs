@@ -109,7 +109,7 @@ export class CMap<
     // first, hence it is loaded first).
     // Calling this.valueSet.fromID on just-deleted values is okay
     // because CSet remembers just-deleted values until the end of
-    // the transaction/load.
+    // the transaction.
     this.map.on("Set", (e) => {
       const previousValue = e.previousValue.map(
         (id) => this.valueSet.fromID(id)!

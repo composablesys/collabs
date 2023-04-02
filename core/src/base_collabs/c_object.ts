@@ -125,8 +125,6 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     child.receive(messageStack, meta);
   }
 
-  // OPT: Return null if all children did. Makes overriding trickier, though.
-
   /**
    * Internal (parent) use only.
    *
@@ -186,7 +184,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
 
     for (const [name, childSave] of savedStateTree.children!) {
       const child = this.children.get(name);
-      // For versioning purposes, skip loading children that no longer exist.
+      // For versioning purposes, skip loading children that we don't have.
       if (child !== undefined) {
         child.load(childSave, meta);
       }

@@ -275,14 +275,14 @@ export abstract class Collab<
    * By default, this method always returns false; override to change.
    *
    * If this method returns true:
-   * 1. The parent (e.g., [[CLazyMap]]) may choose to
-   * weakly reference this object to save memory. If this becomes garbage
+   * 1. The parent may choose to weakly reference this object to save memory
+   * (e.g., [[CLazyMap]] does so). If this becomes garbage
    * collected, then is needed later, the parent will recreate it using the
    * same constructor call.
    * 2. The parent may skip calling [[save]] during saving. When loading
    * the resulting saved state, the parent will call `load(null, meta)`.
    * [[load]] should process this as if called with the output of [[save]]
-   * in a garbage-collectable state. For a nontrivial example,
+   * from a garbage-collectable state. For a nontrivial example,
    * see [[CMultiValueMap.load]]'s implementation.
    */
   canGC(): boolean {

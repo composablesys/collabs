@@ -80,7 +80,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     super(init);
 
     if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
-      throw new Error("this.runtime must be CRuntime or similar");
+      throw new Error("this.runtime must be CRuntime or compatible");
     }
 
     this.argsSerializer =

@@ -174,9 +174,8 @@ export class LocalList<T> {
 
   /**
    * Optimized variant of [[set]] for newly-created
-   * positions, typically called in a [[PositionSourceCreateEvent]]
-   * handler. This method sets the positions
-   * referenced by `e` to `values`.
+   * positions, intended to be called in `e`'s event handler.
+   * This method sets the positions referenced by `e` to `values`.
    *
    * @throws If `values.length !== e.count`
    */

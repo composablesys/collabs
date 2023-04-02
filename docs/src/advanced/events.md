@@ -48,7 +48,7 @@ Events are emitted as usual during loading ([CRuntime.load](../api/collabs/class
 
 > As an optimization, you may wish to ignore incremental events during loading, instead refreshing the whole display in the final `CRuntime` "Change" event. Use an event's [`meta.updateType`](../api/collabs/interfaces/UpdateMeta.html#updateType) field to check whether it is from a saved state, i.e., a `CRuntime.load` call.
 
-> **Note:** The events you get when loading a saved state are not exactly the same as if you received the original operations. This is usually not an issue - event handlers that work for operations should also work for saved states - but it can cause subtle bugs. In particular
+> **Note:** The events you get when loading a saved state are not exactly the same as if you received the original operations. This is usually not an issue - event handlers that work for operations should also work for saved states - but it can cause subtle bugs. In particular:
 >
 > - Events are emitted per-Collab instead of per-operation, so they may be in a different order than the original operations' events.
 > - The events share a single [`UpdateMeta`](../api/collabs/interfaces/CollabEvent.html#meta) instance, instead of a separate `UpdateMeta` per transaction.

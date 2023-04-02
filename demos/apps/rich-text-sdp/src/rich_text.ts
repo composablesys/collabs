@@ -443,7 +443,7 @@ function makeInitialSave(): Uint8Array {
   // an optimization.
   // That way, we can immediately give Quill the complete loaded
   // state (including further messages), instead of syncing
-  // the further messages to Quill using a bunch of events.
+  // it to Quill using a bunch of events.
   container.receiveFurtherUpdates();
 
   // Display loaded state by syncing it to Quill.

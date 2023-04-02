@@ -35,7 +35,7 @@ export abstract class PrimitiveCRDT<
     super(init);
 
     if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
-      throw new Error("this.runtime must be CRuntime or similar");
+      throw new Error("this.runtime must be CRuntime or compatible");
     }
   }
 
@@ -85,7 +85,7 @@ export abstract class PrimitiveCRDT<
    * @param message The message sent by [[sendCRDT]].
    * @param meta Generic metadata attached to this message by the [[CRuntime]].
    * Note that `meta.updateType` is always `"message"`.
-   * @param crdtMeta CRDT-specific Metadata attached to this message by the [[CRuntime]].
+   * @param crdtMeta CRDT-specific metadata attached to this message by the [[CRuntime]].
    * It contains all fields that were accessed
    * during the sender's local call to receiveCRDT,
    * plus requests made in [[sendCRDT]].
@@ -140,7 +140,7 @@ export abstract class PrimitiveCRDT<
    * or `null` as described above.
    * @param meta Generic metadata attached to this message by the [[CRuntime]].
    * Note that `meta.updateType` is always `"savedState"`.
-   * @param crdtMeta CRDT-specific Metadata attached to this message by the [[CRuntime]].
+   * @param crdtMeta CRDT-specific metadata attached to this message by the [[CRuntime]].
    * It contains all fields and vector clock entries.
    */
   protected abstract loadCRDT(

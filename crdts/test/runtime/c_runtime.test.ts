@@ -408,4 +408,4 @@ describe("CRuntime", () => {
   });
 });
 
-// TODO: metadata requests, CRDTMeta (x3) features, transaction modes
+// TODO: metadata requests, CRDT meta (x3) features, transaction modes
