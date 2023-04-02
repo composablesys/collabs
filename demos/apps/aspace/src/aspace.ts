@@ -35,7 +35,7 @@ import { CContainer } from "@collabs/container";
   });
 
   // Points to the previous char's position, or null for the beginning.
-  let myCursor: string | null = null;
+  let myCursor: collabs.Position | null = null;
   function updateCursor() {
     const index =
       myCursor === null ? 0 : text.indexOfPosition(myCursor, "left") + 1;

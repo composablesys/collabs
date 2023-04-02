@@ -1,7 +1,5 @@
 message EntryStatusMessage {
-  required string sender = 1;
-  required uint64 counter = 2;
-  required uint32 valueIndex = 3;
+  required string position = 1;
   // Missing = false (default behavior).
-  optional bool notIsPresent = 4;
+  optional bool notIsPresent = 2;
 }

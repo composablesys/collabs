@@ -102,9 +102,15 @@ export class CMap<
         })
     );
 
+    // In this event handlers, calling this.valueSet.fromID
+    // on just-added values is okay because the set's additions
+    // always come before map sets. (On operations, this is by method
+    // call order; during loading, this is because we register this.set
+    // first, hence it is loaded first).
+    // Calling this.valueSet.fromID on just-deleted values is okay
+    // because CSet remembers just-deleted values until the end of
+    // the transaction.
     this.map.on("Set", (e) => {
-      // The previous value is guaranteed to be not-yet-deleted,
-      // since set calls map.set before valueSet.delete.
       const previousValue = e.previousValue.map(
         (id) => this.valueSet.fromID(id)!
       );
@@ -116,8 +122,6 @@ export class CMap<
       });
     });
     this.map.on("Delete", (e) => {
-      // The previous value is guaranteed to be not-yet-deleted,
-      // since delete calls map.delete before valueSet.delete.
       const value = this.valueSet.fromID(e.value)!;
       this.emit("Delete", {
         key: e.key,

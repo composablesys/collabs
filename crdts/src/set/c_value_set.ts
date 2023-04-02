@@ -1,12 +1,12 @@
 import {
   AbstractSet_CObject,
+  ConstSerializer,
   InitToken,
   Serializer,
-  TrivialSerializer,
 } from "@collabs/core";
 import { CMultiValueMap } from "../map";
 
-const trueSerializer = new TrivialSerializer<true>(true);
+const trueSerializer = new ConstSerializer<true>(true);
 
 /**
  * A collaborative set with values of type T.

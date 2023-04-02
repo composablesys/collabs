@@ -27,9 +27,7 @@ Starting from scratch, the steps are:
 
    c. `await container.load()`. Basically, the container host can periodically save snapshots of the container's state, then use one to restart it quickly later. It can even send snapshots to new collaborators, so that they can load the current state without replaying every past message. `container.load()` waits to receive this save data from the host, uses it to fill in your Collabs' state, then resolves its Promise.
 
-   d. Display the loaded state, i.e., sync it to your GUI. You need to do this explicitly because events aren't emitted during loading.
-
-   e. Call `container.ready()`. This signals to the host that you are ready. The host will then reveal the container to the user, allow user input, and start delivering messages - both new messages from collaborators, and old messages that didn't make it into the loaded state.
+   d. Call `container.ready()`. This signals to the host that you are ready. The host will then reveal the container to the user, allow user input, and start delivering updates (messages or merged save states) - both new updates from collaborators, and old updates that didn't make it into the loaded state.
 
 4. Test your compiled app using the `container-testing-server` command provided by @collabs/container-testing-server. It takes the path to your compiled HTML file as an argument.
 
@@ -74,7 +72,7 @@ A container host is mostly just a Collabs app that uses the `CContainerHost` cla
 
 The `CContainerHost` constructor expects an IFrame holding the container. I.e., you set the IFrame's `src` equal to the container's URL. You are expected to block user interaction with the IFrame until the container is ready, as indicated by the "ContainerReady" event. E.g., you can set `hidden = true` until ready. Otherwise, users might be tempted to click things (performing Collabs operations) before the container is ready, causing errors.
 
-> One quirk of `CContainerHost` is that if you choose not to load prior saved state (i.e. call `runtime.load`), then you must call [CContainerHost.loadSkipped](../api/container/classes/CContainerHost.html#loadSkipped).
+> One quirk of `CContainerHost` is that if you choose not to load prior saved state (i.e. call `runtime.load`) at the beginning of the app (before allowing user interaction or remote messages), then you must call [CContainerHost.loadSkipped](../api/container/classes/CContainerHost.html#loadSkipped).
 
 If you want to support a specific network/storage/UX/etc. for general Collabs apps, you can write a container host for it. This would take the form of a (non-container) Collabs app that uses your chosen network/storage/UX/etc., with a `CContainerHost` as its single Collab, and with some way for users to specify the container.
 
@@ -85,10 +83,6 @@ Example container hosts:
 - [Selector demo](https://github.com/composablesys/collabs/tree/master/demos/apps/selector). This is not a "pure" host like the previous examples, but is instead itself a container. It lets the user pick a container from a file or URL.
 
 There is room for improvement in our "pure" hosts. The demo server Matrix host is the closest to providing a normal collaboration experience, with access controls (provided by a Matrix room) and the possibility of long-lasting collaboration sessions. However, it does not yet incorporate saving state or local persistent storage (see its code comments).
-
-<!-- ## Internals
-
-TODO, maybe not necessary (typedoc should be enough) -->
 
 ## <a id="advanced"></a>Advanced
 
@@ -105,11 +99,11 @@ Note that containers that depend on external assets will not have all the featur
 There are actually two parts to "loading":
 
 1. The most recent save data (from `CRuntime.save`), provided by your host, is loaded into your Collabs state (using `CRuntime.load`). This happens during `Container.load`, which then resolves its Promise.
-2. Besides the save data, your host may have "further messages" that the previous instance of your container sent or received after generating the most recent save data. These are also received during `Container.load`, but not applied to your Collabs state until the next event loop iteration after you call `Container.ready`. This makes them indistinguishable from newly received messages.
+2. Besides the save data, your host may have "further updates" that the previous instance of your container sent or received after generating the most recent save data. These are also received during `Container.load`, but not applied to your Collabs state until the next event loop iteration after you call `Container.ready`. This makes them indistinguishable from newly received updates.
 
-You can choose to instead do step 2 before calling `Container.ready` (but after awaiting `Container.load`), by calling `Container.receiveFurtherMessages()`. This will apply the further messages immediately and synchronously. Example reasons:
+You can choose to instead do step 2 before calling `Container.ready` (but after awaiting `Container.load`), by calling `Container.receiveFurtherUpdates()`. This will apply the further updates immediately and synchronously. Example reasons:
 
-- You don't want to risk displaying your container to the user before it has processed these further messages, since while it is processing them, the GUI will freeze.
-- You have expensive event listeners, and would rather wait until after receiving further messages to display the loaded state and attach event listeners, instead of displaying the initial loaded state and then processing a bunch of messages that emit a bunch of events. Note that this can break invariants (e.g., you might forget to clean up some state deleted by the further messages), so use care.
+- You don't want to risk displaying your container to the user before it has processed these further updates, since while it is processing them, the GUI will freeze.
+- You have expensive event listeners, and would rather wait until after receiving further updates to display the loaded state and attach event listeners, instead of displaying the initial loaded state and then processing a bunch of updates that emit a bunch of events. Note that this can break invariants (e.g., you might forget to clean up some state deleted by the further updates), so use care.
 
-Usually, you shouldn't worry about these performance issues unless they become visible in practice. The host is expected to save often enough that the further messages will be few, hence quick to apply.
+Usually, you shouldn't worry about these performance issues unless they become visible in practice. The host is expected to save often enough that the further updates will be few, hence quick to apply.

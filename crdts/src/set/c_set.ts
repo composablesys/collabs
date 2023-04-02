@@ -14,6 +14,9 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
+import { CRDTMessageMeta, CRDTSavedStateMeta, CRuntime } from "../runtime";
+
+const RADIX = 36;
 
 /**
  * A collaborative set with *mutable*
@@ -40,14 +43,20 @@ import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
  * [[delete]] is like "free", but replicated across all devices.
  *
  * See also: [[CValueSet]].
+ *
+ * @typeParam C The value type, which is a Collab.
+ * @typeParam AddArgs The type of arguments to [[add]].
  */
 export class CSet<C extends Collab, AddArgs extends unknown[]>
   extends AbstractSet_Collab<C, AddArgs>
   implements IParent
 {
   private readonly children: Map<string, C> = new Map();
-  // constructorArgs are saved for later save calls
+  // constructorArgs are saved for later save calls.
   private readonly constructorArgs: Map<string, Uint8Array> = new Map();
+  // We store just-deleted children until the next runtime Change event, for
+  // the purpose of answering fromId calls in same-transaction event listeners.
+  private readonly justDeletedChildren: Map<string, C> = new Map();
 
   private readonly argsSerializer: Serializer<AddArgs>;
 
@@ -69,6 +78,10 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     options: { argsSerializer?: Serializer<AddArgs> } = {}
   ) {
     super(init);
+
+    if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
+      throw new Error("this.runtime must be CRuntime or compatible");
+    }
 
     this.argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
@@ -127,40 +140,17 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       child.receive(messageStack, meta);
     } else {
       const decoded = CSetMessage.decode(lastMessage);
+      const crdtMeta = meta.runtimeExtra as CRDTMessageMeta;
       switch (decoded.op) {
         case "add": {
-          const name = this.makeName(
-            meta.senderID,
-            decoded.add!.replicaUniqueNumber
-          );
-          const newValue = this.receiveCreate(
-            name,
-            decoded.add!.args,
-            undefined,
-            false
-          );
-
-          if (this.inAdd) {
-            this.ourCreatedValue = newValue;
-          }
-
-          this.emit("Add", {
-            value: newValue,
-            meta,
-          });
+          const name = this.makeName(meta.senderID, crdtMeta.senderCounter);
+          this.receiveAdd(name, decoded.add, meta);
           break;
         }
         case "delete": {
           const child = this.children.get(decoded.delete);
           if (child !== undefined) {
-            this.children.delete(decoded.delete);
-            this.constructorArgs.delete(decoded.delete);
-
-            this.emit("Delete", {
-              value: child,
-              meta,
-            });
-            child.finalize();
+            this.receiveDelete(decoded.delete, child, meta);
           }
           break;
         }
@@ -170,36 +160,94 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     }
   }
 
-  private receiveCreate(
+  private receiveAdd(
     name: string,
     serializedArgs: Uint8Array | undefined,
-    args: AddArgs | undefined = undefined,
-    isInitialValue: boolean
-  ): C {
-    if (args === undefined) {
-      args = this.argsSerializer.deserialize(serializedArgs!);
-    }
-    // Add as child with "[sender, counter]" as id.
-    // Similar to CObject#registerCollab.
+    meta: UpdateMeta
+  ): void {
     if (this.children.has(name)) {
       throw new Error('Duplicate newValue name: "' + name + '"');
     }
-    const newValue = this.valueConstructor(new InitToken(name, this), ...args);
+    const newValue = this.valueConstructor(
+      new InitToken(name, this),
+      ...this.argsSerializer.deserialize(serializedArgs!)
+    );
 
     this.children.set(name, newValue);
-    if (!isInitialValue) {
-      // Save the constuctor args.
-      // Not needed for initial values, since they are created
-      // as part of initialization.
-      this.constructorArgs.set(name, serializedArgs!);
+    this.constructorArgs.set(name, serializedArgs!);
+
+    if (this.inAdd) {
+      this.ourCreatedValue = newValue;
     }
 
-    return newValue;
+    this.emit("Add", {
+      value: newValue,
+      meta,
+    });
   }
 
-  private makeName(sender: string, counter: number) {
-    // OPT: shorten (base128 instead of base36)
-    return `${counter.toString(36)},${sender}`;
+  private receiveDelete(name: string, value: C, meta: UpdateMeta) {
+    this.children.delete(name);
+    this.constructorArgs.delete(name);
+
+    // Store the child in justDeletedChildren until the end
+    // of the transaction.
+    if (this.justDeletedChildren.size === 0) {
+      (this.runtime as CRuntime).on(
+        "Transaction",
+        () => this.justDeletedChildren.clear(),
+        { once: true }
+      );
+    }
+    this.justDeletedChildren.set(name, value);
+
+    this.emit("Delete", {
+      value,
+      meta,
+    });
+    value.finalize();
+  }
+
+  // Name requirements:
+  // 1. Contain their causal dot (senderID, senderCounter), for merging
+  // 2. Unique, even with multiple adds in same transaction
+  // 3. Pure - doesn't reference sender-side state, for future runLocally
+  // To satisfy these, we use a causal dot plus a per-transaction counter
+  // (evaluated on the receiver side).
+  // To avoid a wasteful senderID -> utf8 bytes -> base64 string
+  // conversion, we encode the string manually,
+  // instead of using protobuf + Bytes.stringify.
+  // OPT: shorter number encodings? Esp for senderCounter.
+
+  private trCounter = 0;
+
+  private makeName(senderID: string, senderCounter: number) {
+    let ans: string;
+    if (this.trCounter === 0) {
+      // Reset trCounter at the end of the transaction.
+      (this.runtime as CRuntime).on(
+        "Transaction",
+        () => {
+          this.trCounter = 0;
+        },
+        { once: true }
+      );
+      // Omit trCounter in this common case.
+      ans = `${senderCounter.toString(RADIX)},${senderID}`;
+    } else {
+      ans = `${senderCounter.toString(RADIX)}.${this.trCounter.toString(
+        RADIX
+      )},${senderID}`;
+    }
+    this.trCounter++;
+    return ans;
+  }
+
+  private parseName(name: string): [senderID: string, senderCounter: number] {
+    const comma = name.indexOf(",");
+    const dot = name.lastIndexOf(".", comma - 1);
+    const senderCounterStr = name.slice(0, dot === -1 ? comma : dot);
+    return [name.slice(comma + 1), Number.parseInt(senderCounterStr, RADIX)];
   }
 
   /**
@@ -214,10 +262,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   add(...args: AddArgs): C {
     this.inAdd = true;
     const message = CSetMessage.create({
-      add: {
-        replicaUniqueNumber: this.runtime.nextLocalCounter(),
-        args: this.argsSerializer.serialize(args),
-      },
+      add: this.argsSerializer.serialize(args),
     });
     this.send([CSetMessage.encode(message).finish()], []);
     const created = this.ourCreatedValue!;
@@ -275,13 +320,9 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return this.argsSerializer.deserialize(argsSerialized);
   }
 
-  save(): SavedStateTree | null {
-    if (this.canGC()) return null;
-
-    // Note this will be in insertion order because
-    // Map iterators run in insertion order.
+  save(): SavedStateTree {
     const args = new Array<Uint8Array>(this.size);
-    const childSaves = new Map<string, SavedStateTree | null>();
+    const childSaves = new Map<string, SavedStateTree>();
     let i = 0;
     for (const [name, child] of this.children) {
       args[i] = this.constructorArgs.get(name)!;
@@ -295,21 +336,54 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     };
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
-    const saveMessage = CSetSave.decode(savedStateTree.self!);
-    const childSaves = savedStateTree.children!;
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    const crdtMeta = meta.runtimeExtra as CRDTSavedStateMeta;
 
-    // Create children.
+    let saveMessage: CSetSave;
+    let childSaves: Map<string, SavedStateTree>;
+    if (savedStateTree === null) {
+      // Assume the saved state was trivial (had canGC() = true), i.e.,
+      // 0 values.
+      saveMessage = CSetSave.create({ args: [] });
+      childSaves = new Map();
+    } else {
+      saveMessage = CSetSave.decode(savedStateTree.self!);
+      childSaves = savedStateTree.children!;
+    }
+
+    // 1. Delete our children that are not present in the saved
+    // state and that are causally dominated by the remote VC.
+    for (const [name, value] of this.children) {
+      if (!childSaves.has(name)) {
+        const [senderID, senderCounter] = this.parseName(name);
+        if (crdtMeta.remoteVectorClock.get(senderID) >= senderCounter) {
+          this.receiveDelete(name, value, meta);
+        }
+      }
+    }
+
+    // 2. Add new children (not already present here) that are not
+    // causally dominated by the local VC.
     let i = 0;
     for (const name of childSaves.keys()) {
-      this.receiveCreate(name, saveMessage.args[i], undefined, false);
+      if (!this.children.has(name)) {
+        const [senderID, senderCounter] = this.parseName(name);
+        if (crdtMeta.localVectorClock.get(senderID) < senderCounter) {
+          // This will emit an Add event, even though we haven't
+          // loaded the value yet.
+          // That matches add()'s behavior, and it lets users register event
+          // listeners in the Add event before any updates occur.
+          this.receiveAdd(name, saveMessage.args[i], meta);
+        }
+      }
       i++;
     }
 
-    // Load children.
+    // 3. Load children that have a save and are still present.
     for (const [name, childSave] of childSaves) {
-      if (childSave !== null) {
-        this.children.get(name)!.load(childSave, meta);
+      const child = this.children.get(name);
+      if (child !== undefined) {
+        child.load(childSave, meta);
       }
     }
   }
@@ -318,15 +392,40 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     return collabIDOf(descendant, this);
   }
 
+  /**
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
+   * this CSet, returns this replica's copy of the original
+   * `descendant`.
+   *
+   * If the original `descendant` has been deleted from this
+   * set, this method will usually return `undefined`. The exception
+   * is if `descendant` was just deleted from this set.
+   * In that case, this method will
+   * still return the original `descendant` until the end of
+   * the deleting transaction or [[CRuntime.load]] call.
+   * Thus event handlers within the same transaction can still
+   * get the deleted value.
+   *
+   * @param id A CollabID from [[idOf]].
+   * @param startIndex Internal (parent) use only.
+   * If provided, treat `id.namePath` as if
+   * it starts at startIndex instead of 0.
+   */
   fromID<D extends Collab<CollabEventsRecord>>(
     id: CollabID<D>,
     startIndex = 0
   ): D | undefined {
     const name = id.namePath[startIndex];
-    const child = this.children.get(name) as Collab;
+    let child = this.children.get(name) as Collab;
     if (child === undefined) {
-      // Assume it is a deleted child.
-      return undefined;
+      // If it's a just-deleted child, still succeed.
+      child = this.justDeletedChildren.get(name) as Collab;
+      if (child === undefined) {
+        // Assume it is a deleted child.
+        return undefined;
+      }
     }
 
     // Terminal case.

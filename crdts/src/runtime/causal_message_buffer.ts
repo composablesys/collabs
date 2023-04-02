@@ -4,9 +4,11 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
+import { CRDTMessageMeta } from "./crdt_meta";
 import {
-  CRDTMetaSerializer,
+  LoadCRDTMeta,
   ReceiveCRDTMeta,
+  RuntimeMetaSerializer,
 } from "./crdt_meta_implementations";
 
 /**
@@ -37,14 +39,13 @@ export class CausalMessageBuffer {
    */
   readonly vc = new Map<string, number>();
   /**
-   * May include us, if we are causally maximal
-   * (no received messages dominate our last sent message).
+   * Never includes us, even if we are causally maximal.
    *
    * If causalityGuaranteed, this is always empty.
    *
    * Do not modify externally.
    */
-  readonly maximalVcKeys = new Set<string>();
+  readonly maximalVCKeys = new Set<string>();
   /**
    * The Lamport timestamp.
    *
@@ -56,13 +57,10 @@ export class CausalMessageBuffer {
    * Internal buffer for messages that have been received but not
    * yet delivered, either because check() was not called or they
    * are not causally ready.
+   *
+   * Keyed by encodeDot's output.
    */
-  private readonly buffer: ReceivedTransaction[] = [];
-
-  /**
-   * The first index to check for readiness in the buffer.
-   */
-  private bufferCheckIndex = 0;
+  private readonly buffer = new Map<string, ReceivedTransaction>();
 
   /**
    * @param deliver Callback to deliver messages, where
@@ -77,91 +75,104 @@ export class CausalMessageBuffer {
       meta: UpdateMeta
     ) => void
   ) {
+    // this.replicaID is the first map entry.
     this.vc.set(this.replicaID, 0);
   }
 
+  private encodeDot(crdtMeta: CRDTMessageMeta) {
+    return `${crdtMeta.senderCounter},${crdtMeta.senderID}`;
+  }
+
   /**
-   * Adds the given message to the buffer, if it has not
-   * already been delivered.
+   * Processes the given remote message:
+   * - If already delivered, does nothing.
+   * - Else if ready for delivery, delivers it.
+   * - Else adds it to the buffer.
+   *
+   * @returns Whether the message was delivered.
    */
-  add(messageStacks: (Uint8Array | string)[][], meta: UpdateMeta): void {
+  process(messageStacks: (Uint8Array | string)[][], meta: UpdateMeta): boolean {
     const crdtMeta = <ReceiveCRDTMeta>meta.runtimeExtra;
     if (!this.isAlreadyDelivered(crdtMeta)) {
-      this.buffer.push({ messageStacks, meta });
+      if (this.isReady(crdtMeta)) {
+        // Ready for delivery.
+        this.deliver(messageStacks, meta);
+        this.processRemoteDelivery(crdtMeta);
+        return true;
+      } else {
+        // Add to this.buffer if it's not already present.
+        const dot = this.encodeDot(crdtMeta);
+        if (!this.buffer.has(dot)) {
+          this.buffer.set(dot, { messageStacks, meta });
+        }
+      }
     } else if (DEBUG) {
       console.log("CausalMessageBuffer.add: not adding");
       console.log("(already received)");
       console.log([...this.vc]);
       console.log(crdtMeta);
     }
+    return false;
   }
 
   /**
    * Checks the buffer and delivers any causally ready
    * transactions.
-   *
-   * @return true if any transactions were delivered.
    */
-  check(): boolean {
-    let anyDelivered = false;
-    // The checking order is from the latest to the oldest.
-    let index = this.buffer.length - 1;
+  check(): void {
+    let recheck = false;
 
-    while (index >= this.bufferCheckIndex) {
-      const sender = this.buffer[index].meta.senderID;
-      const crdtMeta = <ReceiveCRDTMeta>this.buffer[index].meta.runtimeExtra;
+    do {
+      recheck = false;
+      for (const [dot, tr] of this.buffer) {
+        const crdtMeta = <ReceiveCRDTMeta>tr.meta.runtimeExtra;
 
-      if (this.isReady(crdtMeta, sender)) {
-        // Ready for delivery.
-        this.deliver(this.buffer[index].messageStacks, this.buffer[index].meta);
-        this.processRemoteDelivery(crdtMeta);
-        // Remove from the buffer.
-        // OPT: something more efficient?  (Costly array
-        // deletions).
-        this.buffer.splice(index, 1);
-        // Set index to the end and try again, in case
-        // this makes more messages ready
-        this.bufferCheckIndex = 0;
-        index = this.buffer.length - 1;
-        anyDelivered = true;
-      } else {
-        if (DEBUG) {
-          console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
-        }
-        if (this.isAlreadyDelivered(crdtMeta)) {
-          // Remove the message from the buffer
-          this.buffer.splice(index, 1);
-          if (DEBUG) console.log("(already received)");
-        }
-        index--;
-        if (DEBUG) {
-          console.log([...this.vc]);
-          console.log(crdtMeta);
+        if (this.isReady(crdtMeta)) {
+          // Ready for delivery.
+          this.buffer.delete(dot);
+          this.deliver(tr.messageStacks, tr.meta);
+          this.processRemoteDelivery(crdtMeta);
+          // Delivering messages may make new ones ready, so go
+          // through the whole buffer again.
+          recheck = true;
+        } else {
+          if (DEBUG) {
+            console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
+          }
+          if (this.isAlreadyDelivered(crdtMeta)) {
+            // Remove from the buffer.
+            this.buffer.delete(dot);
+            if (DEBUG) console.log("(already received)");
+          }
+          if (DEBUG) {
+            console.log([...this.vc]);
+            console.log(crdtMeta);
+          }
         }
       }
-    }
-    this.bufferCheckIndex = this.buffer.length;
-    return anyDelivered;
+    } while (recheck);
   }
 
   /**
-   * @return whether a message with the given vector clock
-   * and sender is ready for delivery, according to the causal
-   * order.
+   * @return whether a message with the given crdtMeta
+   * is ready for delivery, according to the causal order.
    */
-  private isReady(crdtMeta: ReceiveCRDTMeta, sender: string): boolean {
+  private isReady(crdtMeta: ReceiveCRDTMeta): boolean {
     if (this.causalityGuaranteed) return true;
 
     // Check that sender's entry is one more than ours.
-    if ((this.vc.get(sender) ?? 0) !== crdtMeta.senderCounter - 1) {
+    if ((this.vc.get(crdtMeta.senderID) ?? 0) !== crdtMeta.senderCounter - 1) {
       return false;
     }
 
     // Check that other causally maximal entries are <= ours.
-    // Note that this excludes sender.
     let i = 0;
-    for (const [key, value] of crdtMeta.vc) {
-      if (i === crdtMeta.maximalVcKeyCount) break;
+    for (const [key, value] of crdtMeta.vcEntries) {
+      // maximalVCKeyCount omits senderID, so skip it without
+      // incrementing i.
+      if (key === crdtMeta.senderID) continue;
+
+      if (i === crdtMeta.maximalVCKeyCount) break;
       if ((this.vc.get(key) ?? 0) < value) {
         return false;
       }
@@ -189,15 +200,20 @@ export class CausalMessageBuffer {
       // Delete any current keys that are causally dominated by
       // crdtMeta.
       let i = 0;
-      for (const [key, value] of crdtMeta.vc) {
-        if (i === crdtMeta.maximalVcKeyCount) break;
+      for (const [key, value] of crdtMeta.vcEntries) {
+        // maximalVCKeyCount omits senderID, so skip it without
+        // incrementing i.
+        if (key === crdtMeta.senderID) continue;
+
+        if (i === crdtMeta.maximalVCKeyCount) break;
         if (this.vc.get(key) === value) {
-          this.maximalVcKeys.delete(key);
+          this.maximalVCKeys.delete(key);
         }
         i++;
       }
       // Add a new key for this message.
-      this.maximalVcKeys.add(crdtMeta.senderID);
+      // Since it's remote, we know senderID is not our ID.
+      this.maximalVCKeys.add(crdtMeta.senderID);
     }
     // Update vc.
     this.vc.set(crdtMeta.senderID, crdtMeta.senderCounter);
@@ -219,8 +235,7 @@ export class CausalMessageBuffer {
     this.vc.set(this.replicaID, this.vc.get(this.replicaID)! + 1);
     if (!this.causalityGuaranteed) {
       // Our own message causally dominates every current key.
-      this.maximalVcKeys.clear();
-      this.maximalVcKeys.add(this.replicaID);
+      this.maximalVCKeys.clear();
     }
     // Update Lamport timestamp.
     this.lamportTimestamp++;
@@ -231,53 +246,108 @@ export class CausalMessageBuffer {
     const vcValues = new Array<number>(this.vc.size);
     let i = 0;
     for (const [key, value] of this.vc) {
+      // Since this.replicaID is the first map entry, it is stored in
+      // vcKeys[0].
       vcKeys[i] = key;
       vcValues[i] = value;
       i++;
     }
 
     // OPT: compress repeated senders in VCs.
-    const bufferMessageStacks = new Array<Uint8Array>(this.buffer.length);
-    const bufferMetas = new Array<Uint8Array>(this.buffer.length);
-    for (i = 0; i < this.buffer.length; i++) {
+    const bufferMessageStacks = new Array<Uint8Array>(this.buffer.size);
+    const bufferMetas = new Array<Uint8Array>(this.buffer.size);
+    i = 0;
+    for (const tr of this.buffer.values()) {
       bufferMessageStacks[i] = MessageStacksSerializer.instance.serialize(
-        this.buffer[i].messageStacks
+        tr.messageStacks
       );
-      bufferMetas[i] = CRDTMetaSerializer.instance.serialize(
-        this.buffer[i].meta
-      );
+      bufferMetas[i] = RuntimeMetaSerializer.instance.serialize(tr.meta);
+      i++;
     }
 
     const saveMessage = CausalMessageBufferSave.create({
       vcKeys,
       vcValues,
-      maximalVcKeys: [...this.maximalVcKeys],
+      maximalVcKeys: [...this.maximalVCKeys],
       lamportTimestamp: this.lamportTimestamp,
       bufferMessageStacks,
       bufferMetas,
-      bufferCheckIndex: this.bufferCheckIndex,
     });
     return CausalMessageBufferSave.encode(saveMessage).finish();
   }
 
-  load(savedState: Uint8Array) {
+  /**
+   * @param savedState
+   * @param used
+   */
+  load(savedState: Uint8Array): LoadCRDTMeta {
+    const oldLocalVC = new Map(this.vc);
+    const oldLocalLamportTimestamp = this.lamportTimestamp;
+
     const decoded = CausalMessageBufferSave.decode(savedState);
 
+    const remoteVC = new Map<string, number>();
     for (let i = 0; i < decoded.vcKeys.length; i++) {
-      this.vc.set(decoded.vcKeys[i], int64AsNumber(decoded.vcValues[i]));
+      remoteVC.set(decoded.vcKeys[i], int64AsNumber(decoded.vcValues[i]));
     }
-    for (const key of decoded.maximalVcKeys) {
-      this.maximalVcKeys.add(key);
+    const remoteMaximalVCKeys = new Set(decoded.maximalVcKeys);
+
+    // 1. Delete our maximal entries that are not present in the saved
+    // state and that are causally dominated by the remote VC.
+    // (Strictly speaking, we compare entries not keys: values must match
+    // to be present in the intersection.)
+    for (const key of this.maximalVCKeys) {
+      const localValue = this.vc.get(key)!;
+      const remoteValue = remoteVC.get(key) ?? 0;
+      // If the entry is not in the intersection...
+      if (!(remoteMaximalVCKeys.has(key) && localValue === remoteValue)) {
+        // ...and it's causally dominated, then delete it.
+        if (remoteValue >= localValue) this.maximalVCKeys.delete(key);
+      }
     }
-    this.lamportTimestamp = int64AsNumber(decoded.lamportTimestamp);
+    // 2. Add new maximal entries that are not
+    // causally dominated by the local VC.
+    for (const key of remoteMaximalVCKeys) {
+      if ((this.vc.get(key) ?? 0) < remoteVC.get(key)!) {
+        this.maximalVCKeys.add(key);
+      }
+    }
+    // Delete our replicaID if it ended up in maximalVCKeys.
+    this.maximalVCKeys.delete(this.replicaID);
+
+    for (const [key, value] of remoteVC) {
+      this.vc.set(key, Math.max(this.vc.get(key) ?? 0, value));
+    }
+    const remoteLamportTimestamp = int64AsNumber(decoded.lamportTimestamp);
+    this.lamportTimestamp = Math.max(
+      this.lamportTimestamp,
+      remoteLamportTimestamp
+    );
+    // Blindly merge buffers for now. CRuntime will call check() later
+    // to process any newly-ready messages (local or remote)
+    // and delete already-received messages.
     for (let i = 0; i < decoded.bufferMessageStacks.length; i++) {
-      this.buffer.push({
-        messageStacks: MessageStacksSerializer.instance.deserialize(
-          decoded.bufferMessageStacks[i]
-        ),
-        meta: CRDTMetaSerializer.instance.deserialize(decoded.bufferMetas[i]),
-      });
+      const meta = RuntimeMetaSerializer.instance.deserialize(
+        decoded.bufferMetas[i]
+      );
+      const dot = this.encodeDot(<CRDTMessageMeta>meta.runtimeExtra);
+      if (!this.buffer.has(dot)) {
+        this.buffer.set(dot, {
+          messageStacks: MessageStacksSerializer.instance.deserialize(
+            decoded.bufferMessageStacks[i]
+          ),
+          meta,
+        });
+      }
     }
-    this.bufferCheckIndex = decoded.bufferCheckIndex;
+
+    return new LoadCRDTMeta(
+      // First vc entry is the sender's replicaID.
+      decoded.vcKeys[0],
+      oldLocalVC,
+      remoteVC,
+      oldLocalLamportTimestamp,
+      remoteLamportTimestamp
+    );
   }
 }

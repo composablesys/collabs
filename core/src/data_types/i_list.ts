@@ -24,6 +24,23 @@ and limitations under the License.
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
 
 /**
+ * A position in a collaborative list (e.g. [[CList]], [[CValueList]], [[CText]]),
+ * represented as an opaque string.
+ *
+ * A position points to a list entry immutably: unlike its index,
+ * an entry's position never changes.
+ *
+ * The [[IList]] interface has methods to convert between a position,
+ * its value (if present), and
+ * its current index (or where it would be if present).
+ *
+ * You can use positions
+ * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), cursors, range endpoints
+ * for a comment on a document, etc.
+ */
+export type Position = string;
+
+/**
  * Event emitted by an [[IList]]`<T>` implementation
  * when a range of values is inserted or deleted.
  */
@@ -44,7 +61,7 @@ export interface ListEvent<T> extends CollabEvent {
   /**
    * The positions corresponding to [[values]].
    */
-  positions: string[];
+  positions: Position[];
 }
 
 /**
@@ -82,17 +99,8 @@ export interface ListEventsRecord<T> extends CollabEventsRecord {
  * when the value is not serializable, e.g., a dynamically-
  * created [[Collab]].
  *
- * ## Positions
- *
- * A *position* points to an entry immutably: unlike its index,
- * an entry's position never changes.
- *
- * There are methods to convert between a position, its value (if present), and
- * its current index (or where it would be if present).
- *
- * You can use positions
- * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), cursors, range endpoints
- * for a comment on a document, etc.
+ * IList lets you address a list entry by its immutable *position*, in addition
+ * to its mutable index; see [[Position]].
  *
  * @typeParam T The value type.
  * @typeParam InsertArgs The type of arguments to [[insert]].
@@ -150,7 +158,7 @@ export interface IList<
   /**
    * Returns the position currently at index.
    */
-  getPosition(index: number): string;
+  getPosition(index: number): Position;
 
   /**
    * Returns the current index of position.
@@ -164,9 +172,12 @@ export interface IList<
    * - "right": Returns the next index to the right of position.
    * If there are no values to the right of position,
    * returns [[length]].
+   *
+   * To find the index where a position would be if
+   * present, use `searchDir = "right"`.
    */
   indexOfPosition(
-    position: string,
+    position: Position,
     searchDir?: "none" | "left" | "right"
   ): number;
 
@@ -174,13 +185,13 @@ export interface IList<
    * Returns whether position is currently present in the list,
    * i.e., its value is present.
    */
-  hasPosition(position: string): boolean;
+  hasPosition(position: Position): boolean;
 
   /**
    * Returns the value at position, or undefined if it is not currently present
    * ([[hasPosition]] returns false).
    */
-  getByPosition(position: string): T | undefined;
+  getByPosition(position: Position): T | undefined;
 
   /**
    * Returns the position of the first occurrence of value, or
@@ -188,7 +199,7 @@ export interface IList<
    *
    * Compare to [[indexOf]].
    */
-  positionOf(searchElement: T): string | undefined;
+  positionOf(searchElement: T): Position | undefined;
 
   /**
    * Deletes every value in the list.
@@ -206,13 +217,13 @@ export interface IList<
    * Returns an iterator of [index, position, value] tuples for every
    * value in the list, in list order.
    */
-  entries(): IterableIterator<[index: number, position: string, value: T]>;
+  entries(): IterableIterator<[index: number, position: Position, value: T]>;
 
   /** Returns an iterator for values in the list, in list order. */
   values(): IterableIterator<T>;
 
   /** Returns an iterator for present positions, in list order. */
-  positions(): IterableIterator<string>;
+  positions(): IterableIterator<Position>;
 
   // Omit keys() since it doesn't seem useful.
 
@@ -332,7 +343,7 @@ export interface IList<
    * Determines whether this list includes a certain element, returning true or false as appropriate.
    *
    * @param searchElement The element to search for.
-   * @param fromIndex The position in this list at which to
+   * @param fromIndex The index in this list at which to
    * begin searching for searchElement.  The first element
    * to be searched is found at fromIndex for positive
    * values of fromIndex, or at arr.length + fromIndex for

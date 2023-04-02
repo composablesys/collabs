@@ -78,9 +78,8 @@ export abstract class CPrimitive<
     meta: UpdateMeta
   ): void;
 
-  save(): SavedStateTree | null {
-    const self = this.savePrimitive();
-    return self === null ? null : { self };
+  save(): SavedStateTree {
+    return { self: this.savePrimitive() };
   }
 
   /**
@@ -96,17 +95,12 @@ export abstract class CPrimitive<
    * is running. Calling `savePrimitive` should not affect this Collab's
    * user-visible state.
    *
-   * This method may return `null` if
-   * the saved state is trivial; replicas loading the whole document
-   * will then skip calling [[loadPrimitive]] on this Collab's replica.
-   *
-   * @return The saved state, or null
-   * if there is no state to save.
+   * @return The saved state.
    */
-  protected abstract savePrimitive(): Uint8Array | null;
+  protected abstract savePrimitive(): Uint8Array;
 
-  load(savedState: SavedStateTree): void {
-    this.loadPrimitive(savedState.self!);
+  load(savedState: SavedStateTree | null, meta: UpdateMeta): void {
+    this.loadPrimitive(savedState === null ? null : savedState.self!, meta);
   }
 
   /**
@@ -116,10 +110,19 @@ export abstract class CPrimitive<
    * possibly in a different collaboration session,
    * with guarantees set by the [[runtime]].
    *
-   * @param savedState The saved state to load.
+   * This method may also be called with `savedState = null`;
+   * you should ignore such calls (i.e., return immediately)
+   * *unless* you override [[canGC]]. If you do override `canGC`,
+   * see that method's docs for instructions.
+   *
+   * @param savedState The saved state to load,
+   * or `null` as described above.
    * @param meta Metadata attached to this saved state by the runtime.
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
    */
-  protected abstract loadPrimitive(savedState: Uint8Array): void;
+  protected abstract loadPrimitive(
+    savedState: Uint8Array | null,
+    meta: UpdateMeta
+  ): void;
 }

@@ -7,24 +7,18 @@ const runtime = new collabs.CRuntime();
 // TODO: Setup your app, using runtime.registerCollab to create
 // Collabs state variables.
 
-// TODO: Load the previous saved state, if any.
-// runtime.load(savedState);
-
-// TODO: Display the loaded state, i.e., sync it from your Collabs state
-// variables to the GUI.
-
 // Connect runtime to your chosen network(s) so it can communicate with other
 // collaborating users.
 // In general, you do this by hooking into runtime.on("Send", ...) and
 // runtime.receive:
 // ```ts
 // runtime.on("Send", e => {
-//     // TODO: send e.message to other collaborators
+//   // TODO: send e.message to other collaborators
 // });
 //
 // // TODO: Call this when you receive a network message.
 // function handleReceivedMessage(message: Uint8Array) {
-//     runtime.receive(message);
+//   runtime.receive(message);
 // }
 // ```
 // In specific cases, you can use a premade <something>Network class,
@@ -38,6 +32,9 @@ const runtime = new collabs.CRuntime();
 const host = location.origin.replace(/^http/, "ws");
 new WebSocketNetwork(runtime, host, "");
 
+// TODO: Load previous saved state, if any.
+// runtime.load(savedState);
+
 // TODO: call runtime.receive on any past messages that didn't make it into
 // the save data. WebSocketNetwork does this for you, but in a silly way:
 // it merely requests *all* past messages from the server and delivers them
@@ -48,7 +45,7 @@ new WebSocketNetwork(runtime, host, "");
 // immediately.
 
 // Your app is now ready to be displayed by the user.
-// (Technically you can let your user interact with it as soon as you
-// call runtime.load, although you may want to wait until after you call
-// runtime.receive on all locally-stored past messages, to prevent the
-// GUI from updating rapidly right after it becomes visible.)
+// (Technically you can let your user interact with it immediately,
+// but you probably want to wait until after calling runtime.load
+// and calling runtime.receive on all locally-stored past messages,
+// to prevent the GUI from updating rapidly right after it becomes visible.)

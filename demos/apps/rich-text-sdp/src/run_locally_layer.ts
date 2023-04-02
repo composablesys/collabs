@@ -67,8 +67,8 @@ export class RunLocallyLayer extends Collab implements IParent {
    * - It is "pure" in the sense of pure op-based CRDTs: the messages it sends
    * do not depend on the current state. (E.g. no state-based conditionals,
    * no generating UIDs before sending.)
-   * - It works with "automatic" [[CRDTMeta]]. (Exception: it may access extra
-   * CRDTMeta fields if those were requested by the currently-processed message.)
+   * - It works with "automatic" [[CRDTMessageMeta]]. (Exception: it may access extra
+   * CRDTMessageMeta fields if those were requested by the currently-processed message.)
    *
    * These properties hold for most (TODO: all?) operations in the standard library
    * except:
@@ -133,7 +133,11 @@ export class RunLocallyLayer extends Collab implements IParent {
     return this.child.save();
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    // I believe merging still makes sense here: the child will merge the
+    // saved states including run-local changes, which are replicated
+    // (and assigned metadata) as if they were normal Collab operations,
+    // hence the child's usual merge algorithm should "just work".
     this.child.load(savedStateTree, meta);
   }
 

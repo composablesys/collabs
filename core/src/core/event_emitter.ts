@@ -45,38 +45,28 @@ export class EventEmitter<Events extends EventsRecord> {
    *
    * @param eventName Name of the event to listen on.
    * @param handler Callback that handles the event.
+   * @param options.once If true, the event handler is triggered at most
+   * once (the next time the event happens), then unsubscribed.
    * @return An "off" function that removes the event handler when called.
    */
   on<K extends keyof Events>(
     eventName: K,
-    handler: (event: Events[K], caller: this) => void
+    handler: (event: Events[K], caller: this) => void,
+    options?: { once?: boolean }
   ): () => void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const set: Set<Handler<Events[K], any>> = (this.handlers[eventName] =
-      this.handlers[eventName] ?? new Set([handler]));
-    set.add(handler);
-    return () => set.delete(handler);
-  }
-
-  /**
-   * Registers an event handler that is triggered *only once*, the next
-   * time the event happens, then unsubscribed.
-   *
-   * @param eventName Name of the event to listen on.
-   * @param handler Callback that handles the event.
-   * @return An "off" function that removes the event handler when called.
-   * Use this to remove the handler before the next event (which removes
-   * it automatically).
-   */
-  once<K extends keyof Events>(
-    eventName: K,
-    handler: (event: Events[K], caller: this) => void
-  ): () => void {
-    const unsubscribe = this.on(eventName, (event, caller) => {
-      unsubscribe();
-      handler(event, caller);
-    });
-    return unsubscribe;
+    if (options?.once === true) {
+      const unsubscribe = this.on(eventName, (event, caller) => {
+        unsubscribe();
+        handler(event, caller);
+      });
+      return unsubscribe;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const set: Set<Handler<Events[K], any>> = (this.handlers[eventName] =
+        this.handlers[eventName] ?? new Set([handler]));
+      set.add(handler);
+      return () => set.delete(handler);
+    }
   }
 
   /**

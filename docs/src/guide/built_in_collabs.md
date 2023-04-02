@@ -11,7 +11,7 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | Ordinary type `X`                                                                        | Collaborative version `C(X)`                                                                                       |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Any immutable `T`                                                                        | [`CVar<T>`](../api/collabs/classes/CVar.html)                                                                      |
-| `boolean`                                                                                | [`TrueWinsCBoolean`](../api/collabs/classes/CBoolean.html)                                                         |
+| `boolean`                                                                                | [`CBoolean`](../api/collabs/classes/CBoolean.html)                                                                 |
 | `number` (for counting or adding)                                                        | [`CCounter`](../api/collabs/classes/CCounter.html)                                                                 |
 | `string` (as texts in a text box with cursors)                                           | [`CText`](../api/collabs/classes/CText.html)                                                                       |
 | Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                                                                   |
@@ -99,7 +99,7 @@ Types of mutable collections (Deleting, Archiving). Note downsides of each: tomb
 
 <!-- ### Treating Immutable Values as Mutable
 
-TODO: CImmutableValue: wraps a value in a CType. Hack to let you get mutating collection features for immutable values (sending args - could also write your own type; list move ops - not yet implemented for CValueList; sending values by reference instead of the whole thing, so they are shortened; ??). Modest performance cost. -->
+TODO: CConst: wraps a value in a CType. Hack to let you get mutating collection features for immutable values (sending args - could also write your own type; list move ops - not yet implemented for CValueList; sending values by reference instead of the whole thing, so they are shortened; ??). Modest performance cost. -->
 
 <!-- ## Interfaces
 

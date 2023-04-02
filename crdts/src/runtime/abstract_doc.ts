@@ -5,7 +5,6 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
   "Change",
   "Transaction",
   "Send",
-  "Load",
 ];
 
 /**
@@ -52,14 +51,11 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * not wrapped in a `transact` call use the constructor's
    * [[RuntimeOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
-   * In particular, only its `info` is used.
-   *
-   * @param info An optional info string to attach to the transaction.
-   * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
+   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]),
+   * only the outermost one matters.
    */
-  transact(f: () => void, info?: string) {
-    this.runtime.transact(f, info);
+  transact(f: () => void) {
+    this.runtime.transact(f);
   }
 
   /**
@@ -72,7 +68,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * local changes.
    *
    * Messages from other replicas should be received eventually and at-least-once. Arbitrary delays, duplicates,
-   * reordering, and delivery of messages from this replica
+   * reordering, and delivery of (redundant) messages from this replica
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
    */
@@ -97,24 +93,18 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * a call to [[load]] on an AbstractDoc that is a replica
    * of this one.
    *
-   * Calling load is equivalent to calling [[receive]]
-   * on every message that influenced the saved state,
-   * but it is typically much more efficient.
+   * The local Collabs merge in the saved state, change the
+   * local state accordingly, and emit events describing the
+   * local changes.
    *
-   * Note that loading will **not** trigger events on
-   * Collabs, even if their state changes.
-   * It will trigger "Load" and "Change" events on this AbstractDoc.
+   * Calling load is roughly equivalent to calling [[receive]]
+   * on every message that influenced the saved state
+   * (skipping already-received messages),
+   * but it is typically much more efficient.
    *
    * @param savedState Saved state from another replica's [[save]] call.
    */
   load(savedState: Uint8Array): void {
     this.runtime.load(savedState);
-  }
-
-  /**
-   * Whether [[load]] has completed.
-   */
-  get isLoaded(): boolean {
-    return this.runtime.isLoaded;
   }
 }

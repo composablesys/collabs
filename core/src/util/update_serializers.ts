@@ -197,7 +197,7 @@ export class MessageStacksSerializer
 }
 
 /**
- * Serializer for a [[SavedStateTree]] or null, i.e., an output of [[Collab.save]].
+ * Serializer for a [[SavedStateTree]], i.e., an output of [[Collab.save]].
  *
  * [[IRuntime]] implementations may use [[instance]]
  * to convert Collabs's saved states into a single Uint8Array.
@@ -205,27 +205,24 @@ export class MessageStacksSerializer
  * This is a singleton class; use [[instance]]
  * instead of the constructor.
  */
-export class SavedStateTreeSerializer
-  implements Serializer<SavedStateTree | null>
-{
+export class SavedStateTreeSerializer implements Serializer<SavedStateTree> {
   private constructor() {
     // Singleton.
   }
 
   static instance = new this();
 
-  serialize(value: SavedStateTree | null): Uint8Array {
+  serialize(value: SavedStateTree): Uint8Array {
     const message = this.toMessage(value);
     return SavedStateTreeMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array): SavedStateTree | null {
+  deserialize(message: Uint8Array): SavedStateTree {
     const decoded = SavedStateTreeMessage.decode(message);
     return this.fromMessage(decoded);
   }
 
-  private toMessage(tree: SavedStateTree | null): ISavedStateTreeMessage {
-    if (tree === null) return { isNull: true };
+  private toMessage(tree: SavedStateTree): ISavedStateTreeMessage {
     if (tree.children === undefined) return { self: tree.self };
 
     const childrenKeys = new Array<string>(tree.children.size);
@@ -242,10 +239,8 @@ export class SavedStateTreeSerializer
     return { self: tree.self, childrenKeys, childrenValues };
   }
 
-  private fromMessage(message: SavedStateTreeMessage): SavedStateTree | null {
-    if (message.isNull) return null;
-
-    const children = new Map<string, SavedStateTree | null>();
+  private fromMessage(message: SavedStateTreeMessage): SavedStateTree {
+    const children = new Map<string, SavedStateTree>();
     for (let i = 0; i < message.childrenKeys.length; i++) {
       children.set(
         message.childrenKeys[i],

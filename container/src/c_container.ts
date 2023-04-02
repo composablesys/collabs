@@ -5,6 +5,7 @@ import {
   HostMessage,
   LoadMessage,
   SaveRequestMessage,
+  Update,
 } from "./message_types";
 
 /**
@@ -46,6 +47,7 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
   private readonly _runtime: CRuntime;
   private readonly messagePort: MessagePort;
 
+  private _isLoaded = false;
   private _isReady = false;
 
   /**
@@ -84,10 +86,10 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
       if (!this.isReady) {
         if (!this.isLoaded) {
           throw new Error(
-            "Not yet ready (pending: load, receiveFurtherMessages)"
+            "Not yet ready (pending: load, receiveFurtherUpdates)"
           );
         } else {
-          throw new Error("Not yet ready (pending: receiveFurtherMessages)");
+          throw new Error("Not yet ready (pending: receiveFurtherUpdates)");
         }
       }
       this.messagePortSend({
@@ -104,18 +106,21 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
 
   private messagePortReceive(e: MessageEvent<ContainerMessage>) {
     switch (e.data.type) {
-      case "Receive":
+      case "Update":
         // Make sure that loadFurtherMessages are processed
         // before any new messages. Probably this is assured
         // because the setTimeout in ready() should be queued
         // before any future MessagePort messages, but it
         // doesn't hurt to double check.
-        this.receiveFurtherMessages();
+        this.receiveFurtherUpdates();
 
-        this._runtime.receive(e.data.message);
+        this.applyUpdate(e.data);
         this.lastReceivedID = e.data.id;
         break;
       case "Load":
+        // Note: Only used for the initial load. Later "merging" loads
+        // are sent as UpdateMessages.
+
         // Dispatch the load message where [[load]] can get
         // it. If [[load]] was called already, we pass the message
         // to its Promise resolver, this.loadResolve; else
@@ -174,17 +179,17 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    * not wrapped in a `transact` call use the constructor's
    * [[RuntimeOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
-   * In particular, only its `info` is used.
+   * If there are nested `transact` calls (possibly due to
+   * [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
    *
    * @param info An optional info string to attach to the transaction.
    * It will appear as the transaction's [[UpdateMeta.info]], including on events' [[CollabEvent.meta]] property.
    */
-  transact(f: () => void, info?: string) {
-    this.runtime.transact(f, info);
+  transact(f: () => void) {
+    this.runtime.transact(f);
   }
 
-  private loadFurtherMessages: Uint8Array[] | null = null;
+  private loadFurtherUpdates: Update[] | null = null;
 
   /**
    * Waits to receive prior save data from the container host,
@@ -193,10 +198,18 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    * Analogous to `CRuntime.load`, except that you don't have
    * to provide the save data; the host does that for us.
    *
+   * Technically, the host may load prior save data multiple times;
+   * this method awaits the *first* time, which usually loads
+   * local state from disk.
+   *
    * @return Whether loading was skipped, i.e., there was no
-   * prior save data.
+   * (initial) prior save data.
    */
   async load(): Promise<boolean> {
+    if (this.isLoaded) {
+      throw new Error("Already loaded");
+    }
+
     // Get the load message from messagePortReceive.
     let loadMessage: LoadMessage;
     if (this.loadEarlyMessage !== null) {
@@ -213,8 +226,8 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
       });
     }
 
-    // Store furtherMessages for receiveFurtherMessages.
-    this.loadFurtherMessages = loadMessage.furtherMessages;
+    // Store furtherMessages for receiveFurtherUpdates.
+    this.loadFurtherUpdates = loadMessage.furtherUpdates;
 
     // Load latestSaveData, if present.
     if (loadMessage.latestSaveData !== null) {
@@ -233,8 +246,8 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    * and old messages that didn't make it into the loaded state.
    */
   ready(): void {
-    if (this.loadFurtherMessages !== null) {
-      setTimeout(() => this.receiveFurtherMessages());
+    if (this.loadFurtherUpdates !== null) {
+      setTimeout(() => this.receiveFurtherUpdates());
     }
     this.messagePortSend({ type: "Ready" });
     this._isReady = true;
@@ -253,20 +266,29 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    *
    * If not called, the "further messages" will be delivered in an event loop iteration after [[ready]] is called, like new messages.
    */
-  receiveFurtherMessages(): void {
-    if (this.loadFurtherMessages === null) return;
+  receiveFurtherUpdates(): void {
+    if (this.loadFurtherUpdates === null) return;
 
-    const furtherMessages = this.loadFurtherMessages;
-    this.loadFurtherMessages = null;
-    furtherMessages.forEach((message) => this._runtime.receive(message));
-    this.lastReceivedID = furtherMessages.length - 1;
+    const furtherUpdates = this.loadFurtherUpdates;
+    this.loadFurtherUpdates = null;
+    furtherUpdates.forEach((update) => this.applyUpdate(update));
+    this.lastReceivedID = furtherUpdates.length - 1;
+  }
+
+  private applyUpdate(update: Update): void {
+    if (update.updateType === "message") {
+      this._runtime.receive(update.data);
+    } else {
+      // update.updateType === "savedState"
+      this._runtime.load(update.data);
+    }
   }
 
   /**
-   * Whether [[load]] has completed (including its Promise).
+   * Whether [[load]] has completed.
    */
   get isLoaded(): boolean {
-    return this._runtime.isLoaded;
+    return this._isLoaded;
   }
 
   /**
@@ -316,7 +338,7 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
       // because the setTimeout in ready() should be queued
       // before any future MessagePort messages, but it
       // doesn't hurt to double check.
-      this.receiveFurtherMessages();
+      this.receiveFurtherUpdates();
 
       // Wait for SaveRequest handlers to complete.
       const toAwait: Promise<void>[] = [];

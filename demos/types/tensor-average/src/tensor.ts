@@ -5,7 +5,7 @@ import {
   InitToken,
   PrimitiveCRDT,
   ResettableCCounter,
-  UpdateMeta,
+  UpdateMeta
 } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
@@ -265,7 +265,7 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
   savePrimitive(): Uint8Array {
     throw new Error("Not implemented");
   }
-  loadPrimitive(savedState: Uint8Array): void {
+  loadPrimitive(savedState: Uint8Array | null): void {
     throw new Error("Not implemented");
   }
 }

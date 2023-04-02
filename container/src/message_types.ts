@@ -1,3 +1,11 @@
+/**
+ * Helper type, not a message.
+ */
+export interface Update {
+  updateType: "message" | "savedState";
+  data: Uint8Array;
+}
+
 export interface ReadyMessage {
   type: "Ready";
 }
@@ -29,9 +37,8 @@ export type HostMessage =
   | SavedMessage
   | SaveRequestFailedMessage;
 
-export interface ReceiveMessage {
-  type: "Receive";
-  message: Uint8Array;
+export interface UpdateMessage extends Update {
+  type: "Update";
   id: number;
 }
 
@@ -40,14 +47,15 @@ export interface SaveRequestMessage {
   requestID: number;
 }
 
+/**
+ * Only used for the initial load. Later "merging" loads
+ * are sent as UpdateMessages.
+ */
 export interface LoadMessage {
   type: "Load";
   hostSkipped: boolean;
   latestSaveData: Uint8Array | null;
-  furtherMessages: Uint8Array[];
+  furtherUpdates: Update[];
 }
 
-export type ContainerMessage =
-  | ReceiveMessage
-  | SaveRequestMessage
-  | LoadMessage;
+export type ContainerMessage = UpdateMessage | SaveRequestMessage | LoadMessage;

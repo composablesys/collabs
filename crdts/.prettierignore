@@ -2,3 +2,5 @@
 /generated/*
 /generated_esm/*
 /docs/*
+/.nyc_output/*
+/coverage/*

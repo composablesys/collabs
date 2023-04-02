@@ -4,7 +4,8 @@ import {
   InitToken,
   Serializer,
 } from "@collabs/collabs";
-import { CRDTMeta, CRDTMetaProvider } from "@collabs/crdts";
+import { SavedStateTree, UpdateMeta } from "@collabs/core";
+import { CRDTMessageMeta, CRuntime } from "@collabs/crdts";
 import {
   ISemidirectProductStoreSenderHistory,
   SemidirectProductStoreSave,
@@ -56,6 +57,9 @@ class StoredMessage<M2> {
  * When performing the operation specified by [[processM1]]'s
  * output, take care not to repeat the already-completed
  * original operation.
+ *
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
  */
 export class SemidirectProductStore<M1, M2> extends CObject {
   private readonly m2Serializer: Serializer<M2>;
@@ -87,16 +91,12 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     this.discardM1Dominated = options.discardM1Dominated ?? false;
     this.discardM2Dominated = options.discardM2Dominated ?? false;
 
-    if (
-      (this.runtime as unknown as CRDTMetaProvider).providesCRDTMeta !== true
-    ) {
-      throw new Error(
-        "this.runtime must be CRuntime or another CRDTMetaProvider"
-      );
+    if ((this.runtime as CRuntime).isCRDTRuntime !== true) {
+      throw new Error("this.runtime must be CRuntime or compatible");
     }
   }
 
-  processM2(m2: M2, crdtMeta: CRDTMeta): void {
+  processM2(m2: M2, crdtMeta: CRDTMessageMeta): void {
     // Add m2 to the history.
     if (this.discardM2Dominated) {
       this.processMeta(crdtMeta, false, true);
@@ -112,7 +112,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     this.receiptCounter++;
   }
 
-  processM1(m1: M1, crdtMeta: CRDTMeta): M1 | null {
+  processM1(m1: M1, crdtMeta: CRDTMessageMeta): M1 | null {
     // Collect concurrent messages.
     const concurrent = this.processMeta(
       crdtMeta,
@@ -141,12 +141,12 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    * this method.)
    */
   private processMeta(
-    crdtMeta: CRDTMeta,
+    crdtMeta: CRDTMessageMeta,
     returnConcurrent: boolean,
     discardDominated: boolean
   ) {
     // if replicaID === crdtMeta.senderID, we know the answer is [] (sequential).
-    // But for automatic CRDTMeta to work, we need to still access all current VC
+    // But for automatic CRDTMessageMeta to work, we need to still access all current VC
     // entries. So, we skip that shortcut.
 
     // Gather up the concurrent messages.  These are all
@@ -157,7 +157,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     // OPT: only request causally maximal VC entries (then require a full DAG).
     const concurrent: StoredMessage<M2>[] = [];
     for (const [sender, senderHistory] of this.history.entries()) {
-      const vcEntry = crdtMeta.vectorClockGet(sender);
+      const vcEntry = crdtMeta.vectorClock.get(sender);
       if (senderHistory !== undefined) {
         const concurrentIndexStart = this.indexAfter(senderHistory, vcEntry);
         if (returnConcurrent) {
@@ -194,7 +194,7 @@ export class SemidirectProductStore<M1, M2> extends CObject {
    */
   private indexAfter(sparseArray: StoredMessage<M2>[], value: number): number {
     // OPT: binary search when sparseArray is large?
-    // Note that there may be duplicate crdtMetas.
+    // Note that there may be duplicate CRDTMessageMetas.
     // So it would be inappropriate to find an entry whose
     // per-sender counter equals value and infer that
     // the desired index is 1 greater.
@@ -212,7 +212,9 @@ export class SemidirectProductStore<M1, M2> extends CObject {
     return true;
   }
 
-  protected saveObject(): Uint8Array {
+  save(): SavedStateTree {
+    const ans = super.save();
+
     const historySave: {
       [sender: string]: ISemidirectProductStoreSenderHistory;
     } = {};
@@ -231,10 +233,17 @@ export class SemidirectProductStore<M1, M2> extends CObject {
       receiptCounter: this.receiptCounter,
       history: historySave,
     });
-    return SemidirectProductStoreSave.encode(saveMessage).finish();
+    ans.self = SemidirectProductStoreSave.encode(saveMessage).finish();
+    return ans;
   }
 
-  protected loadObject(savedState: Uint8Array) {
+  // TODO: support merging. Possible algorithmically, just need to code it up.
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
+    if (savedStateTree === null) return;
+
+    super.load(savedStateTree, meta);
+    const savedState = savedStateTree.self!;
+
     const saveMessage = SemidirectProductStoreSave.decode(savedState);
     this.receiptCounter = saveMessage.receiptCounter;
     for (const [sender, messages] of Object.entries(saveMessage.history)) {

@@ -29,9 +29,6 @@ import { CContainer } from "@collabs/container";
   // Wait for the container to load the previous saved state, if any.
   await container.load();
 
-  // Display the loaded state.
-  refreshDisplay();
-
   // Signal to the container host that we're ready for use.
   container.ready();
 })();

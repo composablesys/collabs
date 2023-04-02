@@ -228,25 +228,21 @@ export abstract class Collab<
    * The saved state may later be passed to [[load]] on a replica of
    * this Collab, possibly in a different collaboration session,
    * with rules set by the [[runtime]]. For example, [[CRuntime]]
-   * allows [[load]] to be called only at the beginning of a session,
-   * before sending or receiving any messages.
+   * allows [[load]] at any time; it must then act as a merge operation
+   * (like a state-based CRDT), applying all updates that the saved
+   * replica had applied before saving, ignoring duplicates.
    *
    * `save` may be called at any time, possibly many times while an app
    * is running. Calling `save` should not affect this Collab's
    * user-visible state.
    *
-   * This method may return `null` if
-   * the saved state is trivial; replicas loading the whole document
-   * will then skip calling [[load]] on this Collab's replica.
-   *
    * For convenience, the saved state may be expressed as a tree of
    * Uint8Arrays instead of just a single Uint8Array; see
    * [[SaveStateTree]]'s docs.
    *
-   * @return The saved state, or null
-   * if there is no state to save.
+   * @return The saved state.
    */
-  abstract save(): SavedStateTree | null;
+  abstract save(): SavedStateTree;
 
   /**
    * Internal (parent) use only.
@@ -257,12 +253,18 @@ export abstract class Collab<
    * possibly in a different collaboration session,
    * with guarantees set by the [[runtime]].
    *
-   * @param savedStateTree The saved state to load, in the same format as in [[save]].
+   * This method may also be called with `savedStateTree = null`;
+   * you should ignore such calls (i.e., return immediately)
+   * *unless* you override [[canGC]]. If you do override `canGC`,
+   * see that method's docs for instructions.
+   *
+   * @param savedStateTree The saved state to load, in the same format as in [[save]],
+   * or `null` as described above.
    * @param meta Metadata attached to this saved state by the runtime.
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
    */
-  abstract load(savedStateTree: SavedStateTree, meta: UpdateMeta): void;
+  abstract load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void;
 
   /**
    * Internal (parent) use only.
@@ -270,11 +272,18 @@ export abstract class Collab<
    * If this Collab is in its initial, post-constructor state, then
    * this method may (but is not required to) return true; otherwise, it returns false.
    *
-   * If true, a parent (e.g., [[CLazyMap]]) may choose to weakly reference
-   * this object to save memory. If this becomes garbage collected, then is needed later,
-   * the parent will recreate it using the same constructor call.
+   * By default, this method always returns false; override to change.
    *
-   * By default, this method always returns false.
+   * If this method returns true:
+   * 1. The parent may choose to weakly reference this object to save memory
+   * (e.g., [[CLazyMap]] does so). If this becomes garbage
+   * collected, then is needed later, the parent will recreate it using the
+   * same constructor call.
+   * 2. The parent may skip calling [[save]] during saving. When loading
+   * the resulting saved state, the parent will call `load(null, meta)`.
+   * [[load]] should process this as if called with the output of [[save]]
+   * from a garbage-collectable state. For a nontrivial example,
+   * see [[CMultiValueMap.load]]'s implementation.
    */
   canGC(): boolean {
     return false;

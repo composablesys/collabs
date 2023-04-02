@@ -156,6 +156,10 @@ function makeInitialSave(): Uint8Array {
     "text",
     (init) => new CRichText(init)
   );
+  // "Set the initial state"
+  // (a single "\n", required by Quill) by
+  // loading it from a separate doc.
+  container.runtime.load(makeInitialSave());
 
   const quill = new Quill("#editor", {
     theme: "snow",
@@ -185,19 +189,14 @@ function makeInitialSave(): Uint8Array {
     },
   });
 
-  if (await container.load()) {
-    // Loading was skipped. We need to "set the initial state"
-    // (a single "\n", required by Quill) by
-    // loading it from a separate doc.
-    container.runtime.load(makeInitialSave());
-  }
+  await container.load();
 
-  // Call this before syncing the loaded state to Quill, as
+  // Call this before adding event listeners, as
   // an optimization.
   // That way, we can immediately give Quill the complete loaded
   // state (including further messages), instead of syncing
-  // the further messages to Quill using a bunch of events.
-  container.receiveFurtherMessages();
+  // it to Quill using a bunch of events.
+  container.receiveFurtherUpdates();
 
   // Display loaded state by syncing it to Quill.
   let ourChange = false;
@@ -324,6 +323,3 @@ function makeInitialSave(): Uint8Array {
   // Ready.
   container.ready();
 })();
-
-// TODO: cursor management.  Quill appears to be doing this
-// for us, but should verify.

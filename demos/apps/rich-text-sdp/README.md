@@ -2,6 +2,8 @@
 
 A collaborative rich text editor using [Quill](https://quilljs.com/), as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
 
+> Note: The app's CRDT is purely operation-based; it does not support merging saved states (unlike Collabs's built-in CRDTs). Instead, `load` can only be called in the initial state.
+
 Based off of [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 
 ## Installation

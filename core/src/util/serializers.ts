@@ -26,8 +26,8 @@ import { SafeWeakRef } from "./safe_weak_ref";
  * `options` parameter.
  *
  * Serializers provided with the library include [[DefaultSerializer]],
- * [[StringSerializer]], [[TrivialSerializer]], [[SingletonSerializer]],
- * [[PairSerializer]], and [[CollabIDSerializer]].
+ * [[CollabIDSerializer]], [[StringSerializer]], [[Uint8ArraySerializer]],
+ * [[ArraySerializer]], [[PairSerializer]], and [[ConstSerializer]].
  *
  * See also: [[Bytes]], which encodes Uint8Arrays as strings.
  */
@@ -218,6 +218,25 @@ export class DefaultSerializer<T> implements Serializer<T> {
 }
 
 /**
+ * Serializer for Uint8Array that is the identity function.
+ *
+ * This is a singleton class; use [[instance]]
+ * instead of the constructor.
+ */
+export class Uint8ArraySerializer implements Serializer<Uint8Array> {
+  private constructor() {
+    // Use Uint8ArraySerializer.instance instead.
+  }
+  serialize(value: Uint8Array): Uint8Array {
+    return value;
+  }
+  deserialize(message: Uint8Array): Uint8Array {
+    return message;
+  }
+  static readonly instance = new Uint8ArraySerializer();
+}
+
+/**
  * Serializer for string that uses utf-8 encoding.
  *
  * This is a singleton class; use [[instance]]
@@ -237,44 +256,48 @@ export class StringSerializer implements Serializer<string> {
 }
 
 /**
- * Serializes \[T\] using a serializer for T. This is slightly more efficient
+ * Serializes T\[\] using a serializer for T. This is slightly more efficient
  * than [[DefaultSerializer]], and it works with arbitrary T.
  *
  * Construct using [[getInstance]].
  */
-export class SingletonSerializer<T> implements Serializer<[T]> {
+export class ArraySerializer<T> implements Serializer<T[]> {
   private constructor(private readonly valueSerializer: Serializer<T>) {}
 
-  serialize(value: [T]): Uint8Array {
-    return this.valueSerializer.serialize(value[0]);
+  serialize(values: T[]): Uint8Array {
+    const message = ArrayMessage.create({
+      elements: values.map((value) => this.valueSerializer.serialize(value)),
+    });
+    return ArrayMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array): [T] {
-    return [this.valueSerializer.deserialize(message)];
+  deserialize(message: Uint8Array): T[] {
+    const decoded = ArrayMessage.decode(message);
+    return decoded.elements.map((bytes) =>
+      this.valueSerializer.deserialize(bytes)
+    );
   }
 
   // Weak in both keys and values.
   private static cache = new WeakMap<
     Serializer<unknown>,
-    WeakRef<SingletonSerializer<unknown>>
+    WeakRef<ArraySerializer<unknown>>
   >();
 
   /**
-   * Returns an instance of [[SingletonSerializer]] that uses valueSerializer
-   * to serialize the singleton value.
+   * Returns an instance of [[ArraySerializer]] that uses valueSerializer
+   * to serialize each value.
    *
    * This method may cache instances internally to save memory.
    */
-  static getInstance<T>(
-    valueSerializer: Serializer<T>
-  ): SingletonSerializer<T> {
-    const existingWeak = SingletonSerializer.cache.get(valueSerializer);
+  static getInstance<T>(valueSerializer: Serializer<T>): ArraySerializer<T> {
+    const existingWeak = this.cache.get(valueSerializer);
     if (existingWeak !== undefined) {
       const existing = existingWeak.deref();
-      if (existing !== undefined) return <SingletonSerializer<T>>existing;
+      if (existing !== undefined) return <ArraySerializer<T>>existing;
     }
-    const ret = new SingletonSerializer(valueSerializer);
-    SingletonSerializer.cache.set(valueSerializer, new SafeWeakRef(ret));
+    const ret = new ArraySerializer(valueSerializer);
+    this.cache.set(valueSerializer, new SafeWeakRef(ret));
     return ret;
   }
 }
@@ -311,7 +334,7 @@ const emptyUint8Array = new Uint8Array();
 /**
  * Serializes a fixed value as an empty Uint8Array.
  */
-export class TrivialSerializer<T> implements Serializer<T> {
+export class ConstSerializer<T> implements Serializer<T> {
   /**
    * @param value The value that [[deserialize]] will always return.
    */

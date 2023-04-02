@@ -10,7 +10,7 @@ export interface UpdateMeta {
   /**
    * The replicaID that sent the update.
    *
-   * For saved state, this is the local replicaID.
+   * For saved state, this is the saver's replicaID.
    */
   readonly senderID: string;
   /**
@@ -21,21 +21,16 @@ export interface UpdateMeta {
    */
   readonly isLocalOp: boolean;
   /**
-   * Optionally, a sender-provided info string about the update
-   * (e.g., a "commit message").
-   *
-   * In [[CRuntime]], this info comes from the optional arg to [[CRuntime.transact]].
-   */
-  readonly info: string | undefined;
-  /**
    * Optionally, an [[IRuntime]] implementation may include extra metadata
-   * in this field. For example, [[CRuntime]] puts [[CRDTMeta]] here.
+   * in this field. For example, [[CRuntime]] puts [[CRDTMessageMeta]] here
+   * for messages and [[CRDTSavedStateMeta]] here for saved states.
    *
    * This field is intended for use by [[Collab]] implementations,
    * not event listeners.
    *
    * A Collab that requires specific metadata should cast this field
-   * to the appropriate type. For CRDTMeta, you can instead
+   * to the appropriate type. For CRDTMessageMeta/CRDTSavedStateMeta,
+   * you can instead
    * extend [[PrimitiveCRDT]]. Note that specific metadata will only
    * be present when using a corresponding IRuntime.
    */
@@ -44,7 +39,7 @@ export interface UpdateMeta {
 
 /**
  * A [[IRuntime]] may extend this interface to allow [[Collab]]s to configure
- * the content of [[UpdateMeta.runtimeExtra]].
+ * the content of a message's [[UpdateMeta.runtimeExtra]].
  *
  * Specifically, a Collab makes a request in [[Collab.send]]; this affects
  * the UpdateMeta passed to [[Collab.receive]] together with the sent message.
@@ -83,5 +78,5 @@ export interface SavedStateTree {
    *
    * Normalization: undefined -> empty map.
    */
-  children?: Map<string, SavedStateTree | null>;
+  children?: Map<string, SavedStateTree>;
 }

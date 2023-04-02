@@ -40,6 +40,9 @@ export interface ResettableCounterEventsRecord extends CollabEventsRecord {
  * the sum of all additions by any one replica is restricted
  * to be a safe integer. Otherwise, results are not
  * guaranteed to be correct or eventually consistent.
+ *
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
  */
 export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterEventsRecord> {
   // M entry format: [p, n, idCounter]
@@ -166,7 +169,7 @@ export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterE
     return this.M.size === 0;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     const mMessage: {
       [replicaID: string]: IGrowOnlyResettableCounterSaveEntry;
     } = {};
@@ -181,7 +184,9 @@ export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterE
     return GrowOnlyResettableCounterSave.encode(message).finish();
   }
 
-  loadPrimitive(savedState: Uint8Array) {
+  loadCRDT(savedState: Uint8Array | null) {
+    if (savedState === null) return null;
+
     const message = GrowOnlyResettableCounterSave.decode(savedState);
     for (const [replicaID, m] of Object.entries(message.M)) {
       this.M.set(replicaID, [
@@ -208,6 +213,9 @@ export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterE
  * the sum of all additions by any one replica is restricted
  * to be a safe integer. Otherwise, results are not
  * guaranteed to be correct or eventually consistent.
+ *
+ * Merging saved states is not supported; you may only call the ambient
+ * `CRuntime.load` function in the initial state.
  */
 export class CResettableCounter extends CObject<ResettableCounterEventsRecord> {
   private readonly plus: CGrowOnlyResettableCounter;

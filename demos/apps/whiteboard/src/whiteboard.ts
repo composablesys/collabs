@@ -34,8 +34,8 @@ type Color = [r: number, g: number, b: number];
   // an optimization.
   // That way, we can immediately draw the complete loaded
   // state (including further messages), instead of syncing
-  // the further messages to the canvas using a bunch of events.
-  container.receiveFurtherMessages();
+  // it to the canvas using a bunch of events.
+  container.receiveFurtherUpdates();
 
   const colors = document.getElementsByClassName("btn-colors");
   const clear = <HTMLButtonElement>document.getElementById("clear");

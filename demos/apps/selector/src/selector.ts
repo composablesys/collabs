@@ -65,10 +65,14 @@ import pako from "pako";
     // onCurrentHostSet is always called in the same event loop
     // as the IFrame is created (though possibly a later microtask),
     // and readiness requires receiving a message from the IFrame.
-    newHost.once("ContainerReady", () => {
-      initializingDiv.hidden = true;
-      iframe.hidden = false;
-    });
+    newHost.on(
+      "ContainerReady",
+      () => {
+        initializingDiv.hidden = true;
+        iframe.hidden = false;
+      },
+      { once: true }
+    );
     // Set title to that of the visible IFrame.
     // Not sure how to tell if the IFrame is already loaded
     // (hence won't emit "load"); to be safe, we'll set the
@@ -168,11 +172,6 @@ import pako from "pako";
 
   await container.load();
   afterLoad = true;
-
-  // Display loaded state.
-  if (currentHost.value.isPresent) {
-    onCurrentHostSet(Optional.empty());
-  }
 
   // Ready.
   container.ready();

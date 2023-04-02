@@ -27,7 +27,7 @@ import { GroupCRDT, GroupState } from "./groupcrdt";
     img2!.style.transform = `translate(${state.X2}px,${state.Y2}px) rotate(${state.rotate2}deg) scaleY(${state.reflectX2}) scaleX(${state.reflectY2})`; // translate(-50%, -50%)`;
   };
 
-  clientGroup.on("Any", () => {
+  container.on("Change", () => {
     updateImg();
   });
 
@@ -171,9 +171,6 @@ import { GroupCRDT, GroupState } from "./groupcrdt";
     });
 
   await container.load();
-
-  // Display loaded state.
-  updateImg();
 
   // Ready.
   container.ready();

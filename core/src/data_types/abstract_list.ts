@@ -1,5 +1,5 @@
 import { Collab } from "../core";
-import { IList, ListEventsRecord } from "./i_list";
+import { IList, ListEventsRecord, Position } from "./i_list";
 
 export interface MakeAbstractList_Methods<
   T,
@@ -11,21 +11,21 @@ export interface MakeAbstractList_Methods<
    * Override this method if you want to optimize this
    * behavior.
    */
-  hasPosition(position: string): boolean;
+  hasPosition(position: Position): boolean;
   /**
    * Returns get(indexOfPosition(position)).
    *
    * Override this method if you want to optimize this
    * behavior.
    */
-  getByPosition(position: string): T | undefined;
+  getByPosition(position: Position): T | undefined;
   /**
    * Returns getPosition(indexOf(value)).
    *
    * Override this method if you want to optimize this
    * behavior.
    */
-  positionOf(searchElement: T): string | undefined;
+  positionOf(searchElement: T): Position | undefined;
   /**
    * Calls delete on every value in the list, in
    * reverse order.
@@ -36,7 +36,7 @@ export interface MakeAbstractList_Methods<
   clear(): void;
   [Symbol.iterator](): IterableIterator<T>;
   values(): IterableIterator<T>;
-  positions(): IterableIterator<string>;
+  positions(): IterableIterator<Position>;
   /**
    * @return [...this].toString()
    */
@@ -196,12 +196,12 @@ export function MakeAbstractList<
     insert(index: number, ...args: InsertArgs): T | undefined;
     delete(startIndex: number, count?: number): void;
     get(index: number): T;
-    getPosition(index: number): string;
+    getPosition(index: number): Position;
     indexOfPosition(
-      position: string,
+      position: Position,
       searchDir?: "none" | "left" | "right"
     ): number;
-    entries(): IterableIterator<[index: number, position: string, value: T]>;
+    entries(): IterableIterator<[index: number, position: Position, value: T]>;
     readonly length: number;
   } & Collab<Events>
 >(
@@ -213,16 +213,16 @@ export function MakeAbstractList<
       super(...args);
     }
 
-    hasPosition(position: string): boolean {
+    hasPosition(position: Position): boolean {
       return this.indexOfPosition(position) !== -1;
     }
 
-    getByPosition(position: string): T | undefined {
+    getByPosition(position: Position): T | undefined {
       const index = this.indexOfPosition(position);
       return index === -1 ? undefined : this.get(index);
     }
 
-    positionOf(searchElement: T): string | undefined {
+    positionOf(searchElement: T): Position | undefined {
       const index = this.indexOf(searchElement);
       return index === -1 ? undefined : this.getPosition(index);
     }
@@ -243,7 +243,7 @@ export function MakeAbstractList<
       }
     }
 
-    *positions(): IterableIterator<string> {
+    *positions(): IterableIterator<Position> {
       for (const [, position] of this.entries()) {
         yield position;
       }

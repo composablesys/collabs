@@ -19,7 +19,7 @@ export class CConst<T> extends CPrimitive {
   }
 
   savePrimitive() {
-    return null;
+    return new Uint8Array();
   }
 
   loadPrimitive(): void {

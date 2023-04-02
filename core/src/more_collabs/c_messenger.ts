@@ -33,8 +33,16 @@ export interface MessengerEventsRecord<M> extends CollabEventsRecord {
  * This Collab has no state; it merely broadcasts messages between replicas.
  * To receive messages, listen on Message events.
  *
- * Note that when using the standard library (@collabs/collabs or @collabs/crdts),
+ * Notes:
+ * - When using the standard library (@collabs/collabs or @collabs/crdts),
  * concurrent messages may be received in different orders on different replicas.
+ * - Messages are *not* persisted in saved state, and they are *not* replayed
+ * during loading. Thus you must use CMessenger either for ephemeral messages
+ * (safely forgotten between sessions), or save the resulting state separately
+ * (e.g., by overriding [[CObject.save]] and [[CObject.load]]).
+ * Or, use a CMessenger alternative:
+ *   - Use [[CValueList.push]] as a persistent message log.
+ *   - Subclass [[CPrimitive]] and use its internal messaging and save/load functions.
  *
  * @typeParam M The type of messages.
  */
@@ -76,7 +84,7 @@ export class CMessenger<M> extends CPrimitive<MessengerEventsRecord<M>> {
   }
 
   savePrimitive() {
-    return null;
+    return new Uint8Array();
   }
 
   loadPrimitive(): void {

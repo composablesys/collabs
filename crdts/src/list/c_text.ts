@@ -3,10 +3,12 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
+  Position,
   Serializer,
   StringSerializer,
 } from "@collabs/core";
 import { CValueList } from "./c_value_list";
+import { LocalList } from "./local_list";
 
 const charArraySerializer: Serializer<string[]> = {
   serialize(value) {
@@ -39,7 +41,7 @@ export interface TextEvent extends CollabEvent {
   /**
    * The positions corresponding to [[values]].
    */
-  positions: string[];
+  positions: Position[];
 }
 
 /**
@@ -64,9 +66,10 @@ export interface TextEventsRecord extends CollabEventsRecord {
  * is a single character (UTF-16 codepoint),
  * but with an API more like [string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String).
  *
- * *Positions* are described in [IList](../../core/interfaces/IList.html).
- *
- * See also: [[CValueList]], [[CList]].
+ * See also:
+ * - [[CValueList]], [[CList]]: for general lists.
+ * - [[CVar]]`<string>`: for a string that can be set and get atomically instead of
+ * edited like text.
  */
 export class CText extends CObject<TextEventsRecord> {
   // Internally, CText uses a CValueList containing its list of Unicode code
@@ -168,11 +171,18 @@ export class CText extends CObject<TextEventsRecord> {
     return this.values();
   }
 
+  /** Returns an iterator for present positions, in list order. */
+  positions(): IterableIterator<Position> {
+    return this.list.positions();
+  }
+
   /**
    * Returns an iterator of [index, position, value] tuples for every
    * character (value) in the text string, in order.
    */
-  entries(): IterableIterator<[index: number, position: string, char: string]> {
+  entries(): IterableIterator<
+    [index: number, position: Position, char: string]
+  > {
     return this.list.entries();
   }
 
@@ -223,7 +233,7 @@ export class CText extends CObject<TextEventsRecord> {
   /**
    * @return The position currently at index.
    */
-  getPosition(index: number): string {
+  getPosition(index: number): Position {
     return this.list.getPosition(index);
   }
 
@@ -241,7 +251,7 @@ export class CText extends CObject<TextEventsRecord> {
    * returns [[length]].
    */
   indexOfPosition(
-    position: string,
+    position: Position,
     searchDir: "none" | "left" | "right" = "none"
   ): number {
     return this.list.indexOfPosition(position, searchDir);
@@ -251,7 +261,7 @@ export class CText extends CObject<TextEventsRecord> {
    * Returns whether position is currently present in the list,
    * i.e., its value is present.
    */
-  hasPosition(position: string): boolean {
+  hasPosition(position: Position): boolean {
     return this.list.hasPosition(position);
   }
 
@@ -259,7 +269,25 @@ export class CText extends CObject<TextEventsRecord> {
    * Returns the value at position, or undefined if it is not currently present
    * ([[hasPosition]] returns false).
    */
-  getByPosition(position: string): string | undefined {
+  getByPosition(position: Position): string | undefined {
     return this.list.getByPosition(position);
+  }
+
+  /**
+   * Returns a new instance of [[LocalList]] that uses this
+   * CText's [[Position]]s, initially empty.
+   *
+   * Changes to the returned LocalList's values
+   * do not affect this CText's values, and vice-versa.
+   * However, the set of allowed positions does increase to
+   * match this CText: you may use a CText position in
+   * the returned LocalList even if that position was created
+   * after the call to `newLocalList`.
+   *
+   * @typeParam U The value type of the returned list.
+   * Defaults to string.
+   */
+  newLocalList<U = string>(): LocalList<U> {
+    return this.list.newLocalList();
   }
 }

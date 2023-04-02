@@ -1937,23 +1937,17 @@ async function collabsSetup() {
           path + alleles[alleleName].value + ".png"
         );
       });
+      // Display initial state (evaluateGenetics() assumes this is
+      // set).
+      document.images[alleleName].src = imageSrc(
+        path + alleles[alleleName].value + ".png"
+      );
     }
   }
 
   container.on("Change", evaluateGenetics);
 
   await container.load();
-
-  // Display loaded state.
-  for (const gene of GENES) {
-    for (const num of [1, 2]) {
-      const alleleName = gene + num;
-      document.images[alleleName].src = imageSrc(
-        path + alleles[alleleName].value + ".png"
-      );
-    }
-  }
-  evaluateGenetics();
 
   // Ready.
   container.ready();

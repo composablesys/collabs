@@ -125,56 +125,72 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     child.receive(messageStack, meta);
   }
 
-  save(): SavedStateTree | null {
+  /**
+   * Internal (parent) use only.
+   *
+   * Returns saved state describing the current state of this CObject.
+   * See [[Collab.save]].
+   *
+   * A CObject subclass may override this method to save additional state.
+   * It is recommended to do so as follows:
+   * ```ts
+   * save() {
+   *   const ans = super.save();
+   *   // Put your extra saved state in ans.self, which is otherwise unused.
+   *   ans.self = <subclass's saved state>;
+   *   return ans;
+   * }
+   * ```
+   */
+  save(): SavedStateTree {
     const childSaves = new Map<string, SavedStateTree>();
     for (const [name, child] of this.children) {
-      const childSave = child.save();
-      if (childSave !== null) childSaves.set(name, childSave);
+      childSaves.set(name, child.save());
     }
     return {
-      self: this.saveObject() ?? undefined,
       children: childSaves,
     };
   }
 
-  load(savedStateTree: SavedStateTree, meta: UpdateMeta): void {
-    if (savedStateTree.children !== undefined) {
-      for (const [name, childSave] of savedStateTree.children) {
-        const child = this.children.get(name);
-        // For versioning purposes, skip loading children that no longer exist.
-        if (child !== undefined) {
-          // We don't save nulls, so can assert childSave!.
-          child.load(childSave!, meta);
-        }
+  /**
+   * Internal (parent) use only.
+   *
+   * Called by this Collab's parent to load saved state. See [[Collab.load]].
+   *
+   * A CObject subclass may override this method to load additional state from
+   * [[Collab.save]] or to perform extra setup - e.g., refreshing functional
+   * views that were not automatically updated by children's load events.
+   * It is recommended to do so as follows:
+   * ```ts
+   * load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
+   *   super.load(savedStateTree, meta);
+   *   // Process your extra saved state from savedStateTree.self.
+   *   const savedState = savedStateTree === null? null: savedStateTree.self!;
+   *   ...
+   *   // Perform extra setup as needed.
+   *   ...
+   * }
+   * ```
+   */
+  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+    if (savedStateTree === null) {
+      // Pass the null on to children that might override canGC().
+      // For consistency with CLazyMap, only do this for nontrivial children.
+      for (const child of this.children.values()) {
+        if (!child.canGC()) child.load(null, meta);
       }
+      return;
     }
-    this.loadObject(savedStateTree.self ?? null);
-  }
 
-  /**
-   * Override to save extra state, which is passed
-   * to [[loadObject]] at the end of [[load]].
-   */
-  protected saveObject(): Uint8Array | null {
-    return null;
-  }
-
-  /**
-   * Override to load extra state, using `savedState` from
-   * [[saveObject]]. You can also do post-processing
-   * of child saves, e.g., computing functional
-   * views of child states.
-   *
-   * This is called after the children are loaded.
-   * Also, this is always called, even if [[saveObject]] returned
-   * null.
-   *
-   * @param  savedState the output of [[saveObject]] on
-   * a previous saved instance, possibly null.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected loadObject(savedState: Uint8Array | null): void {
-    // Does nothing by default.
+    for (const [name, childSave] of savedStateTree.children!) {
+      const child = this.children.get(name);
+      // For versioning purposes, skip loading children that we don't have.
+      if (child !== undefined) {
+        child.load(childSave, meta);
+      }
+      // Note that this will also skip loading children that did not
+      // exist in the saved state's app version.
+    }
   }
 
   idOf<C extends Collab>(descendant: C): CollabID<C> {
