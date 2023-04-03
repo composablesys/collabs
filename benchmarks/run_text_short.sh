@@ -4,6 +4,7 @@ if [ -z "$5" ]
 then
   echo "Usage: ./text_short.sh <out folder> <version> <warmup trials> <recorded trials> <text implementation>"
   echo "Runs RealText Single-Sender benchmarks for the given implementation."
+  echo "The text implementation must have cursors, e.g., CollabsTextWithCursor."
   exit 1
 fi
 

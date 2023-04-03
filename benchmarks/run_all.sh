@@ -54,6 +54,14 @@ function go {
   do
     for mode in "rotate" "concurrent"
     do
+      # Skip RealText concurrent mode for now, since Collabs is OOMing and it
+      # takes a while.
+      # TODO: undo once it works; make a "short" script that still skips it.
+      if [ $trace == "RealText" ] && [ mode == "concurrent" ]
+      then
+        echo "Skipping RealText concurrent, see comment"
+        continue
+      fi
       for measurement in "receiveAll"
       do
         npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation $mode
@@ -62,15 +70,13 @@ function go {
   done
 }
 
-# Skip "rotate" and "concurrent" modes for Automerge, so the benchmarks
-# don't take too long to run.
 # Skip "single" mode for CollabsCG, since it's not interesting.
 
 trace="MicroMap"
 oursSingle=("CollabsMap")
 oursMulti=("CollabsMap" "CollabsCGMap")
 othersSingle=("AutomergeMap" "YjsMap")
-othersMulti=("YjsMap")
+othersMulti=("AutomergeMap" "YjsMap")
 go
 
 trace="MicroMapRolling"
@@ -80,22 +86,21 @@ trace="MicroVariable"
 oursSingle=("CollabsVariable")
 oursMulti=("CollabsVariable" "CollabsCGVariable")
 othersSingle=("AutomergeVariable" "YjsVariable")
-othersMulti=("YjsVariable")
+othersMulti=("AutomergeVariable" "YjsVariable")
 go
 
 trace="RealText"
 oursSingle=("CollabsTextWithCursor" "CollabsRichTextWithCursor")
 oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor" "CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
 othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
-othersMulti=("YjsTextWithCursor")
+othersMulti=("AutomergeTextWithCursor" "YjsTextWithCursor")
 go
 
 trace="TodoList"
-# TODO: JSON, JSONOpt
-oursSingle=("CollabsTodoList" "CollabsJSONTextTodoList")
-oursMulti=("CollabsTodoList" "CollabsCGTodoList" "CollabsJSONTextTodoList" "CollabsCGJSONTextTodoList")
+oursSingle=("CollabsTodoList")
+oursMulti=("CollabsTodoList" "CollabsCGTodoList")
 othersSingle=("AutomergeTodoList" "YjsTodoList")
-othersMulti=("YjsTodoList")
+othersMulti=("AutomergeTodoList" "YjsTodoList")
 go
 
 trace="Noop"
@@ -109,7 +114,7 @@ trace="MicroTextLtr"
 oursSingle=("CollabsText")
 oursMulti=("CollabsText" "CollabsCGText")
 othersSingle=("AutomergeText" "YjsText")
-othersMulti=("YjsText")
+othersMulti=("AutomergeText" "YjsText")
 go
 
 trace="MicroTextRandom"

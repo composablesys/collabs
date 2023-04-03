@@ -1,10 +1,11 @@
-import Automerge from "automerge";
+import * as automerge from "@automerge/automerge";
 import { Data, uuidv4 } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export abstract class AutomergeReplica<T> implements Replica {
-  doc!: Automerge.FreezeObject<T>;
+  doc!: automerge.Doc<T>;
   protected readonly actorId: string;
+  private readonly applyOptions: automerge.ApplyOptions<T>;
 
   constructor(
     private readonly onsend: (msg: Data) => void,
@@ -13,6 +14,8 @@ export abstract class AutomergeReplica<T> implements Replica {
     // actorId is usually set with uuid.v4().replace(/-/g, ""),
     // so we need to do a PRNG version instead.
     this.actorId = uuidv4(replicaIdRng).replace(/-/g, "");
+
+    this.applyOptions = { patchCallback: this.onRemoteChange.bind(this) };
   }
 
   /**
@@ -22,29 +25,31 @@ export abstract class AutomergeReplica<T> implements Replica {
     const oldDoc = this.doc;
     doOps();
     // TODO: can we use Automerge.getLastLocalChange instead?
-    // Docs say it should be faster, but it's possible doOps
-    // does multiple changes.
-    const msg = Automerge.getChanges(oldDoc, this.doc);
+    // Might be faster, but it's possible doOps does multiple changes.
+    const msg = automerge.getChanges(oldDoc, this.doc);
     this.onsend(msg);
   }
 
-  receive(msg: Automerge.BinaryChange[]): void {
-    const ans = Automerge.applyChanges(this.doc, msg);
+  receive(msg: automerge.Change[]): void {
+    const ans = automerge.applyChanges(this.doc, msg, this.applyOptions);
     this.doc = ans[0];
-    this.onRemoteChange(ans[1]);
   }
 
   /**
-   * Override to get the patch from each remote message.
+   * Override to be used as the PatchCallback for remote messages.
    */
-  protected onRemoteChange(patch: Automerge.Patch): void {}
+  protected onRemoteChange(
+    patches: automerge.Patch[],
+    before: automerge.Doc<T>,
+    after: automerge.Doc<T>
+  ): void {}
 
   save(): Data {
-    return Automerge.save(this.doc);
+    return automerge.save(this.doc);
   }
 
-  load(savedState: Automerge.BinaryDocument): void {
-    this.doc = Automerge.load(savedState, this.actorId);
+  load(savedState: Uint8Array): void {
+    this.doc = automerge.load(savedState, this.actorId);
   }
 
   /**
@@ -57,6 +62,6 @@ export abstract class AutomergeReplica<T> implements Replica {
   abstract skipLoad(): void;
 
   static getFakeInitialSave(data: any) {
-    return Automerge.save(Automerge.from(data));
+    return automerge.save(automerge.from(data));
   }
 }

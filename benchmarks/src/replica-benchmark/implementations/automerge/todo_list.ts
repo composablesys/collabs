@@ -1,6 +1,6 @@
-import Automerge from "automerge";
+import * as automerge from "@automerge/automerge";
 import { Data } from "../../../util";
-import { ITodoListInternal, ITodoList } from "../../interfaces/todo_list";
+import { ITodoList, ITodoListInternal } from "../../interfaces/todo_list";
 import { AutomergeReplica } from "./replica";
 
 class AutomergeTodoListInternal implements ITodoListInternal {
@@ -21,10 +21,10 @@ class AutomergeTodoListInternal implements ITodoListInternal {
   }
 
   addItem(index: number, text: string): void {
-    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+    this.replica.doc = automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
       thisDoc.items.insertAt(index, {
-        text: new Automerge.Text(text),
+        text: new automerge.Text(text),
         done: false,
         items: [],
       });
@@ -32,7 +32,7 @@ class AutomergeTodoListInternal implements ITodoListInternal {
   }
 
   deleteItem(index: number): void {
-    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+    this.replica.doc = automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
       thisDoc.items.deleteAt(index, 1);
     });
@@ -51,32 +51,32 @@ class AutomergeTodoListInternal implements ITodoListInternal {
   }
 
   set done(done: boolean) {
-    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+    this.replica.doc = automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
       thisDoc.done = done;
     });
   }
 
   insertText(index: number, text: string): void {
-    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+    this.replica.doc = automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
-      (thisDoc.text as Automerge.Text).insertAt!(index, ...text);
+      (thisDoc.text as automerge.Text).insertAt(index, ...text);
     });
   }
 
   deleteText(index: number, count: number): void {
-    this.replica.doc = Automerge.change(this.replica.doc, (d) => {
+    this.replica.doc = automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
-      (thisDoc.text as Automerge.Text).deleteAt!(index, count);
+      (thisDoc.text as automerge.Text).deleteAt(index, count);
     });
   }
 
   get textSize(): number {
-    return (this.getThis(this.replica.doc).text as Automerge.Text).length;
+    return (this.getThis(this.replica.doc).text as automerge.Text).length;
   }
 
   getText(): string {
-    return (this.getThis(this.replica.doc).text as Automerge.Text).toString();
+    return (this.getThis(this.replica.doc).text as automerge.Text).toString();
   }
 }
 
@@ -97,6 +97,6 @@ export class AutomergeTodoList
   });
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeTodoList.fakeInitialSave, this.actorId);
+    this.doc = automerge.load(AutomergeTodoList.fakeInitialSave, this.actorId);
   }
 }

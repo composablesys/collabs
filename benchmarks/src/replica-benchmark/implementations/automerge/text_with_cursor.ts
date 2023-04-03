@@ -1,33 +1,34 @@
-import Automerge from "automerge";
+import * as automerge from "@automerge/automerge";
 import { ITextWithCursor } from "../../interfaces/text_with_cursor";
 import { AutomergeReplica } from "./replica";
 
 export class AutomergeTextWithCursor
-  extends AutomergeReplica<{ v: Automerge.Text }>
+  extends AutomergeReplica<{ v: automerge.Text }>
   implements ITextWithCursor
 {
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
-    v: new Automerge.Text(),
+    v: new automerge.Text(),
   });
 
   private cursor = -1;
 
-  protected onRemoteChange(patch: Automerge.Patch) {
+  protected onRemoteChange(patches: automerge.Patch[]) {
     // Maintain cursor position.
-    // We use the fact that all ops are single character insertions/deletions.
-    const diffs = patch.diffs.props.v;
-    for (const diff of Object.values(diffs)) {
-      const listEdit = (<Automerge.ListDiff>diff).edits[0];
-      if (listEdit.action === "insert") {
-        if (listEdit.index < this.cursor) this.cursor++;
-      } else if (listEdit.action === "remove") {
-        if (listEdit.index < this.cursor) this.cursor--;
+    // We use the fact that all ops are single character insertions/deletions
+    // at "v".
+    for (const patch of patches) {
+      if (patch.action === "insert") {
+        const index = patch.path[1] as number;
+        if (index < this.cursor) this.cursor++;
+      } else if (patch.action === "del") {
+        const index = patch.path[1] as number;
+        if (index < this.cursor) this.cursor--;
       }
     }
   }
 
   skipLoad() {
-    this.doc = Automerge.load(
+    this.doc = automerge.load(
       AutomergeTextWithCursor.fakeInitialSave,
       this.actorId
     );
@@ -42,14 +43,14 @@ export class AutomergeTextWithCursor
   }
 
   insert(char: string): void {
-    this.doc = Automerge.change(this.doc, (d) =>
-      d.v.insertAt!(this.cursor, char)
+    this.doc = automerge.change(this.doc, (d) =>
+      d.v.insertAt(this.cursor, char)
     );
     this.cursor++;
   }
 
   delete(): void {
-    this.doc = Automerge.change(this.doc, (d) => d.v.deleteAt!(this.cursor, 1));
+    this.doc = automerge.change(this.doc, (d) => d.v.deleteAt(this.cursor, 1));
     this.cursor--;
   }
 
