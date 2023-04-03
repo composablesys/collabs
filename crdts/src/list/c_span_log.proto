@@ -1,0 +1,14 @@
+message SpanLogPartialSpanMessage {
+  required string key = 1;
+  optional string value = 2;
+  required string startPos = 3;
+  optional string endPos = 4;
+  optional bool closedEnd = 5 [default=false];
+}
+
+message SpanLogSaveMessage {
+  repeated string senderIDs = 1;
+  repeated uint32 lengths = 2 [packed=true];
+  repeated bytes spans = 3;
+  repeated uint64 lamports = 4 [packed=true];
+}
