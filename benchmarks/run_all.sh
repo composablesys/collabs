@@ -57,7 +57,7 @@ function go {
       # Skip RealText concurrent mode for now, since Collabs is OOMing and it
       # takes a while.
       # TODO: undo once it works.
-      if [ $trace == "RealText" ] && [ mode == "concurrent" ]
+      if [ $trace == "RealText" ] && [ $mode == "concurrent" ]
       then
         echo "Skipping RealText concurrent, see comment"
         continue
