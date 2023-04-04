@@ -1,9 +1,9 @@
 message SpanLogPartialSpanMessage {
   required string key = 1;
   optional string value = 2;
-  required string startPos = 3;
-  optional string endPos = 4;
-  optional bool closedEnd = 5 [default=false];
+  required string startPosition = 3;
+  optional string endPosition = 4;
+  optional bool endClosed = 5 [default=false];
 }
 
 message SpanLogSaveMessage {

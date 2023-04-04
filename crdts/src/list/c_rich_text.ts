@@ -25,9 +25,9 @@ export interface RichTextInsertEvent extends TextEvent {
  * on insert, one per key).
  *
  * Due to concurrent/redundant formats, the formatted span may be broken
- * up into several ranges - see ranges.
+ * up into several intervals - see [[intervals]].
  *
- * TODO: also give original startPos/endPos/closedEnd? I guess hard
+ * TODO: also give original startPos/endPos/endClosed? I guess hard
  * to make sense of without Lamport, which we shouldn't provide
  * (like how CVar doesn't provide VC info).
  */
@@ -38,21 +38,33 @@ export interface RichTextFormatEvent extends CollabEvent {
    * TODO: change to null for sanity?
    */
   value: string | undefined;
-  // TODO: previousValue? Non-redundant subspans only?
-  // Might get confusing with old closed spans (new span has open start).
-  ranges: {
+  /** Array.slice format - [startIndex, endIndex). */
+  intervals: {
     startIndex: number;
     endIndex: number;
-    startPosition: Position;
-    /**
-     * May not match endIndex due to closedness, tombstones.
-     */
-    endPosition: Position;
-    /**
-     * Note: even if true, endIndex is excluded in the current state.
-     * This is just about future insertions.
-     */
-    closedEnd: boolean;
+    // TODO: include below info about actual interval.
+    // TODO: also include previous value for each range?
+    // /**
+    //  * May not match startIndex due to !startClosed.
+    //  */
+    // startPosition: Position;
+    // /**
+    //  * Note: even if true, startIndex is included in the current state.
+    //  * This is just about positions.
+    //  *
+    //  * TODO: rename this and endClosed to make clear that they refer
+    //  * to startPosition, not startIndex.
+    //  */
+    // startClosed: boolean;
+    // /**
+    //  * May not match endIndex due to closedness, tombstones.
+    //  */
+    // endPosition: Position;
+    // /**
+    //  * Note: even if true, endIndex is excluded in the current state.
+    //  * This is just about positions.
+    //  */
+    // endClosed: boolean;
   }[];
 }
 
@@ -71,7 +83,7 @@ interface FormatData {
    *
    * This only includes spans that start or internally contain
    * this position. To get the actual formatting at this position,
-   * also consider closedEndSpans.
+   * also consider endClosedSpans.
    */
   readonly normalSpans: Map<string, Span>;
   /**
@@ -79,14 +91,12 @@ interface FormatData {
    * over the corresponding normalSpan, overriding it.
    *
    * For characters at this exact position only, if a key is
-   * present in both normalSpan and closedEndSpan, use closedEndSpan's value.
+   * present in both normalSpan and endClosedSpan, use endClosedSpan's value.
    *
    * OPT: omit this field if the map would be empty.
    */
-  readonly closedEndSpans: Map<string, Span>;
+  readonly endClosedSpans: Map<string, Span>;
 }
-
-// TODO: events. Quill delta format like Yjs?
 
 // TODO: string | object instead, for Quill compat? Arbitrary T?
 // TODO: other IList methods (since we don't have defaults anymore).
@@ -145,51 +155,120 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     );
   }
 
+  // TODO: if a span is closed and has the same start and end, is it handled reasonably?
+  // Might end up in both normalSpans & endClosedSpans.
+
   private addSpan(span: Span, meta: UpdateMeta) {
     // 1. Update our view of the formatting spans in this.formatList.
 
-    this.createData(span.startPos);
-    if (span.endPos !== null) this.createData(span.endPos);
+    this.createData(span.startPosition);
+    if (span.endPosition !== null) this.createData(span.endPosition);
+
+    // Intervals of *formatList indices* (not text indices) that actually
+    // changed.
+    const intervals = new Array<{
+      start: number;
+      end: number;
+      startClosed: boolean;
+      endClosed?: true;
+    }>();
 
     // Merge span into all FormatData.normalSpan in the range
     // [startPos, endPos).
-    const start = this.formatList.indexOfPosition(span.startPos);
+    const start = this.formatList.indexOfPosition(span.startPosition);
     const end =
-      span.endPos === null
+      span.endPosition === null
         ? this.formatList.length
-        : this.formatList.indexOfPosition(span.endPos, "right");
-    for (const data of this.formatList.slice(start, end)) {
+        : this.formatList.indexOfPosition(span.endPosition, "right");
+    for (let i = start; i < end; i++) {
+      const data = this.formatList.get(i);
       if (this.wins(span, data.normalSpans.get(span.key))) {
         data.normalSpans.set(span.key, span);
+        if (this.wins(span, data.endClosedSpans.get(span.key))) {
+          // Overwrite the endClosedSpan (if it exists), to maintain the
+          // invariant: an endClosedSpan is only present if it wins over the
+          // normalSpan.
+          data.endClosedSpans.delete(span.key);
+          // Add [i, i+1) to intervals, merging with the previous interval
+          // if possible.
+          if (
+            intervals.length > 0 &&
+            intervals[intervals.length - 1].end === i
+          ) {
+            intervals[intervals.length - 1].end = i + 1;
+          } else intervals.push({ start: i, end: i + 1, startClosed: true });
+        } else {
+          // Add (i, i+1) to intervals.
+          intervals.push({
+            start: i,
+            end: i + 1,
+            startClosed: false,
+          });
+        }
       }
     }
 
-    if (span.endPos !== null && span.closedEnd === true) {
-      // Merge span into endPos's closedEndSpans.
-      // We only store span if it wins over both the existing closedEndSpan
-      // and the existing normalSpan, as described in FormatData.closedEndSpan's
+    if (span.endPosition !== null && span.endClosed === true) {
+      // Merge span into endPos's endClosedSpans.
+      // We only store span if it wins over both the existing endClosedSpan
+      // and the existing normalSpan, as described in FormatData.endClosedSpan's
       // docs.
       // Non-null assertion okay because we created the FormatData above.
-      const data = this.formatList.getByPosition(span.endPos)!;
+      const data = this.formatList.getByPosition(span.endPosition)!;
       if (
-        this.wins(span, data.closedEndSpans.get(span.key)) &&
+        this.wins(span, data.endClosedSpans.get(span.key)) &&
+        // This works even if startPos == endPos (hence normalSpans contains
+        // this span already), since a span wins over itself.
         this.wins(span, data.normalSpans.get(span.key))
       ) {
-        data.closedEndSpans.set(span.key, span);
+        data.endClosedSpans.set(span.key, span);
+        // Add [end, end] to intervals, merging with the previous interval
+        // if possible.
+        if (
+          intervals.length > 0 &&
+          intervals[intervals.length - 1].end === end
+        ) {
+          intervals[intervals.length - 1].endClosed = true;
+        } else {
+          intervals.push({
+            start: end,
+            end: end,
+            startClosed: true,
+            endClosed: true,
+          });
+        }
       }
     }
+
+    // 2. Emit Format event.
+    // First we must convert intervals from formatList indices to text indices.
+    const textIntervals = intervals.map((interval) => {
+      const startPos = this.formatList.getPosition(interval.start);
+      let startIndex: number;
+      if (interval.startClosed) {
+        startIndex = this.text.indexOfPosition(startPos, "right");
+      } else startIndex = this.text.indexOfPosition(startPos, "left") + 1;
+
+      const endPos = this.formatList.getPosition(interval.end);
+      let endIndex: number;
+      if (interval.endClosed === true) {
+        endIndex = this.text.indexOfPosition(endPos, "left");
+      } else endIndex = this.text.indexOfPosition(endPos, "right") - 1;
+
+      return { startIndex, endIndex };
+    });
+    this.emit("Format", {
+      key: span.key,
+      value: span.value,
+      intervals: textIntervals,
+      meta,
+    });
 
     // OPT: build formatList in loadObject instead of using span events, perhaps
     // based on our own save of the formatList,
     // then emit one big Quill delta at the end.
     // For efficiency (esp on initial load), and to
     // make fewer events.
-
-    // 2. Emit events describing the changes.
-    // Note that the actual changed spans may be a subset of span,
-    // if it lost to existing spans.
-    // TODO: in case of multiple, note that these will be behind. Or, emit as a single delta with
-    // metadata for the original span?
   }
 
   /**
@@ -206,15 +285,15 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       // No previous FormatData; make an empty one.
       this.formatList.set(position, {
         normalSpans: new Map(),
-        closedEndSpans: new Map(),
+        endClosedSpans: new Map(),
       });
     } else {
       const prevSpan = this.formatList.get(prevIndex);
       // Clone normalSpans from prevSpan, since they are the same.
-      // We don't clone closedEndSpans because the positions differ.
+      // We don't clone endClosedSpans because the positions differ.
       this.formatList.set(position, {
         normalSpans: new Map(prevSpan.normalSpans),
-        closedEndSpans: new Map(),
+        endClosedSpans: new Map(),
       });
     }
   }
@@ -222,6 +301,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   /**
    * TODO: doc same-tr rule. Also works for saves b/c those emit Add events
    * in order, and only for non-redundant spans.
+   * Also returns true if it's the same span.
    */
   private wins(newSpan: Span, oldSpan: Span | undefined): boolean {
     if (oldSpan === undefined) return true;
@@ -240,7 +320,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * @param text
    * @param format If omitted, format is inherited from existing spans.
    * To make the text unformatted, instead pass in `{}`.
-   * TODO: instead allow undefined and only override present keys, so {} means do-nothing?
+   * (Note: this disagrees with Quill, which treates omitted as equivalent to {}.)
    * @returns
    */
   insert(index: number, text: string, format?: Record<string, string>): void {
@@ -257,25 +337,25 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     const endPosOpen = this.text.getPosition(index + text.length);
     for (const [key, value] of Object.entries(format)) {
       if (existing[key] !== value) {
-        const closedEnd = this.insertClosed(key, value);
+        const endClosed = this.insertClosed(key, value);
         this.formatRaw(
           key,
           value,
           startPos,
-          closedEnd ? endPosClosed : endPosOpen,
-          closedEnd
+          endClosed ? endPosClosed : endPosOpen,
+          endClosed
         );
       }
     }
     for (const key of Object.keys(existing)) {
       if (format[key] === undefined) {
-        const closedEnd = this.insertClosed(key, undefined);
+        const endClosed = this.insertClosed(key, undefined);
         this.formatRaw(
           key,
           undefined,
           startPos,
-          closedEnd ? endPosClosed : endPosOpen,
-          closedEnd
+          endClosed ? endPosClosed : endPosOpen,
+          endClosed
         );
       }
     }
@@ -288,16 +368,16 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * @param key
    * @param value undefined clears the format.
    * @param startIndex
-   * @param endIndex unlike endPos, if closedEnd, this is the next index
+   * @param endIndex unlike endPos, if endClosed, this is the next index
    * (exclusive range - slice behavior)
-   * @param closedEnd
+   * @param endClosed
    */
   format(
     key: string,
     value: string | undefined,
     startIndex: number,
     endIndex: number,
-    closedEnd = false
+    endClosed = false
   ) {
     if (startIndex < 0 || startIndex >= this.length) {
       throw new Error(
@@ -316,10 +396,10 @@ export class CRichText extends CObject<RichTextEventsRecord> {
 
     // From trivial span case, we're guaranteed endIndex >= 1, so this is
     // in [0, this.length].
-    const actualEndIndex = closedEnd ? endIndex - 1 : endIndex;
+    const actualEndIndex = endClosed ? endIndex - 1 : endIndex;
     const endPos =
       actualEndIndex === this.length ? null : this.getPosition(actualEndIndex);
-    this.formatRaw(key, value, this.getPosition(startIndex), endPos, closedEnd);
+    this.formatRaw(key, value, this.getPosition(startIndex), endPos, endClosed);
   }
 
   formatRaw(
@@ -327,14 +407,14 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     value: string | undefined,
     startPos: Position,
     endPos: Position | null,
-    closedEnd = false
+    endClosed = false
   ) {
     this.spanLog.add({
       key,
       value,
-      startPos,
-      endPos,
-      closedEnd: closedEnd ? true : undefined,
+      startPosition: startPos,
+      endPosition: endPos,
+      endClosed: endClosed ? true : undefined,
     });
   }
 
@@ -370,12 +450,12 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     const ans: Record<string, string> = {};
     if (dataPos === position) {
       // data is exactly at position, so we need to consider its
-      // closedEndSpans, which override normalSpans.
-      for (const [key, span] of data.closedEndSpans) {
+      // endClosedSpans, which override normalSpans.
+      for (const [key, span] of data.endClosedSpans) {
         if (span.value !== undefined) ans[key] = span.value;
       }
       for (const [key, span] of data.normalSpans) {
-        if (!data.closedEndSpans.has(key)) {
+        if (!data.endClosedSpans.has(key)) {
           if (span.value !== undefined) ans[key] = span.value;
         }
       }
@@ -414,6 +494,14 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   toString(): string {
     // TODO: change if text allows non-chars.
     return this.text.slice().join("");
+  }
+
+  toIntervals(): Array<{
+    index: number;
+    text: string;
+    format: Record<string, string>;
+  }> {
+    // TODO
   }
 
   // TODO: wrappers for overridden CValueList default methods

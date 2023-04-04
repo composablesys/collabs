@@ -16,10 +16,10 @@ import { CRDTMessageMeta } from "../runtime";
 export interface PartialSpan {
   readonly key: string;
   readonly value: string | undefined;
-  readonly startPos: Position;
+  readonly startPosition: Position;
   /** null for open end of the document */
-  readonly endPos: Position | null;
-  readonly closedEnd?: true;
+  readonly endPosition: Position | null;
+  readonly endClosed?: true;
 }
 
 export interface Span extends PartialSpan {
@@ -41,11 +41,11 @@ const partialSpanSerializer: Serializer<PartialSpan> = {
       value: Object.prototype.hasOwnProperty.call(decoded, "value")
         ? decoded.value
         : undefined,
-      startPos: decoded.startPos,
-      endPos: Object.prototype.hasOwnProperty.call(decoded, "endPos")
-        ? decoded.endPos
+      startPosition: decoded.startPosition,
+      endPosition: Object.prototype.hasOwnProperty.call(decoded, "endPosition")
+        ? decoded.endPosition
         : null,
-      ...(decoded.closedEnd ? { closedEnd: true } : {}),
+      ...(decoded.endClosed ? { endClosed: true } : {}),
     };
   },
 } as const;
