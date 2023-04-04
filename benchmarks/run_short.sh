@@ -2,7 +2,8 @@
 
 if [ -z "$4" ]
 then
-  echo "Usage: ./run_all.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
+  echo "Usage: ./run_short.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
+  echo "Runs most benchmarks, skipping longer ones and near-duplicates."
   echo "If --oursOnly is set, only our library's tests are run."
   echo "If --othersOnly is set, only other libraries' tests are run."
   exit 1
@@ -54,14 +55,6 @@ function go {
   do
     for mode in "rotate" "concurrent"
     do
-      # Skip RealText concurrent mode for now, since Collabs is OOMing and it
-      # takes a while.
-      # TODO: undo once it works.
-      if [ $trace == "RealText" ] && [ mode == "concurrent" ]
-      then
-        echo "Skipping RealText concurrent, see comment"
-        continue
-      fi
       for measurement in "receiveAll"
       do
         npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation $mode
@@ -70,51 +63,51 @@ function go {
   done
 }
 
-# Skip "single" mode for CollabsCG, since it's not interesting.
+# Skip CollabsCG implementations, since they're not too different from Collabs.
+# Skip Automerge multi-sender implementations, since they are slow and
+# sometimes OOM (TODO: probably because we are not freeing docs after use).
 
 trace="MicroMap"
 oursSingle=("CollabsMap")
-oursMulti=("CollabsMap" "CollabsCGMap")
+oursMulti=("CollabsMap")
 othersSingle=("AutomergeMap" "YjsMap")
-othersMulti=("AutomergeMap" "YjsMap")
+othersMulti=("YjsMap")
 go
 
-trace="MicroMapRolling"
-go
+# Skip MicroMapRolling: almost the same as MicroMap.
 
 trace="MicroVariable"
 oursSingle=("CollabsVariable")
-oursMulti=("CollabsVariable" "CollabsCGVariable")
+oursMulti=("CollabsVariable")
 othersSingle=("AutomergeVariable" "YjsVariable")
-othersMulti=("AutomergeVariable" "YjsVariable")
+othersMulti=("YjsVariable")
 go
 
-trace="RealText"
-oursSingle=("CollabsTextWithCursor" "CollabsRichTextWithCursor")
-oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor" "CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
-othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
-othersMulti=("AutomergeTextWithCursor" "YjsTextWithCursor")
-go
+# Skip RealText since it is the longest. Consider run_text_short.sh instead.
+# TODO: add this back if possible, but still skip RealText concurrent mode
+# because it takes a while.
 
 trace="TodoList"
 oursSingle=("CollabsTodoList")
-oursMulti=("CollabsTodoList" "CollabsCGTodoList")
+oursMulti=("CollabsTodoList")
 othersSingle=("AutomergeTodoList" "YjsTodoList")
-othersMulti=("AutomergeTodoList" "YjsTodoList")
+othersMulti=("YjsTodoList")
 go
 
+# Skip CollabsNestedNoop since it is a bit obscure.
+
 trace="Noop"
-oursSingle=("CollabsNoop" "CollabsNestedNoop")
-oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
+oursSingle=("CollabsNoop")
+oursMulti=("CollabsNoop")
 othersSingle=()
 othersMulti=()
 go
 
 trace="MicroTextLtr"
 oursSingle=("CollabsText")
-oursMulti=("CollabsText" "CollabsCGText")
+oursMulti=("CollabsText")
 othersSingle=("AutomergeText" "YjsText")
-othersMulti=("AutomergeText" "YjsText")
+othersMulti=("YjsText")
 go
 
 trace="MicroTextRandom"
