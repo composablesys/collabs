@@ -4,6 +4,11 @@ Benchmarks for [Collabs](https://collabs.readthedocs.io/), with comparisons to [
 
 ## Usage
 
-Paper benchmarks: `./run_paper.sh`.
-
 Individual benchmarks: `npm start` (run with no args for usage info).
+
+All working benchmarks: `./run_all.sh` (run with no args for usage info).
+
+Benchmark subsets:
+
+- `./run_short.sh`: Shorter sample of benchmarks.
+- `./run_text_short.sh`: Runs RealText (automerge-perf text trace) for a single sender on the given implementation, for quickly benchmarking a text CRDT.

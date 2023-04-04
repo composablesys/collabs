@@ -1,4 +1,4 @@
-import Automerge from "automerge";
+import * as automerge from "@automerge/automerge";
 import { IMap } from "../../interfaces/map";
 import { AutomergeReplica } from "./replica";
 
@@ -9,17 +9,17 @@ export class AutomergeMap
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({});
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeMap.fakeInitialSave, this.actorId);
+    this.doc = automerge.load(AutomergeMap.fakeInitialSave, this.actorId);
   }
 
   set(key: string, value: unknown): void {
-    this.doc = Automerge.change(this.doc, (d) => {
+    this.doc = automerge.change(this.doc, (d) => {
       d[key] = value;
     });
   }
 
   delete(key: string): void {
-    this.doc = Automerge.change(this.doc, (d) => {
+    this.doc = automerge.change(this.doc, (d) => {
       delete d[key];
     });
   }

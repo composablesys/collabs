@@ -1,11 +1,18 @@
 import memwatch from "@airbnb/node-memwatch";
-import Automerge from "automerge";
+import * as automerge from "@automerge/automerge";
 import { v4 } from "uuid";
 
 export async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Returns Node's memory used, forcing GC beforehand.
+ *
+ * Specifically, this returns the sum of Node's used heap size
+ * (used for JS data) and resident set stuff (used for WASM data
+ * among others).
+ */
 export async function getMemoryUsed(): Promise<number> {
   // Force the event loop to turn over fully, so that
   // all pending "stats" events are dispatched (I'm guessing
@@ -34,7 +41,7 @@ export async function getMemoryUsed(): Promise<number> {
   return new Promise<number>((resolve) => {
     // @ts-ignore types forgot once
     memwatch.once("stats", (stats: memwatch.GcStats) => {
-      resolve(stats.used_heap_size);
+      resolve(stats.used_heap_size + process.memoryUsage.rss());
     });
   });
 }
@@ -62,11 +69,7 @@ export function uuidv4(rng: seedrandom.prng): string {
   return v4({ random: randBytes });
 }
 
-export type Data =
-  | Uint8Array
-  | string
-  | Automerge.BinaryChange
-  | Automerge.BinaryChange[];
+export type Data = Uint8Array | string | automerge.Change | automerge.Change[];
 export function byteLength(msg: Data): number {
   if (typeof msg === "string") return msg.length;
   else if (Array.isArray(msg)) {

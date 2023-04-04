@@ -571,6 +571,20 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return [waypoint, valueIndex];
   }
 
+  /**
+   * Returns an iterable for waypoints in this CPositionSource, in arbitrary
+   * order.
+   *
+   * Waypoints created while the iterator is running may or may not be
+   * included.
+   */
+  *waypoints(): IterableIterator<Waypoint> {
+    yield this.rootWaypoint;
+    for (const senderWaypoints of this.waypointsByID.values()) {
+      yield* senderWaypoints;
+    }
+  }
+
   protected savePrimitive(): Uint8Array {
     const replicaIDs: string[] = [];
     const replicaCounts: number[] = [];

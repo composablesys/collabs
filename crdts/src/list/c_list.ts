@@ -119,6 +119,10 @@ class CListEntry<C extends Collab> extends CObject {
  * can no longer be used; future and concurrent operations on that value
  * are ignored. Alternately, use [[archive]] and [[restore]].
  *
+ * It is *not* safe to modify a CList while iterating over it. The iterator
+ * will attempt to throw an exception if it detects such modification,
+ * but this is not guaranteed.
+ *
  * See also: [[CValueList]], [[CText]].
  *
  * @typeParam C The value type, which is a Collab.

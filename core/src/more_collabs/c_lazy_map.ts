@@ -20,6 +20,12 @@ import {
 // Import from specific file to avoid circular dependencies.
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
 
+interface InUpdateData<C extends Collab> {
+  keyString: string;
+  value: C;
+  nontrivialStart: boolean;
+}
+
 /**
  * A collaborative "lazy" map with keys of type K and *mutable*
  * values of type C.
@@ -88,6 +94,16 @@ export class CLazyMap<K, C extends Collab>
   private readonly keySerializer: Serializer<K>;
 
   /**
+   * Set when we are in applyUpdate's update() function.
+   *
+   * The referenced value's nontrivialMap/trivialMap membership reflects its
+   * pre-update value, which update() may have changed.
+   * So, methods that rely on nontrivialMap/trivialMap must
+   * manually check value.canGC() to determine if value is present.
+   */
+  private inUpdateData?: InUpdateData<C> = undefined;
+
+  /**
    * Constructs a CLazyMap with the given `valueConstructor`.
    *
    * @param valueConstructor Callback used to construct a
@@ -128,7 +144,7 @@ export class CLazyMap<K, C extends Collab>
         // Create it.
         value = this.valueConstructor(new InitToken(keyString, this), key);
         // The value starts trivial; if it becomes nontrivial
-        // due to a message, receive/load will move
+        // due to receive or load, applyUpdate will move
         // it to nontrivialMap.
         this.trivialMap.set(keyString, value);
       }
@@ -136,50 +152,46 @@ export class CLazyMap<K, C extends Collab>
     } else return [value, true];
   }
 
-  private inUpdateKeyString?: string = undefined;
-  private inUpdateValue?: C = undefined;
-
   private applyUpdate(
     keyString: string,
     update: (value: C) => void,
     meta: UpdateMeta
   ): void {
-    this.inUpdateKeyString = keyString;
+    const key = this.stringAsKey(keyString);
+    const [value, nontrivialStart] = this.getInternal(key, keyString);
+
     try {
-      const key = this.stringAsKey(keyString);
-      const [value, nontrivialStart] = this.getInternal(key, keyString);
-      this.inUpdateValue = value;
-
+      // Set this.inUpdateData during update.
+      this.inUpdateData = { keyString, value, nontrivialStart };
       update(value);
-
-      // If the value became GC-able, move it to the backup map.
-      if (nontrivialStart && value.canGC()) {
-        this.nontrivialMap.delete(keyString);
-        this.trivialMap.set(keyString, value);
-        this.emit("Delete", { key, value, meta });
-      }
-      // If the value became nontrivial, move it to the main map.
-      else if (!nontrivialStart && !value.canGC()) {
-        this.trivialMap.delete(keyString);
-        this.nontrivialMap.set(keyString, value);
-        this.emit("Set", {
-          key,
-          value,
-          previousValue: Optional.empty<C>(),
-          meta,
-        });
-        // We don't dispatch Set events when the value
-        // is not new because there can only ever be one
-        // value at a given key.
-        // An exception is replacement due to GC-ing, but
-        // we consider such values "the same"; if users care
-        // about the distinction (e.g. because they need
-        // to register event handlers), they should do so
-        // in valueConstructor, not on Set events.
-      }
     } finally {
-      this.inUpdateKeyString = undefined;
-      this.inUpdateValue = undefined;
+      this.inUpdateData = undefined;
+    }
+
+    // If the value became GC-able, move it to the backup map.
+    if (nontrivialStart && value.canGC()) {
+      this.nontrivialMap.delete(keyString);
+      this.trivialMap.set(keyString, value);
+      this.emit("Delete", { key, value, meta });
+    }
+    // If the value became nontrivial, move it to the main map.
+    else if (!nontrivialStart && !value.canGC()) {
+      this.trivialMap.delete(keyString);
+      this.nontrivialMap.set(keyString, value);
+      this.emit("Set", {
+        key,
+        value,
+        previousValue: Optional.empty<C>(),
+        meta,
+      });
+      // We don't dispatch Set events when the value
+      // is not new because there can only ever be one
+      // value at a given key.
+      // An exception is replacement due to GC-ing, but
+      // we consider such values "the same"; if users care
+      // about the distinction (e.g. because they need
+      // to register event handlers), they should do so
+      // in valueConstructor, not on Set events.
     }
   }
 
@@ -245,12 +257,10 @@ export class CLazyMap<K, C extends Collab>
    */
   getIfPresent(key: K): C | undefined {
     const str = this.keyAsString(key);
-    if (this.inUpdateKeyString === str) {
-      // The state of nontrivialMap cannot be relied
-      // upon, since it hasn't been recalculated yet.
-      // Instead, use canGC directly.
-      if (!this.inUpdateValue!.canGC()) {
-        return this.inUpdateValue!;
+    if (this.inUpdateData?.keyString === str) {
+      // Check value's presence directly instead of using nontrivialMap.
+      if (!this.inUpdateData.value.canGC()) {
+        return this.inUpdateData.value;
       } else return undefined;
     }
     return this.nontrivialMap.get(this.keyAsString(key));
@@ -258,11 +268,9 @@ export class CLazyMap<K, C extends Collab>
 
   has(key: K): boolean {
     const str = this.keyAsString(key);
-    if (this.inUpdateKeyString === str) {
-      // The state of nontrivialMap cannot be relied
-      // upon, since it hasn't been recalculated yet.
-      // Instead, use canGC directly.
-      return !this.inUpdateValue!.canGC();
+    if (this.inUpdateData?.keyString === str) {
+      // Check value's presence directly instead of using nontrivialMap.
+      return !this.inUpdateData.value.canGC();
     } else return this.nontrivialMap.has(str);
   }
 
@@ -270,20 +278,72 @@ export class CLazyMap<K, C extends Collab>
    * The number of present (nontrivial) values in the map.
    */
   get size(): number {
-    return this.nontrivialMap.size;
+    let delta = 0;
+    if (this.inUpdateData !== undefined) {
+      // Check if value's presence changed and adjust size accordingly.
+      if (
+        this.inUpdateData.nontrivialStart &&
+        this.inUpdateData.value.canGC()
+      ) {
+        delta = -1;
+      } else if (
+        !this.inUpdateData.nontrivialStart &&
+        !this.inUpdateData.value.canGC()
+      ) {
+        delta = 1;
+      }
+    }
+    return this.nontrivialMap.size + delta;
   }
 
   *entries(): IterableIterator<[K, C]> {
-    // Note: this doesn't check inReceiveValue. Should document.
-    for (const [keyStr, value] of this.nontrivialMap) {
-      yield [this.stringAsKey(keyStr), value];
+    for (const [keyString, value] of this.nontrivialMap) {
+      if (this.inUpdateData?.value === value) {
+        // Check value's presence directly instead of using nontrivialMap.
+        if (this.inUpdateData.value.canGC()) continue;
+      }
+      yield [this.stringAsKey(keyString), value];
+    }
+    if (this.inUpdateData !== undefined) {
+      // Check if value is now present but wasn't in nontrivialMap during the
+      // above loop, hence needs to be emitted.
+      // Edge case: if you start an iterator inside update()
+      // and finish it outside (or vice-versa), I think you'll get the right
+      // answer from this + Map's iterator behavior, but I'm not sure.
+      if (
+        !this.inUpdateData.nontrivialStart &&
+        !this.inUpdateData.value.canGC()
+      ) {
+        yield [
+          this.stringAsKey(this.inUpdateData.keyString),
+          this.inUpdateData.value,
+        ];
+      }
     }
   }
 
-  values(): IterableIterator<C> {
-    // Override for efficiency.
-    // Note: this doesn't check inReceiveValue. Should document.
-    return this.nontrivialMap.values();
+  *values(): IterableIterator<C> {
+    // Override to avoid entries's stringAsKey calls.
+    for (const value of this.nontrivialMap.values()) {
+      if (this.inUpdateData?.value === value) {
+        // Check value's presence directly instead of using nontrivialMap.
+        if (this.inUpdateData.value.canGC()) continue;
+      }
+      yield value;
+    }
+    if (this.inUpdateData !== undefined) {
+      // Check if value is now present but wasn't in nontrivialMap during the
+      // above loop, hence needs to be emitted.
+      // Edge case: if you start an iterator inside update()
+      // and finish it outside (or vice-versa), I think you'll get the right
+      // answer from this + Map's iterator behavior, but I'm not sure.
+      if (
+        !this.inUpdateData.nontrivialStart &&
+        !this.inUpdateData.value.canGC()
+      ) {
+        yield this.inUpdateData.value;
+      }
+    }
   }
 
   /**
@@ -348,14 +408,16 @@ export class CLazyMap<K, C extends Collab>
   }
 
   canGC() {
+    if (this.inUpdateData !== undefined) {
+      // Check value's presence directly instead of using nontrivialMap.
+      if (!this.inUpdateData.value.canGC()) return false;
+    }
     /*
-     * We don't need to check here that the backup
-     * map is nonempty (which would be expensive):
+     * It's okay to (JS) garbage collect us even if the backup map
+     * is non-empty:
      * each value points to us (due to Collab.parent),
-     * so we will only be forgotten by a containing
-     * implicit map if all of our children have no
-     * references to them, which is equivalent to the
-     * backup map being empty(able).
+     * so we will only be garbage collected if all of our children
+     * are also eligible for garbage collection.
      */
     return this.nontrivialMap.size === 0;
   }
