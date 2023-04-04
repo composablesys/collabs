@@ -1,7 +1,68 @@
-import { CObject, InitToken, Position, UpdateMeta } from "@collabs/core";
+import {
+  CObject,
+  CollabEvent,
+  CollabEventsRecord,
+  InitToken,
+  Position,
+  UpdateMeta,
+} from "@collabs/core";
 import { CSpanLog, Span } from "./c_span_log";
+import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
+
+export interface RichTextInsertEvent extends TextEvent {
+  /**
+   * The values' initial, inherited format. If insert() overrode the
+   * inherited format, then this will has the old value;
+   * overriding will come in a subsequent Format event in the same transaction.
+   */
+  format: Record<string, string>;
+}
+
+/**
+ * Event for a single format/formatRaw call (also used to adjust formats
+ * on insert, one per key).
+ *
+ * Due to concurrent/redundant formats, the formatted span may be broken
+ * up into several ranges - see ranges.
+ *
+ * TODO: also give original startPos/endPos/closedEnd? I guess hard
+ * to make sense of without Lamport, which we shouldn't provide
+ * (like how CVar doesn't provide VC info).
+ */
+export interface RichTextFormatEvent extends CollabEvent {
+  key: string;
+  /**
+   * undefined if the formatting at key was deleted (set to default).
+   * TODO: change to null for sanity?
+   */
+  value: string | undefined;
+  // TODO: previousValue? Non-redundant subspans only?
+  // Might get confusing with old closed spans (new span has open start).
+  ranges: {
+    startIndex: number;
+    endIndex: number;
+    startPosition: Position;
+    /**
+     * May not match endIndex due to closedness, tombstones.
+     */
+    endPosition: Position;
+    /**
+     * Note: even if true, endIndex is excluded in the current state.
+     * This is just about future insertions.
+     */
+    closedEnd: boolean;
+  }[];
+}
+
+export interface RichTextEventsRecord extends CollabEventsRecord {
+  Insert: RichTextInsertEvent;
+  Delete: TextEvent;
+  Format: RichTextFormatEvent;
+}
+
+// TODO: format type. Is Record<string, string> appropriate? Consider Quill, Prosemirror, Yjs, Automerge.
 
 interface FormatData {
   /**
@@ -30,7 +91,7 @@ interface FormatData {
 // TODO: string | object instead, for Quill compat? Arbitrary T?
 // TODO: other IList methods (since we don't have defaults anymore).
 // Adjust types as needed to include formatting
-export class CRichText extends CObject {
+export class CRichText extends CObject<RichTextEventsRecord> {
   private readonly text: CValueList<string>;
   private readonly spanLog: CSpanLog;
 
@@ -60,11 +121,33 @@ export class CRichText extends CObject {
 
     this.formatList = this.text.newLocalList();
 
-    // TODO: our own events (text & format)
+    // Events.
+    // this.addSpan also updates this.formatList.
     this.spanLog.on("Add", (e) => this.addSpan(e.span, e.meta));
+    this.text.on("Insert", (e) =>
+      this.emit("Insert", {
+        index: e.index,
+        values: e.values.join(""),
+        positions: e.positions,
+        // By non-interleaving and the fact that the positions are new,
+        // all inserted chars have the same initial format.
+        format: this.getFormatByPosition(e.positions[0]),
+        meta: e.meta,
+      })
+    );
+    this.text.on("Delete", (e) =>
+      this.emit("Delete", {
+        index: e.index,
+        values: e.values.join(""),
+        positions: e.positions,
+        meta: e.meta,
+      })
+    );
   }
 
   private addSpan(span: Span, meta: UpdateMeta) {
+    // 1. Update our view of the formatting spans in this.formatList.
+
     this.createData(span.startPos);
     if (span.endPos !== null) this.createData(span.endPos);
 
@@ -101,6 +184,12 @@ export class CRichText extends CObject {
     // then emit one big Quill delta at the end.
     // For efficiency (esp on initial load), and to
     // make fewer events.
+
+    // 2. Emit events describing the changes.
+    // Note that the actual changed spans may be a subset of span,
+    // if it lost to existing spans.
+    // TODO: in case of multiple, note that these will be behind. Or, emit as a single delta with
+    // metadata for the original span?
   }
 
   /**
@@ -145,11 +234,21 @@ export class CRichText extends CObject {
     return false;
   }
 
-  insert(index: number, text: string, format: Record<string, string>): void {
+  /**
+   *
+   * @param index
+   * @param text
+   * @param format If omitted, format is inherited from existing spans.
+   * To make the text unformatted, instead pass in `{}`.
+   * TODO: instead allow undefined and only override present keys, so {} means do-nothing?
+   * @returns
+   */
+  insert(index: number, text: string, format?: Record<string, string>): void {
     if (text.length === 0) return;
     this.text.insert(index, ...text);
 
-    // Change formatting to match format.
+    if (format === undefined) return;
+    // Else change formatting to match format.
     // No existing positions can be interleaved with the chars' positions,
     // so the chars all have the same existing formatting.
     const existing = this.getFormat(index);
@@ -183,6 +282,8 @@ export class CRichText extends CObject {
   }
 
   /**
+   * Unlike (original) insert, this will send the spans even if redundant
+   * (already formatted like that).
    *
    * @param key
    * @param value undefined clears the format.
@@ -308,6 +409,11 @@ export class CRichText extends CObject {
 
   get length(): number {
     return this.text.length;
+  }
+
+  toString(): string {
+    // TODO: change if text allows non-chars.
+    return this.text.slice().join("");
   }
 
   // TODO: wrappers for overridden CValueList default methods
