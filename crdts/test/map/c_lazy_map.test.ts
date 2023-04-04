@@ -5,6 +5,7 @@ import { CRuntime, CValueSet, CVar, TestingRuntimes } from "../../src";
 import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
 import { IMapView } from "./views";
+
 /**
  * V value type: for each value CVar, [current value, CVar.conflicts()].
  */
@@ -338,3 +339,5 @@ describe("CLazyMap", () => {
     });
   });
 });
+
+// TODO: iterator/size during child event tests, to test inUpdateData

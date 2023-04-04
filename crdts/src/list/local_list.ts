@@ -66,6 +66,10 @@ type ValuesOrChild<T> =
  * To construct a LocalList that uses an existing list's positions, use
  * that list's `newLocalList` function, e.g., [[CList.newLocalList]].
  *
+ * It is *not* safe to modify a LocalList while iterating over it. The iterator
+ * will attempt to throw an exception if it detects such modification,
+ * but this is not guaranteed.
+ *
  * @typeParam T The value type.
  */
 export class LocalList<T> {
@@ -74,6 +78,20 @@ export class LocalList<T> {
    */
   private valuesByWaypoint = new Map<Waypoint, WaypointInfo<T>>();
   private _inInitialState = true;
+  /**
+   * State machine used to attempt to throw an exception if this is modified
+   * during an iterator: specifically, if a modification happens
+   * between when an iterator starts and when it yields some value.
+   *
+   * False negatives are possible if there are simultaneous iterators.
+   * One can prove that false positives are not possible.
+   *
+   * Transitions:
+   * - *     -> "iter"          : When an iterator starts.
+   * - *     -> "mod"           : When a mutation starts.
+   * - "mod" -> throw exception : Before an iterator yields contiguous values.
+   */
+  private iterFailFast: "iter" | "mod" = "mod";
 
   /**
    * Constructs a LocalList whose allowed [[Position]]s are given by
@@ -292,8 +310,12 @@ export class LocalList<T> {
    * (present iff total = 0) invariant.
    *
    * delta must not be 0.
+   *
+   * Also updates the iterFailFast state machine.
    */
   private updateTotals(waypoint: Waypoint, delta: number): void {
+    this.iterFailFast = "mod";
+
     for (
       let current: Waypoint | null = waypoint;
       current !== null;
@@ -571,6 +593,8 @@ export class LocalList<T> {
   *entries(): IterableIterator<[index: number, position: Position, value: T]> {
     if (this.length === 0) return;
 
+    this.iterFailFast = "iter";
+
     let index = 0;
     let waypoint: Waypoint | null = this.source.rootWaypoint;
     // Manage our own stack instead of recursing, to avoid stack overflow
@@ -588,6 +612,11 @@ export class LocalList<T> {
       } else {
         const valuesOrChild = next.value;
         if (valuesOrChild.isValues) {
+          // TypeScript thinks the type is "iter" because we set it above.
+          // @ts-expect-error Could have changed during previous yield.
+          if (this.iterFailFast === "mod") {
+            throw new Error("LocalList modified while iterating over it");
+          }
           for (let i = 0; i < valuesOrChild.end - valuesOrChild.start; i++) {
             yield [
               index,

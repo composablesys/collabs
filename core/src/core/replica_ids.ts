@@ -37,13 +37,8 @@ export class ReplicaIDs {
     let randomValues = new Uint8Array(length);
     if (typeof window === "undefined") {
       // Use Node crypto library.
-      // We use eval("require") to prevent Webpack from attempting
-      // to bundle the crypto module and complaining.
-      // In theory we should also be able to do this by
-      // adding "browser": {"crypto": false} to package.json,
-      // but that is not working, and besides, every user
-      // of this package would have to remember to do so.
-      // See https://github.com/webpack/webpack/issues/8826
+      // Next line is a workaround to avoid bundling "crypto" in web builds;
+      // see https://github.com/composablesys/collabs/issues/236
       const cryptoReal = <typeof crypto>(
         (<typeof require>eval("require"))("crypto")
       );

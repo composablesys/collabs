@@ -93,4 +93,6 @@ No local variable Collabs b/c wouldn't make sense collaboratively. -->
 
 Continue following the Guide with [Handling Changes](./handling_changes.html) - the last really essential page.
 
+To set initial _values_ for Collabs after initializing them as objects, see [Initial Values](../advanced/initial_values.html) in the [Advanced Topics](../advanced/index.html).
+
 [^runtime]: Technically, the parent is the entry point's internal [CRuntime](../api/collabs/classes/CRuntime.html), accessed via [CRuntime.runtime](../api/collabs/classes/CRuntime.html#runtime) / [CContainer.runtime](../api/container/classes/CContainer.html#runtime).

@@ -28,6 +28,13 @@ export interface Replica {
   // For fake initial states, can just always load them in the constructor,
   // then merge in the actual savedState if load is called.
   skipLoad(): void;
+
+  /**
+   * Optionally, "free" the document as it will no longer be used.
+   *
+   * This is intended for WASM implementations.
+   */
+  free?: () => void;
 }
 
 /**
@@ -162,11 +169,13 @@ export class ReplicaBenchmark<I> {
             // very well during sync code).
             await getMemoryUsed();
           }
-          const savedState = sender.save();
+          const oldSender = sender;
+          const savedState = oldSender.save();
+          if (oldSender.free) oldSender.free();
+
           sender = new this.implementation((msg) => {
             msgs.push(msg);
           }, senderRng);
-
           sender.load(savedState);
         }
 

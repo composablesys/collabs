@@ -1,4 +1,4 @@
-import Automerge from "automerge";
+import * as automerge from "@automerge/automerge";
 import { IVariable } from "../../interfaces/variable";
 import { AutomergeReplica } from "./replica";
 
@@ -11,11 +11,11 @@ export class AutomergeVariable
   });
 
   skipLoad() {
-    this.doc = Automerge.load(AutomergeVariable.fakeInitialSave, this.actorId);
+    this.doc = automerge.load(AutomergeVariable.fakeInitialSave, this.actorId);
   }
 
   set(value: unknown): void {
-    this.doc = Automerge.change(this.doc, (d) => {
+    this.doc = automerge.change(this.doc, (d) => {
       d.v = value;
     });
   }

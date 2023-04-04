@@ -894,4 +894,63 @@ describe("CValueList", () => {
       assert.strictEqual(copy.indexOfPosition(pos, "right"), start);
     }
   }
+
+  describe("iterator fail fast", () => {
+    let aliceList!: CValueList<number>;
+
+    beforeEach(() => {
+      const alice = new CRuntime({
+        debugReplicaID: ReplicaIDs.pseudoRandom(rng),
+      });
+      aliceList = alice.registerCollab("list", (init) => new CValueList(init));
+
+      // Don't register an EventView: it creates simultaneous iterators,
+      // which cause false negatives.
+    });
+
+    it("delete", () => {
+      for (let iterI = 0; iterI < 5; iterI++) {
+        // deleteI = 4 is a false negative, since it stops the iterator.
+        for (let deleteI = 0; deleteI < 4; deleteI++) {
+          aliceList.clear();
+          aliceList.insert(0, ...new Array(5).fill(17));
+          assert.throws(
+            () => {
+              for (const entry of aliceList.entries()) {
+                if (entry[0] === iterI) aliceList.delete(deleteI);
+              }
+            },
+            undefined,
+            undefined,
+            `iterI: ${iterI}, deleteI: ${deleteI}`
+          );
+
+          // Okay to start a new iterator afterwards.
+          assert.doesNotThrow(() => [...aliceList.entries()]);
+        }
+      }
+    });
+
+    it("insert", () => {
+      for (let iterI = 0; iterI < 5; iterI++) {
+        for (let insertI = 0; insertI < 5; insertI++) {
+          aliceList.clear();
+          aliceList.insert(0, ...new Array(5).fill(17));
+          assert.throws(
+            () => {
+              for (const entry of aliceList.entries()) {
+                if (entry[0] === iterI) aliceList.insert(insertI, 18);
+              }
+            },
+            undefined,
+            undefined,
+            `iterI: ${iterI}, insertI: ${insertI}`
+          );
+
+          // Okay to start a new iterator afterwards.
+          assert.doesNotThrow(() => [...aliceList.entries()]);
+        }
+      }
+    });
+  });
 });
