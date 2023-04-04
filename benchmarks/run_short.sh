@@ -64,8 +64,8 @@ function go {
 }
 
 # Skip CollabsCG implementations, since they're not too different from Collabs.
-# Skip Automerge multi-sender implementations, since they are slow and
-# sometimes OOM (TODO: probably because we are not freeing docs after use).
+# Skip Automerge multi-sender implementations, since they are slow and concurrent
+# mode sometimes OOMs.
 
 trace="MicroMap"
 oursSingle=("CollabsMap")

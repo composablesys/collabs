@@ -64,4 +64,8 @@ export abstract class AutomergeReplica<T> implements Replica {
   static getFakeInitialSave(data: any) {
     return automerge.save(automerge.from(data));
   }
+
+  free(): void {
+    automerge.free(this.doc);
+  }
 }
