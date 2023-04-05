@@ -11,61 +11,73 @@ import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
+// TODO: convert to class with toString, has functions?
+// Perhaps also iterator to visit all (current) contained positions?
+// Or, better to leave as interface for JSON ability; add helper
+// functions in original class instead.
+// Market these for use as e.g. comment ranges.
+
+/**
+ * An interval of [[Position]]s in a [[CRichText]].
+ */
+export interface PositionInterval {
+  /**
+   * The interval's starting [[Position]].
+   */
+  readonly start: Position;
+  /**
+   * The interval's ending [[Position]].
+   */
+  readonly end: Position;
+  /**
+   * Whether the interval contains [[start]], i.e., it has
+   * the form `[start,...` instead of `(start, ...`.
+   */
+  readonly startClosed: boolean;
+  /**
+   * Whether the interval contains [[end]], i.e., it has
+   * the form `..., end]` instead of `..., end)`.
+   */
+  readonly endClosed: boolean;
+}
+
 export interface RichTextInsertEvent extends TextEvent {
+  /*
+   * TODO: emit with proper (final) formatting instead? Easy for messages;
+   * for saved state, we'd need to load the position source first, then
+   * the formatting, then the value list - e.g. by supplying a custom PositionSource
+   * to this.text. Note that could still show weird formatting on to-be-deleted
+   * stuff while merging.
+   */
   /**
    * The values' initial, inherited format. If insert() overrode the
-   * inherited format, then this will has the old value;
+   * inherited format, then this will have the old value;
    * overriding will come in a subsequent Format event in the same transaction.
+   * (TODO: what about saved states?)
    */
   format: Record<string, string>;
 }
 
 /**
- * Event for a single format/formatRaw call (also used to adjust formats
- * on insert, one per key).
- *
- * Due to concurrent/redundant formats, the formatted span may be broken
- * up into several intervals - see [[intervals]].
- *
- * TODO: also give original startPos/endPos/endClosed? I guess hard
- * to make sense of without Lamport, which we shouldn't provide
- * (like how CVar doesn't provide VC info).
+ * TODO: if a format call is broken up into multiple intervals by
+ * concurrent ops, it will emit several of these events in a row,
+ * but the state is fully updated immediately. So first events
+ * are technically "behind" the state. (I guess we could emit earlier
+ * to prevent this?)
  */
 export interface RichTextFormatEvent extends CollabEvent {
+  /** Array.slice format - [startIndex, endIndex). */
+  startIndex: number;
+  endIndex: number;
   key: string;
   /**
    * undefined if the formatting at key was deleted (set to default).
    * TODO: change to null for sanity?
    */
   value: string | undefined;
-  /** Array.slice format - [startIndex, endIndex). */
-  intervals: {
-    startIndex: number;
-    endIndex: number;
-    // TODO: include below info about actual interval.
-    // TODO: also include previous value for each range?
-    // /**
-    //  * May not match startIndex due to !startClosed.
-    //  */
-    // startPosition: Position;
-    // /**
-    //  * Note: even if true, startIndex is included in the current state.
-    //  * This is just about positions.
-    //  *
-    //  * TODO: rename this and endClosed to make clear that they refer
-    //  * to startPosition, not startIndex.
-    //  */
-    // startClosed: boolean;
-    // /**
-    //  * May not match endIndex due to closedness, tombstones.
-    //  */
-    // endPosition: Position;
-    // /**
-    //  * Note: even if true, endIndex is excluded in the current state.
-    //  * This is just about positions.
-    //  */
-    // endClosed: boolean;
-  }[];
+  // TODO. Closed ends complicate addSpan's intervals.
+  // previousValue: string | undefined;
+  positionInterval: PositionInterval;
 }
 
 export interface RichTextEventsRecord extends CollabEventsRecord {
@@ -75,6 +87,7 @@ export interface RichTextEventsRecord extends CollabEventsRecord {
 }
 
 // TODO: format type. Is Record<string, string> appropriate? Consider Quill, Prosemirror, Yjs, Automerge.
+// Automerge has list of options. I guess we should allow general V w/ serializer option.
 
 interface FormatData {
   /**
@@ -97,6 +110,12 @@ interface FormatData {
    */
   readonly endClosedSpans: Map<string, Span>;
 }
+
+// TODO: allow open starts? Perhaps as general formattable-list class;
+// could be useful for paragraph-start behavior. Then always take
+// open/closed endpoints as arg; perhaps wrap in CRichText class
+// that supplies default behavior (esp for inserts).
+// General class could be wrapper around any IList, for fanciness.
 
 // TODO: string | object instead, for Quill compat? Arbitrary T?
 // TODO: other IList methods (since we don't have defaults anymore).
@@ -240,29 +259,25 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       }
     }
 
-    // 2. Emit Format event.
-    // First we must convert intervals from formatList indices to text indices.
-    const textIntervals = intervals.map((interval) => {
-      const startPos = this.formatList.getPosition(interval.start);
-      let startIndex: number;
-      if (interval.startClosed) {
-        startIndex = this.text.indexOfPosition(startPos, "right");
-      } else startIndex = this.text.indexOfPosition(startPos, "left") + 1;
-
-      const endPos = this.formatList.getPosition(interval.end);
-      let endIndex: number;
-      if (interval.endClosed === true) {
-        endIndex = this.text.indexOfPosition(endPos, "left");
-      } else endIndex = this.text.indexOfPosition(endPos, "right") - 1;
-
-      return { startIndex, endIndex };
-    });
-    this.emit("Format", {
-      key: span.key,
-      value: span.value,
-      intervals: textIntervals,
-      meta,
-    });
+    // 2. Emit Format events.
+    for (const interval of intervals) {
+      const positionInterval: PositionInterval = {
+        start: this.formatList.getPosition(interval.start),
+        end: this.formatList.getPosition(interval.end),
+        startClosed: interval.startClosed,
+        endClosed: interval.endClosed ?? false,
+      };
+      const [startIndex, endIndex] =
+        this.indexOfPositionInterval(positionInterval);
+      this.emit("Format", {
+        startIndex,
+        endIndex,
+        key: span.key,
+        value: span.value,
+        positionInterval,
+        meta,
+      });
+    }
 
     // OPT: build formatList in loadObject instead of using span events, perhaps
     // based on our own save of the formatList,
@@ -314,6 +329,28 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     return false;
   }
 
+  // TODO: PositionInterval -> Interval? At least for related names?
+
+  indexOfPositionInterval(
+    positionInterval: PositionInterval
+  ): [startIndex: number, endIndex: number] {
+    let startIndex: number;
+    if (positionInterval.startClosed) {
+      startIndex = this.text.indexOfPosition(positionInterval.start, "right");
+    } else
+      startIndex =
+        this.text.indexOfPosition(positionInterval.start, "left") + 1;
+
+    // Note that endIndex is exclusive, i.e., 1 + the interval's
+    // actual last value.
+    let endIndex: number;
+    if (positionInterval.endClosed === true) {
+      endIndex = this.text.indexOfPosition(positionInterval.end, "left") + 1;
+    } else endIndex = this.text.indexOfPosition(positionInterval.end, "right");
+
+    return [startIndex, endIndex];
+  }
+
   /**
    *
    * @param index
@@ -362,7 +399,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   }
 
   /**
-   * Unlike (original) insert, this will send the spans even if redundant
+   * Unlike insert, this will send the spans even if redundant
    * (already formatted like that).
    *
    * @param key
@@ -370,13 +407,13 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * @param startIndex
    * @param endIndex unlike endPos, if endClosed, this is the next index
    * (exclusive range - slice behavior)
-   * @param endClosed
+   * @param endClosed TODO: should we use this.insertClosed instead?
    */
   format(
-    key: string,
-    value: string | undefined,
     startIndex: number,
     endIndex: number,
+    key: string,
+    value: string | undefined,
     endClosed = false
   ) {
     if (startIndex < 0 || startIndex >= this.length) {
@@ -481,10 +518,38 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   // TODO: Quill delta format instead, at least for values()?
   // See what Yjs & Automerge do.
 
+  // TODO: IList generally: put Position at the end in entries(), since it's less relevant?
+  // To match formatted() below.
+
+  /**
+   * To get format info, use formatted() instead or call
+   * getFormatByPosition on each entry.
+   */
   entries(): IterableIterator<
     [index: number, position: Position, value: string]
   > {
     return this.text.entries();
+  }
+
+  *formatted(): IterableIterator<
+    [
+      index: number,
+      values: string,
+      format: Map<string, string>,
+      positionInterval: PositionInterval
+    ]
+  > {
+    let prevEntry: [position: Position, data: FormatData] | null = null;
+    for (const [, position, data] of this.formatList.entries()) {
+      if (prevEntry !== null) {
+        // Emit an interval for [prevEntry, entry).
+        const [prevPosition, prevData] = prevEntry;
+        const startIndex = this.text.indexOfPosition(prevPosition, "right");
+        const endIndex = this.text.indexOfPosition(position, "right") - 1;
+      }
+
+      prevEntry = [position, data];
+    }
   }
 
   get length(): number {
@@ -494,14 +559,6 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   toString(): string {
     // TODO: change if text allows non-chars.
     return this.text.slice().join("");
-  }
-
-  toIntervals(): Array<{
-    index: number;
-    text: string;
-    format: Record<string, string>;
-  }> {
-    // TODO
   }
 
   // TODO: wrappers for overridden CValueList default methods
