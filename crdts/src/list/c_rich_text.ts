@@ -2,8 +2,10 @@ import {
   CObject,
   CollabEvent,
   CollabEventsRecord,
+  DefaultSerializer,
   InitToken,
   Position,
+  Serializer,
   UpdateMeta,
 } from "@collabs/core";
 import { CSpanLog, Span } from "./c_span_log";
@@ -11,13 +13,13 @@ import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
-export interface RichTextInsertEvent extends TextEvent {
+export interface RichTextInsertEvent<F> extends TextEvent {
   /**
    * The values' initial, inherited format. If insert() overrode the
    * inherited format, then this may have the old value;
    * overriding will come in a subsequent Format event.
    */
-  format: Record<string, string>;
+  format: Record<string, F>;
 }
 
 /**
@@ -27,7 +29,7 @@ export interface RichTextInsertEvent extends TextEvent {
  * are technically "behind" the state. (I guess we could emit earlier
  * to prevent this?)
  */
-export interface RichTextFormatEvent extends CollabEvent {
+export interface RichTextFormatEvent<F> extends CollabEvent {
   /** Array.slice format - [startIndex, endIndex). */
   startIndex: number;
   endIndex: number;
@@ -35,39 +37,36 @@ export interface RichTextFormatEvent extends CollabEvent {
   /**
    * undefined if the formatting at key was deleted (set to default).
    */
-  value: string | undefined;
-  previousValue: string | undefined;
+  value: F | undefined;
+  previousValue: F | undefined;
   /** Whole format on the slice including this change. */
-  format: Record<string, string>;
+  format: Record<string, F>;
   // We technically should include Positions (ordered map from Positions to
   // (value, format) model), but it would be inefficient and rarely useful.
 }
 
-export interface RichTextEventsRecord extends CollabEventsRecord {
-  Insert: RichTextInsertEvent;
+export interface RichTextEventsRecord<F> extends CollabEventsRecord {
+  Insert: RichTextInsertEvent<F>;
   Delete: TextEvent;
-  Format: RichTextFormatEvent;
+  Format: RichTextFormatEvent<F>;
 }
 
-// TODO: format type. Is Record<string, string> appropriate? Consider Quill, Prosemirror, Yjs, Automerge.
-// Automerge has list of options. I guess we should allow general V w/ serializer option.
-
-// TODO: string | object instead, for Quill compat? Arbitrary T?
-export class CRichText extends CObject<RichTextEventsRecord> {
+/**
+ * @typeParam F Type of format values. Should not include undefined (used to
+ * mean no format).
+ */
+export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   private readonly text: CValueList<string>;
-  private readonly spanLog: CSpanLog;
+  private readonly spanLog: CSpanLog<F>;
 
   /**
    * A view of spanLog that is designed for easy querying.
    * This is mostly as described in the Peritext paper, but with
    * a different handling of open/closed endpoints.
    */
-  private readonly formatList: LocalList<FormatData>;
+  private readonly formatList: LocalList<FormatData<F>>;
 
-  private readonly isEndClosed: (
-    key: string,
-    value: string | undefined
-  ) => boolean;
+  private readonly isEndClosed: (key: string, value: F | undefined) => boolean;
 
   constructor(
     init: InitToken,
@@ -78,7 +77,8 @@ export class CRichText extends CObject<RichTextEventsRecord> {
        * E.g. links, single-char formats (Quill \n stuff).
        * Default: none (always false)
        */
-      isEndClosed?: (key: string, value: string | undefined) => boolean;
+      isEndClosed?: (key: string, value: F | undefined) => boolean;
+      formatSerializer?: Serializer<F>;
     }
   ) {
     super(init);
@@ -86,7 +86,14 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     this.isEndClosed = options?.isEndClosed ?? (() => false);
 
     this.text = super.registerCollab("", (init) => new CValueList(init));
-    this.spanLog = super.registerCollab("0", (init) => new CSpanLog(init));
+    this.spanLog = super.registerCollab(
+      "0",
+      (init) =>
+        new CSpanLog(
+          init,
+          options?.formatSerializer ?? DefaultSerializer.getInstance()
+        )
+    );
 
     this.formatList = this.text.newLocalList();
 
@@ -114,7 +121,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     );
   }
 
-  private addSpan(span: Span, meta: UpdateMeta) {
+  private addSpan(span: Span<F>, meta: UpdateMeta) {
     // 1. Update our view of the formatting spans in this.formatList.
 
     this.createData(span.startPosition);
@@ -128,7 +135,10 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       span.endPosition === null
         ? this.formatList.length
         : this.formatList.indexOfPosition(span.endPosition);
-    const sliceBuilder = new SliceBuilder(this, formatChangeEquals);
+    const sliceBuilder = new SliceBuilder<F, FormatChange<F>>(
+      this,
+      formatChangeEquals
+    );
     for (let i = start; i < end; i++) {
       const position = this.formatList.getPosition(i);
       const data = this.formatList.getByPosition(position)!;
@@ -174,7 +184,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       }
     }
 
-    let slices: Slice<FormatChange>[];
+    let slices: Slice<FormatChange<F>>[];
     if (span.endPosition !== null && span.endClosed === true) {
       // Merge span into endPos's endClosedSpans.
       // We only store span if it wins over both the existing endClosedSpan
@@ -258,7 +268,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * in order, and only for non-redundant spans.
    * Also returns true if it's the same span.
    */
-  private wins(newSpan: Span, oldSpan: Span | undefined): boolean {
+  private wins(newSpan: Span<F>, oldSpan: Span<F> | undefined): boolean {
     if (oldSpan === undefined) return true;
     if (newSpan.lamport > oldSpan.lamport) return true;
     if (newSpan.lamport === oldSpan.lamport) {
@@ -277,7 +287,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * (i.e., text doesn't inherit that format already).
    * @returns
    */
-  insert(index: number, text: string, format: Record<string, string>): void {
+  insert(index: number, text: string, format: Record<string, F>): void {
     if (text.length === 0) return;
     this.text.insert(index, ...text);
 
@@ -328,7 +338,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     startIndex: number,
     endIndex: number,
     key: string,
-    value: string | undefined
+    value: F | undefined
   ) {
     if (startIndex < 0 || startIndex >= this.length) {
       throw new Error(
@@ -363,7 +373,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
 
   private formatInternal(
     key: string,
-    value: string | undefined,
+    value: F | undefined,
     startPos: Position,
     endPos: Position | null,
     endClosed: boolean
@@ -389,7 +399,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     return this.text.get(index);
   }
 
-  getFormat(index: number): Record<string, string> {
+  getFormat(index: number): Record<string, F> {
     return this.getFormatByPosition(this.text.getPosition(index));
   }
 
@@ -399,7 +409,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * If position is not currently present, returns the formatting that
    * a character at position would have if present.
    */
-  getFormatByPosition(position: Position): Record<string, string> {
+  getFormatByPosition(position: Position): Record<string, F> {
     // Find the closest <= FormatData.
     // OPT: direct method for this in LocalList, to avoid getting index.
     const dataIndex = this.formatList.indexOfPosition(position, "left");
@@ -413,10 +423,10 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   }
 
   private getFormatInternal(
-    data: FormatData,
+    data: FormatData<F>,
     includeClosed: boolean
-  ): Record<string, string> {
-    const ans: Record<string, string> = {};
+  ): Record<string, F> {
+    const ans: Record<string, F> = {};
     // Copy normalSpans, except omit undefined entries.
     for (const [key, span] of data.normalSpans) {
       if (span.value !== undefined) ans[key] = span.value;
@@ -443,7 +453,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       index: number,
       position: Position,
       value: string,
-      format: Record<string, string>
+      format: Record<string, F>
     ]
   > {
     // TODO: caller needs to treat formats as immutable (shared by several outputs).
@@ -461,7 +471,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       index: number,
       position: Position,
       value: string,
-      format: Record<string, string>
+      format: Record<string, F>
     ]
   > {
     return this.entries();
@@ -471,9 +481,9 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   formatted(): Array<{
     index: number;
     values: string;
-    format: Record<string, string>;
+    format: Record<string, F>;
   }> {
-    const sliceBuilder = new SliceBuilder<Record<string, string>>(
+    const sliceBuilder = new SliceBuilder<F, Record<string, F>>(
       this,
       recordEquals
     );
@@ -504,7 +514,6 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   }
 
   toString(): string {
-    // TODO: change if text allows non-chars.
     return this.text.slice().join("");
   }
 
@@ -514,7 +523,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * Inserts values as a substring at the end of the text, with the given format.
    * Equivalent to `this.insert(this.length, values, format)`.
    */
-  push(values: string, format: Record<string, string>): void {
+  push(values: string, format: Record<string, F>): void {
     this.insert(this.length, values, format);
   }
 
@@ -522,7 +531,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * Inserts values as a substring at the beginning of the text, with the given format.
    * Equivalent to `this.insert(0, values, format)`.
    */
-  unshift(values: string, format: Record<string, string>): void {
+  unshift(values: string, format: Record<string, F>): void {
     return this.insert(0, values, format);
   }
 
@@ -541,13 +550,13 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     startIndex: number,
     deleteCount: number | undefined,
     values: string,
-    format: Record<string, string>
+    format: Record<string, F>
   ): void;
   splice(
     startIndex: number,
     deleteCount: number | undefined,
     values?: string,
-    format?: Record<string, string>
+    format?: Record<string, F>
   ): void {
     // Sanitize deleteCount
     if (deleteCount === undefined || deleteCount > this.length - startIndex)
@@ -618,7 +627,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
 /**
  * Set getDataValue.
  */
-interface FormatData {
+interface FormatData<F> {
   /**
    * Map from formatting key to the winning span for that key,
    * according to the lamport order (w/ senderID tiebreaker).
@@ -627,7 +636,7 @@ interface FormatData {
    * this position. To get the actual formatting at this position,
    * also consider endClosedSpans.
    */
-  readonly normalSpans: Map<string, Span>;
+  readonly normalSpans: Map<string, Span<F>>;
   /**
    * Spans that have a closed end at this position and win
    * over the corresponding normalSpan, overriding it.
@@ -637,7 +646,7 @@ interface FormatData {
    *
    * OPT: omit this field if the map would be empty.
    */
-  readonly endClosedSpans: Map<string, Span>;
+  readonly endClosedSpans: Map<string, Span<F>>;
 }
 
 /**
@@ -646,11 +655,11 @@ interface FormatData {
  * @param includeClosed Whether to consider endClosedSpans, i.e., you are
  * getting the format exactly at data's position.
  */
-function getDataValue(
-  data: FormatData,
+function getDataValue<F>(
+  data: FormatData<F>,
   includeClosed: boolean,
   key: string
-): string | undefined {
+): F | undefined {
   if (includeClosed && data.endClosedSpans.has(key)) {
     return data.endClosedSpans.get(key)!.value;
   } else return data.normalSpans.get(key)?.value;
@@ -666,13 +675,13 @@ interface Slice<D> {
   data: D;
 }
 
-class SliceBuilder<D> {
+class SliceBuilder<F, D> {
   private readonly slices: Slice<D>[] = [];
   private prevIndex = -1;
   private prevData: D | null = null;
 
   constructor(
-    readonly list: CRichText,
+    readonly list: CRichText<F>,
     readonly equals: (a: D, b: D) => boolean
   ) {}
 
@@ -725,10 +734,7 @@ class SliceBuilder<D> {
   }
 }
 
-function recordEquals(
-  a: Record<string, unknown>,
-  b: Record<string, unknown>
-): boolean {
+function recordEquals<F>(a: Record<string, F>, b: Record<string, F>): boolean {
   for (const [key, value] of Object.entries(a)) {
     if (b[key] !== value) return false;
   }
@@ -738,12 +744,15 @@ function recordEquals(
   return true;
 }
 
-type FormatChange = {
-  previousValue: string | undefined;
-  format: Record<string, string>;
+type FormatChange<F> = {
+  previousValue: F | undefined;
+  format: Record<string, F>;
 } | null;
 
-function formatChangeEquals(a: FormatChange, b: FormatChange): boolean {
+function formatChangeEquals<F>(
+  a: FormatChange<F>,
+  b: FormatChange<F>
+): boolean {
   if (a === null || b === null) return a === b;
   return (
     a.previousValue === b.previousValue && recordEquals(a.format, b.format)

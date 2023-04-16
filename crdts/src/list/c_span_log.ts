@@ -1,6 +1,7 @@
 import {
   CollabEvent,
   CollabEventsRecord,
+  InitToken,
   int64AsNumber,
   Position,
   Serializer,
@@ -13,33 +14,41 @@ import {
 import { PrimitiveCRDT } from "../base_collabs";
 import { CRDTMessageMeta } from "../runtime";
 
-export interface PartialSpan {
+export interface PartialSpan<F> {
   readonly key: string;
-  readonly value: string | undefined;
+  readonly value: F | undefined;
   readonly startPosition: Position;
   /** null for open end of the document */
   readonly endPosition: Position | null;
   readonly endClosed?: true;
 }
 
-export interface Span extends PartialSpan {
+export interface Span<F> extends PartialSpan<F> {
   readonly lamport: number;
   /** Tiebreaker for lamport. */
   readonly senderID: string;
 }
 
-const partialSpanSerializer: Serializer<PartialSpan> = {
-  serialize(value) {
-    const message = SpanLogPartialSpanMessage.create(value);
-    return SpanLogPartialSpanMessage.encode(message).finish();
-  },
+class PartialSpanSerializer<F> implements Serializer<PartialSpan<F>> {
+  constructor(readonly formatSerializer: Serializer<F>) {}
 
-  deserialize(message) {
+  serialize(span: PartialSpan<F>): Uint8Array {
+    const message = SpanLogPartialSpanMessage.create({
+      ...span,
+      value:
+        span.value === undefined
+          ? undefined
+          : this.formatSerializer.serialize(span.value),
+    });
+    return SpanLogPartialSpanMessage.encode(message).finish();
+  }
+
+  deserialize(message: Uint8Array): PartialSpan<F> {
     const decoded = SpanLogPartialSpanMessage.decode(message);
     return {
       key: decoded.key,
       value: Object.prototype.hasOwnProperty.call(decoded, "value")
-        ? decoded.value
+        ? this.formatSerializer.deserialize(decoded.value)
         : undefined,
       startPosition: decoded.startPosition,
       endPosition: Object.prototype.hasOwnProperty.call(decoded, "endPosition")
@@ -47,27 +56,34 @@ const partialSpanSerializer: Serializer<PartialSpan> = {
         : null,
       ...(decoded.endClosed ? { endClosed: true } : {}),
     };
-  },
-} as const;
-
-export interface SpanLogAddEvent extends CollabEvent {
-  span: Span;
+  }
 }
 
-export interface SpanLogEventsRecord extends CollabEventsRecord {
-  Add: SpanLogAddEvent;
+export interface SpanLogAddEvent<F> extends CollabEvent {
+  span: Span<F>;
 }
 
-export class CSpanLog extends PrimitiveCRDT<SpanLogEventsRecord> {
+export interface SpanLogEventsRecord<F> extends CollabEventsRecord {
+  Add: SpanLogAddEvent<F>;
+}
+
+export class CSpanLog<F> extends PrimitiveCRDT<SpanLogEventsRecord<F>> {
   /**
    * An append-only log of Spans. For easy searching, it
    * is stored as a Map from senderID to that sender's Spans
    * in send order.
    */
-  private readonly log = new Map<string, Span[]>();
+  private readonly log = new Map<string, Span<F>[]>();
 
-  add(span: PartialSpan) {
-    super.sendCRDT(partialSpanSerializer.serialize(span));
+  private readonly partialSpanSerializer: PartialSpanSerializer<F>;
+
+  constructor(init: InitToken, formatSerializer: Serializer<F>) {
+    super(init);
+    this.partialSpanSerializer = new PartialSpanSerializer(formatSerializer);
+  }
+
+  add(span: PartialSpan<F>) {
+    super.sendCRDT(this.partialSpanSerializer.serialize(span));
   }
 
   protected receiveCRDT(
@@ -75,8 +91,8 @@ export class CSpanLog extends PrimitiveCRDT<SpanLogEventsRecord> {
     meta: UpdateMeta,
     crdtMeta: CRDTMessageMeta
   ): void {
-    const decoded = partialSpanSerializer.deserialize(<Uint8Array>message);
-    const span: Span = {
+    const decoded = this.partialSpanSerializer.deserialize(<Uint8Array>message);
+    const span: Span<F> = {
       ...decoded,
       lamport: crdtMeta.lamportTimestamp!,
       senderID: crdtMeta.senderID,
@@ -95,7 +111,7 @@ export class CSpanLog extends PrimitiveCRDT<SpanLogEventsRecord> {
       senderIDs[i] = senderID;
       lengths[i] = senderSpans.length;
       for (const span of senderSpans) {
-        spans.push(partialSpanSerializer.serialize(span));
+        spans.push(this.partialSpanSerializer.serialize(span));
         lamports.push(span.lamport);
       }
       i++;
@@ -133,8 +149,8 @@ export class CSpanLog extends PrimitiveCRDT<SpanLogEventsRecord> {
       for (let j = 0; j < decoded.lengths[i]; j++) {
         const lamport = int64AsNumber(decoded.lamports[spanIndex]);
         if (lamport > lastLamport) {
-          const span: Span = {
-            ...partialSpanSerializer.deserialize(decoded.spans[spanIndex]),
+          const span: Span<F> = {
+            ...this.partialSpanSerializer.deserialize(decoded.spans[spanIndex]),
             lamport,
             senderID,
           };
