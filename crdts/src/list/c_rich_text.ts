@@ -11,38 +11,6 @@ import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
-// TODO: generalize to other lists and market for use as e.g. comment
-// spans? Could do so without affecting existing lists - add a static
-// class with indexOfInterval/getInterval methods, instead of the ones
-// on CRichText.
-/**
- * An interval of [[Position]]s in a [[CRichText]].
- */
-export interface Interval {
-  /**
-   * The interval's starting [[Position]].
-   *
-   * Null for open start of the document.
-   */
-  readonly start: Position | null;
-  /**
-   * The interval's ending [[Position]].
-   *
-   * Null for open end of the document.
-   */
-  readonly end: Position | null;
-  /**
-   * Whether the interval contains [[start]], i.e., it has
-   * the form `[start,...` instead of `(start, ...`.
-   */
-  readonly startClosed: boolean;
-  /**
-   * Whether the interval contains [[end]], i.e., it has
-   * the form `..., end]` instead of `..., end)`.
-   */
-  readonly endClosed: boolean;
-}
-
 export interface RichTextInsertEvent extends TextEvent {
   /**
    * The values' initial, inherited format. If insert() overrode the
@@ -58,13 +26,6 @@ export interface RichTextInsertEvent extends TextEvent {
  * but the state is fully updated immediately. So first events
  * are technically "behind" the state. (I guess we could emit earlier
  * to prevent this?)
- *
- * TODO: might not describe all spans fully (e.g. won't tell you
- * about spans with local startIndex = endIndex). OK b/c events are
- * just for describing the local state; Position/Internal stuff
- * is included b/c we think of Positions as part of the state
- * (ordered map API). (Perhaps then we shouldn't give proper Intervals,
- * just startPos and endPos?)
  */
 export interface RichTextFormatEvent extends CollabEvent {
   /** Array.slice format - [startIndex, endIndex). */
@@ -75,13 +36,11 @@ export interface RichTextFormatEvent extends CollabEvent {
    * undefined if the formatting at key was deleted (set to default).
    */
   value: string | undefined;
-  // TODO. Closed ends complicate addSpan's intervals.
-  // previousValue: string | undefined;
-  /**
-   * Underlying interval. startClosed/endClosed are unrelated to
-   * [[startIndex]]/[[endIndex]] - those always use slice format.
-   */
-  interval: Interval;
+  previousValue: string | undefined;
+  /** Whole format on the slice including this change. */
+  format: Record<string, string>;
+  // We technically should include Positions (ordered map from Positions to
+  // (value, format) model), but it would be inefficient and rarely useful.
 }
 
 export interface RichTextEventsRecord extends CollabEventsRecord {
@@ -188,50 +147,59 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     this.createData(span.startPosition);
     if (span.endPosition !== null) this.createData(span.endPosition);
 
-    // Intervals of *formatList indices* (not text indices) that actually
-    // changed.
-    const intervalsPre = new Array<{
-      start: number;
-      end: number;
-      startClosed: boolean;
-      endClosed?: true;
-    }>();
-
     // Merge span into all FormatData.normalSpan in the range
-    // [startPos, endPos).
+    // [startPos, endPos). While doing so, build slices for the events
+    // later.
     const start = this.formatList.indexOfPosition(span.startPosition);
     const end =
       span.endPosition === null
         ? this.formatList.length
-        : this.formatList.indexOfPosition(span.endPosition, "right");
+        : this.formatList.indexOfPosition(span.endPosition);
+    const sliceBuilder = new SliceBuilder(this, formatChangeEquals);
     for (let i = start; i < end; i++) {
-      const data = this.formatList.get(i);
+      const position = this.formatList.getPosition(i);
+      const data = this.formatList.getByPosition(position)!;
       if (this.wins(span, data.normalSpans.get(span.key))) {
+        const previousValueOpen = data.normalSpans.get(span.key)?.value;
         data.normalSpans.set(span.key, span);
         if (this.wins(span, data.endClosedSpans.get(span.key))) {
           // Overwrite the endClosedSpan (if it exists), to maintain the
           // invariant: an endClosedSpan is only present if it wins over the
           // normalSpan.
-          data.endClosedSpans.delete(span.key);
-          // Add [i, i+1) to intervals, merging with the previous interval
-          // if possible.
-          if (
-            intervalsPre.length > 0 &&
-            intervalsPre[intervalsPre.length - 1].end === i
-          ) {
-            intervalsPre[intervalsPre.length - 1].end = i + 1;
-          } else intervalsPre.push({ start: i, end: i + 1, startClosed: true });
+          let previousValueClosed: string | undefined;
+          if (data.endClosedSpans.has(span.key)) {
+            previousValueClosed = data.endClosedSpans.get(span.key)!.value;
+            data.endClosedSpans.delete(span.key);
+          } else previousValueClosed = previousValueOpen;
+          // Yes change in the interval [position].
+          sliceBuilder.add(
+            {
+              previousValue: previousValueClosed,
+              format: this.getFormatInternal(position, true, data),
+            },
+            position,
+            true
+          );
         } else {
-          // Add (i, i+1) to intervals.
-          intervalsPre.push({
-            start: i,
-            end: i + 1,
-            startClosed: false,
-          });
+          // No change in the interval [position].
+          sliceBuilder.add(null, position, true);
         }
+        // Yes change in the interval starting (position,...
+        sliceBuilder.add(
+          {
+            previousValue: previousValueOpen,
+            format: this.getFormatInternal(position, false, data),
+          },
+          position,
+          false
+        );
+      } else {
+        // No change in the interval starting [position,...
+        sliceBuilder.add(null, position, true);
       }
     }
 
+    let slices: Slice<FormatChange>[];
     if (span.endPosition !== null && span.endClosed === true) {
       // Merge span into endPos's endClosedSpans.
       // We only store span if it wins over both the existing endClosedSpan
@@ -245,42 +213,37 @@ export class CRichText extends CObject<RichTextEventsRecord> {
         // this span already), since a span wins over itself.
         this.wins(span, data.normalSpans.get(span.key))
       ) {
+        const previousValue = data.endClosedSpans.has(span.key)
+          ? data.endClosedSpans.get(span.key)!.value
+          : data.normalSpans.get(span.key)?.value;
         data.endClosedSpans.set(span.key, span);
-        // Add [end, end] to intervals, merging with the previous interval
-        // if possible.
-        if (
-          intervalsPre.length > 0 &&
-          intervalsPre[intervalsPre.length - 1].end === end
-        ) {
-          intervalsPre[intervalsPre.length - 1].endClosed = true;
-        } else {
-          intervalsPre.push({
-            start: end,
-            end: end,
-            startClosed: true,
-            endClosed: true,
-          });
-        }
+        sliceBuilder.add(
+          {
+            previousValue,
+            format: this.getFormatInternal(span.endPosition, true, data),
+          },
+          span.endPosition,
+          true
+        );
+        slices = sliceBuilder.finish(span.endPosition, false);
+      } else {
+        slices = sliceBuilder.finish(span.endPosition, true);
       }
-    }
+    } else slices = sliceBuilder.finish(null, false);
 
-    // 2. Emit Format events.
-    for (const intervalPre of intervalsPre) {
-      const interval: Interval = {
-        start: this.formatList.getPosition(intervalPre.start),
-        end: this.formatList.getPosition(intervalPre.end),
-        startClosed: intervalPre.startClosed,
-        endClosed: intervalPre.endClosed ?? false,
-      };
-      const [startIndex, endIndex] = this.indexOfInterval(interval);
-      this.emit("Format", {
-        startIndex,
-        endIndex,
-        key: span.key,
-        value: span.value,
-        interval: interval,
-        meta,
-      });
+    // 2. Emit Format events for spans that actually changed.
+    for (const slice of slices) {
+      if (slice.data !== null && slice.data.previousValue !== span.value) {
+        this.emit("Format", {
+          startIndex: slice.startIndex,
+          endIndex: slice.endIndex,
+          key: span.key,
+          value: span.value,
+          previousValue: slice.data.previousValue,
+          format: slice.data.format,
+          meta,
+        });
+      }
     }
 
     // OPT: build formatList in loadObject instead of using span events, perhaps
@@ -460,7 +423,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
    * a character at position would have if present.
    */
   getFormatByPosition(position: Position): Record<string, string> {
-    // Find the closet <= FormatData.
+    // Find the closest <= FormatData.
     // OPT: direct method for this in LocalList, to avoid getting index.
     const dataIndex = this.formatList.indexOfPosition(position, "left");
     if (dataIndex === -1) {
@@ -505,57 +468,8 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     return this.text.indexOfPosition(position, searchDir);
   }
 
-  /**
-   * Returns an Interval representing [startIndex, endIndex) with the given
-   * end behavior (default [startPos, endPos)).
-   *
-   * TODO: cases when startPos >= endPos (might throw error currently if endPos = 0)
-   */
-  getInterval(
-    startIndex: number,
-    endIndex: number,
-    startClosed = true,
-    endClosed = false
-  ): Interval {
-    let start: Position | null;
-    if (startClosed) start = this.getPosition(startIndex);
-    else {
-      start = startIndex === 0 ? null : this.getPosition(startIndex - 1);
-    }
-
-    // Note that endIndex is exclusive, i.e., 1 + the interval's
-    // actual last value.
-    let end: Position | null;
-    if (endClosed) end = this.getPosition(endIndex - 1);
-    else {
-      end = endIndex === this.length ? null : this.getPosition(endIndex);
-    }
-
-    return { start, end, startClosed, endClosed };
-  }
-
-  indexOfInterval(interval: Interval): [startIndex: number, endIndex: number] {
-    let startIndex: number;
-    // Technically shouldn't have null and startClosed, but just accept it.
-    if (interval.start === null) startIndex = 0;
-    else {
-      if (interval.startClosed) {
-        startIndex = this.text.indexOfPosition(interval.start, "right");
-      } else startIndex = this.text.indexOfPosition(interval.start, "left") + 1;
-    }
-
-    // Note that endIndex is exclusive, i.e., 1 + the interval's
-    // actual last value.
-    let endIndex: number;
-    // Technically shouldn't have null and endClosed, but just accept it.
-    if (interval.end === null) endIndex = this.length;
-    else {
-      if (interval.endClosed === true) {
-        endIndex = this.text.indexOfPosition(interval.end, "left") + 1;
-      } else endIndex = this.text.indexOfPosition(interval.end, "right");
-    }
-
-    return [startIndex, endIndex];
+  hasPosition(position: Position): boolean {
+    return this.text.hasPosition(position);
   }
 
   values(): IterableIterator<string> {
@@ -575,7 +489,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     // TODO: caller needs to treat formats as immutable (shared by several outputs).
     // Likewise for Symbol.iterator.
     const positionsIter = this.text.positions();
-    for (const [index, values, format] of this.formatted()) {
+    for (const { index, values, format } of this.formatted()) {
       for (let i = 0; i < values.length; i++) {
         yield [index + i, positionsIter.next().value, values[i], format];
       }
@@ -593,86 +507,42 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     return this.entries();
   }
 
-  // TODO: include interval? Though may not accurately represent internal spans.
-  // Alt method that does? Or option?
-  *formatted(): IterableIterator<
-    [index: number, values: string, format: Record<string, string>]
-  > {
-    let inProgress:
-      | [startIndex: number, endIndex: number, format: Record<string, string>]
-      | null = null;
-    for (const formatted of this.formattedInternal()) {
-      if (inProgress !== null) {
-        if (recordEquals(formatted[2], inProgress[2])) {
-          // Extend the in-progress interval.
-          inProgress[1] = formatted[1];
-        } else {
-          // Yield the in-progress interval and start another.
-          const forYield = this.forYield(inProgress);
-          if (forYield !== null) yield forYield;
-          inProgress = formatted;
-        }
-      } else inProgress = formatted;
-    }
-    if (inProgress !== null) {
-      // Yield the last interval.
-      const forYield = this.forYield(inProgress);
-      if (forYield !== null) yield forYield;
-    }
-  }
-
-  private forYield(
-    inProgress:
-      | [startIndex: number, endIndex: number, format: Record<string, string>]
-  ): [index: number, values: string, format: Record<string, string>] | null {
-    const [startIndex, endIndex, format] = inProgress;
-    if (endIndex === startIndex) return null;
-    return [startIndex, this.text.slice(startIndex, endIndex).join(""), format];
-  }
-
-  /**
-   * Same as formatted(), but without eliminating redundant intervals
-   * (same format in a row). Does eliminate 0-length intervals, to avoid
-   * breaking up matching intervals with a tombstone between.
-   */
-  private *formattedInternal(): IterableIterator<
-    [startIndex: number, endIndex: number, format: Record<string, string>]
-  > {
-    const iter = this.formatList.entries();
-
-    let next = iter.next();
-    if (next.done) return;
-    // Yield [list start, next), which has no formatting.
-    let index = this.text.indexOfPosition(next.value[1], "right");
-    yield [0, index, {}];
-
-    while (!next.done) {
-      const [, currentPos, currentData] = next.value;
-      next = iter.next();
-
-      if (this.text.hasPosition(currentPos)) {
-        // Yield [currentPos].
-        const formatClosed = this.getFormatInternal(
-          currentPos,
-          true,
-          currentData
+  // We omit Positions for efficiency. If you want them, use entries().
+  formatted(): Array<{
+    index: number;
+    values: string;
+    format: Record<string, string>;
+  }> {
+    const sliceBuilder = new SliceBuilder<Record<string, string>>(
+      this,
+      recordEquals
+    );
+    // Starting chars have no format.
+    sliceBuilder.add({}, null, false);
+    for (const [, position, data] of this.formatList.entries()) {
+      // Format exactly at position, including closedEnds.
+      if (this.text.hasPosition(position)) {
+        sliceBuilder.add(
+          this.getFormatInternal(position, true, data),
+          position,
+          true
         );
-        yield [index, index + 1, formatClosed];
-        index++;
-      }
-      // Yield (currentPos, nextPos).
-      const format = this.getFormatInternal(currentPos, false, currentData);
-      if (next.done) {
-        // Treat nextPos as list end.
-        if (this.length !== index) yield [index, this.length, format];
-      } else {
-        const nextIndex = this.text.indexOfPosition(next.value[1], "right");
-        if (nextIndex !== index) yield [index, nextIndex, format];
-        index = nextIndex;
-        // Fast escape hatch: if we're done, skip over the rest of formatData.
-        if (index === this.length) return;
-      }
+      } // Else it is safe to skip.
+      // Format for the rest of the span (the open part).
+      sliceBuilder.add(
+        this.getFormatInternal(position, false, data),
+        position,
+        false
+      );
     }
+    const slices = sliceBuilder.finish(null, false);
+
+    // Map the slices to the expected format.
+    return slices.map((slice) => ({
+      index: slice.startIndex,
+      values: this.text.slice(slice.startIndex, slice.endIndex).join(""),
+      format: slice.data,
+    }));
   }
 
   get length(): number {
@@ -687,6 +557,76 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   // TODO: other IList methods? See AbstractList.
 }
 
+/**
+ * An slice of CRichText.text with attached data, used to output
+ * non-redundant formatting spans.
+ */
+interface Slice<D> {
+  startIndex: number;
+  endIndex: number;
+  data: D;
+}
+
+class SliceBuilder<D> {
+  private readonly slices: Slice<D>[] = [];
+  // TODO: fast-path escape when it's list.length
+  private prevIndex = -1;
+  private prevData: D | null = null;
+
+  constructor(
+    readonly list: CRichText,
+    readonly equals: (a: D, b: D) => boolean
+  ) {}
+
+  add(data: D, startPos: Position | null, startClosed: boolean): void {
+    // The index where this new span begins.
+    let index: number;
+    if (startPos === null) index = 0;
+    else if (startClosed) {
+      index = this.list.indexOfPosition(startPos, "right");
+    } else index = this.list.indexOfPosition(startPos, "left") + 1;
+
+    if (this.prevIndex !== -1) {
+      // Record the previous call's data.
+      this.record(this.prevIndex, index, this.prevData!);
+    }
+
+    this.prevIndex = index;
+    this.prevData = data;
+  }
+
+  finish(nextPos: Position | null, nextClosed: boolean): Slice<D>[] {
+    if (this.prevIndex !== -1) {
+      // Record the previous call's data.
+      // index is where the next span would begin, computed as in
+      // add except that null maps to the end.
+      let index: number;
+      if (nextPos === null) index = this.list.length;
+      else if (nextClosed) {
+        index = this.list.indexOfPosition(nextPos, "right");
+      } else index = this.list.indexOfPosition(nextPos, "left") + 1;
+
+      this.record(this.prevIndex, index, this.prevData!);
+    }
+    return this.slices;
+  }
+
+  private record(startIndex: number, endIndex: number, data: D): void {
+    if (startIndex === endIndex) return;
+
+    if (this.slices.length !== 0) {
+      const prevSlice = this.slices[this.slices.length - 1];
+      if (this.equals(prevSlice.data, data)) {
+        // Extend prevSlice.
+        prevSlice.endIndex = endIndex;
+        return;
+      }
+    }
+    // Add a new slice.
+    this.slices.push({ startIndex, endIndex, data });
+  }
+}
+
 function recordEquals(
   a: Record<string, unknown>,
   b: Record<string, unknown>
@@ -698,4 +638,16 @@ function recordEquals(
     if (a[key] !== value) return false;
   }
   return true;
+}
+
+type FormatChange = {
+  previousValue: string | undefined;
+  format: Record<string, string>;
+} | null;
+
+function formatChangeEquals(a: FormatChange, b: FormatChange): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.previousValue === b.previousValue && recordEquals(a.format, b.format)
+  );
 }
