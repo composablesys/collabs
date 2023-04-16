@@ -113,7 +113,7 @@ export interface RichTextEventsRecord<F> extends CollabEventsRecord {
  * which this class approximately implements. Note that you can tune spans'
  * behavior using the `growAtEnd` constructor option.
  *
- * Use [[format]] to format a span, and use
+ * Use [[format]] to format a range, and use
  * [[formatted]] to access an efficient representation of the formatted text.
  * Otherwise, the API
  * is similar to [[CText]].
@@ -187,7 +187,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
         positions: e.positions,
         // By non-interleaving and the fact that the positions are new,
         // all inserted chars have the same initial format.
-        format: this.getFormatByPosition(e.positions[0]),
+        format: this.getFormatInternal(e.positions[0]),
         meta: e.meta,
       })
     );
@@ -242,7 +242,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
           sliceBuilder.add(
             {
               previousValue: previousValueClosed,
-              format: this.getFormatInternal(data, true),
+              format: getDataRecord(data, true),
             },
             position,
             true
@@ -256,7 +256,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
         sliceBuilder.add(
           {
             previousValue: previousValueOpen,
-            format: this.getFormatInternal(data, false),
+            format: getDataRecord(data, false),
           },
           position,
           false
@@ -285,7 +285,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
         sliceBuilder.add(
           {
             previousValue,
-            format: this.getFormatInternal(data, true),
+            format: getDataRecord(data, true),
           },
           span.endPosition,
           true
@@ -399,7 +399,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     for (const [key, value] of Object.entries(format)) {
       if (existing[key] !== value) {
         const endClosed = !this.growAtEnd(key, value);
-        this.formatInternal(
+        this.spanLog.add(
           key,
           value,
           startPos,
@@ -411,7 +411,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     for (const key of Object.keys(existing)) {
       if (format[key] === undefined) {
         const endClosed = !this.growAtEnd(key, undefined);
-        this.formatInternal(
+        this.spanLog.add(
           key,
           undefined,
           startPos,
@@ -423,15 +423,15 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   }
 
   /**
-   * TODO
-   * Unlike insert, this will send the spans even if redundant
-   * (already formatted like that).
+   * Formats the range of text `[startIndex, endIndex)`, setting the
+   * given format key to `value`.
    *
-   * @param key
-   * @param value undefined clears the format.
-   * @param startIndex
-   * @param endIndex unlike endPos, if endClosed, this is the next index
-   * (exclusive range - slice behavior)
+   * Internally, this creates a new formatting span, even if it is
+   * redundant. The span's grow-at-end behavior is determined by
+   * the `growAtEnd` constructor option.
+   *
+   * @param value If undefined, the format key is deleted, clearing its
+   * current value.
    */
   format(
     startIndex: number,
@@ -461,30 +461,13 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     const actualEndIndex = endClosed ? endIndex - 1 : endIndex;
     const endPos =
       actualEndIndex === this.length ? null : this.getPosition(actualEndIndex);
-    this.formatInternal(
+    this.spanLog.add(
       key,
       value,
       this.getPosition(startIndex),
       endPos,
       endClosed
     );
-  }
-
-  // TODO: replace with direct call to CSpanLog.add, which can get this signature.
-  private formatInternal(
-    key: string,
-    value: F | undefined,
-    startPos: Position,
-    endPos: Position | null,
-    endClosed: boolean
-  ) {
-    this.spanLog.add({
-      key,
-      value,
-      startPosition: startPos,
-      endPosition: endPos,
-      endClosed: endClosed ? true : undefined,
-    });
   }
 
   /**
@@ -529,16 +512,17 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * @throws If index is not in `[0, this.length)`.
    */
   getFormat(index: number): Record<string, F> {
-    return this.getFormatByPosition(this.text.getPosition(index));
+    return this.getFormatInternal(this.text.getPosition(index));
   }
 
   /**
    * Returns the format at position.
    *
    * If position is not currently present, returns the formatting that
-   * a character at position would have if present.
+   * a character at position would have if present
+   * (unlike getFormatByPosition, which returns undefined).
    */
-  private getFormatByPosition(position: Position): Record<string, F> {
+  private getFormatInternal(position: Position): Record<string, F> {
     // Find the closest <= FormatData.
     // OPT: direct method for this in LocalList, to avoid getting index.
     const dataIndex = this.formatList.indexOfPosition(position, "left");
@@ -548,30 +532,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     }
     const dataPos = this.formatList.getPosition(dataIndex);
     const data = this.formatList.getByPosition(dataPos)!;
-    return this.getFormatInternal(data, dataPos === position);
-  }
-
-  // TODO: move to getDataFormat method; rename getFormatByPosition
-  // to this; provide getFormatByPosition method
-  // that returns undefined if not has position (util accessor).
-  private getFormatInternal(
-    data: FormatData<F>,
-    includeClosed: boolean
-  ): Record<string, F> {
-    const ans: Record<string, F> = {};
-    // Copy normalSpans, except omit undefined entries.
-    for (const [key, span] of data.normalSpans) {
-      if (span.value !== undefined) ans[key] = span.value;
-    }
-    if (includeClosed) {
-      // data is exactly at position, so we need to copy endClosedSpans
-      // on top of normalSpans. If the result would be undefined, omit it.
-      for (const [key, span] of data.endClosedSpans) {
-        if (span.value === undefined) delete ans[key];
-        else ans[key] = span.value;
-      }
-    }
-    return ans;
+    return getDataRecord(data, dataPos === position);
   }
 
   /** Returns an iterator for characters (values) in the text string, in order. */
@@ -579,8 +540,6 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     return this.text.values();
   }
 
-  // TODO: IList generally: put Position at the end in entries(), since it's less relevant?
-  // If so, also put at end here (even though it doesn't exactly match the IList signature).
   /**
    * Returns an iterator of [index, position, value, format] tuples
    * for every character (value) in the text string, in order.
@@ -596,8 +555,6 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
       format: Record<string, F>
     ]
   > {
-    // TODO: caller needs to treat formats as immutable (shared by several outputs).
-    // Likewise for Symbol.iterator.
     const positionsIter = this.text.positions();
     for (const { index, values, format } of this.formatted()) {
       for (let i = 0; i < values.length; i++) {
@@ -625,8 +582,14 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
 
   // We omit Positions for efficiency. If you want them, use entries().
   /**
-   * TODO
-   * @returns
+   * Returns an array of formatted ranges in text order. Each range has
+   * properties:
+   * - `index`: the range's starting index.
+   * - `values`: the range's characters as a string.
+   * - `format`: the range's format.
+   *
+   * Neighboring characters with identical formats are combined into a single
+   * range, even if their formats internally result from different spans.
    */
   formatted(): Array<{
     index: number;
@@ -642,10 +605,10 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     for (const [, position, data] of this.formatList.entries()) {
       // Format exactly at position, including closedEnds.
       if (this.text.hasPosition(position)) {
-        sliceBuilder.add(this.getFormatInternal(data, true), position, true);
+        sliceBuilder.add(getDataRecord(data, true), position, true);
       } // Else it is safe to skip.
       // Format for the rest of the span (the open part).
-      sliceBuilder.add(this.getFormatInternal(data, false), position, false);
+      sliceBuilder.add(getDataRecord(data, false), position, false);
       // OPT: stop early if we reach the end of the present list.
       // E.g. it was cleared and restarted, so there is a lot of junk at the end.
     }
@@ -798,6 +761,16 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     return this.text.getByPosition(position);
   }
 
+  /**
+   * Returns the format at position, or undefined if it is not currently present
+   * ([[hasPosition]] returns false).
+   */
+  getFormatByPosition(position: Position): Record<string, F> | undefined {
+    if (this.text.hasPosition(position)) {
+      return this.getFormatInternal(position);
+    } else return undefined;
+  }
+
   /** Returns an iterator for present positions, in list order. */
   positions(): IterableIterator<Position> {
     return this.text.positions();
@@ -849,6 +822,26 @@ function getDataValue<F>(
   if (includeClosed && data.endClosedSpans.has(key)) {
     return data.endClosedSpans.get(key)!.value;
   } else return data.normalSpans.get(key)?.value;
+}
+
+function getDataRecord<F>(
+  data: FormatData<F>,
+  includeClosed: boolean
+): Record<string, F> {
+  const ans: Record<string, F> = {};
+  // Copy normalSpans, except omit undefined entries.
+  for (const [key, span] of data.normalSpans) {
+    if (span.value !== undefined) ans[key] = span.value;
+  }
+  if (includeClosed) {
+    // data is exactly at position, so we need to copy endClosedSpans
+    // on top of normalSpans. If the result would be undefined, omit it.
+    for (const [key, span] of data.endClosedSpans) {
+      if (span.value === undefined) delete ans[key];
+      else ans[key] = span.value;
+    }
+  }
+  return ans;
 }
 
 /**

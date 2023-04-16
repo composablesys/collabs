@@ -87,8 +87,22 @@ export class CSpanLog<F> extends PrimitiveCRDT<SpanLogEventsRecord<F>> {
     this.partialSpanSerializer = new PartialSpanSerializer(formatSerializer);
   }
 
-  add(span: PartialSpan<F>) {
-    super.sendCRDT(this.partialSpanSerializer.serialize(span));
+  add(
+    key: string,
+    value: F | undefined,
+    startPos: Position,
+    endPos: Position | null,
+    endClosed: boolean
+  ) {
+    super.sendCRDT(
+      this.partialSpanSerializer.serialize({
+        key,
+        value,
+        startPosition: startPos,
+        endPosition: endPos,
+        endClosed: endClosed ? true : undefined,
+      })
+    );
   }
 
   protected receiveCRDT(
