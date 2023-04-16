@@ -52,28 +52,6 @@ export interface RichTextEventsRecord extends CollabEventsRecord {
 // TODO: format type. Is Record<string, string> appropriate? Consider Quill, Prosemirror, Yjs, Automerge.
 // Automerge has list of options. I guess we should allow general V w/ serializer option.
 
-interface FormatData {
-  /**
-   * Map from formatting key to the winning span for that key,
-   * according to the lamport order (w/ senderID tiebreaker).
-   *
-   * This only includes spans that start or internally contain
-   * this position. To get the actual formatting at this position,
-   * also consider endClosedSpans.
-   */
-  readonly normalSpans: Map<string, Span>;
-  /**
-   * Spans that have a closed end at this position and win
-   * over the corresponding normalSpan, overriding it.
-   *
-   * For characters at this exact position only, if a key is
-   * present in both normalSpan and endClosedSpan, use endClosedSpan's value.
-   *
-   * OPT: omit this field if the map would be empty.
-   */
-  readonly endClosedSpans: Map<string, Span>;
-}
-
 // TODO: string | object instead, for Quill compat? Arbitrary T?
 // TODO: other IList methods (since we don't have defaults anymore).
 // Adjust types as needed to include formatting
@@ -138,9 +116,6 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     );
   }
 
-  // TODO: if a span is closed and has the same start and end, is it handled reasonably?
-  // Might end up in both normalSpans & endClosedSpans.
-
   private addSpan(span: Span, meta: UpdateMeta) {
     // 1. Update our view of the formatting spans in this.formatList.
 
@@ -160,22 +135,23 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       const position = this.formatList.getPosition(i);
       const data = this.formatList.getByPosition(position)!;
       if (this.wins(span, data.normalSpans.get(span.key))) {
-        const previousValueOpen = data.normalSpans.get(span.key)?.value;
+        const previousValueOpen = getDataValue(data, false, span.key);
+        const previousValueClosed = getDataValue(data, true, span.key);
+
         data.normalSpans.set(span.key, span);
+
         if (this.wins(span, data.endClosedSpans.get(span.key))) {
           // Overwrite the endClosedSpan (if it exists), to maintain the
           // invariant: an endClosedSpan is only present if it wins over the
           // normalSpan.
-          let previousValueClosed: string | undefined;
-          if (data.endClosedSpans.has(span.key)) {
-            previousValueClosed = data.endClosedSpans.get(span.key)!.value;
-            data.endClosedSpans.delete(span.key);
-          } else previousValueClosed = previousValueOpen;
-          // Yes change in the interval [position].
+          data.endClosedSpans.delete(span.key);
+          // Possible change in the interval [position].
+          // (If it didn't actually delete anything, then previousValueClosed
+          // === span.value, so we'll filter it when emitting events.)
           sliceBuilder.add(
             {
               previousValue: previousValueClosed,
-              format: this.getFormatInternal(position, true, data),
+              format: this.getFormatInternal(data, true),
             },
             position,
             true
@@ -184,11 +160,12 @@ export class CRichText extends CObject<RichTextEventsRecord> {
           // No change in the interval [position].
           sliceBuilder.add(null, position, true);
         }
+
         // Yes change in the interval starting (position,...
         sliceBuilder.add(
           {
             previousValue: previousValueOpen,
-            format: this.getFormatInternal(position, false, data),
+            format: this.getFormatInternal(data, false),
           },
           position,
           false
@@ -209,18 +186,15 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       const data = this.formatList.getByPosition(span.endPosition)!;
       if (
         this.wins(span, data.endClosedSpans.get(span.key)) &&
-        // This works even if startPos == endPos (hence normalSpans contains
-        // this span already), since a span wins over itself.
         this.wins(span, data.normalSpans.get(span.key))
       ) {
-        const previousValue = data.endClosedSpans.has(span.key)
-          ? data.endClosedSpans.get(span.key)!.value
-          : data.normalSpans.get(span.key)?.value;
+        const previousValue = getDataValue(data, true, span.key);
+
         data.endClosedSpans.set(span.key, span);
         sliceBuilder.add(
           {
             previousValue,
-            format: this.getFormatInternal(span.endPosition, true, data),
+            format: this.getFormatInternal(data, true),
           },
           span.endPosition,
           true
@@ -232,6 +206,7 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     } else slices = sliceBuilder.finish(null, false);
 
     // 2. Emit Format events for spans that actually changed.
+
     for (const slice of slices) {
       if (slice.data !== null && slice.data.previousValue !== span.value) {
         this.emit("Format", {
@@ -431,16 +406,14 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       return {};
     }
     const dataPos = this.formatList.getPosition(dataIndex);
-    return this.getFormatInternal(dataPos, dataPos === position);
+    const data = this.formatList.getByPosition(dataPos)!;
+    return this.getFormatInternal(data, dataPos === position);
   }
 
   private getFormatInternal(
-    dataPos: Position,
-    includeClosed: boolean,
-    data?: FormatData
+    data: FormatData,
+    includeClosed: boolean
   ): Record<string, string> {
-    data = data ?? this.formatList.getByPosition(dataPos)!;
-
     const ans: Record<string, string> = {};
     // Copy normalSpans, except omit undefined entries.
     for (const [key, span] of data.normalSpans) {
@@ -522,18 +495,10 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     for (const [, position, data] of this.formatList.entries()) {
       // Format exactly at position, including closedEnds.
       if (this.text.hasPosition(position)) {
-        sliceBuilder.add(
-          this.getFormatInternal(position, true, data),
-          position,
-          true
-        );
+        sliceBuilder.add(this.getFormatInternal(data, true), position, true);
       } // Else it is safe to skip.
       // Format for the rest of the span (the open part).
-      sliceBuilder.add(
-        this.getFormatInternal(position, false, data),
-        position,
-        false
-      );
+      sliceBuilder.add(this.getFormatInternal(data, false), position, false);
     }
     const slices = sliceBuilder.finish(null, false);
 
@@ -555,6 +520,47 @@ export class CRichText extends CObject<RichTextEventsRecord> {
   }
 
   // TODO: other IList methods? See AbstractList.
+}
+
+/**
+ * Set getDataValue.
+ */
+interface FormatData {
+  /**
+   * Map from formatting key to the winning span for that key,
+   * according to the lamport order (w/ senderID tiebreaker).
+   *
+   * This only includes spans that start or internally contain
+   * this position. To get the actual formatting at this position,
+   * also consider endClosedSpans.
+   */
+  readonly normalSpans: Map<string, Span>;
+  /**
+   * Spans that have a closed end at this position and win
+   * over the corresponding normalSpan, overriding it.
+   *
+   * For characters at this exact position only, if a key is
+   * present in both normalSpan and endClosedSpan, use endClosedSpan's value.
+   *
+   * OPT: omit this field if the map would be empty.
+   */
+  readonly endClosedSpans: Map<string, Span>;
+}
+
+/**
+ * Returns data's value for key.
+ *
+ * @param includeClosed Whether to consider endClosedSpans, i.e., you are
+ * getting the format exactly at data's position.
+ */
+function getDataValue(
+  data: FormatData,
+  includeClosed: boolean,
+  key: string
+): string | undefined {
+  if (includeClosed && data.endClosedSpans.has(key)) {
+    return data.endClosedSpans.get(key)!.value;
+  } else return data.normalSpans.get(key)?.value;
 }
 
 /**
