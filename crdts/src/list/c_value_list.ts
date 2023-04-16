@@ -34,7 +34,7 @@ import { LocalList } from "./local_list";
  * will attempt to throw an exception if it detects such modification,
  * but this is not guaranteed.
  *
- * See also: [[CList]], [[CText]].
+ * See also: [[CList]], [[CText]], [[CRichText]].
  *
  * @typeParam T The value type.
  */

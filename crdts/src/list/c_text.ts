@@ -71,6 +71,7 @@ export interface TextEventsRecord extends CollabEventsRecord {
  * but this is not guaranteed.
  *
  * See also:
+ * - [[CRichText]]: for rich text (text with inline formatting).
  * - [[CValueList]], [[CList]]: for general lists.
  * - [[CVar]]`<string>`: for a string that can be set and get atomically instead of
  * edited like text.
@@ -83,6 +84,9 @@ export class CText extends CObject<TextEventsRecord> {
 
   private readonly list: CValueList<string>;
 
+  /**
+   * Constructs a CText.
+   */
   constructor(init: InitToken) {
     super(init);
 
@@ -123,6 +127,8 @@ export class CText extends CObject<TextEventsRecord> {
    * @param index The insertion index in the range
    * `[0, this.length]`. If `this.length`, the values
    * are appended to the end of the list.
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
    * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, values: string): void {
@@ -204,6 +210,9 @@ export class CText extends CObject<TextEventsRecord> {
   /**
    * Inserts values as a substring at the end of the text.
    * Equivalent to `this.insert(this.length, values)`.
+   *
+   * @param values The characters to push. They are inserted
+   * as individual UTF-16 codepoints.
    */
   push(values: string): void {
     this.insert(this.length, values);
@@ -212,6 +221,9 @@ export class CText extends CObject<TextEventsRecord> {
   /**
    * Inserts values as a substring at the beginning of the text.
    * Equivalent to `this.insert(0, values)`.
+   *
+   * @param values The characters to unshift. They are inserted
+   * as individual UTF-16 codepoints.
    */
   unshift(values: string): void {
     return this.insert(0, values);
@@ -226,6 +238,9 @@ export class CText extends CObject<TextEventsRecord> {
    *
    * All values currently at or after `startIndex + deleteCount`
    * shift to accommodate the change in length.
+   *
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
    */
   splice(startIndex: number, deleteCount?: number, values?: string): void {
     // Sanitize deleteCount
@@ -261,7 +276,7 @@ export class CText extends CObject<TextEventsRecord> {
   /**
    * Returns a section of this text string,
    * with behavior like
-   * [string.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
+   * [String.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
    */
   slice(start?: number, end?: number): string {
     return this.list.slice(start, end).join("");

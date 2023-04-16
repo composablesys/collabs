@@ -67,6 +67,11 @@ export interface SpanLogEventsRecord<F> extends CollabEventsRecord {
   Add: SpanLogAddEvent<F>;
 }
 
+/**
+ * Append-only log of formatting spans, used by CRichText.
+ *
+ * This is an internal class and is not exported.
+ */
 export class CSpanLog<F> extends PrimitiveCRDT<SpanLogEventsRecord<F>> {
   /**
    * An append-only log of Spans. For easy searching, it

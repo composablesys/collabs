@@ -13,47 +13,121 @@ import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
+/**
+ * Event emitted by [[CRichText]] when a range of characters (values)
+ * is inserted.
+ */
 export interface RichTextInsertEvent<F> extends TextEvent {
   /**
-   * The values' initial, inherited format. If insert() overrode the
-   * inherited format, then this may have the old value;
-   * overriding will come in a subsequent Format event.
+   * The characters' format as inherited from existing spans.
+   *
+   * This does not account for the format passed to
+   * [[CRichText.insert]]; changes to match that format will show up
+   * in later [[RichTextEventsRecord.Format]] events in the same transaction.
    */
   format: Record<string, F>;
 }
 
+// Note: these events are emitted slightly behind - it may take several events to
+// describe a span's local effect, but they are all emitted
+// after completely updating the state.
 /**
- * TODO: if a format call is broken up into multiple intervals by
- * concurrent ops, it will emit several of these events in a row,
- * but the state is fully updated immediately. So first events
- * are technically "behind" the state. (I guess we could emit earlier
- * to prevent this?)
+ * Event emitted by [[CRichText]] when a range of characters is formatted.
+ *
+ * A range can be formatted either by [[CRichText.format]],
+ * or by [[CRichText.insert]] if its given format does not
+ * match the new character's inherited format.
  */
 export interface RichTextFormatEvent<F> extends CollabEvent {
-  /** Array.slice format - [startIndex, endIndex). */
+  /**
+   * The range's starting index, inclusive.
+   *
+   * The affected characters are `text.slice(startIndex, endIndex)`.
+   */
   startIndex: number;
+  /**
+   * The range's ending index, exclusive.
+   *
+   * The affected characters are `text.slice(startIndex, endIndex)`.
+   */
   endIndex: number;
+  /**
+   * The format key that changed.
+   */
   key: string;
   /**
-   * undefined if the formatting at key was deleted (set to default).
+   * The new format value at key, or undefined if the key's format was deleted.
    */
   value: F | undefined;
+  /**
+   * The previous format value at key, or undefined if the key was previously not present.
+   */
   previousValue: F | undefined;
-  /** Whole format on the slice including this change. */
+  /**
+   * The range's complete new format.
+   */
   format: Record<string, F>;
+
   // We technically should include Positions (ordered map from Positions to
   // (value, format) model), but it would be inefficient and rarely useful.
 }
 
+/**
+ * Events record for [[CRichText]].
+ */
 export interface RichTextEventsRecord<F> extends CollabEventsRecord {
+  /**
+   * Emitted when a range of characters is inserted.
+   */
   Insert: RichTextInsertEvent<F>;
+  /**
+   * Emitted when a range of characters is deleted.
+   */
   Delete: TextEvent;
+  /**
+   * Emitted when a range of characters is formatted.
+   *
+   * A range can be formatted either by [[CRichText.format]],
+   * or by [[CRichText.insert]] if its given format does not
+   * match the new character's inherited format.
+   */
   Format: RichTextFormatEvent<F>;
 }
 
+// TODO: take format map as type param, so you can restrict
+// keys & value types per key.
+
 /**
- * @typeParam F Type of format values. Should not include undefined (used to
- * mean no format).
+ * A collaborative rich-text string, i.e., a text string with inline formatting.
+ *
+ * Each character has an associated *format* of type `Record<string, F>`, which
+ * maps from format keys to format values.
+ *
+ * Formats are controlled
+ * by *formatting spans*, which set (or delete) a format key-value pair in a given
+ * range. A span affects all characters in its range, including
+ * concurrent or future characters, until overridden
+ * by another span.
+ *
+ * For a detailed discussion of formatting spans' behavior, see [Peritext](https://www.inkandswitch.com/peritext/),
+ * which this class approximately implements. Note that you can tune spans'
+ * behavior using the `growAtEnd` constructor option.
+ *
+ * Use [[format]] to format a span, and use
+ * [[formatted]] to access an efficient representation of the formatted text.
+ * Otherwise, the API
+ * is similar to [[CText]].
+ *
+ * It is *not* safe to modify a CRichText while iterating over it. The iterator
+ * will attempt to throw an exception if it detects such modification,
+ * but this is not guaranteed.
+ *
+ * See also:
+ * - [[CText]]: for plain text.
+ * - [[CValueList]], [[CList]]: for general lists.
+ *
+ * @typeParam F The type of format values. This should not include
+ * undefined, which we use to indicate that a formatting key is not present.
  */
 export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   private readonly text: CValueList<string>;
@@ -66,24 +140,30 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    */
   private readonly formatList: LocalList<FormatData<F>>;
 
-  private readonly isEndClosed: (key: string, value: F | undefined) => boolean;
+  private readonly growAtEnd: (key: string, value: F | undefined) => boolean;
 
+  /**
+   * Constructs a CRichText.
+   *
+   * @param options.growAtEnd A function that returns whether spans with the given key-value pair should
+   * grow at their end, affecting concurrent and future characters inserted
+   * at the end of the original range (not just the middle).
+   *
+   * By default, this always returns true. You may wish to return
+   * false for formats like hyperlinks, as described in
+   * [Peritext's Example 9](https://www.inkandswitch.com/peritext/#example-9).
+   * @param options.formatSerializer Serializer for format values. Defaults to [[DefaultSerializer]].
+   */
   constructor(
     init: InitToken,
     options?: {
-      /**
-       * Formatting attributes whose spans should have closed ends
-       * (not inherited by new following characters).
-       * E.g. links, single-char formats (Quill \n stuff).
-       * Default: none (always false)
-       */
-      isEndClosed?: (key: string, value: F | undefined) => boolean;
+      growAtEnd?: (key: string, value: F | undefined) => boolean;
       formatSerializer?: Serializer<F>;
     }
   ) {
     super(init);
 
-    this.isEndClosed = options?.isEndClosed ?? (() => false);
+    this.growAtEnd = options?.growAtEnd ?? (() => true);
 
     this.text = super.registerCollab("", (init) => new CValueList(init));
     this.spanLog = super.registerCollab(
@@ -121,6 +201,9 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     );
   }
 
+  /**
+   * this.spanLog "Add" event handler.
+   */
   private addSpan(span: Span<F>, meta: UpdateMeta) {
     // 1. Update our view of the formatting spans in this.formatList.
 
@@ -264,9 +347,14 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   }
 
   /**
-   * TODO: doc same-tr rule. Also works for saves b/c those emit Add events
-   * in order, and only for non-redundant spans.
-   * Also returns true if it's the same span.
+   * Returns whether newSpans wins oldSpan, either in the Lamport
+   * order (with senderID tiebreaker) or because
+   * oldSpan is undefined.
+   *
+   * If newSpan and oldSpan come from the same transaction, this also
+   * returns true. That is okay because we always call wins() in transaction order,
+   * and later spans in the same transaction win over
+   * earlier spans.
    */
   private wins(newSpan: Span<F>, oldSpan: Span<F> | undefined): boolean {
     if (oldSpan === undefined) return true;
@@ -280,27 +368,37 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   }
 
   /**
+   * Inserts values as a substring at the given index, with the given initial format.
    *
-   * @param index
-   * @param text
-   * @param format The exact format. keys will only be set as needed
-   * (i.e., text doesn't inherit that format already).
-   * @returns
+   * All values currently at or after `index` shift
+   * to the right, increasing their indices by `values.length`.
+   *
+   * Initially, the characters inherit some format from existing formatting spans.
+   * If this does not match `format`, we create new formatting spans
+   * for the differing format keys.
+   *
+   * @param index The insertion index in the range
+   * `[0, this.length]`. If `this.length`, the values
+   * are appended to the end of the list.
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
+   * @param format The characters' initial format.
+   * @throws If index is not in `[0, this.length]`.
    */
-  insert(index: number, text: string, format: Record<string, F>): void {
-    if (text.length === 0) return;
-    this.text.insert(index, ...text);
+  insert(index: number, values: string, format: Record<string, F>): void {
+    if (values.length === 0) return;
+    this.text.insert(index, ...values);
 
     // Change formatting to match format.
     // No existing positions can be interleaved with the chars' positions,
     // so the chars all have the same existing formatting.
     const existing = this.getFormat(index);
     const startPos = this.text.getPosition(index);
-    const endPosClosed = this.text.getPosition(index + text.length - 1);
-    const endPosOpen = this.text.getPosition(index + text.length);
+    const endPosClosed = this.text.getPosition(index + values.length - 1);
+    const endPosOpen = this.text.getPosition(index + values.length);
     for (const [key, value] of Object.entries(format)) {
       if (existing[key] !== value) {
-        const endClosed = this.isEndClosed(key, value);
+        const endClosed = !this.growAtEnd(key, value);
         this.formatInternal(
           key,
           value,
@@ -312,7 +410,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     }
     for (const key of Object.keys(existing)) {
       if (format[key] === undefined) {
-        const endClosed = this.isEndClosed(key, undefined);
+        const endClosed = !this.growAtEnd(key, undefined);
         this.formatInternal(
           key,
           undefined,
@@ -325,6 +423,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   }
 
   /**
+   * TODO
    * Unlike insert, this will send the spans even if redundant
    * (already formatted like that).
    *
@@ -355,7 +454,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
       return;
     }
 
-    const endClosed = this.isEndClosed(key, value);
+    const endClosed = !this.growAtEnd(key, value);
 
     // From trivial span case, we're guaranteed endIndex >= 1, so this is
     // in [0, this.length].
@@ -371,6 +470,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     );
   }
 
+  // TODO: replace with direct call to CSpanLog.add, which can get this signature.
   private formatInternal(
     key: string,
     value: F | undefined,
@@ -387,29 +487,58 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     });
   }
 
+  /**
+   * Delete `count` characters starting at `startIndex`, i.e., characters
+   * `[startIndex, startIndex + count - 1)`.
+   *
+   * All later characters shift to the left,
+   * decreasing their indices by `count`.
+   *
+   * @param count The number of characters to delete.
+   * Defaults to 1 (delete the character at `startIndex` only).
+   *
+   * @throws if `startIndex < 0` or
+   * `startIndex + count >= this.length`.
+   */
   delete(startIndex: number, count?: number | undefined): void {
     this.text.delete(startIndex, count);
   }
 
+  /**
+   * Deletes every character in the text string.
+   */
   clear() {
     this.text.clear();
   }
 
-  get(index: number): string {
+  /**
+   * Returns a string consisting of the single character
+   * (UTF-16 codepoint) at `index`.
+   *
+   * @throws If index is not in `[0, this.length)`.
+   * Note that this differs from an ordinary string,
+   * which would instead return an empty string.
+   */
+  charAt(index: number): string {
     return this.text.get(index);
   }
 
+  /**
+   * Returns the format for the character at `index`.
+   *
+   * @throws If index is not in `[0, this.length)`.
+   */
   getFormat(index: number): Record<string, F> {
     return this.getFormatByPosition(this.text.getPosition(index));
   }
 
   /**
-   * Returns the formatting at position.
+   * Returns the format at position.
    *
    * If position is not currently present, returns the formatting that
    * a character at position would have if present.
    */
-  getFormatByPosition(position: Position): Record<string, F> {
+  private getFormatByPosition(position: Position): Record<string, F> {
     // Find the closest <= FormatData.
     // OPT: direct method for this in LocalList, to avoid getting index.
     const dataIndex = this.formatList.indexOfPosition(position, "left");
@@ -422,6 +551,9 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     return this.getFormatInternal(data, dataPos === position);
   }
 
+  // TODO: move to getDataFormat method; rename getFormatByPosition
+  // to this; provide getFormatByPosition method
+  // that returns undefined if not has position (util accessor).
   private getFormatInternal(
     data: FormatData<F>,
     includeClosed: boolean
@@ -442,12 +574,20 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     return ans;
   }
 
+  /** Returns an iterator for characters (values) in the text string, in order. */
   values(): IterableIterator<string> {
     return this.text.values();
   }
 
   // TODO: IList generally: put Position at the end in entries(), since it's less relevant?
   // If so, also put at end here (even though it doesn't exactly match the IList signature).
+  /**
+   * Returns an iterator of [index, position, value, format] tuples
+   * for every character (value) in the text string, in order.
+   *
+   * Typically, you should instead use [[formatted]], which returns
+   * a more efficient representation of the formatted text.
+   */
   *entries(): IterableIterator<
     [
       index: number,
@@ -465,7 +605,13 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
       }
     }
   }
-
+  /**
+   * Returns an iterator of [index, position, value, format] tuples
+   * for every character (value) in the text string, in order.
+   *
+   * Typically, you should instead use [[formatted]], which returns
+   * a more efficient representation of the formatted text.
+   */
   [Symbol.iterator](): IterableIterator<
     [
       index: number,
@@ -478,6 +624,10 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   }
 
   // We omit Positions for efficiency. If you want them, use entries().
+  /**
+   * TODO
+   * @returns
+   */
   formatted(): Array<{
     index: number;
     values: string;
@@ -509,10 +659,16 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     }));
   }
 
+  /**
+   * The length of the text string.
+   */
   get length(): number {
     return this.text.length;
   }
 
+  /**
+   * Returns the plain text as an ordinary string.
+   */
   toString(): string {
     return this.text.slice().join("");
   }
@@ -591,7 +747,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   /**
    * Returns a section of this text string,
    * with behavior like
-   * [string.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
+   * [String.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
    */
   slice(start?: number, end?: number): string {
     return this.text.slice(start, end).join("");
@@ -599,10 +755,26 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
 
   // Positions.
 
+  /**
+   * @return The position currently at index.
+   */
   getPosition(index: number): Position {
     return this.text.getPosition(index);
   }
 
+  /**
+   * Returns the current index of position.
+   *
+   * If position is not currently present in the list
+   * ([[hasPosition]] returns false), then the result depends on searchDir:
+   * - "none" (default): Returns -1.
+   * - "left": Returns the next index to the left of position.
+   * If there are no values to the left of position,
+   * returns -1.
+   * - "right": Returns the next index to the right of position.
+   * If there are no values to the left of position,
+   * returns [[length]].
+   */
   indexOfPosition(
     position: Position,
     searchDir?: "none" | "left" | "right" | undefined
@@ -610,10 +782,18 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     return this.text.indexOfPosition(position, searchDir);
   }
 
+  /**
+   * Returns whether position is currently present in the list,
+   * i.e., its value is present.
+   */
   hasPosition(position: Position): boolean {
     return this.text.hasPosition(position);
   }
 
+  /**
+   * Returns the value at position, or undefined if it is not currently present
+   * ([[hasPosition]] returns false).
+   */
   getByPosition(position: Position): string | undefined {
     return this.text.getByPosition(position);
   }
@@ -644,7 +824,13 @@ interface FormatData<F> {
    * For characters at this exact position only, if a key is
    * present in both normalSpan and endClosedSpan, use endClosedSpan's value.
    *
-   * OPT: omit this field if the map would be empty.
+   * OPT: Omit this field if the map would be empty.
+   * OPT: Clear this field once the position is deleted, and also
+   * delete from spanLog any singleton spans (form [position]).
+   * Such formats are no longer needed and might be large (e.g. if you
+   * store Quill embeds as a single-char format). Note that then
+   * we will have to change the contract of getFormatByPosition
+   * (won't be accurate for deleted positions).
    */
   readonly endClosedSpans: Map<string, Span<F>>;
 }
