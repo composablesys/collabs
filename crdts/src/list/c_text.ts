@@ -175,11 +175,6 @@ export class CText extends CObject<TextEventsRecord> {
     return this.values();
   }
 
-  /** Returns an iterator for present positions, in list order. */
-  positions(): IterableIterator<Position> {
-    return this.list.positions();
-  }
-
   /**
    * Returns an iterator of [index, position, value] tuples for every
    * character (value) in the text string, in order.
@@ -202,6 +197,46 @@ export class CText extends CObject<TextEventsRecord> {
    */
   toString(): string {
     return this.list.slice().join("");
+  }
+
+  // Convenience mutators.
+
+  /**
+   * Inserts values as a substring at the end of the text.
+   * Equivalent to `this.insert(this.length, values)`.
+   */
+  push(values: string): void {
+    this.insert(this.length, values);
+  }
+
+  /**
+   * Inserts values as a substring at the beginning of the text.
+   * Equivalent to `this.insert(0, values)`.
+   */
+  unshift(values: string): void {
+    return this.insert(0, values);
+  }
+
+  /**
+   * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
+   *
+   * If `deleteCount` is provided, this method first deletes
+   * `deleteCount` values starting at `startIndex`.
+   * Next, this method inserts `values` as a substring at `startIndex`.
+   *
+   * All values currently at or after `startIndex + deleteCount`
+   * shift to accommodate the change in length.
+   */
+  splice(startIndex: number, deleteCount?: number, values?: string): void {
+    // Sanitize deleteCount
+    if (deleteCount === undefined || deleteCount > this.length - startIndex)
+      deleteCount = this.length - startIndex;
+    else if (deleteCount < 0) deleteCount = 0;
+    // Delete then insert
+    this.delete(startIndex, deleteCount);
+    if (values !== undefined) {
+      this.insert(startIndex, values);
+    }
   }
 
   // Convenience accessors.
@@ -275,6 +310,11 @@ export class CText extends CObject<TextEventsRecord> {
    */
   getByPosition(position: Position): string | undefined {
     return this.list.getByPosition(position);
+  }
+
+  /** Returns an iterator for present positions, in list order. */
+  positions(): IterableIterator<Position> {
+    return this.list.positions();
   }
 
   /**

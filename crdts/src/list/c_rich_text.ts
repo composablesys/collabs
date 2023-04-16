@@ -53,8 +53,6 @@ export interface RichTextEventsRecord extends CollabEventsRecord {
 // Automerge has list of options. I guess we should allow general V w/ serializer option.
 
 // TODO: string | object instead, for Quill compat? Arbitrary T?
-// TODO: other IList methods (since we don't have defaults anymore).
-// Adjust types as needed to include formatting
 export class CRichText extends CObject<RichTextEventsRecord> {
   private readonly text: CValueList<string>;
   private readonly spanLog: CSpanLog;
@@ -383,6 +381,10 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     this.text.delete(startIndex, count);
   }
 
+  clear() {
+    this.text.clear();
+  }
+
   get(index: number): string {
     return this.text.get(index);
   }
@@ -428,21 +430,6 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       }
     }
     return ans;
-  }
-
-  getPosition(index: number): Position {
-    return this.text.getPosition(index);
-  }
-
-  indexOfPosition(
-    position: Position,
-    searchDir?: "none" | "left" | "right" | undefined
-  ): number {
-    return this.text.indexOfPosition(position, searchDir);
-  }
-
-  hasPosition(position: Position): boolean {
-    return this.text.hasPosition(position);
   }
 
   values(): IterableIterator<string> {
@@ -499,6 +486,8 @@ export class CRichText extends CObject<RichTextEventsRecord> {
       } // Else it is safe to skip.
       // Format for the rest of the span (the open part).
       sliceBuilder.add(this.getFormatInternal(data, false), position, false);
+      // OPT: stop early if we reach the end of the present list.
+      // E.g. it was cleared and restarted, so there is a lot of junk at the end.
     }
     const slices = sliceBuilder.finish(null, false);
 
@@ -519,7 +508,111 @@ export class CRichText extends CObject<RichTextEventsRecord> {
     return this.text.slice().join("");
   }
 
-  // TODO: other IList methods? See AbstractList.
+  // Convenience mutators.
+
+  /**
+   * Inserts values as a substring at the end of the text, with the given format.
+   * Equivalent to `this.insert(this.length, values, format)`.
+   */
+  push(values: string, format: Record<string, string>): void {
+    this.insert(this.length, values, format);
+  }
+
+  /**
+   * Inserts values as a substring at the beginning of the text, with the given format.
+   * Equivalent to `this.insert(0, values, format)`.
+   */
+  unshift(values: string, format: Record<string, string>): void {
+    return this.insert(0, values, format);
+  }
+
+  /**
+   * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
+   *
+   * If `deleteCount` is provided, this method first deletes
+   * `deleteCount` values starting at `startIndex`.
+   * Next, this method inserts `values` as a substring at `startIndex`.
+   *
+   * All values currently at or after `startIndex + deleteCount`
+   * shift to accommodate the change in length.
+   */
+  splice(startIndex: number, deleteCount: number): void;
+  splice(
+    startIndex: number,
+    deleteCount: number | undefined,
+    values: string,
+    format: Record<string, string>
+  ): void;
+  splice(
+    startIndex: number,
+    deleteCount: number | undefined,
+    values?: string,
+    format?: Record<string, string>
+  ): void {
+    // Sanitize deleteCount
+    if (deleteCount === undefined || deleteCount > this.length - startIndex)
+      deleteCount = this.length - startIndex;
+    else if (deleteCount < 0) deleteCount = 0;
+    // Delete then insert
+    this.delete(startIndex, deleteCount);
+    if (values !== undefined) {
+      this.insert(startIndex, values, format!);
+    }
+  }
+
+  // Convenience accessors.
+
+  /**
+   * Returns a string consisting of the single character
+   * (UTF-16 codepoint) at `index`, with behavior
+   * like [string.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
+   *
+   * Negative indices are relative to
+   * end of the text string, and out-of-bounds
+   * indices return undefined.
+   */
+  at(index: number): string | undefined {
+    if (index < 0) index += this.length;
+    if (index < 0 || index >= this.length) return undefined;
+    return this.text.get(index);
+  }
+
+  // slice() is the most reasonable out of {slice, substring, substr}.
+
+  /**
+   * Returns a section of this text string,
+   * with behavior like
+   * [string.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
+   */
+  slice(start?: number, end?: number): string {
+    return this.text.slice(start, end).join("");
+  }
+
+  // Positions.
+
+  getPosition(index: number): Position {
+    return this.text.getPosition(index);
+  }
+
+  indexOfPosition(
+    position: Position,
+    searchDir?: "none" | "left" | "right" | undefined
+  ): number {
+    return this.text.indexOfPosition(position, searchDir);
+  }
+
+  hasPosition(position: Position): boolean {
+    return this.text.hasPosition(position);
+  }
+
+  getByPosition(position: Position): string | undefined {
+    return this.text.getByPosition(position);
+  }
+
+  /** Returns an iterator for present positions, in list order. */
+  positions(): IterableIterator<Position> {
+    return this.text.positions();
+  }
 }
 
 /**
@@ -575,7 +668,6 @@ interface Slice<D> {
 
 class SliceBuilder<D> {
   private readonly slices: Slice<D>[] = [];
-  // TODO: fast-path escape when it's list.length
   private prevIndex = -1;
   private prevData: D | null = null;
 
