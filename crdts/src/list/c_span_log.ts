@@ -13,24 +13,33 @@ import {
 } from "../../generated/proto_compiled";
 import { PrimitiveCRDT } from "../base_collabs";
 import { CRDTMessageMeta } from "../runtime";
+import { RichTextFormat } from "./c_rich_text";
 
-export interface PartialSpan<F> {
-  readonly key: string;
-  readonly value: F | undefined;
+export interface PartialSpan<
+  F extends RichTextFormat,
+  K extends keyof F & string = keyof F & string
+> {
+  readonly key: K;
+  readonly value: F[K] | undefined;
   readonly startPosition: Position;
   /** null for open end of the document */
   readonly endPosition: Position | null;
   readonly endClosed?: true;
 }
 
-export interface Span<F> extends PartialSpan<F> {
+export interface Span<
+  F extends RichTextFormat,
+  K extends keyof F & string = keyof F & string
+> extends PartialSpan<F, K> {
   readonly lamport: number;
   /** Tiebreaker for lamport. */
   readonly senderID: string;
 }
 
-class PartialSpanSerializer<F> implements Serializer<PartialSpan<F>> {
-  constructor(readonly formatSerializer: Serializer<F>) {}
+class PartialSpanSerializer<F extends RichTextFormat>
+  implements Serializer<PartialSpan<F>>
+{
+  constructor(readonly formatSerializer: Serializer<F[keyof F & string]>) {}
 
   serialize(span: PartialSpan<F>): Uint8Array {
     const message = SpanLogPartialSpanMessage.create({
@@ -43,7 +52,7 @@ class PartialSpanSerializer<F> implements Serializer<PartialSpan<F>> {
     return SpanLogPartialSpanMessage.encode(message).finish();
   }
 
-  deserialize(message: Uint8Array): PartialSpan<F> {
+  deserialize(message: Uint8Array): PartialSpan<F, keyof F & string> {
     const decoded = SpanLogPartialSpanMessage.decode(message);
     return {
       key: decoded.key,
@@ -59,11 +68,12 @@ class PartialSpanSerializer<F> implements Serializer<PartialSpan<F>> {
   }
 }
 
-export interface SpanLogAddEvent<F> extends CollabEvent {
+export interface SpanLogAddEvent<F extends RichTextFormat> extends CollabEvent {
   span: Span<F>;
 }
 
-export interface SpanLogEventsRecord<F> extends CollabEventsRecord {
+export interface SpanLogEventsRecord<F extends RichTextFormat>
+  extends CollabEventsRecord {
   Add: SpanLogAddEvent<F>;
 }
 
@@ -72,7 +82,9 @@ export interface SpanLogEventsRecord<F> extends CollabEventsRecord {
  *
  * This is an internal class and is not exported.
  */
-export class CSpanLog<F> extends PrimitiveCRDT<SpanLogEventsRecord<F>> {
+export class CSpanLog<F extends RichTextFormat> extends PrimitiveCRDT<
+  SpanLogEventsRecord<F>
+> {
   /**
    * An append-only log of Spans. For easy searching, it
    * is stored as a Map from senderID to that sender's Spans
@@ -82,14 +94,17 @@ export class CSpanLog<F> extends PrimitiveCRDT<SpanLogEventsRecord<F>> {
 
   private readonly partialSpanSerializer: PartialSpanSerializer<F>;
 
-  constructor(init: InitToken, formatSerializer: Serializer<F>) {
+  constructor(
+    init: InitToken,
+    formatSerializer: Serializer<F[keyof F & string]>
+  ) {
     super(init);
     this.partialSpanSerializer = new PartialSpanSerializer(formatSerializer);
   }
 
-  add(
-    key: string,
-    value: F | undefined,
+  add<K extends keyof F & string>(
+    key: K,
+    value: F[K] | undefined,
     startPos: Position,
     endPos: Position | null,
     endClosed: boolean

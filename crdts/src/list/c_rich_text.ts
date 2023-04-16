@@ -14,10 +14,53 @@ import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
 /**
+ * Base type for [[CRichText]] format types.
+ *
+ * The allowed format keys and value types, represented as an
+ * interface (or Record type) mapping string keys to their value types.
+ * Default: `Record<string, any>`.
+ */
+
+/**
+ * Base type for [[CRichText]] format types, represented as an
+ * interface (or Record type) mapping string keys to their value types.
+ *
+ * For example, if your rich text document allows format key "bold"
+ * with boolean values and format key "link" with string values,
+ * you can declare this in an interface:
+ * ```ts
+ * interface MyFormat {
+ *   bold: boolean;
+ *   link: string;
+ * }
+ * ```
+ * and use it as CRichText's generic type parameter:
+ * ```ts
+ * const text = new CRichText<MyFormat>(...);
+ * ```
+ * Then [[CRichText.format]] and similar methods will force you to
+ * use only those format keys, with the specified value types.
+ * Note that queries like [[CRichText.formatted]] will use `Partial<MyFormat>`
+ * instead of `MyFormat`, since a character might not have all format
+ * keys present.
+ *
+ * If you do not specify a RichTextFormat, it defaults to
+ * `Record<string, any>`.
+ */
+export interface RichTextFormat {
+  // Need "any" here instead of "unknown" or else TypeScript
+  // complains about a missing index signature when you
+  // implement the interface.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
+/**
  * Event emitted by [[CRichText]] when a range of characters (values)
  * is inserted.
  */
-export interface RichTextInsertEvent<F> extends TextEvent {
+export interface RichTextInsertEvent<F extends RichTextFormat = RichTextFormat>
+  extends TextEvent {
   /**
    * The characters' format as inherited from existing spans.
    *
@@ -25,7 +68,7 @@ export interface RichTextInsertEvent<F> extends TextEvent {
    * [[CRichText.insert]]; changes to match that format will show up
    * in later [[RichTextEventsRecord.Format]] events in the same transaction.
    */
-  format: Record<string, F>;
+  format: Partial<F>;
 }
 
 // Note: these events are emitted slightly behind - it may take several events to
@@ -38,7 +81,10 @@ export interface RichTextInsertEvent<F> extends TextEvent {
  * or by [[CRichText.insert]] if its given format does not
  * match the new character's inherited format.
  */
-export interface RichTextFormatEvent<F> extends CollabEvent {
+export interface RichTextFormatEvent<
+  F extends RichTextFormat = RichTextFormat,
+  K extends keyof F & string = keyof F & string
+> extends CollabEvent {
   /**
    * The range's starting index, inclusive.
    *
@@ -54,19 +100,19 @@ export interface RichTextFormatEvent<F> extends CollabEvent {
   /**
    * The format key that changed.
    */
-  key: string;
+  key: K;
   /**
    * The new format value at key, or undefined if the key's format was deleted.
    */
-  value: F | undefined;
+  value: F[K] | undefined;
   /**
    * The previous format value at key, or undefined if the key was previously not present.
    */
-  previousValue: F | undefined;
+  previousValue: F[K] | undefined;
   /**
    * The range's complete new format.
    */
-  format: Record<string, F>;
+  format: Partial<F>;
 
   // We technically should include Positions (ordered map from Positions to
   // (value, format) model), but it would be inefficient and rarely useful.
@@ -75,7 +121,8 @@ export interface RichTextFormatEvent<F> extends CollabEvent {
 /**
  * Events record for [[CRichText]].
  */
-export interface RichTextEventsRecord<F> extends CollabEventsRecord {
+export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
+  extends CollabEventsRecord {
   /**
    * Emitted when a range of characters is inserted.
    */
@@ -93,9 +140,6 @@ export interface RichTextEventsRecord<F> extends CollabEventsRecord {
    */
   Format: RichTextFormatEvent<F>;
 }
-
-// TODO: take format map as type param, so you can restrict
-// keys & value types per key.
 
 /**
  * A collaborative rich-text string, i.e., a text string with inline formatting.
@@ -126,10 +170,14 @@ export interface RichTextEventsRecord<F> extends CollabEventsRecord {
  * - [[CText]]: for plain text.
  * - [[CValueList]], [[CList]]: for general lists.
  *
- * @typeParam F The type of format values. This should not include
- * undefined, which we use to indicate that a formatting key is not present.
+ * @typeParam F The allowed format keys and value types, represented as an
+ * interface (or Record type) mapping string keys to their value types.
+ * See [[RichTextFormat]] for an example.
+ * Default: `Record<string, any>`.
  */
-export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
+export class CRichText<
+  F extends RichTextFormat = RichTextFormat
+> extends CObject<RichTextEventsRecord<F>> {
   private readonly text: CValueList<string>;
   private readonly spanLog: CSpanLog<F>;
 
@@ -140,7 +188,10 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    */
   private readonly formatList: LocalList<FormatData<F>>;
 
-  private readonly growAtEnd: (key: string, value: F | undefined) => boolean;
+  private readonly growAtEnd: <K extends keyof F & string>(
+    key: K,
+    value: F[K] | undefined
+  ) => boolean;
 
   /**
    * Constructs a CRichText.
@@ -157,8 +208,11 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   constructor(
     init: InitToken,
     options?: {
-      growAtEnd?: (key: string, value: F | undefined) => boolean;
-      formatSerializer?: Serializer<F>;
+      growAtEnd?: <K extends keyof F & string>(
+        key: K,
+        value: F[K] | undefined
+      ) => boolean;
+      formatSerializer?: Serializer<F[keyof F & string]>;
     }
   ) {
     super(init);
@@ -385,7 +439,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * @param format The characters' initial format.
    * @throws If index is not in `[0, this.length]`.
    */
-  insert(index: number, values: string, format: Record<string, F>): void {
+  insert(index: number, values: string, format: Partial<F>): void {
     if (values.length === 0) return;
     this.text.insert(index, ...values);
 
@@ -433,11 +487,11 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * @param value If undefined, the format key is deleted, clearing its
    * current value.
    */
-  format(
+  format<K extends keyof F & string>(
     startIndex: number,
     endIndex: number,
-    key: string,
-    value: F | undefined
+    key: K,
+    value: F[K] | undefined
   ) {
     if (startIndex < 0 || startIndex >= this.length) {
       throw new Error(
@@ -511,7 +565,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    *
    * @throws If index is not in `[0, this.length)`.
    */
-  getFormat(index: number): Record<string, F> {
+  getFormat(index: number): Partial<F> {
     return this.getFormatInternal(this.text.getPosition(index));
   }
 
@@ -522,7 +576,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * a character at position would have if present
    * (unlike getFormatByPosition, which returns undefined).
    */
-  private getFormatInternal(position: Position): Record<string, F> {
+  private getFormatInternal(position: Position): Partial<F> {
     // Find the closest <= FormatData.
     // OPT: direct method for this in LocalList, to avoid getting index.
     const dataIndex = this.formatList.indexOfPosition(position, "left");
@@ -548,12 +602,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * a more efficient representation of the formatted text.
    */
   *entries(): IterableIterator<
-    [
-      index: number,
-      position: Position,
-      value: string,
-      format: Record<string, F>
-    ]
+    [index: number, position: Position, value: string, format: Partial<F>]
   > {
     const positionsIter = this.text.positions();
     for (const { index, values, format } of this.formatted()) {
@@ -570,12 +619,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * a more efficient representation of the formatted text.
    */
   [Symbol.iterator](): IterableIterator<
-    [
-      index: number,
-      position: Position,
-      value: string,
-      format: Record<string, F>
-    ]
+    [index: number, position: Position, value: string, format: Partial<F>]
   > {
     return this.entries();
   }
@@ -594,12 +638,9 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
   formatted(): Array<{
     index: number;
     values: string;
-    format: Record<string, F>;
+    format: Partial<F>;
   }> {
-    const sliceBuilder = new SliceBuilder<F, Record<string, F>>(
-      this,
-      recordEquals
-    );
+    const sliceBuilder = new SliceBuilder<F, Partial<F>>(this, recordEquals);
     // Starting chars have no format.
     sliceBuilder.add({}, null, false);
     for (const [, position, data] of this.formatList.entries()) {
@@ -642,7 +683,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * Inserts values as a substring at the end of the text, with the given format.
    * Equivalent to `this.insert(this.length, values, format)`.
    */
-  push(values: string, format: Record<string, F>): void {
+  push(values: string, format: Partial<F>): void {
     this.insert(this.length, values, format);
   }
 
@@ -650,7 +691,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * Inserts values as a substring at the beginning of the text, with the given format.
    * Equivalent to `this.insert(0, values, format)`.
    */
-  unshift(values: string, format: Record<string, F>): void {
+  unshift(values: string, format: Partial<F>): void {
     return this.insert(0, values, format);
   }
 
@@ -669,13 +710,13 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
     startIndex: number,
     deleteCount: number | undefined,
     values: string,
-    format: Record<string, F>
+    format: Partial<F>
   ): void;
   splice(
     startIndex: number,
     deleteCount: number | undefined,
     values?: string,
-    format?: Record<string, F>
+    format?: Partial<F>
   ): void {
     // Sanitize deleteCount
     if (deleteCount === undefined || deleteCount > this.length - startIndex)
@@ -765,7 +806,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
    * Returns the format at position, or undefined if it is not currently present
    * ([[hasPosition]] returns false).
    */
-  getFormatByPosition(position: Position): Record<string, F> | undefined {
+  getFormatByPosition(position: Position): Partial<F> | undefined {
     if (this.text.hasPosition(position)) {
       return this.getFormatInternal(position);
     } else return undefined;
@@ -780,7 +821,7 @@ export class CRichText<F> extends CObject<RichTextEventsRecord<F>> {
 /**
  * Set getDataValue.
  */
-interface FormatData<F> {
+interface FormatData<F extends RichTextFormat> {
   /**
    * Map from formatting key to the winning span for that key,
    * according to the lamport order (w/ senderID tiebreaker).
@@ -789,7 +830,7 @@ interface FormatData<F> {
    * this position. To get the actual formatting at this position,
    * also consider endClosedSpans.
    */
-  readonly normalSpans: Map<string, Span<F>>;
+  readonly normalSpans: Map<keyof F, Span<F>>;
   /**
    * Spans that have a closed end at this position and win
    * over the corresponding normalSpan, overriding it.
@@ -805,7 +846,7 @@ interface FormatData<F> {
    * we will have to change the contract of getFormatByPosition
    * (won't be accurate for deleted positions).
    */
-  readonly endClosedSpans: Map<string, Span<F>>;
+  readonly endClosedSpans: Map<keyof F, Span<F>>;
 }
 
 /**
@@ -814,21 +855,24 @@ interface FormatData<F> {
  * @param includeClosed Whether to consider endClosedSpans, i.e., you are
  * getting the format exactly at data's position.
  */
-function getDataValue<F>(
+function getDataValue<F extends RichTextFormat, K extends keyof F>(
   data: FormatData<F>,
   includeClosed: boolean,
-  key: string
-): F | undefined {
+  key: K
+): F[K] | undefined {
+  // eslint fails to infer types here, but TypeScript is fine.
   if (includeClosed && data.endClosedSpans.has(key)) {
-    return data.endClosedSpans.get(key)!.value;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return data.endClosedSpans.get(key)!.value as F[K];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   } else return data.normalSpans.get(key)?.value;
 }
 
-function getDataRecord<F>(
+function getDataRecord<F extends RichTextFormat>(
   data: FormatData<F>,
   includeClosed: boolean
-): Record<string, F> {
-  const ans: Record<string, F> = {};
+): Partial<F> {
+  const ans: Partial<F> = {};
   // Copy normalSpans, except omit undefined entries.
   for (const [key, span] of data.normalSpans) {
     if (span.value !== undefined) ans[key] = span.value;
@@ -854,7 +898,7 @@ interface Slice<D> {
   data: D;
 }
 
-class SliceBuilder<F, D> {
+class SliceBuilder<F extends RichTextFormat, D> {
   private readonly slices: Slice<D>[] = [];
   private prevIndex = -1;
   private prevData: D | null = null;
@@ -913,7 +957,10 @@ class SliceBuilder<F, D> {
   }
 }
 
-function recordEquals<F>(a: Record<string, F>, b: Record<string, F>): boolean {
+function recordEquals(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>
+): boolean {
   for (const [key, value] of Object.entries(a)) {
     if (b[key] !== value) return false;
   }
@@ -923,14 +970,14 @@ function recordEquals<F>(a: Record<string, F>, b: Record<string, F>): boolean {
   return true;
 }
 
-type FormatChange<F> = {
-  previousValue: F | undefined;
-  format: Record<string, F>;
+type FormatChange<F extends RichTextFormat> = {
+  previousValue: F[keyof F] | undefined;
+  format: Partial<F>;
 } | null;
 
-function formatChangeEquals<F>(
-  a: FormatChange<F>,
-  b: FormatChange<F>
+function formatChangeEquals(
+  a: FormatChange<RichTextFormat>,
+  b: FormatChange<RichTextFormat>
 ): boolean {
   if (a === null || b === null) return a === b;
   return (
