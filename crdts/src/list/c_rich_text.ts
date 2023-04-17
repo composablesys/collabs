@@ -14,45 +14,28 @@ import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
 /**
- * Base type for [[CRichText]] format types, represented as an
- * interface (or Record type) mapping string keys to their value types.
- *
- * For example, if your rich text document allows format key "bold"
- * with boolean values and format key "link" with string values,
- * you can declare this in an interface:
- * ```ts
- * interface MyFormat {
- *   bold: boolean;
- *   link: string;
- * }
- * ```
- * and use it as CRichText's generic type parameter:
- * ```ts
- * const text = new CRichText<MyFormat>(...);
- * ```
- * Then [[CRichText.format]] and similar methods will force you to
- * use only those format keys, with the specified value types.
- * Note that queries like [[CRichText.formatted]] will use `Partial<MyFormat>`
- * instead of `MyFormat`, since a character might not have all format
- * keys present.
- *
- * If you do not specify a RichTextFormat, it defaults to
- * `Record<string, any>`.
+ * A formatted range in a [[CRichText]].
  */
-export interface RichTextFormat {
-  // Need "any" here instead of "unknown" or else TypeScript
-  // complains about a missing index signature when you
-  // implement the interface.
+export interface RichTextRange<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  F extends Record<string, any> = Record<string, any>
+> {
+  /** The range's starting index. */
+  index: number;
+  /** The range's text. */
+  values: string;
+  /** The range's format. */
+  format: Partial<F>;
 }
 
 /**
  * Event emitted by [[CRichText]] when a range of characters (values)
  * is inserted.
  */
-export interface RichTextInsertEvent<F extends RichTextFormat = RichTextFormat>
-  extends TextEvent {
+export interface RichTextInsertEvent<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any> = Record<string, any>
+> extends TextEvent {
   /**
    * The characters' format as inherited from existing spans.
    *
@@ -74,7 +57,8 @@ export interface RichTextInsertEvent<F extends RichTextFormat = RichTextFormat>
  * match the new character's inherited format.
  */
 export interface RichTextFormatEvent<
-  F extends RichTextFormat = RichTextFormat,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any> = Record<string, any>,
   K extends keyof F & string = keyof F & string
 > extends CollabEvent {
   /**
@@ -113,8 +97,10 @@ export interface RichTextFormatEvent<
 /**
  * Events record for [[CRichText]].
  */
-export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
-  extends CollabEventsRecord {
+export interface RichTextEventsRecord<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any> = Record<string, any>
+> extends CollabEventsRecord {
   /**
    * Emitted when a range of characters is inserted.
    */
@@ -151,10 +137,26 @@ export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
 /**
  * A collaborative rich-text string, i.e., a text string with inline formatting.
  *
- * Each character has an associated *format* of type `Partial<F>` (defualt: `Record<string, any>`), which
- * maps from format keys to format values.
+ * Each character has an associated *format* of type `Record<string, any>`, which
+ * maps from format keys to format values. Use [[format]] to format a range, and use
+ * [[formatted]] to access an efficient representation of the formatted text.
+ * Otherwise, the API
+ * is similar to [[CText]].
  *
- * Formats are controlled
+ * You can restrict the allowed format keys
+ * and their value types by using an interface for the generic type `F`, e.g.,
+ * ```ts
+ * interface MyFormat {
+ *   bold: boolean;
+ *   link: string;
+ * }
+ * const text = new CRichText<MyFormat>(...);
+ * ```
+ * Note that undefined is always allowed as a format value, indicating that a
+ * key is not present. Thus we use type `Partial<F>`
+ * to describe a character's format.
+ *
+ * Internally, formats are controlled
  * by *formatting spans*, which set (or delete) a format key-value pair in a given
  * range of text. A span affects all characters in its range, including
  * concurrent or future characters, until overridden
@@ -162,12 +164,7 @@ export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
  *
  * For a detailed discussion of formatting spans' behavior, see [Peritext](https://www.inkandswitch.com/peritext/),
  * which this Collab approximately implements. Note that you can tune spans'
- * behavior using the `growAtEnd` constructor option.
- *
- * Use [[format]] to format a range, and use
- * [[formatted]] to access an efficient representation of the formatted text.
- * Otherwise, the API
- * is similar to [[CText]].
+ * behavior using the `noGrowAtEnd` constructor option.
  *
  * It is *not* safe to modify a CRichText while iterating over it. The iterator
  * will attempt to throw an exception if it detects such modification,
@@ -179,11 +176,13 @@ export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
  *
  * @typeParam F The allowed format keys and value types, represented as an
  * interface (or Record type) mapping string keys to their value types.
- * See [[RichTextFormat]] for an example.
  * Default: `Record<string, any>`.
  */
 export class CRichText<
-  F extends RichTextFormat = RichTextFormat
+  // We need to use any (not unknown) or else TypeScript complains about
+  // a missing index signature when you try to use an interface for F.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any> = Record<string, any>
 > extends CObject<RichTextEventsRecord<F>> {
   // OPT: If CText becomes optimized relative to CValueList<string>,
   // we can use that instead.
@@ -486,7 +485,7 @@ export class CRichText<
    *
    * Internally, this creates a new formatting span, even if it is
    * redundant. The span's grow-at-end behavior is determined by
-   * the `growAtEnd` constructor option.
+   * the `noGrowAtEnd` constructor option.
    *
    * @param value If undefined, the format key is deleted, clearing its
    * current value.
@@ -636,17 +635,9 @@ export class CRichText<
   /**
    * Returns an efficient representation of the formatted text,
    *
-   * Specifically, returns an array of formatted ranges in text order. Each range has
-   * properties:
-   * - `index`: the range's starting index.
-   * - `values`: the range's text.
-   * - `format`: the range's format.
+   * Specifically, returns an array of formatted ranges in text order.
    */
-  formatted(): Array<{
-    index: number;
-    values: string;
-    format: Partial<F>;
-  }> {
+  formatted(): RichTextRange<F>[] {
     const sliceBuilder = new SliceBuilder<F, Partial<F>>(this, recordEquals);
     // Starting chars have no format.
     sliceBuilder.add({}, null, false);
@@ -828,7 +819,8 @@ export class CRichText<
 /**
  * Set getDataValue.
  */
-interface FormatData<F extends RichTextFormat> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface FormatData<F extends Record<string, any>> {
   /**
    * Map from formatting key to the winning span for that key,
    * according to the lamport order (w/ senderID tiebreaker).
@@ -867,7 +859,8 @@ interface FormatData<F extends RichTextFormat> {
  * @param includeClosed Whether to consider endClosedSpans, i.e., you are
  * getting the format exactly at data's position.
  */
-function getDataValue<F extends RichTextFormat, K extends keyof F>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDataValue<F extends Record<string, any>, K extends keyof F>(
   data: FormatData<F>,
   includeClosed: boolean,
   key: K
@@ -880,7 +873,8 @@ function getDataValue<F extends RichTextFormat, K extends keyof F>(
   } else return data.normalSpans.get(key)?.value;
 }
 
-function getDataRecord<F extends RichTextFormat>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDataRecord<F extends Record<string, any>>(
   data: FormatData<F>,
   includeClosed: boolean
 ): Partial<F> {
@@ -910,7 +904,8 @@ interface Slice<D> {
   data: D;
 }
 
-class SliceBuilder<F extends RichTextFormat, D> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+class SliceBuilder<F extends Record<string, any>, D> {
   private readonly slices: Slice<D>[] = [];
   private prevIndex = -1;
   private prevData: D | null = null;
@@ -982,14 +977,16 @@ function recordEquals(
   return true;
 }
 
-type FormatChange<F extends RichTextFormat> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FormatChange<F extends Record<string, any>> = {
   previousValue: F[keyof F] | undefined;
   format: Partial<F>;
 } | null;
 
-function formatChangeEquals(
-  a: FormatChange<RichTextFormat>,
-  b: FormatChange<RichTextFormat>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatChangeEquals<F extends Record<string, any>>(
+  a: FormatChange<F>,
+  b: FormatChange<F>
 ): boolean {
   if (a === null || b === null) return a === b;
   return (

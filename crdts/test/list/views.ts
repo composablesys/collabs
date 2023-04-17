@@ -1,7 +1,8 @@
 import { Collab, IList, Position } from "@collabs/core";
 import { assert } from "chai";
-import { CList, CRichText, RichTextFormat } from "../../src";
 import { EventView } from "../event_view";
+import { CList, CRichText, Record } from <string>, any >;
+} from "../../src";
 
 export class IListView<
   T,
@@ -74,7 +75,7 @@ export class CListView<C extends Collab> extends IListView<C, CList<C, any>> {
   }
 }
 
-export class CRichTextView<F extends RichTextFormat> extends EventView<
+export class CRichTextView<F extends Record<string, any>> extends EventView<
   CRichText<F>
 > {
   readonly view: [position: Position, value: string, format: Partial<F>][] = [];

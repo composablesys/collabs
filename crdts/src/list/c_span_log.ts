@@ -13,10 +13,10 @@ import {
 } from "../../generated/proto_compiled";
 import { PrimitiveCRDT } from "../base_collabs";
 import { CRDTMessageMeta } from "../runtime";
-import { RichTextFormat } from "./c_rich_text";
 
 export interface PartialSpan<
-  F extends RichTextFormat,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any>,
   K extends keyof F & string = keyof F & string
 > {
   readonly key: K;
@@ -28,7 +28,8 @@ export interface PartialSpan<
 }
 
 export interface Span<
-  F extends RichTextFormat,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any>,
   K extends keyof F & string = keyof F & string
 > extends PartialSpan<F, K> {
   readonly lamport: number;
@@ -36,7 +37,8 @@ export interface Span<
   readonly senderID: string;
 }
 
-class PartialSpanSerializer<F extends RichTextFormat>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+class PartialSpanSerializer<F extends Record<string, any>>
   implements Serializer<PartialSpan<F>>
 {
   constructor(readonly formatSerializer: Serializer<F[keyof F & string]>) {}
@@ -68,11 +70,14 @@ class PartialSpanSerializer<F extends RichTextFormat>
   }
 }
 
-export interface SpanLogAddEvent<F extends RichTextFormat> extends CollabEvent {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface SpanLogAddEvent<F extends Record<string, any>>
+  extends CollabEvent {
   span: Span<F>;
 }
 
-export interface SpanLogEventsRecord<F extends RichTextFormat>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface SpanLogEventsRecord<F extends Record<string, any>>
   extends CollabEventsRecord {
   Add: SpanLogAddEvent<F>;
 }
@@ -82,7 +87,8 @@ export interface SpanLogEventsRecord<F extends RichTextFormat>
  *
  * This is an internal class and is not exported.
  */
-export class CSpanLog<F extends RichTextFormat> extends PrimitiveCRDT<
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
   SpanLogEventsRecord<F>
 > {
   /**
