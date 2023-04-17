@@ -197,38 +197,30 @@ export class CRichText<
    */
   private readonly formatList: LocalList<FormatData<F>>;
 
-  // TODO: replace with a set of grow-at-end keys, in preparation for
-  // open-start deletion spans.
-  private readonly growAtEnd: <K extends keyof F & string>(
-    key: K,
-    value: F[K] | undefined
-  ) => boolean;
+  private readonly noGrowAtEnd: Set<keyof F>;
 
   /**
    * Constructs a CRichText.
    *
-   * @param options.growAtEnd A function that returns whether spans with the given key-value pair should
-   * grow at their end, affecting concurrent and future characters inserted
-   * at the end of the original range (not just the middle).
+   * @param options.noGrowAtEnd A collection of format keys whose spans will *not* grow
+   * at the end: they will *not* affect concurrent and future characters inserted
+   * at the end of the original range (but will still affect the middle).
    *
-   * By default, this always returns true. You may wish to return
-   * false for formats like hyperlinks, as described in
+   * By default, this is empty. You may wish to include formats like hyperlinks,
+   * as described in
    * [Peritext's Example 9](https://www.inkandswitch.com/peritext/#example-9).
    * @param options.formatSerializer Serializer for format values. Defaults to [[DefaultSerializer]].
    */
   constructor(
     init: InitToken,
     options?: {
-      growAtEnd?: <K extends keyof F & string>(
-        key: K,
-        value: F[K] | undefined
-      ) => boolean;
+      noGrowAtEnd?: Iterable<keyof F>;
       formatSerializer?: Serializer<F[keyof F & string]>;
     }
   ) {
     super(init);
 
-    this.growAtEnd = options?.growAtEnd ?? (() => true);
+    this.noGrowAtEnd = new Set(options?.noGrowAtEnd ?? []);
 
     this.text = super.registerCollab("", (init) => new CValueList(init));
     this.spanLog = super.registerCollab(
@@ -333,32 +325,32 @@ export class CRichText<
     }
 
     let slices: Slice<FormatChange<F>>[];
-    if (span.endPosition !== null && span.endClosed === true) {
-      // Merge span into endPos's endClosedSpans.
-      // We only store span if it wins over both the existing endClosedSpan
-      // and the existing normalSpan, as described in FormatData.endClosedSpan's
-      // docs.
-      // Non-null assertion okay because we created the FormatData above.
-      const data = this.formatList.getByPosition(span.endPosition)!;
-      if (
-        this.wins(span, data.endClosedSpans.get(span.key)) &&
-        this.wins(span, data.normalSpans.get(span.key))
-      ) {
-        const previousValue = getDataValue(data, true, span.key);
+    if (span.endPosition !== null) {
+      if (span.endClosed === true) {
+        // Merge span into endPos's endClosedSpans.
+        // We only store span if it wins over both the existing endClosedSpan
+        // and the existing normalSpan, as described in FormatData.endClosedSpan's
+        // docs.
+        // Non-null assertion okay because we created the FormatData above.
+        const data = this.formatList.getByPosition(span.endPosition)!;
+        if (
+          this.wins(span, data.endClosedSpans.get(span.key)) &&
+          this.wins(span, data.normalSpans.get(span.key))
+        ) {
+          const previousValue = getDataValue(data, true, span.key);
 
-        data.endClosedSpans.set(span.key, span);
-        sliceBuilder.add(
-          {
-            previousValue,
-            format: getDataRecord(data, true),
-          },
-          span.endPosition,
-          true
-        );
-        slices = sliceBuilder.finish(span.endPosition, false);
-      } else {
-        slices = sliceBuilder.finish(span.endPosition, true);
-      }
+          data.endClosedSpans.set(span.key, span);
+          sliceBuilder.add(
+            {
+              previousValue,
+              format: getDataRecord(data, true),
+            },
+            span.endPosition,
+            true
+          );
+          slices = sliceBuilder.finish(span.endPosition, false);
+        } else slices = sliceBuilder.finish(span.endPosition, true);
+      } else slices = sliceBuilder.finish(span.endPosition, true);
     } else slices = sliceBuilder.finish(null, false);
 
     // 2. Emit Format events for spans that actually changed.
@@ -460,10 +452,13 @@ export class CRichText<
     const existing = this.getFormat(index);
     const startPos = this.text.getPosition(index);
     const endPosClosed = this.text.getPosition(index + values.length - 1);
-    const endPosOpen = this.text.getPosition(index + values.length);
+    const endPosOpen =
+      index + values.length === this.text.length
+        ? null
+        : this.text.getPosition(index + values.length);
     for (const [key, value] of Object.entries(format)) {
       if (existing[key] !== value) {
-        const endClosed = !this.growAtEnd(key, value);
+        const endClosed = this.noGrowAtEnd.has(key);
         this.spanLog.add(
           key,
           value,
@@ -475,14 +470,12 @@ export class CRichText<
     }
     for (const key of Object.keys(existing)) {
       if (format[key] === undefined) {
-        const endClosed = !this.growAtEnd(key, undefined);
-        this.spanLog.add(
-          key,
-          undefined,
-          startPos,
-          endClosed ? endPosClosed : endPosOpen,
-          endClosed
-        );
+        // In the Peritext essay, deleting a noGrowAtEnd key creates
+        // a fully open span (start - 1, end + 1).
+        // (3rd paragraph of https://www.inkandswitch.com/peritext/#inserting-text-at-span-boundaries)
+        // We don't yet make the start open; to make the end open, we don't
+        // treat noGrowAtEnd spans specially - all spans have endClosed = false.
+        this.spanLog.add(key, undefined, startPos, endPosOpen, false);
       }
     }
   }
@@ -519,7 +512,7 @@ export class CRichText<
       return;
     }
 
-    const endClosed = !this.growAtEnd(key, value);
+    const endClosed = value !== undefined && this.noGrowAtEnd.has(key);
 
     // From trivial span case, we're guaranteed endIndex >= 1, so this is
     // in [0, this.length].
