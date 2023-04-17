@@ -171,7 +171,11 @@ export class CText extends CObject<TextEventsRecord> {
     return this.list.get(index);
   }
 
-  /** Returns an iterator for characters (values) in the text string, in order. */
+  /**
+   * Returns an iterator for characters (values) in the text string, in order.
+   *
+   * See also: [[toString]], which returns the entire text as a string.
+   */
   values(): IterableIterator<string> {
     return this.list.values();
   }

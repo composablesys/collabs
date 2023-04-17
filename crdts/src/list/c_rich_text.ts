@@ -151,17 +151,17 @@ export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
 /**
  * A collaborative rich-text string, i.e., a text string with inline formatting.
  *
- * Each character has an associated *format* of type `Record<string, F>`, which
+ * Each character has an associated *format* of type `Partial<F>` (defualt: `Record<string, any>`), which
  * maps from format keys to format values.
  *
  * Formats are controlled
  * by *formatting spans*, which set (or delete) a format key-value pair in a given
- * range. A span affects all characters in its range, including
+ * range of text. A span affects all characters in its range, including
  * concurrent or future characters, until overridden
  * by another span.
  *
  * For a detailed discussion of formatting spans' behavior, see [Peritext](https://www.inkandswitch.com/peritext/),
- * which this class approximately implements. Note that you can tune spans'
+ * which this Collab approximately implements. Note that you can tune spans'
  * behavior using the `growAtEnd` constructor option.
  *
  * Use [[format]] to format a range, and use
@@ -197,6 +197,8 @@ export class CRichText<
    */
   private readonly formatList: LocalList<FormatData<F>>;
 
+  // TODO: replace with a set of grow-at-end keys, in preparation for
+  // open-start deletion spans.
   private readonly growAtEnd: <K extends keyof F & string>(
     key: K,
     value: F[K] | undefined
@@ -598,7 +600,11 @@ export class CRichText<
     return getDataRecord(data, dataPos === position);
   }
 
-  /** Returns an iterator for characters (values) in the text string, in order. */
+  /**
+   * Returns an iterator for characters (values) in the text string, in order.
+   *
+   * See also: [[toString]], which returns the entire (plain) text as a string.
+   */
   values(): IterableIterator<string> {
     return this.text.values();
   }
@@ -635,14 +641,13 @@ export class CRichText<
 
   // We omit Positions for efficiency. If you want them, use entries().
   /**
-   * Returns an array of formatted ranges in text order. Each range has
+   * Returns an efficient representation of the formatted text,
+   *
+   * Specifically, returns an array of formatted ranges in text order. Each range has
    * properties:
    * - `index`: the range's starting index.
-   * - `values`: the range's characters as a string.
+   * - `values`: the range's text.
    * - `format`: the range's format.
-   *
-   * Neighboring characters with identical formats are combined into a single
-   * range, even if their formats internally result from different spans.
    */
   formatted(): Array<{
     index: number;
@@ -709,7 +714,7 @@ export class CRichText<
    *
    * If `deleteCount` is provided, this method first deletes
    * `deleteCount` values starting at `startIndex`.
-   * Next, this method inserts `values` as a substring at `startIndex`.
+   * Next, this method inserts `values` as a substring at `startIndex`, with the given format.
    *
    * All values currently at or after `startIndex + deleteCount`
    * shift to accommodate the change in length.
@@ -743,7 +748,7 @@ export class CRichText<
   /**
    * Returns a string consisting of the single character
    * (UTF-16 codepoint) at `index`, with behavior
-   * like [string.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
+   * like [String.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
    *
    * Negative indices are relative to
    * end of the text string, and out-of-bounds
