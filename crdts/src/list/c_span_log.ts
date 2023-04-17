@@ -131,6 +131,13 @@ export class CSpanLog<F extends RichTextFormat> extends PrimitiveCRDT<
       lamport: crdtMeta.lamportTimestamp!,
       senderID: crdtMeta.senderID,
     };
+    let bySender = this.log.get(crdtMeta.senderID);
+    if (bySender === undefined) {
+      bySender = [];
+      this.log.set(crdtMeta.senderID, bySender);
+    }
+    bySender.push(span);
+
     this.emit("Add", { span, meta });
   }
 

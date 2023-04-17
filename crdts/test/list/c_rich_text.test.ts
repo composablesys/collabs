@@ -1,4 +1,4 @@
-import { InitToken } from "@collabs/core";
+import { InitToken, ReplicaIDs } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CRichText, CRuntime, CValueList, TestingRuntimes } from "../../src";
@@ -514,6 +514,30 @@ describe("CRichText", () => {
       new CRichTextView(bobText, true);
     });
 
+    /**
+     * Checks that alice and bob's saves give the same richText state
+     * when loaded on a new replica.
+     */
+    function checkSaves() {
+      for (const [runtime, richText] of [
+        [alice, aliceText],
+        [bob, bobText],
+      ] as [CRuntime, CRichText<Format>][]) {
+        const checker = new CRuntime({
+          debugReplicaID: ReplicaIDs.pseudoRandom(rng),
+        });
+        const checkerText = checker.registerCollab(
+          "richText",
+          (init) => new CRichText(init, { noGrowAtEnd: ["link"] })
+        );
+        new CRichTextView(checkerText, false);
+
+        checker.load(runtime.save());
+        assert.deepStrictEqual(checkerText.formatted(), richText.formatted());
+        EventView.check(checkerText);
+      }
+    }
+
     it("inserts plain", () => {
       const text = "one two three";
       aliceText.insert(0, text, {});
@@ -521,6 +545,7 @@ describe("CRichText", () => {
       const ans = [{ index: 0, values: text, format: {} }];
       assert.deepStrictEqual(aliceText.formatted(), ans);
       assert.deepStrictEqual(bobText.formatted(), ans);
+      checkSaves();
     });
 
     describe("formats once", () => {
@@ -540,6 +565,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("start", () => {
@@ -551,6 +577,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("end", () => {
@@ -562,6 +589,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("whole", () => {
@@ -572,6 +600,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
     });
 
@@ -598,6 +627,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("start", () => {
@@ -613,6 +643,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("end", () => {
@@ -627,6 +658,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("whole", () => {
@@ -641,6 +673,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       describe("link (no grow)", () => {
@@ -660,6 +693,7 @@ describe("CRichText", () => {
           ];
           assert.deepStrictEqual(aliceText.formatted(), ans);
           assert.deepStrictEqual(bobText.formatted(), ans);
+          checkSaves();
         });
 
         it("start", () => {
@@ -675,6 +709,7 @@ describe("CRichText", () => {
           ];
           assert.deepStrictEqual(aliceText.formatted(), ans);
           assert.deepStrictEqual(bobText.formatted(), ans);
+          checkSaves();
         });
 
         it("end", () => {
@@ -690,6 +725,7 @@ describe("CRichText", () => {
           ];
           assert.deepStrictEqual(aliceText.formatted(), ans);
           assert.deepStrictEqual(bobText.formatted(), ans);
+          checkSaves();
         });
 
         it("whole", () => {
@@ -705,6 +741,7 @@ describe("CRichText", () => {
           ];
           assert.deepStrictEqual(aliceText.formatted(), ans);
           assert.deepStrictEqual(bobText.formatted(), ans);
+          checkSaves();
         });
       });
     });
@@ -726,6 +763,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/bold overlapping merge", () => {
@@ -737,6 +775,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link neighboring merge", () => {
@@ -749,6 +788,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link overlapping merge", () => {
@@ -760,6 +800,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link LWW", () => {
@@ -774,6 +815,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link LWW (tiebreaker)", () => {
@@ -793,6 +835,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link overlapping LWW", () => {
@@ -807,6 +850,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link overlapping LWW (tiebreaker)", () => {
@@ -825,6 +869,7 @@ describe("CRichText", () => {
           ];
           assert.deepStrictEqual(aliceText.formatted(), ans);
           assert.deepStrictEqual(bobText.formatted(), ans);
+          checkSaves();
         } else {
           const ans = [
             { index: 0, values: "one ", format: { link: url } },
@@ -833,6 +878,7 @@ describe("CRichText", () => {
           ];
           assert.deepStrictEqual(aliceText.formatted(), ans);
           assert.deepStrictEqual(bobText.formatted(), ans);
+          checkSaves();
         }
       });
 
@@ -847,6 +893,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/link overlapping 1", () => {
@@ -860,6 +907,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/link overlapping 2", () => {
@@ -873,6 +921,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold then unbold", () => {
@@ -883,6 +932,7 @@ describe("CRichText", () => {
         const ans = [{ index: 0, values: "one two three", format: {} }];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/unbold overlapping", () => {
@@ -896,6 +946,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/unbold split", () => {
@@ -915,6 +966,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/link split", () => {
@@ -934,6 +986,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link then unlink", () => {
@@ -944,6 +997,7 @@ describe("CRichText", () => {
         const ans = [{ index: 0, values: "one two three", format: {} }];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/unlink overlapping", () => {
@@ -957,6 +1011,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/italic/bold overlapping", () => {
@@ -980,6 +1035,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("link/italic/link overlapping", () => {
@@ -1002,6 +1058,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/unbold/italic overlapping", () => {
@@ -1021,6 +1078,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
 
       it("bold/link/unlink overlapping", () => {
@@ -1040,6 +1098,7 @@ describe("CRichText", () => {
         ];
         assert.deepStrictEqual(aliceText.formatted(), ans);
         assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
       });
     });
   });
@@ -1143,7 +1202,7 @@ describe("CRichText", () => {
         describe(`${numUsers} users`, () => {
           doBeforeEach(numUsers);
 
-          it("random", () => {
+          it("messages", () => {
             // Random ops (insert, delete, format). Sequentially but split across users.
             const ans: { value: string; format: Record<string, any> }[] = [];
             for (let i = 0; i < 100; i++) {
@@ -1174,7 +1233,7 @@ describe("CRichText", () => {
         describe(`${numUsers} users`, () => {
           doBeforeEach(numUsers);
 
-          it("random", () => {
+          it("messages", () => {
             // Random ops (insert, delete, format). 5 times, each user performs
             // 5 operations independently (so they're all concurrent), then
             // we releaseAll and cross-check.
@@ -1184,6 +1243,33 @@ describe("CRichText", () => {
               }
 
               runtimeGen.releaseAll();
+
+              const formatted = texts[0].formatted();
+              for (const list of texts) {
+                assert.deepStrictEqual(list.formatted(), formatted);
+                EventView.check(list);
+              }
+            }
+          });
+
+          it("saves", () => {
+            // Random ops (insert, delete, format). 5 times, each user performs
+            // 5 operations independently (so they're all concurrent), then
+            // we merge and cross-check them.
+            for (let i = 0; i < 5; i++) {
+              for (const text of texts) {
+                for (let j = 0; j < 5; j++) randomOp(text);
+              }
+
+              const saves: Uint8Array[] = [];
+              for (const runtime of runtimes) {
+                saves.push(runtime.save());
+              }
+              for (const runtime of runtimes) {
+                for (const save of saves) {
+                  runtime.load(save);
+                }
+              }
 
               const formatted = texts[0].formatted();
               for (const list of texts) {
