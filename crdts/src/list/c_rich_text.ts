@@ -14,14 +14,6 @@ import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
 
 /**
- * Base type for [[CRichText]] format types.
- *
- * The allowed format keys and value types, represented as an
- * interface (or Record type) mapping string keys to their value types.
- * Default: `Record<string, any>`.
- */
-
-/**
  * Base type for [[CRichText]] format types, represented as an
  * interface (or Record type) mapping string keys to their value types.
  *
@@ -141,6 +133,21 @@ export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
   Format: RichTextFormatEvent<F>;
 }
 
+// TODO: algorithm description.
+
+// Behavior differences from Peritext:
+// - Does not infer *local* behavior following Peritext's rules (including
+// edge cases around paragraph starts and tombstones). Instead, you must specify
+// provide the desired format for each inserted char, then CRichText creates
+// new spans if needed to match (i.e., if the existing spans give the
+// wrong format).
+// - Deleting the second half of a non-growEnd span: Peritext gives the deletion
+// an open start, so that the remaining first half of the non-growEnd span is
+// still closed at the end (won't grow). We don't yet implement this (TODO).
+// - We only support key-value type formats where the latest value overwrites
+// all previous, not "unique" formats like comments. Instead, you should store
+// comments yourself together with their start & and end [[Position]]s.
+
 /**
  * A collaborative rich-text string, i.e., a text string with inline formatting.
  *
@@ -178,6 +185,8 @@ export interface RichTextEventsRecord<F extends RichTextFormat = RichTextFormat>
 export class CRichText<
   F extends RichTextFormat = RichTextFormat
 > extends CObject<RichTextEventsRecord<F>> {
+  // OPT: If CText becomes optimized relative to CValueList<string>,
+  // we can use that instead.
   private readonly text: CValueList<string>;
   private readonly spanLog: CSpanLog<F>;
 
@@ -848,6 +857,11 @@ interface FormatData<F extends RichTextFormat> {
    */
   readonly endClosedSpans: Map<keyof F, Span<F>>;
 }
+
+// OPT: remove from CSpanLog any spans that are no longer referenced in
+// formatData (because they were completely overridden by later spans).
+// Could potentially do this using WeakRefs/WeakValueMap, so JS tells us
+// which spans are no longer referenced.
 
 /**
  * Returns data's value for key.

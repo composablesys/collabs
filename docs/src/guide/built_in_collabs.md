@@ -13,7 +13,8 @@ For a type `X`, we use `C(X)` to denote a collaborative version of `X`. The tabl
 | Any immutable `T`                                                                        | [`CVar<T>`](../api/collabs/classes/CVar.html)                                                                      |
 | `boolean`                                                                                | [`CBoolean`](../api/collabs/classes/CBoolean.html)                                                                 |
 | `number` (for counting or adding)                                                        | [`CCounter`](../api/collabs/classes/CCounter.html)                                                                 |
-| `string` (as texts in a text box with cursors)                                           | [`CText`](../api/collabs/classes/CText.html)                                                                       |
+| `string` (as plain text in a text box with cursors)                                      | [`CText`](../api/collabs/classes/CText.html)                                                                       |
+| Rich text                                                                                | [`CRichText`](../api/collabs/classes/CRichText.html)                                                               |
 | Custom class w/ fixed properties, you may refer to [data modeling](./data_modeling.html) | [`CObject`](../api/collabs/classes/CObject.html)                                                                   |
 | `Set<T>`, `T` [immutable](#immutable-value-collections)                                  | [`CValueSet<T>`](../api/collabs/classes/CValueSet.html)                                                            |
 | `Set<T>`, `T` [mutable](#mutable-value-collections)                                      | [`CSet<C(T)>`](../api/collabs/classes/CSet.html)                                                                   |
