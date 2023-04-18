@@ -979,6 +979,21 @@ describe("CRichText", () => {
         checkSaves();
       });
 
+      it("bold/unbold same transaction", () => {
+        alice.transact(() => {
+          aliceText.format(0, 8, "bold", true);
+          aliceText.format(4, 13, "bold", undefined);
+        });
+        runtimeGen.releaseAll();
+        const ans = [
+          { index: 0, values: "one ", format: { bold: true } },
+          { index: 4, values: "two three", format: {} },
+        ];
+        assert.deepStrictEqual(aliceText.formatted(), ans);
+        assert.deepStrictEqual(bobText.formatted(), ans);
+        checkSaves();
+      });
+
       it("bold/unbold split", () => {
         // alice has the higher Lamport timestamp because she already did
         // an insert operation.
